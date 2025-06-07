@@ -146,8 +146,8 @@ export class FeedParser {
             const parsed = await this.parser.parseString(responseText);
 
             
-            let feedTitle = existingFeed?.title || parsed.title || "Unnamed Feed";
-
+            const feedTitle = existingFeed?.title || parsed.title || "Unnamed Feed";
+            const feedLink = existingFeed?.url || parsed.link;
             
             const newFeed: Feed = existingFeed || {
                 title: feedTitle,
@@ -170,10 +170,14 @@ export class FeedParser {
                 const isPodcast = parsed.itunes?.author || 
                                 item.enclosure?.type?.startsWith('audio/') ||
                                 parsed.type === 'podcast';
-
-                return {
+				const itemLink = item.link && item.link.startsWith('http')
+					? item.link
+					: feedLink
+						? new URL(item.link, feedLink).toString()
+						: item.link || '#';
+				return {
                     title: item.title || 'No title',
-                    link: item.link || '#',
+                    link: itemLink,
                     description: item.description || '',
                     pubDate: item.pubDate || new Date().toISOString(),
                     guid: item.guid || item.link || '',
