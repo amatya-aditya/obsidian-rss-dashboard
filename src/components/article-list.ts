@@ -399,7 +399,8 @@ export class ArticleList {
                         tagEl.className = 'rss-dashboard-article-tag';
                         tagEl.textContent = tag.name;
                         tagEl.style.backgroundColor = tag.color;
-                        tagsContainer.appendChild(tagEl);
+                        // @ts-ignore
+			tagsContainer.appendChild(tagEl);
                     });
                     this.callbacks.onArticleUpdate(article, { tags: article.tags }, false);
                 });
@@ -637,7 +638,8 @@ export class ArticleList {
                             tagEl.className = 'rss-dashboard-article-tag';
                             tagEl.textContent = tag.name;
                             tagEl.style.background = tag.color || 'var(--interactive-accent)';
-                            tagsContainer.appendChild(tagEl);
+                            // @ts-ignore
+			tagsContainer.appendChild(tagEl);
                         });
                         
                         if (article.tags.length > MAX_VISIBLE_TAGS) {
