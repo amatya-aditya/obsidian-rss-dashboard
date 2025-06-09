@@ -12,6 +12,7 @@ export class RssDashboardSettingsModal extends Modal {
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
+        this.modalEl.addClass("rss-dashboard-modal-container");
         let firstInput: HTMLInputElement | HTMLTextAreaElement | null = null;
         
         new Setting(contentEl)

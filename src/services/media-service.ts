@@ -29,14 +29,13 @@ export class MediaService {
             return null;
         }
 
-        
         let channelId = "";
         let username = "";
         
         try {
-            
+           
             if (/^UC[\w-]{22}$/.test(input)) {
-                channelId = input;
+                return `https://www.youtube.com/feeds/videos.xml?channel_id=${input}`;
             }
             
             else if (input.includes('youtube.com/channel/')) {
@@ -116,7 +115,9 @@ export class MediaService {
             }
             
             else if (!/\s/.test(input) && !input.includes('/')) {
-                username = input;
+                if (!/^UC[\w-]{22}$/.test(input)) {
+                    username = input;
+                }
             }
             
             

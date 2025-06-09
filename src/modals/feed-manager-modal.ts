@@ -362,6 +362,7 @@ export class FeedManagerModal extends Modal {
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
+        this.modalEl.addClass("rss-dashboard-modal-container");
         contentEl.createEl("h2", { text: "Manage Feeds" });
 
         

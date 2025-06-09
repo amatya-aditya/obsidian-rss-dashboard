@@ -693,6 +693,7 @@
 	border: none;
 	border-radius: 6px;
 	padding: 0.4rem 1.2rem;
+	margin: 0 0.4rem;
 	font-size: 1rem;
 	font-weight: 500;
 	cursor: pointer;
@@ -706,8 +707,7 @@
 	border-radius: 5px;
 	border: 1px solid var(--background-modifier-border, #ccc);
 	padding: 0.4rem 0.6rem;
-	margin-top: 0.2rem;
-	margin-bottom: 0.7rem;
+	margin-bottom: 0.9rem;
 	font-size: 1rem;
 	background: var(--background-secondary, #fafbfc);
 	color: var(--text-normal, #222);
@@ -1753,9 +1753,16 @@
     overflow: hidden;
 }
 
-.modal-container.mod-dim .modal {
-    width: auto;
-	min-width: 50vw;
+
+.rss-dashboard-modal-container {
+    width: 700px !important;
+    max-width: 95vw !important;
+}
+
+.modal-container.mod-dim .modal.rss-dashboard-modal-container,
+.modal-container.mod-dim .modal .rss-dashboard-modal-container {
+    width: 700px !important;
+    max-width: 95vw !important;
 }
 
 
@@ -1775,238 +1782,234 @@
 }
 
 .edit-feed-folder-dropdown {
-  position: absolute;
-  background: var(--background-primary, #fff);
-  border: 1px solid var(--background-modifier-border, #ccc);
-  z-index: 10000;
-  width: 100%;
-  max-height: 180px;
-  overflow-y: auto;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  border-radius: 6px;
-  margin-top: 2px;
-  padding: 2px 0;
+    position: absolute;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border, #ccc);
+    z-index: 10000;
+    max-height: 180px;
+    overflow-y: auto;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
+
 .edit-feed-folder-option {
-  padding: 8px 16px;
-  cursor: pointer;
-  color: var(--text-normal, #222);
-  font-size: 1em;
-  transition: background 0.15s, color 0.15s;
+    padding: 8px 16px;
+    cursor: pointer;
+    color: var(--text-normal, #222);
+    font-size: 1em;
+    transition: background 0.15s, color 0.15s;
 }
+
 .edit-feed-folder-option:hover, .edit-feed-folder-option:focus {
-  background: var(--background-modifier-hover, #f0f0f0);
-  color: var(--interactive-accent, #3498db);
+    background: var(--background-modifier-hover, #f0f0f0);
+    color: var(--interactive-accent, #3498db);
 }
 
 .rss-dashboard-sidebar-container, .rss-dashboard-sidebar {
-  overflow-y: auto;
-  min-height: 0;
-  max-height: 100vh;
-  display: flex;
-  flex-direction: column;
+    overflow-y: auto;
+    min-height: 0;
+    max-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
 
 
 .rss-dashboard-read-toggle.read svg {
-  color: #43a047 !important;
+    color: #43a047 !important;
 }
 
 .add-tag-modal .tag-input-row.full-inline-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  margin-bottom: 1em;
-  width: 100%;
-  flex-wrap: nowrap;
-  justify-content: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    margin-bottom: 1em;
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
 }
 
 .add-tag-modal .color-label {
-  display: flex;
-  align-items: center;
-  margin: 0;
-  padding: 0;
-  height: 36px;
+    display: inline-block;
+    align-items: center;
+    margin: 2px 6px;
+    padding: 0;
+    height: 36px;
 }
 
 .add-tag-modal .color-circle {
-  line-height: 32px;
-  width: 32px;
-  height: 32px;
-  border: none;
-  box-shadow: 0 0 2px #aaa;
-  appearance: none;
-  -webkit-appearance: none;
-  display: inline-block;
-  background: none;
-  box-sizing: border-box;
-  line-height: 32px;
-  inline-size: 32px;
-  block-size: 32px;
+    line-height: 32px;
+    width: 32px;
+    height: 32px;
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-block;
+    background: none;
+    box-sizing: border-box;
+    line-height: 32px;
+    inline-size: 32px;
+    block-size: 32px;
 }
 
 input.color-circle {
-	width: auto !important;
-	height: fit-content;
+    width: auto !important;
+    height: fit-content;
 }
 
 .add-tag-modal .color-circle::-webkit-color-swatch-wrapper {
-  padding: 0;
-  border-radius: 50%;
+    padding: 0;
+    border-radius: 50%;
 }
 
 .add-tag-modal .color-circle::-webkit-color-swatch {
-  border: none;
-  border-radius: 50%;
+    border: none;
+    border-radius: 50%;
 }
 
 .add-tag-modal .color-circle::-moz-color-swatch {
-  border: none;
-  border-radius: 50%;
+    border: none;
+    border-radius: 50%;
 }
 
 .add-tag-modal .tag-name-input {
-  flex: 0 1 180px;
-  min-width: 100px;
-  max-width: 220px;
-  margin-right: 0.5em;
-  width: auto;
-  box-sizing: border-box;
-  height: 36px;
-  line-height: 36px;
-  display: inline-block;
-  vertical-align: middle;
+    flex: 0 1 180px;
+    min-width: 100px;
+    max-width: 220px;
+    margin-right: 0.5em;
+    width: auto;
+    box-sizing: border-box;
+    height: 36px;
+    line-height: 36px;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .add-tag-modal .tag-input-row.full-inline-row button {
-  margin-left: 0.5em;
-  min-width: 70px;
-  padding: 0 16px;
-  font-size: 1em;
-  height: 36px;
-  line-height: 36px;
-  display: inline-block;
-  vertical-align: middle;
-  box-sizing: border-box;
+    margin-left: 0.5em;
+    min-width: 70px;
+    padding: 0 16px;
+    font-size: 1em;
+    height: 36px;
+    line-height: 36px;
+    display: inline-block;
+    vertical-align: middle;
+    box-sizing: border-box;
 }
 
 .add-tag-modal .tag-input-row.full-inline-row button:first-of-type {
-  margin-left: 0;
+    margin-left: 0;
 }
 
 .add-tag-modal .tag-input-row.full-inline-row input,
 .add-tag-modal .tag-input-row.full-inline-row .color-circle,
 .add-tag-modal .tag-input-row.full-inline-row .rss-dashboard-modal-buttons.inline-buttons,
 .add-tag-modal .tag-input-row.full-inline-row .rss-dashboard-modal-buttons.inline-buttons button {
-  width: auto !important;
-  min-width: unset !important;
-  max-width: unset !important;
-  box-sizing: border-box;
-  flex: 0 0 auto;
-  margin: 0 !important;
-  padding: 0 !important;
+    width: auto !important;
+    min-width: unset !important;
+    max-width: unset !important;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 /* --- List View Custom Layout --- */
 .rss-dashboard-list-row-1 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    min-width: 0;
 }
 .rss-dashboard-list-row-1 .rss-dashboard-list-title {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 1;
-  font-weight: 600;
-  font-size: 1.08em;
-  margin-right: 8px;
-  min-width: 0;
-  max-width: 100%;
-  height: auto;
-  text-wrap-mode: wrap;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+    font-weight: 600;
+    font-size: 1.08em;
+    margin-right: 8px;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    text-wrap-mode: wrap;
 }
 .rss-dashboard-list-row-1 .rss-dashboard-article-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-muted);
-  font-size: 0.97em;
-  flex-shrink: 0;
-  min-width: 0;
-  max-width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 0.97em;
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: 100%;
 }
 .rss-dashboard-list-row-1 .rss-dashboard-article-meta span {
-  margin: 0 2px;
+    margin: 0 2px;
 }
 .rss-dashboard-list-row-1 .rss-dashboard-article-meta span:first-child,
 .rss-dashboard-list-row-1 .rss-dashboard-article-meta span:last-child {
-  margin: 0 8px;
-  color: var(--background-modifier-border);
+    margin: 0 8px;
+    color: var(--background-modifier-border);
 }
 .rss-dashboard-list-row-2 {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  margin-top: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    margin-top: 2px;
 }
 .rss-dashboard-list-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 .rss-dashboard-list-row-2 .rss-dashboard-article-tags {
-  display: flex;
-  flex-wrap: wrap;
-  margin: 8px 0;
-  gap: 5px;
-  margin-bottom: 5px
+    display: flex;
+    flex-wrap: wrap;
+    margin: 8px 0;
+    gap: 5px;
+    margin-bottom: 5px
 }
 
 .rss-dashboard-list-row-2 .rss-dashboard-article-tag {
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.8em;
-  color: var(--text-on-accent);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    color: var(--text-on-accent);
 }
 
 .rss-dashboard-list-row-2 .rss-dashboard-action-toolbar {
-	display: flex;
-	gap: 8px;
-	align-items: center;
-	height: auto;
-	min-height: auto;
-	max-height: max-content;
-	width: fit-content;
-	margin-top: 0;
-	padding: 0 12px;
-	border-top: none;
-	background: var(--background-secondary);
-	box-sizing: border-box;
-	margin-left: initial;
-	padding-top: 0;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    height: auto;
+    min-height: auto;
+    max-height: max-content;
+    width: fit-content;
+    margin-top: 0;
+    padding: 0 12px;
+    border-top: none;
+    background: var(--background-secondary);
+    box-sizing: border-box;
+    margin-left: initial;
+    padding-top: 0;
 
 }
 
 @media (max-width: 600px) {
-  .rss-dashboard-list-row-1 {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-  }
-  .rss-dashboard-list-title {
-    margin-bottom: 2px;
-    max-width: 100%;
-  }
-  .rss-dashboard-list-row-1 .rss-dashboard-article-meta {
-    margin-left: 0;
-    max-width: 100%;
-  }
+    .rss-dashboard-list-row-1 {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+    .rss-dashboard-list-title {
+        margin-bottom: 2px;
+        max-width: 100%;
+    }
+    .rss-dashboard-list-row-1 .rss-dashboard-article-meta {
+        margin-left: 0;
+        max-width: 100%;
+    }
 }
 
 .rss-dashboard-toggle-container {
@@ -2039,6 +2042,23 @@ input.color-circle {
 }
 
 .sidebar-collapsed .rss-dashboard-sidebar-toggle {
-	left: 0;
+    left: 0;
   }
 
+/* Modal button container (was inline style) */
+.rss-dashboard-modal-buttons.inline-buttons {
+    display: flex;
+    gap: 0.5em;
+    margin: 0;
+    align-items: center;
+}
+
+/* Full width input (was inline style) */
+.full-width-input {
+    width: 100%;
+}
+
+/* Margin bottom for input (was inline style) */
+.input-margin-bottom {
+    margin-bottom: 15px;
+}

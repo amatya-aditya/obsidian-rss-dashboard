@@ -394,14 +394,15 @@ export class ArticleList {
                     } else {
                         tagsContainer.innerHTML = '';
                     }
-                    article.tags.forEach(tag => {
-                        const tagEl = document.createElement('div');
-                        tagEl.className = 'rss-dashboard-article-tag';
-                        tagEl.textContent = tag.name;
-                        tagEl.style.backgroundColor = tag.color;
-                        // @ts-ignore
-			tagsContainer.appendChild(tagEl);
-                    });
+                    if (article.tags) {
+                        article.tags.forEach(tag => {
+                            const tagEl = document.createElement('div');
+                            tagEl.className = 'rss-dashboard-article-tag';
+                            tagEl.textContent = tag.name;
+                            tagEl.style.backgroundColor = tag.color;
+                            tagsContainer.appendChild(tagEl);
+                        });
+                    }
                     this.callbacks.onArticleUpdate(article, { tags: article.tags }, false);
                 });
             });
@@ -519,7 +520,7 @@ export class ArticleList {
                 });
                 const tagsToShow = article.tags.slice(0, MAX_VISIBLE_TAGS);
                 tagsToShow.forEach(tag => {
-                    const tagEl = tagsContainer.createDiv({
+                    const tagEl = tagsContainer!.createDiv({
                         cls: "rss-dashboard-article-tag",
                         text: tag.name,
                     });
@@ -632,22 +633,23 @@ export class ArticleList {
                             tagsContainer.innerHTML = '';
                         }
                         
-                        const tagsToShow = article.tags.slice(0, MAX_VISIBLE_TAGS);
-                        tagsToShow.forEach(tag => {
-                            const tagEl = document.createElement('div');
-                            tagEl.className = 'rss-dashboard-article-tag';
-                            tagEl.textContent = tag.name;
-                            tagEl.style.background = tag.color || 'var(--interactive-accent)';
-                            // @ts-ignore
-			tagsContainer.appendChild(tagEl);
-                        });
-                        
-                        if (article.tags.length > MAX_VISIBLE_TAGS) {
-                            const overflowTag = document.createElement('div');
-                            overflowTag.className = 'rss-dashboard-tag-overflow';
-                            overflowTag.textContent = `+${article.tags.length - MAX_VISIBLE_TAGS}`;
-                            overflowTag.title = article.tags.slice(MAX_VISIBLE_TAGS).map(t => t.name).join(', ');
-                            tagsContainer.appendChild(overflowTag);
+                        if (article.tags) {
+                            const tagsToShow = article.tags.slice(0, MAX_VISIBLE_TAGS);
+                            tagsToShow.forEach(tag => {
+                                const tagEl = document.createElement('div');
+                                tagEl.className = 'rss-dashboard-article-tag';
+                                tagEl.textContent = tag.name;
+                                tagEl.style.background = tag.color || 'var(--interactive-accent)';
+                                tagsContainer.appendChild(tagEl);
+                            });
+                            
+                            if (article.tags.length > MAX_VISIBLE_TAGS) {
+                                const overflowTag = document.createElement('div');
+                                overflowTag.className = 'rss-dashboard-tag-overflow';
+                                overflowTag.textContent = `+${article.tags.length - MAX_VISIBLE_TAGS}`;
+                                overflowTag.title = article.tags.slice(MAX_VISIBLE_TAGS).map(t => t.name).join(', ');
+                                tagsContainer.appendChild(overflowTag);
+                            }
                         }
                     }
                     

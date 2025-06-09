@@ -145,7 +145,7 @@ export class ReaderView extends ItemView {
      */
     private showCustomSaveModal(item: FeedItem): void {
         const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal";
+        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
         
         const modalContent = document.createElement("div");
         modalContent.className = "rss-dashboard-modal-content";
