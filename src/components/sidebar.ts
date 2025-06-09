@@ -1586,47 +1586,57 @@ export class Sidebar {
         addButton.addEventListener("click", async () => {
             const channel = channelInput.value.trim();
             let feedUrl = "";
+            let channelId = "";
+            let username = "";
             
             if (!channel) {
                 new Notice("Please enter a YouTube channel URL or ID");
                 return;
             }
             
-            let channelId = "";
-            let channelName = "";
-            let username = "";
-            let inputUrl = channel;
-            if (!inputUrl.startsWith("http")) {
-                if (inputUrl.startsWith("@")) {
-                    inputUrl = `https://www.youtube.com/${inputUrl}`;
-            } else {
-                    inputUrl = `https://www.youtube.com/user/${inputUrl}`;
+            if (/^UC[\w-]{22}$/.test(channel)) {
+                channelId = channel;
+                feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel}`;
+                const result = await this.extractChannelIdAndNameFromYouTubePage(`https://www.youtube.com/channel/${channel}`);
+                if (result.channelName && !titleInput.value) {
+                    titleInput.value = result.channelName;
+                } else if (!titleInput.value) {
+                    titleInput.value = `YouTube: ${channel}`;
                 }
-            }
-            
-            const result = await this.extractChannelIdAndNameFromYouTubePage(inputUrl);
-            channelId = result.channelId || "";
-            channelName = result.channelName || "";
-            if (channelId) {
-                feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+            } else {
+                let channelName = "";
+                let inputUrl = channel;
+                if (!inputUrl.startsWith("http")) {
+                    if (inputUrl.startsWith("@")) {
+                        inputUrl = `https://www.youtube.com/${inputUrl}`;
+                    } else {
+                        inputUrl = `https://www.youtube.com/user/${inputUrl}`;
+                    }
+                }
                 
-                if (titleInput && !titleInput.value) {
-                    titleInput.value = channelName;
+                const result = await this.extractChannelIdAndNameFromYouTubePage(inputUrl);
+                channelId = result.channelId || "";
+                channelName = result.channelName || "";
+                if (channelId) {
+                    feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+                    
+                    if (titleInput && !titleInput.value) {
+                        titleInput.value = channelName;
+                    }
+                } else {
+                    if (channel.includes("youtube.com/user/")) {
+                        const match = channel.match(/youtube\.com\/user\/([^\/\?]+)/);
+                        username = match ? match[1] : "";
+                    } else if (!channel.startsWith("http") && !channel.startsWith("@")) {
+                        username = channel;
+                    }
+                    if (username) {
+                        feedUrl = `https://www.youtube.com/feeds/videos.xml?user=${username}`;
+                    } else {
+                        new Notice("Could not resolve channel ID or username. Please check the URL.");
+                        return;
+                    }
                 }
-            } else {
-                
-                if (channel.includes("youtube.com/user/")) {
-                    const match = channel.match(/youtube\.com\/user\/([^\/\?]+)/);
-                    username = match ? match[1] : "";
-                } else if (!channel.startsWith("http") && !channel.startsWith("@")) {
-                    username = channel;
-                }
-                if (username) {
-                feedUrl = `https://www.youtube.com/feeds/videos.xml?user=${username}`;
-            } else {
-                    new Notice("Could not resolve channel ID or username. Please check the URL.");
-                return;
-            }
             }
             
             const title = titleInput.value.trim() || `YouTube: ${channelId || username}`;
