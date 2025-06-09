@@ -520,7 +520,7 @@ export class ArticleList {
                 });
                 const tagsToShow = article.tags.slice(0, MAX_VISIBLE_TAGS);
                 tagsToShow.forEach(tag => {
-                    const tagEl = tagsContainer.createDiv({
+                    const tagEl = tagsContainer!.createDiv({
                         cls: "rss-dashboard-article-tag",
                         text: tag.name,
                     });
