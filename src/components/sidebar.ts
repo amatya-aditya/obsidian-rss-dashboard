@@ -796,13 +796,14 @@ export class Sidebar {
         document.querySelectorAll('.rss-dashboard-modal').forEach(el => el.remove());
         setTimeout(() => {
             const modal = document.createElement("div");
-            modal.className = "rss-dashboard-modal";
+            modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
 
             const modalContent = document.createElement("div");
             modalContent.className = "rss-dashboard-modal-content";
 
             const modalTitle = document.createElement("h2");
             modalTitle.textContent = "Add New Tag";
+            modalContent.appendChild(modalTitle);
 
             
             const tagInputRow = document.createElement("div");
@@ -829,13 +830,10 @@ export class Sidebar {
             
             const buttonContainer = document.createElement("div");
             buttonContainer.className = "rss-dashboard-modal-buttons inline-buttons";
-            buttonContainer.style.display = "flex";
-            buttonContainer.style.gap = "0.5em";
-            buttonContainer.style.margin = "0";
-            buttonContainer.style.alignItems = "center";
 
             const cancelButton = document.createElement("button");
             cancelButton.textContent = "Cancel";
+            cancelButton.className = "rss-dashboard-primary-button";
             cancelButton.addEventListener("click", () => {
                 document.body.removeChild(modal);
             });
@@ -881,7 +879,6 @@ export class Sidebar {
             tagInputRow.appendChild(cancelButton);
             tagInputRow.appendChild(saveButton);
 
-            modalContent.appendChild(modalTitle);
             modalContent.appendChild(tagInputRow);
             modalContent.appendChild(buttonContainer);
             modal.appendChild(modalContent);
@@ -899,13 +896,14 @@ export class Sidebar {
         document.querySelectorAll('.rss-dashboard-modal').forEach(el => el.remove());
         setTimeout(() => {
             const modal = document.createElement("div");
-            modal.className = "rss-dashboard-modal";
+            modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
 
             const modalContent = document.createElement("div");
             modalContent.className = "rss-dashboard-modal-content";
 
             const modalTitle = document.createElement("h2");
             modalTitle.textContent = "Edit Tag";
+            modalContent.appendChild(modalTitle);
 
             
             const tagInputRow = document.createElement("div");
@@ -992,7 +990,6 @@ export class Sidebar {
             tagInputRow.appendChild(cancelButton);
             tagInputRow.appendChild(saveButton);
 
-            modalContent.appendChild(modalTitle);
             modalContent.appendChild(tagInputRow);
             modalContent.appendChild(buttonContainer);
             modal.appendChild(modalContent);
@@ -1094,13 +1091,14 @@ export class Sidebar {
     
     private showAddFeedModal(defaultFolder: string = "Uncategorized"): void {
         const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal";
+        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
 
         const modalContent = document.createElement("div");
         modalContent.className = "rss-dashboard-modal-content";
 
         const modalTitle = document.createElement("h2");
         modalTitle.textContent = "Add Feed";
+        modalContent.appendChild(modalTitle);
 
         let url = "";
         let title = "";
@@ -1214,16 +1212,8 @@ export class Sidebar {
                     if (!folderDropdown) {
                         folderDropdown = document.createElement("div");
                         folderDropdown.className = "edit-feed-folder-dropdown";
-                        folderDropdown.style.position = "absolute";
-                        folderDropdown.style.background = "var(--background-primary)";
-                        folderDropdown.style.border = "1px solid var(--background-modifier-border, #ccc)";
-                        folderDropdown.style.zIndex = "10000";
-                        folderDropdown.style.width = folderInput.offsetWidth + "px";
-                        folderDropdown.style.maxHeight = "180px";
-                        folderDropdown.style.overflowY = "auto";
-                        folderDropdown.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
-                        
                         const rect = folderInput.getBoundingClientRect();
+                        folderDropdown.style.width = folderInput.offsetWidth + "px";
                         folderDropdown.style.left = rect.left + window.scrollX + "px";
                         folderDropdown.style.top = (rect.bottom + window.scrollY) + "px";
                         document.body.appendChild(folderDropdown);
@@ -1269,7 +1259,6 @@ export class Sidebar {
             document.body.removeChild(modal);
         };
 
-        modalContent.appendChild(modalTitle);
         modalContent.appendChild(buttonContainer);
         modal.appendChild(modalContent);
         document.body.appendChild(modal);
@@ -1286,7 +1275,7 @@ export class Sidebar {
     
     public showEditFeedModal(feed: Feed): void {
         const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal";
+        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
 
         const modalContent = document.createElement("div");
         modalContent.className = "rss-dashboard-modal-content";
@@ -1539,13 +1528,14 @@ export class Sidebar {
     
     private showAddYouTubeFeedModal(): void {
         const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal";
+        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
 
         const modalContent = document.createElement("div");
         modalContent.className = "rss-dashboard-modal-content";
 
         const modalTitle = document.createElement("h2");
         modalTitle.textContent = "Add YouTube Channel";
+        modalContent.appendChild(modalTitle);
 
         const infoText = document.createElement("div");
         infoText.className = "rss-dashboard-modal-info";
@@ -1651,7 +1641,6 @@ export class Sidebar {
         buttonContainer.appendChild(cancelButton);
         buttonContainer.appendChild(addButton);
 
-        modalContent.appendChild(modalTitle);
         modalContent.appendChild(infoText);
         modalContent.appendChild(channelLabel);
         modalContent.appendChild(channelInput);
@@ -1727,7 +1716,7 @@ export class Sidebar {
     
     private showFolderNameModal(options: {title: string, defaultValue?: string, onSubmit: (name: string) => void}) {
         const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal";
+        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
         const modalContent = document.createElement("div");
         modalContent.className = "rss-dashboard-modal-content";
         const modalTitle = document.createElement("h2");
@@ -1736,8 +1725,7 @@ export class Sidebar {
         nameInput.type = "text";
         nameInput.value = options.defaultValue || "";
         nameInput.placeholder = "Enter folder name";
-        nameInput.style.marginBottom = "15px";
-        nameInput.style.width = "100%";
+        nameInput.classList.add("full-width-input", "input-margin-bottom");
         nameInput.autocomplete = "off";
         nameInput.spellcheck = false;
         nameInput.addEventListener("focus", () => nameInput.select());
@@ -1821,7 +1809,7 @@ export class Sidebar {
         document.querySelectorAll('.rss-dashboard-modal').forEach(el => el.remove());
         setTimeout(() => {
             const modal = document.createElement("div");
-            modal.className = "rss-dashboard-modal";
+            modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
             const modalContent = document.createElement("div");
             modalContent.className = "rss-dashboard-modal-content";
             const modalTitle = document.createElement("h2");
