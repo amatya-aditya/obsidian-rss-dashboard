@@ -40,8 +40,15 @@
   </a>
 </p>
 
+## 📣 Community - Want to influence the next release?    [![Join Discord to shape this plugin (1381654622829154424)](https://img.shields.io/badge/My-Discord-%235865F2.svg)](https://discord.com/users/1381654622829154424)
+Join our Discord server: it’s where we:
+- 🌐 Help build our manually curated Discover page (Collection of hand-pick RSS feeds, grouped by category (philosophy, engineering, physics etc.) for one-click subscribe.)
+- 💬 Discuss ideas, questions, and best practices in real time
+- 📢 Announce releases and roadmap updates first
+- 👀 Share sneak peeks of upcoming features (get early feedback!)
 
-# 📌 Key Features:
+👉 Click here to join - https://discord.gg/NCHuzyhj - See you inside!
+
 
 
 ## Manual installation
@@ -71,14 +78,18 @@ If you encounter any issues or have suggestions, Create an issue on GitHub.
 
 # Roadmap 
 
-- [ ] Implementation of minimal Podcast Player
-- [ ] Highlights and Comments
-- [ ] Enhanced Filter and Group
-- [ ] More Dashboard Views
+- [ ] Discover Page with Category
+- [ ] Nice Minimalistic Podcast Player
+- [ ] Podcast & Youtube Discover Page
+- [ ] Folder Sorting
+- [ ] Filters and Groups
 - [ ] Keyboard Shortcuts
+- [ ] NoteStamp Note Taking
 - [ ] Analytics and Insights
+- [ ] More Feed Views
+- [ ] Newsletter
 - [ ] Youtube Playlist Integration
-	- [ ] Timestamp Notes from Podcast and Youtube
+- [ ] YouTube Transcripts
 
 # Other Plugins by me
 
