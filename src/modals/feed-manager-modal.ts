@@ -125,12 +125,34 @@ export class EditFeedModal extends Modal {
                 folderInput = text.inputEl;
                 folderInput.autocomplete = "off";
                 folderInput.spellcheck = false;
-                folderInput.addEventListener("focus", () => folderInput.select());
-                folderInput.addEventListener("keydown", (e) => {
-                    if (e.key === "Enter") {
-                        saveBtn.click();
-                    } else if (e.key === "Escape") {
-                        this.close();
+                folderInput.addEventListener("focus", () => {
+                    if (!dropdown) {
+                        dropdown = contentEl.createDiv({ cls: "edit-feed-folder-dropdown" });
+                        dropdown.style.width = folderInput.offsetWidth + "px";
+                        dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
+                        dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
+                        document.body.appendChild(dropdown);
+                    }
+                    if (dropdown) {
+                        dropdown.removeClass("hidden");
+                        dropdown.addClass("visible");
+                        while (dropdown.firstChild) {
+                            dropdown.removeChild(dropdown.firstChild);
+                        }
+                        allFolders.forEach(f => {
+                            if (dropdown) {
+                                const opt = dropdown.createDiv({ text: f, cls: "edit-feed-folder-option" });
+                                opt.onclick = () => {
+                                    folder = f;
+                                    text.setValue(f);
+                                    if (dropdown) {
+                                        dropdown.addClass("hidden");
+                                        dropdown.removeClass("visible");
+                                    }
+                                    text.inputEl.blur();
+                                };
+                            }
+                        });
                     }
                 });
                 text.onChange(v => {
@@ -148,43 +170,16 @@ export class EditFeedModal extends Modal {
                                         folder = f;
                                         text.setValue(f);
                                         if (dropdown) {
-                                            dropdown.removeClass("hidden");
-                                            dropdown.addClass("visible");
+                                            dropdown.addClass("hidden");
+                                            dropdown.removeClass("visible");
                                         }
+                                        text.inputEl.blur();
                                     };
                                 }
                             });
                         }
                     }
                 });
-                text.inputEl.onfocus = () => {
-                    if (!dropdown) {
-                        dropdown = contentEl.createDiv({ cls: "edit-feed-folder-dropdown" });
-                        dropdown.style.width = folderInput.offsetWidth + "px";
-                        dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
-                        dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
-                        document.body.appendChild(dropdown);
-                    }
-                    
-                    if (dropdown) {
-                        while (dropdown.firstChild) {
-                            dropdown.removeChild(dropdown.firstChild);
-                        }
-                        allFolders.forEach(f => {
-                            if (dropdown) {
-                                const opt = dropdown.createDiv({ text: f, cls: "edit-feed-folder-option" });
-                                opt.onclick = () => {
-                                    folder = f;
-                                    text.setValue(f);
-                                    if (dropdown) {
-                                        dropdown.removeClass("hidden");
-                                        dropdown.addClass("visible");
-                                    }
-                                };
-                            }
-                        });
-                    }
-                };
                 text.inputEl.onblur = () => {
                     setTimeout(() => {
                         if (dropdown) dropdown.addClass("hidden");
@@ -196,7 +191,7 @@ export class EditFeedModal extends Modal {
         contentEl.createEl("h3", { text: "Per Feed Control Options", cls: "per-feed-controls-header" });
         
         let autoDeleteDuration = this.feed.autoDeleteDuration || 0;
-        let maxItemsLimit = this.feed.maxItemsLimit || 0;
+        let maxItemsLimit = this.feed.maxItemsLimit || this.plugin.settings.maxItems;
         let scanInterval = this.feed.scanInterval || 0;
 
         
@@ -369,10 +364,25 @@ export class EditFeedModal extends Modal {
             this.feed.url = url;
             this.feed.folder = folder;
             this.feed.autoDeleteDuration = autoDeleteDuration;
-            this.feed.maxItemsLimit = maxItemsLimit || 50;
+            
+            
+            const oldMaxItemsLimit = this.feed.maxItemsLimit || this.plugin.settings.maxItems;
+            const newMaxItemsLimit = maxItemsLimit || this.plugin.settings.maxItems;
+            
+            this.feed.maxItemsLimit = newMaxItemsLimit;
             this.feed.scanInterval = scanInterval;
+            
+            
+            if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
+                
+                this.feed.items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+                this.feed.items = this.feed.items.slice(0, newMaxItemsLimit);
+                new Notice(`Feed updated and trimmed to ${newMaxItemsLimit} articles`);
+            } else {
+                new Notice("Feed updated");
+            }
+            
             await this.plugin.saveSettings();
-            new Notice("Feed updated");
             this.close();
             this.onSave();
         };
@@ -393,13 +403,15 @@ export class AddFeedModal extends Modal {
 	onAdd: (title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) => Promise<void>;
 	onSave: () => void;
 	defaultFolder: string;
+	plugin?: RssDashboardPlugin;
 
-	constructor(app: App, folders: Folder[], onAdd: (title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) => Promise<void>, onSave: () => void, defaultFolder = "") {
+	constructor(app: App, folders: Folder[], onAdd: (title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) => Promise<void>, onSave: () => void, defaultFolder = "", plugin?: RssDashboardPlugin) {
 		super(app);
 		this.folders = folders;
 		this.onAdd = onAdd;
 		this.onSave = onSave;
 		this.defaultFolder = defaultFolder;
+		this.plugin = plugin || undefined;
 	}
     onOpen() {
         const { contentEl } = this;
@@ -513,9 +525,10 @@ export class AddFeedModal extends Modal {
                                         folder = f;
                                         text.setValue(f);
                                         if (dropdown) {
-                                            dropdown.removeClass("hidden");
-                                            dropdown.addClass("visible");
+                                            dropdown.addClass("hidden");
+                                            dropdown.removeClass("visible");
                                         }
+                                        text.inputEl.blur();
                                     };
                                 }
                             });
@@ -524,15 +537,7 @@ export class AddFeedModal extends Modal {
                 });
                 folderInput.autocomplete = "off";
                 folderInput.spellcheck = false;
-                folderInput.addEventListener("focus", () => folderInput.select());
-                folderInput.addEventListener("keydown", (e) => {
-                    if (e.key === "Enter") {
-                        saveBtn.click();
-                    } else if (e.key === "Escape") {
-                        this.close();
-                    }
-                });
-                text.inputEl.onfocus = () => {
+                folderInput.addEventListener("focus", () => {
                     if (!dropdown) {
                         dropdown = contentEl.createDiv({ cls: "edit-feed-folder-dropdown" });
                         dropdown.style.width = folderInput.offsetWidth + "px";
@@ -540,8 +545,9 @@ export class AddFeedModal extends Modal {
                         dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
                         document.body.appendChild(dropdown);
                     }
-                    
                     if (dropdown) {
+                        dropdown.removeClass("hidden");
+                        dropdown.addClass("visible");
                         while (dropdown.firstChild) {
                             dropdown.removeChild(dropdown.firstChild);
                         }
@@ -552,14 +558,15 @@ export class AddFeedModal extends Modal {
                                     folder = f;
                                     text.setValue(f);
                                     if (dropdown) {
-                                        dropdown.removeClass("hidden");
-                                        dropdown.addClass("visible");
+                                        dropdown.addClass("hidden");
+                                        dropdown.removeClass("visible");
                                     }
+                                    text.inputEl.blur();
                                 };
                             }
                         });
                     }
-                };
+                });
                 text.inputEl.onblur = () => {
                     setTimeout(() => {
                         if (dropdown) dropdown.addClass("hidden");
@@ -571,7 +578,7 @@ export class AddFeedModal extends Modal {
         contentEl.createEl("h3", { text: "Per Feed Control Options", cls: "per-feed-controls-header" });
         
         let autoDeleteDuration = 0;
-        let maxItemsLimit = 0;
+        let maxItemsLimit = this.plugin?.settings?.maxItems || 100;
         let scanInterval = 0;
 
         
@@ -647,7 +654,9 @@ export class AddFeedModal extends Modal {
                 .addOption("500", "500 items")
                 .addOption("1000", "1000 items")
                 .addOption("custom", "Custom...")
-                .setValue("0")
+                .setValue(maxItemsLimit === 0 ? "0" : 
+                         [10, 25, 50, 100, 200, 500, 1000].includes(maxItemsLimit) ? 
+                         maxItemsLimit.toString() : "custom")
                 .onChange(value => {
                     if (value === "custom") {
                         
@@ -658,6 +667,7 @@ export class AddFeedModal extends Modal {
                                 cls: "custom-input"
                             });
                             maxItemsCustomInput.min = "1";
+                            maxItemsCustomInput.value = maxItemsLimit > 0 ? maxItemsLimit.toString() : "";
                             maxItemsCustomInput.addEventListener("change", (evt: Event) => {
                                 const target = evt.target as HTMLInputElement;
                                 maxItemsLimit = parseInt(target.value) || 0;
@@ -711,6 +721,7 @@ export class AddFeedModal extends Modal {
                                 cls: "custom-input"
                             });
                             scanIntervalCustomInput.min = "1";
+                            scanIntervalCustomInput.value = scanInterval > 0 ? scanInterval.toString() : "";
                             scanIntervalCustomInput.addEventListener("change", (evt: Event) => {
                                 const target = evt.target as HTMLInputElement;
                                 scanInterval = parseInt(target.value) || 0;
@@ -742,7 +753,7 @@ export class AddFeedModal extends Modal {
                 new Notice("Title cannot be empty");
                 return;
             }
-            this.onAdd(title, url, folder, autoDeleteDuration, maxItemsLimit || 50, scanInterval);
+            this.onAdd(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval);
             this.onSave();
             this.close();
         };
@@ -779,7 +790,9 @@ export class FeedManagerModal extends Modal {
 				this.app, 
 				this.plugin.settings.folders,
 				(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval) => this.plugin.addFeed(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval),
-				() => this.onOpen()
+				() => this.onOpen(),
+				"",
+				this.plugin
 			).open();
         };
 

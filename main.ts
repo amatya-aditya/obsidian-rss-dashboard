@@ -158,6 +158,14 @@ export default class RssDashboardPlugin extends Plugin {
             });
     
             this.addCommand({
+                id: "apply-feed-limits",
+                name: "Apply Feed Limits to All Feeds",
+                callback: () => {
+                    this.applyFeedLimitsToAllFeeds();
+                },
+            });
+    
+            this.addCommand({
                 id: "toggle-rss-sidebar",
                 name: "Toggle RSS Dashboard Sidebar",
                 callback: async () => {
@@ -350,6 +358,55 @@ export default class RssDashboardPlugin extends Plugin {
         } catch (error) {
             console.error("Error refreshing", error);
             new Notice(`Error refreshing  ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * Apply feed limits (maxItemsLimit and autoDeleteDuration) to all feeds
+     * This is useful when users want to apply their current settings to existing feeds
+     */
+    async applyFeedLimitsToAllFeeds() {
+        try {
+            let updatedCount = 0;
+            
+            for (const feed of this.settings.feeds) {
+                const originalCount = feed.items.length;
+                
+                
+                if (feed.maxItemsLimit && feed.maxItemsLimit > 0 && feed.items.length > feed.maxItemsLimit) {
+                    
+                    feed.items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+                    feed.items = feed.items.slice(0, feed.maxItemsLimit);
+                }
+
+                
+                if (feed.autoDeleteDuration && feed.autoDeleteDuration > 0) {
+                    const cutoffDate = new Date();
+                    cutoffDate.setDate(cutoffDate.getDate() - feed.autoDeleteDuration);
+                    const beforeCount = feed.items.length;
+                    feed.items = feed.items.filter(item => 
+                        new Date(item.pubDate).getTime() > cutoffDate.getTime()
+                    );
+                }
+                
+                if (feed.items.length !== originalCount) {
+                    updatedCount++;
+                }
+            }
+            
+            await this.saveSettings();
+            if (this.view) {
+                await this.view.refresh();
+            }
+            
+            if (updatedCount > 0) {
+                new Notice(`Applied limits to ${updatedCount} feeds`);
+            } else {
+                new Notice("No feeds needed limit adjustments");
+            }
+        } catch (error) {
+            console.error("Error applying feed limits:", error);
+            new Notice(`Error applying feed limits: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 
@@ -686,7 +743,7 @@ export default class RssDashboardPlugin extends Plugin {
                 items: [],
                 lastUpdated: Date.now(),
                 autoDeleteDuration: autoDeleteDuration || 0,
-                maxItemsLimit: maxItemsLimit || 50,
+                maxItemsLimit: maxItemsLimit || this.settings.maxItems,
                 scanInterval: scanInterval || 0,
                 mediaType: "article"
             };

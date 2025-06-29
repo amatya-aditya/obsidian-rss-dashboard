@@ -5,6 +5,16 @@ import { EditFeedModal } from "../modals/feed-manager-modal";
 
 export class RssDashboardSettingTab extends PluginSettingTab {
     plugin: RssDashboardPlugin;
+    private currentTab: string = "General";
+    private tabNames = [
+        "General",
+        "Display",
+        "Media",
+        "Article Saving",
+        "Import/Export",
+        "Tags",
+        "Support"
+    ];
 
     constructor(app: App, plugin: RssDashboardPlugin) {
         super(app, plugin);
@@ -16,56 +26,46 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         containerEl.empty();
 
 
-        
-        const dataSection = containerEl.createDiv();
-        dataSection.createEl("h3", { text: "Backup & Restore" });
-        const exportBtn = dataSection.createEl("button", { text: "Export data.json" });
-        exportBtn.onclick = async () => {
-            const data = await this.plugin.saveData ? this.plugin.settings : null;
-            if (data) {
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "rss-dashboard-data.json";
-                a.click();
-                URL.revokeObjectURL(url);
-            }
-        };
-        const importBtn = dataSection.createEl("button", { text: "Import data.json" });
-        importBtn.onclick = async () => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = ".json,application/json";
-            input.onchange = async (e) => {
-                const file = input.files?.[0];
-                if (!file) return;
-                const text = await file.text();
-                try {
-                    const data = JSON.parse(text);
-                    this.plugin.settings = Object.assign({}, this.plugin.settings, data);
-                    await this.plugin.saveSettings();
-                    if (this.plugin.view) this.plugin.view.render();
-                    new Notice("Data imported successfully!");
-                } catch (err) {
-                    new Notice("Invalid data.json file");
-                }
+        const tabBar = containerEl.createDiv("rss-dashboard-settings-tab-bar");
+        this.tabNames.forEach(tab => {
+            const tabBtn = tabBar.createEl("button", {
+                text: tab,
+                cls: "rss-dashboard-settings-tab-btn" + (this.currentTab === tab ? " active" : "")
+            });
+            tabBtn.onclick = () => {
+                this.currentTab = tab;
+                this.display();
             };
-            input.click();
-        };
-        
-        this.createGeneralSettings(containerEl);
-        this.createDisplaySettings(containerEl);
-        this.createMediaSettings(containerEl);
-        this.createArticleSavingSettings(containerEl);
-        this.createImportExportSettings(containerEl);
-        this.createTagsSettings(containerEl);
-    }
+        });
 
     
+        const tabContent = containerEl.createDiv("rss-dashboard-settings-tab-content");
+        switch (this.currentTab) {
+            case "General":
+                this.createGeneralSettings(tabContent);
+                break;
+            case "Display":
+                this.createDisplaySettings(tabContent);
+                break;
+            case "Media":
+                this.createMediaSettings(tabContent);
+                break;
+            case "Article Saving":
+                this.createArticleSavingSettings(tabContent);
+                break;
+            case "Import/Export":
+                this.createImportExportTab(tabContent);
+                break;
+            case "Tags":
+                this.createTagsSettings(tabContent);
+                break;
+            case "Support":
+                this.createSupportTab(tabContent);
+                break;
+        }
+    }
 
     private createGeneralSettings(containerEl: HTMLElement): void {
-        containerEl.createEl("h3", { text: "General Settings" });
 
         new Setting(containerEl)
             .setName("View Style")
@@ -229,7 +229,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     }
 
     private createDisplaySettings(containerEl: HTMLElement): void {
-        containerEl.createEl("h3", { text: "Display Settings" });
 
         new Setting(containerEl)
             .setName("Show Cover Images")
@@ -257,13 +256,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         }
                     })
             );
-
-        
-        containerEl.createEl("h4", { text: "Card View Settings" });
     }
 
     private createMediaSettings(containerEl: HTMLElement): void {
-        containerEl.createEl("h3", { text: "Media Settings" });
         
         new Setting(containerEl)
             .setName("Auto-detect Media Type")
@@ -333,7 +328,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     }
 
     private createArticleSavingSettings(containerEl: HTMLElement): void {
-        containerEl.createEl("h3", { text: "Article Saving Settings" });
         
         new Setting(containerEl)
             .setName("Save path")
@@ -414,36 +408,73 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         });
     }
 
-    private createImportExportSettings(containerEl: HTMLElement): void {
-        containerEl.createEl("h3", { text: "Import/Export" });
-
-        const opmlContainer = containerEl.createDiv({
-            cls: "rss-dashboard-opml-container",
+    private createImportExportTab(containerEl: HTMLElement): void {
+       
+        const dataSection = containerEl.createDiv();
+        dataSection.createEl("h4", { text: "Backup & Restore (data.json)" });
+        
+        const dataBtnRow = dataSection.createDiv({ cls: "rss-dashboard-import-export-btn-row" });
+        const exportBtn = dataBtnRow.createEl("button", { 
+            text: "Export data.json",
+            cls: "rss-dashboard-import-export-btn"
         });
+        exportBtn.onclick = async () => {
+            const data = await this.plugin.saveData ? this.plugin.settings : null;
+            if (data) {
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "rss-dashboard-data.json";
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        };
+        
+        const importBtn = dataBtnRow.createEl("button", { 
+            text: "Import data.json",
+            cls: "rss-dashboard-import-export-btn"
+        });
+        importBtn.onclick = async () => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".json,application/json";
+            input.onchange = async (e) => {
+                const file = input.files?.[0];
+                if (!file) return;
+                const text = await file.text();
+                try {
+                    const data = JSON.parse(text);
+                    this.plugin.settings = Object.assign({}, this.plugin.settings, data);
+                    await this.plugin.saveSettings();
+                    if (this.plugin.view) this.plugin.view.render();
+                    new Notice("Data imported successfully!");
+                } catch (err) {
+                    new Notice("Invalid data.json file");
+                }
+            };
+            input.click();
+        };
 
-        new Setting(opmlContainer)
-            .setName("Import OPML")
-            .setDesc("Import RSS feeds from an OPML file")
-            .addButton((button) =>
-                button.setButtonText("Import OPML").onClick(() => {
-                    this.plugin.importOpml();
-                })
-            );
-
-        new Setting(opmlContainer)
-            .setName("Export OPML")
-            .setDesc("Export your RSS feeds to an OPML file")
-            .addButton((button) =>
-                button.setButtonText("Export OPML").onClick(() => {
-                    this.plugin.exportOpml();
-                })
-            );
+       
+        const opmlSection = containerEl.createDiv();
+        opmlSection.createEl("h4", { text: "Import/Export OPML" });
+        
+        const opmlBtnRow = opmlSection.createDiv({ cls: "rss-dashboard-import-export-btn-row" });
+        const importOpmlBtn = opmlBtnRow.createEl("button", { 
+            text: "Import OPML",
+            cls: "rss-dashboard-import-export-btn"
+        });
+        importOpmlBtn.onclick = () => this.plugin.importOpml();
+        
+        const exportOpmlBtn = opmlBtnRow.createEl("button", { 
+            text: "Export OPML",
+            cls: "rss-dashboard-import-export-btn"
+        });
+        exportOpmlBtn.onclick = () => this.plugin.exportOpml();
     }
 
-    
-
     private createTagsSettings(containerEl: HTMLElement): void {
-        containerEl.createEl("h3", { text: "Tags Management" });
 
         const tagsContainer = containerEl.createDiv({
             cls: "rss-dashboard-tags-container",
@@ -508,7 +539,35 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             })
         );
     }
+
+    private createSupportTab(containerEl: HTMLElement): void {
+        
+        const supportMessage = containerEl.createEl("div", { 
+            cls: "rss-dashboard-support-message",
+            text: "❤️ If you enjoy using this plugin, consider supporting development!" 
+        });
+        
+        const btnRow = containerEl.createDiv({ cls: "rss-dashboard-support-btn-row" });
+        
+       
+        const bmcBtn = btnRow.createEl("a", { 
+            text: "🍕 Buy me a pizza", 
+            href: "https://www.buymeacoffee.com/amatya_aditya", 
+            cls: "rss-dashboard-support-btn rss-dashboard-bmc-btn" 
+        });
+        bmcBtn.target = "_blank";
+        
+     
+        const kofiBtn = btnRow.createEl("a", { 
+            text: "💙 Ko-fi", 
+            href: "https://ko-fi.com/Y8Y41FV4WI", 
+            cls: "rss-dashboard-support-btn rss-dashboard-kofi-btn" 
+        });
+        kofiBtn.target = "_blank";
+        
+    }
 }
+
 
 
 function showConfirmModal(message: string, onConfirm: () => void) {

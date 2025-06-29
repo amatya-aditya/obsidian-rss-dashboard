@@ -4,7 +4,7 @@ import { MediaService } from "./media-service";
 
 async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
     try {
-        console.log(`Attempting to discover feed URL from: ${baseUrl}`);
+        
         
         const response = await requestUrl({
             url: baseUrl,
@@ -19,7 +19,7 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
         
         
         if (baseUrl.includes('feeds.feedburner.com')) {
-            console.log('Detected FeedBurner URL, trying FeedBurner-specific patterns...');
+            
             
             
             const feedNameMatch = baseUrl.match(/feeds\.feedburner\.com\/([^\/\?]+)/);
@@ -40,7 +40,7 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
                 
                 for (const feedUrl of feedBurnerUrls) {
                     try {
-                        console.log(`Trying FeedBurner URL: ${feedUrl}`);
+                        
                         const feedResponse = await requestUrl({
                             url: feedUrl,
                             method: "GET",
@@ -54,11 +54,11 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
                             (feedResponse.text.includes('<rss') || 
                              feedResponse.text.includes('<feed') || 
                              feedResponse.text.includes('<channel'))) {
-                            console.log(`Successfully discovered FeedBurner feed: ${feedUrl}`);
+                            
                             return feedUrl;
                         }
                     } catch (error) {
-                        console.log(`FeedBurner URL failed: ${feedUrl}`, error);
+                        
                         continue;
                     }
                 }
@@ -82,7 +82,7 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
                         feedUrl = `${baseUrl}/${feedUrl}`;
                     }
                     
-                    console.log(`Discovered feed URL: ${feedUrl}`);
+                    
                     return feedUrl;
                 }
             }
@@ -110,7 +110,7 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
                             feedUrl = `${baseUrl}/${feedUrl}`;
                         }
                         if (feedUrl === baseUrl) continue;
-                        console.log(`Discovered alternative feed URL: ${feedUrl}`);
+                        
                         return feedUrl;
                     }
                 }
@@ -125,6 +125,12 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
 export async function fetchFeedXml(url: string): Promise<string> {
     try {
         
+        
+        
+        if (url.includes('ieeexplore.ieee.org')) {
+            
+        }
+        
         let cleanInputUrl = url
             .replace(/\/+/g, '/')  
             .replace(/:\/\/[^\/]+\/\/+/, (match) => {
@@ -134,6 +140,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
             });
         
         const secureUrl = cleanInputUrl.replace(/^http:\/\//i, 'https://');
+        
 
         const response = await requestUrl({
             url: secureUrl,
@@ -144,9 +151,15 @@ export async function fetchFeedXml(url: string): Promise<string> {
             }
         });
         
+        
+        
+        
         if (!response.text) {
             throw new Error('Empty response from feed');
         }
+
+        
+        
 
         
         if (response.text.includes('<?php') || response.text.includes('WordPress') || response.text.includes('wp-blog-header.php')) {
@@ -229,7 +242,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
             
             for (const altUrl of alternativeUrls) {
                 try {
-                    console.log(`Trying alternative URL: ${altUrl}`);
+                    
                     const altResponse = await requestUrl({
                         url: altUrl,
                         method: "GET",
@@ -240,21 +253,21 @@ export async function fetchFeedXml(url: string): Promise<string> {
                     });
                     
                     if (altResponse.text && !altResponse.text.includes('<?php') && !altResponse.text.includes('WordPress')) {
-                        console.log(`Successfully fetched RSS from: ${altUrl}`);
+                        
                         return altResponse.text;
                     }
                 } catch (altError) {
-                    console.log(`Alternative URL failed: ${altUrl}`, altError);
+                    
                     continue;
                 }
             }
             
             
-            console.log('All alternative URLs failed, attempting to discover feed URL from main page...');
+            
             const discoveredUrl = await discoverFeedUrl(baseUrl);
             if (discoveredUrl) {
                 try {
-                    console.log(`Trying discovered feed URL: ${discoveredUrl}`);
+                    
                     const discoveredResponse = await requestUrl({
                         url: discoveredUrl,
                         method: "GET",
@@ -265,11 +278,11 @@ export async function fetchFeedXml(url: string): Promise<string> {
                     });
                     
                     if (discoveredResponse.text && !discoveredResponse.text.includes('<?php') && !discoveredResponse.text.includes('WordPress')) {
-                        console.log(`Successfully fetched RSS from discovered URL: ${discoveredUrl}`);
+                        
                         return discoveredResponse.text;
                     }
                 } catch (discoveredError) {
-                    console.log(`Discovered URL failed: ${discoveredUrl}`, discoveredError);
+                    
                 }
             }
             
@@ -339,6 +352,16 @@ interface ParsedItem {
         episode?: string;
     };
     image?: { url: string };
+    // IEEE-specific fields
+    ieee?: {
+        pubYear?: string;
+        volume?: string;
+        issue?: string;
+        startPage?: string;
+        endPage?: string;
+        fileSize?: string;
+        authors?: string;
+    };
 }
 
 export class CustomXMLParser {
@@ -529,13 +552,39 @@ export class CustomXMLParser {
         }
     }
 
+    private transformSageUrl(url: string): string {
+        
+        if (url.includes('journals.sagepub.com')) {
+            
+            if (url.includes('/doi/abs/')) {
+                const transformedUrl = url.replace('/doi/abs/', '/doi/full/');
+                console.log(`Transformed SAGE URL: ${url} -> ${transformedUrl}`);
+                return transformedUrl;
+            }
+            
+            
+            if (url.includes('/doi/') && !url.includes('/doi/full/')) {
+                
+                const transformedUrl = url.replace('/doi/', '/doi/full/');
+                console.log(`Transformed SAGE DOI URL: ${url} -> ${transformedUrl}`);
+                return transformedUrl;
+            }
+        }
+        return url;
+    }
+
     private parseRSS(doc: Document): ParsedFeed {
         const channel = doc.querySelector('channel');
         if (!channel) throw new Error('Invalid RSS feed: no channel element found');
 
         const title = this.getTextContent(channel, 'title');
+        
+        
         const description = this.getTextContent(channel, 'description');
         const link = this.getTextContent(channel, 'link');
+        
+        
+        
         
         
         const author = this.getTextContentWithMultipleSelectors(channel, [
@@ -561,13 +610,42 @@ export class CustomXMLParser {
 
         itemElements.forEach(item => {
             const title = this.getTextContent(item, 'title');
-            const link = this.getTextContent(item, 'link');
-            const description = this.getTextContent(item, 'description');
+            let link = this.getTextContent(item, 'link');
+            
+            
+            link = this.transformSageUrl(link);
+            
+            let description = this.getTextContent(item, 'description');
             const pubDate = this.getTextContent(item, 'pubDate');
             const guid = this.getTextContent(item, 'guid') || link;
             
             
-            const author = this.getTextContentWithMultipleSelectors(item, [
+            if (description === 'null' || description === '') {
+                description = '';
+            }
+            
+            
+            const pubYear = this.getTextContent(item, 'pubYear');
+            const volume = this.getTextContent(item, 'volume');
+            const issue = this.getTextContent(item, 'issue');
+            const startPage = this.getTextContent(item, 'startPage');
+            const endPage = this.getTextContent(item, 'endPage');
+            const fileSize = this.getTextContent(item, 'fileSize');
+            const authors = this.getTextContent(item, 'authors');
+            
+            
+            const ieee = (pubYear || volume || issue || startPage || endPage || fileSize || authors) ? {
+                pubYear,
+                volume,
+                issue,
+                startPage,
+                endPage,
+                fileSize,
+                authors
+            } : undefined;
+            
+            
+            let author = authors || this.getTextContentWithMultipleSelectors(item, [
                 'author',
                 'dc\\:creator',
                 'dc:creator',
@@ -627,7 +705,8 @@ export class CustomXMLParser {
                 enclosure,
                 itunes,
                 image: itemImage || (mediaImage ? { url: mediaImage } : undefined) || (fallbackImage ? { url: fallbackImage } : undefined),
-                category: this.getTextContent(item, 'category')
+                category: this.getTextContent(item, 'category'),
+                ieee
             });
         });
 
@@ -682,7 +761,10 @@ export class CustomXMLParser {
                         this.getTextContent(item, 'prism:url');
             
             const title = this.getTextContent(item, 'title') || this.getTextContent(item, 'dc:title');
-            const link = this.getTextContent(item, 'link') || this.getTextContent(item, 'prism:url');
+            let link = this.getTextContent(item, 'link') || this.getTextContent(item, 'prism:url');
+            
+            
+            link = this.transformSageUrl(link);
             
             
             const description = this.getTextContent(item, 'description') || 
@@ -755,7 +837,11 @@ export class CustomXMLParser {
 
         entryElements.forEach(entry => {
             const title = this.getTextContent(entry, 'title');
-            const link = this.getAttribute(entry, 'link[rel="alternate"]', 'href') || this.getAttribute(entry, 'link', 'href');
+            let link = this.getAttribute(entry, 'link[rel="alternate"]', 'href') || this.getAttribute(entry, 'link', 'href');
+            
+            
+            link = this.transformSageUrl(link);
+            
             const description = this.getTextContent(entry, 'summary');
             const pubDate = this.getTextContent(entry, 'published') || this.getTextContent(entry, 'updated');
             const guid = this.getTextContent(entry, 'id') || link;
@@ -799,17 +885,23 @@ export class CustomXMLParser {
                     link: data.home_page_url,
                     author: data.authors?.[0]?.name,
                     image: data.icon ? { url: data.icon } : undefined,
-                    items: data.items?.map((item: any) => ({
-                        title: item.title || '',
-                        link: item.url || '',
-                        description: item.summary || '',
-                        pubDate: item.date_published || new Date().toISOString(),
-                        guid: item.id || item.url || '',
-                        author: item.authors?.[0]?.name,
-                        content: item.content_html || item.content_text || '',
-                        image: item.image ? { url: item.image } : undefined,
-                        category: item.category || item.tags?.[0] || ''
-                    })) || [],
+                    items: data.items?.map((item: any) => {
+                        let itemUrl = item.url || '';
+                        
+                        itemUrl = this.transformSageUrl(itemUrl);
+                        
+                        return {
+                            title: item.title || '',
+                            link: itemUrl,
+                            description: item.summary || '',
+                            pubDate: item.date_published || new Date().toISOString(),
+                            guid: item.id || itemUrl || '',
+                            author: item.authors?.[0]?.name,
+                            content: item.content_html || item.content_text || '',
+                            image: item.image ? { url: item.image } : undefined,
+                            category: item.category || item.tags?.[0] || ''
+                        };
+                    }) || [],
                     type: 'json',
                     feedItunesImage: "",
                     feedImageUrl: ""
@@ -825,9 +917,9 @@ export class CustomXMLParser {
     private fallbackParse(xmlString: string): ParsedFeed {
         
         try {
-            console.log('Starting fallback parsing...');
-            console.log('XML length:', xmlString.length);
-            console.log('XML preview (first 1000 chars):', xmlString.substring(0, 1000));
+            
+            
+            
             
             
             let cleanedXml = xmlString;
@@ -850,8 +942,8 @@ export class CustomXMLParser {
                 cleanedXml = cleanedXml.substring(0, rssEndIndex);
             }
             
-            console.log('Cleaned XML length:', cleanedXml.length);
-            console.log('Cleaned XML preview:', cleanedXml.substring(0, 500));
+            
+            
             
             
             const channelTitleMatch = cleanedXml.match(/<channel[^>]*>[\s\S]*?<title[^>]*>([^<]+)<\/title>/i);
@@ -879,7 +971,7 @@ export class CustomXMLParser {
             
             
             if (itemMatches.length === 0) {
-                console.log('No items found with standard regex, trying alternative approach...');
+                
                 const altItemRegex = /<item[^>]*>([\s\S]*?)(?=<item|<\/channel>|<\/rss>)/gi;
                 while ((itemMatch = altItemRegex.exec(cleanedXml)) !== null) {
                     itemMatches.push(itemMatch);
@@ -888,47 +980,50 @@ export class CustomXMLParser {
             
             
             if (itemMatches.length === 0) {
-                console.log('Still no items found, trying most aggressive approach...');
+                
                 const aggressiveItemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
                 while ((itemMatch = aggressiveItemRegex.exec(xmlString)) !== null) {
                     itemMatches.push(itemMatch);
                 }
             }
             
-            console.log(`Found ${itemMatches.length} items using regex approaches`);
+            
             
             itemMatches.forEach((itemMatch, index) => {
                 const itemXml = itemMatch[1];
-                console.log(`Processing item ${index + 1}...`);
                 
+                
+                let itemAuthor = '';
+                let itemPubDate = '';
+                let itemGuid = '';
                 
                 const itemTitleMatch = itemXml.match(/<title[^>]*>([^<]+)<\/title>/i);
                 if (!itemTitleMatch) {
-                    console.log(`Item ${index + 1}: No title found, skipping`);
+                    
                     return;
                 }
                 
                 const itemTitle = this.sanitizeCDATA(itemTitleMatch[1].trim());
-                console.log(`Item ${index + 1} title:`, itemTitle);
                 
                 
                 const itemLinkMatch = itemXml.match(/<link[^>]*>([^<]+)<\/link>/i);
-                const itemLink = itemLinkMatch ? itemLinkMatch[1].trim() : '#';
+                let itemLink = itemLinkMatch ? itemLinkMatch[1].trim() : '#';
                 
+                
+                itemLink = this.transformSageUrl(itemLink);
                 
                 const itemDescMatch = itemXml.match(/<description[^>]*>([\s\S]*?)<\/description>/i);
-                const itemDescription = itemDescMatch ? this.sanitizeCDATA(itemDescMatch[1].trim()) : '';
-                
+                let itemDescription = itemDescMatch ? this.sanitizeCDATA(itemDescMatch[1].trim()) : '';
+                if (itemDescription === 'null' || itemDescription === '') {
+                    itemDescription = '';
+                }
                 
                 const itemPubDateMatch = itemXml.match(/<pubDate[^>]*>([^<]+)<\/pubDate>/i);
-                const itemPubDate = itemPubDateMatch ? itemPubDateMatch[1].trim() : new Date().toISOString();
-                
+                itemPubDate = itemPubDateMatch ? itemPubDateMatch[1].trim() : new Date().toISOString();
                 
                 const itemGuidMatch = itemXml.match(/<guid[^>]*>([^<]+)<\/guid>/i);
-                const itemGuid = itemGuidMatch ? itemGuidMatch[1].trim() : itemLink;
+                itemGuid = itemGuidMatch ? itemGuidMatch[1].trim() : itemLink;
                 
-                
-                let itemAuthor = '';
                 const authorMatches = [
                     itemXml.match(/<author[^>]*>([^<]+)<\/author>/i),
                     itemXml.match(/<dc:creator[^>]*>([^<]+)<\/dc:creator>/i),
@@ -936,7 +1031,6 @@ export class CustomXMLParser {
                     itemXml.match(/<dc:creator[^>]*><!\[CDATA\[([^\]]*)\]\]><\/dc:creator>/i),
                     itemXml.match(/<dc\\:creator[^>]*><!\[CDATA\[([^\]]*)\]\]><\/dc\\:creator>/i)
                 ];
-                
                 for (const match of authorMatches) {
                     if (match) {
                         itemAuthor = this.sanitizeCDATA(match[1].trim());
@@ -944,10 +1038,35 @@ export class CustomXMLParser {
                     }
                 }
                 
-                
                 const itemCategoryMatch = itemXml.match(/<category[^>]*>([^<]+)<\/category>/i);
                 const itemCategory = itemCategoryMatch ? this.sanitizeCDATA(itemCategoryMatch[1].trim()) : '';
                 
+                const pubYearMatch = itemXml.match(/<pubYear[^>]*>([^<]+)<\/pubYear>/i);
+                const pubYear = pubYearMatch ? this.sanitizeCDATA(pubYearMatch[1].trim()) : '';
+                const volumeMatch = itemXml.match(/<volume[^>]*>([^<]+)<\/volume>/i);
+                const volume = volumeMatch ? this.sanitizeCDATA(volumeMatch[1].trim()) : '';
+                const issueMatch = itemXml.match(/<issue[^>]*>([^<]+)<\/issue>/i);
+                const issue = issueMatch ? this.sanitizeCDATA(issueMatch[1].trim()) : '';
+                const startPageMatch = itemXml.match(/<startPage[^>]*>([^<]+)<\/startPage>/i);
+                const startPage = startPageMatch ? this.sanitizeCDATA(startPageMatch[1].trim()) : '';
+                const endPageMatch = itemXml.match(/<endPage[^>]*>([^<]+)<\/endPage>/i);
+                const endPage = endPageMatch ? this.sanitizeCDATA(endPageMatch[1].trim()) : '';
+                const fileSizeMatch = itemXml.match(/<fileSize[^>]*>([^<]+)<\/fileSize>/i);
+                const fileSize = fileSizeMatch ? this.sanitizeCDATA(fileSizeMatch[1].trim()) : '';
+                const authorsMatch = itemXml.match(/<authors[^>]*>([^<]+)<\/authors>/i);
+                const authors = authorsMatch ? this.sanitizeCDATA(authorsMatch[1].trim()) : '';
+                const ieee = (pubYear || volume || issue || startPage || endPage || fileSize || authors) ? {
+                    pubYear,
+                    volume,
+                    issue,
+                    startPage,
+                    endPage,
+                    fileSize,
+                    authors
+                } : undefined;
+                if (authors && !itemAuthor) {
+                    itemAuthor = authors;
+                }
                 items.push({
                     title: itemTitle,
                     link: itemLink,
@@ -956,11 +1075,12 @@ export class CustomXMLParser {
                     guid: itemGuid,
                     author: itemAuthor || undefined,
                     content: itemDescription,
-                    category: itemCategory
+                    category: itemCategory,
+                    ieee
                 });
             });
             
-            console.log(`Fallback parsing completed. Found ${items.length} items.`);
+            
             
             return {
                 title,
@@ -980,7 +1100,7 @@ export class CustomXMLParser {
     }
 
     private extractRssContent(xmlString: string): string {
-        console.log('Extracting RSS content from corrupted XML...');
+        
         
         
         let rssContent = '';
@@ -989,18 +1109,18 @@ export class CustomXMLParser {
         const rssMatch = xmlString.match(/<rss[^>]*>[\s\S]*?<\/rss>/i);
         if (rssMatch) {
             rssContent = rssMatch[0];
-            console.log('Found RSS content using <rss> tag approach');
+            
         } else {
             
             const channelMatch = xmlString.match(/<channel[^>]*>[\s\S]*?<\/channel>/i);
             if (channelMatch) {
                 rssContent = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0">${channelMatch[0]}</rss>`;
-                console.log('Found RSS content using <channel> tag approach');
+                
             } else {
                 
                 const itemMatches = xmlString.match(/<item[^>]*>[\s\S]*?<\/item>/gi);
                 if (itemMatches && itemMatches.length > 0) {
-                    console.log(`Found ${itemMatches.length} items, reconstructing RSS feed`);
+                    
                     
                     
                     const titleMatch = xmlString.match(/<title[^>]*>([^<]+)<\/title>/i);
@@ -1025,11 +1145,11 @@ export class CustomXMLParser {
         }
         
         if (rssContent) {
-            console.log('Successfully extracted RSS content');
+            
             return rssContent;
         }
         
-        console.log('Failed to extract RSS content, returning original');
+        
         return xmlString;
     }
 
@@ -1105,7 +1225,7 @@ export class CustomXMLParser {
                         const extractedDoc = this.parseXML(extractedXml);
                         const extractedParserError = extractedDoc.querySelector('parsererror');
                         if (!extractedParserError && this.validateFeedStructure(extractedDoc)) {
-                            console.log('Successfully parsed extracted RSS content');
+                            
                             
                             
                             const rootElement = extractedDoc.documentElement;
@@ -1422,13 +1542,11 @@ export class FeedParser {
         }
         
         try {
+           
             const responseText = await fetchFeedXml(url);
             const parsed = await this.parser.parseString(responseText);
-
-            
             let feedTitle = existingFeed?.title || parsed.title || "Unnamed Feed";
-
-            
+          
             const newFeed: Feed = existingFeed || {
                 title: feedTitle,
                 url: url,
@@ -1491,7 +1609,8 @@ export class FeedParser {
                             url: this.convertToAbsoluteUrl(item.enclosure.url, url),
                             type: item.enclosure.type,
                             length: item.enclosure.length
-                        } : existingItem.enclosure
+                        } : existingItem.enclosure,
+                        ieee: item.ieee || existingItem.ieee
                     };
                     updatedItems.push(updatedItem);
                 } else {
@@ -1551,7 +1670,8 @@ export class FeedParser {
                             url: this.convertToAbsoluteUrl(item.enclosure.url, url),
                             type: item.enclosure.type,
                             length: item.enclosure.length
-                        } : undefined
+                        } : undefined,
+                        ieee: item.ieee
                     };
                     newItems.push(newItem);
                 }
@@ -1582,6 +1702,9 @@ export class FeedParser {
 
             newFeed.items = allItems;
             newFeed.lastUpdated = Date.now();
+
+            
+            this.applyFeedLimits(newFeed);
 
             
             const feedLogoCandidates = [
@@ -1635,10 +1758,36 @@ export class FeedParser {
         }
     }
     
+    /**
+     * Apply maxItemsLimit and autoDeleteDuration to a feed's items
+     */
+    private applyFeedLimits(feed: Feed): void {
+        
+        if (feed.maxItemsLimit && feed.maxItemsLimit > 0 && feed.items.length > feed.maxItemsLimit) {
+            
+            feed.items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+            feed.items = feed.items.slice(0, feed.maxItemsLimit);
+        }
+
+        
+        if (feed.autoDeleteDuration && feed.autoDeleteDuration > 0) {
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - feed.autoDeleteDuration);
+            feed.items = feed.items.filter(item => 
+                new Date(item.pubDate).getTime() > cutoffDate.getTime()
+            );
+        }
+    }
+    
     
     async refreshFeed(feed: Feed): Promise<Feed> {
         try {
-            return await this.parseFeed(feed.url, feed);
+            const refreshedFeed = await this.parseFeed(feed.url, feed);
+            
+            
+            this.applyFeedLimits(refreshedFeed);
+            
+            return refreshedFeed;
         } catch (error) {
             console.error(`Error refreshing feed ${feed.title}:`, error);
             return feed;
@@ -1764,7 +1913,8 @@ export class FeedParserService {
                     url: item.enclosure.url,
                     type: item.enclosure.type,
                     length: item.enclosure.length
-                } : undefined
+                } : undefined,
+                ieee: item.ieee
             }));
 
             return {

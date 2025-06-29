@@ -546,10 +546,48 @@ export class ReaderView extends ItemView {
     
     async fetchFullArticleContent(url: string): Promise<string> {
         try {
-            const response = await requestUrl({ url });
+            
+            const headers: Record<string, string> = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "DNT": "1",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1"
+            };
+
+            const response = await requestUrl({ 
+                url,
+                headers
+            });
+            
+            
+            if (!response.text) {
+                console.warn("Empty response from URL:", url);
+                return "";
+            }
             
             const parser = new DOMParser();
             const doc = parser.parseFromString(response.text, "text/html");
+            
+            
+            const errorIndicators = [
+                'access denied',
+                'forbidden',
+                'not found',
+                'page not found',
+                '404',
+                '403',
+                '401'
+            ];
+            
+            const pageText = doc.body.textContent?.toLowerCase() || '';
+            if (errorIndicators.some(indicator => pageText.includes(indicator))) {
+                console.warn("Error page detected for URL:", url);
+                return "";
+            }
+            
             const reader = new Readability(doc);
             const article = reader.parse();
             const content = (article?.content as string) || "";

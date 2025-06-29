@@ -6923,6 +6923,24 @@ input.color-circle {
 
 .custom-input.visible {
 	display: block;
+	margin-top: 8px;
+	width: 100%;
+	padding: 6px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 14px;
+}
+
+.custom-input.visible:focus {
+	outline: none;
+	border-color: var(--color-accent);
+	box-shadow: 0 0 0 2px var(--color-accent-alpha);
+}
+
+.custom-input.visible:hover {
+	border-color: var(--background-modifier-border-hover);
 }
 
 
@@ -7088,4 +7106,200 @@ color: white;
     display: flex;
     gap: 12px;
     align-items: center;
+}
+
+.rss-dashboard-settings-tab-bar {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: 16px;
+  }
+  .rss-dashboard-settings-tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 15px;
+    padding: 6px 16px 6px 8px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-bottom 0.2s;
+  }
+  .rss-dashboard-settings-tab-btn.active {
+    color: var(--text-normal);
+    border-bottom: 2px solid var(--color-accent);
+    font-weight: bold;
+  }
+  .rss-dashboard-settings-tab-btn:hover {
+    color: var(--color-accent);
+  }
+  .rss-dashboard-settings-tab-content {
+    margin-top: 12px;
+  }
+  .rss-dashboard-support-btn-row {
+    display: flex;
+    gap: 12px;
+    margin: 16px 0 8px 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .rss-dashboard-support-btn {
+    display: inline-block;
+    background: var(--color-accent);
+    color: var(--background-primary);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  .rss-dashboard-support-btn:hover {
+    background: var(--color-accent-2);
+    color: var(--text-on-accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    border-color: var(--color-accent);
+  }
+  .rss-dashboard-support-message {
+    font-size: 16px;
+    color: var(--text-normal);
+    margin-bottom: 8px;
+    text-align: center;
+    padding: 12px;
+    background: var(--background-secondary);
+    border-radius: 8px;
+ 
+  }
+  .rss-dashboard-support-readme {
+    margin-top: 16px;
+    text-align: center;
+  }
+  .rss-dashboard-support-readme a {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+  }
+  .rss-dashboard-support-readme a:hover {
+    background: var(--background-secondary);
+    color: var(--color-accent-2);
+  }
+
+.rss-dashboard-support-btn-row {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0 8px 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.rss-dashboard-support-btn {
+  display: inline-block;
+  background: var(--color-accent);
+  color: var(--background-primary);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.rss-dashboard-support-btn:hover {
+  background: var(--color-accent-2);
+  color: var(--text-on-accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  border-color: var(--color-accent);
+}
+
+
+.rss-dashboard-support-readme {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.rss-dashboard-support-readme a {
+  color: var(--color-accent);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.rss-dashboard-support-readme a:hover {
+  background: var(--background-secondary);
+  color: var(--color-accent-2);
+}
+
+/* Import/Export Button Styling */
+.rss-dashboard-import-export-btn-row {
+  display: flex;
+  gap: 12px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.rss-dashboard-import-export-btn {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  text-decoration: none;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  border: 1px solid var(--interactive-accent);
+  cursor: pointer;
+}
+
+.rss-dashboard-import-export-btn:hover {
+  background: var(--interactive-accent-hover);
+  border-color: var(--interactive-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Settings Tab Styling */
+.rss-dashboard-settings-tab-bar {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.rss-dashboard-settings-tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-bottom 0.2s;
+  border-radius: 4px 4px 0 0;
+}
+
+.rss-dashboard-settings-tab-btn.active {
+  color: var(--text-normal);
+  border-bottom: 2px solid var(--color-accent);
+  font-weight: 600;
+  background: var(--background-secondary);
+}
+
+.rss-dashboard-settings-tab-btn:hover {
+  color: var(--color-accent);
+  background: var(--background-secondary);
+}
+
+.rss-dashboard-settings-tab-content {
+  margin-top: 12px;
 }

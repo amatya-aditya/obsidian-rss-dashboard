@@ -430,7 +430,7 @@ export class Sidebar {
             folderHeader.classList.remove("drag-over");
         });
 
-        folderHeader.addEventListener("drop", (e) => {
+        folderHeader.addEventListener("drop", async (e) => {
             e.preventDefault();
             folderHeader.classList.remove("drag-over");
             const dragEvent = e as DragEvent;
@@ -446,6 +446,9 @@ export class Sidebar {
                         feed.folder = fullPath;
                         const newFolder = this.findFolderByPath(fullPath);
                         if (newFolder) newFolder.modifiedAt = Date.now();
+                        
+                        await this.plugin.saveSettings();
+                        
                         this.render();
                     }
                 }
@@ -1553,7 +1556,8 @@ export class Sidebar {
 			this.settings.folders,
 			async (title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval) => await this.callbacks.onAddFeed(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval),
 			() => this.render(),
-			defaultFolder
+			defaultFolder,
+			this.plugin
 		).open();
 	}
 

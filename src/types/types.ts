@@ -46,6 +46,16 @@ export interface FeedItem {
         season?: string;
         episode?: string;
     };
+    
+    ieee?: {
+        pubYear?: string;
+        volume?: string;
+        issue?: string;
+        startPage?: string;
+        endPage?: string;
+        fileSize?: string;
+        authors?: string;
+    };
 }
 
 export interface Feed {

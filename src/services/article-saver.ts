@@ -229,31 +229,137 @@ guid: "{{guid}}"
     
     async fetchFullArticleContent(url: string): Promise<string> {
         try {
-            const response = await requestUrl({ url });
             
+            const headers: Record<string, string> = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "DNT": "1",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1"
+            };
+
+            let response = await requestUrl({ 
+                url,
+                headers
+            });
+            
+            
+            if (!response.text) {
+                console.warn("Empty response from URL:", url);
+                
+                
+                if (url.includes('journals.sagepub.com') && url.includes('/doi/full/')) {
+                    const abstractUrl = url.replace('/doi/full/', '/doi/abs/');
+                    console.log(`Trying abstract URL as fallback: ${abstractUrl}`);
+                    
+                    try {
+                        response = await requestUrl({ 
+                            url: abstractUrl,
+                            headers
+                        });
+                        
+                        if (!response.text) {
+                            console.warn("Empty response from abstract URL as well:", abstractUrl);
+                            return "";
+                        }
+                    } catch (fallbackError) {
+                        console.error("Error fetching abstract URL:", fallbackError);
+                        return "";
+                    }
+                } else {
+                    return "";
+                }
+            }
             
             const parser = new DOMParser();
             const doc = parser.parseFromString(response.text, "text/html");
             
             
-            if (typeof Readability !== 'undefined') {
-                    const reader = new Readability(doc);
-                    const article = reader.parse();
-                const content = (article?.content as string) || "";
-                return this.convertRelativeUrlsInContent(content, url);
-            } else {
+            const errorIndicators = [
+                'access denied',
+                'forbidden',
+                'not found',
+                'page not found',
+                '404',
+                '403',
+                '401'
+            ];
+            
+            const pageText = doc.body.textContent?.toLowerCase() || '';
+            if (errorIndicators.some(indicator => pageText.includes(indicator))) {
+                console.warn("Error page detected for URL:", url);
                 
-                const mainContent = doc.querySelector('main, article, .content, .post-content, .entry-content');
-            if (mainContent) {
-                    return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(mainContent), url);
-                } else {
+                
+                if (url.includes('journals.sagepub.com') && url.includes('/doi/full/')) {
+                    const abstractUrl = url.replace('/doi/full/', '/doi/abs/');
+                    console.log(`Trying abstract URL as fallback due to error page: ${abstractUrl}`);
                     
-                    return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(doc.body), url);
+                    try {
+                        const fallbackResponse = await requestUrl({ 
+                            url: abstractUrl,
+                            headers
+                        });
+                        
+                        if (fallbackResponse.text) {
+                            const fallbackDoc = parser.parseFromString(fallbackResponse.text, "text/html");
+                            const fallbackPageText = fallbackDoc.body.textContent?.toLowerCase() || '';
+                            
+                            if (!errorIndicators.some(indicator => fallbackPageText.includes(indicator))) {
+                                console.log("Successfully fetched content from abstract URL");
+                                return this.extractContentFromDocument(fallbackDoc, abstractUrl);
+                            }
+                        }
+                    } catch (fallbackError) {
+                        console.error("Error fetching abstract URL as fallback:", fallbackError);
+                    }
                 }
+                
+                return "";
             }
+            
+            return this.extractContentFromDocument(doc, url);
         } catch (error) {
             console.error("Error fetching full article content:", error);
             return "";
+        }
+    }
+    
+    private extractContentFromDocument(doc: Document, url: string): string {
+        if (typeof Readability !== 'undefined') {
+            const reader = new Readability(doc);
+            const article = reader.parse();
+            const content = (article?.content as string) || "";
+            return this.convertRelativeUrlsInContent(content, url);
+        } else {
+            
+            const mainContent = doc.querySelector('main, article, .content, .post-content, .entry-content, .article-content, .full-text');
+            if (mainContent) {
+                return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(mainContent), url);
+            } else {
+                
+                const contentSelectors = [
+                    '.article-body',
+                    '.article-text',
+                    '.fulltext',
+                    '.full-text',
+                    '.content-body',
+                    '.main-content',
+                    'section[role="main"]',
+                    '.article'
+                ];
+                
+                for (const selector of contentSelectors) {
+                    const element = doc.querySelector(selector);
+                    if (element) {
+                        return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(element), url);
+                    }
+                }
+                
+                
+                return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(doc.body), url);
+            }
         }
     }
     
