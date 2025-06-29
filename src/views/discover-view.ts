@@ -22,7 +22,7 @@ export class DiscoverView extends ItemView {
     private categoryMap: any = {};
     private isLoading = true;
     private error: string | null = null;
-    private activeSidebarSection: 'types' | 'categories' | 'tags' = 'categories';
+    private activeSidebarSection: 'types' | 'categories' | 'tags' = 'tags';
     private currentPage = 1;
     private pageSize = 20;
     private resizeObserver: ResizeObserver | null = null;
