@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://github.com/amatya-aditya/obsidian-rss-dashboard" target="_blank">
-    <img src="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/assets/logo.png" alt="RSS Dashboard Logo" width="30%" />
+    <img src="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/assets/logo.png" alt="RSS Dashboard Logo" width="10%" />
   </a>
 </div>
 
@@ -59,7 +59,7 @@
 
 ## 📣 Community 
 
-<h1> Want to influence the next release? - Join Discord to shape this plugin - https://discord.gg/NCHuzyhj</h1> 
+<h3> Want to influence the next release? - Join Discord to shape this plugin - [Discord community](https://discord.gg/NCHuzyhj)</h3> 
 
 Join our Discord server: it's where we:
 - 🌐 Help build our manually curated Discover page (Collection of hand-pick RSS feeds, grouped by category (philosophy, engineering, physics etc.) for one-click subscribe.)
