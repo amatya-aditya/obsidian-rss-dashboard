@@ -1,7 +1,9 @@
 <div align="center">
   <a href="https://github.com/amatya-aditya/obsidian-rss-dashboard" target="_blank">
-    <img src="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/assets/logo.png" alt="RSS Dashboard Logo" width="50%" />
+    <img src="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/assets/logo.png" alt="RSS Dashboard Logo" width="30%" />
   </a>
+</div>
+
 <h1 align="center">RSS Dashboard</h1>
 <h4 align="center">Only the feeds you need</h4>
 <h4 align="center">Stream the world's knowledge into your vault: RSS, podcasts, and YouTube, all in one Dashboard</h4>
