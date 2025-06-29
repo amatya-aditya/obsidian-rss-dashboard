@@ -181,11 +181,6 @@ Want to influence the next release? </h3>  : Join our [Discord server](https://d
 - Some podcasts may require authentication
 - Try opening the audio URL in a browser
 
-**Articles not saving**:
-- Check your vault permissions
-- Ensure the target folder exists
-- Verify your template syntax
-
 ### Getting Help
 
 If you encounter any issues or have suggestions:
