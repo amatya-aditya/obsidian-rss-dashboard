@@ -23,11 +23,9 @@ export class DiscoverView extends ItemView {
     private isLoading = true;
     private error: string | null = null;
     private activeSidebarSection: 'types' | 'categories' | 'tags' = 'categories';
-    private renderedFeedCount = 0;
-    private readonly feedsPerBatch = 20;
-    private observer: IntersectionObserver | null = null;
+    private currentPage = 1;
+    private pageSize = 20;
     private resizeObserver: ResizeObserver | null = null;
-    private isBatchLoading = false;
 
     constructor(
         leaf: WorkspaceLeaf,
@@ -184,6 +182,7 @@ export class DiscoverView extends ItemView {
             return true;
         });
         this.sortFeeds();
+        this.currentPage = 1;
     }
 
     private sortFeeds(): void {
@@ -352,6 +351,7 @@ export class DiscoverView extends ItemView {
         
         searchInput.addEventListener("input", (e) => {
             this.filters.query = (e.target as HTMLInputElement).value;
+            this.currentPage = 1;
             this.filterFeeds();
             this.saveFilterState();
             const contentEl = this.containerEl.querySelector('.rss-discover-content') as HTMLElement;
@@ -390,12 +390,10 @@ export class DiscoverView extends ItemView {
                 } else {
                     this.filters.selectedTypes = this.filters.selectedTypes.filter((t: string) => t !== type);
                 }
+                this.currentPage = 1;
                 this.filterFeeds();
                 this.saveFilterState();
-                const contentEl = this.containerEl.querySelector('.rss-discover-content') as HTMLElement;
-                if (contentEl) {
-                    this.renderContent(contentEl);
-                }
+                this.render();
             });
         });
     }
@@ -448,12 +446,10 @@ export class DiscoverView extends ItemView {
         
         checkbox.addEventListener("change", () => {
             this.handleCategorySelection(name, checkbox.checked, depth, categoryType);
+            this.currentPage = 1;
             this.filterFeeds();
             this.saveFilterState();
-            const contentEl = this.containerEl.querySelector('.rss-discover-content') as HTMLElement;
-            if (contentEl) {
-                this.renderContent(contentEl);
-            }
+            this.render();
         });
         
         if (children && typeof children === 'object') {
@@ -557,12 +553,10 @@ export class DiscoverView extends ItemView {
                     } else {
                         this.filters.selectedTags = this.filters.selectedTags.filter((t: string) => t !== tag);
                     }
+                    this.currentPage = 1;
                     this.filterFeeds();
                     this.saveFilterState();
-                    const contentEl = this.containerEl.querySelector('.rss-discover-content') as HTMLElement;
-                    if (contentEl) {
-                        this.renderContent(contentEl);
-                    }
+                    this.render();
                 });
             });
         };
@@ -668,6 +662,7 @@ export class DiscoverView extends ItemView {
                     selectedPaths: [],
                     selectedTags: []
                 };
+                this.currentPage = 1;
                 this.filterFeeds();
                 this.saveFilterState();
                 this.render();
@@ -683,48 +678,17 @@ export class DiscoverView extends ItemView {
             return;
         }
 
-        this.renderedFeedCount = 0;
-        if (this.observer) {
-            this.observer.disconnect();
-        }
+        const totalPages = Math.max(1, Math.ceil(this.filteredFeeds.length / this.pageSize));
+        const startIdx = (this.currentPage - 1) * this.pageSize;
+        const endIdx = Math.min(startIdx + this.pageSize, this.filteredFeeds.length);
+        const feedsForPage = this.filteredFeeds.slice(startIdx, endIdx);
 
-        this.appendFeedBatch(grid);
-
-        if (this.renderedFeedCount < this.filteredFeeds.length) {
-            const trigger = container.createDiv({ cls: 'load-more-trigger' });
-            this.observer = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting && !this.isBatchLoading) {
-                    this.appendFeedBatch(grid);
-                }
-            }, { threshold: 0.1, rootMargin: '500px' });
-            this.observer.observe(trigger);
-        }
-    }
-
-    private appendFeedBatch(grid: HTMLElement): void {
-        this.isBatchLoading = true;
-        const end = Math.min(this.renderedFeedCount + this.feedsPerBatch, this.filteredFeeds.length);
-        const batch = this.filteredFeeds.slice(this.renderedFeedCount, end);
-        
-        const fragment = document.createDocumentFragment();
-
-        requestAnimationFrame(() => {
-            batch.forEach(feed => {
-                this.renderFeedCard(fragment, feed);
-            });
-            grid.appendChild(fragment);
-
-            this.renderedFeedCount = end;
-            this.isBatchLoading = false;
-
-            if (this.renderedFeedCount >= this.filteredFeeds.length) {
-                const trigger = this.containerEl.querySelector('.load-more-trigger');
-                if (trigger) {
-                    trigger.remove();
-                }
-                this.observer?.disconnect();
-            }
+        feedsForPage.forEach(feed => {
+            this.renderFeedCard(grid, feed);
         });
+
+        const paginationWrapper = container.createDiv({ cls: 'rss-dashboard-pagination-wrapper' });
+        this.renderPagination(paginationWrapper, this.currentPage, totalPages, this.pageSize, this.filteredFeeds.length);
     }
 
     private createTopFilterControls(container: HTMLElement): void {
@@ -769,6 +733,7 @@ export class DiscoverView extends ItemView {
         
         sortDropdown.addEventListener('change', (e) => {
             this.currentSort = (e.target as HTMLSelectElement).value;
+            this.currentPage = 1;
             this.sortFeeds();
             const contentEl = this.containerEl.querySelector('.rss-discover-content') as HTMLElement;
             if (contentEl) {
@@ -852,6 +817,7 @@ export class DiscoverView extends ItemView {
             
             checkbox.addEventListener("change", () => {
                 this.handleFilterSelection(filterType, option, checkbox.checked);
+                this.currentPage = 1;
                 this.filterFeeds();
                 this.saveFilterState();
                 this.render();
@@ -861,6 +827,7 @@ export class DiscoverView extends ItemView {
                 if (e.target !== checkbox) {
                     checkbox.checked = !checkbox.checked;
                     this.handleFilterSelection(filterType, option, checkbox.checked);
+                    this.currentPage = 1;
                     this.filterFeeds();
                     this.saveFilterState();
                     this.render();
@@ -1135,10 +1102,6 @@ export class DiscoverView extends ItemView {
     }
 
     async onClose(): Promise<void> {
-        if (this.observer) {
-            this.observer.disconnect();
-            this.observer = null;
-        }
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
             this.resizeObserver = null;
@@ -1182,5 +1145,100 @@ export class DiscoverView extends ItemView {
             tagFilter.appendChild(document.createTextNode(` ${tag}`));
             tagFilter.style.setProperty('--tag-color', this.getTagColor(tag));
         });
+    }
+
+    private renderPagination(container: HTMLElement, currentPage: number, totalPages: number, pageSize: number, totalFeeds: number): void {
+        const paginationContainer = container.createDiv({
+            cls: "rss-dashboard-pagination",
+        });
+
+        
+        const prevButton = paginationContainer.createEl('button', {
+            cls: "rss-dashboard-pagination-btn prev",
+            text: "<"
+        });
+        prevButton.disabled = currentPage === 1;
+        prevButton.onclick = () => this.handlePageChange(currentPage - 1);
+
+        
+        const maxPagesToShow = 7;
+        let startPage = Math.max(1, currentPage - 3);
+        let endPage = Math.min(totalPages, currentPage + 3);
+        if (endPage - startPage < maxPagesToShow - 1) {
+            if (startPage === 1) {
+                endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+            } else if (endPage === totalPages) {
+                startPage = Math.max(1, endPage - maxPagesToShow + 1);
+            }
+        }
+        if (startPage > 1) {
+            this.createPageButton(paginationContainer, 1, currentPage);
+            if (startPage > 2) {
+                paginationContainer.createEl('span', { text: '...', cls: 'rss-dashboard-pagination-ellipsis' });
+            }
+        }
+        for (let i = startPage; i <= endPage; i++) {
+            this.createPageButton(paginationContainer, i, currentPage);
+        }
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                paginationContainer.createEl('span', { text: '...', cls: 'rss-dashboard-pagination-ellipsis' });
+            }
+            this.createPageButton(paginationContainer, totalPages, currentPage);
+        }
+
+        
+        const nextButton = paginationContainer.createEl('button', {
+            cls: "rss-dashboard-pagination-btn next",
+            text: ">"
+        });
+        nextButton.disabled = currentPage === totalPages;
+        nextButton.onclick = () => this.handlePageChange(currentPage + 1);
+
+        
+        const pageSizeDropdown = paginationContainer.createEl('select', { cls: 'rss-dashboard-page-size-dropdown' });
+        const pageSizeOptions = [10, 20, 40, 50, 60, 80, 100];
+        for (const size of pageSizeOptions) {
+            const opt = pageSizeDropdown.createEl('option', { text: String(size), value: String(size) });
+            if (size === pageSize) opt.selected = true;
+        }
+        pageSizeDropdown.onchange = (e) => {
+            const size = Number((e.target as HTMLSelectElement).value);
+            this.handlePageSizeChange(size);
+        };
+
+        
+        const startIdx = (currentPage - 1) * pageSize + 1;
+        const endIdx = Math.min(currentPage * pageSize, totalFeeds);
+        const resultsInfo = paginationContainer.createEl('span', {
+            cls: 'rss-dashboard-pagination-results',
+            text: `Results: ${startIdx} - ${endIdx} of ${totalFeeds}`
+        });
+    }
+
+    private handlePageChange(page: number): void {
+        this.currentPage = page;
+        const contentEl = this.containerEl.querySelector('.rss-discover-content') as HTMLElement;
+        if (contentEl) {
+            this.renderContent(contentEl);
+        }
+    }
+
+    private handlePageSizeChange(pageSize: number): void {
+        this.pageSize = pageSize;
+        this.currentPage = 1;
+        const contentEl = this.containerEl.querySelector('.rss-discover-content') as HTMLElement;
+        if (contentEl) {
+            this.renderContent(contentEl);
+        }
+    }
+
+    private createPageButton(container: HTMLElement, page: number, currentPage: number) {
+        const btn = container.createEl('button', {
+            cls: 'rss-dashboard-pagination-btn' + (page === currentPage ? ' active' : ''),
+            text: String(page)
+        });
+        btn.disabled = page === currentPage;
+        btn.onclick = () => this.handlePageChange(page);
     }
 } 
