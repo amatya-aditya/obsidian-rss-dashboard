@@ -57,14 +57,12 @@
   <a href="#license">License</a>
 </p>
 
-## 📣 Community 
 
-<h3> Want to influence the next release? - Join Discord to shape this plugin - [Discord community](https://discord.gg/NCHuzyhj)</h3> 
-
-Join our Discord server: it's where we:
-- 🌐 Help build our manually curated Discover page (Collection of hand-pick RSS feeds, grouped by category (philosophy, engineering, physics etc.) for one-click subscribe.)
-- 💬 Discuss ideas, questions, and best practices in real time
-- 👀 Share sneak peeks of upcoming features (get early feedback!)
+## Community <h3> 
+Want to influence the next release? </h3>  : Join our [Discord server](https://discord.gg/NCHuzyhj): it's where we:
+- Help build our manually curated Discover page (Collection of hand-pick RSS feeds, grouped by category (philosophy, engineering, physics etc.) for one-click subscribe.)
+- Discuss ideas, questions, and best practices in real time
+- Share sneak peeks of upcoming features (get early feedback!)
 
 👉 Click here to join - https://discord.gg/NCHuzyhj - See you inside!
 
@@ -182,11 +180,6 @@ Join our Discord server: it's where we:
 - Check if the audio URL is accessible
 - Some podcasts may require authentication
 - Try opening the audio URL in a browser
-
-**Articles not saving**:
-- Check your vault permissions
-- Ensure the target folder exists
-- Verify your template syntax
 
 ### Getting Help
 
