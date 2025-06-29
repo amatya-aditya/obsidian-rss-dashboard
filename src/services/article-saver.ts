@@ -1,6 +1,7 @@
-import { TFile, Vault, Notice } from "obsidian";
-import { FeedItem, ArticleSavingSettings } from "../types";
+import { TFile, Vault, Notice, requestUrl } from "obsidian";
+import { FeedItem, ArticleSavingSettings } from "../types/types";
 import TurndownService from "turndown";
+import { Readability } from "@mozilla/readability";
 
 // @ts-ignore
 export class ArticleSaver {
@@ -73,25 +74,30 @@ export class ArticleSaver {
                 table.classList.add("markdown-compatible-table");
             });
             
-            return doc.body.innerHTML;
+            return new XMLSerializer().serializeToString(doc.body);
         } catch (e) {
             console.error("Error cleaning HTML:", e);
             return html;
         }
     }
     
-    /**
-     * Generate frontmatter for the article
-     */
+    
     private generateFrontmatter(item: FeedItem): string {
         
         let frontmatter = this.settings.frontmatterTemplate;
         
-        
         if (!frontmatter) {
-            frontmatter = "---\ntitle: \"{{title}}\"\ndate: {{date}}\ntags: [{{tags}}]\nsource: \"{{source}}\"\nlink: {{link}}\n---\n\n";
+            frontmatter = `---
+title: "{{title}}"
+date: {{date}}
+tags: [{{tags}}]
+source: "{{source}}"
+link: {{link}}
+author: "{{author}}"
+feedTitle: "{{feedTitle}}"
+guid: "{{guid}}"
+---`;
         }
-        
         
         let tagsString = "";
         if (item.tags && item.tags.length > 0) {
@@ -106,12 +112,14 @@ export class ArticleSaver {
         
         frontmatter = frontmatter
             .replace(/{{title}}/g, item.title.replace(/"/g, '\\"'))
-            .replace(/{{date}}/g, new Date(item.pubDate).toISOString())
+            .replace(/{{date}}/g, new Date().toISOString())
             .replace(/{{tags}}/g, tagsString)
             .replace(/{{source}}/g, item.feedTitle.replace(/"/g, '\\"'))
             .replace(/{{link}}/g, item.link)
-            .replace(/{{author}}/g, (item.author || '').replace(/"/g, '\\"'));
-            
+            .replace(/{{author}}/g, (item.author || '').replace(/"/g, '\\"'))
+            .replace(/{{feedTitle}}/g, item.feedTitle.replace(/"/g, '\\"'))
+            .replace(/{{guid}}/g, item.guid.replace(/"/g, '\\"'));
+        
         
         if (item.mediaType === 'video' && item.videoId) {
             frontmatter = frontmatter.replace("---\n", `---\nmediaType: video\nvideoId: "${item.videoId}"\n`);
@@ -119,28 +127,25 @@ export class ArticleSaver {
             frontmatter = frontmatter.replace("---\n", `---\nmediaType: podcast\naudioUrl: "${item.audioUrl}"\n`);
         }
         
-        return frontmatter;
+        
+        return frontmatter + '\n';
     }
     
-    /**
-     * Create a sanitized filename
-     */
+    
     private sanitizeFilename(name: string): string {
-        // Remove special characters and clean up spaces
+        
         let sanitized = name
-            .replace(/[\/\\:*?"<>|]/g, '') // Remove invalid characters
-            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-            .trim(); // Remove leading/trailing spaces
+            .replace(/[\/\\:*?"<>|]/g, '') 
+            .replace(/\s+/g, ' ') 
+            .trim(); 
 
-        // Take first 5 words and limit total length to 50 characters
+        
         const words = sanitized.split(' ');
         const shortened = words.slice(0, 5).join(' ');
         return shortened.substring(0, 50);
     }
     
-    /**
-     * Apply a template to the article content
-     */
+    
     private applyTemplate(item: FeedItem, template: string): string {
         
         const cleanContent = this.cleanHtml(item.description);
@@ -153,6 +158,17 @@ export class ArticleSaver {
         });
         
         
+        let tagsString = "";
+        if (item.tags && item.tags.length > 0) {
+            tagsString = item.tags.map(tag => tag.name).join(", ");
+        }
+        
+        
+        if (this.settings.addSavedTag && !tagsString.toLowerCase().includes("saved")) {
+            tagsString = tagsString ? `${tagsString}, saved` : "saved";
+        }
+        
+        
         return template
             .replace(/{{title}}/g, item.title)
             .replace(/{{date}}/g, formattedDate)
@@ -160,32 +176,226 @@ export class ArticleSaver {
             .replace(/{{link}}/g, item.link)
             .replace(/{{author}}/g, item.author || '')
             .replace(/{{source}}/g, item.feedTitle)
+            .replace(/{{feedTitle}}/g, item.feedTitle)
             .replace(/{{summary}}/g, item.summary || '')
-            .replace(/{{content}}/g, cleanContent);
+            .replace(/{{content}}/g, cleanContent)
+            .replace(/{{tags}}/g, tagsString)
+            .replace(/{{guid}}/g, item.guid);
     }
     
-    /**
-     * Create any parent folders needed for the file path
-     */
+    
+    private normalizePath(path: string): string {
+        if (!path || path.trim() === '') {
+            return '';
+        }
+        
+        
+        return path.replace(/^\/+|\/+$/g, '');
+    }
+
+    
     private async ensureFolderExists(folderPath: string): Promise<void> {
-        const folders = folderPath.split('/').filter(p => p.length > 0);
+        if (!folderPath || folderPath.trim() === '') {
+            return;
+        }
+        
+        
+        const cleanPath = this.normalizePath(folderPath);
+        if (!cleanPath) {
+            return;
+        }
+        
+        const folders = cleanPath.split('/').filter(p => p.length > 0);
         let currentPath = '';
         
         for (const folder of folders) {
             currentPath += folder;
             
-            
-            if (!(await this.vault.adapter.exists(currentPath))) {
-                await this.vault.createFolder(currentPath);
+            try {
+                
+                if (!(await this.vault.adapter.exists(currentPath))) {
+                   
+                    await this.vault.createFolder(currentPath);
+                }
+            } catch (error) {
+                console.error(`Error creating folder ${currentPath}:`, error);
+                throw new Error(`Failed to create folder: ${currentPath}`);
             }
             
             currentPath += '/';
         }
     }
     
-    /**
-     * Save an article to the vault
-     */
+    
+    async fetchFullArticleContent(url: string): Promise<string> {
+        try {
+            const response = await requestUrl({ url });
+            
+            
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(response.text, "text/html");
+            
+            
+            if (typeof Readability !== 'undefined') {
+                    const reader = new Readability(doc);
+                    const article = reader.parse();
+                const content = (article?.content as string) || "";
+                return this.convertRelativeUrlsInContent(content, url);
+            } else {
+                
+                const mainContent = doc.querySelector('main, article, .content, .post-content, .entry-content');
+            if (mainContent) {
+                    return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(mainContent), url);
+                } else {
+                    
+                    return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(doc.body), url);
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching full article content:", error);
+            return "";
+        }
+    }
+    
+    
+    private convertRelativeUrlsInContent(content: string, baseUrl: string): string {
+        if (!content || !baseUrl) return content;
+        try {
+            
+            const baseHost = (() => {
+                try {
+                    return new URL(baseUrl).host;
+                } catch {
+                    return "";
+                }
+            })();
+
+            content = content.replace(
+                /app:\/\//g,
+                'https://'
+            );
+
+            
+            content = content.replace(
+                /<img([^>]+)src=["']([^"']+)["']/gi,
+                (match, attributes, src) => {
+                    try {
+                        const srcUrl = new URL(src, baseUrl);
+                        if (srcUrl.host !== baseHost) {
+                            srcUrl.host = baseHost;
+                            srcUrl.protocol = "https:";
+                            return `<img${attributes}src="${srcUrl.toString()}"`;
+                        }
+                        return `<img${attributes}src="${srcUrl.toString()}"`;
+                    } catch {
+                        return `<img${attributes}src="${src}"`;
+                    }
+                }
+            );
+
+            content = content.replace(
+                /<source([^>]+)srcset=["']([^"']+)["']/gi,
+                (match, attributes, srcset) => {
+                    const processedSrcset = srcset.split(',').map((part: string) => {
+                        const trimmedPart = part.trim();
+                        const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
+                        if (urlMatch) {
+                            const url = urlMatch[1];
+                            const sizeDescriptor = urlMatch[2] || '';
+                            const absoluteUrl = this.convertToAbsoluteUrl(url, baseUrl);
+                            return absoluteUrl + sizeDescriptor;
+                        }
+                        return trimmedPart;
+                    }).join(', ');
+                    return `<source${attributes}srcset="${processedSrcset}"`;
+                }
+            );
+
+            content = content.replace(
+                /<a([^>]+)href=["']([^"']+)["']/gi,
+                (match, attributes, href) => {
+                    const absoluteHref = this.convertToAbsoluteUrl(href, baseUrl);
+                    return `<a${attributes}href="${absoluteHref}"`;
+                }
+            );
+            return content;
+        } catch (error) {
+            console.warn(`Failed to convert relative URLs in content with base "${baseUrl}":`, error);
+            return content;
+        }
+    }
+
+    
+    private convertToAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
+        if (!relativeUrl || !baseUrl) return relativeUrl;
+        
+        
+        if (relativeUrl.startsWith('app://')) {
+            return relativeUrl.replace('app://', 'https://');
+        }
+        
+        
+        if (relativeUrl.startsWith('//')) {
+            return 'https:' + relativeUrl;
+        }
+        
+        
+        if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://')) {
+            return relativeUrl;
+        }
+        
+        try {
+            
+            const base = new URL(baseUrl);
+            
+            
+            if (relativeUrl.startsWith('/')) {
+                return `${base.protocol}//${base.host}${relativeUrl}`;
+            }
+            
+            
+            return new URL(relativeUrl, base).href;
+        } catch (error) {
+            console.warn(`Failed to convert relative URL "${relativeUrl}" to absolute URL with base "${baseUrl}":`, error);
+            return relativeUrl;
+        }
+    }
+    
+    
+    async saveArticleWithFullContent(
+        item: FeedItem, 
+        customFolder?: string, 
+        customTemplate?: string
+    ): Promise<TFile | null> {
+        try {
+            
+            const loadingNotice = new Notice("Fetching full article content...", 0);
+            
+            
+            const fullContent = await this.fetchFullArticleContent(item.link);
+            
+            if (!fullContent) {
+                loadingNotice.hide();
+                new Notice("Could not fetch full content. Saving with available content.");
+                return await this.saveArticle(item, customFolder, customTemplate);
+            }
+            
+            
+            const markdownContent = this.turndownService.turndown(fullContent);
+            
+            loadingNotice.hide();
+            
+            
+            return await this.saveArticle(item, customFolder, customTemplate, markdownContent);
+        } catch (error) {
+            console.error("Error saving article with full content:", error);
+            new Notice(`Error saving article with full content: ${error.message}`);
+            
+            return await this.saveArticle(item, customFolder, customTemplate);
+        }
+    }
+    
+    
     async saveArticle(
         item: FeedItem, 
         customFolder?: string, 
@@ -194,32 +404,37 @@ export class ArticleSaver {
     ): Promise<TFile | null> {
         try {
             
-            const folder = customFolder || this.settings.defaultFolder || '';
+            let folder = customFolder || this.settings.defaultFolder || '';
             
             
-            if (folder) {
+            folder = this.normalizePath(folder);
+            
+          
+            
+            
+            if (folder && folder.trim() !== '') {
                 await this.ensureFolderExists(folder);
             }
             
             
             const filename = this.sanitizeFilename(item.title);
-            const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
+            const filePath = folder && folder.trim() !== '' ? `${folder}/${filename}.md` : `${filename}.md`;
+           
             
             
             if (await this.vault.adapter.exists(filePath)) {
-                
+           
                 await this.vault.adapter.remove(filePath);
             }
             
             
             let content = '';
             
-            
-            if (this.settings.includeFrontmatter) {
-                content += this.generateFrontmatter(item);
-            }
-            
             if (rawContent) {
+                
+                if (this.settings.includeFrontmatter) {
+                    content += this.generateFrontmatter(item);
+                }
                 content += rawContent;
             } else {
                 
@@ -230,9 +445,11 @@ export class ArticleSaver {
             
             
             const file = await this.vault.create(filePath, content);
+           
             
             
             item.saved = true;
+            item.savedFilePath = filePath;
             
             
             if (this.settings.addSavedTag && (!item.tags || !item.tags.some(t => t.name.toLowerCase() === "saved"))) {
@@ -253,28 +470,92 @@ export class ArticleSaver {
         }
     }
 
-    private convertHtmlToMarkdown(html: string): string {
-        
-        const tmp = document.createElement("div");
-        tmp.innerHTML = html;
-        
-        tmp.querySelectorAll("script, style, iframe").forEach(el => el.remove());
-
-        
-        let markdown = this.turndownService.turndown(tmp.innerHTML);
-
-        
-        if (/<[a-z][\s\S]*>/i.test(markdown)) {
-            
-            markdown = tmp.textContent || tmp.innerText || "";
+    
+    async fixSavedFilePaths(articles: FeedItem[]): Promise<void> {
+        for (const article of articles) {
+            if (article.saved && article.savedFilePath) {
+                const oldPath = article.savedFilePath;
+                const normalizedPath = this.normalizePath(oldPath);
+                
+                
+                if (oldPath !== normalizedPath) {
+                  
+                    
+                    
+                    if (await this.vault.adapter.exists(normalizedPath)) {
+                        article.savedFilePath = normalizedPath;
+                       
+                    } else {
+                        
+                        if (await this.vault.adapter.exists(oldPath)) {
+                            
+                            try {
+                                const file = this.vault.getAbstractFileByPath(oldPath);
+                                if (file instanceof TFile) {
+                                    
+                                    const normalizedFolder = this.normalizePath(this.settings.defaultFolder || '');
+                                    const filename = this.sanitizeFilename(article.title);
+                                    const newPath = normalizedFolder && normalizedFolder.trim() !== '' ? `${normalizedFolder}/${filename}.md` : `${filename}.md`;
+                                    
+                                    
+                                    await this.vault.adapter.rename(oldPath, newPath);
+                                    article.savedFilePath = newPath;
+                                    
+                                }
+                            } catch (error) {
+                                console.error(`Error moving file from ${oldPath} to normalized path:`, error);
+                            }
+                        } else {
+                            
+                           
+                            article.saved = false;
+                            article.savedFilePath = undefined;
+                            
+                            
+                            if (article.tags) {
+                                article.tags = article.tags.filter(tag => tag.name.toLowerCase() !== "saved");
+                            }
+                        }
+                    }
+                }
+            }
         }
-
-        return markdown.trim();
     }
-}
 
-function stripHtml(html: string): string {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
+    
+    async verifySavedArticle(article: FeedItem): Promise<boolean> {
+        if (!article.saved || !article.savedFilePath) {
+            return false;
+        }
+        
+        try {
+            const exists = await this.vault.adapter.exists(article.savedFilePath);
+            if (!exists) {
+                
+                article.saved = false;
+                article.savedFilePath = undefined;
+                
+                
+                if (article.tags) {
+                    article.tags = article.tags.filter(tag => tag.name.toLowerCase() !== "saved");
+                }
+                
+                
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error("Error verifying saved article:", error);
+            return false;
+        }
+    }
+    
+    
+    async verifyAllSavedArticles(articles: FeedItem[]): Promise<void> {
+        const verificationPromises = articles
+            .filter(article => article.saved)
+            .map(article => this.verifySavedArticle(article));
+        
+        await Promise.all(verificationPromises);
+    }
 }

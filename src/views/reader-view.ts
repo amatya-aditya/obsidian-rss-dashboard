@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf, Notice, TFile, Menu, MenuItem, App } from "obsidian";
 import { setIcon } from "obsidian";
-import { FeedItem, Tag, RssDashboardSettings } from "../types";
+import { FeedItem, Tag, RssDashboardSettings } from "../types/types";
 import { MediaService } from "../services/media-service";
 import { ArticleSaver } from "../services/article-saver";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
@@ -82,10 +82,17 @@ export class ReaderView extends ItemView {
         const actions = header.createDiv({ cls: "rss-reader-actions" });
         
         
+        const savedLabel = actions.createDiv({ 
+            cls: "rss-reader-saved-label",
+            text: "Saved"
+        });
+        
+        
         const saveButton = actions.createDiv({ 
             cls: "rss-reader-action-button", 
             attr: { title: "Save Article" } 
         });
+        
         setIcon(saveButton, "save");
         saveButton.addEventListener("click", async (e) => {
             if (this.currentItem) {
@@ -98,7 +105,7 @@ export class ReaderView extends ItemView {
             cls: "rss-reader-action-button", 
             attr: { title: "Open in Browser" } 
         });
-        setIcon(browserButton, "external-link");
+        setIcon(browserButton, "lucide-globe-2");
         browserButton.addEventListener("click", () => {
             if (this.currentItem) {
                 window.open(this.currentItem.link, "_blank");
@@ -109,9 +116,7 @@ export class ReaderView extends ItemView {
         this.readingContainer = this.contentEl.createDiv({ cls: "rss-reader-content" });
     }
 
-    /**
-     * Show save options menu
-     */
+    
     private showSaveOptions(event: MouseEvent, item: FeedItem): void {
         const menu = new Menu();
         
@@ -124,6 +129,8 @@ export class ReaderView extends ItemView {
                     const file = await this.articleSaver.saveArticle(item, undefined, undefined, markdownContent);
                     if (file) {
                         this.onArticleSave(item);
+                        
+                        this.updateSavedLabel(true);
                     }
                 });
         });
@@ -140,9 +147,7 @@ export class ReaderView extends ItemView {
         menu.showAtMouseEvent(event);
     }
     
-    /**
-     * Show custom save modal
-     */
+    
     private showCustomSaveModal(item: FeedItem): void {
         const modal = document.createElement("div");
         modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
@@ -186,11 +191,11 @@ export class ReaderView extends ItemView {
             const template = templateInput.value.trim();
             
             const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
-            console.log("HTML to convert:", this.currentFullContent || item.description || "");
-            console.log("Converted Markdown:", markdownContent);
             const file = await this.articleSaver.saveArticle(item, folder, undefined, markdownContent);
             if (file) {
                 this.onArticleSave(item);
+                
+                this.updateSavedLabel(true);
             }
             
             document.body.removeChild(modal);
@@ -211,12 +216,43 @@ export class ReaderView extends ItemView {
         document.body.appendChild(modal);
     }
 
-    /**
-     * Display a feed item in the reader
-     */
+    
     async displayItem(item: FeedItem, relatedItems: FeedItem[] = []): Promise<void> {
         this.currentItem = item;
         this.relatedItems = relatedItems;
+
+        
+        this.updateSavedLabel(false);
+        
+        
+        if (item.saved) {
+            const fileExists = await this.checkSavedFileExists(item);
+            if (!fileExists) {
+                item.saved = false;
+                
+                
+                if (item.tags) {
+                    item.tags = item.tags.filter(tag => tag.name.toLowerCase() !== "saved");
+                }
+                
+                
+                if (item.feedUrl) {
+                    const feed = this.settings.feeds.find(f => f.url === item.feedUrl);
+                    if (feed) {
+                        const originalItem = feed.items.find(i => i.guid === item.guid);
+                        if (originalItem) {
+                            originalItem.saved = false;
+                            if (originalItem.tags) {
+                                originalItem.tags = originalItem.tags.filter(tag => tag.name.toLowerCase() !== "saved");
+                            }
+                        }
+                    }
+                }
+            } else {
+                
+                this.updateSavedLabel(true);
+            }
+        }
         
         if (!this.readingContainer) {
             await this.onOpen();
@@ -230,16 +266,20 @@ export class ReaderView extends ItemView {
             titleEl.textContent = item.title;
         }
         
-        
-        if (item.mediaType === 'video' && (item.videoId || MediaService.extractYouTubeVideoId(item.link))) {
-            
-            if (!item.videoId) {
+        if (item.mediaType === 'video' && (item.videoId || MediaService.extractYouTubeVideoId(item.link) || item.videoUrl)) {
+            if (!item.videoId && !item.videoUrl) {
                 const vid = MediaService.extractYouTubeVideoId(item.link);
                 if (vid) item.videoId = vid;
             }
+            if (item.videoUrl) {
+                this.displayVideoPodcast(item);
+            } else {
             this.displayVideo(item);
-        } else if (item.mediaType === 'podcast' && (item.audioUrl || MediaService.extractPodcastAudio(item.description))) {
-            
+            }
+        } else if (item.mediaType === 'podcast') {
+            if (!item.audioUrl && item.enclosure?.url) {
+                item.audioUrl = item.enclosure.url;
+            }
             if (!item.audioUrl) {
                 const aud = MediaService.extractPodcastAudio(item.description);
                 if (aud) item.audioUrl = aud;
@@ -258,9 +298,7 @@ export class ReaderView extends ItemView {
         }
     }
     
-    /**
-     * Display a video item with enhanced player
-     */
+    
     private displayVideo(item: FeedItem): void {
         
         if (this.podcastPlayer) {
@@ -293,53 +331,49 @@ export class ReaderView extends ItemView {
         }
     }
     
-    /**
-     * Display a podcast item with enhanced player
-     */
+    
     private displayPodcast(item: FeedItem): void {
-        
         if (this.videoPlayer) {
             this.videoPlayer.destroy();
             this.videoPlayer = null;
         }
-        
         
         const container = this.readingContainer.createDiv({ 
             cls: "rss-reader-podcast-container enhanced" 
         });
         
         
+        let fullFeedEpisodes: FeedItem[] | undefined = undefined;
+        if (item.feedUrl) {
+            const feed = this.settings.feeds.find(f => f.url === item.feedUrl);
+            if (feed) {
+                fullFeedEpisodes = feed.items.filter(i => i.mediaType === 'podcast');
+            }
+        }
+        
         if (item.audioUrl) {
             this.podcastPlayer = new PodcastPlayer(container);
-            this.podcastPlayer.loadEpisode(item);
+            this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
         } else {
-            
             const audioUrl = MediaService.extractPodcastAudio(item.description);
-            
             if (audioUrl) {
-                
                 const podcastItem: FeedItem = {
                     ...item,
                     audioUrl: audioUrl
                 };
-                
                 this.podcastPlayer = new PodcastPlayer(container);
-                this.podcastPlayer.loadEpisode(podcastItem);
+                this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
             } else {
                 container.createDiv({
                     cls: "rss-reader-error",
                     text: "Audio URL not found. Cannot play this podcast."
                 });
-                
-                
                 this.displayArticle(item);
             }
         }
     }
     
-    /**
-     * Display an article item
-     */
+    
     private displayArticle(item: FeedItem, fullContent?: string): void {
         
         if (this.podcastPlayer) {
@@ -373,9 +407,7 @@ export class ReaderView extends ItemView {
         this.renderArticle(item, fullContent);
     }
     
-    /**
-     * Render an article in the built-in reader
-     */
+    
     private renderArticle(item: FeedItem, fullContent?: string): void {
         
         const headerContainer = this.readingContainer.createDiv({ cls: "rss-reader-article-header" });
@@ -405,16 +437,16 @@ export class ReaderView extends ItemView {
             for (const tag of item.tags) {
                 const tagElement = tagsContainer.createDiv({ cls: "rss-reader-tag" });
                 tagElement.textContent = tag.name;
-                tagElement.style.backgroundColor = tag.color;
+                tagElement.style.setProperty('--tag-color', tag.color);
             }
         }
         
         
-        if (this.settings.display.showCoverImage && item.coverImage) {
+        if (this.settings.display.showCoverImage && (item.coverImage || (item.image && typeof item.image === "object" && (item.image as { url?: string }).url) || (typeof item.image === "string" ? item.image : ""))) {
             const imageContainer = this.readingContainer.createDiv({ cls: "rss-reader-cover-image" });
             imageContainer.createEl("img", {
                 attr: {
-                    src: item.coverImage,
+                    src: (item.coverImage || (item.image && typeof item.image === "object" && (item.image as { url?: string }).url) || (typeof item.image === "string" ? item.image : "")) ?? "",
                     alt: item.title
                 }
             });
@@ -424,8 +456,9 @@ export class ReaderView extends ItemView {
 
         
         const htmlString = fullContent || item.description || "";
+        const processedHtmlString = this.convertRelativeUrlsInContent(htmlString, item.link);
         const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlString, "text/html");
+        const doc = parser.parseFromString(processedHtmlString, "text/html");
 
         
         function appendNodes(parent: HTMLElement, nodes: NodeListOf<ChildNode>) {
@@ -455,6 +488,49 @@ export class ReaderView extends ItemView {
         appendNodes(contentContainer, doc.body.childNodes);
 
         
+        contentContainer.querySelectorAll("img").forEach(img => {
+            const src = img.getAttribute("src");
+            if (src && src.startsWith("app://")) {
+                img.setAttribute("src", src.replace("app://", "https://"));
+            }
+            img.classList.add("rss-reader-responsive-img");
+        });
+
+        
+        contentContainer.querySelectorAll("source").forEach(source => {
+            const srcset = source.getAttribute("srcset");
+            if (srcset) {
+                
+                const processedSrcset = srcset.split(',').map((part: string) => {
+                    const trimmedPart = part.trim();
+                    
+                    const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
+                    if (urlMatch) {
+                        const url = urlMatch[1];
+                        const sizeDescriptor = urlMatch[2] || '';
+                        
+                        let absoluteUrl = url;
+                        if (url.startsWith('app://')) {
+                            absoluteUrl = url.replace('app://', 'https://');
+                        } else if (url.startsWith('//')) {
+                            absoluteUrl = 'https:' + url;
+                        }
+                        return absoluteUrl + sizeDescriptor;
+                    }
+                    return trimmedPart;
+                }).join(', ');
+                source.setAttribute("srcset", processedSrcset);
+            }
+        });
+
+        
+        contentContainer.querySelectorAll("a").forEach(link => {
+            const href = link.getAttribute("href");
+            if (href && href.startsWith("app://")) {
+                link.setAttribute("href", href.replace("app://", "https://"));
+            }
+        });
+        
         this.app.workspace.trigger("parse-math", contentContainer);
         
     
@@ -465,11 +541,6 @@ export class ReaderView extends ItemView {
             link.setAttribute("target", "_blank");
             link.setAttribute("rel", "noopener noreferrer");
         });
-        
-        
-        contentContainer.querySelectorAll("img").forEach(img => {
-            img.classList.add("rss-reader-responsive-img");
-        });
     }
 
     
@@ -477,11 +548,13 @@ export class ReaderView extends ItemView {
         try {
             const response = await requestUrl({ url });
             
-            const doc = document.implementation.createHTMLDocument("");
-            doc.documentElement.innerHTML = response.text;
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(response.text, "text/html");
             const reader = new Readability(doc);
             const article = reader.parse();
-            return (article?.content as string) || "";
+            const content = (article?.content as string) || "";
+            
+            return this.convertRelativeUrlsInContent(content, url);
         } catch (error) {
             console.error("Error fetching full article content:", error);
             return "";
@@ -533,6 +606,182 @@ export class ReaderView extends ItemView {
 
     async onClose(): Promise<void> {
         this.contentEl.empty();
+    }
+
+    
+    private convertRelativeUrlsInContent(content: string, baseUrl: string): string {
+        if (!content || !baseUrl) return content;
+        try {
+            
+            const baseHost = (() => {
+                try {
+                    return new URL(baseUrl).host;
+                } catch {
+                    return "";
+                }
+            })();
+
+            content = content.replace(
+                /app:\/\//g,
+                'https://'
+            );
+
+            
+            content = content.replace(
+                /<img([^>]+)src=["']([^"']+)["']/gi,
+                (match, attributes, src) => {
+                    try {
+                        const srcUrl = new URL(src, baseUrl);
+                        if (srcUrl.host !== baseHost) {
+                            srcUrl.host = baseHost;
+                            srcUrl.protocol = "https:";
+                            return `<img${attributes}src="${srcUrl.toString()}"`;
+                        }
+                        return `<img${attributes}src="${srcUrl.toString()}"`;
+                    } catch {
+                        return `<img${attributes}src="${src}"`;
+                    }
+                }
+            );
+
+            content = content.replace(
+                /<source([^>]+)srcset=["']([^"']+)["']/gi,
+                (match, attributes, srcset) => {
+                    const processedSrcset = srcset.split(',').map((part: string) => {
+                        const trimmedPart = part.trim();
+                        const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
+                        if (urlMatch) {
+                            const url = urlMatch[1];
+                            const sizeDescriptor = urlMatch[2] || '';
+                            const absoluteUrl = this.convertToAbsoluteUrl(url, baseUrl);
+                            return absoluteUrl + sizeDescriptor;
+                        }
+                        return trimmedPart;
+                    }).join(', ');
+                    return `<source${attributes}srcset="${processedSrcset}"`;
+                }
+            );
+
+            content = content.replace(
+                /<a([^>]+)href=["']([^"']+)["']/gi,
+                (match, attributes, href) => {
+                    const absoluteHref = this.convertToAbsoluteUrl(href, baseUrl);
+                    return `<a${attributes}href="${absoluteHref}"`;
+                }
+            );
+            return content;
+        } catch (error) {
+            console.warn(`Failed to convert relative URLs in content with base "${baseUrl}":`, error);
+            return content;
+        }
+    }
+
+    
+    private convertToAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
+        if (!relativeUrl || !baseUrl) return relativeUrl;
+        
+        
+        if (relativeUrl.startsWith('app://')) {
+            return relativeUrl.replace('app://', 'https://');
+        }
+        
+        
+        if (relativeUrl.startsWith('//')) {
+            return 'https:' + relativeUrl;
+        }
+        
+        
+        if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://')) {
+            return relativeUrl;
+        }
+        
+        try {
+            
+            const base = new URL(baseUrl);
+            
+            
+            if (relativeUrl.startsWith('/')) {
+                return `${base.protocol}//${base.host}${relativeUrl}`;
+            }
+            
+            
+            return new URL(relativeUrl, base).href;
+        } catch (error) {
+            console.warn(`Failed to convert relative URL "${relativeUrl}" to absolute URL with base "${baseUrl}":`, error);
+            return relativeUrl;
+        }
+    }
+
+    
+    private updateSavedLabel(saved: boolean): void {
+        const savedLabel = this.contentEl.querySelector(".rss-reader-saved-label") as HTMLElement;
+        if (savedLabel) {
+            if (saved) {
+                savedLabel.classList.remove("hidden");
+                savedLabel.classList.add("visible");
+            } else {
+                savedLabel.classList.remove("visible");
+                savedLabel.classList.add("hidden");
+            }
+        }
+    }
+    
+    
+    private async checkSavedFileExists(item: FeedItem): Promise<boolean> {
+        try {
+            
+            const folder = this.settings.articleSaving.defaultFolder || "RSS Articles";
+            const filename = this.sanitizeFilename(item.title);
+            const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
+            
+            
+            return await this.app.vault.adapter.exists(filePath);
+        } catch (error) {
+            console.error(`Error checking if file exists for article "${item.title}":`, error);
+            return false;
+        }
+    }
+    
+    
+    private sanitizeFilename(name: string): string {
+        return name
+            .replace(/[\/\\:*?"<>|]/g, '_')
+            .replace(/\s+/g, '_')
+            .replace(/_+/g, '_')
+            .substring(0, 100);
+    }
+
+    
+    private displayVideoPodcast(item: FeedItem): void {
+        if (this.podcastPlayer) {
+            this.podcastPlayer.destroy();
+            this.podcastPlayer = null;
+        }
+        if (this.videoPlayer) {
+            this.videoPlayer.destroy();
+            this.videoPlayer = null;
+        }
+        const container = this.readingContainer.createDiv({
+            cls: "rss-reader-video-podcast-container enhanced"
+        });
+        if (item.videoUrl) {
+            const video = document.createElement("video");
+            video.controls = true;
+            video.classList.add("rss-reader-video");
+            if (item.coverImage) video.poster = item.coverImage;
+            const source = document.createElement("source");
+            source.src = item.videoUrl!;
+            source.type = "video/mp4";
+            video.appendChild(source);
+            video.appendChild(document.createTextNode("Your browser does not support the video tag."));
+            container.appendChild(video);
+        } else {
+            container.createDiv({
+                cls: "rss-reader-error",
+                text: "Video URL not found. Cannot play this video podcast."
+            });
+            this.displayArticle(item);
+        }
     }
 }
 

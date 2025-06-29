@@ -1,6 +1,6 @@
 import { Modal, App, Setting, Notice } from "obsidian";
 import type RssDashboardPlugin from "../../main";
-import type { Feed, Folder } from "../types";
+import type { Feed, Folder } from "../types/types";
 
 function collectAllFolders(folders: Folder[], base = ""): string[] {
     let paths: string[] = [];
@@ -14,7 +14,7 @@ function collectAllFolders(folders: Folder[], base = ""): string[] {
     return paths;
 }
 
-class EditFeedModal extends Modal {
+export class EditFeedModal extends Modal {
     feed: Feed;
     plugin: RssDashboardPlugin;
     onSave: () => void;
@@ -26,16 +26,71 @@ class EditFeedModal extends Modal {
     }
     onOpen() {
         const { contentEl } = this;
+        this.modalEl.addClasses(["rss-dashboard-modal", "rss-dashboard-modal-container"]);
         contentEl.empty();
         contentEl.createEl("h2", { text: "Edit Feed" });
         let title = this.feed.title;
         let url = this.feed.url;
         let folder = this.feed.folder || "";
-        const allFolders = collectAllFolders(this.plugin.settings.folders);
+        let status = "";
+        let latestEntry = "-";
+        const allFolders = collectAllFolders(this.plugin.settings.folders).sort((a, b) => a.localeCompare(b));
         let titleInput: HTMLInputElement;
         let urlInput: HTMLInputElement;
         let folderInput: HTMLInputElement;
+        let statusDiv: HTMLDivElement;
+        let latestEntryDiv: HTMLDivElement;
         let dropdown: HTMLDivElement | null = null;
+
+        new Setting(contentEl)
+            .setName("Feed URL")
+            .addText(text => {
+                text.setValue(url).onChange(v => url = v);
+                urlInput = text.inputEl;
+                urlInput.autocomplete = "off";
+                urlInput.spellcheck = false;
+                urlInput.addEventListener("focus", () => urlInput.select());
+                urlInput.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter") {
+                        titleInput?.focus();
+                    } else if (e.key === "Escape") {
+                        this.close();
+                    }
+                });
+            })
+            .addButton(btn => {
+                btn.setButtonText("Load")
+                    .onClick(async () => {
+                        status = "Loading...";
+                        if (statusDiv) statusDiv.textContent = status;
+                        try {
+                            const res = await (window as any).requestUrl({ url });
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(res.text, "text/xml");
+                            const feedTitle = doc.querySelector("channel > title, feed > title");
+                            if (feedTitle?.textContent) {
+                                title = feedTitle.textContent;
+                                if (titleInput) titleInput.value = title;
+                            }
+                            const latestItem = doc.querySelector("item > pubDate, entry > updated, entry > published");
+                            if (latestItem?.textContent) {
+                                const date = new Date(latestItem.textContent);
+                                const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+                                latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days ago`;
+                            } else {
+                                latestEntry = "N/A";
+                            }
+                            if (latestEntryDiv) latestEntryDiv.textContent = latestEntry;
+                            status = "OK";
+                        } catch (e) {
+                            status = "Error loading feed";
+                            latestEntry = "-";
+                            if (latestEntryDiv) latestEntryDiv.textContent = latestEntry;
+                        }
+                        if (statusDiv) statusDiv.textContent = status;
+                    });
+            });
+
         new Setting(contentEl)
             .setName("Title")
             .addText(text => {
@@ -46,29 +101,21 @@ class EditFeedModal extends Modal {
                 titleInput.addEventListener("focus", () => titleInput.select());
                 titleInput.addEventListener("keydown", (e) => {
                     if (e.key === "Enter") {
-                        urlInput?.focus();
-                    } else if (e.key === "Escape") {
-                        this.close();
-                    }
-                });
-            });
-        new Setting(contentEl)
-            .setName("URL")
-            .addText(text => {
-                text.setValue(url).onChange(v => url = v);
-                urlInput = text.inputEl;
-                urlInput.autocomplete = "off";
-                urlInput.spellcheck = false;
-                urlInput.addEventListener("focus", () => urlInput.select());
-                urlInput.addEventListener("keydown", (e) => {
-                    if (e.key === "Enter") {
                         folderInput?.focus();
                     } else if (e.key === "Escape") {
                         this.close();
                     }
                 });
             });
-        
+
+        const latestEntrySetting = new Setting(contentEl)
+            .setName("Latest entry posted");
+        latestEntryDiv = latestEntrySetting.controlEl.createDiv({ text: latestEntry, cls: "add-feed-latest-entry" });
+
+        const statusSetting = new Setting(contentEl)
+            .setName("Status");
+        statusDiv = statusSetting.controlEl.createDiv({ text: status, cls: "add-feed-status" });
+
         new Setting(contentEl)
             .setName("Folder")
             .addText(text => {
@@ -89,61 +136,231 @@ class EditFeedModal extends Modal {
                 text.onChange(v => {
                     folder = v;
                     if (dropdown) {
-                        
                         const filtered = allFolders.filter(f => f.toLowerCase().includes(v.toLowerCase()));
                         if (dropdown) {
-                            dropdown.innerHTML = "";
+                            while (dropdown.firstChild) {
+                                dropdown.removeChild(dropdown.firstChild);
+                            }
                             filtered.forEach(f => {
                                 if (dropdown) {
                                     const opt = dropdown.createDiv({ text: f, cls: "edit-feed-folder-option" });
                                     opt.onclick = () => {
                                         folder = f;
                                         text.setValue(f);
-                                        if (dropdown) dropdown.style.display = "none";
+                                        if (dropdown) {
+                                            dropdown.removeClass("hidden");
+                                            dropdown.addClass("visible");
+                                        }
                                     };
                                 }
                             });
-                            dropdown.style.display = filtered.length ? "block" : "none";
                         }
                     }
                 });
                 text.inputEl.onfocus = () => {
                     if (!dropdown) {
                         dropdown = contentEl.createDiv({ cls: "edit-feed-folder-dropdown" });
-                        dropdown.style.position = "absolute";
-                        dropdown.style.background = "var(--background-primary)";
-                        dropdown.style.border = "1px solid var(--background-modifier-border, #ccc)";
-                        dropdown.style.zIndex = "10000";
                         dropdown.style.width = folderInput.offsetWidth + "px";
-                        dropdown.style.maxHeight = "180px";
-                        dropdown.style.overflowY = "auto";
-                        dropdown.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
                         dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
                         dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
                         document.body.appendChild(dropdown);
                     }
                     
                     if (dropdown) {
-                        dropdown.innerHTML = "";
+                        while (dropdown.firstChild) {
+                            dropdown.removeChild(dropdown.firstChild);
+                        }
                         allFolders.forEach(f => {
                             if (dropdown) {
                                 const opt = dropdown.createDiv({ text: f, cls: "edit-feed-folder-option" });
                                 opt.onclick = () => {
                                     folder = f;
                                     text.setValue(f);
-                                    if (dropdown) dropdown.style.display = "none";
+                                    if (dropdown) {
+                                        dropdown.removeClass("hidden");
+                                        dropdown.addClass("visible");
+                                    }
                                 };
                             }
                         });
-                        dropdown.style.display = allFolders.length ? "block" : "none";
                     }
                 };
                 text.inputEl.onblur = () => {
                     setTimeout(() => {
-                        if (dropdown) dropdown.style.display = "none";
+                        if (dropdown) dropdown.addClass("hidden");
                     }, 200);
                 };
             });
+
+        
+        contentEl.createEl("h3", { text: "Per Feed Control Options", cls: "per-feed-controls-header" });
+        
+        let autoDeleteDuration = this.feed.autoDeleteDuration || 0;
+        let maxItemsLimit = this.feed.maxItemsLimit || 0;
+        let scanInterval = this.feed.scanInterval || 0;
+
+        
+        const autoDeleteSetting = new Setting(contentEl)
+            .setName("Auto Delete Articles Duration")
+            .setDesc("Days to keep articles before auto-delete");
+        
+        let autoDeleteDropdown: any;
+        let autoDeleteCustomInput: HTMLInputElement | null = null;
+        
+        autoDeleteSetting.addDropdown(dropdown => {
+            autoDeleteDropdown = dropdown;
+            dropdown
+                .addOption("0", "Disabled")
+                .addOption("1", "1 day")
+                .addOption("3", "3 days")
+                .addOption("7", "1 week")
+                .addOption("14", "2 weeks")
+                .addOption("30", "1 month")
+                .addOption("60", "2 months")
+                .addOption("90", "3 months")
+                .addOption("180", "6 months")
+                .addOption("365", "1 year")
+                .addOption("custom", "Custom...")
+                .setValue(autoDeleteDuration === 0 ? "0" : 
+                         [1, 3, 7, 14, 30, 60, 90, 180, 365].includes(autoDeleteDuration) ? 
+                         autoDeleteDuration.toString() : "custom")
+                .onChange(value => {
+                    if (value === "custom") {
+                        
+                        if (!autoDeleteCustomInput) {
+                            autoDeleteCustomInput = autoDeleteSetting.controlEl.createEl("input", {
+                                type: "number",
+                                placeholder: "Enter days",
+                                cls: "custom-input"
+                            });
+                            autoDeleteCustomInput.min = "1";
+                            autoDeleteCustomInput.value = autoDeleteDuration > 0 ? autoDeleteDuration.toString() : "";
+                            autoDeleteCustomInput.addEventListener("change", (evt: Event) => {
+                                const target = evt.target as HTMLInputElement;
+                                autoDeleteDuration = parseInt(target.value) || 0;
+                            });
+                        }
+                        if (autoDeleteCustomInput) {
+                            autoDeleteCustomInput.removeClass("hidden");
+                            autoDeleteCustomInput.addClass("visible");
+                        }
+                    } else {
+                        
+                        if (autoDeleteCustomInput) {
+                            autoDeleteCustomInput.addClass("hidden");
+                        }
+                        autoDeleteDuration = parseInt(value) || 0;
+                    }
+                });
+        });
+
+        
+        const maxItemsSetting = new Setting(contentEl)
+            .setName("Max Items Limit")
+            .setDesc("Maximum number of items to keep per feed");
+        
+        let maxItemsDropdown: any;
+        let maxItemsCustomInput: HTMLInputElement | null = null;
+        
+        maxItemsSetting.addDropdown(dropdown => {
+            maxItemsDropdown = dropdown;
+            dropdown
+                .addOption("0", "Unlimited")
+                .addOption("10", "10 items")
+                .addOption("25", "25 items")
+                .addOption("50", "50 items")
+                .addOption("100", "100 items")
+                .addOption("200", "200 items")
+                .addOption("500", "500 items")
+                .addOption("1000", "1000 items")
+                .addOption("custom", "Custom...")
+                .setValue(maxItemsLimit === 0 ? "0" : 
+                         [10, 25, 50, 100, 200, 500, 1000].includes(maxItemsLimit) ? 
+                         maxItemsLimit.toString() : "custom")
+                .onChange(value => {
+                    if (value === "custom") {
+                        
+                        if (!maxItemsCustomInput) {
+                            maxItemsCustomInput = maxItemsSetting.controlEl.createEl("input", {
+                                type: "number",
+                                placeholder: "Enter number",
+                                cls: "custom-input"
+                            });
+                            maxItemsCustomInput.min = "1";
+                            maxItemsCustomInput.addEventListener("change", (evt: Event) => {
+                                const target = evt.target as HTMLInputElement;
+                                maxItemsLimit = parseInt(target.value) || 0;
+                            });
+                        }
+                        if (maxItemsCustomInput) {
+                            maxItemsCustomInput.removeClass("hidden");
+                            maxItemsCustomInput.addClass("visible");
+                        }
+                    } else {
+                        
+                        if (maxItemsCustomInput) {
+                            maxItemsCustomInput.addClass("hidden");
+                        }
+                        maxItemsLimit = parseInt(value) || 0;
+                    }
+                });
+        });
+
+        
+        const scanIntervalSetting = new Setting(contentEl)
+            .setName("Scan Interval")
+            .setDesc("Custom scan interval in minutes");
+        
+        let scanIntervalDropdown: any;
+        let scanIntervalCustomInput: HTMLInputElement | null = null;
+        
+        scanIntervalSetting.addDropdown(dropdown => {
+            scanIntervalDropdown = dropdown;
+            dropdown
+                .addOption("0", "Use global setting")
+                .addOption("5", "5 minutes")
+                .addOption("10", "10 minutes")
+                .addOption("15", "15 minutes")
+                .addOption("30", "30 minutes")
+                .addOption("60", "1 hour")
+                .addOption("120", "2 hours")
+                .addOption("240", "4 hours")
+                .addOption("480", "8 hours")
+                .addOption("720", "12 hours")
+                .addOption("1440", "24 hours")
+                .addOption("custom", "Custom...")
+                .setValue(scanInterval === 0 ? "0" : 
+                         [5, 10, 15, 30, 60, 120, 240, 480, 720, 1440].includes(scanInterval) ? 
+                         scanInterval.toString() : "custom")
+                .onChange(value => {
+                    if (value === "custom") {
+                        
+                        if (!scanIntervalCustomInput) {
+                            scanIntervalCustomInput = scanIntervalSetting.controlEl.createEl("input", {
+                                type: "number",
+                                placeholder: "Enter minutes",
+                                cls: "custom-input"
+                            });
+                            scanIntervalCustomInput.min = "1";
+                            scanIntervalCustomInput.addEventListener("change", (evt: Event) => {
+                                const target = evt.target as HTMLInputElement;
+                                scanInterval = parseInt(target.value) || 0;
+                            });
+                        }
+                        if (scanIntervalCustomInput) {
+                            scanIntervalCustomInput.removeClass("hidden");
+                            scanIntervalCustomInput.addClass("visible");
+                        }
+                    } else {
+                        
+                        if (scanIntervalCustomInput) {
+                            scanIntervalCustomInput.addClass("hidden");
+                        }
+                        scanInterval = parseInt(value) || 0;
+                    }
+                });
+        });
+
         const btns = contentEl.createDiv("rss-dashboard-modal-buttons");
         const saveBtn = btns.createEl("button", { text: "Save", cls: "rss-dashboard-primary-button" });
         const cancelBtn = btns.createEl("button", { text: "Cancel" });
@@ -151,6 +368,9 @@ class EditFeedModal extends Modal {
             this.feed.title = title;
             this.feed.url = url;
             this.feed.folder = folder;
+            this.feed.autoDeleteDuration = autoDeleteDuration;
+            this.feed.maxItemsLimit = maxItemsLimit || 50;
+            this.feed.scanInterval = scanInterval;
             await this.plugin.saveSettings();
             new Notice("Feed updated");
             this.close();
@@ -168,24 +388,30 @@ class EditFeedModal extends Modal {
     }
 }
 
-class AddFeedModal extends Modal {
-    plugin: RssDashboardPlugin;
-    onSave: () => void;
-    constructor(app: App, plugin: RssDashboardPlugin, onSave: () => void) {
-        super(app);
-        this.plugin = plugin;
-        this.onSave = onSave;
-    }
+export class AddFeedModal extends Modal {
+	folders: Folder[];
+	onAdd: (title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) => Promise<void>;
+	onSave: () => void;
+	defaultFolder: string;
+
+	constructor(app: App, folders: Folder[], onAdd: (title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) => Promise<void>, onSave: () => void, defaultFolder = "") {
+		super(app);
+		this.folders = folders;
+		this.onAdd = onAdd;
+		this.onSave = onSave;
+		this.defaultFolder = defaultFolder;
+	}
     onOpen() {
         const { contentEl } = this;
+        this.modalEl.className += " rss-dashboard-modal rss-dashboard-modal-container";
         contentEl.empty();
         contentEl.createEl("h2", { text: "Add Feed" });
         let url = "";
         let title = "";
         let status = "";
-        let latestEntry = "";
-        let folder = "";
-        let allFolders = collectAllFolders(this.plugin.settings.folders);
+        let latestEntry = "-";
+        let folder = this.defaultFolder;
+        let allFolders = collectAllFolders(this.folders).sort((a, b) => a.localeCompare(b));
         let titleInput: HTMLInputElement;
         let urlInput: HTMLInputElement;
         let folderInput: HTMLInputElement;
@@ -226,16 +452,20 @@ class AddFeedModal extends Modal {
                                 const date = new Date(latestItem.textContent!);
                                 const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
                                 latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days`;
-                                if (latestEntryDiv) latestEntryDiv.textContent = latestEntry;
-                            }
+                            } else {
+								latestEntry = "N/A";
+							}
+                            if (latestEntryDiv) latestEntryDiv.textContent = latestEntry;
                             status = "OK";
                         } catch (e) {
                             status = "Error loading feed";
+							latestEntry = "-";
+							if (latestEntryDiv) latestEntryDiv.textContent = latestEntry;
                         }
                         if (statusDiv) statusDiv.textContent = status;
                     });
             });
-        
+
         new Setting(contentEl)
             .setName("Title")
             .addText(text => {
@@ -252,10 +482,16 @@ class AddFeedModal extends Modal {
                     }
                 });
             });
+
+        const latestEntrySetting = new Setting(contentEl)
+            .setName("Latest entry posted");
+        latestEntryDiv = latestEntrySetting.controlEl.createDiv({ text: latestEntry, cls: "add-feed-latest-entry" });
+
+        const statusSetting = new Setting(contentEl)
+            .setName("Status");
+        statusDiv = statusSetting.controlEl.createDiv({ text: status, cls: "add-feed-status" });
         
-        latestEntryDiv = contentEl.createDiv({ text: latestEntry, cls: "add-feed-latest-entry" });
         
-        statusDiv = contentEl.createDiv({ text: status, cls: "add-feed-status" });
         
         new Setting(contentEl)
             .setName("Folder")
@@ -267,18 +503,22 @@ class AddFeedModal extends Modal {
                         
                         const filtered = allFolders.filter(f => f.toLowerCase().includes(v.toLowerCase()));
                         if (dropdown) {
-                            dropdown.innerHTML = "";
+                            while (dropdown.firstChild) {
+                                dropdown.removeChild(dropdown.firstChild);
+                            }
                             filtered.forEach(f => {
                                 if (dropdown) {
                                     const opt = dropdown.createDiv({ text: f, cls: "edit-feed-folder-option" });
                                     opt.onclick = () => {
                                         folder = f;
                                         text.setValue(f);
-                                        if (dropdown) dropdown.style.display = "none";
+                                        if (dropdown) {
+                                            dropdown.removeClass("hidden");
+                                            dropdown.addClass("visible");
+                                        }
                                     };
                                 }
                             });
-                            dropdown.style.display = filtered.length ? "block" : "none";
                         }
                     }
                 });
@@ -295,49 +535,216 @@ class AddFeedModal extends Modal {
                 text.inputEl.onfocus = () => {
                     if (!dropdown) {
                         dropdown = contentEl.createDiv({ cls: "edit-feed-folder-dropdown" });
-                        dropdown.style.position = "absolute";
-                        dropdown.style.background = "var(--background-primary)";
-                        dropdown.style.border = "1px solid var(--background-modifier-border, #ccc)";
-                        dropdown.style.zIndex = "10000";
                         dropdown.style.width = folderInput.offsetWidth + "px";
-                        dropdown.style.maxHeight = "180px";
-                        dropdown.style.overflowY = "auto";
-                        dropdown.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
                         dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
                         dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
                         document.body.appendChild(dropdown);
                     }
                     
                     if (dropdown) {
-                        dropdown.innerHTML = "";
+                        while (dropdown.firstChild) {
+                            dropdown.removeChild(dropdown.firstChild);
+                        }
                         allFolders.forEach(f => {
                             if (dropdown) {
                                 const opt = dropdown.createDiv({ text: f, cls: "edit-feed-folder-option" });
                                 opt.onclick = () => {
                                     folder = f;
                                     text.setValue(f);
-                                    if (dropdown) dropdown.style.display = "none";
+                                    if (dropdown) {
+                                        dropdown.removeClass("hidden");
+                                        dropdown.addClass("visible");
+                                    }
                                 };
                             }
                         });
-                        dropdown.style.display = allFolders.length ? "block" : "none";
                     }
                 };
                 text.inputEl.onblur = () => {
                     setTimeout(() => {
-                        if (dropdown) dropdown.style.display = "none";
+                        if (dropdown) dropdown.addClass("hidden");
                     }, 200);
                 };
             });
+
         
-        const btns = contentEl.createDiv("rss-dashboard-modal-buttons");
+        contentEl.createEl("h3", { text: "Per Feed Control Options", cls: "per-feed-controls-header" });
+        
+        let autoDeleteDuration = 0;
+        let maxItemsLimit = 0;
+        let scanInterval = 0;
+
+        
+        const autoDeleteSetting = new Setting(contentEl)
+            .setName("Auto Delete Articles Duration")
+            .setDesc("Days to keep articles before auto-delete");
+        
+        let autoDeleteDropdown: any;
+        let autoDeleteCustomInput: HTMLInputElement | null = null;
+        
+        autoDeleteSetting.addDropdown(dropdown => {
+            autoDeleteDropdown = dropdown;
+            dropdown
+                .addOption("0", "Disabled")
+                .addOption("1", "1 day")
+                .addOption("3", "3 days")
+                .addOption("7", "1 week")
+                .addOption("14", "2 weeks")
+                .addOption("30", "1 month")
+                .addOption("60", "2 months")
+                .addOption("90", "3 months")
+                .addOption("180", "6 months")
+                .addOption("365", "1 year")
+                .addOption("custom", "Custom...")
+                .setValue("0")
+                .onChange(value => {
+                    if (value === "custom") {
+                        
+                        if (!autoDeleteCustomInput) {
+                            autoDeleteCustomInput = autoDeleteSetting.controlEl.createEl("input", {
+                                type: "number",
+                                placeholder: "Enter days",
+                                cls: "custom-input"
+                            });
+                            autoDeleteCustomInput.min = "1";
+                            autoDeleteCustomInput.value = autoDeleteDuration > 0 ? autoDeleteDuration.toString() : "";
+                            autoDeleteCustomInput.addEventListener("change", (evt: Event) => {
+                                const target = evt.target as HTMLInputElement;
+                                autoDeleteDuration = parseInt(target.value) || 0;
+                            });
+                        }
+                        if (autoDeleteCustomInput) {
+                            autoDeleteCustomInput.removeClass("hidden");
+                            autoDeleteCustomInput.addClass("visible");
+                        }
+                    } else {
+                        
+                        if (autoDeleteCustomInput) {
+                            autoDeleteCustomInput.addClass("hidden");
+                        }
+                        autoDeleteDuration = parseInt(value) || 0;
+                    }
+                });
+        });
+
+        
+        const maxItemsSetting = new Setting(contentEl)
+            .setName("Max Items Limit")
+            .setDesc("Maximum number of items to keep per feed");
+        
+        let maxItemsDropdown: any;
+        let maxItemsCustomInput: HTMLInputElement | null = null;
+        
+        maxItemsSetting.addDropdown(dropdown => {
+            maxItemsDropdown = dropdown;
+            dropdown
+                .addOption("0", "Unlimited")
+                .addOption("10", "10 items")
+                .addOption("25", "25 items")
+                .addOption("50", "50 items")
+                .addOption("100", "100 items")
+                .addOption("200", "200 items")
+                .addOption("500", "500 items")
+                .addOption("1000", "1000 items")
+                .addOption("custom", "Custom...")
+                .setValue("0")
+                .onChange(value => {
+                    if (value === "custom") {
+                        
+                        if (!maxItemsCustomInput) {
+                            maxItemsCustomInput = maxItemsSetting.controlEl.createEl("input", {
+                                type: "number",
+                                placeholder: "Enter number",
+                                cls: "custom-input"
+                            });
+                            maxItemsCustomInput.min = "1";
+                            maxItemsCustomInput.addEventListener("change", (evt: Event) => {
+                                const target = evt.target as HTMLInputElement;
+                                maxItemsLimit = parseInt(target.value) || 0;
+                            });
+                        }
+                        if (maxItemsCustomInput) {
+                            maxItemsCustomInput.removeClass("hidden");
+                            maxItemsCustomInput.addClass("visible");
+                        }
+                    } else {
+                        
+                        if (maxItemsCustomInput) {
+                            maxItemsCustomInput.addClass("hidden");
+                        }
+                        maxItemsLimit = parseInt(value) || 0;
+                    }
+                });
+        });
+
+        
+        const scanIntervalSetting = new Setting(contentEl)
+            .setName("Scan Interval")
+            .setDesc("Custom scan interval in minutes");
+        
+        let scanIntervalDropdown: any;
+        let scanIntervalCustomInput: HTMLInputElement | null = null;
+        
+        scanIntervalSetting.addDropdown(dropdown => {
+            scanIntervalDropdown = dropdown;
+            dropdown
+                .addOption("0", "Use global setting")
+                .addOption("5", "5 minutes")
+                .addOption("10", "10 minutes")
+                .addOption("15", "15 minutes")
+                .addOption("30", "30 minutes")
+                .addOption("60", "1 hour")
+                .addOption("120", "2 hours")
+                .addOption("240", "4 hours")
+                .addOption("480", "8 hours")
+                .addOption("720", "12 hours")
+                .addOption("1440", "24 hours")
+                .addOption("custom", "Custom...")
+                .setValue("0")
+                .onChange(value => {
+                    if (value === "custom") {
+                        
+                        if (!scanIntervalCustomInput) {
+                            scanIntervalCustomInput = scanIntervalSetting.controlEl.createEl("input", {
+                                type: "number",
+                                placeholder: "Enter minutes",
+                                cls: "custom-input"
+                            });
+                            scanIntervalCustomInput.min = "1";
+                            scanIntervalCustomInput.addEventListener("change", (evt: Event) => {
+                                const target = evt.target as HTMLInputElement;
+                                scanInterval = parseInt(target.value) || 0;
+                            });
+                        }
+                        if (scanIntervalCustomInput) {
+                            scanIntervalCustomInput.removeClass("hidden");
+                            scanIntervalCustomInput.addClass("visible");
+                        }
+                    } else {
+                        
+                        if (scanIntervalCustomInput) {
+                            scanIntervalCustomInput.addClass("hidden");
+                        }
+                        scanInterval = parseInt(value) || 0;
+                    }
+                });
+        });
+        
+        const btns = contentEl.createDiv({ cls: "rss-dashboard-modal-buttons" });
         const saveBtn = btns.createEl("button", { text: "Save", cls: "rss-dashboard-primary-button" });
         const cancelBtn = btns.createEl("button", { text: "Cancel" });
         saveBtn.onclick = async () => {
-            this.plugin.addFeed(title, url, folder);
-            new Notice("Feed added");
-            this.close();
+            if (!url) {
+                new Notice("Feed URL cannot be empty");
+                return;
+            }
+            if (!title) {
+                new Notice("Title cannot be empty");
+                return;
+            }
+            this.onAdd(title, url, folder, autoDeleteDuration, maxItemsLimit || 50, scanInterval);
             this.onSave();
+            this.close();
         };
         cancelBtn.onclick = () => this.close();
         
@@ -361,15 +768,19 @@ export class FeedManagerModal extends Modal {
 
     onOpen() {
         const { contentEl } = this;
+        this.modalEl.className += " rss-dashboard-modal rss-dashboard-modal-container";
         contentEl.empty();
-        this.modalEl.addClass("rss-dashboard-modal-container");
         contentEl.createEl("h2", { text: "Manage Feeds" });
 
         
-        const addFeedBtn = contentEl.createEl("button", { text: "+ Add Feed", cls: "rss-dashboard-primary-button" });
-        addFeedBtn.style.marginBottom = "1rem";
+        const addFeedBtn = contentEl.createEl("button", { text: "+ Add Feed", cls: "rss-dashboard-primary-button feed-manager-add-button" });
         addFeedBtn.onclick = () => {
-            new AddFeedModal(this.app, this.plugin, () => this.onOpen()).open();
+            new AddFeedModal(
+				this.app, 
+				this.plugin.settings.folders,
+				(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval) => this.plugin.addFeed(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval),
+				() => this.onOpen()
+			).open();
         };
 
         

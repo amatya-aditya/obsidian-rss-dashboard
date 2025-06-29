@@ -1,5 +1,5 @@
 import { Notice } from "obsidian";
-import { FeedItem } from "../types";
+import { FeedItem } from "../types/types";
 import { setIcon } from "obsidian";
 
 export class VideoPlayer {
@@ -12,9 +12,7 @@ export class VideoPlayer {
         this.container = container;
     }
     
-    /**
-     * Load a video
-     */
+    
     loadVideo(item: FeedItem): void {
         if (!item.videoId) {
             console.error("No video ID provided for video");
@@ -31,9 +29,7 @@ export class VideoPlayer {
         }
     }
     
-    /**
-     * Render the video player
-     */
+    
     private render(): void {
         if (!this.currentItem || !this.currentItem.videoId) return;
         
@@ -108,7 +104,7 @@ export class VideoPlayer {
                     link.rel = "noopener noreferrer";
                 });
                 
-                return doc.body.innerHTML;
+                return new XMLSerializer().serializeToString(doc.body);
             };
             
             descriptionContainer.textContent = cleanHtml(this.currentItem.description);
@@ -239,9 +235,7 @@ export class VideoPlayer {
         }
     }
     
-    /**
-     * Find related videos from the same feed
-     */
+    
     private findRelatedVideos(): FeedItem[] {
         if (!this.currentItem) return [];
         
@@ -251,9 +245,7 @@ export class VideoPlayer {
         return []; 
     }
     
-    /**
-     * Set related videos from the same feed
-     */
+    
     setRelatedVideos(videos: FeedItem[]): void {
         if (!this.currentItem) return;
         
@@ -327,9 +319,7 @@ export class VideoPlayer {
         }
     }
     
-    /**
-     * Clean up when removing the player
-     */
+    
     destroy(): void {
         if (this.iframeEl) {
             this.iframeEl.src = "";

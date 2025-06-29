@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting, Notice } from "obsidian";
 import RssDashboardPlugin from "./../../main";
-import { Tag, ViewLocation, Feed } from "../types";
+import { Tag, ViewLocation, Feed } from "../types/types";
+import { EditFeedModal } from "../modals/feed-manager-modal";
 
 export class RssDashboardSettingTab extends PluginSettingTab {
     plugin: RssDashboardPlugin;
@@ -59,7 +60,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         this.createArticleSavingSettings(containerEl);
         this.createImportExportSettings(containerEl);
         this.createTagsSettings(containerEl);
-        this.createFeedManagementSettings(containerEl);
     }
 
     
@@ -156,6 +156,76 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         }
                     })
             );
+
+        new Setting(containerEl)
+            .setName("Page size for 'All Articles'")
+            .setDesc("Number of articles to load at a time in the 'All Articles' view.")
+            .addSlider((slider) => {
+                slider
+                    .setLimits(20, 200, 10)
+                    .setValue(this.plugin.settings.allArticlesPageSize)
+                    .setDynamicTooltip()
+                    .onChange(async (value) => {
+                        this.plugin.settings.allArticlesPageSize = value;
+                        await this.plugin.saveSettings();
+                    });
+            });
+
+        new Setting(containerEl)
+            .setName("Page size for 'Unread Items'")
+            .setDesc("Number of unread articles to load at a time.")
+            .addSlider((slider) => {
+                slider
+                    .setLimits(20, 200, 10)
+                    .setValue(this.plugin.settings.unreadArticlesPageSize)
+                    .setDynamicTooltip()
+                    .onChange(async (value) => {
+                        this.plugin.settings.unreadArticlesPageSize = value;
+                        await this.plugin.saveSettings();
+                    });
+            });
+
+        new Setting(containerEl)
+            .setName("Page size for 'Read Items'")
+            .setDesc("Number of read articles to load at a time.")
+            .addSlider((slider) => {
+                slider
+                    .setLimits(20, 200, 10)
+                    .setValue(this.plugin.settings.readArticlesPageSize)
+                    .setDynamicTooltip()
+                    .onChange(async (value) => {
+                        this.plugin.settings.readArticlesPageSize = value;
+                        await this.plugin.saveSettings();
+                    });
+            });
+
+        new Setting(containerEl)
+            .setName("Page size for 'Saved Items'")
+            .setDesc("Number of saved articles to load at a time.")
+            .addSlider((slider) => {
+                slider
+                    .setLimits(20, 200, 10)
+                    .setValue(this.plugin.settings.savedArticlesPageSize)
+                    .setDynamicTooltip()
+                    .onChange(async (value) => {
+                        this.plugin.settings.savedArticlesPageSize = value;
+                        await this.plugin.saveSettings();
+                    });
+            });
+
+        new Setting(containerEl)
+            .setName("Page size for 'Starred Items'")
+            .setDesc("Number of starred articles to load at a time.")
+            .addSlider((slider) => {
+                slider
+                    .setLimits(20, 200, 10)
+                    .setValue(this.plugin.settings.starredArticlesPageSize)
+                    .setDynamicTooltip()
+                    .onChange(async (value) => {
+                        this.plugin.settings.starredArticlesPageSize = value;
+                        await this.plugin.saveSettings();
+                    });
+            });
     }
 
     private createDisplaySettings(containerEl: HTMLElement): void {
@@ -190,46 +260,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
 
         
         containerEl.createEl("h4", { text: "Card View Settings" });
-
-        new Setting(containerEl)
-            .setName("Card Width")
-            .setDesc("Width of article cards in card view (pixels)")
-            .addSlider((slider) =>
-                slider
-                    .setLimits(180, 400, 20)
-                    .setValue(this.plugin.settings.cardWidth)
-                    .setDynamicTooltip()
-                    .onChange(async (value) => {
-                        this.plugin.settings.cardWidth = value;
-                        await this.plugin.saveSettings();
-                        if (
-                            this.plugin.view &&
-                            this.plugin.settings.viewStyle === "card"
-                        ) {
-                            this.plugin.view.render();
-                        }
-                    })
-            );
-
-        new Setting(containerEl)
-            .setName("Card Height")
-            .setDesc("Height of article cards in card view (pixels)")
-            .addSlider((slider) =>
-                slider
-                    .setLimits(140, 300, 20)
-                    .setValue(this.plugin.settings.cardHeight)
-                    .setDynamicTooltip()
-                    .onChange(async (value) => {
-                        this.plugin.settings.cardHeight = value;
-                        await this.plugin.saveSettings();
-                        if (
-                            this.plugin.view &&
-                            this.plugin.settings.viewStyle === "card"
-                        ) {
-                            this.plugin.view.render();
-                        }
-                    })
-            );
     }
 
     private createMediaSettings(containerEl: HTMLElement): void {
@@ -306,13 +336,15 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         containerEl.createEl("h3", { text: "Article Saving Settings" });
         
         new Setting(containerEl)
-            .setName("Default Save Folder")
+            .setName("Save path")
             .setDesc("Default folder to save articles")
             .addText((text) =>
                 text
                     .setValue(this.plugin.settings.articleSaving.defaultFolder)
                     .onChange(async (value) => {
-                        this.plugin.settings.articleSaving.defaultFolder = value;
+                        
+                        const normalizedPath = value.replace(/^\/+|\/+$/g, '');
+                        this.plugin.settings.articleSaving.defaultFolder = normalizedPath;
                         await this.plugin.saveSettings();
                     })
             );
@@ -330,17 +362,31 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             );
             
         new Setting(containerEl)
-            .setName("Include Frontmatter")
-            .setDesc("Add YAML frontmatter to saved articles")
+            .setName("Save Full Content")
+            .setDesc("Fetch and save the full article content from the web (instead of just the RSS summary)")
             .addToggle((toggle) =>
                 toggle
-                    .setValue(this.plugin.settings.articleSaving.includeFrontmatter)
+                    .setValue(this.plugin.settings.articleSaving.saveFullContent)
                     .onChange(async (value) => {
-                        this.plugin.settings.articleSaving.includeFrontmatter = value;
+                        this.plugin.settings.articleSaving.saveFullContent = value;
                         await this.plugin.saveSettings();
                     })
             );
             
+        new Setting(containerEl)
+            .setName("Fetch Timeout")
+            .setDesc("Timeout in seconds for fetching full article content (prevents hanging)")
+            .addSlider((slider) => {
+                slider
+                    .setLimits(5, 30, 1)
+                    .setValue(this.plugin.settings.articleSaving.fetchTimeout || 10)
+                    .setDynamicTooltip()
+                    .onChange(async (value) => {
+                        this.plugin.settings.articleSaving.fetchTimeout = value;
+                        await this.plugin.saveSettings();
+                    });
+            });
+        
         
         containerEl.createEl("h4", { text: "Article Templates" });
         
@@ -352,8 +398,8 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             
         const templateInput = document.createElement("textarea");
         templateInput.value = this.plugin.settings.articleSaving.defaultTemplate;
-        templateInput.rows = 6;
-        templateInput.style.width = "100%";
+        templateInput.rows = 10;
+        templateInput.addClass("rss-dashboard-template-input");
         templateInput.addEventListener("change", async () => {
             this.plugin.settings.articleSaving.defaultTemplate = templateInput.value;
             await this.plugin.saveSettings();
@@ -361,27 +407,10 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         
         templateContainer.appendChild(templateInput);
         
-        const frontmatterContainer = containerEl.createDiv();
-        
-        const frontmatterLabel = new Setting(frontmatterContainer)
-            .setName("Frontmatter Template")
-            .setDesc("Template for frontmatter. Use variables like {{title}}, {{date}}, {{tags}}, {{link}}, etc.");
-            
-        const frontmatterInput = document.createElement("textarea");
-        frontmatterInput.value = this.plugin.settings.articleSaving.frontmatterTemplate;
-        frontmatterInput.rows = 6;
-        frontmatterInput.style.width = "100%";
-        frontmatterInput.addEventListener("change", async () => {
-            this.plugin.settings.articleSaving.frontmatterTemplate = frontmatterInput.value;
-            await this.plugin.saveSettings();
-        });
-        
-        frontmatterContainer.appendChild(frontmatterInput);
-        
         
         const variablesHelp = containerEl.createEl("div", { 
             cls: "setting-item-description",
-            text: "Available variables: {{title}}, {{content}}, {{link}}, {{date}}, {{isoDate}}, {{source}}, {{author}}, {{summary}}, {{tags}}"
+            text: "Available variables: {{title}}, {{content}}, {{link}}, {{date}}, {{isoDate}}, {{source}}, {{author}}, {{summary}}, {{tags}}, {{feedTitle}}, {{guid}}"
         });
     }
 
@@ -478,182 +507,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                 this.display();
             })
         );
-    }
-
-    private createFeedManagementSettings(containerEl: HTMLElement): void {
-        containerEl.createEl("h3", { text: "Feed Management" });
-
-        
-        const addFeedContainer = containerEl.createDiv();
-
-        new Setting(addFeedContainer)
-            .setName("Add New Feed")
-            .setDesc("Add a new RSS feed to the dashboard");
-
-        const feedTitleSetting = new Setting(addFeedContainer)
-            .setName("Feed Title")
-            .addText((text) => text.setPlaceholder("Enter feed title"));
-
-        const feedUrlSetting = new Setting(addFeedContainer)
-            .setName("Feed URL")
-            .addText((text) => text.setPlaceholder("Enter feed URL"));
-
-        const feedFolderSetting = new Setting(addFeedContainer)
-            .setName("Feed Folder")
-            .addText((text) => text.setPlaceholder("Enter folder name"));
-
-        new Setting(addFeedContainer).addButton((button) =>
-            button.setButtonText("Add Feed").onClick(async () => {
-                const title = (feedTitleSetting.components[0] as any).inputEl
-                    .value;
-                const url = (feedUrlSetting.components[0] as any).inputEl.value;
-                const folder =
-                    (feedFolderSetting.components[0] as any).inputEl.value ||
-                    "Uncategorized";
-
-                if (!title || !url) {
-                    
-                    return;
-                }
-
-                this.plugin.addFeed(title, url, folder);
-            })
-        );
-
-        
-        containerEl.createEl("h3", { text: "Current Feeds" });
-
-        const feedsContainer = containerEl.createDiv();
-
-        for (let i = 0; i < this.plugin.settings.feeds.length; i++) {
-            const feed = this.plugin.settings.feeds[i];
-
-            const feedSetting = new Setting(feedsContainer)
-                .setName(feed.title)
-                .setDesc(feed.url);
-
-            feedSetting.addButton((button) =>
-                button
-                    .setIcon("pencil")
-                    .setTooltip("Edit Feed")
-                    .onClick(() => {
-                        if (this.plugin.view) {
-                            this.plugin.view.showEditFeedModal(feed);
-                        } else {
-                            
-                            this.showEditFeedDialog(feed);
-                        }
-                    })
-            );
-
-            feedSetting.addButton((button) =>
-                button
-                    .setIcon("trash")
-                    .setTooltip("Delete Feed")
-                    .onClick(async () => {
-                        showConfirmModal('Are you sure you want to delete this feed?', () => {
-                            this.plugin.settings.feeds.splice(i, 1);
-                            this.display();
-                        });
-                    })
-            );
-        }
-    }
-
-    
-    showEditFeedDialog(feed: Feed): void {
-        const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal";
-
-        const modalContent = document.createElement("div");
-        modalContent.className = "rss-dashboard-modal-content";
-
-        const modalTitle = document.createElement("h2");
-        modalTitle.textContent = "Edit Feed";
-
-        const titleLabel = document.createElement("label");
-        titleLabel.textContent = "Feed Title:";
-        const titleInput = document.createElement("input");
-        titleInput.type = "text";
-        titleInput.value = feed.title;
-
-        const urlLabel = document.createElement("label");
-        urlLabel.textContent = "Feed URL:";
-        const urlInput = document.createElement("input");
-        urlInput.type = "text";
-        urlInput.value = feed.url;
-
-        const folderLabel = document.createElement("label");
-        folderLabel.textContent = "Folder:";
-        const folderSelect = document.createElement("select");
-
-        
-        const folders = Array.from(
-            new Set(this.plugin.settings.feeds.map((f: Feed) => f.folder))
-        );
-
-        
-        (folders as string[]).forEach((f) => {
-            const option = document.createElement("option");
-            option.value = f;
-            option.textContent = f;
-            if (f === feed.folder) {
-                option.selected = true;
-            }
-            folderSelect.appendChild(option);
-        });
-
-        
-        const newFolderOption = document.createElement("option");
-        newFolderOption.value = "new";
-        newFolderOption.textContent = "+ Create new folder";
-        folderSelect.appendChild(newFolderOption);
-
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "rss-dashboard-modal-buttons";
-
-        const cancelButton = document.createElement("button");
-        cancelButton.textContent = "Cancel";
-        cancelButton.addEventListener("click", () => {
-            document.body.removeChild(modal);
-        });
-
-        const saveButton = document.createElement("button");
-        saveButton.textContent = "Save";
-        saveButton.className = "rss-dashboard-primary-button";
-        saveButton.addEventListener("click", async () => {
-            let selectedFolder = folderSelect.value;
-
-            
-            if (selectedFolder === "new") {
-                const newFolderName = prompt("Enter new folder name:");
-                if (newFolderName) {
-                    selectedFolder = newFolderName;
-                } else {
-                    return;
-                }
-            }
-
-            
-            this.plugin.editFeed(feed, titleInput.value, urlInput.value, selectedFolder);
-            document.body.removeChild(modal);
-            this.display();
-        });
-
-        buttonContainer.appendChild(cancelButton);
-        buttonContainer.appendChild(saveButton);
-
-        modalContent.appendChild(modalTitle);
-        modalContent.appendChild(titleLabel);
-        modalContent.appendChild(titleInput);
-        modalContent.appendChild(urlLabel);
-        modalContent.appendChild(urlInput);
-        modalContent.appendChild(folderLabel);
-        modalContent.appendChild(folderSelect);
-        modalContent.appendChild(buttonContainer);
-
-        modal.appendChild(modalContent);
-        document.body.appendChild(modal);
     }
 }
 

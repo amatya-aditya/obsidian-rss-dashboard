@@ -1,5 +1,5 @@
-import { App, Notice, TFile } from "obsidian";
-import { FeedItem, ArticleSavingSettings } from "../types";
+import { App, Notice, TFile, setIcon } from "obsidian";
+import { FeedItem, ArticleSavingSettings } from "../types/types";
 
 interface WebViewerPlugin {
     openWebpage(url: string, title: string): Promise<void>;
@@ -24,9 +24,7 @@ export class WebViewerIntegration {
         this.settings = settings;
     }
     
-    /**
-     * Open a URL in Obsidian's web viewer if available
-     */
+    
     async openInWebViewer(url: string, title: string): Promise<boolean> {
         
         const webViewerPlugin = this.app.plugins.plugins["webpage-html-export"] as WebViewerPlugin | undefined;
@@ -71,14 +69,13 @@ export class WebViewerIntegration {
         
         const saveButton = document.createElement("button");
         saveButton.className = "rss-custom-save-button";
-        saveButton.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                <polyline points="7 3 7 8 15 8"></polyline>
-            </svg>
-            <span>Save with Template</span>
-        `;
+        const iconSpan = document.createElement("span");
+        setIcon(iconSpan, "save");
+        iconSpan.addClass("rss-custom-save-button-icon");
+        const labelSpan = document.createElement("span");
+        labelSpan.textContent = "Save with Template";
+        saveButton.appendChild(iconSpan);
+        saveButton.appendChild(labelSpan);
         
         
         saveButton.title = "Save with custom template";
@@ -90,33 +87,9 @@ export class WebViewerIntegration {
         
         
         controlBar.appendChild(saveButton);
-        
-        
-        const style = document.createElement("style");
-        style.textContent = `
-            .rss-custom-save-button {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                padding: 4px 8px;
-                background-color: var(--interactive-accent);
-                color: var(--text-on-accent);
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                margin-left: 8px;
-            }
-            
-            .rss-custom-save-button:hover {
-                background-color: var(--interactive-accent-hover);
-            }
-        `;
-        document.head.appendChild(style);
     }
     
-    /**
-     * Show a custom save dialog
-     */
+    
     private showSaveDialog(): void {
         
         // @ts-ignore - Accessing internal API
@@ -145,7 +118,7 @@ export class WebViewerIntegration {
         const folderInput = document.createElement("input");
         folderInput.type = "text";
         folderInput.placeholder = "Enter folder path";
-        folderInput.value = this.settings.defaultFolder;
+        folderInput.value = this.settings.defaultFolder || "RSS Articles/";
         folderInput.autocomplete = "off";
         folderInput.spellcheck = false;
         folderInput.addEventListener("focus", () => folderInput.select());
@@ -155,7 +128,7 @@ export class WebViewerIntegration {
         
         const templateInput = document.createElement("textarea");
         templateInput.placeholder = "Enter template";
-        templateInput.value = this.settings.defaultTemplate;
+        templateInput.value = this.settings.defaultTemplate || "---\ntitle: {{title}}\n---\n\n# {{title}}\n\n#rss #{{feedTitle}}\n\n{{content}}";
         templateInput.rows = 6;
         templateInput.autocomplete = "off";
         templateInput.spellcheck = false;
@@ -167,7 +140,7 @@ export class WebViewerIntegration {
         const frontmatterCheckbox = document.createElement("input");
         frontmatterCheckbox.type = "checkbox";
         frontmatterCheckbox.id = "include-frontmatter";
-        frontmatterCheckbox.checked = this.settings.includeFrontmatter;
+        frontmatterCheckbox.checked = this.settings.includeFrontmatter !== false; 
         
         const frontmatterLabel = document.createElement("label");
         frontmatterLabel.htmlFor = "include-frontmatter";
@@ -255,9 +228,7 @@ export class WebViewerIntegration {
         });
     }
     
-    /**
-     * Save article content to a file
-     */
+    
     private async saveArticle(
         item: FeedItem,
         folder: string,
@@ -297,7 +268,7 @@ export class WebViewerIntegration {
             new Notice(`Article saved: ${filename}`);
             
             
-            this.app.workspace.getLeaf().openFile(file);
+            
             
             return file;
         } catch (error) {
@@ -306,18 +277,24 @@ export class WebViewerIntegration {
         }
     }
     
-    /**
-     * Generate frontmatter for an article
-     */
+    
     private generateFrontmatter(item: FeedItem): string {
         
         let frontmatter = this.settings.frontmatterTemplate;
         
-        
         if (!frontmatter) {
-            frontmatter = "---\ntitle: \"{{title}}\"\ndate: {{date}}\ntags: [{{tags}}]\nsource: \"{{source}}\"\nlink: {{link}}\n---\n\n";
+            frontmatter = `---
+title: "{{title}}"
+date: {{date}}
+tags: [{{tags}}]
+source: "{{source}}"
+link: {{link}}
+author: "{{author}}"
+feedTitle: "{{feedTitle}}"
+guid: "{{guid}}"
+---
+`;
         }
-        
         
         let tagsString = "";
         if (item.tags && item.tags.length > 0) {
@@ -336,14 +313,14 @@ export class WebViewerIntegration {
             .replace(/{{tags}}/g, tagsString)
             .replace(/{{source}}/g, (item.feedTitle || "Web Viewer").replace(/"/g, '\\"'))
             .replace(/{{link}}/g, item.link)
-            .replace(/{{author}}/g, (item.author || '').replace(/"/g, '\\"'));
+            .replace(/{{author}}/g, (item.author || '').replace(/"/g, '\\"'))
+            .replace(/{{feedTitle}}/g, (item.feedTitle || "Web Viewer").replace(/"/g, '\\"'))
+            .replace(/{{guid}}/g, item.guid.replace(/"/g, '\\"'));
             
         return frontmatter;
     }
     
-    /**
-     * Create a sanitized filename
-     */
+    
     private sanitizeFilename(name: string): string {
         return name
             .replace(/[\/\\:*?"<>|]/g, '_')
@@ -352,9 +329,7 @@ export class WebViewerIntegration {
             .substring(0, 100); 
     }
     
-    /**
-     * Apply a template to the article content
-     */
+    
     private applyTemplate(item: FeedItem, template: string): string {
         
         const formattedDate = new Date().toLocaleDateString(undefined, {

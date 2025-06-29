@@ -1,4 +1,4 @@
-import { Feed, Folder } from "../types";
+import { Feed, Folder, FeedMetadata } from "../types/types";
 import { Notice } from "obsidian";
 
 
@@ -16,9 +16,7 @@ function escapeXml(unsafe: string): string {
 }
 
 export class OpmlManager {
-    /**
-     * Import OPML file content and preserve folder hierarchy
-     */
+    
     static parseOpml(opmlContent: string): { feeds: Feed[], folders: Folder[] } {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(opmlContent, "text/xml");
@@ -138,9 +136,110 @@ export class OpmlManager {
         return { feeds: newFeeds, folders: rootFolders };
     }
     
-    /**
-     * Import OPML from file content
-     */
+    static parseOpmlMetadata(opmlContent: string): { feeds: FeedMetadata[], folders: Folder[] } {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(opmlContent, "text/xml");
+        
+        const newFeeds: FeedMetadata[] = [];
+        const folderMap: { [key: string]: Folder } = {};
+        const folderHierarchy: { [key: string]: string } = {}; 
+        
+        const processOutlines = (outlines: NodeListOf<Element>, currentPath = '') => {
+            for (let i = 0; i < outlines.length; i++) {
+                const outline = outlines[i];
+                const type = outline.getAttribute("type");
+                
+                if (!type && outline.hasChildNodes()) {
+                    const folderName = outline.getAttribute("title") || 
+                                      outline.getAttribute("text") || 
+                                      "Unnamed Folder";
+                    
+                    const folderPath = currentPath ? `${currentPath}/${folderName}` : folderName;
+                    
+                    if (!folderMap[folderPath]) {
+                        folderMap[folderPath] = {
+                            name: folderName,
+                            subfolders: []
+                        };
+                        
+                        if (currentPath) {
+                            folderHierarchy[folderPath] = currentPath;
+                        }
+                    }
+                    
+                    const childOutlines = outline.querySelectorAll(':scope > outline');
+                    processOutlines(childOutlines, folderPath);
+                }
+                
+                else if (type === "rss" || outline.getAttribute("xmlUrl")) {
+                    const feedTitle = outline.getAttribute("title") || 
+                                     outline.getAttribute("text") || 
+                                     "Unnamed Feed";
+                    const xmlUrl = outline.getAttribute("xmlUrl") || "";
+                    const category = outline.getAttribute("category") || currentPath || "Uncategorized";
+                    
+                    if (xmlUrl) {
+                        newFeeds.push({
+                            title: feedTitle,
+                            url: xmlUrl,
+                            folder: category,
+                            lastUpdated: 0,
+                            importStatus: 'pending'
+                        });
+                    }
+                }
+            }
+        };
+        
+        const outlines = xmlDoc.querySelectorAll('body > outline');
+        processOutlines(outlines);
+        
+        const rootFolders: Folder[] = [];
+        const processedFolders = new Set<string>();
+        
+        const findOrCreateFolder = (path: string, folders: Folder[]): Folder | null => {
+            const parts = path.split('/');
+            const folderName = parts[0];
+            
+            let folder = folders.find(f => f.name === folderName);
+            
+            if (!folder) {
+                folder = {
+                    name: folderName,
+                    subfolders: []
+                };
+                folders.push(folder);
+            }
+            
+            if (parts.length === 1) {
+                return folder;
+            }
+            
+            return findOrCreateFolder(parts.slice(1).join('/'), folder.subfolders);
+        };
+        
+        Object.keys(folderMap).forEach(path => {
+            if (!processedFolders.has(path)) {
+                const folder = folderMap[path];
+                const parent = folderHierarchy[path];
+                
+                if (!parent) {
+                    rootFolders.push(folder);
+                } else {
+                    const parentFolder = findOrCreateFolder(parent, rootFolders);
+                    if (parentFolder) {
+                        parentFolder.subfolders.push(folder);
+                    }
+                }
+                
+                processedFolders.add(path);
+            }
+        });
+        
+        return { feeds: newFeeds, folders: rootFolders };
+    }
+    
+    
     static async importOpml(
         opmlContent: string, 
         existingFeeds: Feed[], 
@@ -172,10 +271,8 @@ export class OpmlManager {
         }
     }
     
-    /**
-     * Merge folder hierarchies
-     */
-    private static mergeFolders(existing: Folder[], newFolders: Folder[]): Folder[] {
+    
+    static mergeFolders(existing: Folder[], newFolders: Folder[]): Folder[] {
         const result = [...existing];
         
         
@@ -198,9 +295,7 @@ export class OpmlManager {
         return result;
     }
     
-    /**
-     * Generate OPML content with folder hierarchy
-     */
+    
     static generateOpml(feeds: Feed[], folders: Folder[]): string {
         
         let opmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';

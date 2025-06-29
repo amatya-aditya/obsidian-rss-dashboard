@@ -1,15 +1,140 @@
 import { requestUrl, Notice } from "obsidian";
-import { Feed, FeedItem, MediaSettings, Tag } from "../types.js";
+import { Feed, FeedItem, MediaSettings, Tag } from "../types/types.js";
 import { MediaService } from "./media-service";
-import Parser from "rss-parser";
+
+async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
+    try {
+        console.log(`Attempting to discover feed URL from: ${baseUrl}`);
+        
+        const response = await requestUrl({
+            url: baseUrl,
+            method: "GET",
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            }
+        });
+        
+        if (!response.text) return null;
+        
+        
+        if (baseUrl.includes('feeds.feedburner.com')) {
+            console.log('Detected FeedBurner URL, trying FeedBurner-specific patterns...');
+            
+            
+            const feedNameMatch = baseUrl.match(/feeds\.feedburner\.com\/([^\/\?]+)/);
+            if (feedNameMatch) {
+                const feedName = feedNameMatch[1];
+                const feedBurnerUrls = [
+                    `https://feeds.feedburner.com/${feedName}?format=xml`,
+                    `https://feeds.feedburner.com/${feedName}?fmt=xml`,
+                    `https://feeds.feedburner.com/${feedName}?type=xml`,
+                    `https://feeds.feedburner.com/${feedName}/feed`,
+                    `https://feeds.feedburner.com/${feedName}/rss`,
+                    `https://feeds.feedburner.com/${feedName}/atom`,
+                    `https://feeds.feedburner.com/${feedName}.xml`,
+                    `https://feeds.feedburner.com/${feedName}/feed.xml`,
+                    `https://feeds.feedburner.com/${feedName}/rss.xml`,
+                    `https://feeds.feedburner.com/${feedName}/atom.xml`
+                ];
+                
+                for (const feedUrl of feedBurnerUrls) {
+                    try {
+                        console.log(`Trying FeedBurner URL: ${feedUrl}`);
+                        const feedResponse = await requestUrl({
+                            url: feedUrl,
+                            method: "GET",
+                            headers: {
+                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                                "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                            }
+                        });
+                        
+                        if (feedResponse.text && 
+                            (feedResponse.text.includes('<rss') || 
+                             feedResponse.text.includes('<feed') || 
+                             feedResponse.text.includes('<channel'))) {
+                            console.log(`Successfully discovered FeedBurner feed: ${feedUrl}`);
+                            return feedUrl;
+                        }
+                    } catch (error) {
+                        console.log(`FeedBurner URL failed: ${feedUrl}`, error);
+                        continue;
+                    }
+                }
+            }
+        }
+        
+        
+        const feedLinkMatches = response.text.match(/<link[^>]+(?:type="application\/rss\+xml"|type="application\/atom\+xml"|type="application\/xml")[^>]+href="([^"]+)"/gi);
+        
+        if (feedLinkMatches) {
+            for (const match of feedLinkMatches) {
+                const hrefMatch = match.match(/href="([^"]+)"/);
+                if (hrefMatch) {
+                    let feedUrl = hrefMatch[1];
+                    
+                    
+                    if (feedUrl.startsWith('/')) {
+                        const url = new URL(baseUrl);
+                        feedUrl = `${url.protocol}//${url.host}${feedUrl}`;
+                    } else if (!feedUrl.startsWith('http')) {
+                        feedUrl = `${baseUrl}/${feedUrl}`;
+                    }
+                    
+                    console.log(`Discovered feed URL: ${feedUrl}`);
+                    return feedUrl;
+                }
+            }
+        }
+        
+        
+        const altFeedPatterns = [
+            /<a[^>]+href="([^"]*feed[^"]*)"[^>]*>/gi,
+            /<a[^>]+href="([^"]*rss[^"]*)"[^>]*>/gi,
+            /<a[^>]+href="([^"]*atom[^"]*)"[^>]*>/gi,
+            /<a[^>]+href="([^"]*xml[^"]*)"[^>]*>/gi
+        ];
+        
+        for (const pattern of altFeedPatterns) {
+            const matches = response.text.match(pattern);
+            if (matches) {
+                for (const match of matches) {
+                    const hrefMatch = match.match(/href="([^"]+)"/);
+                    if (hrefMatch) {
+                        let feedUrl = hrefMatch[1];
+                        if (feedUrl.startsWith('/')) {
+                            const url = new URL(baseUrl);
+                            feedUrl = `${url.protocol}//${url.host}${feedUrl}`;
+                        } else if (!feedUrl.startsWith('http')) {
+                            feedUrl = `${baseUrl}/${feedUrl}`;
+                        }
+                        if (feedUrl === baseUrl) continue;
+                        console.log(`Discovered alternative feed URL: ${feedUrl}`);
+                        return feedUrl;
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Error discovering feed URL:", e);
+    }
+    return null;
+}
 
 export async function fetchFeedXml(url: string): Promise<string> {
     try {
         
-        const secureUrl = url.replace(/^http:\/\//i, 'https://');
+        let cleanInputUrl = url
+            .replace(/\/+/g, '/')  
+            .replace(/:\/\/[^\/]+\/\/+/, (match) => {
+                
+                const protocolHost = match.replace(/\/+/g, '//');
+                return protocolHost;
+            });
         
-        console.log(`Fetching feed from: ${secureUrl}`);
-        
+        const secureUrl = cleanInputUrl.replace(/^http:\/\//i, 'https://');
+
         const response = await requestUrl({
             url: secureUrl,
             method: "GET",
@@ -18,36 +143,1137 @@ export async function fetchFeedXml(url: string): Promise<string> {
                 "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
             }
         });
-
-        console.log(`Feed response status: ${response.status}`);
-        console.log(`Feed response headers:`, response.headers);
         
         if (!response.text) {
             throw new Error('Empty response from feed');
         }
 
+        
+        if (response.text.includes('<?php') || response.text.includes('WordPress') || response.text.includes('wp-blog-header.php')) {
+            console.warn('Received PHP file instead of RSS feed, trying alternative URLs...');
+            
+            
+            const cleanUrl = (url: string): string => {
+                return url
+                    .replace(/\/feed\/?$/, '')  
+                    .replace(/\/+$/, '')        
+                    .replace(/\/+/g, '/')       
+                    .replace(/:\/\/[^\/]+\/\/+/, '://$&'.replace('$&', url.match(/:\/\/[^\/]+/)?.[0] || '')); 
+            };
+            
+            const baseUrl = cleanUrl(secureUrl);
+            
+            
+            const isFeedBurner = baseUrl.includes('feeds.feedburner.com');
+            const isBlogger = baseUrl.includes('blogger.com') || baseUrl.includes('blogspot.com');
+            
+            let alternativeUrls: string[] = [];
+            
+            if (isFeedBurner) {
+                
+                alternativeUrls = [
+                    `${baseUrl}?format=xml`,
+                    `${baseUrl}?fmt=xml`,
+                    `${baseUrl}?type=xml`,
+                    `${baseUrl}/feed`,
+                    `${baseUrl}/rss`,
+                    `${baseUrl}/atom`,
+                    `${baseUrl}.xml`,
+                    `${baseUrl}/feed.xml`,
+                    `${baseUrl}/rss.xml`,
+                    `${baseUrl}/atom.xml`
+                ];
+            } else if (isBlogger) {
+                
+                alternativeUrls = [
+                    `${baseUrl}/feeds/posts/default?alt=rss`,
+                    `${baseUrl}/feeds/posts/default?alt=atom`,
+                    `${baseUrl}/feeds/posts/default`,
+                    `${baseUrl}/feeds/posts/summary?alt=rss`,
+                    `${baseUrl}/feeds/posts/summary?alt=atom`,
+                    `${baseUrl}/feeds/posts/summary`,
+                    `${baseUrl}/rss.xml`,
+                    `${baseUrl}/atom.xml`,
+                    `${baseUrl}/feed`,
+                    `${baseUrl}/rss`
+                ];
+            } else {
+                
+                alternativeUrls = [
+                    `${baseUrl}/feed/rss/`,
+                    `${baseUrl}/feed/rss2/`,
+                    `${baseUrl}/feed/atom/`,
+                    `${baseUrl}/rss/`,
+                    `${baseUrl}/rss.xml`,
+                    `${baseUrl}/feed.xml`,
+                    `${baseUrl}/index.php/feed/`,
+                    `${baseUrl}/?feed=rss2`,
+                    `${baseUrl}/?feed=rss`,
+                    `${baseUrl}/?feed=atom`,
+                    
+                    `${baseUrl}/wp-feed.php`,
+                    `${baseUrl}/feed/feed/`,
+                    `${baseUrl}/feed/rdf/`,
+                    
+                    `${baseUrl}/?feed=rss2&paged=1`,
+                    `${baseUrl}/?feed=rss&paged=1`,
+                    
+                    `${baseUrl}/feed`,
+                    `${baseUrl}/rss`,
+                    
+                    `${baseUrl}/index.php?feed=rss2`,
+                    `${baseUrl}/index.php?feed=rss`,
+                    `${baseUrl}/index.php?feed=atom`
+                ];
+            }
+            
+            for (const altUrl of alternativeUrls) {
+                try {
+                    console.log(`Trying alternative URL: ${altUrl}`);
+                    const altResponse = await requestUrl({
+                        url: altUrl,
+                        method: "GET",
+                        headers: {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
+                            "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                        }
+                    });
+                    
+                    if (altResponse.text && !altResponse.text.includes('<?php') && !altResponse.text.includes('WordPress')) {
+                        console.log(`Successfully fetched RSS from: ${altUrl}`);
+                        return altResponse.text;
+                    }
+                } catch (altError) {
+                    console.log(`Alternative URL failed: ${altUrl}`, altError);
+                    continue;
+                }
+            }
+            
+            
+            console.log('All alternative URLs failed, attempting to discover feed URL from main page...');
+            const discoveredUrl = await discoverFeedUrl(baseUrl);
+            if (discoveredUrl) {
+                try {
+                    console.log(`Trying discovered feed URL: ${discoveredUrl}`);
+                    const discoveredResponse = await requestUrl({
+                        url: discoveredUrl,
+                        method: "GET",
+                        headers: {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
+                            "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                        }
+                    });
+                    
+                    if (discoveredResponse.text && !discoveredResponse.text.includes('<?php') && !discoveredResponse.text.includes('WordPress')) {
+                        console.log(`Successfully fetched RSS from discovered URL: ${discoveredUrl}`);
+                        return discoveredResponse.text;
+                    }
+                } catch (discoveredError) {
+                    console.log(`Discovered URL failed: ${discoveredUrl}`, discoveredError);
+                }
+            }
+            
+            throw new Error('All alternative feed URLs failed, received PHP file instead of RSS feed');
+        }
+
         return response.text;
     } catch (error) {
-        console.error(`Error fetching feed ${url}:`, error);
-        throw error;
+        console.warn(`Direct fetch failed for ${url}, trying AllOrigins proxy...`, error);
+        
+        try {
+            const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+            const proxyResponse = await requestUrl({
+                url: allOriginsUrl,
+                method: "GET"
+            });
+            const data = JSON.parse(proxyResponse.text);
+            if (!data.contents) throw new Error('No contents from AllOrigins');
+            
+            
+            if (data.contents.includes('<?php') || data.contents.includes('WordPress')) {
+                throw new Error('Proxy also returned PHP file instead of RSS feed');
+            }
+            
+            return data.contents;
+        } catch (proxyError) {
+            console.error(`AllOrigins proxy fetch failed for ${url}:`, proxyError);
+            throw proxyError;
+        }
+    }
+}
+
+interface ParsedFeed {
+    title: string;
+    description?: string;
+    link?: string;
+    author?: string;
+    image?: { url: string };
+    items: ParsedItem[];
+    type: 'rss' | 'atom' | 'json';
+    feedItunesImage: string;
+    feedImageUrl: string;
+}
+
+interface ParsedItem {
+    title: string;
+    link: string;
+    description: string;
+    pubDate: string;
+    guid: string;
+    author?: string;
+    content?: string;
+    category?: string;
+    enclosure?: {
+        url: string;
+        type: string;
+        length: string;
+    };
+    itunes?: {
+        duration?: string;
+        explicit?: string;
+        image?: { href: string };
+        category?: string;
+        summary?: string;
+        episodeType?: string;
+        season?: string;
+        episode?: string;
+    };
+    image?: { url: string };
+}
+
+export class CustomXMLParser {
+    private parseXML(xmlString: string): Document {
+        const parser = new DOMParser();
+        return parser.parseFromString(xmlString, "text/xml");
+    }
+
+    private detectEncoding(xmlString: string): string {
+        const match = xmlString.match(/encoding=["']([^"']+)["']/);
+        return match ? match[1] : 'UTF-8';
+    }
+
+    private getTextContent(element: Element | null, tagName: string): string {
+        if (!element) return '';
+        
+        let el: Element | null = null;
+        
+        if (tagName.includes('\\:')) {
+            
+            el = element.querySelector(tagName);
+        } else if (tagName.includes(':')) {
+            
+            const parts = tagName.split(':');
+            if (parts.length === 2) {
+                const [namespace, localName] = parts;
+                
+                
+                try {
+                    
+                    el = element.querySelector(`${namespace}\\:${localName}`);
+                } catch (e) {
+                    try {
+                        
+                        const elements = element.getElementsByTagNameNS('*', localName);
+                        if (elements.length > 0) {
+                            el = elements[0];
+                        }
+                    } catch (e2) {
+                        try {
+                            
+                            el = element.querySelector(localName);
+                        } catch (e3) {
+                            
+                            el = element.querySelector(`*[local-name()="${localName}"]`);
+                        }
+                    }
+                }
+            }
+        } else {
+            
+            el = element.querySelector(tagName);
+        }
+        
+        if (!el) return '';
+        
+        
+        const textContent = el.textContent?.trim() || '';
+        if (textContent) {
+            return this.sanitizeCDATA(textContent);
+        }
+        
+        return '';
+    }
+
+    private sanitizeCDATA(text: string): string {
+        if (!text) return '';
+        
+        
+        let cleaned = text
+            .replace(/<!\[CDATA\[/g, '')
+            .replace(/\]\]>/g, '')
+            .trim();
+        
+        
+        cleaned = cleaned
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&#x27;/g, "'")
+            .replace(/&#x2F;/g, '/')
+            .replace(/&#8230;/g, '...') 
+            .replace(/&#8217;/g, '\u2019') 
+            .replace(/&#8216;/g, '\u2018') 
+            .replace(/&#8220;/g, '\u201C') 
+            .replace(/&#8221;/g, '\u201D') 
+            .replace(/&#8211;/g, '\u2013') 
+            .replace(/&#8212;/g, '\u2014') 
+            .replace(/\s+/g, ' ') 
+            .trim();
+        
+        return cleaned;
+    }
+
+    private getAttribute(element: Element | null, tagName: string, attribute: string): string {
+        const el = element?.querySelector(tagName);
+        return el?.getAttribute(attribute) || '';
+    }
+
+    private getTextContentWithMultipleSelectors(element: Element | null, selectors: string[]): string {
+        if (!element) return '';
+        
+        for (const selector of selectors) {
+            try {
+                const el = element.querySelector(selector);
+                if (el && el.textContent?.trim()) {
+                    return this.sanitizeCDATA(el.textContent.trim());
+                }
+            } catch (e) {
+                
+                continue;
+            }
+        }
+        
+        return '';
+    }
+
+    private getTextContentWithNamespace(element: Element | null, namespace: string, tagName: string): string {
+        const el = element?.querySelector(`${namespace}\\:${tagName}`);
+        return el?.textContent?.trim() || '';
+    }
+
+    private validateFeedStructure(doc: Document): boolean {
+        
+        const hasRSS = doc.querySelector('rss');
+        if (hasRSS) return true;
+        
+        
+        const hasAtom = doc.querySelector('feed');
+        if (hasAtom) return true;
+        
+        
+        const rootElement = doc.documentElement;
+        const hasRDF = rootElement && 
+            (rootElement.getAttribute('xmlns:rdf') || 
+             rootElement.getAttribute('xmlns')?.includes('rdf'));
+        if (hasRDF) return true;
+        
+        
+        const hasChannel = doc.querySelector('channel');
+        if (hasChannel) return true;
+        
+        
+        const hasItems = doc.querySelector('item');
+        if (hasItems) return true;
+        
+        return false;
+    }
+
+    private sanitizeText(text: string): string {
+        if (!text) return '';
+        
+        
+        return text
+            .replace(/<[^>]*>/g, '') 
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&#x27;/g, "'")
+            .replace(/&#x2F;/g, '/')
+            .replace(/\s+/g, ' ') 
+            .trim();
+    }
+
+    private convertAppUrls(url: string): string {
+        
+        if (url && url.startsWith('app://')) {
+            return url.replace('app://', 'https://');
+        }
+        return url;
+    }
+
+    private extractImageFromContent(content: string): string {
+        if (!content) return '';
+        
+        try {
+            const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
+            const imageUrl = imgMatch ? imgMatch[1] : '';
+            return this.convertAppUrls(imageUrl);
+        } catch (error) {
+            return '';
+        }
+    }
+
+    private parseRSS(doc: Document): ParsedFeed {
+        const channel = doc.querySelector('channel');
+        if (!channel) throw new Error('Invalid RSS feed: no channel element found');
+
+        const title = this.getTextContent(channel, 'title');
+        const description = this.getTextContent(channel, 'description');
+        const link = this.getTextContent(channel, 'link');
+        
+        
+        const author = this.getTextContentWithMultipleSelectors(channel, [
+            'author',
+            'dc\\:creator',
+            'dc:creator',
+            '*[local-name()="creator"]'
+        ]);
+        
+        
+        const imageElement = channel.querySelector('image');
+        const image = imageElement ? { url: this.getTextContent(imageElement, 'url') } : undefined;
+
+        
+        const itunesImageElement = channel.querySelector('itunes\\:image');
+        const itunesImage = itunesImageElement ? { url: itunesImageElement.getAttribute('href') || '' } : undefined;
+        
+        const feedItunesImage = itunesImageElement ? itunesImageElement.getAttribute('href') || '' : '';
+        const feedImageUrl = imageElement ? this.getTextContent(imageElement, 'url') : '';
+
+        const items: ParsedItem[] = [];
+        const itemElements = channel.querySelectorAll('item');
+
+        itemElements.forEach(item => {
+            const title = this.getTextContent(item, 'title');
+            const link = this.getTextContent(item, 'link');
+            const description = this.getTextContent(item, 'description');
+            const pubDate = this.getTextContent(item, 'pubDate');
+            const guid = this.getTextContent(item, 'guid') || link;
+            
+            
+            const author = this.getTextContentWithMultipleSelectors(item, [
+                'author',
+                'dc\\:creator',
+                'dc:creator',
+                '*[local-name()="creator"]'
+            ]);
+            
+            const content = this.getTextContent(item, 'content\\:encoded') || description;
+
+            
+            const enclosureElement = item.querySelector('enclosure');
+            const enclosure = enclosureElement ? {
+                url: enclosureElement.getAttribute('url') || '',
+                type: enclosureElement.getAttribute('type') || '',
+                length: enclosureElement.getAttribute('length') || ''
+            } : undefined;
+
+            
+            const itunes = {
+                duration: this.getTextContent(item, 'itunes\\:duration'),
+                explicit: this.getTextContent(item, 'itunes\\:explicit'),
+                image: { href: this.getAttribute(item, 'itunes\\:image', 'href') },
+                category: this.getTextContent(item, 'itunes\\:category'),
+                summary: this.getTextContent(item, 'itunes\\:summary'),
+                episodeType: this.getTextContent(item, 'itunes\\:episodeType'),
+                season: this.getTextContent(item, 'itunes\\:season'),
+                episode: this.getTextContent(item, 'itunes\\:episode')
+            };
+
+            
+            const itemImageElement = item.querySelector('image');
+            const itemImage = itemImageElement ? { url: this.getTextContent(itemImageElement, 'url') } : undefined;
+
+            
+            let mediaImage = '';
+            const mediaContentElement = item.querySelector('media\\:content');
+            if (mediaContentElement) {
+                const mediaUrl = mediaContentElement.getAttribute('url');
+                if (mediaUrl) {
+                    mediaImage = mediaUrl;
+                }
+            }
+
+            
+            let fallbackImage = '';
+            if (!itemImage && !mediaImage) {
+                fallbackImage = this.extractImageFromContent(content || description || '');
+            }
+
+            items.push({
+                title,
+                link,
+                description,
+                pubDate,
+                guid,
+                author,
+                content,
+                enclosure,
+                itunes,
+                image: itemImage || (mediaImage ? { url: mediaImage } : undefined) || (fallbackImage ? { url: fallbackImage } : undefined),
+                category: this.getTextContent(item, 'category')
+            });
+        });
+
+        return {
+            title,
+            description,
+            link,
+            author,
+            image: itunesImage || image, 
+            items,
+            type: 'rss',
+            feedItunesImage,
+            feedImageUrl
+        };
+    }
+
+    private parseRSS1(doc: Document): ParsedFeed {
+        
+        const channel = doc.querySelector('channel');
+        if (!channel) throw new Error('Invalid RSS 1.0 feed: no channel element found');
+
+        const title = this.getTextContent(channel, 'title');
+        const description = this.getTextContent(channel, 'description');
+        const link = this.getTextContent(channel, 'link');
+        const author = this.getTextContent(channel, 'dc:creator') || this.getTextContent(channel, 'dc:publisher');
+        
+        
+        let image: { url: string } | undefined;
+        const imageRef = channel.querySelector('image');
+        if (imageRef) {
+            const imageResource = imageRef.getAttribute('rdf:resource');
+            if (imageResource) {
+                image = { url: this.convertAppUrls(imageResource) };
+            } else {
+                
+                const imageUrl = this.getTextContent(imageRef, 'url');
+                if (imageUrl) {
+                    image = { url: this.convertAppUrls(imageUrl) };
+                }
+            }
+        }
+
+        const items: ParsedItem[] = [];
+        
+        const itemElements = Array.from(doc.getElementsByTagName('item'));
+
+        itemElements.forEach((item, index) => {
+            
+            const guid = item.getAttribute('rdf:about') || 
+                        this.getTextContent(item, 'guid') || 
+                        this.getTextContent(item, 'link') ||
+                        this.getTextContent(item, 'prism:url');
+            
+            const title = this.getTextContent(item, 'title') || this.getTextContent(item, 'dc:title');
+            const link = this.getTextContent(item, 'link') || this.getTextContent(item, 'prism:url');
+            
+            
+            const description = this.getTextContent(item, 'description') || 
+                              this.getTextContent(item, 'content:encoded');
+            
+            
+            const pubDate = this.getTextContent(item, 'dc:date') || 
+                          this.getTextContent(item, 'pubDate');
+            
+            
+            const authorElements = item.querySelectorAll('dc\\:creator');
+            let author = '';
+            if (authorElements.length > 0) {
+                author = Array.from(authorElements)
+                    .map(el => el.textContent?.trim())
+                    .filter(text => text)
+                    .join(', ');
+            } else {
+                
+                author = this.getTextContent(item, 'dc:creator') || '';
+            }
+            
+            
+            const content = this.getTextContent(item, 'content:encoded') || description;
+
+            
+            const doi = this.getTextContent(item, 'prism:doi') || this.getTextContent(item, 'dc:identifier');
+            const source = this.getTextContent(item, 'dc:source');
+            const publicationName = this.getTextContent(item, 'prism:publicationName');
+
+            items.push({
+                title: title || 'Untitled',
+                link: link || '#',
+                description: description || '',
+                pubDate: pubDate || new Date().toISOString(),
+                guid: guid || link || `item-${items.length}`,
+                author: author || undefined,
+                content: content || description || '',
+                category: this.getTextContent(item, 'category')
+            });
+        });
+
+        return {
+            title: title || 'Unknown Feed',
+            description: description || '',
+            link: link || '',
+            author: author || undefined,
+            image,
+            items,
+            type: 'rss',
+            feedItunesImage: "",
+            feedImageUrl: ""
+        };
+    }
+
+    private parseAtom(doc: Document): ParsedFeed {
+        const feed = doc.querySelector('feed');
+        if (!feed) throw new Error('Invalid Atom feed: no feed element found');
+
+        const title = this.getTextContent(feed, 'title');
+        const description = this.getTextContent(feed, 'subtitle');
+        const link = this.getAttribute(feed, 'link[rel="alternate"]', 'href') || this.getAttribute(feed, 'link', 'href');
+        const author = this.getTextContent(feed, 'author > name');
+        
+        const iconElement = feed.querySelector('icon');
+        const image = iconElement ? { url: iconElement.textContent || '' } : undefined;
+
+        const items: ParsedItem[] = [];
+        const entryElements = feed.querySelectorAll('entry');
+
+        entryElements.forEach(entry => {
+            const title = this.getTextContent(entry, 'title');
+            const link = this.getAttribute(entry, 'link[rel="alternate"]', 'href') || this.getAttribute(entry, 'link', 'href');
+            const description = this.getTextContent(entry, 'summary');
+            const pubDate = this.getTextContent(entry, 'published') || this.getTextContent(entry, 'updated');
+            const guid = this.getTextContent(entry, 'id') || link;
+            const author = this.getTextContent(entry, 'author > name');
+            const content = this.getTextContent(entry, 'content') || description;
+
+            items.push({
+                title,
+                link,
+                description,
+                pubDate,
+                guid,
+                author,
+                content,
+                category: this.getTextContent(entry, 'category')
+            });
+        });
+
+        return {
+            title,
+            description,
+            link,
+            author,
+            image,
+            items,
+            type: 'atom',
+            feedItunesImage: "",
+            feedImageUrl: ""
+        };
+    }
+
+    private parseJSON(jsonString: string): ParsedFeed {
+        try {
+            const data = JSON.parse(jsonString);
+            
+            
+            if (data.version && data.version.startsWith('https://jsonfeed.org/')) {
+                return {
+                    title: data.title || '',
+                    description: data.description,
+                    link: data.home_page_url,
+                    author: data.authors?.[0]?.name,
+                    image: data.icon ? { url: data.icon } : undefined,
+                    items: data.items?.map((item: any) => ({
+                        title: item.title || '',
+                        link: item.url || '',
+                        description: item.summary || '',
+                        pubDate: item.date_published || new Date().toISOString(),
+                        guid: item.id || item.url || '',
+                        author: item.authors?.[0]?.name,
+                        content: item.content_html || item.content_text || '',
+                        image: item.image ? { url: item.image } : undefined,
+                        category: item.category || item.tags?.[0] || ''
+                    })) || [],
+                    type: 'json',
+                    feedItunesImage: "",
+                    feedImageUrl: ""
+                };
+            }
+            
+            throw new Error('Unsupported JSON feed format');
+        } catch (error) {
+            throw new Error(`Failed to parse JSON feed: ${error}`);
+        }
+    }
+
+    private fallbackParse(xmlString: string): ParsedFeed {
+        
+        try {
+            console.log('Starting fallback parsing...');
+            console.log('XML length:', xmlString.length);
+            console.log('XML preview (first 1000 chars):', xmlString.substring(0, 1000));
+            
+            
+            let cleanedXml = xmlString;
+            
+            
+            cleanedXml = cleanedXml.replace(/<\?php[\s\S]*?\?>/gi, '');
+            cleanedXml = cleanedXml.replace(/<\?.*?\?>/gi, '');
+            
+            
+            const rssStartMatch = cleanedXml.match(/<rss[^>]*>/i);
+            if (rssStartMatch) {
+                const rssStartIndex = cleanedXml.indexOf(rssStartMatch[0]);
+                cleanedXml = cleanedXml.substring(rssStartIndex);
+            }
+            
+            
+            const rssEndMatch = cleanedXml.match(/<\/rss>/i);
+            if (rssEndMatch) {
+                const rssEndIndex = cleanedXml.indexOf(rssEndMatch[0]) + rssEndMatch[0].length;
+                cleanedXml = cleanedXml.substring(0, rssEndIndex);
+            }
+            
+            console.log('Cleaned XML length:', cleanedXml.length);
+            console.log('Cleaned XML preview:', cleanedXml.substring(0, 500));
+            
+            
+            const channelTitleMatch = cleanedXml.match(/<channel[^>]*>[\s\S]*?<title[^>]*>([^<]+)<\/title>/i);
+            const title = channelTitleMatch ? this.sanitizeCDATA(channelTitleMatch[1].trim()) : 'Unknown Feed';
+            
+            
+            const channelDescMatch = cleanedXml.match(/<channel[^>]*>[\s\S]*?<description[^>]*>([\s\S]*?)<\/description>/i);
+            const description = channelDescMatch ? this.sanitizeCDATA(channelDescMatch[1].trim()) : '';
+            
+            
+            const channelLinkMatch = cleanedXml.match(/<channel[^>]*>[\s\S]*?<link[^>]*>([^<]+)<\/link>/i);
+            const link = channelLinkMatch ? channelLinkMatch[1].trim() : '';
+            
+            const items: ParsedItem[] = [];
+            
+            
+            let itemMatches: RegExpMatchArray[] = [];
+            
+            
+            const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
+            let itemMatch;
+            while ((itemMatch = itemRegex.exec(cleanedXml)) !== null) {
+                itemMatches.push(itemMatch);
+            }
+            
+            
+            if (itemMatches.length === 0) {
+                console.log('No items found with standard regex, trying alternative approach...');
+                const altItemRegex = /<item[^>]*>([\s\S]*?)(?=<item|<\/channel>|<\/rss>)/gi;
+                while ((itemMatch = altItemRegex.exec(cleanedXml)) !== null) {
+                    itemMatches.push(itemMatch);
+                }
+            }
+            
+            
+            if (itemMatches.length === 0) {
+                console.log('Still no items found, trying most aggressive approach...');
+                const aggressiveItemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
+                while ((itemMatch = aggressiveItemRegex.exec(xmlString)) !== null) {
+                    itemMatches.push(itemMatch);
+                }
+            }
+            
+            console.log(`Found ${itemMatches.length} items using regex approaches`);
+            
+            itemMatches.forEach((itemMatch, index) => {
+                const itemXml = itemMatch[1];
+                console.log(`Processing item ${index + 1}...`);
+                
+                
+                const itemTitleMatch = itemXml.match(/<title[^>]*>([^<]+)<\/title>/i);
+                if (!itemTitleMatch) {
+                    console.log(`Item ${index + 1}: No title found, skipping`);
+                    return;
+                }
+                
+                const itemTitle = this.sanitizeCDATA(itemTitleMatch[1].trim());
+                console.log(`Item ${index + 1} title:`, itemTitle);
+                
+                
+                const itemLinkMatch = itemXml.match(/<link[^>]*>([^<]+)<\/link>/i);
+                const itemLink = itemLinkMatch ? itemLinkMatch[1].trim() : '#';
+                
+                
+                const itemDescMatch = itemXml.match(/<description[^>]*>([\s\S]*?)<\/description>/i);
+                const itemDescription = itemDescMatch ? this.sanitizeCDATA(itemDescMatch[1].trim()) : '';
+                
+                
+                const itemPubDateMatch = itemXml.match(/<pubDate[^>]*>([^<]+)<\/pubDate>/i);
+                const itemPubDate = itemPubDateMatch ? itemPubDateMatch[1].trim() : new Date().toISOString();
+                
+                
+                const itemGuidMatch = itemXml.match(/<guid[^>]*>([^<]+)<\/guid>/i);
+                const itemGuid = itemGuidMatch ? itemGuidMatch[1].trim() : itemLink;
+                
+                
+                let itemAuthor = '';
+                const authorMatches = [
+                    itemXml.match(/<author[^>]*>([^<]+)<\/author>/i),
+                    itemXml.match(/<dc:creator[^>]*>([^<]+)<\/dc:creator>/i),
+                    itemXml.match(/<dc\\:creator[^>]*>([^<]+)<\/dc\\:creator>/i),
+                    itemXml.match(/<dc:creator[^>]*><!\[CDATA\[([^\]]*)\]\]><\/dc:creator>/i),
+                    itemXml.match(/<dc\\:creator[^>]*><!\[CDATA\[([^\]]*)\]\]><\/dc\\:creator>/i)
+                ];
+                
+                for (const match of authorMatches) {
+                    if (match) {
+                        itemAuthor = this.sanitizeCDATA(match[1].trim());
+                        break;
+                    }
+                }
+                
+                
+                const itemCategoryMatch = itemXml.match(/<category[^>]*>([^<]+)<\/category>/i);
+                const itemCategory = itemCategoryMatch ? this.sanitizeCDATA(itemCategoryMatch[1].trim()) : '';
+                
+                items.push({
+                    title: itemTitle,
+                    link: itemLink,
+                    description: itemDescription,
+                    pubDate: itemPubDate,
+                    guid: itemGuid,
+                    author: itemAuthor || undefined,
+                    content: itemDescription,
+                    category: itemCategory
+                });
+            });
+            
+            console.log(`Fallback parsing completed. Found ${items.length} items.`);
+            
+            return {
+                title,
+                description,
+                link,
+                author: undefined,
+                image: undefined,
+                items,
+                type: 'rss',
+                feedItunesImage: "",
+                feedImageUrl: ""
+            };
+        } catch (error) {
+            console.error('Fallback parsing failed:', error);
+            throw new Error(`Fallback parsing failed: ${error}`);
+        }
+    }
+
+    private extractRssContent(xmlString: string): string {
+        console.log('Extracting RSS content from corrupted XML...');
+        
+        
+        let rssContent = '';
+        
+        
+        const rssMatch = xmlString.match(/<rss[^>]*>[\s\S]*?<\/rss>/i);
+        if (rssMatch) {
+            rssContent = rssMatch[0];
+            console.log('Found RSS content using <rss> tag approach');
+        } else {
+            
+            const channelMatch = xmlString.match(/<channel[^>]*>[\s\S]*?<\/channel>/i);
+            if (channelMatch) {
+                rssContent = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0">${channelMatch[0]}</rss>`;
+                console.log('Found RSS content using <channel> tag approach');
+            } else {
+                
+                const itemMatches = xmlString.match(/<item[^>]*>[\s\S]*?<\/item>/gi);
+                if (itemMatches && itemMatches.length > 0) {
+                    console.log(`Found ${itemMatches.length} items, reconstructing RSS feed`);
+                    
+                    
+                    const titleMatch = xmlString.match(/<title[^>]*>([^<]+)<\/title>/i);
+                    const descMatch = xmlString.match(/<description[^>]*>([\s\S]*?)<\/description>/i);
+                    const linkMatch = xmlString.match(/<link[^>]*>([^<]+)<\/link>/i);
+                    
+                    const title = titleMatch ? titleMatch[1].trim() : 'Unknown Feed';
+                    const description = descMatch ? descMatch[1].trim() : '';
+                    const link = linkMatch ? linkMatch[1].trim() : '';
+                    
+                    rssContent = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+    <title>${title}</title>
+    <description>${description}</description>
+    <link>${link}</link>
+    ${itemMatches.join('\n    ')}
+</channel>
+</rss>`;
+                }
+            }
+        }
+        
+        if (rssContent) {
+            console.log('Successfully extracted RSS content');
+            return rssContent;
+        }
+        
+        console.log('Failed to extract RSS content, returning original');
+        return xmlString;
+    }
+
+    private preprocessXmlContent(xmlString: string): string {
+        let processed = xmlString;
+        
+        
+        processed = processed.replace(/^\uFEFF/, '');
+        
+        
+        processed = processed.replace(/<\?php[\s\S]*?\?>/gi, '');
+        processed = processed.replace(/<\?.*?\?>/gi, '');
+        
+        
+        const xmlDeclMatch = processed.match(/<\?xml[^>]*\?>/);
+        if (xmlDeclMatch) {
+            const xmlDeclIndex = processed.indexOf(xmlDeclMatch[0]);
+            if (xmlDeclIndex > 0) {
+                processed = processed.substring(xmlDeclIndex);
+            }
+        }
+        
+        
+        if (!xmlDeclMatch) {
+            const rssStartMatch = processed.match(/<rss[^>]*>/i);
+            if (rssStartMatch) {
+                const rssStartIndex = processed.indexOf(rssStartMatch[0]);
+                processed = processed.substring(rssStartIndex);
+            }
+        }
+        
+        
+        const rssCloseMatch = processed.match(/<\/rss>/i);
+        if (rssCloseMatch) {
+            const rssCloseIndex = processed.indexOf(rssCloseMatch[0]) + rssCloseMatch[0].length;
+            processed = processed.substring(0, rssCloseIndex);
+        }
+        
+        
+        processed = processed.replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
+        
+        
+        if (!processed.includes('<?xml')) {
+            processed = '<?xml version="1.0" encoding="UTF-8"?>' + processed;
+        }
+        
+        return processed;
+    }
+
+    async parseString(xmlString: string): Promise<ParsedFeed> {
+        try {
+            
+            if (xmlString.trim().startsWith('{')) {
+                return this.parseJSON(xmlString);
+            }
+
+            
+            let cleanedXml = this.preprocessXmlContent(xmlString.trim());
+
+            const encoding = this.detectEncoding(cleanedXml);
+            const doc = this.parseXML(cleanedXml);
+            
+            
+            const parserError = doc.querySelector('parsererror');
+            if (parserError) {
+                console.warn('XML parsing errors detected:', parserError.textContent);
+                console.warn('Attempting RSS content extraction...');
+                
+                
+                const extractedXml = this.extractRssContent(xmlString);
+                if (extractedXml !== xmlString) {
+                    try {
+                        const extractedDoc = this.parseXML(extractedXml);
+                        const extractedParserError = extractedDoc.querySelector('parsererror');
+                        if (!extractedParserError && this.validateFeedStructure(extractedDoc)) {
+                            console.log('Successfully parsed extracted RSS content');
+                            
+                            
+                            const rootElement = extractedDoc.documentElement;
+                            const isRDF = rootElement && 
+                                (rootElement.tagName.toLowerCase() === 'rdf:rdf' ||
+                                 rootElement.getAttribute('xmlns:rdf') || 
+                                 rootElement.getAttribute('xmlns')?.includes('rdf'));
+                            
+                            if (isRDF) {
+                                return this.parseRSS1(extractedDoc);
+                            } else if (extractedDoc.querySelector('rss')) {
+                                return this.parseRSS(extractedDoc);
+                            } else if (extractedDoc.querySelector('feed')) {
+                                return this.parseAtom(extractedDoc);
+                            }
+                        }
+                    } catch (extractError) {
+                        console.warn('Extracted XML parsing failed:', extractError);
+                    }
+                }
+                
+                console.warn('Attempting fallback parsing');
+                return this.fallbackParse(xmlString);
+            }
+
+            
+            if (!this.validateFeedStructure(doc)) {
+                console.warn('Invalid feed structure detected, attempting fallback parsing');
+                return this.fallbackParse(xmlString);
+            }
+
+            
+            const rootElement = doc.documentElement;
+            const isRDF = rootElement && 
+                (rootElement.tagName.toLowerCase() === 'rdf:rdf' ||
+                 rootElement.getAttribute('xmlns:rdf') || 
+                 rootElement.getAttribute('xmlns')?.includes('rdf'));
+            
+            if (isRDF) {
+                return this.parseRSS1(doc);
+            } else if (doc.querySelector('rss')) {
+                return this.parseRSS(doc);
+            } else if (doc.querySelector('feed')) {
+                return this.parseAtom(doc);
+            } else {
+                console.warn('Unknown feed format, attempting fallback parsing');
+                return this.fallbackParse(xmlString);
+            }
+        } catch (error) {
+            console.error('Error parsing feed:', error);
+            console.error('Original XML length:', xmlString.length);
+            console.error('XML preview:', xmlString.substring(0, 500));
+            
+            try {
+                return this.fallbackParse(xmlString);
+            } catch (fallbackError) {
+                throw new Error(`All parsing attempts failed: ${error}. Fallback error: ${fallbackError}`);
+            }
+        }
     }
 }
 
 export class FeedParser {
     private mediaSettings: MediaSettings;
     private availableTags: Tag[];
-    private parser: Parser<any, any>;
+    private parser: CustomXMLParser;
     
     constructor(mediaSettings: MediaSettings, availableTags: Tag[]) {
         this.mediaSettings = mediaSettings;
         this.availableTags = availableTags;
-        this.parser = new Parser();
+        this.parser = new CustomXMLParser();
     }
     
-    /**
-     * Extract cover image from HTML content
-     */
-    private extractCoverImage(html: string): string {
+    
+    private convertToAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
+        if (!relativeUrl || !baseUrl) return relativeUrl;
+        
+        
+        if (relativeUrl.startsWith('app://')) {
+            return relativeUrl.replace('app://', 'https://');
+        }
+        
+        
+        if (relativeUrl.startsWith('//')) {
+            return 'https:' + relativeUrl;
+        }
+        
+        
+        if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://')) {
+            return relativeUrl;
+        }
+        
+        try {
+            
+            const base = new URL(baseUrl);
+            
+            
+            if (relativeUrl.startsWith('/')) {
+                return `${base.protocol}//${base.host}${relativeUrl}`;
+            }
+            
+            
+            return new URL(relativeUrl, base).href;
+        } catch (error) {
+            console.warn(`Failed to convert relative URL "${relativeUrl}" to absolute URL with base "${baseUrl}":`, error);
+            return relativeUrl;
+        }
+    }
+
+    
+    private convertRelativeUrlsInContent(content: string, baseUrl: string): string {
+        if (!content || !baseUrl) return content;
+        
+        try {
+            
+            content = content.replace(
+                /app:\/\//g,
+                'https://'
+            );
+            
+            
+            content = content.replace(
+                /<img([^>]+)src=["']([^"']+)["']/gi,
+                (match, attributes, src) => {
+                    const absoluteSrc = this.convertToAbsoluteUrl(src, baseUrl);
+                    return `<img${attributes}src="${absoluteSrc}"`;
+                }
+            );
+            
+            
+            content = content.replace(
+                /<source([^>]+)srcset=["']([^"']+)["']/gi,
+                (match, attributes, srcset) => {
+                    
+                    const processedSrcset = srcset.split(',').map((part: string) => {
+                        const trimmedPart = part.trim();
+                        
+                        const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
+                        if (urlMatch) {
+                            const url = urlMatch[1];
+                            const sizeDescriptor = urlMatch[2] || '';
+                            const absoluteUrl = this.convertToAbsoluteUrl(url, baseUrl);
+                            return absoluteUrl + sizeDescriptor;
+                        }
+                        return trimmedPart;
+                    }).join(', ');
+                    return `<source${attributes}srcset="${processedSrcset}"`;
+                }
+            );
+            
+            
+            content = content.replace(
+                /<a([^>]+)href=["']([^"']+)["']/gi,
+                (match, attributes, href) => {
+                    const absoluteHref = this.convertToAbsoluteUrl(href, baseUrl);
+                    return `<a${attributes}href="${absoluteHref}"`;
+                }
+            );
+            
+            return content;
+        } catch (error) {
+            console.warn(`Failed to convert relative URLs in content with base "${baseUrl}":`, error);
+            return content;
+        }
+    }
+    
+    
+    private extractCoverImage(html: string, baseUrl: string = ''): string {
         if (!html) return "";
         
         try {
@@ -55,12 +1281,13 @@ export class FeedParser {
             const doc = parser.parseFromString(html, "text/html");
 
             
-            
             const ogImage = doc.querySelector('meta[property="og:image"]');
             if (ogImage?.getAttribute("content")) {
                 const content = ogImage.getAttribute("content");
                 if (content && content.startsWith("http")) {
                     return content;
+                } else if (content && baseUrl) {
+                    return this.convertToAbsoluteUrl(content, baseUrl);
                 }
             }
             
@@ -70,6 +1297,8 @@ export class FeedParser {
                 const content = twitterImage.getAttribute("content");
                 if (content && content.startsWith("http")) {
                     return content;
+                } else if (content && baseUrl) {
+                    return this.convertToAbsoluteUrl(content, baseUrl);
                 }
             }
 
@@ -79,6 +1308,8 @@ export class FeedParser {
                 const src = firstImg.getAttribute("src");
                 if (src && src.startsWith("http")) {
                     return src;
+                } else if (src && baseUrl) {
+                    return this.convertToAbsoluteUrl(src, baseUrl);
                 }
             }
             
@@ -89,8 +1320,13 @@ export class FeedParser {
                 if (src && src.startsWith("http") && 
                     (src.endsWith(".jpg") || src.endsWith(".jpeg") || 
                      src.endsWith(".png") || src.endsWith(".gif") || 
-                     src.includes("image"))) {
+                     src.endsWith(".webp") || src.includes("image"))) {
                     return src;
+                } else if (src && baseUrl && 
+                    (src.endsWith(".jpg") || src.endsWith(".jpeg") || 
+                     src.endsWith(".png") || src.endsWith(".gif") || 
+                     src.endsWith(".webp") || src.includes("image"))) {
+                    return this.convertToAbsoluteUrl(src, baseUrl);
                 }
             }
         } catch (e) {
@@ -99,11 +1335,57 @@ export class FeedParser {
 
         return "";
     }
+
     
-    /**
-     * Extract a summary from the description HTML
-     */
-    private extractSummary(description: string, maxLength = 150): string {
+    private extractPodcastCoverImage(item: ParsedItem, feedImage: { url: string } | string | undefined, baseUrl: string): string {
+        
+        if (item.itunes?.image?.href) {
+            const itunesImage = this.convertToAbsoluteUrl(item.itunes.image.href, baseUrl);
+            if (itunesImage) {
+                return itunesImage;
+            }
+        }
+
+        
+        if (item.image?.url) {
+            const itemImage = this.convertToAbsoluteUrl(item.image.url, baseUrl);
+            if (itemImage) {
+              
+                return itemImage;
+            }
+        }
+
+        
+        if (feedImage) {
+            let feedImageUrl = '';
+            if (typeof feedImage === 'string') {
+                feedImageUrl = feedImage;
+            } else if (feedImage.url) {
+                feedImageUrl = feedImage.url;
+            }
+            
+            if (feedImageUrl) {
+                const convertedUrl = this.convertToAbsoluteUrl(feedImageUrl, baseUrl);
+                if (convertedUrl) {
+                 
+                    return convertedUrl;
+                }
+            }
+        }
+
+        
+        const contentImage = this.extractCoverImage(item.content || item.description || '', baseUrl);
+        if (contentImage) {
+            
+            return contentImage;
+        }
+
+
+        return "";
+    }
+    
+    
+    private extractSummary(description: string, maxLength = 220): string {
         if (!description) return "";
         
         try {
@@ -133,9 +1415,7 @@ export class FeedParser {
         }
     }
     
-    /**
-     * Parse a feed URL and retrieve items
-     */
+    
     async parseFeed(url: string, existingFeed: Feed | null = null): Promise<Feed> {
         if (!url) {
             throw new Error("Feed URL is required");
@@ -158,54 +1438,180 @@ export class FeedParser {
             };
 
             
-            const items: FeedItem[] = parsed.items.map((item: any) => {
-                
-                const existingItem = newFeed.items.find(fi => fi.guid === item.guid);
-                
-                
-                const coverImage = this.extractCoverImage(item.content || item.description || '');
-                const summary = this.extractSummary(item.content || item.description || '');
+            const existingItems = new Map<string, FeedItem>();
+            if (existingFeed) {
+                existingFeed.items.forEach(item => {
+                    existingItems.set(item.guid, item);
+                });
+            }
 
-                
-                const isPodcast = parsed.itunes?.author || 
-                                item.enclosure?.type?.startsWith('audio/') ||
-                                parsed.type === 'podcast';
+            
+            const newItems: FeedItem[] = [];
+            const updatedItems: FeedItem[] = [];
 
-                return {
-                    title: item.title || 'No title',
-                    link: item.link || '#',
-                    description: item.description || '',
-                    pubDate: item.pubDate || new Date().toISOString(),
-                    guid: item.guid || item.link || '',
-                    read: existingItem ? existingItem.read : false,
-                    starred: existingItem ? existingItem.starred : false,
-                    tags: existingItem ? existingItem.tags : [],
-                    feedTitle: newFeed.title,
-                    feedUrl: newFeed.url,
-                    coverImage,
-                    summary,
-                    author: item.author || parsed.author,
-                    saved: existingItem ? existingItem.saved : false,
-                    mediaType: isPodcast ? 'podcast' : 'article',
-                    
-                    duration: item.duration,
-                    explicit: item.explicit === 'yes',
-                    image: item.image?.url || parsed.image?.url,
-                    category: item.category,
-                    episodeType: item.episodeType,
-                    season: item.season,
-                    episode: item.episode,
-                    enclosure: item.enclosure ? {
-                        url: item.enclosure.url,
-                        type: item.enclosure.type,
-                        length: item.enclosure.length
-                    } : undefined
-                };
+            parsed.items.forEach((item: ParsedItem) => {
+                const itemGuid = this.convertToAbsoluteUrl(item.guid || item.link || '', url);
+                const existingItem = existingItems.get(itemGuid);
+                
+                
+                const isPodcast = item.itunes?.duration || item.enclosure?.type?.startsWith('audio/');
+                
+                if (existingItem) {
+                    let coverImage = existingItem.coverImage;
+                    if (isPodcast) {
+                        coverImage = this.extractPodcastCoverImage(item, parsed.image, url) || existingItem.coverImage;
+                    } else {
+                        
+                        coverImage = this.extractCoverImage(item.content || item.description || '', url)
+                            || this.convertToAbsoluteUrl(item.itunes?.image?.href || item.image?.url || '', url)
+                            || (parsed.image && typeof parsed.image === 'object' && parsed.image.url ? this.convertToAbsoluteUrl(parsed.image.url, url) : '')
+                            || existingItem.coverImage;
+                    }
+                    const updatedItem: FeedItem = {
+                        ...existingItem,
+                        title: item.title || existingItem.title,
+                        description: this.convertRelativeUrlsInContent(item.description || '', url),
+                        content: this.convertRelativeUrlsInContent(item.content || '', url),
+                        pubDate: item.pubDate || existingItem.pubDate,
+                        author: item.author || parsed.author || existingItem.author,
+                        read: existingItem.read,
+                        starred: existingItem.starred,
+                        tags: existingItem.tags,
+                        saved: existingItem.saved,
+                        coverImage,
+                        summary: this.extractSummary(item.content || item.description || '') || existingItem.summary,
+                        image: this.convertToAbsoluteUrl(item.itunes?.image?.href || item.image?.url || parsed.image?.url || '', url) || existingItem.image,
+                        duration: item.itunes?.duration || existingItem.duration,
+                        explicit: item.itunes?.explicit === 'yes' || existingItem.explicit,
+                        category: item.itunes?.category || existingItem.category,
+                        episodeType: item.itunes?.episodeType || existingItem.episodeType,
+                        season: item.itunes?.season ? Number(item.itunes.season) : existingItem.season,
+                        episode: item.itunes?.episode ? Number(item.itunes.episode) : existingItem.episode,
+                        enclosure: item.enclosure ? {
+                            url: this.convertToAbsoluteUrl(item.enclosure.url, url),
+                            type: item.enclosure.type,
+                            length: item.enclosure.length
+                        } : existingItem.enclosure
+                    };
+                    updatedItems.push(updatedItem);
+                } else {
+                    let coverImage = '';
+                    if (isPodcast) {
+                        coverImage = this.extractPodcastCoverImage(item, parsed.image, url);
+                        if (!coverImage) {
+                            if (parsed.feedItunesImage) {
+                                coverImage = this.convertToAbsoluteUrl(parsed.feedItunesImage, url);
+                            } else if (parsed.feedImageUrl) {
+                                coverImage = this.convertToAbsoluteUrl(parsed.feedImageUrl, url);
+                            } else if (parsed.image && typeof parsed.image === 'object' && parsed.image.url) {
+                                coverImage = this.convertToAbsoluteUrl(parsed.image.url, url);
+                            } else if (typeof parsed.image === 'string') {
+                                coverImage = this.convertToAbsoluteUrl(parsed.image, url);
+                            }
+                        }
+                        if (!coverImage) {
+                            coverImage = this.extractCoverImage(item.content || item.description || '', url);
+                        }
+                    } else {
+                        
+                        coverImage = this.extractCoverImage(item.content || item.description || '', url)
+                            || this.convertToAbsoluteUrl(item.itunes?.image?.href || item.image?.url || '', url)
+                            || (parsed.image && typeof parsed.image === 'object' && parsed.image.url ? this.convertToAbsoluteUrl(parsed.image.url, url) : '');
+                    }
+                    let image = this.convertToAbsoluteUrl(item.itunes?.image?.href || item.image?.url || parsed.image?.url || '', url);
+                    if (!image) {
+                        image = this.extractCoverImage(item.content || item.description || '', url);
+                    }
+                    const summary = this.extractSummary(item.content || item.description || '');
+                    const newItem: FeedItem = {
+                        title: item.title || 'No title',
+                        link: this.convertToAbsoluteUrl(item.link || '', url),
+                        description: this.convertRelativeUrlsInContent(item.description || '', url),
+                        content: this.convertRelativeUrlsInContent(item.content || '', url),
+                        pubDate: item.pubDate || new Date().toISOString(),
+                        guid: itemGuid,
+                        read: false,
+                        starred: false,
+                        tags: [],
+                        feedTitle: newFeed.title,
+                        feedUrl: newFeed.url,
+                        coverImage,
+                        summary,
+                        author: item.author || parsed.author,
+                        saved: false,
+                        mediaType: isPodcast ? 'podcast' : 'article',
+                        duration: item.itunes?.duration,
+                        explicit: item.itunes?.explicit === 'yes',
+                        image: image,
+                        category: item.itunes?.category,
+                        episodeType: item.itunes?.episodeType,
+                        season: item.itunes?.season ? Number(item.itunes.season) : undefined,
+                        episode: item.itunes?.episode ? Number(item.itunes.episode) : undefined,
+                        enclosure: item.enclosure ? {
+                            url: this.convertToAbsoluteUrl(item.enclosure.url, url),
+                            type: item.enclosure.type,
+                            length: item.enclosure.length
+                        } : undefined
+                    };
+                    newItems.push(newItem);
+                }
             });
 
             
-            newFeed.items = items;
+            
+            const allItems: FeedItem[] = [];
+            
+            
+            
+            if (existingFeed) {
+                existingFeed.items.forEach(item => {
+                    const itemGuid = this.convertToAbsoluteUrl(item.guid || item.link || '', url);
+                    
+                    if (!existingItems.has(itemGuid)) {
+                        
+                        allItems.push(item);
+                    }
+                });
+            }
+            
+            
+            allItems.push(...updatedItems);
+            
+            
+            allItems.push(...newItems);
+
+            newFeed.items = allItems;
             newFeed.lastUpdated = Date.now();
+
+            
+            const feedLogoCandidates = [
+                parsed.feedItunesImage,
+                parsed.feedImageUrl,
+                parsed.image && typeof parsed.image === 'object' ? parsed.image.url : '',
+                typeof parsed.image === 'string' ? parsed.image : ''
+            ].filter(Boolean);
+            const feedLogoUrl = feedLogoCandidates.length > 0 ? feedLogoCandidates[0] : '';
+            const coverImageCounts: Record<string, number> = {};
+            newFeed.items.forEach(item => {
+                if (item.coverImage) {
+                    coverImageCounts[item.coverImage] = (coverImageCounts[item.coverImage] || 0) + 1;
+                }
+            });
+            const totalItems = newFeed.items.length;
+            Object.entries(coverImageCounts).forEach(([imgUrl, count]) => {
+                if (
+                    imgUrl &&
+                    (imgUrl === feedLogoUrl || feedLogoCandidates.includes(imgUrl)) &&
+                    count >= Math.max(2, Math.floor(totalItems * 0.8))
+                ) {
+                    newFeed.items.forEach(item => {
+                        if (item.coverImage === imgUrl) {
+                            item.coverImage = '';
+                        }
+                    });
+                }
+            });
+            
 
             
             if (this.mediaSettings.autoDetectMediaType) {
@@ -229,9 +1635,7 @@ export class FeedParser {
         }
     }
     
-    /**
-     * Refresh a single feed
-     */
+    
     async refreshFeed(feed: Feed): Promise<Feed> {
         try {
             return await this.parseFeed(feed.url, feed);
@@ -241,9 +1645,7 @@ export class FeedParser {
         }
     }
     
-    /**
-     * Refresh all feeds
-     */
+    
     async refreshAllFeeds(feeds: Feed[]): Promise<Feed[]> {
         const updatedFeeds: Feed[] = [];
         
@@ -294,23 +1696,10 @@ interface CustomItem {
 
 export class FeedParserService {
     private static instance: FeedParserService;
-    private parser: Parser<CustomFeed, CustomItem>;
+    private parser: CustomXMLParser;
 
     private constructor() {
-        this.parser = new Parser({
-            customFields: {
-                item: [
-                    ['itunes:duration', 'itunes.duration'],
-                    ['itunes:explicit', 'itunes.explicit'],
-                    ['itunes:image', 'itunes.image'],
-                    ['itunes:category', 'itunes.category'],
-                    ['itunes:summary', 'itunes.summary'],
-                    ['itunes:episodeType', 'itunes.episodeType'],
-                    ['itunes:season', 'itunes.season'],
-                    ['itunes:episode', 'itunes.episode']
-                ]
-            }
-        });
+        this.parser = new CustomXMLParser();
     }
 
     public static getInstance(): FeedParserService {
@@ -346,7 +1735,7 @@ export class FeedParserService {
                 item.itunes?.explicit
             );
 
-            const items: FeedItem[] = parsed.items.map((item: any) => ({
+            const items: FeedItem[] = parsed.items.map((item: ParsedItem) => ({
                 title: item.title || "",
                 link: item.link || "",
                 description: item.description || "",

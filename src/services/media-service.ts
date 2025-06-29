@@ -1,5 +1,5 @@
 import { requestUrl, Notice } from "obsidian";
-import { Feed, FeedItem, Tag } from "../types";
+import { Feed, FeedItem, Tag } from "../types/types";
 
 export class MediaService {
     private static readonly YOUTUBE_PATTERNS = [
@@ -12,17 +12,13 @@ export class MediaService {
         'youtu.be/'
     ];
 
-    /**
-     * Detects if a feed URL is for a YouTube channel
-     */
+    
     static isYouTubeFeed(url: string): boolean {
         if (!url) return false;
         return this.YOUTUBE_PATTERNS.some(pattern => url.includes(pattern));
     }
     
-    /**
-     * Convert YouTube channel URL/name to RSS feed URL
-     */
+    
     static async getYouTubeRssFeed(input: string): Promise<string | null> {
         if (!input) {
             console.error("No input provided for YouTube feed conversion");
@@ -134,15 +130,33 @@ export class MediaService {
         return null;
     }
     
-    /**
-     * Checks if a feed is likely a podcast feed (has audio enclosures)
-     */
+    
     static isPodcastFeed(feed: Feed): boolean {
         if (!feed?.items?.length) return false;
         
         try {
             
             for (const item of feed.items.slice(0, 3)) {
+                
+                if (item.enclosure?.type?.startsWith('audio/')) {
+                    return true;
+                }
+                
+                
+                if (item.duration || item.itunes?.duration) {
+                    return true;
+                }
+                
+                
+                if (feed.author && (
+                    feed.author.toLowerCase().includes('podcast') ||
+                    feed.author.toLowerCase().includes('radio') ||
+                    feed.author.toLowerCase().includes('audio')
+                )) {
+                    return true;
+                }
+
+                
                 if (!item?.description) continue;
 
                 const description = item.description.toLowerCase();
@@ -172,9 +186,7 @@ export class MediaService {
         return false;
     }
     
-    /**
-     * Extracts YouTube video ID from a link
-     */
+    
     static extractYouTubeVideoId(link: string): string | undefined {
         if (!link) return undefined;
 
@@ -198,9 +210,7 @@ export class MediaService {
         return undefined;
     }
     
-    /**
-     * Extracts audio URL from podcast item description
-     */
+    
     static extractPodcastAudio(description: string): string | undefined {
         if (!description) return undefined;
         
@@ -235,9 +245,7 @@ export class MediaService {
         return undefined;
     }
     
-    /**
-     * Extracts podcast duration from item description
-     */
+    
     static extractPodcastDuration(description: string): string | undefined {
         if (!description) return undefined;
         
@@ -258,9 +266,7 @@ export class MediaService {
         return undefined;
     }
     
-    /**
-     * Process YouTube feed items to extract video information
-     */
+    
     static processYouTubeFeed(feed: Feed): Feed {
         feed.mediaType = 'video';
         
@@ -286,22 +292,23 @@ export class MediaService {
         };
     }
     
-    /**
-     * Process podcast feed items to extract audio information
-     */
+    
     static processPodcastFeed(feed: Feed): Feed {
         feed.mediaType = 'podcast';
         
         
         const updatedItems = feed.items.map(item => {
-            const audioUrl = this.extractPodcastAudio(item.description);
-            const duration = this.extractPodcastDuration(item.description);
+            
+            const audioUrl = item.enclosure?.url || this.extractPodcastAudio(item.description);
+            const duration = item.duration || item.itunes?.duration || this.extractPodcastDuration(item.description);
             
             return {
                 ...item,
                 mediaType: 'podcast' as const,
                 audioUrl: audioUrl,
-                duration: duration
+                duration: duration,
+                
+                enclosure: item.enclosure
             };
         });
         
@@ -312,20 +319,37 @@ export class MediaService {
         };
     }
     
-    /**
-     * Detect and process feed type based on content
-     */
+    
     static detectAndProcessFeed(feed: Feed): Feed {
         
         if (this.isYouTubeFeed(feed.url)) {
             return this.processYouTubeFeed(feed);
         }
+
         
+        const hasVideo = feed.items.some(item => item.enclosure?.type?.startsWith('video/'));
+        if (hasVideo) {
+            return {
+                ...feed,
+                mediaType: 'video',
+                items: feed.items.map(item => {
+                    if (item.enclosure?.type?.startsWith('video/')) {
+                        return {
+                            ...item,
+                            mediaType: 'video',
+                            videoUrl: item.enclosure.url
+                        };
+                    }
+                    return item;
+                })
+            };
+        }
+
         
         if (this.isPodcastFeed(feed)) {
             return this.processPodcastFeed(feed);
         }
-        
+
         
         return {
             ...feed,
@@ -337,9 +361,7 @@ export class MediaService {
         };
     }
     
-    /**
-     * Generate HTML for YouTube player embed
-     */
+    
     static getYouTubePlayerHtml(videoId: string, width = 560, height = 315): string {
         return `
             <div class="rss-dashboard-media-player youtube-player">
@@ -355,9 +377,7 @@ export class MediaService {
         `;
     }
     
-    /**
-     * Generate HTML for audio player
-     */
+    
     static getAudioPlayerHtml(audioUrl: string, title = ''): string {
         return `
             <div class="rss-dashboard-media-player audio-player">
@@ -370,36 +390,33 @@ export class MediaService {
         `;
     }
     
-    /**
-     * Add tag to feed items based on media type
-     */
+    
     static applyMediaTags(feed: Feed, availableTags: Tag[]): Feed {
-        
         if (!feed.mediaType || feed.mediaType === 'article') {
             return feed;
         }
+
         
-        
-        const tagName = feed.mediaType === 'video' ? 'youtube' : 'podcast';
+        let tagName: string | undefined;
+        if (feed.mediaType === 'video') {
+            tagName = this.isYouTubeFeed(feed.url) ? 'youtube' : 'video';
+        } else if (feed.mediaType === 'podcast') {
+            tagName = 'podcast';
+        }
+
+        if (!tagName) return feed;
+
         const mediaTag = availableTags.find(t => t.name.toLowerCase() === tagName);
-        
         if (!mediaTag) return feed;
-        
-        
+
         const updatedItems = feed.items.map(item => {
-            
-            if (!item.tags) {
-                item.tags = [];
-            }
-            
-            
+            if (!item.tags) item.tags = [];
             if (!item.tags.some(t => t.name.toLowerCase() === tagName)) {
-                item.tags.push({...mediaTag});
+                item.tags.push({ ...mediaTag });
             }
-            
             return item;
         });
-        
+
         return {
             ...feed,
             items: updatedItems

@@ -1,8 +1,7 @@
-import { Menu, MenuItem, Notice } from "obsidian";
-import { Feed, Folder, Tag, RssDashboardSettings } from "../types";
+import { Menu, MenuItem, Notice, App, setIcon, Setting } from "obsidian";
+import { Feed, Folder, Tag, RssDashboardSettings } from "../types/types";
 import { MediaService } from "../services/media-service";
-import { setIcon } from "obsidian";
-import { Setting } from "obsidian";
+import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 
 interface SidebarOptions {
     currentFolder: string | null;
@@ -20,11 +19,12 @@ interface SidebarCallbacks {
     onToggleFolderCollapse: (folder: string) => void;
     onAddFolder: (name: string) => void;
     onAddSubfolder: (parent: string, name: string) => void;
-    onAddFeed: (title: string, url: string, folder: string) => void;
+    onAddFeed: (title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) => Promise<void>;
     onEditFeed: (feed: Feed, title: string, url: string, folder: string) => void;
     onDeleteFeed: (feed: Feed) => void;
     onDeleteFolder: (folder: string) => void;
     onRefreshFeeds: () => void;
+    onUpdateFeed: (feed: Feed) => Promise<void>;
     onImportOpml: () => void;
     onExportOpml: () => void;
     onToggleSidebar: () => void;
@@ -37,6 +37,8 @@ export class Sidebar {
     private settings: RssDashboardSettings;
     private options: SidebarOptions;
     private callbacks: SidebarCallbacks;
+    private app: App;
+    private plugin: any;
 
     private renderTags(container: HTMLElement): void {
         const tagsSection = container.createDiv({
@@ -95,7 +97,7 @@ export class Sidebar {
                 const tagColorDot = tagEl.createDiv({
                     cls: "rss-dashboard-tag-color-dot",
                 });
-                tagColorDot.style.backgroundColor = tag.color;
+                tagColorDot.style.setProperty('--tag-color', tag.color);
 
                 tagEl.createDiv({
                     cls: "rss-dashboard-tag-name",
@@ -130,8 +132,10 @@ export class Sidebar {
         }
     }
     
-    constructor(container: HTMLElement, settings: RssDashboardSettings, options: SidebarOptions, callbacks: SidebarCallbacks) {
+    constructor(app: App, container: HTMLElement, plugin: any, settings: RssDashboardSettings, options: SidebarOptions, callbacks: SidebarCallbacks) {
+        this.app = app;
         this.container = container;
+        this.plugin = plugin;
         this.settings = settings;
         this.options = options;
         this.callbacks = callbacks;
@@ -139,7 +143,7 @@ export class Sidebar {
         this.renderTags(this.container);
     }
     
-    render(): void {
+    public render(): void {
         
         const scrollPosition = this.container.scrollTop;
         
@@ -149,6 +153,7 @@ export class Sidebar {
         
         
         this.renderHeader();
+        this.renderSearch();
         this.renderFilters();
         this.renderTags(this.container);
         this.renderFeedFolders();
@@ -160,139 +165,18 @@ export class Sidebar {
         });
     }
 
-    private updateHeader(): void {
-        const header = this.container.querySelector('.rss-dashboard-header');
-        if (header) {
-            const title = header.querySelector('.rss-dashboard-title');
-            if (title) {
-                title.textContent = "RSS Dashboard";
-            }
-        }
-    }
-
-    private updateFilters(): void {
-        const filtersList = this.container.querySelector('.rss-dashboard-filters-section');
-        if (!filtersList) return;
-
-        
-        const allItemsEl = filtersList.querySelector('.rss-dashboard-folder');
-        if (allItemsEl) {
-            allItemsEl.className = "rss-dashboard-folder" + 
-                (this.options.currentFolder === null && 
-                this.options.currentFeed === null && 
-                this.options.currentTag === null ? " active" : "");
-        }
-
-        const starredItemsEl = filtersList.querySelector('.rss-dashboard-folder:nth-child(2)');
-        if (starredItemsEl) {
-            starredItemsEl.className = "rss-dashboard-folder" + 
-                (this.options.currentFolder === "starred" ? " active" : "");
-        }
-
-        const unreadItemsEl = filtersList.querySelector('.rss-dashboard-folder:nth-child(3)');
-        if (unreadItemsEl) {
-            unreadItemsEl.className = "rss-dashboard-folder" + 
-                (this.options.currentFolder === "unread" ? " active" : "");
-        }
-
-        const readItemsEl = filtersList.querySelector('.rss-dashboard-folder:nth-child(4)');
-        if (readItemsEl) {
-            readItemsEl.className = "rss-dashboard-folder" + 
-                (this.options.currentFolder === "read" ? " active" : "");
-        }
-
-        const savedItemsEl = filtersList.querySelector('.rss-dashboard-folder:nth-child(5)');
-        if (savedItemsEl) {
-            savedItemsEl.className = "rss-dashboard-folder" + 
-                (this.options.currentFolder === "saved" ? " active" : "");
-        }
-
-        const videoItemsEl = filtersList.querySelector('.rss-dashboard-folder:nth-child(6)');
-        if (videoItemsEl) {
-            videoItemsEl.className = "rss-dashboard-folder" + 
-                (this.options.currentFolder === "videos" ? " active" : "");
-        }
-
-        const podcastItemsEl = filtersList.querySelector('.rss-dashboard-folder:nth-child(7)');
-        if (podcastItemsEl) {
-            podcastItemsEl.className = "rss-dashboard-folder" + 
-                (this.options.currentFolder === "podcasts" ? " active" : "");
-        }
-    }
-
-    private updateTags(tagsList: HTMLElement): void {
-        
-        const addTagButton = tagsList.createDiv({
-            cls: "rss-dashboard-add-tag-button",
-        });
-        setIcon(addTagButton, "plus");
-        addTagButton.appendChild(document.createTextNode(" Add Tag"));
-
-        addTagButton.addEventListener("click", (e) => {
-            e.stopPropagation();
-            this.showAddTagModal();
-        });
-
-        
-        for (const tag of this.settings.availableTags) {
-            const tagEl = tagsList.createDiv({
-                cls: "rss-dashboard-sidebar-tag" + 
-                    (this.options.currentTag === tag.name ? " active" : ""),
-            });
-
-            const tagColorDot = tagEl.createDiv({
-                cls: "rss-dashboard-tag-color-dot",
-            });
-            tagColorDot.style.backgroundColor = tag.color;
-
-            tagEl.createDiv({
-                cls: "rss-dashboard-tag-name",
-                text: tag.name,
-            });
-
-            
-            let tagCount = 0;
-            for (const feed of this.settings.feeds) {
-                tagCount += feed.items.filter(
-                    (item) => item.tags && item.tags.some((t) => t.name === tag.name)
-                ).length;
-            }
-
-            if (tagCount > 0) {
-                tagEl.createDiv({
-                    cls: "rss-dashboard-tag-count",
-                    text: tagCount.toString(),
-                });
-            }
-
-            
-            tagEl.addEventListener("click", (e) => {
-                e.stopPropagation(); 
-                this.callbacks.onTagClick(tag.name);
-            });
-            
-            
-            tagEl.addEventListener("contextmenu", (e) => {
-                e.preventDefault();
-                this.showTagContextMenu(e, tag);
-            });
-        }
-    }
-
     private renderFeedFolders(): void {
         const feedFoldersSection = this.container.createDiv({
             cls: "rss-dashboard-feed-folders-section",
         });
 
-        
-        const scrollPosition = feedFoldersSection.scrollTop;
-
-        
         if (this.settings.folders && this.settings.folders.length > 0) {
-            this.settings.folders.forEach(folderObj => this.renderFolder(folderObj, "", 0, feedFoldersSection));
+            const sortOrder = this.settings.folderSortOrder || { by: "name", ascending: true };
+            const sortedFolders = this.applySortOrder([...this.settings.folders], sortOrder);
+            
+            sortedFolders.forEach((folderObj: Folder) => this.renderFolder(folderObj, "", 0, feedFoldersSection));
         }
 
-        
         const allFolderPaths = new Set<string>();
         function collectPaths(folders: Folder[], base = "") {
             for (const f of folders) {
@@ -312,7 +196,6 @@ export class Sidebar {
             });
         }
 
-        
         feedFoldersSection.addEventListener("contextmenu", (e) => {
             if (e.target === feedFoldersSection) {
                 e.preventDefault();
@@ -337,28 +220,86 @@ export class Sidebar {
                             this.showAddFeedModal();
                         });
                 });
+                menu.addItem((item: MenuItem) => {
+                    item.setTitle("Sort Feeds")
+                        .setIcon("lucide-sort-asc")
+                        .onClick((evt) => {
+                            this.showFeedSortMenu(e, "");
+                        });
+                });
                 menu.showAtMouseEvent(e);
             }
         });
+    }
 
-        
-        requestAnimationFrame(() => {
-            feedFoldersSection.scrollTop = scrollPosition;
-        });
+    private applySortOrder(folders: Folder[], sortOrder: { by: "name" | "created" | "modified"; ascending: boolean }): Folder[] {
+        const sorter = (a: Folder, b: Folder): number => {
+            
+            if (a.pinned && !b.pinned) return -1;
+            if (!a.pinned && b.pinned) return 1;
+            
+            
+            let valA: any, valB: any;
+
+            switch (sortOrder.by) {
+                case "name":
+                    valA = a.name;
+                    valB = b.name;
+                    return valA.localeCompare(valB, undefined, { numeric: true }) * (sortOrder.ascending ? 1 : -1);
+                case "created":
+                    valA = a.createdAt || 0;
+                    valB = b.createdAt || 0;
+                    break;
+                case "modified":
+                    valA = a.modifiedAt || 0;
+                    valB = b.modifiedAt || 0;
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (valA < valB) return sortOrder.ascending ? -1 : 1;
+            if (valA > valB) return sortOrder.ascending ? 1 : -1;
+            return 0;
+        };
+
+        const recursiveSort = (folderList: Folder[]): Folder[] => {
+            const sortedFolders = [...folderList].sort(sorter);
+            
+            
+            sortedFolders.forEach((f) => {
+                if (f.subfolders && f.subfolders.length > 0) {
+                    f.subfolders = recursiveSort(f.subfolders);
+                }
+            });
+            
+            return sortedFolders;
+        };
+
+        return recursiveSort(folders);
     }
 
     private renderFolder(folderObj: Folder, parentPath = "", depth = 0, container: HTMLElement): void {
         const folderName = folderObj.name;
         const fullPath = parentPath ? `${parentPath}/${folderName}` : folderName;
         const isCollapsed = this.options.collapsedFolders.includes(fullPath);
+        const isActive = this.options.currentFolder === fullPath;
+        
+        
+        const folderFeeds = this.settings.feeds.filter(feed => feed.folder === fullPath);
+        const hasActiveFeed = folderFeeds.some(feed => feed === this.options.currentFeed);
+        const shouldHighlight = isActive || hasActiveFeed;
 
         const folderEl = container.createDiv({
             cls: "rss-dashboard-feed-folder",
         });
-        folderEl.style.marginLeft = `${depth * 18}px`;
+        const depthClass = `rss-dashboard-folder-depth-${Math.min(depth, 5)}`;
+        folderEl.addClass(depthClass);
 
         const folderHeader = folderEl.createDiv({
-            cls: "rss-dashboard-feed-folder-header" + (isCollapsed ? " collapsed" : ""),
+            cls: "rss-dashboard-feed-folder-header" + 
+                (isCollapsed ? " collapsed" : "") +
+                (shouldHighlight ? " active" : ""),
         });
 
         const toggleButton = folderHeader.createDiv({
@@ -366,6 +307,14 @@ export class Sidebar {
         });
         toggleButton.setAttr("aria-label", isCollapsed ? "Expand folder" : "Collapse folder");
         setIcon(toggleButton as HTMLElement, isCollapsed ? "chevron-right" : "chevron-down");
+
+        
+        if (folderObj.pinned) {
+            const pinIcon = folderHeader.createDiv({
+                cls: "rss-dashboard-folder-pin-icon",
+            });
+            setIcon(pinIcon, "lock");
+        }
 
         folderHeader.createDiv({
             cls: "rss-dashboard-feed-folder-name",
@@ -385,6 +334,7 @@ export class Sidebar {
 
         folderHeader.addEventListener("contextmenu", (e) => {
             e.preventDefault();
+            const contextEvent = e;
             const menu = new Menu();
             menu.addItem((item: MenuItem) => {
                 item.setTitle("Add Feed")
@@ -399,8 +349,8 @@ export class Sidebar {
                     .onClick(() => {
                         this.showFolderNameModal({
                             title: "Add Subfolder",
-                            onSubmit: (subfolderName) => {
-                                this.addSubfolderByPath(fullPath, subfolderName);
+                            onSubmit: async (subfolderName) => {
+                                await this.addSubfolderByPath(fullPath, subfolderName);
                                 this.render();
                             }
                         });
@@ -413,13 +363,39 @@ export class Sidebar {
                         this.showFolderNameModal({
                             title: "Rename Folder",
                             defaultValue: folderName,
-                            onSubmit: (newName) => {
+                            onSubmit: async (newName) => {
                                 if (newName !== folderName) {
-                                    this.renameFolderByPath(fullPath, newName);
+                                    await this.renameFolderByPath(fullPath, newName);
                                     this.render();
                                 }
                             }
                         });
+                    });
+            });
+            menu.addItem((item: MenuItem) => {
+                item.setTitle("Mark all as read")
+                    .setIcon("check-circle")
+                    .onClick(() => {
+                        const allPaths = this.getAllDescendantFolderPaths(fullPath);
+                        this.settings.feeds.forEach(feed => {
+                            if (feed.folder && allPaths.includes(feed.folder)) {
+                                feed.items.forEach(item => {
+                                    item.read = true;
+                                });
+                            }
+                        });
+                        this.render();
+                    });
+            });
+            menu.addItem((item: MenuItem) => {
+                const isPinned = folderObj.pinned;
+                item.setTitle(isPinned ? "Unpin Folder" : "Pin Folder")
+                    .setIcon(isPinned ? "unlock" : "lock")
+                    .onClick(async () => {
+                        folderObj.pinned = !isPinned;
+                        folderObj.modifiedAt = Date.now();
+                        await this.plugin.saveSettings();
+                        this.render();
                     });
             });
             menu.addItem((item: MenuItem) => {
@@ -432,6 +408,13 @@ export class Sidebar {
                             this.removeFolderByPath(fullPath);
                             this.render();
                         });
+                    });
+            });
+            menu.addItem((item: MenuItem) => {
+                item.setTitle("Sort Feeds")
+                    .setIcon("lucide-sort-asc")
+                    .onClick(() => {
+                        this.showFeedSortMenu(contextEvent, fullPath);
                     });
             });
             menu.showAtMouseEvent(e);
@@ -456,7 +439,13 @@ export class Sidebar {
                 if (feedUrl) {
                     const feed = this.settings.feeds.find(f => f.url === feedUrl);
                     if (feed && feed.folder !== fullPath) {
+                        if (feed.folder) {
+                            const oldFolder = this.findFolderByPath(feed.folder);
+                            if (oldFolder) oldFolder.modifiedAt = Date.now();
+                        }
                         feed.folder = fullPath;
+                        const newFolder = this.findFolderByPath(fullPath);
+                        if (newFolder) newFolder.modifiedAt = Date.now();
                         this.render();
                     }
                 }
@@ -469,13 +458,24 @@ export class Sidebar {
         });
 
         const feedsInFolder = this.settings.feeds.filter(feed => feed.folder === fullPath);
-        feedsInFolder.forEach((feed) => {
+        
+        
+        const folderSortOrder = this.settings.folderFeedSortOrders?.[fullPath];
+        const sortedFeedsInFolder = folderSortOrder 
+            ? this.applyFeedSortOrder([...feedsInFolder], folderSortOrder)
+            : feedsInFolder;
+            
+        sortedFeedsInFolder.forEach((feed) => {
             this.renderFeed(feed, folderFeedsList);
         });
 
         
         if (folderObj.subfolders && folderObj.subfolders.length > 0 && !isCollapsed) {
-            folderObj.subfolders.forEach((subfolder: Folder) => {
+            
+            const sortOrder = this.settings.folderSortOrder || { by: "name", ascending: true };
+            const sortedSubfolders = this.applySortOrder([...folderObj.subfolders], sortOrder);
+            
+            sortedSubfolders.forEach((subfolder: Folder) => {
                 this.renderFolder(subfolder, fullPath, depth + 1, container);
             });
         }
@@ -498,13 +498,24 @@ export class Sidebar {
         const feedIcon = feedNameContainer.createDiv({
             cls: "rss-dashboard-feed-icon",
         });
-        if (feed.mediaType === 'video') {
+        
+        
+        const isProcessing = feed.items.length === 0 && this.plugin?.backgroundImportQueue?.some(
+            (queuedFeed: any) => queuedFeed.url === feed.url && queuedFeed.importStatus === 'processing'
+        );
+        
+        if (isProcessing) {
+            
+            setIcon(feedIcon, "loader-2");
+            feedIcon.addClass("processing");
+            feedEl.classList.add('processing-feed');
+        } else if (feed.mediaType === 'video') {
             setIcon(feedIcon, "play");
-            feedIcon.style.color = "#ff0000";
+            feedIcon.addClass("youtube");
             feedEl.classList.add('youtube-feed');
         } else if (feed.mediaType === 'podcast') {
             setIcon(feedIcon, "mic");
-            feedIcon.style.color = "#8e44ad";
+            feedIcon.addClass("podcast");
             feedEl.classList.add('podcast-feed');
         } else {
             setIcon(feedIcon, "rss");
@@ -522,7 +533,18 @@ export class Sidebar {
             });
         }
 
-        feedEl.addEventListener("click", () => {
+        
+        if (feed.items.length === 0 && !isProcessing) {
+            const processingIndicator = feedNameContainer.createDiv({
+                cls: "rss-dashboard-feed-processing-indicator",
+                text: "⏳",
+            });
+            processingIndicator.setAttribute("title", "Articles being fetched in background");
+        }
+
+        feedEl.addEventListener("click", (e) => {
+            
+            e.stopPropagation();
             this.callbacks.onFeedClick(feed);
         });
 
@@ -540,992 +562,6 @@ export class Sidebar {
         });
     }
 
-    private updateToolbar(): void {
-        const toolbar = this.container.querySelector('.rss-dashboard-sidebar-toolbar');
-        if (!toolbar) return;
-
-        
-        const buttons = toolbar.querySelectorAll('.rss-dashboard-toolbar-button');
-        buttons.forEach(button => {
-            const title = button.getAttribute('title');
-            if (title === "Add Folder") {
-                (button as HTMLElement).onclick = () => {
-                    this.showFolderNameModal({
-                        title: "Add Folder",
-                        onSubmit: (folderName) => {
-                            this.addTopLevelFolder(folderName);
-                            this.render();
-                        }
-                    });
-                };
-            } else if (title === "Add Feed") {
-                (button as HTMLElement).onclick = () => {
-                    this.showAddFeedModal();
-                };
-            } else if (title === "Add YouTube Channel") {
-                (button as HTMLElement).onclick = () => {
-                    this.showAddYouTubeFeedModal();
-                };
-            } else if (title === "Refresh All Feeds") {
-                (button as HTMLElement).onclick = () => {
-                    this.callbacks.onRefreshFeeds();
-                };
-            } else if (title === "Import OPML") {
-                (button as HTMLElement).onclick = () => {
-                    this.callbacks.onImportOpml();
-                };
-            } else if (title === "Export OPML") {
-                (button as HTMLElement).onclick = () => {
-                    this.callbacks.onExportOpml();
-                };
-            } else if (title === "Open Settings") {
-                (button as HTMLElement).onclick = () => {
-                    if (this.callbacks.onOpenSettings) {
-                        this.callbacks.onOpenSettings();
-                    }
-                };
-            } else if (title === "Manage Feeds") {
-                (button as HTMLElement).onclick = () => {
-                    if (this.callbacks.onManageFeeds) {
-                        this.callbacks.onManageFeeds();
-                    }
-                };
-            }
-        });
-    }
-    
-    private renderHeader(): void {
-        const header = this.container.createDiv({
-            cls: "rss-dashboard-header",
-        });
-
-        header.createDiv({
-            cls: "rss-dashboard-title",
-            text: "RSS Dashboard",
-        });
-    }
-    
-    private renderFilters(): void {
-        const filtersList = this.container.createDiv({
-            cls: "rss-dashboard-filters-section",
-        });
-
-        
-        const allItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === null && 
-                this.options.currentFeed === null && 
-                this.options.currentTag === null ? " active" : ""),
-        });
-
-        const allItemsIcon = allItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon",
-        });
-        setIcon(allItemsIcon, "list");
-
-        allItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "All Items",
-        });
-        allItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick(null);
-        });
-
-        
-        const starredItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === "starred" ? " active" : ""),
-        });
-
-        const starredItemsIcon = starredItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon",
-        });
-        setIcon(starredItemsIcon, "star");
-
-        starredItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "Starred Items",
-        });
-        starredItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick("starred");
-        });
-
-        
-        const unreadItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === "unread" ? " active" : ""),
-        });
-
-        const unreadItemsIcon = unreadItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon",
-        });
-        setIcon(unreadItemsIcon, "circle");
-
-        unreadItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "Unread Items",
-        });
-        unreadItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick("unread");
-        });
-
-        
-        const readItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === "read" ? " active" : ""),
-        });
-
-        const readItemsIcon = readItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon",
-        });
-        setIcon(readItemsIcon, "check-circle");
-
-        readItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "Read Items",
-        });
-        readItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick("read");
-        });
-        
-        
-        const savedItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === "saved" ? " active" : ""),
-        });
-
-        const savedItemsIcon = savedItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon",
-        });
-        setIcon(savedItemsIcon, "save");
-
-        savedItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "Saved Items",
-        });
-        savedItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick("saved");
-        });
-        
-        
-        
-        const videoItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === "videos" ? " active" : ""),
-        });
-
-        const videoItemsIcon = videoItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon youtube",
-        });
-        setIcon(videoItemsIcon, "play");
-
-        videoItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "Videos",
-        });
-        videoItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick("videos");
-        });
-        
-        
-        const podcastItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === "podcasts" ? " active" : ""),
-        });
-
-        const podcastItemsIcon = podcastItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon podcast",
-        });
-        setIcon(podcastItemsIcon, "mic");
-
-        podcastItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "Podcasts",
-        });
-        podcastItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick("podcasts");
-        });
-    }
-    
-    private showTagContextMenu(event: MouseEvent, tag: Tag): void {
-        const menu = new Menu();
-        
-        menu.addItem((item: MenuItem) => {
-            item.setTitle("Edit Tag")
-                .setIcon("pencil")
-                .onClick(() => {
-                    this.showEditTagModal(tag);
-                });
-        });
-        
-        menu.addItem((item: MenuItem) => {
-            item.setTitle("Delete Tag")
-                .setIcon("trash")
-                .onClick(() => {
-                    this.showDeleteTagConfirm(tag);
-                });
-        });
-        
-        menu.showAtMouseEvent(event);
-    }
-    
-    private showDeleteTagConfirm(tag: Tag): void {
-        this.showConfirmModal(`Are you sure you want to delete the tag "${tag.name}"? This will remove it from all items.`, () => {
-            
-            for (const feed of this.settings.feeds) {
-                for (const item of feed.items) {
-                    if (item.tags) {
-                        item.tags = item.tags.filter(t => t.name !== tag.name);
-                    }
-                }
-            }
-            
-            this.settings.availableTags = this.settings.availableTags.filter(t => t.name !== tag.name);
-            
-            if (this.options.currentTag === tag.name) {
-                this.callbacks.onTagClick(null);
-            } else {
-                this.render();
-            }
-            new Notice(`Tag "${tag.name}" deleted`);
-        });
-    }
-    
-    private showAddTagModal(): void {
-        
-        document.querySelectorAll('.rss-dashboard-modal').forEach(el => el.remove());
-        setTimeout(() => {
-            const modal = document.createElement("div");
-            modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
-
-            const modalContent = document.createElement("div");
-            modalContent.className = "rss-dashboard-modal-content";
-
-            const modalTitle = document.createElement("h2");
-            modalTitle.textContent = "Add New Tag";
-            modalContent.appendChild(modalTitle);
-
-            
-            const tagInputRow = document.createElement("div");
-            tagInputRow.className = "add-tag-modal tag-input-row full-inline-row";
-
-            
-            const colorLabel = document.createElement("label");
-            colorLabel.className = "color-label";
-            colorLabel.title = "Pick tag color";
-            const colorInput = document.createElement("input");
-            colorInput.type = "color";
-            colorInput.value = "#3498db";
-            colorInput.className = "color-circle";
-            colorLabel.appendChild(colorInput);
-
-            
-            const nameInput = document.createElement("input");
-            nameInput.type = "text";
-            nameInput.placeholder = "Enter tag name";
-            nameInput.className = "tag-name-input";
-            nameInput.autocomplete = "off";
-            nameInput.spellcheck = false;
-
-            
-            const buttonContainer = document.createElement("div");
-            buttonContainer.className = "rss-dashboard-modal-buttons inline-buttons";
-
-            const cancelButton = document.createElement("button");
-            cancelButton.textContent = "Cancel";
-            cancelButton.className = "rss-dashboard-primary-button";
-            cancelButton.addEventListener("click", () => {
-                document.body.removeChild(modal);
-            });
-
-            const saveButton = document.createElement("button");
-            saveButton.textContent = "Add Tag";
-            saveButton.className = "rss-dashboard-primary-button";
-            saveButton.addEventListener("click", () => {
-                const tagName = nameInput.value.trim();
-                if (!tagName) {
-                    new Notice("Please enter a tag name");
-                    return;
-                }
-
-                
-                if (this.settings.availableTags.some(t => t.name === tagName)) {
-                    new Notice(`Tag "${tagName}" already exists`);
-                    return;
-                }
-
-                
-                this.settings.availableTags.push({
-                    name: tagName,
-                    color: colorInput.value,
-                });
-
-                document.body.removeChild(modal);
-                this.render();
-                new Notice(`Tag "${tagName}" created`);
-            });
-
-            
-            nameInput.addEventListener("keydown", (e) => {
-                if (e.key === "Enter") {
-                    saveButton.click();
-                } else if (e.key === "Escape") {
-                    cancelButton.click();
-                }
-            });
-
-            tagInputRow.appendChild(colorLabel);
-            tagInputRow.appendChild(nameInput);
-            tagInputRow.appendChild(cancelButton);
-            tagInputRow.appendChild(saveButton);
-
-            modalContent.appendChild(tagInputRow);
-            modalContent.appendChild(buttonContainer);
-            modal.appendChild(modalContent);
-            document.body.appendChild(modal);
-
-            setTimeout(() => {
-                nameInput.focus();
-                nameInput.select();
-            }, 0);
-        }, 0);
-    }
-    
-    private showEditTagModal(tag: Tag): void {
-        
-        document.querySelectorAll('.rss-dashboard-modal').forEach(el => el.remove());
-        setTimeout(() => {
-            const modal = document.createElement("div");
-            modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
-
-            const modalContent = document.createElement("div");
-            modalContent.className = "rss-dashboard-modal-content";
-
-            const modalTitle = document.createElement("h2");
-            modalTitle.textContent = "Edit Tag";
-            modalContent.appendChild(modalTitle);
-
-            
-            const tagInputRow = document.createElement("div");
-            tagInputRow.className = "add-tag-modal tag-input-row full-inline-row";
-
-            
-            const colorLabel = document.createElement("label");
-            colorLabel.className = "color-label";
-            colorLabel.title = "Pick tag color";
-            const colorInput = document.createElement("input");
-            colorInput.type = "color";
-            colorInput.value = tag.color;
-            colorInput.className = "color-circle";
-            colorLabel.appendChild(colorInput);
-
-            
-            const nameInput = document.createElement("input");
-            nameInput.type = "text";
-            nameInput.value = tag.name;
-            nameInput.className = "tag-name-input";
-            nameInput.placeholder = "Enter tag name";
-            nameInput.autocomplete = "off";
-            nameInput.spellcheck = false;
-
-            
-            const buttonContainer = document.createElement("div");
-            buttonContainer.className = "rss-dashboard-modal-buttons inline-buttons";
-
-            const cancelButton = document.createElement("button");
-            cancelButton.textContent = "Cancel";
-            cancelButton.addEventListener("click", () => {
-                document.body.removeChild(modal);
-            });
-
-            const saveButton = document.createElement("button");
-            saveButton.textContent = "Save";
-            saveButton.className = "rss-dashboard-primary-button";
-            saveButton.addEventListener("click", () => {
-                const newName = nameInput.value.trim();
-                if (!newName) {
-                    new Notice("Please enter a tag name");
-                    return;
-                }
-                if (newName !== tag.name && this.settings.availableTags.some(t => t.name === newName)) {
-                    new Notice(`Tag "${newName}" already exists`);
-                    return;
-                }
-                const oldName = tag.name;
-                if (newName !== oldName) {
-                    for (const feed of this.settings.feeds) {
-                        for (const item of feed.items) {
-                            if (item.tags) {
-                                const itemTag = item.tags.find(t => t.name === oldName);
-                                if (itemTag) {
-                                    itemTag.name = newName;
-                                    itemTag.color = colorInput.value;
-                                }
-                            }
-                        }
-                    }
-                }
-                tag.name = newName;
-                tag.color = colorInput.value;
-                document.body.removeChild(modal);
-                if (this.options.currentTag === oldName) {
-                    this.callbacks.onTagClick(newName);
-                } else {
-                    this.render();
-                }
-                new Notice(`Tag updated`);
-            });
-
-            
-            nameInput.addEventListener("keydown", (e) => {
-                if (e.key === "Enter") {
-                    saveButton.click();
-                } else if (e.key === "Escape") {
-                    cancelButton.click();
-                }
-            });
-
-            tagInputRow.appendChild(colorLabel);
-            tagInputRow.appendChild(nameInput);
-            tagInputRow.appendChild(cancelButton);
-            tagInputRow.appendChild(saveButton);
-
-            modalContent.appendChild(tagInputRow);
-            modalContent.appendChild(buttonContainer);
-            modal.appendChild(modalContent);
-            document.body.appendChild(modal);
-
-            setTimeout(() => {
-                nameInput.focus();
-                nameInput.select();
-            }, 0);
-        }, 0);
-    }
-    
-    private showFolderContextMenu(event: MouseEvent, folder: string): void {
-        const menu = new Menu();
-
-        
-        menu.addItem((item: MenuItem) => {
-            item.setTitle("Add Feed")
-                .setIcon("rss")
-                .onClick(() => {
-                    this.showAddFeedModal(folder);
-                });
-        });
-
-        menu.addItem((item: MenuItem) => {
-            item.setTitle("Add Subfolder")
-                .setIcon("folder-plus")
-                .onClick(() => {
-                    const folderName = prompt("Enter subfolder name");
-                    if (folderName && this.callbacks.onAddSubfolder) {
-                        this.callbacks.onAddSubfolder(folder, folderName);
-                    }
-                });
-        });
-
-        menu.addItem((item: MenuItem) => {
-            item.setTitle("Rename Folder")
-                .setIcon("edit")
-                .onClick(() => {
-                    const newName = prompt("Enter new folder name", folder);
-                    if (newName && newName !== folder && this.callbacks.onEditFeed) {
-                        
-                        this.settings.feeds.forEach(feed => {
-                            if (feed.folder === folder) {
-                                this.callbacks.onEditFeed(feed, feed.title, feed.url, newName);
-                            }
-                        });
-                    }
-                });
-        });
-
-        menu.addItem((item: MenuItem) => {
-            item.setTitle("Delete Folder")
-                .setIcon("trash")
-                .onClick(() => {
-                    this.showConfirmModal(`Are you sure you want to delete the folder "${folder}" and all its feeds?`, () => {
-                        this.callbacks.onDeleteFolder(folder);
-                    });
-                });
-        });
-
-        menu.showAtMouseEvent(event);
-    }
-    
-    private showFeedContextMenu(event: MouseEvent, feed: Feed): void {
-        const menu = new Menu();
-
-        menu.addItem((item: MenuItem) => {
-            item.setTitle("Edit Feed")
-                .setIcon("edit")
-                .onClick(() => {
-                    this.showEditFeedModal(feed);
-                });
-        });
-
-        menu.addItem((item: MenuItem) => {
-            item.setTitle("Mark All as Read")
-                .setIcon("check-circle")
-                .onClick(() => {
-                    feed.items.forEach(item => {
-                        item.read = true;
-                    });
-                    this.render();
-                });
-        });
-
-        menu.addItem((item: MenuItem) => {
-            item.setTitle("Delete Feed")
-                .setIcon("trash")
-                .onClick(() => {
-                    this.showConfirmModal(`Are you sure you want to delete the feed "${feed.title}"?`, () => {
-                        this.callbacks.onDeleteFeed(feed);
-                    });
-                });
-        });
-
-        menu.showAtMouseEvent(event);
-    }
-    
-    private showAddFeedModal(defaultFolder: string = "Uncategorized"): void {
-        const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
-
-        const modalContent = document.createElement("div");
-        modalContent.className = "rss-dashboard-modal-content";
-
-        const modalTitle = document.createElement("h2");
-        modalTitle.textContent = "Add Feed";
-        modalContent.appendChild(modalTitle);
-
-        let url = "";
-        let title = "";
-        let status = "";
-        let latestEntry = "";
-        let folder = defaultFolder;
-        let allFolders = this.settings.folders ? collectAllFolders(this.settings.folders) : [];
-        let titleInput: HTMLInputElement;
-        let folderInput: HTMLInputElement;
-        let folderDropdown: HTMLDivElement | null = null;
-
-        
-        const urlSetting = new Setting(modalContent)
-            .setName("Feed URL")
-            .addText(text => {
-                text.inputEl.autocomplete = "off";
-                text.inputEl.spellcheck = false;
-                text.onChange(v => url = v);
-                text.inputEl.addEventListener("focus", () => text.inputEl.select());
-                text.inputEl.addEventListener("keydown", (e) => {
-                    if (e.key === "Enter") {
-                        titleInput?.focus();
-                    } else if (e.key === "Escape") {
-                        document.body.removeChild(modal);
-                    }
-                });
-            })
-            .addButton(btn => {
-                btn.setButtonText("Load")
-                    .onClick(async () => {
-                        status = "Loading...";
-                        if (statusDiv) statusDiv.textContent = status;
-                        try {
-                            const res = await (window as any).requestUrl({ url });
-                            const parser = new DOMParser();
-                            const doc = parser.parseFromString(res.text, "text/xml");
-                            const feedTitle = doc.querySelector("channel > title, feed > title");
-                            title = feedTitle?.textContent || "";
-                            if (titleInput) titleInput.value = title;
-                            const latestItem = doc.querySelector("item > pubDate, entry > updated, entry > published");
-                            if (latestItem) {
-                                const date = new Date(latestItem.textContent!);
-                                const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
-                                latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days`;
-                                if (latestEntryDiv) latestEntryDiv.textContent = latestEntry;
-                            }
-                            status = "OK";
-                        } catch (e) {
-                            status = "Error loading feed";
-                        }
-                        if (statusDiv) statusDiv.textContent = status;
-                    });
-            });
-
-        
-        new Setting(modalContent)
-            .setName("Title")
-            .addText(text => {
-                titleInput = text.inputEl;
-                text.inputEl.autocomplete = "off";
-                text.inputEl.spellcheck = false;
-                text.setValue(title).onChange(v => title = v);
-                text.inputEl.addEventListener("focus", () => text.inputEl.select());
-                text.inputEl.addEventListener("keydown", (e) => {
-                    if (e.key === "Enter") {
-                        folderInput?.focus();
-                    } else if (e.key === "Escape") {
-                        document.body.removeChild(modal);
-                    }
-                });
-            });
-
-        
-        const latestEntryDiv = modalContent.createDiv({ text: latestEntry, cls: "add-feed-latest-entry" });
-        
-        const statusDiv = modalContent.createDiv({ text: status, cls: "add-feed-status" });
-
-        
-        new Setting(modalContent)
-            .setName("Folder")
-            .addText(text => {
-                folderInput = text.inputEl;
-                text.inputEl.autocomplete = "off";
-                text.inputEl.spellcheck = false;
-                text.setValue(folder).onChange(v => {
-                    folder = v;
-                    if (folderDropdown) {
-                        
-                        const filtered = allFolders.filter(f => f.toLowerCase().includes(v.toLowerCase()));
-                        folderDropdown.innerHTML = "";
-                        filtered.forEach(f => {
-                            const opt = folderDropdown!.createDiv({ text: f, cls: "edit-feed-folder-option" });
-                            opt.onclick = () => {
-                                folder = f;
-                                text.setValue(f);
-                                if (folderDropdown) folderDropdown.style.display = "none";
-                            };
-                        });
-                        folderDropdown.style.display = filtered.length ? "block" : "none";
-                    }
-                });
-                text.inputEl.addEventListener("focus", () => text.inputEl.select());
-                text.inputEl.addEventListener("keydown", (e) => {
-                    if (e.key === "Enter") {
-                        saveBtn.click();
-                    } else if (e.key === "Escape") {
-                        document.body.removeChild(modal);
-                    }
-                });
-                text.inputEl.onfocus = () => {
-                    if (!folderDropdown) {
-                        folderDropdown = document.createElement("div");
-                        folderDropdown.className = "edit-feed-folder-dropdown";
-                        const rect = folderInput.getBoundingClientRect();
-                        folderDropdown.style.width = folderInput.offsetWidth + "px";
-                        folderDropdown.style.left = rect.left + window.scrollX + "px";
-                        folderDropdown.style.top = (rect.bottom + window.scrollY) + "px";
-                        document.body.appendChild(folderDropdown);
-                    }
-                    
-                    folderDropdown.innerHTML = "";
-                    allFolders.forEach(f => {
-                        const opt = folderDropdown!.createDiv({ text: f, cls: "edit-feed-folder-option" });
-                        opt.onclick = () => {
-                            folder = f;
-                            text.setValue(f);
-                            if (folderDropdown) folderDropdown.style.display = "none";
-                        };
-                    });
-                    if (folderDropdown) folderDropdown.style.display = allFolders.length ? "block" : "none";
-                };
-                text.inputEl.onblur = () => {
-                    setTimeout(() => {
-                        if (folderDropdown) folderDropdown.style.display = "none";
-                    }, 200);
-                };
-            });
-
-        
-        const buttonContainer = modalContent.createDiv("rss-dashboard-modal-buttons");
-        const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "rss-dashboard-primary-button" });
-        const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
-
-        saveBtn.onclick = async () => {
-            if (!url) {
-                new Notice("Please enter a feed URL");
-                return;
-            }
-            if (!title) {
-                new Notice("Please enter a feed title");
-                return;
-            }
-            this.callbacks.onAddFeed(title, url, folder);
-            document.body.removeChild(modal);
-        };
-
-        cancelBtn.onclick = () => {
-            document.body.removeChild(modal);
-        };
-
-        modalContent.appendChild(buttonContainer);
-        modal.appendChild(modalContent);
-        document.body.appendChild(modal);
-
-        
-        requestAnimationFrame(() => {
-            const firstInput = modal.querySelector('input[type="text"]') as HTMLInputElement;
-            if (firstInput) {
-                firstInput.focus();
-                firstInput.select();
-            }
-        });
-    }
-    
-    public showEditFeedModal(feed: Feed): void {
-        const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
-
-        const modalContent = document.createElement("div");
-        modalContent.className = "rss-dashboard-modal-content";
-
-        const modalTitle = document.createElement("h2");
-        modalTitle.textContent = "Edit Feed";
-
-        const titleLabel = document.createElement("label");
-        titleLabel.textContent = "Feed Title:";
-        const titleInput = document.createElement("input");
-        titleInput.type = "text";
-        titleInput.value = feed.title;
-        titleInput.autocomplete = "off";
-        titleInput.spellcheck = false;
-        titleInput.addEventListener("focus", () => titleInput.select());
-        titleInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-                urlInput.focus();
-            } else if (e.key === "Escape") {
-                document.body.removeChild(modal);
-            }
-        });
-
-        const urlLabel = document.createElement("label");
-        urlLabel.textContent = "Feed URL:";
-        const urlInput = document.createElement("input");
-        urlInput.type = "text";
-        urlInput.value = feed.url;
-        urlInput.autocomplete = "off";
-        urlInput.spellcheck = false;
-        urlInput.addEventListener("focus", () => urlInput.select());
-        urlInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-                folderSelect.focus();
-            } else if (e.key === "Escape") {
-                document.body.removeChild(modal);
-            }
-        });
-
-        const folderLabel = document.createElement("label");
-        folderLabel.textContent = "Folder:";
-        const folderSelect = document.createElement("select");
-        
-        const folders = Array.from(
-            new Set(this.settings.feeds.map(f => f.folder))
-        );
-        folders.forEach(folder => {
-            const option = document.createElement("option");
-            option.value = folder;
-            option.textContent = folder;
-            if (folder === feed.folder) {
-                option.selected = true;
-            }
-            folderSelect.appendChild(option);
-        });
-        
-        const newFolderOption = document.createElement("option");
-        newFolderOption.value = "new";
-        newFolderOption.textContent = "+ Create new folder";
-        folderSelect.appendChild(newFolderOption);
-        folderSelect.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-                saveButton.click();
-            } else if (e.key === "Escape") {
-                document.body.removeChild(modal);
-            }
-        });
-
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "rss-dashboard-modal-buttons";
-
-        const cancelButton = document.createElement("button");
-        cancelButton.textContent = "Cancel";
-        cancelButton.addEventListener("click", () => {
-            document.body.removeChild(modal);
-        });
-
-        const saveButton = document.createElement("button");
-        saveButton.textContent = "Save";
-        saveButton.className = "rss-dashboard-primary-button";
-        saveButton.addEventListener("click", async () => {
-            let selectedFolder = folderSelect.value;
-            
-            if (selectedFolder === "new") {
-                const newFolderName = prompt("Enter new folder name:");
-                if (newFolderName) {
-                    selectedFolder = newFolderName;
-                } else {
-                    return;
-                }
-            }
-            
-            this.callbacks.onEditFeed(
-                feed,
-                titleInput.value,
-                urlInput.value,
-                selectedFolder
-            );
-            document.body.removeChild(modal);
-        });
-
-        buttonContainer.appendChild(cancelButton);
-        buttonContainer.appendChild(saveButton);
-
-        modalContent.appendChild(modalTitle);
-        modalContent.appendChild(titleLabel);
-        modalContent.appendChild(titleInput);
-        modalContent.appendChild(urlLabel);
-        modalContent.appendChild(urlInput);
-        modalContent.appendChild(folderLabel);
-        modalContent.appendChild(folderSelect);
-        modalContent.appendChild(buttonContainer);
-
-        modal.appendChild(modalContent);
-        document.body.appendChild(modal);
-
-        
-        requestAnimationFrame(() => {
-            titleInput.focus();
-            titleInput.select();
-        });
-    }
-    
-    private renderToolbar(): void {
-        const sidebarToolbar = this.container.createDiv({
-            cls: "rss-dashboard-sidebar-toolbar",
-        });
-
-        
-        const addFolderButton = sidebarToolbar.createDiv({
-            cls: "rss-dashboard-toolbar-button",
-            attr: {
-                title: "Add Folder",
-            },
-        });
-        setIcon(addFolderButton, "folder-plus");
-        addFolderButton.addEventListener("click", () => {
-            this.showFolderNameModal({
-                title: "Add Folder",
-                onSubmit: (folderName) => {
-                    this.addTopLevelFolder(folderName);
-                    this.render();
-                }
-            });
-        });
-
-        
-        const addFeedButton = sidebarToolbar.createDiv({
-            cls: "rss-dashboard-toolbar-button",
-            attr: {
-                title: "Add Feed",
-            },
-        });
-        setIcon(addFeedButton, "plus");
-        addFeedButton.addEventListener("click", () => {
-            this.showAddFeedModal();
-        });
-        
-        
-        const addYouTubeButton = sidebarToolbar.createDiv({
-            cls: "rss-dashboard-toolbar-button",
-            attr: {
-                title: "Add YouTube Channel",
-            },
-        });
-        setIcon(addYouTubeButton, "youtube");
-        addYouTubeButton.addEventListener("click", () => {
-            this.showAddYouTubeFeedModal();
-        });
-
-        
-        const refreshFeedsButton = sidebarToolbar.createDiv({
-            cls: "rss-dashboard-toolbar-button",
-            attr: {
-                title: "Refresh All Feeds",
-            },
-        });
-        setIcon(refreshFeedsButton, "refresh-cw");
-        refreshFeedsButton.addEventListener("click", () => {
-            this.callbacks.onRefreshFeeds();
-        });
-
-        
-        const importOpmlButton = sidebarToolbar.createDiv({
-            cls: "rss-dashboard-toolbar-button",
-            attr: {
-                title: "Import OPML",
-            },
-        });
-        setIcon(importOpmlButton, "upload");
-        importOpmlButton.addEventListener("click", () => {
-            this.callbacks.onImportOpml();
-        });
-        
-        
-        const exportOpmlButton = sidebarToolbar.createDiv({
-            cls: "rss-dashboard-toolbar-button",
-            attr: {
-                title: "Export OPML",
-            },
-        });
-        setIcon(exportOpmlButton, "download");
-        exportOpmlButton.addEventListener("click", () => {
-            this.callbacks.onExportOpml();
-        });
-
-        
-        const settingsButton = sidebarToolbar.createDiv({
-            cls: "rss-dashboard-toolbar-button",
-            attr: {
-                title: "Open Settings",
-            },
-        });
-        setIcon(settingsButton, "settings");
-        settingsButton.addEventListener("click", () => {
-            if (this.callbacks.onOpenSettings) {
-                this.callbacks.onOpenSettings();
-            }
-        });
-
-        
-        const manageFeedsButton = sidebarToolbar.createDiv({
-            cls: "rss-dashboard-toolbar-button",
-            attr: {
-                title: "Manage Feeds",
-            },
-        });
-        setIcon(manageFeedsButton, "list");
-        manageFeedsButton.addEventListener("click", () => {
-            if (this.callbacks.onManageFeeds) {
-                this.callbacks.onManageFeeds();
-            }
-        });
-    }
-    
-    private async resolveYouTubeChannelIdFromHandle(handleUrl: string): Promise<string | null> {
-        try {
-            const res = await (window as any).requestUrl({ url: handleUrl });
-            const html = res.text;
-            
-            const match = html.match(/<link rel=\"canonical\" href=\"https:\/\/www\\.youtube\\.com\/channel\/([^"]+)\"/);
-            if (match && match[1]) {
-                return match[1];
-            }
-        } catch (e) {
-            
-        }
-        return null;
-    }
-    
     private showAddYouTubeFeedModal(): void {
         const modal = document.createElement("div");
         modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
@@ -1537,17 +573,29 @@ export class Sidebar {
         modalTitle.textContent = "Add YouTube Channel";
         modalContent.appendChild(modalTitle);
 
-        const infoText = document.createElement("div");
+        const infoText = document.createElement('div');
         infoText.className = "rss-dashboard-modal-info";
-        infoText.innerHTML = `
-            <p>Enter a YouTube Channel URL or ID. You can use:</p>
-            <ul>
-                <li>Channel URL: https://www.youtube.com/channel/UCxxxxxxxx</li>
-                <li>Channel ID: UCxxxxxxxx</li>
-                <li>User URL: https://www.youtube.com/user/username</li>
-                <li>User name: username</li>
-            </ul>
-        `;
+        
+        const paragraph = document.createElement('p');
+        paragraph.textContent = 'Enter a YouTube Channel URL or ID. You can use:';
+        
+        const list = document.createElement('ul');
+        
+        const items = [
+            'Channel URL: https://www.youtube.com/channel/UCxxxxxxxx',
+            'Channel ID: UCxxxxxxxx',
+            'User URL: https://www.youtube.com/user/username',
+            'User name: username'
+        ];
+        
+        items.forEach(itemText => {
+            const listItem = document.createElement('li');
+            listItem.textContent = itemText;
+            list.appendChild(listItem);
+        });
+        
+        infoText.appendChild(paragraph);
+        infoText.appendChild(list);
 
         const channelLabel = document.createElement("label");
         channelLabel.textContent = "YouTube Channel:";
@@ -1652,7 +700,6 @@ export class Sidebar {
         document.body.appendChild(modal);
     }
 
-    
     private async extractChannelIdAndNameFromYouTubePage(url: string): Promise<{channelId: string|null, channelName: string|null}> {
         try {
             const res = await (window as any).requestUrl({ url });
@@ -1670,7 +717,6 @@ export class Sidebar {
         return { channelId: null, channelName: null };
     }
 
-    
     private findFolderByPath(path: string): Folder | null {
         const parts = path.split("/");
         let current: Folder | undefined = this.settings.folders.find(f => f.name === parts[0]);
@@ -1680,40 +726,60 @@ export class Sidebar {
         return current || null;
     }
 
-    
-    private renameFolderByPath(oldPath: string, newName: string) {
+    private async renameFolderByPath(oldPath: string, newName: string) {
         const parts = oldPath.split("/");
         const parentPath = parts.slice(0, -1).join("/");
         const oldName = parts[parts.length - 1];
         const folder = this.findFolderByPath(oldPath);
         if (folder) {
             folder.name = newName;
+            folder.modifiedAt = Date.now();
+
+            if (parentPath) {
+                const parent = this.findFolderByPath(parentPath);
+                if (parent) parent.modifiedAt = Date.now();
+            }
             
-            this.settings.feeds.forEach(feed => {
-                const feedParts = feed.folder.split("/");
-                if (feedParts.length === parts.length && feedParts.every((p, i) => (i === parts.length - 1 ? p === oldName : p === parts[i]))) {
-                    feed.folder = parentPath ? `${parentPath}/${newName}` : newName;
+            
+            const allDescendantPaths = this.getAllDescendantFolderPaths(oldPath);
+            const newPath = parentPath ? `${parentPath}/${newName}` : newName;
+            
+            
+            this.settings.feeds.forEach((feed: Feed) => {
+                if (feed.folder) {
+                    
+                    if (feed.folder === oldPath) {
+                        feed.folder = newPath;
+                    }
+                    
+                    else if (feed.folder.startsWith(oldPath + "/")) {
+                        
+                        feed.folder = feed.folder.replace(oldPath, newPath);
+                    }
                 }
             });
+            
+            
+            await this.plugin.saveSettings();
         }
     }
 
-    
-    private addSubfolderByPath(parentPath: string, subfolderName: string) {
+    private async addSubfolderByPath(parentPath: string, subfolderName: string) {
         const parent = this.findFolderByPath(parentPath);
         if (parent && !parent.subfolders.some(f => f.name === subfolderName)) {
-            parent.subfolders.push({ name: subfolderName, subfolders: [] });
+            parent.subfolders.push({ name: subfolderName, subfolders: [], createdAt: Date.now(), modifiedAt: Date.now() });
+            parent.modifiedAt = Date.now();
+            await this.plugin.saveSettings();
         }
     }
 
-    
-    private addTopLevelFolder(folderName: string) {
+    private async addTopLevelFolder(folderName: string) {
         if (!this.settings.folders.some(f => f.name === folderName)) {
-            this.settings.folders.push({ name: folderName, subfolders: [] });
+            this.settings.folders.push({ name: folderName, subfolders: [], createdAt: Date.now(), modifiedAt: Date.now() });
+            await this.plugin.saveSettings();
         }
     }
 
-    
     private showFolderNameModal(options: {title: string, defaultValue?: string, onSubmit: (name: string) => void}) {
         const modal = document.createElement("div");
         modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
@@ -1767,11 +833,11 @@ export class Sidebar {
         });
     }
 
-    
     private removeFolderByPath(path: string) {
         const parts = path.split("/");
+        const parentPath = parts.slice(0, -1).join("/");
         function removeRecursive(folders: Folder[], depth: number): Folder[] {
-            return folders.filter(folder => {
+            return folders.filter((folder: Folder) => {
                 if (folder.name === parts[depth]) {
                     if (depth === parts.length - 1) {
                         
@@ -1787,9 +853,12 @@ export class Sidebar {
             });
         }
         this.settings.folders = removeRecursive(this.settings.folders, 0);
+        if (parentPath) {
+            const parent = this.findFolderByPath(parentPath);
+            if (parent) parent.modifiedAt = Date.now();
+        }
     }
 
-    
     private getAllDescendantFolderPaths(path: string): string[] {
         const result: string[] = [path];
         const folder = this.findFolderByPath(path);
@@ -1804,7 +873,6 @@ export class Sidebar {
         return result;
     }
 
-    
     private showConfirmModal(message: string, onConfirm: () => void): void {
         document.querySelectorAll('.rss-dashboard-modal').forEach(el => el.remove());
         setTimeout(() => {
@@ -1838,8 +906,930 @@ export class Sidebar {
             setTimeout(() => okButton.focus(), 0);
         }, 0);
     }
-}
 
+    private showAddTagModal(): void {
+        const modal = document.createElement("div");
+        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
+
+        const modalContent = document.createElement("div");
+        modalContent.className = "rss-dashboard-modal-content";
+
+        const modalTitle = document.createElement("h2");
+        modalTitle.textContent = "Add New Tag";
+        modalContent.appendChild(modalTitle);
+
+        
+        const formContainer = document.createElement("div");
+        formContainer.className = "rss-dashboard-tag-modal-form";
+        modalContent.appendChild(formContainer);
+
+        
+        const colorInput = document.createElement("input");
+        colorInput.type = "color";
+        colorInput.value = "#3498db"; 
+        colorInput.className = "rss-dashboard-tag-modal-color-picker";
+        formContainer.appendChild(colorInput);
+        
+        
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.placeholder = "Enter tag name";
+        nameInput.className = "rss-dashboard-tag-modal-name-input";
+        nameInput.autocomplete = "off";
+        nameInput.spellcheck = false;
+        formContainer.appendChild(nameInput);
+
+        
+        const buttonContainer = document.createElement("div");
+        buttonContainer.className = "rss-dashboard-modal-buttons";
+
+        const cancelButton = document.createElement("button");
+        cancelButton.textContent = "Cancel";
+        cancelButton.addEventListener("click", () => {
+            document.body.removeChild(modal);
+        });
+        buttonContainer.appendChild(cancelButton);
+
+        const addButton = document.createElement("button");
+        addButton.textContent = "Add Tag";
+        addButton.className = "rss-dashboard-primary-button";
+        addButton.addEventListener("click", () => {
+            const tagName = nameInput.value.trim();
+            const tagColor = colorInput.value;
+
+            if (tagName) {
+                
+                if (this.settings.availableTags.some(tag => tag.name.toLowerCase() === tagName.toLowerCase())) {
+                    new Notice("A tag with this name already exists!");
+                    return;
+                }
+
+                
+                const newTag: Tag = {
+                    name: tagName,
+                    color: tagColor
+                };
+                this.settings.availableTags.push(newTag);
+                
+                
+                this.plugin.saveSettings();
+                
+                
+                this.render();
+                
+                
+                document.body.removeChild(modal);
+                
+                new Notice(`Tag "${tagName}" added successfully!`);
+            } else {
+                new Notice("Please enter a tag name!");
+            }
+        });
+        buttonContainer.appendChild(addButton);
+        formContainer.appendChild(buttonContainer);
+
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        
+        requestAnimationFrame(() => {
+            nameInput.focus();
+        });
+    }
+
+    private showTagContextMenu(event: MouseEvent, tag: Tag): void {
+        const menu = new Menu();
+        
+        menu.addItem((item: MenuItem) => {
+            item.setTitle("Edit Tag")
+                .setIcon("pencil")
+                .onClick(() => {
+                    this.showEditTagModal(tag);
+                });
+        });
+        
+        menu.addItem((item: MenuItem) => {
+            item.setTitle("Delete Tag")
+                .setIcon("trash")
+                .onClick(() => {
+                    this.showConfirmModal(`Are you sure you want to delete the tag "${tag.name}"? This will remove the tag from all articles.`, () => {
+                        this.deleteTag(tag);
+                    });
+                });
+        });
+        
+        menu.showAtMouseEvent(event);
+    }
+
+    private showEditTagModal(tag: Tag): void {
+        const modal = document.createElement("div");
+        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
+
+        const modalContent = document.createElement("div");
+        modalContent.className = "rss-dashboard-modal-content";
+
+        const modalTitle = document.createElement("h2");
+        modalTitle.textContent = "Edit Tag";
+        modalContent.appendChild(modalTitle);
+
+        
+        const formContainer = document.createElement("div");
+        formContainer.className = "rss-dashboard-tag-modal-form";
+        modalContent.appendChild(formContainer);
+
+        
+        const colorInput = document.createElement("input");
+        colorInput.type = "color";
+        colorInput.value = tag.color;
+        colorInput.className = "rss-dashboard-tag-modal-color-picker";
+        formContainer.appendChild(colorInput);
+
+        
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.value = tag.name;
+        nameInput.placeholder = "Enter tag name";
+        nameInput.className = "rss-dashboard-tag-modal-name-input";
+        nameInput.autocomplete = "off";
+        nameInput.spellcheck = false;
+        formContainer.appendChild(nameInput);
+
+        
+        const buttonContainer = document.createElement("div");
+        buttonContainer.className = "rss-dashboard-modal-buttons";
+
+        const cancelButton = document.createElement("button");
+        cancelButton.textContent = "Cancel";
+        cancelButton.addEventListener("click", () => {
+            document.body.removeChild(modal);
+        });
+        buttonContainer.appendChild(cancelButton);
+
+        const saveButton = document.createElement("button");
+        saveButton.textContent = "Save Changes";
+        saveButton.className = "rss-dashboard-primary-button";
+        saveButton.addEventListener("click", () => {
+            const newTagName = nameInput.value.trim();
+            const newTagColor = colorInput.value;
+
+            if (newTagName) {
+                
+                if (this.settings.availableTags.some(t => 
+                    t.name.toLowerCase() === newTagName.toLowerCase() && t !== tag
+                )) {
+                    new Notice("A tag with this name already exists!");
+                    return;
+                }
+
+                
+                tag.name = newTagName;
+                tag.color = newTagColor;
+                
+                
+                this.settings.feeds.forEach(feed => {
+                    feed.items.forEach(item => {
+                        if (item.tags) {
+                            const itemTag = item.tags.find(t => t.name === tag.name);
+                            if (itemTag) {
+                                itemTag.name = newTagName;
+                                itemTag.color = newTagColor;
+                            }
+                        }
+                    });
+                });
+                
+                
+                this.plugin.saveSettings();
+                
+                
+                this.render();
+                
+                
+                document.body.removeChild(modal);
+                
+                new Notice(`Tag "${newTagName}" updated successfully!`);
+            } else {
+                new Notice("Please enter a tag name!");
+            }
+        });
+        buttonContainer.appendChild(saveButton);
+        formContainer.appendChild(buttonContainer);
+
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        
+        requestAnimationFrame(() => {
+            nameInput.focus();
+            nameInput.select();
+        });
+    }
+
+    private deleteTag(tag: Tag): void {
+        
+        const tagIndex = this.settings.availableTags.findIndex(t => t.name === tag.name);
+        if (tagIndex !== -1) {
+            this.settings.availableTags.splice(tagIndex, 1);
+        }
+
+        
+        this.settings.feeds.forEach(feed => {
+            feed.items.forEach(item => {
+                if (item.tags) {
+                    item.tags = item.tags.filter(t => t.name !== tag.name);
+                }
+            });
+        });
+
+        
+        this.plugin.saveSettings();
+        
+        
+        this.render();
+        
+        new Notice(`Tag "${tag.name}" deleted successfully!`);
+    }
+
+    private renderHeader(): void {
+        const header = this.container.createDiv({
+            cls: "rss-dashboard-header",
+        });
+
+        
+        const navContainer = header.createDiv({
+            cls: "rss-dashboard-nav-container",
+        });
+
+        
+        const dashboardBtn = navContainer.createDiv({
+            cls: "rss-dashboard-nav-button active",
+        });
+        
+        dashboardBtn.appendChild(document.createTextNode(" Dashboard"));
+        dashboardBtn.addEventListener("click", () => {
+            
+            this.plugin.activateView();
+        });
+
+        
+        const discoverBtn = navContainer.createDiv({
+            cls: "rss-dashboard-nav-button",
+        });
+        
+        discoverBtn.appendChild(document.createTextNode(" Discover"));
+        discoverBtn.addEventListener("click", () => {
+            
+            this.plugin.activateDiscoverView();
+        });
+
+        
+        
+        
+        
+    }
+
+    private renderSearch(): void {
+        const searchContainer = this.container.createDiv({
+            cls: "rss-dashboard-search-container",
+        });
+        
+        const searchInput = searchContainer.createEl("input", {
+            cls: "rss-dashboard-search-input",
+            attr: {
+                type: "text",
+                placeholder: "Search articles...",
+                autocomplete: "off",
+                spellcheck: "false"
+            },
+        });
+
+        
+        searchInput.addEventListener("focus", () => {
+            searchInput.select();
+        });
+
+        
+        let searchTimeout: NodeJS.Timeout;
+        
+        searchInput.addEventListener("input", (e) => {
+            const query = ((e.target as HTMLInputElement)?.value || "").toLowerCase().trim();
+            
+            
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+
+            
+            searchTimeout = setTimeout(() => {
+                
+                const mainContent = document.querySelector('.rss-dashboard-content');
+                if (mainContent) {
+                    const articleElements = mainContent.querySelectorAll(
+                        ".rss-dashboard-article-item, .rss-dashboard-article-card"
+                    );
+                    
+                    articleElements.forEach((el) => {
+                        const titleEl = el.querySelector(".rss-dashboard-article-title");
+                        const title = titleEl?.textContent?.toLowerCase() || "";
+                        
+                        if (query && !title.includes(query)) {
+                            (el as HTMLElement).addClass("rss-dashboard-search-result", "hidden");
+                        } else {
+                            (el as HTMLElement).addClass("rss-dashboard-search-result", "visible");
+                        }
+                    });
+                }
+            }, 150);
+        });
+    }
+
+    private renderFilters(): void {
+        const filtersList = this.container.createDiv({
+            cls: "rss-dashboard-filters-section",
+        });
+
+        
+        const allItemsEl = filtersList.createDiv({
+            cls: "rss-dashboard-folder" + 
+                (this.options.currentFolder === null && 
+                this.options.currentFeed === null && 
+                this.options.currentTag === null ? " active" : ""),
+        });
+
+        const allItemsIcon = allItemsEl.createDiv({
+            cls: "rss-dashboard-folder-icon",
+        });
+        setIcon(allItemsIcon, "list");
+
+        allItemsEl.createDiv({
+            cls: "rss-dashboard-folder-name",
+            text: "All Items",
+        });
+        allItemsEl.addEventListener("click", () => {
+            this.callbacks.onFolderClick(null);
+        });
+
+        
+        const starredItemsEl = filtersList.createDiv({
+            cls: "rss-dashboard-folder" + 
+                (this.options.currentFolder === "starred" ? " active" : ""),
+        });
+
+        const starredItemsIcon = starredItemsEl.createDiv({
+            cls: "rss-dashboard-folder-icon",
+        });
+        setIcon(starredItemsIcon, "star");
+
+        starredItemsEl.createDiv({
+            cls: "rss-dashboard-folder-name",
+            text: "Starred Items",
+        });
+        starredItemsEl.addEventListener("click", () => {
+            this.callbacks.onFolderClick("starred");
+        });
+
+        
+        const unreadItemsEl = filtersList.createDiv({
+            cls: "rss-dashboard-folder" + 
+                (this.options.currentFolder === "unread" ? " active" : ""),
+        });
+
+        const unreadItemsIcon = unreadItemsEl.createDiv({
+            cls: "rss-dashboard-folder-icon",
+        });
+        setIcon(unreadItemsIcon, "circle");
+
+        unreadItemsEl.createDiv({
+            cls: "rss-dashboard-folder-name",
+            text: "Unread Items",
+        });
+        unreadItemsEl.addEventListener("click", () => {
+            this.callbacks.onFolderClick("unread");
+        });
+
+        
+        const readItemsEl = filtersList.createDiv({
+            cls: "rss-dashboard-folder" + 
+                (this.options.currentFolder === "read" ? " active" : ""),
+        });
+
+        const readItemsIcon = readItemsEl.createDiv({
+            cls: "rss-dashboard-folder-icon",
+        });
+        setIcon(readItemsIcon, "check-circle");
+
+        readItemsEl.createDiv({
+            cls: "rss-dashboard-folder-name",
+            text: "Read Items",
+        });
+        readItemsEl.addEventListener("click", () => {
+            this.callbacks.onFolderClick("read");
+        });
+
+        
+        const savedItemsEl = filtersList.createDiv({
+            cls: "rss-dashboard-folder" + 
+                (this.options.currentFolder === "saved" ? " active" : ""),
+        });
+
+        const savedItemsIcon = savedItemsEl.createDiv({
+            cls: "rss-dashboard-folder-icon",
+        });
+        setIcon(savedItemsIcon, "save");
+
+        savedItemsEl.createDiv({
+            cls: "rss-dashboard-folder-name",
+            text: "Saved Items",
+        });
+        savedItemsEl.addEventListener("click", () => {
+            this.callbacks.onFolderClick("saved");
+        });
+
+        
+        const videoItemsEl = filtersList.createDiv({
+            cls: "rss-dashboard-folder" + 
+                (this.options.currentFolder === "videos" ? " active" : ""),
+        });
+
+        const videoItemsIcon = videoItemsEl.createDiv({
+            cls: "rss-dashboard-folder-icon youtube",
+        });
+        setIcon(videoItemsIcon, "play");
+
+        videoItemsEl.createDiv({
+            cls: "rss-dashboard-folder-name",
+            text: "Videos",
+        });
+        videoItemsEl.addEventListener("click", () => {
+            this.callbacks.onFolderClick("videos");
+        });
+
+        
+        const podcastItemsEl = filtersList.createDiv({
+            cls: "rss-dashboard-folder" + 
+                (this.options.currentFolder === "podcasts" ? " active" : ""),
+        });
+
+        const podcastItemsIcon = podcastItemsEl.createDiv({
+            cls: "rss-dashboard-folder-icon podcast",
+        });
+        setIcon(podcastItemsIcon, "mic");
+
+        podcastItemsEl.createDiv({
+            cls: "rss-dashboard-folder-name",
+            text: "Podcasts",
+        });
+        podcastItemsEl.addEventListener("click", () => {
+            this.callbacks.onFolderClick("podcasts");
+        });
+    }
+
+    private renderToolbar(): void {
+        const sidebarToolbar = this.container.createDiv({
+            cls: "rss-dashboard-sidebar-toolbar",
+        });
+
+        
+        const addFolderButton = sidebarToolbar.createDiv({
+            cls: "rss-dashboard-toolbar-button",
+            attr: {
+                title: "Add Folder",
+            },
+        });
+        setIcon(addFolderButton, "folder-plus");
+        addFolderButton.addEventListener("click", () => {
+            this.showFolderNameModal({
+                title: "Add Folder",
+                onSubmit: async (folderName) => {
+                    await this.addTopLevelFolder(folderName);
+                    this.render();
+                }
+            });
+        });
+
+        const sortButton = sidebarToolbar.createDiv({
+            cls: "rss-dashboard-toolbar-button",
+            attr: {
+                title: "Sort Folders"
+            }
+        });
+        setIcon(sortButton, "lucide-sort-asc");
+        sortButton.addEventListener("click", (e) => {
+            const menu = new Menu();
+
+            menu.addItem((item) =>
+                item
+                    .setTitle("Folder name (A to Z)")
+                    .onClick(async () => await this.sortFolders('name', true))
+            );
+            menu.addItem((item) =>
+                item
+                    .setTitle("Folder name (Z to A)")
+                    .onClick(async () => await this.sortFolders('name', false))
+            );
+            menu.addItem((item) =>
+                item
+                    .setTitle("Modified time (new to old)")
+                    .onClick(async () => await this.sortFolders('modified', false))
+            );
+            menu.addItem((item) =>
+                item
+                    .setTitle("Modified time (old to new)")
+                    .onClick(async () => await this.sortFolders('modified', true))
+            );
+            menu.addItem((item) =>
+                item
+                    .setTitle("Created time (new to old)")
+                    .onClick(async () => await this.sortFolders('created', false))
+            );
+            menu.addItem((item) =>
+                item
+                    .setTitle("Created time (old to new)")
+                    .onClick(async () => await this.sortFolders('created', true))
+            );
+
+            menu.showAtMouseEvent(e);
+        });
+
+        const collapseAllButton = sidebarToolbar.createDiv({
+            cls: "rss-dashboard-toolbar-button",
+            attr: {
+                title: "Collapse/Expand All Folders"
+            }
+        });
+        
+        
+        const updateCollapseIcon = () => {
+            const allFolderPaths: string[] = [];
+            function collectPaths(folders: Folder[], base = "") {
+                for (const f of folders) {
+                    const path = base ? `${base}/${f.name}` : f.name;
+                    allFolderPaths.push(path);
+                    if (f.subfolders && f.subfolders.length > 0) {
+                        collectPaths(f.subfolders, path);
+                    }
+                }
+            }
+            collectPaths(this.settings.folders);
+            
+            const allCollapsed = allFolderPaths.length > 0 && allFolderPaths.every(path => this.options.collapsedFolders.includes(path));
+            setIcon(collapseAllButton, allCollapsed ? "lucide-chevrons-down-up" : "lucide-chevrons-up-down");
+        };
+        
+        updateCollapseIcon();
+        
+        collapseAllButton.addEventListener("click", () => {
+            this.toggleAllFolders();
+            
+            setTimeout(() => updateCollapseIcon(), 0);
+        });
+
+        
+        const addFeedButton = sidebarToolbar.createDiv({
+            cls: "rss-dashboard-toolbar-button",
+            attr: {
+                title: "Add Feed",
+            },
+        });
+        setIcon(addFeedButton, "plus");
+        addFeedButton.addEventListener("click", () => {
+            this.showAddFeedModal();
+        });
+
+        
+        const addYouTubeButton = sidebarToolbar.createDiv({
+            cls: "rss-dashboard-toolbar-button",
+            attr: {
+                title: "Add YouTube Channel",
+            },
+        });
+        setIcon(addYouTubeButton, "youtube");
+        addYouTubeButton.addEventListener("click", () => {
+            this.showAddYouTubeFeedModal();
+        });
+
+        
+        const importOpmlButton = sidebarToolbar.createDiv({
+            cls: "rss-dashboard-toolbar-button",
+            attr: {
+                title: "Import OPML",
+            },
+        });
+        setIcon(importOpmlButton, "upload");
+        importOpmlButton.addEventListener("click", () => {
+            this.callbacks.onImportOpml();
+        });
+
+        
+        const exportOpmlButton = sidebarToolbar.createDiv({
+            cls: "rss-dashboard-toolbar-button",
+            attr: {
+                title: "Export OPML",
+            },
+        });
+        setIcon(exportOpmlButton, "download");
+        exportOpmlButton.addEventListener("click", () => {
+            this.callbacks.onExportOpml();
+        });
+
+        
+        const manageFeedsButton = sidebarToolbar.createDiv({
+            cls: "rss-dashboard-toolbar-button",
+            attr: {
+                title: "Manage Feeds",
+            },
+        });
+        setIcon(manageFeedsButton, "list");
+        manageFeedsButton.addEventListener("click", () => {
+            if (this.callbacks.onManageFeeds) {
+                this.callbacks.onManageFeeds();
+            }
+        });
+    }
+
+    private showAddFeedModal(defaultFolder = "Uncategorized"): void {
+		new AddFeedModal(
+			this.app,
+			this.settings.folders,
+			async (title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval) => await this.callbacks.onAddFeed(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval),
+			() => this.render(),
+			defaultFolder
+		).open();
+	}
+
+    public showEditFeedModal(feed: Feed): void {
+        new EditFeedModal(this.app, this.plugin, feed, () => this.render()).open();
+    }
+
+    private showFeedContextMenu(event: MouseEvent, feed: Feed): void {
+        const menu = new Menu();
+
+        menu.addItem((item: MenuItem) => {
+            item.setTitle("Update Feed")
+                .setIcon("refresh-cw")
+                .onClick(async () => {
+                    await this.callbacks.onUpdateFeed(feed);
+                });
+        });
+
+        menu.addItem((item: MenuItem) => {
+            item.setTitle("Edit Feed")
+                .setIcon("edit")
+                .onClick(() => {
+                    this.showEditFeedModal(feed);
+                });
+        });
+
+        menu.addItem((item: MenuItem) => {
+            item.setTitle("Mark All as Read")
+                .setIcon("check-circle")
+                .onClick(() => {
+                    feed.items.forEach(item => {
+                        item.read = true;
+                    });
+                    this.render();
+                });
+        });
+
+        menu.addItem((item: MenuItem) => {
+            item.setTitle("Delete Feed")
+                .setIcon("trash")
+                .onClick(() => {
+                    this.showConfirmModal(`Are you sure you want to delete the feed "${feed.title}"?`, () => {
+                        this.callbacks.onDeleteFeed(feed);
+                    });
+                });
+        });
+
+        menu.showAtMouseEvent(event);
+    }
+
+    private _sortFolders(by: "name" | "created" | "modified", ascending: boolean) {
+        const sorter = (a: Folder, b: Folder): number => {
+			
+			if (a.pinned && !b.pinned) return -1;
+			if (!a.pinned && b.pinned) return 1;
+			
+			
+			let valA: any, valB: any;
+
+            switch (by) {
+				case "name":
+                    valA = a.name;
+                    valB = b.name;
+                    return valA.localeCompare(valB, undefined, { numeric: true }) * (ascending ? 1 : -1);
+				case "created":
+                    valA = a.createdAt || 0;
+                    valB = b.createdAt || 0;
+                    break;
+				case "modified":
+                    valA = a.modifiedAt || 0;
+                    valB = b.modifiedAt || 0;
+                    break;
+				default:
+					return 0;
+            }
+
+            if (valA < valB) return ascending ? -1 : 1;
+            if (valA > valB) return ascending ? 1 : -1;
+            return 0;
+        };
+
+        const recursiveSort = (folders: Folder[]): Folder[] => {
+			
+			const sortedFolders = [...folders].sort(sorter);
+			
+			
+			sortedFolders.forEach((f) => {
+                if (f.subfolders && f.subfolders.length > 0) {
+                    f.subfolders = recursiveSort(f.subfolders);
+                }
+            });
+			
+			return sortedFolders;
+        };
+
+		
+        this.settings.folders = recursiveSort(this.settings.folders);
+	}
+
+	private async sortFolders(by: "name" | "created" | "modified", ascending: boolean) {
+		this._sortFolders(by, ascending);
+		
+		this.settings.folderSortOrder = { by, ascending };
+		await this.plugin.saveSettings();
+        this.render();
+    }
+
+    private showFeedSortMenu(event: MouseEvent, folderPath: string): void {
+        const menu = new Menu();
+
+        menu.addItem((item) =>
+            item
+                .setTitle("Feed name (A to Z)")
+                .onClick(async () => await this.sortFeedsInFolder(folderPath, 'name', true))
+        );
+        menu.addItem((item) =>
+            item
+                .setTitle("Feed name (Z to A)")
+                .onClick(async () => await this.sortFeedsInFolder(folderPath, 'name', false))
+        );
+        menu.addItem((item) =>
+            item
+                .setTitle("Created time (new to old)")
+                .onClick(async () => await this.sortFeedsInFolder(folderPath, 'created', false))
+        );
+        menu.addItem((item) =>
+            item
+                .setTitle("Created time (old to new)")
+                .onClick(async () => await this.sortFeedsInFolder(folderPath, 'created', true))
+        );
+        menu.addItem((item) =>
+            item
+                .setTitle("Number of items (high to low)")
+                .onClick(async () => await this.sortFeedsInFolder(folderPath, 'itemCount', false))
+        );
+        menu.addItem((item) =>
+            item
+                .setTitle("Number of items (low to high)")
+                .onClick(async () => await this.sortFeedsInFolder(folderPath, 'itemCount', true))
+        );
+
+        menu.showAtMouseEvent(event);
+    }
+
+    private async sortFeedsInFolder(folderPath: string, by: "name" | "created" | "itemCount", ascending: boolean) {
+        
+        let feedsInFolder: Feed[];
+        
+        if (folderPath) {
+            
+            feedsInFolder = this.settings.feeds.filter(feed => feed.folder === folderPath);
+        } else {
+            
+            const allFolderPaths = new Set<string>();
+            function collectPaths(folders: Folder[], base = "") {
+                for (const f of folders) {
+                    const path = base ? `${base}/${f.name}` : f.name;
+                    allFolderPaths.add(path);
+                    if (f.subfolders && f.subfolders.length > 0) {
+                        collectPaths(f.subfolders, path);
+                    }
+                }
+            }
+            collectPaths(this.settings.folders);
+            feedsInFolder = this.settings.feeds.filter(feed => !feed.folder || !allFolderPaths.has(feed.folder));
+        }
+        
+        if (feedsInFolder.length === 0) {
+            new Notice("No feeds found in this folder");
+            return;
+        }
+
+        
+        const sortedFeeds = this.applyFeedSortOrder([...feedsInFolder], { by, ascending });
+        
+        
+        if (folderPath) {
+            this.settings.feeds = this.settings.feeds.filter(feed => feed.folder !== folderPath);
+        } else {
+            
+            const allFolderPaths = new Set<string>();
+            function collectPaths(folders: Folder[], base = "") {
+                for (const f of folders) {
+                    const path = base ? `${base}/${f.name}` : f.name;
+                    allFolderPaths.add(path);
+                    if (f.subfolders && f.subfolders.length > 0) {
+                        collectPaths(f.subfolders, path);
+                    }
+                }
+            }
+            collectPaths(this.settings.folders);
+            this.settings.feeds = this.settings.feeds.filter(feed => feed.folder && allFolderPaths.has(feed.folder));
+        }
+        
+        
+        this.settings.feeds.push(...sortedFeeds);
+        
+        
+        if (!this.settings.folderFeedSortOrders) {
+            this.settings.folderFeedSortOrders = {};
+        }
+        this.settings.folderFeedSortOrders[folderPath] = { by, ascending };
+        
+        await this.plugin.saveSettings();
+        
+        new Notice(`Feeds in "${folderPath || 'root'}" sorted by ${by} (${ascending ? 'ascending' : 'descending'})`);
+        this.render();
+    }
+
+    private applyFeedSortOrder(feeds: Feed[], sortOrder: { by: "name" | "created" | "itemCount"; ascending: boolean }): Feed[] {
+        const sorter = (a: Feed, b: Feed): number => {
+            let valA: any, valB: any;
+
+            switch (sortOrder.by) {
+                case "name":
+                    valA = a.title;
+                    valB = b.title;
+                    return valA.localeCompare(valB, undefined, { numeric: true }) * (sortOrder.ascending ? 1 : -1);
+                case "created":
+                    
+                    valA = a.lastUpdated || 0;
+                    valB = b.lastUpdated || 0;
+                    break;
+                case "itemCount":
+                    valA = a.items.length;
+                    valB = b.items.length;
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (valA < valB) return sortOrder.ascending ? -1 : 1;
+            if (valA > valB) return sortOrder.ascending ? 1 : -1;
+            return 0;
+        };
+
+        return [...feeds].sort(sorter);
+    }
+
+    private toggleAllFolders(): void {
+        
+        const allFolderPaths: string[] = [];
+        function collectPaths(folders: Folder[], base = "") {
+            for (const f of folders) {
+                const path = base ? `${base}/${f.name}` : f.name;
+                allFolderPaths.push(path);
+                if (f.subfolders && f.subfolders.length > 0) {
+                    collectPaths(f.subfolders, path);
+                }
+            }
+        }
+        collectPaths(this.settings.folders);
+
+        const collapsedSet = new Set(this.options.collapsedFolders);
+        const allCollapsed = allFolderPaths.length > 0 && allFolderPaths.every(path => collapsedSet.has(path));
+
+        if (allCollapsed) {
+            
+            allFolderPaths.forEach(path => {
+                if (collapsedSet.has(path)) {
+                    this.callbacks.onToggleFolderCollapse(path);
+                }
+            });
+            new Notice("All folders expanded");
+        } else {
+            
+            allFolderPaths.forEach(path => {
+                if (!collapsedSet.has(path)) {
+                    this.callbacks.onToggleFolderCollapse(path);
+                }
+            });
+            new Notice("All folders collapsed");
+        }
+        
+    }
+}
 
 function collectAllFolders(folders: any[], base = ""): string[] {
     let paths: string[] = [];

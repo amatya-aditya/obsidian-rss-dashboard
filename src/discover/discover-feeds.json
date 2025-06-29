@@ -1,0 +1,3805 @@
+[
+  {
+    "id": "feed-001",
+    "title": "BBC News - World",
+    "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "imageUrl": "https://logo.clearbit.com/bbc.com",
+    "domain": [
+      "News"
+    ],
+    "subdomain": [
+      "World News"
+    ],
+    "area": [
+      "International"
+    ],
+    "topic": [
+      "General News"
+    ],
+    "tags": [
+      "news",
+      "international"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Global news coverage from BBC News (World edition).",
+    "rating": 5
+  },
+  {
+    "id": "feed-002",
+    "title": "The New York Times - Top Stories",
+    "url": "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
+    "imageUrl": "https://logo.clearbit.com/nytimes.com",
+    "domain": [
+      "News"
+    ],
+    "subdomain": [
+      "General"
+    ],
+    "area": [
+      "U.S. & World"
+    ],
+    "topic": [
+      "Current Events"
+    ],
+    "tags": [
+      "news",
+      "politics"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Top news stories and breaking news from The New York Times.",
+    "rating": 5
+  },
+  {
+    "id": "feed-003",
+    "title": "World History Encyclopedia",
+    "url": "http://www.ancient.eu.com/rss/",
+    "imageUrl": "https://pbs.twimg.com/profile_images/1365290462383198212/TzOD8oZj_400x400.jpg",
+    "domain": [
+      ""
+    ],
+    "subdomain": [
+      "World History"
+    ],
+    "area": [
+      "International"
+    ],
+    "topic": [
+      "General News"
+    ],
+    "tags": [
+      "news",
+      "wire"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Engaging people with cultural heritage and to improve history education worldwide..",
+    "rating": 5
+  },
+  {
+    "id": "feed-004",
+    "title": "Al Jazeera English - News",
+    "url": "https://www.aljazeera.com/xml/rss/all.xml",
+    "imageUrl": "https://logo.clearbit.com/aljazeera.com",
+    "domain": [
+      "News"
+    ],
+    "subdomain": [
+      "World News"
+    ],
+    "area": [
+      "Global"
+    ],
+    "topic": [
+      "International Affairs"
+    ],
+    "tags": [
+      "news",
+      "global"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Global news stories and analysis from Al Jazeera English.",
+    "rating": 4
+  },
+  {
+    "id": "feed-005",
+    "title": "The Guardian - World News",
+    "url": "https://www.theguardian.com/world/rss",
+    "imageUrl": "https://logo.clearbit.com/theguardian.com",
+    "domain": [
+      "News"
+    ],
+    "subdomain": [
+      "World News"
+    ],
+    "area": [
+      "International"
+    ],
+    "topic": [
+      "General News"
+    ],
+    "tags": [
+      "news",
+      "international"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Latest world news and features from The Guardian.",
+    "rating": 4
+  },
+  {
+    "id": "feed-006",
+    "title": "NPR News",
+    "url": "https://feeds.npr.org/1001/rss.xml",
+    "imageUrl": "https://logo.clearbit.com/npr.org",
+    "domain": [
+      "News"
+    ],
+    "subdomain": [
+      "General"
+    ],
+    "area": [
+      "Politics & Society"
+    ],
+    "topic": [
+      "Current Events"
+    ],
+    "tags": [
+      "news",
+      "US"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Breaking news and feature stories from NPR.",
+    "rating": 4
+  },
+  {
+    "id": "feed-007",
+    "title": "Hacker News (Y Combinator)",
+    "url": "https://hnrss.org/frontpage",
+    "imageUrl": "https://logo.clearbit.com/ycombinator.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Software Development"
+    ],
+    "area": [
+      "DevOps"
+    ],
+    "topic": [
+      "Startups"
+    ],
+    "tags": [
+      "programming",
+      "entrepreneurship"
+    ],
+    "type": "Forum",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Front-page stories from Hacker News, a popular tech forum for startups and programming.",
+    "rating": 4
+  },
+  {
+    "id": "feed-008",
+    "title": "TechCrunch",
+    "url": "http://feeds.feedburner.com/TechCrunch/",
+    "imageUrl": "https://logo.clearbit.com/techcrunch.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Startup News"
+    ],
+    "area": [
+      "Technology Business"
+    ],
+    "topic": [
+      "Startups"
+    ],
+    "tags": [
+      "tech",
+      "startups"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Technology and startup news updates from TechCrunch.",
+    "rating": 5
+  },
+  {
+    "id": "feed-009",
+    "title": "WIRED",
+    "url": "https://www.wired.com/feed/rss",
+    "imageUrl": "https://logo.clearbit.com/wired.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Consumer Tech"
+    ],
+    "area": [
+      "Innovation"
+    ],
+    "topic": [
+      "Gadgets"
+    ],
+    "tags": [
+      "tech",
+      "innovation"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Magazine featuring technology, science, and culture news (WIRED).",
+    "rating": 4
+  },
+  {
+    "id": "feed-010",
+    "title": "Ars Technica",
+    "url": "http://feeds.arstechnica.com/arstechnica/index",
+    "imageUrl": "https://logo.clearbit.com/arstechnica.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "IT & Science"
+    ],
+    "area": [
+      "Computing"
+    ],
+    "topic": [
+      "Tech Policy"
+    ],
+    "tags": [
+      "tech",
+      "software",
+      "hardware"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "In-depth technology, science, and IT news from Ars Technica.",
+    "rating": 4
+  },
+  {
+    "id": "feed-011",
+    "title": "IEEE Spectrum",
+    "url": "https://spectrum.ieee.org/feeds/feed.rss",
+    "imageUrl": "https://logo.clearbit.com/ieee.org",
+    "domain": [
+      "Engineering"
+    ],
+    "subdomain": [
+      "Electrical Engineering"
+    ],
+    "area": [
+      "Technology"
+    ],
+    "topic": [
+      "Innovation"
+    ],
+    "tags": [
+      "engineering",
+      "technology"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Flagship magazine of IEEE, covering engineering and technology news.",
+    "rating": 5
+  },
+  {
+    "id": "feed-012",
+    "title": "MIT Technology Review",
+    "url": "https://www.technologyreview.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/technologyreview.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Emerging Tech"
+    ],
+    "area": [
+      "Innovation"
+    ],
+    "topic": [
+      "Future Tech"
+    ],
+    "tags": [
+      "technology",
+      "innovation"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Insights and analyses of emerging technologies from MIT Technology Review.",
+    "rating": 4
+  },
+  {
+    "id": "feed-013",
+    "title": "Slashdot",
+    "url": "https://rss.slashdot.org/Slashdot/slashdotMain",
+    "imageUrl": "https://logo.clearbit.com/slashdot.org",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "IT"
+    ],
+    "area": [
+      "Software"
+    ],
+    "topic": [
+      "Open Source"
+    ],
+    "tags": [
+      "tech",
+      "news"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "User-submitted technology news and discussion from Slashdot.",
+    "rating": 3
+  },
+  {
+    "id": "feed-014",
+    "title": "Engadget",
+    "url": "https://www.engadget.com/rss.xml",
+    "imageUrl": "https://logo.clearbit.com/engadget.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Consumer Electronics"
+    ],
+    "area": [
+      "Gadgets"
+    ],
+    "topic": [
+      "Electronics"
+    ],
+    "tags": [
+      "gadgets",
+      "tech"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Consumer technology news and reviews from Engadget.",
+    "rating": 4
+  },
+  {
+    "id": "feed-015",
+    "title": "The Verge",
+    "url": "https://www.theverge.com/rss/index.xml",
+    "imageUrl": "https://logo.clearbit.com/theverge.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Tech Culture"
+    ],
+    "area": [
+      "Consumer Tech"
+    ],
+    "topic": [
+      "Devices"
+    ],
+    "tags": [
+      "tech",
+      "culture"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Technology, science, and culture news from The Verge.",
+    "rating": 4
+  },
+  {
+    "id": "feed-016",
+    "title": "Stack Overflow Blog",
+    "url": "https://stackoverflow.blog/feed/",
+    "imageUrl": "https://logo.clearbit.com/stackoverflow.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Software Development"
+    ],
+    "area": [
+      "Programming"
+    ],
+    "topic": [
+      "Development"
+    ],
+    "tags": [
+      "programming",
+      "community"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Articles on software development and the Stack Overflow developer community.",
+    "rating": 3
+  },
+  {
+    "id": "feed-017",
+    "title": "Scientific American",
+    "url": "https://www.scientificamerican.com/platform/syndication/rss/",
+    "imageUrl": "https://logo.clearbit.com/scientificamerican.com",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "General Science"
+    ],
+    "area": [
+      "Science News"
+    ],
+    "topic": [
+      "Research"
+    ],
+    "tags": [
+      "science",
+      "research"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Popular science news and articles from Scientific American.",
+    "rating": 5
+  },
+  {
+    "id": "feed-018",
+    "title": "Science News Magazine",
+    "url": "https://www.sciencenews.org/feed",
+    "imageUrl": "https://logo.clearbit.com/sciencenews.org",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "General Science"
+    ],
+    "area": [
+      "News"
+    ],
+    "topic": [
+      "Discoveries"
+    ],
+    "tags": [
+      "science",
+      "news"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Latest research news in science from Science News magazine.",
+    "rating": 5
+  },
+  {
+    "id": "feed-019",
+    "title": "ScienceDaily",
+    "url": "https://www.sciencedaily.com/rss/all.xml",
+    "imageUrl": "https://logo.clearbit.com/sciencedaily.com",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "General Science"
+    ],
+    "area": [
+      "News"
+    ],
+    "topic": [
+      "Research Updates"
+    ],
+    "tags": [
+      "science",
+      "research"
+    ],
+    "type": "Research Digest",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Daily updates on the latest discoveries across science and medicine.",
+    "rating": 4
+  },
+  {
+    "id": "feed-020",
+    "title": "New Scientist",
+    "url": "https://www.newscientist.com/feed/home",
+    "imageUrl": "https://logo.clearbit.com/newscientist.com",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "General Science"
+    ],
+    "area": [
+      "News"
+    ],
+    "topic": [
+      "Tech & Biology"
+    ],
+    "tags": [
+      "science",
+      "tech"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Science and technology news from New Scientist magazine.",
+    "rating": 5
+  },
+  {
+    "id": "feed-021",
+    "title": "Quanta Magazine",
+    "url": "https://www.quantamagazine.org/feed",
+    "imageUrl": "https://logo.clearbit.com/quantamagazine.org",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "Mathematics"
+    ],
+    "area": [
+      "Fundamental Science"
+    ],
+    "topic": [
+      "Research"
+    ],
+    "tags": [
+      "science",
+      "math",
+      "physics"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "In-depth articles on mathematics, physics, and computer science from Quanta Magazine.",
+    "rating": 5
+  },
+  {
+    "id": "feed-022",
+    "title": "Space.com – Space & Astronomy",
+    "url": "https://www.space.com/feeds/all",
+    "imageUrl": "https://logo.clearbit.com/space.com",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "Astronomy"
+    ],
+    "area": [
+      "Space Exploration"
+    ],
+    "topic": [
+      "Astronomy"
+    ],
+    "tags": [
+      "space",
+      "astronomy"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Latest news on space exploration and astronomy from Space.com.",
+    "rating": 4
+  },
+  {
+    "id": "feed-024",
+    "title": "Futurity.org",
+    "url": "https://www.futurity.org/feed/",
+    "imageUrl": "https://logo.clearbit.com/futurity.org",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "Research News"
+    ],
+    "area": [
+      "Academic Research"
+    ],
+    "topic": [
+      "Discoveries"
+    ],
+    "tags": [
+      "research",
+      "science"
+    ],
+    "type": "Research Digest",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Research news highlights from leading universities (Futurity).",
+    "rating": 4
+  },
+  {
+    "id": "feed-025",
+    "title": "Bloomberg Markets News",
+    "url": "https://feeds.bloomberg.com/markets/news.rss",
+    "imageUrl": "https://logo.clearbit.com/bloomberg.com",
+    "domain": [
+      "Business"
+    ],
+    "subdomain": [
+      "Finance"
+    ],
+    "area": [
+      "Markets"
+    ],
+    "topic": [
+      "Investing"
+    ],
+    "tags": [
+      "business",
+      "finance"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Financial markets and business news from Bloomberg.",
+    "rating": 5
+  },
+  {
+    "id": "feed-026",
+    "title": "Encyclopedia Geopolitica",
+    "url": "https://encyclopediageopolitica.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/encyclopediageopolitica.com",
+    "domain": [
+      "Society"
+    ],
+    "subdomain": [
+      "Policy & Culture"
+    ],
+    "area": [
+      "Geopolitics"
+    ],
+    "topic": [
+      "Geopolitics"
+    ],
+    "tags": [
+      "politics"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Articles, reading lists, and podcasts discussing geopolitics.",
+    "rating": 4
+  },
+  {
+    "id": "feed-027",
+    "title": "The Economist – Finance & Economics",
+    "url": "https://www.economist.com/finance-and-economics/rss.xml",
+    "imageUrl": "https://logo.clearbit.com/economist.com",
+    "domain": [
+      "Business"
+    ],
+    "subdomain": [
+      "Economics"
+    ],
+    "area": [
+      "Global Economy"
+    ],
+    "topic": [
+      "Finance"
+    ],
+    "tags": [
+      "economics",
+      "business"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Global economic analysis and finance news from The Economist.",
+    "rating": 5
+  },
+  {
+    "id": "feed-028",
+    "title": "Harvard Business Review",
+    "url": "http://feeds.harvardbusiness.org/harvardbusiness/",
+    "imageUrl": "https://logo.clearbit.com/hbr.org",
+    "domain": [
+      "Business"
+    ],
+    "subdomain": [
+      "Management"
+    ],
+    "area": [
+      "Leadership"
+    ],
+    "topic": [
+      "Strategy"
+    ],
+    "tags": [
+      "business",
+      "management"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Leadership, management, and business insights from Harvard Business Review.",
+    "rating": 4
+  },
+  {
+    "id": "feed-029",
+    "title": "Forbes – Innovation",
+    "url": "https://www.forbes.com/innovation/feed2",
+    "imageUrl": "https://logo.clearbit.com/forbes.com",
+    "domain": [
+      "Business"
+    ],
+    "subdomain": [
+      "Technology"
+    ],
+    "area": [
+      "Innovation"
+    ],
+    "topic": [
+      "Entrepreneurship"
+    ],
+    "tags": [
+      "business",
+      "technology"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Innovation and tech trends news from Forbes.",
+    "rating": 4
+  },
+  {
+    "id": "feed-030",
+    "title": "Aeon - A World of Ideas",
+    "url": "https://aeon.co/feed.rss",
+    "imageUrl": "https://logo.clearbit.com/aeon.co",
+    "domain": [
+      "Philosophy"
+    ],
+    "subdomain": [
+      "Culture"
+    ],
+    "area": [
+      "Ideas"
+    ],
+    "topic": [
+      "Essays"
+    ],
+    "tags": [
+      "philosophy",
+      "culture"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "In-depth essays on philosophy, science, and culture from Aeon magazine.",
+    "rating": 5
+  },
+  {
+    "id": "feed-031",
+    "title": "Arts & Letters Daily",
+    "url": "https://www.aldaily.com/feed",
+    "imageUrl": "https://logo.clearbit.com/aldaily.com",
+    "domain": [
+      "Culture"
+    ],
+    "subdomain": [
+      "Literature"
+    ],
+    "area": [
+      "Criticism"
+    ],
+    "topic": [
+      "Ideas"
+    ],
+    "tags": [
+      "arts",
+      "ideas"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Daily curated links to essays on literature, philosophy, and the arts.",
+    "rating": 5
+  },
+  {
+    "id": "feed-032",
+    "title": "The Marginalian",
+    "url": "https://www.themarginalian.org/feed/",
+    "imageUrl": "https://logo.clearbit.com/themarginalian.org",
+    "domain": [
+      "Culture"
+    ],
+    "subdomain": [
+      "Literature"
+    ],
+    "area": [
+      "Art & Philosophy"
+    ],
+    "topic": [
+      "Books"
+    ],
+    "tags": [
+      "literature",
+      "art",
+      "philosophy"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Reflections on art, literature, science, and philosophy by The Marginalian (formerly Brain Pickings).",
+    "rating": 5
+  },
+  {
+    "id": "feed-033",
+    "title": "Farnam Street (FS Blog)",
+    "url": "https://fs.blog/feed",
+    "imageUrl": "https://logo.clearbit.com/fs.blog",
+    "domain": [
+      "Self-Improvement"
+    ],
+    "subdomain": [
+      "Learning"
+    ],
+    "area": [
+      "Personal Development"
+    ],
+    "topic": [
+      "Mental Models"
+    ],
+    "tags": [
+      "learning",
+      "productivity"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Mental models, decision-making, and personal growth insights from Farnam Street.",
+    "rating": 4
+  },
+  {
+    "id": "feed-034",
+    "title": "Seth’s Blog (Seth Godin)",
+    "url": "https://seths.blog/feed",
+    "imageUrl": "https://logo.clearbit.com/seths.blog",
+    "domain": [
+      "Business"
+    ],
+    "subdomain": [
+      "Marketing"
+    ],
+    "area": [
+      "Entrepreneurship"
+    ],
+    "topic": [
+      "Marketing"
+    ],
+    "tags": [
+      "marketing",
+      "insight"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Daily marketing, business, and life insights from Seth Godin’s blog.",
+    "rating": 4
+  },
+  {
+    "id": "feed-035",
+    "title": "Smithsonian Magazine - History",
+    "url": "https://www.smithsonianmag.com/rss/history/",
+    "imageUrl": "https://logo.clearbit.com/smithsonianmag.com",
+    "domain": [
+      "History"
+    ],
+    "subdomain": [
+      "World History"
+    ],
+    "area": [
+      "Culture"
+    ],
+    "topic": [
+      "Historical Events"
+    ],
+    "tags": [
+      "history",
+      "culture"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Historical articles and insights from Smithsonian Magazine’s History category.",
+    "rating": 4
+  },
+  {
+    "id": "feed-036",
+    "title": "Sapiens Magazine",
+    "url": "https://www.sapiens.org/feed/",
+    "imageUrl": "https://logo.clearbit.com/sapiens.org",
+    "domain": [
+      "Anthropology"
+    ],
+    "subdomain": [
+      "Culture"
+    ],
+    "area": [
+      "Human Evolution"
+    ],
+    "topic": [
+      "Anthropology"
+    ],
+    "tags": [
+      "anthropology",
+      "culture"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Anthropology, archaeology, and evolutionary insights from Sapiens magazine.",
+    "rating": 4
+  },
+  {
+    "id": "feed-037",
+    "title": "History Today",
+    "url": "https://www.historytoday.com/feed/rss.xml",
+    "imageUrl": "https://logo.clearbit.com/historytoday.com",
+    "domain": [
+      "History"
+    ],
+    "subdomain": [
+      "World History"
+    ],
+    "area": [
+      "Historical Analysis"
+    ],
+    "topic": [
+      "General History"
+    ],
+    "tags": [
+      "history"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Articles on world history and historical analysis from History Today magazine.",
+    "rating": 4
+  },
+  {
+    "id": "feed-038",
+    "title": "Foreign Affairs",
+    "url": "https://www.foreignaffairs.com/rss.xml",
+    "imageUrl": "https://logo.clearbit.com/foreignaffairs.com",
+    "domain": [
+      "Politics"
+    ],
+    "subdomain": [
+      "International Relations"
+    ],
+    "area": [
+      "Foreign Policy"
+    ],
+    "topic": [
+      "Geopolitics"
+    ],
+    "tags": [
+      "international",
+      "policy"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "In-depth analysis of foreign policy and global affairs from Foreign Affairs magazine.",
+    "rating": 5
+  },
+  {
+    "id": "feed-039",
+    "title": "War on the Rocks",
+    "url": "https://warontherocks.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/warontherocks.com",
+    "domain": [
+      "Politics"
+    ],
+    "subdomain": [
+      "Defense"
+    ],
+    "area": [
+      "Security"
+    ],
+    "topic": [
+      "Military"
+    ],
+    "tags": [
+      "geopolitics",
+      "security"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Commentary on strategy, defense, and foreign affairs from War on the Rocks.",
+    "rating": 4
+  },
+  {
+    "id": "feed-040",
+    "title": "Futurism",
+    "url": "https://futurism.com/feed",
+    "imageUrl": "https://logo.clearbit.com/futurism.com",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "Futurism"
+    ],
+    "area": [
+      "Emerging Tech"
+    ],
+    "topic": [
+      "Future"
+    ],
+    "tags": [
+      "future",
+      "technology"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Science and technology news focusing on emerging tech and futurism (Futurism.com).",
+    "rating": 4
+  },
+  {
+    "id": "feed-041",
+    "title": "Singularity Hub",
+    "url": "https://singularityhub.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/singularityhub.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Futurism"
+    ],
+    "area": [
+      "Innovation"
+    ],
+    "topic": [
+      "Future"
+    ],
+    "tags": [
+      "future",
+      "science"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "News and insights on future technologies and trends from Singularity Hub.",
+    "rating": 3
+  },
+  {
+    "id": "feed-042",
+    "title": "OpenAI News",
+    "url": "https://openai.com/news/rss.xml",
+    "imageUrl": "https://logo.clearbit.com/openai.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Artificial Intelligence"
+    ],
+    "area": [
+      "Machine Learning"
+    ],
+    "topic": [
+      "AI Research"
+    ],
+    "tags": [
+      "AI",
+      "ML"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Updates on artificial intelligence research and projects from OpenAI.",
+    "rating": 5
+  },
+  {
+    "id": "feed-044",
+    "title": "arXiv AI (cs.AI) New Papers",
+    "url": "https://export.arxiv.org/rss/cs.AI",
+    "imageUrl": "https://logo.clearbit.com/arxiv.org",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "Computer Science"
+    ],
+    "area": [
+      "Artificial Intelligence"
+    ],
+    "topic": [
+      "Research Papers"
+    ],
+    "tags": [
+      "AI",
+      "research"
+    ],
+    "type": "Preprint Server",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Daily list of new AI research papers from arXiv (computer science category).",
+    "rating": 4
+  },
+  {
+    "id": "feed-045",
+    "title": "Two Minute Papers (YouTube)",
+    "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg",
+    "imageUrl": "https://logo.clearbit.com/youtube.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Artificial Intelligence"
+    ],
+    "area": [
+      "Machine Learning"
+    ],
+    "topic": [
+      "Research Highlights"
+    ],
+    "tags": [
+      "AI",
+      "videos"
+    ],
+    "type": "YouTube",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Short video summaries of the latest AI research from the Two Minute Papers YouTube channel.",
+    "rating": 4
+  },
+  {
+    "id": "feed-046",
+    "title": "Last Week in AI",
+    "url": "https://lastweekin.ai/feed",
+    "imageUrl": "https://logo.clearbit.com/lastweekin.ai",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Artificial Intelligence"
+    ],
+    "area": [
+      "News"
+    ],
+    "topic": [
+      "AI News"
+    ],
+    "tags": [
+      "AI",
+      "newsletter"
+    ],
+    "type": "Newsletter",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Weekly digest of the most interesting AI news and developments.",
+    "rating": 4
+  },
+
+  {
+    "id": "feed-048",
+    "title": "NYTimes Books",
+    "url": "https://rss.nytimes.com/services/xml/rss/nyt/Books.xml",
+    "imageUrl": "https://logo.clearbit.com/nytimes.com",
+    "domain": [
+      "Arts"
+    ],
+    "subdomain": [
+      "Literature"
+    ],
+    "area": [
+      "Book Reviews"
+    ],
+    "topic": [
+      "Books"
+    ],
+    "tags": [
+      "books",
+      "reviews"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "The latest book reviews, literary news, and author interviews from The New York Times.",
+    "rating": 4
+  },
+  {
+    "id": "feed-049",
+    "title": "The Guardian - Books",
+    "url": "https://www.theguardian.com/books/rss",
+    "imageUrl": "https://logo.clearbit.com/theguardian.com",
+    "domain": [
+      "Arts"
+    ],
+    "subdomain": [
+      "Literature"
+    ],
+    "area": [
+      "Books"
+    ],
+    "topic": [
+      "Publishing"
+    ],
+    "tags": [
+      "books",
+      "literature"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Book news, reviews, and literary commentary from The Guardian.",
+    "rating": 4
+  },
+  {
+    "id": "feed-050",
+    "title": "Pitchfork - Latest Music News",
+    "url": "https://pitchfork.com/feed/feed-news/rss",
+    "imageUrl": "https://logo.clearbit.com/pitchfork.com",
+    "domain": [
+      "Arts"
+    ],
+    "subdomain": [
+      "Music"
+    ],
+    "area": [
+      "Music News"
+    ],
+    "topic": [
+      "Music"
+    ],
+    "tags": [
+      "music",
+      "reviews"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Latest music news, album reviews, and features from Pitchfork.",
+    "rating": 4
+  },
+  {
+    "id": "feed-051",
+    "title": "NPR Music",
+    "url": "https://feeds.npr.org/1039/rss.xml",
+    "imageUrl": "https://logo.clearbit.com/npr.org",
+    "domain": [
+      "Arts"
+    ],
+    "subdomain": [
+      "Music"
+    ],
+    "area": [
+      "Music News"
+    ],
+    "topic": [
+      "Music"
+    ],
+    "tags": [
+      "music",
+      "news"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Music news, reviews, and artist interviews from NPR Music.",
+    "rating": 4
+  },
+  {
+    "id": "feed-052",
+    "title": "3D Printing Industry",
+    "url": "https://3dprintingindustry.com/feed",
+    "imageUrl": "https://logo.clearbit.com/3dprintingindustry.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Additive Manufacturing"
+    ],
+    "area": [
+      "3D Printing"
+    ],
+    "topic": [
+      "Manufacturing"
+    ],
+    "tags": [
+      "3D printing",
+      "manufacturing"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "News and analysis on the 3D printing and additive manufacturing industry.",
+    "rating": 4
+  },
+  {
+    "id": "feed-053",
+    "title": "Terence Tao’s Blog",
+    "url": "https://terrytao.wordpress.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/wordpress.com",
+    "domain": [
+      "Mathematics"
+    ],
+    "subdomain": [
+      "Analysis"
+    ],
+    "area": [
+      "Academic"
+    ],
+    "topic": [
+      "Mathematics"
+    ],
+    "tags": [
+      "math",
+      "academic"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Mathematical insights and research commentary by Fields Medalist Terence Tao.",
+    "rating": 5
+  },
+  {
+    "id": "feed-054",
+    "title": "Numberphile (YouTube)",
+    "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCoxcjq-8xIDTYp3uz647V5A",
+    "imageUrl": "https://logo.clearbit.com/youtube.com",
+    "domain": [
+      "Mathematics"
+    ],
+    "subdomain": [
+      "Mathematics"
+    ],
+    "area": [
+      "Education"
+    ],
+    "topic": [
+      "Numbers"
+    ],
+    "tags": [
+      "math",
+      "video"
+    ],
+    "type": "YouTube",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Entertaining videos about numbers and math concepts from the Numberphile YouTube channel.",
+    "rating": 4
+  },
+  {
+    "id": "feed-055",
+    "title": "HPCwire",
+    "url": "https://www.hpcwire.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/hpcwire.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Computing"
+    ],
+    "area": [
+      "Supercomputing"
+    ],
+    "topic": [
+      "HPC"
+    ],
+    "tags": [
+      "computing",
+      "HPC"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "High-performance computing and supercomputer industry news from HPCwire.",
+    "rating": 3
+  },
+  {
+    "id": "feed-056",
+    "title": "Interesting Engineering",
+    "url": "https://interestingengineering.com/rss",
+    "imageUrl": "https://logo.clearbit.com/interestingengineering.com",
+    "domain": [
+      "Engineering"
+    ],
+    "subdomain": [
+      "Technology"
+    ],
+    "area": [
+      "Innovation"
+    ],
+    "topic": [
+      "Engineering"
+    ],
+    "tags": [
+      "engineering",
+      "tech"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Engineering breakthroughs, tech innovations, and scientific curiosities from Interesting Engineering.",
+    "rating": 3
+  },
+  {
+    "id": "feed-057",
+    "title": "Phys.org - Science News",
+    "url": "http://www.physorg.com/rss-feed/science-news/",
+    "imageUrl": "https://logo.clearbit.com/phys.org",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "General Science"
+    ],
+    "area": [
+      "Research"
+    ],
+    "topic": [
+      "Science News"
+    ],
+    "tags": [
+      "science",
+      "tech"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Up-to-the-minute science and technology news updates from Phys.org.",
+    "rating": 4
+  },
+  {
+    "id": "feed-058",
+    "title": "ZDNet",
+    "url": "https://www.zdnet.com/news/rss.xml",
+    "imageUrl": "https://logo.clearbit.com/zdnet.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "IT"
+    ],
+    "area": [
+      "Business Tech"
+    ],
+    "topic": [
+      "Tech Industry"
+    ],
+    "tags": [
+      "technology",
+      "IT"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Technology industry news, analysis, and product coverage from ZDNet.",
+    "rating": 3
+  },
+  {
+    "id": "feed-059",
+    "title": "Fortune Magazine",
+    "url": "https://fortune.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/fortune.com",
+    "domain": [
+      "Business"
+    ],
+    "subdomain": [
+      "Business News"
+    ],
+    "area": [
+      "Corporate"
+    ],
+    "topic": [
+      "Business"
+    ],
+    "tags": [
+      "business",
+      "finance"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Business news and analysis on companies, markets, and tech from Fortune.",
+    "rating": 4
+  },
+  {
+    "id": "feed-060",
+    "title": "Rolling Stone – Music",
+    "url": "https://www.rollingstone.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/rollingstone.com",
+    "domain": [
+      "Arts"
+    ],
+    "subdomain": [
+      "Music"
+    ],
+    "area": [
+      "Entertainment"
+    ],
+    "topic": [
+      "Music News"
+    ],
+    "tags": [
+      "music",
+      "entertainment"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Music news, album reviews, and pop culture coverage from Rolling Stone.",
+    "rating": 4
+  },
+  {
+    "id": "feed-061",
+    "title": "Tiny Buddha",
+    "url": "https://tinybuddha.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/tinybuddha.com",
+    "domain": [
+      "Self-Improvement"
+    ],
+    "subdomain": [
+      "Wellness"
+    ],
+    "area": [
+      "Mindfulness"
+    ],
+    "topic": [
+      "Personal Growth"
+    ],
+    "tags": [
+      "self-help",
+      "mindfulness"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Inspiration, wisdom, and tips for happiness and mindfulness from Tiny Buddha.",
+    "rating": 3
+  },
+  {
+    "id": "feed-062",
+    "title": "Becoming Minimalist",
+    "url": "https://www.becomingminimalist.com/feed/",
+    "imageUrl": "https://www.becomingminimalist.com/wp-content/themes/becoming-minimalist/images/header.png",
+    "domain": [
+      "Self-Improvement"
+    ],
+    "subdomain": [
+      "Lifestyle"
+    ],
+    "area": [
+      "Minimalism"
+    ],
+    "topic": [
+      "Simplicity"
+    ],
+    "tags": [
+      "minimalism",
+      "lifestyle"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Insights on minimalism and intentional living from Becoming Minimalist.",
+    "rating": 3
+  },
+  {
+    "id": "feed-064",
+    "title": "NYTimes Opinion",
+    "url": "https://rss.nytimes.com/services/xml/rss/nyt/Opinion.xml",
+    "imageUrl": "https://logo.clearbit.com/nytimes.com",
+    "domain": [
+      "News"
+    ],
+    "subdomain": [
+      "Opinion"
+    ],
+    "area": [
+      "Editorial"
+    ],
+    "topic": [
+      "Opinion"
+    ],
+    "tags": [
+      "opinion",
+      "politics"
+    ],
+    "type": "Opinion Column",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Opinions, editorials, and op-eds from The New York Times.",
+    "rating": 4
+  },
+  {
+    "id": "feed-065",
+    "title": "Project Syndicate",
+    "url": "https://www.project-syndicate.org/rss",
+    "imageUrl": "https://logo.clearbit.com/project-syndicate.org",
+    "domain": [
+      "News"
+    ],
+    "subdomain": [
+      "Opinion"
+    ],
+    "area": [
+      "Global Opinion"
+    ],
+    "topic": [
+      "Economics & Politics"
+    ],
+    "tags": [
+      "opinion",
+      "economics"
+    ],
+    "type": "Opinion Column",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Global commentary and opinion pieces by leading thinkers (Project Syndicate).",
+    "rating": 5
+  },
+  {
+    "id": "feed-066",
+    "title": "Universe Today",
+    "url": "https://www.universetoday.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/universetoday.com",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "Astronomy"
+    ],
+    "area": [
+      "Space"
+    ],
+    "topic": [
+      "Astronomy"
+    ],
+    "tags": [
+      "space",
+      "astronomy"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Space and astronomy news, night sky tips, and space exploration updates from Universe Today.",
+    "rating": 4
+  },
+  {
+    "id": "feed-067",
+    "title": "Quantum Computing Report",
+    "url": "https://quantumcomputingreport.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/quantumcomputingreport.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Quantum Computing"
+    ],
+    "area": [
+      "Emerging Tech"
+    ],
+    "topic": [
+      "Quantum"
+    ],
+    "tags": [
+      "quantum",
+      "computing"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Updates on the quantum computing industry, research, and policy (Quantum Computing Report).",
+    "rating": 3
+  },
+  {
+    "id": "feed-068",
+    "title": "TCT Magazine (3D Printing)",
+    "url": "https://www.tctmagazine.com/api/rss/content.rss",
+    "imageUrl": "https://logo.clearbit.com/tctmagazine.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Additive Manufacturing"
+    ],
+    "area": [
+      "3D Printing"
+    ],
+    "topic": [
+      "Industry News"
+    ],
+    "tags": [
+      "3D printing",
+      "technology"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Additive manufacturing and 3D printing industry news from TCT Magazine.",
+    "rating": 3
+  },
+  {
+    "id": "feed-069",
+    "title": "Mozilla Hacks (MDN Web Docs)",
+    "url": "https://hacks.mozilla.org/feed",
+    "imageUrl": "https://logo.clearbit.com/mozilla.org",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Web Development"
+    ],
+    "area": [
+      "Front-end"
+    ],
+    "topic": [
+      "Web Technology"
+    ],
+    "tags": [
+      "development",
+      "web"
+    ],
+    "type": "Documentation",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Web development tips, browser technology updates, and tutorials from Mozilla Hacks (MDN).",
+    "rating": 3
+  },
+  {
+    "id": "feed-070",
+    "title": "Stack Exchange - Hot Questions",
+    "url": "https://stackexchange.com/feeds/questions",
+    "imageUrl": "https://logo.clearbit.com/stackexchange.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Q&A"
+    ],
+    "area": [
+      "Programming"
+    ],
+    "topic": [
+      "Various Topics"
+    ],
+    "tags": [
+      "Q&A",
+      "community"
+    ],
+    "type": "Forum",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Newest popular questions across the Stack Exchange network of Q&A communities.",
+    "rating": 3
+  },
+  {
+    "id": "feed-071",
+    "title": "GitHub Blog",
+    "url": "https://github.blog/feed/",
+    "imageUrl": "https://logo.clearbit.com/github.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Software Development"
+    ],
+    "area": [
+      "Version Control"
+    ],
+    "topic": [
+      "Dev Tools"
+    ],
+    "tags": [
+      "development",
+      "tools"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Product updates, engineering posts, and community news from the official GitHub Blog.",
+    "rating": 4
+  },
+  {
+    "id": "feed-072",
+    "title": "Techmeme",
+    "url": "https://www.techmeme.com/feed.xml",
+    "imageUrl": "https://logo.clearbit.com/techmeme.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Tech News"
+    ],
+    "area": [
+      "Aggregators"
+    ],
+    "topic": [
+      "Technology"
+    ],
+    "tags": [
+      "news",
+      "tech"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Real-time aggregator of trending technology news headlines (Techmeme).",
+    "rating": 4
+  },
+  {
+    "id": "feed-073",
+    "title": "TED Talks Daily (Podcast)",
+    "url": "https://feeds.feedburner.com/tedtalks_video",
+    "imageUrl": "https://logo.clearbit.com/ted.com",
+    "domain": [
+      "Education"
+    ],
+    "subdomain": [
+      "Ideas"
+    ],
+    "area": [
+      "Inspiration"
+    ],
+    "topic": [
+      "TED Talks"
+    ],
+    "tags": [
+      "ideas",
+      "inspiration"
+    ],
+    "type": "Podcast",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Daily video feed of TED Talks featuring thought leaders on technology, entertainment, design, and more.",
+    "rating": 4
+  },
+  {
+    "id": "feed-074",
+    "title": "KDnuggets",
+    "url": "https://www.kdnuggets.com/feed",
+    "imageUrl": "https://logo.clearbit.com/kdnuggets.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Data Science"
+    ],
+    "area": [
+      "Machine Learning"
+    ],
+    "topic": [
+      "Analytics"
+    ],
+    "tags": [
+      "data science",
+      "ML"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Data science and machine learning news, tutorials, and insights from KDnuggets.",
+    "rating": 4
+  },
+  {
+    "id": "feed-075",
+    "title": "LWN.net (Linux News)",
+    "url": "https://lwn.net/headlines/newrss",
+    "imageUrl": "https://logo.clearbit.com/lwn.net",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Software"
+    ],
+    "area": [
+      "Open Source"
+    ],
+    "topic": [
+      "Linux"
+    ],
+    "tags": [
+      "linux",
+      "software"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Linux and open-source industry news and analysis from LWN.net.",
+    "rating": 3
+  },
+  {
+    "id": "feed-076",
+    "title": "RemoteOK - Remote Jobs",
+    "url": "https://remoteok.com/rss",
+    "imageUrl": "https://logo.clearbit.com/remoteok.com",
+    "domain": [
+      "Career"
+    ],
+    "subdomain": [
+      "Tech Jobs"
+    ],
+    "area": [
+      "Employment"
+    ],
+    "topic": [
+      "Job Postings"
+    ],
+    "tags": [
+      "jobs",
+      "tech"
+    ],
+    "type": "Job Board",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Latest remote tech job listings from the RemoteOK job board.",
+    "rating": 3
+  },
+  {
+    "id": "feed-077",
+    "title": "The Atlantic - Latest",
+    "url": "https://www.theatlantic.com/feed/all/",
+    "imageUrl": "https://logo.clearbit.com/theatlantic.com",
+    "domain": [
+      "News"
+    ],
+    "subdomain": [
+      "Culture"
+    ],
+    "area": [
+      "Society"
+    ],
+    "topic": [
+      "General Interest"
+    ],
+    "tags": [
+      "news",
+      "culture"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Latest articles and in-depth reporting on politics, culture, and society from The Atlantic.",
+    "rating": 5
+  },
+  {
+    "id": "feed-078",
+    "title": "Vox",
+    "url": "https://www.vox.com/rss/index.xml",
+    "imageUrl": "https://logo.clearbit.com/vox.com",
+    "domain": [
+      "News"
+    ],
+    "subdomain": [
+      "Explainers"
+    ],
+    "area": [
+      "General Interest"
+    ],
+    "topic": [
+      "Explainers"
+    ],
+    "tags": [
+      "news",
+      "explainers"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Explanatory journalism on politics, policy, and culture from Vox.",
+    "rating": 4
+  },
+  {
+    "id": "feed-079",
+    "title": "Long Now Foundation (Blog)",
+    "url": "http://feeds.feedburner.com/longnow",
+    "imageUrl": "https://logo.clearbit.com/longnow.org",
+    "domain": [
+      "Society"
+    ],
+    "subdomain": [
+      "Futurism"
+    ],
+    "area": [
+      "Long-term Thinking"
+    ],
+    "topic": [
+      "Civilization"
+    ],
+    "tags": [
+      "future",
+      "society"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Essays and updates on long-term thinking, future civilization, and projects from the Long Now Foundation.",
+    "rating": 4
+  },
+  {
+    "id": "feed-081",
+    "title": "Noema Magazine",
+    "url": "https://www.noemamag.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/noemamag.com",
+    "domain": [
+      "Society"
+    ],
+    "subdomain": [
+      "Philosophy"
+    ],
+    "area": [
+      "Global Perspectives"
+    ],
+    "topic": [
+      "Future"
+    ],
+    "tags": [
+      "society",
+      "culture"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Interdisciplinary essays and analyses on global challenges and the future of society (Noema Magazine).",
+    "rating": 3
+  },
+  {
+    "id": "feed-082",
+    "title": "Marginal Revolution",
+    "url": "https://marginalrevolution.com/feed",
+    "imageUrl": "https://logo.clearbit.com/marginalrevolution.com",
+    "domain": [
+      "Business"
+    ],
+    "subdomain": [
+      "Economics"
+    ],
+    "area": [
+      "Economics"
+    ],
+    "topic": [
+      "Economic Policy"
+    ],
+    "tags": [
+      "economics",
+      "blog"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Daily economics commentary and eclectic insights from the Marginal Revolution blog.",
+    "rating": 4
+  },
+  {
+    "id": "feed-083",
+    "title": "Reddit r/AskScience",
+    "url": "https://www.reddit.com/r/askscience/.rss",
+    "imageUrl": "https://logo.clearbit.com/reddit.com",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "General Science"
+    ],
+    "area": [
+      "Q&A"
+    ],
+    "topic": [
+      "Science"
+    ],
+    "tags": [
+      "community",
+      "science"
+    ],
+    "type": "Forum",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Crowd-sourced science questions and expert answers from Reddit's r/AskScience community.",
+    "rating": 3
+  },
+  {
+    "id": "feed-084",
+    "title": "Reddit r/AskHistorians",
+    "url": "https://www.reddit.com/r/AskHistorians/.rss",
+    "imageUrl": "https://logo.clearbit.com/reddit.com",
+    "domain": [
+      "History"
+    ],
+    "subdomain": [
+      "World History"
+    ],
+    "area": [
+      "Q&A"
+    ],
+    "topic": [
+      "History"
+    ],
+    "tags": [
+      "community",
+      "history"
+    ],
+    "type": "Forum",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Expert answers to historical questions from the Reddit r/AskHistorians community.",
+    "rating": 4
+  },
+  {
+    "id": "feed-085",
+    "title": "freeCodeCamp News",
+    "url": "https://www.freecodecamp.org/news/rss",
+    "imageUrl": "https://logo.clearbit.com/freecodecamp.org",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Programming"
+    ],
+    "area": [
+      "Education"
+    ],
+    "topic": [
+      "Tutorials"
+    ],
+    "tags": [
+      "coding",
+      "tutorials"
+    ],
+    "type": "Tutorial Series",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Coding tutorials, how-to guides, and developer articles from freeCodeCamp News.",
+    "rating": 4
+  },
+  {
+    "id": "feed-086",
+    "title": "FiveThirtyEight",
+    "url": "https://fivethirtyeight.com/all/feed",
+    "imageUrl": "https://logo.clearbit.com/fivethirtyeight.com",
+    "domain": [
+      "News"
+    ],
+    "subdomain": [
+      "Data Journalism"
+    ],
+    "area": [
+      "Politics & Sports"
+    ],
+    "topic": [
+      "Analysis"
+    ],
+    "tags": [
+      "data",
+      "analysis"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Data-driven news and analysis on politics, economics, science, and sports from FiveThirtyEight.",
+    "rating": 4
+  },
+  {
+    "id": "feed-087",
+    "title": "Open Culture",
+    "url": "http://www.openculture.com/feed",
+    "imageUrl": "https://logo.clearbit.com/openculture.com",
+    "domain": [
+      "Education"
+    ],
+    "subdomain": [
+      "Culture"
+    ],
+    "area": [
+      "Free Learning"
+    ],
+    "topic": [
+      "Online Education"
+    ],
+    "tags": [
+      "education",
+      "culture"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Free cultural and educational media (courses, ebooks, films) curated by Open Culture.",
+    "rating": 4
+  },
+  {
+    "id": "feed-089",
+    "title": "Paul Krugman (NYT Opinion)",
+    "url": "https://rss.nytimes.com/services/xml/rss/nyt/Opinion.xml", 
+    "imageUrl": "https://logo.clearbit.com/nytimes.com",
+    "domain": [
+      "News"
+    ],
+    "subdomain": [
+      "Opinion"
+    ],
+    "area": [
+      "Economics"
+    ],
+    "topic": [
+      "Opinion"
+    ],
+    "tags": [
+      "economics",
+      "opinion"
+    ],
+    "type": "Opinion Column",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Opinion columns on economics and policy by Paul Krugman (NYTimes).",
+    "rating": 4
+  },
+  {
+    "id": "feed-090",
+    "title": "bioRxiv (Latest Preprints)",
+    "url": "https://connect.biorxiv.org/biorxiv_xml.php?subject=all",
+    "imageUrl": "https://logo.clearbit.com/biorxiv.org",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "Biology"
+    ],
+    "area": [
+      "Preprints"
+    ],
+    "topic": [
+      "Life Sciences"
+    ],
+    "tags": [
+      "biology",
+      "preprints"
+    ],
+    "type": "Preprint Server",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Latest open access preprints in the life sciences from bioRxiv.",
+    "rating": 3
+  },
+  {
+    "id": "feed-091",
+    "title": "Science Magazine News",
+    "url": "https://www.sciencemag.org/rss/news_current.xml",
+    "imageUrl": "https://logo.clearbit.com/sciencemag.org",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "General Science"
+    ],
+    "area": [
+      "News"
+    ],
+    "topic": [
+      "Research"
+    ],
+    "tags": [
+      "science",
+      "policy"
+    ],
+    "type": "Journal",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Science Magazine news on the latest scientific research and science policy developments.",
+    "rating": 5
+  },
+  {
+    "id": "feed-092",
+    "title": "Nature News",
+    "url": "https://www.nature.com/nature.rss",
+    "imageUrl": "https://logo.clearbit.com/nature.com",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "General Science"
+    ],
+    "area": [
+      "News"
+    ],
+    "topic": [
+      "Science"
+    ],
+    "tags": [
+      "science",
+      "research"
+    ],
+    "type": "Journal",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Scientific news and highlights from Nature, covering the latest research across disciplines.",
+    "rating": 5
+  },
+  {
+    "id": "feed-093",
+    "title": "Reddit r/technology",
+    "url": "https://www.reddit.com/r/technology/.rss",
+    "imageUrl": "https://logo.clearbit.com/reddit.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "General Tech"
+    ],
+    "area": [
+      "Community"
+    ],
+    "topic": [
+      "Tech News"
+    ],
+    "tags": [
+      "technology",
+      "community"
+    ],
+    "type": "Forum",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "User-submitted technology news and discussions from Reddit’s r/technology community.",
+    "rating": 3
+  },
+  {
+    "id": "feed-095",
+    "title": "The Diplomat",
+    "url": "https://thediplomat.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/thediplomat.com",
+    "domain": [
+      "Politics"
+    ],
+    "subdomain": [
+      "Asia-Pacific"
+    ],
+    "area": [
+      "International Relations"
+    ],
+    "topic": [
+      "Geopolitics"
+    ],
+    "tags": [
+      "Asia",
+      "politics"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Geopolitical news and analysis focusing on Asia-Pacific affairs from The Diplomat.",
+    "rating": 4
+  },
+  {
+    "id": "feed-096",
+    "title": "Palladium Magazine",
+    "url": "https://palladiummag.com/feed/",
+    "imageUrl": "https://logo.clearbit.com/palladiummag.com",
+    "domain": [
+      "Society"
+    ],
+    "subdomain": [
+      "Civilization"
+    ],
+    "area": [
+      "Politics & Culture"
+    ],
+    "topic": [
+      "Societal Future"
+    ],
+    "tags": [
+      "society",
+      "politics"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Long-form essays on governance, society, and the future of civilization from Palladium Magazine.",
+    "rating": 3
+  },
+  {
+    "id": "feed-097",
+    "title": "Anthropocene Magazine",
+    "url": "https://www.anthropocenemagazine.org/feed/",
+    "imageUrl": "https://logo.clearbit.com/anthropocenemagazine.org",
+    "domain": [
+      "Science"
+    ],
+    "subdomain": [
+      "Environment"
+    ],
+    "area": [
+      "Anthropocene"
+    ],
+    "topic": [
+      "Sustainability"
+    ],
+    "tags": [
+      "environment",
+      "society"
+    ],
+    "type": "Magazine",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Exploring environmental change and sustainability challenges in the Anthropocene (Anthropocene Magazine).",
+    "rating": 3
+  },
+  {
+    "id": "feed-099",
+    "title": "CoinDesk",
+    "url": "https://feeds.feedburner.com/CoinDesk",
+    "imageUrl": "https://logo.clearbit.com/coindesk.com",
+    "domain": [
+      "Business"
+    ],
+    "subdomain": [
+      "Finance"
+    ],
+    "area": [
+      "Cryptocurrency"
+    ],
+    "topic": [
+      "Blockchain"
+    ],
+    "tags": [
+      "crypto",
+      "finance"
+    ],
+    "type": "News",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Cryptocurrency, blockchain, and fintech news and analysis from CoinDesk.",
+    "rating": 4
+  },
+  {
+    "id": "feed-100",
+    "title": "NVIDIA Technical Blog",
+    "url": "https://developer.nvidia.com/blog/feed/",
+    "imageUrl": "https://logo.clearbit.com/nvidia.com",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Computing"
+    ],
+    "area": [
+      "AI & Graphics"
+    ],
+    "topic": [
+      "Developer Updates"
+    ],
+    "tags": [
+      "GPU",
+      "AI"
+    ],
+    "type": "Blog",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "News and tutorials for developers, data scientists, and researchers from NVIDIA’s technical blog.",
+    "rating": 4
+  },
+    
+    {
+      "id": "feed-102",
+      "title": "Nautilus",
+      "url": "https://nautil.us/feed/",
+      "imageUrl": "https://logo.clearbit.com/nautil.us",
+      "domain": [
+        "Science",
+        "Philosophy"
+      ],
+      "subdomain": [
+        "Culture & Ideas"
+      ],
+      "area": [
+        "Interdisciplinary Essays"
+      ],
+      "topic": [
+        "Big Questions"
+      ],
+      "tags": [
+        "science",
+        "culture",
+        "philosophy"
+      ],
+      "type": "Magazine",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Narrative essays blending science, culture, and philosophy.",
+      "rating": 5
+    },
+    {
+      "id": "feed-103",
+      "title": "Science News",
+      "url": "https://www.sciencenews.org/feed",
+      "imageUrl": "https://logo.clearbit.com/sciencenews.org",
+      "domain": [
+        "Science"
+      ],
+      "subdomain": [
+        "General Science"
+      ],
+      "area": [
+        "Research News"
+      ],
+      "topic": [
+        "Latest Discoveries"
+      ],
+      "tags": [
+        "news",
+        "research"
+      ],
+      "type": "News",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Daily reports on discoveries across scientific disciplines.",
+      "rating": 4
+    },
+    
+    {
+      "id": "feed-105",
+      "title": "NASA Breaking News",
+      "url": "http://www.nasa.gov/rss/dyn/breaking_news.rss",
+      "imageUrl": "https://logo.clearbit.com/nasa.gov",
+      "domain": [
+        "Science"
+      ],
+      "subdomain": [
+        "Space Agency"
+      ],
+      "area": [
+        "Missions & Policy"
+      ],
+      "topic": [
+        "Press Releases"
+      ],
+      "tags": [
+        "NASA",
+        "missions",
+        "astronomy"
+      ],
+      "type": "Alert Feed",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Official NASA press releases and mission updates.",
+      "rating": 5
+    },
+    {
+      "id": "feed-106",
+      "title": "Phys.org",
+      "url": "https://phys.org/rss-feed/",
+      "imageUrl": "https://logo.clearbit.com/phys.org",
+      "domain": [
+        "Science"
+      ],
+      "subdomain": [
+        "General Science"
+      ],
+      "area": [
+        "Daily Research"
+      ],
+      "topic": [
+        "Science & Tech News"
+      ],
+      "tags": [
+        "physics",
+        "technology",
+        "biology"
+      ],
+      "type": "News",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Daily science and technology research news.",
+      "rating": 4
+    },
+    {
+      "id": "feed-110",
+      "title": "Hacker News",
+      "url": "https://news.ycombinator.com/rss",
+      "imageUrl": "https://logo.clearbit.com/ycombinator.com",
+      "domain": [
+        "Technology"
+      ],
+      "subdomain": [
+        "Startup Community"
+      ],
+      "area": [
+        "Developer Forum"
+      ],
+      "topic": [
+        "Trending Stories"
+      ],
+      "tags": [
+        "startups",
+        "programming",
+        "tech"
+      ],
+      "type": "Forum",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Top tech and startup stories voted by the community.",
+      "rating": 4
+    },
+
+    {
+      "id": "feed-112",
+      "title": "DeepMind Blog",
+      "url": "https://deepmind.com/blog/feed/basic/",
+      "imageUrl": "https://logo.clearbit.com/deepmind.com",
+      "domain": [
+        "Technology"
+      ],
+      "subdomain": [
+        "Artificial Intelligence"
+      ],
+      "area": [
+        "Research Updates"
+      ],
+      "topic": [
+        "ML Innovations"
+      ],
+      "tags": [
+        "AI",
+        "deep-learning"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "DeepMind research advances and insights.",
+      "rating": 4
+    },
+    {
+      "id": "feed-114",
+      "title": "Stanford Encyclopedia of Philosophy",
+      "url": "https://plato.stanford.edu/rss/sep.xml",
+      "imageUrl": "https://logo.clearbit.com/stanford.edu",
+      "domain": [
+        "Philosophy"
+      ],
+      "subdomain": [
+        "Reference"
+      ],
+      "area": [
+        "Scholarly Entries"
+      ],
+      "topic": [
+        "Concept Overviews"
+      ],
+      "tags": [
+        "philosophy",
+        "reference"
+      ],
+      "type": "Documentation",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Authoritative, peer\u2011reviewed philosophy entries.",
+      "rating": 4
+    },
+    {
+      "id": "feed-115",
+      "title": "The Marginalian",
+      "url": "https://www.themarginalian.org/feed/",
+      "imageUrl": "https://logo.clearbit.com/themarginalian.org",
+      "domain": [
+        "Culture"
+      ],
+      "subdomain": [
+        "Ideas & Art"
+      ],
+      "area": [
+        "Reflective Essays"
+      ],
+      "topic": [
+        "Creativity & Life"
+      ],
+      "tags": [
+        "literature",
+        "philosophy",
+        "art"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Exploring art, science, and philosophy to illuminate the human spirit.",
+      "rating": 4
+    },
+    {
+      "id": "feed-117",
+      "title": "Astral Codex Ten",
+      "url": "https://astralcodexten.substack.com/feed",
+      "imageUrl": "https://logo.clearbit.com/substack.com",
+      "domain": [
+        "Philosophy"
+      ],
+      "subdomain": [
+        "Rationalism"
+      ],
+      "area": [
+        "Long-Form Essays"
+      ],
+      "topic": [
+        "Medicine, Science & Society"
+      ],
+      "tags": [
+        "rationality",
+        "psychology"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Scott Alexander\u2019s essays on medicine, science, politics, and philosophy.",
+      "rating": 4
+    },
+    {
+      "id": "feed-118",
+      "title": "LessWrong",
+      "url": "http://lesserwrong.com/feed.xml",
+      "imageUrl": "https://logo.clearbit.com/lesserwrong.com",
+      "domain": [
+        "Philosophy"
+      ],
+      "subdomain": [
+        "Rationality"
+      ],
+      "area": [
+        "Community Forum"
+      ],
+      "topic": [
+        "Decision Science"
+      ],
+      "tags": [
+        "AI-alignment",
+        "epistemology"
+      ],
+      "type": "Forum",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Community blog on rational thinking and AI alignment.",
+      "rating": 4
+    },
+    {
+      "id": "feed-121",
+      "title": "Noahpinion",
+      "url": "https://noahpinion.substack.com/feed",
+      "imageUrl": "https://logo.clearbit.com/substack.com",
+      "domain": [
+        "Economics"
+      ],
+      "subdomain": [
+        "Policy & Tech"
+      ],
+      "area": [
+        "Data-Driven Essays"
+      ],
+      "topic": [
+        "Macro & Markets"
+      ],
+      "tags": [
+        "finance",
+        "policy"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Noah Smith on economics, finance, and tech trends.",
+      "rating": 4
+    },
+    {
+      "id": "feed-122",
+      "title": "Behavioral Scientist",
+      "url": "https://behavioralscientist.org/feed/",
+      "imageUrl": "https://logo.clearbit.com/behavioralscientist.org",
+      "domain": [
+        "Psychology"
+      ],
+      "subdomain": [
+        "Behavioral Science"
+      ],
+      "area": [
+        "Research Insights"
+      ],
+      "topic": [
+        "Decision\u2011Making"
+      ],
+      "tags": [
+        "behavior",
+        "society"
+      ],
+      "type": "Magazine",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Making behavioral research accessible to the public.",
+      "rating": 4
+    },
+    {
+      "id": "feed-123",
+      "title": "Our World in Data",
+      "url": "https://ourworldindata.org/atom.xml",
+      "imageUrl": "https://logo.clearbit.com/ourworldindata.org",
+      "domain": [
+        "Data"
+      ],
+      "subdomain": [
+        "Global Development"
+      ],
+      "area": [
+        "Open Statistics"
+      ],
+      "topic": [
+        "Public Datasets"
+      ],
+      "tags": [
+        "visualization",
+        "policy"
+      ],
+      "type": "Open Access Feed",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Data\u2011driven research and charts on global issues.",
+      "rating": 4
+    },
+    {
+      "id": "feed-124",
+      "title": "Yale Environment 360",
+      "url": "https://e360.yale.edu/feed.xml",
+      "imageUrl": "https://logo.clearbit.com/yale.edu",
+      "domain": [
+        "Environment"
+      ],
+      "subdomain": [
+        "Climate & Ecology"
+      ],
+      "area": [
+        "Policy & Science"
+      ],
+      "topic": [
+        "Analysis"
+      ],
+      "tags": [
+        "climate",
+        "sustainability"
+      ],
+      "type": "Magazine",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "In\u2011depth reporting on global environmental topics.",
+      "rating": 4
+    },
+    {
+      "id": "feed-125",
+      "title": "The Conversation (US)",
+      "url": "https://theconversation.com/us/feeds/articles.atom",
+      "imageUrl": "https://logo.clearbit.com/theconversation.com",
+      "domain": [
+        "News"
+      ],
+      "subdomain": [
+        "Academic Commentary"
+      ],
+      "area": [
+        "Multidisciplinary"
+      ],
+      "topic": [
+        "Expert Analysis"
+      ],
+      "tags": [
+        "research",
+        "policy"
+      ],
+      "type": "News",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Fact\u2011checked commentary from academics and researchers.",
+      "rating": 4
+    },
+    {
+      "id": "feed-126",
+      "title": "Public Domain Review",
+      "url": "https://publicdomainreview.org/feed/",
+      "imageUrl": "https://logo.clearbit.com/publicdomainreview.org",
+      "domain": [
+        "Culture"
+      ],
+      "subdomain": [
+        "Archives"
+      ],
+      "area": [
+        "Historical Artifacts"
+      ],
+      "topic": [
+        "Essays"
+      ],
+      "tags": [
+        "history",
+        "public-domain"
+      ],
+      "type": "Magazine",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Curated essays on obscure historical works in the public domain.",
+      "rating": 4
+    },
+    {
+      "id": "feed-127",
+      "title": "Atlas Obscura",
+      "url": "https://www.atlasobscura.com/feeds/latest",
+      "imageUrl": "https://logo.clearbit.com/atlasobscura.com",
+      "domain": [
+        "Culture"
+      ],
+      "subdomain": [
+        "Travel & Curiosities"
+      ],
+      "area": [
+        "Global Wonders"
+      ],
+      "topic": [
+        "Hidden Places"
+      ],
+      "tags": [
+        "travel",
+        "oddities"
+      ],
+      "type": "Magazine",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Guide to the world's hidden wonders and curiosities.",
+      "rating": 4
+    },
+    {
+      "id": "feed-131",
+      "title": "Low-Tech Magazine",
+      "url": "https://solar.lowtechmagazine.com/feeds/all-en.atom.xml",
+      "imageUrl": "https://logo.clearbit.com/lowtechmagazine.com",
+      "domain": [
+        "Sustainability"
+      ],
+      "subdomain": [
+        "Appropriate Technology"
+      ],
+      "area": [
+        "Historical Tech"
+      ],
+      "topic": [
+        "Low\u2011Energy Solutions"
+      ],
+      "tags": [
+        "sustainability",
+        "technology"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Exploring sustainable, low-tech solutions and historical technologies.",
+      "rating": 4
+    },
+    {
+      "id": "feed-132",
+      "title": "Literary Hub",
+      "url": "https://lithub.com/feed/",
+      "imageUrl": "https://logo.clearbit.com/lithub.com",
+      "domain": [
+        "Arts"
+      ],
+      "subdomain": [
+        "Literature"
+      ],
+      "area": [
+        "Book Culture"
+      ],
+      "topic": [
+        "Reviews & Essays"
+      ],
+      "tags": [
+        "books",
+        "literature"
+      ],
+      "type": "News",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Daily literary news, reviews, and commentary.",
+      "rating": 4
+    },
+    {
+      "id": "feed-133",
+      "title": "Tor.com",
+      "url": "https://www.tor.com/feed/",
+      "imageUrl": "https://logo.clearbit.com/tor.com",
+      "domain": [
+        "Arts"
+      ],
+      "subdomain": [
+        "Science Fiction"
+      ],
+      "area": [
+        "Genre Publishing"
+      ],
+      "topic": [
+        "Reviews & Fiction"
+      ],
+      "tags": [
+        "scifi",
+        "fantasy"
+      ],
+      "type": "News",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Sci\u2011fi & fantasy book reviews, fiction, and commentary.",
+      "rating": 4
+    },
+    {
+      "id": "feed-134",
+      "title": "Standard Ebooks",
+      "url": "https://standardebooks.org/rss/new-releases",
+      "imageUrl": "https://logo.clearbit.com/standardebooks.org",
+      "domain": [
+        "Arts"
+      ],
+      "subdomain": [
+        "Literature"
+      ],
+      "area": [
+        "Public Domain Ebooks"
+      ],
+      "topic": [
+        "New Releases"
+      ],
+      "tags": [
+        "ebooks",
+        "classics"
+      ],
+      "type": "Book Releases",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Newly released, carefully formatted public\u2011domain ebooks.",
+      "rating": 4
+    },
+    {
+      "id": "feed-136",
+      "title": "xkcd",
+      "url": "https://xkcd.com/rss.xml",
+      "imageUrl": "https://logo.clearbit.com/xkcd.com",
+      "domain": [
+        "Humor"
+      ],
+      "subdomain": [
+        "Webcomic"
+      ],
+      "area": [
+        "Science Jokes"
+      ],
+      "topic": [
+        "Comics"
+      ],
+      "tags": [
+        "science",
+        "math"
+      ],
+      "type": "Webcomic",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Stick\u2011figure comics about science, technology, math, and life.",
+      "rating": 4
+    },
+    {
+      "id": "feed-137",
+      "title": "SMBC",
+      "url": "http://www.smbc-comics.com/rss.php",
+      "imageUrl": "https://logo.clearbit.com/smbc-comics.com",
+      "domain": [
+        "Humor"
+      ],
+      "subdomain": [
+        "Webcomic"
+      ],
+      "area": [
+        "Geek Satire"
+      ],
+      "topic": [
+        "Comics"
+      ],
+      "tags": [
+        "science",
+        "philosophy"
+      ],
+      "type": "Webcomic",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Daily webcomic with sharp science\u2011themed humor.",
+      "rating": 4
+    },
+    {
+      "id": "feed-138",
+      "title": "Boing Boing",
+      "url": "https://boingboing.net/feed/",
+      "imageUrl": "https://logo.clearbit.com/boingboing.net",
+      "domain": [
+        "Culture"
+      ],
+      "subdomain": [
+        "Tech & Oddities"
+      ],
+      "area": [
+        "Blog"
+      ],
+      "topic": [
+        "Curiosities"
+      ],
+      "tags": [
+        "DIY",
+        "culture"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Eclectic blog of tech, culture, and curiosities.",
+      "rating": 4
+    },
+    {
+      "id": "feed-139",
+      "title": "Futility Closet",
+      "url": "https://www.futilitycloset.com/feed/",
+      "imageUrl": "https://logo.clearbit.com/futilitycloset.com",
+      "domain": [
+        "Culture"
+      ],
+      "subdomain": [
+        "Puzzles & History"
+      ],
+      "area": [
+        "Quirky Facts"
+      ],
+      "topic": [
+        "Historical Tales"
+      ],
+      "tags": [
+        "puzzles",
+        "history"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Anecdotes, puzzles, and scholarly curiosities.",
+      "rating": 4
+    },
+    {
+      "id": "feed-140",
+      "title": "Improbable Research",
+      "url": "https://www.improbable.com/feed/",
+      "imageUrl": "https://logo.clearbit.com/improbable.com",
+      "domain": [
+        "Science"
+      ],
+      "subdomain": [
+        "Humor"
+      ],
+      "area": [
+        "Unusual Studies"
+      ],
+      "topic": [
+        "Ig Nobel"
+      ],
+      "tags": [
+        "weird",
+        "research"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Showcases humorous and unusual scientific studies.",
+      "rating": 4
+    },
+    {
+      "id": "feed-141",
+      "title": "Mental Floss",
+      "url": "http://mentalfloss.com/rss.xml",
+      "imageUrl": "https://logo.clearbit.com/mentalfloss.com",
+      "domain": [
+        "Culture"
+      ],
+      "subdomain": [
+        "Trivia"
+      ],
+      "area": [
+        "Fun Facts"
+      ],
+      "topic": [
+        "Explainers"
+      ],
+      "tags": [
+        "trivia",
+        "history"
+      ],
+      "type": "Magazine",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Surprising facts, trivia, and smart explanations.",
+      "rating": 4
+    },
+    {
+      "id": "feed-142",
+      "title": "Reddit r/TodayILearned",
+      "url": "https://www.reddit.com/r/todayilearned/.rss",
+      "imageUrl": "https://logo.clearbit.com/reddit.com",
+      "domain": [
+        "Community"
+      ],
+      "subdomain": [
+        "Trivia"
+      ],
+      "area": [
+        "Crowdsourced Facts"
+      ],
+      "topic": [
+        "TIL"
+      ],
+      "tags": [
+        "facts",
+        "learning"
+      ],
+      "type": "Forum",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Crowdsourced 'Today I Learned' facts with backstory links.",
+      "rating": 4
+    },
+    {
+      "id": "feed-143",
+      "title": "McSweeney\u2019s Internet Tendency",
+      "url": "http://feeds.feedburner.com/mcsweeneys/",
+      "imageUrl": "https://logo.clearbit.com/mcsweeneys.net",
+      "domain": [
+        "Humor"
+      ],
+      "subdomain": [
+        "Satire"
+      ],
+      "area": [
+        "Literary Humor"
+      ],
+      "topic": [
+        "Essays"
+      ],
+      "tags": [
+        "satire",
+        "comedy"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Satirical lists and witty essays on everyday absurdities.",
+      "rating": 4
+    },
+    {
+      "id": "feed-144",
+      "title": "Wait But Why",
+      "url": "https://waitbutwhy.com/feed",
+      "imageUrl": "https://logo.clearbit.com/waitbutwhy.com",
+      "domain": [
+        "Culture"
+      ],
+      "subdomain": [
+        "Ideas"
+      ],
+      "area": [
+        "Long\u2011Form"
+      ],
+      "topic": [
+        "Deep Dives"
+      ],
+      "tags": [
+        "illustrated",
+        "essays"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Illustrated deep\u2011dive posts on science, technology, and human nature.",
+      "rating": 4
+    },
+    {
+      "id": "feed-145",
+      "title": "Damn Interesting",
+      "url": "https://www.damninteresting.com/feed/",
+      "imageUrl": "https://logo.clearbit.com/damninteresting.com",
+      "domain": [
+        "History"
+      ],
+      "subdomain": [
+        "Curiosities"
+      ],
+      "area": [
+        "Well\u2011Researched Tales"
+      ],
+      "topic": [
+        "Fascinating Stories"
+      ],
+      "tags": [
+        "history",
+        "science"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Meticulously researched true stories in science and history.",
+      "rating": 4
+    },
+    {
+      "id": "feed-146",
+      "title": "The New Atlantis",
+      "url": "https://www.thenewatlantis.com/feed",
+      "imageUrl": "https://logo.clearbit.com/thenewatlantis.com",
+      "domain": [
+        "Society"
+      ],
+      "subdomain": [
+        "Tech & Ethics"
+      ],
+      "area": [
+        "Policy Essays"
+      ],
+      "topic": [
+        "Science & Humanity"
+      ],
+      "tags": [
+        "bioethics",
+        "policy"
+      ],
+      "type": "Magazine",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Essays on technology, ethics, and society.",
+      "rating": 4
+    },
+    {
+      "id": "feed-147",
+      "title": "Symmetry Magazine",
+      "url": "https://www.symmetrymagazine.org/feed",
+      "imageUrl": "https://logo.clearbit.com/symmetrymagazine.org",
+      "domain": [
+        "Science"
+      ],
+      "subdomain": [
+        "Particle Physics"
+      ],
+      "area": [
+        "Research Highlights"
+      ],
+      "topic": [
+        "Fundamental Physics"
+      ],
+      "tags": [
+        "physics",
+        "research"
+      ],
+      "type": "Magazine",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Accessible magazine about particle physics and its people.",
+      "rating": 4
+    },
+    {
+      "id": "feed-148",
+      "title": "Kottke.org",
+      "url": "https://kottke.org/feed",
+      "imageUrl": "https://logo.clearbit.com/kottke.org",
+      "domain": [
+        "Culture"
+      ],
+      "subdomain": [
+        "Curation"
+      ],
+      "area": [
+        "Interesting Links"
+      ],
+      "topic": [
+        "Cool Finds"
+      ],
+      "tags": [
+        "design",
+        "science",
+        "art"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Curating fascinating finds across art, science, and design.",
+      "rating": 4
+    },
+  
+    {
+      "id": "feed-152",
+      "title": "Product Hunt",
+      "url": "https://www.producthunt.com/feed",
+      "imageUrl": "https://logo.clearbit.com/producthunt.com",
+      "domain": [
+        "Technology"
+      ],
+      "subdomain": [
+        "Startups"
+      ],
+      "area": [
+        "Product Launches"
+      ],
+      "topic": [
+        "New Products"
+      ],
+      "tags": [
+        "startups",
+        "apps"
+      ],
+      "type": "Alert Feed",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Daily listing of new products and startup launches.",
+      "rating": 4
+    },
+
+    {
+      "id": "feed-155",
+      "title": "Existential Comics",
+      "url": "https://existentialcomics.com/rss.xml",
+      "imageUrl": "https://logo.clearbit.com/existentialcomics.com",
+      "domain": [
+        "Humor"
+      ],
+      "subdomain": [
+        "Philosophy"
+      ],
+      "area": [
+        "Comics"
+      ],
+      "topic": [
+        "Existential Jokes"
+      ],
+      "tags": [
+        "philosophy",
+        "comic"
+      ],
+      "type": "Webcomic",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Webcomic about existential philosophy.",
+      "rating": 4
+    },
+    {
+      "id": "feed-156",
+      "title": "1000-Word Philosophy",
+      "url": "https://1000wordphilosophy.com/feed/",
+      "imageUrl": "https://logo.clearbit.com/1000wordphilosophy.com",
+      "domain": [
+        "Philosophy"
+      ],
+      "subdomain": [
+        "Introductory Essays"
+      ],
+      "area": [
+        "Concise Explanations"
+      ],
+      "topic": [
+        "Concept Overviews"
+      ],
+      "tags": [
+        "philosophy"
+      ],
+      "type": "Tutorial Series",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Concise 1000\u2011word essays on philosophical topics.",
+      "rating": 4
+    },
+    {
+      "id": "feed-157",
+      "title": "Daily Nous",
+      "url": "https://dailynous.com/feed/",
+      "imageUrl": "https://logo.clearbit.com/dailynous.com",
+      "domain": [
+        "Philosophy"
+      ],
+      "subdomain": [
+        "Academic News"
+      ],
+      "area": [
+        "Professional Updates"
+      ],
+      "topic": [
+        "Philosophy World"
+      ],
+      "tags": [
+        "academia"
+      ],
+      "type": "News",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "News, links, and events in the philosophy profession.",
+      "rating": 4
+    },
+    {
+      "id": "feed-158",
+      "title": "Philosophy Now",
+      "url": "https://philosophynow.org/rss.xml",
+      "imageUrl": "https://logo.clearbit.com/philosophynow.org",
+      "domain": [
+        "Philosophy"
+      ],
+      "subdomain": [
+        "Public Philosophy"
+      ],
+      "area": [
+        "Magazine"
+      ],
+      "topic": [
+        "Essays & Debates"
+      ],
+      "tags": [
+        "ethics",
+        "metaphysics"
+      ],
+      "type": "Magazine",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Popular philosophy magazine with accessible essays.",
+      "rating": 4
+    },
+    {
+      "id": "feed-159",
+      "title": "APA Blog",
+      "url": "https://blog.apaonline.org/feed/",
+      "imageUrl": "https://logo.clearbit.com/apaonline.org",
+      "domain": [
+        "Philosophy"
+      ],
+      "subdomain": [
+        "Professional Association"
+      ],
+      "area": [
+        "Commentary"
+      ],
+      "topic": [
+        "Community Voices"
+      ],
+      "tags": [
+        "academia"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Official blog of the American Philosophical Association.",
+      "rating": 4
+    },
+    {
+      "id": "feed-160",
+      "title": "Quartz",
+      "url": "https://qz.com/rss",
+      "imageUrl": "https://logo.clearbit.com/qz.com",
+      "domain": [
+        "News"
+      ],
+      "subdomain": [
+        "Business & Tech"
+      ],
+      "area": [
+        "Global Economy"
+      ],
+      "topic": [
+        "Explainers"
+      ],
+      "tags": [
+        "business",
+        "tech"
+      ],
+      "type": "News",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Global business news and in\u2011depth explainer articles.",
+      "rating": 4
+    },
+    {
+      "id": "feed-161",
+      "title": "Book Riot",
+      "url": "https://bookriot.com/feed/",
+      "imageUrl": "https://logo.clearbit.com/bookriot.com",
+      "domain": [
+        "Arts"
+      ],
+      "subdomain": [
+        "Books"
+      ],
+      "area": [
+        "Reading Culture"
+      ],
+      "topic": [
+        "Lists & Reviews"
+      ],
+      "tags": [
+        "books",
+        "reading"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "News and recommendations for book lovers.",
+      "rating": 4
+    },
+    {
+      "id": "feed-162",
+      "title": "Reddit r/BookSuggestions",
+      "url": "https://www.reddit.com/r/booksuggestions/.rss",
+      "imageUrl": "https://logo.clearbit.com/reddit.com",
+      "domain": [
+        "Community"
+      ],
+      "subdomain": [
+        "Books"
+      ],
+      "area": [
+        "Forum"
+      ],
+      "topic": [
+        "Recommendations"
+      ],
+      "tags": [
+        "books"
+      ],
+      "type": "Forum",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Crowdsourced book recommendation community.",
+      "rating": 4
+    },
+    {
+      "id": "feed-163",
+      "title": "Scientific American Global",
+      "url": "http://rss.sciam.com/ScientificAmerican-Global",
+      "imageUrl": "https://logo.clearbit.com/scientificamerican.com",
+      "domain": [
+        "Science"
+      ],
+      "subdomain": [
+        "General Science"
+      ],
+      "area": [
+        "Magazine"
+      ],
+      "topic": [
+        "Research News"
+      ],
+      "tags": [
+        "science"
+      ],
+      "type": "Magazine",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Global science news from Scientific American.",
+      "rating": 4
+    },
+    {
+      "id": "feed-164",
+      "title": "Fast.ai",
+      "url": "https://www.fast.ai/index.xml",
+      "imageUrl": "https://logo.clearbit.com/fast.ai",
+      "domain": [
+        "Technology"
+      ],
+      "subdomain": [
+        "Machine Learning"
+      ],
+      "area": [
+        "Education"
+      ],
+      "topic": [
+        "Tutorials"
+      ],
+      "tags": [
+        "deep-learning",
+        "course"
+      ],
+      "type": "Tutorial Series",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Practical machine learning lessons and updates.",
+      "rating": 4
+    },
+    {
+      "id": "feed-165",
+      "title": "APOD",
+      "url": "http://www.acme.com/jef/apod/rss.xml",
+      "imageUrl": "https://logo.clearbit.com/nasa.gov",
+      "domain": [
+        "Science"
+      ],
+      "subdomain": [
+        "Astronomy"
+      ],
+      "area": [
+        "Image of the Day"
+      ],
+      "topic": [
+        "Space Photography"
+      ],
+      "tags": [
+        "astrophotography"
+      ],
+      "type": "Alert Feed",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "NASA\u2019s Astronomy Picture of the Day with explanations.",
+      "rating": 4
+    },
+    {
+      "id": "feed-166",
+      "title": "ScienceDaily Astronomy",
+      "url": "http://www.sciencedaily.com/rss/space_time/astronomy.xml",
+      "imageUrl": "https://logo.clearbit.com/sciencedaily.com",
+      "domain": [
+        "Science"
+      ],
+      "subdomain": [
+        "Astronomy"
+      ],
+      "area": [
+        "Research News"
+      ],
+      "topic": [
+        "Discoveries"
+      ],
+      "tags": [
+        "space"
+      ],
+      "type": "News",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Latest astronomy and space science news.",
+      "rating": 4
+    },
+    {
+      "id": "feed-167",
+      "title": "Sci-News Astronomy",
+      "url": "http://www.sci-news.com/news/astronomy/feed",
+      "imageUrl": "https://logo.clearbit.com/sci-news.com",
+      "domain": [
+        "Science"
+      ],
+      "subdomain": [
+        "Astronomy"
+      ],
+      "area": [
+        "Research News"
+      ],
+      "topic": [
+        "Discoveries"
+      ],
+      "tags": [
+        "space"
+      ],
+      "type": "News",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Breaking astronomy and space exploration stories.",
+      "rating": 4
+    },
+    {
+      "id": "feed-168",
+      "title": "A Philosopher's Blog",
+      "url": "http://aphilosopher.drmcl.com/feed/",
+      "imageUrl": "https://logo.clearbit.com/drmcl.com",
+      "domain": [
+        "Philosophy"
+      ],
+      "subdomain": [
+        "Personal Blog"
+      ],
+      "area": [
+        "Applied Ethics"
+      ],
+      "topic": [
+        "Opinion"
+      ],
+      "tags": [
+        "ethics"
+      ],
+      "type": "Blog",
+      "createdAt": "2025-06-26T09:01:29Z",
+      "summary": "Commentary on philosophy, politics, and ethics.",
+      "rating": 4
+    },
+    {
+      "id": "feed-169",
+      "title": "Real Engineering (YouTube)",
+      "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCR1IuLEqb6UEA_zQ81kwXfg",
+      "imageUrl": "https://logo.clearbit.com/youtube.com",
+      "domain": [
+        "Science"
+      ],
+      "subdomain": [
+        "Engineering",
+        "Technology"
+      ],
+      "area": [
+        ""
+      ],
+      "topic": [
+        "Innovation"
+      ],
+      "tags": [
+        "engineering",
+        "videos"
+      ],
+      "type": "YouTube",
+      "createdAt": "2025-06-25T16:55:00.000Z",
+      "summary": "The home of innovation.",
+      "rating": 4
+    },
+    {
+      "id": "feed-170",
+      "title": "Veritasium (YouTube)",
+      "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCHnyfMqiRRG1u-2MsSQLbXA",
+      "imageUrl": "https://logo.clearbit.com/youtube.com",
+      "domain": [
+        "Science"
+      ],
+      "subdomain": [
+        "Engineering",
+        "Technology"
+      ],
+      "area": [
+        ""
+      ],
+      "topic": [
+        "Innovation"
+      ],
+      "tags": [
+        "engineering",
+        "videos"
+      ],
+      "type": "YouTube",
+      "createdAt": "2025-06-25T16:55:00.000Z",
+      "summary": "An element of truth - videos about science, education, and anything else we find interesting.",
+      "rating": 5
+    },
+    {
+      "id": "feed-171",
+      "title": "3Blue1Brown (YouTube)",
+      "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCYO_jab_esuFRV4b17AJtAw",
+      "imageUrl": "https://logo.clearbit.com/youtube.com",
+      "domain": [
+        "Science"
+      ],
+      "subdomain": [
+        "Mathematics"
+      ],
+      "area": [
+        ""
+      ],
+      "topic": [
+        "animation"
+      ],
+      "tags": [
+        "manim",
+        "videos"
+      ],
+      "type": "YouTube",
+      "createdAt": "2025-06-25T16:55:00.000Z",
+      "summary": "Videos covers a variety of topics in math, or adjacent fields like physics and CS, all with an emphasis on visualizing the core ideas. The goal is to use animation to help elucidate and motivate otherwise tricky topics, and for difficult problems to be made simple with changes in perspective.",
+      "rating": 5
+    },
+    {
+      "id": "feed-172",
+      "title": "Internet Encyclopedia of Philosophy (IEP)",
+      "url": "https://iep.utm.edu/feed/",
+      "imageUrl": "https://logo.clearbit.com/iep.utm.edu/",
+      "domain": [
+        "Philosophy"
+      ],
+      "subdomain": [
+        "Philosophy"
+      ],
+      "area": [
+        ""
+      ],
+      "topic": [
+        ""
+      ],
+      "tags": [
+        "iep",
+        "peer-reviewed"
+      ],
+      "type": "Open Access Feed",
+      "createdAt": "2025-06-25T16:55:00.000Z",
+      "summary": "The purpose of the IEP is to provide detailed, scholarly, peer-reviewed information on key topics and philosophers in all areas of academic philosophy.",
+      "rating": 5
+    },
+    {
+      "id": "feed-173",
+      "title": "Daily JSTOR",
+      "url": "http://daily.jstor.org/feed/",
+      "imageUrl": "https://logo.clearbit.com/daily.jstor.org",
+      "domain": [
+        "Education"
+      ],
+      "subdomain": [
+        "Digital Library"
+      ],
+      "area": [
+        "Academic Journals"
+      ],
+      "topic": [
+        "Daily Digest"
+      ],
+      "tags": [
+        "digital-library"
+      ],
+      "type": "Magazine",
+      "createdAt": "2025-06-25T16:55:00.000Z",
+      "summary": " JSTOR is a digital library for scholars, researchers, and students of all kinds that provides access to more than 12 million academic journal articles, books, images, JSTOR collections, and primary sources in 75 disciplines.",
+      "rating": 5
+    }
+
+  ]

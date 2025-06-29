@@ -4,7 +4,8 @@ import {
     Notice,
     TFile,
     requestUrl,
-    WorkspaceLeaf
+    WorkspaceLeaf,
+    setIcon
 } from "obsidian";
 
 import { 
@@ -13,27 +14,44 @@ import {
     Feed,
     FeedItem,
     Folder,
-    Tag
-} from "./src/types";
+    Tag,
+    FeedMetadata
+} from "./src/types/types";
 
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
 import { RssDashboardView, RSS_DASHBOARD_VIEW_TYPE } from "./src/views/dashboard-view";
+import { DiscoverView, RSS_DISCOVER_VIEW_TYPE } from "./src/views/discover-view";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./src/views/reader-view";
 import { FeedParser } from "./src/services/feed-parser";
 import { ArticleSaver } from "./src/services/article-saver";
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
+import { detectPlatform, logPlatformInfo, getPlatformRecommendations } from "./src/utils/platform-utils";
 
 export default class RssDashboardPlugin extends Plugin {
     settings: RssDashboardSettings;
     view: RssDashboardView;
+    discoverView: DiscoverView;
     readerView: ReaderView;
     feedParser: FeedParser;
     articleSaver: ArticleSaver;
+    private platformInfo: any;
+    private importStatusBarItem: HTMLElement | null = null;
+    private backgroundImportQueue: FeedMetadata[] = [];
+    private isBackgroundImporting = false;
 
     async onload() {
         console.log("Loading RSS Dashboard plugin");
         
+        
+        this.platformInfo = detectPlatform();
+        logPlatformInfo();
+        
+        
+        const recommendations = getPlatformRecommendations();
+        if (recommendations.length > 0) {
+            console.log("Platform recommendations:", recommendations);
+        }
         
         await this.loadSettings();
         
@@ -43,12 +61,32 @@ export default class RssDashboardPlugin extends Plugin {
             this.articleSaver = new ArticleSaver(this.app.vault, this.settings.articleSaving);
             
             
+            if (this.platformInfo.isMobile) {
+                console.log("Mobile device detected - applying optimizations");
+                this.applyMobileOptimizations();
+            }
+            
+            
+            const allArticles = this.getAllArticles();
+            await this.articleSaver.fixSavedFilePaths(allArticles);
+            
+            
+            await this.validateSavedArticles();
+            
             this.registerView(
                 RSS_DASHBOARD_VIEW_TYPE,
                 (leaf) => {
                     
                     this.view = new RssDashboardView(leaf, this);
                     return this.view;
+                }
+            );
+
+            this.registerView(
+                RSS_DISCOVER_VIEW_TYPE,
+                (leaf) => {
+                    this.discoverView = new DiscoverView(leaf, this);
+                    return this.discoverView;
                 }
             );
             
@@ -70,6 +108,10 @@ export default class RssDashboardPlugin extends Plugin {
             this.addRibbonIcon("rss", "RSS Dashboard", () => {
                 this.activateView();
             });
+
+            this.addRibbonIcon("search", "RSS Discover", () => {
+                this.activateDiscoverView();
+            });
     
             
             this.addSettingTab(new RssDashboardSettingTab(this.app, this));
@@ -80,6 +122,14 @@ export default class RssDashboardPlugin extends Plugin {
                 name: "Open RSS Dashboard",
                 callback: () => {
                     this.activateView();
+                },
+            });
+
+            this.addCommand({
+                id: "open-rss-discover",
+                name: "Open RSS Discover",
+                callback: () => {
+                    this.activateDiscoverView();
                 },
             });
     
@@ -110,11 +160,11 @@ export default class RssDashboardPlugin extends Plugin {
             this.addCommand({
                 id: "toggle-rss-sidebar",
                 name: "Toggle RSS Dashboard Sidebar",
-                callback: () => {
+                callback: async () => {
                     if (this.view) {
                         this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
-                        this.saveSettings();
-                        this.view.render();
+                        await this.saveSettings();
+                        await this.view.render();
                     }
                 },
             });
@@ -131,6 +181,33 @@ export default class RssDashboardPlugin extends Plugin {
         } catch (error) {
             console.error("Error initializing RSS Dashboard plugin:", error);
             new Notice("Error initializing RSS Dashboard plugin. Check console for details.");
+        }
+    }
+
+    
+    private applyMobileOptimizations(): void {
+        
+        if (this.settings.refreshInterval < 60) {
+            this.settings.refreshInterval = 60; 
+            console.log("Adjusted refresh interval for mobile optimization");
+        }
+        
+        
+        if (this.settings.maxItems > 50) {
+            this.settings.maxItems = 50;
+            console.log("Reduced max items for mobile optimization");
+        }
+        
+        
+        if (this.settings.viewStyle === "list") {
+            this.settings.viewStyle = "card";
+            console.log("Switched to card view for mobile optimization");
+        }
+        
+        
+        if (!this.settings.sidebarCollapsed) {
+            this.settings.sidebarCollapsed = true;
+            console.log("Collapsed sidebar for mobile optimization");
         }
     }
 
@@ -153,10 +230,10 @@ export default class RssDashboardPlugin extends Plugin {
                     case "right-sidebar":
                         leaf = workspace.getRightLeaf(false);
                         break;
-                    case "main":
                     default:
                         leaf = workspace.getLeaf("tab");
                         break;
+                }
                 }
     
                 if (leaf) {
@@ -164,18 +241,49 @@ export default class RssDashboardPlugin extends Plugin {
                         type: RSS_DASHBOARD_VIEW_TYPE,
                         active: true,
                     });
-                }
-            }
-    
-            if (leaf) {
                 workspace.revealLeaf(leaf);
             }
         } catch (error) {
             console.error("Error activating RSS Dashboard view:", error);
-            new Notice("Error opening RSS Dashboard. Check console for details.");
+            new Notice("Error opening RSS Dashboard view");
         }
     }
 
+    async activateDiscoverView() {
+        const { workspace } = this.app;
+
+        try {
+            let leaf: WorkspaceLeaf | null = null;
+            const leaves = workspace.getLeavesOfType(RSS_DISCOVER_VIEW_TYPE);
+    
+            if (leaves.length > 0) {
+                leaf = leaves[0];
+            } else {
+                switch (this.settings.viewLocation) {
+                    case "left-sidebar":
+                        leaf = workspace.getLeftLeaf(false);
+                        break;
+                    case "right-sidebar":
+                        leaf = workspace.getRightLeaf(false);
+                        break;
+                    default:
+                        leaf = workspace.getLeaf("tab");
+                        break;
+                }
+            }
+    
+            if (leaf) {
+                await leaf.setViewState({
+                    type: RSS_DISCOVER_VIEW_TYPE,
+                    active: true,
+                });
+                workspace.revealLeaf(leaf);
+            }
+        } catch (error) {
+            console.error("Error activating RSS Discover view:", error);
+            new Notice("Error opening RSS Discover view");
+        }
+    }
     
     private onArticleSaved(item: FeedItem): void {
         
@@ -207,31 +315,58 @@ export default class RssDashboardPlugin extends Plugin {
                     
                     
                     if (this.view) {
-                        this.view.render();
+                        this.view.updateArticleSaveButton(item.guid);
                     }
                 }
             }
         }
     }
 
-    async refreshFeeds() {
+    async refreshFeeds(selectedFeeds?: Feed[]) {
         try {
-            new Notice("Refreshing feeds...");
+            const feedsToRefresh = selectedFeeds || this.settings.feeds;
+            let feedNoticeText = '';
+            if (feedsToRefresh.length === 1) {
+                feedNoticeText = feedsToRefresh[0].title;
+            } else {
+                feedNoticeText = `${feedsToRefresh.length} feeds`;
+            }
+            new Notice(`Refreshing ${feedNoticeText}...`);
+            const updatedFeeds = await this.feedParser.refreshAllFeeds(feedsToRefresh);
             
-            const updatedFeeds = await this.feedParser.refreshAllFeeds(this.settings.feeds);
-            this.settings.feeds = updatedFeeds;
+            updatedFeeds.forEach(updatedFeed => {
+                const index = this.settings.feeds.findIndex(f => f.url === updatedFeed.url);
+                if (index >= 0) {
+                    this.settings.feeds[index] = updatedFeed;
+                }
+            });
             
-            
+            await this.validateSavedArticles();
             await this.saveSettings();
-
-            
             if (this.view) {
-                this.view.refresh();
-                new Notice("All feeds refreshed");
+                await this.view.refresh();
+                new Notice(`Feeds refreshed: ${feedNoticeText}`);
             }
         } catch (error) {
-            console.error("Error refreshing feeds:", error);
-            new Notice(`Error refreshing feeds: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error("Error refreshing", error);
+            new Notice(`Error refreshing  ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    async refreshSelectedFeed(feed: Feed) {
+        await this.refreshFeeds([feed]);
+    }
+
+    async refreshFeedsInFolder(folderPath: string) {
+        const feedsInFolder = this.settings.feeds.filter(feed => {
+            if (!feed.folder) return false;
+            return feed.folder === folderPath || feed.folder.startsWith(folderPath + '/');
+        });
+        
+        if (feedsInFolder.length > 0) {
+            await this.refreshFeeds(feedsInFolder);
+        } else {
+            new Notice("No feeds found in the selected folder");
         }
     }
 
@@ -257,54 +392,247 @@ export default class RssDashboardPlugin extends Plugin {
 
         
         if (this.view) {
-            this.view.refresh();
+            await this.view.refresh();
         }
     }
 
-    async importOpml() {
+    private showImportProgressModal(totalFeeds: number, onMinimize: () => void, onAbort: () => void): any {
+        const modal = document.createElement("div");
+        modal.className = "rss-dashboard-modal rss-dashboard-modal-container rss-dashboard-import-modal";
+
+        const modalContent = document.createElement("div");
+        modalContent.className = "rss-dashboard-modal-content";
+
+        const modalHeader = document.createElement("div");
+        modalHeader.className = "rss-dashboard-import-modal-header";
+
+        const title = document.createElement("h2");
+        title.textContent = "Importing OPML Feeds";
+        title.className = "rss-dashboard-import-modal-title";
+
+        const minimizeButton = document.createElement("button");
+        minimizeButton.classList.add("clickable-icon");
+        setIcon(minimizeButton, "minus");
+        minimizeButton.setAttribute("aria-label", "Minimize");
+        minimizeButton.onclick = onMinimize;
+
         
+        const abortButton = document.createElement("button");
+        abortButton.textContent = "Abort";
+        abortButton.addClass("rss-dashboard-import-abort-button");
+        abortButton.onclick = onAbort;
+
+        modalHeader.appendChild(title);
+        const buttonGroup = document.createElement("div");
+        buttonGroup.className = "import-modal-header-buttons";
+        buttonGroup.appendChild(minimizeButton);
+        buttonGroup.appendChild(abortButton);
+        modalHeader.appendChild(buttonGroup);
+
+        modalContent.appendChild(modalHeader);
+
+        const progressText = document.createElement("div");
+        progressText.id = "import-progress-text";
+        progressText.textContent = `Preparing to import ${totalFeeds} feeds...`;
+        progressText.classList.add("rss-dashboard-center-text", "rss-dashboard-import-progress-text");
+        modalContent.appendChild(progressText);
+
+        const progressBar = document.createElement("div");
+        progressBar.className = "rss-dashboard-import-progress-bar";
+        modalContent.appendChild(progressBar);
+
+        const progressFill = document.createElement("div");
+        progressFill.id = "import-progress-fill";
+        progressFill.className = "rss-dashboard-import-progress-fill";
+        progressFill.style.setProperty('--progress-width', '0%');
+        progressBar.appendChild(progressFill);
+
+        const currentFeedText = document.createElement("div");
+        currentFeedText.id = "import-current-feed";
+        currentFeedText.classList.add("rss-dashboard-center-text", "rss-dashboard-import-current-feed");
+        modalContent.appendChild(currentFeedText);
+
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        return modal;
+    }
+
+    async importOpml() {
         const input = document.createElement("input");
         input.type = "file";
-        input.accept = ".opml";
-
-        input.onchange = async (e: Event) => {
-            const target = e.target as HTMLInputElement;
-            const file = target.files?.[0];
-
+        input.accept = ".opml, .xml";
+        input.onchange = async () => {
+            const file = input.files?.[0];
             if (file) {
-                const reader = new FileReader();
+                const content = await file.text();
+                try {
+                    
+                    const { feeds: newFeedsMetadata, folders: newFolders } = OpmlManager.parseOpmlMetadata(content);
 
-                reader.onload = async (e) => {
-                    const contents = e.target?.result as string;
+                    const feedsToAdd = newFeedsMetadata.filter(newFeed => 
+                        !this.settings.feeds.some(f => f.url === newFeed.url)
+                    );
 
-                    try {
-                        
-                        const result = await OpmlManager.importOpml(
-                            contents, 
-                            this.settings.feeds,
-                            this.settings.folders
-                        );
-                        
-                        
-                        this.settings.feeds = result.feeds;
-                        this.settings.folders = result.folders;
-                        
-                        await this.saveSettings();
-                        await this.refreshFeeds();
-
-                        
-                        new Notice(`OPML import successful`);
-                    } catch (error) {
-                        console.error("Error parsing OPML:", error);
-                        new Notice("Failed to import OPML: Invalid format");
+                    if (feedsToAdd.length === 0) {
+                        new Notice("No new feeds found in the OPML file.");
+                        return;
                     }
-                };
 
-                reader.readAsText(file);
+                    
+                    const addedFeeds: Feed[] = [];
+                    for (const feedMetadata of feedsToAdd) {
+                            const feedToAdd: Feed = {
+                            title: feedMetadata.title,
+                            url: feedMetadata.url,
+                            folder: feedMetadata.folder,
+                            items: [], 
+                                lastUpdated: Date.now(),
+                            mediaType: feedMetadata.mediaType || "article",
+                            autoDeleteDuration: feedMetadata.autoDeleteDuration,
+                            maxItemsLimit: feedMetadata.maxItemsLimit || 50,
+                            scanInterval: feedMetadata.scanInterval
+                            };
+
+                        
+                        if (feedToAdd.mediaType === 'video' && (!feedToAdd.folder || feedToAdd.folder === 'Uncategorized')) {
+                                feedToAdd.folder = this.settings.media.defaultYouTubeFolder;
+                        } else if (feedToAdd.mediaType === 'podcast' && (!feedToAdd.folder || feedToAdd.folder === 'Uncategorized')) {
+                                feedToAdd.folder = this.settings.media.defaultPodcastFolder;
+                            }
+
+                            addedFeeds.push(feedToAdd);
+                    }
+
+                    
+                        this.settings.feeds.push(...addedFeeds);
+                        this.settings.folders = OpmlManager.mergeFolders(this.settings.folders, newFolders);
+                        await this.saveSettings();
+
+                    
+                        if (this.view) {
+                            await this.view.render();
+                        }
+
+                    new Notice(`Imported ${addedFeeds.length} feeds. Articles will be fetched in the background.`);
+
+                    
+                    this.startBackgroundImport(addedFeeds);
+
+                } catch (error) {
+                    new Notice(error.message);
+                }
             }
         };
-
         input.click();
+    }
+
+    private async startBackgroundImport(feeds: Feed[]) {
+        
+        this.backgroundImportQueue.push(...feeds.map(feed => ({
+            ...feed,
+            importStatus: 'pending' as const
+        })));
+
+        
+        if (!this.isBackgroundImporting) {
+            this.processBackgroundImportQueue();
+        }
+    }
+
+    private async processBackgroundImportQueue() {
+        if (this.isBackgroundImporting || this.backgroundImportQueue.length === 0) {
+            return;
+        }
+
+        this.isBackgroundImporting = true;
+
+        
+        if (!this.importStatusBarItem) {
+            this.importStatusBarItem = this.addStatusBarItem();
+            this.importStatusBarItem.innerHTML = '';
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'import-statusbar-icon';
+            setIcon(iconSpan, 'rss');
+            this.importStatusBarItem.appendChild(iconSpan);
+            const textSpan = document.createElement('span');
+            textSpan.className = 'import-statusbar-text';
+            this.importStatusBarItem.appendChild(textSpan);
+        }
+
+        const totalFeeds = this.backgroundImportQueue.length;
+        let processedCount = 0;
+
+        while (this.backgroundImportQueue.length > 0) {
+            const feedMetadata = this.backgroundImportQueue.shift()!;
+            
+            try {
+                
+                feedMetadata.importStatus = 'processing';
+                this.updateBackgroundImportProgress(processedCount, totalFeeds, feedMetadata.title);
+
+                
+                const parsedFeed = await this.feedParser.parseFeed(feedMetadata.url);
+                
+                
+                const feedIndex = this.settings.feeds.findIndex(f => f.url === feedMetadata.url);
+                if (feedIndex >= 0) {
+                    this.settings.feeds[feedIndex] = {
+                        ...this.settings.feeds[feedIndex],
+                        title: parsedFeed.title || feedMetadata.title,
+                        items: parsedFeed.items.slice(0, 50),
+                        lastUpdated: Date.now(),
+                        mediaType: parsedFeed.mediaType
+                    };
+                }
+
+                feedMetadata.importStatus = 'completed';
+                processedCount++;
+
+            } catch (error) {
+                console.error(`Failed to parse feed ${feedMetadata.url}`, error);
+                feedMetadata.importStatus = 'failed';
+                feedMetadata.importError = error instanceof Error ? error.message : 'Unknown error';
+                processedCount++;
+            }
+
+            
+            if (processedCount % 5 === 0) {
+                await this.saveSettings();
+            }
+
+            
+            if (this.view && processedCount % 3 === 0) {
+                await this.view.render();
+        }
+
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        
+        await this.saveSettings();
+        if (this.view) {
+            await this.view.render();
+        }
+
+        
+        if (this.importStatusBarItem) {
+            this.importStatusBarItem.remove();
+            this.importStatusBarItem = null;
+        }
+
+        this.isBackgroundImporting = false;
+        new Notice(`Background import completed. Processed ${processedCount} feeds.`);
+    }
+
+    private updateBackgroundImportProgress(current: number, total: number, currentFeedTitle: string): void {
+        if (this.importStatusBarItem) {
+            const textSpan = this.importStatusBarItem.querySelector('.import-statusbar-text');
+            if (textSpan) {
+                textSpan.textContent = `  Fetching articles: ${current}/${total} - ${currentFeedTitle}`;
+            }
+        }
     }
 
     async exportOpml() {
@@ -344,47 +672,44 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     
-    async addFeed(title: string, url: string, folder: string) {
+    async addFeed(title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) {
         try {
-            
             if (this.settings.feeds.some((f) => f.url === url)) {
                 new Notice("This feed URL already exists");
                 return;
             }
-    
-            
+
             const newFeed: Feed = {
                 title,
                 url,
                 folder,
                 items: [],
-                lastUpdated: 0
+                lastUpdated: Date.now(),
+                autoDeleteDuration: autoDeleteDuration || 0,
+                maxItemsLimit: maxItemsLimit || 50,
+                scanInterval: scanInterval || 0,
+                mediaType: "article"
             };
-    
-            
+
             this.settings.feeds.push(newFeed);
             await this.saveSettings();
-            
-            
+
             try {
                 const parsedFeed = await this.feedParser.parseFeed(url, newFeed);
-                
-                
                 const index = this.settings.feeds.findIndex(f => f.url === url);
                 if (index >= 0) {
                     this.settings.feeds[index] = parsedFeed;
                 }
-                
                 await this.saveSettings();
             } catch (error) {
                 console.error("Error parsing new feed:", error);
                 new Notice(`Error parsing feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
-    
+
             if (this.view) {
                 this.view.refresh();
-                new Notice(`Feed "${title}" added`);
             }
+            new Notice(`Feed "${title}" added`);
         } catch (error) {
             console.error("Error adding feed:", error);
             new Notice(`Error adding feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -467,18 +792,64 @@ export default class RssDashboardPlugin extends Plugin {
             this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
             
             
+            this.migrateLegacySettings();
+            
+            
             if (!this.settings.readerViewLocation) {
                 this.settings.readerViewLocation = "right-sidebar";
             }
             
-            
             if (this.settings.useWebViewer === undefined) {
                 this.settings.useWebViewer = true;
+            }
+            
+            
+            if (!this.settings.articleSaving) {
+                this.settings.articleSaving = DEFAULT_SETTINGS.articleSaving;
+            } else {
+                
+                this.settings.articleSaving = Object.assign({}, DEFAULT_SETTINGS.articleSaving, this.settings.articleSaving);
             }
         } catch (error) {
             console.error("Error loading settings:", error);
             new Notice(`Error loading settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
             this.settings = DEFAULT_SETTINGS;
+        }
+    }
+    
+    
+    private migrateLegacySettings(): void {
+        
+        if ((this.settings as any).savePath && !this.settings.articleSaving?.defaultFolder) {
+            if (!this.settings.articleSaving) {
+                this.settings.articleSaving = DEFAULT_SETTINGS.articleSaving;
+            }
+            this.settings.articleSaving.defaultFolder = (this.settings as any).savePath;
+            delete (this.settings as any).savePath;
+        }
+        
+        
+        if ((this.settings as any).template && !this.settings.articleSaving?.defaultTemplate) {
+            if (!this.settings.articleSaving) {
+                this.settings.articleSaving = DEFAULT_SETTINGS.articleSaving;
+            }
+            this.settings.articleSaving.defaultTemplate = (this.settings as any).template;
+            delete (this.settings as any).template;
+        }
+        
+        
+        if ((this.settings as any).addSavedTag !== undefined && this.settings.articleSaving?.addSavedTag === undefined) {
+            if (!this.settings.articleSaving) {
+                this.settings.articleSaving = DEFAULT_SETTINGS.articleSaving;
+            }
+            this.settings.articleSaving.addSavedTag = (this.settings as any).addSavedTag;
+            delete (this.settings as any).addSavedTag;
+        }
+        
+        
+        if ((this.settings.articleSaving as any)?.template && !this.settings.articleSaving?.defaultTemplate) {
+            this.settings.articleSaving.defaultTemplate = (this.settings.articleSaving as any).template;
+            delete (this.settings.articleSaving as any).template;
         }
     }
 
@@ -490,5 +861,74 @@ export default class RssDashboardPlugin extends Plugin {
         console.log("Unloading RSS Dashboard plugin");
         this.app.workspace.detachLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
         this.app.workspace.detachLeavesOfType(RSS_READER_VIEW_TYPE);
+    }
+
+    
+    private async validateSavedArticles(): Promise<void> {
+        console.log("Validating saved articles...");
+        let updatedCount = 0;
+        
+        for (const feed of this.settings.feeds) {
+            for (const item of feed.items) {
+                if (item.saved) {
+                    const fileExists = await this.checkSavedFileExists(item);
+                    if (!fileExists) {
+                        console.log(`File for saved article "${item.title}" no longer exists, updating status`);
+                        item.saved = false;
+                        
+                        
+                        if (item.tags) {
+                            item.tags = item.tags.filter(tag => tag.name.toLowerCase() !== "saved");
+                        }
+                        
+                        updatedCount++;
+                    }
+                }
+            }
+        }
+        
+        if (updatedCount > 0) {
+            console.log(`Updated ${updatedCount} articles that were marked as saved but files no longer exist`);
+            await this.saveSettings();
+            
+            
+            if (this.view) {
+                await this.view.render();
+            }
+        }
+    }
+    
+    
+    private async checkSavedFileExists(item: FeedItem): Promise<boolean> {
+        try {
+            
+            const folder = this.settings.articleSaving.defaultFolder || "RSS Articles";
+            const filename = this.sanitizeFilename(item.title);
+            const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
+            
+            
+            return await this.app.vault.adapter.exists(filePath);
+        } catch (error) {
+            console.error(`Error checking if file exists for article "${item.title}":`, error);
+            return false;
+        }
+    }
+    
+    
+    private sanitizeFilename(name: string): string {
+        return name
+            .replace(/[\/\\:*?"<>|]/g, '_')
+            .replace(/\s+/g, '_')
+            .replace(/_+/g, '_')
+            .substring(0, 100);
+    }
+
+    
+    private getAllArticles(): FeedItem[] {
+        let allArticles: FeedItem[] = [];
+        for (const feed of this.settings.feeds) {
+            allArticles = allArticles.concat(feed.items);
+        }
+        return allArticles;
     }
 }
