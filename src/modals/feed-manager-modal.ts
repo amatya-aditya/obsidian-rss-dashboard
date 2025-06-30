@@ -578,7 +578,7 @@ export class AddFeedModal extends Modal {
         contentEl.createEl("h3", { text: "Per Feed Control Options", cls: "per-feed-controls-header" });
         
         let autoDeleteDuration = 0;
-        let maxItemsLimit = this.plugin?.settings?.maxItems || 100;
+        let maxItemsLimit = this.plugin?.settings?.maxItems || 25;
         let scanInterval = 0;
 
         

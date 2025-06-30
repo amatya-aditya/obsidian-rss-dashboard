@@ -194,7 +194,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
         { name: "Podcasts", subfolders: [], createdAt: Date.now(), modifiedAt: Date.now() }
     ],
     refreshInterval: 60, 
-    maxItems: 100,
+    maxItems: 25,
     viewStyle: "card",
     showFeedArt: true,
     showThumbnails: true,

@@ -1090,11 +1090,25 @@ export class DiscoverView extends ItemView {
 
     private async addFeed(feed: FeedMetadata): Promise<void> {
         try {
-            await this.plugin.addFeed(feed.title, feed.url, "Uncategorized");
+            const folder = this.getFolderForFeedType(feed.type);
+            await this.plugin.addFeed(feed.title, feed.url, folder);
         } catch (error) {
             console.error('Error adding feed:', error);
             new Notice(`Failed to add feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
+    }
+
+    private getFolderForFeedType(feedType: string): string {
+        const videoTypes = ['YouTube', 'Video Series', 'Vlog'];
+        const podcastTypes = ['Podcast'];
+        
+        if (videoTypes.includes(feedType)) {
+            return this.plugin.settings.media.defaultYouTubeFolder;
+        } else if (podcastTypes.includes(feedType)) {
+            return this.plugin.settings.media.defaultPodcastFolder;
+        }
+        
+        return "Uncategorized";
     }
 
     private previewFeed(feed: FeedMetadata): void {

@@ -123,7 +123,6 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
 }
 
 export async function fetchFeedXml(url: string): Promise<string> {
-    
     async function tryFetch(targetUrl: string): Promise<string> {
         
         const isAndroid = /android/i.test(navigator.userAgent);
@@ -333,11 +332,9 @@ export async function fetchFeedXml(url: string): Promise<string> {
             return await tryFetch(url);
         } catch (err) {
             console.warn(`[RSS] First attempt failed for ${url}:`, err);
-            
             if (/^http:\/\//i.test(url)) {
                 const httpsUrl = url.replace(/^http:\/\//i, 'https://');
                 if (httpsUrl !== url) {
-                    
                     return await tryFetch(httpsUrl);
                 }
             }
@@ -347,18 +344,25 @@ export async function fetchFeedXml(url: string): Promise<string> {
         console.error(`[RSS] All direct attempts failed for ${url}:`, error);
         
         try {
-            
-            const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-            const proxyResponse = await requestUrl({ url: allOriginsUrl, method: "GET" });
-            const data = JSON.parse(proxyResponse.text);
-            if (!data.contents) throw new Error('No contents from AllOrigins');
-            if (data.contents.includes('<?php') || data.contents.includes('WordPress')) {
-                throw new Error('Proxy also returned PHP file instead of RSS feed');
-            }
-            return data.contents;
+            const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`;
+            const proxyResponse = await requestUrl({ url: proxyUrl, method: "GET" });
+            return proxyResponse.text;
         } catch (proxyError) {
-            console.error(`AllOrigins proxy fetch failed for ${url}:`, proxyError);
-            throw proxyError;
+            console.error(`Codetabs proxy fetch failed for ${url}:`, proxyError);
+            
+            try {
+                const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                const proxyResponse = await requestUrl({ url: allOriginsUrl, method: "GET" });
+                const data = JSON.parse(proxyResponse.text);
+                if (!data.contents) throw new Error('No contents from AllOrigins');
+                if (data.contents.includes('<?php') || data.contents.includes('WordPress')) {
+                    throw new Error('Proxy also returned PHP file instead of RSS feed');
+                }
+                return data.contents;
+            } catch (proxyError2) {
+                console.error(`AllOrigins proxy fetch failed for ${url}:`, proxyError2);
+                throw proxyError2;
+            }
         }
     }
 }
@@ -455,6 +459,26 @@ export class CustomXMLParser {
                         } catch (e3) {
                             
                             el = element.querySelector(`*[local-name()="${localName}"]`);
+                        }
+                    }
+                }
+                
+                
+                if (!el && namespace === 'content' && localName === 'encoded') {
+                    
+                    const contentSelectors = [
+                        'content\\:encoded',
+                        'content:encoded',
+                        '*[local-name()="encoded"]',
+                        'encoded'
+                    ];
+                    
+                    for (const selector of contentSelectors) {
+                        try {
+                            el = element.querySelector(selector);
+                            if (el) break;
+                        } catch (e) {
+                            continue;
                         }
                     }
                 }
@@ -700,7 +724,12 @@ export class CustomXMLParser {
                 '*[local-name()="creator"]'
             ]);
             
-            const content = this.getTextContent(item, 'content\\:encoded') || description;
+            const content = this.getTextContentWithMultipleSelectors(item, [
+                'content\\:encoded',
+                'content:encoded',
+                '*[local-name()="encoded"]',
+                'encoded'
+            ]) || description;
 
             
             const enclosureElement = item.querySelector('enclosure');
@@ -836,7 +865,12 @@ export class CustomXMLParser {
             }
             
             
-            const content = this.getTextContent(item, 'content:encoded') || description;
+            const contentValue = this.getTextContentWithMultipleSelectors(item, [
+                'content\\:encoded',
+                'content:encoded',
+                '*[local-name()="encoded"]',
+                'encoded'
+            ]) || description;
 
             
             const doi = this.getTextContent(item, 'prism:doi') || this.getTextContent(item, 'dc:identifier');
@@ -850,7 +884,7 @@ export class CustomXMLParser {
                 pubDate: pubDate || new Date().toISOString(),
                 guid: guid || link || `item-${items.length}`,
                 author: author || undefined,
-                content: content || description || '',
+                content: contentValue || description || '',
                 category: this.getTextContent(item, 'category')
             });
         });
@@ -1204,46 +1238,49 @@ export class CustomXMLParser {
     private preprocessXmlContent(xmlString: string): string {
         let processed = xmlString;
         
-        
         processed = processed.replace(/^\uFEFF/, '');
-        
-        
-        processed = processed.replace(/<\?php[\s\S]*?\?>/gi, '');
-        processed = processed.replace(/<\?.*?\?>/gi, '');
-        
+
         
         const xmlDeclMatch = processed.match(/<\?xml[^>]*\?>/);
+        let xmlDecl = '';
         if (xmlDeclMatch) {
-            const xmlDeclIndex = processed.indexOf(xmlDeclMatch[0]);
-            if (xmlDeclIndex > 0) {
-                processed = processed.substring(xmlDeclIndex);
-            }
+            xmlDecl = xmlDeclMatch[0];
         }
         
+        processed = processed.replace(/<\?.*?\?>/g, '');
         
-        if (!xmlDeclMatch) {
+        if (xmlDecl) {
+            processed = xmlDecl + processed;
+        }
+
+        
+        
+        processed = processed.trim();
+
+        
+        if (!xmlDecl) {
             const rssStartMatch = processed.match(/<rss[^>]*>/i);
             if (rssStartMatch) {
                 const rssStartIndex = processed.indexOf(rssStartMatch[0]);
                 processed = processed.substring(rssStartIndex);
             }
         }
-        
+
         
         const rssCloseMatch = processed.match(/<\/rss>/i);
         if (rssCloseMatch) {
             const rssCloseIndex = processed.indexOf(rssCloseMatch[0]) + rssCloseMatch[0].length;
             processed = processed.substring(0, rssCloseIndex);
         }
+
         
+        processed = processed.replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, '&amp;');
+
         
-        processed = processed.replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
-        
-        
-        if (!processed.includes('<?xml')) {
+        if (!processed.startsWith('<?xml')) {
             processed = '<?xml version="1.0" encoding="UTF-8"?>' + processed;
         }
-        
+
         return processed;
     }
 
@@ -1859,37 +1896,6 @@ export class FeedParser {
         return updatedFeeds;
     }
 }
-
-// interface CustomFeed {
-//     title?: string;
-//     items: CustomItem[];
-// }
-
-// interface CustomItem {
-//     title?: string;
-//     link?: string;
-//     description?: string;
-//     pubDate?: string;
-//     author?: string;
-//     content?: string;
-//     guid?: string;
-//     enclosure?: {
-//         url: string;
-//         type: string;
-//         length: string;
-//     };
-//     itunes?: {
-//         duration?: string;
-//         explicit?: string;
-//         image?: { href: string };
-//         category?: string;
-//         summary?: string;
-//         episodeType?: string;
-//         season?: string;
-//         episode?: string;
-//     };
-//     image?: { url: string };
-// }
 
 export class FeedParserService {
     private static instance: FeedParserService;

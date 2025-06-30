@@ -367,8 +367,8 @@
   {
     "id": "feed-015",
     "title": "The Verge",
-    "url": "https://www.theverge.com/rss/index.xml",
-    "imageUrl": "https://logo.clearbit.com/theverge.com",
+    "url": "https://feeds.megaphone.fm/vergecast",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1f8e08d3b0f126c847db80f0a6",
     "domain": [
       "Technology"
     ],
@@ -3983,7 +3983,7 @@
     "id": "feed-154",
     "title": "Science Vs",
     "url": "https://feeds.megaphone.fm/sciencevs",
-    "imageUrl": "https://logo.clearbit.com/gimletmedia.com",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1f2d1e9a999f8e07cc0d579f41",
     "domain": [
       "Science"
     ],
@@ -4218,9 +4218,9 @@
   },
   {
     "id": "feed-163",
-    "title": "The Knowledge Project",
+    "title": "The Knowledge Project with Shane Parrish",
     "url": "https://feeds.megaphone.fm/FSMI7575968096",
-    "imageUrl": "https://logo.clearbit.com/fs.blog",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1f58d37d79547df4d8141a13ea",
     "domain": [
       "Philosophy",
       "Business"
@@ -4352,7 +4352,7 @@
     "id": "feed-168",
     "title": "The Vergecast",
     "url": "https://feeds.megaphone.fm/vergecast",
-    "imageUrl": "https://logo.clearbit.com/theverge.com",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1f8e08d3b0f126c847db80f0a6",
     "domain": [
       "Technology"
     ],
@@ -4377,7 +4377,7 @@
   {
     "id": "feed-169",
     "title": "Radiolab",
-    "url": "https://feeds.wnyc.org/radiolab",
+    "url": "https://feeds.simplecast.com/EmVW7VGp",
     "imageUrl": "https://logo.clearbit.com/wnycstudios.org",
     "domain": [
       "Science"
@@ -4456,7 +4456,7 @@
     "id": "feed-172",
     "title": "Reply All",
     "url": "https://feeds.megaphone.fm/replyall",
-    "imageUrl": "https://logo.clearbit.com/gimletmedia.com",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1fb8d998a58b08ab9eca2c1b11",
     "domain": [
       "Technology"
     ],
@@ -4481,7 +4481,7 @@
   {
     "id": "feed-173",
     "title": "Accidental Tech Podcast",
-    "url": "https://atp.fm/episodes?format=RSS",
+    "url": "https://anchor.fm/s/f0658d80/podcast/rss",
     "imageUrl": "https://logo.clearbit.com/atp.fm",
     "domain": [
       "Technology"
@@ -4533,7 +4533,7 @@
   {
     "id": "feed-175",
     "title": "Command Line Heroes",
-    "url": "https://feeds.redhat.com/CommandLineHeroes?format=rss",
+    "url": "https://feeds.simplecast.com/vUHP7wpf",
     "imageUrl": "https://logo.clearbit.com/redhat.com",
     "domain": [
       "Technology"
@@ -4558,29 +4558,31 @@
   },
   {
     "id": "feed-176",
-    "title": "Brain Inspired",
-    "url": "https://braininspired.libsyn.com/rss",
-    "imageUrl": "https://logo.clearbit.com/braininspired.co",
+    "title": "Huberman Lab Podcast",
+    "url": "https://feeds.megaphone.fm/hubermanlab",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1f66aed32f8066a72781b3b12a",
     "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Neuroscience"
-    ],
-    "area": [
-      "AI & Brain"
-    ],
-    "topic": [
-      "Cognitive Models"
-    ],
-    "tags": [
-      "consciousness",
-      "neural nets"
-    ],
-    "type": "Podcast",
-    "createdAt": "2025-06-29T00:00:00Z",
-    "summary": "Where neuroscience and artificial intelligence converge.",
-    "rating": 4
+    "Science",
+    "Health"
+  ],
+  "subdomain": [
+    "Neuroscience"
+  ],
+  "area": [
+    "Human Performance"
+  ],
+  "topic": [
+    "Science-Based Tools"
+  ],
+  "tags": [
+    "neuroscience",
+    "wellness",
+    "behavior"
+  ],
+  "type": "Podcast",
+  "createdAt": "2025-06-30T00:00:00Z",
+  "summary": "Stanford neuroscientist Dr. Andrew Huberman shares evidence-backed methods to improve sleep, focus, fitness and mental health.",
+  "rating": 5
   },
   {
     "id": "feed-177",
@@ -4611,8 +4613,8 @@
   {
     "id": "feed-178",
     "title": "Philosophy Bites",
-    "url": "http://philosophybites.libsyn.com/rss",
-    "imageUrl": "https://logo.clearbit.com/philosophybites.com",
+    "url": "https://philosophybites.libsyn.com/rss",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1f3f0380e58b5660033a29df48",
     "domain": [
       "Philosophy"
     ],
@@ -4663,7 +4665,7 @@
   {
     "id": "feed-180",
     "title": "EconTalk",
-    "url": "https://feeds.soundcloud.com/users/soundcloud:users:16984052/sounds.rss",
+    "url": "https://feeds.simplecast.com/wgl4xEgL",
     "imageUrl": "https://logo.clearbit.com/econlib.org",
     "domain": [
       "Economics"
@@ -4716,7 +4718,7 @@
     "id": "feed-182",
     "title": "The Carbon Copy",
     "url": "https://feeds.megaphone.fm/carboncopy",
-    "imageUrl": "https://logo.clearbit.com/canoe.fm",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1fc7a5addd15c28fd3057b0801",
     "domain": [
       "Environment"
     ],
@@ -4741,7 +4743,7 @@
   {
     "id": "feed-183",
     "title": "Big Picture Science",
-    "url": "https://radio.seti.org/episodes/feed",
+    "url": "https://feeds.megaphone.fm/ADV9362943796",
     "imageUrl": "https://logo.clearbit.com/seti.org",
     "domain": [
       "Science"
@@ -4767,7 +4769,7 @@
   {
     "id": "feed-184",
     "title": "Planetary Radio",
-    "url": "https://www.planetary.org/radio/podcast.rss",
+    "url": "https://www.omnycontent.com/d/playlist/d95da206-8ee8-4ba5-ba8d-ad1200b4e5a4/cf13d5f5-6040-458d-ab5a-ad200189747d/b75c9f7f-4a63-438e-b506-ad2001897499/podcast.rss",
     "imageUrl": "https://logo.clearbit.com/planetary.org",
     "domain": [
       "Science"
@@ -4793,7 +4795,7 @@
   {
     "id": "feed-185",
     "title": "The History of Rome",
-    "url": "https://feeds.libsyn.com/16786/rss",
+    "url": "https://historyofrome.libsyn.com/rss",
     "imageUrl": "https://logo.clearbit.com/thehistoryofrome.typepad.com",
     "domain": [
       "History"
@@ -4820,7 +4822,7 @@
     "id": "feed-186",
     "title": "Revolutions",
     "url": "https://revolutionspodcast.libsyn.com/rss",
-    "imageUrl": "https://logo.clearbit.com/revolutionspodcast.com",
+    "imageUrl": "https://cdn-images.podbay.fm/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJodHRwczovL3N0YXRpYy5saWJzeW4uY29tL3AvYXNzZXRzLzMvNC81L2YvMzQ1ZmJkNmEyNTM2NDljMC9SZXZvbHV0aW9uc0xvZ29fVjIuanBnIiwiZmFsbGJhY2siOiJodHRwczovL2lzMS1zc2wubXpzdGF0aWMuY29tL2ltYWdlL3RodW1iL1BvZGNhc3RzL3Y0L2ZjLzkwLzA0L2ZjOTAwNGM3LWFmZDYtNGI1ZS01MDMzLTBmYjNkZmQ2YzNhMy9temFfNzYyMzcxMTQxODc4MDg5ODI3Ni5qcGcvNjAweDYwMGJiLmpwZyJ9.5rFXy4LXYgh_cpPq0V_Sdv30D5QroKcitC4bNJbMzjs.jpg?width=400&height=400",
     "domain": [
       "History"
     ],
@@ -4845,8 +4847,8 @@
   {
     "id": "feed-187",
     "title": "Stuff You Missed in History Class",
-    "url": "https://feeds.megaphone.fm/stuffyoushouldknowhistory",
-    "imageUrl": "https://logo.clearbit.com/iheart.com",
+    "url": "https://anchor.fm/s/65b1f688/podcast/rss",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1f7a1606494e24613eb8c4d990",
     "domain": [
       "History"
     ],
@@ -4871,7 +4873,7 @@
   {
     "id": "feed-188",
     "title": "Omnibus",
-    "url": "https://feeds.omny.fm/shows/6255f57f-f5d7-4cb4-bc90-8f1798677d21/the-omnibus.rss",
+    "url": "https://audioboom.com/channels/5127257.rss",
     "imageUrl": "https://logo.clearbit.com/omnibusproject.com",
     "domain": [
       "History"
@@ -4897,8 +4899,8 @@
   {
     "id": "feed-189",
     "title": "Skeptoid",
-    "url": "https://skeptoid.libsyn.com/rss",
-    "imageUrl": "https://logo.clearbit.com/skeptoid.com",
+    "url": "https://feed.skeptoid.com/",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1f75b0d4f08553742be6e66982",
     "domain": [
       "Science"
     ],
@@ -4923,7 +4925,7 @@
   {
     "id": "feed-190",
     "title": "Science Friday",
-    "url": "https://feeds.simplecast.com/54nAGcIl",
+    "url": "https://feeds.simplecast.com/h18ZIZD_",
     "imageUrl": "https://logo.clearbit.com/sciencefriday.com",
     "domain": [
       "Science"
@@ -4975,8 +4977,8 @@
   {
     "id": "feed-192",
     "title": "Modern Wisdom",
-    "url": "https://chriswillx.libsyn.com/rss",
-    "imageUrl": "https://logo.clearbit.com/modernwisdom.io",
+    "url": "https://feeds.megaphone.fm/SIXMSB5088139739",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1fc27a8d722b0ba5ca0f788f35",
     "domain": [
       "Philosophy"
     ],
@@ -5001,7 +5003,7 @@
   {
     "id": "feed-193",
     "title": "AI Today Podcast",
-    "url": "https://aitoday.libsyn.com/rss",
+    "url": "https://anchor.fm/s/f0214058/podcast/rss",
     "imageUrl": "https://logo.clearbit.com/cognilytica.com",
     "domain": [
       "Technology"
@@ -5027,8 +5029,8 @@
   {
     "id": "feed-194",
     "title": "Voices in AI",
-    "url": "https://voicesinai.libsyn.com/rss",
-    "imageUrl": "https://logo.clearbit.com/gigaom.com",
+    "url": "https://voicesinai.com/show/voices-in-ai/podcast-feed/",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1f4882416c1d16481e7d887fe5",
     "domain": [
       "Technology"
     ],
@@ -5053,8 +5055,8 @@
   {
     "id": "feed-195",
     "title": "AXRP: The AI X-risk Research Podcast",
-    "url": "https://feeds.buzzsprout.com/1683981.rss",
-    "imageUrl": "https://logo.clearbit.com/alignmentforum.org",
+    "url": "https://axrpodcast.libsyn.com/rss",
+    "imageUrl": "https://avatars.githubusercontent.com/u/68572739?v=4",
     "domain": [
       "Technology"
     ],
@@ -5105,7 +5107,7 @@
   {
     "id": "feed-197",
     "title": "History Extra Podcast",
-    "url": "https://podcast.historyextra.com/rss",
+    "url": "https://feeds.megaphone.fm/GLT5697813216",
     "imageUrl": "https://logo.clearbit.com/historyextra.com",
     "domain": [
       "History"
@@ -5131,8 +5133,8 @@
   {
     "id": "feed-198",
     "title": "The Happiness Lab",
-    "url": "https://feeds.simplecast.com/Ueig6TMY",
-    "imageUrl": "https://logo.clearbit.com/happinesslab.fm",
+    "url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/96c5c41e-0bc8-4661-b184-ae32006cd726/d623ef0b-3fee-4c26-b815-ae32006cd739/podcast.rss",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1fcad1cf743dc23b0d0cb311ae",
     "domain": [
       "Psychology"
     ],
@@ -5157,7 +5159,7 @@
   {
     "id": "feed-199",
     "title": "Science Rules! with Bill Nye",
-    "url": "https://feeds.simplecast.com/vIFJoyQm",
+    "url": "https://feeds.simplecast.com/K0NWGFwM",
     "imageUrl": "https://logo.clearbit.com/billnye.com",
     "domain": [
       "Science"
@@ -5183,7 +5185,7 @@
   {
     "id": "feed-200",
     "title": "The Curious Cases of Rutherford & Fry",
-    "url": "http://podcasts.files.bbci.co.uk/b05vc49j.rss",
+    "url": "https://podcasts.files.bbci.co.uk/p05ltqxn.rss",
     "imageUrl": "https://logo.clearbit.com/bbc.co.uk",
     "domain": [
       "Science"
@@ -5207,35 +5209,9 @@
     "rating": 4
   },
   {
-    "id": "feed-201",
-    "title": "Tech Tent",
-    "url": "http://podcasts.files.bbci.co.uk/p033wzhz.rss",
-    "imageUrl": "https://logo.clearbit.com/bbc.co.uk",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "News"
-    ],
-    "area": [
-      "Weekly"
-    ],
-    "topic": [
-      "Global Tech"
-    ],
-    "tags": [
-      "gadgets",
-      "policy"
-    ],
-    "type": "Podcast",
-    "createdAt": "2025-06-29T00:00:00Z",
-    "summary": "BBC World Service's roundup of the biggest tech stories.",
-    "rating": 4
-  },
-  {
     "id": "feed-202",
     "title": "Data Skeptic",
-    "url": "https://dataskeptic.com/feed",
+    "url": "https://anchor.fm/s/f06031a0/podcast/rss",
     "imageUrl": "https://logo.clearbit.com/dataskeptic.com",
     "domain": [
       "Technology"
@@ -5287,7 +5263,7 @@
   {
     "id": "feed-204",
     "title": "The Orbital Mechanics Podcast",
-    "url": "https://orbitalmechanics.libsyn.com/rss",
+    "url": "http://feeds.feedburner.com/orbitalpodcast",
     "imageUrl": "https://logo.clearbit.com/theorbitalmechanics.com",
     "domain": [
       "Science"
@@ -5311,36 +5287,10 @@
     "rating": 4
   },
   {
-    "id": "feed-205",
-    "title": "The Civil Engineering Podcast",
-    "url": "https://feeds.buzzsprout.com/43344.rss",
-    "imageUrl": "https://logo.clearbit.com/engineeringmanagementinstitute.org",
-    "domain": [
-      "Engineering"
-    ],
-    "subdomain": [
-      "Civil"
-    ],
-    "area": [
-      "Career"
-    ],
-    "topic": [
-      "Infrastructure"
-    ],
-    "tags": [
-      "bridges",
-      "leadership"
-    ],
-    "type": "Podcast",
-    "createdAt": "2025-06-29T00:00:00Z",
-    "summary": "Interviews and advice for civil engineers and project managers.",
-    "rating": 4
-  },
-  {
     "id": "feed-206",
     "title": "Structural Engineering Channel Podcast",
-    "url": "https://feeds.buzzsprout.com/857242.rss",
-    "imageUrl": "https://logo.clearbit.com/engineeringmanagementinstitute.org",
+    "url": "https://engineeringmanagementinstitute.org/category/tsec-podcast/feed/",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1f055783d96264860f64bd474e",
     "domain": [
       "Engineering"
     ],
@@ -5365,8 +5315,8 @@
   {
     "id": "feed-207",
     "title": "Materialism: The Materials Science Podcast",
-    "url": "https://feeds.buzzsprout.com/979445.rss",
-    "imageUrl": "https://logo.clearbit.com/materialism.fm",
+    "url": "https://pinecast.com/feed/materialism",
+    "imageUrl": "https://i.scdn.co/image/ab67656300005f1f4f2f9a39cc236e51db81149b",
     "domain": [
       "Engineering"
     ],
@@ -5391,7 +5341,7 @@
   {
     "id": "feed-208",
     "title": "Engines of Our Ingenuity",
-    "url": "https://www.houstonpublicmedia.org/podcasts/engines/?feed=podcast",
+    "url": "https://cdn.houstonpublicmedia.org/podcasts/engines-of-our-ingenuity-apple-podcasts.xml",
     "imageUrl": "https://logo.clearbit.com/houstonpublicmedia.org",
     "domain": [
       "History",

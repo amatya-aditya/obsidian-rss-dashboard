@@ -736,6 +736,14 @@ export default class RssDashboardPlugin extends Plugin {
                 return;
             }
 
+          
+            let mediaType: 'article' | 'video' | 'podcast' = 'article';
+            if (folder === this.settings.media.defaultYouTubeFolder) {
+                mediaType = 'video';
+            } else if (folder === this.settings.media.defaultPodcastFolder) {
+                mediaType = 'podcast';
+            }
+
             const newFeed: Feed = {
                 title,
                 url,
@@ -745,7 +753,7 @@ export default class RssDashboardPlugin extends Plugin {
                 autoDeleteDuration: autoDeleteDuration || 0,
                 maxItemsLimit: maxItemsLimit || this.settings.maxItems,
                 scanInterval: scanInterval || 0,
-                mediaType: "article"
+                mediaType: mediaType
             };
 
             this.settings.feeds.push(newFeed);
