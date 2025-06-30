@@ -997,7 +997,11 @@ export class DiscoverView extends ItemView {
 
         const logoContainer = titleGroup.createDiv({ cls: 'rss-discover-card-logo-container' });
         if (feed.imageUrl) {
-            logoContainer.createEl('img', { cls: 'rss-discover-card-logo', attr: { src: feed.imageUrl } });
+            const img = logoContainer.createEl('img', { cls: 'rss-discover-card-logo', attr: { src: feed.imageUrl } });
+            img.onerror = () => {
+                img.remove();
+                logoContainer.createDiv({ cls: 'rss-discover-card-initials', text: this.getInitials(feed.title) });
+            };
         } else {
             logoContainer.createDiv({ cls: 'rss-discover-card-initials', text: this.getInitials(feed.title) });
         }
