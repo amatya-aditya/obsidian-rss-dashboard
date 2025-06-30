@@ -79,7 +79,7 @@ export class ArticleSaver {
             
             return new XMLSerializer().serializeToString(doc.body);
         } catch (e) {
-            console.error("Error cleaning HTML:", e);
+            
             return html;
         }
     }
@@ -221,7 +221,7 @@ guid: "{{guid}}"
                     await this.vault.createFolder(currentPath);
                 }
             } catch (error) {
-                console.error(`Error creating folder ${currentPath}:`, error);
+                
                 throw new Error(`Failed to create folder: ${currentPath}`);
             }
             
@@ -250,7 +250,7 @@ guid: "{{guid}}"
             
             
             if (!response.text) {
-                console.warn("Empty response from URL:", url);
+                
                 
                 
                 if (url.includes('journals.sagepub.com') && url.includes('/doi/full/')) {
@@ -315,7 +315,7 @@ guid: "{{guid}}"
                             }
                         }
                     } catch (fallbackError) {
-                        console.error("Error fetching abstract URL as fallback:", fallbackError);
+                        
                     }
                 }
                 
@@ -324,7 +324,7 @@ guid: "{{guid}}"
             
             return this.extractContentFromDocument(doc, url);
         } catch (error) {
-            console.error("Error fetching full article content:", error);
+            
             return "";
         }
     }
@@ -429,7 +429,7 @@ guid: "{{guid}}"
             );
             return content;
         } catch (error) {
-            console.warn(`Failed to convert relative URLs in content with base "${baseUrl}":`, error);
+            
             return content;
         }
     }
@@ -465,7 +465,7 @@ guid: "{{guid}}"
             
             return new URL(relativeUrl, base).href;
         } catch (error) {
-            console.warn(`Failed to convert relative URL "${relativeUrl}" to absolute URL with base "${baseUrl}":`, error);
+            
             return relativeUrl;
         }
     }
@@ -497,7 +497,7 @@ guid: "{{guid}}"
             
             return await this.saveArticle(item, customFolder, customTemplate, markdownContent);
         } catch (error) {
-            console.error("Error saving article with full content:", error);
+            
             new Notice(`Error saving article with full content: ${error.message}`);
             
             return await this.saveArticle(item, customFolder, customTemplate);
@@ -573,7 +573,7 @@ guid: "{{guid}}"
             new Notice(`Article saved: ${filename}`);
             return file;
         } catch (error) {
-            console.error("Error saving article:", error);
+            
             new Notice(`Error saving article: ${error.message}`);
             return null;
         }
@@ -612,7 +612,7 @@ guid: "{{guid}}"
                                     
                                 }
                             } catch (error) {
-                                console.error(`Error moving file from ${oldPath} to normalized path:`, error);
+                                
                             }
                         } else {
                             
@@ -654,7 +654,7 @@ guid: "{{guid}}"
             }
             return true;
         } catch (error) {
-            console.error("Error verifying saved article:", error);
+            
             return false;
         }
     }

@@ -555,7 +555,7 @@ export class RssDashboardView extends ItemView {
     }
     
     
-    private handleToggleFolderCollapse(folder: string): void {
+    private handleToggleFolderCollapse(folder: string, shouldRerender: boolean = true): void {
         if (this.collapsedFolders.includes(folder)) {
             this.collapsedFolders = this.collapsedFolders.filter(
                 (f) => f !== folder
@@ -563,6 +563,24 @@ export class RssDashboardView extends ItemView {
         } else {
             this.collapsedFolders.push(folder);
         }
+        this.settings.collapsedFolders = this.collapsedFolders;
+        this.plugin.saveSettings();
+        
+        
+        if (shouldRerender) {
+            this.render();
+        }
+    }
+
+    private handleBatchToggleFolders(foldersToCollapse: string[], foldersToExpand: string[]): void {
+        
+        this.collapsedFolders = this.collapsedFolders.filter(f => !foldersToExpand.includes(f));
+        foldersToCollapse.forEach(folder => {
+            if (!this.collapsedFolders.includes(folder)) {
+                this.collapsedFolders.push(folder);
+            }
+        });
+        
         this.settings.collapsedFolders = this.collapsedFolders;
         this.plugin.saveSettings();
         this.render();
@@ -698,7 +716,7 @@ export class RssDashboardView extends ItemView {
                 }
             } catch (error) {
                 loadingNotice.hide();
-                console.error("Error opening saved article:", error);
+                
                 new Notice(`Error opening saved article: ${error.message}`);
             }
         }
@@ -913,7 +931,7 @@ export class RssDashboardView extends ItemView {
             new Notice(`Feed "${feed.title}" updated successfully`);
             
         } catch (error) {
-            console.error("Error updating feed:", error);
+            
             new Notice(`Error updating feed "${feed.title}": ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -1084,7 +1102,7 @@ export class RssDashboardView extends ItemView {
                     return null;
                 }
             } catch (error) {
-                console.error("Error checking saved file path:", error);
+                
             }
         }
         
@@ -1104,7 +1122,7 @@ export class RssDashboardView extends ItemView {
                 }
             }
         } catch (error) {
-            console.error("Error checking expected file path:", error);
+            
         }
         
         return null;
@@ -1120,7 +1138,7 @@ export class RssDashboardView extends ItemView {
             
             new Notice(`Opened saved article: ${file.basename}`);
         } catch (error) {
-            console.error("Error opening saved article file:", error);
+            
             new Notice(`Error opening saved article: ${error.message}`);
         }
     }
@@ -1169,7 +1187,7 @@ export class RssDashboardView extends ItemView {
             }
         } catch (error) {
             loadingNotice.hide();
-            console.error("Error opening saved article:", error);
+            
             new Notice(`Error opening saved article: ${error.message}`);
         }
     }

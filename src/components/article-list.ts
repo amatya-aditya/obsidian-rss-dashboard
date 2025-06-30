@@ -447,7 +447,7 @@ export class ArticleList {
                                 saveButton.textContent = '💾';
                             }
                         } catch (error) {
-                            console.error("Error saving article:", error);
+                            
                             new Notice(`Error saving article: ${error.message}`);
                         } finally {
                             
@@ -781,7 +781,7 @@ export class ArticleList {
                                 saveButton.textContent = '💾';
                             }
                         } catch (error) {
-                            console.error("Error saving article:", error);
+                            
                             new Notice(`Error saving article: ${error.message}`);
                         } finally {
                             

@@ -117,7 +117,7 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
             }
         }
     } catch (e) {
-        console.error("Error discovering feed URL:", e);
+        
     }
     return null;
 }
@@ -133,8 +133,13 @@ export async function fetchFeedXml(url: string): Promise<string> {
             url: targetUrl,
             method: "GET",
             headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
-                "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "DNT": "1",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1"
             }
         });
         
@@ -174,7 +179,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
             try {
                 xmlText = new TextDecoder(encoding).decode(buffer);
             } catch (e) {
-                console.warn(`[RSS] Failed to decode with encoding ${encoding}, falling back to UTF-8:`, e);
+                
                 xmlText = new TextDecoder('utf-8').decode(buffer);
             }
         }
@@ -184,7 +189,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
         }
         
         if (!xmlText) {
-            console.error(`[RSS] Empty response from ${targetUrl}`);
+            
             throw new Error('Empty response from feed');
         }
         
@@ -192,13 +197,38 @@ export async function fetchFeedXml(url: string): Promise<string> {
         
         
         
+        // Check for Cloudflare protection or other blocking pages
+        if (xmlText.includes('Just a moment') || xmlText.includes('Cloudflare') || xmlText.includes('Checking your browser') || xmlText.includes('Please wait')) {
+            // Try with a more standard browser user agent
+            const altResponse = await requestUrl({
+                url: targetUrl,
+                method: "GET",
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "DNT": "1",
+                    "Connection": "keep-alive",
+                    "Upgrade-Insecure-Requests": "1"
+                }
+            });
+            
+            if (altResponse.text && !altResponse.text.includes('Just a moment') && !altResponse.text.includes('Cloudflare')) {
+                return altResponse.text;
+            }
+            
+            // If still blocked, try proxy
+            throw new Error('Blocked by Cloudflare protection');
+        }
+        
         if (!xmlText.includes('<rss') && !xmlText.includes('<feed') && !xmlText.includes('<channel') && !xmlText.includes('<item>')) {
-            console.warn(`[RSS] Response doesn't appear to be RSS/XML: ${xmlText.substring(0, 500)}`);
+            // Response does not appear to be a valid RSS feed
         }
         
         
         if (xmlText.includes('<?php') || xmlText.includes('WordPress') || xmlText.includes('wp-blog-header.php')) {
-            console.warn('Received PHP file instead of RSS feed, trying alternative URLs...');
+            
             
             
             const cleanUrl = (url: string): string => {
@@ -282,8 +312,13 @@ export async function fetchFeedXml(url: string): Promise<string> {
                         url: altUrl,
                         method: "GET",
                         headers: {
-                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
-                            "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                            "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
+                            "Accept-Language": "en-US,en;q=0.9",
+                            "Accept-Encoding": "gzip, deflate, br",
+                            "DNT": "1",
+                            "Connection": "keep-alive",
+                            "Upgrade-Insecure-Requests": "1"
                         }
                     });
                     
@@ -307,8 +342,13 @@ export async function fetchFeedXml(url: string): Promise<string> {
                         url: discoveredUrl,
                         method: "GET",
                         headers: {
-                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
-                            "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                            "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
+                            "Accept-Language": "en-US,en;q=0.9",
+                            "Accept-Encoding": "gzip, deflate, br",
+                            "DNT": "1",
+                            "Connection": "keep-alive",
+                            "Upgrade-Insecure-Requests": "1"
                         }
                     });
                     
@@ -327,11 +367,51 @@ export async function fetchFeedXml(url: string): Promise<string> {
         return xmlText;
     }
     
+    // Helper function to convert RSS2JSON response back to RSS format
+    function convertRss2JsonToRss(data: any): string {
+        const feed = data.feed;
+        const items = data.items || [];
+        
+        let rss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+    <title>${feed.title || 'Unknown Feed'}</title>
+    <description>${feed.description || ''}</description>
+    <link>${feed.link || ''}</link>
+    <language>${feed.language || 'en'}</language>`;
+        
+        if (feed.image) {
+            rss += `
+    <image>
+        <url>${feed.image}</url>
+        <title>${feed.title || 'Unknown Feed'}</title>
+        <link>${feed.link || ''}</link>
+    </image>`;
+        }
+        
+        items.forEach((item: any) => {
+            rss += `
+    <item>
+        <title>${item.title || ''}</title>
+        <link>${item.link || ''}</link>
+        <description><![CDATA[${item.description || ''}]]></description>
+        <pubDate>${item.pubDate || new Date().toISOString()}</pubDate>
+        <guid>${item.link || ''}</guid>
+    </item>`;
+        });
+        
+        rss += `
+</channel>
+</rss>`;
+        
+        return rss;
+    }
+    
     try {
         try {
             return await tryFetch(url);
         } catch (err) {
-            console.warn(`[RSS] First attempt failed for ${url}:`, err);
+            
             if (/^http:\/\//i.test(url)) {
                 const httpsUrl = url.replace(/^http:\/\//i, 'https://');
                 if (httpsUrl !== url) {
@@ -341,27 +421,54 @@ export async function fetchFeedXml(url: string): Promise<string> {
             throw err;
         }
     } catch (error) {
-        console.error(`[RSS] All direct attempts failed for ${url}:`, error);
+        // Check if it's a Cloudflare protection error
+        if (error.message && error.message.includes('Blocked by Cloudflare protection')) {
+            // Trying proxy due to Cloudflare protection
+        }
         
         try {
             const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`;
             const proxyResponse = await requestUrl({ url: proxyUrl, method: "GET" });
-            return proxyResponse.text;
-        } catch (proxyError) {
-            console.error(`Codetabs proxy fetch failed for ${url}:`, proxyError);
             
+            // Check if proxy returned valid content
+            if (proxyResponse.text && !proxyResponse.text.includes('Just a moment') && !proxyResponse.text.includes('Cloudflare')) {
+                return proxyResponse.text;
+            } else {
+                throw new Error('First proxy blocked by Cloudflare');
+            }
+        } catch (proxyError) {
             try {
                 const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
                 const proxyResponse = await requestUrl({ url: allOriginsUrl, method: "GET" });
                 const data = JSON.parse(proxyResponse.text);
                 if (!data.contents) throw new Error('No contents from AllOrigins');
+                
+                // Check if proxy returned valid content
+                if (data.contents.includes('Just a moment') || data.contents.includes('Cloudflare')) {
+                    throw new Error('Second proxy also blocked by Cloudflare');
+                }
+                
                 if (data.contents.includes('<?php') || data.contents.includes('WordPress')) {
                     throw new Error('Proxy also returned PHP file instead of RSS feed');
                 }
+                
                 return data.contents;
             } catch (proxyError2) {
-                console.error(`AllOrigins proxy fetch failed for ${url}:`, proxyError2);
-                throw proxyError2;
+                // Try a third proxy option
+                try {
+                    const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
+                    const proxyResponse = await requestUrl({ url: rss2jsonUrl, method: "GET" });
+                    const data = JSON.parse(proxyResponse.text);
+                    
+                    if (data.status === 'ok' && data.feed) {
+                        // Convert RSS2JSON response back to RSS format
+                        return convertRss2JsonToRss(data);
+                    } else {
+                        throw new Error('RSS2JSON returned error: ' + (data.message || 'Unknown error'));
+                    }
+                } catch (proxyError3) {
+                    throw proxyError2; // Throw the original error
+                }
             }
         }
     }
@@ -508,8 +615,25 @@ export class CustomXMLParser {
             .replace(/\]\]>/g, '')
             .trim();
         
+        // Decode HTML entities more comprehensively
+        cleaned = this.decodeHtmlEntities(cleaned);
         
-        cleaned = cleaned
+        // Clean up whitespace
+        cleaned = cleaned.replace(/\s+/g, ' ').trim();
+        
+        return cleaned;
+    }
+
+    public decodeHtmlEntities(text: string): string {
+        if (!text) return '';
+        
+        // Create a temporary element to decode HTML entities
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = text;
+        let decoded = textarea.value;
+        
+        // Handle specific entities that might not be decoded by the browser
+        decoded = decoded
             .replace(/&nbsp;/g, ' ')
             .replace(/&amp;/g, '&')
             .replace(/&lt;/g, '<')
@@ -524,11 +648,16 @@ export class CustomXMLParser {
             .replace(/&#8220;/g, '\u201C') 
             .replace(/&#8221;/g, '\u201D') 
             .replace(/&#8211;/g, '\u2013') 
-            .replace(/&#8212;/g, '\u2014') 
-            .replace(/\s+/g, ' ') 
-            .trim();
+            .replace(/&#8212;/g, '\u2014')
+            .replace(/&#038;/g, '&')  // Common WordPress entity
+            .replace(/&#x26;/g, '&')  // Hex version of &
+            .replace(/&#x3c;/g, '<')  // Hex version of <
+            .replace(/&#x3e;/g, '>')  // Hex version of >
+            .replace(/&#x22;/g, '"')  // Hex version of "
+            .replace(/&#x27;/g, "'")  // Hex version of '
+            .replace(/&#x2f;/g, '/'); // Hex version of /
         
-        return cleaned;
+        return decoded;
     }
 
     private getAttribute(element: Element | null, tagName: string, attribute: string): string {
@@ -589,19 +718,14 @@ export class CustomXMLParser {
     private sanitizeText(text: string): string {
         if (!text) return '';
         
+        // Remove HTML tags first
+        let cleaned = text.replace(/<[^>]*>/g, '');
         
-        return text
-            .replace(/<[^>]*>/g, '') 
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'")
-            .replace(/&#x27;/g, "'")
-            .replace(/&#x2F;/g, '/')
-            .replace(/\s+/g, ' ') 
-            .trim();
+        // Decode HTML entities
+        cleaned = this.decodeHtmlEntities(cleaned);
+        
+        // Clean up whitespace
+        return cleaned.replace(/\s+/g, ' ').trim();
     }
 
     private convertAppUrls(url: string): string {
@@ -997,7 +1121,6 @@ export class CustomXMLParser {
     }
 
     private fallbackParse(xmlString: string): ParsedFeed {
-        
         try {
             
             
@@ -1176,7 +1299,7 @@ export class CustomXMLParser {
                 feedImageUrl: ""
             };
         } catch (error) {
-            console.error('Fallback parsing failed:', error);
+            
             throw new Error(`Fallback parsing failed: ${error}`);
         }
     }
@@ -1286,39 +1409,30 @@ export class CustomXMLParser {
 
     async parseString(xmlString: string): Promise<ParsedFeed> {
         try {
-            
+            // If JSON feed
             if (xmlString.trim().startsWith('{')) {
                 return this.parseJSON(xmlString);
             }
 
-            
             let cleanedXml = this.preprocessXmlContent(xmlString.trim());
 
             const encoding = this.detectEncoding(cleanedXml);
             const doc = this.parseXML(cleanedXml);
-            
-            
+
             const parserError = doc.querySelector('parsererror');
             if (parserError) {
-                console.warn('XML parsing errors detected:', parserError.textContent);
-                console.warn('Attempting RSS content extraction...');
-                
-                
+                // Try to extract RSS content and re-parse
                 const extractedXml = this.extractRssContent(xmlString);
                 if (extractedXml !== xmlString) {
                     try {
                         const extractedDoc = this.parseXML(extractedXml);
                         const extractedParserError = extractedDoc.querySelector('parsererror');
                         if (!extractedParserError && this.validateFeedStructure(extractedDoc)) {
-                            
-                            
-                            
                             const rootElement = extractedDoc.documentElement;
                             const isRDF = rootElement && 
                                 (rootElement.tagName.toLowerCase() === 'rdf:rdf' ||
                                  rootElement.getAttribute('xmlns:rdf') || 
                                  rootElement.getAttribute('xmlns')?.includes('rdf'));
-                            
                             if (isRDF) {
                                 return this.parseRSS1(extractedDoc);
                             } else if (extractedDoc.querySelector('rss')) {
@@ -1328,27 +1442,22 @@ export class CustomXMLParser {
                             }
                         }
                     } catch (extractError) {
-                        console.warn('Extracted XML parsing failed:', extractError);
+                        // Error during extractedXml parse
                     }
                 }
-                
-                console.warn('Attempting fallback parsing');
+                // Fallback parse
                 return this.fallbackParse(xmlString);
             }
 
-            
             if (!this.validateFeedStructure(doc)) {
-                console.warn('Invalid feed structure detected, attempting fallback parsing');
                 return this.fallbackParse(xmlString);
             }
 
-            
             const rootElement = doc.documentElement;
             const isRDF = rootElement && 
                 (rootElement.tagName.toLowerCase() === 'rdf:rdf' ||
                  rootElement.getAttribute('xmlns:rdf') || 
                  rootElement.getAttribute('xmlns')?.includes('rdf'));
-            
             if (isRDF) {
                 return this.parseRSS1(doc);
             } else if (doc.querySelector('rss')) {
@@ -1356,14 +1465,9 @@ export class CustomXMLParser {
             } else if (doc.querySelector('feed')) {
                 return this.parseAtom(doc);
             } else {
-                console.warn('Unknown feed format, attempting fallback parsing');
                 return this.fallbackParse(xmlString);
             }
         } catch (error) {
-            console.error('Error parsing feed:', error);
-            console.error('Original XML length:', xmlString.length);
-            console.error('XML preview:', xmlString.substring(0, 500));
-            
             try {
                 return this.fallbackParse(xmlString);
             } catch (fallbackError) {
@@ -1415,9 +1519,45 @@ export class FeedParser {
             
             return new URL(relativeUrl, base).href;
         } catch (error) {
-            console.warn(`Failed to convert relative URL "${relativeUrl}" to absolute URL with base "${baseUrl}":`, error);
+            
             return relativeUrl;
         }
+    }
+
+    private decodeHtmlEntities(text: string): string {
+        if (!text) return '';
+        
+        // Create a temporary element to decode HTML entities
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = text;
+        let decoded = textarea.value;
+        
+        // Handle specific entities that might not be decoded by the browser
+        decoded = decoded
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&#x27;/g, "'")
+            .replace(/&#x2F;/g, '/')
+            .replace(/&#8230;/g, '...') 
+            .replace(/&#8217;/g, '\u2019') 
+            .replace(/&#8216;/g, '\u2018') 
+            .replace(/&#8220;/g, '\u201C') 
+            .replace(/&#8221;/g, '\u201D') 
+            .replace(/&#8211;/g, '\u2013') 
+            .replace(/&#8212;/g, '\u2014')
+            .replace(/&#038;/g, '&')  // Common WordPress entity
+            .replace(/&#x26;/g, '&')  // Hex version of &
+            .replace(/&#x3c;/g, '<')  // Hex version of <
+            .replace(/&#x3e;/g, '>')  // Hex version of >
+            .replace(/&#x22;/g, '"')  // Hex version of "
+            .replace(/&#x27;/g, "'")  // Hex version of '
+            .replace(/&#x2f;/g, '/'); // Hex version of /
+        
+        return decoded;
     }
 
     
@@ -1435,7 +1575,9 @@ export class FeedParser {
             content = content.replace(
                 /<img([^>]+)src=["']([^"']+)["']/gi,
                 (match, attributes, src) => {
-                    const absoluteSrc = this.convertToAbsoluteUrl(src, baseUrl);
+                    // Decode HTML entities in the URL
+                    const decodedSrc = this.parser.decodeHtmlEntities(src);
+                    const absoluteSrc = this.convertToAbsoluteUrl(decodedSrc, baseUrl);
                     return `<img${attributes}src="${absoluteSrc}"`;
                 }
             );
@@ -1452,7 +1594,9 @@ export class FeedParser {
                         if (urlMatch) {
                             const url = urlMatch[1];
                             const sizeDescriptor = urlMatch[2] || '';
-                            const absoluteUrl = this.convertToAbsoluteUrl(url, baseUrl);
+                            // Decode HTML entities in the URL
+                            const decodedUrl = this.parser.decodeHtmlEntities(url);
+                            const absoluteUrl = this.convertToAbsoluteUrl(decodedUrl, baseUrl);
                             return absoluteUrl + sizeDescriptor;
                         }
                         return trimmedPart;
@@ -1465,14 +1609,16 @@ export class FeedParser {
             content = content.replace(
                 /<a([^>]+)href=["']([^"']+)["']/gi,
                 (match, attributes, href) => {
-                    const absoluteHref = this.convertToAbsoluteUrl(href, baseUrl);
+                    // Decode HTML entities in the URL
+                    const decodedHref = this.decodeHtmlEntities(href);
+                    const absoluteHref = this.convertToAbsoluteUrl(decodedHref, baseUrl);
                     return `<a${attributes}href="${absoluteHref}"`;
                 }
             );
             
             return content;
         } catch (error) {
-            console.warn(`Failed to convert relative URLs in content with base "${baseUrl}":`, error);
+            
             return content;
         }
     }
@@ -1535,7 +1681,7 @@ export class FeedParser {
                 }
             }
         } catch (e) {
-            console.error("Error extracting cover image:", e);
+            
         }
 
         return "";
@@ -1598,24 +1744,20 @@ export class FeedParser {
             const doc = parser.parseFromString(description, "text/html");
             let text = doc.body.textContent || "";
             
+            // Decode HTML entities
+            text = this.decodeHtmlEntities(text);
             
-            text = text.replace(/\s+/g, ' ')
-                      .replace(/&nbsp;/g, ' ')
-                      .replace(/&amp;/g, '&')
-                      .replace(/&lt;/g, '<')
-                      .replace(/&gt;/g, '>')
-                      .replace(/&quot;/g, '"')
-                      .replace(/&#39;/g, "'")
-                      .trim();
+            // Clean up whitespace
+            text = text.replace(/\s+/g, ' ').trim();
             
-            
+            // Truncate if too long
             if (text.length > maxLength) {
                 text = text.substring(0, maxLength) + '...';
             }
             
             return text;
         } catch (e) {
-            console.error("Error extracting summary:", e);
+            
             return "";
         }
     }
@@ -1838,7 +1980,7 @@ export class FeedParser {
 
             return newFeed;
         } catch (error) {
-            console.error(`Error parsing feed ${url}:`, error);
+            
             throw error;
         }
     }
@@ -1874,7 +2016,7 @@ export class FeedParser {
             
             return refreshedFeed;
         } catch (error) {
-            console.error(`Error refreshing feed ${feed.title}:`, error);
+            
             return feed;
         }
     }
@@ -1888,7 +2030,7 @@ export class FeedParser {
                 const refreshedFeed = await this.refreshFeed(feed);
                 updatedFeeds.push(refreshedFeed);
             } catch (error) {
-                console.error(`Error refreshing feed ${feed.title}:`, error);
+                
                 updatedFeeds.push(feed); 
             }
         }
@@ -1980,7 +2122,7 @@ export class FeedParserService {
                 mediaType: isPodcast ? 'podcast' : 'article'
             };
         } catch (error) {
-            console.error("Error parsing feed:", error);
+            
             throw error;
         }
     }

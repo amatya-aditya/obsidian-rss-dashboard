@@ -21,7 +21,7 @@ export class MediaService {
     
     static async getYouTubeRssFeed(input: string): Promise<string | null> {
         if (!input) {
-            console.error("No input provided for YouTube feed conversion");
+            
             return null;
         }
 
@@ -69,7 +69,7 @@ export class MediaService {
                             channelId = match[1];
                         }
                     } catch (error) {
-                        console.error("Error fetching YouTube handle page:", error);
+                        
                         new Notice(`Error fetching YouTube channel: ${error instanceof Error ? error.message : 'Unknown error'}`);
                     }
                 }
@@ -104,7 +104,7 @@ export class MediaService {
                             channelId = idMatch[1];
                         }
                     } catch (error) {
-                        console.error("Error fetching YouTube custom URL page:", error);
+                        
                         new Notice(`Error fetching YouTube channel: ${error instanceof Error ? error.message : 'Unknown error'}`);
                     }
                 }
@@ -123,7 +123,7 @@ export class MediaService {
                 return `https://www.youtube.com/feeds/videos.xml?user=${username}`;
             }
         } catch (error) {
-            console.error("Error processing YouTube feed URL:", error);
+            
             new Notice(`Error processing YouTube feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
         
@@ -180,7 +180,7 @@ export class MediaService {
                 }
             }
         } catch (error) {
-            console.error("Error checking podcast feed:", error);
+            
         }
         
         return false;
@@ -204,7 +204,7 @@ export class MediaService {
                 }
             }
         } catch (error) {
-            console.error("Error extracting YouTube video ID:", error);
+            
         }
         
         return undefined;
@@ -239,7 +239,7 @@ export class MediaService {
                 return sourceMatch[1];
             }
         } catch (error) {
-            console.error("Error extracting podcast audio URL:", error);
+            
         }
         
         return undefined;
@@ -260,7 +260,7 @@ export class MediaService {
                 return durationMatch[1];
             }
         } catch (error) {
-            console.error("Error extracting podcast duration:", error);
+            
         }
         
         return undefined;

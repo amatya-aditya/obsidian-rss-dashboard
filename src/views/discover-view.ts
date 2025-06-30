@@ -71,7 +71,7 @@ export class DiscoverView extends ItemView {
 
             this.filterFeeds();
         } catch (error) {
-            console.error('Error loading discover data:', error);
+            
             this.error = error instanceof Error ? error.message : 'Unknown error occurred';
         } finally {
             this.isLoading = false;
@@ -1097,7 +1097,7 @@ export class DiscoverView extends ItemView {
             const folder = this.getFolderForFeedType(feed.type);
             await this.plugin.addFeed(feed.title, feed.url, folder);
         } catch (error) {
-            console.error('Error adding feed:', error);
+            
             new Notice(`Failed to add feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }

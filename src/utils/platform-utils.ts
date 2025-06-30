@@ -92,9 +92,9 @@ export function logPlatformInfo(): void {
     const features = checkFeatureSupport();
     const recommendations = getPlatformRecommendations();
     
-    console.log('Platform Detection:', platform);
-    console.log('Feature Support:', features);
-    console.log('Recommendations:', recommendations);
+    
+    
+    
 }
 
 

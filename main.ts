@@ -41,7 +41,7 @@ export default class RssDashboardPlugin extends Plugin {
     private isBackgroundImporting = false;
 
     async onload() {
-        console.log("Loading RSS Dashboard plugin");
+        
         
         
         this.platformInfo = detectPlatform();
@@ -50,7 +50,7 @@ export default class RssDashboardPlugin extends Plugin {
         
         const recommendations = getPlatformRecommendations();
         if (recommendations.length > 0) {
-            console.log("Platform recommendations:", recommendations);
+            
         }
         
         await this.loadSettings();
@@ -62,7 +62,7 @@ export default class RssDashboardPlugin extends Plugin {
             
             
             if (this.platformInfo.isMobile) {
-                console.log("Mobile device detected - applying optimizations");
+                
                 this.applyMobileOptimizations();
             }
             
@@ -185,9 +185,9 @@ export default class RssDashboardPlugin extends Plugin {
                 )
             );
             
-            console.log("RSS Dashboard plugin loaded successfully");
+            
         } catch (error) {
-            console.error("Error initializing RSS Dashboard plugin:", error);
+            
             new Notice("Error initializing RSS Dashboard plugin. Check console for details.");
         }
     }
@@ -197,25 +197,25 @@ export default class RssDashboardPlugin extends Plugin {
         
         if (this.settings.refreshInterval < 60) {
             this.settings.refreshInterval = 60; 
-            console.log("Adjusted refresh interval for mobile optimization");
+            
         }
         
         
         if (this.settings.maxItems > 50) {
             this.settings.maxItems = 50;
-            console.log("Reduced max items for mobile optimization");
+            
         }
         
         
         if (this.settings.viewStyle === "list") {
             this.settings.viewStyle = "card";
-            console.log("Switched to card view for mobile optimization");
+            
         }
         
         
         if (!this.settings.sidebarCollapsed) {
             this.settings.sidebarCollapsed = true;
-            console.log("Collapsed sidebar for mobile optimization");
+            
         }
     }
 
@@ -252,7 +252,7 @@ export default class RssDashboardPlugin extends Plugin {
                 workspace.revealLeaf(leaf);
             }
         } catch (error) {
-            console.error("Error activating RSS Dashboard view:", error);
+            
             new Notice("Error opening RSS Dashboard view");
         }
     }
@@ -288,7 +288,7 @@ export default class RssDashboardPlugin extends Plugin {
                 workspace.revealLeaf(leaf);
             }
         } catch (error) {
-            console.error("Error activating RSS Discover view:", error);
+            
             new Notice("Error opening RSS Discover view");
         }
     }
@@ -356,7 +356,7 @@ export default class RssDashboardPlugin extends Plugin {
                 new Notice(`Feeds refreshed: ${feedNoticeText}`);
             }
         } catch (error) {
-            console.error("Error refreshing", error);
+            
             new Notice(`Error refreshing  ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -405,7 +405,7 @@ export default class RssDashboardPlugin extends Plugin {
                 new Notice("No feeds needed limit adjustments");
             }
         } catch (error) {
-            console.error("Error applying feed limits:", error);
+            
             new Notice(`Error applying feed limits: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -647,7 +647,7 @@ export default class RssDashboardPlugin extends Plugin {
                 processedCount++;
 
             } catch (error) {
-                console.error(`Failed to parse feed ${feedMetadata.url}`, error);
+                
                 feedMetadata.importStatus = 'failed';
                 feedMetadata.importError = error instanceof Error ? error.message : 'Unknown error';
                 processedCount++;
@@ -767,7 +767,7 @@ export default class RssDashboardPlugin extends Plugin {
                 }
                 await this.saveSettings();
             } catch (error) {
-                console.error("Error parsing new feed:", error);
+                
                 new Notice(`Error parsing feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
 
@@ -776,7 +776,7 @@ export default class RssDashboardPlugin extends Plugin {
             }
             new Notice(`Feed "${title}" added`);
         } catch (error) {
-            console.error("Error adding feed:", error);
+            
             new Notice(`Error adding feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -803,7 +803,7 @@ export default class RssDashboardPlugin extends Plugin {
             await this.addFeed(title, feedUrl, this.settings.media.defaultYouTubeFolder);
             
         } catch (error) {
-            console.error("Error adding YouTube feed:", error);
+            
             new Notice(`Error adding YouTube feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -876,7 +876,7 @@ export default class RssDashboardPlugin extends Plugin {
                 this.settings.articleSaving = Object.assign({}, DEFAULT_SETTINGS.articleSaving, this.settings.articleSaving);
             }
         } catch (error) {
-            console.error("Error loading settings:", error);
+            
             new Notice(`Error loading settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
             this.settings = DEFAULT_SETTINGS;
         }
@@ -923,14 +923,14 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     onunload() {
-        console.log("Unloading RSS Dashboard plugin");
+        
         this.app.workspace.detachLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
         this.app.workspace.detachLeavesOfType(RSS_READER_VIEW_TYPE);
     }
 
     
     private async validateSavedArticles(): Promise<void> {
-        console.log("Validating saved articles...");
+        
         let updatedCount = 0;
         
         for (const feed of this.settings.feeds) {
@@ -938,7 +938,7 @@ export default class RssDashboardPlugin extends Plugin {
                 if (item.saved) {
                     const fileExists = await this.checkSavedFileExists(item);
                     if (!fileExists) {
-                        console.log(`File for saved article "${item.title}" no longer exists, updating status`);
+                        
                         item.saved = false;
                         
                         
@@ -953,7 +953,7 @@ export default class RssDashboardPlugin extends Plugin {
         }
         
         if (updatedCount > 0) {
-            console.log(`Updated ${updatedCount} articles that were marked as saved but files no longer exist`);
+            
             await this.saveSettings();
             
             
@@ -974,7 +974,7 @@ export default class RssDashboardPlugin extends Plugin {
             
             return await this.app.vault.adapter.exists(filePath);
         } catch (error) {
-            console.error(`Error checking if file exists for article "${item.title}":`, error);
+            
             return false;
         }
     }

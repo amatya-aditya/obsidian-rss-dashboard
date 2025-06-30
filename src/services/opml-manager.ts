@@ -266,7 +266,7 @@ export class OpmlManager {
                 folders: mergedFolders
             };
         } catch (error) {
-            console.error("Error parsing OPML:", error);
+            
             throw new Error("Failed to import OPML: Invalid format");
         }
     }

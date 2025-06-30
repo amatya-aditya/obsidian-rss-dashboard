@@ -16,7 +16,7 @@ export class VideoPlayer {
     
     loadVideo(item: FeedItem): void {
         if (!item.videoId) {
-            console.error("No video ID provided for video");
+            
             new Notice("Error: No video ID provided");
             return;
         }
@@ -25,7 +25,7 @@ export class VideoPlayer {
             this.currentItem = item;
             this.render();
         } catch (error) {
-            console.error("Error loading video:", error);
+            
             new Notice(`Error loading video: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }

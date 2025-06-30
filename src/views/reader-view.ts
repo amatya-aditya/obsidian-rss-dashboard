@@ -564,7 +564,7 @@ export class ReaderView extends ItemView {
             
             return this.convertRelativeUrlsInContent(content, url);
         } catch (error) {
-            console.error("Error fetching full article content:", error);
+            
             return "";
         }
     }
@@ -679,7 +679,7 @@ export class ReaderView extends ItemView {
             );
             return content;
         } catch (error) {
-            console.warn(`Failed to convert relative URLs in content with base "${baseUrl}":`, error);
+            
             return content;
         }
     }
@@ -715,7 +715,7 @@ export class ReaderView extends ItemView {
             
             return new URL(relativeUrl, base).href;
         } catch (error) {
-            console.warn(`Failed to convert relative URL "${relativeUrl}" to absolute URL with base "${baseUrl}":`, error);
+            
             return relativeUrl;
         }
     }
@@ -745,7 +745,7 @@ export class ReaderView extends ItemView {
             
             return await this.app.vault.adapter.exists(filePath);
         } catch (error) {
-            console.error(`Error checking if file exists for article "${item.title}":`, error);
+            
             return false;
         }
     }

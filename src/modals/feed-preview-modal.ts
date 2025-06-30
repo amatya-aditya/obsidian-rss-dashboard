@@ -87,7 +87,7 @@ export class FeedPreviewModal extends Modal {
             
             this.renderContent();
         } catch (error) {
-            console.error('Error loading feed preview:', error);
+            
             this.error = error instanceof Error ? error.message : 'Unknown error occurred';
             this.renderError();
         } finally {
@@ -172,7 +172,7 @@ export class FeedPreviewModal extends Modal {
 
             return articles;
         } catch (error) {
-            console.error('Error parsing feed XML:', error);
+            
             return [];
         }
     }

@@ -40,7 +40,7 @@ export class WebViewerIntegration {
                 
                 return true;
             } catch (error) {
-                console.error("Error opening URL in web viewer:", error);
+                
                 new Notice(`Error opening URL in web viewer: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 return false;
             }
@@ -184,7 +184,7 @@ export class WebViewerIntegration {
                 
                 document.body.removeChild(modal);
             } catch (error) {
-                console.error("Error saving article:", error);
+                
                 new Notice(`Error saving article: ${error.message}`);
             }
         });
@@ -272,7 +272,7 @@ export class WebViewerIntegration {
             
             return file;
         } catch (error) {
-            console.error("Error saving article:", error);
+            
             throw error;
         }
     }

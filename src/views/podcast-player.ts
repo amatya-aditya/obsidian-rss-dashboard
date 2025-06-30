@@ -47,7 +47,7 @@ export class PodcastPlayer {
             this.setPlaylist(fullFeedEpisodes);
         }
         if (!item.audioUrl) {
-            console.error("No audio URL provided for podcast episode");
+            
             return;
         }
         this.currentItem = item;
@@ -321,7 +321,7 @@ export class PodcastPlayer {
                     setTimeout(() => {
                         if (this.audioElement) {
                             this.audioElement.play().catch(error => {
-                                console.warn("Auto-play failed:", error);
+                                
                             });
                         }
                     }, 100); 
@@ -559,7 +559,7 @@ export class PodcastPlayer {
             
             localStorage.setItem('rss-podcast-progress', JSON.stringify(data));
         } catch (error) {
-            console.error("Error saving podcast progress:", error);
+            
         }
     }
     
@@ -576,7 +576,7 @@ export class PodcastPlayer {
                 });
             }
         } catch (error) {
-            console.error("Error loading podcast progress:", error);
+            
         }
     }
     
