@@ -1,6 +1,6 @@
 import { Notice, Menu, MenuItem, setIcon } from "obsidian";
 import { FeedItem, RssDashboardSettings } from "../types/types";
-import { formatDateWithRelative } from "../utils/platform-utils";
+import { formatDateWithRelative, ensureUtf8Meta } from "../utils/platform-utils";
 
 
 const MAX_VISIBLE_TAGS = 6;
@@ -12,6 +12,7 @@ interface ArticleListCallbacks {
     onArticleUpdate: (article: FeedItem, updates: Partial<FeedItem>, shouldRerender?: boolean) => void;
     onArticleSave: (article: FeedItem) => void;
     onOpenSavedArticle?: (article: FeedItem) => void;
+    onOpenInReaderView?: (article: FeedItem) => void;
     onToggleSidebar: () => void;
     onSortChange: (value: 'newest' | 'oldest') => void;
     onGroupChange: (value: 'none' | 'feed' | 'date' | 'folder') => void;
@@ -1049,6 +1050,16 @@ export class ArticleList {
                     });
             });
             
+            menu.addItem((item: MenuItem) => {
+                item.setTitle("Open in Reader View")
+                    .setIcon("book-open")
+                    .onClick(() => {
+                        if (this.callbacks.onOpenInReaderView) {
+                            this.callbacks.onOpenInReaderView(article);
+                        }
+                    });
+            });
+            
             menu.addSeparator();
         }
         
@@ -1079,7 +1090,7 @@ export class ArticleList {
         });
         
         menu.addItem((item: MenuItem) => {
-            item.setTitle(article.starred ? "Remove Star" : "Star")
+            item.setTitle(article.starred ? "Unstar articles" : "Star articles")
                 .setIcon("star")
                 .onClick(() => {
                     this.callbacks.onArticleUpdate(article, { starred: !article.starred }, false);
@@ -1212,9 +1223,10 @@ export class ArticleList {
 }
 
 function extractFirstImageSrc(html: string): string | null {
-    
+    // Ensure UTF-8 meta tag before parsing
+    const htmlWithMeta = ensureUtf8Meta(html);
     const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+    const doc = parser.parseFromString(htmlWithMeta, 'text/html');
     const img = doc.querySelector("img");
     return img ? img.getAttribute("src") : null;
 }

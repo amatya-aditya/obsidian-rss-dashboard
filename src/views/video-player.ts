@@ -1,6 +1,7 @@
 import { Notice } from "obsidian";
 import { FeedItem } from "../types/types";
 import { setIcon } from "obsidian";
+import { ensureUtf8Meta } from '../utils/platform-utils';
 
 export class VideoPlayer {
     private container: HTMLElement;
@@ -92,8 +93,9 @@ export class VideoPlayer {
             
             
             const cleanHtml = (html: string): string => {
+                const htmlWithMeta = ensureUtf8Meta(html);
                 const parser = new DOMParser();
-                const doc = parser.parseFromString(html, "text/html");
+                const doc = parser.parseFromString(htmlWithMeta, "text/html");
                 
                 
                 doc.querySelectorAll("script").forEach(el => el.remove());

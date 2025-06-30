@@ -214,8 +214,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
         { name: "Read Later", color: "#3498db" },
         { name: "Favorite", color: "#f1c40f" },
         { name: "YouTube", color: "#ff0000" },
-        { name: "Podcast", color: "#8e44ad" },
-        { name: "Saved", color: "#16a085" }
+        { name: "Podcast", color: "#8e44ad" }
     ],
     folderSortOrder: { by: "name", ascending: true },
     feedSortOrder: { by: "name", ascending: true },
@@ -228,7 +227,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
         defaultYouTubeTag: "youtube",
         defaultPodcastFolder: "Podcasts",
         defaultPodcastTag: "podcast",
-        autoDetectMediaType: true,
+        autoDetectMediaType: false,
         openInSplitView: true
     },
     articleSaving: {
@@ -269,24 +268,3 @@ guid: "{{guid}}"
         showSummary: true
     }
 };
-
-interface SidebarCallbacks {
-    onFolderClick: (folder: string | null) => void;
-    onFeedClick: (feed: Feed) => void;
-    onTagClick: (tag: string | null) => void;
-    onToggleTagsCollapse: () => void;
-    onToggleFolderCollapse: (folder: string) => void;
-    onAddFolder: (name: string) => void;
-    onAddSubfolder: (parent: string, name: string) => void;
-    onAddFeed: (title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) => Promise<void>;
-    onEditFeed: (feed: Feed, title: string, url: string, folder: string) => void;
-    onDeleteFeed: (feed: Feed) => void;
-    onDeleteFolder: (folder: string) => void;
-    onRefreshFeeds: () => void;
-    onUpdateFeed: (feed: Feed) => Promise<void>;
-    onImportOpml: () => void;
-    onExportOpml: () => void;
-    onToggleSidebar: () => void;
-    onOpenSettings?: () => void;
-    onManageFeeds?: () => void;
-}

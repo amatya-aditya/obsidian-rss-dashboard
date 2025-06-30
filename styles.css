@@ -586,6 +586,7 @@
 	z-index: 1000;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
+  .rss-dashboard-save-toggle, 
   .rss-dashboard-read-toggle,
   .rss-dashboard-star-toggle,
   .rss-dashboard-tags-toggle {
@@ -601,6 +602,7 @@
 	background-color: var(--background-primary-alt);
 	position: relative
   }
+  .rss-dashboard-save-toggle:hover,
   .rss-dashboard-read-toggle:hover,
   .rss-dashboard-star-toggle:hover,
   .rss-dashboard-tags-toggle:hover {
@@ -1688,7 +1690,7 @@
     max-height: unset;
     height: auto;
     display: block;
-    overflow: hidden;
+    overflow: scroll;
 }
 
 
@@ -3436,13 +3438,13 @@ input.color-circle {
 
 @media (min-width: 768px) and (max-width: 899px) {
     .rss-dashboard-card-view {
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
         gap: 14px;
     }
     
     .rss-dashboard-article-card {
         min-height: 320px;
-        max-height: 320px;
+        max-height: 360px;
     }
     
     .rss-dashboard-card-content {
@@ -3965,13 +3967,13 @@ input.color-circle {
 
 @media (min-width: 900px) and (max-width: 999px) {
     .rss-dashboard-card-view {
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: 15px;
     }
     
     .rss-dashboard-article-card {
         min-height: 340px;
-        max-height: 340px;
+        max-height: 380px;
     }
 }
 
@@ -4644,13 +4646,13 @@ input.color-circle {
 
 @media (max-width: 480px) {
     .rss-dashboard-articles-list.rss-dashboard-card-view {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
         gap: 10px;
     }
     
     .rss-dashboard-article-card {
         min-height: 260px;
-        max-height: 260px;
+        max-height: 280px;
     }
     
     .rss-dashboard-card-content {
@@ -4676,7 +4678,7 @@ input.color-circle {
 
 @media (max-width: 360px) {
     .rss-dashboard-articles-list.rss-dashboard-card-view {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
         gap: 8px;
     }
     
@@ -4703,13 +4705,13 @@ input.color-circle {
 
 @media (max-width: 768px) and (orientation: landscape) {
     .rss-dashboard-articles-list.rss-dashboard-card-view {
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 10px;
     }
     
     .rss-dashboard-article-card {
         min-height: 240px;
-        max-height: 240px;
+        max-height: 320px;
     }
     
     .rss-dashboard-cover-image {

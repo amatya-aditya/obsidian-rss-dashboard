@@ -1,5 +1,3 @@
-
-
 export interface PlatformInfo {
     isMobile: boolean;
     isIOS: boolean;
@@ -185,4 +183,11 @@ export function formatDateWithRelative(date: Date | string): { text: string; tit
         text: relativeTime,
         title: absoluteDate
     };
+}
+
+export function ensureUtf8Meta(html: string): string {
+    if (!/^\s*<meta[^>]+charset=/i.test(html)) {
+        return '<meta charset="UTF-8">' + html;
+    }
+    return html;
 } 

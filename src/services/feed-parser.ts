@@ -123,27 +123,15 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
 }
 
 export async function fetchFeedXml(url: string): Promise<string> {
-    try {
+    
+    async function tryFetch(targetUrl: string): Promise<string> {
+        
+        const isAndroid = /android/i.test(navigator.userAgent);
         
         
         
-        if (url.includes('ieeexplore.ieee.org')) {
-            
-        }
-        
-        let cleanInputUrl = url
-            .replace(/\/+/g, '/')  
-            .replace(/:\/\/[^\/]+\/\/+/, (match) => {
-                
-                const protocolHost = match.replace(/\/+/g, '//');
-                return protocolHost;
-            });
-        
-        const secureUrl = cleanInputUrl.replace(/^http:\/\//i, 'https://');
-        
-
         const response = await requestUrl({
-            url: secureUrl,
+            url: targetUrl,
             method: "GET",
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
@@ -154,15 +142,63 @@ export async function fetchFeedXml(url: string): Promise<string> {
         
         
         
-        if (!response.text) {
+        if (response.status >= 300 && response.status < 400) {
+            const location = response.headers?.['location'] || response.headers?.['Location'];
+            if (location) {
+                
+                return await tryFetch(location);
+            }
+        }
+        
+        let xmlText: string | undefined = undefined;
+        let encoding = 'utf-8';
+        
+        if (response.arrayBuffer) {
+            const buffer = response.arrayBuffer;
+            const ascii = new TextDecoder('ascii').decode(buffer.slice(0, 1024));
+            const encodingMatch = ascii.match(/encoding=["']([^"']+)["']/i);
+            if (encodingMatch) {
+                encoding = encodingMatch[1].toLowerCase();
+            }
+            
+            
+            
+            if (isAndroid && encoding !== 'utf-8' && encoding !== 'utf8') {
+                
+                const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+                const proxyResponse = await requestUrl({ url: allOriginsUrl, method: "GET" });
+                const data = JSON.parse(proxyResponse.text);
+                if (!data.contents) throw new Error('No contents from AllOrigins');
+                return data.contents;
+            }
+            
+            try {
+                xmlText = new TextDecoder(encoding).decode(buffer);
+            } catch (e) {
+                console.warn(`[RSS] Failed to decode with encoding ${encoding}, falling back to UTF-8:`, e);
+                xmlText = new TextDecoder('utf-8').decode(buffer);
+            }
+        }
+        
+        if (!xmlText && response.text) {
+            xmlText = response.text;
+        }
+        
+        if (!xmlText) {
+            console.error(`[RSS] Empty response from ${targetUrl}`);
             throw new Error('Empty response from feed');
         }
-
         
         
-
         
-        if (response.text.includes('<?php') || response.text.includes('WordPress') || response.text.includes('wp-blog-header.php')) {
+        
+        
+        if (!xmlText.includes('<rss') && !xmlText.includes('<feed') && !xmlText.includes('<channel') && !xmlText.includes('<item>')) {
+            console.warn(`[RSS] Response doesn't appear to be RSS/XML: ${xmlText.substring(0, 500)}`);
+        }
+        
+        
+        if (xmlText.includes('<?php') || xmlText.includes('WordPress') || xmlText.includes('wp-blog-header.php')) {
             console.warn('Received PHP file instead of RSS feed, trying alternative URLs...');
             
             
@@ -174,7 +210,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                     .replace(/:\/\/[^\/]+\/\/+/, '://$&'.replace('$&', url.match(/:\/\/[^\/]+/)?.[0] || '')); 
             };
             
-            const baseUrl = cleanUrl(secureUrl);
+            const baseUrl = cleanUrl(targetUrl);
             
             
             const isFeedBurner = baseUrl.includes('feeds.feedburner.com');
@@ -289,24 +325,36 @@ export async function fetchFeedXml(url: string): Promise<string> {
             throw new Error('All alternative feed URLs failed, received PHP file instead of RSS feed');
         }
 
-        return response.text;
+        return xmlText;
+    }
+    
+    try {
+        try {
+            return await tryFetch(url);
+        } catch (err) {
+            console.warn(`[RSS] First attempt failed for ${url}:`, err);
+            
+            if (/^http:\/\//i.test(url)) {
+                const httpsUrl = url.replace(/^http:\/\//i, 'https://');
+                if (httpsUrl !== url) {
+                    
+                    return await tryFetch(httpsUrl);
+                }
+            }
+            throw err;
+        }
     } catch (error) {
-        console.warn(`Direct fetch failed for ${url}, trying AllOrigins proxy...`, error);
+        console.error(`[RSS] All direct attempts failed for ${url}:`, error);
         
         try {
+            
             const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-            const proxyResponse = await requestUrl({
-                url: allOriginsUrl,
-                method: "GET"
-            });
+            const proxyResponse = await requestUrl({ url: allOriginsUrl, method: "GET" });
             const data = JSON.parse(proxyResponse.text);
             if (!data.contents) throw new Error('No contents from AllOrigins');
-            
-            
             if (data.contents.includes('<?php') || data.contents.includes('WordPress')) {
                 throw new Error('Proxy also returned PHP file instead of RSS feed');
             }
-            
             return data.contents;
         } catch (proxyError) {
             console.error(`AllOrigins proxy fetch failed for ${url}:`, proxyError);
@@ -352,7 +400,7 @@ interface ParsedItem {
         episode?: string;
     };
     image?: { url: string };
-    // IEEE-specific fields
+    
     ieee?: {
         pubYear?: string;
         volume?: string;
@@ -558,7 +606,7 @@ export class CustomXMLParser {
             
             if (url.includes('/doi/abs/')) {
                 const transformedUrl = url.replace('/doi/abs/', '/doi/full/');
-                console.log(`Transformed SAGE URL: ${url} -> ${transformedUrl}`);
+                
                 return transformedUrl;
             }
             
@@ -566,7 +614,7 @@ export class CustomXMLParser {
             if (url.includes('/doi/') && !url.includes('/doi/full/')) {
                 
                 const transformedUrl = url.replace('/doi/', '/doi/full/');
-                console.log(`Transformed SAGE DOI URL: ${url} -> ${transformedUrl}`);
+                
                 return transformedUrl;
             }
         }
@@ -1812,36 +1860,36 @@ export class FeedParser {
     }
 }
 
-interface CustomFeed {
-    title?: string;
-    items: CustomItem[];
-}
+// interface CustomFeed {
+//     title?: string;
+//     items: CustomItem[];
+// }
 
-interface CustomItem {
-    title?: string;
-    link?: string;
-    description?: string;
-    pubDate?: string;
-    author?: string;
-    content?: string;
-    guid?: string;
-    enclosure?: {
-        url: string;
-        type: string;
-        length: string;
-    };
-    itunes?: {
-        duration?: string;
-        explicit?: string;
-        image?: { href: string };
-        category?: string;
-        summary?: string;
-        episodeType?: string;
-        season?: string;
-        episode?: string;
-    };
-    image?: { url: string };
-}
+// interface CustomItem {
+//     title?: string;
+//     link?: string;
+//     description?: string;
+//     pubDate?: string;
+//     author?: string;
+//     content?: string;
+//     guid?: string;
+//     enclosure?: {
+//         url: string;
+//         type: string;
+//         length: string;
+//     };
+//     itunes?: {
+//         duration?: string;
+//         explicit?: string;
+//         image?: { href: string };
+//         category?: string;
+//         summary?: string;
+//         episodeType?: string;
+//         season?: string;
+//         episode?: string;
+//     };
+//     image?: { url: string };
+// }
 
 export class FeedParserService {
     private static instance: FeedParserService;

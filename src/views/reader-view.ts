@@ -9,6 +9,7 @@ import { VideoPlayer } from "./video-player";
 import { requestUrl } from "obsidian";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
+import { ensureUtf8Meta } from '../utils/platform-utils';
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
@@ -38,7 +39,7 @@ export class ReaderView extends ItemView {
                 this.webViewerIntegration = new WebViewerIntegration(this.app as any, settings.articleSaving);
             }
         } catch (error) {
-            console.error("Error initializing web viewer integration:", error);
+            
         }
     }
 
@@ -444,18 +445,21 @@ export class ReaderView extends ItemView {
         
         if (this.settings.display.showCoverImage && (item.coverImage || (item.image && typeof item.image === "object" && (item.image as { url?: string }).url) || (typeof item.image === "string" ? item.image : ""))) {
             const imageContainer = this.readingContainer.createDiv({ cls: "rss-reader-cover-image" });
-            imageContainer.createEl("img", {
+            const coverImg = imageContainer.createEl("img", {
                 attr: {
                     src: (item.coverImage || (item.image && typeof item.image === "object" && (item.image as { url?: string }).url) || (typeof item.image === "string" ? item.image : "")) ?? "",
                     alt: item.title
                 }
+            });
+            coverImg.addEventListener('error', function() {
+                this.remove();
             });
         }
         
         const contentContainer = this.readingContainer.createDiv({ cls: "rss-reader-article-content" });
 
         
-        const htmlString = fullContent || item.description || "";
+        const htmlString = ensureUtf8Meta(fullContent || item.description || "");
         const processedHtmlString = this.convertRelativeUrlsInContent(htmlString, item.link);
         const parser = new DOMParser();
         const doc = parser.parseFromString(processedHtmlString, "text/html");
@@ -494,6 +498,10 @@ export class ReaderView extends ItemView {
                 img.setAttribute("src", src.replace("app://", "https://"));
             }
             img.classList.add("rss-reader-responsive-img");
+            // Remove broken images in article content
+            img.addEventListener('error', function() {
+                this.remove();
+            });
         });
 
         
@@ -547,47 +555,9 @@ export class ReaderView extends ItemView {
     async fetchFullArticleContent(url: string): Promise<string> {
         try {
             
-            const headers: Record<string, string> = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
-                "DNT": "1",
-                "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1"
-            };
-
-            const response = await requestUrl({ 
-                url,
-                headers
-            });
-            
-            
-            if (!response.text) {
-                console.warn("Empty response from URL:", url);
-                return "";
-            }
-            
+            const response = await requestUrl({ url });
             const parser = new DOMParser();
             const doc = parser.parseFromString(response.text, "text/html");
-            
-            
-            const errorIndicators = [
-                'access denied',
-                'forbidden',
-                'not found',
-                'page not found',
-                '404',
-                '403',
-                '401'
-            ];
-            
-            const pageText = doc.body.textContent?.toLowerCase() || '';
-            if (errorIndicators.some(indicator => pageText.includes(indicator))) {
-                console.warn("Error page detected for URL:", url);
-                return "";
-            }
-            
             const reader = new Readability(doc);
             const article = reader.parse();
             const content = (article?.content as string) || "";
@@ -620,7 +590,7 @@ export class ReaderView extends ItemView {
         saveButton.addEventListener("click", async () => {
             
             const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
-            console.log("Saving markdown content:", markdownContent);
+            
             const file = await this.articleSaver.saveArticle(item, undefined, undefined, markdownContent);
             if (file) {
                 this.onArticleSave(item);

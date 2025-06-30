@@ -212,6 +212,7 @@ export class RssDashboardView extends ItemView {
                 onArticleUpdate: this.handleArticleUpdate.bind(this),
                 onArticleSave: this.handleArticleSave.bind(this),
                 onOpenSavedArticle: this.handleOpenSavedArticle.bind(this),
+                onOpenInReaderView: this.handleOpenInReaderView.bind(this),
                 onToggleSidebar: this.handleToggleSidebar.bind(this),
                 onSortChange: this.handleSortChange.bind(this),
                 onGroupChange: this.handleGroupChange.bind(this),
@@ -687,7 +688,7 @@ export class RssDashboardView extends ItemView {
                     loadingNotice.hide();
                     return;
                 } else {
-                    console.log(`Saved article file not found for "${article.title}", updating status`);
+                    
                     await this.updateArticleStatus(article, { saved: false }, false);
                     if (article.tags) {
                         article.tags = article.tags.filter(tag => tag.name.toLowerCase() !== "saved");
@@ -1155,7 +1156,7 @@ export class RssDashboardView extends ItemView {
                 loadingNotice.hide();
             } else {
                 
-                console.log(`Saved article file not found for "${article.title}", updating status`);
+                
                 await this.updateArticleStatus(article, { saved: false }, false);
                 
                 
@@ -1170,6 +1171,56 @@ export class RssDashboardView extends ItemView {
             loadingNotice.hide();
             console.error("Error opening saved article:", error);
             new Notice(`Error opening saved article: ${error.message}`);
+        }
+    }
+
+    
+    private async handleOpenInReaderView(article: FeedItem): Promise<void> {
+        this.selectedArticle = article;
+        
+        if (!article.read) {
+            await this.updateArticleStatus(article, { read: true }, false);
+        }
+        
+        const readerLeaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
+        const podcastPlaying = readerLeaves.some(leaf => {
+            const view = leaf.view as any;
+            return view && 
+                   view.podcastPlayer && 
+                   view.podcastPlayer.audioElement && 
+                   !view.podcastPlayer.audioElement.paused &&
+                   view.podcastPlayer.audioElement.currentTime > 0;
+        });
+        
+        if (podcastPlaying) {
+            if (this.settings.media.openInSplitView) {
+                
+                if (
+                    this.articleReaderLeafWhilePodcast &&
+                    this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE).includes(this.articleReaderLeafWhilePodcast)
+                ) {
+                    await this.openArticleInSpecificLeaf(article, this.articleReaderLeafWhilePodcast);
+                } else {
+                    
+                    const newLeaf = await this.openArticleInNewTab(article);
+                    this.articleReaderLeafWhilePodcast = newLeaf;
+                }
+            } else {
+                window.open(article.link, "_blank");
+            }
+        } else {
+            
+            this.articleReaderLeafWhilePodcast = null;
+            if (this.settings.media.openInSplitView) {
+                
+                if (readerLeaves.length > 0) {
+                    await this.openArticleInSpecificLeaf(article, readerLeaves[0]);
+                } else {
+                    await this.openArticleInNewTab(article);
+                }
+            } else {
+                window.open(article.link, "_blank");
+            }
         }
     }
 

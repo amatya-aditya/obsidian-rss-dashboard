@@ -2,6 +2,7 @@ import { TFile, Vault, Notice, requestUrl } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
 import TurndownService from "turndown";
 import { Readability } from "@mozilla/readability";
+import { ensureUtf8Meta } from '../utils/platform-utils';
 
 // @ts-ignore
 export class ArticleSaver {
@@ -28,8 +29,10 @@ export class ArticleSaver {
    
     private cleanHtml(html: string): string {
         try {
+            
+            const htmlWithMeta = ensureUtf8Meta(html);
             const parser = new DOMParser();
-            const doc = parser.parseFromString(html, "text/html");
+            const doc = parser.parseFromString(htmlWithMeta, "text/html");
             
             
             const elementsToRemove = doc.querySelectorAll(
@@ -252,7 +255,7 @@ guid: "{{guid}}"
                 
                 if (url.includes('journals.sagepub.com') && url.includes('/doi/full/')) {
                     const abstractUrl = url.replace('/doi/full/', '/doi/abs/');
-                    console.log(`Trying abstract URL as fallback: ${abstractUrl}`);
+                    
                     
                     try {
                         response = await requestUrl({ 
@@ -261,11 +264,11 @@ guid: "{{guid}}"
                         });
                         
                         if (!response.text) {
-                            console.warn("Empty response from abstract URL as well:", abstractUrl);
+                            
                             return "";
                         }
                     } catch (fallbackError) {
-                        console.error("Error fetching abstract URL:", fallbackError);
+                        
                         return "";
                     }
                 } else {
@@ -289,12 +292,12 @@ guid: "{{guid}}"
             
             const pageText = doc.body.textContent?.toLowerCase() || '';
             if (errorIndicators.some(indicator => pageText.includes(indicator))) {
-                console.warn("Error page detected for URL:", url);
+                
                 
                 
                 if (url.includes('journals.sagepub.com') && url.includes('/doi/full/')) {
                     const abstractUrl = url.replace('/doi/full/', '/doi/abs/');
-                    console.log(`Trying abstract URL as fallback due to error page: ${abstractUrl}`);
+                    
                     
                     try {
                         const fallbackResponse = await requestUrl({ 
@@ -307,7 +310,7 @@ guid: "{{guid}}"
                             const fallbackPageText = fallbackDoc.body.textContent?.toLowerCase() || '';
                             
                             if (!errorIndicators.some(indicator => fallbackPageText.includes(indicator))) {
-                                console.log("Successfully fetched content from abstract URL");
+                                
                                 return this.extractContentFromDocument(fallbackDoc, abstractUrl);
                             }
                         }
@@ -328,15 +331,15 @@ guid: "{{guid}}"
     
     private extractContentFromDocument(doc: Document, url: string): string {
         if (typeof Readability !== 'undefined') {
-            const reader = new Readability(doc);
-            const article = reader.parse();
+            const article = new Readability(doc).parse();
             const content = (article?.content as string) || "";
-            return this.convertRelativeUrlsInContent(content, url);
+            
+            return this.convertRelativeUrlsInContent(ensureUtf8Meta(content), url);
         } else {
             
             const mainContent = doc.querySelector('main, article, .content, .post-content, .entry-content, .article-content, .full-text');
             if (mainContent) {
-                return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(mainContent), url);
+                return this.convertRelativeUrlsInContent(ensureUtf8Meta(new XMLSerializer().serializeToString(mainContent)), url);
             } else {
                 
                 const contentSelectors = [
@@ -353,12 +356,12 @@ guid: "{{guid}}"
                 for (const selector of contentSelectors) {
                     const element = doc.querySelector(selector);
                     if (element) {
-                        return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(element), url);
+                        return this.convertRelativeUrlsInContent(ensureUtf8Meta(new XMLSerializer().serializeToString(element)), url);
                     }
                 }
                 
                 
-                return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(doc.body), url);
+                return this.convertRelativeUrlsInContent(ensureUtf8Meta(new XMLSerializer().serializeToString(doc.body)), url);
             }
         }
     }
