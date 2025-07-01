@@ -1,5 +1,31 @@
 [
   {
+    "id": "feed-000",
+    "title": "Obsidian Changelog",
+    "url": "https://obsidian.md/changelog.xml",
+    "imageUrl": "https://obsidian.md/images/obsidian-logo-gradient.svg",
+    "domain": [
+      "Technology"
+    ],
+    "subdomain": [
+      "Productivity"
+    ],
+    "area": [
+      "PKM"
+    ],
+    "topic": [
+      "Updates"
+    ],
+    "tags": [
+      "obsidian",
+      "changelog"
+    ],
+    "type": "Release Notes",
+    "createdAt": "2025-06-25T16:55:00.000Z",
+    "summary": "Follow Obsidian updates and improvements.",
+    "rating": 5
+  },
+  {
     "id": "feed-001",
     "title": "BBC News - World",
     "url": "https://feeds.bbci.co.uk/news/world/rss.xml",

@@ -1037,6 +1037,36 @@
 	height: 100%;
 	border: 0
   }
+  
+  /* iPad-specific video player styles */
+  .rss-video-player-ios {
+	-webkit-overflow-scrolling: touch;
+	touch-action: manipulation;
+  }
+  
+  .rss-video-container-ios {
+	-webkit-overflow-scrolling: touch;
+	touch-action: manipulation;
+	position: relative;
+	width: 100%;
+	padding-top: 56.25%;
+	overflow: hidden;
+	background-color: #000;
+	z-index: 1;
+  }
+  
+  .rss-video-container-ios iframe {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	border: 0;
+	-webkit-transform: translateZ(0);
+	transform: translateZ(0);
+	-webkit-backface-visibility: hidden;
+	backface-visibility: hidden;
+  }
   .rss-video-details {
 	padding: 15px
   }
@@ -1084,6 +1114,30 @@
   }
   .rss-video-youtube-button:hover {
 	background-color: #c00
+  }
+  
+  /* iPad-specific button and control styles */
+  .rss-video-player-ios .rss-video-youtube-button {
+	min-height: 44px;
+	min-width: 44px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+  }
+  
+  .rss-video-player-ios .rss-video-quality-option {
+	min-height: 32px;
+	min-width: 44px;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+  }
+  
+  .rss-video-player-ios .rss-video-related-item {
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+	min-height: 44px;
   }
   .rss-video-quality {
 	display: flex;
@@ -7304,4 +7358,114 @@ color: white;
 
 .rss-dashboard-settings-tab-content {
   margin-top: 12px;
+}
+
+/* iPad-specific video player media queries */
+@media (max-width: 1024px) and (min-width: 768px) {
+  .rss-video-player-ios {
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  
+  .rss-video-container-ios {
+    padding-top: 56.25%;
+  }
+  
+  .rss-video-player-ios .rss-video-details {
+    padding: 10px;
+  }
+  
+  .rss-video-player-ios .rss-video-title {
+    font-size: 1.2em;
+  }
+}
+
+@media (max-width: 768px) {
+  .rss-video-player-ios {
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  
+  .rss-video-container-ios {
+    padding-top: 56.25%;
+  }
+  
+  .rss-video-player-ios .rss-video-details {
+    padding: 8px;
+  }
+  
+  .rss-video-player-ios .rss-video-title {
+    font-size: 1.1em;
+  }
+  
+  .rss-video-player-ios .rss-video-related-list {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+/* Additional iPad-specific video player improvements */
+@media (max-width: 1024px) and (min-width: 768px) {
+  .rss-video-container-ios iframe {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    will-change: transform;
+  }
+  
+  .rss-video-player-ios .rss-video-links {
+    padding: 12px 15px;
+  }
+  
+  .rss-video-player-ios .rss-video-quality-options {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .rss-video-container-ios iframe {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    will-change: transform;
+  }
+  
+  .rss-video-player-ios .rss-video-links {
+    padding: 10px 12px;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .rss-video-player-ios .rss-video-quality {
+    justify-content: center;
+  }
+  
+  .rss-video-player-ios .rss-video-quality-options {
+    gap: 6px;
+  }
+  
+  .rss-video-player-ios .rss-video-quality-option {
+    padding: 6px 10px;
+    font-size: 0.8em;
+  }
+}
+
+/* Touch-specific improvements for iPad */
+@media (hover: none) and (pointer: coarse) {
+  .rss-video-player-ios .rss-video-youtube-button,
+  .rss-video-player-ios .rss-video-quality-option,
+  .rss-video-player-ios .rss-video-related-item {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  .rss-video-player-ios .rss-video-youtube-button:active,
+  .rss-video-player-ios .rss-video-quality-option:active,
+  .rss-video-player-ios .rss-video-related-item:active {
+    transform: scale(0.98);
+  }
 }

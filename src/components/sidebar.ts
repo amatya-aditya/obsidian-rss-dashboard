@@ -1610,16 +1610,6 @@ export class Sidebar {
         });
 
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Delete Feed")
-                .setIcon("trash")
-                .onClick(() => {
-                    this.showConfirmModal(`Are you sure you want to delete the feed "${feed.title}"?`, () => {
-                        this.callbacks.onDeleteFeed(feed);
-                    });
-                });
-        });
-
-        menu.addItem((item: MenuItem) => {
             item.setTitle("Change Media Type")
                 .setIcon("lucide-circle-gauge")
                 .onClick((evt) => {
@@ -1646,6 +1636,16 @@ export class Sidebar {
                         });
                     });
                     typeMenu.showAtMouseEvent(evt as MouseEvent);
+                });
+        });
+
+        menu.addItem((item: MenuItem) => {
+            item.setTitle("Delete Feed")
+                .setIcon("trash")
+                .onClick(() => {
+                    this.showConfirmModal(`Are you sure you want to delete the feed "${feed.title}"?`, () => {
+                        this.callbacks.onDeleteFeed(feed);
+                    });
                 });
         });
 
