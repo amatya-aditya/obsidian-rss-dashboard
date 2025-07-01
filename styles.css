@@ -1713,7 +1713,7 @@
     width: 90vw;
     height: fit-content;
     max-width: 1100px;
-    max-height: 1000px;
+    max-height: 85vh;
     padding: 15px 14px;
     position: fixed !important;
     top: 50% !important;
@@ -3148,8 +3148,8 @@ input.color-circle {
     }
     
     .rss-discover-sidebar {
-        width: 100%;
-        min-width: 0;
+        /* width: 100%;
+        min-width: 0; */
         border-right: none;
         border-bottom: 1px solid var(--background-modifier-border);
     }

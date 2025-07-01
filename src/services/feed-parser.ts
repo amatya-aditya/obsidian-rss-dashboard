@@ -1795,18 +1795,31 @@ export class FeedParser {
             const updatedItems: FeedItem[] = [];
 
             parsed.items.forEach((item: ParsedItem) => {
+                // Determine if this is a podcast episode
+                const isAudioEnclosure = item.enclosure?.type?.startsWith('audio/');
+                const isAudioLink = !!(item.link && item.link.includes('.mp3'));
+                const isPodcast = isAudioEnclosure || isAudioLink || item.itunes?.duration;
+
+                const audioUrl = isAudioEnclosure
+                    ? this.convertToAbsoluteUrl(item.enclosure?.url || '', url)
+                    : isAudioLink
+                        ? this.convertToAbsoluteUrl(item.link || '', url)
+                        : undefined;
+
+                const enclosure = item.enclosure || (isAudioLink ? {
+                    url: this.convertToAbsoluteUrl(item.link || '', url),
+                    type: 'audio/mpeg',
+                    length: ''
+                } : undefined);
+
                 const itemGuid = this.convertToAbsoluteUrl(item.guid || item.link || '', url);
                 const existingItem = existingItems.get(itemGuid);
-                
-                
-                const isPodcast = item.itunes?.duration || item.enclosure?.type?.startsWith('audio/');
                 
                 if (existingItem) {
                     let coverImage = existingItem.coverImage;
                     if (isPodcast) {
                         coverImage = this.extractPodcastCoverImage(item, parsed.image, url) || existingItem.coverImage;
                     } else {
-                        
                         coverImage = this.extractCoverImage(item.content || item.description || '', url)
                             || this.convertToAbsoluteUrl(item.itunes?.image?.href || item.image?.url || '', url)
                             || (parsed.image && typeof parsed.image === 'object' && parsed.image.url ? this.convertToAbsoluteUrl(parsed.image.url, url) : '')
@@ -1832,12 +1845,10 @@ export class FeedParser {
                         episodeType: item.itunes?.episodeType || existingItem.episodeType,
                         season: item.itunes?.season ? Number(item.itunes.season) : existingItem.season,
                         episode: item.itunes?.episode ? Number(item.itunes.episode) : existingItem.episode,
-                        enclosure: item.enclosure ? {
-                            url: this.convertToAbsoluteUrl(item.enclosure.url, url),
-                            type: item.enclosure.type,
-                            length: item.enclosure.length
-                        } : existingItem.enclosure,
-                        ieee: item.ieee || existingItem.ieee
+                        enclosure: enclosure ? enclosure : existingItem.enclosure,
+                        ieee: item.ieee || existingItem.ieee,
+                        audioUrl: audioUrl ? audioUrl : existingItem.audioUrl,
+                        mediaType: isPodcast ? 'podcast' : (existingItem.mediaType || 'article'),
                     };
                     updatedItems.push(updatedItem);
                 } else {
@@ -1859,7 +1870,6 @@ export class FeedParser {
                             coverImage = this.extractCoverImage(item.content || item.description || '', url);
                         }
                     } else {
-                        
                         coverImage = this.extractCoverImage(item.content || item.description || '', url)
                             || this.convertToAbsoluteUrl(item.itunes?.image?.href || item.image?.url || '', url)
                             || (parsed.image && typeof parsed.image === 'object' && parsed.image.url ? this.convertToAbsoluteUrl(parsed.image.url, url) : '');
@@ -1893,12 +1903,9 @@ export class FeedParser {
                         episodeType: item.itunes?.episodeType,
                         season: item.itunes?.season ? Number(item.itunes.season) : undefined,
                         episode: item.itunes?.episode ? Number(item.itunes.episode) : undefined,
-                        enclosure: item.enclosure ? {
-                            url: this.convertToAbsoluteUrl(item.enclosure.url, url),
-                            type: item.enclosure.type,
-                            length: item.enclosure.length
-                        } : undefined,
-                        ieee: item.ieee
+                        enclosure: enclosure,
+                        ieee: item.ieee,
+                        audioUrl: audioUrl,
                     };
                     newItems.push(newItem);
                 }

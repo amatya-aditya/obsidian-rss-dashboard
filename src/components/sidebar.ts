@@ -1619,6 +1619,36 @@ export class Sidebar {
                 });
         });
 
+        menu.addItem((item: MenuItem) => {
+            item.setTitle("Change Media Type")
+                .setIcon("lucide-circle-gauge")
+                .onClick((evt) => {
+                    const typeMenu = new Menu();
+                    typeMenu.addItem((subItem: MenuItem) => {
+                        subItem.setTitle("Article").setIcon("file-text").onClick(async () => {
+                            feed.mediaType = 'article';
+                            await this.plugin.saveSettings();
+                            this.render();
+                        });
+                    });
+                    typeMenu.addItem((subItem: MenuItem) => {
+                        subItem.setTitle("Podcast").setIcon("headphones").onClick(async () => {
+                            feed.mediaType = 'podcast';
+                            await this.plugin.saveSettings();
+                            this.render();
+                        });
+                    });
+                    typeMenu.addItem((subItem: MenuItem) => {
+                        subItem.setTitle("Video").setIcon("play-circle").onClick(async () => {
+                            feed.mediaType = 'video';
+                            await this.plugin.saveSettings();
+                            this.render();
+                        });
+                    });
+                    typeMenu.showAtMouseEvent(evt as MouseEvent);
+                });
+        });
+
         menu.showAtMouseEvent(event);
     }
 
