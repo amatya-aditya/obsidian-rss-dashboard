@@ -612,7 +612,10 @@
 	color: #2ecc71
   }
   .rss-dashboard-star-toggle.starred {
-	color: #f1c40f
+	color: #a18206
+   }
+   .rss-dashboard-star-toggle.starred svg {
+	fill: #a18206
    }
    .rss-dashboard-star-toggle.unstarred {
 	color: #888 !important;
@@ -1652,7 +1655,7 @@
 	transition: color 0.2s;
 }
 .rss-dashboard-star-toggle.starred {
-	color: #f1c40f;
+	color: #a18206;
 }
 .rss-dashboard-star-toggle.unstarred {
 	color: #888 !important;
@@ -3336,12 +3339,12 @@ input.color-circle {
     background: var(--background-primary);
 	padding: 0.5rem 0;
     border-top: 1px solid var(--color-base-35);
+    width: 230px;
 }
 
 .rss-discover-sidebar-nav button {
     background: none;
     border: none;
-    padding: 10px 15px;
     cursor: pointer;
     color: var(--text-muted);
     flex-grow: 1;
@@ -3839,7 +3842,7 @@ input.color-circle {
 .rss-dashboard-card-view {
     display: grid;
     gap: 15px;
-    align-items: start;
+    align-items: stretch;
     justify-items: stretch;
     padding: 15px;
 }
@@ -3949,7 +3952,7 @@ input.color-circle {
     font-size: 0.9em;
     color: var(--text-muted);
     flex-wrap: wrap;
-    min-height: 1.2em;
+
 }
 
 
@@ -4112,7 +4115,7 @@ input.color-circle {
     }
     
     .rss-dashboard-article-card {
-        min-height: 420px;
+        min-height: 360px;
         max-height: 420px;
     }
 }
@@ -4124,7 +4127,7 @@ input.color-circle {
     }
     
     .rss-dashboard-article-card {
-        min-height: 420px;
+        min-height: 360px;
         max-height: 420px;
     }
 }
@@ -4136,7 +4139,7 @@ input.color-circle {
     }
     
     .rss-dashboard-article-card {
-        min-height: 420px;
+        min-height: 360px;
         max-height: 420px;
     }
 }
@@ -4148,7 +4151,7 @@ input.color-circle {
     }
     
     .rss-dashboard-article-card {
-        min-height: 420px;
+        min-height: 360px;
         max-height: 420px;
     }
 }
@@ -4172,7 +4175,7 @@ input.color-circle {
     }
     
     .rss-dashboard-article-card {
-        min-height: 420px;
+        min-height: 350px;
         max-height: 420px;
     }
 }
@@ -4184,8 +4187,8 @@ input.color-circle {
     }
     
     .rss-dashboard-article-card {
-        min-height: 400px;
-        max-height: 400px;
+        min-height: 350px;
+        max-height: 420px;
     }
 }
 
@@ -4196,7 +4199,7 @@ input.color-circle {
     }
     
     .rss-dashboard-article-card {
-        min-height: 380px;
+        min-height: 340px;
         max-height: 380px;
     }
 }
@@ -5425,6 +5428,16 @@ input.color-circle {
     border-color: var(--interactive-accent);
 }
 
+.rss-discover-card-add-btn {
+    background: var(--interactive-normal);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
 
 @media (max-width: 768px) {
     .feed-preview-modal {

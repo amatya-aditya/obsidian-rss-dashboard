@@ -40,11 +40,11 @@ export class DiscoverView extends ItemView {
     }
 
     getDisplayText(): string {
-        return "RSS Discover";
+        return "Discover RSS";
     }
 
     getIcon(): string {
-        return "lucide-library-big";
+        return "lucide-flower";
     }
 
     async onOpen(): Promise<void> {
@@ -1080,10 +1080,10 @@ export class DiscoverView extends ItemView {
         const isAdded = this.plugin.settings.feeds.some((f: Feed) => f.url === feed.url);
 
         if (isAdded) {
-            const addedBtn = rightSection.createEl("button", { text: "Added", cls: "" });
+            const addedBtn = rightSection.createEl("button", { text: "Added", cls: "rss-discover-card-add-btn" });
             addedBtn.disabled = true;
         } else {
-            const addBtn = rightSection.createEl("button", { text: "Add Feed", cls: "" });
+            const addBtn = rightSection.createEl("button", { text: "Add Feed", cls: "rss-discover-card-add-btn" });
             addBtn.addEventListener("click", async () => {
                 await this.addFeed(feed);
                 addBtn.setText("Added");
