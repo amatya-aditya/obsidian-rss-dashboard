@@ -1,18 +1,18 @@
 import { Notice } from "obsidian";
 import { FeedItem } from "../types/types";
 import { setIcon } from "obsidian";
-import { ensureUtf8Meta, detectPlatform } from '../utils/platform-utils';
+import { ensureUtf8Meta } from '../utils/platform-utils';
 
 export class VideoPlayer {
     private container: HTMLElement;
     private currentItem: FeedItem | null = null;
     private playerEl: HTMLElement | null = null;
     private iframeEl: HTMLIFrameElement | null = null;
-    private platformInfo: any;
+    private onVideoSelect?: (item: FeedItem) => void;
     
-    constructor(container: HTMLElement) {
+    constructor(container: HTMLElement, onVideoSelect?: (item: FeedItem) => void) {
         this.container = container;
-        this.platformInfo = detectPlatform();
+        this.onVideoSelect = onVideoSelect;
     }
     
     
@@ -44,11 +44,6 @@ export class VideoPlayer {
         });
         
         
-        if (this.platformInfo.isIOS || this.platformInfo.isTablet) {
-            this.playerEl.addClass("rss-video-player-ios");
-        }
-        
-        
         const infoSection = this.playerEl.createDiv({
             cls: "rss-video-info",
         });
@@ -59,50 +54,12 @@ export class VideoPlayer {
         });
         
         
-        if (this.platformInfo.isIOS || this.platformInfo.isTablet) {
-            videoContainer.addClass("rss-video-container-ios");
-        }
-        
-        
         this.iframeEl = document.createElement("iframe");
-        
-        
-        let embedUrl = `https://www.youtube.com/embed/${this.currentItem.videoId}?rel=0`;
-        
-        
-        if (!this.platformInfo.isIOS) {
-            embedUrl += "&autoplay=1";
-        }
-        
-        
-        embedUrl += "&playsinline=1&enablejsapi=1";
-        
-        
-        embedUrl += `&origin=${encodeURIComponent(window.location.origin)}`;
-        
-        
-        if (this.platformInfo.isIOS) {
-            embedUrl += "&modestbranding=1&showinfo=0";
-        }
-        
-        this.iframeEl.src = embedUrl;
+        this.iframeEl.src = `https://www.youtube.com/embed/${this.currentItem.videoId}?rel=0&autoplay=1`;
         this.iframeEl.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen";
         this.iframeEl.allowFullscreen = true;
         
-        
-        if (this.platformInfo.isIOS) {
-            this.iframeEl.setAttribute("webkit-playsinline", "true");
-            this.iframeEl.setAttribute("playsinline", "true");
-            this.iframeEl.setAttribute("frameborder", "0");
-            this.iframeEl.setAttribute("scrolling", "no");
-        }
-        
         videoContainer.appendChild(this.iframeEl);
-        
-        
-        if (this.platformInfo.isIOS || this.platformInfo.isTablet) {
-            this.addTouchSupport(videoContainer);
-        }
         
         
         const details = this.playerEl.createDiv({
@@ -174,14 +131,6 @@ export class VideoPlayer {
         });
         
         
-        if (this.platformInfo.isIOS || this.platformInfo.isTablet) {
-            youtubeButton.addEventListener("touchend", (e) => {
-                e.preventDefault();
-                window.open(`https://www.youtube.com/watch?v=${this.currentItem!.videoId}`, "_blank");
-            });
-        }
-        
-        
         const qualityContainer = linksContainer.createDiv({
             cls: "rss-video-quality",
         });
@@ -221,24 +170,9 @@ export class VideoPlayer {
                     else if (index === 2) quality = "hd1080"; 
                     
                     
-                    let newUrl = `https://www.youtube.com/embed/${this.currentItem.videoId}?rel=0&vq=${quality}&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
-                    if (!this.platformInfo.isIOS) {
-                        newUrl += "&autoplay=1";
-                    }
-                    if (this.platformInfo.isIOS) {
-                        newUrl += "&modestbranding=1&showinfo=0";
-                    }
-                    this.iframeEl.src = newUrl;
+                    this.iframeEl.src = `https://www.youtube.com/embed/${this.currentItem.videoId}?rel=0&vq=${quality}`;
                 }
             });
-            
-            
-            if (this.platformInfo.isIOS || this.platformInfo.isTablet) {
-                qualityButton.addEventListener("touchend", (e) => {
-                    e.preventDefault();
-                    qualityButton.click();
-                });
-            }
         });
         
         
@@ -294,16 +228,12 @@ export class VideoPlayer {
                 
                 
                 videoItem.addEventListener("click", () => {
-                    this.loadVideo(video);
-                });
-                
-                
-                if (this.platformInfo.isIOS || this.platformInfo.isTablet) {
-                    videoItem.addEventListener("touchend", (e) => {
-                        e.preventDefault();
+                    if (this.onVideoSelect) {
+                        this.onVideoSelect(video);
+                    } else {
                         this.loadVideo(video);
-                    });
-                }
+                    }
+                });
             });
         } else {
             relatedContainer.createDiv({
@@ -311,34 +241,6 @@ export class VideoPlayer {
                 text: "No related videos found",
             });
         }
-    }
-    
-    
-    private addTouchSupport(container: HTMLElement): void {
-        let touchStartY = 0;
-        let touchStartX = 0;
-        
-        container.addEventListener("touchstart", (e) => {
-            touchStartY = e.touches[0].clientY;
-            touchStartX = e.touches[0].clientX;
-        }, { passive: true });
-        
-        container.addEventListener("touchmove", (e) => {
-            
-            e.preventDefault();
-        }, { passive: false });
-        
-        container.addEventListener("touchend", (e) => {
-            const touchEndY = e.changedTouches[0].clientY;
-            const touchEndX = e.changedTouches[0].clientX;
-            const deltaY = Math.abs(touchEndY - touchStartY);
-            const deltaX = Math.abs(touchEndX - touchStartX);
-            
-            
-            if (deltaY < 10 && deltaX < 10) {
-                e.preventDefault();
-            }
-        }, { passive: false });
     }
     
     
@@ -413,16 +315,12 @@ export class VideoPlayer {
                     
                     
                     videoItem.addEventListener("click", () => {
-                        this.loadVideo(video);
-                    });
-                    
-                    
-                    if (this.platformInfo.isIOS || this.platformInfo.isTablet) {
-                        videoItem.addEventListener("touchend", (e) => {
-                            e.preventDefault();
+                        if (this.onVideoSelect) {
+                            this.onVideoSelect(video);
+                        } else {
                             this.loadVideo(video);
-                        });
-                    }
+                        }
+                    });
                 });
             } else {
                 relatedContainer.createDiv({

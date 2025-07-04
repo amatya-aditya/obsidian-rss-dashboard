@@ -219,24 +219,21 @@ export class ReaderView extends ItemView {
 
     
     async displayItem(item: FeedItem, relatedItems: FeedItem[] = []): Promise<void> {
+        if (this.readingContainer) {
+            this.readingContainer.empty();
+        }
         this.currentItem = item;
         this.relatedItems = relatedItems;
 
-        
         this.updateSavedLabel(false);
-        
-        
+
         if (item.saved) {
             const fileExists = await this.checkSavedFileExists(item);
             if (!fileExists) {
                 item.saved = false;
-                
-                
                 if (item.tags) {
                     item.tags = item.tags.filter(tag => tag.name.toLowerCase() !== "saved");
                 }
-                
-                
                 if (item.feedUrl) {
                     const feed = this.settings.feeds.find(f => f.url === item.feedUrl);
                     if (feed) {
@@ -249,51 +246,30 @@ export class ReaderView extends ItemView {
                         }
                     }
                 }
-            } else {
-                
-                this.updateSavedLabel(true);
             }
         }
-        
-        if (!this.readingContainer) {
-            await this.onOpen();
-        } else {
-            this.readingContainer.empty();
+
+        if (item.mediaType === 'video' && !item.videoId && item.link) {
+            const vid = MediaService.extractYouTubeVideoId(item.link);
+            if (vid) item.videoId = vid;
         }
-        
-        
-        const titleEl = this.contentEl.querySelector(".rss-reader-title");
-        if (titleEl) {
-            titleEl.textContent = item.title;
-        }
-        
-        if (item.mediaType === 'video' && (item.videoId || MediaService.extractYouTubeVideoId(item.link) || item.videoUrl)) {
-            if (!item.videoId && !item.videoUrl) {
-                const vid = MediaService.extractYouTubeVideoId(item.link);
-                if (vid) item.videoId = vid;
-            }
-            if (item.videoUrl) {
-                this.displayVideoPodcast(item);
-            } else {
+
+        if (item.mediaType === 'video' && item.videoId) {
             this.displayVideo(item);
-            }
-        } else if (item.mediaType === 'podcast') {
-            if (!item.audioUrl && item.enclosure?.url) {
-                item.audioUrl = item.enclosure.url;
-            }
+        } else if (item.mediaType === 'video' && item.videoUrl) {
+            this.displayVideoPodcast(item);
+        } else if (item.mediaType === 'podcast' && (item.audioUrl || MediaService.extractPodcastAudio(item.description))) {
             if (!item.audioUrl) {
                 const aud = MediaService.extractPodcastAudio(item.description);
                 if (aud) item.audioUrl = aud;
             }
             this.displayPodcast(item);
         } else {
-            
             const fullContent = await this.fetchFullArticleContent(item.link);
             this.currentFullContent = fullContent;
             this.displayArticle(item, fullContent);
         }
-        
-        
+
         if (!item.read) {
             item.read = true;
         }
@@ -301,23 +277,18 @@ export class ReaderView extends ItemView {
     
     
     private displayVideo(item: FeedItem): void {
-        
         if (this.podcastPlayer) {
             this.podcastPlayer.destroy();
             this.podcastPlayer = null;
         }
-        
-        
         const container = this.readingContainer.createDiv({ 
             cls: "rss-reader-video-container enhanced" 
         });
-        
-        
         if (item.videoId) {
-            this.videoPlayer = new VideoPlayer(container);
+            this.videoPlayer = new VideoPlayer(container, (selectedVideo) => {
+                this.displayItem(selectedVideo, this.relatedItems);
+            });
             this.videoPlayer.loadVideo(item);
-            
-            
             if (this.relatedItems.length > 0) {
                 this.videoPlayer.setRelatedVideos(this.relatedItems);
             }
@@ -326,8 +297,6 @@ export class ReaderView extends ItemView {
                 cls: "rss-reader-error",
                 text: "Video ID not found. Cannot play this video."
             });
-            
-            
             this.displayArticle(item);
         }
     }
@@ -498,7 +467,7 @@ export class ReaderView extends ItemView {
                 img.setAttribute("src", src.replace("app://", "https://"));
             }
             img.classList.add("rss-reader-responsive-img");
-            // Remove broken images in article content
+            
             img.addEventListener('error', function() {
                 this.remove();
             });
@@ -772,6 +741,8 @@ export class ReaderView extends ItemView {
         const container = this.readingContainer.createDiv({
             cls: "rss-reader-video-podcast-container enhanced"
         });
+
+        
         if (item.videoUrl) {
             const video = document.createElement("video");
             video.controls = true;
@@ -789,6 +760,47 @@ export class ReaderView extends ItemView {
                 text: "Video URL not found. Cannot play this video podcast."
             });
             this.displayArticle(item);
+            return;
+        }
+
+        const infoSection = container.createDiv({ cls: "rss-video-info" });
+        infoSection.createEl("h2", { text: item.title, cls: "rss-video-title" });
+        const metaRow = infoSection.createDiv({ cls: "rss-video-meta-row" });
+        metaRow.createDiv({ text: item.feedTitle, cls: "rss-video-channel" });
+        metaRow.createDiv({ text: new Date(item.pubDate).toLocaleDateString(), cls: "rss-video-date" });
+
+        const relatedContainer = container.createDiv({ cls: "rss-video-related" });
+        relatedContainer.createEl("h4", { text: "From the same channel" });
+
+        const relatedVideos = (this.settings.feeds.find(f => f.url === item.feedUrl)?.items || [])
+            .filter(i => i.mediaType === "video" && i.guid !== item.guid)
+            .slice(0, 6);
+
+        if (relatedVideos.length > 0) {
+            const relatedList = relatedContainer.createDiv({ cls: "rss-video-related-list rss-video-related-grid" });
+            relatedVideos.forEach(video => {
+                const videoItem = relatedList.createDiv({ cls: "rss-video-related-item rss-video-related-card" });
+                if (video.coverImage) {
+                    const thumbnail = videoItem.createDiv({ cls: "rss-video-related-thumbnail" });
+                    thumbnail.createEl("img", {
+                        attr: {
+                            src: video.coverImage,
+                            alt: video.title,
+                        },
+                    });
+                }
+                const videoInfo = videoItem.createDiv({ cls: "rss-video-related-info" });
+                videoInfo.createDiv({ cls: "rss-video-related-title", text: video.title });
+                videoInfo.createDiv({ cls: "rss-video-related-date", text: new Date(video.pubDate).toLocaleDateString() });
+                videoItem.addEventListener("click", () => {
+                    this.displayItem(video, relatedVideos);
+                });
+            });
+        } else {
+            relatedContainer.createDiv({
+                cls: "rss-video-related-empty",
+                text: "No related videos found",
+            });
         }
     }
 }

@@ -197,9 +197,9 @@ export async function fetchFeedXml(url: string): Promise<string> {
         
         
         
-        // Check for Cloudflare protection or other blocking pages
+        
         if (xmlText.includes('Just a moment') || xmlText.includes('Cloudflare') || xmlText.includes('Checking your browser') || xmlText.includes('Please wait')) {
-            // Try with a more standard browser user agent
+            
             const altResponse = await requestUrl({
                 url: targetUrl,
                 method: "GET",
@@ -218,12 +218,12 @@ export async function fetchFeedXml(url: string): Promise<string> {
                 return altResponse.text;
             }
             
-            // If still blocked, try proxy
+            
             throw new Error('Blocked by Cloudflare protection');
         }
         
         if (!xmlText.includes('<rss') && !xmlText.includes('<feed') && !xmlText.includes('<channel') && !xmlText.includes('<item>')) {
-            // Response does not appear to be a valid RSS feed
+            
         }
         
         
@@ -367,7 +367,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
         return xmlText;
     }
     
-    // Helper function to convert RSS2JSON response back to RSS format
+    
     function convertRss2JsonToRss(data: any): string {
         const feed = data.feed;
         const items = data.items || [];
@@ -421,16 +421,16 @@ export async function fetchFeedXml(url: string): Promise<string> {
             throw err;
         }
     } catch (error) {
-        // Check if it's a Cloudflare protection error
+        
         if (error.message && error.message.includes('Blocked by Cloudflare protection')) {
-            // Trying proxy due to Cloudflare protection
+            
         }
         
         try {
             const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`;
             const proxyResponse = await requestUrl({ url: proxyUrl, method: "GET" });
             
-            // Check if proxy returned valid content
+            
             if (proxyResponse.text && !proxyResponse.text.includes('Just a moment') && !proxyResponse.text.includes('Cloudflare')) {
                 return proxyResponse.text;
             } else {
@@ -443,7 +443,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                 const data = JSON.parse(proxyResponse.text);
                 if (!data.contents) throw new Error('No contents from AllOrigins');
                 
-                // Check if proxy returned valid content
+                
                 if (data.contents.includes('Just a moment') || data.contents.includes('Cloudflare')) {
                     throw new Error('Second proxy also blocked by Cloudflare');
                 }
@@ -454,20 +454,20 @@ export async function fetchFeedXml(url: string): Promise<string> {
                 
                 return data.contents;
             } catch (proxyError2) {
-                // Try a third proxy option
+                
                 try {
                     const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
                     const proxyResponse = await requestUrl({ url: rss2jsonUrl, method: "GET" });
                     const data = JSON.parse(proxyResponse.text);
                     
                     if (data.status === 'ok' && data.feed) {
-                        // Convert RSS2JSON response back to RSS format
+                        
                         return convertRss2JsonToRss(data);
                     } else {
                         throw new Error('RSS2JSON returned error: ' + (data.message || 'Unknown error'));
                     }
                 } catch (proxyError3) {
-                    throw proxyError2; // Throw the original error
+                    throw proxyError2; 
                 }
             }
         }
@@ -615,10 +615,10 @@ export class CustomXMLParser {
             .replace(/\]\]>/g, '')
             .trim();
         
-        // Decode HTML entities more comprehensively
+        
         cleaned = this.decodeHtmlEntities(cleaned);
         
-        // Clean up whitespace
+        
         cleaned = cleaned.replace(/\s+/g, ' ').trim();
         
         return cleaned;
@@ -627,12 +627,12 @@ export class CustomXMLParser {
     public decodeHtmlEntities(text: string): string {
         if (!text) return '';
         
-        // Create a temporary element to decode HTML entities
+        
         const textarea = document.createElement('textarea');
         textarea.innerHTML = text;
         let decoded = textarea.value;
         
-        // Handle specific entities that might not be decoded by the browser
+        
         decoded = decoded
             .replace(/&nbsp;/g, ' ')
             .replace(/&amp;/g, '&')
@@ -649,13 +649,13 @@ export class CustomXMLParser {
             .replace(/&#8221;/g, '\u201D') 
             .replace(/&#8211;/g, '\u2013') 
             .replace(/&#8212;/g, '\u2014')
-            .replace(/&#038;/g, '&')  // Common WordPress entity
-            .replace(/&#x26;/g, '&')  // Hex version of &
-            .replace(/&#x3c;/g, '<')  // Hex version of <
-            .replace(/&#x3e;/g, '>')  // Hex version of >
-            .replace(/&#x22;/g, '"')  // Hex version of "
-            .replace(/&#x27;/g, "'")  // Hex version of '
-            .replace(/&#x2f;/g, '/'); // Hex version of /
+            .replace(/&#038;/g, '&')  
+            .replace(/&#x26;/g, '&')  
+            .replace(/&#x3c;/g, '<')  
+            .replace(/&#x3e;/g, '>')  
+            .replace(/&#x22;/g, '"')  
+            .replace(/&#x27;/g, "'")  
+            .replace(/&#x2f;/g, '/'); 
         
         return decoded;
     }
@@ -718,13 +718,13 @@ export class CustomXMLParser {
     private sanitizeText(text: string): string {
         if (!text) return '';
         
-        // Remove HTML tags first
+        
         let cleaned = text.replace(/<[^>]*>/g, '');
         
-        // Decode HTML entities
+        
         cleaned = this.decodeHtmlEntities(cleaned);
         
-        // Clean up whitespace
+        
         return cleaned.replace(/\s+/g, ' ').trim();
     }
 
@@ -1409,7 +1409,7 @@ export class CustomXMLParser {
 
     async parseString(xmlString: string): Promise<ParsedFeed> {
         try {
-            // If JSON feed
+            
             if (xmlString.trim().startsWith('{')) {
                 return this.parseJSON(xmlString);
             }
@@ -1421,7 +1421,7 @@ export class CustomXMLParser {
 
             const parserError = doc.querySelector('parsererror');
             if (parserError) {
-                // Try to extract RSS content and re-parse
+                
                 const extractedXml = this.extractRssContent(xmlString);
                 if (extractedXml !== xmlString) {
                     try {
@@ -1442,10 +1442,10 @@ export class CustomXMLParser {
                             }
                         }
                     } catch (extractError) {
-                        // Error during extractedXml parse
+                        
                     }
                 }
-                // Fallback parse
+                
                 return this.fallbackParse(xmlString);
             }
 
@@ -1527,12 +1527,12 @@ export class FeedParser {
     private decodeHtmlEntities(text: string): string {
         if (!text) return '';
         
-        // Create a temporary element to decode HTML entities
+        
         const textarea = document.createElement('textarea');
         textarea.innerHTML = text;
         let decoded = textarea.value;
         
-        // Handle specific entities that might not be decoded by the browser
+        
         decoded = decoded
             .replace(/&nbsp;/g, ' ')
             .replace(/&amp;/g, '&')
@@ -1549,13 +1549,13 @@ export class FeedParser {
             .replace(/&#8221;/g, '\u201D') 
             .replace(/&#8211;/g, '\u2013') 
             .replace(/&#8212;/g, '\u2014')
-            .replace(/&#038;/g, '&')  // Common WordPress entity
-            .replace(/&#x26;/g, '&')  // Hex version of &
-            .replace(/&#x3c;/g, '<')  // Hex version of <
-            .replace(/&#x3e;/g, '>')  // Hex version of >
-            .replace(/&#x22;/g, '"')  // Hex version of "
-            .replace(/&#x27;/g, "'")  // Hex version of '
-            .replace(/&#x2f;/g, '/'); // Hex version of /
+            .replace(/&#038;/g, '&')  
+            .replace(/&#x26;/g, '&')  
+            .replace(/&#x3c;/g, '<')  
+            .replace(/&#x3e;/g, '>')  
+            .replace(/&#x22;/g, '"')  
+            .replace(/&#x27;/g, "'")  
+            .replace(/&#x2f;/g, '/'); 
         
         return decoded;
     }
@@ -1575,7 +1575,7 @@ export class FeedParser {
             content = content.replace(
                 /<img([^>]+)src=["']([^"']+)["']/gi,
                 (match, attributes, src) => {
-                    // Decode HTML entities in the URL
+                    
                     const decodedSrc = this.parser.decodeHtmlEntities(src);
                     const absoluteSrc = this.convertToAbsoluteUrl(decodedSrc, baseUrl);
                     return `<img${attributes}src="${absoluteSrc}"`;
@@ -1594,7 +1594,7 @@ export class FeedParser {
                         if (urlMatch) {
                             const url = urlMatch[1];
                             const sizeDescriptor = urlMatch[2] || '';
-                            // Decode HTML entities in the URL
+                            
                             const decodedUrl = this.parser.decodeHtmlEntities(url);
                             const absoluteUrl = this.convertToAbsoluteUrl(decodedUrl, baseUrl);
                             return absoluteUrl + sizeDescriptor;
@@ -1609,7 +1609,7 @@ export class FeedParser {
             content = content.replace(
                 /<a([^>]+)href=["']([^"']+)["']/gi,
                 (match, attributes, href) => {
-                    // Decode HTML entities in the URL
+                    
                     const decodedHref = this.decodeHtmlEntities(href);
                     const absoluteHref = this.convertToAbsoluteUrl(decodedHref, baseUrl);
                     return `<a${attributes}href="${absoluteHref}"`;
@@ -1744,13 +1744,13 @@ export class FeedParser {
             const doc = parser.parseFromString(description, "text/html");
             let text = doc.body.textContent || "";
             
-            // Decode HTML entities
+            
             text = this.decodeHtmlEntities(text);
             
-            // Clean up whitespace
+            
             text = text.replace(/\s+/g, ' ').trim();
             
-            // Truncate if too long
+            
             if (text.length > maxLength) {
                 text = text.substring(0, maxLength) + '...';
             }
@@ -1795,7 +1795,7 @@ export class FeedParser {
             const updatedItems: FeedItem[] = [];
 
             parsed.items.forEach((item: ParsedItem) => {
-                // Determine if this is a podcast episode
+                
                 const isAudioEnclosure = item.enclosure?.type?.startsWith('audio/');
                 const isAudioLink = !!(item.link && item.link.includes('.mp3'));
                 const isPodcast = isAudioEnclosure || isAudioLink || item.itunes?.duration;
@@ -1971,21 +1971,14 @@ export class FeedParser {
             
 
             
-            if (this.mediaSettings.autoDetectMediaType) {
-                const processedFeed = MediaService.detectAndProcessFeed(newFeed);
-                
-                
-                if (processedFeed.mediaType === 'video' && !existingFeed?.folder) {
-                    processedFeed.folder = this.mediaSettings.defaultYouTubeFolder;
-                } else if (processedFeed.mediaType === 'podcast' && !existingFeed?.folder) {
-                    processedFeed.folder = this.mediaSettings.defaultPodcastFolder;
-                }
-                
-                
-                return MediaService.applyMediaTags(processedFeed, this.availableTags);
+            
+            const processedFeed = MediaService.detectAndProcessFeed(newFeed);
+            if (processedFeed.mediaType === 'video' && !existingFeed?.folder) {
+                processedFeed.folder = this.mediaSettings.defaultYouTubeFolder;
+            } else if (processedFeed.mediaType === 'podcast' && !existingFeed?.folder) {
+                processedFeed.folder = this.mediaSettings.defaultPodcastFolder;
             }
-
-            return newFeed;
+            return MediaService.applyMediaTags(processedFeed, this.availableTags);
         } catch (error) {
             
             throw error;
