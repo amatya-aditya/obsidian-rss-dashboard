@@ -2436,7 +2436,6 @@ input.color-circle {
 	padding: 6px 8px;
 	color: var(--text-normal);
 	font-size: 14px;
-	margin-top: 8px;
 	width: 100%;
 	max-width: 120px;
 }
@@ -2603,8 +2602,8 @@ input.color-circle {
     -webkit-appearance: none !important;
     -moz-appearance: none !important;
     appearance: none !important;
-    width: 38px !important;
-    height: 38px !important;
+    width: 32px !important;
+    height: 32px !important;
     padding: 0 !important;
     border: none !important;
     border-radius: 50% !important;
@@ -6992,7 +6991,6 @@ input.color-circle {
 
 .custom-input.visible {
 	display: block;
-	margin-top: 8px;
 	width: 100%;
 	padding: 6px 8px;
 	border: 1px solid var(--background-modifier-border);
