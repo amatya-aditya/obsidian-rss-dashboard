@@ -17,6 +17,7 @@ interface SidebarCallbacks {
     onTagClick: (tag: string | null) => void;
     onToggleTagsCollapse: () => void;
     onToggleFolderCollapse: (folder: string) => void;
+    onBatchToggleFolders?: (foldersToCollapse: string[], foldersToExpand: string[]) => void;
     onAddFolder: (name: string) => void;
     onAddSubfolder: (parent: string, name: string) => void;
     onAddFeed: (title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) => Promise<void>;
@@ -1929,27 +1930,18 @@ export class Sidebar {
 
         
         if (allCollapsed) {
-            
-            this.options.collapsedFolders = this.options.collapsedFolders.filter(
-                path => !allFolderPaths.includes(path)
-            );
+            // Expand all folders - remove all folder paths from collapsed list
+            const foldersToExpand = allFolderPaths;
+            const foldersToCollapse: string[] = [];
+            this.callbacks.onBatchToggleFolders?.(foldersToCollapse, foldersToExpand);
             new Notice("All folders expanded");
         } else {
-            
-            const newCollapsedFolders = new Set(this.options.collapsedFolders);
-            allFolderPaths.forEach(path => {
-                if (!newCollapsedFolders.has(path)) {
-                    newCollapsedFolders.add(path);
-                }
-            });
-            this.options.collapsedFolders = Array.from(newCollapsedFolders);
+            // Collapse all folders - add all folder paths to collapsed list
+            const foldersToExpand: string[] = [];
+            const foldersToCollapse = allFolderPaths;
+            this.callbacks.onBatchToggleFolders?.(foldersToCollapse, foldersToExpand);
             new Notice("All folders collapsed");
         }
-
-        
-        this.settings.collapsedFolders = this.options.collapsedFolders;
-        this.plugin.saveSettings();
-        this.render();
         
         const endTime = performance.now();
         

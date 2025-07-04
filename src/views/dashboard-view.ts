@@ -124,6 +124,7 @@ export class RssDashboardView extends ItemView {
                     onTagClick: this.handleTagClick.bind(this),
                     onToggleTagsCollapse: this.handleToggleTagsCollapse.bind(this),
                     onToggleFolderCollapse: this.handleToggleFolderCollapse.bind(this),
+                    onBatchToggleFolders: this.handleBatchToggleFolders.bind(this),
                     onAddFolder: this.handleAddFolder.bind(this),
                     onAddSubfolder: this.handleAddSubfolder.bind(this),
                     onAddFeed: this.handleAddFeed.bind(this),
