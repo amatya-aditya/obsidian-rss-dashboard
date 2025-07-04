@@ -16,6 +16,7 @@ export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 export class ReaderView extends ItemView {
     private currentItem: FeedItem | null = null;
     private readingContainer: HTMLElement;
+    private titleElement: HTMLElement;
     private articleSaver: ArticleSaver;
     private settings: RssDashboardSettings;
     private onArticleSave: (item: FeedItem) => void;
@@ -77,7 +78,10 @@ export class ReaderView extends ItemView {
         });
         
         
-        header.createDiv({ cls: "rss-reader-title", text: "RSS Reader" });
+        this.titleElement = header.createDiv({ cls: "rss-reader-title", text: "RSS Reader" });
+        
+        
+        this.currentItem = null;
         
         
         const actions = header.createDiv({ cls: "rss-reader-actions" });
@@ -224,6 +228,11 @@ export class ReaderView extends ItemView {
         }
         this.currentItem = item;
         this.relatedItems = relatedItems;
+
+       
+        if (this.titleElement) {
+            this.titleElement.setText(item.title);
+        }
 
         this.updateSavedLabel(false);
 
@@ -700,6 +709,12 @@ export class ReaderView extends ItemView {
                 savedLabel.classList.remove("visible");
                 savedLabel.classList.add("hidden");
             }
+        }
+    }
+
+    private resetTitle(): void {
+        if (this.titleElement) {
+            this.titleElement.setText("RSS Reader");
         }
     }
     

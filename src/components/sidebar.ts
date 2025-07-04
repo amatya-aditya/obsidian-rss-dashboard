@@ -45,16 +45,16 @@ export class Sidebar {
     private getCachedFolderPaths(): string[] {
         if (!this.cachedFolderPaths) {
             this.cachedFolderPaths = [];
-            function collectPaths(folders: Folder[], base = "") {
+            const collectPaths = (folders: Folder[], base = "") => {
                 for (const f of folders) {
                     const path = base ? `${base}/${f.name}` : f.name;
-                    this.cachedFolderPaths.push(path);
+                    this.cachedFolderPaths!.push(path);
                     if (f.subfolders && f.subfolders.length > 0) {
                         collectPaths(f.subfolders, path);
                     }
                 }
-            }
-            collectPaths.call(this, this.settings.folders);
+            };
+            collectPaths(this.settings.folders ?? []);
         }
         return this.cachedFolderPaths;
     }
@@ -168,8 +168,6 @@ export class Sidebar {
     
     public render(): void {
         
-        this.clearFolderPathCache();
-        
         const scrollPosition = this.container.scrollTop;
         
         
@@ -222,8 +220,8 @@ export class Sidebar {
                         .onClick(() => {
                             this.showFolderNameModal({
                                 title: "Add Folder",
-                                onSubmit: (folderName) => {
-                                    this.addTopLevelFolder(folderName);
+                                onSubmit: async (folderName) => {
+                                    await this.addTopLevelFolder(folderName);
                                     this.render();
                                 }
                             });
@@ -363,29 +361,29 @@ export class Sidebar {
                 item.setTitle("Add Subfolder")
                     .setIcon("folder-plus")
                     .onClick(() => {
-                        this.showFolderNameModal({
-                            title: "Add Subfolder",
-                            onSubmit: async (subfolderName) => {
-                                await this.addSubfolderByPath(fullPath, subfolderName);
-                                this.render();
-                            }
-                        });
+                                                    this.showFolderNameModal({
+                                title: "Add Subfolder",
+                                onSubmit: async (subfolderName) => {
+                                    await this.addSubfolderByPath(fullPath, subfolderName);
+                                    this.render();
+                                }
+                            });
                     });
             });
             menu.addItem((item: MenuItem) => {
                 item.setTitle("Rename Folder")
                     .setIcon("edit")
                     .onClick(() => {
-                        this.showFolderNameModal({
-                            title: "Rename Folder",
-                            defaultValue: folderName,
-                            onSubmit: async (newName) => {
-                                if (newName !== folderName) {
-                                    await this.renameFolderByPath(fullPath, newName);
-                                    this.render();
+                                                    this.showFolderNameModal({
+                                title: "Rename Folder",
+                                defaultValue: folderName,
+                                onSubmit: async (newName) => {
+                                    if (newName !== folderName) {
+                                        await this.renameFolderByPath(fullPath, newName);
+                                        this.render();
+                                    }
                                 }
-                            }
-                        });
+                            });
                     });
             });
             menu.addItem((item: MenuItem) => {
@@ -416,16 +414,16 @@ export class Sidebar {
                     });
             });
             menu.addItem((item: MenuItem) => {
-                item.setTitle("Delete Folder")
-                    .setIcon("trash")
-                    .onClick(() => {
-                        this.showConfirmModal(`Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`, () => {
-                            const allPaths = this.getAllDescendantFolderPaths(fullPath);
-                            this.settings.feeds = this.settings.feeds.filter(feed => !allPaths.includes(feed.folder));
-                            this.removeFolderByPath(fullPath);
-                            this.render();
+                                    item.setTitle("Delete Folder")
+                        .setIcon("trash")
+                        .onClick(() => {
+                            this.showConfirmModal(`Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`, () => {
+                                const allPaths = this.getAllDescendantFolderPaths(fullPath);
+                                this.settings.feeds = this.settings.feeds.filter(feed => !allPaths.includes(feed.folder));
+                                this.removeFolderByPath(fullPath);
+                                this.render();
+                            });
                         });
-                    });
             });
             menu.addItem((item: MenuItem) => {
                 item.setTitle("Sort Feeds")
@@ -789,14 +787,32 @@ export class Sidebar {
         if (parent && !parent.subfolders.some(f => f.name === subfolderName)) {
             parent.subfolders.push({ name: subfolderName, subfolders: [], createdAt: Date.now(), modifiedAt: Date.now() });
             parent.modifiedAt = Date.now();
+            
+            this.settings.folders = [...this.settings.folders];
             await this.plugin.saveSettings();
+            
+            if (this.options.currentFolder && !this.findFolderByPath(this.options.currentFolder)) {
+                this.options.currentFolder = null;
+            }
+            if (this.options.currentFeed && !this.settings.feeds.includes(this.options.currentFeed)) {
+                this.options.currentFeed = null;
+            }
         }
     }
 
     private async addTopLevelFolder(folderName: string) {
         if (!this.settings.folders.some(f => f.name === folderName)) {
             this.settings.folders.push({ name: folderName, subfolders: [], createdAt: Date.now(), modifiedAt: Date.now() });
+            
+            this.settings.folders = [...this.settings.folders];
             await this.plugin.saveSettings();
+            
+            if (this.options.currentFolder && !this.findFolderByPath(this.options.currentFolder)) {
+                this.options.currentFolder = null;
+            }
+            if (this.options.currentFeed && !this.settings.feeds.includes(this.options.currentFeed)) {
+                this.options.currentFeed = null;
+            }
         }
     }
 
@@ -1483,6 +1499,9 @@ export class Sidebar {
     }
 
     private renderToolbar(): void {
+        
+        const oldToolbar = this.container.querySelector('.rss-dashboard-sidebar-toolbar');
+        if (oldToolbar) oldToolbar.remove();
         const sidebarToolbar = this.container.createDiv({
             cls: "rss-dashboard-sidebar-toolbar",
         });
@@ -1573,7 +1592,6 @@ export class Sidebar {
         
         collapseAllButton.addEventListener("click", () => {
             
-            this.clearFolderPathCache();
             cachedFolderPaths = null;
             this.toggleAllFolders();
             
@@ -1930,13 +1948,13 @@ export class Sidebar {
 
         
         if (allCollapsed) {
-            // Expand all folders - remove all folder paths from collapsed list
+            
             const foldersToExpand = allFolderPaths;
             const foldersToCollapse: string[] = [];
             this.callbacks.onBatchToggleFolders?.(foldersToCollapse, foldersToExpand);
             new Notice("All folders expanded");
         } else {
-            // Collapse all folders - add all folder paths to collapsed list
+            
             const foldersToExpand: string[] = [];
             const foldersToCollapse = allFolderPaths;
             this.callbacks.onBatchToggleFolders?.(foldersToCollapse, foldersToExpand);

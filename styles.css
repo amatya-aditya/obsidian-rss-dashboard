@@ -2975,8 +2975,19 @@ input.color-circle {
     color: var(--text-muted);
 }
 
+.rss-discover-card-pipe{
+    color: var(--text-muted);
+    opacity: 0.2;
+}
 
+.rss-discover-card-add-btn {
+    cursor: pointer;
+    border: 1px solid var(--background-modifier-border);
+}
 
+.rss-discover-card-add-btn:hover {
+    border-color: var(--interactive-accent);
+}
 
 
 .rss-discover-card-actions {
@@ -5425,7 +5436,6 @@ input.color-circle {
     animation: podcastGradientShift 15s ease infinite;
     border-radius: 20px;
     padding: 24px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
     position: relative;
     overflow: hidden;
 }
@@ -5437,9 +5447,9 @@ input.color-circle {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, 
+    /* background: linear-gradient(135deg, 
         rgba(255, 255, 255, 0.1) 0%, 
-        rgba(255, 255, 255, 0.05) 100%);
+        rgba(255, 255, 255, 0.05) 100%); */
     border-radius: 20px;
     pointer-events: none;
 }
@@ -5740,13 +5750,16 @@ input.color-circle {
 
 .podcast-playlist-section {
     margin-top: 24px;
-    background: rgba(104, 104, 104, 0.4); 
+    /* background: rgba(104, 104, 104, 0.4);  */
     backdrop-filter: blur(20px);
     border-radius: 16px;
     padding: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    /* border: 1px solid rgba(255, 255, 255, 0.2); */
     position: relative;
     z-index: 2;
+    background: linear-gradient(135deg, #6d87fdc9 0%, #5909ab66 25%, #5dd2e76e 50%, #b5b00f75 75%, #4facfe 100%);
+    background-size: 400% 400%;
+    animation: podcastGradientShift 15s ease infinite;
 }
 
 .playlist-title {
@@ -5761,7 +5774,6 @@ input.color-circle {
 }
 
 .playlist-title::before {
-    content: '🎵';
     font-size: 1.1rem;
 }
 
@@ -5774,9 +5786,12 @@ input.color-circle {
     padding-right: 8px;
 }
 
+.rss-reader-content::-webkit-scrollbar {
+    display: none;
+}
 
 .playlist-list::-webkit-scrollbar {
-    width: 6px;
+    width: 2px;
 }
 
 .playlist-list::-webkit-scrollbar-track {
@@ -5799,7 +5814,7 @@ input.color-circle {
     align-items: center;
     gap: 12px;
     padding: 12px;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgb(167 167 167 / 29%);
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -5807,15 +5822,13 @@ input.color-circle {
 }
 
 .playlist-episode-row:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.3);
+    background: var(--background-modifier-active-hover);
     
 }
 
 .playlist-episode-row.active {
-    background: rgba(255, 255, 255, 0.25);
-    border-color: rgba(255, 255, 255, 0.5);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    background: var(--background-modifier-active-hover);
+    /* box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); */
 }
 
 .playlist-play-btn {
@@ -5969,7 +5982,7 @@ input.color-circle {
 
 
 .theme-dark .rss-reader-podcast-container {
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    /* box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); */
 }
 
 .theme-dark .podcast-player-main {
@@ -5977,7 +5990,7 @@ input.color-circle {
 }
 
 .theme-dark .podcast-playlist-section {
-    background: rgba(0, 0, 0, 0.2);
+    /* background: rgba(0, 0, 0, 0.2); */
 }
 
 
@@ -6084,7 +6097,7 @@ input.color-circle {
     position: absolute;
     top: -8px;
     right: -8px;
-    background: rgba(255, 255, 255, 0.9);
+    width: 100%;
     color: #333;
     font-size: 0.7rem;
     font-weight: 700;
@@ -6637,8 +6650,12 @@ input.color-circle {
 .rss-reader-podcast-container select,
 .rss-reader-podcast-container input {
     transition: all 0.2s ease;
+    
 }
 
+.rss-reader-podcast-container button{
+    background: rgba(0, 0, 0, 0.3);
+}
 
 .playlist-episode-row.active .playlist-play-btn {
     background: rgba(255, 255, 255, 0.4);
@@ -7026,6 +7043,10 @@ display: block;
 }
 
 
+.rss-reader-podcast-container.enhanced{
+    background: none !important;
+    padding: 0 !important;
+}
 .podcast-cover {
 display: block;
 }
@@ -7063,7 +7084,7 @@ color: white;
 }
 
 .playlist-list {
- max-height: 300px;
+ max-height: 600px;
  overflow-y: auto;
 }
 
