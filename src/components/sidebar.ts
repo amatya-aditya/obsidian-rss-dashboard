@@ -390,7 +390,7 @@ export class Sidebar {
             menu.addItem((item: MenuItem) => {
                 item.setTitle("Mark all as read")
                     .setIcon("check-circle")
-                    .onClick(() => {
+                    .onClick(async () => {
                         const allPaths = this.getAllDescendantFolderPaths(fullPath);
                         this.settings.feeds.forEach(feed => {
                             if (feed.folder && allPaths.includes(feed.folder)) {
@@ -399,6 +399,7 @@ export class Sidebar {
                                 });
                             }
                         });
+                        await this.plugin.saveSettings();
                         this.render();
                     });
             });
@@ -1168,6 +1169,74 @@ export class Sidebar {
         new Notice(`Tag "${tag.name}" deleted successfully!`);
     }
 
+    private showUnreadItemsContextMenu(event: MouseEvent): void {
+        const menu = new Menu();
+
+        menu.addItem((item: MenuItem) => {
+            item.setTitle("Mark All Unread as Read")
+                .setIcon("check-circle")
+                .onClick(async () => {
+                    await this.markAllUnreadAsRead();
+                });
+        });
+
+        menu.showAtMouseEvent(event);
+    }
+
+    private showReadItemsContextMenu(event: MouseEvent): void {
+        const menu = new Menu();
+
+        menu.addItem((item: MenuItem) => {
+            item.setTitle("Mark All Read as Unread")
+                .setIcon("circle")
+                .onClick(async () => {
+                    await this.markAllReadAsUnread();
+                });
+        });
+
+        menu.showAtMouseEvent(event);
+    }
+
+    private async markAllUnreadAsRead(): Promise<void> {
+        let count = 0;
+        this.settings.feeds.forEach(feed => {
+            feed.items.forEach(item => {
+                if (!item.read) {
+                    item.read = true;
+                    count++;
+                }
+            });
+        });
+
+        if (count > 0) {
+            await this.plugin.saveSettings();
+            this.render();
+            new Notice(`Marked ${count} items as read`);
+        } else {
+            new Notice("No unread items found");
+        }
+    }
+
+    private async markAllReadAsUnread(): Promise<void> {
+        let count = 0;
+        this.settings.feeds.forEach(feed => {
+            feed.items.forEach(item => {
+                if (item.read) {
+                    item.read = false;
+                    count++;
+                }
+            });
+        });
+
+        if (count > 0) {
+            await this.plugin.saveSettings();
+            this.render();
+            new Notice(`Marked ${count} items as unread`);
+        } else {
+            new Notice("No read items found");
+        }
+    }
+
     private renderHeader(): void {
         const header = this.container.createDiv({
             cls: "rss-dashboard-header",
@@ -1325,6 +1394,11 @@ export class Sidebar {
             this.callbacks.onFolderClick("unread");
         });
 
+        unreadItemsEl.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            this.showUnreadItemsContextMenu(e);
+        });
+
         
         const readItemsEl = filtersList.createDiv({
             cls: "rss-dashboard-folder" + 
@@ -1342,6 +1416,11 @@ export class Sidebar {
         });
         readItemsEl.addEventListener("click", () => {
             this.callbacks.onFolderClick("read");
+        });
+
+        readItemsEl.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            this.showReadItemsContextMenu(e);
         });
 
         
@@ -1601,10 +1680,11 @@ export class Sidebar {
         menu.addItem((item: MenuItem) => {
             item.setTitle("Mark All as Read")
                 .setIcon("check-circle")
-                .onClick(() => {
+                .onClick(async () => {
                     feed.items.forEach(item => {
                         item.read = true;
                     });
+                    await this.plugin.saveSettings();
                     this.render();
                 });
         });

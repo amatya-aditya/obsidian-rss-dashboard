@@ -273,9 +273,19 @@ export class MediaService {
         
         const updatedItems = feed.items.map(item => {
             const videoId = this.extractYouTubeVideoId(item.link);
-            const thumbnail = videoId ? 
-                `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : 
-                item.coverImage;
+            
+            let thumbnail = item.coverImage;
+            if (videoId) {
+                const thumbnailUrls = [
+                    `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`, 
+                    `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,     
+                    `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,     
+                    `https://img.youtube.com/vi/${videoId}/sddefault.jpg`,     
+                    `https://img.youtube.com/vi/${videoId}/default.jpg`        
+                ];
+                
+                thumbnail = thumbnailUrls[0] || item.coverImage;
+            }
             
             return {
                 ...item,

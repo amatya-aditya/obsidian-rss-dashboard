@@ -375,18 +375,32 @@ export default class RssDashboardPlugin extends Plugin {
                 
                 if (feed.maxItemsLimit && feed.maxItemsLimit > 0 && feed.items.length > feed.maxItemsLimit) {
                     
-                    feed.items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-                    feed.items = feed.items.slice(0, feed.maxItemsLimit);
+                    const readItems = feed.items.filter(item => item.read);
+                    const unreadItems = feed.items.filter(item => !item.read);
+                    
+                    
+                    unreadItems.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+                    
+                    
+                    const maxUnreadItems = Math.max(0, feed.maxItemsLimit - readItems.length);
+                    const limitedUnreadItems = unreadItems.slice(0, maxUnreadItems);
+                    
+                    
+                    feed.items = [...readItems, ...limitedUnreadItems];
                 }
 
                 
                 if (feed.autoDeleteDuration && feed.autoDeleteDuration > 0) {
                     const cutoffDate = new Date();
                     cutoffDate.setDate(cutoffDate.getDate() - feed.autoDeleteDuration);
-                    const beforeCount = feed.items.length;
-                    feed.items = feed.items.filter(item => 
+                    
+                    
+                    const readItems = feed.items.filter(item => item.read);
+                    const unreadItems = feed.items.filter(item => !item.read && 
                         new Date(item.pubDate).getTime() > cutoffDate.getTime()
                     );
+                    
+                    feed.items = [...readItems, ...unreadItems];
                 }
                 
                 if (feed.items.length !== originalCount) {

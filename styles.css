@@ -4369,8 +4369,8 @@ input.color-circle {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     border-radius: 6px;
     background: var(--background-secondary);
     border: 1px solid var(--background-modifier-border);
@@ -4491,7 +4491,7 @@ input.color-circle {
 }
 
 
-@media (max-width: 768px) {
+@media (max-width: 748px) {
     
     .rss-dashboard-hamburger-menu {
         display: block;

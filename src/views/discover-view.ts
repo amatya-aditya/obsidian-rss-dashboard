@@ -44,7 +44,7 @@ export class DiscoverView extends ItemView {
     }
 
     getIcon(): string {
-        return "lucide-flower";
+        return "lucide-discover";
     }
 
     async onOpen(): Promise<void> {

@@ -1101,7 +1101,7 @@ export class ArticleList {
         if (!article.saved) {
             menu.addSeparator();
             menu.addItem((item: MenuItem) => {
-                item.setTitle(this.settings.articleSaving.saveFullContent ? "Save Full Article to Notes" : "Save Article Summary to Notes")
+                item.setTitle(this.settings.articleSaving.saveFullContent ? "Save Full Article" : "Save Article Summary")
                     .setIcon("save")
                     .onClick(() => {
                         this.callbacks.onArticleSave(article);
@@ -1223,7 +1223,6 @@ export class ArticleList {
 }
 
 function extractFirstImageSrc(html: string): string | null {
-    // Ensure UTF-8 meta tag before parsing
     const htmlWithMeta = ensureUtf8Meta(html);
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlWithMeta, 'text/html');
