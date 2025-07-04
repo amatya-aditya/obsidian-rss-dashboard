@@ -109,7 +109,7 @@ export default class RssDashboardPlugin extends Plugin {
                 this.activateView();
             });
 
-            this.addRibbonIcon("lucide-library-big", "RSS Discover", () => {
+            this.addRibbonIcon("lucide-compass", "RSS Discover", () => {
                 this.activateDiscoverView();
             });
     
