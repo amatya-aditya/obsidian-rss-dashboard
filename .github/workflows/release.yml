@@ -1,20 +1,54 @@
-name: "Release"
+name: Release Obsidian plugin
 
-on: workflow_dispatch
-permissions:
-  contents: write
+on:
+  push:
+    tags:
+      - "*"
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v3
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: "22"
-      - run: npm install -g corepack@latest && corepack enable && npm i -D --no-save conventional-changelog-conventionalcommits @semantic-release/git @semantic-release/exec
-      - uses: cycjimmy/semantic-release-action@v4
-        with:
-          semantic_version: 24.2.1
+          node-version: "18.x"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Create release assets
+        run: |
+          # Create a release directory
+          mkdir -p release
+          
+          # Copy main files
+          cp main.js manifest.json styles.css release/
+          
+          # Create zip file for easy distribution
+          cd release
+          zip -r ../obsidian-rss-dashboard.zip .
+          cd ..
+
+      - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          
+          # Create release with all assets
+          gh release create "$tag" \
+            --title="$tag" \
+            --notes="Release $tag" \
+            --draft \
+            main.js \
+            manifest.json \
+            styles.css \
+            obsidian-rss-dashboard.zip
