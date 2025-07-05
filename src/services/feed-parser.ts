@@ -2,6 +2,12 @@ import { requestUrl, Notice } from "obsidian";
 import { Feed, FeedItem, MediaSettings, Tag } from "../types/types.js";
 import { MediaService } from "./media-service";
 
+function isValidFeed(text: string): boolean {
+    if (!text) return false;
+    const sample = text.slice(0, 2048).toLowerCase();
+    return sample.includes('<rss') || sample.includes('<feed');
+}
+
 async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
     try {
         
@@ -123,161 +129,70 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
 }
 
 export async function fetchFeedXml(url: string): Promise<string> {
-    async function tryFetch(targetUrl: string): Promise<string> {
-        
         const isAndroid = /android/i.test(navigator.userAgent);
-        
-        
-        
-        const response = await requestUrl({
-            url: targetUrl,
+    console.log(`[RSS Dashboard] Fetching feed: ${url}, Android: ${isAndroid}`);
+    
+    async function tryFetch(targetUrl: string): Promise<string> {
+        if (targetUrl.includes('feeds.feedburner.com')) {
+            const httpsUrl = targetUrl.replace(/^http:\/\//i, 'https://');
+            const feedNameMatch = httpsUrl.match(/feeds\.feedburner\.com\/([^\/\?]+)/);
+            if (feedNameMatch) {
+                const feedName = feedNameMatch[1];
+                const feedBurnerUrls = [
+                    `https://feeds.feedburner.com/${feedName}?format=xml`,
+                    `https://feeds.feedburner.com/${feedName}?fmt=xml`,
+                    `https://feeds.feedburner.com/${feedName}?type=xml`,
+                    `https://feeds.feedburner.com/${feedName}`
+                ];
+                for (const fbUrl of feedBurnerUrls) {
+                    try {
+                        const fbResponse = await requestUrl({
+                            url: fbUrl,
             method: "GET",
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
-                "DNT": "1",
-                "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1"
-            }
-        });
-        
-        
-        
-        
-        if (response.status >= 300 && response.status < 400) {
-            const location = response.headers?.['location'] || response.headers?.['Location'];
-            if (location) {
-                
-                return await tryFetch(location);
-            }
-        }
-        
-        let xmlText: string | undefined = undefined;
-        let encoding = 'utf-8';
-        
-        if (response.arrayBuffer) {
-            const buffer = response.arrayBuffer;
-            const ascii = new TextDecoder('ascii').decode(buffer.slice(0, 1024));
-            const encodingMatch = ascii.match(/encoding=["']([^"']+)["']/i);
-            if (encodingMatch) {
-                encoding = encodingMatch[1].toLowerCase();
-            }
-            
-            
-            
-            if (isAndroid && encoding !== 'utf-8' && encoding !== 'utf8') {
-                
-                const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-                const proxyResponse = await requestUrl({ url: allOriginsUrl, method: "GET" });
-                const data = JSON.parse(proxyResponse.text);
-                if (!data.contents) throw new Error('No contents from AllOrigins');
-                return data.contents;
-            }
-            
-            try {
-                xmlText = new TextDecoder(encoding).decode(buffer);
+                                "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                            }
+                        });
+                        if (fbResponse.text && isValidFeed(fbResponse.text)) {
+                            console.log(`[RSS Dashboard] Successfully fetched Feedburner RSS: ${fbUrl}`);
+                            return fbResponse.text;
+                        } else {
+                            throw new Error('Not a valid RSS/Atom feed');
+                        }
             } catch (e) {
-                
-                xmlText = new TextDecoder('utf-8').decode(buffer);
+                        console.log(`[RSS Dashboard] Feedburner variant failed: ${fbUrl}`);
+                        continue;
+                    }
+                }
             }
         }
-        
-        if (!xmlText && response.text) {
-            xmlText = response.text;
-        }
-        
-        if (!xmlText) {
-            
-            throw new Error('Empty response from feed');
-        }
-        
-        
-        
-        
-        
-        
-        if (xmlText.includes('Just a moment') || xmlText.includes('Cloudflare') || xmlText.includes('Checking your browser') || xmlText.includes('Please wait')) {
-            
-            const altResponse = await requestUrl({
-                url: targetUrl,
+        try {
+            const secureUrl = targetUrl.replace(/^http:\/\//i, 'https://');
+            const response = await requestUrl({
+                url: secureUrl,
                 method: "GET",
                 headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
-                    "Accept-Language": "en-US,en;q=0.9",
-                    "Accept-Encoding": "gzip, deflate, br",
-                    "DNT": "1",
-                    "Connection": "keep-alive",
-                    "Upgrade-Insecure-Requests": "1"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
+                    "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
                 }
             });
             
-            if (altResponse.text && !altResponse.text.includes('Just a moment') && !altResponse.text.includes('Cloudflare')) {
-                return altResponse.text;
+            if (!response.text) {
+                throw new Error('Empty response from feed');
             }
+
+            if (isValidFeed(response.text)) {
+                return response.text;
+            }
+
             
-            
-            throw new Error('Blocked by Cloudflare protection');
-        }
-        
-        if (!xmlText.includes('<rss') && !xmlText.includes('<feed') && !xmlText.includes('<channel') && !xmlText.includes('<item>')) {
-            
-        }
-        
-        
-        if (xmlText.includes('<?php') || xmlText.includes('WordPress') || xmlText.includes('wp-blog-header.php')) {
-            
-            
-            
-            const cleanUrl = (url: string): string => {
-                return url
-                    .replace(/\/feed\/?$/, '')  
-                    .replace(/\/+$/, '')        
-                    .replace(/\/+/g, '/')       
-                    .replace(/:\/\/[^\/]+\/\/+/, '://$&'.replace('$&', url.match(/:\/\/[^\/]+/)?.[0] || '')); 
-            };
-            
-            const baseUrl = cleanUrl(targetUrl);
-            
-            
-            const isFeedBurner = baseUrl.includes('feeds.feedburner.com');
-            const isBlogger = baseUrl.includes('blogger.com') || baseUrl.includes('blogspot.com');
-            
-            let alternativeUrls: string[] = [];
-            
-            if (isFeedBurner) {
+            if (response.text.includes('<?php') || response.text.includes('WordPress') || response.text.includes('wp-blog-header.php')) {
+                console.warn('Received PHP file instead of RSS feed, trying alternative URLs...');
                 
-                alternativeUrls = [
-                    `${baseUrl}?format=xml`,
-                    `${baseUrl}?fmt=xml`,
-                    `${baseUrl}?type=xml`,
-                    `${baseUrl}/feed`,
-                    `${baseUrl}/rss`,
-                    `${baseUrl}/atom`,
-                    `${baseUrl}.xml`,
-                    `${baseUrl}/feed.xml`,
-                    `${baseUrl}/rss.xml`,
-                    `${baseUrl}/atom.xml`
-                ];
-            } else if (isBlogger) {
                 
-                alternativeUrls = [
-                    `${baseUrl}/feeds/posts/default?alt=rss`,
-                    `${baseUrl}/feeds/posts/default?alt=atom`,
-                    `${baseUrl}/feeds/posts/default`,
-                    `${baseUrl}/feeds/posts/summary?alt=rss`,
-                    `${baseUrl}/feeds/posts/summary?alt=atom`,
-                    `${baseUrl}/feeds/posts/summary`,
-                    `${baseUrl}/rss.xml`,
-                    `${baseUrl}/atom.xml`,
-                    `${baseUrl}/feed`,
-                    `${baseUrl}/rss`
-                ];
-            } else {
-                
-                alternativeUrls = [
+                const baseUrl = secureUrl.replace(/\/feed\/?$/, '');
+                const alternativeUrls = [
                     `${baseUrl}/feed/rss/`,
                     `${baseUrl}/feed/rss2/`,
                     `${baseUrl}/feed/atom/`,
@@ -303,172 +218,187 @@ export async function fetchFeedXml(url: string): Promise<string> {
                     `${baseUrl}/index.php?feed=rss`,
                     `${baseUrl}/index.php?feed=atom`
                 ];
-            }
             
             for (const altUrl of alternativeUrls) {
                 try {
-                    
+                        console.log(`Trying alternative URL: ${altUrl}`);
                     const altResponse = await requestUrl({
                         url: altUrl,
                         method: "GET",
                         headers: {
-                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                            "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
-                            "Accept-Language": "en-US,en;q=0.9",
-                            "Accept-Encoding": "gzip, deflate, br",
-                            "DNT": "1",
-                            "Connection": "keep-alive",
-                            "Upgrade-Insecure-Requests": "1"
-                        }
-                    });
-                    
-                    if (altResponse.text && !altResponse.text.includes('<?php') && !altResponse.text.includes('WordPress')) {
+                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
+                                "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                            }
+                        });
                         
+                        if (altResponse.text && isValidFeed(altResponse.text)) {
+                            console.log(`Successfully fetched RSS from: ${altUrl}`);
                         return altResponse.text;
+                        } else {
+                            throw new Error('Not a valid RSS/Atom feed');
                     }
                 } catch (altError) {
-                    
+                        console.log(`Alternative URL failed: ${altUrl}`, altError);
                     continue;
                 }
             }
             
             
-            
+                console.log('All alternative URLs failed, attempting to discover feed URL from main page...');
             const discoveredUrl = await discoverFeedUrl(baseUrl);
             if (discoveredUrl) {
                 try {
-                    
+                        console.log(`Trying discovered feed URL: ${discoveredUrl}`);
                     const discoveredResponse = await requestUrl({
                         url: discoveredUrl,
                         method: "GET",
                         headers: {
-                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                            "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
-                            "Accept-Language": "en-US,en;q=0.9",
-                            "Accept-Encoding": "gzip, deflate, br",
-                            "DNT": "1",
-                            "Connection": "keep-alive",
-                            "Upgrade-Insecure-Requests": "1"
-                        }
-                    });
-                    
-                    if (discoveredResponse.text && !discoveredResponse.text.includes('<?php') && !discoveredResponse.text.includes('WordPress')) {
+                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
+                                "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                            }
+                        });
                         
+                        if (discoveredResponse.text && isValidFeed(discoveredResponse.text)) {
+                            console.log(`Successfully fetched RSS from discovered URL: ${discoveredUrl}`);
                         return discoveredResponse.text;
+                        } else {
+                            throw new Error('Not a valid RSS/Atom feed');
                     }
                 } catch (discoveredError) {
-                    
+                        console.log(`Discovered URL failed: ${discoveredUrl}`, discoveredError);
                 }
             }
             
             throw new Error('All alternative feed URLs failed, received PHP file instead of RSS feed');
         }
 
-        return xmlText;
-    }
-    
-    
-    function convertRss2JsonToRss(data: any): string {
-        const feed = data.feed;
-        const items = data.items || [];
-        
-        let rss = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-<channel>
-    <title>${feed.title || 'Unknown Feed'}</title>
-    <description>${feed.description || ''}</description>
-    <link>${feed.link || ''}</link>
-    <language>${feed.language || 'en'}</language>`;
-        
-        if (feed.image) {
-            rss += `
-    <image>
-        <url>${feed.image}</url>
-        <title>${feed.title || 'Unknown Feed'}</title>
-        <link>${feed.link || ''}</link>
-    </image>`;
+            throw new Error('Not a valid RSS/Atom feed');
+        } catch (error) {
+            
+            console.warn(`[RSS Dashboard] Direct fetch failed for ${targetUrl}, trying AllOrigins proxy...`, error);
+            
+            try {
+                const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+                const proxyResponse = await requestUrl({
+                    url: allOriginsUrl,
+                    method: "GET"
+                });
+                const data = JSON.parse(proxyResponse.text);
+                if (!data.contents) throw new Error('No contents from AllOrigins');
+                
+                
+                if (isValidFeed(data.contents)) {
+                    return data.contents;
+                } else {
+                    throw new Error('Not a valid RSS/Atom feed');
+                }
+            } catch (proxyError) {
+                console.error(`[RSS Dashboard] AllOrigins proxy fetch failed for ${targetUrl}:`, proxyError);
+                
+                if (!isAndroid) {
+                    
+                    try {
+                        const codetabsUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}`;
+                        const codetabsResponse = await requestUrl({ url: codetabsUrl, method: "GET" });
+                        if (codetabsResponse.text && isValidFeed(codetabsResponse.text)) {
+                            console.log(`[RSS Dashboard] Successfully fetched via codetabs proxy: ${codetabsUrl}`);
+                            return codetabsResponse.text;
+                        } else {
+                            throw new Error('Not a valid RSS/Atom feed');
+                        }
+                    } catch (e) {
+                        console.log(`[RSS Dashboard] Codetabs proxy failed:`, e);
+                    }
+                    
+                    try {
+                        const thingproxyUrl = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(targetUrl)}`;
+                        const thingproxyResponse = await requestUrl({ url: thingproxyUrl, method: "GET" });
+                        if (thingproxyResponse.text && isValidFeed(thingproxyResponse.text)) {
+                            console.log(`[RSS Dashboard] Successfully fetched via thingproxy: ${thingproxyUrl}`);
+                            return thingproxyResponse.text;
+                        } else {
+                            throw new Error('Not a valid RSS/Atom feed');
+                        }
+                    } catch (e) {
+                        console.log(`[RSS Dashboard] Thingproxy failed:`, e);
+                    }
+                    
+                    try {
+                        const discoveredUrl = await discoverFeedUrl(targetUrl);
+                        if (discoveredUrl && discoveredUrl !== targetUrl) {
+                            console.log(`[RSS Dashboard] Trying discovered feed URL as last resort: ${discoveredUrl}`);
+                            const discoveredResponse = await requestUrl({
+                                url: discoveredUrl,
+                                method: "GET",
+                                headers: {
+                                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
+                                    "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                                }
+                            });
+                            if (discoveredResponse.text && isValidFeed(discoveredResponse.text)) {
+                                console.log(`[RSS Dashboard] Successfully fetched RSS from discovered URL: ${discoveredUrl}`);
+                                return discoveredResponse.text;
+                            } else {
+                                throw new Error('Not a valid RSS/Atom feed');
+                            }
+                        }
+                    } catch (e) {
+                        console.log(`[RSS Dashboard] Feed discovery failed:`, e);
+                    }
+                }
+                throw new Error(`Could not fetch a valid RSS/Atom feed from ${targetUrl}`);
+            }
         }
-        
-        items.forEach((item: any) => {
-            rss += `
-    <item>
-        <title>${item.title || ''}</title>
-        <link>${item.link || ''}</link>
-        <description><![CDATA[${item.description || ''}]]></description>
-        <pubDate>${item.pubDate || new Date().toISOString()}</pubDate>
-        <guid>${item.link || ''}</guid>
-    </item>`;
-        });
-        
-        rss += `
-</channel>
-</rss>`;
-        
-        return rss;
     }
     
     try {
-        try {
-            return await tryFetch(url);
-        } catch (err) {
-            
-            if (/^http:\/\//i.test(url)) {
-                const httpsUrl = url.replace(/^http:\/\//i, 'https://');
-                if (httpsUrl !== url) {
-                    return await tryFetch(httpsUrl);
-                }
-            }
-            throw err;
-        }
+        return await tryFetch(url);
     } catch (error) {
         
-        if (error.message && error.message.includes('Blocked by Cloudflare protection')) {
-            
+        if (isAndroid) {
+            console.log(`[RSS Dashboard] Android detected, skipping additional proxies`);
+            throw error;
         }
+        
         
         try {
             const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`;
             const proxyResponse = await requestUrl({ url: proxyUrl, method: "GET" });
             
-            
-            if (proxyResponse.text && !proxyResponse.text.includes('Just a moment') && !proxyResponse.text.includes('Cloudflare')) {
+            if (proxyResponse.text && isValidFeed(proxyResponse.text)) {
                 return proxyResponse.text;
             } else {
                 throw new Error('First proxy blocked by Cloudflare');
             }
         } catch (proxyError) {
             try {
-                const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-                const proxyResponse = await requestUrl({ url: allOriginsUrl, method: "GET" });
+                const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
+                const proxyResponse = await requestUrl({ url: rss2jsonUrl, method: "GET" });
                 const data = JSON.parse(proxyResponse.text);
-                if (!data.contents) throw new Error('No contents from AllOrigins');
                 
-                
-                if (data.contents.includes('Just a moment') || data.contents.includes('Cloudflare')) {
-                    throw new Error('Second proxy also blocked by Cloudflare');
-                }
-                
-                if (data.contents.includes('<?php') || data.contents.includes('WordPress')) {
-                    throw new Error('Proxy also returned PHP file instead of RSS feed');
-                }
-                
-                return data.contents;
-            } catch (proxyError2) {
-                
-                try {
-                    const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
-                    const proxyResponse = await requestUrl({ url: rss2jsonUrl, method: "GET" });
-                    const data = JSON.parse(proxyResponse.text);
+                if (data.status === 'ok' && data.feed) {
                     
-                    if (data.status === 'ok' && data.feed) {
-                        
-                        return convertRss2JsonToRss(data);
+                    const feed = data.feed;
+                    const items = data.items || [];
+                    
+                    let rss = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\">\n<channel>\n    <title>${feed.title || 'Unknown Feed'}</title>\n    <description>${feed.description || ''}</description>\n    <link>${feed.link || ''}</link>\n    <language>${feed.language || 'en'}</language>`;
+                    
+                    if (feed.image) {
+                        rss += `\n    <image>\n        <url>${feed.image}</url>\n        <title>${feed.title || 'Unknown Feed'}</title>\n        <link>${feed.link || ''}</link>\n    </image>`;
+                    }
+                    
+                    items.forEach((item: any) => {
+                        rss += `\n    <item>\n        <title>${item.title || ''}</title>\n        <link>${item.link || ''}</link>\n        <description><![CDATA[${item.description || ''}]]></description>\n        <pubDate>${item.pubDate || new Date().toISOString()}</pubDate>\n        <guid>${item.link || ''}</guid>\n    </item>`;
+                    });
+                    
+                    rss += `\n</channel>\n</rss>`;
+                    
+                    return rss;
                     } else {
                         throw new Error('RSS2JSON returned error: ' + (data.message || 'Unknown error'));
                     }
-                } catch (proxyError3) {
-                    throw proxyError2; 
-                }
+            } catch (proxyError2) {
+                throw error; 
             }
         }
     }
@@ -2041,10 +1971,11 @@ export class FeedParser {
         
         for (const feed of feeds) {
             try {
+                console.log(`[RSS Dashboard] Refreshing feed: ${feed.title} (${feed.url})`);
                 const refreshedFeed = await this.refreshFeed(feed);
                 updatedFeeds.push(refreshedFeed);
             } catch (error) {
-                
+                console.error(`[RSS Dashboard] Error refreshing feed ${feed.title}:`, error);
                 updatedFeeds.push(feed); 
             }
         }
@@ -2069,17 +2000,20 @@ export class FeedParserService {
     }
 
     private async fetchFeedXml(url: string): Promise<string> {
-        const response = await fetch(url, {
+        const response = await requestUrl({
+            url: url,
+            method: "GET",
             headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            },
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
+                "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+            }
         });
 
-        if (!response.ok) {
-            throw new Error(`Failed to fetch feed: ${response.statusText}`);
+        if (!response.text) {
+            throw new Error(`Failed to fetch feed: Empty response`);
         }
 
-        return await response.text();
+        return response.text;
     }
 
     public async parseFeed(url: string, folder: string): Promise<Feed> {

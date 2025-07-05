@@ -343,6 +343,7 @@ export default class RssDashboardPlugin extends Plugin {
             } else {
                 feedNoticeText = `${feedsToRefresh.length} feeds`;
             }
+            console.log(`[RSS Dashboard] Starting refresh of ${feedNoticeText}`);
             new Notice(`Refreshing ${feedNoticeText}...`);
             const updatedFeeds = await this.feedParser.refreshAllFeeds(feedsToRefresh);
             
@@ -360,7 +361,7 @@ export default class RssDashboardPlugin extends Plugin {
                 new Notice(`Feeds refreshed: ${feedNoticeText}`);
             }
         } catch (error) {
-            
+            console.error(`[RSS Dashboard] Error refreshing feeds:`, error);
             new Notice(`Error refreshing  ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }

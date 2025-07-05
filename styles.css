@@ -470,7 +470,7 @@
 	white-space: normal;
 	text-overflow: ellipsis;
 	display: -webkit-box;
-	-webkit-line-clamp: 2;
+	line-clamp: 2;
 	-webkit-box-orient: vertical;
 	height: 2.8em;
 	line-height: 1.4;
@@ -492,7 +492,7 @@
 	margin: 2px 0 0 0;
 	line-height: 1.5;
 	display: -webkit-box;
-	-webkit-line-clamp: 3;
+	line-clamp: 3;
 	-webkit-box-orient: vertical;
 	overflow: hidden
    }
@@ -518,7 +518,7 @@
 	.rss-dashboard-article-title,
 	.rss-dashboard-article-summary {
 	 font-size: 1em;
-	 -webkit-line-clamp: 2
+	line-clamp: 2
 	}
    }
   .rss-dashboard-article-item.unread .rss-dashboard-article-title,
@@ -1156,7 +1156,7 @@
 	line-height: 1.3;
 	margin-bottom: 5px;
 	display: -webkit-box;
-	-webkit-line-clamp: 2;
+	line-clamp: 2;
 	-webkit-box-orient: vertical;
 	overflow: hidden
   }
@@ -1295,7 +1295,7 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	display: -webkit-box;
-	-webkit-line-clamp: 5;
+	line-clamp: 5;
 	-webkit-box-orient: vertical
   }
   .rss-dashboard-article-feed-container {
@@ -1703,6 +1703,7 @@
     transform: translate(-50%, -50%) !important;
     z-index: 10000 !important;
     margin: 0 !important;
+    border: 1px solid var(--background-modifier-border-hover);
 }
 
 .modal-container.mod-dim .modal.rss-dashboard-modal-container,
@@ -2270,14 +2271,6 @@ input.color-circle {
         background-color: var(--background-modifier-active);
     }
     
-    button,
-    .rss-controls button {
-        
-    }
-    
-    .rss-folder-toggle {
-        
-    }
 }
 
 
@@ -3670,7 +3663,7 @@ input.color-circle {
         font-size: 1em;
         line-height: 1.3;
         height: auto;
-        -webkit-line-clamp: 3;
+        line-clamp: 3;
     }
     
     .rss-dashboard-article-meta {
@@ -3886,7 +3879,7 @@ input.color-circle {
     white-space: normal;
     text-overflow: ellipsis;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     height: 2.8em;
     line-height: 1.4;
@@ -4607,7 +4600,7 @@ input.color-circle {
     .rss-dashboard-article-summary {
         font-size: 0.85em;
         line-height: 1.4;
-        -webkit-line-clamp: 3;
+        line-clamp: 3;
         margin-bottom: 8px;
     }
     
@@ -5298,7 +5291,7 @@ input.color-circle {
     color: var(--text-muted);
     line-height: 1.4;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -5476,7 +5469,7 @@ input.color-circle {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     line-height: 1.3;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -5653,8 +5646,8 @@ input.color-circle {
 .play-pause {
     background: rgba(255, 255, 255, 0.15);
     border-radius: 50% !important;
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5665,8 +5658,8 @@ input.color-circle {
 }
 
 .play-pause {
-    width: 64px;
-    height: 64px;
+    width: 46px;
+    height: 46px;
     background: rgba(255, 255, 255, 0.25);
     border-color: rgba(255, 255, 255, 0.4);
 }
@@ -5867,7 +5860,7 @@ input.color-circle {
     color: white;
     line-height: 1.3;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -5935,7 +5928,7 @@ input.color-circle {
     
     .playlist-ep-title {
         font-size: 1rem;
-        -webkit-line-clamp: 3;
+        line-clamp: 3;
     }
     
     .playlist-ep-date,
@@ -5981,8 +5974,8 @@ input.color-circle {
 }
 
 
-.theme-dark .rss-reader-podcast-container {
-    /* box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); */
+/* .theme-dark .rss-reader-podcast-container {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 }
 
 .theme-dark .podcast-player-main {
@@ -5990,8 +5983,8 @@ input.color-circle {
 }
 
 .theme-dark .podcast-playlist-section {
-    /* background: rgba(0, 0, 0, 0.2); */
-}
+    background: rgba(0, 0, 0, 0.2);
+} */
 
 
 .rewind:focus,
@@ -6145,6 +6138,7 @@ input.color-circle {
     .forward,
     .play-pause,
     .volume,
+    .speed-control,
     .playlist-play-btn {
         min-width: 44px;
         min-height: 44px;
@@ -6165,9 +6159,6 @@ input.color-circle {
         border: 2px solid white;
     }
     
-    .podcast-player-main {
-        
-    }
     
     .playlist-episode-row {
         border: 1px solid rgba(255, 255, 255, 0.5);
@@ -6202,7 +6193,6 @@ input.color-circle {
 
 .shuffle-btn,
 .repeat-btn {
-    border-radius: 50%;
     width: 36px;
     height: 36px;
     display: flex;
