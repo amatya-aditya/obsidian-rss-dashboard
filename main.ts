@@ -537,10 +537,9 @@ export default class RssDashboardPlugin extends Plugin {
     async importOpml() {
         const input = document.createElement("input");
         input.type = "file";
-        input.accept = ".opml, .xml";
         input.onchange = async () => {
             const file = input.files?.[0];
-            if (file) {
+            if (file && file.name.endsWith('.opml')) {
                 const content = await file.text();
                 try {
                     
@@ -598,6 +597,8 @@ export default class RssDashboardPlugin extends Plugin {
                 } catch (error) {
                     new Notice(error.message);
                 }
+            } else {
+                new Notice("Please select a valid OPML file.");
             }
         };
         input.click();
