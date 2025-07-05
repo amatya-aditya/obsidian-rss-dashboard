@@ -59,7 +59,7 @@ export class Sidebar {
         return this.cachedFolderPaths;
     }
 
-    private clearFolderPathCache(): void {
+    public clearFolderPathCache(): void {
         this.cachedFolderPaths = null;
     }
 
@@ -779,6 +779,8 @@ export class Sidebar {
             
             
             await this.plugin.saveSettings();
+            this.clearFolderPathCache();
+            this.render();
         }
     }
 
@@ -802,7 +804,7 @@ export class Sidebar {
         }
     }
 
-    private async addTopLevelFolder(folderName: string) {
+    public async addTopLevelFolder(folderName: string) {
         if (!this.settings.folders.some(f => f.name === folderName)) {
             this.settings.folders.push({ name: folderName, subfolders: [], createdAt: Date.now(), modifiedAt: Date.now() });
             
@@ -820,7 +822,7 @@ export class Sidebar {
         }
     }
 
-    private showFolderNameModal(options: {title: string, defaultValue?: string, onSubmit: (name: string) => void}) {
+    public showFolderNameModal(options: {title: string, defaultValue?: string, onSubmit: (name: string) => void}) {
         const modal = document.createElement("div");
         modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
         const modalContent = document.createElement("div");
@@ -880,11 +882,9 @@ export class Sidebar {
             return folders.filter((folder: Folder) => {
                 if (folder.name === parts[depth]) {
                     if (depth === parts.length - 1) {
-                        
                         return false;
                     } else {
                         folder.subfolders = removeRecursive(folder.subfolders, depth + 1);
-                        
                         return true;
                     }
                 } else {
@@ -897,6 +897,8 @@ export class Sidebar {
             const parent = this.findFolderByPath(parentPath);
             if (parent) parent.modifiedAt = Date.now();
         }
+        this.clearFolderPathCache();
+        this.render();
     }
 
     private getAllDescendantFolderPaths(path: string): string[] {
@@ -947,7 +949,7 @@ export class Sidebar {
         }, 0);
     }
 
-    private showAddTagModal(): void {
+    public showAddTagModal(): void {
         const modal = document.createElement("div");
         modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
 
@@ -1037,7 +1039,7 @@ export class Sidebar {
         });
     }
 
-    private showTagContextMenu(event: MouseEvent, tag: Tag): void {
+    public showTagContextMenu(event: MouseEvent, tag: Tag): void {
         const menu = new Menu();
         
         menu.addItem((item: MenuItem) => {
@@ -1258,7 +1260,7 @@ export class Sidebar {
         }
     }
 
-    private renderHeader(): void {
+    public renderHeader(): void {
         const header = this.container.createDiv({
             cls: "rss-dashboard-header",
         });
@@ -1296,7 +1298,7 @@ export class Sidebar {
         
     }
 
-    private renderSearch(): void {
+    public renderSearch(): void {
         const searchContainer = this.container.createDiv({
             cls: "rss-dashboard-search-container",
         });
@@ -1351,7 +1353,7 @@ export class Sidebar {
         });
     }
 
-    private renderFilters(): void {
+    public renderFilters(): void {
         const filtersList = this.container.createDiv({
             cls: "rss-dashboard-filters-section",
         });
@@ -1502,7 +1504,7 @@ export class Sidebar {
         });
     }
 
-    private renderToolbar(): void {
+    public renderToolbar(): void {
         
         const oldToolbar = this.container.querySelector('.rss-dashboard-sidebar-toolbar');
         if (oldToolbar) oldToolbar.remove();

@@ -164,6 +164,7 @@ export class RssDashboardView extends ItemView {
         }
 
         if (this.sidebar) {
+            this.sidebar.clearFolderPathCache();
             this.sidebar["options"] = {
                 currentFolder: this.currentFolder,
                 currentFeed: this.currentFeed,
