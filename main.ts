@@ -55,6 +55,10 @@ export default class RssDashboardPlugin extends Plugin {
         
         await this.loadSettings();
         
+        if (this.view) {
+            await this.view.render();
+        }
+        
         try {
             
             this.feedParser = new FeedParser(this.settings.media, this.settings.availableTags);

@@ -797,6 +797,8 @@ export class Sidebar {
             if (this.options.currentFeed && !this.settings.feeds.includes(this.options.currentFeed)) {
                 this.options.currentFeed = null;
             }
+            this.clearFolderPathCache();
+            this.render();
         }
     }
 
@@ -813,6 +815,8 @@ export class Sidebar {
             if (this.options.currentFeed && !this.settings.feeds.includes(this.options.currentFeed)) {
                 this.options.currentFeed = null;
             }
+            this.clearFolderPathCache();
+            this.render();
         }
     }
 
