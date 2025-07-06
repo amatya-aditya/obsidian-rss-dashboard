@@ -122,24 +122,24 @@ export default class RssDashboardPlugin extends Plugin {
     
             
             this.addCommand({
-                id: "open-rss-dashboard",
-                name: "Open RSS Dashboard",
+                id: "open-dashboard",
+                name: "Open Dashboard",
                 callback: () => {
                     this.activateView();
                 },
             });
 
             this.addCommand({
-                id: "open-rss-discover",
-                name: "Open RSS Discover",
+                id: "open-discover",
+                name: "Open Discover",
                 callback: () => {
                     this.activateDiscoverView();
                 },
             });
     
             this.addCommand({
-                id: "refresh-rss-feeds",
-                name: "Refresh RSS Feeds",
+                id: "refresh-feeds",
+                name: "Refresh Feeds",
                 callback: () => {
                     this.refreshFeeds();
                 },
@@ -170,8 +170,8 @@ export default class RssDashboardPlugin extends Plugin {
             });
     
             this.addCommand({
-                id: "toggle-rss-sidebar",
-                name: "Toggle RSS Dashboard Sidebar",
+                id: "toggle-sidebar",
+                name: "Toggle Sidebar",
                 callback: async () => {
                     if (this.view) {
                         this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
@@ -343,7 +343,7 @@ export default class RssDashboardPlugin extends Plugin {
             } else {
                 feedNoticeText = `${feedsToRefresh.length} feeds`;
             }
-            console.log(`[RSS Dashboard] Starting refresh of ${feedNoticeText}`);
+            
             new Notice(`Refreshing ${feedNoticeText}...`);
             const updatedFeeds = await this.feedParser.refreshAllFeeds(feedsToRefresh);
             
@@ -627,7 +627,7 @@ export default class RssDashboardPlugin extends Plugin {
         
         if (!this.importStatusBarItem) {
             this.importStatusBarItem = this.addStatusBarItem();
-            this.importStatusBarItem.innerHTML = '';
+            this.importStatusBarItem.textContent = '';
             const iconSpan = document.createElement('span');
             iconSpan.className = 'import-statusbar-icon';
             setIcon(iconSpan, 'rss');
@@ -944,8 +944,6 @@ export default class RssDashboardPlugin extends Plugin {
 
     onunload() {
         
-        this.app.workspace.detachLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
-        this.app.workspace.detachLeavesOfType(RSS_READER_VIEW_TYPE);
     }
 
     
