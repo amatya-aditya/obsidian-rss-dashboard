@@ -59,12 +59,12 @@
 
 
 ## Community <h3> 
-Want to influence the next release? </h3>  : Join our [Discord server](https://discord.gg/NCHuzyhj): it's where we:
+Want to influence the next release? </h3>  : Join our [Discord server](https://discord.gg/9bu7V9BBbs): it's where we:
 - Help build our manually curated Discover page (Collection of hand-pick RSS feeds, grouped by category (philosophy, engineering, physics etc.) for one-click subscribe.)
 - Discuss ideas, questions, and best practices in real time
 - Share sneak peeks of upcoming features (get early feedback!)
 
-👉 Click here to join - https://discord.gg/NCHuzyhj - See you inside!
+👉 Click here to join - https://discord.gg/9bu7V9BBbs - See you inside!
 
 ## Features
 
