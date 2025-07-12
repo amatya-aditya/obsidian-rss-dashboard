@@ -4533,13 +4533,7 @@ input.color-circle {
 }
 
 
-
-
 @media (max-width: 768px) {
-    
-    .rss-dashboard-articles-list.rss-dashboard-list-view {
-        display: none;
-    }
     
     .rss-dashboard-articles-list.rss-dashboard-card-view {
         display: grid !important;
