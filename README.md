@@ -185,7 +185,7 @@ Want to influence the next release? </h3>  : Join our [Discord server](https://d
 
 If you encounter any issues or have suggestions:
 - Create an issue on [GitHub](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)
-- Join our [Discord community](https://discord.gg/NCHuzyhj)
+- Join our [Discord community](https://discord.com/invite/9bu7V9BBbs)
 - Check the existing issues for solutions
 
 ## Support the Development

@@ -847,35 +847,28 @@ export class ArticleList {
                     } else {
                         article.tags = article.tags.filter((t) => t.name !== tag.name);
                     }
-                    
-                    
+
                     const index = this.articles.findIndex(a => a.guid === article.guid);
                     if (index !== -1) {
                         this.articles[index] = { ...article };
                     }
-                    
-                    
-                    
+
+                    if (this.callbacks.onArticleUpdate) {
+                        this.callbacks.onArticleUpdate(article, { tags: [...article.tags] }, false);
+                    }
+
                     let articleEl = this.container.querySelector(`[id="article-${article.guid}"]`) as HTMLElement;
-                    
-                    
                     if (!articleEl) {
                         articleEl = this.container.closest('.rss-dashboard-container')?.querySelector(`[id="article-${article.guid}"]`) as HTMLElement;
                     }
-                    
-                    
                     if (!articleEl) {
                         articleEl = document.getElementById(`article-${article.guid}`) as HTMLElement;
                     }
-                    
                     if (articleEl) {
-                        
                         articleEl.classList.add('rss-dashboard-tag-change-feedback');
-                        
                         setTimeout(() => {
                             articleEl.classList.remove('rss-dashboard-tag-change-feedback');
                         }, 200);
-                        
                         let tagsContainer = articleEl.querySelector('.rss-dashboard-article-tags');
                         if (!tagsContainer) {
                             const cardContent = articleEl.querySelector('.rss-dashboard-card-content') || articleEl;
@@ -886,12 +879,10 @@ export class ArticleList {
                                 cardContent.insertBefore(tagsContainer, actionToolbar);
                             }
                         } else {
-                            
                             while (tagsContainer.firstChild) {
                                 tagsContainer.removeChild(tagsContainer.firstChild);
                             }
                         }
-                        
                         if (tagsContainer && article.tags && article.tags.length > 0) {
                             const tagsToShow = article.tags.slice(0, MAX_VISIBLE_TAGS);
                             tagsToShow.forEach(tag => {
@@ -903,7 +894,6 @@ export class ArticleList {
                                     tagsContainer.appendChild(tagEl);
                                 }
                             });
-                            
                             if (article.tags.length > MAX_VISIBLE_TAGS && tagsContainer) {
                                 const overflowTag = document.createElement('div');
                                 overflowTag.className = 'rss-dashboard-tag-overflow';
@@ -912,22 +902,16 @@ export class ArticleList {
                                 tagsContainer.appendChild(overflowTag);
                             }
                         } else if (tagsContainer) {
-                            
                             while (tagsContainer.firstChild) {
                                 tagsContainer.removeChild(tagsContainer.firstChild);
                             }
                         }
-                        
-                        
                         articleEl.offsetHeight;
                     } else {
-                        
-                        
                         const tempIndicator = document.createElement('div');
                         tempIndicator.className = 'rss-dashboard-tag-change-notification';
                         tempIndicator.textContent = `Tag "${tag.name}" ${checked ? 'added' : 'removed'}`;
                         document.body.appendChild(tempIndicator);
-                        
                         setTimeout(() => {
                             if (tempIndicator.parentNode) {
                                 tempIndicator.parentNode.removeChild(tempIndicator);
