@@ -3258,7 +3258,7 @@
   {
     "id": "feed-125",
     "title": "Kottke.org",
-    "url": "https://kottke.org/feed",
+    "url": "https://feeds.kottke.org/main",
     "imageUrl": "https://logo.clearbit.com/kottke.org",
     "domain": [
       "Culture"
@@ -3387,7 +3387,7 @@
   {
     "id": "feed-130",
     "title": "Philosophy Now",
-    "url": "https://philosophynow.org/rss.xml",
+    "url": "https://philosophynow.org/rss",
     "imageUrl": "https://logo.clearbit.com/philosophynow.org",
     "domain": [
       "Philosophy"

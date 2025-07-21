@@ -466,50 +466,36 @@ export class CustomXMLParser {
 
     private getTextContent(element: Element | null, tagName: string): string {
         if (!element) return '';
-        
         let el: Element | null = null;
-        
         if (tagName.includes('\\:')) {
-            
             el = element.querySelector(tagName);
         } else if (tagName.includes(':')) {
-            
             const parts = tagName.split(':');
             if (parts.length === 2) {
                 const [namespace, localName] = parts;
-                
-                
                 try {
-                    
                     el = element.querySelector(`${namespace}\\:${localName}`);
                 } catch (e) {
                     try {
-                        
                         const elements = element.getElementsByTagNameNS('*', localName);
                         if (elements.length > 0) {
                             el = elements[0];
                         }
                     } catch (e2) {
                         try {
-                            
                             el = element.querySelector(localName);
                         } catch (e3) {
-                            
                             el = element.querySelector(`*[local-name()="${localName}"]`);
                         }
                     }
                 }
-                
-                
                 if (!el && namespace === 'content' && localName === 'encoded') {
-                    
                     const contentSelectors = [
                         'content\\:encoded',
                         'content:encoded',
                         '*[local-name()="encoded"]',
                         'encoded'
                     ];
-                    
                     for (const selector of contentSelectors) {
                         try {
                             el = element.querySelector(selector);
@@ -521,18 +507,24 @@ export class CustomXMLParser {
                 }
             }
         } else {
-            
             el = element.querySelector(tagName);
+            if (!el) {
+                const tagEls = element.getElementsByTagName(tagName);
+                if (tagEls.length > 0) {
+                    el = tagEls[0];
+                } else if (element.getElementsByTagNameNS) {
+                    const nsEls = element.getElementsByTagNameNS('*', tagName);
+                    if (nsEls.length > 0) {
+                        el = nsEls[0];
+                    }
+                }
+            }
         }
-        
         if (!el) return '';
-        
-        
         const textContent = el.textContent?.trim() || '';
         if (textContent) {
             return this.sanitizeCDATA(textContent);
         }
-        
         return '';
     }
 
@@ -1072,8 +1064,12 @@ export class CustomXMLParser {
     }
 
     private parseAtom(doc: Document): ParsedFeed {
+        
         const feed = doc.querySelector('feed');
-        if (!feed) throw new Error('Invalid Atom feed: no feed element found');
+        if (!feed) {
+            
+            throw new Error('Invalid Atom feed: no feed element found');
+        }
 
         const title = this.getTextContent(feed, 'title');
         const description = this.getTextContent(feed, 'subtitle');
@@ -1084,15 +1080,13 @@ export class CustomXMLParser {
         const image = iconElement ? { url: iconElement.textContent || '' } : undefined;
 
         const items: ParsedItem[] = [];
-        const entryElements = feed.querySelectorAll('entry');
+        const entryElements = Array.from(feed.getElementsByTagName('entry'));
+        
 
-        entryElements.forEach(entry => {
+        entryElements.forEach((entry, idx) => {
             const title = this.getTextContent(entry, 'title');
-            let link = this.getAttribute(entry, 'link[rel="alternate"]', 'href') || this.getAttribute(entry, 'link', 'href');
-            
-            
+            let link = this.getAtomEntryLink(entry);
             link = this.transformSageUrl(link);
-            
             const description = this.getTextContent(entry, 'summary');
             const pubDate = this.getTextContent(entry, 'published') || this.getTextContent(entry, 'updated');
             const guid = this.getTextContent(entry, 'id') || link;
@@ -1109,7 +1103,9 @@ export class CustomXMLParser {
                 content,
                 category: this.getTextContent(entry, 'category')
             });
+            
         });
+        
 
         return {
             title,
@@ -1456,6 +1452,7 @@ export class CustomXMLParser {
         try {
             
             if (xmlString.trim().startsWith('{')) {
+                
                 return this.parseJSON(xmlString);
             }
 
@@ -1474,20 +1471,20 @@ export class CustomXMLParser {
                         const extractedParserError = extractedDoc.querySelector('parsererror');
                         if (!extractedParserError && this.validateFeedStructure(extractedDoc)) {
                             const rootElement = extractedDoc.documentElement;
-                            const isRDF = rootElement && 
-                                (rootElement.tagName.toLowerCase() === 'rdf:rdf' ||
-                                 rootElement.getAttribute('xmlns:rdf') || 
-                                 rootElement.getAttribute('xmlns')?.includes('rdf'));
+                            const isRDF = rootElement && rootElement.tagName.toLowerCase() === 'rdf:rdf';
                             if (isRDF) {
+                                
                                 return this.parseRSS1(extractedDoc);
                             } else if (extractedDoc.querySelector('rss')) {
+                                
                                 return this.parseRSS(extractedDoc);
                             } else if (extractedDoc.querySelector('feed')) {
+                                
                                 return this.parseAtom(extractedDoc);
                             }
                         }
                     } catch (extractError) {
-                        
+                        console.error('[RSS Dashboard] parseString: Error in fallback extraction', extractError);
                     }
                 }
                 
@@ -1495,30 +1492,46 @@ export class CustomXMLParser {
             }
 
             if (!this.validateFeedStructure(doc)) {
+                
                 return this.fallbackParse(xmlString);
             }
 
             const rootElement = doc.documentElement;
-            const isRDF = rootElement && 
-                (rootElement.tagName.toLowerCase() === 'rdf:rdf' ||
-                 rootElement.getAttribute('xmlns:rdf') || 
-                 rootElement.getAttribute('xmlns')?.includes('rdf'));
+            const isRDF = rootElement && rootElement.tagName.toLowerCase() === 'rdf:rdf';
             if (isRDF) {
+                
                 return this.parseRSS1(doc);
             } else if (doc.querySelector('rss')) {
+                
                 return this.parseRSS(doc);
             } else if (doc.querySelector('feed')) {
+                
                 return this.parseAtom(doc);
             } else {
+                
                 return this.fallbackParse(xmlString);
             }
         } catch (error) {
+            console.error('[RSS Dashboard] parseString error:', error);
             try {
                 return this.fallbackParse(xmlString);
             } catch (fallbackError) {
                 throw new Error(`All parsing attempts failed: ${error}. Fallback error: ${fallbackError}`);
             }
         }
+    }
+
+    private getAtomEntryLink(entry: Element): string {
+        
+        let el = entry.querySelector('link[rel="alternate"][type="text/html"]');
+        if (el && el.getAttribute('href')) return el.getAttribute('href')!;
+        
+        el = entry.querySelector('link[rel="alternate"]');
+        if (el && el.getAttribute('href')) return el.getAttribute('href')!;
+        
+        el = entry.querySelector('link[href]');
+        if (el && el.getAttribute('href')) return el.getAttribute('href')!;
+        return '';
     }
 }
 

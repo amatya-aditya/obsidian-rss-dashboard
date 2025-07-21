@@ -5536,7 +5536,7 @@ input.color-circle {
 }
 
 
-.progress-bar {
+.podcast-progress-bar {
     width: 100%;
     height: 8px;
     border-radius: 6px;
@@ -5547,33 +5547,33 @@ input.color-circle {
     position: relative;
 }
 
-.progress-bar::-webkit-progress-bar {
+.podcast-progress-bar::-webkit-progress-bar {
   background: #e0e0e0;
   border-radius: 6px;
 }
 
-.progress-bar::-webkit-progress-value {
+.podcast-progress-bar::-webkit-progress-value {
   background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
   border-radius: 6px;
   transition: width 0.2s;
 }
 
-.progress-bar::-moz-progress-bar {
+.podcast-progress-bar::-moz-progress-bar {
   background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
   border-radius: 6px;
 }
 
-.progress-bar::-ms-fill {
+.podcast-progress-bar::-ms-fill {
   background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
   border-radius: 6px;
 }
 
-.progress-bar[value] {
+.podcast-progress-bar[value] {
   background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%) 0/var(--progress, 0%) no-repeat, #e0e0e0;
 }
 
 
-.progress-bar[role="progressbar"]::before {
+.podcast-progress-bar[role="progressbar"]::before {
   content: '';
   display: block;
   height: 100%;
@@ -6584,11 +6584,11 @@ input.color-circle {
 }
 
 
-.progress-bar:hover {
+.podcast-progress-bar:hover {
     height: 10px;
 }
 
-.progress-bar:hover::-webkit-progress-value {
+.podcast-progress-bar:hover::-webkit-progress-value {
     background: linear-gradient(90deg, #fff 0%, rgba(255, 255, 255, 0.9) 100%);
 }
 
@@ -6672,7 +6672,7 @@ input.color-circle {
 }
 
 
-.progress-bar-wrapper {
+.podcast-progress-bar-wrapper {
   position: relative;
   width: 100%;
   height: 10px;
@@ -6682,7 +6682,7 @@ input.color-circle {
   margin: 0 8px;
 }
 
-.progress-bar {
+.podcast-progress-bar {
   width: 100%;
   height: 10px;
   border-radius: 6px;
@@ -6694,7 +6694,7 @@ input.color-circle {
   z-index: 1;
 }
 
-.progress-bar-filled {
+.podcast-progress-bar-filled {
   position: absolute;
   left: 0;
   top: 0;
@@ -6708,7 +6708,7 @@ input.color-circle {
 }
 
 
-.progress-bar-wrapper {
+.podcast-progress-bar-wrapper {
     position: relative;
     width: 100%;
     height: 8px;
@@ -6718,7 +6718,7 @@ input.color-circle {
     cursor: pointer;
 }
 
-.progress-bar {
+.podcast-progress-bar {
     width: 100%;
     height: 100%;
     border-radius: 6px;
@@ -6729,22 +6729,22 @@ input.color-circle {
     cursor: pointer;
 }
 
-.progress-bar::-webkit-progress-bar {
+.podcast-progress-bar::-webkit-progress-bar {
     background: transparent;
     border-radius: 6px;
 }
 
-.progress-bar::-webkit-progress-value {
+.podcast-progress-bar::-webkit-progress-value {
     background: transparent;
     border-radius: 6px;
 }
 
-.progress-bar::-moz-progress-bar {
+.podcast-progress-bar::-moz-progress-bar {
     background: transparent;
     border-radius: 6px;
 }
 
-.progress-bar-filled {
+.podcast-progress-bar-filled {
     position: absolute;
     top: 0;
     left: 0;
@@ -6757,13 +6757,13 @@ input.color-circle {
 }
 
 
-.progress-bar-wrapper:hover .progress-bar-filled {
+.podcast-progress-bar-wrapper:hover .podcast-progress-bar-filled {
     background: linear-gradient(90deg, #5fb8ff 0%, #1af8ff 100%);
     box-shadow: 0 0 8px rgba(79, 172, 254, 0.4);
 }
 
 
-.progress-bar-wrapper:active .progress-bar-filled {
+.podcast-progress-bar-wrapper:active .podcast-progress-bar-filled {
     background: linear-gradient(90deg, #3d9be8 0%, #00d4e0 100%);
 }
 .volume-control-container:hover .volume-slider,
@@ -7103,7 +7103,7 @@ color: white;
 }
 
 
-.progress-bar-filled {
+.podcast-progress-bar-filled {
  width: var(--progress-percent, 0%);
 }
 

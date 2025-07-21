@@ -110,12 +110,12 @@ export class PodcastPlayer {
         const seekbarRow = center.createDiv({ cls: "podcast-seekbar-row" });
         this.currentTimeEl = seekbarRow.createDiv({ cls: "current-time", text: "0:00" });
         
-        const progressBarWrapper = seekbarRow.createDiv({ cls: "progress-bar-wrapper" });
-        this.progressBarEl = progressBarWrapper.createEl("progress", { cls: "progress-bar" }) as HTMLProgressElement;
+        const progressBarWrapper = seekbarRow.createDiv({ cls: "podcast-progress-bar-wrapper" });
+        this.progressBarEl = progressBarWrapper.createEl("progress", { cls: "podcast-progress-bar" }) as HTMLProgressElement;
         (this.progressBarEl as HTMLProgressElement).value = 0;
         (this.progressBarEl as HTMLProgressElement).max = 1;
         
-        this.progressFilledEl = progressBarWrapper.createDiv({ cls: "progress-bar-filled" });
+        this.progressFilledEl = progressBarWrapper.createDiv({ cls: "podcast-progress-bar-filled" });
         this.durationEl = seekbarRow.createDiv({ cls: "duration", text: "-0:00" });
         
         
