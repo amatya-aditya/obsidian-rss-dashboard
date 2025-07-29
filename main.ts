@@ -520,7 +520,7 @@ export default class RssDashboardPlugin extends Plugin {
         const progressFill = document.createElement("div");
         progressFill.id = "import-progress-fill";
         progressFill.className = "rss-dashboard-import-progress-fill";
-        progressFill.style.setProperty('--progress-width', '0%');
+        // progressFill.style.setProperty('--progress-width', '0%');
         progressBar.appendChild(progressFill);
 
         const currentFeedText = document.createElement("div");

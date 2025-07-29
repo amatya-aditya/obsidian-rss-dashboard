@@ -120,7 +120,7 @@ export class Sidebar {
                 const tagColorDot = tagEl.createDiv({
                     cls: "rss-dashboard-tag-color-dot",
                 });
-                tagColorDot.style.setProperty('--tag-color', tag.color);
+                // tagColorDot.style.setProperty('--tag-color', tag.color);
 
                 tagEl.createDiv({
                     cls: "rss-dashboard-tag-name",

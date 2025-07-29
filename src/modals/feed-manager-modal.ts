@@ -128,9 +128,9 @@ export class EditFeedModal extends Modal {
                 folderInput.addEventListener("focus", () => {
                     if (!dropdown) {
                         dropdown = contentEl.createDiv({ cls: "edit-feed-folder-dropdown" });
-                        dropdown.style.width = folderInput.offsetWidth + "px";
-                        dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
-                        dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
+                        // dropdown.style.width = folderInput.offsetWidth + "px";
+                        // dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
+                        // dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
                         document.body.appendChild(dropdown);
                     }
                     if (dropdown) {
@@ -540,9 +540,9 @@ export class AddFeedModal extends Modal {
                 folderInput.addEventListener("focus", () => {
                     if (!dropdown) {
                         dropdown = contentEl.createDiv({ cls: "edit-feed-folder-dropdown" });
-                        dropdown.style.width = folderInput.offsetWidth + "px";
-                        dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
-                        dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
+                        // dropdown.style.width = folderInput.offsetWidth + "px";
+                        // dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
+                        // dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
                         document.body.appendChild(dropdown);
                     }
                     if (dropdown) {

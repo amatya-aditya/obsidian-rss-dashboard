@@ -416,7 +416,7 @@ export class ReaderView extends ItemView {
             for (const tag of item.tags) {
                 const tagElement = tagsContainer.createDiv({ cls: "rss-reader-tag" });
                 tagElement.textContent = tag.name;
-                tagElement.style.setProperty('--tag-color', tag.color);
+                // tagElement.style.setProperty('--tag-color', tag.color);
             }
         }
         

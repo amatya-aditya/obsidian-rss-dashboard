@@ -614,6 +614,9 @@
   .rss-dashboard-star-toggle.starred {
 	color: #f1c40f
    }
+   .rss-dashboard-star-toggle.starred svg {
+	fill: #f1c40f
+   }
    .rss-dashboard-star-toggle.unstarred {
 	color: #888 !important;
 	opacity: 1 !important;
