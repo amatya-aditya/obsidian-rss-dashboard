@@ -310,7 +310,7 @@ export class PodcastPlayer {
                 if (progress && progress.position > 0) {
                     epRow.addClass("has-progress");
                     const progressPercent = (progress.position / progress.duration) * 100;
-                    // epRow.style.setProperty('--progress-width', `${progressPercent}%`);
+                    epRow.style.setProperty('--progress-width', `${progressPercent}%`);
                 }
                 
                 const playEpBtn = epRow.createEl("button", { cls: "playlist-play-btn" });
@@ -356,7 +356,7 @@ export class PodcastPlayer {
                 if (progress && progress.position > 0) {
                     const progressIndicator = epRow.createDiv({ cls: "episode-progress-indicator" });
                     const progressPercent = (progress.position / progress.duration) * 100;
-                    // progressIndicator.style.setProperty('--progress-width', `${progressPercent}%`);
+                    progressIndicator.style.setProperty('--progress-width', `${progressPercent}%`);
                 }
                 
                 if (this.currentItem && ep.guid === this.currentItem.guid) {
@@ -509,7 +509,7 @@ export class PodcastPlayer {
             
             if (this.progressFilledEl) {
                 const percent = (this.audioElement.currentTime / this.audioElement.duration) * 100;
-                // this.progressFilledEl.style.setProperty('--progress-percent', `${percent}%`);
+                this.progressFilledEl.style.setProperty('--progress-percent', `${percent}%`);
             }
         }
     }

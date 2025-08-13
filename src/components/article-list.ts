@@ -566,7 +566,7 @@ export class ArticleList {
                                 const tagEl = document.createElement('div');
                                 tagEl.className = 'rss-dashboard-article-tag';
                                 tagEl.textContent = tag.name;
-                                // tagEl.style.setProperty('--tag-color', tag.color || 'var(--interactive-accent)');
+                                tagEl.style.setProperty('--tag-color', tag.color || 'var(--interactive-accent)');
                                 if (tagsContainer) {
                                     tagsContainer.appendChild(tagEl);
                                 }
@@ -615,7 +615,7 @@ export class ArticleList {
                         cls: 'rss-dashboard-article-tag',
                         text: tag.name,
                     });
-                    // tagEl.style.setProperty('--tag-color', tag.color);
+                    tagEl.style.setProperty('--tag-color', tag.color);
                 });
             }
 
@@ -723,7 +723,7 @@ export class ArticleList {
                         cls: "rss-dashboard-article-tag",
                         text: tag.name,
                     });
-                    // tagEl.style.setProperty('--tag-color', tag.color);
+                    tagEl.style.setProperty('--tag-color', tag.color);
                 });
                 if (article.tags.length > MAX_VISIBLE_TAGS) {
                     const overflowTag = tagsContainer.createDiv({
@@ -889,7 +889,7 @@ export class ArticleList {
                                 const tagEl = document.createElement('div');
                                 tagEl.className = 'rss-dashboard-article-tag';
                                 tagEl.textContent = tag.name;
-                                // tagEl.style.setProperty('--tag-color', tag.color || 'var(--interactive-accent)');
+                                tagEl.style.setProperty('--tag-color', tag.color || 'var(--interactive-accent)');
                                 if (tagsContainer) {
                                     tagsContainer.appendChild(tagEl);
                                 }
@@ -1126,7 +1126,7 @@ export class ArticleList {
             const tagLabel = document.createElement("div");
             tagLabel.className = "rss-dashboard-tag-label";
             tagLabel.textContent = tag.name;
-            // tagLabel.style.setProperty('--tag-color', tag.color);
+            tagLabel.style.setProperty('--tag-color', tag.color);
 
             tagCheckbox.addEventListener("change", (e) => {
                 e.stopPropagation();
@@ -1185,8 +1185,8 @@ export class ArticleList {
         }
 
         
-        // portalDropdown.style.left = `${left}px`;
-        // portalDropdown.style.top = `${top}px`;
+        portalDropdown.style.left = `${left}px`;
+        portalDropdown.style.top = `${top}px`;
 
         setTimeout(() => {
             const handleClickOutside = (ev: MouseEvent) => {

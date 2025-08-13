@@ -14,7 +14,7 @@ export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 export class RssDashboardView extends ItemView {
     private settings: RssDashboardSettings;
     private saver: ArticleSaver;
-    private currentFolder: string | null = null;
+    public currentFolder: string | null = null;
     private currentFeed: Feed | null = null;
     private currentTag: string | null = null;
     private selectedArticle: FeedItem | null = null;
@@ -25,7 +25,7 @@ export class RssDashboardView extends ItemView {
     private readArticlesPage: number = 1;
     private savedArticlesPage: number = 1;
     private starredArticlesPage: number = 1;
-    private sidebar: Sidebar;
+    public sidebar: Sidebar;
     private articleList: ArticleList;
     private sidebarContainer: HTMLElement | null = null;
     private verificationTimeout: number | null = null;
@@ -43,6 +43,17 @@ export class RssDashboardView extends ItemView {
         this.settings = this.plugin.settings;
         this.collapsedFolders = this.settings.collapsedFolders || [];
         this.saver = new ArticleSaver(this.app.vault, this.settings.articleSaving);
+        
+        // Set default filter based on settings
+        const defaultFilter = this.settings.display?.defaultFilter || "all";
+        const hiddenFilters = this.settings.display?.hiddenFilters || [];
+        
+        // Only set the default filter if it's not hidden
+        if (defaultFilter !== "all" && !hiddenFilters.includes(defaultFilter)) {
+            this.currentFolder = defaultFilter;
+        } else {
+            this.currentFolder = null; // Default to "All Items"
+        }
     }
 
     getViewType(): string {

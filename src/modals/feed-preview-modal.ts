@@ -64,7 +64,7 @@ export class FeedPreviewModal extends Modal {
             const categories = metaContainer.createDiv({ cls: "feed-preview-categories" });
             this.feed.domain.forEach(category => {
                 const categoryEl = categories.createDiv({ cls: "feed-preview-category", text: category });
-                // categoryEl.style.setProperty('--tag-color', this.getTagColor(category));
+                categoryEl.style.setProperty('--tag-color', this.getTagColor(category));
             });
         }
 
@@ -72,7 +72,7 @@ export class FeedPreviewModal extends Modal {
             const tags = metaContainer.createDiv({ cls: "feed-preview-tags" });
             this.feed.tags.forEach(tag => {
                 const tagEl = tags.createDiv({ cls: "feed-preview-tag", text: tag });
-                // tagEl.style.setProperty('--tag-color', this.getTagColor(tag));
+                tagEl.style.setProperty('--tag-color', this.getTagColor(tag));
             });
         }
     }

@@ -5,7 +5,14 @@ import { MediaService } from "./media-service";
 function isValidFeed(text: string): boolean {
     if (!text) return false;
     const sample = text.slice(0, 2048).toLowerCase();
-    return sample.includes('<rss') || sample.includes('<feed');
+    return (
+        sample.includes('<rss') ||
+        sample.includes('<feed') ||
+        sample.includes('<rdf:rdf') ||
+        sample.includes('<rdf') ||
+        sample.includes('xmlns="http://purl.org/rss/1.0/"') ||
+        sample.includes('xmlns:rdf=')
+    );
 }
 
 async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
@@ -52,7 +59,7 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
                             method: "GET",
                             headers: {
                                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                                "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                                "Accept": "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8"
                             }
                         });
                         
@@ -72,7 +79,7 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
         }
         
         
-        const feedLinkMatches = response.text.match(/<link[^>]+(?:type="application\/rss\+xml"|type="application\/atom\+xml"|type="application\/xml")[^>]+href="([^"]+)"/gi);
+        const feedLinkMatches = response.text.match(/<link[^>]+(?:type="application\/rss\+xml"|type="application\/atom\+xml"|type="application\/rdf\+xml"|type="application\/xml")[^>]+href="([^"]+)"/gi);
         
         if (feedLinkMatches) {
             for (const match of feedLinkMatches) {
@@ -95,10 +102,11 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
         }
         
         
-        const altFeedPatterns = [
+            const altFeedPatterns = [
             /<a[^>]+href="([^"]*feed[^"]*)"[^>]*>/gi,
             /<a[^>]+href="([^"]*rss[^"]*)"[^>]*>/gi,
             /<a[^>]+href="([^"]*atom[^"]*)"[^>]*>/gi,
+            /<a[^>]+href="([^"]*rdf[^"]*)"[^>]*>/gi,
             /<a[^>]+href="([^"]*xml[^"]*)"[^>]*>/gi
         ];
         
@@ -168,13 +176,13 @@ export async function fetchFeedXml(url: string): Promise<string> {
             }
         }
         try {
-            const secureUrl = targetUrl.replace(/^http:\/\//i, 'https://');
+            const secureUrl = targetUrl; // try original URL as-is first (don't force https)
             const response = await requestUrl({
                 url: secureUrl,
                 method: "GET",
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
-                    "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                    "Accept": "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8"
                 }
             });
             
@@ -183,7 +191,55 @@ export async function fetchFeedXml(url: string): Promise<string> {
             }
 
             if (isValidFeed(response.text)) {
+                // Handle arXiv stub feeds that point to rss.arxiv.org but contain no items
+                const hasItems = /<item\b[\s\S]*?<\/item>/i.test(response.text);
+                if (!hasItems) {
+                    const atomLinkMatch = response.text.match(/<atom:link[^>]*href=["']([^"']+)["'][^>]*>/i);
+                    const channelLinkMatch = response.text.match(/<channel[^>]*>[\s\S]*?<link[^>]*>([^<]+)<\/link>/i);
+                    const candidateUrl = atomLinkMatch?.[1] || channelLinkMatch?.[1] || '';
+                    if (candidateUrl && /arxiv\.org\//i.test(candidateUrl)) {
+                        try {
+                            const arxivResp = await requestUrl({
+                                url: candidateUrl,
+                                method: "GET",
+                                headers: {
+                                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
+                                    "Accept": "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8"
+                                }
+                            });
+                            if (arxivResp.text && isValidFeed(arxivResp.text)) {
+                                return arxivResp.text;
+                            }
+                        } catch (e) {
+                            
+                        }
+                    }
+                }
                 return response.text;
+            }
+
+            // If initial scheme fails, try toggled scheme (http<->https) before other fallbacks
+            const toggledUrl = targetUrl.startsWith('http://')
+                ? targetUrl.replace(/^http:\/\//i, 'https://')
+                : targetUrl.startsWith('https://')
+                    ? targetUrl.replace(/^https:\/\//i, 'http://')
+                    : '';
+            if (toggledUrl) {
+                try {
+                    const toggledResp = await requestUrl({
+                        url: toggledUrl,
+                        method: "GET",
+                        headers: {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
+                            "Accept": "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8"
+                        }
+                    });
+                    if (toggledResp.text && isValidFeed(toggledResp.text)) {
+                        return toggledResp.text;
+                    }
+                } catch (e) {
+                    
+                }
             }
 
             
@@ -213,6 +269,9 @@ export async function fetchFeedXml(url: string): Promise<string> {
                     
                     `${baseUrl}/feed`,
                     `${baseUrl}/rss`,
+                    `${baseUrl}/rss.xml`,
+                    `${baseUrl}/index.rss`,
+                    `${baseUrl}/index.xml`,
                     
                     `${baseUrl}/index.php?feed=rss2`,
                     `${baseUrl}/index.php?feed=rss`,
@@ -227,7 +286,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                         method: "GET",
                         headers: {
                                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
-                                "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                                "Accept": "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8"
                             }
                         });
                         
@@ -245,16 +304,16 @@ export async function fetchFeedXml(url: string): Promise<string> {
             
             
                 
-            const discoveredUrl = await discoverFeedUrl(baseUrl);
+            const discoveredUrl = await discoverFeedUrl(baseUrl) || (baseUrl.includes('arxiv.org') ? baseUrl.replace('export.arxiv.org', 'rss.arxiv.org') : null);
             if (discoveredUrl) {
                 try {
                         
-                    const discoveredResponse = await requestUrl({
+                        const discoveredResponse = await requestUrl({
                         url: discoveredUrl,
                         method: "GET",
                         headers: {
                                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
-                                "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                                "Accept": "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8"
                             }
                         });
                         
@@ -294,6 +353,19 @@ export async function fetchFeedXml(url: string): Promise<string> {
                 }
             } catch (proxyError) {
                 console.error(`[RSS Dashboard] AllOrigins proxy fetch failed for ${targetUrl}:`, proxyError);
+
+                // Try AllOrigins raw endpoint
+                try {
+                    const rawUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+                    const rawResp = await requestUrl({ url: rawUrl, method: "GET" });
+                    if (rawResp.text && isValidFeed(rawResp.text)) {
+                        return rawResp.text;
+                    } else {
+                        throw new Error('AllOrigins raw returned non-feed');
+                    }
+                } catch (e) {
+                    
+                }
                 
                 if (!isAndroid) {
                     
@@ -307,9 +379,22 @@ export async function fetchFeedXml(url: string): Promise<string> {
                             throw new Error('Not a valid RSS/Atom feed');
                         }
                     } catch (e) {
-                        
+                        console.warn('[RSS Dashboard] Codetabs proxy failed', e);
                     }
                     
+                    // isomorphic-git CORS proxy (raw)
+                    try {
+                        const isoUrl = `https://cors.isomorphic-git.org/${targetUrl}`;
+                        const isoResp = await requestUrl({ url: isoUrl, method: "GET" });
+                        if (isoResp.text && isValidFeed(isoResp.text)) {
+                            return isoResp.text;
+                        } else {
+                            throw new Error('Not a valid RSS/Atom feed');
+                        }
+                    } catch (e) {
+                        console.warn('[RSS Dashboard] isomorphic-git proxy failed', e);
+                    }
+
                     try {
                         const thingproxyUrl = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(targetUrl)}`;
                         const thingproxyResponse = await requestUrl({ url: thingproxyUrl, method: "GET" });
@@ -320,7 +405,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                             throw new Error('Not a valid RSS/Atom feed');
                         }
                     } catch (e) {
-                        
+                        console.warn('[RSS Dashboard] thingproxy failed', e);
                     }
                     
                     try {
@@ -343,7 +428,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                             }
                         }
                     } catch (e) {
-                        
+                        console.warn('[RSS Dashboard] discoverFeedUrl proxy fetch failed', e);
                     }
                 }
                 throw new Error(`Could not fetch a valid RSS/Atom feed from ${targetUrl}`);
@@ -363,7 +448,9 @@ export async function fetchFeedXml(url: string): Promise<string> {
         
         try {
             const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`;
-            const proxyResponse = await requestUrl({ url: proxyUrl, method: "GET" });
+            const proxyResponse = await requestUrl({ url: proxyUrl, method: "GET", headers: {
+                "Accept": "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8"
+            }});
             
             if (proxyResponse.text && isValidFeed(proxyResponse.text)) {
                 return proxyResponse.text;
@@ -840,6 +927,7 @@ export class CustomXMLParser {
 
         const items: ParsedItem[] = [];
         const itemElements = channel.querySelectorAll('item');
+        
 
         itemElements.forEach(item => {
             const title = this.getTextContent(item, 'title');
@@ -948,7 +1036,7 @@ export class CustomXMLParser {
             });
         });
 
-        return {
+        const result: ParsedFeed = {
             title,
             description,
             link,
@@ -959,6 +1047,8 @@ export class CustomXMLParser {
             feedItunesImage,
             feedImageUrl
         };
+        
+        return result;
     }
 
     private parseRSS1(doc: Document): ParsedFeed {
@@ -1405,7 +1495,7 @@ export class CustomXMLParser {
         processed = processed.replace(/^\uFEFF/, '');
 
         
-        const xmlDeclMatch = processed.match(/<\?xml[^>]*\?>/);
+            const xmlDeclMatch = processed.match(/<\?xml[^>]*\?>/);
         let xmlDecl = '';
         if (xmlDeclMatch) {
             xmlDecl = xmlDeclMatch[0];
@@ -1438,7 +1528,10 @@ export class CustomXMLParser {
         }
 
         
+        // Only escape bare ampersands that are not already part of an entity and not inside CDATA
+        processed = processed.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, (m) => m.replace(/&/g, '__AMP__'));
         processed = processed.replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, '&amp;');
+        processed = processed.replace(/__AMP__/g, '&');
 
         
         if (!processed.startsWith('<?xml')) {
@@ -1451,18 +1544,22 @@ export class CustomXMLParser {
     async parseString(xmlString: string): Promise<ParsedFeed> {
         try {
             
+            
             if (xmlString.trim().startsWith('{')) {
                 
                 return this.parseJSON(xmlString);
             }
 
             let cleanedXml = this.preprocessXmlContent(xmlString.trim());
+            
 
             const encoding = this.detectEncoding(cleanedXml);
             const doc = this.parseXML(cleanedXml);
+            
 
             const parserError = doc.querySelector('parsererror');
             if (parserError) {
+                
                 
                 const extractedXml = this.extractRssContent(xmlString);
                 if (extractedXml !== xmlString) {
@@ -1497,7 +1594,11 @@ export class CustomXMLParser {
             }
 
             const rootElement = doc.documentElement;
-            const isRDF = rootElement && rootElement.tagName.toLowerCase() === 'rdf:rdf';
+            const isRDF = rootElement && (
+                rootElement.tagName.toLowerCase() === 'rdf:rdf' ||
+                rootElement.getAttribute('xmlns') === 'http://purl.org/rss/1/'
+            );
+            
             if (isRDF) {
                 
                 return this.parseRSS1(doc);
@@ -1941,10 +2042,15 @@ export class FeedParser {
             throw new Error("Feed URL is required");
         }
         
+        
         try {
            
             const responseText = await fetchFeedXml(url);
+            
+            
             const parsed = await this.parser.parseString(responseText);
+            
+            
             let feedTitle = existingFeed?.title || parsed.title || "Unnamed Feed";
           
             const newFeed: Feed = existingFeed || {
@@ -1971,7 +2077,7 @@ export class FeedParser {
                 
                 const isAudioEnclosure = item.enclosure?.type?.startsWith('audio/');
                 const isAudioLink = !!(item.link && item.link.includes('.mp3'));
-                const isPodcast = isAudioEnclosure || isAudioLink || item.itunes?.duration;
+            const isPodcast = isAudioEnclosure || isAudioLink;
 
                 const audioUrl = isAudioEnclosure
                     ? this.convertToAbsoluteUrl(item.enclosure?.url || '', url)
@@ -2009,6 +2115,7 @@ export class FeedParser {
                         starred: existingItem.starred,
                         tags: existingItem.tags,
                         saved: existingItem.saved,
+                        feedTitle: newFeed.title, // Update feedTitle to match the new feed title
                         coverImage,
                         summary: this.extractSummary(item.content || item.description || '') || existingItem.summary,
                         image: this.convertToAbsoluteUrl(item.itunes?.image?.href || item.image?.url || parsed.image?.url || '', url) || existingItem.image,
@@ -2069,7 +2176,7 @@ export class FeedParser {
                         author: item.author || parsed.author,
                         saved: false,
                         mediaType: isPodcast ? 'podcast' : 'article',
-                        duration: item.itunes?.duration,
+                         duration: item.itunes?.duration,
                         explicit: item.itunes?.explicit === 'yes',
                         image: image,
                         category: item.itunes?.category,
@@ -2248,7 +2355,7 @@ export class FeedParserService {
             method: "GET",
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
-                "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8"
+                "Accept": "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8"
             }
         });
 

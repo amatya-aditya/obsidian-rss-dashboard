@@ -135,6 +135,10 @@ export interface ArticleSavingSettings {
 export interface DisplaySettings {
     showCoverImage: boolean;
     showSummary: boolean;
+    filterDisplayStyle: "vertical" | "inline";
+    defaultFilter: "all" | "starred" | "unread" | "read" | "saved" | "videos" | "podcasts";
+    hiddenFilters: string[];
+    useDomainFavicons: boolean;
 }
 
 
@@ -265,6 +269,10 @@ guid: "{{guid}}"
     },
     display: {
         showCoverImage: true,
-        showSummary: true
+        showSummary: true,
+        filterDisplayStyle: "inline",
+        defaultFilter: "all",
+        hiddenFilters: [],
+        useDomainFavicons: true
     }
 };

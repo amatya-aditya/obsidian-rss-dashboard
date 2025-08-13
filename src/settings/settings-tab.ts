@@ -256,6 +256,139 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         }
                     })
             );
+
+            new Setting(containerEl)
+            .setName("Use Domain Favicons")
+            .setDesc("Show domain-specific favicons instead of generic RSS icons for feeds")
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.display.useDomainFavicons)
+                    .onChange(async (value) => {
+                        this.plugin.settings.display.useDomainFavicons = value;
+                        await this.plugin.saveSettings();
+                        if (this.plugin.view?.sidebar) {
+                            this.plugin.view.sidebar.render();
+                        }
+                    })
+            );
+
+        new Setting(containerEl)
+            .setName("Filter Display Style")
+            .setDesc("Choose how to display the filter buttons in the sidebar")
+            .addDropdown((dropdown) =>
+                dropdown
+                    .addOption("vertical", "Vertical List")
+                    .addOption("inline", "Inline Icons")
+                    .setValue(this.plugin.settings.display.filterDisplayStyle)
+                    .onChange(async (value: "vertical" | "inline") => {
+                        this.plugin.settings.display.filterDisplayStyle = value;
+                        await this.plugin.saveSettings();
+                        if (this.plugin.view?.sidebar) {
+                            this.plugin.view.sidebar.render();
+                        }
+                    })
+            );
+
+        
+
+        new Setting(containerEl)
+            .setName("Default Filter")
+            .setDesc("Choose which filter to show by default when opening the dashboard")
+            .addDropdown((dropdown) =>
+                dropdown
+                    .addOption("all", "All Items")
+                    .addOption("starred", "Starred Items")
+                    .addOption("unread", "Unread Items")
+                    .addOption("read", "Read Items")
+                    .addOption("saved", "Saved Items")
+                    .addOption("videos", "Videos")
+                    .addOption("podcasts", "Podcasts")
+                    .setValue(this.plugin.settings.display.defaultFilter)
+                    .onChange(async (value: "all" | "starred" | "unread" | "read" | "saved" | "videos" | "podcasts") => {
+                        this.plugin.settings.display.defaultFilter = value;
+                        
+                        // If the new default filter is hidden, show a warning
+                        const hiddenFilters = this.plugin.settings.display.hiddenFilters || [];
+                        if (hiddenFilters.includes(value)) {
+                            new Notice(`Warning: "${value}" filter is currently hidden. Consider showing it first.`);
+                        }
+                        
+                        await this.plugin.saveSettings();
+                        if (this.plugin.view?.sidebar) {
+                            this.plugin.view.sidebar.render();
+                        }
+                    })
+            );
+
+        // Add separator
+        containerEl.createEl("hr", { cls: "rss-dashboard-settings-separator" });
+
+        // Filter visibility settings
+        containerEl.createEl("h4", { text: "Filter Visibility" });
+        containerEl.createEl("p", { 
+            text: "Choose which filter items to show or hide in the sidebar:",
+            cls: "rss-dashboard-settings-description"
+        });
+
+
+
+        const filterOptions = [
+            { key: "starred", label: "Starred Items", icon: "star" },
+            { key: "unread", label: "Unread Items", icon: "circle" },
+            { key: "read", label: "Read Items", icon: "check-circle" },
+            { key: "saved", label: "Saved Items", icon: "save" },
+            { key: "videos", label: "Videos", icon: "play" },
+            { key: "podcasts", label: "Podcasts", icon: "mic" }
+        ];
+
+        filterOptions.forEach(filter => {
+            // Ensure hiddenFilters array exists and initialize if needed
+            if (!this.plugin.settings.display.hiddenFilters) {
+                this.plugin.settings.display.hiddenFilters = [];
+            }
+            
+            const isHidden = this.plugin.settings.display.hiddenFilters.includes(filter.key);
+            new Setting(containerEl)
+                .setName(filter.label)
+                .setDesc(`${isHidden ? "Hidden" : "Visible"} in sidebar`)
+                .addToggle((toggle) =>
+                    toggle
+                        .setValue(!isHidden)
+                        .onChange(async (value) => {
+                            // Ensure hiddenFilters array exists
+                            if (!this.plugin.settings.display.hiddenFilters) {
+                                this.plugin.settings.display.hiddenFilters = [];
+                            }
+                            
+                            if (value) {
+                                // Show filter - remove from hidden list
+                                this.plugin.settings.display.hiddenFilters = 
+                                    this.plugin.settings.display.hiddenFilters.filter(f => f !== filter.key);
+                            } else {
+                                // Hide filter - add to hidden list
+                                if (!this.plugin.settings.display.hiddenFilters.includes(filter.key)) {
+                                    this.plugin.settings.display.hiddenFilters.push(filter.key);
+                                }
+                                
+                                // If we're hiding the currently selected filter, reset to "all"
+                                if (this.plugin.view?.sidebar && 
+                                    this.plugin.view.currentFolder === filter.key) {
+                                    this.plugin.view.currentFolder = null;
+                                }
+                            }
+                            await this.plugin.saveSettings();
+                            if (this.plugin.view?.sidebar) {
+                                this.plugin.view.sidebar.render();
+                            }
+                        })
+                );
+        });
+
+        // Note about "All Items" filter
+        containerEl.createEl("p", { 
+            text: "Note: The 'All Items' filter cannot be hidden as it's always required.",
+            cls: "rss-dashboard-settings-note"
+        });
     }
 
     private createMediaSettings(containerEl: HTMLElement): void {

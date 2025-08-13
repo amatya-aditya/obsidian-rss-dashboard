@@ -520,7 +520,7 @@ export default class RssDashboardPlugin extends Plugin {
         const progressFill = document.createElement("div");
         progressFill.id = "import-progress-fill";
         progressFill.className = "rss-dashboard-import-progress-fill";
-        // progressFill.style.setProperty('--progress-width', '0%');
+        progressFill.style.setProperty('--progress-width', '0%');
         progressBar.appendChild(progressFill);
 
         const currentFeedText = document.createElement("div");
@@ -857,9 +857,17 @@ export default class RssDashboardPlugin extends Plugin {
 
     
     async editFeed(feed: Feed, newTitle: string, newUrl: string, newFolder: string) {
+        const oldTitle = feed.title;
         feed.title = newTitle;
         feed.url = newUrl;
         feed.folder = newFolder;
+        
+        // Update feedTitle for all articles in this feed when the title changes
+        if (oldTitle !== newTitle) {
+            for (const item of feed.items) {
+                item.feedTitle = newTitle;
+            }
+        }
         
         await this.saveSettings();
         
@@ -894,6 +902,13 @@ export default class RssDashboardPlugin extends Plugin {
             } else {
                 
                 this.settings.articleSaving = Object.assign({}, DEFAULT_SETTINGS.articleSaving, this.settings.articleSaving);
+            }
+
+            // Ensure display settings are properly initialized
+            if (!this.settings.display) {
+                this.settings.display = DEFAULT_SETTINGS.display;
+            } else {
+                this.settings.display = Object.assign({}, DEFAULT_SETTINGS.display, this.settings.display);
             }
         } catch (error) {
             
@@ -935,6 +950,22 @@ export default class RssDashboardPlugin extends Plugin {
         if ((this.settings.articleSaving as any)?.template && !this.settings.articleSaving?.defaultTemplate) {
             this.settings.articleSaving.defaultTemplate = (this.settings.articleSaving as any).template;
             delete (this.settings.articleSaving as any).template;
+        }
+
+        // Migrate display settings
+        if (!this.settings.display) {
+            this.settings.display = DEFAULT_SETTINGS.display;
+        } else {
+            // Ensure new display properties exist
+            if (this.settings.display.filterDisplayStyle === undefined) {
+                this.settings.display.filterDisplayStyle = DEFAULT_SETTINGS.display.filterDisplayStyle;
+            }
+            if (this.settings.display.defaultFilter === undefined) {
+                this.settings.display.defaultFilter = DEFAULT_SETTINGS.display.defaultFilter;
+            }
+            if (this.settings.display.hiddenFilters === undefined) {
+                this.settings.display.hiddenFilters = DEFAULT_SETTINGS.display.hiddenFilters;
+            }
         }
     }
 

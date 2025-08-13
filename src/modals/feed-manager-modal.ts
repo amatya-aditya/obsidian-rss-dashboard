@@ -121,16 +121,16 @@ export class EditFeedModal extends Modal {
             .addText(text => {
                 text.setValue(folder)
                     .setPlaceholder("Type or select folder...")
-                    .inputEl.classList.add("edit-feed-folder-input");
+                    .inputEl.classList.add("edit-feed-folder-input", "custom-input");
                 folderInput = text.inputEl;
                 folderInput.autocomplete = "off";
                 folderInput.spellcheck = false;
                 folderInput.addEventListener("focus", () => {
                     if (!dropdown) {
                         dropdown = contentEl.createDiv({ cls: "edit-feed-folder-dropdown" });
-                        // dropdown.style.width = folderInput.offsetWidth + "px";
-                        // dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
-                        // dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
+                        dropdown.style.width = folderInput.offsetWidth + "px";
+                        dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
+                        dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
                         document.body.appendChild(dropdown);
                     }
                     if (dropdown) {
@@ -360,10 +360,18 @@ export class EditFeedModal extends Modal {
         const saveBtn = btns.createEl("button", { text: "Save", cls: "rss-dashboard-primary-button" });
         const cancelBtn = btns.createEl("button", { text: "Cancel" });
         saveBtn.onclick = async () => {
+            const oldTitle = this.feed.title;
             this.feed.title = title;
             this.feed.url = url;
             this.feed.folder = folder;
             this.feed.autoDeleteDuration = autoDeleteDuration;
+            
+            // Update feedTitle for all articles in this feed when the title changes
+            if (oldTitle !== title) {
+                for (const item of this.feed.items) {
+                    item.feedTitle = title;
+                }
+            }
             
             
             const oldMaxItemsLimit = this.feed.maxItemsLimit || this.plugin.settings.maxItems;
@@ -540,9 +548,9 @@ export class AddFeedModal extends Modal {
                 folderInput.addEventListener("focus", () => {
                     if (!dropdown) {
                         dropdown = contentEl.createDiv({ cls: "edit-feed-folder-dropdown" });
-                        // dropdown.style.width = folderInput.offsetWidth + "px";
-                        // dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
-                        // dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
+                        dropdown.style.width = folderInput.offsetWidth + "px";
+                        dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
+                        dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
                         document.body.appendChild(dropdown);
                     }
                     if (dropdown) {

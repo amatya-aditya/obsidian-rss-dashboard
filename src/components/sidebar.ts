@@ -41,6 +41,66 @@ export class Sidebar {
     private app: App;
     private plugin: any;
     private cachedFolderPaths: string[] | null = null;
+    private isSearchExpanded: boolean = false;
+    private isTagsExpanded: boolean = false;
+
+
+    /**
+     * Extract main domain from a URL for favicon purposes (without subdomains)
+     */
+    private extractDomain(url: string): string {
+        try {
+            const urlObj = new URL(url);
+            const hostname = urlObj.hostname;
+            
+            // Extract main domain without subdomains
+            const parts = hostname.split('.');
+            if (parts.length >= 2) {
+                // For domains like feeds.feedburner.com -> feedburner.com
+                // For domains like arstechnica.com -> arstechnica.com
+                // For domains like lowtechmagazine.com -> lowtechmagazine.com
+                if (parts.length === 3 && parts[0] === 'feeds') {
+                    // Special case for feeds subdomains
+                    return `${parts[1]}.${parts[2]}`;
+                } else if (parts.length >= 3) {
+                    // For other subdomains, take the last two parts
+                    return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
+                } else {
+                    // For regular domains, return as is
+                    return hostname;
+                }
+            }
+            return hostname;
+        } catch {
+            // Fallback: try to extract domain manually
+            const match = url.match(/https?:\/\/([^\/\?]+)/);
+            if (match) {
+                const hostname = match[1];
+                const parts = hostname.split('.');
+                if (parts.length >= 2) {
+                    if (parts.length === 3 && parts[0] === 'feeds') {
+                        return `${parts[1]}.${parts[2]}`;
+                    } else if (parts.length >= 3) {
+                        return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
+                    } else {
+                        return hostname;
+                    }
+                }
+                return hostname;
+            }
+            return '';
+        }
+    }
+
+    /**
+     * Get favicon URL for a domain using DuckDuckGo's service
+     */
+    private getFaviconUrl(domain: string): string {
+        if (!domain) return '';
+        return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+    }
+
+
 
     private getCachedFolderPaths(): string[] {
         if (!this.cachedFolderPaths) {
@@ -63,97 +123,10 @@ export class Sidebar {
         this.cachedFolderPaths = null;
     }
 
-    private renderTags(container: HTMLElement): void {
-        const tagsSection = container.createDiv({
-            cls: "rss-dashboard-tags-section",
-        });
 
-        const tagsSectionHeader = tagsSection.createDiv({
-            cls: "rss-dashboard-section-header",
-        });
 
-        const tagsSectionIcon = tagsSectionHeader.createDiv({
-            cls: "rss-dashboard-folder-icon",
-        });
-        setIcon(tagsSectionIcon, "tag");
 
-        tagsSectionHeader.createDiv({
-            cls: "rss-dashboard-section-title",
-            text: "Tags",
-        });
 
-        const tagsToggle = tagsSectionHeader.createDiv({
-            cls: "rss-dashboard-section-toggle",
-        });
-        const sidebarToggleIcon = this.options.tagsCollapsed ? "chevron-right" : "chevron-down";
-        setIcon(tagsToggle, sidebarToggleIcon);
-
-        tagsSectionHeader.addEventListener("click", () => {
-            this.callbacks.onToggleTagsCollapse();
-        });
-
-        
-        if (!this.options.tagsCollapsed) {
-            const tagsList = tagsSection.createDiv({
-                cls: "rss-dashboard-tags-list",
-            });
-
-            
-            const addTagButton = tagsList.createDiv({
-                cls: "rss-dashboard-add-tag-button",
-            });
-            setIcon(addTagButton, "plus");
-            addTagButton.appendChild(document.createTextNode(" Add Tag"));
-
-            addTagButton.addEventListener("click", (e) => {
-                e.stopPropagation();
-                this.showAddTagModal();
-            });
-
-            
-            for (const tag of this.settings.availableTags) {
-                const tagEl = tagsList.createDiv({
-                    cls: "rss-dashboard-sidebar-tag" + 
-                        (this.options.currentTag === tag.name ? " active" : ""),
-                });
-
-                const tagColorDot = tagEl.createDiv({
-                    cls: "rss-dashboard-tag-color-dot",
-                });
-                // tagColorDot.style.setProperty('--tag-color', tag.color);
-
-                tagEl.createDiv({
-                    cls: "rss-dashboard-tag-name",
-                    text: tag.name,
-                });
-
-                
-                let tagCount = 0;
-                for (const feed of this.settings.feeds) {
-                    tagCount += feed.items.filter(
-                        (item) => item.tags && item.tags.some((t) => t.name === tag.name)
-                    ).length;
-                }
-
-                if (tagCount > 0) {
-                    tagEl.createDiv({
-                        cls: "rss-dashboard-tag-count",
-                        text: tagCount.toString(),
-                    });
-                }
-
-                tagEl.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    this.callbacks.onTagClick(tag.name);
-                });
-                
-                tagEl.addEventListener("contextmenu", (e) => {
-                    e.preventDefault();
-                    this.showTagContextMenu(e, tag);
-                });
-            }
-        }
-    }
     
     constructor(app: App, container: HTMLElement, plugin: any, settings: RssDashboardSettings, options: SidebarOptions, callbacks: SidebarCallbacks) {
         this.app = app;
@@ -162,12 +135,9 @@ export class Sidebar {
         this.settings = settings;
         this.options = options;
         this.callbacks = callbacks;
-
-        this.renderTags(this.container);
     }
     
     public render(): void {
-        
         const scrollPosition = this.container.scrollTop;
         
         
@@ -176,9 +146,7 @@ export class Sidebar {
         
         
         this.renderHeader();
-        this.renderSearch();
         this.renderFilters();
-        this.renderTags(this.container);
         this.renderFeedFolders();
         this.renderToolbar();
         
@@ -209,6 +177,50 @@ export class Sidebar {
                 this.renderFeed(feed, feedFoldersSection);
             });
         }
+
+        // Add drop handler for root area - only when dropping on the actual root section, not on folders
+        feedFoldersSection.addEventListener("dragover", (e) => {
+            // Only show drag-over if we're not over a folder header
+            const target = e.target as HTMLElement;
+            if (!target.closest('.rss-dashboard-feed-folder-header')) {
+                e.preventDefault();
+                feedFoldersSection.classList.add("drag-over");
+            }
+        });
+
+        feedFoldersSection.addEventListener("dragleave", (e) => {
+            // Only remove drag-over if we're actually leaving the root section
+            const target = e.target as HTMLElement;
+            if (!target.closest('.rss-dashboard-feed-folder-header')) {
+                feedFoldersSection.classList.remove("drag-over");
+            }
+        });
+
+        feedFoldersSection.addEventListener("drop", async (e) => {
+            const target = e.target as HTMLElement;
+            
+            // Only process drops on the root section, not on folder headers
+            if (target.closest('.rss-dashboard-feed-folder-header')) {
+                return; // Let the folder header handle this drop
+            }
+            
+            e.preventDefault();
+            feedFoldersSection.classList.remove("drag-over");
+            const dragEvent = e as DragEvent;
+            if (dragEvent.dataTransfer) {
+                const feedUrl = dragEvent.dataTransfer.getData("feed-url");
+                if (feedUrl) {
+                    const feed = this.settings.feeds.find(f => f.url === feedUrl);
+                    if (feed && feed.folder) {
+                        const oldFolder = this.findFolderByPath(feed.folder);
+                        if (oldFolder) oldFolder.modifiedAt = Date.now();
+                        feed.folder = "";
+                        await this.plugin.saveSettings();
+                        this.render();
+                    }
+                }
+            }
+        });
 
         feedFoldersSection.addEventListener("contextmenu", (e) => {
             if (e.target === feedFoldersSection) {
@@ -438,15 +450,18 @@ export class Sidebar {
         
         folderHeader.addEventListener("dragover", (e) => {
             e.preventDefault();
+            e.stopPropagation(); // Prevent event from bubbling up to root section
             folderHeader.classList.add("drag-over");
         });
 
-        folderHeader.addEventListener("dragleave", () => {
+        folderHeader.addEventListener("dragleave", (e) => {
+            e.stopPropagation(); // Prevent event from bubbling up to root section
             folderHeader.classList.remove("drag-over");
         });
 
         folderHeader.addEventListener("drop", async (e) => {
             e.preventDefault();
+            e.stopPropagation(); // Prevent event from bubbling up to root section
             folderHeader.classList.remove("drag-over");
             const dragEvent = e as DragEvent;
             if (dragEvent.dataTransfer) {
@@ -471,6 +486,18 @@ export class Sidebar {
         });
 
         
+        // First, render subfolders
+        if (folderObj.subfolders && folderObj.subfolders.length > 0 && !isCollapsed) {
+            
+            const sortOrder = this.settings.folderSortOrder || { by: "name", ascending: true };
+            const sortedSubfolders = this.applySortOrder([...folderObj.subfolders], sortOrder);
+            
+            sortedSubfolders.forEach((subfolder: Folder) => {
+                this.renderFolder(subfolder, fullPath, depth + 1, folderEl);
+            });
+        }
+
+        // Then, render feeds in the folder
         const folderFeedsList = folderEl.createDiv({
             cls: "rss-dashboard-folder-feeds" + (isCollapsed ? " collapsed" : ""),
         });
@@ -486,17 +513,6 @@ export class Sidebar {
         sortedFeedsInFolder.forEach((feed) => {
             this.renderFeed(feed, folderFeedsList);
         });
-
-        
-        if (folderObj.subfolders && folderObj.subfolders.length > 0 && !isCollapsed) {
-            
-            const sortOrder = this.settings.folderSortOrder || { by: "name", ascending: true };
-            const sortedSubfolders = this.applySortOrder([...folderObj.subfolders], sortOrder);
-            
-            sortedSubfolders.forEach((subfolder: Folder) => {
-                this.renderFolder(subfolder, fullPath, depth + 1, container);
-            });
-        }
     }
 
     private renderFeed(feed: Feed, container: HTMLElement): void {
@@ -523,19 +539,32 @@ export class Sidebar {
         );
         
         if (isProcessing) {
-            
+            // Show loading spinner for processing feeds
             setIcon(feedIcon, "loader-2");
             feedIcon.addClass("processing");
             feedEl.classList.add('processing-feed');
         } else if (feed.mediaType === 'video') {
+            // Show play icon for video feeds
             setIcon(feedIcon, "play");
             feedIcon.addClass("youtube");
             feedEl.classList.add('youtube-feed');
         } else if (feed.mediaType === 'podcast') {
+            // Show mic icon for podcast feeds
             setIcon(feedIcon, "mic");
             feedIcon.addClass("podcast");
             feedEl.classList.add('podcast-feed');
+        } else if (this.settings.display.useDomainFavicons) {
+            // Show domain favicon for regular feeds when setting is enabled
+            const domain = this.extractDomain(feed.url);
+            if (domain) {
+                const faviconUrl = this.getFaviconUrl(domain);
+                feedIcon.innerHTML = `<img src="${faviconUrl}" alt="${domain}" class="rss-dashboard-feed-favicon" />`;
+            } else {
+                // No domain available, use generic RSS icon
+                setIcon(feedIcon, "rss");
+            }
         } else {
+            // Show generic RSS icon when favicon setting is disabled
             setIcon(feedIcon, "rss");
         }
 
@@ -1298,210 +1327,319 @@ export class Sidebar {
         
     }
 
-    public renderSearch(): void {
-        const searchContainer = this.container.createDiv({
-            cls: "rss-dashboard-search-container",
-        });
-        
-        const searchInput = searchContainer.createEl("input", {
-            cls: "rss-dashboard-search-input",
-            attr: {
-                type: "text",
-                placeholder: "Search articles...",
-                autocomplete: "off",
-                spellcheck: "false"
-            },
-        });
 
-        
-        searchInput.addEventListener("focus", () => {
-            searchInput.select();
-        });
-
-        
-        let searchTimeout: NodeJS.Timeout;
-        
-        searchInput.addEventListener("input", (e) => {
-            const query = ((e.target as HTMLInputElement)?.value || "").toLowerCase().trim();
-            
-            
-            if (searchTimeout) {
-                clearTimeout(searchTimeout);
-            }
-
-            
-            searchTimeout = setTimeout(() => {
-                
-                const mainContent = document.querySelector('.rss-dashboard-content');
-                if (mainContent) {
-                    const articleElements = mainContent.querySelectorAll(
-                        ".rss-dashboard-article-item, .rss-dashboard-article-card"
-                    );
-                    
-                    articleElements.forEach((el) => {
-                        const titleEl = el.querySelector(".rss-dashboard-article-title");
-                        const title = titleEl?.textContent?.toLowerCase() || "";
-                        
-                        if (query && !title.includes(query)) {
-                            (el as HTMLElement).addClass("rss-dashboard-search-result", "hidden");
-                        } else {
-                            (el as HTMLElement).addClass("rss-dashboard-search-result", "visible");
-                        }
-                    });
-                }
-            }, 150);
-        });
-    }
 
     public renderFilters(): void {
         const filtersList = this.container.createDiv({
             cls: "rss-dashboard-filters-section",
         });
 
-        
-        const allItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === null && 
-                this.options.currentFeed === null && 
-                this.options.currentTag === null ? " active" : ""),
+        // Add display style class for CSS styling
+        const displayStyle = this.settings.display?.filterDisplayStyle || "inline";
+        filtersList.addClass(`rss-dashboard-filters-${displayStyle}`);
+
+        // Create filter items row for inline mode
+        let filterItemsRow: HTMLElement | null = null;
+        if (displayStyle === "inline") {
+            filterItemsRow = filtersList.createDiv({
+                cls: "rss-dashboard-filter-items-row",
+            });
+        }
+
+        // Helper function to create filter items
+        const createFilterItem = (type: string, icon: string, text: string, isActive: boolean) => {
+            const container = displayStyle === "inline" ? filterItemsRow! : filtersList;
+            const filterEl = container.createDiv({
+                cls: "rss-dashboard-filter-item" + (isActive ? " active" : ""),
+            });
+
+            const filterIcon = filterEl.createDiv({
+                cls: "rss-dashboard-filter-icon",
+            });
+            setIcon(filterIcon, icon);
+
+            // Only show text in vertical mode
+            if (displayStyle === "vertical") {
+                filterEl.createDiv({
+                    cls: "rss-dashboard-filter-name",
+                    text: text,
+                });
+            }
+
+            // Add tooltip for inline mode
+            if (displayStyle === "inline") {
+                filterEl.setAttribute("title", text);
+            }
+
+            filterEl.addEventListener("click", () => {
+                this.callbacks.onFolderClick(type === "all" ? null : type);
+            });
+
+            // Add context menu for unread items
+            if (type === "unread") {
+                filterEl.addEventListener("contextmenu", (e) => {
+                    e.preventDefault();
+                    this.showUnreadItemsContextMenu(e);
+                });
+            }
+
+            // Add context menu for read items
+            if (type === "read") {
+                filterEl.addEventListener("contextmenu", (e) => {
+                    e.preventDefault();
+                    this.showReadItemsContextMenu(e);
+                });
+            }
+
+            return filterEl;
+        };
+
+        // Get hidden filters from settings
+        const hiddenFilters = this.settings.display?.hiddenFilters || [];
+
+        // Create all filter items (All Items cannot be hidden)
+        const allItemsEl = createFilterItem(
+            "all",
+            "list",
+            "All Items",
+            this.options.currentFolder === null && 
+            this.options.currentFeed === null && 
+            this.options.currentTag === null
+        );
+
+        // Create other filter items only if they're not hidden
+        if (!hiddenFilters.includes("starred")) {
+            const starredItemsEl = createFilterItem(
+                "starred",
+                "star",
+                "Starred Items",
+                this.options.currentFolder === "starred"
+            );
+        }
+
+        if (!hiddenFilters.includes("unread")) {
+            const unreadItemsEl = createFilterItem(
+                "unread",
+                "circle",
+                "Unread Items",
+                this.options.currentFolder === "unread"
+            );
+        }
+
+        if (!hiddenFilters.includes("read")) {
+            const readItemsEl = createFilterItem(
+                "read",
+                "check-circle",
+                "Read Items",
+                this.options.currentFolder === "read"
+            );
+        }
+
+        if (!hiddenFilters.includes("saved")) {
+            const savedItemsEl = createFilterItem(
+                "saved",
+                "save",
+                "Saved Items",
+                this.options.currentFolder === "saved"
+            );
+        }
+
+        if (!hiddenFilters.includes("videos")) {
+            const videoItemsEl = createFilterItem(
+                "videos",
+                "play",
+                "Videos",
+                this.options.currentFolder === "videos"
+            );
+        }
+
+        if (!hiddenFilters.includes("podcasts")) {
+            const podcastItemsEl = createFilterItem(
+                "podcasts",
+                "mic",
+                "Podcasts",
+                this.options.currentFolder === "podcasts"
+            );
+        }
+
+        // Add tags filter item
+        const tagsContainer = displayStyle === "inline" ? filterItemsRow! : filtersList;
+        const tagsFilterEl = tagsContainer.createDiv({
+            cls: "rss-dashboard-filter-item rss-dashboard-tags-filter" + (this.isTagsExpanded ? " active" : ""),
         });
 
-        const allItemsIcon = allItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon",
+        const tagsFilterIcon = tagsFilterEl.createDiv({
+            cls: "rss-dashboard-filter-icon",
         });
-        setIcon(allItemsIcon, "list");
+        setIcon(tagsFilterIcon, "tag");
 
-        allItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "All Items",
-        });
-        allItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick(null);
-        });
+        // Only show text in vertical mode
+        if (displayStyle === "vertical") {
+            tagsFilterEl.createDiv({
+                cls: "rss-dashboard-filter-name",
+                text: "Tags",
+            });
+        }
 
-        
-        const starredItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === "starred" ? " active" : ""),
-        });
+        // Add tooltip for inline mode
+        if (displayStyle === "inline") {
+            tagsFilterEl.setAttribute("title", "Tags");
+        }
 
-        const starredItemsIcon = starredItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon",
-        });
-        setIcon(starredItemsIcon, "star");
-
-        starredItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "Starred Items",
-        });
-        starredItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick("starred");
+        tagsFilterEl.addEventListener("click", () => {
+            this.isTagsExpanded = !this.isTagsExpanded;
+            this.render();
         });
 
-        
-        const unreadItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === "unread" ? " active" : ""),
+        // Add collapsible tags list below filters
+        if (this.isTagsExpanded) {
+            const tagsContainer = filtersList.createDiv({
+                cls: "rss-dashboard-tags-container",
+            });
+
+            // Add tag button
+            const addTagButton = tagsContainer.createDiv({
+                cls: "rss-dashboard-add-tag-button",
+            });
+            setIcon(addTagButton, "plus");
+            addTagButton.appendChild(document.createTextNode(" Add Tag"));
+
+            addTagButton.addEventListener("click", (e) => {
+                e.stopPropagation();
+                this.showAddTagModal();
+            });
+
+            // Render tags list
+            for (const tag of this.settings.availableTags) {
+                const tagEl = tagsContainer.createDiv({
+                    cls: "rss-dashboard-sidebar-tag" + 
+                        (this.options.currentTag === tag.name ? " active" : ""),
+                });
+
+                const tagColorDot = tagEl.createDiv({
+                    cls: "rss-dashboard-tag-color-dot",
+                });
+                tagColorDot.style.setProperty('--tag-color', tag.color);
+
+                tagEl.createDiv({
+                    cls: "rss-dashboard-tag-name",
+                    text: tag.name,
+                });
+
+                // Calculate tag count
+                let tagCount = 0;
+                for (const feed of this.settings.feeds) {
+                    tagCount += feed.items.filter(
+                        (item) => item.tags && item.tags.some((t) => t.name === tag.name)
+                    ).length;
+                }
+
+                if (tagCount > 0) {
+                    tagEl.createDiv({
+                        cls: "rss-dashboard-tag-count",
+                        text: tagCount.toString(),
+                    });
+                }
+
+                tagEl.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    this.callbacks.onTagClick(tag.name);
+                });
+                
+                tagEl.addEventListener("contextmenu", (e) => {
+                    e.preventDefault();
+                    this.showTagContextMenu(e, tag);
+                });
+            }
+        }
+
+        // Add search filter item
+        const searchFilterEl = tagsContainer.createDiv({
+            cls: "rss-dashboard-filter-item rss-dashboard-search-filter" + (this.isSearchExpanded ? " active" : ""),
         });
 
-        const unreadItemsIcon = unreadItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon",
+        const searchFilterIcon = searchFilterEl.createDiv({
+            cls: "rss-dashboard-filter-icon",
         });
-        setIcon(unreadItemsIcon, "circle");
+        setIcon(searchFilterIcon, "search");
 
-        unreadItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "Unread Items",
-        });
-        unreadItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick("unread");
-        });
+        // Only show text in vertical mode
+        if (displayStyle === "vertical") {
+            searchFilterEl.createDiv({
+                cls: "rss-dashboard-filter-name",
+                text: "Search",
+            });
+        }
 
-        unreadItemsEl.addEventListener("contextmenu", (e) => {
-            e.preventDefault();
-            this.showUnreadItemsContextMenu(e);
-        });
+        // Add tooltip for inline mode
+        if (displayStyle === "inline") {
+            searchFilterEl.setAttribute("title", "Search");
+        }
 
-        
-        const readItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === "read" ? " active" : ""),
-        });
-
-        const readItemsIcon = readItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon",
-        });
-        setIcon(readItemsIcon, "check-circle");
-
-        readItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "Read Items",
-        });
-        readItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick("read");
+        searchFilterEl.addEventListener("click", () => {
+            this.isSearchExpanded = !this.isSearchExpanded;
+            this.render();
         });
 
-        readItemsEl.addEventListener("contextmenu", (e) => {
-            e.preventDefault();
-            this.showReadItemsContextMenu(e);
-        });
+        // Add collapsible search input below filters
+        if (this.isSearchExpanded) {
+            const searchContainer = filtersList.createDiv({
+                cls: "rss-dashboard-search-container",
+            });
+            
+            const searchInput = searchContainer.createEl("input", {
+                cls: "rss-dashboard-search-input",
+                attr: {
+                    type: "text",
+                    placeholder: "Search articles...",
+                    autocomplete: "off",
+                    spellcheck: "false"
+                },
+            });
 
-        
-        const savedItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === "saved" ? " active" : ""),
-        });
+            // Focus and select text when search is expanded
+            searchInput.addEventListener("focus", () => {
+                searchInput.select();
+            });
 
-        const savedItemsIcon = savedItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon",
-        });
-        setIcon(savedItemsIcon, "save");
+            // Search functionality
+            let searchTimeout: NodeJS.Timeout;
+            
+            searchInput.addEventListener("input", (e) => {
+                const query = ((e.target as HTMLInputElement)?.value || "").toLowerCase().trim();
+                
+                // Clear previous timeout
+                if (searchTimeout) {
+                    clearTimeout(searchTimeout);
+                }
 
-        savedItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "Saved Items",
-        });
-        savedItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick("saved");
-        });
+                // Debounce search
+                searchTimeout = setTimeout(() => {
+                    const mainContent = document.querySelector('.rss-dashboard-content');
+                    if (mainContent) {
+                        const articleElements = mainContent.querySelectorAll(
+                            ".rss-dashboard-article-item, .rss-dashboard-article-card"
+                        );
+                        
+                        articleElements.forEach((el) => {
+                            const titleEl = el.querySelector(".rss-dashboard-article-title");
+                            const title = titleEl?.textContent?.toLowerCase() || "";
+                            
+                            if (query && !title.includes(query)) {
+                                (el as HTMLElement).addClass("rss-dashboard-search-result", "hidden");
+                            } else {
+                                (el as HTMLElement).addClass("rss-dashboard-search-result", "visible");
+                            }
+                        });
+                    }
+                }, 150);
+            });
 
-        
-        const videoItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === "videos" ? " active" : ""),
-        });
-
-        const videoItemsIcon = videoItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon youtube",
-        });
-        setIcon(videoItemsIcon, "play");
-
-        videoItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "Videos",
-        });
-        videoItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick("videos");
-        });
-
-        
-        const podcastItemsEl = filtersList.createDiv({
-            cls: "rss-dashboard-folder" + 
-                (this.options.currentFolder === "podcasts" ? " active" : ""),
-        });
-
-        const podcastItemsIcon = podcastItemsEl.createDiv({
-            cls: "rss-dashboard-folder-icon podcast",
-        });
-        setIcon(podcastItemsIcon, "mic");
-
-        podcastItemsEl.createDiv({
-            cls: "rss-dashboard-folder-name",
-            text: "Podcasts",
-        });
-        podcastItemsEl.addEventListener("click", () => {
-            this.callbacks.onFolderClick("podcasts");
-        });
+            // Auto-focus the search input when expanded
+            requestAnimationFrame(() => {
+                searchInput.focus();
+            });
+        }
     }
 
     public renderToolbar(): void {
@@ -1740,7 +1878,19 @@ export class Sidebar {
                             this.render();
                         });
                     });
-                    typeMenu.showAtMouseEvent(evt as MouseEvent);
+                    if (evt instanceof MouseEvent) {
+                        typeMenu.showAtMouseEvent(evt);
+                    }
+                });
+        });
+
+        menu.addItem((item: MenuItem) => {
+            item.setTitle("Move to Folder")
+                .setIcon("folder-open")
+                .onClick((evt) => {
+                    if (evt instanceof MouseEvent) {
+                        this.showMoveToFolderMenu(evt, feed);
+                    }
                 });
         });
 
@@ -1750,6 +1900,83 @@ export class Sidebar {
                 .onClick(() => {
                     this.showConfirmModal(`Are you sure you want to delete the feed "${feed.title}"?`, () => {
                         this.callbacks.onDeleteFeed(feed);
+                    });
+                });
+        });
+
+        menu.showAtMouseEvent(event);
+    }
+
+    private showMoveToFolderMenu(event: MouseEvent, feed: Feed): void {
+        const menu = new Menu();
+        
+        // Add option to move to root (no folder)
+        menu.addItem((item: MenuItem) => {
+            const isInRoot = !feed.folder;
+            item.setTitle("Root (No Folder)")
+                .setIcon(isInRoot ? "check" : "folder")
+                .onClick(async () => {
+                    if (feed.folder) {
+                        const oldFolder = this.findFolderByPath(feed.folder);
+                        if (oldFolder) oldFolder.modifiedAt = Date.now();
+                    }
+                    feed.folder = "";
+                    await this.plugin.saveSettings();
+                    this.render();
+                    new Notice(`Moved "${feed.title}" to root`);
+                });
+        });
+
+        // Add separator
+        menu.addSeparator();
+
+        // Add all available folders
+        const allFolders = this.getCachedFolderPaths();
+        if (allFolders.length > 0) {
+            allFolders.sort((a, b) => a.localeCompare(b));
+            
+            allFolders.forEach(folderPath => {
+                const isCurrentFolder = feed.folder === folderPath;
+                menu.addItem((item: MenuItem) => {
+                    item.setTitle(folderPath)
+                        .setIcon(isCurrentFolder ? "check" : "folder")
+                        .onClick(async () => {
+                            if (feed.folder !== folderPath) {
+                                if (feed.folder) {
+                                    const oldFolder = this.findFolderByPath(feed.folder);
+                                    if (oldFolder) oldFolder.modifiedAt = Date.now();
+                                }
+                                feed.folder = folderPath;
+                                const newFolder = this.findFolderByPath(folderPath);
+                                if (newFolder) newFolder.modifiedAt = Date.now();
+                                
+                                await this.plugin.saveSettings();
+                                this.render();
+                                new Notice(`Moved "${feed.title}" to "${folderPath}"`);
+                            }
+                        });
+                });
+            });
+        }
+
+        // Add option to create new folder
+        menu.addSeparator();
+        menu.addItem((item: MenuItem) => {
+            item.setTitle("Create New Folder...")
+                .setIcon("folder-plus")
+                .onClick(() => {
+                    this.showFolderNameModal({
+                        title: "Create New Folder",
+                        onSubmit: async (folderName) => {
+                            await this.addTopLevelFolder(folderName);
+                            // Move the feed to the newly created folder
+                            feed.folder = folderName;
+                            const newFolder = this.findFolderByPath(folderName);
+                            if (newFolder) newFolder.modifiedAt = Date.now();
+                            await this.plugin.saveSettings();
+                            this.render();
+                            new Notice(`Created folder "${folderName}" and moved "${feed.title}" to it`);
+                        }
                     });
                 });
         });

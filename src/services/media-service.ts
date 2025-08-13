@@ -133,57 +133,27 @@ export class MediaService {
     
     static isPodcastFeed(feed: Feed): boolean {
         if (!feed?.items?.length) return false;
-        
+
         try {
-            
-            for (const item of feed.items.slice(0, 3)) {
-                
-                if (item.enclosure?.type?.startsWith('audio/')) {
-                    return true;
-                }
-                
-                
-                if (item.duration || item.itunes?.duration) {
-                    return true;
-                }
-                
-                
-                if (feed.author && (
-                    feed.author.toLowerCase().includes('podcast') ||
-                    feed.author.toLowerCase().includes('radio') ||
-                    feed.author.toLowerCase().includes('audio')
-                )) {
-                    return true;
-                }
+            const audioExt = /\.(mp3|m4a|aac|ogg|opus|wav|flac)(?:\?|$)/i;
+            const itemsToCheck = feed.items.slice(0, Math.min(10, feed.items.length));
 
-                
-                if (!item?.description) continue;
+            let audioLikeCount = 0;
+            for (const item of itemsToCheck) {
+                const hasAudioEnclosure = !!(item.enclosure?.type?.startsWith('audio/'));
+                const hasAudioUrlInEnclosure = !!(item.enclosure?.url && audioExt.test(item.enclosure.url));
+                const audioInDescription = !!(item.description && this.extractPodcastAudio(item.description));
+                const audioInLink = !!(item.link && audioExt.test(item.link));
 
-                const description = item.description.toLowerCase();
-                
-                
-                if (this.extractPodcastAudio(item.description)) {
-                    return true;
-                }
-                
-                
-                if (
-                    description.includes('<enclosure') || 
-                    description.includes('audio/') ||
-                    description.includes('.mp3') ||
-                    description.includes('podcast') ||
-                    description.includes('episode') ||
-                    description.includes('duration') ||
-                    description.includes('length')
-                ) {
-                    return true;
+                if (hasAudioEnclosure || hasAudioUrlInEnclosure || audioInDescription || audioInLink) {
+                    audioLikeCount++;
                 }
             }
+
+            return audioLikeCount > 0;
         } catch (error) {
-            
+            return false;
         }
-        
-        return false;
     }
     
     

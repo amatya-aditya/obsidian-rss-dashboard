@@ -539,7 +539,7 @@ export class DiscoverView extends ItemView {
                 checkbox.checked = this.filters.selectedTags.includes(tag);
 
                 const colorDot = tagItem.createDiv({ cls: 'rss-discover-tag-color-dot' });
-                // colorDot.style.setProperty('--tag-color', this.getTagColor(tag));
+                colorDot.style.setProperty('--tag-color', this.getTagColor(tag));
                 
                 const label = tagItem.createEl("label");
                 label.textContent = tag;
@@ -1042,7 +1042,7 @@ export class DiscoverView extends ItemView {
             const tags = metaTopContainer.createDiv({ cls: "rss-discover-card-tags" });
             feed.tags.forEach(tag => {
                 const tagEl = tags.createDiv({ cls: "rss-discover-card-tag", text: tag });
-                // tagEl.style.setProperty('--tag-color', this.getTagColor(tag));
+                tagEl.style.setProperty('--tag-color', this.getTagColor(tag));
             });
         }
         
@@ -1161,7 +1161,7 @@ export class DiscoverView extends ItemView {
             const tagFilter = selectedFiltersContainer.createDiv({ cls: "rss-discover-selected-filter" });
             setIcon(tagFilter, "hash");
             tagFilter.appendChild(document.createTextNode(` ${tag}`));
-            // tagFilter.style.setProperty('--tag-color', this.getTagColor(tag));
+            tagFilter.style.setProperty('--tag-color', this.getTagColor(tag));
         });
     }
 
