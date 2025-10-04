@@ -539,7 +539,8 @@ export default class RssDashboardPlugin extends Plugin {
         input.type = "file";
         input.onchange = async () => {
             const file = input.files?.[0];
-            if (file && file.name.endsWith('.opml')) {
+            const allowedExtensions = ['.opml', '.opml.xml'];
+            if (file && allowedExtensions.some(ext => file.name.endsWith(ext))) {
                 const content = await file.text();
                 try {
                     

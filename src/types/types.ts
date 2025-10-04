@@ -139,6 +139,7 @@ export interface DisplaySettings {
     defaultFilter: "all" | "starred" | "unread" | "read" | "saved" | "videos" | "podcasts";
     hiddenFilters: string[];
     useDomainFavicons: boolean;
+    fetchFullArticleText: boolean;
 }
 
 
@@ -273,6 +274,7 @@ guid: "{{guid}}"
         filterDisplayStyle: "inline",
         defaultFilter: "all",
         hiddenFilters: [],
-        useDomainFavicons: true
+        useDomainFavicons: true,
+        fetchFullArticleText: true
     }
 };
