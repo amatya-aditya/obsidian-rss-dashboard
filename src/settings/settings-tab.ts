@@ -257,20 +257,37 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                     })
             );
 
-            new Setting(containerEl)
-            .setName("Use Domain Favicons")
-            .setDesc("Show domain-specific favicons instead of generic RSS icons for feeds")
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(this.plugin.settings.display.useDomainFavicons)
-                    .onChange(async (value) => {
-                        this.plugin.settings.display.useDomainFavicons = value;
-                        await this.plugin.saveSettings();
-                        if (this.plugin.view?.sidebar) {
-                            this.plugin.view.sidebar.render();
-                        }
-                    })
-            );
+        new Setting(containerEl)
+        .setName("Use Domain Favicons")
+        .setDesc("Show domain-specific favicons instead of generic RSS icons for feeds")
+        .addToggle((toggle) =>
+            toggle
+                .setValue(this.plugin.settings.display.useDomainFavicons)
+                .onChange(async (value) => {
+                    this.plugin.settings.display.useDomainFavicons = value;
+                    await this.plugin.saveSettings();
+                    if (this.plugin.view?.sidebar) {
+                        this.plugin.view.sidebar.render();
+                    }
+                })
+        );
+
+        new Setting(containerEl)
+        .setName("Fetch Full article text")
+        .setDesc("On opening an article, fetches the full content instead of what is present in the feed")
+        .addToggle((toggle) =>
+            toggle
+                .setValue(this.plugin.settings.display.fetchFullArticleText)
+                .onChange(async (value) => {
+                    this.plugin.settings.display.fetchFullArticleText = value;
+                    await this.plugin.saveSettings();
+                    if (this.plugin.view?.sidebar) {
+                        this.plugin.view.sidebar.render();
+                    }
+                })
+        );
+        
+            
 
         new Setting(containerEl)
             .setName("Filter Display Style")

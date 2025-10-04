@@ -274,7 +274,12 @@ export class ReaderView extends ItemView {
             }
             this.displayPodcast(item);
         } else {
-            const fullContent = await this.fetchFullArticleContent(item.link);
+            let fullContent = "";
+            if(this.settings.display.fetchFullArticleText){
+                fullContent = await this.fetchFullArticleContent(item.link);
+            } else {
+                fullContent = !!(item?.content) ? item?.content : await this.fetchFullArticleContent(item.link);
+            }
             this.currentFullContent = fullContent;
             this.displayArticle(item, fullContent);
         }
