@@ -1,7 +1,7 @@
-import { Menu, MenuItem, Notice, App, setIcon, Setting } from "obsidian";
-import { Feed, Folder, Tag, RssDashboardSettings } from "../types/types";
-import { MediaService } from "../services/media-service";
+import { Menu, MenuItem, Notice, App, setIcon, Setting, requestUrl } from "obsidian";
+import { Feed, Folder, Tag, RssDashboardSettings, FeedMetadata } from "../types/types";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
+import type RssDashboardPlugin from "../../main";
 
 interface SidebarOptions {
     currentFolder: string | null;
@@ -39,10 +39,10 @@ export class Sidebar {
     private options: SidebarOptions;
     private callbacks: SidebarCallbacks;
     private app: App;
-    private plugin: any;
+    private plugin: RssDashboardPlugin;
     private cachedFolderPaths: string[] | null = null;
-    private isSearchExpanded: boolean = false;
-    private isTagsExpanded: boolean = false;
+    private isSearchExpanded = false;
+    private isTagsExpanded = false;
 
 
     /**
@@ -73,7 +73,7 @@ export class Sidebar {
             return hostname;
         } catch {
             // Fallback: try to extract domain manually
-            const match = url.match(/https?:\/\/([^\/\?]+)/);
+            const match = url.match(/https?:\/\/([^/?]+)/);
             if (match) {
                 const hostname = match[1];
                 const parts = hostname.split('.');
@@ -105,10 +105,11 @@ export class Sidebar {
     private getCachedFolderPaths(): string[] {
         if (!this.cachedFolderPaths) {
             this.cachedFolderPaths = [];
+            const paths = this.cachedFolderPaths;
             const collectPaths = (folders: Folder[], base = "") => {
                 for (const f of folders) {
                     const path = base ? `${base}/${f.name}` : f.name;
-                    this.cachedFolderPaths!.push(path);
+                    paths.push(path);
                     if (f.subfolders && f.subfolders.length > 0) {
                         collectPaths(f.subfolders, path);
                     }
@@ -128,7 +129,7 @@ export class Sidebar {
 
 
     
-    constructor(app: App, container: HTMLElement, plugin: any, settings: RssDashboardSettings, options: SidebarOptions, callbacks: SidebarCallbacks) {
+    constructor(app: App, container: HTMLElement, plugin: RssDashboardPlugin, settings: RssDashboardSettings, options: SidebarOptions, callbacks: SidebarCallbacks) {
         this.app = app;
         this.container = container;
         this.plugin = plugin;
@@ -227,11 +228,11 @@ export class Sidebar {
                 e.preventDefault();
                 const menu = new Menu();
                 menu.addItem((item: MenuItem) => {
-                    item.setTitle("Add Folder")
+                    item.setTitle("Add folder")
                         .setIcon("folder-plus")
                         .onClick(() => {
                             this.showFolderNameModal({
-                                title: "Add Folder",
+                                title: "Add folder",
                                 onSubmit: async (folderName) => {
                                     await this.addTopLevelFolder(folderName);
                                     this.render();
@@ -240,14 +241,14 @@ export class Sidebar {
                         });
                 });
                 menu.addItem((item: MenuItem) => {
-                    item.setTitle("Add Feed")
+                    item.setTitle("Add feed")
                         .setIcon("rss")
                         .onClick(() => {
                             this.showAddFeedModal();
                         });
                 });
                 menu.addItem((item: MenuItem) => {
-                    item.setTitle("Sort Feeds")
+                    item.setTitle("Sort feeds")
                         .setIcon("lucide-sort-asc")
                         .onClick((evt) => {
                             this.showFeedSortMenu(e, "");
@@ -265,7 +266,7 @@ export class Sidebar {
             if (!a.pinned && b.pinned) return 1;
             
             
-            let valA: any, valB: any;
+            let valA: string | number, valB: string | number;
 
             switch (sortOrder.by) {
                 case "name":
@@ -370,7 +371,7 @@ export class Sidebar {
                     });
             });
             menu.addItem((item: MenuItem) => {
-                item.setTitle("Add Subfolder")
+                item.setTitle("Add subfolder")
                     .setIcon("folder-plus")
                     .onClick(() => {
                                                     this.showFolderNameModal({
@@ -383,7 +384,7 @@ export class Sidebar {
                     });
             });
             menu.addItem((item: MenuItem) => {
-                item.setTitle("Rename Folder")
+                item.setTitle("Rename folder")
                     .setIcon("edit")
                     .onClick(() => {
                                                     this.showFolderNameModal({
@@ -416,7 +417,7 @@ export class Sidebar {
             });
             menu.addItem((item: MenuItem) => {
                 const isPinned = folderObj.pinned;
-                item.setTitle(isPinned ? "Unpin Folder" : "Pin Folder")
+                item.setTitle(isPinned ? "Unpin folder" : "Pin folder")
                     .setIcon(isPinned ? "unlock" : "lock")
                     .onClick(async () => {
                         folderObj.pinned = !isPinned;
@@ -426,7 +427,7 @@ export class Sidebar {
                     });
             });
             menu.addItem((item: MenuItem) => {
-                                    item.setTitle("Delete Folder")
+                                    item.setTitle("Delete folder")
                         .setIcon("trash")
                         .onClick(() => {
                             this.showConfirmModal(`Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`, () => {
@@ -535,7 +536,7 @@ export class Sidebar {
         
         
         const isProcessing = feed.items.length === 0 && this.plugin?.backgroundImportQueue?.some(
-            (queuedFeed: any) => queuedFeed.url === feed.url && queuedFeed.importStatus === 'processing'
+            (queuedFeed: FeedMetadata) => queuedFeed.url === feed.url && queuedFeed.importStatus === 'processing'
         );
         
         if (isProcessing) {
@@ -558,7 +559,14 @@ export class Sidebar {
             const domain = this.extractDomain(feed.url);
             if (domain) {
                 const faviconUrl = this.getFaviconUrl(domain);
-                feedIcon.innerHTML = `<img src="${faviconUrl}" alt="${domain}" class="rss-dashboard-feed-favicon" />`;
+                feedIcon.empty();
+                feedIcon.createEl("img", {
+                    attr: {
+                        src: faviconUrl,
+                        alt: domain
+                    },
+                    cls: "rss-dashboard-feed-favicon"
+                });
             } else {
                 // No domain available, use generic RSS icon
                 setIcon(feedIcon, "rss");
@@ -610,23 +618,25 @@ export class Sidebar {
     }
 
     private showAddYouTubeFeedModal(): void {
-        const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
+        const modal = document.body.createDiv({
+            cls: "rss-dashboard-modal rss-dashboard-modal-container"
+        });
 
-        const modalContent = document.createElement("div");
-        modalContent.className = "rss-dashboard-modal-content";
+        const modalContent = modal.createDiv({
+            cls: "rss-dashboard-modal-content"
+        });
 
-        const modalTitle = document.createElement("h2");
-        modalTitle.textContent = "Add YouTube Channel";
-        modalContent.appendChild(modalTitle);
+        new Setting(modalContent).setName("Add YouTube channel").setHeading();
 
-        const infoText = document.createElement('div');
-        infoText.className = "rss-dashboard-modal-info";
+        const infoText = modalContent.createDiv({
+            cls: "rss-dashboard-modal-info"
+        });
         
-        const paragraph = document.createElement('p');
-        paragraph.textContent = 'Enter a YouTube Channel URL or ID. You can use:';
+        infoText.createEl('p', {
+            text: 'Enter a YouTube Channel URL or ID. You can use:'
+        });
         
-        const list = document.createElement('ul');
+        const list = infoText.createEl('ul');
         
         const items = [
             'Channel URL: https://www.youtube.com/channel/UCxxxxxxxx',
@@ -636,38 +646,44 @@ export class Sidebar {
         ];
         
         items.forEach(itemText => {
-            const listItem = document.createElement('li');
-            listItem.textContent = itemText;
-            list.appendChild(listItem);
+            list.createEl('li', { text: itemText });
         });
-        
-        infoText.appendChild(paragraph);
-        infoText.appendChild(list);
 
-        const channelLabel = document.createElement("label");
-        channelLabel.textContent = "YouTube Channel:";
-        const channelInput = document.createElement("input");
-        channelInput.type = "text";
-        channelInput.placeholder = "Enter channel URL, ID, username or URL";
+        const channelLabel = modalContent.createEl("label", {
+            text: "YouTube channel:"
+        });
+        const channelInput = modalContent.createEl("input", {
+            attr: {
+                type: "text",
+                placeholder: "Enter channel URL, ID, username or URL"
+            }
+        });
 
-        const titleLabel = document.createElement("label");
-        titleLabel.textContent = "Feed Title (Optional):";
-        const titleInput = document.createElement("input");
-        titleInput.type = "text";
-        titleInput.placeholder = "Leave blank to use channel name";
+        const titleLabel = modalContent.createEl("label", {
+            text: "Feed title (optional):"
+        });
+        const titleInput = modalContent.createEl("input", {
+            attr: {
+                type: "text",
+                placeholder: "Leave blank to use channel name"
+            }
+        });
 
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "rss-dashboard-modal-buttons";
+        const buttonContainer = modalContent.createDiv({
+            cls: "rss-dashboard-modal-buttons"
+        });
 
-        const cancelButton = document.createElement("button");
-        cancelButton.textContent = "Cancel";
+        const cancelButton = buttonContainer.createEl("button", {
+            text: "Cancel"
+        });
         cancelButton.addEventListener("click", () => {
             document.body.removeChild(modal);
         });
 
-        const addButton = document.createElement("button");
-        addButton.textContent = "Add Channel";
-        addButton.className = "rss-dashboard-primary-button";
+        const addButton = buttonContainer.createEl("button", {
+            text: "Add channel",
+            cls: "rss-dashboard-primary-button"
+        });
         addButton.addEventListener("click", async () => {
             const channel = channelInput.value.trim();
             let feedUrl = "";
@@ -710,7 +726,7 @@ export class Sidebar {
                     }
                 } else {
                     if (channel.includes("youtube.com/user/")) {
-                        const match = channel.match(/youtube\.com\/user\/([^\/\?]+)/);
+                        const match = channel.match(/youtube\.com\/user\/([^/?]+)/);
                         username = match ? match[1] : "";
                     } else if (!channel.startsWith("http") && !channel.startsWith("@")) {
                         username = channel;
@@ -749,17 +765,17 @@ export class Sidebar {
 
     private async extractChannelIdAndNameFromYouTubePage(url: string): Promise<{channelId: string|null, channelName: string|null}> {
         try {
-            const res = await (window as any).requestUrl({ url });
+            const res = await requestUrl(url);
             const html = res.text;
             
             const idMatch = html.match(/channel_id=(UC[a-zA-Z0-9_-]{22})/);
-            let channelId = idMatch && idMatch[1] ? idMatch[1] : null;
+            const channelId = idMatch && idMatch[1] ? idMatch[1] : null;
             
             const nameMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
-            let channelName = nameMatch && nameMatch[1] ? nameMatch[1] : null;
+            const channelName = nameMatch && nameMatch[1] ? nameMatch[1] : null;
             return { channelId, channelName };
-        } catch (e) {
-            
+        } catch {
+            // YouTube page fetch failed
         }
         return { channelId: null, channelName: null };
     }
@@ -776,7 +792,6 @@ export class Sidebar {
     private async renameFolderByPath(oldPath: string, newName: string) {
         const parts = oldPath.split("/");
         const parentPath = parts.slice(0, -1).join("/");
-        const oldName = parts[parts.length - 1];
         const folder = this.findFolderByPath(oldPath);
         if (folder) {
             folder.name = newName;
@@ -787,8 +802,6 @@ export class Sidebar {
                 if (parent) parent.modifiedAt = Date.now();
             }
             
-            
-            const allDescendantPaths = this.getAllDescendantFolderPaths(oldPath);
             const newPath = parentPath ? `${parentPath}/${newName}` : newName;
             
             
@@ -852,18 +865,22 @@ export class Sidebar {
     }
 
     public showFolderNameModal(options: {title: string, defaultValue?: string, onSubmit: (name: string) => void}) {
-        const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
-        const modalContent = document.createElement("div");
-        modalContent.className = "rss-dashboard-modal-content";
-        const modalTitle = document.createElement("h2");
-        modalTitle.textContent = options.title;
-        const nameInput = document.createElement("input");
-        nameInput.type = "text";
-        nameInput.value = options.defaultValue || "";
-        nameInput.placeholder = "Enter folder name";
-        nameInput.classList.add("full-width-input", "input-margin-bottom");
-        nameInput.autocomplete = "off";
+        const modal = document.body.createDiv({
+            cls: "rss-dashboard-modal rss-dashboard-modal-container"
+        });
+        const modalContent = modal.createDiv({
+            cls: "rss-dashboard-modal-content"
+        });
+        new Setting(modalContent).setName(options.title).setHeading();
+        const nameInput = modalContent.createEl("input", {
+            attr: {
+                type: "text",
+                value: options.defaultValue || "",
+                placeholder: "Enter folder name",
+                autocomplete: "off"
+            },
+            cls: "full-width-input input-margin-bottom"
+        });
         nameInput.spellcheck = false;
         nameInput.addEventListener("focus", () => nameInput.select());
         nameInput.addEventListener("keydown", (e) => {
@@ -873,15 +890,18 @@ export class Sidebar {
                 cancelButton.click();
             }
         });
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "rss-dashboard-modal-buttons";
-        const cancelButton = document.createElement("button");
-        cancelButton.textContent = "Cancel";
+        const buttonContainer = modalContent.createDiv({
+            cls: "rss-dashboard-modal-buttons"
+        });
+        const cancelButton = buttonContainer.createEl("button", {
+            text: "Cancel"
+        });
         cancelButton.addEventListener("click", () => {
             document.body.removeChild(modal);
         });
-        const okButton = document.createElement("button");
-        okButton.textContent = "OK";
+        const okButton = buttonContainer.createEl("button", {
+            text: "OK"
+        });
         okButton.className = "rss-dashboard-primary-button";
         okButton.addEventListener("click", submit);
         function submit() {
@@ -893,7 +913,6 @@ export class Sidebar {
         }
         buttonContainer.appendChild(cancelButton);
         buttonContainer.appendChild(okButton);
-        modalContent.appendChild(modalTitle);
         modalContent.appendChild(nameInput);
         modalContent.appendChild(buttonContainer);
         modal.appendChild(modalContent);
@@ -946,84 +965,88 @@ export class Sidebar {
 
     private showConfirmModal(message: string, onConfirm: () => void): void {
         document.querySelectorAll('.rss-dashboard-modal').forEach(el => el.remove());
-        setTimeout(() => {
-            const modal = document.createElement("div");
-            modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
-            const modalContent = document.createElement("div");
-            modalContent.className = "rss-dashboard-modal-content";
-            const modalTitle = document.createElement("h2");
-            modalTitle.textContent = "Confirm";
-            const msg = document.createElement("div");
-            msg.textContent = message;
-            const buttonContainer = document.createElement("div");
-            buttonContainer.className = "rss-dashboard-modal-buttons";
-            const cancelButton = document.createElement("button");
-            cancelButton.textContent = "Cancel";
+        window.setTimeout(() => {
+            const modal = document.body.createDiv({
+                cls: "rss-dashboard-modal rss-dashboard-modal-container"
+            });
+            const modalContent = modal.createDiv({
+                cls: "rss-dashboard-modal-content"
+            });
+            new Setting(modalContent).setName("Confirm").setHeading();
+            modalContent.createDiv({
+                text: message
+            });
+            const buttonContainer = modalContent.createDiv({
+                cls: "rss-dashboard-modal-buttons"
+            });
+            const cancelButton = buttonContainer.createEl("button", {
+                text: "Cancel"
+            });
             cancelButton.onclick = () => document.body.removeChild(modal);
-            const okButton = document.createElement("button");
-            okButton.textContent = "OK";
-            okButton.className = "rss-dashboard-primary-button";
+            const okButton = buttonContainer.createEl("button", {
+                text: "OK",
+                cls: "rss-dashboard-primary-button"
+            });
             okButton.onclick = () => {
                 document.body.removeChild(modal);
                 onConfirm();
             };
-            buttonContainer.appendChild(cancelButton);
-            buttonContainer.appendChild(okButton);
-            modalContent.appendChild(modalTitle);
-            modalContent.appendChild(msg);
-            modalContent.appendChild(buttonContainer);
-            modal.appendChild(modalContent);
-            document.body.appendChild(modal);
-            setTimeout(() => okButton.focus(), 0);
+            window.setTimeout(() => okButton.focus(), 0);
         }, 0);
     }
 
     public showAddTagModal(): void {
-        const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
+        const modal = document.body.createDiv({
+            cls: "rss-dashboard-modal rss-dashboard-modal-container"
+        });
 
-        const modalContent = document.createElement("div");
-        modalContent.className = "rss-dashboard-modal-content";
+        const modalContent = modal.createDiv({
+            cls: "rss-dashboard-modal-content"
+        });
 
-        const modalTitle = document.createElement("h2");
-        modalTitle.textContent = "Add New Tag";
-        modalContent.appendChild(modalTitle);
-
-        
-        const formContainer = document.createElement("div");
-        formContainer.className = "rss-dashboard-tag-modal-form";
-        modalContent.appendChild(formContainer);
+        new Setting(modalContent).setName("Add new tag").setHeading();
 
         
-        const colorInput = document.createElement("input");
-        colorInput.type = "color";
-        colorInput.value = "#3498db"; 
-        colorInput.className = "rss-dashboard-tag-modal-color-picker";
-        formContainer.appendChild(colorInput);
+        const formContainer = modalContent.createDiv({
+            cls: "rss-dashboard-tag-modal-form"
+        });
+
+        
+        const colorInput = formContainer.createEl("input", {
+            attr: {
+                type: "color",
+                value: "#3498db"
+            },
+            cls: "rss-dashboard-tag-modal-color-picker"
+        });
         
         
-        const nameInput = document.createElement("input");
-        nameInput.type = "text";
-        nameInput.placeholder = "Enter tag name";
-        nameInput.className = "rss-dashboard-tag-modal-name-input";
-        nameInput.autocomplete = "off";
+        const nameInput = formContainer.createEl("input", {
+            attr: {
+                type: "text",
+                placeholder: "Enter tag name",
+                autocomplete: "off"
+            },
+            cls: "rss-dashboard-tag-modal-name-input"
+        });
         nameInput.spellcheck = false;
-        formContainer.appendChild(nameInput);
 
         
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "rss-dashboard-modal-buttons";
+        const buttonContainer = modalContent.createDiv({
+            cls: "rss-dashboard-modal-buttons"
+        });
 
-        const cancelButton = document.createElement("button");
-        cancelButton.textContent = "Cancel";
+        const cancelButton = buttonContainer.createEl("button", {
+            text: "Cancel"
+        });
         cancelButton.addEventListener("click", () => {
             document.body.removeChild(modal);
         });
-        buttonContainer.appendChild(cancelButton);
 
-        const addButton = document.createElement("button");
-        addButton.textContent = "Add Tag";
-        addButton.className = "rss-dashboard-primary-button";
+        const addButton = buttonContainer.createEl("button", {
+            text: "Add tag",
+            cls: "rss-dashboard-primary-button"
+        });
         addButton.addEventListener("click", () => {
             const tagName = nameInput.value.trim();
             const tagColor = colorInput.value;
@@ -1072,7 +1095,7 @@ export class Sidebar {
         const menu = new Menu();
         
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Edit Tag")
+            item.setTitle("Edit tag")
                 .setIcon("pencil")
                 .onClick(() => {
                     this.showEditTagModal(tag);
@@ -1080,7 +1103,7 @@ export class Sidebar {
         });
         
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Delete Tag")
+            item.setTitle("Delete tag")
                 .setIcon("trash")
                 .onClick(() => {
                     this.showConfirmModal(`Are you sure you want to delete the tag "${tag.name}"? This will remove the tag from all articles.`, () => {
@@ -1093,52 +1116,58 @@ export class Sidebar {
     }
 
     private showEditTagModal(tag: Tag): void {
-        const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
+        const modal = document.body.createDiv({
+            cls: "rss-dashboard-modal rss-dashboard-modal-container"
+        });
 
-        const modalContent = document.createElement("div");
-        modalContent.className = "rss-dashboard-modal-content";
+        const modalContent = modal.createDiv({
+            cls: "rss-dashboard-modal-content"
+        });
 
-        const modalTitle = document.createElement("h2");
-        modalTitle.textContent = "Edit Tag";
-        modalContent.appendChild(modalTitle);
-
-        
-        const formContainer = document.createElement("div");
-        formContainer.className = "rss-dashboard-tag-modal-form";
-        modalContent.appendChild(formContainer);
+        new Setting(modalContent).setName("Edit tag").setHeading();
 
         
-        const colorInput = document.createElement("input");
-        colorInput.type = "color";
-        colorInput.value = tag.color;
-        colorInput.className = "rss-dashboard-tag-modal-color-picker";
-        formContainer.appendChild(colorInput);
+        const formContainer = modalContent.createDiv({
+            cls: "rss-dashboard-tag-modal-form"
+        });
 
         
-        const nameInput = document.createElement("input");
-        nameInput.type = "text";
-        nameInput.value = tag.name;
-        nameInput.placeholder = "Enter tag name";
-        nameInput.className = "rss-dashboard-tag-modal-name-input";
-        nameInput.autocomplete = "off";
+        const colorInput = formContainer.createEl("input", {
+            attr: {
+                type: "color",
+                value: tag.color
+            },
+            cls: "rss-dashboard-tag-modal-color-picker"
+        });
+
+        
+        const nameInput = formContainer.createEl("input", {
+            attr: {
+                type: "text",
+                value: tag.name,
+                placeholder: "Enter tag name",
+                autocomplete: "off"
+            },
+            cls: "rss-dashboard-tag-modal-name-input"
+        });
         nameInput.spellcheck = false;
-        formContainer.appendChild(nameInput);
 
         
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "rss-dashboard-modal-buttons";
+        const buttonContainer = modalContent.createDiv({
+            cls: "rss-dashboard-modal-buttons"
+        });
 
-        const cancelButton = document.createElement("button");
-        cancelButton.textContent = "Cancel";
+        const cancelButton = buttonContainer.createEl("button", {
+            text: "Cancel"
+        });
         cancelButton.addEventListener("click", () => {
             document.body.removeChild(modal);
         });
-        buttonContainer.appendChild(cancelButton);
 
-        const saveButton = document.createElement("button");
-        saveButton.textContent = "Save Changes";
-        saveButton.className = "rss-dashboard-primary-button";
+        const saveButton = buttonContainer.createEl("button", {
+            text: "Save changes",
+            cls: "rss-dashboard-primary-button"
+        });
         saveButton.addEventListener("click", () => {
             const newTagName = nameInput.value.trim();
             const newTagColor = colorInput.value;
@@ -1225,7 +1254,7 @@ export class Sidebar {
         const menu = new Menu();
 
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Mark All Unread as Read")
+            item.setTitle("Mark all unread as read")
                 .setIcon("check-circle")
                 .onClick(async () => {
                     await this.markAllUnreadAsRead();
@@ -1239,7 +1268,7 @@ export class Sidebar {
         const menu = new Menu();
 
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Mark All Read as Unread")
+            item.setTitle("Mark all read as unread")
                 .setIcon("circle")
                 .onClick(async () => {
                     await this.markAllReadAsUnread();
@@ -1304,7 +1333,7 @@ export class Sidebar {
             cls: "rss-dashboard-nav-button active",
         });
         
-        dashboardBtn.appendChild(document.createTextNode(" Dashboard"));
+        dashboardBtn.appendText(" Dashboard");
         dashboardBtn.addEventListener("click", () => {
             
             this.plugin.activateView();
@@ -1315,7 +1344,7 @@ export class Sidebar {
             cls: "rss-dashboard-nav-button",
         });
         
-        discoverBtn.appendChild(document.createTextNode(" Discover"));
+        discoverBtn.appendText(" Discover");
         discoverBtn.addEventListener("click", () => {
             
             this.plugin.activateDiscoverView();
@@ -1348,7 +1377,7 @@ export class Sidebar {
 
         // Helper function to create filter items
         const createFilterItem = (type: string, icon: string, text: string, isActive: boolean) => {
-            const container = displayStyle === "inline" ? filterItemsRow! : filtersList;
+            const container = displayStyle === "inline" && filterItemsRow ? filterItemsRow : filtersList;
             const filterEl = container.createDiv({
                 cls: "rss-dashboard-filter-item" + (isActive ? " active" : ""),
             });
@@ -1398,10 +1427,10 @@ export class Sidebar {
         const hiddenFilters = this.settings.display?.hiddenFilters || [];
 
         // Create all filter items (All Items cannot be hidden)
-        const allItemsEl = createFilterItem(
+        createFilterItem(
             "all",
             "list",
-            "All Items",
+            "All items",
             this.options.currentFolder === null && 
             this.options.currentFeed === null && 
             this.options.currentTag === null
@@ -1409,43 +1438,43 @@ export class Sidebar {
 
         // Create other filter items only if they're not hidden
         if (!hiddenFilters.includes("starred")) {
-            const starredItemsEl = createFilterItem(
+            createFilterItem(
                 "starred",
                 "star",
-                "Starred Items",
+                "Starred items",
                 this.options.currentFolder === "starred"
             );
         }
 
         if (!hiddenFilters.includes("unread")) {
-            const unreadItemsEl = createFilterItem(
+            createFilterItem(
                 "unread",
                 "circle",
-                "Unread Items",
+                "Unread items",
                 this.options.currentFolder === "unread"
             );
         }
 
         if (!hiddenFilters.includes("read")) {
-            const readItemsEl = createFilterItem(
+            createFilterItem(
                 "read",
                 "check-circle",
-                "Read Items",
+                "Read items",
                 this.options.currentFolder === "read"
             );
         }
 
         if (!hiddenFilters.includes("saved")) {
-            const savedItemsEl = createFilterItem(
+            createFilterItem(
                 "saved",
                 "save",
-                "Saved Items",
+                "Saved items",
                 this.options.currentFolder === "saved"
             );
         }
 
         if (!hiddenFilters.includes("videos")) {
-            const videoItemsEl = createFilterItem(
+            createFilterItem(
                 "videos",
                 "play",
                 "Videos",
@@ -1454,7 +1483,7 @@ export class Sidebar {
         }
 
         if (!hiddenFilters.includes("podcasts")) {
-            const podcastItemsEl = createFilterItem(
+            createFilterItem(
                 "podcasts",
                 "mic",
                 "Podcasts",
@@ -1463,7 +1492,7 @@ export class Sidebar {
         }
 
         // Add tags filter item
-        const tagsContainer = displayStyle === "inline" ? filterItemsRow! : filtersList;
+        const tagsContainer = displayStyle === "inline" && filterItemsRow ? filterItemsRow : filtersList;
         const tagsFilterEl = tagsContainer.createDiv({
             cls: "rss-dashboard-filter-item rss-dashboard-tags-filter" + (this.isTagsExpanded ? " active" : ""),
         });
@@ -1502,7 +1531,7 @@ export class Sidebar {
                 cls: "rss-dashboard-add-tag-button",
             });
             setIcon(addTagButton, "plus");
-            addTagButton.appendChild(document.createTextNode(" Add Tag"));
+            addTagButton.appendText(" Add Tag");
 
             addTagButton.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -1603,18 +1632,18 @@ export class Sidebar {
             });
 
             // Search functionality
-            let searchTimeout: NodeJS.Timeout;
+            let searchTimeout: number;
             
             searchInput.addEventListener("input", (e) => {
                 const query = ((e.target as HTMLInputElement)?.value || "").toLowerCase().trim();
                 
                 // Clear previous timeout
                 if (searchTimeout) {
-                    clearTimeout(searchTimeout);
+                    window.clearTimeout(searchTimeout);
                 }
 
                 // Debounce search
-                searchTimeout = setTimeout(() => {
+                searchTimeout = window.setTimeout(() => {
                     const mainContent = document.querySelector('.rss-dashboard-content');
                     if (mainContent) {
                         const articleElements = mainContent.querySelectorAll(
@@ -1654,13 +1683,13 @@ export class Sidebar {
         const addFolderButton = sidebarToolbar.createDiv({
             cls: "rss-dashboard-toolbar-button",
             attr: {
-                title: "Add Folder",
+                title: "Add folder",
             },
         });
         setIcon(addFolderButton, "folder-plus");
         addFolderButton.addEventListener("click", () => {
             this.showFolderNameModal({
-                title: "Add Folder",
+                title: "Add folder",
                 onSubmit: async (folderName) => {
                     await this.addTopLevelFolder(folderName);
                     this.render();
@@ -1671,7 +1700,7 @@ export class Sidebar {
         const sortButton = sidebarToolbar.createDiv({
             cls: "rss-dashboard-toolbar-button",
             attr: {
-                title: "Sort Folders"
+                title: "Sort folders"
             }
         });
         setIcon(sortButton, "lucide-sort-asc");
@@ -1740,14 +1769,14 @@ export class Sidebar {
             this.toggleAllFolders();
             
             
-            setTimeout(() => updateCollapseIcon(), 0);
+            window.setTimeout(() => updateCollapseIcon(), 0);
         });
 
         
         const addFeedButton = sidebarToolbar.createDiv({
             cls: "rss-dashboard-toolbar-button",
             attr: {
-                title: "Add Feed",
+                title: "Add feed",
             },
         });
         setIcon(addFeedButton, "plus");
@@ -1759,7 +1788,7 @@ export class Sidebar {
         const addYouTubeButton = sidebarToolbar.createDiv({
             cls: "rss-dashboard-toolbar-button",
             attr: {
-                title: "Add YouTube Channel",
+                title: "Add YouTube channel",
             },
         });
         setIcon(addYouTubeButton, "youtube");
@@ -1795,7 +1824,7 @@ export class Sidebar {
         const manageFeedsButton = sidebarToolbar.createDiv({
             cls: "rss-dashboard-toolbar-button",
             attr: {
-                title: "Manage Feeds",
+                title: "Manage feeds",
             },
         });
         setIcon(manageFeedsButton, "list");
@@ -1825,7 +1854,7 @@ export class Sidebar {
         const menu = new Menu();
 
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Update Feed")
+            item.setTitle("Update feed")
                 .setIcon("refresh-cw")
                 .onClick(async () => {
                     await this.callbacks.onUpdateFeed(feed);
@@ -1833,7 +1862,7 @@ export class Sidebar {
         });
 
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Edit Feed")
+            item.setTitle("Edit feed")
                 .setIcon("edit")
                 .onClick(() => {
                     this.showEditFeedModal(feed);
@@ -1841,7 +1870,7 @@ export class Sidebar {
         });
 
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Mark All as Read")
+            item.setTitle("Mark all as read")
                 .setIcon("check-circle")
                 .onClick(async () => {
                     feed.items.forEach(item => {
@@ -1853,7 +1882,7 @@ export class Sidebar {
         });
 
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Change Media Type")
+            item.setTitle("Change media type")
                 .setIcon("lucide-circle-gauge")
                 .onClick((evt) => {
                     const typeMenu = new Menu();
@@ -1895,7 +1924,7 @@ export class Sidebar {
         });
 
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Delete Feed")
+            item.setTitle("Delete feed")
                 .setIcon("trash")
                 .onClick(() => {
                     this.showConfirmModal(`Are you sure you want to delete the feed "${feed.title}"?`, () => {
@@ -1962,11 +1991,11 @@ export class Sidebar {
         // Add option to create new folder
         menu.addSeparator();
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Create New Folder...")
+            item.setTitle("Create new folder...")
                 .setIcon("folder-plus")
                 .onClick(() => {
                     this.showFolderNameModal({
-                        title: "Create New Folder",
+                        title: "Create new folder",
                         onSubmit: async (folderName) => {
                             await this.addTopLevelFolder(folderName);
                             // Move the feed to the newly created folder
@@ -1991,7 +2020,7 @@ export class Sidebar {
 			if (!a.pinned && b.pinned) return 1;
 			
 			
-			let valA: any, valB: any;
+			let valA: string | number, valB: string | number;
 
             switch (by) {
 				case "name":
@@ -2125,7 +2154,7 @@ export class Sidebar {
 
     private applyFeedSortOrder(feeds: Feed[], sortOrder: { by: "name" | "created" | "itemCount"; ascending: boolean }): Feed[] {
         const sorter = (a: Feed, b: Feed): number => {
-            let valA: any, valB: any;
+            let valA: string | number, valB: string | number;
 
             switch (sortOrder.by) {
                 case "name":
@@ -2167,9 +2196,6 @@ export class Sidebar {
      * which called individual toggle callbacks for each folder.
      */
     private toggleAllFolders(): void {
-        const startTime = performance.now();
-        
-        
         const allFolderPaths = this.getCachedFolderPaths();
 
         if (allFolderPaths.length === 0) {
@@ -2193,20 +2219,6 @@ export class Sidebar {
             this.callbacks.onBatchToggleFolders?.(foldersToCollapse, foldersToExpand);
             new Notice("All folders collapsed");
         }
-        
-        const endTime = performance.now();
-        
     }
 }
 
-function collectAllFolders(folders: any[], base = ""): string[] {
-    let paths: string[] = [];
-    for (const f of folders) {
-        const path = base ? `${base}/${f.name}` : f.name;
-        paths.push(path);
-        if (f.subfolders && f.subfolders.length > 0) {
-            paths = paths.concat(collectAllFolders(f.subfolders, path));
-        }
-    }
-    return paths;
-}

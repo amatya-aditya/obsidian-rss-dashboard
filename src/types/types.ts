@@ -155,7 +155,7 @@ export interface RssDashboardSettings {
     tagsCollapsed: boolean;
     articleFilter: {
         type: 'age' | 'read' | 'unread' | 'starred' | 'saved' | 'none';
-        value: any;
+        value: unknown;
     };
     articleSort: 'newest' | 'oldest';
     articleGroupBy: 'none' | 'feed' | 'date' | 'folder';

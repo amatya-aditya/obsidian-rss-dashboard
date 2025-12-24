@@ -2,6 +2,7 @@ import { ItemView, WorkspaceLeaf, Notice, setIcon } from "obsidian";
 import { FeedMetadata, FilterState, CategoryPath, DiscoverFilters } from "../types/discover-types";
 import { RssDashboardSettings, Feed } from "../types/types";
 import { FeedPreviewModal } from "../modals/feed-preview-modal";
+import type RssDashboardPlugin from "../../main";
 
 
 import feedsData from "../discover/discover-feeds.json";
@@ -19,7 +20,7 @@ export class DiscoverView extends ItemView {
         selectedTags: []
     };
     private currentSort = 'rating-desc';
-    private categoryMap: any = {};
+    private categoryMap: { categories: Record<string, Record<string, unknown>> } = { categories: {} };
     private isLoading = true;
     private error: string | null = null;
     private activeSidebarSection: 'types' | 'categories' | 'tags' = 'tags';
@@ -29,7 +30,7 @@ export class DiscoverView extends ItemView {
 
     constructor(
         leaf: WorkspaceLeaf,
-        private plugin: any
+        private plugin: RssDashboardPlugin
     ) {
         super(leaf);
         this.settings = this.plugin.settings;
@@ -64,9 +65,9 @@ export class DiscoverView extends ItemView {
             this.categoryMap = this.generateCategoryMap(this.feeds);
 
             
-            const savedState = localStorage.getItem('rss-discover-filters');
+            const savedState = this.app.loadLocalStorage('rss-discover-filters');
             if (savedState) {
-                this.filters = { ...this.filters, ...JSON.parse(savedState) };
+                this.filters = { ...this.filters, ...(savedState as DiscoverFilters) };
             }
 
             this.filterFeeds();
@@ -78,8 +79,8 @@ export class DiscoverView extends ItemView {
         }
     }
 
-    private generateCategoryMap(feeds: FeedMetadata[]): any {
-        const categoryMap: any = { categories: {} };
+    private generateCategoryMap(feeds: FeedMetadata[]): { categories: Record<string, Record<string, unknown>> } {
+        const categoryMap: { categories: Record<string, Record<string, unknown>> } = { categories: {} };
 
         feeds.forEach(feed => {
             feed.domain.forEach(domain => {
@@ -93,13 +94,15 @@ export class DiscoverView extends ItemView {
                     }
 
                     feed.area.forEach(area => {
-                        if (!categoryMap.categories[domain][subdomain][area]) {
-                            categoryMap.categories[domain][subdomain][area] = [];
+                        const subdomainObj = categoryMap.categories[domain][subdomain] as Record<string, unknown>;
+                        if (!subdomainObj[area]) {
+                            subdomainObj[area] = [];
                         }
 
                         feed.topic.forEach(topic => {
-                            if (!categoryMap.categories[domain][subdomain][area].includes(topic)) {
-                                categoryMap.categories[domain][subdomain][area].push(topic);
+                            const areaArray = subdomainObj[area] as string[];
+                            if (!areaArray.includes(topic)) {
+                                areaArray.push(topic);
                             }
                         });
                     });
@@ -223,7 +226,7 @@ export class DiscoverView extends ItemView {
     }
 
     private saveFilterState(): void {
-        localStorage.setItem('rss-discover-filters', JSON.stringify(this.filters));
+        this.app.saveLocalStorage('rss-discover-filters', this.filters);
     }
 
     async render(): Promise<void> {
@@ -247,17 +250,20 @@ export class DiscoverView extends ItemView {
     private renderLoading(container: HTMLElement): void {
         const loadingEl = container.createDiv({ cls: "rss-discover-loading" });
         setIcon(loadingEl, "loader-2");
-        loadingEl.appendChild(document.createTextNode(" Loading discover feeds..."));
+        loadingEl.appendText(" Loading discover feeds...");
     }
 
     private renderError(container: HTMLElement): void {
         const errorEl = container.createDiv({ cls: "rss-discover-error" });
         setIcon(errorEl, "alert-triangle");
-        errorEl.appendChild(document.createTextNode(` Error: ${this.error}`));
+        errorEl.appendText(` Error: ${this.error}`);
         
         const retryBtn = errorEl.createEl("button", { cls: "mod-cta" });
         retryBtn.textContent = "Retry";
-        retryBtn.addEventListener("click", () => this.loadData().then(() => this.render()));
+        retryBtn.addEventListener("click", async () => {
+            await this.loadData();
+            this.render();
+        });
     }
 
     private renderLayout(container: HTMLElement): void {
@@ -331,11 +337,11 @@ export class DiscoverView extends ItemView {
         const navContainer = header.createDiv({ cls: "rss-dashboard-nav-container" });
 
         const dashboardBtn = navContainer.createDiv({ cls: "rss-dashboard-nav-button" });
-        dashboardBtn.appendChild(document.createTextNode("Dashboard"));
+        dashboardBtn.appendText("Dashboard");
         dashboardBtn.addEventListener("click", () => this.plugin.activateView());
 
         const discoverBtn = navContainer.createDiv({ cls: "rss-dashboard-nav-button active" });
-        discoverBtn.appendChild(document.createTextNode("Discover"));
+        discoverBtn.appendText("Discover");
         discoverBtn.addEventListener("click", () => this.plugin.activateDiscoverView());
     }
 
@@ -407,12 +413,12 @@ export class DiscoverView extends ItemView {
         
         const categoryTree = categorySection.createDiv({ cls: "rss-discover-category-tree" });
         
-        Object.entries(this.categoryMap.categories).forEach(([domain, subdomains]: [string, any]) => {
+        Object.entries(this.categoryMap.categories).forEach(([domain, subdomains]: [string, Record<string, unknown>]) => {
             this.renderCategoryNode(categoryTree, domain, subdomains, 0);
         });
     }
 
-    private renderCategoryNode(container: HTMLElement, name: string, children: any, depth: number): void {
+    private renderCategoryNode(container: HTMLElement, name: string, children: Record<string, unknown>, depth: number): void {
         const node = container.createDiv({ cls: "rss-discover-category-node" });
         const depthClass = `rss-discover-category-node-depth-${Math.min(depth, 5)}`;
         node.addClass(depthClass);
@@ -456,12 +462,14 @@ export class DiscoverView extends ItemView {
             if (Array.isArray(children)) {
                 
                 children.forEach((topic: string) => {
-                    this.renderCategoryNode(container, topic, null, depth + 1);
+                    this.renderCategoryNode(container, topic, {}, depth + 1);
                 });
             } else {
                 
-                Object.entries(children).forEach(([childName, childChildren]: [string, any]) => {
-                    this.renderCategoryNode(container, childName, childChildren, depth + 1);
+                Object.entries(children).forEach(([childName, childChildren]: [string, unknown]) => {
+                    if (childChildren && typeof childChildren === 'object') {
+                        this.renderCategoryNode(container, childName, childChildren as Record<string, unknown>, depth + 1);
+                    }
                 });
             }
         }
@@ -654,7 +662,7 @@ export class DiscoverView extends ItemView {
         
         if (this.hasActiveFilters()) {
             const clearBtn = filterHeader.createEl("button", { cls: "clear-filter-button mod-cta" });
-            clearBtn.textContent = "Clear Filters";
+            clearBtn.textContent = "Clear filters";
             clearBtn.addEventListener("click", () => {
                 this.filters = {
                     query: "",
@@ -674,7 +682,7 @@ export class DiscoverView extends ItemView {
         if (this.filteredFeeds.length === 0) {
             const emptyState = container.createDiv({ cls: "rss-discover-empty" });
             setIcon(emptyState, "search");
-            emptyState.appendChild(document.createTextNode(" No feeds match your filters"));
+            emptyState.appendText(" No feeds match your filters");
             return;
         }
 
@@ -695,7 +703,7 @@ export class DiscoverView extends ItemView {
         const topFilters = container.createDiv({ cls: "rss-discover-top-filters" });
         
         this.renderFilterDropdown(topFilters, "Domain", "domain", "folder", this.getAllDomains());
-        this.renderFilterDropdown(topFilters, "Sub Domain", "subdomain", "folder-open", this.getAllSubdomains());
+        this.renderFilterDropdown(topFilters, "Sub domain", "subdomain", "folder-open", this.getAllSubdomains());
         this.renderFilterDropdown(topFilters, "Area", "area", "folder-tree", this.getAllAreas());
         this.renderFilterDropdown(topFilters, "Topic", "topic", "file-text", this.getAllTopics());
         this.renderFilterDropdown(topFilters, "Type", "type", "tag", this.getAllTypes());
@@ -758,12 +766,12 @@ export class DiscoverView extends ItemView {
         
         this.populateFilterDropdown(dropdown, options, filterType, "");
         
-        let searchTimeout: NodeJS.Timeout | undefined;
+        let searchTimeout: number | undefined;
         input.addEventListener("input", (e) => {
             const query = (e.target as HTMLInputElement).value;
             
             if (searchTimeout) {
-                clearTimeout(searchTimeout);
+                window.clearTimeout(searchTimeout);
             }
             
             if (query.trim()) {
@@ -1083,7 +1091,7 @@ export class DiscoverView extends ItemView {
             const addedBtn = rightSection.createEl("button", { text: "Added", cls: "rss-discover-card-add-btn" });
             addedBtn.disabled = true;
         } else {
-            const addBtn = rightSection.createEl("button", { text: "Add Feed", cls: "rss-discover-card-add-btn" });
+            const addBtn = rightSection.createEl("button", { text: "Add feed", cls: "rss-discover-card-add-btn" });
             addBtn.addEventListener("click", async () => {
                 await this.addFeed(feed);
                 addBtn.setText("Added");
@@ -1141,26 +1149,26 @@ export class DiscoverView extends ItemView {
         if (this.filters.query) {
             const searchFilter = selectedFiltersContainer.createDiv({ cls: "rss-discover-selected-filter" });
             setIcon(searchFilter, "search");
-            searchFilter.appendChild(document.createTextNode(` "${this.filters.query}"`));
+            searchFilter.appendText(` "${this.filters.query}"`);
         }
         
         this.filters.selectedTypes.forEach(type => {
             const typeFilter = selectedFiltersContainer.createDiv({ cls: "rss-discover-selected-filter" });
             setIcon(typeFilter, "tag");
-            typeFilter.appendChild(document.createTextNode(` ${type}`));
+            typeFilter.appendText(` ${type}`);
         });
         
         this.filters.selectedPaths.forEach(path => {
             const pathFilter = selectedFiltersContainer.createDiv({ cls: "rss-discover-selected-filter" });
             setIcon(pathFilter, "folder");
             const pathText = [path.domain, path.subdomain, path.area, path.topic].filter(Boolean).join(" > ");
-            pathFilter.appendChild(document.createTextNode(` ${pathText}`));
+            pathFilter.appendText(` ${pathText}`);
         });
         
         this.filters.selectedTags.forEach(tag => {
             const tagFilter = selectedFiltersContainer.createDiv({ cls: "rss-discover-selected-filter" });
             setIcon(tagFilter, "hash");
-            tagFilter.appendChild(document.createTextNode(` ${tag}`));
+            tagFilter.appendText(` ${tag}`);
             tagFilter.style.setProperty('--tag-color', this.getTagColor(tag));
         });
     }

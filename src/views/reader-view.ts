@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, TFile, Menu, MenuItem, App } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, TFile, Menu, MenuItem, App, Setting } from "obsidian";
 import { setIcon } from "obsidian";
 import { FeedItem, Tag, RssDashboardSettings } from "../types/types";
 import { MediaService } from "../services/media-service";
@@ -15,8 +15,8 @@ export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
 export class ReaderView extends ItemView {
     private currentItem: FeedItem | null = null;
-    private readingContainer: HTMLElement;
-    private titleElement: HTMLElement;
+    private readingContainer!: HTMLElement;
+    private titleElement!: HTMLElement;
     private articleSaver: ArticleSaver;
     private settings: RssDashboardSettings;
     private onArticleSave: (item: FeedItem) => void;
@@ -26,6 +26,14 @@ export class ReaderView extends ItemView {
     private relatedItems: FeedItem[] = [];
     private currentFullContent?: string;
     private turndownService = new TurndownService();
+    
+    public isPodcastPlaying(): boolean {
+        if (!this.podcastPlayer) return false;
+        const audioElement = (this.podcastPlayer as unknown as { audioElement?: HTMLAudioElement }).audioElement;
+        return audioElement !== null && audioElement !== undefined && 
+               !audioElement.paused && 
+               audioElement.currentTime > 0;
+    }
 
     constructor(leaf: WorkspaceLeaf, settings: RssDashboardSettings, articleSaver: ArticleSaver, onArticleSave: (item: FeedItem) => void) {
         super(leaf);
@@ -35,12 +43,28 @@ export class ReaderView extends ItemView {
         
         
         try {
-            // @ts-ignore - Check if webviewer plugin exists
-            if (this.app.plugins?.plugins?.["webpage-html-export"]) {
-                this.webViewerIntegration = new WebViewerIntegration(this.app as any, settings.articleSaving);
+            const appWithPlugins = this.app as unknown as { plugins?: { plugins?: Record<string, unknown> } };
+            const plugins = appWithPlugins.plugins?.plugins;
+            if (plugins && "webpage-html-export" in plugins) {
+                interface WebViewerPlugin {
+                    openWebpage?(url: string, title: string): Promise<void>;
+                    currentTitle?: string;
+                    currentUrl?: string;
+                    cleanedHtml?: string;
+                }
+                interface ObsidianPlugins {
+                    plugins: {
+                        [key: string]: unknown;
+                        "webpage-html-export"?: WebViewerPlugin;
+                    };
+                }
+                interface ObsidianApp extends App {
+                    plugins: ObsidianPlugins;
+                }
+                this.webViewerIntegration = new WebViewerIntegration(this.app as unknown as ObsidianApp, settings.articleSaving);
             }
-        } catch (error) {
-            
+        } catch {
+            // Web viewer integration not available
         }
     }
 
@@ -95,7 +119,7 @@ export class ReaderView extends ItemView {
         
         const saveButton = actions.createDiv({ 
             cls: "rss-reader-action-button", 
-            attr: { title: "Save Article" } 
+            attr: { title: "Save article" } 
         });
         
         setIcon(saveButton, "save");
@@ -127,7 +151,7 @@ export class ReaderView extends ItemView {
         
         menu.addItem((menuItem: MenuItem) => {
             menuItem
-                .setTitle("Save with Default Settings")
+                .setTitle("Save with default settings")
                 .setIcon("save")
                 .onClick(async () => {
                     const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
@@ -142,7 +166,7 @@ export class ReaderView extends ItemView {
         
         menu.addItem((menuItem: MenuItem) => {
             menuItem
-                .setTitle("Save to Custom Folder...")
+                .setTitle("Save to custom folder...")
                 .setIcon("folder")
                 .onClick(() => {
                     this.showCustomSaveModal(item);
@@ -154,43 +178,55 @@ export class ReaderView extends ItemView {
     
     
     private showCustomSaveModal(item: FeedItem): void {
-        const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
+        const modal = document.body.createDiv({
+            cls: "rss-dashboard-modal rss-dashboard-modal-container"
+        });
         
-        const modalContent = document.createElement("div");
-        modalContent.className = "rss-dashboard-modal-content";
+        const modalContent = modal.createDiv({
+            cls: "rss-dashboard-modal-content"
+        });
         
-        const modalTitle = document.createElement("h2");
-        modalTitle.textContent = "Save Article";
+        new Setting(modalContent).setName("Save article").setHeading();
         
-        const folderLabel = document.createElement("label");
-        folderLabel.textContent = "Save to Folder:";
+        const folderLabel = modalContent.createEl("label", {
+            text: "Save to folder:"
+        });
         
-        const folderInput = document.createElement("input");
-        folderInput.type = "text";
-        folderInput.placeholder = "Enter folder path";
-        folderInput.value = this.settings.articleSaving.defaultFolder;
+        const folderInput = modalContent.createEl("input", {
+            attr: {
+                type: "text",
+                placeholder: "Enter folder path",
+                value: this.settings.articleSaving.defaultFolder || ""
+            }
+        });
         
-        const templateLabel = document.createElement("label");
-        templateLabel.textContent = "Use Template:";
+        const templateLabel = modalContent.createEl("label", {
+            text: "Use template:"
+        });
         
-        const templateInput = document.createElement("textarea");
-        templateInput.placeholder = "Enter template";
-        templateInput.value = this.settings.articleSaving.defaultTemplate;
-        templateInput.rows = 6;
+        const templateInput = modalContent.createEl("textarea", {
+            attr: {
+                placeholder: "Enter template",
+                rows: "6"
+            }
+        });
+        templateInput.value = this.settings.articleSaving.defaultTemplate || "";
         
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "rss-dashboard-modal-buttons";
+        const buttonContainer = modalContent.createDiv({
+            cls: "rss-dashboard-modal-buttons"
+        });
         
-        const cancelButton = document.createElement("button");
-        cancelButton.textContent = "Cancel";
+        const cancelButton = buttonContainer.createEl("button", {
+            text: "Cancel"
+        });
         cancelButton.addEventListener("click", () => {
             document.body.removeChild(modal);
         });
         
-        const saveButton = document.createElement("button");
-        saveButton.textContent = "Save";
-        saveButton.className = "rss-dashboard-primary-button";
+        const saveButton = buttonContainer.createEl("button", {
+            text: "Save",
+            cls: "rss-dashboard-primary-button"
+        });
         saveButton.addEventListener("click", async () => {
             const folder = folderInput.value.trim();
             const template = templateInput.value.trim();
@@ -210,7 +246,6 @@ export class ReaderView extends ItemView {
         buttonContainer.appendChild(cancelButton);
         buttonContainer.appendChild(saveButton);
         
-        modalContent.appendChild(modalTitle);
         modalContent.appendChild(folderLabel);
         modalContent.appendChild(folderInput);
         modalContent.appendChild(templateLabel);
@@ -264,19 +299,19 @@ export class ReaderView extends ItemView {
         }
 
         if (item.mediaType === 'video' && item.videoId) {
-            this.displayVideo(item);
+            await this.displayVideo(item);
         } else if (item.mediaType === 'video' && item.videoUrl) {
-            this.displayVideoPodcast(item);
+            await this.displayVideoPodcast(item);
         } else if (item.mediaType === 'podcast' && (item.audioUrl || MediaService.extractPodcastAudio(item.description))) {
             if (!item.audioUrl) {
                 const aud = MediaService.extractPodcastAudio(item.description);
                 if (aud) item.audioUrl = aud;
             }
-            this.displayPodcast(item);
+            await this.displayPodcast(item);
         } else {
             const fullContent = await this.fetchFullArticleContent(item.link);
             this.currentFullContent = fullContent;
-            this.displayArticle(item, fullContent);
+            await this.displayArticle(item, fullContent);
         }
 
         if (!item.read) {
@@ -285,7 +320,7 @@ export class ReaderView extends ItemView {
     }
     
     
-    private displayVideo(item: FeedItem): void {
+    private async displayVideo(item: FeedItem): Promise<void> {
         if (this.podcastPlayer) {
             this.podcastPlayer.destroy();
             this.podcastPlayer = null;
@@ -306,12 +341,12 @@ export class ReaderView extends ItemView {
                 cls: "rss-reader-error",
                 text: "Video ID not found. Cannot play this video."
             });
-            this.displayArticle(item);
+            await this.displayArticle(item);
         }
     }
     
     
-    private displayPodcast(item: FeedItem): void {
+    private async displayPodcast(item: FeedItem): Promise<void> {
         if (this.videoPlayer) {
             this.videoPlayer.destroy();
             this.videoPlayer = null;
@@ -331,7 +366,7 @@ export class ReaderView extends ItemView {
         }
         
         if (item.audioUrl) {
-            this.podcastPlayer = new PodcastPlayer(container);
+            this.podcastPlayer = new PodcastPlayer(container, this.app);
             this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
         } else {
             const audioUrl = MediaService.extractPodcastAudio(item.description);
@@ -340,20 +375,20 @@ export class ReaderView extends ItemView {
                     ...item,
                     audioUrl: audioUrl
                 };
-                this.podcastPlayer = new PodcastPlayer(container);
+                this.podcastPlayer = new PodcastPlayer(container, this.app);
                 this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
             } else {
                 container.createDiv({
                     cls: "rss-reader-error",
                     text: "Audio URL not found. Cannot play this podcast."
                 });
-                this.displayArticle(item);
+                await this.displayArticle(item);
             }
         }
     }
     
     
-    private displayArticle(item: FeedItem, fullContent?: string): void {
+    private async displayArticle(item: FeedItem, fullContent?: string): Promise<void> {
         
         if (this.podcastPlayer) {
             this.podcastPlayer.destroy();
@@ -366,18 +401,16 @@ export class ReaderView extends ItemView {
         
         
         if (this.webViewerIntegration) {
-            this.webViewerIntegration
-                .openInWebViewer(item.link, item.title)
-                .then((success) => {
-                    if (!success) {
-                        
-                        this.renderArticle(item, fullContent);
-                    }
-                })
-                .catch(() => {
+            try {
+                const success = await this.webViewerIntegration.openInWebViewer(item.link, item.title);
+                if (!success) {
                     
                     this.renderArticle(item, fullContent);
-                });
+                }
+            } catch {
+                
+                this.renderArticle(item, fullContent);
+            }
             
             return;
         }
@@ -391,10 +424,8 @@ export class ReaderView extends ItemView {
         
         const headerContainer = this.readingContainer.createDiv({ cls: "rss-reader-article-header" });
         
-        headerContainer.createEl("h1", { 
-            cls: "rss-reader-item-title",
-            text: item.title 
-        });
+        const titleSetting = new Setting(headerContainer).setName(item.title).setHeading();
+        titleSetting.settingEl.addClass("rss-reader-item-title");
         
         
         const metaContainer = headerContainer.createDiv({ cls: "rss-reader-meta" });
@@ -554,17 +585,21 @@ export class ReaderView extends ItemView {
 
     
     private showMarkdownView(markdownContent: string, item: FeedItem): void {
-        const modal = document.createElement("div");
-        modal.className = "rss-reader-markdown-modal";
+        const modal = document.body.createDiv({
+            cls: "rss-reader-markdown-modal"
+        });
         
-        const modalContent = document.createElement("div");
-        modalContent.className = "rss-reader-markdown-content";
+        const modalContent = modal.createDiv({
+            cls: "rss-reader-markdown-content"
+        });
         
-        const markdownDisplay = document.createElement("div");
-        markdownDisplay.textContent = markdownContent;
+        const markdownDisplay = modalContent.createDiv({
+            text: markdownContent
+        });
         
-        const saveButton = document.createElement("button");
-        saveButton.textContent = "Save to Vault";
+        const saveButton = modalContent.createEl("button", {
+            text: "Save to Vault"
+        });
         saveButton.addEventListener("click", async () => {
             
             const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
@@ -576,17 +611,12 @@ export class ReaderView extends ItemView {
             document.body.removeChild(modal);
         });
         
-        const closeButton = document.createElement("button");
-        closeButton.textContent = "Close";
+        const closeButton = modalContent.createEl("button", {
+            text: "Close"
+        });
         closeButton.addEventListener("click", () => {
             document.body.removeChild(modal);
         });
-        
-        modalContent.appendChild(markdownDisplay);
-        modalContent.appendChild(saveButton);
-        modalContent.appendChild(closeButton);
-        
-        modal.appendChild(modalContent);
         document.body.appendChild(modal);
     }
 
@@ -727,7 +757,7 @@ export class ReaderView extends ItemView {
             const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
             
             
-            return await this.app.vault.adapter.exists(filePath);
+            return this.app.vault.getAbstractFileByPath(filePath) !== null;
         } catch (error) {
             
             return false;
@@ -744,7 +774,7 @@ export class ReaderView extends ItemView {
     }
 
     
-    private displayVideoPodcast(item: FeedItem): void {
+    private async displayVideoPodcast(item: FeedItem): Promise<void> {
         if (this.podcastPlayer) {
             this.podcastPlayer.destroy();
             this.podcastPlayer = null;
@@ -759,27 +789,32 @@ export class ReaderView extends ItemView {
 
         
         if (item.videoUrl) {
-            const video = document.createElement("video");
-            video.controls = true;
-            video.classList.add("rss-reader-video");
-            if (item.coverImage) video.poster = item.coverImage;
-            const source = document.createElement("source");
-            source.src = item.videoUrl!;
-            source.type = "video/mp4";
-            video.appendChild(source);
-            video.appendChild(document.createTextNode("Your browser does not support the video tag."));
-            container.appendChild(video);
+            const video = container.createEl("video", {
+                cls: "rss-reader-video",
+                attr: {
+                    controls: "true",
+                    ...(item.coverImage ? { poster: item.coverImage } : {})
+                }
+            });
+            const source = video.createEl("source", {
+                attr: {
+                    src: item.videoUrl,
+                    type: "video/mp4"
+                }
+            });
+            video.appendText("Your browser does not support the video tag.");
         } else {
             container.createDiv({
                 cls: "rss-reader-error",
                 text: "Video URL not found. Cannot play this video podcast."
             });
-            this.displayArticle(item);
+            await this.displayArticle(item);
             return;
         }
 
         const infoSection = container.createDiv({ cls: "rss-video-info" });
-        infoSection.createEl("h2", { text: item.title, cls: "rss-video-title" });
+        const titleSetting = new Setting(infoSection).setName(item.title).setHeading();
+        titleSetting.settingEl.addClass("rss-video-title");
         const metaRow = infoSection.createDiv({ cls: "rss-video-meta-row" });
         metaRow.createDiv({ text: item.feedTitle, cls: "rss-video-channel" });
         metaRow.createDiv({ text: new Date(item.pubDate).toLocaleDateString(), cls: "rss-video-date" });

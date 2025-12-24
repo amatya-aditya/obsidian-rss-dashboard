@@ -1,11 +1,10 @@
 import { App, PluginSettingTab, Setting, Notice } from "obsidian";
 import RssDashboardPlugin from "./../../main";
-import { Tag, ViewLocation, Feed } from "../types/types";
-import { EditFeedModal } from "../modals/feed-manager-modal";
+import { ViewLocation } from "../types/types";
 
 export class RssDashboardSettingTab extends PluginSettingTab {
     plugin: RssDashboardPlugin;
-    private currentTab: string = "General";
+    private currentTab = "General";
     private tabNames = [
         "General",
         "Display",
@@ -68,54 +67,56 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     private createGeneralSettings(containerEl: HTMLElement): void {
 
         new Setting(containerEl)
-            .setName("View Style")
+            .setName("View style")
             .setDesc("Choose between list and card view for articles")
             .addDropdown((dropdown) =>
                 dropdown
-                    .addOption("list", "List View")
-                    .addOption("card", "Card View")
+                    .addOption("list", "List view")
+                    .addOption("card", "Card view")
                     .setValue(this.plugin.settings.viewStyle)
-                    .onChange(async (value: "list" | "card") => {
-                        this.plugin.settings.viewStyle = value;
+                    .onChange(async (value: string) => {
+                        this.plugin.settings.viewStyle = value as "list" | "card";
                         await this.plugin.saveSettings();
-                        if (this.plugin.view) {
-                            this.plugin.view.render();
+                        const view = await this.plugin.getActiveDashboardView();
+                        if (view) {
+                            await this.app.workspace.revealLeaf(view.leaf);
+                            await view.render();
                         }
                     })
             );
 
         new Setting(containerEl)
-            .setName("Dashboard View Location")
+            .setName("Dashboard view location")
             .setDesc("Choose where to open the RSS Dashboard")
             .addDropdown((dropdown) =>
                 dropdown
-                    .addOption("main", "Main View")
-                    .addOption("right-sidebar", "Right Sidebar")
-                    .addOption("left-sidebar", "Left Sidebar")
+                    .addOption("main", "Main view")
+                    .addOption("right-sidebar", "Right sidebar")
+                    .addOption("left-sidebar", "Left sidebar")
                     .setValue(this.plugin.settings.viewLocation)
-                    .onChange(async (value: ViewLocation) => {
-                        this.plugin.settings.viewLocation = value;
+                    .onChange(async (value: string) => {
+                        this.plugin.settings.viewLocation = value as ViewLocation;
                         await this.plugin.saveSettings();
                     })
             );
 
         new Setting(containerEl)
-            .setName("Reader View Location")
+            .setName("Reader view location")
             .setDesc("Choose where to open articles/media when clicked")
             .addDropdown((dropdown) =>
                 dropdown
-                    .addOption("main", "Main View (Split)")
-                    .addOption("right-sidebar", "Right Sidebar")
-                    .addOption("left-sidebar", "Left Sidebar")
+                    .addOption("main", "Main view (split)")
+                    .addOption("right-sidebar", "Right sidebar")
+                    .addOption("left-sidebar", "Left sidebar")
                     .setValue(this.plugin.settings.readerViewLocation || "main")
-                    .onChange(async (value: ViewLocation) => {
-                        this.plugin.settings.readerViewLocation = value;
+                    .onChange(async (value: string) => {
+                        this.plugin.settings.readerViewLocation = value as ViewLocation;
                         await this.plugin.saveSettings();
                     })
             );
             
         new Setting(containerEl)
-            .setName("Use Web Viewer")
+            .setName("Use web viewer")
             .setDesc("Use Obsidian's core web viewer for articles when available")
             .addToggle(toggle => 
                 toggle
@@ -127,7 +128,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             );
 
         new Setting(containerEl)
-            .setName("Refresh Interval")
+            .setName("Refresh interval")
             .setDesc("How often to refresh feeds (in minutes)")
             .addSlider((slider) =>
                 slider
@@ -141,7 +142,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             );
 
         new Setting(containerEl)
-            .setName("Maximum Items")
+            .setName("Maximum items")
             .setDesc("Maximum number of items to display per feed")
             .addSlider((slider) =>
                 slider
@@ -151,15 +152,17 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         this.plugin.settings.maxItems = value;
                         await this.plugin.saveSettings();
-                        if (this.plugin.view) {
-                            this.plugin.view.render();
+                        const view = await this.plugin.getActiveDashboardView();
+                        if (view) {
+                            await this.app.workspace.revealLeaf(view.leaf);
+                            await view.render();
                         }
                     })
             );
 
         new Setting(containerEl)
-            .setName("Page size for 'All Articles'")
-            .setDesc("Number of articles to load at a time in the 'All Articles' view.")
+            .setName("Page size for 'All articles'")
+            .setDesc("Number of articles to load at a time in the 'All articles' view.")
             .addSlider((slider) => {
                 slider
                     .setLimits(20, 200, 10)
@@ -172,7 +175,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             });
 
         new Setting(containerEl)
-            .setName("Page size for 'Unread Items'")
+            .setName("Page size for 'Unread items'")
             .setDesc("Number of unread articles to load at a time.")
             .addSlider((slider) => {
                 slider
@@ -186,7 +189,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             });
 
         new Setting(containerEl)
-            .setName("Page size for 'Read Items'")
+            .setName("Page size for 'Read items'")
             .setDesc("Number of read articles to load at a time.")
             .addSlider((slider) => {
                 slider
@@ -200,7 +203,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             });
 
         new Setting(containerEl)
-            .setName("Page size for 'Saved Items'")
+            .setName("Page size for 'Saved items'")
             .setDesc("Number of saved articles to load at a time.")
             .addSlider((slider) => {
                 slider
@@ -214,7 +217,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             });
 
         new Setting(containerEl)
-            .setName("Page size for 'Starred Items'")
+            .setName("Page size for 'Starred items'")
             .setDesc("Number of starred articles to load at a time.")
             .addSlider((slider) => {
                 slider
@@ -231,7 +234,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     private createDisplaySettings(containerEl: HTMLElement): void {
 
         new Setting(containerEl)
-            .setName("Show Cover Images")
+            .setName("Show cover images")
             .setDesc("Display cover images for articles in reader view")
             .addToggle((toggle) =>
                 toggle
@@ -243,7 +246,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             );
 
         new Setting(containerEl)
-            .setName("Show Summary")
+            .setName("Show summary")
             .setDesc("Display content summary in card view")
             .addToggle((toggle) =>
                 toggle
@@ -251,14 +254,16 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         this.plugin.settings.display.showSummary = value;
                         await this.plugin.saveSettings();
-                        if (this.plugin.view && this.plugin.settings.viewStyle === "card") {
-                            this.plugin.view.render();
+                        const view = await this.plugin.getActiveDashboardView();
+                        if (view && this.plugin.settings.viewStyle === "card") {
+                            await this.app.workspace.revealLeaf(view.leaf);
+                            await view.render();
                         }
                     })
             );
 
             new Setting(containerEl)
-            .setName("Use Domain Favicons")
+            .setName("Use domain favicons")
             .setDesc("Show domain-specific favicons instead of generic RSS icons for feeds")
             .addToggle((toggle) =>
                 toggle
@@ -266,25 +271,29 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         this.plugin.settings.display.useDomainFavicons = value;
                         await this.plugin.saveSettings();
-                        if (this.plugin.view?.sidebar) {
-                            this.plugin.view.sidebar.render();
+                        const view = await this.plugin.getActiveDashboardView();
+                        if (view?.sidebar) {
+                            await this.app.workspace.revealLeaf(view.leaf);
+                            view.sidebar.render();
                         }
                     })
             );
 
         new Setting(containerEl)
-            .setName("Filter Display Style")
+            .setName("Filter display style")
             .setDesc("Choose how to display the filter buttons in the sidebar")
             .addDropdown((dropdown) =>
                 dropdown
-                    .addOption("vertical", "Vertical List")
-                    .addOption("inline", "Inline Icons")
+                    .addOption("vertical", "Vertical list")
+                    .addOption("inline", "Inline icons")
                     .setValue(this.plugin.settings.display.filterDisplayStyle)
-                    .onChange(async (value: "vertical" | "inline") => {
-                        this.plugin.settings.display.filterDisplayStyle = value;
+                    .onChange(async (value: string) => {
+                        this.plugin.settings.display.filterDisplayStyle = value as "vertical" | "inline";
                         await this.plugin.saveSettings();
-                        if (this.plugin.view?.sidebar) {
-                            this.plugin.view.sidebar.render();
+                        const view = await this.plugin.getActiveDashboardView();
+                        if (view?.sidebar) {
+                            await this.app.workspace.revealLeaf(view.leaf);
+                            view.sidebar.render();
                         }
                     })
             );
@@ -292,20 +301,20 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         
 
         new Setting(containerEl)
-            .setName("Default Filter")
+            .setName("Default filter")
             .setDesc("Choose which filter to show by default when opening the dashboard")
             .addDropdown((dropdown) =>
                 dropdown
-                    .addOption("all", "All Items")
-                    .addOption("starred", "Starred Items")
-                    .addOption("unread", "Unread Items")
-                    .addOption("read", "Read Items")
-                    .addOption("saved", "Saved Items")
+                    .addOption("all", "All items")
+                    .addOption("starred", "Starred items")
+                    .addOption("unread", "Unread items")
+                    .addOption("read", "Read items")
+                    .addOption("saved", "Saved items")
                     .addOption("videos", "Videos")
                     .addOption("podcasts", "Podcasts")
                     .setValue(this.plugin.settings.display.defaultFilter)
-                    .onChange(async (value: "all" | "starred" | "unread" | "read" | "saved" | "videos" | "podcasts") => {
-                        this.plugin.settings.display.defaultFilter = value;
+                    .onChange(async (value: string) => {
+                        this.plugin.settings.display.defaultFilter = value as "all" | "starred" | "unread" | "read" | "saved" | "videos" | "podcasts";
                         
                         // If the new default filter is hidden, show a warning
                         const hiddenFilters = this.plugin.settings.display.hiddenFilters || [];
@@ -314,8 +323,10 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         }
                         
                         await this.plugin.saveSettings();
-                        if (this.plugin.view?.sidebar) {
-                            this.plugin.view.sidebar.render();
+                        const view = await this.plugin.getActiveDashboardView();
+                        if (view?.sidebar) {
+                            await this.app.workspace.revealLeaf(view.leaf);
+                            view.sidebar.render();
                         }
                     })
             );
@@ -324,7 +335,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         containerEl.createEl("hr", { cls: "rss-dashboard-settings-separator" });
 
         // Filter visibility settings
-        containerEl.createEl("h4", { text: "Filter Visibility" });
+        containerEl.createEl("h4", { text: "Filter visibility" });
         containerEl.createEl("p", { 
             text: "Choose which filter items to show or hide in the sidebar:",
             cls: "rss-dashboard-settings-description"
@@ -333,10 +344,10 @@ export class RssDashboardSettingTab extends PluginSettingTab {
 
 
         const filterOptions = [
-            { key: "starred", label: "Starred Items", icon: "star" },
-            { key: "unread", label: "Unread Items", icon: "circle" },
-            { key: "read", label: "Read Items", icon: "check-circle" },
-            { key: "saved", label: "Saved Items", icon: "save" },
+            { key: "starred", label: "Starred items", icon: "star" },
+            { key: "unread", label: "Unread items", icon: "circle" },
+            { key: "read", label: "Read items", icon: "check-circle" },
+            { key: "saved", label: "Saved items", icon: "save" },
             { key: "videos", label: "Videos", icon: "play" },
             { key: "podcasts", label: "Podcasts", icon: "mic" }
         ];
@@ -371,14 +382,17 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                                 }
                                 
                                 // If we're hiding the currently selected filter, reset to "all"
-                                if (this.plugin.view?.sidebar && 
-                                    this.plugin.view.currentFolder === filter.key) {
-                                    this.plugin.view.currentFolder = null;
+                                const view = await this.plugin.getActiveDashboardView();
+                                if (view?.sidebar && 
+                                    view.currentFolder === filter.key) {
+                                    view.currentFolder = null;
                                 }
                             }
                             await this.plugin.saveSettings();
-                            if (this.plugin.view?.sidebar) {
-                                this.plugin.view.sidebar.render();
+                            const view = await this.plugin.getActiveDashboardView();
+                            if (view?.sidebar) {
+                                await this.app.workspace.revealLeaf(view.leaf);
+                                view.sidebar.render();
                             }
                         })
                 );
@@ -386,7 +400,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
 
         // Note about "All Items" filter
         containerEl.createEl("p", { 
-            text: "Note: The 'All Items' filter cannot be hidden as it's always required.",
+            text: "Note: The 'All items' filter cannot be hidden as it's always required.",
             cls: "rss-dashboard-settings-note"
         });
     }
@@ -394,7 +408,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     private createMediaSettings(containerEl: HTMLElement): void {
         
         new Setting(containerEl)
-            .setName("Auto-detect Media Type")
+            .setName("Auto-detect media type")
             .setDesc("Automatically detect if feeds are YouTube, podcasts, or regular articles")
             .addToggle((toggle) =>
                 toggle
@@ -406,10 +420,10 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             );
         
         
-        containerEl.createEl("h4", { text: "YouTube Settings" });
+        containerEl.createEl("h4", { text: "YouTube settings" });
         
         new Setting(containerEl)
-            .setName("Default YouTube Folder")
+            .setName("Default YouTube folder")
             .setDesc("Default folder for YouTube feeds")
             .addText((text) =>
                 text
@@ -421,7 +435,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             );
             
         new Setting(containerEl)
-            .setName("Default YouTube Tag")
+            .setName("Default YouTube tag")
             .setDesc("Default tag for YouTube videos")
             .addText((text) =>
                 text
@@ -433,10 +447,10 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             );
             
         
-        containerEl.createEl("h4", { text: "Podcast Settings" });
+        containerEl.createEl("h4", { text: "Podcast settings" });
         
         new Setting(containerEl)
-            .setName("Default Podcast Folder")
+            .setName("Default podcast folder")
             .setDesc("Default folder for podcast feeds")
             .addText((text) =>
                 text
@@ -448,7 +462,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             );
             
         new Setting(containerEl)
-            .setName("Default Podcast Tag")
+            .setName("Default podcast tag")
             .setDesc("Default tag for podcast episodes")
             .addText((text) =>
                 text
@@ -477,7 +491,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             );
             
         new Setting(containerEl)
-            .setName("Add 'saved' Tag")
+            .setName("Add 'saved' tag")
             .setDesc("Automatically add a 'saved' tag to saved articles")
             .addToggle((toggle) =>
                 toggle
@@ -489,7 +503,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             );
             
         new Setting(containerEl)
-            .setName("Save Full Content")
+            .setName("Save full content")
             .setDesc("Fetch and save the full article content from the web (instead of just the RSS summary)")
             .addToggle((toggle) =>
                 toggle
@@ -501,7 +515,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             );
             
         new Setting(containerEl)
-            .setName("Fetch Timeout")
+            .setName("Fetch timeout")
             .setDesc("Timeout in seconds for fetching full article content (prevents hanging)")
             .addSlider((slider) => {
                 slider
@@ -515,18 +529,19 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             });
         
         
-        containerEl.createEl("h4", { text: "Article Templates" });
+        containerEl.createEl("h4", { text: "Article templates" });
         
         const templateContainer = containerEl.createDiv();
         
-        const templateLabel = new Setting(templateContainer)
-            .setName("Default Article Template")
+        new Setting(templateContainer)
+            .setName("Default article template")
             .setDesc("Template for saved articles. Use variables like {{title}}, {{content}}, {{link}}, etc.");
             
-        const templateInput = document.createElement("textarea");
+        const templateInput = templateContainer.createEl("textarea", {
+            attr: { rows: "10" },
+            cls: "rss-dashboard-template-input"
+        });
         templateInput.value = this.plugin.settings.articleSaving.defaultTemplate;
-        templateInput.rows = 10;
-        templateInput.addClass("rss-dashboard-template-input");
         templateInput.addEventListener("change", async () => {
             this.plugin.settings.articleSaving.defaultTemplate = templateInput.value;
             await this.plugin.saveSettings();
@@ -534,8 +549,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         
         templateContainer.appendChild(templateInput);
         
-        
-        const variablesHelp = containerEl.createEl("div", { 
+        containerEl.createEl("div", { 
             cls: "setting-item-description",
             text: "Available variables: {{title}}, {{content}}, {{link}}, {{date}}, {{isoDate}}, {{source}}, {{author}}, {{summary}}, {{tags}}, {{feedTitle}}, {{guid}}"
         });
@@ -556,9 +570,12 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             if (data) {
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "rss-dashboard-data.json";
+                const a = document.body.createEl("a", {
+                    attr: {
+                        href: url,
+                        download: "rss-dashboard-data.json"
+                    }
+                });
                 a.click();
                 URL.revokeObjectURL(url);
             }
@@ -569,9 +586,12 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             cls: "rss-dashboard-import-export-btn"
         });
         importBtn.onclick = async () => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = ".json,application/json";
+            const input = document.body.createEl("input", {
+                attr: {
+                    type: "file",
+                    accept: ".json,application/json"
+                }
+            });
             input.onchange = async (e) => {
                 const file = input.files?.[0];
                 if (!file) return;
@@ -580,7 +600,11 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                     const data = JSON.parse(text);
                     this.plugin.settings = Object.assign({}, this.plugin.settings, data);
                     await this.plugin.saveSettings();
-                    if (this.plugin.view) this.plugin.view.render();
+                    const view = await this.plugin.getActiveDashboardView();
+                    if (view) {
+                        await this.app.workspace.revealLeaf(view.leaf);
+                        await view.render();
+                    }
                     new Notice("Data imported successfully!");
                 } catch (err) {
                     new Notice("Invalid data.json file");
@@ -616,21 +640,23 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         for (let i = 0; i < this.plugin.settings.availableTags.length; i++) {
             const tag = this.plugin.settings.availableTags[i];
 
-            const tagSetting = new Setting(tagsContainer)
+            new Setting(tagsContainer)
                 .setName(tag.name)
                 .addColorPicker((colorPicker) =>
                     colorPicker.setValue(tag.color).onChange(async (value) => {
                         this.plugin.settings.availableTags[i].color = value;
                         await this.plugin.saveSettings();
-                        if (this.plugin.view) {
-                            this.plugin.view.render();
+                        const view = await this.plugin.getActiveDashboardView();
+                        if (view) {
+                            await this.app.workspace.revealLeaf(view.leaf);
+                            await view.render();
                         }
                     })
                 )
                 .addButton((button) =>
                     button
                         .setIcon("trash")
-                        .setTooltip("Delete Tag")
+                        .setTooltip("Delete tag")
                         .onClick(async () => {
                             this.plugin.settings.availableTags.splice(i, 1);
                             await this.plugin.saveSettings();
@@ -640,23 +666,24 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         }
 
         
-        containerEl.createEl("h4", { text: "Add New Tag" });
+        containerEl.createEl("h4", { text: "Add new tag" });
 
         const newTagContainer = containerEl.createDiv();
 
         const tagNameSetting = new Setting(newTagContainer)
-            .setName("Tag Name")
+            .setName("Tag name")
             .addText((text) => text.setPlaceholder("Enter tag name"));
 
         const tagColorSetting = new Setting(newTagContainer)
-            .setName("Tag Color")
+            .setName("Tag color")
             .addColorPicker((colorPicker) => colorPicker.setValue("#3498db"));
 
         new Setting(newTagContainer).addButton((button) =>
-            button.setButtonText("Add Tag").onClick(async () => {
-                const name = (tagNameSetting.components[0] as any).inputEl
-                    .value;
-                const color = (tagColorSetting.components[0] as any).getValue();
+            button.setButtonText("Add tag").onClick(async () => {
+                const nameInput = tagNameSetting.components[0] as unknown as { inputEl: HTMLInputElement };
+                const name = nameInput.inputEl.value;
+                const colorPicker = tagColorSetting.components[0] as unknown as { getValue: () => string };
+                const color = colorPicker.getValue();
 
                 if (!name) {
                     return;
@@ -674,8 +701,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     }
 
     private createSupportTab(containerEl: HTMLElement): void {
-        
-        const supportMessage = containerEl.createEl("div", { 
+        containerEl.createEl("div", { 
             cls: "rss-dashboard-support-message",
             text: "❤️ If you enjoy using this plugin, consider supporting development!" 
         });
@@ -699,40 +725,4 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         kofiBtn.target = "_blank";
         
     }
-}
-
-
-
-function showConfirmModal(message: string, onConfirm: () => void) {
-    document.querySelectorAll('.rss-dashboard-modal').forEach(el => el.remove());
-    setTimeout(() => {
-        const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal rss-dashboard-modal-container";
-        const modalContent = document.createElement("div");
-        modalContent.className = "rss-dashboard-modal-content";
-        const modalTitle = document.createElement("h2");
-        modalTitle.textContent = "Confirm";
-        const msg = document.createElement("div");
-        msg.textContent = message;
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "rss-dashboard-modal-buttons";
-        const cancelButton = document.createElement("button");
-        cancelButton.textContent = "Cancel";
-        cancelButton.onclick = () => document.body.removeChild(modal);
-        const okButton = document.createElement("button");
-        okButton.textContent = "OK";
-        okButton.className = "rss-dashboard-primary-button";
-        okButton.onclick = () => {
-            document.body.removeChild(modal);
-            onConfirm();
-        };
-        buttonContainer.appendChild(cancelButton);
-        buttonContainer.appendChild(okButton);
-        modalContent.appendChild(modalTitle);
-        modalContent.appendChild(msg);
-        modalContent.appendChild(buttonContainer);
-        modal.appendChild(modalContent);
-        document.body.appendChild(modal);
-        setTimeout(() => okButton.focus(), 0);
-    }, 0);
 }

@@ -19,7 +19,9 @@
       "ES6",
       "ES7"
     ],
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true
   },
   "include": [
     "**/*.ts"

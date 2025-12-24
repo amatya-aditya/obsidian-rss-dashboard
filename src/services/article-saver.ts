@@ -4,7 +4,6 @@ import TurndownService from "turndown";
 import { Readability } from "@mozilla/readability";
 import { ensureUtf8Meta } from '../utils/platform-utils';
 
-// @ts-ignore
 export class ArticleSaver {
     private vault: Vault;
     private settings: ArticleSavingSettings;
@@ -15,12 +14,11 @@ export class ArticleSaver {
         this.settings = settings;
         this.turndownService = new TurndownService();
 
-        // @ts-ignore
         this.turndownService.addRule('math', {
-            filter: function (node: any) {
-                return node.nodeName === 'SPAN' && node.classList.contains('math');
+            filter: function (node: Node) {
+                return node.nodeName === 'SPAN' && (node as Element).classList.contains('math');
             },
-            replacement: function (content: string, node: any) {
+            replacement: function (content: string, node: Node) {
                 return node.textContent || '';
             }
         });
@@ -137,8 +135,8 @@ guid: "{{guid}}"
     
     private sanitizeFilename(name: string): string {
         
-        let sanitized = name
-            .replace(/[\/\\:*?"<>|]/g, '') 
+        const sanitized = name
+            .replace(/[/\\:*?"<>|]/g, '') 
             .replace(/\s+/g, ' ') 
             .trim(); 
 
@@ -216,7 +214,7 @@ guid: "{{guid}}"
             
             try {
                 
-                if (!(await this.vault.adapter.exists(currentPath))) {
+                if (this.vault.getAbstractFileByPath(currentPath) === null) {
                    
                     await this.vault.createFolder(currentPath);
                 }
@@ -314,8 +312,8 @@ guid: "{{guid}}"
                                 return this.extractContentFromDocument(fallbackDoc, abstractUrl);
                             }
                         }
-                    } catch (fallbackError) {
-                        
+                    } catch {
+                        // Fallback attempt failed, continue with empty content
                     }
                 }
                 
@@ -497,8 +495,8 @@ guid: "{{guid}}"
             
             return await this.saveArticle(item, customFolder, customTemplate, markdownContent);
         } catch (error) {
-            
-            new Notice(`Error saving article with full content: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            new Notice(`Error saving article with full content: ${message}`);
             
             return await this.saveArticle(item, customFolder, customTemplate);
         }
@@ -531,9 +529,10 @@ guid: "{{guid}}"
            
             
             
-            if (await this.vault.adapter.exists(filePath)) {
+            const existingFile = this.vault.getAbstractFileByPath(filePath);
+            if (existingFile !== null) {
            
-                await this.vault.adapter.remove(filePath);
+                await this.vault.delete(existingFile);
             }
             
             
@@ -573,8 +572,8 @@ guid: "{{guid}}"
             new Notice(`Article saved: ${filename}`);
             return file;
         } catch (error) {
-            
-            new Notice(`Error saving article: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            new Notice(`Error saving article: ${message}`);
             return null;
         }
     }
@@ -591,32 +590,34 @@ guid: "{{guid}}"
                   
                     
                     
-                    if (await this.vault.adapter.exists(normalizedPath)) {
+                    if (this.vault.getAbstractFileByPath(normalizedPath) !== null) {
                         article.savedFilePath = normalizedPath;
                        
                     } else {
                         
-                        if (await this.vault.adapter.exists(oldPath)) {
+                        const file = this.vault.getAbstractFileByPath(oldPath);
+                        if (file instanceof TFile) {
                             
                             try {
-                                const file = this.vault.getAbstractFileByPath(oldPath);
-                                if (file instanceof TFile) {
-                                    
-                                    const normalizedFolder = this.normalizePath(this.settings.defaultFolder || '');
-                                    const filename = this.sanitizeFilename(article.title);
-                                    const newPath = normalizedFolder && normalizedFolder.trim() !== '' ? `${normalizedFolder}/${filename}.md` : `${filename}.md`;
-                                    
-                                    
-                                    await this.vault.adapter.rename(oldPath, newPath);
-                                    article.savedFilePath = newPath;
-                                    
-                                }
-                            } catch (error) {
+                                const normalizedFolder = this.normalizePath(this.settings.defaultFolder || '');
+                                const filename = this.sanitizeFilename(article.title);
+                                const newName = `${filename}.md`;
                                 
+                                
+                                await this.vault.rename(file, newName);
+                                const newPath =
+                                    normalizedFolder && normalizedFolder.trim() !== ''
+                                        ? `${normalizedFolder}/${newName}`
+                                        : newName;
+                                article.savedFilePath = newPath;
+                            } catch (error) {
+                                article.saved = false;
+                                article.savedFilePath = undefined;
+                                if (article.tags) {
+                                    article.tags = article.tags.filter(tag => tag.name.toLowerCase() !== "saved");
+                                }
                             }
                         } else {
-                            
-                           
                             article.saved = false;
                             article.savedFilePath = undefined;
                             
@@ -638,8 +639,8 @@ guid: "{{guid}}"
         }
         
         try {
-            const exists = await this.vault.adapter.exists(article.savedFilePath);
-            if (!exists) {
+            const file = this.vault.getAbstractFileByPath(article.savedFilePath);
+            if (file === null) {
                 
                 article.saved = false;
                 article.savedFilePath = undefined;

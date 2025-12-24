@@ -1,4 +1,4 @@
-import { Notice } from "obsidian";
+import { Notice, Setting } from "obsidian";
 import { FeedItem } from "../types/types";
 import { setIcon } from "obsidian";
 import { ensureUtf8Meta } from '../utils/platform-utils';
@@ -44,9 +44,6 @@ export class VideoPlayer {
         });
         
         
-        const infoSection = this.playerEl.createDiv({
-            cls: "rss-video-info",
-        });
         
         
         const videoContainer = this.playerEl.createDiv({
@@ -54,9 +51,12 @@ export class VideoPlayer {
         });
         
         
-        this.iframeEl = document.createElement("iframe");
-        this.iframeEl.src = `https://www.youtube.com/embed/${this.currentItem.videoId}?rel=0&autoplay=1`;
-        this.iframeEl.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen";
+        this.iframeEl = this.container.createEl("iframe", {
+            attr: {
+                src: `https://www.youtube.com/embed/${this.currentItem.videoId}?rel=0&autoplay=1`,
+                allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+            }
+        });
         this.iframeEl.allowFullscreen = true;
         
         videoContainer.appendChild(this.iframeEl);
@@ -66,10 +66,8 @@ export class VideoPlayer {
             cls: "rss-video-details",
         });
         
-        details.createEl("h3", {
-            cls: "rss-video-title",
-            text: this.currentItem.title,
-        });
+        const titleSetting = new Setting(details).setName(this.currentItem.title).setHeading();
+        titleSetting.settingEl.addClass("rss-video-title");
         
         const metaContainer = details.createDiv({
             cls: "rss-video-meta",
@@ -127,7 +125,9 @@ export class VideoPlayer {
         setIcon(youtubeButton, "youtube");
         
         youtubeButton.addEventListener("click", () => {
-            window.open(`https://www.youtube.com/watch?v=${this.currentItem!.videoId}`, "_blank");
+            if (this.currentItem?.videoId) {
+                window.open(`https://www.youtube.com/watch?v=${this.currentItem.videoId}`, "_blank");
+            }
         });
         
         
@@ -259,9 +259,10 @@ export class VideoPlayer {
         
         
         const relatedVideos = videos.filter(v => 
-            v.guid !== this.currentItem!.guid && 
+            this.currentItem &&
+            v.guid !== this.currentItem.guid && 
             v.videoId && 
-            v.feedUrl === this.currentItem!.feedUrl
+            v.feedUrl === this.currentItem.feedUrl
         ).slice(0, 5);
         
         

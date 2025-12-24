@@ -1,11 +1,10 @@
 import {
-    App,
     Plugin,
     Notice,
-    TFile,
-    requestUrl,
     WorkspaceLeaf,
-    setIcon
+    setIcon,
+    Setting,
+    Platform
 } from "obsidian";
 
 import { 
@@ -13,8 +12,6 @@ import {
     DEFAULT_SETTINGS,
     Feed,
     FeedItem,
-    Folder,
-    Tag,
     FeedMetadata
 } from "./src/types/types";
 
@@ -26,37 +23,68 @@ import { FeedParser } from "./src/services/feed-parser";
 import { ArticleSaver } from "./src/services/article-saver";
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
-import { detectPlatform, logPlatformInfo, getPlatformRecommendations } from "./src/utils/platform-utils";
+import { sleep } from "./src/utils/platform-utils";
 
 export default class RssDashboardPlugin extends Plugin {
-    settings: RssDashboardSettings;
-    view: RssDashboardView;
-    discoverView: DiscoverView;
-    readerView: ReaderView;
-    feedParser: FeedParser;
-    articleSaver: ArticleSaver;
-    private platformInfo: any;
+    settings!: RssDashboardSettings;
+    feedParser!: FeedParser;
+    articleSaver!: ArticleSaver;
     private importStatusBarItem: HTMLElement | null = null;
-    private backgroundImportQueue: FeedMetadata[] = [];
+    public backgroundImportQueue: FeedMetadata[] = [];
     private isBackgroundImporting = false;
+    
+    public async getActiveDashboardView(): Promise<RssDashboardView | null> {
+        const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+        for (const leaf of leaves) {
+            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
+                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
+            }
+            const view = leaf.view;
+            if (view instanceof RssDashboardView) {
+                return view;
+            }
+        }
+        return null;
+    }
+    
+    public async getActiveDiscoverView(): Promise<DiscoverView | null> {
+        const leaves = this.app.workspace.getLeavesOfType(RSS_DISCOVER_VIEW_TYPE);
+        for (const leaf of leaves) {
+            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
+                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
+            }
+            const view = leaf.view;
+            if (view instanceof DiscoverView) {
+                return view;
+            }
+        }
+        return null;
+    }
+    
+    public async getActiveReaderView(): Promise<ReaderView | null> {
+        const leaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
+        for (const leaf of leaves) {
+            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
+                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
+            }
+            const view = leaf.view;
+            if (view instanceof ReaderView) {
+                return view;
+            }
+        }
+        return null;
+    }
 
     async onload() {
         
         
         
-        this.platformInfo = detectPlatform();
-        logPlatformInfo();
-        
-        
-        const recommendations = getPlatformRecommendations();
-        if (recommendations.length > 0) {
-            
-        }
         
         await this.loadSettings();
         
-        if (this.view) {
-            await this.view.render();
+        const view = await this.getActiveDashboardView();
+        if (view) {
+            await view.render();
         }
         
         try {
@@ -65,7 +93,7 @@ export default class RssDashboardPlugin extends Plugin {
             this.articleSaver = new ArticleSaver(this.app.vault, this.settings.articleSaving);
             
             
-            if (this.platformInfo.isMobile) {
+            if (Platform.isMobile) {
                 
                 this.applyMobileOptimizations();
             }
@@ -79,33 +107,22 @@ export default class RssDashboardPlugin extends Plugin {
             
             this.registerView(
                 RSS_DASHBOARD_VIEW_TYPE,
-                (leaf) => {
-                    
-                    this.view = new RssDashboardView(leaf, this);
-                    return this.view;
-                }
+                (leaf) => new RssDashboardView(leaf, this)
             );
 
             this.registerView(
                 RSS_DISCOVER_VIEW_TYPE,
-                (leaf) => {
-                    this.discoverView = new DiscoverView(leaf, this);
-                    return this.discoverView;
-                }
+                (leaf) => new DiscoverView(leaf, this)
             );
             
             this.registerView(
                 RSS_READER_VIEW_TYPE,
-                (leaf) => {
-                    
-                    this.readerView = new ReaderView(
-                        leaf, 
-                        this.settings, 
-                        this.articleSaver,
-                        this.onArticleSaved.bind(this)
-                    );
-                    return this.readerView;
-                }
+                (leaf) => new ReaderView(
+                    leaf, 
+                    this.settings, 
+                    this.articleSaver,
+                    this.onArticleSaved.bind(this)
+                )
             );
     
             
@@ -123,7 +140,7 @@ export default class RssDashboardPlugin extends Plugin {
             
             this.addCommand({
                 id: "open-dashboard",
-                name: "Open Dashboard",
+                name: "Open dashboard",
                 callback: () => {
                     this.activateView();
                 },
@@ -131,7 +148,7 @@ export default class RssDashboardPlugin extends Plugin {
 
             this.addCommand({
                 id: "open-discover",
-                name: "Open Discover",
+                name: "Open discover",
                 callback: () => {
                     this.activateDiscoverView();
                 },
@@ -139,7 +156,7 @@ export default class RssDashboardPlugin extends Plugin {
     
             this.addCommand({
                 id: "refresh-feeds",
-                name: "Refresh Feeds",
+                name: "Refresh feeds",
                 callback: () => {
                     this.refreshFeeds();
                 },
@@ -163,7 +180,7 @@ export default class RssDashboardPlugin extends Plugin {
     
             this.addCommand({
                 id: "apply-feed-limits",
-                name: "Apply Feed Limits to All Feeds",
+                name: "Apply feed limits to all feeds",
                 callback: () => {
                     this.applyFeedLimitsToAllFeeds();
                 },
@@ -171,12 +188,13 @@ export default class RssDashboardPlugin extends Plugin {
     
             this.addCommand({
                 id: "toggle-sidebar",
-                name: "Toggle Sidebar",
+                name: "Toggle sidebar",
                 callback: async () => {
-                    if (this.view) {
+                    const view = await this.getActiveDashboardView();
+                    if (view) {
                         this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
                         await this.saveSettings();
-                        await this.view.render();
+                        await view.render();
                     }
                 },
             });
@@ -297,7 +315,7 @@ export default class RssDashboardPlugin extends Plugin {
         }
     }
     
-    private onArticleSaved(item: FeedItem): void {
+    private async onArticleSaved(item: FeedItem): Promise<void> {
         
         if (item.feedUrl) {
             const feed = this.settings.feeds.find(f => f.url === item.feedUrl);
@@ -326,8 +344,9 @@ export default class RssDashboardPlugin extends Plugin {
                     this.saveSettings();
                     
                     
-                    if (this.view) {
-                        this.view.updateArticleSaveButton(item.guid);
+                    const view = await this.getActiveDashboardView();
+                    if (view) {
+                        view.updateArticleSaveButton(item.guid);
                     }
                 }
             }
@@ -356,8 +375,9 @@ export default class RssDashboardPlugin extends Plugin {
             
             await this.validateSavedArticles();
             await this.saveSettings();
-            if (this.view) {
-                await this.view.refresh();
+            const view = await this.getActiveDashboardView();
+            if (view) {
+                await view.refresh();
                 new Notice(`Feeds refreshed: ${feedNoticeText}`);
             }
         } catch (error) {
@@ -414,8 +434,9 @@ export default class RssDashboardPlugin extends Plugin {
             }
             
             await this.saveSettings();
-            if (this.view) {
-                await this.view.refresh();
+            const view = await this.getActiveDashboardView();
+            if (view) {
+                await view.refresh();
             }
             
             if (updatedCount > 0) {
@@ -467,76 +488,75 @@ export default class RssDashboardPlugin extends Plugin {
         await this.saveSettings();
 
         
-        if (this.view) {
-            await this.view.refresh();
+        const view = await this.getActiveDashboardView();
+        if (view) {
+            await view.refresh();
         }
     }
 
-    private showImportProgressModal(totalFeeds: number, onMinimize: () => void, onAbort: () => void): any {
-        const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal rss-dashboard-modal-container rss-dashboard-import-modal";
+    private showImportProgressModal(totalFeeds: number, onMinimize: () => void, onAbort: () => void): HTMLElement {
+        const modal = document.body.createDiv({
+            cls: "rss-dashboard-modal rss-dashboard-modal-container rss-dashboard-import-modal"
+        });
 
-        const modalContent = document.createElement("div");
-        modalContent.className = "rss-dashboard-modal-content";
+        const modalContent = modal.createDiv({
+            cls: "rss-dashboard-modal-content"
+        });
 
-        const modalHeader = document.createElement("div");
-        modalHeader.className = "rss-dashboard-import-modal-header";
+        const modalHeader = modalContent.createDiv({
+            cls: "rss-dashboard-import-modal-header"
+        });
 
-        const title = document.createElement("h2");
-        title.textContent = "Importing OPML Feeds";
-        title.className = "rss-dashboard-import-modal-title";
+        new Setting(modalHeader).setName("Importing OPML feeds").setHeading();
 
-        const minimizeButton = document.createElement("button");
-        minimizeButton.classList.add("clickable-icon");
+        const minimizeButton = modalHeader.createEl("button", {
+            cls: "clickable-icon",
+            attr: { "aria-label": "Minimize" }
+        });
         setIcon(minimizeButton, "minus");
-        minimizeButton.setAttribute("aria-label", "Minimize");
         minimizeButton.onclick = onMinimize;
 
         
-        const abortButton = document.createElement("button");
-        abortButton.textContent = "Abort";
-        abortButton.addClass("rss-dashboard-import-abort-button");
+        const abortButton = modalHeader.createEl("button", {
+            text: "Abort",
+            cls: "rss-dashboard-import-abort-button"
+        });
         abortButton.onclick = onAbort;
 
-        modalHeader.appendChild(title);
-        const buttonGroup = document.createElement("div");
-        buttonGroup.className = "import-modal-header-buttons";
+        const buttonGroup = modalHeader.createDiv({
+            cls: "import-modal-header-buttons"
+        });
         buttonGroup.appendChild(minimizeButton);
         buttonGroup.appendChild(abortButton);
-        modalHeader.appendChild(buttonGroup);
 
-        modalContent.appendChild(modalHeader);
+        modalContent.createDiv({
+            attr: { id: "import-progress-text" },
+            cls: "rss-dashboard-center-text rss-dashboard-import-progress-text",
+            text: `Preparing to import ${totalFeeds} feeds...`
+        });
 
-        const progressText = document.createElement("div");
-        progressText.id = "import-progress-text";
-        progressText.textContent = `Preparing to import ${totalFeeds} feeds...`;
-        progressText.classList.add("rss-dashboard-center-text", "rss-dashboard-import-progress-text");
-        modalContent.appendChild(progressText);
+        const progressBar = modalContent.createDiv({
+            cls: "rss-dashboard-import-progress-bar"
+        });
 
-        const progressBar = document.createElement("div");
-        progressBar.className = "rss-dashboard-import-progress-bar";
-        modalContent.appendChild(progressBar);
-
-        const progressFill = document.createElement("div");
-        progressFill.id = "import-progress-fill";
-        progressFill.className = "rss-dashboard-import-progress-fill";
+        const progressFill = progressBar.createDiv({
+            attr: { id: "import-progress-fill" },
+            cls: "rss-dashboard-import-progress-fill"
+        });
         progressFill.style.setProperty('--progress-width', '0%');
-        progressBar.appendChild(progressFill);
 
-        const currentFeedText = document.createElement("div");
-        currentFeedText.id = "import-current-feed";
-        currentFeedText.classList.add("rss-dashboard-center-text", "rss-dashboard-import-current-feed");
-        modalContent.appendChild(currentFeedText);
-
-        modal.appendChild(modalContent);
-        document.body.appendChild(modal);
+        modalContent.createDiv({
+            attr: { id: "import-current-feed" },
+            cls: "rss-dashboard-center-text rss-dashboard-import-current-feed"
+        });
 
         return modal;
     }
 
     async importOpml() {
-        const input = document.createElement("input");
-        input.type = "file";
+        const input = document.body.createEl("input", {
+            attr: { type: "file" }
+        });
         input.onchange = async () => {
             const file = input.files?.[0];
             if (file && file.name.endsWith('.opml')) {
@@ -585,8 +605,9 @@ export default class RssDashboardPlugin extends Plugin {
                         await this.saveSettings();
 
                     
-                        if (this.view) {
-                            await this.view.render();
+                    const view = await this.getActiveDashboardView();
+                    if (view) {
+                        await view.render();
                         }
 
                     new Notice(`Imported ${addedFeeds.length} feeds. Articles will be fetched in the background.`);
@@ -595,7 +616,8 @@ export default class RssDashboardPlugin extends Plugin {
                     this.startBackgroundImport(addedFeeds);
 
                 } catch (error) {
-                    new Notice(error.message);
+                    const message = error instanceof Error ? error.message : String(error);
+                    new Notice(message);
                 }
             } else {
                 new Notice("Please select a valid OPML file.");
@@ -628,20 +650,21 @@ export default class RssDashboardPlugin extends Plugin {
         if (!this.importStatusBarItem) {
             this.importStatusBarItem = this.addStatusBarItem();
             this.importStatusBarItem.textContent = '';
-            const iconSpan = document.createElement('span');
-            iconSpan.className = 'import-statusbar-icon';
+            const iconSpan = this.importStatusBarItem.createSpan({
+                cls: 'import-statusbar-icon'
+            });
             setIcon(iconSpan, 'rss');
-            this.importStatusBarItem.appendChild(iconSpan);
-            const textSpan = document.createElement('span');
-            textSpan.className = 'import-statusbar-text';
-            this.importStatusBarItem.appendChild(textSpan);
+            this.importStatusBarItem.createSpan({
+                cls: 'import-statusbar-text'
+            });
         }
 
         const totalFeeds = this.backgroundImportQueue.length;
         let processedCount = 0;
 
         while (this.backgroundImportQueue.length > 0) {
-            const feedMetadata = this.backgroundImportQueue.shift()!;
+            const feedMetadata = this.backgroundImportQueue.shift();
+            if (!feedMetadata) break;
             
             try {
                 
@@ -679,18 +702,20 @@ export default class RssDashboardPlugin extends Plugin {
             }
 
             
-            if (this.view && processedCount % 3 === 0) {
-                await this.view.render();
+            const view = await this.getActiveDashboardView();
+            if (view && processedCount % 3 === 0) {
+                await view.render();
         }
 
             
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await sleep(100);
         }
 
         
         await this.saveSettings();
-        if (this.view) {
-            await this.view.render();
+        const view = await this.getActiveDashboardView();
+        if (view) {
+            await view.render();
         }
 
         
@@ -722,8 +747,9 @@ export default class RssDashboardPlugin extends Plugin {
         
         const blob = new Blob([opmlContent], { type: "text/xml" });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
+        const a = document.body.createEl("a", {
+            attr: { href: url }
+        });
         a.download = "obsidian-rss-feeds.opml";
         a.click();
         URL.revokeObjectURL(url);
@@ -739,8 +765,9 @@ export default class RssDashboardPlugin extends Plugin {
             this.settings.folders.push({ name: folderName, subfolders: [] });
             await this.saveSettings();
             
-            if (this.view) {
-                this.view.refresh();
+            const view = await this.getActiveDashboardView();
+            if (view) {
+                view.refresh();
                 new Notice(`Folder "${folderName}" created`);
             }
         } else {
@@ -791,8 +818,9 @@ export default class RssDashboardPlugin extends Plugin {
                 new Notice(`Error parsing feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
 
-            if (this.view) {
-                this.view.refresh();
+            const view = await this.getActiveDashboardView();
+            if (view) {
+                view.refresh();
             }
             new Notice(`Feed "${title}" added`);
         } catch (error) {
@@ -845,8 +873,9 @@ export default class RssDashboardPlugin extends Plugin {
                 
                 await this.saveSettings();
                 
-                if (this.view) {
-                    this.view.refresh();
+                const view = await this.getActiveDashboardView();
+                if (view) {
+                    view.refresh();
                     new Notice(`Subfolder "${subfolderName}" created under "${parentFolderName}"`);
                 }
             } else {
@@ -871,15 +900,16 @@ export default class RssDashboardPlugin extends Plugin {
         
         await this.saveSettings();
         
-        if (this.view) {
-            this.view.refresh();
+        const view = await this.getActiveDashboardView();
+        if (view) {
+            view.refresh();
             new Notice(`Feed "${newTitle}" updated`);
         }
     }
 
     async loadSettings() {
         try {
-            let data = await this.loadData();
+            const data = await this.loadData();
             
             
             this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
@@ -920,36 +950,38 @@ export default class RssDashboardPlugin extends Plugin {
     
     private migrateLegacySettings(): void {
         
-        if ((this.settings as any).savePath && !this.settings.articleSaving?.defaultFolder) {
+        const settingsUnknown = this.settings as unknown as Record<string, unknown>;
+        if (settingsUnknown.savePath && !this.settings.articleSaving?.defaultFolder) {
             if (!this.settings.articleSaving) {
                 this.settings.articleSaving = DEFAULT_SETTINGS.articleSaving;
             }
-            this.settings.articleSaving.defaultFolder = (this.settings as any).savePath;
-            delete (this.settings as any).savePath;
+            this.settings.articleSaving.defaultFolder = settingsUnknown.savePath as string;
+            delete settingsUnknown.savePath;
         }
         
         
-        if ((this.settings as any).template && !this.settings.articleSaving?.defaultTemplate) {
+        if (settingsUnknown.template && !this.settings.articleSaving?.defaultTemplate) {
             if (!this.settings.articleSaving) {
                 this.settings.articleSaving = DEFAULT_SETTINGS.articleSaving;
             }
-            this.settings.articleSaving.defaultTemplate = (this.settings as any).template;
-            delete (this.settings as any).template;
+            this.settings.articleSaving.defaultTemplate = settingsUnknown.template as string;
+            delete settingsUnknown.template;
         }
         
         
-        if ((this.settings as any).addSavedTag !== undefined && this.settings.articleSaving?.addSavedTag === undefined) {
+        if (settingsUnknown.addSavedTag !== undefined && this.settings.articleSaving?.addSavedTag === undefined) {
             if (!this.settings.articleSaving) {
                 this.settings.articleSaving = DEFAULT_SETTINGS.articleSaving;
             }
-            this.settings.articleSaving.addSavedTag = (this.settings as any).addSavedTag;
-            delete (this.settings as any).addSavedTag;
+            this.settings.articleSaving.addSavedTag = settingsUnknown.addSavedTag as boolean;
+            delete settingsUnknown.addSavedTag;
         }
         
         
-        if ((this.settings.articleSaving as any)?.template && !this.settings.articleSaving?.defaultTemplate) {
-            this.settings.articleSaving.defaultTemplate = (this.settings.articleSaving as any).template;
-            delete (this.settings.articleSaving as any).template;
+        const articleSavingUnknown = this.settings.articleSaving as unknown as Record<string, unknown>;
+        if (articleSavingUnknown.template && !this.settings.articleSaving?.defaultTemplate) {
+            this.settings.articleSaving.defaultTemplate = articleSavingUnknown.template as string;
+            delete articleSavingUnknown.template;
         }
 
         // Migrate display settings
@@ -1006,8 +1038,9 @@ export default class RssDashboardPlugin extends Plugin {
             await this.saveSettings();
             
             
-            if (this.view) {
-                await this.view.render();
+            const view = await this.getActiveDashboardView();
+            if (view) {
+                await view.render();
             }
         }
     }
@@ -1021,7 +1054,7 @@ export default class RssDashboardPlugin extends Plugin {
             const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
             
             
-            return await this.app.vault.adapter.exists(filePath);
+            return this.app.vault.getAbstractFileByPath(filePath) !== null;
         } catch (error) {
             
             return false;
@@ -1031,7 +1064,7 @@ export default class RssDashboardPlugin extends Plugin {
     
     private sanitizeFilename(name: string): string {
         return name
-            .replace(/[\/\\:*?"<>|]/g, '_')
+            .replace(/[/\\:*?"<>|]/g, '_')
             .replace(/\s+/g, '_')
             .replace(/_+/g, '_')
             .substring(0, 100);

@@ -1,13 +1,11 @@
-import { ItemView, WorkspaceLeaf, Notice, Menu, MenuItem, TFile, App } from "obsidian";
-import { Feed, FeedItem, Folder, Tag, RssDashboardSettings } from "../types/types";
+import { ItemView, WorkspaceLeaf, Notice, TFile } from "obsidian";
+import { Feed, FeedItem, RssDashboardSettings, Folder } from "../types/types";
+import type RssDashboardPlugin from "../../main";
 import { Sidebar } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { ArticleSaver } from "../services/article-saver";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
-import { setIcon } from "obsidian";
-import { RssDashboardSettingTab } from "../settings/settings-tab";
-import TurndownService from "turndown";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -18,15 +16,15 @@ export class RssDashboardView extends ItemView {
     private currentFeed: Feed | null = null;
     private currentTag: string | null = null;
     private selectedArticle: FeedItem | null = null;
-    private tagsCollapsed: boolean = true;
+    private tagsCollapsed = true;
     private collapsedFolders: string[] = [];
-    private allArticlesPage: number = 1;
-    private unreadArticlesPage: number = 1;
-    private readArticlesPage: number = 1;
-    private savedArticlesPage: number = 1;
-    private starredArticlesPage: number = 1;
-    public sidebar: Sidebar;
-    private articleList: ArticleList;
+    private allArticlesPage = 1;
+    private unreadArticlesPage = 1;
+    private readArticlesPage = 1;
+    private savedArticlesPage = 1;
+    private starredArticlesPage = 1;
+    public sidebar!: Sidebar;
+    private articleList!: ArticleList;
     private sidebarContainer: HTMLElement | null = null;
     private verificationTimeout: number | null = null;
     private folderPages: Record<string, number> = {};
@@ -37,7 +35,7 @@ export class RssDashboardView extends ItemView {
     
     constructor(
         leaf: WorkspaceLeaf, 
-        private plugin: any 
+        private plugin: RssDashboardPlugin 
     ) {
         super(leaf);
         this.settings = this.plugin.settings;
@@ -92,7 +90,7 @@ export class RssDashboardView extends ItemView {
             this.app.vault.on('modify', () => {
                 
                 if (this.verificationTimeout) {
-                    clearTimeout(this.verificationTimeout);
+                    window.clearTimeout(this.verificationTimeout);
                 }
                 this.verificationTimeout = window.setTimeout(() => {
                     this.verifySavedArticles();
@@ -108,9 +106,9 @@ export class RssDashboardView extends ItemView {
         }
 
         if (!this.sidebarContainer) {
-            this.sidebarContainer = document.createElement("div");
-            this.sidebarContainer.className = "rss-dashboard-sidebar-container";
-            dashboardContainer.appendChild(this.sidebarContainer);
+            this.sidebarContainer = dashboardContainer.createDiv({
+                cls: "rss-dashboard-sidebar-container"
+            });
         } else if (this.sidebarContainer.parentElement !== dashboardContainer) {
             dashboardContainer.appendChild(this.sidebarContainer);
         }
@@ -245,7 +243,7 @@ export class RssDashboardView extends ItemView {
     }
     
     private renderToolbar(container: HTMLElement): void {
-        const toolbar = container.createDiv({ cls: 'rss-dashboard-toolbar' });
+        container.createDiv({ cls: 'rss-dashboard-toolbar' });
     }
     
     
@@ -253,13 +251,13 @@ export class RssDashboardView extends ItemView {
         if (this.currentFeed) {
             return this.currentFeed.title;
         } else if (this.currentFolder === "starred") {
-            return "Starred Items";
+            return "Starred items";
         } else if (this.currentFolder === "unread") {
-            return "Unread Items";
+            return "Unread items";
         } else if (this.currentFolder === "read") {
-            return "Read Items";
+            return "Read items";
         } else if (this.currentFolder === "saved") {
-            return "Saved Items";
+            return "Saved items";
         } else if (this.currentFolder === "videos") {
             return "Videos";
         } else if (this.currentFolder === "podcasts") {
@@ -269,7 +267,7 @@ export class RssDashboardView extends ItemView {
         } else if (this.currentFolder) {
             return this.currentFolder;
         } else {
-            return "All Articles";
+            return "All articles";
         }
     }
     
@@ -411,7 +409,7 @@ export class RssDashboardView extends ItemView {
             }
         }
         
-        if (this.settings.articleFilter.type === 'age' && this.settings.articleFilter.value > 0) {
+        if (this.settings.articleFilter.type === 'age' && typeof this.settings.articleFilter.value === 'number' && this.settings.articleFilter.value > 0) {
             const maxAge = Date.now() - this.settings.articleFilter.value;
             articles = articles.filter(a => new Date(a.pubDate).getTime() > maxAge);
         }
@@ -545,8 +543,8 @@ export class RssDashboardView extends ItemView {
         }
         this.render();
         if (this.sidebarContainer) {
-            setTimeout(() => {
-                const foldersSection = this.sidebarContainer!.querySelector('.rss-dashboard-feed-folders-section');
+            window.setTimeout(() => {
+                const foldersSection = this.sidebarContainer?.querySelector('.rss-dashboard-feed-folders-section');
                 if (foldersSection) (foldersSection as HTMLElement).scrollTop = scrollPosition;
             }, 0);
         }
@@ -568,7 +566,7 @@ export class RssDashboardView extends ItemView {
     }
     
     
-    private handleToggleFolderCollapse(folder: string, shouldRerender: boolean = true): void {
+    private handleToggleFolderCollapse(folder: string, shouldRerender = true): void {
         if (this.collapsedFolders.includes(folder)) {
             this.collapsedFolders = this.collapsedFolders.filter(
                 (f) => f !== folder
@@ -729,20 +727,18 @@ export class RssDashboardView extends ItemView {
                 }
             } catch (error) {
                 loadingNotice.hide();
-                
-                new Notice(`Error opening saved article: ${error.message}`);
+                const message = error instanceof Error ? error.message : String(error);
+                new Notice(`Error opening saved article: ${message}`);
             }
         }
         
         
         const readerLeaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
         const podcastPlaying = readerLeaves.some(leaf => {
-            const view = leaf.view as any;
-            return view && 
-                   view.podcastPlayer && 
-                   view.podcastPlayer.audioElement && 
-                   !view.podcastPlayer.audioElement.paused &&
-                   view.podcastPlayer.audioElement.currentTime > 0;
+            if (leaf.view instanceof ReaderView) {
+                return leaf.view.isPodcastPlaying();
+            }
+            return false;
         });
         
         if (podcastPlaying) {
@@ -786,11 +782,11 @@ export class RssDashboardView extends ItemView {
                 type: RSS_READER_VIEW_TYPE,
                 active: true,
             });
-            const view = leaf.view as ReaderView;
-            if (view) {
+            await workspace.revealLeaf(leaf);
+            if (leaf.view instanceof ReaderView) {
+                const view = leaf.view;
                 const relatedItems = this.getRelatedItems(article);
                 await view.displayItem(article, relatedItems);
-                workspace.revealLeaf(leaf);
             }
         }
         return leaf;
@@ -803,11 +799,11 @@ export class RssDashboardView extends ItemView {
                 type: RSS_READER_VIEW_TYPE,
                 active: true,
             });
-            const view = leaf.view as ReaderView;
-            if (view) {
+            await this.app.workspace.revealLeaf(leaf);
+            if (leaf.view instanceof ReaderView) {
+                const view = leaf.view;
                 const relatedItems = this.getRelatedItems(article);
                 await view.displayItem(article, relatedItems);
-                this.app.workspace.revealLeaf(leaf);
             }
         }
     }
@@ -817,7 +813,7 @@ export class RssDashboardView extends ItemView {
         if (!article.feedUrl) return [];
         
         
-        const feed = this.settings.feeds.find((f: any) => f.url === article.feedUrl);
+        const feed = this.settings.feeds.find((f: Feed) => f.url === article.feedUrl);
         if (!feed) return [];
         
         
@@ -861,13 +857,13 @@ export class RssDashboardView extends ItemView {
     
     private async updateArticleStatus(article: FeedItem, updates: Partial<FeedItem>, shouldRerender = true): Promise<void> {
         
-        const feed = this.settings.feeds.find((f: any) => f.url === article.feedUrl);
+        const feed = this.settings.feeds.find((f: Feed) => f.url === article.feedUrl);
         
         if (!feed) return;
 
         
-        const originalArticle = (feed as any).items.find(
-            (item: any) => item.guid === article.guid
+        const originalArticle = feed.items.find(
+            (item: FeedItem) => item.guid === article.guid
         );
         
         if (!originalArticle) return;
@@ -914,7 +910,7 @@ export class RssDashboardView extends ItemView {
 
     async onClose(): Promise<void> {
         if (this.verificationTimeout) {
-            clearTimeout(this.verificationTimeout);
+            window.clearTimeout(this.verificationTimeout);
         }
         if (this.articleList) {
             this.articleList.destroy();
@@ -988,7 +984,7 @@ export class RssDashboardView extends ItemView {
         this.render();
     }
 
-    private handleFilterChange(value: { type: 'age' | 'read' | 'unread' | 'starred' | 'saved' | 'none'; value: any; }): void {
+    private handleFilterChange(value: { type: 'age' | 'read' | 'unread' | 'starred' | 'saved' | 'none'; value: unknown; }): void {
         this.settings.articleFilter = value;
         this.plugin.saveSettings();
         this.render();
@@ -1065,7 +1061,7 @@ export class RssDashboardView extends ItemView {
         }
         
         
-        if (this.settings.articleFilter.type === 'age' && this.settings.articleFilter.value > 0) {
+        if (this.settings.articleFilter.type === 'age' && typeof this.settings.articleFilter.value === 'number' && this.settings.articleFilter.value > 0) {
             const maxAge = Date.now() - this.settings.articleFilter.value;
             articles = articles.filter(a => new Date(a.pubDate).getTime() > maxAge);
         }
@@ -1103,9 +1099,8 @@ export class RssDashboardView extends ItemView {
         
         if (article.savedFilePath) {
             try {
-                const exists = await this.app.vault.adapter.exists(article.savedFilePath);
-                if (exists) {
-                    const file = this.app.vault.getAbstractFileByPath(article.savedFilePath);
+                const file = this.app.vault.getAbstractFileByPath(article.savedFilePath);
+                if (file !== null) {
                     if (file instanceof TFile) {
                         return file;
                     }
@@ -1114,8 +1109,8 @@ export class RssDashboardView extends ItemView {
                     await this.updateArticleStatus(article, { saved: false, savedFilePath: undefined }, false);
                     return null;
                 }
-            } catch (error) {
-                
+            } catch {
+                // File path check failed, continue with filename search
             }
         }
         
@@ -1125,17 +1120,16 @@ export class RssDashboardView extends ItemView {
         const expectedPath = folder && folder.trim() !== '' ? `${folder}/${filename}.md` : `${filename}.md`;
         
         try {
-            const exists = await this.app.vault.adapter.exists(expectedPath);
-            if (exists) {
-                const file = this.app.vault.getAbstractFileByPath(expectedPath);
+            const file = this.app.vault.getAbstractFileByPath(expectedPath);
+            if (file !== null) {
                 if (file instanceof TFile) {
                     
                     await this.updateArticleStatus(article, { savedFilePath: expectedPath }, false);
                     return file;
                 }
             }
-        } catch (error) {
-            
+        } catch {
+            // File lookup failed
         }
         
         return null;
@@ -1151,16 +1145,16 @@ export class RssDashboardView extends ItemView {
             
             new Notice(`Opened saved article: ${file.basename}`);
         } catch (error) {
-            
-            new Notice(`Error opening saved article: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            new Notice(`Error opening saved article: ${message}`);
         }
     }
     
     
     private sanitizeFilename(name: string): string {
         
-        let sanitized = name
-            .replace(/[\/\\:*?"<>|]/g, '') 
+        const sanitized = name
+            .replace(/[/\\:*?"<>|]/g, '') 
             .replace(/\s+/g, ' ') 
             .trim(); 
 
@@ -1200,8 +1194,8 @@ export class RssDashboardView extends ItemView {
             }
         } catch (error) {
             loadingNotice.hide();
-            
-            new Notice(`Error opening saved article: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            new Notice(`Error opening saved article: ${message}`);
         }
     }
 
@@ -1215,12 +1209,10 @@ export class RssDashboardView extends ItemView {
         
         const readerLeaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
         const podcastPlaying = readerLeaves.some(leaf => {
-            const view = leaf.view as any;
-            return view && 
-                   view.podcastPlayer && 
-                   view.podcastPlayer.audioElement && 
-                   !view.podcastPlayer.audioElement.paused &&
-                   view.podcastPlayer.audioElement.currentTime > 0;
+            if (leaf.view instanceof ReaderView) {
+                return leaf.view.isPodcastPlaying();
+            }
+            return false;
         });
         
         if (podcastPlaying) {
@@ -1496,7 +1488,7 @@ export class RssDashboardView extends ItemView {
             }
         }
         
-        if (this.settings.articleFilter.type === 'age' && this.settings.articleFilter.value > 0) {
+        if (this.settings.articleFilter.type === 'age' && typeof this.settings.articleFilter.value === 'number' && this.settings.articleFilter.value > 0) {
             const maxAge = Date.now() - this.settings.articleFilter.value;
             articles = articles.filter(a => new Date(a.pubDate).getTime() > maxAge);
         }

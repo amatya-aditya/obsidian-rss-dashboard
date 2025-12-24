@@ -1,15 +1,16 @@
 import { FeedItem } from "../types/types";
-import { setIcon } from "obsidian";
+import { App, setIcon } from "obsidian";
 
 export class PodcastPlayer {
     private container: HTMLElement;
+    private app: App;
     private audioElement: HTMLAudioElement | null = null;
     private currentItem: FeedItem | null = null;
     private playlist: FeedItem[] = [];
     private progressInterval: number | null = null;
     private progressData: Map<string, { position: number, duration: number }> = new Map();
-    private currentPlaylistIndex: number = 0;
-    private isShuffled: boolean = false;
+    private currentPlaylistIndex = 0;
+    private isShuffled = false;
     private originalPlaylist: FeedItem[] = [];
     
     private playerEl: HTMLElement | null = null;
@@ -24,8 +25,9 @@ export class PodcastPlayer {
     private volumeSlider: HTMLElement | null = null;
     private volumeContainer: HTMLElement | null = null;
     
-    constructor(container: HTMLElement, playlist?: FeedItem[]) {
+    constructor(container: HTMLElement, app: App, playlist?: FeedItem[]) {
         this.container = container;
+        this.app = app;
         if (playlist) {
             this.playlist = playlist;
             this.originalPlaylist = [...playlist];
@@ -86,7 +88,7 @@ export class PodcastPlayer {
         const left = this.playerEl.createDiv({ cls: "podcast-player-left" });
         
         
-        let coverImageUrl = this.currentItem.coverImage || this.currentItem.image || this.currentItem.itunes?.image?.href || '';
+        const coverImageUrl = this.currentItem.coverImage || this.currentItem.image || this.currentItem.itunes?.image?.href || '';
         
         
         
@@ -200,11 +202,15 @@ export class PodcastPlayer {
         
         this.speedButtonEl = leftTools.createEl("select", { cls: "speed-control" }) as HTMLSelectElement;
         [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3].forEach((v) => {
-            const opt = document.createElement("option");
-            opt.value = v.toString();
-            opt.text = `${v}×`;
-            if (v === 1) opt.selected = true;
-            if (this.speedButtonEl) this.speedButtonEl.appendChild(opt);
+            const option = this.speedButtonEl?.createEl("option", {
+                attr: {
+                    value: v.toString()
+                },
+                text: `${v}×`
+            });
+            if (option && v === 1) {
+                option.selected = true;
+            }
         });
         this.speedButtonEl.onchange = () => {
             if (this.audioElement && this.speedButtonEl) {
@@ -270,7 +276,9 @@ export class PodcastPlayer {
         
         
         this.audioElement = podcastContainer.createEl("audio", { attr: { preload: "metadata" } }) as HTMLAudioElement;
-        this.audioElement.src = this.currentItem.audioUrl!;
+        if (this.currentItem.audioUrl) {
+            this.audioElement.src = this.currentItem.audioUrl;
+        }
         this.audioElement.onplay = () => this.updatePlayButtonIcon(true);
         this.audioElement.onpause = () => this.updatePlayButtonIcon(false);
         this.audioElement.ontimeupdate = () => this.updateProgressDisplay();
@@ -318,17 +326,18 @@ export class PodcastPlayer {
                 playEpBtn.onclick = () => {
                     this.loadEpisode(ep);
                     
-                    setTimeout(() => {
+                    window.setTimeout(async () => {
                         if (this.audioElement) {
-                            this.audioElement.play().catch(error => {
-                                
-                            });
+                            try {
+                                await this.audioElement.play();
+                            } catch (error) {
+                                console.error("Failed to play audio:", error);
+                            }
                         }
                     }, 100); 
                 };
                 
-                
-                let playlistCoverImage = ep.coverImage || ep.image || ep.itunes?.image?.href || (this.currentItem?.coverImage || this.currentItem?.image || this.currentItem?.itunes?.image?.href) || '';
+                const playlistCoverImage = ep.coverImage || ep.image || ep.itunes?.image?.href || (this.currentItem?.coverImage || this.currentItem?.image || this.currentItem?.itunes?.image?.href) || '';
                 if (playlistCoverImage) {
                     const img = epRow.createEl("img", { cls: "playlist-ep-cover", attr: { src: playlistCoverImage, alt: ep.title } });
                     img.onerror = () => {
@@ -468,7 +477,7 @@ export class PodcastPlayer {
     
     private startProgressTracking(): void {
         if (this.progressInterval) {
-            clearInterval(this.progressInterval);
+            window.clearInterval(this.progressInterval);
         }
         
         this.progressInterval = window.setInterval(() => {
@@ -483,7 +492,7 @@ export class PodcastPlayer {
     
     private stopProgressTracking(): void {
         if (this.progressInterval) {
-            clearInterval(this.progressInterval);
+            window.clearInterval(this.progressInterval);
             this.progressInterval = null;
         }
     }
@@ -556,27 +565,26 @@ export class PodcastPlayer {
             this.progressData.forEach((value, key) => {
                 data[key] = value;
             });
-            
-            localStorage.setItem('rss-podcast-progress', JSON.stringify(data));
+            this.app.saveLocalStorage('rss-podcast-progress', data);
         } catch (error) {
-            
+            console.error("Failed to save podcast progress:", error);
         }
     }
     
     
     private loadProgressData(): void {
         try {
-            const data = localStorage.getItem('rss-podcast-progress');
+            const data = this.app.loadLocalStorage('rss-podcast-progress');
             if (data) {
-                const parsed = JSON.parse(data);
+                const parsed = data as Record<string, { position: number, duration: number }>;
                 
                 this.progressData.clear();
                 Object.entries(parsed).forEach(([key, value]) => {
-                    this.progressData.set(key, value as { position: number, duration: number });
+                    this.progressData.set(key, value);
                 });
             }
         } catch (error) {
-            
+            console.error("Failed to load podcast progress:", error);
         }
     }
     

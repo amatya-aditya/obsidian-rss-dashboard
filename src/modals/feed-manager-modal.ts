@@ -1,4 +1,4 @@
-import { Modal, App, Setting, Notice } from "obsidian";
+import { Modal, App, Setting, Notice, requestUrl } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import type { Feed, Folder } from "../types/types";
 
@@ -28,7 +28,7 @@ export class EditFeedModal extends Modal {
         const { contentEl } = this;
         this.modalEl.addClasses(["rss-dashboard-modal", "rss-dashboard-modal-container"]);
         contentEl.empty();
-        contentEl.createEl("h2", { text: "Edit Feed" });
+        new Setting(contentEl).setName("Edit feed").setHeading();
         let title = this.feed.title;
         let url = this.feed.url;
         let folder = this.feed.folder || "";
@@ -64,7 +64,7 @@ export class EditFeedModal extends Modal {
                         status = "Loading...";
                         if (statusDiv) statusDiv.textContent = status;
                         try {
-                            const res = await (window as any).requestUrl({ url });
+                            const res = await requestUrl(url);
                             const parser = new DOMParser();
                             const doc = parser.parseFromString(res.text, "text/xml");
                             const feedTitle = doc.querySelector("channel > title, feed > title");
@@ -181,14 +181,14 @@ export class EditFeedModal extends Modal {
                     }
                 });
                 text.inputEl.onblur = () => {
-                    setTimeout(() => {
+                    window.setTimeout(() => {
                         if (dropdown) dropdown.addClass("hidden");
                     }, 200);
                 };
             });
 
         
-        contentEl.createEl("h3", { text: "Per Feed Control Options", cls: "per-feed-controls-header" });
+        new Setting(contentEl).setName("Per feed control options").setHeading();
         
         let autoDeleteDuration = this.feed.autoDeleteDuration || 0;
         let maxItemsLimit = this.feed.maxItemsLimit || this.plugin.settings.maxItems;
@@ -196,10 +196,10 @@ export class EditFeedModal extends Modal {
 
         
         const autoDeleteSetting = new Setting(contentEl)
-            .setName("Auto Delete Articles Duration")
+            .setName("Auto delete articles duration")
             .setDesc("Days to keep articles before auto-delete");
         
-        let autoDeleteDropdown: any;
+        let autoDeleteDropdown: unknown = null;
         let autoDeleteCustomInput: HTMLInputElement | null = null;
         
         autoDeleteSetting.addDropdown(dropdown => {
@@ -251,10 +251,10 @@ export class EditFeedModal extends Modal {
 
         
         const maxItemsSetting = new Setting(contentEl)
-            .setName("Max Items Limit")
+            .setName("Max items limit")
             .setDesc("Maximum number of items to keep per feed");
         
-        let maxItemsDropdown: any;
+        let maxItemsDropdown: unknown = null;
         let maxItemsCustomInput: HTMLInputElement | null = null;
         
         maxItemsSetting.addDropdown(dropdown => {
@@ -303,10 +303,10 @@ export class EditFeedModal extends Modal {
 
         
         const scanIntervalSetting = new Setting(contentEl)
-            .setName("Scan Interval")
+            .setName("Scan interval")
             .setDesc("Custom scan interval in minutes");
         
-        let scanIntervalDropdown: any;
+        let scanIntervalDropdown: unknown = null;
         let scanIntervalCustomInput: HTMLInputElement | null = null;
         
         scanIntervalSetting.addDropdown(dropdown => {
@@ -396,7 +396,7 @@ export class EditFeedModal extends Modal {
         };
         cancelBtn.onclick = () => this.close();
         
-        setTimeout(() => {
+        window.setTimeout(() => {
             titleInput?.focus();
             titleInput?.select();
         }, 0);
@@ -425,7 +425,7 @@ export class AddFeedModal extends Modal {
         const { contentEl } = this;
         this.modalEl.className += " rss-dashboard-modal rss-dashboard-modal-container";
         contentEl.empty();
-        contentEl.createEl("h2", { text: "Add Feed" });
+        new Setting(contentEl).setName("Add feed").setHeading();
         let url = "";
         let title = "";
         let status = "";
@@ -461,7 +461,7 @@ export class AddFeedModal extends Modal {
                         status = "Loading...";
                         if (statusDiv) statusDiv.textContent = status;
                         try {
-                            const res = await (window as any).requestUrl({ url });
+                            const res = await requestUrl(url);
                             const parser = new DOMParser();
                             const doc = parser.parseFromString(res.text, "text/xml");
                             const feedTitle = doc.querySelector("channel > title, feed > title");
@@ -576,14 +576,14 @@ export class AddFeedModal extends Modal {
                     }
                 });
                 text.inputEl.onblur = () => {
-                    setTimeout(() => {
+                    window.setTimeout(() => {
                         if (dropdown) dropdown.addClass("hidden");
                     }, 200);
                 };
             });
 
         
-        contentEl.createEl("h3", { text: "Per Feed Control Options", cls: "per-feed-controls-header" });
+        new Setting(contentEl).setName("Per feed control options").setHeading();
         
         let autoDeleteDuration = 0;
         let maxItemsLimit = this.plugin?.settings?.maxItems || 25;
@@ -591,10 +591,10 @@ export class AddFeedModal extends Modal {
 
         
         const autoDeleteSetting = new Setting(contentEl)
-            .setName("Auto Delete Articles Duration")
+            .setName("Auto delete articles duration")
             .setDesc("Days to keep articles before auto-delete");
         
-        let autoDeleteDropdown: any;
+        let autoDeleteDropdown: unknown = null;
         let autoDeleteCustomInput: HTMLInputElement | null = null;
         
         autoDeleteSetting.addDropdown(dropdown => {
@@ -644,10 +644,10 @@ export class AddFeedModal extends Modal {
 
         
         const maxItemsSetting = new Setting(contentEl)
-            .setName("Max Items Limit")
+            .setName("Max items limit")
             .setDesc("Maximum number of items to keep per feed");
         
-        let maxItemsDropdown: any;
+        let maxItemsDropdown: unknown = null;
         let maxItemsCustomInput: HTMLInputElement | null = null;
         
         maxItemsSetting.addDropdown(dropdown => {
@@ -697,10 +697,10 @@ export class AddFeedModal extends Modal {
 
         
         const scanIntervalSetting = new Setting(contentEl)
-            .setName("Scan Interval")
+            .setName("Scan interval")
             .setDesc("Custom scan interval in minutes");
         
-        let scanIntervalDropdown: any;
+        let scanIntervalDropdown: unknown = null;
         let scanIntervalCustomInput: HTMLInputElement | null = null;
         
         scanIntervalSetting.addDropdown(dropdown => {
@@ -767,7 +767,7 @@ export class AddFeedModal extends Modal {
         };
         cancelBtn.onclick = () => this.close();
         
-        setTimeout(() => {
+        window.setTimeout(() => {
             urlInput?.focus();
             urlInput?.select();
         }, 0);
@@ -789,7 +789,7 @@ export class FeedManagerModal extends Modal {
         const { contentEl } = this;
         this.modalEl.className += " rss-dashboard-modal rss-dashboard-modal-container";
         contentEl.empty();
-        contentEl.createEl("h2", { text: "Manage Feeds" });
+        new Setting(contentEl).setName("Manage feeds").setHeading();
 
         
         const addFeedBtn = contentEl.createEl("button", { text: "+ Add Feed", cls: "rss-dashboard-primary-button feed-manager-add-button" });
@@ -821,7 +821,7 @@ export class FeedManagerModal extends Modal {
         
         for (const folderPath of allFolderPaths) {
             const folderDiv = contentEl.createDiv({ cls: "feed-manager-folder" });
-            folderDiv.createEl("h3", { text: folderPath });
+            new Setting(folderDiv).setName(folderPath).setHeading();
             const feeds = feedsByFolder[folderPath];
             if (feeds.length === 0) {
                 folderDiv.createDiv({ text: "No feeds in this folder.", cls: "feed-manager-empty" });
@@ -834,7 +834,7 @@ export class FeedManagerModal extends Modal {
         
         if (uncategorized.length > 0) {
             const uncategorizedDiv = contentEl.createDiv({ cls: "feed-manager-folder" });
-            uncategorizedDiv.createEl("h3", { text: "Uncategorized" });
+            new Setting(uncategorizedDiv).setName("Uncategorized").setHeading();
             for (const feed of uncategorized) {
                 this.renderFeedRow(uncategorizedDiv, feed);
             }
@@ -866,35 +866,33 @@ export class FeedManagerModal extends Modal {
     
     private showConfirmModal(message: string, onConfirm: () => void): void {
         document.querySelectorAll('.rss-dashboard-modal').forEach(el => el.remove());
-        setTimeout(() => {
-            const modal = document.createElement("div");
-            modal.className = "rss-dashboard-modal";
-            const modalContent = document.createElement("div");
-            modalContent.className = "rss-dashboard-modal-content";
-            const modalTitle = document.createElement("h2");
-            modalTitle.textContent = "Confirm";
-            const msg = document.createElement("div");
-            msg.textContent = message;
-            const buttonContainer = document.createElement("div");
-            buttonContainer.className = "rss-dashboard-modal-buttons";
-            const cancelButton = document.createElement("button");
-            cancelButton.textContent = "Cancel";
+        window.setTimeout(() => {
+            const modal = document.body.createDiv({
+                cls: "rss-dashboard-modal"
+            });
+            const modalContent = modal.createDiv({
+                cls: "rss-dashboard-modal-content"
+            });
+            new Setting(modalContent).setName("Confirm").setHeading();
+            const msg = modalContent.createDiv({
+                text: message
+            });
+            const buttonContainer = modalContent.createDiv({
+                cls: "rss-dashboard-modal-buttons"
+            });
+            const cancelButton = buttonContainer.createEl("button", {
+                text: "Cancel"
+            });
             cancelButton.onclick = () => document.body.removeChild(modal);
-            const okButton = document.createElement("button");
-            okButton.textContent = "OK";
-            okButton.className = "rss-dashboard-primary-button";
+            const okButton = buttonContainer.createEl("button", {
+                text: "OK",
+                cls: "rss-dashboard-primary-button"
+            });
             okButton.onclick = () => {
                 document.body.removeChild(modal);
                 onConfirm();
             };
-            buttonContainer.appendChild(cancelButton);
-            buttonContainer.appendChild(okButton);
-            modalContent.appendChild(modalTitle);
-            modalContent.appendChild(msg);
-            modalContent.appendChild(buttonContainer);
-            modal.appendChild(modalContent);
-            document.body.appendChild(modal);
-            setTimeout(() => okButton.focus(), 0);
+            window.setTimeout(() => okButton.focus(), 0);
         }, 0);
     }
 

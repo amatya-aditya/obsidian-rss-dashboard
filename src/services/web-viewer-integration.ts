@@ -1,13 +1,17 @@
-import { App, Notice, TFile, setIcon } from "obsidian";
+import { App, Notice, TFile, setIcon, Setting } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
 
 interface WebViewerPlugin {
-    openWebpage(url: string, title: string): Promise<void>;
+    openWebpage?(url: string, title: string): Promise<void>;
+    currentTitle?: string;
+    currentUrl?: string;
+    cleanedHtml?: string;
 }
 
 interface ObsidianPlugins {
     plugins: {
-        [key: string]: any;
+        [key: string]: unknown;
+        "webpage-html-export"?: WebViewerPlugin;
     };
 }
 
@@ -29,12 +33,12 @@ export class WebViewerIntegration {
         
         const webViewerPlugin = this.app.plugins.plugins["webpage-html-export"] as WebViewerPlugin | undefined;
         
-        if (webViewerPlugin) {
+        if (webViewerPlugin?.openWebpage) {
             try {
                 await webViewerPlugin.openWebpage(url, title);
                 
                 
-                setTimeout(() => {
+                window.setTimeout(() => {
                     this.addCustomSaveButton();
                 }, 1000);
                 
@@ -59,23 +63,25 @@ export class WebViewerIntegration {
         if (webViewerContainer.querySelector(".rss-custom-save-button")) return;
         
         
-        let controlBar = webViewerContainer.querySelector(".webpage-control-bar");
+        let controlBar = webViewerContainer.querySelector(".webpage-control-bar") as HTMLElement | null;
         if (!controlBar) {
-            controlBar = document.createElement("div");
-            controlBar.className = "webpage-control-bar";
+            controlBar = webViewerContainer.createDiv({
+                cls: "webpage-control-bar"
+            });
             webViewerContainer.prepend(controlBar);
         }
         
         
-        const saveButton = document.createElement("button");
-        saveButton.className = "rss-custom-save-button";
-        const iconSpan = document.createElement("span");
+        const saveButton = controlBar.createEl("button", {
+            cls: "rss-custom-save-button"
+        });
+        const iconSpan = saveButton.createSpan({
+            cls: "rss-custom-save-button-icon"
+        });
         setIcon(iconSpan, "save");
-        iconSpan.addClass("rss-custom-save-button-icon");
-        const labelSpan = document.createElement("span");
-        labelSpan.textContent = "Save with Template";
-        saveButton.appendChild(iconSpan);
-        saveButton.appendChild(labelSpan);
+        saveButton.createSpan({
+            text: "Save with template"
+        });
         
         
         saveButton.title = "Save with custom template";
@@ -92,75 +98,85 @@ export class WebViewerIntegration {
     
     private showSaveDialog(): void {
         
-        // @ts-ignore - Accessing internal API
         const webViewerPlugin = this.app.plugins.plugins["webpage-html-export"];
         if (!webViewerPlugin) return;
         
-        // @ts-ignore - Accessing internal API
         const title = webViewerPlugin.currentTitle || "Untitled";
-        // @ts-ignore - Accessing internal API
         const url = webViewerPlugin.currentUrl || "";
-        // @ts-ignore - Accessing internal API
         const content = webViewerPlugin.cleanedHtml || "";
         
-        const modal = document.createElement("div");
-        modal.className = "rss-dashboard-modal";
+        const modal = document.body.createDiv({
+            cls: "rss-dashboard-modal"
+        });
         
-        const modalContent = document.createElement("div");
-        modalContent.className = "rss-dashboard-modal-content";
+        const modalContent = modal.createDiv({
+            cls: "rss-dashboard-modal-content"
+        });
         
-        const modalTitle = document.createElement("h2");
-        modalTitle.textContent = "Save with Template";
+        new Setting(modalContent).setName("Save with template").setHeading();
         
-        const folderLabel = document.createElement("label");
-        folderLabel.textContent = "Save to Folder:";
+        const folderLabel = modalContent.createEl("label", {
+            text: "Save to folder:"
+        });
         
-        const folderInput = document.createElement("input");
-        folderInput.type = "text";
-        folderInput.placeholder = "Enter folder path";
-        folderInput.value = this.settings.defaultFolder || "RSS Articles/";
-        folderInput.autocomplete = "off";
+        const folderInput = modalContent.createEl("input", {
+            attr: {
+                type: "text",
+                placeholder: "Enter folder path",
+                value: this.settings.defaultFolder || "RSS Articles/",
+                autocomplete: "off"
+            }
+        });
         folderInput.spellcheck = false;
         folderInput.addEventListener("focus", () => folderInput.select());
         
-        const templateLabel = document.createElement("label");
-        templateLabel.textContent = "Use Template:";
+        const templateLabel = modalContent.createEl("label", {
+            text: "Use template:"
+        });
         
-        const templateInput = document.createElement("textarea");
-        templateInput.placeholder = "Enter template";
-        templateInput.value = this.settings.defaultTemplate || "---\ntitle: {{title}}\n---\n\n# {{title}}\n\n#rss #{{feedTitle}}\n\n{{content}}";
-        templateInput.rows = 6;
-        templateInput.autocomplete = "off";
+        const templateInput = modalContent.createEl("textarea", {
+            attr: {
+                placeholder: "Enter template",
+                rows: "6",
+                autocomplete: "off"
+            }
+        });
         templateInput.spellcheck = false;
+        templateInput.value = this.settings.defaultTemplate || "---\ntitle: {{title}}\n---\n\n# {{title}}\n\n#rss #{{feedTitle}}\n\n{{content}}";
         templateInput.addEventListener("focus", () => templateInput.select());
         
-        const includeFrontmatterCheck = document.createElement("div");
-        includeFrontmatterCheck.className = "rss-dashboard-checkbox";
+        const includeFrontmatterCheck = modalContent.createDiv({
+            cls: "rss-dashboard-checkbox"
+        });
         
-        const frontmatterCheckbox = document.createElement("input");
-        frontmatterCheckbox.type = "checkbox";
-        frontmatterCheckbox.id = "include-frontmatter";
-        frontmatterCheckbox.checked = this.settings.includeFrontmatter !== false; 
+        const frontmatterCheckbox = includeFrontmatterCheck.createEl("input", {
+            attr: {
+                type: "checkbox",
+                id: "include-frontmatter"
+            }
+        });
+        frontmatterCheckbox.checked = this.settings.includeFrontmatter !== false;
         
-        const frontmatterLabel = document.createElement("label");
-        frontmatterLabel.htmlFor = "include-frontmatter";
-        frontmatterLabel.textContent = "Include Frontmatter";
+        includeFrontmatterCheck.createEl("label", {
+            attr: { htmlFor: "include-frontmatter" },
+            text: "Include frontmatter"
+        });
         
-        includeFrontmatterCheck.appendChild(frontmatterCheckbox);
-        includeFrontmatterCheck.appendChild(frontmatterLabel);
+        const buttonContainer = modalContent.createDiv({
+            cls: "rss-dashboard-modal-buttons"
+        });
         
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "rss-dashboard-modal-buttons";
-        
-        const cancelButton = document.createElement("button");
-        cancelButton.textContent = "Cancel";
+        const cancelButton = buttonContainer.createEl("button", {
+            text: "Cancel"
+        });
         cancelButton.addEventListener("click", () => {
             document.body.removeChild(modal);
         });
         
-        const saveButton = document.createElement("button");
-        saveButton.textContent = "Save";
-        saveButton.className = "rss-dashboard-primary-button";
+        const saveButton = buttonContainer.createEl("button", {
+            text: "Save",
+            cls: "rss-dashboard-primary-button"
+        });
         saveButton.addEventListener("click", async () => {
             const folder = folderInput.value.trim();
             const template = templateInput.value.trim();
@@ -184,8 +200,8 @@ export class WebViewerIntegration {
                 
                 document.body.removeChild(modal);
             } catch (error) {
-                
-                new Notice(`Error saving article: ${error.message}`);
+                const message = error instanceof Error ? error.message : String(error);
+                new Notice(`Error saving article: ${message}`);
             }
         });
         
@@ -210,7 +226,6 @@ export class WebViewerIntegration {
         buttonContainer.appendChild(cancelButton);
         buttonContainer.appendChild(saveButton);
         
-        modalContent.appendChild(modalTitle);
         modalContent.appendChild(folderLabel);
         modalContent.appendChild(folderInput);
         modalContent.appendChild(templateLabel);
@@ -235,18 +250,16 @@ export class WebViewerIntegration {
         template: string,
         includeFrontmatter: boolean
     ): Promise<TFile | null> {
-        try {
-            
-            if (folder) {
-                await this.ensureFolderExists(folder);
-            }
+        if (folder) {
+            await this.ensureFolderExists(folder);
+        }
             
             
             const filename = this.sanitizeFilename(item.title);
             const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
             
             
-            if (await this.app.vault.adapter.exists(filePath)) {
+            if (this.app.vault.getAbstractFileByPath(filePath) !== null) {
                 new Notice(`File already exists: ${filename}`);
                 return null;
             }
@@ -269,12 +282,8 @@ export class WebViewerIntegration {
             
             
             
-            
-            return file;
-        } catch (error) {
-            
-            throw error;
-        }
+        
+        return file;
     }
     
     
@@ -323,7 +332,7 @@ guid: "{{guid}}"
     
     private sanitizeFilename(name: string): string {
         return name
-            .replace(/[\/\\:*?"<>|]/g, '_')
+            .replace(/[/\\:*?"<>|]/g, '_')
             .replace(/\s+/g, '_')
             .replace(/_+/g, '_')
             .substring(0, 100); 
@@ -359,7 +368,7 @@ guid: "{{guid}}"
             currentPath += folder;
             
             
-            if (!(await this.app.vault.adapter.exists(currentPath))) {
+            if (this.app.vault.getAbstractFileByPath(currentPath) === null) {
                 await this.app.vault.createFolder(currentPath);
             }
             

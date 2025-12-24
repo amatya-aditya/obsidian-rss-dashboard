@@ -1,4 +1,4 @@
-import { requestUrl, Notice } from "obsidian";
+import { requestUrl } from "obsidian";
 import { Feed, FeedItem, MediaSettings, Tag } from "../types/types.js";
 import { MediaService } from "./media-service";
 
@@ -35,7 +35,7 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
             
             
             
-            const feedNameMatch = baseUrl.match(/feeds\.feedburner\.com\/([^\/\?]+)/);
+            const feedNameMatch = baseUrl.match(/feeds\.feedburner\.com\/([^/?]+)/);
             if (feedNameMatch) {
                 const feedName = feedNameMatch[1];
                 const feedBurnerUrls = [
@@ -130,8 +130,8 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
                 }
             }
         }
-    } catch (e) {
-        
+    } catch {
+        // Feed discovery failed, return null
     }
     return null;
 }
@@ -143,7 +143,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
     async function tryFetch(targetUrl: string): Promise<string> {
         if (targetUrl.includes('feeds.feedburner.com')) {
             const httpsUrl = targetUrl.replace(/^http:\/\//i, 'https://');
-            const feedNameMatch = httpsUrl.match(/feeds\.feedburner\.com\/([^\/\?]+)/);
+            const feedNameMatch = httpsUrl.match(/feeds\.feedburner\.com\/([^/?]+)/);
             if (feedNameMatch) {
                 const feedName = feedNameMatch[1];
                 const feedBurnerUrls = [
@@ -210,8 +210,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
                             if (arxivResp.text && isValidFeed(arxivResp.text)) {
                                 return arxivResp.text;
                             }
-                        } catch (e) {
-                            
+                        } catch {
+                            // ArXiv feed fetch failed, continue
                         }
                     }
                 }
@@ -237,8 +237,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
                     if (toggledResp.text && isValidFeed(toggledResp.text)) {
                         return toggledResp.text;
                     }
-                } catch (e) {
-                    
+                } catch {
+                    // Toggled URL fetch failed, continue
                 }
             }
 
@@ -323,8 +323,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
                         } else {
                             throw new Error('Not a valid RSS/Atom feed');
                     }
-                } catch (discoveredError) {
-                        
+                } catch {
+                    // Discovered URL fetch failed, continue
                 }
             }
             
@@ -363,8 +363,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
                     } else {
                         throw new Error('AllOrigins raw returned non-feed');
                     }
-                } catch (e) {
-                    
+                } catch {
+                    // Toggled URL fetch failed, continue
                 }
                 
                 if (!isAndroid) {
@@ -468,13 +468,13 @@ export async function fetchFeedXml(url: string): Promise<string> {
                     const feed = data.feed;
                     const items = data.items || [];
                     
-                    let rss = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\">\n<channel>\n    <title>${feed.title || 'Unknown Feed'}</title>\n    <description>${feed.description || ''}</description>\n    <link>${feed.link || ''}</link>\n    <language>${feed.language || 'en'}</language>`;
+                    let rss = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n    <title>${feed.title || 'Unknown Feed'}</title>\n    <description>${feed.description || ''}</description>\n    <link>${feed.link || ''}</link>\n    <language>${feed.language || 'en'}</language>`;
                     
                     if (feed.image) {
                         rss += `\n    <image>\n        <url>${feed.image}</url>\n        <title>${feed.title || 'Unknown Feed'}</title>\n        <link>${feed.link || ''}</link>\n    </image>`;
                     }
                     
-                    items.forEach((item: any) => {
+                    items.forEach((item: FeedItem) => {
                         rss += `\n    <item>\n        <title>${item.title || ''}</title>\n        <link>${item.link || ''}</link>\n        <description><![CDATA[${item.description || ''}]]></description>\n        <pubDate>${item.pubDate || new Date().toISOString()}</pubDate>\n        <guid>${item.link || ''}</guid>\n    </item>`;
                     });
                     
@@ -636,7 +636,7 @@ export class CustomXMLParser {
     public decodeHtmlEntities(text: string): string {
         if (!text) return '';
         
-        let decoded = text
+        const decoded = text
             .replace(/&nbsp;/g, ' ')
             .replace(/&amp;/g, '&')
             .replace(/&lt;/g, '<')
@@ -966,7 +966,7 @@ export class CustomXMLParser {
             } : undefined;
             
             
-            let author = authors || this.getTextContentWithMultipleSelectors(item, [
+            const author = authors || this.getTextContentWithMultipleSelectors(item, [
                 'author',
                 'dc\\:creator',
                 'dc:creator',
@@ -1124,9 +1124,6 @@ export class CustomXMLParser {
             ]) || description;
 
             
-            const doi = this.getTextContent(item, 'prism:doi') || this.getTextContent(item, 'dc:identifier');
-            const source = this.getTextContent(item, 'dc:source');
-            const publicationName = this.getTextContent(item, 'prism:publicationName');
 
             items.push({
                 title: title || 'Untitled',
@@ -1222,21 +1219,22 @@ export class CustomXMLParser {
                     link: data.home_page_url,
                     author: data.authors?.[0]?.name,
                     image: data.icon ? { url: data.icon } : undefined,
-                    items: data.items?.map((item: any) => {
-                        let itemUrl = item.url || '';
+                    items: data.items?.map((item: unknown) => {
+                        const jsonItem = item as Record<string, unknown>;
+                        let itemUrl = (jsonItem.url as string) || '';
                         
                         itemUrl = this.transformSageUrl(itemUrl);
                         
                         return {
-                            title: item.title || '',
+                            title: (jsonItem.title as string) || '',
                             link: itemUrl,
-                            description: item.summary || '',
-                            pubDate: item.date_published || new Date().toISOString(),
-                            guid: item.id || itemUrl || '',
-                            author: item.authors?.[0]?.name,
-                            content: item.content_html || item.content_text || '',
-                            image: item.image ? { url: item.image } : undefined,
-                            category: item.category || item.tags?.[0] || ''
+                            description: (jsonItem.summary as string) || '',
+                            pubDate: (jsonItem.date_published as string) || new Date().toISOString(),
+                            guid: (jsonItem.id as string) || itemUrl || '',
+                            author: (jsonItem.authors as Array<{ name?: string }>)?.[0]?.name,
+                            content: (jsonItem.content_html as string) || (jsonItem.content_text as string) || '',
+                            image: jsonItem.image ? { url: jsonItem.image as string } : undefined,
+                            category: (jsonItem.category as string) || ((jsonItem.tags as string[])?.[0] as string) || ''
                         };
                     }) || [],
                     type: 'json',
@@ -1296,7 +1294,7 @@ export class CustomXMLParser {
             const items: ParsedItem[] = [];
             
             
-            let itemMatches: RegExpMatchArray[] = [];
+            const itemMatches: RegExpMatchArray[] = [];
             
             
             const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
@@ -1308,9 +1306,33 @@ export class CustomXMLParser {
             
             if (itemMatches.length === 0) {
                 
-                const altItemRegex = /<item[^>]*>([\s\S]*?)(?=<item|<\/channel>|<\/rss>)/gi;
-                while ((itemMatch = altItemRegex.exec(cleanedXml)) !== null) {
-                    itemMatches.push(itemMatch);
+                // Replace lookahead with compatible pattern: find items by matching content until next item/channel/rss tag
+                const itemStartRegex = /<item[^>]*>/gi;
+                while ((itemMatch = itemStartRegex.exec(cleanedXml)) !== null) {
+                    const itemStartIndex = itemMatch.index;
+                    const itemStartTag = itemMatch[0];
+                    const contentStartIndex = itemStartIndex + itemStartTag.length;
+                    
+                    // Find where this item ends by looking for next item, channel close, or rss close
+                    const remainingText = cleanedXml.substring(contentStartIndex);
+                    const nextItemMatch = remainingText.match(/<item[^>]*>/i);
+                    const channelCloseMatch = remainingText.match(/<\/channel>/i);
+                    const rssCloseMatch = remainingText.match(/<\/rss>/i);
+                    
+                    let endIndex = remainingText.length;
+                    if (nextItemMatch && nextItemMatch.index !== undefined) {
+                        endIndex = Math.min(endIndex, nextItemMatch.index);
+                    }
+                    if (channelCloseMatch && channelCloseMatch.index !== undefined) {
+                        endIndex = Math.min(endIndex, channelCloseMatch.index);
+                    }
+                    if (rssCloseMatch && rssCloseMatch.index !== undefined) {
+                        endIndex = Math.min(endIndex, rssCloseMatch.index);
+                    }
+                    
+                    const itemContent = remainingText.substring(0, endIndex);
+                    const fullMatch = itemStartTag + itemContent;
+                    itemMatches.push([fullMatch, itemContent]);
                 }
             }
             
@@ -1530,7 +1552,21 @@ export class CustomXMLParser {
         
         // Only escape bare ampersands that are not already part of an entity and not inside CDATA
         processed = processed.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, (m) => m.replace(/&/g, '__AMP__'));
-        processed = processed.replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, '&amp;');
+        // Replace lookahead with compatible pattern: match & and check if it's followed by valid entity pattern
+        processed = processed.replace(/&/g, (match, offset, string) => {
+            const remaining = string.substring(offset + 1);
+            // Check if this ampersand is part of a valid entity
+            if (remaining.match(/^(amp|lt|gt|quot|apos);/)) {
+                return match; // Already valid entity
+            }
+            if (remaining.match(/^#\d+;/)) {
+                return match; // Already valid numeric entity
+            }
+            if (remaining.match(/^#x[0-9a-fA-F]+;/i)) {
+                return match; // Already valid hex entity
+            }
+            return '&amp;'; // Escape bare ampersand
+        });
         processed = processed.replace(/__AMP__/g, '&');
 
         
@@ -1550,10 +1586,9 @@ export class CustomXMLParser {
                 return this.parseJSON(xmlString);
             }
 
-            let cleanedXml = this.preprocessXmlContent(xmlString.trim());
+            const cleanedXml = this.preprocessXmlContent(xmlString.trim());
             
 
-            const encoding = this.detectEncoding(cleanedXml);
             const doc = this.parseXML(cleanedXml);
             
 
@@ -1625,13 +1660,13 @@ export class CustomXMLParser {
     private getAtomEntryLink(entry: Element): string {
         
         let el = entry.querySelector('link[rel="alternate"][type="text/html"]');
-        if (el && el.getAttribute('href')) return el.getAttribute('href')!;
+        if (el && el.getAttribute('href')) return el.getAttribute('href') || '';
         
         el = entry.querySelector('link[rel="alternate"]');
-        if (el && el.getAttribute('href')) return el.getAttribute('href')!;
+        if (el && el.getAttribute('href')) return el.getAttribute('href') || '';
         
         el = entry.querySelector('link[href]');
-        if (el && el.getAttribute('href')) return el.getAttribute('href')!;
+        if (el && el.getAttribute('href')) return el.getAttribute('href') || '';
         return '';
     }
 }
@@ -1686,7 +1721,7 @@ export class FeedParser {
     private decodeHtmlEntities(text: string): string {
         if (!text) return '';
         
-        let decoded = text
+        const decoded = text
             .replace(/&nbsp;/g, ' ')
             .replace(/&amp;/g, '&')
             .replace(/&lt;/g, '<')
@@ -1898,7 +1933,7 @@ export class FeedParser {
     }
     
     
-    private extractCoverImage(html: string, baseUrl: string = ''): string {
+    private extractCoverImage(html: string, baseUrl = ''): string {
         if (!html) return "";
         
         try {
@@ -1954,8 +1989,8 @@ export class FeedParser {
                     return this.convertToAbsoluteUrl(src, baseUrl);
                 }
             }
-        } catch (e) {
-            
+        } catch {
+            // Image extraction failed
         }
 
         return "";
@@ -2042,16 +2077,9 @@ export class FeedParser {
             throw new Error("Feed URL is required");
         }
         
-        
-        try {
-           
-            const responseText = await fetchFeedXml(url);
-            
-            
-            const parsed = await this.parser.parseString(responseText);
-            
-            
-            let feedTitle = existingFeed?.title || parsed.title || "Unnamed Feed";
+        const responseText = await fetchFeedXml(url);
+        const parsed = await this.parser.parseString(responseText);
+        const feedTitle = existingFeed?.title || parsed.title || "Unnamed Feed";
           
             const newFeed: Feed = existingFeed || {
                 title: feedTitle,
@@ -2259,10 +2287,6 @@ export class FeedParser {
                 processedFeed.folder = this.mediaSettings.defaultPodcastFolder;
             }
             return MediaService.applyMediaTags(processedFeed, this.availableTags);
-        } catch (error) {
-            
-            throw error;
-        }
     }
     
     /**
@@ -2367,9 +2391,8 @@ export class FeedParserService {
     }
 
     public async parseFeed(url: string, folder: string): Promise<Feed> {
-        try {
-            const xml = await this.fetchFeedXml(url);
-            const parsed = await this.parser.parseString(xml);
+        const xml = await this.fetchFeedXml(url);
+        const parsed = await this.parser.parseString(xml);
 
             
             const isPodcast = parsed.items.some(item => 
@@ -2419,9 +2442,5 @@ export class FeedParserService {
                 lastUpdated: Date.now(),
                 mediaType: isPodcast ? 'podcast' : 'article'
             };
-        } catch (error) {
-            
-            throw error;
-        }
     }
 }

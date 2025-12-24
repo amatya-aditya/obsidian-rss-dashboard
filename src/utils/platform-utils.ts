@@ -1,102 +1,8 @@
-export interface PlatformInfo {
-    isMobile: boolean;
-    isIOS: boolean;
-    isAndroid: boolean;
-    isTablet: boolean;
-    isDesktop: boolean;
-    platform: string;
-    userAgent: string;
+
+
+export function sleep(ms: number): Promise<void> {
+    return new Promise<void>(resolve => window.setTimeout(resolve, ms));
 }
-
-
-export function detectPlatform(): PlatformInfo {
-    const userAgent = navigator.userAgent;
-    const platform = navigator.platform;
-    
-    
-    const isIOS = /iPad|iPhone|iPod/.test(userAgent) || 
-                  (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    
-    
-    const isAndroid = /Android/.test(userAgent);
-    
-    
-    const isMobile = isIOS || isAndroid || /Mobile|Tablet/.test(userAgent);
-    
-    
-    const isTablet = isIOS && /iPad/.test(userAgent) || 
-                     isAndroid && /Tablet/.test(userAgent) ||
-                     (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    
-    
-    const isDesktop = !isMobile;
-    
-    return {
-        isMobile,
-        isIOS,
-        isAndroid,
-        isTablet,
-        isDesktop,
-        platform,
-        userAgent
-    };
-}
-
-
-export function checkFeatureSupport(): {
-    xmlParser: boolean;
-    fetch: boolean;
-    domParser: boolean;
-    webWorkers: boolean;
-} {
-    return {
-        xmlParser: typeof DOMParser !== 'undefined',
-        fetch: typeof fetch !== 'undefined',
-        domParser: typeof DOMParser !== 'undefined',
-        webWorkers: typeof Worker !== 'undefined'
-    };
-}
-
-
-export function getPlatformRecommendations(): string[] {
-    const platform = detectPlatform();
-    const features = checkFeatureSupport();
-    const recommendations: string[] = [];
-    
-    if (platform.isMobile) {
-        recommendations.push('Mobile device detected - using optimized parsing');
-        
-        if (platform.isIOS) {
-            recommendations.push('iOS device - ensuring Safari compatibility');
-        }
-        
-        if (platform.isAndroid) {
-            recommendations.push('Android device - ensuring Chrome compatibility');
-        }
-    }
-    
-    if (!features.xmlParser) {
-        recommendations.push('Warning: XML parser not available');
-    }
-    
-    if (!features.fetch) {
-        recommendations.push('Warning: Fetch API not available');
-    }
-    
-    return recommendations;
-}
-
-
-export function logPlatformInfo(): void {
-    const platform = detectPlatform();
-    const features = checkFeatureSupport();
-    const recommendations = getPlatformRecommendations();
-    
-    
-    
-    
-}
-
 
 export function formatRelativeTime(date: Date | string): string {
     const now = new Date();
@@ -144,8 +50,8 @@ export function formatRelativeTime(date: Date | string): string {
             } else {
                 return rtf.format(-diffInSeconds, 'second');
             }
-        } catch (error) {
-            
+        } catch {
+            // Fall through to manual formatting if Intl.RelativeTimeFormat fails
         }
     }
     

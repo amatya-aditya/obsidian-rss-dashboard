@@ -1,5 +1,5 @@
-import { Notice, Menu, MenuItem, setIcon } from "obsidian";
-import { FeedItem, RssDashboardSettings } from "../types/types";
+import { Notice, Menu, MenuItem, setIcon, Setting } from "obsidian";
+import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { formatDateWithRelative, ensureUtf8Meta } from "../utils/platform-utils";
 
 
@@ -16,7 +16,7 @@ interface ArticleListCallbacks {
     onToggleSidebar: () => void;
     onSortChange: (value: 'newest' | 'oldest') => void;
     onGroupChange: (value: 'none' | 'feed' | 'date' | 'folder') => void;
-    onFilterChange: (value: { type: 'age' | 'read' | 'unread' | 'starred' | 'saved' | 'none'; value: any; }) => void;
+    onFilterChange: (value: { type: 'age' | 'read' | 'unread' | 'starred' | 'saved' | 'none'; value: unknown; }) => void;
     onPageChange: (page: number) => void;
     onPageSizeChange: (pageSize: number) => void;
 }
@@ -113,7 +113,7 @@ export class ArticleList {
         
         const sidebarToggleButton = leftSection.createDiv({
             cls: "rss-dashboard-sidebar-toggle",
-            attr: { title: "Toggle Sidebar" },
+            attr: { title: "Toggle sidebar" },
         });
         setIcon(sidebarToggleButton, this.settings.sidebarCollapsed ? "panel-left-open" : "panel-left-close");
         sidebarToggleButton.addEventListener("click", (e) => {
@@ -285,8 +285,6 @@ export class ArticleList {
             cls: `rss-dashboard-articles-list rss-dashboard-${this.settings.viewStyle}-view`,
         });
 
-        if (this.settings.viewStyle === "card") {
-        }
         
         
         if (this.articles.length === 0) {
@@ -296,7 +294,7 @@ export class ArticleList {
             const iconDiv = emptyState.createDiv();
             setIcon(iconDiv, "rss");
             iconDiv.addClass("rss-dashboard-empty-state-icon");
-            emptyState.createEl("h3", { text: "No articles found" });
+            new Setting(emptyState).setName("No articles found").setHeading();
             emptyState.createEl("p", { text: "Try refreshing your feeds or adding new ones." });
             return;
         }
@@ -314,7 +312,7 @@ export class ArticleList {
             const groupedArticles = this.groupArticles(this.articles, this.settings.articleGroupBy);
             for (const groupName in groupedArticles) {
                 const groupContainer = articlesList.createDiv({ cls: 'rss-dashboard-article-group' });
-                groupContainer.createEl('h2', { text: groupName, cls: 'rss-dashboard-group-header' });
+                new Setting(groupContainer).setName(groupName).setHeading();
                 const groupArticles = groupedArticles[groupName];
                 if (this.settings.viewStyle === "list") {
                     this.renderListView(groupContainer, groupArticles);
@@ -333,7 +331,7 @@ export class ArticleList {
     }
 
     private groupArticles(articles: FeedItem[], groupBy: 'feed' | 'date' | 'folder' | 'none'): Record<string, FeedItem[]> {
-        if (groupBy === 'none') return { 'All Articles': articles };
+        if (groupBy === 'none') return { 'All articles': articles };
 
         return articles.reduce((acc, article) => {
             let key: string;
@@ -349,7 +347,7 @@ export class ArticleList {
                     key = this.getFeedFolder(article.feedUrl) || 'Uncategorized';
                     break;
                 default:
-                    key = 'All Articles';
+                    key = 'All articles';
             }
 
             if (!acc[key]) {
@@ -383,7 +381,7 @@ export class ArticleList {
             const firstRow = contentEl.createDiv('rss-dashboard-list-row-1');
 
             
-            const titleDiv = firstRow.createDiv({
+            firstRow.createDiv({
                 cls: "rss-dashboard-article-title rss-dashboard-list-title",
                 text: article.title
             });
@@ -447,8 +445,8 @@ export class ArticleList {
                                 saveButton.textContent = '💾';
                             }
                         } catch (error) {
-                            
-                            new Notice(`Error saving article: ${error.message}`);
+                            const message = error instanceof Error ? error.message : String(error);
+                            new Notice(`Error saving article: ${message}`);
                         } finally {
                             
                             saveButton.classList.remove('saving');
@@ -475,8 +473,9 @@ export class ArticleList {
             const starToggle = actionToolbar.createDiv({
                 cls: `rss-dashboard-star-toggle ${article.starred ? "starred" : "unstarred"}`,
             });
-            const starIcon = document.createElement('span');
-            starIcon.className = 'rss-dashboard-star-icon';
+            const starIcon = starToggle.createSpan({
+                cls: 'rss-dashboard-star-icon'
+            });
             starToggle.appendChild(starIcon);
             setIcon(starIcon, article.starred ? "lucide-star" : "lucide-star-off");
             if (!starIcon.querySelector('svg')) {
@@ -540,17 +539,18 @@ export class ArticleList {
                         
                         articleEl.classList.add('rss-dashboard-tag-change-feedback');
                         
-                        setTimeout(() => {
+                        window.setTimeout(() => {
                             articleEl.classList.remove('rss-dashboard-tag-change-feedback');
                         }, 200);
                         
                         let tagsContainer = articleEl.querySelector('.rss-dashboard-article-tags');
                         if (!tagsContainer) {
                             const cardContent = articleEl.querySelector('.rss-dashboard-card-content') || articleEl;
-                            const actionToolbar = cardContent.querySelector('.rss-dashboard-action-toolbar');
+                            const actionToolbar = cardContent.querySelector('.rss-dashboard-action-toolbar') as HTMLElement | null;
                             if (actionToolbar) {
-                                tagsContainer = document.createElement('div');
-                                tagsContainer.className = 'rss-dashboard-article-tags';
+                                tagsContainer = (cardContent as HTMLElement).createDiv({
+                                    cls: 'rss-dashboard-article-tags'
+                                });
                                 cardContent.insertBefore(tagsContainer, actionToolbar);
                             }
                         } else {
@@ -563,21 +563,23 @@ export class ArticleList {
                         if (tagsContainer && article.tags && article.tags.length > 0) {
                             const tagsToShow = article.tags.slice(0, MAX_VISIBLE_TAGS);
                             tagsToShow.forEach(tag => {
-                                const tagEl = document.createElement('div');
-                                tagEl.className = 'rss-dashboard-article-tag';
-                                tagEl.textContent = tag.name;
-                                tagEl.style.setProperty('--tag-color', tag.color || 'var(--interactive-accent)');
                                 if (tagsContainer) {
-                                    tagsContainer.appendChild(tagEl);
+                                    const tagEl = (tagsContainer as HTMLElement).createDiv({
+                                        cls: 'rss-dashboard-article-tag',
+                                        text: tag.name
+                                    });
+                                    tagEl.style.setProperty('--tag-color', tag.color || 'var(--interactive-accent)');
                                 }
                             });
                             
                             if (article.tags.length > MAX_VISIBLE_TAGS && tagsContainer) {
-                                const overflowTag = document.createElement('div');
-                                overflowTag.className = 'rss-dashboard-tag-overflow';
-                                overflowTag.textContent = `+${article.tags.length - MAX_VISIBLE_TAGS}`;
-                                overflowTag.title = article.tags.slice(MAX_VISIBLE_TAGS).map(t => t.name).join(', ');
-                                tagsContainer.appendChild(overflowTag);
+                                (tagsContainer as HTMLElement).createDiv({
+                                    cls: 'rss-dashboard-tag-overflow',
+                                    text: `+${article.tags.length - MAX_VISIBLE_TAGS}`,
+                                    attr: {
+                                        title: article.tags.slice(MAX_VISIBLE_TAGS).map(t => t.name).join(', ')
+                                    }
+                                });
                             }
                         } else if (tagsContainer) {
                             
@@ -591,12 +593,12 @@ export class ArticleList {
                     } else {
                         
                         
-                        const tempIndicator = document.createElement('div');
-                        tempIndicator.className = 'rss-dashboard-tag-change-notification';
-                        tempIndicator.textContent = `Tag "${tag.name}" ${checked ? 'added' : 'removed'}`;
-                        document.body.appendChild(tempIndicator);
+                        const tempIndicator = document.body.createDiv({
+                            cls: 'rss-dashboard-tag-change-notification',
+                            text: `Tag "${tag.name}" ${checked ? 'added' : 'removed'}`
+                        });
                         
-                        setTimeout(() => {
+                        window.setTimeout(() => {
                             if (tempIndicator.parentNode) {
                                 tempIndicator.parentNode.removeChild(tempIndicator);
                             }
@@ -611,11 +613,13 @@ export class ArticleList {
             tagsEl = secondRow.createDiv('rss-dashboard-article-tags');
             if (article.tags && article.tags.length > 0) {
                 article.tags.forEach(tag => {
-                    const tagEl = tagsEl!.createDiv({
-                        cls: 'rss-dashboard-article-tag',
-                        text: tag.name,
-                    });
-                    tagEl.style.setProperty('--tag-color', tag.color);
+                    if (tagsEl) {
+                        const tagEl = tagsEl.createDiv({
+                            cls: 'rss-dashboard-article-tag',
+                            text: tag.name,
+                        });
+                        tagEl.style.setProperty('--tag-color', tag.color);
+                    }
                 });
             }
 
@@ -719,7 +723,7 @@ export class ArticleList {
                 });
                 const tagsToShow = article.tags.slice(0, MAX_VISIBLE_TAGS);
                 tagsToShow.forEach(tag => {
-                    const tagEl = tagsContainer!.createDiv({
+                    const tagEl = tagsContainer.createDiv({
                         cls: "rss-dashboard-article-tag",
                         text: tag.name,
                     });
@@ -781,8 +785,8 @@ export class ArticleList {
                                 saveButton.textContent = '💾';
                             }
                         } catch (error) {
-                            
-                            new Notice(`Error saving article: ${error.message}`);
+                            const message = error instanceof Error ? error.message : String(error);
+                            new Notice(`Error saving article: ${message}`);
                         } finally {
                             
                             saveButton.classList.remove('saving');
@@ -807,8 +811,9 @@ export class ArticleList {
             const starToggle = actionToolbar.createDiv({
                 cls: `rss-dashboard-star-toggle ${article.starred ? "starred" : "unstarred"}`,
             });
-            const starIcon = document.createElement('span');
-            starIcon.className = 'rss-dashboard-star-icon';
+            const starIcon = starToggle.createSpan({
+                cls: 'rss-dashboard-star-icon'
+            });
             starToggle.appendChild(starIcon);
             setIcon(starIcon, article.starred ? "lucide-star" : "lucide-star-off");
             if (!starIcon.querySelector('svg')) {
@@ -866,16 +871,17 @@ export class ArticleList {
                     }
                     if (articleEl) {
                         articleEl.classList.add('rss-dashboard-tag-change-feedback');
-                        setTimeout(() => {
+                        window.setTimeout(() => {
                             articleEl.classList.remove('rss-dashboard-tag-change-feedback');
                         }, 200);
                         let tagsContainer = articleEl.querySelector('.rss-dashboard-article-tags');
                         if (!tagsContainer) {
                             const cardContent = articleEl.querySelector('.rss-dashboard-card-content') || articleEl;
-                            const actionToolbar = cardContent.querySelector('.rss-dashboard-action-toolbar');
+                            const actionToolbar = cardContent.querySelector('.rss-dashboard-action-toolbar') as HTMLElement | null;
                             if (actionToolbar) {
-                                tagsContainer = document.createElement('div');
-                                tagsContainer.className = 'rss-dashboard-article-tags';
+                                tagsContainer = (cardContent as HTMLElement).createDiv({
+                                    cls: 'rss-dashboard-article-tags'
+                                });
                                 cardContent.insertBefore(tagsContainer, actionToolbar);
                             }
                         } else {
@@ -886,20 +892,22 @@ export class ArticleList {
                         if (tagsContainer && article.tags && article.tags.length > 0) {
                             const tagsToShow = article.tags.slice(0, MAX_VISIBLE_TAGS);
                             tagsToShow.forEach(tag => {
-                                const tagEl = document.createElement('div');
-                                tagEl.className = 'rss-dashboard-article-tag';
-                                tagEl.textContent = tag.name;
-                                tagEl.style.setProperty('--tag-color', tag.color || 'var(--interactive-accent)');
                                 if (tagsContainer) {
-                                    tagsContainer.appendChild(tagEl);
+                                    const tagEl = (tagsContainer as HTMLElement).createDiv({
+                                        cls: 'rss-dashboard-article-tag',
+                                        text: tag.name
+                                    });
+                                    tagEl.style.setProperty('--tag-color', tag.color || 'var(--interactive-accent)');
                                 }
                             });
                             if (article.tags.length > MAX_VISIBLE_TAGS && tagsContainer) {
-                                const overflowTag = document.createElement('div');
-                                overflowTag.className = 'rss-dashboard-tag-overflow';
-                                overflowTag.textContent = `+${article.tags.length - MAX_VISIBLE_TAGS}`;
-                                overflowTag.title = article.tags.slice(MAX_VISIBLE_TAGS).map(t => t.name).join(', ');
-                                tagsContainer.appendChild(overflowTag);
+                                (tagsContainer as HTMLElement).createDiv({
+                                    cls: 'rss-dashboard-tag-overflow',
+                                    text: `+${article.tags.length - MAX_VISIBLE_TAGS}`,
+                                    attr: {
+                                        title: article.tags.slice(MAX_VISIBLE_TAGS).map(t => t.name).join(', ')
+                                    }
+                                });
                             }
                         } else if (tagsContainer) {
                             while (tagsContainer.firstChild) {
@@ -908,11 +916,11 @@ export class ArticleList {
                         }
                         articleEl.offsetHeight;
                     } else {
-                        const tempIndicator = document.createElement('div');
-                        tempIndicator.className = 'rss-dashboard-tag-change-notification';
-                        tempIndicator.textContent = `Tag "${tag.name}" ${checked ? 'added' : 'removed'}`;
-                        document.body.appendChild(tempIndicator);
-                        setTimeout(() => {
+                        const tempIndicator = document.body.createDiv({
+                            cls: 'rss-dashboard-tag-change-notification',
+                            text: `Tag "${tag.name}" ${checked ? 'added' : 'removed'}`
+                        });
+                        window.setTimeout(() => {
                             if (tempIndicator.parentNode) {
                                 tempIndicator.parentNode.removeChild(tempIndicator);
                             }
@@ -1003,7 +1011,7 @@ export class ArticleList {
         
         const startIdx = (currentPage - 1) * pageSize + 1;
         const endIdx = Math.min(currentPage * pageSize, totalArticles);
-        const resultsInfo = paginationContainer.createEl('span', {
+        paginationContainer.createEl('span', {
             cls: 'rss-dashboard-pagination-results',
             text: `Results: ${startIdx} - ${endIdx} of ${totalArticles}`
         });
@@ -1025,7 +1033,7 @@ export class ArticleList {
         
         if (article.saved) {
             menu.addItem((item: MenuItem) => {
-                item.setTitle("Open Saved Article")
+                item.setTitle("Open saved article")
                     .setIcon("file-text")
                     .onClick(() => {
                         if (this.callbacks.onOpenSavedArticle) {
@@ -1035,7 +1043,7 @@ export class ArticleList {
             });
             
             menu.addItem((item: MenuItem) => {
-                item.setTitle("Open in Reader View")
+                item.setTitle("Open in reader view")
                     .setIcon("book-open")
                     .onClick(() => {
                         if (this.callbacks.onOpenInReaderView) {
@@ -1048,7 +1056,7 @@ export class ArticleList {
         }
         
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Open in Browser")
+            item.setTitle("Open in browser")
                 .setIcon("lucide-globe-2")
                 .onClick(() => {
                     window.open(article.link, "_blank");
@@ -1056,7 +1064,7 @@ export class ArticleList {
         });
         
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Open in Split View")
+            item.setTitle("Open in split view")
                 .setIcon("lucide-sidebar")
                 .onClick(() => {
                     this.callbacks.onArticleClick(article);
@@ -1066,7 +1074,7 @@ export class ArticleList {
         menu.addSeparator();
         
         menu.addItem((item: MenuItem) => {
-            item.setTitle(article.read ? "Mark as Unread" : "Mark as Read")
+            item.setTitle(article.read ? "Mark as unread" : "Mark as read")
                 .setIcon(article.read ? "circle" : "check-circle")
                 .onClick(() => {
                     this.callbacks.onArticleUpdate(article, { read: !article.read }, false);
@@ -1085,7 +1093,7 @@ export class ArticleList {
         if (!article.saved) {
             menu.addSeparator();
             menu.addItem((item: MenuItem) => {
-                item.setTitle(this.settings.articleSaving.saveFullContent ? "Save Full Article" : "Save Article Summary")
+                item.setTitle(this.settings.articleSaving.saveFullContent ? "Save full article" : "Save article summary")
                     .setIcon("save")
                     .onClick(() => {
                         this.callbacks.onArticleSave(article);
@@ -1100,7 +1108,7 @@ export class ArticleList {
     private createPortalDropdown(
         toggleElement: HTMLElement,
         article: FeedItem,
-        onTagChange: (tag: any, checked: boolean) => void
+        onTagChange: (tag: Tag, checked: boolean) => void
     ): void {
         
         
@@ -1109,23 +1117,27 @@ export class ArticleList {
         });
 
         
-        const portalDropdown = document.createElement("div");
-        portalDropdown.className = "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal";
+        const portalDropdown = document.body.createDiv({
+            cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal"
+        });
 
         
         for (const tag of this.settings.availableTags) {
-            const tagItem = document.createElement("div");
-            tagItem.className = "rss-dashboard-tag-item";
+            const tagItem = portalDropdown.createDiv({
+                cls: "rss-dashboard-tag-item"
+            });
             const hasTag = article.tags?.some((t) => t.name === tag.name) || false;
             
-            const tagCheckbox = document.createElement("input");
-            tagCheckbox.className = "rss-dashboard-tag-checkbox";
-            tagCheckbox.type = "checkbox";
+            const tagCheckbox = tagItem.createEl("input", {
+                attr: { type: "checkbox" },
+                cls: "rss-dashboard-tag-checkbox"
+            });
             tagCheckbox.checked = hasTag;
             
-            const tagLabel = document.createElement("div");
-            tagLabel.className = "rss-dashboard-tag-label";
-            tagLabel.textContent = tag.name;
+            const tagLabel = tagItem.createDiv({
+                cls: "rss-dashboard-tag-label",
+                text: tag.name
+            });
             tagLabel.style.setProperty('--tag-color', tag.color);
 
             tagCheckbox.addEventListener("change", (e) => {
@@ -1141,7 +1153,7 @@ export class ArticleList {
                 onTagChange(tag, isChecked);
                 
                 
-                setTimeout(() => {
+                window.setTimeout(() => {
                     tagItem.classList.remove('rss-dashboard-tag-item-processing');
                 }, 200);
                 
@@ -1188,7 +1200,7 @@ export class ArticleList {
         portalDropdown.style.left = `${left}px`;
         portalDropdown.style.top = `${top}px`;
 
-        setTimeout(() => {
+        window.setTimeout(() => {
             const handleClickOutside = (ev: MouseEvent) => {
                 if (portalDropdown && !portalDropdown.contains(ev.target as Node)) {
                     portalDropdown.remove();

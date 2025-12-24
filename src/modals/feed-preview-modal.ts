@@ -1,4 +1,4 @@
-import { Modal, App, Notice, setIcon } from "obsidian";
+import { Modal, App, Notice, setIcon, Setting } from "obsidian";
 import { FeedMetadata } from "../types/discover-types";
 import { fetchFeedXml } from "../services/feed-parser";
 
@@ -45,7 +45,8 @@ export class FeedPreviewModal extends Modal {
         }
 
         const titleInfo = titleSection.createDiv({ cls: 'feed-preview-title-info' });
-        titleInfo.createEl("h2", { text: this.feed.title, cls: "feed-preview-title" });
+        const titleSetting = new Setting(titleInfo).setName(this.feed.title).setHeading();
+        titleSetting.settingEl.addClass("feed-preview-title");
         titleInfo.createEl("p", { text: this.feed.url, cls: "feed-preview-url" });
         
         if (this.feed.summary) {
@@ -198,7 +199,7 @@ export class FeedPreviewModal extends Modal {
         const container = this.contentEl;
         const errorEl = container.createDiv({ cls: "feed-preview-error" });
         setIcon(errorEl, "alert-triangle");
-        errorEl.appendChild(document.createTextNode(` Error: ${this.error}`));
+        errorEl.appendText(` Error: ${this.error}`);
         
         const retryBtn = errorEl.createEl("button", { cls: "mod-cta" });
         retryBtn.textContent = "Retry";
@@ -211,14 +212,15 @@ export class FeedPreviewModal extends Modal {
         if (this.articles.length === 0) {
             const emptyEl = container.createDiv({ cls: "feed-preview-empty" });
             setIcon(emptyEl, "rss");
-            emptyEl.appendChild(document.createTextNode(" No articles found in this feed"));
+            emptyEl.appendText(" No articles found in this feed");
             return;
         }
 
         const contentSection = container.createDiv({ cls: "feed-preview-content" });
         
         const header = contentSection.createDiv({ cls: "feed-preview-articles-header" });
-        header.createEl("h3", { text: `Latest ${this.articles.length} Articles`, cls: "feed-preview-articles-title" });
+        const headerSetting = new Setting(header).setName(`Latest ${this.articles.length} Articles`).setHeading();
+        headerSetting.settingEl.addClass("feed-preview-articles-title");
         
         const grid = contentSection.createDiv({ cls: "feed-preview-grid" });
         
@@ -265,7 +267,7 @@ export class FeedPreviewModal extends Modal {
         if (article.author) {
             const author = meta.createDiv({ cls: "feed-preview-article-author" });
             setIcon(author, "user");
-            author.appendChild(document.createTextNode(` ${article.author}`));
+            author.appendText(` ${article.author}`);
         }
 
         if (article.pubDate) {
@@ -273,7 +275,7 @@ export class FeedPreviewModal extends Modal {
             setIcon(date, "calendar");
             const pubDate = new Date(article.pubDate);
             const formattedDate = pubDate.toLocaleDateString();
-            date.appendChild(document.createTextNode(` ${formattedDate}`));
+            date.appendText(` ${formattedDate}`);
         }
 
         
