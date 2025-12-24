@@ -938,6 +938,7 @@
 	padding: 5px;
 	pointer-events: auto;
     cursor: text;
+    -webkit-user-select: text;
     user-select: text;
 	text-align: justify;
   }
@@ -1899,8 +1900,8 @@
     line-height: 32px;
     width: 32px;
     height: 32px;
-    appearance: none;
     -webkit-appearance: none;
+    appearance: none;
     display: inline-block;
     background: none;
     box-sizing: border-box;
@@ -2379,7 +2380,6 @@ input.color-circle {
     .rss-feed-item-cover,
     .rss-reader-cover-image img {
         image-rendering: -webkit-optimize-contrast;
-        image-rendering: crisp-edges;
     }
 }
 
@@ -3824,7 +3824,6 @@ input.color-circle {
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
     .rss-dashboard-cover-image {
         image-rendering: -webkit-optimize-contrast;
-        image-rendering: crisp-edges;
     }
 }
 
@@ -5220,6 +5219,7 @@ input.color-circle {
     background: var(--background-secondary);
     border-radius: 12px 12px 0 0;
     cursor: text;
+    -webkit-user-select: text;
     user-select: text;
 }
 
@@ -5583,6 +5583,7 @@ input.color-circle {
     position: relative;
     z-index: 2;
     
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border-radius: 16px;
     padding: 20px;
@@ -5707,6 +5708,7 @@ input.color-circle {
     padding: 7px 12px;
     font-size: 0.5rem;
     cursor: pointer;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     transition: all 0.2s ease;
     border-radius: 50% !important;
@@ -5747,6 +5749,7 @@ input.color-circle {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     transition: all 0.2s ease;
     color: white;
@@ -5794,6 +5797,7 @@ input.color-circle {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     transition: all 0.2s ease;
     color: white;
@@ -5839,6 +5843,7 @@ input.color-circle {
 .podcast-playlist-section {
     margin-top: 24px;
     /* background: rgba(104, 104, 104, 0.4);  */
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border-radius: 16px;
     padding: 20px;
@@ -6294,6 +6299,7 @@ input.color-circle {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     transition: all 0.2s ease;
     color: white;
@@ -6337,6 +6343,7 @@ input.color-circle {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     transition: all 0.2s ease;
     color: white;
@@ -6466,6 +6473,7 @@ input.color-circle {
     color: white;
     font-size: 1.1rem;
     background: rgba(255, 255, 255, 0.1);
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border-radius: 16px;
     margin: 20px 0;
@@ -6490,6 +6498,7 @@ input.color-circle {
     border-radius: 12px;
     text-align: center;
     margin: 16px 0;
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
 }
 
