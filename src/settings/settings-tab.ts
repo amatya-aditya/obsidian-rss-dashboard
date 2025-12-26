@@ -615,7 +615,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
 
        
         const opmlSection = containerEl.createDiv();
-        opmlSection.createEl("h4", { text: "Import/Export OPML" });
+        new Setting(opmlSection).setName("Import/Export OPML").setHeading();
         
         const opmlBtnRow = opmlSection.createDiv({ cls: "rss-dashboard-import-export-btn-row" });
         const importOpmlBtn = opmlBtnRow.createEl("button", { 

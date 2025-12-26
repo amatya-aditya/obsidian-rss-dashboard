@@ -734,12 +734,15 @@ export class RssDashboardView extends ItemView {
         
         
         const readerLeaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
-        const podcastPlaying = readerLeaves.some(leaf => {
+        const podcastPlaying = await Promise.all(readerLeaves.map(async (leaf) => {
+            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
+                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
+            }
             if (leaf.view instanceof ReaderView) {
                 return leaf.view.isPodcastPlaying();
             }
             return false;
-        });
+        })).then(results => results.some(result => result));
         
         if (podcastPlaying) {
             if (this.settings.media.openInSplitView) {
@@ -783,6 +786,9 @@ export class RssDashboardView extends ItemView {
                 active: true,
             });
             await workspace.revealLeaf(leaf);
+            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
+                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
+            }
             if (leaf.view instanceof ReaderView) {
                 const view = leaf.view;
                 const relatedItems = this.getRelatedItems(article);
@@ -800,6 +806,9 @@ export class RssDashboardView extends ItemView {
                 active: true,
             });
             await this.app.workspace.revealLeaf(leaf);
+            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
+                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
+            }
             if (leaf.view instanceof ReaderView) {
                 const view = leaf.view;
                 const relatedItems = this.getRelatedItems(article);
@@ -1208,12 +1217,15 @@ export class RssDashboardView extends ItemView {
         }
         
         const readerLeaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
-        const podcastPlaying = readerLeaves.some(leaf => {
+        const podcastPlaying = await Promise.all(readerLeaves.map(async (leaf) => {
+            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
+                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
+            }
             if (leaf.view instanceof ReaderView) {
                 return leaf.view.isPodcastPlaying();
             }
             return false;
-        });
+        })).then(results => results.some(result => result));
         
         if (podcastPlaying) {
             if (this.settings.media.openInSplitView) {

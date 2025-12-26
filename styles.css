@@ -413,7 +413,6 @@
 	padding: 4px 8px;
 	cursor: pointer;
 	color: var(--text-normal);
-	-webkit-app-region: no-drag;
     height: var(--input-height);
     font-size: var(--font-ui-small);
     font-family: inherit;
@@ -1993,7 +1992,6 @@ input.color-circle {
     min-width: 0;
     max-width: 100%;
     height: auto;
-    text-wrap-mode: wrap;
 }
 .rss-dashboard-list-row-1 .rss-dashboard-article-meta {
     display: flex;
@@ -2045,7 +2043,6 @@ input.color-circle {
     gap: 8px;
     align-items: center;
     height: auto;
-    min-height: auto;
     max-height: max-content;
     width: fit-content;
     margin-top: 0;
@@ -3751,7 +3748,6 @@ input.color-circle {
     }
     
     .rss-dashboard-article-card {
-        min-height: auto;
         max-height: none;
         height: auto;
     }
@@ -4146,7 +4142,6 @@ input.color-circle {
     }
     
     .rss-dashboard-article-card {
-        min-height: auto;
         max-height: none;
         height: auto;
     }
@@ -4280,7 +4275,6 @@ input.color-circle {
     }
     
     .rss-dashboard-article-card {
-        min-height: auto;
         max-height: none;
         height: auto;
     }

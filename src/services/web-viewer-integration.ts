@@ -189,7 +189,7 @@ export class WebViewerIntegration {
                     description: content,
                     pubDate: new Date().toUTCString(),
                     guid: url,
-                    feedTitle: "Web Viewer",
+                    feedTitle: "Web viewer",
                     feedUrl: "",
                     coverImage: "",
                     read: true,
@@ -320,10 +320,10 @@ guid: "{{guid}}"
             .replace(/{{title}}/g, item.title.replace(/"/g, '\\"'))
             .replace(/{{date}}/g, new Date().toISOString())
             .replace(/{{tags}}/g, tagsString)
-            .replace(/{{source}}/g, (item.feedTitle || "Web Viewer").replace(/"/g, '\\"'))
+            .replace(/{{source}}/g, (item.feedTitle || "Web viewer").replace(/"/g, '\\"'))
             .replace(/{{link}}/g, item.link)
             .replace(/{{author}}/g, (item.author || '').replace(/"/g, '\\"'))
-            .replace(/{{feedTitle}}/g, (item.feedTitle || "Web Viewer").replace(/"/g, '\\"'))
+            .replace(/{{feedTitle}}/g, (item.feedTitle || "Web viewer").replace(/"/g, '\\"'))
             .replace(/{{guid}}/g, item.guid.replace(/"/g, '\\"'));
             
         return frontmatter;
@@ -354,7 +354,7 @@ guid: "{{guid}}"
             .replace(/{{isoDate}}/g, new Date().toISOString())
             .replace(/{{link}}/g, item.link)
             .replace(/{{author}}/g, item.author || '')
-            .replace(/{{source}}/g, item.feedTitle || 'Web Viewer')
+            .replace(/{{source}}/g, item.feedTitle || 'Web viewer')
             .replace(/{{summary}}/g, item.summary || '')
             .replace(/{{content}}/g, item.description);
     }
