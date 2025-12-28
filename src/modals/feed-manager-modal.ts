@@ -792,7 +792,7 @@ export class FeedManagerModal extends Modal {
         new Setting(contentEl).setName("Manage feeds").setHeading();
 
         
-        const addFeedBtn = contentEl.createEl("button", { text: "+ Add Feed", cls: "rss-dashboard-primary-button feed-manager-add-button" });
+        const addFeedBtn = contentEl.createEl("button", { text: "+ Add feed", cls: "rss-dashboard-primary-button feed-manager-add-button" });
         addFeedBtn.onclick = () => {
             new AddFeedModal(
 				this.app, 

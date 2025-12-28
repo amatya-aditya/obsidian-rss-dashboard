@@ -1,4 +1,4 @@
-import { Modal, App, Notice, setIcon, Setting } from "obsidian";
+import { Modal, App, setIcon, Setting } from "obsidian";
 import { FeedMetadata } from "../types/discover-types";
 import { fetchFeedXml } from "../services/feed-parser";
 
@@ -219,7 +219,7 @@ export class FeedPreviewModal extends Modal {
         const contentSection = container.createDiv({ cls: "feed-preview-content" });
         
         const header = contentSection.createDiv({ cls: "feed-preview-articles-header" });
-        const headerSetting = new Setting(header).setName(`Latest ${this.articles.length} Articles`).setHeading();
+        const headerSetting = new Setting(header).setName(`Latest ${this.articles.length} articles`).setHeading();
         headerSetting.settingEl.addClass("feed-preview-articles-title");
         
         const grid = contentSection.createDiv({ cls: "feed-preview-grid" });
@@ -254,7 +254,7 @@ export class FeedPreviewModal extends Modal {
         });
 
         if (article.description) {
-            const description = content.createDiv({ 
+            content.createDiv({ 
                 text: article.description.length > 150 
                     ? article.description.substring(0, 150) + '...' 
                     : article.description,

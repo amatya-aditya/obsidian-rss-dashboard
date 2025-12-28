@@ -1982,7 +1982,7 @@ input.color-circle {
     
 }
 .rss-dashboard-list-row-1 .rss-dashboard-list-title {
-    white-space: nowrap;
+    /* white-space: nowrap; */
     overflow: hidden;
     text-overflow: ellipsis;
     flex-shrink: 1;

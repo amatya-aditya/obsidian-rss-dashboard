@@ -1111,13 +1111,15 @@ export class ArticleList {
         onTagChange: (tag: Tag, checked: boolean) => void
     ): void {
         
+        const targetDocument = toggleElement.ownerDocument;
+        const targetBody = targetDocument.body;
         
-        this.container.querySelectorAll(".rss-dashboard-tags-dropdown-content-portal").forEach((el) => {
+        targetDocument.querySelectorAll(".rss-dashboard-tags-dropdown-content-portal").forEach((el) => {
             (el as HTMLElement).parentNode?.removeChild(el);
         });
 
         
-        const portalDropdown = document.body.createDiv({
+        const portalDropdown = targetBody.createDiv({
             cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal"
         });
 
@@ -1168,13 +1170,13 @@ export class ArticleList {
 
         
         
-        document.body.appendChild(portalDropdown);
+        targetBody.appendChild(portalDropdown);
         portalDropdown.addClass("rss-dashboard-tags-dropdown-content-portal");
 
         
         const rect = toggleElement.getBoundingClientRect();
         const dropdownRect = portalDropdown.getBoundingClientRect();
-        const appContainer = this.container.closest('.workspace-leaf-content') || document.body;
+        const appContainer = this.container.closest('.workspace-leaf-content') || targetBody;
         const appContainerRect = appContainer.getBoundingClientRect();
 
         
@@ -1192,22 +1194,23 @@ export class ArticleList {
         }
 
         
-        if (top + dropdownRect.height > window.innerHeight) {
-            top = window.innerHeight - dropdownRect.height - 5; 
+        const targetWindow = targetDocument.defaultView || window;
+        if (top + dropdownRect.height > targetWindow.innerHeight) {
+            top = targetWindow.innerHeight - dropdownRect.height - 5; 
         }
 
         
         portalDropdown.style.left = `${left}px`;
         portalDropdown.style.top = `${top}px`;
 
-        window.setTimeout(() => {
+        targetWindow.setTimeout(() => {
             const handleClickOutside = (ev: MouseEvent) => {
                 if (portalDropdown && !portalDropdown.contains(ev.target as Node)) {
                     portalDropdown.remove();
-                    document.removeEventListener("mousedown", handleClickOutside);
+                    targetDocument.removeEventListener("mousedown", handleClickOutside);
                 }
             };
-            document.addEventListener("mousedown", handleClickOutside);
+            targetDocument.addEventListener("mousedown", handleClickOutside);
         }, 0);
     }
 

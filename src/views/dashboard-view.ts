@@ -734,7 +734,7 @@ export class RssDashboardView extends ItemView {
         
         
         const readerLeaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
-        const podcastPlaying = await Promise.all(readerLeaves.map(async (leaf) => {
+        const results = await Promise.all(readerLeaves.map(async (leaf) => {
             if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
                 await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
             }
@@ -742,7 +742,8 @@ export class RssDashboardView extends ItemView {
                 return leaf.view.isPodcastPlaying();
             }
             return false;
-        })).then(results => results.some(result => result));
+        }));
+        const podcastPlaying = results.some(result => result);
         
         if (podcastPlaying) {
             if (this.settings.media.openInSplitView) {
@@ -1217,7 +1218,7 @@ export class RssDashboardView extends ItemView {
         }
         
         const readerLeaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
-        const podcastPlaying = await Promise.all(readerLeaves.map(async (leaf) => {
+        const results = await Promise.all(readerLeaves.map(async (leaf) => {
             if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
                 await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
             }
@@ -1225,7 +1226,8 @@ export class RssDashboardView extends ItemView {
                 return leaf.view.isPodcastPlaying();
             }
             return false;
-        })).then(results => results.some(result => result));
+        }));
+        const podcastPlaying = results.some(result => result);
         
         if (podcastPlaying) {
             if (this.settings.media.openInSplitView) {

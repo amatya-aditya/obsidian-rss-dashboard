@@ -364,7 +364,7 @@ export class Sidebar {
             const contextEvent = e;
             const menu = new Menu();
             menu.addItem((item: MenuItem) => {
-                item.setTitle("Add Feed")
+                item.setTitle("Add feed")
                     .setIcon("rss")
                     .onClick(() => {
                         this.showAddFeedModal(fullPath);
@@ -439,7 +439,7 @@ export class Sidebar {
                         });
             });
             menu.addItem((item: MenuItem) => {
-                item.setTitle("Sort Feeds")
+                item.setTitle("Sort feeds")
                     .setIcon("lucide-sort-asc")
                     .onClick(() => {
                         this.showFeedSortMenu(contextEvent, fullPath);

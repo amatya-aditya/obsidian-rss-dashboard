@@ -147,9 +147,9 @@ guid: "{{guid}}"
     }
     
     
-    private applyTemplate(item: FeedItem, template: string): string {
+    private applyTemplate(item: FeedItem, template: string, rawContent?: string): string {
         
-        const cleanContent = this.cleanHtml(item.description);
+        const content = rawContent || this.cleanHtml(item.description);
         
         
         const formattedDate = new Date(item.pubDate).toLocaleDateString(undefined, {
@@ -179,7 +179,7 @@ guid: "{{guid}}"
             .replace(/{{source}}/g, item.feedTitle)
             .replace(/{{feedTitle}}/g, item.feedTitle)
             .replace(/{{summary}}/g, item.summary || '')
-            .replace(/{{content}}/g, cleanContent)
+            .replace(/{{content}}/g, content)
             .replace(/{{tags}}/g, tagsString)
             .replace(/{{guid}}/g, item.guid);
     }
@@ -538,18 +538,21 @@ guid: "{{guid}}"
             
             let content = '';
             
-            if (rawContent) {
+            
+            const template = customTemplate || this.settings.defaultTemplate || 
+                "# {{title}}\n\n{{content}}\n\n[Source]({{link}})";
+            
+            
+            const templateHasFrontmatter = template.trim().startsWith("---");
+            
+            
+            if (this.settings.includeFrontmatter && !templateHasFrontmatter) {
                 
-                if (this.settings.includeFrontmatter) {
-                    content += this.generateFrontmatter(item);
-                }
-                content += rawContent;
-            } else {
-                
-                const template = customTemplate || this.settings.defaultTemplate || 
-                    "# {{title}}\n\n{{content}}\n\n[Source]({{link}})";
-                content += this.applyTemplate(item, template);
+                content += this.generateFrontmatter(item);
             }
+            
+            
+            content += this.applyTemplate(item, template, rawContent);
             
             
             const file = await this.vault.create(filePath, content);
