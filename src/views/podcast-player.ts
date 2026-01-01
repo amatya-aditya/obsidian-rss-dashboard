@@ -17,7 +17,7 @@ export class PodcastPlayer {
     private playButton: HTMLElement | null = null;
     private currentTimeEl: HTMLElement | null = null;
     private durationEl: HTMLElement | null = null;
-    private progressBarEl: HTMLElement | null = null;
+    private progressBarEl: HTMLProgressElement | null = null;
     private progressFilledEl: HTMLElement | null = null;
     private speedButtonEl: HTMLElement | null = null;
     private shuffleButton: HTMLElement | null = null;
@@ -113,16 +113,16 @@ export class PodcastPlayer {
         this.currentTimeEl = seekbarRow.createDiv({ cls: "current-time", text: "0:00" });
         
         const progressBarWrapper = seekbarRow.createDiv({ cls: "podcast-progress-bar-wrapper" });
-        this.progressBarEl = progressBarWrapper.createEl("progress", { cls: "podcast-progress-bar" }) as HTMLProgressElement;
-        (this.progressBarEl as HTMLProgressElement).value = 0;
-        (this.progressBarEl as HTMLProgressElement).max = 1;
+        this.progressBarEl = progressBarWrapper.createEl("progress", { cls: "podcast-progress-bar" });
+        this.progressBarEl.value = 0;
+        this.progressBarEl.max = 1;
         
         this.progressFilledEl = progressBarWrapper.createDiv({ cls: "podcast-progress-bar-filled" });
         this.durationEl = seekbarRow.createDiv({ cls: "duration", text: "-0:00" });
         
         
         if (this.progressBarEl) {
-            const progressBar = this.progressBarEl as HTMLProgressElement;
+            const progressBar = this.progressBarEl;
             let isDragging = false;
 
             
@@ -200,7 +200,7 @@ export class PodcastPlayer {
         this.shuffleButton.onclick = () => this.toggleShuffle();
         this.updateShuffleButton();
         
-        this.speedButtonEl = leftTools.createEl("select", { cls: "speed-control" }) as HTMLSelectElement;
+        this.speedButtonEl = leftTools.createEl("select", { cls: "speed-control" });
         [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3].forEach((v) => {
             const option = this.speedButtonEl?.createEl("option", {
                 attr: {
@@ -264,18 +264,18 @@ export class PodcastPlayer {
         setIcon(volumeBtn, "volume-2");
         
         this.volumeSlider = this.volumeContainer.createEl("div", { cls: "volume-slider" });
-        const volumeBar = this.volumeSlider.createEl("input", { type: "range", cls: "volume-bar" }) as HTMLInputElement;
+        const volumeBar = this.volumeSlider.createEl("input", { type: "range", cls: "volume-bar" });
         volumeBar.min = "0";
         volumeBar.max = "100";
         volumeBar.value = "100";
         volumeBar.oninput = () => {
             if (this.audioElement && volumeBar) {
-                this.audioElement.volume = Number((volumeBar as HTMLInputElement).value) / 100;
+                this.audioElement.volume = Number(volumeBar.value) / 100;
             }
         };
         
         
-        this.audioElement = podcastContainer.createEl("audio", { attr: { preload: "metadata" } }) as HTMLAudioElement;
+        this.audioElement = podcastContainer.createEl("audio", { attr: { preload: "metadata" } });
         if (this.currentItem.audioUrl) {
             this.audioElement.src = this.currentItem.audioUrl;
         }
@@ -326,13 +326,11 @@ export class PodcastPlayer {
                 playEpBtn.onclick = () => {
                     this.loadEpisode(ep);
                     
-                    window.setTimeout(async () => {
+                    window.setTimeout(() => {
                         if (this.audioElement) {
-                            try {
-                                await this.audioElement.play();
-                            } catch (error) {
+                            this.audioElement.play().catch(error => {
                                 console.error("Failed to play audio:", error);
-                            }
+                            });
                         }
                     }, 100); 
                 };
@@ -441,7 +439,7 @@ export class PodcastPlayer {
         if (this.repeatButton?.classList.contains("active")) {
             if (this.audioElement) {
                 this.audioElement.currentTime = 0;
-                this.audioElement.play();
+                void this.audioElement.play();
             }
         } else {
             
@@ -454,7 +452,7 @@ export class PodcastPlayer {
         if (!this.audioElement) return;
         
         if (this.audioElement.paused) {
-            this.audioElement.play();
+            void this.audioElement.play();
         } else {
             this.audioElement.pause();
         }
@@ -511,9 +509,8 @@ export class PodcastPlayer {
             }
             
             if (this.progressBarEl) {
-                const progressBar = this.progressBarEl as HTMLProgressElement;
-                progressBar.value = this.audioElement.currentTime;
-                progressBar.max = this.audioElement.duration;
+                this.progressBarEl.value = this.audioElement.currentTime;
+                this.progressBarEl.max = this.audioElement.duration;
             }
             
             if (this.progressFilledEl) {
@@ -574,8 +571,8 @@ export class PodcastPlayer {
     
     private loadProgressData(): void {
         try {
-            const data = this.app.loadLocalStorage('rss-podcast-progress');
-            if (data) {
+            const data: unknown = this.app.loadLocalStorage('rss-podcast-progress');
+            if (data && typeof data === 'object') {
                 const parsed = data as Record<string, { position: number, duration: number }>;
                 
                 this.progressData.clear();

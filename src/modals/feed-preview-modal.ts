@@ -28,7 +28,7 @@ export class FeedPreviewModal extends Modal {
         contentEl.empty();
         
         this.renderHeader(contentEl);
-        this.loadFeedPreview();
+        void this.loadFeedPreview();
     }
 
     private renderHeader(container: HTMLElement): void {
@@ -172,7 +172,7 @@ export class FeedPreviewModal extends Modal {
             }
 
             return articles;
-        } catch (error) {
+        } catch {
             
             return [];
         }
@@ -203,7 +203,7 @@ export class FeedPreviewModal extends Modal {
         
         const retryBtn = errorEl.createEl("button", { cls: "mod-cta" });
         retryBtn.textContent = "Retry";
-        retryBtn.addEventListener("click", () => this.loadFeedPreview());
+        retryBtn.addEventListener("click", () => { void this.loadFeedPreview(); });
     }
 
     private renderContent(): void {

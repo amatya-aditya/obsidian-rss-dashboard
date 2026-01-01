@@ -19,7 +19,7 @@ export class VideoPlayer {
     loadVideo(item: FeedItem): void {
         if (!item.videoId) {
             
-            new Notice("Error: No video ID provided");
+            new Notice("No video ID provided");
             return;
         }
         
@@ -145,7 +145,7 @@ export class VideoPlayer {
         });
         
         
-        const qualities = ["SD", "HD", "Full HD"];
+        const qualities = ["sd", "hd", "Full hd"];
         
         qualities.forEach((quality, index) => {
             const qualityButton = qualityOptions.createDiv({

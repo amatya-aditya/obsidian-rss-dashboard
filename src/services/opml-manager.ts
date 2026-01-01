@@ -1,5 +1,4 @@
 import { Feed, Folder, FeedMetadata } from "../types/types";
-import { Notice } from "obsidian";
 
 
 function escapeXml(unsafe: string): string {
@@ -35,7 +34,7 @@ export class OpmlManager {
                 if (!type && outline.hasChildNodes()) {
                     const folderName = outline.getAttribute("title") || 
                                       outline.getAttribute("text") || 
-                                      "Unnamed Folder";
+                                      "Unnamed folder";
                     
                     
                     const folderPath = currentPath ? `${currentPath}/${folderName}` : folderName;
@@ -61,7 +60,7 @@ export class OpmlManager {
                 else if (type === "rss" || outline.getAttribute("xmlUrl")) {
                     const feedTitle = outline.getAttribute("title") || 
                                      outline.getAttribute("text") || 
-                                     "Unnamed Feed";
+                                     "Unnamed feed";
                     const xmlUrl = outline.getAttribute("xmlUrl") || "";
                     const category = outline.getAttribute("category") || currentPath || "Uncategorized";
                     
@@ -152,7 +151,7 @@ export class OpmlManager {
                 if (!type && outline.hasChildNodes()) {
                     const folderName = outline.getAttribute("title") || 
                                       outline.getAttribute("text") || 
-                                      "Unnamed Folder";
+                                      "Unnamed folder";
                     
                     const folderPath = currentPath ? `${currentPath}/${folderName}` : folderName;
                     
@@ -174,7 +173,7 @@ export class OpmlManager {
                 else if (type === "rss" || outline.getAttribute("xmlUrl")) {
                     const feedTitle = outline.getAttribute("title") || 
                                      outline.getAttribute("text") || 
-                                     "Unnamed Feed";
+                                     "Unnamed feed";
                     const xmlUrl = outline.getAttribute("xmlUrl") || "";
                     const category = outline.getAttribute("category") || currentPath || "Uncategorized";
                     
@@ -240,11 +239,11 @@ export class OpmlManager {
     }
     
     
-    static async importOpml(
+    static importOpml(
         opmlContent: string, 
         existingFeeds: Feed[], 
         existingFolders: Folder[]
-    ): Promise<{ feeds: Feed[], folders: Folder[] }> {
+    ): { feeds: Feed[], folders: Folder[] } {
         try {
             const { feeds: newFeeds, folders: newFolders } = this.parseOpml(opmlContent);
             
@@ -265,7 +264,7 @@ export class OpmlManager {
                 feeds: mergedFeeds,
                 folders: mergedFolders
             };
-        } catch (error) {
+        } catch {
             
             throw new Error("Failed to import OPML: Invalid format");
         }
@@ -301,7 +300,7 @@ export class OpmlManager {
         let opmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
         opmlContent += '<opml version="2.0">\n';
         opmlContent += "  <head>\n";
-        opmlContent += "    <title>Obsidian RSS Dashboard Feeds</title>\n";
+        opmlContent += "    <title>RSS dashboard feeds</title>\n";
         opmlContent += `    <dateCreated>${new Date().toUTCString()}</dateCreated>\n`;
         opmlContent += "  </head>\n";
         opmlContent += "  <body>\n";

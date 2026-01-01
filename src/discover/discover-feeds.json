@@ -29,7 +29,7 @@
     "id": "feed-001",
     "title": "BBC News - World",
     "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/bbc.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bbc.com&sz=128",
     "domain": [
       "News"
     ],
@@ -55,7 +55,7 @@
     "id": "feed-002",
     "title": "The New York Times - Top Stories",
     "url": "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
-    "imageUrl": "https://logo.clearbit.com/nytimes.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=nytimes.com&sz=128",
     "domain": [
       "News"
     ],
@@ -107,7 +107,7 @@
     "id": "feed-004",
     "title": "Al Jazeera English - News",
     "url": "https://www.aljazeera.com/xml/rss/all.xml",
-    "imageUrl": "https://logo.clearbit.com/aljazeera.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=aljazeera.com&sz=128",
     "domain": [
       "News"
     ],
@@ -133,7 +133,7 @@
     "id": "feed-005",
     "title": "The Guardian - World News",
     "url": "https://www.theguardian.com/world/rss",
-    "imageUrl": "https://logo.clearbit.com/theguardian.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=theguardian.com&sz=128",
     "domain": [
       "News"
     ],
@@ -159,7 +159,7 @@
     "id": "feed-006",
     "title": "NPR News",
     "url": "https://feeds.npr.org/1001/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/npr.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=npr.org&sz=128",
     "domain": [
       "News"
     ],
@@ -184,8 +184,8 @@
   {
     "id": "feed-007",
     "title": "Hacker News (Y Combinator)",
-    "url": "https://hnrss.org/frontpage",
-    "imageUrl": "https://logo.clearbit.com/ycombinator.com",
+    "url": "https://news.ycombinator.com/rss",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=ycombinator.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -211,7 +211,7 @@
     "id": "feed-008",
     "title": "TechCrunch",
     "url": "http://feeds.feedburner.com/TechCrunch/",
-    "imageUrl": "https://logo.clearbit.com/techcrunch.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=techcrunch.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -237,7 +237,7 @@
     "id": "feed-009",
     "title": "WIRED",
     "url": "https://www.wired.com/feed/rss",
-    "imageUrl": "https://logo.clearbit.com/wired.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=wired.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -263,7 +263,7 @@
     "id": "feed-010",
     "title": "Ars Technica",
     "url": "http://feeds.arstechnica.com/arstechnica/index",
-    "imageUrl": "https://logo.clearbit.com/arstechnica.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=arstechnica.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -290,7 +290,7 @@
     "id": "feed-011",
     "title": "IEEE Spectrum",
     "url": "https://spectrum.ieee.org/feeds/feed.rss",
-    "imageUrl": "https://logo.clearbit.com/ieee.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=ieee.org&sz=128",
     "domain": [
       "Engineering"
     ],
@@ -316,7 +316,7 @@
     "id": "feed-012",
     "title": "MIT Technology Review",
     "url": "https://www.technologyreview.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/technologyreview.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=technologyreview.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -342,7 +342,7 @@
     "id": "feed-013",
     "title": "Slashdot",
     "url": "https://rss.slashdot.org/Slashdot/slashdotMain",
-    "imageUrl": "https://logo.clearbit.com/slashdot.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=slashdot.org&sz=128",
     "domain": [
       "Technology"
     ],
@@ -368,7 +368,7 @@
     "id": "feed-014",
     "title": "Engadget",
     "url": "https://www.engadget.com/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/engadget.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=engadget.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -420,7 +420,7 @@
     "id": "feed-016",
     "title": "Stack Overflow Blog",
     "url": "https://stackoverflow.blog/feed/",
-    "imageUrl": "https://logo.clearbit.com/stackoverflow.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=stackoverflow.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -446,7 +446,7 @@
     "id": "feed-017",
     "title": "Scientific American",
     "url": "https://www.scientificamerican.com/platform/syndication/rss/",
-    "imageUrl": "https://logo.clearbit.com/scientificamerican.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=scientificamerican.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -472,7 +472,7 @@
     "id": "feed-018",
     "title": "Science News Magazine",
     "url": "https://www.sciencenews.org/feed",
-    "imageUrl": "https://logo.clearbit.com/sciencenews.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=sciencenews.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -498,7 +498,7 @@
     "id": "feed-019",
     "title": "ScienceDaily",
     "url": "https://www.sciencedaily.com/rss/all.xml",
-    "imageUrl": "https://logo.clearbit.com/sciencedaily.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=sciencedaily.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -524,7 +524,7 @@
     "id": "feed-020",
     "title": "New Scientist",
     "url": "https://www.newscientist.com/feed/home",
-    "imageUrl": "https://logo.clearbit.com/newscientist.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=newscientist.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -550,7 +550,7 @@
     "id": "feed-021",
     "title": "Quanta Magazine",
     "url": "https://www.quantamagazine.org/feed",
-    "imageUrl": "https://logo.clearbit.com/quantamagazine.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=quantamagazine.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -577,7 +577,7 @@
     "id": "feed-022",
     "title": "Space.com – Space & Astronomy",
     "url": "https://www.space.com/feeds/all",
-    "imageUrl": "https://logo.clearbit.com/space.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=space.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -603,7 +603,7 @@
     "id": "feed-023",
     "title": "Futurity.org",
     "url": "https://www.futurity.org/feed/",
-    "imageUrl": "https://logo.clearbit.com/futurity.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=futurity.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -629,7 +629,7 @@
     "id": "feed-024",
     "title": "Bloomberg Markets News",
     "url": "https://feeds.bloomberg.com/markets/news.rss",
-    "imageUrl": "https://logo.clearbit.com/bloomberg.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bloomberg.com&sz=128",
     "domain": [
       "Business"
     ],
@@ -655,7 +655,7 @@
     "id": "feed-025",
     "title": "Encyclopedia Geopolitica",
     "url": "https://encyclopediageopolitica.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/encyclopediageopolitica.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=encyclopediageopolitica.com&sz=128",
     "domain": [
       "Society"
     ],
@@ -680,7 +680,7 @@
     "id": "feed-026",
     "title": "The Economist – Finance & Economics",
     "url": "https://www.economist.com/finance-and-economics/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/economist.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=economist.com&sz=128",
     "domain": [
       "Business"
     ],
@@ -706,7 +706,7 @@
     "id": "feed-027",
     "title": "Harvard Business Review",
     "url": "http://feeds.harvardbusiness.org/harvardbusiness/",
-    "imageUrl": "https://logo.clearbit.com/hbr.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=hbr.org&sz=128",
     "domain": [
       "Business"
     ],
@@ -732,7 +732,7 @@
     "id": "feed-028",
     "title": "Forbes – Innovation",
     "url": "https://www.forbes.com/innovation/feed2",
-    "imageUrl": "https://logo.clearbit.com/forbes.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=forbes.com&sz=128",
     "domain": [
       "Business"
     ],
@@ -758,7 +758,7 @@
     "id": "feed-029",
     "title": "Aeon - A World of Ideas",
     "url": "https://aeon.co/feed.rss",
-    "imageUrl": "https://logo.clearbit.com/aeon.co",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=aeon.co&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -784,7 +784,7 @@
     "id": "feed-030",
     "title": "Arts & Letters Daily",
     "url": "https://www.aldaily.com/feed",
-    "imageUrl": "https://logo.clearbit.com/aldaily.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=aldaily.com&sz=128",
     "domain": [
       "Culture"
     ],
@@ -810,7 +810,7 @@
     "id": "feed-031",
     "title": "The Marginalian",
     "url": "https://www.themarginalian.org/feed/",
-    "imageUrl": "https://logo.clearbit.com/themarginalian.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=themarginalian.org&sz=128",
     "domain": [
       "Culture"
     ],
@@ -837,7 +837,7 @@
     "id": "feed-032",
     "title": "Farnam Street (FS Blog)",
     "url": "https://fs.blog/feed",
-    "imageUrl": "https://logo.clearbit.com/fs.blog",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=fs.blog&sz=128",
     "domain": [
       "Self-Improvement"
     ],
@@ -863,7 +863,7 @@
     "id": "feed-033",
     "title": "Seth's Blog (Seth Godin)",
     "url": "https://seths.blog/feed",
-    "imageUrl": "https://logo.clearbit.com/seths.blog",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=seths.blog&sz=128",
     "domain": [
       "Business"
     ],
@@ -889,7 +889,7 @@
     "id": "feed-034",
     "title": "Smithsonian Magazine - History",
     "url": "https://www.smithsonianmag.com/rss/history/",
-    "imageUrl": "https://logo.clearbit.com/smithsonianmag.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=smithsonianmag.com&sz=128",
     "domain": [
       "History"
     ],
@@ -915,7 +915,7 @@
     "id": "feed-035",
     "title": "Sapiens Magazine",
     "url": "https://www.sapiens.org/feed/",
-    "imageUrl": "https://logo.clearbit.com/sapiens.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=sapiens.org&sz=128",
     "domain": [
       "Anthropology"
     ],
@@ -941,7 +941,7 @@
     "id": "feed-036",
     "title": "History Today",
     "url": "https://www.historytoday.com/feed/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/historytoday.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=historytoday.com&sz=128",
     "domain": [
       "History"
     ],
@@ -966,7 +966,7 @@
     "id": "feed-037",
     "title": "Foreign Affairs",
     "url": "https://www.foreignaffairs.com/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/foreignaffairs.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=foreignaffairs.com&sz=128",
     "domain": [
       "Politics"
     ],
@@ -992,7 +992,7 @@
     "id": "feed-038",
     "title": "War on the Rocks",
     "url": "https://warontherocks.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/warontherocks.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=warontherocks.com&sz=128",
     "domain": [
       "Politics"
     ],
@@ -1018,7 +1018,7 @@
     "id": "feed-039",
     "title": "Futurism",
     "url": "https://futurism.com/feed",
-    "imageUrl": "https://logo.clearbit.com/futurism.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=futurism.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -1044,7 +1044,7 @@
     "id": "feed-040",
     "title": "Singularity Hub",
     "url": "https://singularityhub.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/singularityhub.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=singularityhub.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1070,7 +1070,7 @@
     "id": "feed-041",
     "title": "OpenAI News",
     "url": "https://openai.com/news/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/openai.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=openai.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1096,7 +1096,7 @@
     "id": "feed-042",
     "title": "arXiv AI (cs.AI) New Papers",
     "url": "https://export.arxiv.org/rss/cs.AI",
-    "imageUrl": "https://logo.clearbit.com/arxiv.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=arxiv.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -1122,7 +1122,7 @@
     "id": "feed-043",
     "title": "Two Minute Papers (YouTube)",
     "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg",
-    "imageUrl": "https://logo.clearbit.com/youtube.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1148,7 +1148,7 @@
     "id": "feed-044",
     "title": "Last Week in AI",
     "url": "https://lastweekin.ai/feed",
-    "imageUrl": "https://logo.clearbit.com/lastweekin.ai",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=lastweekin.ai&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1174,7 +1174,7 @@
     "id": "feed-045",
     "title": "NYTimes Books",
     "url": "https://rss.nytimes.com/services/xml/rss/nyt/Books.xml",
-    "imageUrl": "https://logo.clearbit.com/nytimes.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=nytimes.com&sz=128",
     "domain": [
       "Arts"
     ],
@@ -1200,7 +1200,7 @@
     "id": "feed-046",
     "title": "The Guardian - Books",
     "url": "https://www.theguardian.com/books/rss",
-    "imageUrl": "https://logo.clearbit.com/theguardian.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=theguardian.com&sz=128",
     "domain": [
       "Arts"
     ],
@@ -1226,7 +1226,7 @@
     "id": "feed-047",
     "title": "Pitchfork - Latest Music News",
     "url": "https://pitchfork.com/feed/feed-news/rss",
-    "imageUrl": "https://logo.clearbit.com/pitchfork.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=pitchfork.com&sz=128",
     "domain": [
       "Arts"
     ],
@@ -1252,7 +1252,7 @@
     "id": "feed-048",
     "title": "NPR Music",
     "url": "https://feeds.npr.org/1039/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/npr.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=npr.org&sz=128",
     "domain": [
       "Arts"
     ],
@@ -1278,7 +1278,7 @@
     "id": "feed-049",
     "title": "3D Printing Industry",
     "url": "https://3dprintingindustry.com/feed",
-    "imageUrl": "https://logo.clearbit.com/3dprintingindustry.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=3dprintingindustry.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1304,7 +1304,7 @@
     "id": "feed-050",
     "title": "Terence Tao's Blog",
     "url": "https://terrytao.wordpress.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/wordpress.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=wordpress.com&sz=128",
     "domain": [
       "Mathematics"
     ],
@@ -1330,7 +1330,7 @@
     "id": "feed-051",
     "title": "Numberphile (YouTube)",
     "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCoxcjq-8xIDTYp3uz647V5A",
-    "imageUrl": "https://logo.clearbit.com/youtube.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=128",
     "domain": [
       "Mathematics"
     ],
@@ -1356,7 +1356,7 @@
     "id": "feed-052",
     "title": "HPCwire",
     "url": "https://www.hpcwire.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/hpcwire.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=hpcwire.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1382,7 +1382,7 @@
     "id": "feed-053",
     "title": "Interesting Engineering",
     "url": "https://interestingengineering.com/rss",
-    "imageUrl": "https://logo.clearbit.com/interestingengineering.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=interestingengineering.com&sz=128",
     "domain": [
       "Engineering"
     ],
@@ -1408,7 +1408,7 @@
     "id": "feed-054",
     "title": "Phys.org - Science News",
     "url": "http://www.physorg.com/rss-feed/science-news/",
-    "imageUrl": "https://logo.clearbit.com/phys.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=phys.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -1434,7 +1434,7 @@
     "id": "feed-055",
     "title": "ZDNet",
     "url": "https://www.zdnet.com/news/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/zdnet.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=zdnet.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1460,7 +1460,7 @@
     "id": "feed-056",
     "title": "Fortune Magazine",
     "url": "https://fortune.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/fortune.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=fortune.com&sz=128",
     "domain": [
       "Business"
     ],
@@ -1486,7 +1486,7 @@
     "id": "feed-057",
     "title": "Rolling Stone – Music",
     "url": "https://www.rollingstone.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/rollingstone.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=rollingstone.com&sz=128",
     "domain": [
       "Arts"
     ],
@@ -1512,7 +1512,7 @@
     "id": "feed-058",
     "title": "Tiny Buddha",
     "url": "https://tinybuddha.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/tinybuddha.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=tinybuddha.com&sz=128",
     "domain": [
       "Self-Improvement"
     ],
@@ -1564,7 +1564,7 @@
     "id": "feed-060",
     "title": "NYTimes Opinion",
     "url": "https://rss.nytimes.com/services/xml/rss/nyt/Opinion.xml",
-    "imageUrl": "https://logo.clearbit.com/nytimes.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=nytimes.com&sz=128",
     "domain": [
       "News"
     ],
@@ -1590,7 +1590,7 @@
     "id": "feed-061",
     "title": "Project Syndicate",
     "url": "https://www.project-syndicate.org/rss",
-    "imageUrl": "https://logo.clearbit.com/project-syndicate.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=project-syndicate.org&sz=128",
     "domain": [
       "News"
     ],
@@ -1616,7 +1616,7 @@
     "id": "feed-062",
     "title": "Universe Today",
     "url": "https://www.universetoday.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/universetoday.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=universetoday.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -1642,7 +1642,7 @@
     "id": "feed-063",
     "title": "Quantum Computing Report",
     "url": "https://quantumcomputingreport.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/quantumcomputingreport.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=quantumcomputingreport.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1668,7 +1668,7 @@
     "id": "feed-064",
     "title": "TCT Magazine (3D Printing)",
     "url": "https://www.tctmagazine.com/api/rss/content.rss",
-    "imageUrl": "https://logo.clearbit.com/tctmagazine.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=tctmagazine.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1694,7 +1694,7 @@
     "id": "feed-065",
     "title": "Mozilla Hacks (MDN Web Docs)",
     "url": "https://hacks.mozilla.org/feed",
-    "imageUrl": "https://logo.clearbit.com/mozilla.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=mozilla.org&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1720,7 +1720,7 @@
     "id": "feed-066",
     "title": "Stack Exchange - Hot Questions",
     "url": "https://stackexchange.com/feeds/questions",
-    "imageUrl": "https://logo.clearbit.com/stackexchange.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=stackexchange.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1746,7 +1746,7 @@
     "id": "feed-067",
     "title": "GitHub Blog",
     "url": "https://github.blog/feed/",
-    "imageUrl": "https://logo.clearbit.com/github.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=github.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1772,7 +1772,7 @@
     "id": "feed-068",
     "title": "Techmeme",
     "url": "https://www.techmeme.com/feed.xml",
-    "imageUrl": "https://logo.clearbit.com/techmeme.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=techmeme.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1798,7 +1798,7 @@
     "id": "feed-069",
     "title": "TED Talks Daily (Podcast)",
     "url": "https://feeds.feedburner.com/tedtalks_video",
-    "imageUrl": "https://logo.clearbit.com/ted.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=ted.com&sz=128",
     "domain": [
       "Education"
     ],
@@ -1824,7 +1824,7 @@
     "id": "feed-070",
     "title": "KDnuggets",
     "url": "https://www.kdnuggets.com/feed",
-    "imageUrl": "https://logo.clearbit.com/kdnuggets.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=kdnuggets.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1850,7 +1850,7 @@
     "id": "feed-071",
     "title": "LWN.net (Linux News)",
     "url": "https://lwn.net/headlines/newrss",
-    "imageUrl": "https://logo.clearbit.com/lwn.net",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=lwn.net&sz=128",
     "domain": [
       "Technology"
     ],
@@ -1876,7 +1876,7 @@
     "id": "feed-072",
     "title": "RemoteOK - Remote Jobs",
     "url": "https://remoteok.com/rss",
-    "imageUrl": "https://logo.clearbit.com/remoteok.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=remoteok.com&sz=128",
     "domain": [
       "Career"
     ],
@@ -1902,7 +1902,7 @@
     "id": "feed-073",
     "title": "The Atlantic - Latest",
     "url": "https://www.theatlantic.com/feed/all/",
-    "imageUrl": "https://logo.clearbit.com/theatlantic.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=theatlantic.com&sz=128",
     "domain": [
       "News"
     ],
@@ -1928,7 +1928,7 @@
     "id": "feed-074",
     "title": "Vox",
     "url": "https://www.vox.com/rss/index.xml",
-    "imageUrl": "https://logo.clearbit.com/vox.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=vox.com&sz=128",
     "domain": [
       "News"
     ],
@@ -1954,7 +1954,7 @@
     "id": "feed-075",
     "title": "Long Now Foundation (Blog)",
     "url": "http://feeds.feedburner.com/longnow",
-    "imageUrl": "https://logo.clearbit.com/longnow.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=longnow.org&sz=128",
     "domain": [
       "Society"
     ],
@@ -1980,7 +1980,7 @@
     "id": "feed-076",
     "title": "Noema Magazine",
     "url": "https://www.noemamag.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/noemamag.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=noemamag.com&sz=128",
     "domain": [
       "Society"
     ],
@@ -2006,7 +2006,7 @@
     "id": "feed-077",
     "title": "Marginal Revolution",
     "url": "https://marginalrevolution.com/feed",
-    "imageUrl": "https://logo.clearbit.com/marginalrevolution.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=marginalrevolution.com&sz=128",
     "domain": [
       "Business"
     ],
@@ -2032,7 +2032,7 @@
     "id": "feed-078",
     "title": "Reddit r/AskScience",
     "url": "https://www.reddit.com/r/askscience/.rss",
-    "imageUrl": "https://logo.clearbit.com/reddit.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -2058,7 +2058,7 @@
     "id": "feed-079",
     "title": "Reddit r/AskHistorians",
     "url": "https://www.reddit.com/r/AskHistorians/.rss",
-    "imageUrl": "https://logo.clearbit.com/reddit.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
     "domain": [
       "History"
     ],
@@ -2084,7 +2084,7 @@
     "id": "feed-080",
     "title": "freeCodeCamp News",
     "url": "https://www.freecodecamp.org/news/rss",
-    "imageUrl": "https://logo.clearbit.com/freecodecamp.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=freecodecamp.org&sz=128",
     "domain": [
       "Technology"
     ],
@@ -2110,7 +2110,7 @@
     "id": "feed-081",
     "title": "FiveThirtyEight",
     "url": "https://fivethirtyeight.com/all/feed",
-    "imageUrl": "https://logo.clearbit.com/fivethirtyeight.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=fivethirtyeight.com&sz=128",
     "domain": [
       "News"
     ],
@@ -2136,7 +2136,7 @@
     "id": "feed-082",
     "title": "Open Culture",
     "url": "http://www.openculture.com/feed",
-    "imageUrl": "https://logo.clearbit.com/openculture.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=openculture.com&sz=128",
     "domain": [
       "Education"
     ],
@@ -2162,7 +2162,7 @@
     "id": "feed-083",
     "title": "Paul Krugman (NYT Opinion)",
     "url": "https://rss.nytimes.com/services/xml/rss/nyt/Opinion.xml",
-    "imageUrl": "https://logo.clearbit.com/nytimes.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=nytimes.com&sz=128",
     "domain": [
       "News"
     ],
@@ -2188,7 +2188,7 @@
     "id": "feed-084",
     "title": "bioRxiv (Latest Preprints)",
     "url": "https://connect.biorxiv.org/biorxiv_xml.php?subject=all",
-    "imageUrl": "https://logo.clearbit.com/biorxiv.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=biorxiv.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -2214,7 +2214,7 @@
     "id": "feed-085",
     "title": "Science Magazine News",
     "url": "https://www.sciencemag.org/rss/news_current.xml",
-    "imageUrl": "https://logo.clearbit.com/sciencemag.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=sciencemag.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -2240,7 +2240,7 @@
     "id": "feed-086",
     "title": "Nature News",
     "url": "https://www.nature.com/nature.rss",
-    "imageUrl": "https://logo.clearbit.com/nature.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=nature.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -2266,7 +2266,7 @@
     "id": "feed-087",
     "title": "Reddit r/technology",
     "url": "https://www.reddit.com/r/technology/.rss",
-    "imageUrl": "https://logo.clearbit.com/reddit.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -2292,7 +2292,7 @@
     "id": "feed-088",
     "title": "The Diplomat",
     "url": "https://thediplomat.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/thediplomat.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=thediplomat.com&sz=128",
     "domain": [
       "Politics"
     ],
@@ -2318,7 +2318,7 @@
     "id": "feed-089",
     "title": "Palladium Magazine",
     "url": "https://palladiummag.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/palladiummag.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=palladiummag.com&sz=128",
     "domain": [
       "Society"
     ],
@@ -2344,7 +2344,7 @@
     "id": "feed-090",
     "title": "Anthropocene Magazine",
     "url": "https://www.anthropocenemagazine.org/feed/",
-    "imageUrl": "https://logo.clearbit.com/anthropocenemagazine.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=anthropocenemagazine.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -2370,7 +2370,7 @@
     "id": "feed-091",
     "title": "CoinDesk",
     "url": "https://feeds.feedburner.com/CoinDesk",
-    "imageUrl": "https://logo.clearbit.com/coindesk.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=coindesk.com&sz=128",
     "domain": [
       "Business"
     ],
@@ -2396,7 +2396,7 @@
     "id": "feed-092",
     "title": "NVIDIA Technical Blog",
     "url": "https://developer.nvidia.com/blog/feed/",
-    "imageUrl": "https://logo.clearbit.com/nvidia.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=nvidia.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -2422,7 +2422,7 @@
     "id": "feed-093",
     "title": "Nautilus",
     "url": "https://nautil.us/feed/",
-    "imageUrl": "https://logo.clearbit.com/nautil.us",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=nautil.us&sz=128",
     "domain": [
       "Science",
       "Philosophy"
@@ -2450,7 +2450,7 @@
     "id": "feed-094",
     "title": "Science News",
     "url": "https://www.sciencenews.org/feed",
-    "imageUrl": "https://logo.clearbit.com/sciencenews.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=sciencenews.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -2476,7 +2476,7 @@
     "id": "feed-095",
     "title": "NASA Breaking News",
     "url": "http://www.nasa.gov/rss/dyn/breaking_news.rss",
-    "imageUrl": "https://logo.clearbit.com/nasa.gov",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=nasa.gov&sz=128",
     "domain": [
       "Science"
     ],
@@ -2503,7 +2503,7 @@
     "id": "feed-096",
     "title": "Phys.org",
     "url": "https://phys.org/rss-feed/",
-    "imageUrl": "https://logo.clearbit.com/phys.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=phys.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -2530,7 +2530,7 @@
     "id": "feed-097",
     "title": "DeepMind Blog",
     "url": "https://deepmind.com/blog/feed/basic/",
-    "imageUrl": "https://logo.clearbit.com/deepmind.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=deepmind.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -2556,7 +2556,7 @@
     "id": "feed-098",
     "title": "Stanford Encyclopedia of Philosophy",
     "url": "https://plato.stanford.edu/rss/sep.xml",
-    "imageUrl": "https://logo.clearbit.com/stanford.edu",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=stanford.edu&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -2582,7 +2582,7 @@
     "id": "feed-099",
     "title": "The Marginalian",
     "url": "https://www.themarginalian.org/feed/",
-    "imageUrl": "https://logo.clearbit.com/themarginalian.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=themarginalian.org&sz=128",
     "domain": [
       "Culture"
     ],
@@ -2609,7 +2609,7 @@
     "id": "feed-100",
     "title": "Astral Codex Ten",
     "url": "https://astralcodexten.substack.com/feed",
-    "imageUrl": "https://logo.clearbit.com/substack.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=substack.com&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -2635,7 +2635,7 @@
     "id": "feed-101",
     "title": "LessWrong",
     "url": "http://lesserwrong.com/feed.xml",
-    "imageUrl": "https://logo.clearbit.com/lesserwrong.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=lesserwrong.com&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -2661,7 +2661,7 @@
     "id": "feed-102",
     "title": "Noahpinion",
     "url": "https://noahpinion.substack.com/feed",
-    "imageUrl": "https://logo.clearbit.com/substack.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=substack.com&sz=128",
     "domain": [
       "Economics"
     ],
@@ -2687,7 +2687,7 @@
     "id": "feed-103",
     "title": "Behavioral Scientist",
     "url": "https://behavioralscientist.org/feed/",
-    "imageUrl": "https://logo.clearbit.com/behavioralscientist.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=behavioralscientist.org&sz=128",
     "domain": [
       "Psychology"
     ],
@@ -2713,7 +2713,7 @@
     "id": "feed-104",
     "title": "Our World in Data",
     "url": "https://ourworldindata.org/atom.xml",
-    "imageUrl": "https://logo.clearbit.com/ourworldindata.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=ourworldindata.org&sz=128",
     "domain": [
       "Data"
     ],
@@ -2739,7 +2739,7 @@
     "id": "feed-105",
     "title": "Yale Environment 360",
     "url": "https://e360.yale.edu/feed.xml",
-    "imageUrl": "https://logo.clearbit.com/yale.edu",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=yale.edu&sz=128",
     "domain": [
       "Environment"
     ],
@@ -2765,7 +2765,7 @@
     "id": "feed-106",
     "title": "The Conversation (US)",
     "url": "https://theconversation.com/us/feeds/articles.atom",
-    "imageUrl": "https://logo.clearbit.com/theconversation.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=theconversation.com&sz=128",
     "domain": [
       "News"
     ],
@@ -2791,7 +2791,7 @@
     "id": "feed-107",
     "title": "Public Domain Review",
     "url": "https://publicdomainreview.org/feed/",
-    "imageUrl": "https://logo.clearbit.com/publicdomainreview.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=publicdomainreview.org&sz=128",
     "domain": [
       "Culture"
     ],
@@ -2817,7 +2817,7 @@
     "id": "feed-108",
     "title": "Atlas Obscura",
     "url": "https://www.atlasobscura.com/feeds/latest",
-    "imageUrl": "https://logo.clearbit.com/atlasobscura.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=atlasobscura.com&sz=128",
     "domain": [
       "Culture"
     ],
@@ -2843,7 +2843,7 @@
     "id": "feed-109",
     "title": "Low-Tech Magazine",
     "url": "https://solar.lowtechmagazine.com/feeds/all-en.atom.xml",
-    "imageUrl": "https://logo.clearbit.com/lowtechmagazine.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=lowtechmagazine.com&sz=128",
     "domain": [
       "Sustainability"
     ],
@@ -2869,7 +2869,7 @@
     "id": "feed-110",
     "title": "Literary Hub",
     "url": "https://lithub.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/lithub.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=lithub.com&sz=128",
     "domain": [
       "Arts"
     ],
@@ -2895,7 +2895,7 @@
     "id": "feed-111",
     "title": "Tor.com",
     "url": "https://www.tor.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/tor.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=tor.com&sz=128",
     "domain": [
       "Arts"
     ],
@@ -2921,7 +2921,7 @@
     "id": "feed-112",
     "title": "Standard Ebooks",
     "url": "https://standardebooks.org/rss/new-releases",
-    "imageUrl": "https://logo.clearbit.com/standardebooks.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=standardebooks.org&sz=128",
     "domain": [
       "Arts"
     ],
@@ -2947,7 +2947,7 @@
     "id": "feed-113",
     "title": "xkcd",
     "url": "https://xkcd.com/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/xkcd.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=xkcd.com&sz=128",
     "domain": [
       "Humor"
     ],
@@ -2973,7 +2973,7 @@
     "id": "feed-114",
     "title": "SMBC",
     "url": "http://www.smbc-comics.com/rss.php",
-    "imageUrl": "https://logo.clearbit.com/smbc-comics.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=smbc-comics.com&sz=128",
     "domain": [
       "Humor"
     ],
@@ -2999,7 +2999,7 @@
     "id": "feed-115",
     "title": "Boing Boing",
     "url": "https://boingboing.net/feed/",
-    "imageUrl": "https://logo.clearbit.com/boingboing.net",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=boingboing.net&sz=128",
     "domain": [
       "Culture"
     ],
@@ -3025,7 +3025,7 @@
     "id": "feed-116",
     "title": "Futility Closet",
     "url": "https://www.futilitycloset.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/futilitycloset.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=futilitycloset.com&sz=128",
     "domain": [
       "Culture"
     ],
@@ -3051,7 +3051,7 @@
     "id": "feed-117",
     "title": "Improbable Research",
     "url": "https://www.improbable.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/improbable.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=improbable.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -3077,7 +3077,7 @@
     "id": "feed-118",
     "title": "Mental Floss",
     "url": "http://mentalfloss.com/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/mentalfloss.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=mentalfloss.com&sz=128",
     "domain": [
       "Culture"
     ],
@@ -3103,7 +3103,7 @@
     "id": "feed-119",
     "title": "Reddit r/TodayILearned",
     "url": "https://www.reddit.com/r/todayilearned/.rss",
-    "imageUrl": "https://logo.clearbit.com/reddit.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
     "domain": [
       "Community"
     ],
@@ -3129,7 +3129,7 @@
     "id": "feed-120",
     "title": "McSweeney's Internet Tendency",
     "url": "http://feeds.feedburner.com/mcsweeneys/",
-    "imageUrl": "https://logo.clearbit.com/mcsweeneys.net",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=mcsweeneys.net&sz=128",
     "domain": [
       "Humor"
     ],
@@ -3155,7 +3155,7 @@
     "id": "feed-121",
     "title": "Wait But Why",
     "url": "https://waitbutwhy.com/feed",
-    "imageUrl": "https://logo.clearbit.com/waitbutwhy.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=waitbutwhy.com&sz=128",
     "domain": [
       "Culture"
     ],
@@ -3181,7 +3181,7 @@
     "id": "feed-122",
     "title": "Damn Interesting",
     "url": "https://www.damninteresting.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/damninteresting.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=damninteresting.com&sz=128",
     "domain": [
       "History"
     ],
@@ -3207,7 +3207,7 @@
     "id": "feed-123",
     "title": "The New Atlantis",
     "url": "https://www.thenewatlantis.com/feed",
-    "imageUrl": "https://logo.clearbit.com/thenewatlantis.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=thenewatlantis.com&sz=128",
     "domain": [
       "Society"
     ],
@@ -3233,7 +3233,7 @@
     "id": "feed-124",
     "title": "Symmetry Magazine",
     "url": "https://www.symmetrymagazine.org/feed",
-    "imageUrl": "https://logo.clearbit.com/symmetrymagazine.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=symmetrymagazine.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -3259,7 +3259,7 @@
     "id": "feed-125",
     "title": "Kottke.org",
     "url": "https://feeds.kottke.org/main",
-    "imageUrl": "https://logo.clearbit.com/kottke.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=kottke.org&sz=128",
     "domain": [
       "Culture"
     ],
@@ -3286,7 +3286,7 @@
     "id": "feed-126",
     "title": "Product Hunt",
     "url": "https://www.producthunt.com/feed",
-    "imageUrl": "https://logo.clearbit.com/producthunt.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=producthunt.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -3312,7 +3312,7 @@
     "id": "feed-127",
     "title": "Existential Comics",
     "url": "https://existentialcomics.com/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/existentialcomics.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=existentialcomics.com&sz=128",
     "domain": [
       "Humor"
     ],
@@ -3338,7 +3338,7 @@
     "id": "feed-128",
     "title": "1000-Word Philosophy",
     "url": "https://1000wordphilosophy.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/1000wordphilosophy.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=1000wordphilosophy.com&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -3363,7 +3363,7 @@
     "id": "feed-129",
     "title": "Daily Nous",
     "url": "https://dailynous.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/dailynous.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=dailynous.com&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -3388,7 +3388,7 @@
     "id": "feed-130",
     "title": "Philosophy Now",
     "url": "https://philosophynow.org/rss",
-    "imageUrl": "https://logo.clearbit.com/philosophynow.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=philosophynow.org&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -3414,7 +3414,7 @@
     "id": "feed-131",
     "title": "APA Blog",
     "url": "https://blog.apaonline.org/feed/",
-    "imageUrl": "https://logo.clearbit.com/apaonline.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=apaonline.org&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -3439,7 +3439,7 @@
     "id": "feed-132",
     "title": "Quartz",
     "url": "https://qz.com/rss",
-    "imageUrl": "https://logo.clearbit.com/qz.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=qz.com&sz=128",
     "domain": [
       "News"
     ],
@@ -3465,7 +3465,7 @@
     "id": "feed-133",
     "title": "Book Riot",
     "url": "https://bookriot.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/bookriot.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bookriot.com&sz=128",
     "domain": [
       "Arts"
     ],
@@ -3491,7 +3491,7 @@
     "id": "feed-134",
     "title": "Reddit r/BookSuggestions",
     "url": "https://www.reddit.com/r/booksuggestions/.rss",
-    "imageUrl": "https://logo.clearbit.com/reddit.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
     "domain": [
       "Community"
     ],
@@ -3516,7 +3516,7 @@
     "id": "feed-135",
     "title": "Scientific American Global",
     "url": "http://rss.sciam.com/ScientificAmerican-Global",
-    "imageUrl": "https://logo.clearbit.com/scientificamerican.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=scientificamerican.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -3541,7 +3541,7 @@
     "id": "feed-136",
     "title": "Fast.ai",
     "url": "https://www.fast.ai/index.xml",
-    "imageUrl": "https://logo.clearbit.com/fast.ai",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=fast.ai&sz=128",
     "domain": [
       "Technology"
     ],
@@ -3567,7 +3567,7 @@
     "id": "feed-137",
     "title": "APOD",
     "url": "http://www.acme.com/jef/apod/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/nasa.gov",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=nasa.gov&sz=128",
     "domain": [
       "Science"
     ],
@@ -3592,7 +3592,7 @@
     "id": "feed-138",
     "title": "ScienceDaily Astronomy",
     "url": "http://www.sciencedaily.com/rss/space_time/astronomy.xml",
-    "imageUrl": "https://logo.clearbit.com/sciencedaily.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=sciencedaily.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -3617,7 +3617,7 @@
     "id": "feed-139",
     "title": "Sci-News Astronomy",
     "url": "http://www.sci-news.com/news/astronomy/feed",
-    "imageUrl": "https://logo.clearbit.com/sci-news.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=sci-news.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -3642,7 +3642,7 @@
     "id": "feed-140",
     "title": "A Philosopher's Blog",
     "url": "http://aphilosopher.drmcl.com/feed/",
-    "imageUrl": "https://logo.clearbit.com/drmcl.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=drmcl.com&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -3667,7 +3667,7 @@
     "id": "feed-141",
     "title": "Mental Floss",
     "url": "http://mentalfloss.com/rss.xml",
-    "imageUrl": "https://logo.clearbit.com/mentalfloss.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=mentalfloss.com&sz=128",
     "domain": [
       "Culture"
     ],
@@ -3693,7 +3693,7 @@
     "id": "feed-142",
     "title": "Reddit r/TodayILearned",
     "url": "https://www.reddit.com/r/todayilearned/.rss",
-    "imageUrl": "https://logo.clearbit.com/reddit.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
     "domain": [
       "Community"
     ],
@@ -3719,7 +3719,7 @@
     "id": "feed-143",
     "title": "McSweeney's Internet Tendency",
     "url": "http://feeds.feedburner.com/mcsweeneys/",
-    "imageUrl": "https://logo.clearbit.com/mcsweeneys.net",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=mcsweeneys.net&sz=128",
     "domain": [
       "Humor"
     ],
@@ -3745,7 +3745,7 @@
     "id": "feed-144",
     "title": "Wait But Why",
     "url": "https://waitbutwhy.com/feed",
-    "imageUrl": "https://logo.clearbit.com/waitbutwhy.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=waitbutwhy.com&sz=128",
     "domain": [
       "Culture"
     ],
@@ -3771,7 +3771,7 @@
     "id": "feed-145",
     "title": "Real Engineering (YouTube)",
     "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCR1IuLEqb6UEA_zQ81kwXfg",
-    "imageUrl": "https://logo.clearbit.com/youtube.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -3798,7 +3798,7 @@
     "id": "feed-146",
     "title": "Veritasium (YouTube)",
     "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCHnyfMqiRRG1u-2MsSQLbXA",
-    "imageUrl": "https://logo.clearbit.com/youtube.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -3825,7 +3825,7 @@
     "id": "feed-147",
     "title": "3Blue1Brown (YouTube)",
     "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCYO_jab_esuFRV4b17AJtAw",
-    "imageUrl": "https://logo.clearbit.com/youtube.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -3851,7 +3851,7 @@
     "id": "feed-148",
     "title": "Internet Encyclopedia of Philosophy (IEP)",
     "url": "https://iep.utm.edu/feed/",
-    "imageUrl": "https://logo.clearbit.com/iep.utm.edu/",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=iep.utm.edu/&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -3877,7 +3877,7 @@
     "id": "feed-149",
     "title": "Daily JSTOR",
     "url": "http://daily.jstor.org/feed/",
-    "imageUrl": "https://logo.clearbit.com/daily.jstor.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=daily.jstor.org&sz=128",
     "domain": [
       "Education"
     ],
@@ -3902,7 +3902,7 @@
     "id": "feed-150",
     "title": "Lex Fridman Podcast",
     "url": "https://lexfridman.com/feed/podcast/",
-    "imageUrl": "https://logo.clearbit.com/lexfridman.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=lexfridman.com&sz=128",
     "domain": [
       "Technology",
       "Science"
@@ -3930,7 +3930,7 @@
     "id": "feed-151",
     "title": "Mindscape with Sean Carroll",
     "url": "https://rss.art19.com/sean-carrolls-mindscape",
-    "imageUrl": "https://logo.clearbit.com/preposterousuniverse.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=preposterousuniverse.com&sz=128",
     "domain": [
       "Science",
       "Philosophy"
@@ -3957,7 +3957,7 @@
     "id": "feed-152",
     "title": "NVIDIA AI Podcast",
     "url": "https://feeds.megaphone.fm/nvidiaaipodcast",
-    "imageUrl": "https://logo.clearbit.com/nvidia.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=nvidia.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -3983,7 +3983,7 @@
     "id": "feed-153",
     "title": "TWiML AI Podcast",
     "url": "https://feeds.megaphone.fm/MLN2155636147",
-    "imageUrl": "https://logo.clearbit.com/twimlai.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=twimlai.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -4035,7 +4035,7 @@
     "id": "feed-155",
     "title": "The Skeptics' Guide to the Universe",
     "url": "http://feed.theskepticsguide.org/feed/rss.aspx?feed=sgu",
-    "imageUrl": "https://logo.clearbit.com/theskepticsguide.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=theskepticsguide.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -4061,7 +4061,7 @@
     "id": "feed-156",
     "title": "StarTalk Radio",
     "url": "https://feeds.simplecast.com/4T39_jAj",
-    "imageUrl": "https://logo.clearbit.com/startalkmedia.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=startalkmedia.com&sz=128",
     "domain": [
       "Science",
       "Culture"
@@ -4088,7 +4088,7 @@
     "id": "feed-157",
     "title": "Philosophize This!",
     "url": "http://philosophizethis.libsyn.com/rss",
-    "imageUrl": "https://logo.clearbit.com/philosophizethis.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=philosophizethis.org&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -4114,7 +4114,7 @@
     "id": "feed-158",
     "title": "Dan Carlin's Hardcore History: Addendum",
     "url": "https://dchhaddendum.libsyn.com/rss",
-    "imageUrl": "https://logo.clearbit.com/dancarlin.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=dancarlin.com&sz=128",
     "domain": [
       "History"
     ],
@@ -4140,7 +4140,7 @@
     "id": "feed-159",
     "title": "History of Philosophy Without Any Gaps",
     "url": "https://feed.podbean.com/hopwag/feed.xml",
-    "imageUrl": "https://logo.clearbit.com/historyofphilosophy.net",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=historyofphilosophy.net&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -4166,7 +4166,7 @@
     "id": "feed-160",
     "title": "Exponential View with Azeem Azhar",
     "url": "https://api.substack.com/feed/podcast/265424/s/1354.rss",
-    "imageUrl": "https://logo.clearbit.com/www.exponentialview.co",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=www.exponentialview.co&sz=128",
     "domain": [
       "Technology",
       "Society"
@@ -4193,7 +4193,7 @@
     "id": "feed-161",
     "title": "Darknet Diaries",
     "url": "https://podcast.darknetdiaries.com/",
-    "imageUrl": "https://logo.clearbit.com/darknetdiaries.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=darknetdiaries.com&sz=128",
     "domain": [
       "Technology",
       "History"
@@ -4220,7 +4220,7 @@
     "id": "feed-162",
     "title": "The Amp Hour",
     "url": "https://theamphour.com/feed/podcast/",
-    "imageUrl": "https://logo.clearbit.com/theamphour.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=theamphour.com&sz=128",
     "domain": [
       "Engineering"
     ],
@@ -4273,7 +4273,7 @@
     "id": "feed-164",
     "title": "Alignment Newsletter Podcast",
     "url": "https://alignment-newsletter.libsyn.com/rss",
-    "imageUrl": "https://logo.clearbit.com/rohinshah.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=rohinshah.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -4299,7 +4299,7 @@
     "id": "feed-165",
     "title": "Nature Podcast",
     "url": "https://rss.acast.com/nature",
-    "imageUrl": "https://logo.clearbit.com/nature.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=nature.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -4325,7 +4325,7 @@
     "id": "feed-166",
     "title": "Freakonomics Radio",
     "url": "https://feeds.simplecast.com/Y8lFbOT4",
-    "imageUrl": "https://logo.clearbit.com/freakonomics.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=freakonomics.com&sz=128",
     "domain": [
       "Economics",
       "Society"
@@ -4352,7 +4352,7 @@
     "id": "feed-167",
     "title": "Planet Money",
     "url": "https://feeds.npr.org/510289/podcast.xml",
-    "imageUrl": "https://logo.clearbit.com/npr.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=npr.org&sz=128",
     "domain": [
       "Economics"
     ],
@@ -4404,7 +4404,7 @@
     "id": "feed-169",
     "title": "Radiolab",
     "url": "https://feeds.simplecast.com/EmVW7VGp",
-    "imageUrl": "https://logo.clearbit.com/wnycstudios.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=wnycstudios.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -4430,7 +4430,7 @@
     "id": "feed-170",
     "title": "Hidden Brain",
     "url": "https://feeds.npr.org/510308/podcast.xml",
-    "imageUrl": "https://logo.clearbit.com/npr.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=npr.org&sz=128",
     "domain": [
       "Psychology"
     ],
@@ -4456,7 +4456,7 @@
     "id": "feed-171",
     "title": "99% Invisible",
     "url": "https://feeds.99percentinvisible.org/99percentinvisible",
-    "imageUrl": "https://logo.clearbit.com/99percentinvisible.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=99percentinvisible.org&sz=128",
     "domain": [
       "Design"
     ],
@@ -4508,7 +4508,7 @@
     "id": "feed-173",
     "title": "Accidental Tech Podcast",
     "url": "https://anchor.fm/s/f0658d80/podcast/rss",
-    "imageUrl": "https://logo.clearbit.com/atp.fm",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=atp.fm&sz=128",
     "domain": [
       "Technology"
     ],
@@ -4534,7 +4534,7 @@
     "id": "feed-174",
     "title": "Software Engineering Daily",
     "url": "https://softwareengineeringdaily.com/feed/podcast/",
-    "imageUrl": "https://logo.clearbit.com/softwareengineeringdaily.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=softwareengineeringdaily.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -4560,7 +4560,7 @@
     "id": "feed-175",
     "title": "Command Line Heroes",
     "url": "https://feeds.simplecast.com/vUHP7wpf",
-    "imageUrl": "https://logo.clearbit.com/redhat.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=redhat.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -4614,7 +4614,7 @@
     "id": "feed-177",
     "title": "In Our Time: Philosophy",
     "url": "http://podcasts.files.bbci.co.uk/b006qy05.rss",
-    "imageUrl": "https://logo.clearbit.com/bbc.co.uk",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bbc.co.uk&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -4666,7 +4666,7 @@
     "id": "feed-179",
     "title": "Rationally Speaking",
     "url": "https://rationallyspeakingpodcast.libsyn.com/rss",
-    "imageUrl": "https://logo.clearbit.com/rationallyspeakingpodcast.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=rationallyspeakingpodcast.org&sz=128",
     "domain": [
       "Philosophy"
     ],
@@ -4692,7 +4692,7 @@
     "id": "feed-180",
     "title": "EconTalk",
     "url": "https://feeds.simplecast.com/wgl4xEgL",
-    "imageUrl": "https://logo.clearbit.com/econlib.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=econlib.org&sz=128",
     "domain": [
       "Economics"
     ],
@@ -4718,7 +4718,7 @@
     "id": "feed-181",
     "title": "The Indicator from Planet Money",
     "url": "https://feeds.npr.org/510325/podcast.xml",
-    "imageUrl": "https://logo.clearbit.com/npr.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=npr.org&sz=128",
     "domain": [
       "Economics"
     ],
@@ -4770,7 +4770,7 @@
     "id": "feed-183",
     "title": "Big Picture Science",
     "url": "https://feeds.megaphone.fm/ADV9362943796",
-    "imageUrl": "https://logo.clearbit.com/seti.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=seti.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -4796,7 +4796,7 @@
     "id": "feed-184",
     "title": "Planetary Radio",
     "url": "https://www.omnycontent.com/d/playlist/d95da206-8ee8-4ba5-ba8d-ad1200b4e5a4/cf13d5f5-6040-458d-ab5a-ad200189747d/b75c9f7f-4a63-438e-b506-ad2001897499/podcast.rss",
-    "imageUrl": "https://logo.clearbit.com/planetary.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=planetary.org&sz=128",
     "domain": [
       "Science"
     ],
@@ -4822,7 +4822,7 @@
     "id": "feed-185",
     "title": "The History of Rome",
     "url": "https://historyofrome.libsyn.com/rss",
-    "imageUrl": "https://logo.clearbit.com/thehistoryofrome.typepad.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=thehistoryofrome.typepad.com&sz=128",
     "domain": [
       "History"
     ],
@@ -4900,7 +4900,7 @@
     "id": "feed-188",
     "title": "Omnibus",
     "url": "https://audioboom.com/channels/5127257.rss",
-    "imageUrl": "https://logo.clearbit.com/omnibusproject.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=omnibusproject.com&sz=128",
     "domain": [
       "History"
     ],
@@ -4952,7 +4952,7 @@
     "id": "feed-190",
     "title": "Science Friday",
     "url": "https://feeds.simplecast.com/h18ZIZD_",
-    "imageUrl": "https://logo.clearbit.com/sciencefriday.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=sciencefriday.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -4978,7 +4978,7 @@
     "id": "feed-191",
     "title": "Houston We Have a Podcast",
     "url": "https://www.nasa.gov/rss/dyn/Houston-We-Have-a-Podcast.rss",
-    "imageUrl": "https://logo.clearbit.com/nasa.gov",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=nasa.gov&sz=128",
     "domain": [
       "Science"
     ],
@@ -5030,7 +5030,7 @@
     "id": "feed-193",
     "title": "AI Today Podcast",
     "url": "https://anchor.fm/s/f0214058/podcast/rss",
-    "imageUrl": "https://logo.clearbit.com/cognilytica.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=cognilytica.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -5108,7 +5108,7 @@
     "id": "feed-196",
     "title": "Malicious Life",
     "url": "https://maliciouslife.libsyn.com/rss",
-    "imageUrl": "https://logo.clearbit.com/cybereason.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=cybereason.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -5134,7 +5134,7 @@
     "id": "feed-197",
     "title": "History Extra Podcast",
     "url": "https://feeds.megaphone.fm/GLT5697813216",
-    "imageUrl": "https://logo.clearbit.com/historyextra.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=historyextra.com&sz=128",
     "domain": [
       "History"
     ],
@@ -5186,7 +5186,7 @@
     "id": "feed-199",
     "title": "Science Rules! with Bill Nye",
     "url": "https://feeds.simplecast.com/K0NWGFwM",
-    "imageUrl": "https://logo.clearbit.com/billnye.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=billnye.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -5212,7 +5212,7 @@
     "id": "feed-200",
     "title": "The Curious Cases of Rutherford & Fry",
     "url": "https://podcasts.files.bbci.co.uk/p05ltqxn.rss",
-    "imageUrl": "https://logo.clearbit.com/bbc.co.uk",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bbc.co.uk&sz=128",
     "domain": [
       "Science"
     ],
@@ -5238,7 +5238,7 @@
     "id": "feed-202",
     "title": "Data Skeptic",
     "url": "https://anchor.fm/s/f06031a0/podcast/rss",
-    "imageUrl": "https://logo.clearbit.com/dataskeptic.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=dataskeptic.com&sz=128",
     "domain": [
       "Technology"
     ],
@@ -5264,7 +5264,7 @@
     "id": "feed-203",
     "title": "The Infinite Monkey Cage",
     "url": "http://podcasts.files.bbci.co.uk/b00snr0w.rss",
-    "imageUrl": "https://logo.clearbit.com/bbc.co.uk",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bbc.co.uk&sz=128",
     "domain": [
       "Science"
     ],
@@ -5290,7 +5290,7 @@
     "id": "feed-204",
     "title": "The Orbital Mechanics Podcast",
     "url": "http://feeds.feedburner.com/orbitalpodcast",
-    "imageUrl": "https://logo.clearbit.com/theorbitalmechanics.com",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=theorbitalmechanics.com&sz=128",
     "domain": [
       "Science"
     ],
@@ -5368,7 +5368,7 @@
     "id": "feed-208",
     "title": "Engines of Our Ingenuity",
     "url": "https://cdn.houstonpublicmedia.org/podcasts/engines-of-our-ingenuity-apple-podcasts.xml",
-    "imageUrl": "https://logo.clearbit.com/houstonpublicmedia.org",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=houstonpublicmedia.org&sz=128",
     "domain": [
       "History",
       "Engineering"

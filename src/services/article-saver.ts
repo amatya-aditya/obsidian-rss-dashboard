@@ -1,16 +1,16 @@
-import { TFile, Vault, Notice, requestUrl } from "obsidian";
+import { TFile, App, Notice, requestUrl } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
 import TurndownService from "turndown";
 import { Readability } from "@mozilla/readability";
 import { ensureUtf8Meta } from '../utils/platform-utils';
 
 export class ArticleSaver {
-    private vault: Vault;
+    private app: App;
     private settings: ArticleSavingSettings;
     private turndownService: TurndownService;
     
-    constructor(vault: Vault, settings: ArticleSavingSettings) {
-        this.vault = vault;
+    constructor(app: App, settings: ArticleSavingSettings) {
+        this.app = app;
         this.settings = settings;
         this.turndownService = new TurndownService();
 
@@ -76,7 +76,7 @@ export class ArticleSaver {
             });
             
             return new XMLSerializer().serializeToString(doc.body);
-        } catch (e) {
+        } catch {
             
             return html;
         }
@@ -214,11 +214,11 @@ guid: "{{guid}}"
             
             try {
                 
-                if (this.vault.getAbstractFileByPath(currentPath) === null) {
+                if (this.app.vault.getAbstractFileByPath(currentPath) === null) {
                    
-                    await this.vault.createFolder(currentPath);
+                    await this.app.vault.createFolder(currentPath);
                 }
-            } catch (error) {
+            } catch {
                 
                 throw new Error(`Failed to create folder: ${currentPath}`);
             }
@@ -265,7 +265,7 @@ guid: "{{guid}}"
                             
                             return "";
                         }
-                    } catch (fallbackError) {
+                    } catch {
                         
                         return "";
                     }
@@ -321,7 +321,7 @@ guid: "{{guid}}"
             }
             
             return this.extractContentFromDocument(doc, url);
-        } catch (error) {
+        } catch {
             
             return "";
         }
@@ -330,7 +330,7 @@ guid: "{{guid}}"
     private extractContentFromDocument(doc: Document, url: string): string {
         if (typeof Readability !== 'undefined') {
             const article = new Readability(doc).parse();
-            const content = (article?.content as string) || "";
+            const content = article?.content || "";
             
             return this.convertRelativeUrlsInContent(ensureUtf8Meta(content), url);
         } else {
@@ -385,7 +385,7 @@ guid: "{{guid}}"
             
             content = content.replace(
                 /<img([^>]+)src=["']([^"']+)["']/gi,
-                (match, attributes, src) => {
+                (match: string, attributes: string, src: string) => {
                     try {
                         const srcUrl = new URL(src, baseUrl);
                         if (srcUrl.host !== baseHost) {
@@ -402,7 +402,7 @@ guid: "{{guid}}"
 
             content = content.replace(
                 /<source([^>]+)srcset=["']([^"']+)["']/gi,
-                (match, attributes, srcset) => {
+                (match: string, attributes: string, srcset: string) => {
                     const processedSrcset = srcset.split(',').map((part: string) => {
                         const trimmedPart = part.trim();
                         const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
@@ -420,13 +420,13 @@ guid: "{{guid}}"
 
             content = content.replace(
                 /<a([^>]+)href=["']([^"']+)["']/gi,
-                (match, attributes, href) => {
+                (match: string, attributes: string, href: string) => {
                     const absoluteHref = this.convertToAbsoluteUrl(href, baseUrl);
                     return `<a${attributes}href="${absoluteHref}"`;
                 }
             );
             return content;
-        } catch (error) {
+        } catch {
             
             return content;
         }
@@ -462,7 +462,7 @@ guid: "{{guid}}"
             
             
             return new URL(relativeUrl, base).href;
-        } catch (error) {
+        } catch {
             
             return relativeUrl;
         }
@@ -529,10 +529,10 @@ guid: "{{guid}}"
            
             
             
-            const existingFile = this.vault.getAbstractFileByPath(filePath);
+            const existingFile = this.app.vault.getAbstractFileByPath(filePath);
             if (existingFile !== null) {
            
-                await this.vault.delete(existingFile);
+                await this.app.fileManager.trashFile(existingFile);
             }
             
             
@@ -555,7 +555,7 @@ guid: "{{guid}}"
             content += this.applyTemplate(item, template, rawContent);
             
             
-            const file = await this.vault.create(filePath, content);
+            const file = await this.app.vault.create(filePath, content);
            
             
             
@@ -593,12 +593,12 @@ guid: "{{guid}}"
                   
                     
                     
-                    if (this.vault.getAbstractFileByPath(normalizedPath) !== null) {
+                    if (this.app.vault.getAbstractFileByPath(normalizedPath) !== null) {
                         article.savedFilePath = normalizedPath;
                        
                     } else {
                         
-                        const file = this.vault.getAbstractFileByPath(oldPath);
+                        const file = this.app.vault.getAbstractFileByPath(oldPath);
                         if (file instanceof TFile) {
                             
                             try {
@@ -607,13 +607,13 @@ guid: "{{guid}}"
                                 const newName = `${filename}.md`;
                                 
                                 
-                                await this.vault.rename(file, newName);
+                                await this.app.vault.rename(file, newName);
                                 const newPath =
                                     normalizedFolder && normalizedFolder.trim() !== ''
                                         ? `${normalizedFolder}/${newName}`
                                         : newName;
                                 article.savedFilePath = newPath;
-                            } catch (error) {
+                            } catch {
                                 article.saved = false;
                                 article.savedFilePath = undefined;
                                 if (article.tags) {
@@ -636,13 +636,13 @@ guid: "{{guid}}"
     }
 
     
-    async verifySavedArticle(article: FeedItem): Promise<boolean> {
+    verifySavedArticle(article: FeedItem): boolean {
         if (!article.saved || !article.savedFilePath) {
             return false;
         }
         
         try {
-            const file = this.vault.getAbstractFileByPath(article.savedFilePath);
+            const file = this.app.vault.getAbstractFileByPath(article.savedFilePath);
             if (file === null) {
                 
                 article.saved = false;
@@ -657,18 +657,16 @@ guid: "{{guid}}"
                 return false;
             }
             return true;
-        } catch (error) {
+        } catch {
             
             return false;
         }
     }
     
     
-    async verifyAllSavedArticles(articles: FeedItem[]): Promise<void> {
-        const verificationPromises = articles
+    verifyAllSavedArticles(articles: FeedItem[]): void {
+        articles
             .filter(article => article.saved)
-            .map(article => this.verifySavedArticle(article));
-        
-        await Promise.all(verificationPromises);
+            .forEach(article => this.verifySavedArticle(article));
     }
 }

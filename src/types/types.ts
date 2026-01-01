@@ -1,6 +1,3 @@
-import { TFile } from "obsidian";
-
-
 export interface FeedItem {
     title: string;
     link: string;
@@ -215,7 +212,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     starredArticlesPageSize: 50,
     availableTags: [
         { name: "Important", color: "#e74c3c" },
-        { name: "Read Later", color: "#3498db" },
+        { name: "Read later", color: "#3498db" },
         { name: "Favorite", color: "#f1c40f" },
         { name: "YouTube", color: "#ff0000" },
         { name: "Podcast", color: "#8e44ad" }
@@ -236,7 +233,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     },
     articleSaving: {
         addSavedTag: true,
-        defaultFolder: "RSS Articles/",
+        defaultFolder: "RSS articles/",
         defaultTemplate: `---
 title: "{{title}}"
 date: {{date}}

@@ -23,7 +23,7 @@ import { FeedParser } from "./src/services/feed-parser";
 import { ArticleSaver } from "./src/services/article-saver";
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
-import { sleep } from "./src/utils/platform-utils";
+import { sleep, setCssProps } from "./src/utils/platform-utils";
 
 export default class RssDashboardPlugin extends Plugin {
     settings!: RssDashboardSettings;
@@ -90,7 +90,7 @@ export default class RssDashboardPlugin extends Plugin {
         try {
             
             this.feedParser = new FeedParser(this.settings.media, this.settings.availableTags);
-            this.articleSaver = new ArticleSaver(this.app.vault, this.settings.articleSaving);
+            this.articleSaver = new ArticleSaver(this.app, this.settings.articleSaving);
             
             
             if (Platform.isMobile) {
@@ -121,17 +121,17 @@ export default class RssDashboardPlugin extends Plugin {
                     leaf, 
                     this.settings, 
                     this.articleSaver,
-                    this.onArticleSaved.bind(this)
+                    (item: FeedItem) => { void this.onArticleSaved(item); }
                 )
             );
     
             
-            this.addRibbonIcon("rss", "RSS Dashboard", () => {
-                this.activateView();
+            this.addRibbonIcon("rss", "RSS dashboard", () => {
+                void this.activateView();
             });
 
-            this.addRibbonIcon("lucide-compass", "RSS Discover", () => {
-                this.activateDiscoverView();
+            this.addRibbonIcon("lucide-compass", "RSS discover", () => {
+                void this.activateDiscoverView();
             });
     
             
@@ -142,7 +142,7 @@ export default class RssDashboardPlugin extends Plugin {
                 id: "open-dashboard",
                 name: "Open dashboard",
                 callback: () => {
-                    this.activateView();
+                    void this.activateView();
                 },
             });
 
@@ -150,7 +150,7 @@ export default class RssDashboardPlugin extends Plugin {
                 id: "open-discover",
                 name: "Open discover",
                 callback: () => {
-                    this.activateDiscoverView();
+                    void this.activateDiscoverView();
                 },
             });
     
@@ -158,23 +158,23 @@ export default class RssDashboardPlugin extends Plugin {
                 id: "refresh-feeds",
                 name: "Refresh feeds",
                 callback: () => {
-                    this.refreshFeeds();
+                    void this.refreshFeeds();
                 },
             });
     
             this.addCommand({
                 id: "import-opml",
-                name: "Import OPML",
+                name: "Import opml",
                 callback: () => {
-                    this.importOpml();
+                    void this.importOpml();
                 },
             });
     
             this.addCommand({
                 id: "export-opml",
-                name: "Export OPML",
+                name: "Export opml",
                 callback: () => {
-                    this.exportOpml();
+                    void this.exportOpml();
                 },
             });
     
@@ -182,7 +182,7 @@ export default class RssDashboardPlugin extends Plugin {
                 id: "apply-feed-limits",
                 name: "Apply feed limits to all feeds",
                 callback: () => {
-                    this.applyFeedLimitsToAllFeeds();
+                    void this.applyFeedLimitsToAllFeeds();
                 },
             });
     
@@ -202,15 +202,15 @@ export default class RssDashboardPlugin extends Plugin {
             
             this.registerInterval(
                 window.setInterval(
-                    () => this.refreshFeeds(),
+                    () => { void this.refreshFeeds(); },
                     this.settings.refreshInterval * 60 * 1000
                 )
             );
             
             
-        } catch (error) {
+        } catch {
             
-            new Notice("Error initializing RSS Dashboard plugin. Check console for details.");
+            new Notice("Error initializing RSS dashboard plugin.");
         }
     }
 
@@ -271,11 +271,11 @@ export default class RssDashboardPlugin extends Plugin {
                         type: RSS_DASHBOARD_VIEW_TYPE,
                         active: true,
                     });
-                workspace.revealLeaf(leaf);
+                void workspace.revealLeaf(leaf);
             }
-        } catch (error) {
+        } catch {
             
-            new Notice("Error opening RSS Dashboard view");
+            new Notice("Error opening RSS dashboard view");
         }
     }
 
@@ -307,11 +307,11 @@ export default class RssDashboardPlugin extends Plugin {
                     type: RSS_DISCOVER_VIEW_TYPE,
                     active: true,
                 });
-                workspace.revealLeaf(leaf);
+                void workspace.revealLeaf(leaf);
             }
-        } catch (error) {
+        } catch {
             
-            new Notice("Error opening RSS Discover view");
+            new Notice("Error opening RSS discover view");
         }
     }
     
@@ -341,7 +341,7 @@ export default class RssDashboardPlugin extends Plugin {
                         }
                     }
                     
-                    this.saveSettings();
+                    void this.saveSettings();
                     
                     
                     const view = await this.getActiveDashboardView();
@@ -381,7 +381,7 @@ export default class RssDashboardPlugin extends Plugin {
                 new Notice(`Feeds refreshed: ${feedNoticeText}`);
             }
         } catch (error) {
-            console.error(`[RSS Dashboard] Error refreshing feeds:`, error);
+            console.error(`[RSS dashboard] Error refreshing feeds:`, error);
             new Notice(`Error refreshing  ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -507,7 +507,7 @@ export default class RssDashboardPlugin extends Plugin {
             cls: "rss-dashboard-import-modal-header"
         });
 
-        new Setting(modalHeader).setName("Importing OPML feeds").setHeading();
+        new Setting(modalHeader).setName("Importing opml feeds").setHeading();
 
         const minimizeButton = modalHeader.createEl("button", {
             cls: "clickable-icon",
@@ -543,7 +543,7 @@ export default class RssDashboardPlugin extends Plugin {
             attr: { id: "import-progress-fill" },
             cls: "rss-dashboard-import-progress-fill"
         });
-        progressFill.style.setProperty('--progress-width', '0%');
+        setCssProps(progressFill, { '--progress-width': '0%' });
 
         modalContent.createDiv({
             attr: { id: "import-current-feed" },
@@ -553,7 +553,7 @@ export default class RssDashboardPlugin extends Plugin {
         return modal;
     }
 
-    async importOpml() {
+    importOpml(): void {
         const input = document.body.createEl("input", {
             attr: { type: "file" }
         });
@@ -570,7 +570,7 @@ export default class RssDashboardPlugin extends Plugin {
                     );
 
                     if (feedsToAdd.length === 0) {
-                        new Notice("No new feeds found in the OPML file.");
+                        new Notice("No new feeds found in the opml file.");
                         return;
                     }
 
@@ -613,20 +613,20 @@ export default class RssDashboardPlugin extends Plugin {
                     new Notice(`Imported ${addedFeeds.length} feeds. Articles will be fetched in the background.`);
 
                     
-                    this.startBackgroundImport(addedFeeds);
+                    void this.startBackgroundImport(addedFeeds);
 
                 } catch (error) {
                     const message = error instanceof Error ? error.message : String(error);
                     new Notice(message);
                 }
             } else {
-                new Notice("Please select a valid OPML file.");
+                new Notice("Please select a valid opml file.");
             }
         };
         input.click();
     }
 
-    private async startBackgroundImport(feeds: Feed[]) {
+    private startBackgroundImport(feeds: Feed[]): void {
         
         this.backgroundImportQueue.push(...feeds.map(feed => ({
             ...feed,
@@ -635,7 +635,7 @@ export default class RssDashboardPlugin extends Plugin {
 
         
         if (!this.isBackgroundImporting) {
-            this.processBackgroundImportQueue();
+            void this.processBackgroundImportQueue();
         }
     }
 
@@ -737,7 +737,7 @@ export default class RssDashboardPlugin extends Plugin {
         }
     }
 
-    async exportOpml() {
+    exportOpml(): void {
         
         const opmlContent = OpmlManager.generateOpml(
             this.settings.feeds,
@@ -767,7 +767,7 @@ export default class RssDashboardPlugin extends Plugin {
             
             const view = await this.getActiveDashboardView();
             if (view) {
-                view.refresh();
+                void view.refresh();
                 new Notice(`Folder "${folderName}" created`);
             }
         } else {
@@ -820,7 +820,7 @@ export default class RssDashboardPlugin extends Plugin {
 
             const view = await this.getActiveDashboardView();
             if (view) {
-                view.refresh();
+                void view.refresh();
             }
             new Notice(`Feed "${title}" added`);
         } catch (error) {
@@ -875,7 +875,7 @@ export default class RssDashboardPlugin extends Plugin {
                 
                 const view = await this.getActiveDashboardView();
                 if (view) {
-                    view.refresh();
+                    void view.refresh();
                     new Notice(`Subfolder "${subfolderName}" created under "${parentFolderName}"`);
                 }
             } else {
@@ -902,17 +902,17 @@ export default class RssDashboardPlugin extends Plugin {
         
         const view = await this.getActiveDashboardView();
         if (view) {
-            view.refresh();
+            void view.refresh();
             new Notice(`Feed "${newTitle}" updated`);
         }
     }
 
     async loadSettings() {
         try {
-            const data = await this.loadData();
+            const data = await this.loadData() as RssDashboardSettings | null;
             
             
-            this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+            this.settings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
             
             
             this.migrateLegacySettings();
@@ -1017,7 +1017,7 @@ export default class RssDashboardPlugin extends Plugin {
         for (const feed of this.settings.feeds) {
             for (const item of feed.items) {
                 if (item.saved) {
-                    const fileExists = await this.checkSavedFileExists(item);
+                    const fileExists = this.checkSavedFileExists(item);
                     if (!fileExists) {
                         
                         item.saved = false;
@@ -1046,16 +1046,16 @@ export default class RssDashboardPlugin extends Plugin {
     }
     
     
-    private async checkSavedFileExists(item: FeedItem): Promise<boolean> {
+    private checkSavedFileExists(item: FeedItem): boolean {
         try {
             
-            const folder = this.settings.articleSaving.defaultFolder || "RSS Articles";
+            const folder = this.settings.articleSaving.defaultFolder || "RSS articles";
             const filename = this.sanitizeFilename(item.title);
             const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
             
             
             return this.app.vault.getAbstractFileByPath(filePath) !== null;
-        } catch (error) {
+        } catch {
             
             return false;
         }

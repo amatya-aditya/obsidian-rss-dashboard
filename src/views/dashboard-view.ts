@@ -40,7 +40,7 @@ export class RssDashboardView extends ItemView {
         super(leaf);
         this.settings = this.plugin.settings;
         this.collapsedFolders = this.settings.collapsedFolders || [];
-        this.saver = new ArticleSaver(this.app.vault, this.settings.articleSaving);
+        this.saver = new ArticleSaver(this.app, this.settings.articleSaving);
         
         // Set default filter based on settings
         const defaultFilter = this.settings.display?.defaultFilter || "all";
@@ -50,7 +50,7 @@ export class RssDashboardView extends ItemView {
         if (defaultFilter !== "all" && !hiddenFilters.includes(defaultFilter)) {
             this.currentFolder = defaultFilter;
         } else {
-            this.currentFolder = null; // Default to "All Items"
+            this.currentFolder = null; 
         }
     }
 
@@ -59,7 +59,7 @@ export class RssDashboardView extends ItemView {
     }
 
     getDisplayText(): string {
-        return "RSS Dashboard";
+        return "RSS dashboard";
     }
 
     getIcon(): string {
@@ -93,7 +93,7 @@ export class RssDashboardView extends ItemView {
                     window.clearTimeout(this.verificationTimeout);
                 }
                 this.verificationTimeout = window.setTimeout(() => {
-                    this.verifySavedArticles();
+                    void this.verifySavedArticles();
                 }, 300000); 
             })
         );
@@ -159,7 +159,7 @@ export class RssDashboardView extends ItemView {
     
     async render(): Promise<void> {
         
-        await this.verifySavedArticles();
+        this.verifySavedArticles();
         
         if (this.articleList) {
             this.articleList.destroy();
@@ -217,13 +217,13 @@ export class RssDashboardView extends ItemView {
             articlesForPage,
             this.selectedArticle,
             {
-                onArticleClick: this.handleArticleClick.bind(this),
+                onArticleClick: (article) => { void this.handleArticleClick(article); },
                 onToggleViewStyle: this.handleToggleViewStyle.bind(this),
                 onRefreshFeeds: this.handleRefreshFeeds.bind(this),
-                onArticleUpdate: this.handleArticleUpdate.bind(this),
-                onArticleSave: this.handleArticleSave.bind(this),
-                onOpenSavedArticle: this.handleOpenSavedArticle.bind(this),
-                onOpenInReaderView: this.handleOpenInReaderView.bind(this),
+                onArticleUpdate: (article, updates, shouldRerender) => { void this.handleArticleUpdate(article, updates, shouldRerender); },
+                onArticleSave: (article) => { void this.handleArticleSave(article); },
+                onOpenSavedArticle: (article) => { void this.handleOpenSavedArticle(article); },
+                onOpenInReaderView: (article) => { void this.handleOpenInReaderView(article); },
                 onToggleSidebar: this.handleToggleSidebar.bind(this),
                 onSortChange: this.handleSortChange.bind(this),
                 onGroupChange: this.handleGroupChange.bind(this),
@@ -523,7 +523,7 @@ export class RssDashboardView extends ItemView {
             if (foldersSection) (foldersSection as HTMLElement).scrollTop = scrollPosition;
         }
 
-        this.render();
+        void this.render();
     }
     
     
@@ -541,7 +541,7 @@ export class RssDashboardView extends ItemView {
         if (feed && feed.url) {
             this.feedPages[feed.url] = 1;
         }
-        this.render();
+        void this.render();
         if (this.sidebarContainer) {
             window.setTimeout(() => {
                 const foldersSection = this.sidebarContainer?.querySelector('.rss-dashboard-feed-folders-section');
@@ -556,13 +556,13 @@ export class RssDashboardView extends ItemView {
         this.currentFolder = null;
         this.currentFeed = null;
         this.selectedArticle = null;
-        this.render();
+        void this.render();
     }
     
     
     private handleToggleTagsCollapse(): void {
         this.tagsCollapsed = !this.tagsCollapsed;
-        this.render();
+        void this.render();
     }
     
     
@@ -575,11 +575,11 @@ export class RssDashboardView extends ItemView {
             this.collapsedFolders.push(folder);
         }
         this.settings.collapsedFolders = this.collapsedFolders;
-        this.plugin.saveSettings();
+        void this.plugin.saveSettings();
         
         
         if (shouldRerender) {
-            this.render();
+            void this.render();
         }
     }
 
@@ -593,43 +593,43 @@ export class RssDashboardView extends ItemView {
         });
         
         this.settings.collapsedFolders = this.collapsedFolders;
-        this.plugin.saveSettings();
-        this.render();
+        void this.plugin.saveSettings();
+        void this.render();
     }
     
     
     private handleAddFolder(name: string): void {
-        this.plugin.addFolder(name);
+        void this.plugin.addFolder(name);
     }
     
     
     private handleAddSubfolder(parent: string, name: string): void {
-        this.plugin.addSubfolder(parent, name);
+        void this.plugin.addSubfolder(parent, name);
     }
     
     
     private async handleAddFeed(title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number): Promise<void> {
         await this.plugin.addFeed(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval);
-        this.render();
+        void this.render();
     }
     
    
     private handleEditFeed(feed: Feed, title: string, url: string, folder: string): void {
-        this.plugin.editFeed(feed, title, url, folder);
-        this.render();
+        void this.plugin.editFeed(feed, title, url, folder);
+        void this.render();
     }
     
  
     private handleDeleteFeed(feed: Feed): void {
         this.plugin.settings.feeds = this.plugin.settings.feeds.filter((f: Feed) => f !== feed);
-        this.plugin.saveSettings();
+        void this.plugin.saveSettings();
         
         
         if (this.currentFeed === feed) {
             this.currentFeed = null;
         }
         
-        this.render();
+        void this.render();
     }
     
     
@@ -644,26 +644,26 @@ export class RssDashboardView extends ItemView {
             (f: { name: string }) => f.name !== folder
         );
         
-        this.plugin.saveSettings();
+        void this.plugin.saveSettings();
         
         
         if (this.currentFolder === folder) {
             this.currentFolder = null;
         }
         
-        this.render();
+        void this.render();
     }
     
     
     private handleRefreshFeeds(): void {
         
         if (this.currentFeed) {
-            this.plugin.refreshSelectedFeed(this.currentFeed);
+            void this.plugin.refreshSelectedFeed(this.currentFeed);
         }
         
         else if (this.currentFolder && 
                  !["read", "unread", "starred", "saved", "videos", "podcasts"].includes(this.currentFolder)) {
-            this.plugin.refreshFeedsInFolder(this.currentFolder);
+            void this.plugin.refreshFeedsInFolder(this.currentFolder);
         }
         
         else if (this.currentTag) {
@@ -671,32 +671,32 @@ export class RssDashboardView extends ItemView {
                 feed.items.some(item => item.tags && item.tags.some(tag => tag.name === this.currentTag))
             );
             if (feedsWithTag.length > 0) {
-                this.plugin.refreshFeeds(feedsWithTag);
+                void this.plugin.refreshFeeds(feedsWithTag);
             } else {
                 new Notice("No feeds found with the selected tag");
             }
         }
         
         else {
-            this.plugin.refreshFeeds();
+            void this.plugin.refreshFeeds();
         }
     }
     
     
     private handleImportOpml(): void {
-        this.plugin.importOpml();
+        void this.plugin.importOpml();
     }
     
     
     private handleExportOpml(): void {
-        this.plugin.exportOpml();
+        void this.plugin.exportOpml();
     }
     
     
     private handleToggleSidebar(): void {
         this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
-        this.plugin.saveSettings();
-        this.render();
+        void this.plugin.saveSettings();
+        void this.render();
     }
     
 
@@ -786,7 +786,7 @@ export class RssDashboardView extends ItemView {
                 type: RSS_READER_VIEW_TYPE,
                 active: true,
             });
-            await workspace.revealLeaf(leaf);
+            void workspace.revealLeaf(leaf);
             if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
                 await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
             }
@@ -836,8 +836,8 @@ export class RssDashboardView extends ItemView {
     
     private handleToggleViewStyle(style: "list" | "card"): void {
         this.settings.viewStyle = style;
-        this.plugin.saveSettings();
-        this.render();
+        void this.plugin.saveSettings();
+        void this.render();
     }
     
     
@@ -893,7 +893,7 @@ export class RssDashboardView extends ItemView {
 
         
         if (shouldRerender) {
-            this.render();
+            void this.render();
         }
     }
     
@@ -918,13 +918,14 @@ export class RssDashboardView extends ItemView {
         await this.render();
     }
 
-    async onClose(): Promise<void> {
+    onClose(): Promise<void> {
         if (this.verificationTimeout) {
             window.clearTimeout(this.verificationTimeout);
         }
         if (this.articleList) {
             this.articleList.destroy();
         }
+        return Promise.resolve();
     }
 
     
@@ -946,7 +947,7 @@ export class RssDashboardView extends ItemView {
             }
             
             
-            this.render();
+            void this.render();
             new Notice(`Feed "${feed.title}" updated successfully`);
             
         } catch (error) {
@@ -990,20 +991,20 @@ export class RssDashboardView extends ItemView {
 
     private handleSortChange(value: 'newest' | 'oldest'): void {
         this.settings.articleSort = value;
-        this.plugin.saveSettings();
-        this.render();
+        void this.plugin.saveSettings();
+        void this.render();
     }
 
     private handleFilterChange(value: { type: 'age' | 'read' | 'unread' | 'starred' | 'saved' | 'none'; value: unknown; }): void {
         this.settings.articleFilter = value;
-        this.plugin.saveSettings();
-        this.render();
+        void this.plugin.saveSettings();
+        void this.render();
     }
 
     private handleGroupChange(value: 'none' | 'feed' | 'date' | 'folder'): void {
         this.settings.articleGroupBy = value;
-        this.plugin.saveSettings();
-        this.render();
+        void this.plugin.saveSettings();
+        void this.render();
     }
 
     
@@ -1151,7 +1152,7 @@ export class RssDashboardView extends ItemView {
             
             const leaf = this.app.workspace.getLeaf("split");
             await leaf.openFile(file);
-            this.app.workspace.revealLeaf(leaf);
+            void this.app.workspace.revealLeaf(leaf);
             
             new Notice(`Opened saved article: ${file.basename}`);
         } catch (error) {
@@ -1262,9 +1263,9 @@ export class RssDashboardView extends ItemView {
     }
 
     
-    private async verifySavedArticles(): Promise<void> {
+    private verifySavedArticles(): void {
         const allArticles = this.getFilteredArticles();
-        await this.saver.verifyAllSavedArticles(allArticles);
+        this.saver.verifyAllSavedArticles(allArticles);
     }
 
     
@@ -1288,7 +1289,7 @@ export class RssDashboardView extends ItemView {
         
         
         if (affectedArticles.length > 0) {
-            this.render();
+            void this.render();
         }
     }
 
@@ -1313,7 +1314,7 @@ export class RssDashboardView extends ItemView {
         
         
         if (affectedArticles.length > 0) {
-            this.render();
+            void this.render();
         }
     }
 
@@ -1342,7 +1343,7 @@ export class RssDashboardView extends ItemView {
         } else if (this.currentFolder === "starred") {
             this.starredArticlesPage = page;
         }
-        this.render();
+        void this.render();
     }
 
     private handlePageSizeChange(pageSize: number): void {
@@ -1361,7 +1362,7 @@ export class RssDashboardView extends ItemView {
         } else if (this.currentFolder === "starred") {
             this.settings.starredArticlesPageSize = pageSize;
         }
-        this.render();
+        void this.render();
     }
 
     private getAllFilteredArticles(): FeedItem[] {

@@ -1,6 +1,61 @@
-import { requestUrl } from "obsidian";
+import { requestUrl, Platform } from "obsidian";
 import { Feed, FeedItem, MediaSettings, Tag } from "../types/types.js";
 import { MediaService } from "./media-service";
+
+// Type definitions for external API responses
+interface AllOriginsResponse {
+    contents: string;
+}
+
+interface Rss2JsonFeedItem {
+    title?: string;
+    link?: string;
+    description?: string;
+    pubDate?: string;
+}
+
+interface Rss2JsonFeed {
+    title?: string;
+    description?: string;
+    link?: string;
+    language?: string;
+    image?: string;
+}
+
+interface Rss2JsonResponse {
+    status: string;
+    feed?: Rss2JsonFeed;
+    items?: Rss2JsonFeedItem[];
+    message?: string;
+}
+
+interface JsonFeedAuthor {
+    name?: string;
+}
+
+interface JsonFeedItem {
+    url?: string;
+    title?: string;
+    summary?: string;
+    date_published?: string;
+    id?: string;
+    authors?: JsonFeedAuthor[];
+    content_html?: string;
+    content_text?: string;
+    image?: string;
+    category?: string;
+    tags?: string[];
+}
+
+interface JsonFeed {
+    version?: string;
+    title?: string;
+    description?: string;
+    home_page_url?: string;
+    authors?: JsonFeedAuthor[];
+    icon?: string;
+    items?: JsonFeedItem[];
+}
 
 function isValidFeed(text: string): boolean {
     if (!text) return false;
@@ -70,7 +125,7 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
                             
                             return feedUrl;
                         }
-                    } catch (error) {
+                    } catch {
                         
                         continue;
                     }
@@ -137,7 +192,7 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
 }
 
 export async function fetchFeedXml(url: string): Promise<string> {
-        const isAndroid = /android/i.test(navigator.userAgent);
+    const isAndroid = Platform.isAndroidApp;
     
     
     async function tryFetch(targetUrl: string): Promise<string> {
@@ -168,7 +223,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                         } else {
                             throw new Error('Not a valid RSS/Atom feed');
                         }
-            } catch (e) {
+            } catch {
                         
                         continue;
                     }
@@ -238,13 +293,13 @@ export async function fetchFeedXml(url: string): Promise<string> {
                         return toggledResp.text;
                     }
                 } catch {
-                    // Toggled URL fetch failed, continue
+                    // Toggled url fetch failed, continue
                 }
             }
 
             
             if (response.text.includes('<?php') || response.text.includes('WordPress') || response.text.includes('wp-blog-header.php')) {
-                console.warn('Received PHP file instead of RSS feed, trying alternative URLs...');
+                console.warn('Received php file instead of RSS feed, trying alternative URLs...');
                 
                 
                 const baseUrl = secureUrl.replace(/\/feed\/?$/, '');
@@ -296,7 +351,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                         } else {
                             throw new Error('Not a valid RSS/Atom feed');
                     }
-                } catch (altError) {
+                } catch {
                         
                     continue;
                 }
@@ -324,7 +379,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                             throw new Error('Not a valid RSS/Atom feed');
                     }
                 } catch {
-                    // Discovered URL fetch failed, continue
+                    // Discovered url fetch failed, continue
                 }
             }
             
@@ -334,7 +389,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
             throw new Error('Not a valid RSS/Atom feed');
         } catch (error) {
             
-            console.warn(`[RSS Dashboard] Direct fetch failed for ${targetUrl}, trying AllOrigins proxy...`, error);
+            console.warn(`[RSS dashboard] direct fetch failed for ${targetUrl}, trying AllOrigins proxy...`, error);
             
             try {
                 const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
@@ -342,7 +397,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                     url: allOriginsUrl,
                     method: "GET"
                 });
-                const data = JSON.parse(proxyResponse.text);
+                const data = JSON.parse(proxyResponse.text) as AllOriginsResponse;
                 if (!data.contents) throw new Error('No contents from AllOrigins');
                 
                 
@@ -352,9 +407,9 @@ export async function fetchFeedXml(url: string): Promise<string> {
                     throw new Error('Not a valid RSS/Atom feed');
                 }
             } catch (proxyError) {
-                console.error(`[RSS Dashboard] AllOrigins proxy fetch failed for ${targetUrl}:`, proxyError);
+                console.error(`[RSS dashboard] AllOrigins proxy fetch failed for ${targetUrl}:`, proxyError);
 
-                // Try AllOrigins raw endpoint
+                // Try allOrigins raw endpoint
                 try {
                     const rawUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
                     const rawResp = await requestUrl({ url: rawUrl, method: "GET" });
@@ -364,7 +419,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                         throw new Error('AllOrigins raw returned non-feed');
                     }
                 } catch {
-                    // Toggled URL fetch failed, continue
+                    // Toggled url fetch failed, continue
                 }
                 
                 if (!isAndroid) {
@@ -379,7 +434,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                             throw new Error('Not a valid RSS/Atom feed');
                         }
                     } catch (e) {
-                        console.warn('[RSS Dashboard] Codetabs proxy failed', e);
+                        console.warn('[RSS dashboard] codetabs proxy failed', e);
                     }
                     
                     // isomorphic-git CORS proxy (raw)
@@ -392,7 +447,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                             throw new Error('Not a valid RSS/Atom feed');
                         }
                     } catch (e) {
-                        console.warn('[RSS Dashboard] isomorphic-git proxy failed', e);
+                        console.warn('[RSS dashboard] isomorphic-git proxy failed', e);
                     }
 
                     try {
@@ -405,7 +460,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                             throw new Error('Not a valid RSS/Atom feed');
                         }
                     } catch (e) {
-                        console.warn('[RSS Dashboard] thingproxy failed', e);
+                        console.warn('[RSS dashboard] thingproxy failed', e);
                     }
                     
                     try {
@@ -428,7 +483,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                             }
                         }
                     } catch (e) {
-                        console.warn('[RSS Dashboard] discoverFeedUrl proxy fetch failed', e);
+                        console.warn('[RSS dashboard] discoverFeedUrl proxy fetch failed', e);
                     }
                 }
                 throw new Error(`Could not fetch a valid RSS/Atom feed from ${targetUrl}`);
@@ -457,24 +512,24 @@ export async function fetchFeedXml(url: string): Promise<string> {
             } else {
                 throw new Error('First proxy blocked by Cloudflare');
             }
-        } catch (proxyError) {
+        } catch {
             try {
                 const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
                 const proxyResponse = await requestUrl({ url: rss2jsonUrl, method: "GET" });
-                const data = JSON.parse(proxyResponse.text);
+                const data = JSON.parse(proxyResponse.text) as Rss2JsonResponse;
                 
                 if (data.status === 'ok' && data.feed) {
                     
                     const feed = data.feed;
                     const items = data.items || [];
                     
-                    let rss = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n    <title>${feed.title || 'Unknown Feed'}</title>\n    <description>${feed.description || ''}</description>\n    <link>${feed.link || ''}</link>\n    <language>${feed.language || 'en'}</language>`;
+                    let rss = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n    <title>${feed.title || 'Unknown feed'}</title>\n    <description>${feed.description || ''}</description>\n    <link>${feed.link || ''}</link>\n    <language>${feed.language || 'en'}</language>`;
                     
                     if (feed.image) {
-                        rss += `\n    <image>\n        <url>${feed.image}</url>\n        <title>${feed.title || 'Unknown Feed'}</title>\n        <link>${feed.link || ''}</link>\n    </image>`;
+                        rss += `\n    <image>\n        <url>${feed.image}</url>\n        <title>${feed.title || 'Unknown feed'}</title>\n        <link>${feed.link || ''}</link>\n    </image>`;
                     }
                     
-                    items.forEach((item: FeedItem) => {
+                    items.forEach((item: Rss2JsonFeedItem) => {
                         rss += `\n    <item>\n        <title>${item.title || ''}</title>\n        <link>${item.link || ''}</link>\n        <description><![CDATA[${item.description || ''}]]></description>\n        <pubDate>${item.pubDate || new Date().toISOString()}</pubDate>\n        <guid>${item.link || ''}</guid>\n    </item>`;
                     });
                     
@@ -484,7 +539,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                     } else {
                         throw new Error('RSS2JSON returned error: ' + (data.message || 'Unknown error'));
                     }
-            } catch (proxyError2) {
+            } catch {
                 throw error; 
             }
         }
@@ -562,16 +617,16 @@ export class CustomXMLParser {
                 const [namespace, localName] = parts;
                 try {
                     el = element.querySelector(`${namespace}\\:${localName}`);
-                } catch (e) {
+                } catch {
                     try {
                         const elements = element.getElementsByTagNameNS('*', localName);
                         if (elements.length > 0) {
                             el = elements[0];
                         }
-                    } catch (e2) {
+                    } catch {
                         try {
                             el = element.querySelector(localName);
-                        } catch (e3) {
+                        } catch {
                             el = element.querySelector(`*[local-name()="${localName}"]`);
                         }
                     }
@@ -587,7 +642,7 @@ export class CustomXMLParser {
                         try {
                             el = element.querySelector(selector);
                             if (el) break;
-                        } catch (e) {
+                        } catch {
                             continue;
                         }
                     }
@@ -772,11 +827,11 @@ export class CustomXMLParser {
             .replace(/&yacute;/g, '\u00FD')
             .replace(/&thorn;/g, '\u00FE')
             .replace(/&yuml;/g, '\u00FF')
-            .replace(/&#(\d+);/g, (match, dec) => {
+            .replace(/&#(\d+);/g, (match: string, dec: string) => {
                 const num = parseInt(dec, 10);
                 return num >= 0 && num <= 0x10FFFF ? String.fromCodePoint(num) : match;
             })
-            .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => {
+            .replace(/&#x([0-9a-fA-F]+);/g, (match: string, hex: string) => {
                 const num = parseInt(hex, 16);
                 return num >= 0 && num <= 0x10FFFF ? String.fromCodePoint(num) : match;
             });
@@ -798,7 +853,7 @@ export class CustomXMLParser {
                 if (el && el.textContent?.trim()) {
                     return this.sanitizeCDATA(el.textContent.trim());
                 }
-            } catch (e) {
+            } catch {
                 
                 continue;
             }
@@ -867,7 +922,7 @@ export class CustomXMLParser {
             const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
             const imageUrl = imgMatch ? imgMatch[1] : '';
             return this.convertAppUrls(imageUrl);
-        } catch (error) {
+        } catch {
             return '';
         }
     }
@@ -895,7 +950,7 @@ export class CustomXMLParser {
 
     private parseRSS(doc: Document): ParsedFeed {
         const channel = doc.querySelector('channel');
-        if (!channel) throw new Error('Invalid RSS feed: no channel element found');
+        if (!channel) throw new Error('Invalid rss feed: no channel element found');
 
         const title = this.getTextContent(channel, 'title');
         
@@ -1054,7 +1109,7 @@ export class CustomXMLParser {
     private parseRSS1(doc: Document): ParsedFeed {
         
         const channel = doc.querySelector('channel');
-        if (!channel) throw new Error('Invalid RSS 1.0 feed: no channel element found');
+        if (!channel) throw new Error('Invalid rss 1.0 feed: no channel element found');
 
         const title = this.getTextContent(channel, 'title');
         const description = this.getTextContent(channel, 'description');
@@ -1138,7 +1193,7 @@ export class CustomXMLParser {
         });
 
         return {
-            title: title || 'Unknown Feed',
+            title: title || 'Unknown feed',
             description: description || '',
             link: link || '',
             author: author || undefined,
@@ -1155,7 +1210,7 @@ export class CustomXMLParser {
         const feed = doc.querySelector('feed');
         if (!feed) {
             
-            throw new Error('Invalid Atom feed: no feed element found');
+            throw new Error('Invalid atom feed: no feed element found');
         }
 
         const title = this.getTextContent(feed, 'title');
@@ -1209,7 +1264,7 @@ export class CustomXMLParser {
 
     private parseJSON(jsonString: string): ParsedFeed {
         try {
-            const data = JSON.parse(jsonString);
+            const data = JSON.parse(jsonString) as JsonFeed;
             
             
             if (data.version && data.version.startsWith('https://jsonfeed.org/')) {
@@ -1219,22 +1274,21 @@ export class CustomXMLParser {
                     link: data.home_page_url,
                     author: data.authors?.[0]?.name,
                     image: data.icon ? { url: data.icon } : undefined,
-                    items: data.items?.map((item: unknown) => {
-                        const jsonItem = item as Record<string, unknown>;
-                        let itemUrl = (jsonItem.url as string) || '';
+                    items: data.items?.map((item: JsonFeedItem) => {
+                        let itemUrl = item.url || '';
                         
                         itemUrl = this.transformSageUrl(itemUrl);
                         
                         return {
-                            title: (jsonItem.title as string) || '',
+                            title: item.title || '',
                             link: itemUrl,
-                            description: (jsonItem.summary as string) || '',
-                            pubDate: (jsonItem.date_published as string) || new Date().toISOString(),
-                            guid: (jsonItem.id as string) || itemUrl || '',
-                            author: (jsonItem.authors as Array<{ name?: string }>)?.[0]?.name,
-                            content: (jsonItem.content_html as string) || (jsonItem.content_text as string) || '',
-                            image: jsonItem.image ? { url: jsonItem.image as string } : undefined,
-                            category: (jsonItem.category as string) || ((jsonItem.tags as string[])?.[0] as string) || ''
+                            description: item.summary || '',
+                            pubDate: item.date_published || new Date().toISOString(),
+                            guid: item.id || itemUrl || '',
+                            author: item.authors?.[0]?.name,
+                            content: item.content_html || item.content_text || '',
+                            image: item.image ? { url: item.image } : undefined,
+                            category: item.category || item.tags?.[0] || ''
                         };
                     }) || [],
                     type: 'json',
@@ -1243,9 +1297,9 @@ export class CustomXMLParser {
                 };
             }
             
-            throw new Error('Unsupported JSON feed format');
+            throw new Error('Unsupported json feed format');
         } catch (error) {
-            throw new Error(`Failed to parse JSON feed: ${error}`);
+            throw new Error(`Failed to parse json feed: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 
@@ -1281,7 +1335,7 @@ export class CustomXMLParser {
             
             
             const channelTitleMatch = cleanedXml.match(/<channel[^>]*>[\s\S]*?<title[^>]*>([^<]+)<\/title>/i);
-            const title = channelTitleMatch ? this.sanitizeCDATA(channelTitleMatch[1].trim()) : 'Unknown Feed';
+            const title = channelTitleMatch ? this.sanitizeCDATA(channelTitleMatch[1].trim()) : 'Unknown feed';
             
             
             const channelDescMatch = cleanedXml.match(/<channel[^>]*>[\s\S]*?<description[^>]*>([\s\S]*?)<\/description>/i);
@@ -1453,7 +1507,7 @@ export class CustomXMLParser {
             };
         } catch (error) {
             
-            throw new Error(`Fallback parsing failed: ${error}`);
+            throw new Error(`Fallback parsing failed: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 
@@ -1485,7 +1539,7 @@ export class CustomXMLParser {
                     const descMatch = xmlString.match(/<description[^>]*>([\s\S]*?)<\/description>/i);
                     const linkMatch = xmlString.match(/<link[^>]*>([^<]+)<\/link>/i);
                     
-                    const title = titleMatch ? titleMatch[1].trim() : 'Unknown Feed';
+                    const title = titleMatch ? titleMatch[1].trim() : 'Unknown feed';
                     const description = descMatch ? descMatch[1].trim() : '';
                     const link = linkMatch ? linkMatch[1].trim() : '';
                     
@@ -1551,9 +1605,9 @@ export class CustomXMLParser {
 
         
         // Only escape bare ampersands that are not already part of an entity and not inside CDATA
-        processed = processed.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, (m) => m.replace(/&/g, '__AMP__'));
+        processed = processed.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, (m: string) => m.replace(/&/g, '__AMP__'));
         // Replace lookahead with compatible pattern: match & and check if it's followed by valid entity pattern
-        processed = processed.replace(/&/g, (match, offset, string) => {
+        processed = processed.replace(/&/g, (match: string, offset: number, string: string) => {
             const remaining = string.substring(offset + 1);
             // Check if this ampersand is part of a valid entity
             if (remaining.match(/^(amp|lt|gt|quot|apos);/)) {
@@ -1577,7 +1631,7 @@ export class CustomXMLParser {
         return processed;
     }
 
-    async parseString(xmlString: string): Promise<ParsedFeed> {
+    parseString(xmlString: string): ParsedFeed {
         try {
             
             
@@ -1616,7 +1670,7 @@ export class CustomXMLParser {
                             }
                         }
                     } catch (extractError) {
-                        console.error('[RSS Dashboard] parseString: Error in fallback extraction', extractError);
+                        console.error('[RSS dashboard] parseString: Error in fallback extraction', extractError);
                     }
                 }
                 
@@ -1648,11 +1702,13 @@ export class CustomXMLParser {
                 return this.fallbackParse(xmlString);
             }
         } catch (error) {
-            console.error('[RSS Dashboard] parseString error:', error);
+            console.error('[RSS dashboard] parseString error:', error);
             try {
                 return this.fallbackParse(xmlString);
             } catch (fallbackError) {
-                throw new Error(`All parsing attempts failed: ${error}. Fallback error: ${fallbackError}`);
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                const fallbackMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+                throw new Error(`All parsing attempts failed: ${errorMsg}. Fallback error: ${fallbackMsg}`);
             }
         }
     }
@@ -1712,7 +1768,7 @@ export class FeedParser {
             
             
             return new URL(relativeUrl, base).href;
-        } catch (error) {
+        } catch {
             
             return relativeUrl;
         }
@@ -1857,11 +1913,11 @@ export class FeedParser {
             .replace(/&yacute;/g, '\u00FD')
             .replace(/&thorn;/g, '\u00FE')
             .replace(/&yuml;/g, '\u00FF')
-            .replace(/&#(\d+);/g, (match, dec) => {
+            .replace(/&#(\d+);/g, (match: string, dec: string) => {
                 const num = parseInt(dec, 10);
                 return num >= 0 && num <= 0x10FFFF ? String.fromCodePoint(num) : match;
             })
-            .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => {
+            .replace(/&#x([0-9a-fA-F]+);/g, (match: string, hex: string) => {
                 const num = parseInt(hex, 16);
                 return num >= 0 && num <= 0x10FFFF ? String.fromCodePoint(num) : match;
             });
@@ -1883,7 +1939,7 @@ export class FeedParser {
             
             content = content.replace(
                 /<img([^>]+)src=["']([^"']+)["']/gi,
-                (match, attributes, src) => {
+                (match: string, attributes: string, src: string) => {
                     
                     const decodedSrc = this.parser.decodeHtmlEntities(src);
                     const absoluteSrc = this.convertToAbsoluteUrl(decodedSrc, baseUrl);
@@ -1894,7 +1950,7 @@ export class FeedParser {
             
             content = content.replace(
                 /<source([^>]+)srcset=["']([^"']+)["']/gi,
-                (match, attributes, srcset) => {
+                (match: string, attributes: string, srcset: string) => {
                     
                     const processedSrcset = srcset.split(',').map((part: string) => {
                         const trimmedPart = part.trim();
@@ -1917,7 +1973,7 @@ export class FeedParser {
             
             content = content.replace(
                 /<a([^>]+)href=["']([^"']+)["']/gi,
-                (match, attributes, href) => {
+                (match: string, attributes: string, href: string) => {
                     
                     const decodedHref = this.decodeHtmlEntities(href);
                     const absoluteHref = this.convertToAbsoluteUrl(decodedHref, baseUrl);
@@ -1926,7 +1982,7 @@ export class FeedParser {
             );
             
             return content;
-        } catch (error) {
+        } catch {
             
             return content;
         }
@@ -2065,7 +2121,7 @@ export class FeedParser {
             }
             
             return text;
-        } catch (e) {
+        } catch {
             
             return "";
         }
@@ -2074,12 +2130,12 @@ export class FeedParser {
     
     async parseFeed(url: string, existingFeed: Feed | null = null): Promise<Feed> {
         if (!url) {
-            throw new Error("Feed URL is required");
+            throw new Error("Feed url is required");
         }
         
         const responseText = await fetchFeedXml(url);
-        const parsed = await this.parser.parseString(responseText);
-        const feedTitle = existingFeed?.title || parsed.title || "Unnamed Feed";
+        const parsed = this.parser.parseString(responseText);
+        const feedTitle = existingFeed?.title || parsed.title || "Unnamed feed";
           
             const newFeed: Feed = existingFeed || {
                 title: feedTitle,
@@ -2333,7 +2389,7 @@ export class FeedParser {
             
             
             return refreshedFeed;
-        } catch (error) {
+        } catch {
             
             return feed;
         }
@@ -2349,7 +2405,7 @@ export class FeedParser {
                 const refreshedFeed = await this.refreshFeed(feed);
                 updatedFeeds.push(refreshedFeed);
             } catch (error) {
-                console.error(`[RSS Dashboard] Error refreshing feed ${feed.title}:`, error);
+                console.error(`[RSS dashboard] Error refreshing feed ${feed.title}:`, error);
                 updatedFeeds.push(feed); 
             }
         }
@@ -2392,7 +2448,7 @@ export class FeedParserService {
 
     public async parseFeed(url: string, folder: string): Promise<Feed> {
         const xml = await this.fetchFeedXml(url);
-        const parsed = await this.parser.parseString(xml);
+        const parsed = this.parser.parseString(xml);
 
             
             const isPodcast = parsed.items.some(item => 

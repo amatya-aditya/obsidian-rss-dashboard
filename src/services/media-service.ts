@@ -1,5 +1,5 @@
 import { requestUrl, Notice } from "obsidian";
-import { Feed, FeedItem, Tag } from "../types/types";
+import { Feed, Tag } from "../types/types";
 
 export class MediaService {
     private static readonly YOUTUBE_PATTERNS = [
@@ -76,14 +76,14 @@ export class MediaService {
             }
             
             else if (input.includes('youtube.com/user/')) {
-                const match = input.match(/youtube\.com\/user\/([^\/\?#]+)/);
+                const match = input.match(/youtube\.com\/user\/([^/?#]+)/);
                 if (match?.[1]) {
                     username = match[1];
                 }
             }
             
             else if (input.includes('youtube.com/c/')) {
-                const match = input.match(/youtube\.com\/c\/([^\/\?#]+)/);
+                const match = input.match(/youtube\.com\/c\/([^/?#]+)/);
                 if (match?.[1]) {
                     try {
                         const response = await requestUrl({
@@ -151,7 +151,7 @@ export class MediaService {
             }
 
             return audioLikeCount > 0;
-        } catch (error) {
+        } catch {
             return false;
         }
     }
@@ -163,8 +163,8 @@ export class MediaService {
         try {
             
             const patterns = [
-                /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/e\/|youtube\.com\/user\/[^\/]+\/u\/\d+\/videos\/|youtube\.com\/user\/[^\/]+\/|youtube\.com\/.*[?&]v=|youtube\.com\/.*[?&]v%3D|youtube\.com\/.+\/|youtube\.com\/(?:user|c)\/[^\/]+\/#p\/a\/u\/\d+\/|youtube\.com\/playlist\?list=|youtube\.com\/user\/[^\/]+\/videos\/|youtube\.com\/user\/[^\/]+\/)([^"&?\/\s]{11})/i,
-                /(?:youtube\.com\/embed\/|youtube\.com\/v\/|youtu\.be\/)([^"&?\/\s]{11})/i
+                /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/e\/|youtube\.com\/user\/[^/]+\/u\/\d+\/videos\/|youtube\.com\/user\/[^/]+\/|youtube\.com\/.*[?&]v=|youtube\.com\/.*[?&]v%3D|youtube\.com\/.+\/|youtube\.com\/(?:user|c)\/[^/]+\/#p\/a\/u\/\d+\/|youtube\.com\/playlist\?list=|youtube\.com\/user\/[^/]+\/videos\/|youtube\.com\/user\/[^/]+\/)([^"&?/\s]{11})/i,
+                /(?:youtube\.com\/embed\/|youtube\.com\/v\/|youtu\.be\/)([^"&?/\s]{11})/i
             ];
             
             for (const pattern of patterns) {
@@ -173,8 +173,8 @@ export class MediaService {
                     return match[1];
                 }
             }
-        } catch (error) {
-            
+        } catch {
+            // Regex matching failed, return undefined
         }
         
         return undefined;
@@ -208,8 +208,8 @@ export class MediaService {
             if (sourceMatch?.[1]) {
                 return sourceMatch[1];
             }
-        } catch (error) {
-            
+        } catch {
+            // Regex matching failed, return undefined
         }
         
         return undefined;
@@ -229,8 +229,8 @@ export class MediaService {
             if (durationMatch?.[1]) {
                 return durationMatch[1];
             }
-        } catch (error) {
-            
+        } catch {
+            // Regex matching failed, return undefined
         }
         
         return undefined;

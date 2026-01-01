@@ -93,11 +93,12 @@ export class Sidebar {
     }
 
     /**
-     * Get favicon URL for a domain using DuckDuckGo's service
+     * Get favicon URL for a domain using Google's faviconV2 service
+     * This API has better fallback handling than DuckDuckGo
      */
     private getFaviconUrl(domain: string): string {
         if (!domain) return '';
-        return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+        return `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=32`;
     }
 
 
@@ -197,7 +198,7 @@ export class Sidebar {
             }
         });
 
-        feedFoldersSection.addEventListener("drop", async (e) => {
+        feedFoldersSection.addEventListener("drop", (e) => {
             const target = e.target as HTMLElement;
             
             // Only process drops on the root section, not on folder headers
@@ -207,17 +208,15 @@ export class Sidebar {
             
             e.preventDefault();
             feedFoldersSection.classList.remove("drag-over");
-            const dragEvent = e as DragEvent;
-            if (dragEvent.dataTransfer) {
-                const feedUrl = dragEvent.dataTransfer.getData("feed-url");
+            if (e.dataTransfer) {
+                const feedUrl = e.dataTransfer.getData("feed-url");
                 if (feedUrl) {
                     const feed = this.settings.feeds.find(f => f.url === feedUrl);
                     if (feed && feed.folder) {
                         const oldFolder = this.findFolderByPath(feed.folder);
                         if (oldFolder) oldFolder.modifiedAt = Date.now();
                         feed.folder = "";
-                        await this.plugin.saveSettings();
-                        this.render();
+                        void this.plugin.saveSettings().then(() => this.render());
                     }
                 }
             }
@@ -233,9 +232,8 @@ export class Sidebar {
                         .onClick(() => {
                             this.showFolderNameModal({
                                 title: "Add folder",
-                                onSubmit: async (folderName) => {
-                                    await this.addTopLevelFolder(folderName);
-                                    this.render();
+                                onSubmit: (folderName) => {
+                                    void this.addTopLevelFolder(folderName).then(() => this.render());
                                 }
                             });
                         });
@@ -375,10 +373,9 @@ export class Sidebar {
                     .setIcon("folder-plus")
                     .onClick(() => {
                                                     this.showFolderNameModal({
-                                title: "Add Subfolder",
-                                onSubmit: async (subfolderName) => {
-                                    await this.addSubfolderByPath(fullPath, subfolderName);
-                                    this.render();
+                                title: "Add subfolder",
+                                onSubmit: (subfolderName) => {
+                                    void this.addSubfolderByPath(fullPath, subfolderName).then(() => this.render());
                                 }
                             });
                     });
@@ -388,12 +385,11 @@ export class Sidebar {
                     .setIcon("edit")
                     .onClick(() => {
                                                     this.showFolderNameModal({
-                                title: "Rename Folder",
+                                title: "Rename folder",
                                 defaultValue: folderName,
-                                onSubmit: async (newName) => {
+                                onSubmit: (newName) => {
                                     if (newName !== folderName) {
-                                        await this.renameFolderByPath(fullPath, newName);
-                                        this.render();
+                                        void this.renameFolderByPath(fullPath, newName).then(() => this.render());
                                     }
                                 }
                             });
@@ -402,7 +398,7 @@ export class Sidebar {
             menu.addItem((item: MenuItem) => {
                 item.setTitle("Mark all as read")
                     .setIcon("check-circle")
-                    .onClick(async () => {
+                    .onClick(() => {
                         const allPaths = this.getAllDescendantFolderPaths(fullPath);
                         this.settings.feeds.forEach(feed => {
                             if (feed.folder && allPaths.includes(feed.folder)) {
@@ -411,19 +407,17 @@ export class Sidebar {
                                 });
                             }
                         });
-                        await this.plugin.saveSettings();
-                        this.render();
+                        void this.plugin.saveSettings().then(() => this.render());
                     });
             });
             menu.addItem((item: MenuItem) => {
                 const isPinned = folderObj.pinned;
                 item.setTitle(isPinned ? "Unpin folder" : "Pin folder")
                     .setIcon(isPinned ? "unlock" : "lock")
-                    .onClick(async () => {
+                    .onClick(() => {
                         folderObj.pinned = !isPinned;
                         folderObj.modifiedAt = Date.now();
-                        await this.plugin.saveSettings();
-                        this.render();
+                        void this.plugin.saveSettings().then(() => this.render());
                     });
             });
             menu.addItem((item: MenuItem) => {
@@ -460,13 +454,12 @@ export class Sidebar {
             folderHeader.classList.remove("drag-over");
         });
 
-        folderHeader.addEventListener("drop", async (e) => {
+        folderHeader.addEventListener("drop", (e) => {
             e.preventDefault();
             e.stopPropagation(); // Prevent event from bubbling up to root section
             folderHeader.classList.remove("drag-over");
-            const dragEvent = e as DragEvent;
-            if (dragEvent.dataTransfer) {
-                const feedUrl = dragEvent.dataTransfer.getData("feed-url");
+            if (e.dataTransfer) {
+                const feedUrl = e.dataTransfer.getData("feed-url");
                 if (feedUrl) {
                     const feed = this.settings.feeds.find(f => f.url === feedUrl);
                     if (feed && feed.folder !== fullPath) {
@@ -478,9 +471,7 @@ export class Sidebar {
                         const newFolder = this.findFolderByPath(fullPath);
                         if (newFolder) newFolder.modifiedAt = Date.now();
                         
-                        await this.plugin.saveSettings();
-                        
-                        this.render();
+                        void this.plugin.saveSettings().then(() => this.render());
                     }
                 }
             }
@@ -560,13 +551,19 @@ export class Sidebar {
             if (domain) {
                 const faviconUrl = this.getFaviconUrl(domain);
                 feedIcon.empty();
-                feedIcon.createEl("img", {
+                const imgEl = feedIcon.createEl("img", {
                     attr: {
                         src: faviconUrl,
                         alt: domain
                     },
                     cls: "rss-dashboard-feed-favicon"
                 });
+                
+                // Fallback to RSS icon if favicon fails to load
+                imgEl.onerror = () => {
+                    feedIcon.empty();
+                    setIcon(feedIcon, "rss");
+                };
             } else {
                 // No domain available, use generic RSS icon
                 setIcon(feedIcon, "rss");
@@ -609,10 +606,9 @@ export class Sidebar {
         });
 
         feedEl.addEventListener("dragstart", (e) => {
-            const dragEvent = e as DragEvent;
-            if (dragEvent.dataTransfer) {
-                dragEvent.dataTransfer.setData("feed-url", feed.url);
-                dragEvent.dataTransfer.effectAllowed = "move";
+            if (e.dataTransfer) {
+                e.dataTransfer.setData("feed-url", feed.url);
+                e.dataTransfer.effectAllowed = "move";
             }
         });
     }
@@ -633,16 +629,14 @@ export class Sidebar {
         });
         
         infoText.createEl('p', {
-            text: 'Enter a YouTube Channel URL or ID. You can use:'
+            text: 'Enter a YouTube channel URL or ID.'
         });
         
         const list = infoText.createEl('ul');
         
         const items = [
-            'Channel URL: https://www.youtube.com/channel/UCxxxxxxxx',
-            'Channel ID: UCxxxxxxxx',
-            'User URL: https://www.youtube.com/user/username',
-            'User name: username'
+            'Channel url: https://www.youtube.com/channel/UCxxxxxxxx',
+            'Channel id: UCxxxxxxxx',
         ];
         
         items.forEach(itemText => {
@@ -684,69 +678,71 @@ export class Sidebar {
             text: "Add channel",
             cls: "rss-dashboard-primary-button"
         });
-        addButton.addEventListener("click", async () => {
-            const channel = channelInput.value.trim();
-            let feedUrl = "";
-            let channelId = "";
-            let username = "";
-            
-            if (!channel) {
-                new Notice("Please enter a YouTube channel URL or ID");
-                return;
-            }
-            
-            if (/^UC[\w-]{22}$/.test(channel)) {
-                channelId = channel;
-                feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel}`;
-                const result = await this.extractChannelIdAndNameFromYouTubePage(`https://www.youtube.com/channel/${channel}`);
-                if (result.channelName && !titleInput.value) {
-                    titleInput.value = result.channelName;
-                } else if (!titleInput.value) {
-                    titleInput.value = `YouTube: ${channel}`;
+        addButton.addEventListener("click", () => {
+            void (async () => {
+                const channel = channelInput.value.trim();
+                let feedUrl = "";
+                let channelId = "";
+                let username = "";
+                
+                if (!channel) {
+                    new Notice("Please enter a YouTube channel URL or ID");
+                    return;
                 }
-            } else {
-                let channelName = "";
-                let inputUrl = channel;
-                if (!inputUrl.startsWith("http")) {
-                    if (inputUrl.startsWith("@")) {
-                        inputUrl = `https://www.youtube.com/${inputUrl}`;
+                
+                if (/^UC[\w-]{22}$/.test(channel)) {
+                    channelId = channel;
+                    feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel}`;
+                    const result = await this.extractChannelIdAndNameFromYouTubePage(`https://www.youtube.com/channel/${channel}`);
+                    if (result.channelName && !titleInput.value) {
+                        titleInput.value = result.channelName;
+                    } else if (!titleInput.value) {
+                        titleInput.value = `YouTube: ${channel}`;
+                    }
+                } else {
+                    let channelName = "";
+                    let inputUrl = channel;
+                    if (!inputUrl.startsWith("http")) {
+                        if (inputUrl.startsWith("@")) {
+                            inputUrl = `https://www.youtube.com/${inputUrl}`;
+                        } else {
+                            inputUrl = `https://www.youtube.com/user/${inputUrl}`;
+                        }
+                    }
+                    
+                    const result = await this.extractChannelIdAndNameFromYouTubePage(inputUrl);
+                    channelId = result.channelId || "";
+                    channelName = result.channelName || "";
+                    if (channelId) {
+                        feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+                        
+                        if (titleInput && !titleInput.value) {
+                            titleInput.value = channelName;
+                        }
                     } else {
-                        inputUrl = `https://www.youtube.com/user/${inputUrl}`;
+                        if (channel.includes("youtube.com/user/")) {
+                            const match = channel.match(/youtube\.com\/user\/([^/?]+)/);
+                            username = match ? match[1] : "";
+                        } else if (!channel.startsWith("http") && !channel.startsWith("@")) {
+                            username = channel;
+                        }
+                        if (username) {
+                            feedUrl = `https://www.youtube.com/feeds/videos.xml?user=${username}`;
+                        } else {
+                            new Notice("Could not resolve channel ID or username. Please check the URL.");
+                            return;
+                        }
                     }
                 }
                 
-                const result = await this.extractChannelIdAndNameFromYouTubePage(inputUrl);
-                channelId = result.channelId || "";
-                channelName = result.channelName || "";
-                if (channelId) {
-                    feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-                    
-                    if (titleInput && !titleInput.value) {
-                        titleInput.value = channelName;
-                    }
-                } else {
-                    if (channel.includes("youtube.com/user/")) {
-                        const match = channel.match(/youtube\.com\/user\/([^/?]+)/);
-                        username = match ? match[1] : "";
-                    } else if (!channel.startsWith("http") && !channel.startsWith("@")) {
-                        username = channel;
-                    }
-                    if (username) {
-                        feedUrl = `https://www.youtube.com/feeds/videos.xml?user=${username}`;
-                    } else {
-                        new Notice("Could not resolve channel ID or username. Please check the URL.");
-                        return;
-                    }
-                }
-            }
-            
-            const title = titleInput.value.trim() || `YouTube: ${channelId || username}`;
-            this.callbacks.onAddFeed(
-                title, 
-                feedUrl, 
-                this.settings.media.defaultYouTubeFolder
-            );
-            document.body.removeChild(modal);
+                const title = titleInput.value.trim() || `YouTube: ${channelId || username}`;
+                void this.callbacks.onAddFeed(
+                    title, 
+                    feedUrl, 
+                    this.settings.media.defaultYouTubeFolder
+                ).catch(() => { /* ignore */ });
+                document.body.removeChild(modal);
+            })();
         });
 
         buttonContainer.appendChild(cancelButton);
@@ -1066,7 +1062,7 @@ export class Sidebar {
                 this.settings.availableTags.push(newTag);
                 
                 
-                this.plugin.saveSettings();
+                void this.plugin.saveSettings();
                 
                 
                 this.render();
@@ -1199,7 +1195,7 @@ export class Sidebar {
                 });
                 
                 
-                this.plugin.saveSettings();
+                void this.plugin.saveSettings();
                 
                 
                 this.render();
@@ -1242,7 +1238,7 @@ export class Sidebar {
         });
 
         
-        this.plugin.saveSettings();
+        void this.plugin.saveSettings();
         
         
         this.render();
@@ -1256,8 +1252,8 @@ export class Sidebar {
         menu.addItem((item: MenuItem) => {
             item.setTitle("Mark all unread as read")
                 .setIcon("check-circle")
-                .onClick(async () => {
-                    await this.markAllUnreadAsRead();
+                .onClick(() => {
+                    void this.markAllUnreadAsRead();
                 });
         });
 
@@ -1270,8 +1266,8 @@ export class Sidebar {
         menu.addItem((item: MenuItem) => {
             item.setTitle("Mark all read as unread")
                 .setIcon("circle")
-                .onClick(async () => {
-                    await this.markAllReadAsUnread();
+                .onClick(() => {
+                    void this.markAllReadAsUnread();
                 });
         });
 
@@ -1336,7 +1332,7 @@ export class Sidebar {
         dashboardBtn.appendText(" Dashboard");
         dashboardBtn.addEventListener("click", () => {
             
-            this.plugin.activateView();
+            void this.plugin.activateView();
         });
 
         
@@ -1347,7 +1343,7 @@ export class Sidebar {
         discoverBtn.appendText(" Discover");
         discoverBtn.addEventListener("click", () => {
             
-            this.plugin.activateDiscoverView();
+            void this.plugin.activateDiscoverView();
         });
 
         
@@ -1426,7 +1422,7 @@ export class Sidebar {
         // Get hidden filters from settings
         const hiddenFilters = this.settings.display?.hiddenFilters || [];
 
-        // Create all filter items (All Items cannot be hidden)
+        
         createFilterItem(
             "all",
             "list",
@@ -1531,7 +1527,7 @@ export class Sidebar {
                 cls: "rss-dashboard-add-tag-button",
             });
             setIcon(addTagButton, "plus");
-            addTagButton.appendText(" Add Tag");
+            addTagButton.appendText(" Add tag");
 
             addTagButton.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -1690,9 +1686,8 @@ export class Sidebar {
         addFolderButton.addEventListener("click", () => {
             this.showFolderNameModal({
                 title: "Add folder",
-                onSubmit: async (folderName) => {
-                    await this.addTopLevelFolder(folderName);
-                    this.render();
+                onSubmit: (folderName) => {
+                    void this.addTopLevelFolder(folderName).then(() => this.render());
                 }
             });
         });
@@ -1709,33 +1704,33 @@ export class Sidebar {
 
             menu.addItem((item) =>
                 item
-                    .setTitle("Folder name (A to Z)")
-                    .onClick(async () => await this.sortFolders('name', true))
+                    .setTitle("Folder name (a to z)")
+                    .onClick(() => { void this.sortFolders('name', true); })
             );
             menu.addItem((item) =>
                 item
-                    .setTitle("Folder name (Z to A)")
-                    .onClick(async () => await this.sortFolders('name', false))
+                    .setTitle("Folder name (z to a)")
+                    .onClick(() => { void this.sortFolders('name', false); })
             );
             menu.addItem((item) =>
                 item
                     .setTitle("Modified time (new to old)")
-                    .onClick(async () => await this.sortFolders('modified', false))
+                    .onClick(() => { void this.sortFolders('modified', false); })
             );
             menu.addItem((item) =>
                 item
                     .setTitle("Modified time (old to new)")
-                    .onClick(async () => await this.sortFolders('modified', true))
+                    .onClick(() => { void this.sortFolders('modified', true); })
             );
             menu.addItem((item) =>
                 item
                     .setTitle("Created time (new to old)")
-                    .onClick(async () => await this.sortFolders('created', false))
+                    .onClick(() => { void this.sortFolders('created', false); })
             );
             menu.addItem((item) =>
                 item
                     .setTitle("Created time (old to new)")
-                    .onClick(async () => await this.sortFolders('created', true))
+                    .onClick(() => { void this.sortFolders('created', true); })
             );
 
             menu.showAtMouseEvent(e);
@@ -1744,7 +1739,7 @@ export class Sidebar {
         const collapseAllButton = sidebarToolbar.createDiv({
             cls: "rss-dashboard-toolbar-button",
             attr: {
-                title: "Collapse/Expand All Folders"
+                title: "Collapse/Expand all Folders"
             }
         });
         
@@ -1788,7 +1783,7 @@ export class Sidebar {
         const addYouTubeButton = sidebarToolbar.createDiv({
             cls: "rss-dashboard-toolbar-button",
             attr: {
-                title: "Add YouTube channel",
+                title: "Add youtube channel",
             },
         });
         setIcon(addYouTubeButton, "youtube");
@@ -1800,7 +1795,7 @@ export class Sidebar {
         const importOpmlButton = sidebarToolbar.createDiv({
             cls: "rss-dashboard-toolbar-button",
             attr: {
-                title: "Import OPML",
+                title: "Import opml",
             },
         });
         setIcon(importOpmlButton, "upload");
@@ -1812,7 +1807,7 @@ export class Sidebar {
         const exportOpmlButton = sidebarToolbar.createDiv({
             cls: "rss-dashboard-toolbar-button",
             attr: {
-                title: "Export OPML",
+                title: "Export opml",
             },
         });
         setIcon(exportOpmlButton, "download");
@@ -1856,8 +1851,8 @@ export class Sidebar {
         menu.addItem((item: MenuItem) => {
             item.setTitle("Update feed")
                 .setIcon("refresh-cw")
-                .onClick(async () => {
-                    await this.callbacks.onUpdateFeed(feed);
+                .onClick(() => {
+                    void this.callbacks.onUpdateFeed(feed);
                 });
         });
 
@@ -1872,12 +1867,11 @@ export class Sidebar {
         menu.addItem((item: MenuItem) => {
             item.setTitle("Mark all as read")
                 .setIcon("check-circle")
-                .onClick(async () => {
+                .onClick(() => {
                     feed.items.forEach(item => {
                         item.read = true;
                     });
-                    await this.plugin.saveSettings();
-                    this.render();
+                    void this.plugin.saveSettings().then(() => this.render());
                 });
         });
 
@@ -1887,24 +1881,21 @@ export class Sidebar {
                 .onClick((evt) => {
                     const typeMenu = new Menu();
                     typeMenu.addItem((subItem: MenuItem) => {
-                        subItem.setTitle("Article").setIcon("file-text").onClick(async () => {
+                        subItem.setTitle("Article").setIcon("file-text").onClick(() => {
                             feed.mediaType = 'article';
-                            await this.plugin.saveSettings();
-                            this.render();
+                            void this.plugin.saveSettings().then(() => this.render());
                         });
                     });
                     typeMenu.addItem((subItem: MenuItem) => {
-                        subItem.setTitle("Podcast").setIcon("headphones").onClick(async () => {
+                        subItem.setTitle("Podcast").setIcon("headphones").onClick(() => {
                             feed.mediaType = 'podcast';
-                            await this.plugin.saveSettings();
-                            this.render();
+                            void this.plugin.saveSettings().then(() => this.render());
                         });
                     });
                     typeMenu.addItem((subItem: MenuItem) => {
-                        subItem.setTitle("Video").setIcon("play-circle").onClick(async () => {
+                        subItem.setTitle("Video").setIcon("play-circle").onClick(() => {
                             feed.mediaType = 'video';
-                            await this.plugin.saveSettings();
-                            this.render();
+                            void this.plugin.saveSettings().then(() => this.render());
                         });
                     });
                     if (evt instanceof MouseEvent) {
@@ -1914,7 +1905,7 @@ export class Sidebar {
         });
 
         menu.addItem((item: MenuItem) => {
-            item.setTitle("Move to Folder")
+            item.setTitle("Move to folder")
                 .setIcon("folder-open")
                 .onClick((evt) => {
                     if (evt instanceof MouseEvent) {
@@ -1942,17 +1933,18 @@ export class Sidebar {
         // Add option to move to root (no folder)
         menu.addItem((item: MenuItem) => {
             const isInRoot = !feed.folder;
-            item.setTitle("Root (No Folder)")
+            item.setTitle("Root (no folder)")
                 .setIcon(isInRoot ? "check" : "folder")
-                .onClick(async () => {
+                .onClick(() => {
                     if (feed.folder) {
                         const oldFolder = this.findFolderByPath(feed.folder);
                         if (oldFolder) oldFolder.modifiedAt = Date.now();
                     }
                     feed.folder = "";
-                    await this.plugin.saveSettings();
-                    this.render();
-                    new Notice(`Moved "${feed.title}" to root`);
+                    void this.plugin.saveSettings().then(() => {
+                        this.render();
+                        new Notice(`Moved "${feed.title}" to root`);
+                    });
                 });
         });
 
@@ -1969,7 +1961,7 @@ export class Sidebar {
                 menu.addItem((item: MenuItem) => {
                     item.setTitle(folderPath)
                         .setIcon(isCurrentFolder ? "check" : "folder")
-                        .onClick(async () => {
+                        .onClick(() => {
                             if (feed.folder !== folderPath) {
                                 if (feed.folder) {
                                     const oldFolder = this.findFolderByPath(feed.folder);
@@ -1979,9 +1971,10 @@ export class Sidebar {
                                 const newFolder = this.findFolderByPath(folderPath);
                                 if (newFolder) newFolder.modifiedAt = Date.now();
                                 
-                                await this.plugin.saveSettings();
-                                this.render();
-                                new Notice(`Moved "${feed.title}" to "${folderPath}"`);
+                                void this.plugin.saveSettings().then(() => {
+                                    this.render();
+                                    new Notice(`Moved "${feed.title}" to "${folderPath}"`);
+                                });
                             }
                         });
                 });
@@ -1996,15 +1989,17 @@ export class Sidebar {
                 .onClick(() => {
                     this.showFolderNameModal({
                         title: "Create new folder",
-                        onSubmit: async (folderName) => {
-                            await this.addTopLevelFolder(folderName);
-                            // Move the feed to the newly created folder
-                            feed.folder = folderName;
-                            const newFolder = this.findFolderByPath(folderName);
-                            if (newFolder) newFolder.modifiedAt = Date.now();
-                            await this.plugin.saveSettings();
-                            this.render();
-                            new Notice(`Created folder "${folderName}" and moved "${feed.title}" to it`);
+                        onSubmit: (folderName) => {
+                            void (async () => {
+                                await this.addTopLevelFolder(folderName);
+                                // Move the feed to the newly created folder
+                                feed.folder = folderName;
+                                const newFolder = this.findFolderByPath(folderName);
+                                if (newFolder) newFolder.modifiedAt = Date.now();
+                                await this.plugin.saveSettings();
+                                this.render();
+                                new Notice(`Created folder "${folderName}" and moved "${feed.title}" to it`);
+                            })();
                         }
                     });
                 });
@@ -2075,33 +2070,33 @@ export class Sidebar {
 
         menu.addItem((item) =>
             item
-                .setTitle("Feed name (A to Z)")
-                .onClick(async () => await this.sortFeedsInFolder(folderPath, 'name', true))
+                .setTitle("Feed name (a to z)")
+                .onClick(() => { void this.sortFeedsInFolder(folderPath, 'name', true); })
         );
         menu.addItem((item) =>
             item
-                .setTitle("Feed name (Z to A)")
-                .onClick(async () => await this.sortFeedsInFolder(folderPath, 'name', false))
+                .setTitle("Feed name (z to a)")
+                .onClick(() => { void this.sortFeedsInFolder(folderPath, 'name', false); })
         );
         menu.addItem((item) =>
             item
                 .setTitle("Created time (new to old)")
-                .onClick(async () => await this.sortFeedsInFolder(folderPath, 'created', false))
+                .onClick(() => { void this.sortFeedsInFolder(folderPath, 'created', false); })
         );
         menu.addItem((item) =>
             item
                 .setTitle("Created time (old to new)")
-                .onClick(async () => await this.sortFeedsInFolder(folderPath, 'created', true))
+                .onClick(() => { void this.sortFeedsInFolder(folderPath, 'created', true); })
         );
         menu.addItem((item) =>
             item
                 .setTitle("Number of items (high to low)")
-                .onClick(async () => await this.sortFeedsInFolder(folderPath, 'itemCount', false))
+                .onClick(() => { void this.sortFeedsInFolder(folderPath, 'itemCount', false); })
         );
         menu.addItem((item) =>
             item
                 .setTitle("Number of items (low to high)")
-                .onClick(async () => await this.sortFeedsInFolder(folderPath, 'itemCount', true))
+                .onClick(() => { void this.sortFeedsInFolder(folderPath, 'itemCount', true); })
         );
 
         menu.showAtMouseEvent(event);
@@ -2182,19 +2177,7 @@ export class Sidebar {
         return [...feeds].sort(sorter);
     }
 
-    /**
-     * Optimized toggle all folders functionality.
-     * 
-     * Performance optimizations implemented:
-     * 1. Cached folder paths to avoid repeated recursive calculations
-     * 2. Batch state updates instead of individual folder toggles
-     * 3. Single render call instead of multiple renders
-     * 4. Efficient Set operations for collapsed state management
-     * 5. Performance monitoring for optimization tracking
-     * 
-     * This method is significantly faster than the previous implementation
-     * which called individual toggle callbacks for each folder.
-     */
+   
     private toggleAllFolders(): void {
         const allFolderPaths = this.getCachedFolderPaths();
 

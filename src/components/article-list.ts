@@ -208,7 +208,8 @@ export class ArticleList {
             filterDropdown.createEl('option', { text: text, value: String(value) });
         }
 
-        filterDropdown.value = String(this.settings.articleFilter.value || 0);
+        const filterValue = typeof this.settings.articleFilter.value === 'number' ? this.settings.articleFilter.value : 0;
+        filterDropdown.value = String(filterValue);
 
         filterDropdown.addEventListener('change', (e: Event) => {
             const value = Number((e.target as HTMLSelectElement).value);
@@ -417,41 +418,31 @@ export class ArticleList {
             if (!saveButton.querySelector('svg')) {
                 saveButton.textContent = '💾';
             }
-            saveButton.addEventListener("click", async (e) => {
+            saveButton.addEventListener("click", (e) => {
                 e.stopPropagation();
                 if (article.saved) {
-                    
                     if (this.callbacks.onOpenSavedArticle) {
-                        await this.callbacks.onOpenSavedArticle(article);
+                        this.callbacks.onOpenSavedArticle(article);
                     } else {
                         new Notice("Article already saved. Look in your notes.");
                     }
                 } else {
                     if (this.callbacks.onArticleSave) {
-                        
                         if (saveButton.classList.contains('saving')) {
                             return;
                         }
                         
-                        
                         saveButton.classList.add('saving');
                         saveButton.setAttribute('title', 'Saving article...');
                         
-                        try {
-                            await this.callbacks.onArticleSave(article);
-                            saveButton.classList.add("saved");
-                            setIcon(saveButton, "lucide-save");
-                            if (!saveButton.querySelector('svg')) {
-                                saveButton.textContent = '💾';
-                            }
-                        } catch (error) {
-                            const message = error instanceof Error ? error.message : String(error);
-                            new Notice(`Error saving article: ${message}`);
-                        } finally {
-                            
-                            saveButton.classList.remove('saving');
-                            saveButton.setAttribute('title', 'Click to open saved article');
+                        this.callbacks.onArticleSave(article);
+                        saveButton.classList.add("saved");
+                        setIcon(saveButton, "lucide-save");
+                        if (!saveButton.querySelector('svg')) {
+                            saveButton.textContent = '💾';
                         }
+                        saveButton.classList.remove('saving');
+                        saveButton.setAttribute('title', 'Click to open saved article');
                     }
                 }
             });
@@ -546,7 +537,7 @@ export class ArticleList {
                         let tagsContainer = articleEl.querySelector('.rss-dashboard-article-tags');
                         if (!tagsContainer) {
                             const cardContent = articleEl.querySelector('.rss-dashboard-card-content') || articleEl;
-                            const actionToolbar = cardContent.querySelector('.rss-dashboard-action-toolbar') as HTMLElement | null;
+                            const actionToolbar = cardContent.querySelector('.rss-dashboard-action-toolbar');
                             if (actionToolbar) {
                                 tagsContainer = (cardContent as HTMLElement).createDiv({
                                     cls: 'rss-dashboard-article-tags'
@@ -588,8 +579,8 @@ export class ArticleList {
                             }
                         }
                         
-                        
-                        articleEl.offsetHeight;
+                        // Force reflow
+                        void articleEl.offsetHeight;
                     } else {
                         
                         
@@ -757,41 +748,31 @@ export class ArticleList {
             if (!saveButton.querySelector('svg')) {
                 saveButton.textContent = '💾';
             }
-            saveButton.addEventListener("click", async (e) => {
+            saveButton.addEventListener("click", (e) => {
                 e.stopPropagation();
                 if (article.saved) {
-                    
                     if (this.callbacks.onOpenSavedArticle) {
-                        await this.callbacks.onOpenSavedArticle(article);
+                        this.callbacks.onOpenSavedArticle(article);
                     } else {
                         new Notice("Article already saved. Look in your notes.");
                     }
                 } else {
                     if (this.callbacks.onArticleSave) {
-                        
                         if (saveButton.classList.contains('saving')) {
                             return;
                         }
                         
-                        
                         saveButton.classList.add('saving');
                         saveButton.setAttribute('title', 'Saving article...');
                         
-                        try {
-                            await this.callbacks.onArticleSave(article);
-                            saveButton.classList.add("saved");
-                            setIcon(saveButton, "lucide-save");
-                            if (!saveButton.querySelector('svg')) {
-                                saveButton.textContent = '💾';
-                            }
-                        } catch (error) {
-                            const message = error instanceof Error ? error.message : String(error);
-                            new Notice(`Error saving article: ${message}`);
-                        } finally {
-                            
-                            saveButton.classList.remove('saving');
-                            saveButton.setAttribute('title', 'Click to open saved article');
+                        this.callbacks.onArticleSave(article);
+                        saveButton.classList.add("saved");
+                        setIcon(saveButton, "lucide-save");
+                        if (!saveButton.querySelector('svg')) {
+                            saveButton.textContent = '💾';
                         }
+                        saveButton.classList.remove('saving');
+                        saveButton.setAttribute('title', 'Click to open saved article');
                     }
                 }
             });
@@ -877,7 +858,7 @@ export class ArticleList {
                         let tagsContainer = articleEl.querySelector('.rss-dashboard-article-tags');
                         if (!tagsContainer) {
                             const cardContent = articleEl.querySelector('.rss-dashboard-card-content') || articleEl;
-                            const actionToolbar = cardContent.querySelector('.rss-dashboard-action-toolbar') as HTMLElement | null;
+                            const actionToolbar = cardContent.querySelector('.rss-dashboard-action-toolbar');
                             if (actionToolbar) {
                                 tagsContainer = (cardContent as HTMLElement).createDiv({
                                     cls: 'rss-dashboard-article-tags'
@@ -914,7 +895,7 @@ export class ArticleList {
                                 tagsContainer.removeChild(tagsContainer.firstChild);
                             }
                         }
-                        articleEl.offsetHeight;
+                        void articleEl.offsetHeight;
                     } else {
                         const tempIndicator = document.body.createDiv({
                             cls: 'rss-dashboard-tag-change-notification',

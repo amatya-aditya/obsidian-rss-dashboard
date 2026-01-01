@@ -96,4 +96,15 @@ export function ensureUtf8Meta(html: string): string {
         return '<meta charset="UTF-8">' + html;
     }
     return html;
-} 
+}
+
+/**
+ * Set CSS custom properties on an element
+ * @param element The HTML element to set properties on
+ * @param props An object with CSS property names as keys and values
+ */
+export function setCssProps(element: HTMLElement, props: Record<string, string>): void {
+    for (const [property, value] of Object.entries(props)) {
+        element.style.setProperty(property, value);
+    }
+}

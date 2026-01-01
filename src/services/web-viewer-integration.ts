@@ -31,7 +31,7 @@ export class WebViewerIntegration {
     
     async openInWebViewer(url: string, title: string): Promise<boolean> {
         
-        const webViewerPlugin = this.app.plugins.plugins["webpage-html-export"] as WebViewerPlugin | undefined;
+        const webViewerPlugin = this.app.plugins.plugins["webpage-html-export"];
         
         if (webViewerPlugin?.openWebpage) {
             try {
@@ -63,7 +63,7 @@ export class WebViewerIntegration {
         if (webViewerContainer.querySelector(".rss-custom-save-button")) return;
         
         
-        let controlBar = webViewerContainer.querySelector(".webpage-control-bar") as HTMLElement | null;
+        let controlBar = webViewerContainer.querySelector(".webpage-control-bar");
         if (!controlBar) {
             controlBar = webViewerContainer.createDiv({
                 cls: "webpage-control-bar"
@@ -123,7 +123,7 @@ export class WebViewerIntegration {
             attr: {
                 type: "text",
                 placeholder: "Enter folder path",
-                value: this.settings.defaultFolder || "RSS Articles/",
+                value: this.settings.defaultFolder || "RSS articles/",
                 autocomplete: "off"
             }
         });
@@ -177,32 +177,34 @@ export class WebViewerIntegration {
             text: "Save",
             cls: "rss-dashboard-primary-button"
         });
-        saveButton.addEventListener("click", async () => {
-            const folder = folderInput.value.trim();
-            const template = templateInput.value.trim();
-            const includeFrontmatter = frontmatterCheckbox.checked;
-            
-            try {
-                await this.saveArticle({
-                    title,
-                    link: url,
-                    description: content,
-                    pubDate: new Date().toUTCString(),
-                    guid: url,
-                    feedTitle: "Web viewer",
-                    feedUrl: "",
-                    coverImage: "",
-                    read: true,
-                    starred: false,
-                    tags: [],
-                    saved: false
-                }, folder, template, includeFrontmatter);
+        saveButton.addEventListener("click", () => {
+            void (async () => {
+                const folder = folderInput.value.trim();
+                const template = templateInput.value.trim();
+                const includeFrontmatter = frontmatterCheckbox.checked;
                 
-                document.body.removeChild(modal);
-            } catch (error) {
-                const message = error instanceof Error ? error.message : String(error);
-                new Notice(`Error saving article: ${message}`);
-            }
+                try {
+                    await this.saveArticle({
+                        title,
+                        link: url,
+                        description: content,
+                        pubDate: new Date().toUTCString(),
+                        guid: url,
+                        feedTitle: "Web viewer",
+                        feedUrl: "",
+                        coverImage: "",
+                        read: true,
+                        starred: false,
+                        tags: [],
+                        saved: false
+                    }, folder, template, includeFrontmatter);
+                    
+                    document.body.removeChild(modal);
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    new Notice(`Error saving article: ${message}`);
+                }
+            })();
         });
         
         

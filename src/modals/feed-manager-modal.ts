@@ -38,8 +38,7 @@ export class EditFeedModal extends Modal {
         let titleInput: HTMLInputElement;
         let urlInput: HTMLInputElement;
         let folderInput: HTMLInputElement;
-        let statusDiv: HTMLDivElement;
-        let latestEntryDiv: HTMLDivElement;
+        const refs: { statusDiv?: HTMLDivElement; latestEntryDiv?: HTMLDivElement } = {};
         let dropdown: HTMLDivElement | null = null;
 
         new Setting(contentEl)
@@ -60,34 +59,36 @@ export class EditFeedModal extends Modal {
             })
             .addButton(btn => {
                 btn.setButtonText("Load")
-                    .onClick(async () => {
-                        status = "Loading...";
-                        if (statusDiv) statusDiv.textContent = status;
-                        try {
-                            const res = await requestUrl(url);
-                            const parser = new DOMParser();
-                            const doc = parser.parseFromString(res.text, "text/xml");
-                            const feedTitle = doc.querySelector("channel > title, feed > title");
-                            if (feedTitle?.textContent) {
-                                title = feedTitle.textContent;
-                                if (titleInput) titleInput.value = title;
+                    .onClick(() => {
+                        void (async () => {
+                            status = "Loading...";
+                            if (refs.statusDiv) refs.statusDiv.textContent = status;
+                            try {
+                                const res = await requestUrl(url);
+                                const parser = new DOMParser();
+                                const doc = parser.parseFromString(res.text, "text/xml");
+                                const feedTitle = doc.querySelector("channel > title, feed > title");
+                                if (feedTitle?.textContent) {
+                                    title = feedTitle.textContent;
+                                    if (titleInput) titleInput.value = title;
+                                }
+                                const latestItem = doc.querySelector("item > pubDate, entry > updated, entry > published");
+                                if (latestItem?.textContent) {
+                                    const date = new Date(latestItem.textContent);
+                                    const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+                                    latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days ago`;
+                                } else {
+                                    latestEntry = "N/A";
+                                }
+                                if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
+                                status = "OK";
+                            } catch {
+                                status = "Error loading feed";
+                                latestEntry = "-";
+                                if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
                             }
-                            const latestItem = doc.querySelector("item > pubDate, entry > updated, entry > published");
-                            if (latestItem?.textContent) {
-                                const date = new Date(latestItem.textContent);
-                                const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
-                                latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days ago`;
-                            } else {
-                                latestEntry = "N/A";
-                            }
-                            if (latestEntryDiv) latestEntryDiv.textContent = latestEntry;
-                            status = "OK";
-                        } catch (e) {
-                            status = "Error loading feed";
-                            latestEntry = "-";
-                            if (latestEntryDiv) latestEntryDiv.textContent = latestEntry;
-                        }
-                        if (statusDiv) statusDiv.textContent = status;
+                            if (refs.statusDiv) refs.statusDiv.textContent = status;
+                        })();
                     });
             });
 
@@ -110,11 +111,11 @@ export class EditFeedModal extends Modal {
 
         const latestEntrySetting = new Setting(contentEl)
             .setName("Latest entry posted");
-        latestEntryDiv = latestEntrySetting.controlEl.createDiv({ text: latestEntry, cls: "add-feed-latest-entry" });
+        refs.latestEntryDiv = latestEntrySetting.controlEl.createDiv({ text: latestEntry, cls: "add-feed-latest-entry" });
 
         const statusSetting = new Setting(contentEl)
             .setName("Status");
-        statusDiv = statusSetting.controlEl.createDiv({ text: status, cls: "add-feed-status" });
+        refs.statusDiv = statusSetting.controlEl.createDiv({ text: status, cls: "add-feed-status" });
 
         new Setting(contentEl)
             .setName("Folder")
@@ -199,11 +200,9 @@ export class EditFeedModal extends Modal {
             .setName("Auto delete articles duration")
             .setDesc("Days to keep articles before auto-delete");
         
-        let autoDeleteDropdown: unknown = null;
         let autoDeleteCustomInput: HTMLInputElement | null = null;
         
         autoDeleteSetting.addDropdown(dropdown => {
-            autoDeleteDropdown = dropdown;
             dropdown
                 .addOption("0", "Disabled")
                 .addOption("1", "1 day")
@@ -254,11 +253,9 @@ export class EditFeedModal extends Modal {
             .setName("Max items limit")
             .setDesc("Maximum number of items to keep per feed");
         
-        let maxItemsDropdown: unknown = null;
         let maxItemsCustomInput: HTMLInputElement | null = null;
         
         maxItemsSetting.addDropdown(dropdown => {
-            maxItemsDropdown = dropdown;
             dropdown
                 .addOption("0", "Unlimited")
                 .addOption("10", "10 items")
@@ -306,11 +303,9 @@ export class EditFeedModal extends Modal {
             .setName("Scan interval")
             .setDesc("Custom scan interval in minutes");
         
-        let scanIntervalDropdown: unknown = null;
         let scanIntervalCustomInput: HTMLInputElement | null = null;
         
         scanIntervalSetting.addDropdown(dropdown => {
-            scanIntervalDropdown = dropdown;
             dropdown
                 .addOption("0", "Use global setting")
                 .addOption("5", "5 minutes")
@@ -359,40 +354,40 @@ export class EditFeedModal extends Modal {
         const btns = contentEl.createDiv("rss-dashboard-modal-buttons");
         const saveBtn = btns.createEl("button", { text: "Save", cls: "rss-dashboard-primary-button" });
         const cancelBtn = btns.createEl("button", { text: "Cancel" });
-        saveBtn.onclick = async () => {
-            const oldTitle = this.feed.title;
-            this.feed.title = title;
-            this.feed.url = url;
-            this.feed.folder = folder;
-            this.feed.autoDeleteDuration = autoDeleteDuration;
-            
-            // Update feedTitle for all articles in this feed when the title changes
-            if (oldTitle !== title) {
-                for (const item of this.feed.items) {
-                    item.feedTitle = title;
-                }
-            }
-            
-            
-            const oldMaxItemsLimit = this.feed.maxItemsLimit || this.plugin.settings.maxItems;
-            const newMaxItemsLimit = maxItemsLimit || this.plugin.settings.maxItems;
-            
-            this.feed.maxItemsLimit = newMaxItemsLimit;
-            this.feed.scanInterval = scanInterval;
-            
-            
-            if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
+        saveBtn.onclick = () => {
+            void (async () => {
+                const oldTitle = this.feed.title;
+                this.feed.title = title;
+                this.feed.url = url;
+                this.feed.folder = folder;
+                this.feed.autoDeleteDuration = autoDeleteDuration;
                 
-                this.feed.items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-                this.feed.items = this.feed.items.slice(0, newMaxItemsLimit);
-                new Notice(`Feed updated and trimmed to ${newMaxItemsLimit} articles`);
-            } else {
-                new Notice("Feed updated");
-            }
-            
-            await this.plugin.saveSettings();
-            this.close();
-            this.onSave();
+                // Update feedTitle for all articles in this feed when the title changes
+                if (oldTitle !== title) {
+                    for (const item of this.feed.items) {
+                        item.feedTitle = title;
+                    }
+                }
+                
+                const newMaxItemsLimit = maxItemsLimit || this.plugin.settings.maxItems;
+                
+                this.feed.maxItemsLimit = newMaxItemsLimit;
+                this.feed.scanInterval = scanInterval;
+                
+                
+                if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
+                    
+                    this.feed.items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+                    this.feed.items = this.feed.items.slice(0, newMaxItemsLimit);
+                    new Notice(`Feed updated and trimmed to ${newMaxItemsLimit} articles`);
+                } else {
+                    new Notice("Feed updated");
+                }
+                
+                await this.plugin.saveSettings();
+                this.close();
+                this.onSave();
+            })();
         };
         cancelBtn.onclick = () => this.close();
         
@@ -431,12 +426,11 @@ export class AddFeedModal extends Modal {
         let status = "";
         let latestEntry = "-";
         let folder = this.defaultFolder;
-        let allFolders = collectAllFolders(this.folders).sort((a, b) => a.localeCompare(b));
+        const allFolders = collectAllFolders(this.folders).sort((a, b) => a.localeCompare(b));
         let titleInput: HTMLInputElement;
         let urlInput: HTMLInputElement;
         let folderInput: HTMLInputElement;
-        let statusDiv: HTMLDivElement;
-        let latestEntryDiv: HTMLDivElement;
+        const refs: { statusDiv?: HTMLDivElement; latestEntryDiv?: HTMLDivElement } = {};
         let dropdown: HTMLDivElement | null = null;
         
         new Setting(contentEl)
@@ -457,32 +451,34 @@ export class AddFeedModal extends Modal {
             })
             .addButton(btn => {
                 btn.setButtonText("Load")
-                    .onClick(async () => {
-                        status = "Loading...";
-                        if (statusDiv) statusDiv.textContent = status;
-                        try {
-                            const res = await requestUrl(url);
-                            const parser = new DOMParser();
-                            const doc = parser.parseFromString(res.text, "text/xml");
-                            const feedTitle = doc.querySelector("channel > title, feed > title");
-                            title = feedTitle?.textContent || "";
-                            if (titleInput) titleInput.value = title;
-                            const latestItem = doc.querySelector("item > pubDate, entry > updated, entry > published");
-                            if (latestItem) {
-                                const date = new Date(latestItem.textContent!);
-                                const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
-                                latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days`;
-                            } else {
-								latestEntry = "N/A";
-							}
-                            if (latestEntryDiv) latestEntryDiv.textContent = latestEntry;
-                            status = "OK";
-                        } catch (e) {
-                            status = "Error loading feed";
-							latestEntry = "-";
-							if (latestEntryDiv) latestEntryDiv.textContent = latestEntry;
-                        }
-                        if (statusDiv) statusDiv.textContent = status;
+                    .onClick(() => {
+                        void (async () => {
+                            status = "Loading...";
+                            if (refs.statusDiv) refs.statusDiv.textContent = status;
+                            try {
+                                const res = await requestUrl(url);
+                                const parser = new DOMParser();
+                                const doc = parser.parseFromString(res.text, "text/xml");
+                                const feedTitle = doc.querySelector("channel > title, feed > title");
+                                title = feedTitle?.textContent || "";
+                                if (titleInput) titleInput.value = title;
+                                const latestItem = doc.querySelector("item > pubDate, entry > updated, entry > published");
+                                if (latestItem?.textContent) {
+                                    const date = new Date(latestItem.textContent);
+                                    const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+                                    latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days`;
+                                } else {
+                                    latestEntry = "N/A";
+                                }
+                                if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
+                                status = "OK";
+                            } catch {
+                                status = "Error loading feed";
+                                latestEntry = "-";
+                                if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
+                            }
+                            if (refs.statusDiv) refs.statusDiv.textContent = status;
+                        })();
                     });
             });
 
@@ -505,11 +501,11 @@ export class AddFeedModal extends Modal {
 
         const latestEntrySetting = new Setting(contentEl)
             .setName("Latest entry posted");
-        latestEntryDiv = latestEntrySetting.controlEl.createDiv({ text: latestEntry, cls: "add-feed-latest-entry" });
+        refs.latestEntryDiv = latestEntrySetting.controlEl.createDiv({ text: latestEntry, cls: "add-feed-latest-entry" });
 
         const statusSetting = new Setting(contentEl)
             .setName("Status");
-        statusDiv = statusSetting.controlEl.createDiv({ text: status, cls: "add-feed-status" });
+        refs.statusDiv = statusSetting.controlEl.createDiv({ text: status, cls: "add-feed-status" });
         
         
         
@@ -594,11 +590,9 @@ export class AddFeedModal extends Modal {
             .setName("Auto delete articles duration")
             .setDesc("Days to keep articles before auto-delete");
         
-        let autoDeleteDropdown: unknown = null;
         let autoDeleteCustomInput: HTMLInputElement | null = null;
         
         autoDeleteSetting.addDropdown(dropdown => {
-            autoDeleteDropdown = dropdown;
             dropdown
                 .addOption("0", "Disabled")
                 .addOption("1", "1 day")
@@ -647,11 +641,9 @@ export class AddFeedModal extends Modal {
             .setName("Max items limit")
             .setDesc("Maximum number of items to keep per feed");
         
-        let maxItemsDropdown: unknown = null;
         let maxItemsCustomInput: HTMLInputElement | null = null;
         
         maxItemsSetting.addDropdown(dropdown => {
-            maxItemsDropdown = dropdown;
             dropdown
                 .addOption("0", "Unlimited")
                 .addOption("10", "10 items")
@@ -700,11 +692,9 @@ export class AddFeedModal extends Modal {
             .setName("Scan interval")
             .setDesc("Custom scan interval in minutes");
         
-        let scanIntervalDropdown: unknown = null;
         let scanIntervalCustomInput: HTMLInputElement | null = null;
         
         scanIntervalSetting.addDropdown(dropdown => {
-            scanIntervalDropdown = dropdown;
             dropdown
                 .addOption("0", "Use global setting")
                 .addOption("5", "5 minutes")
@@ -752,7 +742,7 @@ export class AddFeedModal extends Modal {
         const btns = contentEl.createDiv({ cls: "rss-dashboard-modal-buttons" });
         const saveBtn = btns.createEl("button", { text: "Save", cls: "rss-dashboard-primary-button" });
         const cancelBtn = btns.createEl("button", { text: "Cancel" });
-        saveBtn.onclick = async () => {
+        saveBtn.onclick = () => {
             if (!url) {
                 new Notice("Feed URL cannot be empty");
                 return;
@@ -761,7 +751,7 @@ export class AddFeedModal extends Modal {
                 new Notice("Title cannot be empty");
                 return;
             }
-            this.onAdd(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval);
+            void this.onAdd(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval).catch(() => { /* ignore */ });
             this.onSave();
             this.close();
         };
@@ -792,7 +782,7 @@ export class FeedManagerModal extends Modal {
         new Setting(contentEl).setName("Manage feeds").setHeading();
 
         
-        const addFeedBtn = contentEl.createEl("button", { text: "+ Add feed", cls: "rss-dashboard-primary-button feed-manager-add-button" });
+        const addFeedBtn = contentEl.createEl("button", { text: "Add feed", cls: "rss-dashboard-primary-button feed-manager-add-button" });
         addFeedBtn.onclick = () => {
             new AddFeedModal(
 				this.app, 
@@ -853,12 +843,13 @@ export class FeedManagerModal extends Modal {
         };
         
         const delBtn = row.createEl("button", { text: "Delete" });
-        delBtn.onclick = async () => {
-            this.showConfirmModal(`Delete feed '${feed.title}'?`, async () => {
+        delBtn.onclick = () => {
+            this.showConfirmModal(`Delete feed '${feed.title}'?`, () => {
                 this.plugin.settings.feeds = this.plugin.settings.feeds.filter(f => f !== feed);
-                await this.plugin.saveSettings();
-                new Notice("Feed deleted");
-                this.onOpen(); 
+                void this.plugin.saveSettings().then(() => {
+                    new Notice("Feed deleted");
+                    this.onOpen(); 
+                });
             });
         };
     }
@@ -874,7 +865,7 @@ export class FeedManagerModal extends Modal {
                 cls: "rss-dashboard-modal-content"
             });
             new Setting(modalContent).setName("Confirm").setHeading();
-            const msg = modalContent.createDiv({
+            modalContent.createDiv({
                 text: message
             });
             const buttonContainer = modalContent.createDiv({
