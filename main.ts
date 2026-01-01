@@ -84,7 +84,7 @@ export default class RssDashboardPlugin extends Plugin {
         
         const view = await this.getActiveDashboardView();
         if (view) {
-            await view.render();
+            view.render();
         }
         
         try {
@@ -194,7 +194,7 @@ export default class RssDashboardPlugin extends Plugin {
                     if (view) {
                         this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
                         await this.saveSettings();
-                        await view.render();
+                        view.render();
                     }
                 },
             });
@@ -377,7 +377,7 @@ export default class RssDashboardPlugin extends Plugin {
             await this.saveSettings();
             const view = await this.getActiveDashboardView();
             if (view) {
-                await view.refresh();
+                view.refresh();
                 new Notice(`Feeds refreshed: ${feedNoticeText}`);
             }
         } catch (error) {
@@ -436,7 +436,7 @@ export default class RssDashboardPlugin extends Plugin {
             await this.saveSettings();
             const view = await this.getActiveDashboardView();
             if (view) {
-                await view.refresh();
+                view.refresh();
             }
             
             if (updatedCount > 0) {
@@ -490,7 +490,7 @@ export default class RssDashboardPlugin extends Plugin {
         
         const view = await this.getActiveDashboardView();
         if (view) {
-            await view.refresh();
+            view.refresh();
         }
     }
 
@@ -607,7 +607,7 @@ export default class RssDashboardPlugin extends Plugin {
                     
                     const view = await this.getActiveDashboardView();
                     if (view) {
-                        await view.render();
+                        view.render();
                         }
 
                     new Notice(`Imported ${addedFeeds.length} feeds. Articles will be fetched in the background.`);
@@ -704,7 +704,7 @@ export default class RssDashboardPlugin extends Plugin {
             
             const view = await this.getActiveDashboardView();
             if (view && processedCount % 3 === 0) {
-                await view.render();
+                view.render();
         }
 
             
@@ -715,7 +715,7 @@ export default class RssDashboardPlugin extends Plugin {
         await this.saveSettings();
         const view = await this.getActiveDashboardView();
         if (view) {
-            await view.render();
+            view.render();
         }
 
         
@@ -1040,7 +1040,7 @@ export default class RssDashboardPlugin extends Plugin {
             
             const view = await this.getActiveDashboardView();
             if (view) {
-                await view.render();
+                view.render();
             }
         }
     }

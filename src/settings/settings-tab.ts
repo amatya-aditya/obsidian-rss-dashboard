@@ -80,7 +80,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         const view = await this.plugin.getActiveDashboardView();
                         if (view) {
                             await this.app.workspace.revealLeaf(view.leaf);
-                            await view.render();
+                            view.render();
                         }
                     })
             );
@@ -155,7 +155,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         const view = await this.plugin.getActiveDashboardView();
                         if (view) {
                             await this.app.workspace.revealLeaf(view.leaf);
-                            await view.render();
+                            view.render();
                         }
                     })
             );
@@ -257,7 +257,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         const view = await this.plugin.getActiveDashboardView();
                         if (view && this.plugin.settings.viewStyle === "card") {
                             await this.app.workspace.revealLeaf(view.leaf);
-                            await view.render();
+                            view.render();
                         }
                     })
             );
@@ -604,7 +604,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         const view = await this.plugin.getActiveDashboardView();
                         if (view) {
                             await this.app.workspace.revealLeaf(view.leaf);
-                            await view.render();
+                            view.render();
                         }
                         new Notice("Data imported successfully!");
                     } catch {
@@ -651,7 +651,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         const view = await this.plugin.getActiveDashboardView();
                         if (view) {
                             await this.app.workspace.revealLeaf(view.leaf);
-                            await view.render();
+                            view.render();
                         }
                     })
                 )

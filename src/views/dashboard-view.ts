@@ -153,11 +153,11 @@ export class RssDashboardView extends ItemView {
         }
         
         
-        await this.render();
+        this.render();
     }
     
     
-    async render(): Promise<void> {
+    render(): void {
         
         this.verifySavedArticles();
         
@@ -914,8 +914,8 @@ export class RssDashboardView extends ItemView {
     }
     
     
-    async refresh(): Promise<void> {
-        await this.render();
+    refresh(): void {
+        this.render();
     }
 
     onClose(): Promise<void> {

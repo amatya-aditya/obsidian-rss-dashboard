@@ -193,7 +193,11 @@ If you encounter any issues or have suggestions:
 
 If you find this plugin useful, consider supporting its long-term development:
 
-<a href="https://www.buymeacoffee.com/amatya_aditya"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a pizza&emoji=🍕&slug=amatya_aditya&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" /></a>
+<p align="center">
+  <a href="https://www.buymeacoffee.com/amatya_aditya" target="_blank">☕ Buy me a coffee</a>
+</p>
+
+<p align="center"> <a href='https://ko-fi.com/Y8Y41FV4WI' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a></p>
 
 ## Other Plugins by Me
 

@@ -274,7 +274,7 @@ export class ReaderView extends ItemView {
         this.updateSavedLabel(false);
 
         if (item.saved) {
-            const fileExists = await this.checkSavedFileExists(item);
+            const fileExists = this.checkSavedFileExists(item);
             if (!fileExists) {
                 item.saved = false;
                 if (item.tags) {
@@ -751,7 +751,7 @@ export class ReaderView extends ItemView {
     }
     
     
-    private async checkSavedFileExists(item: FeedItem): Promise<boolean> {
+    private checkSavedFileExists(item: FeedItem): boolean {
         try {
             
             const folder = this.settings.articleSaving.defaultFolder || "RSS articles";
