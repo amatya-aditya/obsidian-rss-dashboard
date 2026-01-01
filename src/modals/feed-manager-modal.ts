@@ -61,32 +61,32 @@ export class EditFeedModal extends Modal {
                 btn.setButtonText("Load")
                     .onClick(() => {
                         void (async () => {
-                            status = "Loading...";
+                        status = "Loading...";
                             if (refs.statusDiv) refs.statusDiv.textContent = status;
-                            try {
-                                const res = await requestUrl(url);
-                                const parser = new DOMParser();
-                                const doc = parser.parseFromString(res.text, "text/xml");
-                                const feedTitle = doc.querySelector("channel > title, feed > title");
-                                if (feedTitle?.textContent) {
-                                    title = feedTitle.textContent;
-                                    if (titleInput) titleInput.value = title;
-                                }
-                                const latestItem = doc.querySelector("item > pubDate, entry > updated, entry > published");
-                                if (latestItem?.textContent) {
-                                    const date = new Date(latestItem.textContent);
-                                    const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
-                                    latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days ago`;
-                                } else {
-                                    latestEntry = "N/A";
-                                }
-                                if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
-                                status = "OK";
-                            } catch {
-                                status = "Error loading feed";
-                                latestEntry = "-";
-                                if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
+                        try {
+                            const res = await requestUrl(url);
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(res.text, "text/xml");
+                            const feedTitle = doc.querySelector("channel > title, feed > title");
+                            if (feedTitle?.textContent) {
+                                title = feedTitle.textContent;
+                                if (titleInput) titleInput.value = title;
                             }
+                            const latestItem = doc.querySelector("item > pubDate, entry > updated, entry > published");
+                            if (latestItem?.textContent) {
+                                const date = new Date(latestItem.textContent);
+                                const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+                                latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days ago`;
+                            } else {
+                                latestEntry = "N/A";
+                            }
+                                if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
+                            status = "OK";
+                            } catch {
+                            status = "Error loading feed";
+                            latestEntry = "-";
+                                if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
+                        }
                             if (refs.statusDiv) refs.statusDiv.textContent = status;
                         })();
                     });
@@ -356,37 +356,37 @@ export class EditFeedModal extends Modal {
         const cancelBtn = btns.createEl("button", { text: "Cancel" });
         saveBtn.onclick = () => {
             void (async () => {
-                const oldTitle = this.feed.title;
-                this.feed.title = title;
-                this.feed.url = url;
-                this.feed.folder = folder;
-                this.feed.autoDeleteDuration = autoDeleteDuration;
-                
-                // Update feedTitle for all articles in this feed when the title changes
-                if (oldTitle !== title) {
-                    for (const item of this.feed.items) {
-                        item.feedTitle = title;
-                    }
+            const oldTitle = this.feed.title;
+            this.feed.title = title;
+            this.feed.url = url;
+            this.feed.folder = folder;
+            this.feed.autoDeleteDuration = autoDeleteDuration;
+            
+            // Update feedTitle for all articles in this feed when the title changes
+            if (oldTitle !== title) {
+                for (const item of this.feed.items) {
+                    item.feedTitle = title;
                 }
+            }
+            
+            const newMaxItemsLimit = maxItemsLimit || this.plugin.settings.maxItems;
+            
+            this.feed.maxItemsLimit = newMaxItemsLimit;
+            this.feed.scanInterval = scanInterval;
+            
+            
+            if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
                 
-                const newMaxItemsLimit = maxItemsLimit || this.plugin.settings.maxItems;
-                
-                this.feed.maxItemsLimit = newMaxItemsLimit;
-                this.feed.scanInterval = scanInterval;
-                
-                
-                if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
-                    
-                    this.feed.items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-                    this.feed.items = this.feed.items.slice(0, newMaxItemsLimit);
-                    new Notice(`Feed updated and trimmed to ${newMaxItemsLimit} articles`);
-                } else {
-                    new Notice("Feed updated");
-                }
-                
-                await this.plugin.saveSettings();
-                this.close();
-                this.onSave();
+                this.feed.items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+                this.feed.items = this.feed.items.slice(0, newMaxItemsLimit);
+                new Notice(`Feed updated and trimmed to ${newMaxItemsLimit} articles`);
+            } else {
+                new Notice("Feed updated");
+            }
+            
+            await this.plugin.saveSettings();
+            this.close();
+            this.onSave();
             })();
         };
         cancelBtn.onclick = () => this.close();
@@ -453,30 +453,30 @@ export class AddFeedModal extends Modal {
                 btn.setButtonText("Load")
                     .onClick(() => {
                         void (async () => {
-                            status = "Loading...";
+                        status = "Loading...";
                             if (refs.statusDiv) refs.statusDiv.textContent = status;
-                            try {
-                                const res = await requestUrl(url);
-                                const parser = new DOMParser();
-                                const doc = parser.parseFromString(res.text, "text/xml");
-                                const feedTitle = doc.querySelector("channel > title, feed > title");
-                                title = feedTitle?.textContent || "";
-                                if (titleInput) titleInput.value = title;
-                                const latestItem = doc.querySelector("item > pubDate, entry > updated, entry > published");
+                        try {
+                            const res = await requestUrl(url);
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(res.text, "text/xml");
+                            const feedTitle = doc.querySelector("channel > title, feed > title");
+                            title = feedTitle?.textContent || "";
+                            if (titleInput) titleInput.value = title;
+                            const latestItem = doc.querySelector("item > pubDate, entry > updated, entry > published");
                                 if (latestItem?.textContent) {
                                     const date = new Date(latestItem.textContent);
-                                    const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
-                                    latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days`;
-                                } else {
-                                    latestEntry = "N/A";
-                                }
+                                const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+                                latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days`;
+                            } else {
+								latestEntry = "N/A";
+							}
                                 if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
-                                status = "OK";
+                            status = "OK";
                             } catch {
-                                status = "Error loading feed";
-                                latestEntry = "-";
+                            status = "Error loading feed";
+							latestEntry = "-";
                                 if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
-                            }
+                        }
                             if (refs.statusDiv) refs.statusDiv.textContent = status;
                         })();
                     });
@@ -847,8 +847,8 @@ export class FeedManagerModal extends Modal {
             this.showConfirmModal(`Delete feed '${feed.title}'?`, () => {
                 this.plugin.settings.feeds = this.plugin.settings.feeds.filter(f => f !== feed);
                 void this.plugin.saveSettings().then(() => {
-                    new Notice("Feed deleted");
-                    this.onOpen(); 
+                new Notice("Feed deleted");
+                this.onOpen(); 
                 });
             });
         };

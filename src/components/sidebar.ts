@@ -680,68 +680,68 @@ export class Sidebar {
         });
         addButton.addEventListener("click", () => {
             void (async () => {
-                const channel = channelInput.value.trim();
-                let feedUrl = "";
-                let channelId = "";
-                let username = "";
-                
-                if (!channel) {
-                    new Notice("Please enter a YouTube channel URL or ID");
-                    return;
+            const channel = channelInput.value.trim();
+            let feedUrl = "";
+            let channelId = "";
+            let username = "";
+            
+            if (!channel) {
+                new Notice("Please enter a YouTube channel URL or ID");
+                return;
+            }
+            
+            if (/^UC[\w-]{22}$/.test(channel)) {
+                channelId = channel;
+                feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel}`;
+                const result = await this.extractChannelIdAndNameFromYouTubePage(`https://www.youtube.com/channel/${channel}`);
+                if (result.channelName && !titleInput.value) {
+                    titleInput.value = result.channelName;
+                } else if (!titleInput.value) {
+                    titleInput.value = `YouTube: ${channel}`;
+                }
+            } else {
+                let channelName = "";
+                let inputUrl = channel;
+                if (!inputUrl.startsWith("http")) {
+                    if (inputUrl.startsWith("@")) {
+                        inputUrl = `https://www.youtube.com/${inputUrl}`;
+                    } else {
+                        inputUrl = `https://www.youtube.com/user/${inputUrl}`;
+                    }
                 }
                 
-                if (/^UC[\w-]{22}$/.test(channel)) {
-                    channelId = channel;
-                    feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel}`;
-                    const result = await this.extractChannelIdAndNameFromYouTubePage(`https://www.youtube.com/channel/${channel}`);
-                    if (result.channelName && !titleInput.value) {
-                        titleInput.value = result.channelName;
-                    } else if (!titleInput.value) {
-                        titleInput.value = `YouTube: ${channel}`;
+                const result = await this.extractChannelIdAndNameFromYouTubePage(inputUrl);
+                channelId = result.channelId || "";
+                channelName = result.channelName || "";
+                if (channelId) {
+                    feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+                    
+                    if (titleInput && !titleInput.value) {
+                        titleInput.value = channelName;
                     }
                 } else {
-                    let channelName = "";
-                    let inputUrl = channel;
-                    if (!inputUrl.startsWith("http")) {
-                        if (inputUrl.startsWith("@")) {
-                            inputUrl = `https://www.youtube.com/${inputUrl}`;
-                        } else {
-                            inputUrl = `https://www.youtube.com/user/${inputUrl}`;
-                        }
+                    if (channel.includes("youtube.com/user/")) {
+                        const match = channel.match(/youtube\.com\/user\/([^/?]+)/);
+                        username = match ? match[1] : "";
+                    } else if (!channel.startsWith("http") && !channel.startsWith("@")) {
+                        username = channel;
                     }
-                    
-                    const result = await this.extractChannelIdAndNameFromYouTubePage(inputUrl);
-                    channelId = result.channelId || "";
-                    channelName = result.channelName || "";
-                    if (channelId) {
-                        feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-                        
-                        if (titleInput && !titleInput.value) {
-                            titleInput.value = channelName;
-                        }
+                    if (username) {
+                        feedUrl = `https://www.youtube.com/feeds/videos.xml?user=${username}`;
                     } else {
-                        if (channel.includes("youtube.com/user/")) {
-                            const match = channel.match(/youtube\.com\/user\/([^/?]+)/);
-                            username = match ? match[1] : "";
-                        } else if (!channel.startsWith("http") && !channel.startsWith("@")) {
-                            username = channel;
-                        }
-                        if (username) {
-                            feedUrl = `https://www.youtube.com/feeds/videos.xml?user=${username}`;
-                        } else {
-                            new Notice("Could not resolve channel ID or username. Please check the URL.");
-                            return;
-                        }
+                        new Notice("Could not resolve channel ID or username. Please check the URL.");
+                        return;
                     }
                 }
-                
-                const title = titleInput.value.trim() || `YouTube: ${channelId || username}`;
+            }
+            
+            const title = titleInput.value.trim() || `YouTube: ${channelId || username}`;
                 void this.callbacks.onAddFeed(
-                    title, 
-                    feedUrl, 
-                    this.settings.media.defaultYouTubeFolder
+                title, 
+                feedUrl, 
+                this.settings.media.defaultYouTubeFolder
                 ).catch(() => { /* ignore */ });
-                document.body.removeChild(modal);
+            document.body.removeChild(modal);
             })();
         });
 
@@ -1942,8 +1942,8 @@ export class Sidebar {
                     }
                     feed.folder = "";
                     void this.plugin.saveSettings().then(() => {
-                        this.render();
-                        new Notice(`Moved "${feed.title}" to root`);
+                    this.render();
+                    new Notice(`Moved "${feed.title}" to root`);
                     });
                 });
         });
@@ -1972,8 +1972,8 @@ export class Sidebar {
                                 if (newFolder) newFolder.modifiedAt = Date.now();
                                 
                                 void this.plugin.saveSettings().then(() => {
-                                    this.render();
-                                    new Notice(`Moved "${feed.title}" to "${folderPath}"`);
+                                this.render();
+                                new Notice(`Moved "${feed.title}" to "${folderPath}"`);
                                 });
                             }
                         });
@@ -1991,14 +1991,14 @@ export class Sidebar {
                         title: "Create new folder",
                         onSubmit: (folderName) => {
                             void (async () => {
-                                await this.addTopLevelFolder(folderName);
-                                // Move the feed to the newly created folder
-                                feed.folder = folderName;
-                                const newFolder = this.findFolderByPath(folderName);
-                                if (newFolder) newFolder.modifiedAt = Date.now();
-                                await this.plugin.saveSettings();
-                                this.render();
-                                new Notice(`Created folder "${folderName}" and moved "${feed.title}" to it`);
+                            await this.addTopLevelFolder(folderName);
+                            // Move the feed to the newly created folder
+                            feed.folder = folderName;
+                            const newFolder = this.findFolderByPath(folderName);
+                            if (newFolder) newFolder.modifiedAt = Date.now();
+                            await this.plugin.saveSettings();
+                            this.render();
+                            new Notice(`Created folder "${folderName}" and moved "${feed.title}" to it`);
                             })();
                         }
                     });

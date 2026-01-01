@@ -373,7 +373,7 @@ export class DiscoverView extends ItemView {
     private renderTypeFilter(container: HTMLElement): void {
         const typeSection = container.createDiv({ cls: "rss-discover-section" });
         
-       
+        
         const typeList = typeSection.createDiv({ cls: "rss-discover-type-list" });
         
         const allTypes = Array.from(new Set(this.feeds.map(f => f.type))).sort();
@@ -1094,9 +1094,9 @@ export class DiscoverView extends ItemView {
             const addBtn = rightSection.createEl("button", { text: "Add feed", cls: "rss-discover-card-add-btn" });
             addBtn.addEventListener("click", () => {
                 void (async () => {
-                    await this.addFeed(feed);
-                    addBtn.setText("Added");
-                    addBtn.disabled = true;
+                await this.addFeed(feed);
+                addBtn.setText("Added");
+                addBtn.disabled = true;
                 })();
             });
         }

@@ -66,8 +66,8 @@ export class RssDashboardView extends ItemView {
         return "rss";
     }
 
-    async onOpen(): Promise<void> {
-        
+    onOpen(): Promise<void> {
+
         this.registerEvent(
             this.app.vault.on('delete', (file) => {
                 if (file instanceof TFile) {
@@ -75,8 +75,8 @@ export class RssDashboardView extends ItemView {
                 }
             })
         );
-        
-        
+
+
         this.registerEvent(
             this.app.vault.on('rename', (file, oldPath) => {
                 if (file instanceof TFile) {
@@ -84,20 +84,20 @@ export class RssDashboardView extends ItemView {
                 }
             })
         );
-        
-        
+
+
         this.registerEvent(
             this.app.vault.on('modify', () => {
-                
+
                 if (this.verificationTimeout) {
                     window.clearTimeout(this.verificationTimeout);
                 }
                 this.verificationTimeout = window.setTimeout(() => {
                     void this.verifySavedArticles();
-                }, 300000); 
+                }, 300000);
             })
         );
-        
+
         const container = this.containerEl.children[1];
         container.addClass("rss-dashboard-container");
         let dashboardContainer = container.querySelector('.rss-dashboard-layout') as HTMLElement;
@@ -113,7 +113,7 @@ export class RssDashboardView extends ItemView {
             dashboardContainer.appendChild(this.sidebarContainer);
         }
 
-        
+
         if (!this.sidebar) {
             this.sidebar = new Sidebar(
                 this.app,
@@ -151,9 +151,10 @@ export class RssDashboardView extends ItemView {
                 }
             );
         }
-        
-        
+
+
         this.render();
+        return Promise.resolve();
     }
     
     

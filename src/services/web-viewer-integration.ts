@@ -179,31 +179,31 @@ export class WebViewerIntegration {
         });
         saveButton.addEventListener("click", () => {
             void (async () => {
-                const folder = folderInput.value.trim();
-                const template = templateInput.value.trim();
-                const includeFrontmatter = frontmatterCheckbox.checked;
+            const folder = folderInput.value.trim();
+            const template = templateInput.value.trim();
+            const includeFrontmatter = frontmatterCheckbox.checked;
+            
+            try {
+                await this.saveArticle({
+                    title,
+                    link: url,
+                    description: content,
+                    pubDate: new Date().toUTCString(),
+                    guid: url,
+                    feedTitle: "Web viewer",
+                    feedUrl: "",
+                    coverImage: "",
+                    read: true,
+                    starred: false,
+                    tags: [],
+                    saved: false
+                }, folder, template, includeFrontmatter);
                 
-                try {
-                    await this.saveArticle({
-                        title,
-                        link: url,
-                        description: content,
-                        pubDate: new Date().toUTCString(),
-                        guid: url,
-                        feedTitle: "Web viewer",
-                        feedUrl: "",
-                        coverImage: "",
-                        read: true,
-                        starred: false,
-                        tags: [],
-                        saved: false
-                    }, folder, template, includeFrontmatter);
-                    
-                    document.body.removeChild(modal);
-                } catch (error) {
-                    const message = error instanceof Error ? error.message : String(error);
-                    new Notice(`Error saving article: ${message}`);
-                }
+                document.body.removeChild(modal);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                new Notice(`Error saving article: ${message}`);
+            }
             })();
         });
         

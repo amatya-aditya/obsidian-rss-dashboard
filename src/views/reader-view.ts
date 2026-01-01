@@ -230,17 +230,17 @@ export class ReaderView extends ItemView {
         });
         saveButton.addEventListener("click", () => {
             void (async () => {
-                const folder = folderInput.value.trim();
+            const folder = folderInput.value.trim();
+            
+            const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
+            const file = await this.articleSaver.saveArticle(item, folder, undefined, markdownContent);
+            if (file) {
+                this.onArticleSave(item);
                 
-                const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
-                const file = await this.articleSaver.saveArticle(item, folder, undefined, markdownContent);
-                if (file) {
-                    this.onArticleSave(item);
-                    
-                    this.updateSavedLabel(true);
-                }
-                
-                document.body.removeChild(modal);
+                this.updateSavedLabel(true);
+            }
+            
+            document.body.removeChild(modal);
             })();
         });
         
@@ -602,13 +602,13 @@ export class ReaderView extends ItemView {
         });
         saveButton.addEventListener("click", () => {
             void (async () => {
-                const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
-                
-                const file = await this.articleSaver.saveArticle(item, undefined, undefined, markdownContent);
-                if (file) {
-                    this.onArticleSave(item);
-                }
-                document.body.removeChild(modal);
+            const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
+            
+            const file = await this.articleSaver.saveArticle(item, undefined, undefined, markdownContent);
+            if (file) {
+                this.onArticleSave(item);
+            }
+            document.body.removeChild(modal);
             })();
         });
         

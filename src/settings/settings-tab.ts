@@ -544,8 +544,8 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         templateInput.value = this.plugin.settings.articleSaving.defaultTemplate;
         templateInput.addEventListener("change", () => {
             void (async () => {
-                this.plugin.settings.articleSaving.defaultTemplate = templateInput.value;
-                await this.plugin.saveSettings();
+            this.plugin.settings.articleSaving.defaultTemplate = templateInput.value;
+            await this.plugin.saveSettings();
             })();
         });
         
@@ -569,16 +569,16 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         });
         exportBtn.onclick = () => {
             const data = this.plugin.settings;
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.body.createEl("a", {
-                attr: {
-                    href: url,
-                    download: "rss-dashboard-data.json"
-                }
-            });
-            a.click();
-            URL.revokeObjectURL(url);
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.body.createEl("a", {
+                    attr: {
+                        href: url,
+                        download: "rss-dashboard-data.json"
+                    }
+                });
+                a.click();
+                URL.revokeObjectURL(url);
         };
         
         const importBtn = dataBtnRow.createEl("button", { 
@@ -594,22 +594,22 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             });
             input.onchange = () => {
                 void (async () => {
-                    const file = input.files?.[0];
-                    if (!file) return;
-                    const text = await file.text();
-                    try {
+                const file = input.files?.[0];
+                if (!file) return;
+                const text = await file.text();
+                try {
                         const data = JSON.parse(text) as Partial<RssDashboardSettings>;
-                        this.plugin.settings = Object.assign({}, this.plugin.settings, data);
-                        await this.plugin.saveSettings();
-                        const view = await this.plugin.getActiveDashboardView();
-                        if (view) {
-                            await this.app.workspace.revealLeaf(view.leaf);
+                    this.plugin.settings = Object.assign({}, this.plugin.settings, data);
+                    await this.plugin.saveSettings();
+                    const view = await this.plugin.getActiveDashboardView();
+                    if (view) {
+                        await this.app.workspace.revealLeaf(view.leaf);
                             view.render();
-                        }
-                        new Notice("Data imported successfully!");
-                    } catch {
-                        new Notice("Invalid data.json file");
                     }
+                    new Notice("Data imported successfully!");
+                    } catch {
+                    new Notice("Invalid data.json file");
+                }
                 })();
             };
             input.click();

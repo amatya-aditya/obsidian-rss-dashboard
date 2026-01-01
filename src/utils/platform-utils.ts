@@ -96,7 +96,7 @@ export function ensureUtf8Meta(html: string): string {
         return '<meta charset="UTF-8">' + html;
     }
     return html;
-}
+} 
 
 /**
  * Set CSS custom properties on an element
