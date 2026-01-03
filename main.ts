@@ -4,7 +4,8 @@ import {
     WorkspaceLeaf,
     setIcon,
     Setting,
-    Platform
+    Platform,
+    requireApiVersion
 } from "obsidian";
 
 import { 
@@ -36,8 +37,8 @@ export default class RssDashboardPlugin extends Plugin {
     public async getActiveDashboardView(): Promise<RssDashboardView | null> {
         const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
         for (const leaf of leaves) {
-            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
-                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
+            if (requireApiVersion('1.7.2')) {
+                await leaf.loadIfDeferred();
             }
             const view = leaf.view;
             if (view instanceof RssDashboardView) {
@@ -50,8 +51,8 @@ export default class RssDashboardPlugin extends Plugin {
     public async getActiveDiscoverView(): Promise<DiscoverView | null> {
         const leaves = this.app.workspace.getLeavesOfType(RSS_DISCOVER_VIEW_TYPE);
         for (const leaf of leaves) {
-            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
-                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
+            if (requireApiVersion('1.7.2')) {
+                await leaf.loadIfDeferred();
             }
             const view = leaf.view;
             if (view instanceof DiscoverView) {
@@ -64,8 +65,8 @@ export default class RssDashboardPlugin extends Plugin {
     public async getActiveReaderView(): Promise<ReaderView | null> {
         const leaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
         for (const leaf of leaves) {
-            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
-                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
+            if (requireApiVersion('1.7.2')) {
+                await leaf.loadIfDeferred();
             }
             const view = leaf.view;
             if (view instanceof ReaderView) {
@@ -189,13 +190,22 @@ export default class RssDashboardPlugin extends Plugin {
             this.addCommand({
                 id: "toggle-sidebar",
                 name: "Toggle sidebar",
-                callback: async () => {
-                    const view = await this.getActiveDashboardView();
-                    if (view) {
-                        this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
-                        await this.saveSettings();
-                        view.render();
+                checkCallback: (checking: boolean) => {
+                    const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+                    if (leaves.length > 0) {
+                        if (!checking) {
+                            void (async () => {
+                                const view = await this.getActiveDashboardView();
+                                if (view) {
+                                    this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
+                                    await this.saveSettings();
+                                    view.render();
+                                }
+                            })();
+                        }
+                        return true;
                     }
+                    return false;
                 },
             });
     

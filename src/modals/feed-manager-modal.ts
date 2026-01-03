@@ -1,6 +1,7 @@
 import { Modal, App, Setting, Notice, requestUrl } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import type { Feed, Folder } from "../types/types";
+import { FolderSuggest } from "../components/folder-suggest";
 
 function collectAllFolders(folders: Folder[], base = ""): string[] {
     let paths: string[] = [];
@@ -34,12 +35,10 @@ export class EditFeedModal extends Modal {
         let folder = this.feed.folder || "";
         let status = "";
         let latestEntry = "-";
-        const allFolders = collectAllFolders(this.plugin.settings.folders).sort((a, b) => a.localeCompare(b));
         let titleInput: HTMLInputElement;
         let urlInput: HTMLInputElement;
         let folderInput: HTMLInputElement;
         const refs: { statusDiv?: HTMLDivElement; latestEntryDiv?: HTMLDivElement } = {};
-        let dropdown: HTMLDivElement | null = null;
 
         new Setting(contentEl)
             .setName("Feed URL")
@@ -121,71 +120,12 @@ export class EditFeedModal extends Modal {
             .setName("Folder")
             .addText(text => {
                 text.setValue(folder)
-                    .setPlaceholder("Type or select folder...")
-                    .inputEl.classList.add("edit-feed-folder-input", "custom-input");
+                    .setPlaceholder("Type or select folder...");
                 folderInput = text.inputEl;
                 folderInput.autocomplete = "off";
                 folderInput.spellcheck = false;
-                folderInput.addEventListener("focus", () => {
-                    if (!dropdown) {
-                        dropdown = contentEl.createDiv({ cls: "edit-feed-folder-dropdown" });
-                        dropdown.style.width = folderInput.offsetWidth + "px";
-                        dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
-                        dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
-                        document.body.appendChild(dropdown);
-                    }
-                    if (dropdown) {
-                        dropdown.removeClass("hidden");
-                        dropdown.addClass("visible");
-                        while (dropdown.firstChild) {
-                            dropdown.removeChild(dropdown.firstChild);
-                        }
-                        allFolders.forEach(f => {
-                            if (dropdown) {
-                                const opt = dropdown.createDiv({ text: f, cls: "edit-feed-folder-option" });
-                                opt.onclick = () => {
-                                    folder = f;
-                                    text.setValue(f);
-                                    if (dropdown) {
-                                        dropdown.addClass("hidden");
-                                        dropdown.removeClass("visible");
-                                    }
-                                    text.inputEl.blur();
-                                };
-                            }
-                        });
-                    }
-                });
-                text.onChange(v => {
-                    folder = v;
-                    if (dropdown) {
-                        const filtered = allFolders.filter(f => f.toLowerCase().includes(v.toLowerCase()));
-                        if (dropdown) {
-                            while (dropdown.firstChild) {
-                                dropdown.removeChild(dropdown.firstChild);
-                            }
-                            filtered.forEach(f => {
-                                if (dropdown) {
-                                    const opt = dropdown.createDiv({ text: f, cls: "edit-feed-folder-option" });
-                                    opt.onclick = () => {
-                                        folder = f;
-                                        text.setValue(f);
-                                        if (dropdown) {
-                                            dropdown.addClass("hidden");
-                                            dropdown.removeClass("visible");
-                                        }
-                                        text.inputEl.blur();
-                                    };
-                                }
-                            });
-                        }
-                    }
-                });
-                text.inputEl.onblur = () => {
-                    window.setTimeout(() => {
-                        if (dropdown) dropdown.addClass("hidden");
-                    }, 200);
-                };
+
+                new FolderSuggest(this.app, folderInput, this.plugin.settings.folders);
             });
 
         
@@ -225,7 +165,7 @@ export class EditFeedModal extends Modal {
                             autoDeleteCustomInput = autoDeleteSetting.controlEl.createEl("input", {
                                 type: "number",
                                 placeholder: "Enter days",
-                                cls: "custom-input"
+                                cls: "rss-custom-input"
                             });
                             autoDeleteCustomInput.min = "1";
                             autoDeleteCustomInput.value = autoDeleteDuration > 0 ? autoDeleteDuration.toString() : "";
@@ -276,7 +216,7 @@ export class EditFeedModal extends Modal {
                             maxItemsCustomInput = maxItemsSetting.controlEl.createEl("input", {
                                 type: "number",
                                 placeholder: "Enter number",
-                                cls: "custom-input"
+                                cls: "rss-custom-input"
                             });
                             maxItemsCustomInput.min = "1";
                             maxItemsCustomInput.addEventListener("change", (evt: Event) => {
@@ -329,7 +269,7 @@ export class EditFeedModal extends Modal {
                             scanIntervalCustomInput = scanIntervalSetting.controlEl.createEl("input", {
                                 type: "number",
                                 placeholder: "Enter minutes",
-                                cls: "custom-input"
+                                cls: "rss-custom-input"
                             });
                             scanIntervalCustomInput.min = "1";
                             scanIntervalCustomInput.addEventListener("change", (evt: Event) => {
@@ -359,7 +299,7 @@ export class EditFeedModal extends Modal {
             const oldTitle = this.feed.title;
             this.feed.title = title;
             this.feed.url = url;
-            this.feed.folder = folder;
+            this.feed.folder = folderInput?.value || folder;
             this.feed.autoDeleteDuration = autoDeleteDuration;
             
             // Update feedTitle for all articles in this feed when the title changes
@@ -426,12 +366,10 @@ export class AddFeedModal extends Modal {
         let status = "";
         let latestEntry = "-";
         let folder = this.defaultFolder;
-        const allFolders = collectAllFolders(this.folders).sort((a, b) => a.localeCompare(b));
         let titleInput: HTMLInputElement;
         let urlInput: HTMLInputElement;
         let folderInput: HTMLInputElement;
         const refs: { statusDiv?: HTMLDivElement; latestEntryDiv?: HTMLDivElement } = {};
-        let dropdown: HTMLDivElement | null = null;
         
         new Setting(contentEl)
             .setName("Feed URL")
@@ -512,70 +450,13 @@ export class AddFeedModal extends Modal {
         new Setting(contentEl)
             .setName("Folder")
             .addText(text => {
+                text.setValue(folder)
+                    .setPlaceholder("Type or select folder...");
                 folderInput = text.inputEl;
-                text.setValue(folder).onChange(v => {
-                    folder = v;
-                    if (dropdown) {
-                        
-                        const filtered = allFolders.filter(f => f.toLowerCase().includes(v.toLowerCase()));
-                        if (dropdown) {
-                            while (dropdown.firstChild) {
-                                dropdown.removeChild(dropdown.firstChild);
-                            }
-                            filtered.forEach(f => {
-                                if (dropdown) {
-                                    const opt = dropdown.createDiv({ text: f, cls: "edit-feed-folder-option" });
-                                    opt.onclick = () => {
-                                        folder = f;
-                                        text.setValue(f);
-                                        if (dropdown) {
-                                            dropdown.addClass("hidden");
-                                            dropdown.removeClass("visible");
-                                        }
-                                        text.inputEl.blur();
-                                    };
-                                }
-                            });
-                        }
-                    }
-                });
                 folderInput.autocomplete = "off";
                 folderInput.spellcheck = false;
-                folderInput.addEventListener("focus", () => {
-                    if (!dropdown) {
-                        dropdown = contentEl.createDiv({ cls: "edit-feed-folder-dropdown" });
-                        dropdown.style.width = folderInput.offsetWidth + "px";
-                        dropdown.style.left = folderInput.getBoundingClientRect().left + "px";
-                        dropdown.style.top = (folderInput.getBoundingClientRect().bottom + window.scrollY) + "px";
-                        document.body.appendChild(dropdown);
-                    }
-                    if (dropdown) {
-                        dropdown.removeClass("hidden");
-                        dropdown.addClass("visible");
-                        while (dropdown.firstChild) {
-                            dropdown.removeChild(dropdown.firstChild);
-                        }
-                        allFolders.forEach(f => {
-                            if (dropdown) {
-                                const opt = dropdown.createDiv({ text: f, cls: "edit-feed-folder-option" });
-                                opt.onclick = () => {
-                                    folder = f;
-                                    text.setValue(f);
-                                    if (dropdown) {
-                                        dropdown.addClass("hidden");
-                                        dropdown.removeClass("visible");
-                                    }
-                                    text.inputEl.blur();
-                                };
-                            }
-                        });
-                    }
-                });
-                text.inputEl.onblur = () => {
-                    window.setTimeout(() => {
-                        if (dropdown) dropdown.addClass("hidden");
-                    }, 200);
-                };
+
+                new FolderSuggest(this.app, folderInput, this.folders);
             });
 
         
@@ -613,7 +494,7 @@ export class AddFeedModal extends Modal {
                             autoDeleteCustomInput = autoDeleteSetting.controlEl.createEl("input", {
                                 type: "number",
                                 placeholder: "Enter days",
-                                cls: "custom-input"
+                                cls: "rss-custom-input"
                             });
                             autoDeleteCustomInput.min = "1";
                             autoDeleteCustomInput.value = autoDeleteDuration > 0 ? autoDeleteDuration.toString() : "";
@@ -664,7 +545,7 @@ export class AddFeedModal extends Modal {
                             maxItemsCustomInput = maxItemsSetting.controlEl.createEl("input", {
                                 type: "number",
                                 placeholder: "Enter number",
-                                cls: "custom-input"
+                                cls: "rss-custom-input"
                             });
                             maxItemsCustomInput.min = "1";
                             maxItemsCustomInput.value = maxItemsLimit > 0 ? maxItemsLimit.toString() : "";
@@ -716,7 +597,7 @@ export class AddFeedModal extends Modal {
                             scanIntervalCustomInput = scanIntervalSetting.controlEl.createEl("input", {
                                 type: "number",
                                 placeholder: "Enter minutes",
-                                cls: "custom-input"
+                                cls: "rss-custom-input"
                             });
                             scanIntervalCustomInput.min = "1";
                             scanIntervalCustomInput.value = scanInterval > 0 ? scanInterval.toString() : "";
@@ -751,7 +632,8 @@ export class AddFeedModal extends Modal {
                 new Notice("Title cannot be empty");
                 return;
             }
-            void this.onAdd(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval).catch(() => { /* ignore */ });
+            const finalFolder = folderInput?.value || folder;
+            void this.onAdd(title, url, finalFolder, autoDeleteDuration, maxItemsLimit, scanInterval).catch(() => { /* ignore */ });
             this.onSave();
             this.close();
         };
@@ -769,6 +651,7 @@ export class AddFeedModal extends Modal {
 
 export class FeedManagerModal extends Modal {
     plugin: RssDashboardPlugin;
+    private searchQuery = "";
 
     constructor(app: App, plugin: RssDashboardPlugin) {
         super(app);
@@ -781,11 +664,26 @@ export class FeedManagerModal extends Modal {
         contentEl.empty();
         new Setting(contentEl).setName("Manage feeds").setHeading();
 
-        
-        const addFeedBtn = contentEl.createEl("button", { text: "Add feed", cls: "rss-dashboard-primary-button feed-manager-add-button" });
+        // Search and Add Feed button container
+        const topControls = contentEl.createDiv({ cls: "feed-manager-top-controls" });
+
+        // Search input
+        const searchContainer = topControls.createDiv({ cls: "feed-manager-search-container" });
+        const searchInput = searchContainer.createEl("input", {
+            type: "text",
+            placeholder: "Search feeds...",
+            cls: "feed-manager-search-input"
+        });
+        searchInput.value = this.searchQuery;
+        searchInput.addEventListener("input", () => {
+            this.searchQuery = searchInput.value;
+            this.renderFeeds(contentEl);
+        });
+
+        const addFeedBtn = topControls.createEl("button", { text: "Add feed", cls: "rss-dashboard-primary-button feed-manager-add-button" });
         addFeedBtn.onclick = () => {
             new AddFeedModal(
-				this.app, 
+				this.app,
 				this.plugin.settings.folders,
 				(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval) => this.plugin.addFeed(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval),
 				() => this.onOpen(),
@@ -794,13 +692,32 @@ export class FeedManagerModal extends Modal {
 			).open();
         };
 
-        
+        this.renderFeeds(contentEl);
+    }
+
+    private renderFeeds(containerEl: HTMLElement) {
+        // Remove existing feed list if it exists
+        const existingList = containerEl.querySelector(".feed-manager-list");
+        if (existingList) {
+            existingList.remove();
+        }
+
+        const feedsContainer = containerEl.createDiv({ cls: "feed-manager-list" });
+
         const allFolderPaths = collectAllFolders(this.plugin.settings.folders);
-        
+
         const feedsByFolder: Record<string, Feed[]> = {};
         for (const path of allFolderPaths) feedsByFolder[path] = [];
         const uncategorized: Feed[] = [];
-        for (const feed of this.plugin.settings.feeds) {
+
+        // Filter feeds based on search query
+        const lowerQuery = this.searchQuery.toLowerCase();
+        const filteredFeeds = this.plugin.settings.feeds.filter(feed =>
+            feed.title.toLowerCase().includes(lowerQuery) ||
+            feed.folder?.toLowerCase().includes(lowerQuery)
+        );
+
+        for (const feed of filteredFeeds) {
             if (feed.folder && allFolderPaths.includes(feed.folder)) {
                 feedsByFolder[feed.folder].push(feed);
             } else {
@@ -808,22 +725,25 @@ export class FeedManagerModal extends Modal {
             }
         }
 
-        
+        // Show message if no results
+        if (filteredFeeds.length === 0) {
+            feedsContainer.createDiv({ text: "No feeds found.", cls: "feed-manager-empty" });
+            return;
+        }
+
         for (const folderPath of allFolderPaths) {
-            const folderDiv = contentEl.createDiv({ cls: "feed-manager-folder" });
-            new Setting(folderDiv).setName(folderPath).setHeading();
             const feeds = feedsByFolder[folderPath];
-            if (feeds.length === 0) {
-                folderDiv.createDiv({ text: "No feeds in this folder.", cls: "feed-manager-empty" });
-            } else {
+            if (feeds.length > 0) {
+                const folderDiv = feedsContainer.createDiv({ cls: "feed-manager-folder" });
+                new Setting(folderDiv).setName(folderPath).setHeading();
                 for (const feed of feeds) {
                     this.renderFeedRow(folderDiv, feed);
                 }
             }
         }
-        
+
         if (uncategorized.length > 0) {
-            const uncategorizedDiv = contentEl.createDiv({ cls: "feed-manager-folder" });
+            const uncategorizedDiv = feedsContainer.createDiv({ cls: "feed-manager-folder" });
             new Setting(uncategorizedDiv).setName("Uncategorized").setHeading();
             for (const feed of uncategorized) {
                 this.renderFeedRow(uncategorizedDiv, feed);
@@ -834,8 +754,6 @@ export class FeedManagerModal extends Modal {
     renderFeedRow(parent: HTMLElement, feed: Feed) {
         const row = parent.createDiv({ cls: "feed-manager-row" });
         row.createDiv({ text: feed.title, cls: "feed-manager-title" });
-        row.createDiv({ text: feed.url, cls: "feed-manager-url" });
-        row.createDiv({ text: feed.folder || "Uncategorized", cls: "feed-manager-foldername" });
         
         const editBtn = row.createEl("button", { text: "Edit" });
         editBtn.onclick = () => {

@@ -194,36 +194,23 @@ guid: "{{guid}}"
         return path.replace(/^\/+|\/+$/g, '');
     }
 
-    
+
     private async ensureFolderExists(folderPath: string): Promise<void> {
         if (!folderPath || folderPath.trim() === '') {
             return;
         }
-        
-        
+
         const cleanPath = this.normalizePath(folderPath);
         if (!cleanPath) {
             return;
         }
-        
-        const folders = cleanPath.split('/').filter(p => p.length > 0);
-        let currentPath = '';
-        
-        for (const folder of folders) {
-            currentPath += folder;
-            
-            try {
-                
-                if (this.app.vault.getAbstractFileByPath(currentPath) === null) {
-                   
-                    await this.app.vault.createFolder(currentPath);
-                }
-            } catch {
-                
-                throw new Error(`Failed to create folder: ${currentPath}`);
+
+        try {
+            if (this.app.vault.getAbstractFileByPath(cleanPath) === null) {
+                await this.app.vault.createFolder(cleanPath);
             }
-            
-            currentPath += '/';
+        } catch (error) {
+            throw new Error(`Failed to create folder: ${cleanPath}`);
         }
     }
     
@@ -605,13 +592,13 @@ guid: "{{guid}}"
                                 const normalizedFolder = this.normalizePath(this.settings.defaultFolder || '');
                                 const filename = this.sanitizeFilename(article.title);
                                 const newName = `${filename}.md`;
-                                
-                                
-                                await this.app.vault.rename(file, newName);
+
                                 const newPath =
                                     normalizedFolder && normalizedFolder.trim() !== ''
                                         ? `${normalizedFolder}/${newName}`
                                         : newName;
+
+                                await this.app.fileManager.renameFile(file, newPath);
                                 article.savedFilePath = newPath;
                             } catch {
                                 article.saved = false;

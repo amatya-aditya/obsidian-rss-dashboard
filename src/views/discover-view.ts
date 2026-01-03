@@ -26,7 +26,7 @@ export class DiscoverView extends ItemView {
     private activeSidebarSection: 'types' | 'categories' | 'tags' = 'tags';
     private currentPage = 1;
     private pageSize = 20;
-    private resizeObserver: ResizeObserver | null = null;
+    private documentClickHandlers: Array<(e: MouseEvent) => void> = [];
 
     constructor(
         leaf: WorkspaceLeaf,
@@ -615,22 +615,10 @@ export class DiscoverView extends ItemView {
         
         const controlsContainer = container.createDiv({ cls: 'rss-discover-controls-container' });
 
-        
+
         const topSection = controlsContainer.createDiv({ cls: 'rss-discover-top-section' });
 
-        if (this.resizeObserver) {
-            this.resizeObserver.disconnect();
-        }
 
-        this.resizeObserver = new ResizeObserver(entries => {
-            for (const entry of entries) {
-                const width = entry.contentRect.width;
-                topSection.classList.toggle('is-narrow', width < 800);
-            }
-        });
-        this.resizeObserver.observe(topSection);
-
-        
         const desktopControls = topSection.createDiv({ cls: 'rss-discover-desktop-filters' });
         this.createTopFilterControls(desktopControls);
 
@@ -646,12 +634,14 @@ export class DiscoverView extends ItemView {
             e.stopPropagation();
             dropdownMenu.classList.toggle('active');
         });
-        
-        document.addEventListener('click', (e) => {
+
+        const hamburgerClickHandler = (e: MouseEvent) => {
             if (!hamburgerMenu.contains(e.target as Node)) {
                 dropdownMenu.classList.remove('active');
             }
-        });
+        };
+        this.documentClickHandlers.push(hamburgerClickHandler);
+        this.registerDomEvent(document, 'click', hamburgerClickHandler);
         
         
         const filterHeader = controlsContainer.createDiv({ cls: "rss-discover-filter-header" });
@@ -661,7 +651,7 @@ export class DiscoverView extends ItemView {
         this.renderSelectedFilters(filterHeader);
         
         if (this.hasActiveFilters()) {
-            const clearBtn = filterHeader.createEl("button", { cls: "clear-filter-button mod-cta" });
+            const clearBtn = filterHeader.createEl("button", { cls: "rss-clear-filter-button mod-cta" });
             clearBtn.textContent = "Clear filters";
             clearBtn.addEventListener("click", () => {
                 this.filters = {
@@ -793,13 +783,15 @@ export class DiscoverView extends ItemView {
             dropdown.removeClass("hidden");
             dropdown.addClass("visible");
         });
-        
-        document.addEventListener("click", (e) => {
+
+        const dropdownClickHandler = (e: MouseEvent) => {
             if (!dropdownContainer.contains(e.target as Node)) {
                 dropdown.removeClass("visible");
                 dropdown.addClass("hidden");
             }
-        });
+        };
+        this.documentClickHandlers.push(dropdownClickHandler);
+        this.registerDomEvent(document, "click", dropdownClickHandler);
     }
 
     private populateFilterDropdown(dropdown: HTMLElement, options: string[], filterType: string, searchQuery: string): void {
@@ -1130,10 +1122,7 @@ export class DiscoverView extends ItemView {
     }
 
     onClose(): Promise<void> {
-        if (this.resizeObserver) {
-            this.resizeObserver.disconnect();
-            this.resizeObserver = null;
-        }
+        this.documentClickHandlers = [];
         return Promise.resolve();
     }
 

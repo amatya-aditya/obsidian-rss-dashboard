@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, TFile } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, TFile, requireApiVersion } from "obsidian";
 import { Feed, FeedItem, RssDashboardSettings, Folder } from "../types/types";
 import type RssDashboardPlugin from "../../main";
 import { Sidebar } from "../components/sidebar";
@@ -736,8 +736,8 @@ export class RssDashboardView extends ItemView {
         
         const readerLeaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
         const results = await Promise.all(readerLeaves.map(async (leaf) => {
-            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
-                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
+            if (requireApiVersion('1.7.2')) {
+                await leaf.loadIfDeferred();
             }
             if (leaf.view instanceof ReaderView) {
                 return leaf.view.isPodcastPlaying();
@@ -787,10 +787,7 @@ export class RssDashboardView extends ItemView {
                 type: RSS_READER_VIEW_TYPE,
                 active: true,
             });
-            void workspace.revealLeaf(leaf);
-            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
-                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
-            }
+            await workspace.revealLeaf(leaf);
             if (leaf.view instanceof ReaderView) {
                 const view = leaf.view;
                 const relatedItems = this.getRelatedItems(article);
@@ -808,9 +805,6 @@ export class RssDashboardView extends ItemView {
                 active: true,
             });
             await this.app.workspace.revealLeaf(leaf);
-            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
-                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
-            }
             if (leaf.view instanceof ReaderView) {
                 const view = leaf.view;
                 const relatedItems = this.getRelatedItems(article);
@@ -1221,8 +1215,8 @@ export class RssDashboardView extends ItemView {
         
         const readerLeaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
         const results = await Promise.all(readerLeaves.map(async (leaf) => {
-            if (typeof (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred === 'function') {
-                await (leaf as WorkspaceLeaf & { loadIfDeferred: () => Promise<void> }).loadIfDeferred();
+            if (requireApiVersion('1.7.2')) {
+                await leaf.loadIfDeferred();
             }
             if (leaf.view instanceof ReaderView) {
                 return leaf.view.isPodcastPlaying();

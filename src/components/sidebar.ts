@@ -875,7 +875,7 @@ export class Sidebar {
                 placeholder: "Enter folder name",
                 autocomplete: "off"
             },
-            cls: "full-width-input input-margin-bottom"
+            cls: "rss-full-width-input rss-input-margin-bottom"
         });
         nameInput.spellcheck = false;
         nameInput.addEventListener("focus", () => nameInput.select());

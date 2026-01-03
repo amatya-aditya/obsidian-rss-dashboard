@@ -361,20 +361,14 @@ guid: "{{guid}}"
             .replace(/{{content}}/g, item.description);
     }
     
-   
+
     private async ensureFolderExists(folderPath: string): Promise<void> {
-        const folders = folderPath.split('/').filter(p => p.length > 0);
-        let currentPath = '';
-        
-        for (const folder of folders) {
-            currentPath += folder;
-            
-            
-            if (this.app.vault.getAbstractFileByPath(currentPath) === null) {
-                await this.app.vault.createFolder(currentPath);
-            }
-            
-            currentPath += '/';
+        if (!folderPath || folderPath.trim() === '') {
+            return;
+        }
+
+        if (this.app.vault.getAbstractFileByPath(folderPath) === null) {
+            await this.app.vault.createFolder(folderPath);
         }
     }
 }

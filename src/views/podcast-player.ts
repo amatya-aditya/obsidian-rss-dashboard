@@ -110,7 +110,7 @@ export class PodcastPlayer {
         
         
         const seekbarRow = center.createDiv({ cls: "podcast-seekbar-row" });
-        this.currentTimeEl = seekbarRow.createDiv({ cls: "current-time", text: "0:00" });
+        this.currentTimeEl = seekbarRow.createDiv({ cls: "rss-current-time", text: "0:00" });
         
         const progressBarWrapper = seekbarRow.createDiv({ cls: "podcast-progress-bar-wrapper" });
         this.progressBarEl = progressBarWrapper.createEl("progress", { cls: "podcast-progress-bar" });
@@ -118,7 +118,7 @@ export class PodcastPlayer {
         this.progressBarEl.max = 1;
         
         this.progressFilledEl = progressBarWrapper.createDiv({ cls: "podcast-progress-bar-filled" });
-        this.durationEl = seekbarRow.createDiv({ cls: "duration", text: "-0:00" });
+        this.durationEl = seekbarRow.createDiv({ cls: "rss-duration", text: "-0:00" });
         
         
         if (this.progressBarEl) {
@@ -195,12 +195,12 @@ export class PodcastPlayer {
         const leftTools = controlsRow.createDiv({ cls: "podcast-toolbar-left" });
         
         
-        this.shuffleButton = leftTools.createEl("button", { cls: "shuffle-btn" });
+        this.shuffleButton = leftTools.createEl("button", { cls: "rss-shuffle-btn" });
         setIcon(this.shuffleButton, "shuffle");
         this.shuffleButton.onclick = () => this.toggleShuffle();
         this.updateShuffleButton();
         
-        this.speedButtonEl = leftTools.createEl("select", { cls: "speed-control" });
+        this.speedButtonEl = leftTools.createEl("select", { cls: "rss-speed-control" });
         [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3].forEach((v) => {
             const option = this.speedButtonEl?.createEl("option", {
                 attr: {
@@ -225,7 +225,7 @@ export class PodcastPlayer {
         
         const centerTools = controlsRow.createDiv({ cls: "podcast-toolbar-center" });
         
-        const rewindBtn = centerTools.createEl("button", { cls: "rewind" });
+        const rewindBtn = centerTools.createEl("button", { cls: "rss-rewind" });
         setIcon(rewindBtn, "lucide-skip-back");
         rewindBtn.onclick = () => {
             if (this.audioElement) {
@@ -234,11 +234,11 @@ export class PodcastPlayer {
             }
         };
         
-        this.playButton = centerTools.createEl("button", { cls: "play-pause" });
+        this.playButton = centerTools.createEl("button", { cls: "rss-play-pause" });
         setIcon(this.playButton, "play");
         this.playButton.onclick = () => this.togglePlayback();
         
-        const forwardBtn = centerTools.createEl("button", { cls: "forward" });
+        const forwardBtn = centerTools.createEl("button", { cls: "rss-forward" });
         setIcon(forwardBtn, "lucide-skip-forward");
         forwardBtn.onclick = () => {
             if (this.audioElement) {
@@ -254,17 +254,17 @@ export class PodcastPlayer {
         const rightTools = controlsRow.createDiv({ cls: "podcast-toolbar-right" });
         
         
-        this.repeatButton = rightTools.createEl("button", { cls: "repeat-btn" });
+        this.repeatButton = rightTools.createEl("button", { cls: "rss-repeat-btn" });
         setIcon(this.repeatButton, "repeat");
         this.repeatButton.onclick = () => this.toggleRepeat();
         
         
-        this.volumeContainer = rightTools.createDiv({ cls: "volume-control-container" });
-        const volumeBtn = this.volumeContainer.createEl("button", { cls: "volume" });
+        this.volumeContainer = rightTools.createDiv({ cls: "rss-volume-control-container" });
+        const volumeBtn = this.volumeContainer.createEl("button", { cls: "rss-volume" });
         setIcon(volumeBtn, "volume-2");
         
-        this.volumeSlider = this.volumeContainer.createEl("div", { cls: "volume-slider" });
-        const volumeBar = this.volumeSlider.createEl("input", { type: "range", cls: "volume-bar" });
+        this.volumeSlider = this.volumeContainer.createEl("div", { cls: "rss-volume-slider" });
+        const volumeBar = this.volumeSlider.createEl("input", { type: "range", cls: "rss-volume-bar" });
         volumeBar.min = "0";
         volumeBar.max = "100";
         volumeBar.value = "100";

@@ -1,6 +1,7 @@
-import { App, PluginSettingTab, Setting, Notice } from "obsidian";
+import { App, PluginSettingTab, Setting, Notice, normalizePath } from "obsidian";
 import RssDashboardPlugin from "./../../main";
 import { ViewLocation, RssDashboardSettings } from "../types/types";
+import { FolderSuggest } from "../components/folder-suggest";
 
 export class RssDashboardSettingTab extends PluginSettingTab {
     plugin: RssDashboardPlugin;
@@ -429,7 +430,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                 text
                     .setValue(this.plugin.settings.media.defaultYouTubeFolder)
                     .onChange(async (value) => {
-                        this.plugin.settings.media.defaultYouTubeFolder = value;
+                        this.plugin.settings.media.defaultYouTubeFolder = normalizePath(value);
                         await this.plugin.saveSettings();
                     })
             );
@@ -456,7 +457,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                 text
                     .setValue(this.plugin.settings.media.defaultPodcastFolder)
                     .onChange(async (value) => {
-                        this.plugin.settings.media.defaultPodcastFolder = value;
+                        this.plugin.settings.media.defaultPodcastFolder = normalizePath(value);
                         await this.plugin.saveSettings();
                     })
             );
@@ -475,20 +476,20 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     }
 
     private createArticleSavingSettings(containerEl: HTMLElement): void {
-        
+
         new Setting(containerEl)
             .setName("Save path")
             .setDesc("Default folder to save articles")
-            .addText((text) =>
+            .addText((text) => {
                 text
                     .setValue(this.plugin.settings.articleSaving.defaultFolder)
                     .onChange(async (value) => {
-                        
-                        const normalizedPath = value.replace(/^\/+|\/+$/g, '');
-                        this.plugin.settings.articleSaving.defaultFolder = normalizedPath;
+                        this.plugin.settings.articleSaving.defaultFolder = normalizePath(value);
                         await this.plugin.saveSettings();
-                    })
-            );
+                    });
+
+                new FolderSuggest(this.app, text.inputEl, this.plugin.settings.folders);
+            });
             
         new Setting(containerEl)
             .setName("Add 'saved' tag")
