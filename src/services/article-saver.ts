@@ -209,7 +209,7 @@ guid: "{{guid}}"
             if (this.app.vault.getAbstractFileByPath(cleanPath) === null) {
                 await this.app.vault.createFolder(cleanPath);
             }
-        } catch (error) {
+        } catch {
             throw new Error(`Failed to create folder: ${cleanPath}`);
         }
     }
