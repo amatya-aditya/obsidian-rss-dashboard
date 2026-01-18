@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf, Menu, MenuItem, App, Setting } from "obsidian";
 import { setIcon } from "obsidian";
-import { FeedItem, RssDashboardSettings } from "../types/types";
+import { FeedItem, RssDashboardSettings, ArticleSavingSettings } from "../types/types";
 import { MediaService } from "../services/media-service";
 import { ArticleSaver } from "../services/article-saver";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
@@ -147,19 +147,33 @@ export class ReaderView extends ItemView {
     }
 
     
+    private getCustomTemplateForArticle(item: FeedItem): string | undefined {
+        const feed = this.settings.feeds.find(f => f.url === item.feedUrl);
+        if (feed?.customTemplate) {
+            const articleSaving: ArticleSavingSettings = this.settings.articleSaving;
+            const savedTemplates = articleSaving.savedTemplates ?? [];
+            const templateObj = savedTemplates.find(t => t.id === feed.customTemplate);
+            if (templateObj) {
+                return templateObj.template;
+            }
+        }
+        return undefined;
+    }
+
     private showSaveOptions(event: MouseEvent, item: FeedItem): void {
         const menu = new Menu();
-        
+
         menu.addItem((menuItem: MenuItem) => {
             menuItem
                 .setTitle("Save with default settings")
                 .setIcon("save")
                 .onClick(async () => {
                     const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
-                    const file = await this.articleSaver.saveArticle(item, undefined, undefined, markdownContent);
+                    const customTemplate = this.getCustomTemplateForArticle(item);
+                    const file = await this.articleSaver.saveArticle(item, undefined, customTemplate, markdownContent);
                     if (file) {
                         this.onArticleSave(item);
-                        
+
                         this.updateSavedLabel(true);
                     }
                 });
@@ -211,19 +225,21 @@ export class ReaderView extends ItemView {
                 rows: "6"
             }
         });
-        templateInput.value = this.settings.articleSaving.defaultTemplate || "";
-        
+        // Pre-populate with feed's custom template if available, otherwise use default
+        const feedTemplate = this.getCustomTemplateForArticle(item);
+        templateInput.value = feedTemplate || this.settings.articleSaving.defaultTemplate || "";
+
         const buttonContainer = modalContent.createDiv({
             cls: "rss-dashboard-modal-buttons"
         });
-        
+
         const cancelButton = buttonContainer.createEl("button", {
             text: "Cancel"
         });
         cancelButton.addEventListener("click", () => {
             document.body.removeChild(modal);
         });
-        
+
         const saveButton = buttonContainer.createEl("button", {
             text: "Save",
             cls: "rss-dashboard-primary-button"
@@ -231,15 +247,16 @@ export class ReaderView extends ItemView {
         saveButton.addEventListener("click", () => {
             void (async () => {
             const folder = folderInput.value.trim();
-            
+            const template = templateInput.value.trim() || undefined;
+
             const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
-            const file = await this.articleSaver.saveArticle(item, folder, undefined, markdownContent);
+            const file = await this.articleSaver.saveArticle(item, folder, template, markdownContent);
             if (file) {
                 this.onArticleSave(item);
-                
+
                 this.updateSavedLabel(true);
             }
-            
+
             document.body.removeChild(modal);
             })();
         });
@@ -603,8 +620,8 @@ export class ReaderView extends ItemView {
         saveButton.addEventListener("click", () => {
             void (async () => {
             const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
-            
-            const file = await this.articleSaver.saveArticle(item, undefined, undefined, markdownContent);
+            const customTemplate = this.getCustomTemplateForArticle(item);
+            const file = await this.articleSaver.saveArticle(item, undefined, customTemplate, markdownContent);
             if (file) {
                 this.onArticleSave(item);
             }

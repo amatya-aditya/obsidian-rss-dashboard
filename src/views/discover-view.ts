@@ -26,7 +26,6 @@ export class DiscoverView extends ItemView {
     private activeSidebarSection: 'types' | 'categories' | 'tags' = 'tags';
     private currentPage = 1;
     private pageSize = 20;
-    private documentClickHandlers: Array<(e: MouseEvent) => void> = [];
 
     constructor(
         leaf: WorkspaceLeaf,
@@ -635,13 +634,11 @@ export class DiscoverView extends ItemView {
             dropdownMenu.classList.toggle('active');
         });
 
-        const hamburgerClickHandler = (e: MouseEvent) => {
+        this.registerDomEvent(document, 'click', (e: MouseEvent) => {
             if (!hamburgerMenu.contains(e.target as Node)) {
                 dropdownMenu.classList.remove('active');
             }
-        };
-        this.documentClickHandlers.push(hamburgerClickHandler);
-        this.registerDomEvent(document, 'click', hamburgerClickHandler);
+        });
         
         
         const filterHeader = controlsContainer.createDiv({ cls: "rss-discover-filter-header" });
@@ -784,14 +781,12 @@ export class DiscoverView extends ItemView {
             dropdown.addClass("visible");
         });
 
-        const dropdownClickHandler = (e: MouseEvent) => {
+        this.registerDomEvent(document, "click", (e: MouseEvent) => {
             if (!dropdownContainer.contains(e.target as Node)) {
                 dropdown.removeClass("visible");
                 dropdown.addClass("hidden");
             }
-        };
-        this.documentClickHandlers.push(dropdownClickHandler);
-        this.registerDomEvent(document, "click", dropdownClickHandler);
+        });
     }
 
     private populateFilterDropdown(dropdown: HTMLElement, options: string[], filterType: string, searchQuery: string): void {
@@ -1122,7 +1117,6 @@ export class DiscoverView extends ItemView {
     }
 
     onClose(): Promise<void> {
-        this.documentClickHandlers = [];
         return Promise.resolve();
     }
 

@@ -7446,6 +7446,48 @@ color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* Template Button Styling */
+.rss-dashboard-template-btn-row {
+  display: flex;
+  gap: 12px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+
+.rss-dashboard-template-btn {
+  background: var(--background-modifier-border);
+  color: var(--text-normal);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  border: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+}
+
+.rss-dashboard-template-btn:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
+
+.rss-dashboard-saved-templates {
+  margin-top: 8px;
+}
+
+.rss-dashboard-saved-templates .setting-item {
+  border-top: 1px solid var(--background-modifier-border);
+  padding: 8px 10px;
+}
+
+.rss-dashboard-saved-templates .setting-item-control {
+  gap: 6px;
+}
+
+.rss-dashboard-saved-templates .setting-item-control button {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
 /* Settings Tab Styling */
 .rss-dashboard-settings-tab-bar {
   display: flex;

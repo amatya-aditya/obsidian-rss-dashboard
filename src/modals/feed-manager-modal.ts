@@ -1,6 +1,6 @@
 import { Modal, App, Setting, Notice, requestUrl } from "obsidian";
 import type RssDashboardPlugin from "../../main";
-import type { Feed, Folder } from "../types/types";
+import type { Feed, Folder, SavedTemplate } from "../types/types";
 import { FolderSuggest } from "../components/folder-suggest";
 
 function collectAllFolders(folders: Folder[], base = ""): string[] {
@@ -291,6 +291,24 @@ export class EditFeedModal extends Modal {
                 });
         });
 
+        // Template selection
+        let customTemplate = this.feed.customTemplate || "";
+        const savedTemplates = this.plugin.settings.articleSaving.savedTemplates || [];
+
+        new Setting(contentEl)
+            .setName("Article template")
+            .setDesc("Select a template to use when saving articles from this feed")
+            .addDropdown(dropdown => {
+                dropdown.addOption("", "Use default template");
+                savedTemplates.forEach((template: SavedTemplate) => {
+                    dropdown.addOption(template.id, template.name);
+                });
+                dropdown.setValue(customTemplate);
+                dropdown.onChange(value => {
+                    customTemplate = value;
+                });
+            });
+
         const btns = contentEl.createDiv("rss-dashboard-modal-buttons");
         const saveBtn = btns.createEl("button", { text: "Save", cls: "rss-dashboard-primary-button" });
         const cancelBtn = btns.createEl("button", { text: "Cancel" });
@@ -313,8 +331,8 @@ export class EditFeedModal extends Modal {
             
             this.feed.maxItemsLimit = newMaxItemsLimit;
             this.feed.scanInterval = scanInterval;
-            
-            
+            this.feed.customTemplate = customTemplate || undefined;
+
             if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
                 
                 this.feed.items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());

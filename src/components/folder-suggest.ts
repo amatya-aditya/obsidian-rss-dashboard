@@ -1,11 +1,56 @@
-import { AbstractInputSuggest, App } from "obsidian";
+import { AbstractInputSuggest, App, TFolder } from "obsidian";
 import type { Folder } from "../types/types";
 
 /**
- * Provides type-ahead folder suggestions for text inputs
+ * Provides type-ahead folder suggestions from the vault
+ */
+export class VaultFolderSuggest extends AbstractInputSuggest<TFolder> {
+    private inputEl: HTMLInputElement;
+
+    constructor(app: App, inputEl: HTMLInputElement) {
+        super(app, inputEl);
+        this.inputEl = inputEl;
+    }
+
+    protected getSuggestions(query: string): TFolder[] {
+        const lowerQuery = query.toLowerCase();
+        const folders: TFolder[] = [];
+
+        const rootFolder = this.app.vault.getRoot();
+        this.collectFolders(rootFolder, folders);
+
+        return folders.filter(folder =>
+            folder.path.toLowerCase().includes(lowerQuery)
+        );
+    }
+
+    private collectFolders(folder: TFolder, result: TFolder[]): void {
+        for (const child of folder.children) {
+            if (child instanceof TFolder) {
+                result.push(child);
+                this.collectFolders(child, result);
+            }
+        }
+    }
+
+    public renderSuggestion(folder: TFolder, el: HTMLElement): void {
+        el.setText(folder.path);
+    }
+
+    public selectSuggestion(folder: TFolder, _evt: MouseEvent | KeyboardEvent): void {
+        this.inputEl.value = folder.path;
+        this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+        this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
+        this.close();
+    }
+}
+
+/**
+ * Provides type-ahead folder suggestions for RSS sidebar folders
  */
 export class FolderSuggest extends AbstractInputSuggest<string> {
     private folders: string[];
+    private inputEl: HTMLInputElement;
 
     /**
      * Collects all folder paths from the folder tree
@@ -24,6 +69,7 @@ export class FolderSuggest extends AbstractInputSuggest<string> {
 
     constructor(app: App, inputEl: HTMLInputElement, folders: Folder[]) {
         super(app, inputEl);
+        this.inputEl = inputEl;
         this.folders = this.collectAllFolders(folders);
     }
 
@@ -54,8 +100,10 @@ export class FolderSuggest extends AbstractInputSuggest<string> {
     /**
      * Called when a folder is selected
      */
-    public selectSuggestion(folder: string): void {
-        this.setValue(folder);
+    public selectSuggestion(folder: string, _evt: MouseEvent | KeyboardEvent): void {
+        this.inputEl.value = folder;
+        this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+        this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
         this.close();
     }
 }

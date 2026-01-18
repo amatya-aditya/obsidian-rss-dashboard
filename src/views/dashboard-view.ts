@@ -842,20 +842,26 @@ export class RssDashboardView extends ItemView {
     
     
     private async handleArticleSave(article: FeedItem): Promise<void> {
-        
-        const file = this.settings.articleSaving.saveFullContent 
-            ? await this.saver.saveArticleWithFullContent(article)
-            : await this.saver.saveArticle(article);
-        
+        // Find the feed to check for custom template
+        const feed = this.settings.feeds.find((f: Feed) => f.url === article.feedUrl);
+        let customTemplate: string | undefined;
+
+        // If feed has a custom template ID, resolve it to the actual template content
+        if (feed?.customTemplate) {
+            const savedTemplates = this.settings.articleSaving.savedTemplates || [];
+            const templateObj = savedTemplates.find(t => t.id === feed.customTemplate);
+            if (templateObj) {
+                customTemplate = templateObj.template;
+            }
+        }
+
+        const file = this.settings.articleSaving.saveFullContent
+            ? await this.saver.saveArticleWithFullContent(article, undefined, customTemplate)
+            : await this.saver.saveArticle(article, undefined, customTemplate);
+
         if (file) {
-            
             await this.updateArticleStatus(article, { saved: true }, false);
-            
-            
             this.updateArticleSaveButton(article.guid);
-            
-            
-            
         }
     }
     

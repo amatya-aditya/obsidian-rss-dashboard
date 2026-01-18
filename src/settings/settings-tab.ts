@@ -1,7 +1,77 @@
-import { App, PluginSettingTab, Setting, Notice, normalizePath } from "obsidian";
+import { App, PluginSettingTab, Setting, Notice, normalizePath, Modal, TextComponent } from "obsidian";
 import RssDashboardPlugin from "./../../main";
-import { ViewLocation, RssDashboardSettings } from "../types/types";
-import { FolderSuggest } from "../components/folder-suggest";
+import { ViewLocation, RssDashboardSettings, SavedTemplate, DEFAULT_SETTINGS } from "../types/types";
+import { FolderSuggest, VaultFolderSuggest } from "../components/folder-suggest";
+
+class TemplateNameModal extends Modal {
+    private result: string | null = null;
+    private resolvePromise: ((value: string | null) => void) | null = null;
+
+    constructor(app: App) {
+        super(app);
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.empty();
+
+        contentEl.createEl("h2", { text: "Save template" });
+        contentEl.createEl("p", { text: "Enter a name for this template:" });
+
+        let inputComponent: TextComponent;
+        new Setting(contentEl)
+            .setName("Template name")
+            .addText((text) => {
+                inputComponent = text;
+                text.setPlaceholder("My template");
+                text.inputEl.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        this.result = text.getValue().trim() || null;
+                        this.close();
+                    }
+                });
+            });
+
+        new Setting(contentEl)
+            .addButton((btn) =>
+                btn
+                    .setButtonText("Cancel")
+                    .onClick(() => {
+                        this.result = null;
+                        this.close();
+                    })
+            )
+            .addButton((btn) =>
+                btn
+                    .setButtonText("Save")
+                    .setCta()
+                    .onClick(() => {
+                        this.result = inputComponent.getValue().trim() || null;
+                        this.close();
+                    })
+            );
+
+        // Focus the input after a short delay
+        setTimeout(() => {
+            inputComponent.inputEl.focus();
+        }, 50);
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
+        if (this.resolvePromise) {
+            this.resolvePromise(this.result);
+        }
+    }
+
+    waitForClose(): Promise<string | null> {
+        return new Promise((resolve) => {
+            this.resolvePromise = resolve;
+        });
+    }
+}
 
 export class RssDashboardSettingTab extends PluginSettingTab {
     plugin: RssDashboardPlugin;
@@ -426,14 +496,15 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName("Default YouTube folder")
             .setDesc("Default folder for YouTube feeds")
-            .addText((text) =>
+            .addText((text) => {
                 text
                     .setValue(this.plugin.settings.media.defaultYouTubeFolder)
                     .onChange(async (value) => {
                         this.plugin.settings.media.defaultYouTubeFolder = normalizePath(value);
                         await this.plugin.saveSettings();
-                    })
-            );
+                    });
+                new FolderSuggest(this.app, text.inputEl, this.plugin.settings.folders);
+            });
             
         new Setting(containerEl)
             .setName("Default YouTube tag")
@@ -453,14 +524,15 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName("Default podcast folder")
             .setDesc("Default folder for podcast feeds")
-            .addText((text) =>
+            .addText((text) => {
                 text
                     .setValue(this.plugin.settings.media.defaultPodcastFolder)
                     .onChange(async (value) => {
                         this.plugin.settings.media.defaultPodcastFolder = normalizePath(value);
                         await this.plugin.saveSettings();
-                    })
-            );
+                    });
+                new FolderSuggest(this.app, text.inputEl, this.plugin.settings.folders);
+            });
             
         new Setting(containerEl)
             .setName("Default podcast tag")
@@ -487,10 +559,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         this.plugin.settings.articleSaving.defaultFolder = normalizePath(value);
                         await this.plugin.saveSettings();
                     });
-
-                new FolderSuggest(this.app, text.inputEl, this.plugin.settings.folders);
+                new VaultFolderSuggest(this.app, text.inputEl);
             });
-            
+
         new Setting(containerEl)
             .setName("Add 'saved' tag")
             .setDesc("Automatically add a 'saved' tag to saved articles")
@@ -502,7 +573,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     })
             );
-            
+
         new Setting(containerEl)
             .setName("Save full content")
             .setDesc("Fetch and save the full article content from the web (instead of just the RSS summary)")
@@ -514,7 +585,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     })
             );
-            
+
         new Setting(containerEl)
             .setName("Fetch timeout")
             .setDesc("Timeout in seconds for fetching full article content (prevents hanging)")
@@ -528,16 +599,16 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     });
             });
-        
-        
-        new Setting(containerEl).setName("Article templates").setHeading();
-        
+
+
+        new Setting(containerEl).setName("Default template").setHeading();
+
         const templateContainer = containerEl.createDiv();
-        
+
         new Setting(templateContainer)
             .setName("Default article template")
             .setDesc("Template for saved articles. Use variables like {{title}}, {{content}}, {{link}}, etc.");
-            
+
         const templateInput = templateContainer.createEl("textarea", {
             attr: { rows: "10" },
             cls: "rss-dashboard-template-input"
@@ -549,13 +620,107 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
             })();
         });
-        
+
         templateContainer.appendChild(templateInput);
-        
-        containerEl.createEl("div", { 
+
+        containerEl.createEl("div", {
             cls: "setting-item-description",
             text: "Available variables: {{title}}, {{content}}, {{link}}, {{date}}, {{isoDate}}, {{source}}, {{author}}, {{summary}}, {{tags}}, {{feedTitle}}, {{guid}}"
         });
+
+        // Template action buttons
+        const templateBtnRow = containerEl.createDiv({ cls: "rss-dashboard-template-btn-row" });
+
+        const resetBtn = templateBtnRow.createEl("button", {
+            text: "Reset to default",
+            cls: "rss-dashboard-template-btn"
+        });
+        resetBtn.onclick = async () => {
+            templateInput.value = DEFAULT_SETTINGS.articleSaving.defaultTemplate;
+            this.plugin.settings.articleSaving.defaultTemplate = DEFAULT_SETTINGS.articleSaving.defaultTemplate;
+            await this.plugin.saveSettings();
+            new Notice("Template reset to default");
+        };
+
+        const saveAsTemplateBtn = templateBtnRow.createEl("button", {
+            text: "Save as template",
+            cls: "rss-dashboard-template-btn"
+        });
+        saveAsTemplateBtn.onclick = async () => {
+            const name = await this.promptForTemplateName();
+            if (name) {
+                const newTemplate: SavedTemplate = {
+                    id: `template-${Date.now()}`,
+                    name: name,
+                    template: this.plugin.settings.articleSaving.defaultTemplate
+                };
+                if (!this.plugin.settings.articleSaving.savedTemplates) {
+                    this.plugin.settings.articleSaving.savedTemplates = [];
+                }
+                this.plugin.settings.articleSaving.savedTemplates.push(newTemplate);
+                await this.plugin.saveSettings();
+                new Notice(`Template "${name}" saved`);
+                this.display();
+            }
+        };
+
+        // Saved templates section
+        new Setting(containerEl).setName("Saved templates").setHeading();
+
+        const savedTemplates = this.plugin.settings.articleSaving.savedTemplates || [];
+
+        if (savedTemplates.length === 0) {
+            containerEl.createEl("p", {
+                text: "No saved templates yet. Save the current template using the button above.",
+                cls: "rss-dashboard-settings-note"
+            });
+        } else {
+            const templatesContainer = containerEl.createDiv({ cls: "rss-dashboard-saved-templates" });
+
+            savedTemplates.forEach((template, index) => {
+                new Setting(templatesContainer)
+                    .setName(template.name)
+                    .addButton((button) =>
+                        button
+                            .setButtonText("Load")
+                            .setTooltip("Load this template into the editor")
+                            .onClick(async () => {
+                                templateInput.value = template.template;
+                                this.plugin.settings.articleSaving.defaultTemplate = template.template;
+                                await this.plugin.saveSettings();
+                                new Notice(`Template "${template.name}" loaded`);
+                            })
+                    )
+                    .addButton((button) =>
+                        button
+                            .setButtonText("Update")
+                            .setTooltip("Update this template with current editor content")
+                            .onClick(async () => {
+                                this.plugin.settings.articleSaving.savedTemplates[index].template =
+                                    this.plugin.settings.articleSaving.defaultTemplate;
+                                await this.plugin.saveSettings();
+                                new Notice(`Template "${template.name}" updated`);
+                            })
+                    )
+                    .addButton((button) =>
+                        button
+                            .setIcon("trash")
+                            .setTooltip("Delete this template")
+                            .onClick(async () => {
+                                this.plugin.settings.articleSaving.savedTemplates.splice(index, 1);
+                                await this.plugin.saveSettings();
+                                new Notice(`Template "${template.name}" deleted`);
+                                this.display();
+                            })
+                    );
+            });
+        }
+    }
+
+    private async promptForTemplateName(): Promise<string | null> {
+        const modal = new TemplateNameModal(this.app);
+        modal.open();
+        return modal.waitForClose();
     }
 
     private createImportExportTab(containerEl: HTMLElement): void {

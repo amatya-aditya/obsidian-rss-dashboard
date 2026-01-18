@@ -119,6 +119,12 @@ export interface MediaSettings {
     openInSplitView: boolean;
 }
 
+export interface SavedTemplate {
+    id: string;
+    name: string;
+    template: string;
+}
+
 export interface ArticleSavingSettings {
     addSavedTag: boolean;
     defaultFolder: string;
@@ -127,6 +133,7 @@ export interface ArticleSavingSettings {
     frontmatterTemplate: string;
     saveFullContent: boolean;
     fetchTimeout: number;
+    savedTemplates: SavedTemplate[];
 }
 
 export interface DisplaySettings {
@@ -262,7 +269,8 @@ feedTitle: "{{feedTitle}}"
 guid: "{{guid}}"
 ---`,
         saveFullContent: true,
-        fetchTimeout: 10
+        fetchTimeout: 10,
+        savedTemplates: []
     },
     display: {
         showCoverImage: true,
