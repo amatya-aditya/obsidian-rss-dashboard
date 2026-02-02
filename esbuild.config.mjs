@@ -44,9 +44,18 @@ const context = await esbuild.context({
 	}
 });
 
+// CSS bundling: resolves @import in src/styles/index.css → styles.css
+const cssContext = await esbuild.context({
+	entryPoints: ["src/styles/index.css"],
+	bundle: true,
+	outfile: "styles.css",
+	logLevel: "info",
+	minify: prod,
+});
+
 if (prod) {
-	await context.rebuild();
+	await Promise.all([context.rebuild(), cssContext.rebuild()]);
 	process.exit(0);
 } else {
-	await context.watch();
+	await Promise.all([context.watch(), cssContext.watch()]);
 }

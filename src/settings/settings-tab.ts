@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting, Notice, normalizePath, Modal, TextComponent } from "obsidian";
 import RssDashboardPlugin from "./../../main";
-import { ViewLocation, RssDashboardSettings, SavedTemplate, DEFAULT_SETTINGS } from "../types/types";
+import { ViewLocation, RssDashboardSettings, SavedTemplate, DEFAULT_SETTINGS, PodcastTheme } from "../types/types";
 import { FolderSuggest, VaultFolderSuggest } from "../components/folder-suggest";
 
 class TemplateNameModal extends Modal {
@@ -107,6 +107,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                 this.display();
             };
         });
+		
 
     
         const tabContent = containerEl.createDiv("rss-dashboard-settings-tab-content");
@@ -350,6 +351,23 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                     })
             );
 
+            new Setting(containerEl)
+            .setName("Hide default RSS icon")
+            .setDesc("Hide the default RSS icon for regular feeds in the sidebar")
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(!!this.plugin.settings.display.hideDefaultRssIcon)
+                    .onChange(async (value) => {
+                        this.plugin.settings.display.hideDefaultRssIcon = value;
+                        await this.plugin.saveSettings();
+                        const view = await this.plugin.getActiveDashboardView();
+                        if (view?.sidebar) {
+                            await this.app.workspace.revealLeaf(view.leaf);
+                            view.sidebar.render();
+                        }
+                    })
+            );
+
         new Setting(containerEl)
             .setName("Filter display style")
             .setDesc("Choose how to display the filter buttons in the sidebar")
@@ -543,6 +561,34 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         this.plugin.settings.media.defaultPodcastTag = value;
                         await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(containerEl).setName("Podcast player").setHeading();
+
+        new Setting(containerEl)
+            .setName("Player theme")
+            .setDesc("Choose a visual theme for the podcast player")
+            .addDropdown((dropdown) =>
+                dropdown
+                    .addOption("obsidian", "Default")
+                    .addOption("minimal", "Minimal")
+                    .addOption("gradient", "Gradient")
+                    .addOption("spotify", "Spotify")
+                    .addOption("nord", "Nord")
+                    .addOption("dracula", "Dracula")
+                    .addOption("solarized", "Solarized dark")
+                    .addOption("catppuccin", "Catppuccin mocha")
+                    .addOption("gruvbox", "Gruvbox")
+                    .addOption("tokyonight", "Tokyo night")
+                    .setValue(this.plugin.settings.media.podcastTheme)
+                    .onChange(async (value) => {
+                        this.plugin.settings.media.podcastTheme = value as PodcastTheme;
+                        await this.plugin.saveSettings();
+                        const readerView = await this.plugin.getActiveReaderView();
+                        if (readerView) {
+                            readerView.updatePodcastTheme(value);
+                        }
                     })
             );
     }

@@ -414,7 +414,7 @@ export class ArticleList {
                             : "Save article summary to notes"
                 }
             });
-            setIcon(saveButton, "lucide-save");
+            setIcon(saveButton, "save");
             if (!saveButton.querySelector('svg')) {
                 saveButton.textContent = '💾';
             }
@@ -437,7 +437,7 @@ export class ArticleList {
                         
                         this.callbacks.onArticleSave(article);
                         saveButton.classList.add("saved");
-                        setIcon(saveButton, "lucide-save");
+                        setIcon(saveButton, "save");
                         if (!saveButton.querySelector('svg')) {
                             saveButton.textContent = '💾';
                         }
@@ -468,7 +468,7 @@ export class ArticleList {
                 cls: 'rss-dashboard-star-icon'
             });
             starToggle.appendChild(starIcon);
-            setIcon(starIcon, article.starred ? "lucide-star" : "lucide-star-off");
+            setIcon(starIcon, article.starred ? "star" : "star-off");
             if (!starIcon.querySelector('svg')) {
                 starIcon.textContent = article.starred ? '★' : '☆';
             }
@@ -479,7 +479,7 @@ export class ArticleList {
                 starToggle.classList.toggle("unstarred", !starToggle.classList.contains("unstarred"));
                 const iconEl = starToggle.querySelector('.rss-dashboard-star-icon');
                 if (iconEl) {
-                    setIcon(iconEl as HTMLElement, article.starred ? "lucide-star" : "lucide-star-off");
+                    setIcon(iconEl as HTMLElement, article.starred ? "star" : "star-off");
                     if (!iconEl.querySelector('svg')) {
                         iconEl.textContent = article.starred ? '★' : '☆';
                     }
@@ -744,7 +744,7 @@ export class ArticleList {
                             : "Save article summary to notes"
                 }
             });
-            setIcon(saveButton, "lucide-save");
+            setIcon(saveButton, "save");
             if (!saveButton.querySelector('svg')) {
                 saveButton.textContent = '💾';
             }
@@ -767,7 +767,7 @@ export class ArticleList {
                         
                         this.callbacks.onArticleSave(article);
                         saveButton.classList.add("saved");
-                        setIcon(saveButton, "lucide-save");
+                        setIcon(saveButton, "save");
                         if (!saveButton.querySelector('svg')) {
                             saveButton.textContent = '💾';
                         }
@@ -796,7 +796,7 @@ export class ArticleList {
                 cls: 'rss-dashboard-star-icon'
             });
             starToggle.appendChild(starIcon);
-            setIcon(starIcon, article.starred ? "lucide-star" : "lucide-star-off");
+            setIcon(starIcon, article.starred ? "star" : "star-off");
             if (!starIcon.querySelector('svg')) {
                 starIcon.textContent = article.starred ? '★' : '☆';
             }
@@ -807,7 +807,7 @@ export class ArticleList {
                 starToggle.classList.toggle("unstarred", !starToggle.classList.contains("unstarred"));
                 const iconEl = starToggle.querySelector('.rss-dashboard-star-icon');
                 if (iconEl) {
-                    setIcon(iconEl as HTMLElement, article.starred ? "lucide-star" : "lucide-star-off");
+                    setIcon(iconEl as HTMLElement, article.starred ? "star" : "star-off");
                     if (!iconEl.querySelector('svg')) {
                         iconEl.textContent = article.starred ? '★' : '☆';
                     }
@@ -1038,7 +1038,7 @@ export class ArticleList {
         
         menu.addItem((item: MenuItem) => {
             item.setTitle("Open in browser")
-                .setIcon("lucide-globe-2")
+                .setIcon("globe-2")
                 .onClick(() => {
                     window.open(article.link, "_blank");
                 });
@@ -1046,7 +1046,7 @@ export class ArticleList {
         
         menu.addItem((item: MenuItem) => {
             item.setTitle("Open in split view")
-                .setIcon("lucide-sidebar")
+                .setIcon("panel-left")
                 .onClick(() => {
                     this.callbacks.onArticleClick(article);
                 });

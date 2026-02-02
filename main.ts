@@ -131,7 +131,7 @@ export default class RssDashboardPlugin extends Plugin {
                 void this.activateView();
             });
 
-            this.addRibbonIcon("lucide-compass", "RSS discover", () => {
+            this.addRibbonIcon("compass", "RSS discover", () => {
                 void this.activateDiscoverView();
             });
     

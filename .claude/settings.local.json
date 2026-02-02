@@ -4,7 +4,9 @@
       "Bash(npx tsc:*)",
       "Bash(cd:*)",
       "Bash(npx eslint:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(grep:*)",
+      "Bash(sed:*)"
     ]
   }
 }

@@ -247,7 +247,7 @@ export class Sidebar {
                 });
                 menu.addItem((item: MenuItem) => {
                     item.setTitle("Sort feeds")
-                        .setIcon("lucide-sort-asc")
+                        .setIcon("sort-asc")
                         .onClick((evt) => {
                             this.showFeedSortMenu(e, "");
                         });
@@ -434,7 +434,7 @@ export class Sidebar {
             });
             menu.addItem((item: MenuItem) => {
                 item.setTitle("Sort feeds")
-                    .setIcon("lucide-sort-asc")
+                    .setIcon("sort-asc")
                     .onClick(() => {
                         this.showFeedSortMenu(contextEvent, fullPath);
                     });
@@ -562,15 +562,23 @@ export class Sidebar {
                 // Fallback to RSS icon if favicon fails to load
                 imgEl.onerror = () => {
                     feedIcon.empty();
-                    setIcon(feedIcon, "rss");
+                    if (this.settings.display.hideDefaultRssIcon) {
+                        feedIcon.addClass("rss-icon-hidden");
+                    } else {
+                        setIcon(feedIcon, "rss");
+                    }
                 };
-            } else {
+            } else if (!this.settings.display.hideDefaultRssIcon) {
                 // No domain available, use generic RSS icon
                 setIcon(feedIcon, "rss");
+            } else {
+                feedIcon.addClass("rss-icon-hidden");
             }
-        } else {
+        } else if (!this.settings.display.hideDefaultRssIcon) {
             // Show generic RSS icon when favicon setting is disabled
             setIcon(feedIcon, "rss");
+        } else {
+            feedIcon.addClass("rss-icon-hidden");
         }
 
         feedNameContainer.createDiv({
@@ -1698,7 +1706,7 @@ export class Sidebar {
                 title: "Sort folders"
             }
         });
-        setIcon(sortButton, "lucide-sort-asc");
+        setIcon(sortButton, "sort-asc");
         sortButton.addEventListener("click", (e) => {
             const menu = new Menu();
 
@@ -1753,7 +1761,7 @@ export class Sidebar {
             }
             
             const allCollapsed = cachedFolderPaths.length > 0 && cachedFolderPaths.every(path => this.options.collapsedFolders.includes(path));
-            setIcon(collapseAllButton, allCollapsed ? "lucide-chevrons-down-up" : "lucide-chevrons-up-down");
+            setIcon(collapseAllButton, allCollapsed ? "chevrons-down-up" : "chevrons-up-down");
         };
         
         updateCollapseIcon();
@@ -1877,7 +1885,7 @@ export class Sidebar {
 
         menu.addItem((item: MenuItem) => {
             item.setTitle("Change media type")
-                .setIcon("lucide-circle-gauge")
+                .setIcon("circle-gauge")
                 .onClick((evt) => {
                     const typeMenu = new Menu();
                     typeMenu.addItem((subItem: MenuItem) => {

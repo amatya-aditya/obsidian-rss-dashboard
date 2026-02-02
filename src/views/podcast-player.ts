@@ -4,6 +4,7 @@ import { App, setIcon } from "obsidian";
 export class PodcastPlayer {
     private container: HTMLElement;
     private app: App;
+    private theme: string;
     private audioElement: HTMLAudioElement | null = null;
     private currentItem: FeedItem | null = null;
     private playlist: FeedItem[] = [];
@@ -12,7 +13,7 @@ export class PodcastPlayer {
     private currentPlaylistIndex = 0;
     private isShuffled = false;
     private originalPlaylist: FeedItem[] = [];
-    
+
     private playerEl: HTMLElement | null = null;
     private playButton: HTMLElement | null = null;
     private currentTimeEl: HTMLElement | null = null;
@@ -24,10 +25,11 @@ export class PodcastPlayer {
     private repeatButton: HTMLElement | null = null;
     private volumeSlider: HTMLElement | null = null;
     private volumeContainer: HTMLElement | null = null;
-    
-    constructor(container: HTMLElement, app: App, playlist?: FeedItem[]) {
+
+    constructor(container: HTMLElement, app: App, theme?: string, playlist?: FeedItem[]) {
         this.container = container;
         this.app = app;
+        this.theme = theme || 'obsidian';
         if (playlist) {
             this.playlist = playlist;
             this.originalPlaylist = [...playlist];
@@ -69,12 +71,15 @@ export class PodcastPlayer {
     
     private render(): void {
         if (!this.currentItem) return;
+        const playlistEl = this.container.querySelector('.playlist-list');
+        const savedScrollTop = playlistEl ? playlistEl.scrollTop : 0;
         this.container.empty();
         
         
         
         
         const podcastContainer = this.container.createDiv({ cls: "rss-reader-podcast-container" });
+        podcastContainer.setAttribute("data-podcast-theme", this.theme);
         
         
         const header = podcastContainer.createDiv({ cls: "podcast-player-header" });
@@ -226,7 +231,7 @@ export class PodcastPlayer {
         const centerTools = controlsRow.createDiv({ cls: "podcast-toolbar-center" });
         
         const rewindBtn = centerTools.createEl("button", { cls: "rss-rewind" });
-        setIcon(rewindBtn, "lucide-skip-back");
+        setIcon(rewindBtn, "skip-back");
         rewindBtn.onclick = () => {
             if (this.audioElement) {
                 this.audioElement.currentTime = Math.max(0, this.audioElement.currentTime - 10);
@@ -239,7 +244,7 @@ export class PodcastPlayer {
         this.playButton.onclick = () => this.togglePlayback();
         
         const forwardBtn = centerTools.createEl("button", { cls: "rss-forward" });
-        setIcon(forwardBtn, "lucide-skip-forward");
+        setIcon(forwardBtn, "skip-forward");
         forwardBtn.onclick = () => {
             if (this.audioElement) {
                 this.audioElement.currentTime = Math.min(
@@ -292,6 +297,7 @@ export class PodcastPlayer {
         
         if (this.playlist && this.playlist.length > 1) {
             const playlistSection = this.container.createDiv({ cls: "podcast-playlist-section" });
+            playlistSection.setAttribute("data-podcast-theme", this.theme);
             
             
             const playlistHeader = playlistSection.createDiv({ cls: "playlist-header" });
@@ -370,8 +376,11 @@ export class PodcastPlayer {
                     epRow.addClass("active");
                 }
             });
-            
-            
+
+            if (savedScrollTop > 0) {
+                playlistList.scrollTop = savedScrollTop;
+            }
+
         } else {
             
             const emptyState = this.container.createDiv({ cls: "playlist-empty" });
@@ -586,6 +595,14 @@ export class PodcastPlayer {
     }
     
     
+    updateTheme(theme: string): void {
+        this.theme = theme;
+        const themedElements = this.container.querySelectorAll('[data-podcast-theme]');
+        themedElements.forEach(el => {
+            el.setAttribute('data-podcast-theme', theme);
+        });
+    }
+
     destroy(): void {
         this.stopProgressTracking();
         

@@ -44,7 +44,7 @@ export class DiscoverView extends ItemView {
     }
 
     getIcon(): string {
-        return "lucide-compass";
+        return "compass";
     }
 
     onOpen(): Promise<void> {

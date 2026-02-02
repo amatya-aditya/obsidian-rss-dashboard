@@ -1,0 +1,98 @@
+.rss-dashboard-list-row-1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    min-width: 0;
+    margin: 2px 2px 8px;
+    
+}
+.rss-dashboard-list-row-1 .rss-dashboard-list-title {
+    /* white-space: nowrap; */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+    font-weight: 600;
+    font-size: 1.08em;
+    margin-right: 8px;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+}
+.rss-dashboard-list-row-1 .rss-dashboard-article-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 0.97em;
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: 100%;
+}
+.rss-dashboard-list-row-1 .rss-dashboard-article-meta span {
+    margin: 0 2px;
+}
+.rss-dashboard-list-row-1 .rss-dashboard-article-meta span:first-child,
+.rss-dashboard-list-row-1 .rss-dashboard-article-meta span:last-child {
+    margin: 0 8px;
+    color: var(--text-muted);
+}
+.rss-dashboard-list-row-2 {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    margin-top: 2px;
+}
+.rss-dashboard-list-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.rss-dashboard-list-row-2 .rss-dashboard-article-tags {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 8px 0;
+    gap: 5px;
+    margin-bottom: 5px
+}
+
+.rss-dashboard-list-row-2 .rss-dashboard-article-tag {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    color: var(--text-on-accent);
+}
+
+.rss-dashboard-list-row-2 .rss-dashboard-action-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    height: auto;
+    max-height: max-content;
+    width: fit-content;
+    margin-top: 0;
+    padding: 0 12px;
+    border-top: none;
+    background: var(--background-secondary);
+    box-sizing: border-box;
+    margin-left: initial;
+    padding-top: 0;
+
+}
+
+@media (max-width: 600px) {
+    .rss-dashboard-list-row-1 {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+    .rss-dashboard-list-title {
+        margin-bottom: 2px;
+        max-width: 100%;
+    }
+    .rss-dashboard-list-row-1 .rss-dashboard-article-meta {
+        margin-left: 0;
+        max-width: 100%;
+    }
+}

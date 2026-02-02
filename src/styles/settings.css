@@ -1,0 +1,403 @@
+.rss-dashboard-import-abort-button {
+ margin-left: 1rem;
+}
+
+.rss-dashboard-import-progress-fill {
+ width: var(--progress-width, 0%);
+}
+
+.rss-dashboard-settings-tab-bar {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: 16px;
+  }
+  .rss-dashboard-settings-tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 15px;
+    padding: 6px 16px 6px 8px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-bottom 0.2s;
+  }
+  .rss-dashboard-settings-tab-btn.active {
+    color: var(--text-normal);
+    border-bottom: 2px solid var(--color-accent);
+    font-weight: bold;
+  }
+  .rss-dashboard-settings-tab-btn:hover {
+    color: var(--color-accent);
+  }
+  .rss-dashboard-settings-tab-content {
+    margin-top: 12px;
+  }
+  .rss-dashboard-support-btn-row {
+    display: flex;
+    gap: 12px;
+    margin: 16px 0 8px 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .rss-dashboard-support-btn {
+    display: inline-block;
+    background: var(--color-accent);
+    color: var(--background-primary);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  .rss-dashboard-support-btn:hover {
+    background: var(--color-accent-2);
+    color: var(--text-on-accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    border-color: var(--color-accent);
+  }
+  .rss-dashboard-support-message {
+    font-size: 16px;
+    color: var(--text-normal);
+    margin-bottom: 8px;
+    text-align: center;
+    padding: 12px;
+    background: var(--background-secondary);
+    border-radius: 8px;
+ 
+  }
+  .rss-dashboard-support-readme {
+    margin-top: 16px;
+    text-align: center;
+  }
+  .rss-dashboard-support-readme a {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+  }
+  .rss-dashboard-support-readme a:hover {
+    background: var(--background-secondary);
+    color: var(--color-accent-2);
+  }
+
+.rss-dashboard-support-btn-row {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0 8px 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.rss-dashboard-support-btn {
+  display: inline-block;
+  background: var(--color-accent);
+  color: var(--background-primary);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.rss-dashboard-support-btn:hover {
+  background: var(--color-accent-2);
+  color: var(--text-on-accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  border-color: var(--color-accent);
+}
+
+
+.rss-dashboard-support-readme {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.rss-dashboard-support-readme a {
+  color: var(--color-accent);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.rss-dashboard-support-readme a:hover {
+  background: var(--background-secondary);
+  color: var(--color-accent-2);
+}
+
+/* Import/Export Button Styling */
+.rss-dashboard-import-export-btn-row {
+  display: flex;
+  gap: 12px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.rss-dashboard-import-export-btn {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  text-decoration: none;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  border: 1px solid var(--interactive-accent);
+  cursor: pointer;
+}
+
+.rss-dashboard-import-export-btn:hover {
+  background: var(--interactive-accent-hover);
+  border-color: var(--interactive-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Template Button Styling */
+.rss-dashboard-template-btn-row {
+  display: flex;
+  gap: 12px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+
+.rss-dashboard-template-btn {
+  background: var(--background-modifier-border);
+  color: var(--text-normal);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  border: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+}
+
+.rss-dashboard-template-btn:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
+
+.rss-dashboard-saved-templates {
+  margin-top: 8px;
+}
+
+.rss-dashboard-saved-templates .setting-item {
+  border-top: 1px solid var(--background-modifier-border);
+  padding: 8px 10px;
+}
+
+.rss-dashboard-saved-templates .setting-item-control {
+  gap: 6px;
+}
+
+.rss-dashboard-saved-templates .setting-item-control button {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* Settings Tab Styling */
+.rss-dashboard-settings-tab-bar {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.rss-dashboard-settings-tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-bottom 0.2s;
+  border-radius: 4px 4px 0 0;
+}
+
+.rss-dashboard-settings-tab-btn.active {
+  color: var(--text-normal);
+  border-bottom: 2px solid var(--color-accent);
+  font-weight: 600;
+  background: var(--background-secondary);
+}
+
+.rss-dashboard-settings-tab-btn:hover {
+  color: var(--color-accent);
+  background: var(--background-secondary);
+}
+
+.rss-dashboard-settings-tab-content {
+  margin-top: 12px;
+}
+
+/* Filter Display Styles */
+.rss-dashboard-filters-inline {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 8px;
+}
+
+.rss-dashboard-filters-inline .rss-dashboard-filter-items-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px;
+	justify-content: center;
+}
+
+.rss-dashboard-filters-inline .rss-dashboard-filter-item {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	position: relative;
+}
+
+.rss-dashboard-filters-inline .rss-dashboard-filter-item:hover {
+	background-color: var(--background-modifier-hover);
+	border-color: var(--color-accent);
+	transform: translateY(-1px);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.rss-dashboard-filters-inline .rss-dashboard-filter-item.active {
+	background-color: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+/* Search filter item specific styling */
+.rss-dashboard-filters-inline .rss-dashboard-search-filter.active {
+	background-color: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+/* Tags filter item specific styling */
+.rss-dashboard-filters-inline .rss-dashboard-tags-filter.active {
+	background-color: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.rss-dashboard-filters-inline .rss-dashboard-filter-icon {
+	font-size: 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.rss-dashboard-filters-inline .rss-dashboard-filter-icon svg {
+	width: 18px;
+	height: 18px;
+}
+
+/* Vertical filter style (default) */
+.rss-dashboard-filters-vertical .rss-dashboard-filter-item {
+	display: flex;
+	align-items: center;
+	padding: 2px 12px;
+	margin: 2px 0;
+	border-radius: 6px;
+	border: 1px solid transparent;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.rss-dashboard-filters-vertical .rss-dashboard-filter-item:hover {
+	background-color: var(--background-modifier-hover);
+	border-color: var(--color-accent);
+}
+
+.rss-dashboard-filters-vertical .rss-dashboard-filter-item.active {
+	background-color: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+/* Search filter item specific styling for vertical mode */
+.rss-dashboard-filters-vertical .rss-dashboard-search-filter.active {
+	background-color: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+/* Tags filter item specific styling for vertical mode */
+.rss-dashboard-filters-vertical .rss-dashboard-tags-filter.active {
+	background-color: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.rss-dashboard-filters-vertical .rss-dashboard-filter-icon {
+	margin-right: 8px;
+	font-size: 14px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* Settings styling */
+.rss-dashboard-settings-separator {
+	margin: 20px 0;
+	border: none;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.rss-dashboard-settings-description {
+	color: var(--text-muted);
+	font-size: 14px;
+	margin: 8px 0 16px 0;
+	line-height: 1.4;
+}
+
+.rss-dashboard-settings-note {
+	color: var(--text-muted);
+	font-size: 13px;
+	font-style: italic;
+	margin: 16px 0 8px 0;
+	padding: 8px 12px;
+	background-color: var(--background-secondary);
+	border-radius: 4px;
+	border-left: 3px solid var(--color-accent);
+}
+
+/* Filter visibility toggle styling */
+.rss-dashboard-settings-description + .setting-item {
+	margin-top: 8px;
+}
+
+.rss-dashboard-settings-description + .setting-item .setting-item-control {
+	justify-content: flex-end;
+}
+
+.rss-dashboard-settings-description + .setting-item .setting-item-name {
+	font-weight: 500;
+}
+
+.rss-dashboard-settings-description + .setting-item .setting-item-description {
+	font-size: 13px;
+	color: var(--text-muted);
+}

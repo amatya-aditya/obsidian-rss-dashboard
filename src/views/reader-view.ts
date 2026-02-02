@@ -134,7 +134,7 @@ export class ReaderView extends ItemView {
             cls: "rss-reader-action-button", 
             attr: { title: "Open in Browser" } 
         });
-        setIcon(browserButton, "lucide-globe-2");
+        setIcon(browserButton, "globe-2");
         browserButton.addEventListener("click", () => {
             if (this.currentItem) {
                 window.open(this.currentItem.link, "_blank");
@@ -385,7 +385,7 @@ export class ReaderView extends ItemView {
         }
         
         if (item.audioUrl) {
-            this.podcastPlayer = new PodcastPlayer(container, this.app);
+            this.podcastPlayer = new PodcastPlayer(container, this.app, this.settings.media.podcastTheme);
             this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
         } else {
             const audioUrl = MediaService.extractPodcastAudio(item.description);
@@ -394,7 +394,7 @@ export class ReaderView extends ItemView {
                     ...item,
                     audioUrl: audioUrl
                 };
-                this.podcastPlayer = new PodcastPlayer(container, this.app);
+                this.podcastPlayer = new PodcastPlayer(container, this.app, this.settings.media.podcastTheme);
                 this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
             } else {
                 container.createDiv({
@@ -407,6 +407,12 @@ export class ReaderView extends ItemView {
     }
     
     
+    updatePodcastTheme(theme: string): void {
+        if (this.podcastPlayer) {
+            this.podcastPlayer.updateTheme(theme);
+        }
+    }
+
     private async displayArticle(item: FeedItem, fullContent?: string): Promise<void> {
         
         if (this.podcastPlayer) {

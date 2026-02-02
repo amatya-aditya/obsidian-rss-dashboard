@@ -110,6 +110,8 @@ export interface Folder {
 export type ViewLocation = "main" | "right-sidebar" | "left-sidebar";
 
 
+export type PodcastTheme = 'obsidian' | 'minimal' | 'gradient' | 'spotify' | 'nord' | 'dracula' | 'solarized' | 'catppuccin' | 'gruvbox' | 'tokyonight';
+
 export interface MediaSettings {
     defaultYouTubeFolder: string;
     defaultYouTubeTag: string;
@@ -117,6 +119,7 @@ export interface MediaSettings {
     defaultPodcastTag: string;
     autoDetectMediaType: boolean;
     openInSplitView: boolean;
+    podcastTheme: PodcastTheme;
 }
 
 export interface SavedTemplate {
@@ -143,6 +146,7 @@ export interface DisplaySettings {
     defaultFilter: "all" | "starred" | "unread" | "read" | "saved" | "videos" | "podcasts";
     hiddenFilters: string[];
     useDomainFavicons: boolean;
+    hideDefaultRssIcon: boolean;
 }
 
 
@@ -236,7 +240,8 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
         defaultPodcastFolder: "Podcasts",
         defaultPodcastTag: "podcast",
         autoDetectMediaType: false,
-        openInSplitView: true
+        openInSplitView: true,
+        podcastTheme: 'obsidian'
     },
     articleSaving: {
         addSavedTag: true,
@@ -278,6 +283,7 @@ guid: "{{guid}}"
         filterDisplayStyle: "inline",
         defaultFilter: "all",
         hiddenFilters: [],
-        useDomainFavicons: true
+        useDomainFavicons: true,
+        hideDefaultRssIcon: false
     }
 };
