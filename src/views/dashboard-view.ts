@@ -263,6 +263,7 @@ export class RssDashboardView extends ItemView {
 			totalPages,
 			pageSize,
 			totalArticles,
+			this.currentFeed?.url,
 		);
 		this.articleList.render();
 

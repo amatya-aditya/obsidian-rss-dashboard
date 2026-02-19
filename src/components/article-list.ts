@@ -83,6 +83,7 @@ export class ArticleList {
 	private totalPages: number;
 	private pageSize: number;
 	private totalArticles: number;
+	private currentFeedUrl: string | null = null;
 
 	constructor(
 		container: HTMLElement,
@@ -95,6 +96,7 @@ export class ArticleList {
 		totalPages: number,
 		pageSize: number,
 		totalArticles: number,
+		currentFeedUrl?: string | null,
 	) {
 		this.container = container;
 		this.settings = settings;
@@ -106,6 +108,7 @@ export class ArticleList {
 		this.totalPages = totalPages;
 		this.pageSize = pageSize;
 		this.totalArticles = totalArticles;
+		this.currentFeedUrl = currentFeedUrl || null;
 	}
 
 	public destroy(): void {
@@ -172,6 +175,14 @@ export class ArticleList {
 			e.stopPropagation();
 			this.callbacks.onToggleSidebar();
 		});
+
+		// Add feed logo if viewing a specific feed
+		if (this.currentFeedUrl) {
+			const feedIconContainer = leftSection.createDiv({
+				cls: "rss-dashboard-header-feed-icon",
+			});
+			this.renderHeaderFeedIcon(feedIconContainer, this.currentFeedUrl);
+		}
 
 		leftSection.createDiv({
 			cls: "rss-dashboard-articles-title",
@@ -499,6 +510,44 @@ export class ArticleList {
 			}
 		} else if (!this.settings.display.hideDefaultRssIcon) {
 			setIcon(iconContainer, "rss");
+		}
+	}
+
+	private renderHeaderFeedIcon(
+		container: HTMLElement,
+		feedUrl: string,
+	): void {
+		const feed = this.settings.feeds.find((f) => f.url === feedUrl);
+		const mediaType = feed?.mediaType;
+
+		if (mediaType === "video") {
+			setIcon(container, "play");
+			container.addClass("video");
+		} else if (mediaType === "podcast") {
+			setIcon(container, "mic");
+			container.addClass("podcast");
+		} else if (this.settings.display.useDomainFavicons) {
+			const domain = extractDomain(feedUrl);
+			if (domain) {
+				const faviconUrl = getFaviconUrl(domain);
+				const imgEl = container.createEl("img", {
+					attr: {
+						src: faviconUrl,
+						alt: domain,
+					},
+					cls: "rss-dashboard-header-favicon",
+				});
+				imgEl.onerror = () => {
+					container.empty();
+					if (!this.settings.display.hideDefaultRssIcon) {
+						setIcon(container, "rss");
+					}
+				};
+			} else if (!this.settings.display.hideDefaultRssIcon) {
+				setIcon(container, "rss");
+			}
+		} else if (!this.settings.display.hideDefaultRssIcon) {
+			setIcon(container, "rss");
 		}
 	}
 
