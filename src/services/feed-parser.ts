@@ -1474,10 +1474,44 @@ export class CustomXMLParser {
 			this.getAttribute(feed, "link", "href");
 		const author = this.getTextContent(feed, "author > name");
 
-		const iconElement = feed.querySelector("icon");
-		const image = iconElement
-			? { url: iconElement.textContent || "" }
-			: undefined;
+		// Try multiple sources for feed image (YouTube uses media:thumbnail for channel avatar)
+		let imageUrl = "";
+
+		// 1. Try media:thumbnail (YouTube channel avatar)
+		const mediaThumbnail = feed.querySelector("media\\:thumbnail");
+		if (mediaThumbnail) {
+			imageUrl = mediaThumbnail.getAttribute("url") || "";
+		}
+
+		// 2. Try logo element
+		if (!imageUrl) {
+			const logoElement = feed.querySelector("logo");
+			if (logoElement?.textContent) {
+				imageUrl = logoElement.textContent;
+			}
+		}
+
+		// 3. Try icon element
+		if (!imageUrl) {
+			const iconElement = feed.querySelector("icon");
+			if (iconElement?.textContent) {
+				imageUrl = iconElement.textContent;
+			}
+		}
+
+		// 4. Try to extract from first entry's media:thumbnail as fallback for channel avatar
+		if (!imageUrl) {
+			const firstEntry = feed.querySelector("entry");
+			if (firstEntry) {
+				const entryMediaThumbnail =
+					firstEntry.querySelector("media\\:thumbnail");
+				if (entryMediaThumbnail) {
+					imageUrl = entryMediaThumbnail.getAttribute("url") || "";
+				}
+			}
+		}
+
+		const image = imageUrl ? { url: imageUrl } : undefined;
 
 		const items: ParsedItem[] = [];
 		const entryElements = Array.from(feed.getElementsByTagName("entry"));
@@ -1516,7 +1550,7 @@ export class CustomXMLParser {
 			items,
 			type: "atom",
 			feedItunesImage: "",
-			feedImageUrl: "",
+			feedImageUrl: imageUrl,
 		};
 	}
 
