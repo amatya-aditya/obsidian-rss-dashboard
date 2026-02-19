@@ -215,6 +215,12 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
 	feeds: [],
 	folders: [
 		{
+			name: "Uncategorized",
+			subfolders: [],
+			createdAt: Date.now(),
+			modifiedAt: Date.now(),
+		},
+		{
 			name: "Videos",
 			subfolders: [],
 			createdAt: Date.now(),
