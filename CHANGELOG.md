@@ -1,5 +1,24 @@
 # RSS Dashboard - Changelog
 
+## [2.0.1] - 2026-02-19
+
+### 🎉 First Community Contribution - Tooltip Enhancements
+
+This release includes our first community contribution, adding helpful hover tooltips to improve usability.
+
+---
+
+## 🚀 Enhanced Features
+
+### UI/UX Improvements
+- **Action Bar Tooltips**: Added descriptive hover tooltips to the article action icons:
+  - Read/Unread toggle: Shows "Mark as unread" or "Mark as read" based on current state
+  - Favorite/Star toggle: Shows "Add to favorites" or "Remove from favorites" based on current state
+  - Tag management: Shows "Manage tags" for the tag dropdown icon
+- Tooltips are now consistent across both List and Card view layouts
+
+---
+
 ## [2.0.0] - 2024-12-19
 
 ### 🎉 Major Release - Discover, Mobile Support & Enhanced Media Experience
