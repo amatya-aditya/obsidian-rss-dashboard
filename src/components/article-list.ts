@@ -7,6 +7,46 @@ import {
 
 const MAX_VISIBLE_TAGS = 6;
 
+function extractDomain(url: string): string {
+	try {
+		const urlObj = new URL(url);
+		const hostname = urlObj.hostname;
+		const parts = hostname.split('.');
+		if (parts.length >= 2) {
+			if (parts.length === 3 && parts[0] === 'feeds') {
+				return `${parts[1]}.${parts[2]}`;
+			} else if (parts.length >= 3) {
+				return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
+			} else {
+				return hostname;
+			}
+		}
+		return hostname;
+	} catch {
+		const match = url.match(/https?:\/\/([^/?]+)/);
+		if (match) {
+			const hostname = match[1];
+			const parts = hostname.split('.');
+			if (parts.length >= 2) {
+				if (parts.length === 3 && parts[0] === 'feeds') {
+					return `${parts[1]}.${parts[2]}`;
+				} else if (parts.length >= 3) {
+					return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
+				} else {
+					return hostname;
+				}
+			}
+			return hostname;
+		}
+		return '';
+	}
+}
+
+function getFaviconUrl(domain: string): string {
+	if (!domain) return '';
+	return `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=32`;
+}
+
 interface ArticleListCallbacks {
 	onArticleClick: (article: FeedItem) => void;
 	onToggleViewStyle: (style: "list" | "card") => void;
@@ -417,6 +457,47 @@ export class ArticleList {
 		return feed?.folder;
 	}
 
+	private renderFeedIcon(
+		container: HTMLElement,
+		feedUrl: string,
+		mediaType?: "article" | "video" | "podcast",
+	): void {
+		const iconContainer = container.createDiv({
+			cls: "rss-dashboard-article-feed-icon",
+		});
+
+		if (mediaType === "video") {
+			setIcon(iconContainer, "play");
+			iconContainer.addClass("video");
+		} else if (mediaType === "podcast") {
+			setIcon(iconContainer, "mic");
+			iconContainer.addClass("podcast");
+		} else if (this.settings.display.useDomainFavicons) {
+			const domain = extractDomain(feedUrl);
+			if (domain) {
+				const faviconUrl = getFaviconUrl(domain);
+				iconContainer.empty();
+				const imgEl = iconContainer.createEl("img", {
+					attr: {
+						src: faviconUrl,
+						alt: domain,
+					},
+					cls: "rss-dashboard-feed-favicon",
+				});
+				imgEl.onerror = () => {
+					iconContainer.empty();
+					if (!this.settings.display.hideDefaultRssIcon) {
+						setIcon(iconContainer, "rss");
+					}
+				};
+			} else if (!this.settings.display.hideDefaultRssIcon) {
+				setIcon(iconContainer, "rss");
+			}
+		} else if (!this.settings.display.hideDefaultRssIcon) {
+			setIcon(iconContainer, "rss");
+		}
+	}
+
 	private renderListView(container: HTMLElement, articles: FeedItem[]): void {
 		for (const article of articles) {
 			const articleEl = container.createDiv({
@@ -441,8 +522,9 @@ export class ArticleList {
 				text: article.title,
 			});
 
-			const metaEl = firstRow.createDiv("rss-dashboard-article-meta");
+		const metaEl = firstRow.createDiv("rss-dashboard-article-meta");
 			metaEl.createSpan({ text: "|" });
+			this.renderFeedIcon(metaEl, article.feedUrl, article.mediaType);
 			metaEl
 				.createSpan("rss-dashboard-article-source")
 				.setText(article.feedTitle);
@@ -852,15 +934,11 @@ export class ArticleList {
 				cls: "rss-dashboard-article-meta",
 			});
 
-			const feedContainer = articleMeta.createDiv({
+		const feedContainer = articleMeta.createDiv({
 				cls: "rss-dashboard-article-feed-container",
 			});
 
-			if (article.mediaType === "video") {
-				setIcon(feedContainer, "video");
-			} else if (article.mediaType === "podcast") {
-				setIcon(feedContainer, "podcast");
-			}
+			this.renderFeedIcon(feedContainer, article.feedUrl, article.mediaType);
 			feedContainer.createDiv({
 				cls: "rss-dashboard-article-feed",
 				text: article.feedTitle,

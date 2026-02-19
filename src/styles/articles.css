@@ -334,6 +334,9 @@
 .rss-dashboard-article-feed-icon.video {
 	color: red;
 }
+.rss-dashboard-article-feed-icon.youtube {
+	color: red;
+}
 .rss-dashboard-article-feed-icon.podcast {
 	color: #8e44ad;
 }
