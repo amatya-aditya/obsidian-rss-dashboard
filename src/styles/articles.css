@@ -71,7 +71,8 @@
 	background-color: var(--background-modifier-hover);
 }
 .rss-dashboard-view-toggle button.active {
-	font-weight: bold;
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
 }
 .rss-dashboard-articles-list {
 	display: flex;
