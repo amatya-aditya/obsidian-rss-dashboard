@@ -8,7 +8,7 @@ import {
     requireApiVersion
 } from "obsidian";
 
-import { 
+import {
     RssDashboardSettings,
     DEFAULT_SETTINGS,
     Feed,
@@ -33,7 +33,7 @@ export default class RssDashboardPlugin extends Plugin {
     private importStatusBarItem: HTMLElement | null = null;
     public backgroundImportQueue: FeedMetadata[] = [];
     private isBackgroundImporting = false;
-    
+
     public async getActiveDashboardView(): Promise<RssDashboardView | null> {
         const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
         for (const leaf of leaves) {
@@ -47,7 +47,7 @@ export default class RssDashboardPlugin extends Plugin {
         }
         return null;
     }
-    
+
     public async getActiveDiscoverView(): Promise<DiscoverView | null> {
         const leaves = this.app.workspace.getLeavesOfType(RSS_DISCOVER_VIEW_TYPE);
         for (const leaf of leaves) {
@@ -61,7 +61,7 @@ export default class RssDashboardPlugin extends Plugin {
         }
         return null;
     }
-    
+
     public async getActiveReaderView(): Promise<ReaderView | null> {
         const leaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
         for (const leaf of leaves) {
@@ -77,35 +77,35 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     async onload() {
-        
-        
-        
-        
+
+
+
+
         await this.loadSettings();
-        
+
         const view = await this.getActiveDashboardView();
         if (view) {
             view.render();
         }
-        
+
         try {
-            
+
             this.feedParser = new FeedParser(this.settings.media, this.settings.availableTags);
             this.articleSaver = new ArticleSaver(this.app, this.settings.articleSaving);
-            
-            
+
+
             if (Platform.isMobile) {
-                
+
                 this.applyMobileOptimizations();
             }
-            
-            
+
+
             const allArticles = this.getAllArticles();
             await this.articleSaver.fixSavedFilePaths(allArticles);
-            
-            
+
+
             await this.validateSavedArticles();
-            
+
             this.registerView(
                 RSS_DASHBOARD_VIEW_TYPE,
                 (leaf) => new RssDashboardView(leaf, this)
@@ -115,18 +115,18 @@ export default class RssDashboardPlugin extends Plugin {
                 RSS_DISCOVER_VIEW_TYPE,
                 (leaf) => new DiscoverView(leaf, this)
             );
-            
+
             this.registerView(
                 RSS_READER_VIEW_TYPE,
                 (leaf) => new ReaderView(
-                    leaf, 
-                    this.settings, 
+                    leaf,
+                    this.settings,
                     this.articleSaver,
                     (item: FeedItem) => { void this.onArticleSaved(item); }
                 )
             );
-    
-            
+
+
             this.addRibbonIcon("rss", "RSS dashboard", () => {
                 void this.activateView();
             });
@@ -134,11 +134,11 @@ export default class RssDashboardPlugin extends Plugin {
             this.addRibbonIcon("compass", "RSS discover", () => {
                 void this.activateDiscoverView();
             });
-    
-            
+
+
             this.addSettingTab(new RssDashboardSettingTab(this.app, this));
-    
-            
+
+
             this.addCommand({
                 id: "open-dashboard",
                 name: "Open dashboard",
@@ -154,7 +154,7 @@ export default class RssDashboardPlugin extends Plugin {
                     void this.activateDiscoverView();
                 },
             });
-    
+
             this.addCommand({
                 id: "refresh-feeds",
                 name: "Refresh feeds",
@@ -162,7 +162,7 @@ export default class RssDashboardPlugin extends Plugin {
                     void this.refreshFeeds();
                 },
             });
-    
+
             this.addCommand({
                 id: "import-opml",
                 name: "Import opml",
@@ -170,7 +170,7 @@ export default class RssDashboardPlugin extends Plugin {
                     void this.importOpml();
                 },
             });
-    
+
             this.addCommand({
                 id: "export-opml",
                 name: "Export opml",
@@ -178,7 +178,7 @@ export default class RssDashboardPlugin extends Plugin {
                     void this.exportOpml();
                 },
             });
-    
+
             this.addCommand({
                 id: "apply-feed-limits",
                 name: "Apply feed limits to all feeds",
@@ -186,7 +186,7 @@ export default class RssDashboardPlugin extends Plugin {
                     void this.applyFeedLimitsToAllFeeds();
                 },
             });
-    
+
             this.addCommand({
                 id: "toggle-sidebar",
                 name: "Toggle sidebar",
@@ -208,46 +208,46 @@ export default class RssDashboardPlugin extends Plugin {
                     return false;
                 },
             });
-    
-            
+
+
             this.registerInterval(
                 window.setInterval(
                     () => { void this.refreshFeeds(); },
                     this.settings.refreshInterval * 60 * 1000
                 )
             );
-            
-            
+
+
         } catch {
-            
+
             new Notice("Error initializing RSS dashboard plugin.");
         }
     }
 
-    
+
     private applyMobileOptimizations(): void {
-        
+
         if (this.settings.refreshInterval < 60) {
-            this.settings.refreshInterval = 60; 
-            
+            this.settings.refreshInterval = 60;
+
         }
-        
-        
+
+
         if (this.settings.maxItems > 50) {
             this.settings.maxItems = 50;
-            
+
         }
-        
-        
+
+
         if (this.settings.viewStyle === "list") {
             this.settings.viewStyle = "card";
-            
+
         }
-        
-        
+
+
         if (!this.settings.sidebarCollapsed) {
             this.settings.sidebarCollapsed = true;
-            
+
         }
     }
 
@@ -257,12 +257,12 @@ export default class RssDashboardPlugin extends Plugin {
         try {
             let leaf: WorkspaceLeaf | null = null;
             const leaves = workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
-    
+
             if (leaves.length > 0) {
-                
+
                 leaf = leaves[0];
             } else {
-                
+
                 switch (this.settings.viewLocation) {
                     case "left-sidebar":
                         leaf = workspace.getLeftLeaf(false);
@@ -274,17 +274,17 @@ export default class RssDashboardPlugin extends Plugin {
                         leaf = workspace.getLeaf("tab");
                         break;
                 }
-                }
-    
-                if (leaf) {
-                    await leaf.setViewState({
-                        type: RSS_DASHBOARD_VIEW_TYPE,
-                        active: true,
-                    });
+            }
+
+            if (leaf) {
+                await leaf.setViewState({
+                    type: RSS_DASHBOARD_VIEW_TYPE,
+                    active: true,
+                });
                 void workspace.revealLeaf(leaf);
             }
         } catch {
-            
+
             new Notice("Error opening RSS dashboard view");
         }
     }
@@ -295,7 +295,7 @@ export default class RssDashboardPlugin extends Plugin {
         try {
             let leaf: WorkspaceLeaf | null = null;
             const leaves = workspace.getLeavesOfType(RSS_DISCOVER_VIEW_TYPE);
-    
+
             if (leaves.length > 0) {
                 leaf = leaves[0];
             } else {
@@ -311,7 +311,7 @@ export default class RssDashboardPlugin extends Plugin {
                         break;
                 }
             }
-    
+
             if (leaf) {
                 await leaf.setViewState({
                     type: RSS_DISCOVER_VIEW_TYPE,
@@ -320,27 +320,27 @@ export default class RssDashboardPlugin extends Plugin {
                 void workspace.revealLeaf(leaf);
             }
         } catch {
-            
+
             new Notice("Error opening RSS discover view");
         }
     }
-    
+
     private async onArticleSaved(item: FeedItem): Promise<void> {
-        
+
         if (item.feedUrl) {
             const feed = this.settings.feeds.find(f => f.url === item.feedUrl);
             if (feed) {
                 const originalItem = feed.items.find(i => i.guid === item.guid);
                 if (originalItem) {
                     originalItem.saved = true;
-                    
-                    
+
+
                     if (this.settings.articleSaving.addSavedTag) {
                         if (!originalItem.tags) {
                             originalItem.tags = [];
                         }
-                        
-                        
+
+
                         if (!originalItem.tags.some(t => t.name.toLowerCase() === "saved")) {
                             const savedTag = this.settings.availableTags.find(t => t.name.toLowerCase() === "saved");
                             if (savedTag) {
@@ -350,10 +350,10 @@ export default class RssDashboardPlugin extends Plugin {
                             }
                         }
                     }
-                    
+
                     void this.saveSettings();
-                    
-                    
+
+
                     const view = await this.getActiveDashboardView();
                     if (view) {
                         view.updateArticleSaveButton(item.guid);
@@ -372,17 +372,17 @@ export default class RssDashboardPlugin extends Plugin {
             } else {
                 feedNoticeText = `${feedsToRefresh.length} feeds`;
             }
-            
+
             new Notice(`Refreshing ${feedNoticeText}...`);
             const updatedFeeds = await this.feedParser.refreshAllFeeds(feedsToRefresh);
-            
+
             updatedFeeds.forEach(updatedFeed => {
                 const index = this.settings.feeds.findIndex(f => f.url === updatedFeed.url);
                 if (index >= 0) {
                     this.settings.feeds[index] = updatedFeed;
                 }
             });
-            
+
             await this.validateSavedArticles();
             await this.saveSettings();
             const view = await this.getActiveDashboardView();
@@ -403,59 +403,59 @@ export default class RssDashboardPlugin extends Plugin {
     async applyFeedLimitsToAllFeeds() {
         try {
             let updatedCount = 0;
-            
+
             for (const feed of this.settings.feeds) {
                 const originalCount = feed.items.length;
-                
-                
+
+
                 if (feed.maxItemsLimit && feed.maxItemsLimit > 0 && feed.items.length > feed.maxItemsLimit) {
-                    
+
                     const readItems = feed.items.filter(item => item.read);
                     const unreadItems = feed.items.filter(item => !item.read);
-                    
-                    
+
+
                     unreadItems.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-                    
-                    
+
+
                     const maxUnreadItems = Math.max(0, feed.maxItemsLimit - readItems.length);
                     const limitedUnreadItems = unreadItems.slice(0, maxUnreadItems);
-                    
-                    
+
+
                     feed.items = [...readItems, ...limitedUnreadItems];
                 }
 
-                
+
                 if (feed.autoDeleteDuration && feed.autoDeleteDuration > 0) {
                     const cutoffDate = new Date();
                     cutoffDate.setDate(cutoffDate.getDate() - feed.autoDeleteDuration);
-                    
-                    
+
+
                     const readItems = feed.items.filter(item => item.read);
-                    const unreadItems = feed.items.filter(item => !item.read && 
+                    const unreadItems = feed.items.filter(item => !item.read &&
                         new Date(item.pubDate).getTime() > cutoffDate.getTime()
                     );
-                    
+
                     feed.items = [...readItems, ...unreadItems];
                 }
-                
+
                 if (feed.items.length !== originalCount) {
                     updatedCount++;
                 }
             }
-            
+
             await this.saveSettings();
             const view = await this.getActiveDashboardView();
             if (view) {
                 view.refresh();
             }
-            
+
             if (updatedCount > 0) {
                 new Notice(`Applied limits to ${updatedCount} feeds`);
             } else {
                 new Notice("No feeds needed limit adjustments");
             }
         } catch (error) {
-            
+
             new Notice(`Error applying feed limits: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -469,7 +469,7 @@ export default class RssDashboardPlugin extends Plugin {
             if (!feed.folder) return false;
             return feed.folder === folderPath || feed.folder.startsWith(folderPath + '/');
         });
-        
+
         if (feedsInFolder.length > 0) {
             await this.refreshFeeds(feedsInFolder);
         } else {
@@ -477,27 +477,27 @@ export default class RssDashboardPlugin extends Plugin {
         }
     }
 
-    
+
     async updateArticle(
         articleGuid: string,
         feedUrl: string,
         updates: Partial<FeedItem>
     ) {
-        
+
         const feed = this.settings.feeds.find((f) => f.url === feedUrl);
         if (!feed) return;
 
-        
+
         const article = feed.items.find((item) => item.guid === articleGuid);
         if (!article) return;
 
-        
+
         Object.assign(article, updates);
 
-        
+
         await this.saveSettings();
 
-        
+
         const view = await this.getActiveDashboardView();
         if (view) {
             view.refresh();
@@ -526,7 +526,7 @@ export default class RssDashboardPlugin extends Plugin {
         setIcon(minimizeButton, "minus");
         minimizeButton.onclick = onMinimize;
 
-        
+
         const abortButton = modalHeader.createEl("button", {
             text: "Abort",
             cls: "rss-dashboard-import-abort-button"
@@ -572,10 +572,10 @@ export default class RssDashboardPlugin extends Plugin {
             if (file && file.name.endsWith('.opml')) {
                 const content = await file.text();
                 try {
-                    
+
                     const { feeds: newFeedsMetadata, folders: newFolders } = OpmlManager.parseOpmlMetadata(content);
 
-                    const feedsToAdd = newFeedsMetadata.filter(newFeed => 
+                    const feedsToAdd = newFeedsMetadata.filter(newFeed =>
                         !this.settings.feeds.some(f => f.url === newFeed.url)
                     );
 
@@ -584,45 +584,45 @@ export default class RssDashboardPlugin extends Plugin {
                         return;
                     }
 
-                    
+
                     const addedFeeds: Feed[] = [];
                     for (const feedMetadata of feedsToAdd) {
-                            const feedToAdd: Feed = {
+                        const feedToAdd: Feed = {
                             title: feedMetadata.title,
                             url: feedMetadata.url,
                             folder: feedMetadata.folder,
-                            items: [], 
-                                lastUpdated: Date.now(),
+                            items: [],
+                            lastUpdated: Date.now(),
                             mediaType: feedMetadata.mediaType || "article",
                             autoDeleteDuration: feedMetadata.autoDeleteDuration,
                             maxItemsLimit: feedMetadata.maxItemsLimit || 50,
                             scanInterval: feedMetadata.scanInterval
-                            };
+                        };
 
-                        
+
                         if (feedToAdd.mediaType === 'video' && (!feedToAdd.folder || feedToAdd.folder === 'Uncategorized')) {
-                                feedToAdd.folder = this.settings.media.defaultYouTubeFolder;
+                            feedToAdd.folder = this.settings.media.defaultYouTubeFolder;
                         } else if (feedToAdd.mediaType === 'podcast' && (!feedToAdd.folder || feedToAdd.folder === 'Uncategorized')) {
-                                feedToAdd.folder = this.settings.media.defaultPodcastFolder;
-                            }
+                            feedToAdd.folder = this.settings.media.defaultPodcastFolder;
+                        }
 
-                            addedFeeds.push(feedToAdd);
+                        addedFeeds.push(feedToAdd);
                     }
 
-                    
-                        this.settings.feeds.push(...addedFeeds);
-                        this.settings.folders = OpmlManager.mergeFolders(this.settings.folders, newFolders);
-                        await this.saveSettings();
 
-                    
+                    this.settings.feeds.push(...addedFeeds);
+                    this.settings.folders = OpmlManager.mergeFolders(this.settings.folders, newFolders);
+                    await this.saveSettings();
+
+
                     const view = await this.getActiveDashboardView();
                     if (view) {
                         view.render();
-                        }
+                    }
 
                     new Notice(`Imported ${addedFeeds.length} feeds. Articles will be fetched in the background.`);
 
-                    
+
                     void this.startBackgroundImport(addedFeeds);
 
                 } catch (error) {
@@ -637,13 +637,13 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     private startBackgroundImport(feeds: Feed[]): void {
-        
+
         this.backgroundImportQueue.push(...feeds.map(feed => ({
             ...feed,
             importStatus: 'pending' as const
         })));
 
-        
+
         if (!this.isBackgroundImporting) {
             void this.processBackgroundImportQueue();
         }
@@ -656,7 +656,7 @@ export default class RssDashboardPlugin extends Plugin {
 
         this.isBackgroundImporting = true;
 
-        
+
         if (!this.importStatusBarItem) {
             this.importStatusBarItem = this.addStatusBarItem();
             this.importStatusBarItem.textContent = '';
@@ -675,16 +675,16 @@ export default class RssDashboardPlugin extends Plugin {
         while (this.backgroundImportQueue.length > 0) {
             const feedMetadata = this.backgroundImportQueue.shift();
             if (!feedMetadata) break;
-            
+
             try {
-                
+
                 feedMetadata.importStatus = 'processing';
                 this.updateBackgroundImportProgress(processedCount, totalFeeds, feedMetadata.title);
 
-                
+
                 const parsedFeed = await this.feedParser.parseFeed(feedMetadata.url);
-                
-                
+
+
                 const feedIndex = this.settings.feeds.findIndex(f => f.url === feedMetadata.url);
                 if (feedIndex >= 0) {
                     this.settings.feeds[feedIndex] = {
@@ -700,35 +700,35 @@ export default class RssDashboardPlugin extends Plugin {
                 processedCount++;
 
             } catch (error) {
-                
+
                 feedMetadata.importStatus = 'failed';
                 feedMetadata.importError = error instanceof Error ? error.message : 'Unknown error';
                 processedCount++;
             }
 
-            
+
             if (processedCount % 5 === 0) {
                 await this.saveSettings();
             }
 
-            
+
             const view = await this.getActiveDashboardView();
             if (view && processedCount % 3 === 0) {
                 view.render();
-        }
+            }
 
-            
+
             await sleep(100);
         }
 
-        
+
         await this.saveSettings();
         const view = await this.getActiveDashboardView();
         if (view) {
             view.render();
         }
 
-        
+
         if (this.importStatusBarItem) {
             this.importStatusBarItem.remove();
             this.importStatusBarItem = null;
@@ -748,13 +748,13 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     exportOpml(): void {
-        
+
         const opmlContent = OpmlManager.generateOpml(
             this.settings.feeds,
             this.settings.folders
         );
 
-        
+
         const blob = new Blob([opmlContent], { type: "text/xml" });
         const url = URL.createObjectURL(blob);
         const a = document.body.createEl("a", {
@@ -765,27 +765,44 @@ export default class RssDashboardPlugin extends Plugin {
         URL.revokeObjectURL(url);
     }
 
-    
-    async addFolder(folderName: string) {
-        
-        const folderExists = this.settings.folders.some(f => f.name === folderName);
-        
-        if (!folderExists) {
-            
-            this.settings.folders.push({ name: folderName, subfolders: [] });
+
+    /**
+     * Ensures a folder path exists in the settings hierarchy
+     * Handles nested paths like "News/Tech"
+     */
+    async ensureFolderExists(folderPath: string) {
+        if (!folderPath || folderPath === "Uncategorized") return;
+
+        const parts = folderPath.split("/");
+        let currentLevel = this.settings.folders;
+        let changed = false;
+
+        for (const part of parts) {
+            if (!part.trim()) continue;
+            let folder = currentLevel.find(f => f.name === part);
+            if (!folder) {
+                folder = {
+                    name: part,
+                    subfolders: [],
+                    createdAt: Date.now(),
+                    modifiedAt: Date.now()
+                };
+                currentLevel.push(folder);
+                changed = true;
+            }
+            currentLevel = folder.subfolders;
+        }
+
+        if (changed) {
             await this.saveSettings();
-            
             const view = await this.getActiveDashboardView();
             if (view) {
                 void view.refresh();
-                new Notice(`Folder "${folderName}" created`);
             }
-        } else {
-            new Notice(`Folder "${folderName}" already exists`);
         }
     }
 
-    
+
     async addFeed(title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) {
         try {
             if (this.settings.feeds.some((f) => f.url === url)) {
@@ -793,7 +810,7 @@ export default class RssDashboardPlugin extends Plugin {
                 return;
             }
 
-          
+
             let mediaType: 'article' | 'video' | 'podcast' = 'article';
             if (folder === this.settings.media.defaultYouTubeFolder) {
                 mediaType = 'video';
@@ -824,7 +841,7 @@ export default class RssDashboardPlugin extends Plugin {
                 }
                 await this.saveSettings();
             } catch (error) {
-                
+
                 new Notice(`Error parsing feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
 
@@ -834,55 +851,55 @@ export default class RssDashboardPlugin extends Plugin {
             }
             new Notice(`Feed "${title}" added`);
         } catch (error) {
-            
+
             new Notice(`Error adding feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 
-    
+
     async addYouTubeFeed(input: string, customTitle?: string) {
         try {
-            
+
             const feedUrl = await MediaService.getYouTubeRssFeed(input);
-            
+
             if (!feedUrl) {
                 new Notice("Unable to determine YouTube feed URL from input");
                 return;
             }
-            
-            
+
+
             if (this.settings.feeds.some(f => f.url === feedUrl)) {
                 new Notice("This YouTube feed already exists");
                 return;
             }
-            
-            
+
+
             const title = customTitle || `YouTube: ${input}`;
             await this.addFeed(title, feedUrl, this.settings.media.defaultYouTubeFolder);
-            
+
         } catch (error) {
-            
+
             new Notice(`Error adding YouTube feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 
-    
+
     async addSubfolder(parentFolderName: string, subfolderName: string) {
-        
+
         const parentFolder = this.settings.folders.find(
             (f) => f.name === parentFolderName
         );
-        
+
         if (parentFolder) {
-            
+
             if (!parentFolder.subfolders.some((sf) => sf.name === subfolderName)) {
                 parentFolder.subfolders.push({
                     name: subfolderName,
                     subfolders: [],
                 });
-                
+
                 await this.saveSettings();
-                
+
                 const view = await this.getActiveDashboardView();
                 if (view) {
                     void view.refresh();
@@ -894,22 +911,22 @@ export default class RssDashboardPlugin extends Plugin {
         }
     }
 
-    
+
     async editFeed(feed: Feed, newTitle: string, newUrl: string, newFolder: string) {
         const oldTitle = feed.title;
         feed.title = newTitle;
         feed.url = newUrl;
         feed.folder = newFolder;
-        
+
         // Update feedTitle for all articles in this feed when the title changes
         if (oldTitle !== newTitle) {
             for (const item of feed.items) {
                 item.feedTitle = newTitle;
             }
         }
-        
+
         await this.saveSettings();
-        
+
         const view = await this.getActiveDashboardView();
         if (view) {
             void view.refresh();
@@ -920,27 +937,27 @@ export default class RssDashboardPlugin extends Plugin {
     async loadSettings() {
         try {
             const data = await this.loadData() as RssDashboardSettings | null;
-            
-            
+
+
             this.settings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
-            
-            
+
+
             this.migrateLegacySettings();
-            
-            
+
+
             if (!this.settings.readerViewLocation) {
                 this.settings.readerViewLocation = "right-sidebar";
             }
-            
+
             if (this.settings.useWebViewer === undefined) {
                 this.settings.useWebViewer = true;
             }
-            
-            
+
+
             if (!this.settings.articleSaving) {
                 this.settings.articleSaving = DEFAULT_SETTINGS.articleSaving;
             } else {
-                
+
                 this.settings.articleSaving = Object.assign({}, DEFAULT_SETTINGS.articleSaving, this.settings.articleSaving);
             }
 
@@ -951,15 +968,15 @@ export default class RssDashboardPlugin extends Plugin {
                 this.settings.display = Object.assign({}, DEFAULT_SETTINGS.display, this.settings.display);
             }
         } catch (error) {
-            
+
             new Notice(`Error loading settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
             this.settings = DEFAULT_SETTINGS;
         }
     }
-    
-    
+
+
     private migrateLegacySettings(): void {
-        
+
         const settingsUnknown = this.settings as unknown as Record<string, unknown>;
         if (settingsUnknown.savePath && !this.settings.articleSaving?.defaultFolder) {
             if (!this.settings.articleSaving) {
@@ -968,8 +985,8 @@ export default class RssDashboardPlugin extends Plugin {
             this.settings.articleSaving.defaultFolder = settingsUnknown.savePath as string;
             delete settingsUnknown.savePath;
         }
-        
-        
+
+
         if (settingsUnknown.template && !this.settings.articleSaving?.defaultTemplate) {
             if (!this.settings.articleSaving) {
                 this.settings.articleSaving = DEFAULT_SETTINGS.articleSaving;
@@ -977,8 +994,8 @@ export default class RssDashboardPlugin extends Plugin {
             this.settings.articleSaving.defaultTemplate = settingsUnknown.template as string;
             delete settingsUnknown.template;
         }
-        
-        
+
+
         if (settingsUnknown.addSavedTag !== undefined && this.settings.articleSaving?.addSavedTag === undefined) {
             if (!this.settings.articleSaving) {
                 this.settings.articleSaving = DEFAULT_SETTINGS.articleSaving;
@@ -986,8 +1003,8 @@ export default class RssDashboardPlugin extends Plugin {
             this.settings.articleSaving.addSavedTag = settingsUnknown.addSavedTag as boolean;
             delete settingsUnknown.addSavedTag;
         }
-        
-        
+
+
         const articleSavingUnknown = this.settings.articleSaving as unknown as Record<string, unknown>;
         if (articleSavingUnknown.template && !this.settings.articleSaving?.defaultTemplate) {
             this.settings.articleSaving.defaultTemplate = articleSavingUnknown.template as string;
@@ -1016,62 +1033,62 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     onunload() {
-        
+
     }
 
-    
+
     private async validateSavedArticles(): Promise<void> {
-        
+
         let updatedCount = 0;
-        
+
         for (const feed of this.settings.feeds) {
             for (const item of feed.items) {
                 if (item.saved) {
                     const fileExists = this.checkSavedFileExists(item);
                     if (!fileExists) {
-                        
+
                         item.saved = false;
-                        
-                        
+
+
                         if (item.tags) {
                             item.tags = item.tags.filter(tag => tag.name.toLowerCase() !== "saved");
                         }
-                        
+
                         updatedCount++;
                     }
                 }
             }
         }
-        
+
         if (updatedCount > 0) {
-            
+
             await this.saveSettings();
-            
-            
+
+
             const view = await this.getActiveDashboardView();
             if (view) {
                 view.render();
             }
         }
     }
-    
-    
+
+
     private checkSavedFileExists(item: FeedItem): boolean {
         try {
-            
+
             const folder = this.settings.articleSaving.defaultFolder || "RSS articles";
             const filename = this.sanitizeFilename(item.title);
             const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
-            
-            
+
+
             return this.app.vault.getAbstractFileByPath(filePath) !== null;
         } catch {
-            
+
             return false;
         }
     }
-    
-    
+
+
     private sanitizeFilename(name: string): string {
         return name
             .replace(/[/\\:*?"<>|]/g, '_')
@@ -1080,7 +1097,7 @@ export default class RssDashboardPlugin extends Plugin {
             .substring(0, 100);
     }
 
-    
+
     private getAllArticles(): FeedItem[] {
         let allArticles: FeedItem[] = [];
         for (const feed of this.settings.feeds) {

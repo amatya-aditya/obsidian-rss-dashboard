@@ -5,18 +5,6 @@ import { FolderSuggest } from "../components/folder-suggest";
 import { resolvePodcastPlatformUrl, loadFeedForPreview } from "../services/feed-parser";
 import { detectPodcastPlatform } from "../utils/podcast-platforms";
 
-function collectAllFolders(folders: Folder[], base = ""): string[] {
-    let paths: string[] = [];
-    for (const f of folders) {
-        const path = base ? `${base}/${f.name}` : f.name;
-        paths.push(path);
-        if (f.subfolders && f.subfolders.length > 0) {
-            paths = paths.concat(collectAllFolders(f.subfolders, path));
-        }
-    }
-    return paths;
-}
-
 export class EditFeedModal extends Modal {
     feed: Feed;
     plugin: RssDashboardPlugin;
@@ -137,6 +125,7 @@ export class EditFeedModal extends Modal {
                 folderInput = text.inputEl;
                 folderInput.autocomplete = "off";
                 folderInput.spellcheck = false;
+                folderInput.addEventListener("focus", () => folderInput.select());
 
                 new FolderSuggest(this.app, folderInput, this.plugin.settings.folders);
             });
@@ -330,7 +319,12 @@ export class EditFeedModal extends Modal {
                 const oldTitle = this.feed.title;
                 this.feed.title = title;
                 this.feed.url = url;
-                this.feed.folder = folderInput?.value || folder;
+                const finalFolder = folderInput?.value || folder;
+                this.feed.folder = finalFolder;
+
+                if (finalFolder) {
+                    await this.plugin.ensureFolderExists(finalFolder);
+                }
                 this.feed.autoDeleteDuration = autoDeleteDuration;
 
                 // Update feedTitle for all articles in this feed when the title changes
@@ -418,6 +412,9 @@ export class AddFeedModal extends Modal {
                     }
                 });
             })
+            .setDesc(document.createRange().createContextualFragment(
+                'Currently Supported: <b>XML</b>, <b>Apple Podcasts</b>'
+            ))
             .addButton(btn => {
                 btn.setButtonText("Load")
                     .onClick(() => {
@@ -500,6 +497,7 @@ export class AddFeedModal extends Modal {
                 folderInput = text.inputEl;
                 folderInput.autocomplete = "off";
                 folderInput.spellcheck = false;
+                folderInput.addEventListener("focus", () => folderInput.select());
 
                 new FolderSuggest(this.app, folderInput, this.folders);
             });
@@ -678,9 +676,14 @@ export class AddFeedModal extends Modal {
                 return;
             }
             const finalFolder = folderInput?.value || folder;
-            void this.onAdd(title, url, finalFolder, autoDeleteDuration, maxItemsLimit, scanInterval).catch(() => { /* ignore */ });
-            this.onSave();
-            this.close();
+            void (async () => {
+                if (this.plugin && finalFolder) {
+                    await this.plugin.ensureFolderExists(finalFolder);
+                }
+                await this.onAdd(title, url, finalFolder, autoDeleteDuration, maxItemsLimit, scanInterval).catch(() => { /* ignore */ });
+                this.onSave();
+                this.close();
+            })();
         };
         cancelBtn.onclick = () => this.close();
 

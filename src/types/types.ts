@@ -72,6 +72,7 @@ export interface Feed {
 	autoDeleteDuration?: number;
 	maxItemsLimit?: number;
 	scanInterval?: number;
+	iconUrl?: string;
 }
 
 export interface FeedMetadata {
@@ -163,6 +164,8 @@ export interface DisplaySettings {
 	hideDefaultRssIcon: boolean;
 	autoHideOnReadToggle: boolean;
 	autoHideDuration: number;
+	overridePodcastIcons: boolean;
+	overrideVideoIcons: boolean;
 }
 
 export interface RssDashboardSettings {
@@ -315,5 +318,7 @@ guid: "{{guid}}"
 		hideDefaultRssIcon: false,
 		autoHideOnReadToggle: false,
 		autoHideDuration: 0,
+		overridePodcastIcons: true,
+		overrideVideoIcons: true,
 	},
 };
