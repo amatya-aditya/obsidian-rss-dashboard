@@ -18,5 +18,5 @@ release/
 test_files
 
 # agent
-agent.md
-.agent/
+# agent.md
+# .agent/

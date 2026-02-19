@@ -129,13 +129,6 @@
   border-radius: 2px;
   background-color: var(--background-secondary);
 }
-.rss-dashboard-feed-artwork {
-  width: 16px;
-  height: 16px;
-  object-fit: cover;
-  border-radius: 2px;
-  background-color: var(--background-secondary);
-}
 .rss-dashboard-folder {
   display: flex;
   align-items: center;
@@ -336,14 +329,6 @@
 .rss-dashboard-toolbar-button:hover {
   background-color: var(--background-modifier-hover);
   color: var(--text-normal);
-}
-.rss-dashboard-add-new-suggestion {
-  font-style: italic;
-  font-weight: bold;
-  color: var(--text-accent);
-  border-top: 1px solid var(--background-modifier-border);
-  margin-top: 4px;
-  padding-top: 6px !important;
 }
 .rss-dashboard-feed-folder-header.drag-over {
   background-color: var(--interactive-accent);

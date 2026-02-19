@@ -70,14 +70,6 @@
 	background-color: var(--background-secondary);
 }
 
-.rss-dashboard-feed-artwork {
-	width: 16px;
-	height: 16px;
-	object-fit: cover;
-	border-radius: 2px;
-	background-color: var(--background-secondary);
-}
-
 .rss-dashboard-folder {
 	display: flex;
 	align-items: center;

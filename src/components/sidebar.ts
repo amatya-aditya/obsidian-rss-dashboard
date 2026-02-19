@@ -292,6 +292,13 @@ export class Sidebar {
 							this.showFeedSortMenu(e, "");
 						});
 				});
+				menu.addItem((item: MenuItem) => {
+					item.setTitle("Refresh All Feeds")
+						.setIcon("refresh-cw")
+						.onClick(() => {
+							void this.plugin.refreshFeeds();
+						});
+				});
 				menu.showAtMouseEvent(e);
 			}
 		});
@@ -481,6 +488,20 @@ export class Sidebar {
 					});
 			});
 			menu.addItem((item: MenuItem) => {
+				item.setTitle(`Refresh feeds in folder`)
+					.setIcon("refresh-cw")
+					.onClick(() => {
+						void this.plugin.refreshFeedsInFolder(fullPath);
+					});
+			});
+			menu.addItem((item: MenuItem) => {
+				item.setTitle("Refresh All Feeds")
+					.setIcon("refresh-cw")
+					.onClick(() => {
+						void this.plugin.refreshFeeds();
+					});
+			});
+			menu.addItem((item: MenuItem) => {
 				const isPinned = folderObj.pinned;
 				item.setTitle(isPinned ? "Unpin folder" : "Pin folder")
 					.setIcon(isPinned ? "unlock" : "lock")
@@ -603,39 +624,6 @@ export class Sidebar {
 		});
 	}
 
-	/**
-	 * Render feed artwork image with fallback to default icon
-	 */
-	private renderFeedArtwork(
-		feedIcon: HTMLElement,
-		feed: Feed,
-		defaultIcon: string,
-		iconClass: string,
-	): void {
-		if (feed.iconUrl) {
-			// Try to load the feed's artwork
-			feedIcon.empty();
-			const imgEl = feedIcon.createEl("img", {
-				attr: {
-					src: feed.iconUrl,
-					alt: feed.title,
-				},
-				cls: "rss-dashboard-feed-artwork",
-			});
-
-			// Fallback to default icon if artwork fails to load
-			imgEl.onerror = () => {
-				feedIcon.empty();
-				setIcon(feedIcon, defaultIcon);
-				feedIcon.addClass(iconClass);
-			};
-		} else {
-			// No artwork URL, use default icon
-			setIcon(feedIcon, defaultIcon);
-			feedIcon.addClass(iconClass);
-		}
-	}
-
 	private renderFeed(feed: Feed, container: HTMLElement): void {
 		const feedEl = container.createDiv({
 			cls:
@@ -664,46 +652,21 @@ export class Sidebar {
 					queuedFeed.importStatus === "processing",
 			);
 
-		// Get override settings (default to true for backward compatibility)
-		const overridePodcastIcons =
-			this.settings.display.overridePodcastIcons ?? true;
-		const overrideVideoIcons =
-			this.settings.display.overrideVideoIcons ?? true;
-
-		// Debug logging
-		console.log("[RSS Dashboard] renderFeed:", {
-			title: feed.title,
-			mediaType: feed.mediaType,
-			iconUrl: feed.iconUrl,
-			overrideVideoIcons,
-			overridePodcastIcons,
-		});
-
 		if (isProcessing) {
 			// Show loading spinner for processing feeds
 			setIcon(feedIcon, "loader-2");
 			feedIcon.addClass("processing");
 			feedEl.classList.add("processing-feed");
 		} else if (feed.mediaType === "video") {
+			// Show play icon for video feeds
 			feedEl.classList.add("video-feed");
-			if (overrideVideoIcons) {
-				// Show default play icon for video feeds
-				setIcon(feedIcon, "play");
-				feedIcon.addClass("video");
-			} else {
-				// Show actual video feed artwork
-				this.renderFeedArtwork(feedIcon, feed, "play", "video");
-			}
+			setIcon(feedIcon, "play");
+			feedIcon.addClass("video");
 		} else if (feed.mediaType === "podcast") {
+			// Show mic icon for podcast feeds
 			feedEl.classList.add("podcast-feed");
-			if (overridePodcastIcons) {
-				// Show default mic icon for podcast feeds
-				setIcon(feedIcon, "mic");
-				feedIcon.addClass("podcast");
-			} else {
-				// Show actual podcast feed artwork
-				this.renderFeedArtwork(feedIcon, feed, "mic", "podcast");
-			}
+			setIcon(feedIcon, "mic");
+			feedIcon.addClass("podcast");
 		} else if (this.settings.display.useDomainFavicons) {
 			// Show domain favicon for regular feeds when setting is enabled
 			const domain = this.extractDomain(feed.url);

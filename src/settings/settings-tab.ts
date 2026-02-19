@@ -582,56 +582,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
 			text: "The 'all items' filter cannot be hidden as it's always required.",
 			cls: "rss-dashboard-settings-note",
 		});
-
-		// Add separator
-		containerEl.createEl("hr", { cls: "rss-dashboard-settings-separator" });
-
-		// Icon settings section
-		new Setting(containerEl).setName("Icons").setHeading();
-
-		new Setting(containerEl)
-			.setName("Override podcast icons")
-			.setDesc(
-				"When enabled, all podcast feeds show a default microphone icon. When disabled, the actual artwork from the podcast feed will be displayed.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(
-						this.plugin.settings.display.overridePodcastIcons ??
-							true,
-					)
-					.onChange(async (value) => {
-						this.plugin.settings.display.overridePodcastIcons =
-							value;
-						await this.plugin.saveSettings();
-						const view = await this.plugin.getActiveDashboardView();
-						if (view?.sidebar) {
-							await this.app.workspace.revealLeaf(view.leaf);
-							view.sidebar.render();
-						}
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Override video icons")
-			.setDesc(
-				"When enabled, all video feeds show a default play icon. When disabled, the actual artwork from the video feed will be displayed.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(
-						this.plugin.settings.display.overrideVideoIcons ?? true,
-					)
-					.onChange(async (value) => {
-						this.plugin.settings.display.overrideVideoIcons = value;
-						await this.plugin.saveSettings();
-						const view = await this.plugin.getActiveDashboardView();
-						if (view?.sidebar) {
-							await this.app.workspace.revealLeaf(view.leaf);
-							view.sidebar.render();
-						}
-					}),
-			);
 	}
 
 	private createMediaSettings(containerEl: HTMLElement): void {
