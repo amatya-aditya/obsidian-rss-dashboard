@@ -709,3 +709,20 @@
 .rss-dashboard-articles-header.is-narrow .rss-dashboard-sidebar-toggle {
     margin-right: 8px;
 }
+
+.rss-dashboard-list-view-button,
+.rss-dashboard-card-view-button,
+.rss-dashboard-refresh-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.rss-dashboard-list-view-button svg,
+.rss-dashboard-card-view-button svg,
+.rss-dashboard-refresh-button svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
