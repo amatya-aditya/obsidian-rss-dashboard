@@ -22,8 +22,7 @@
     ],
     "type": "Release Notes",
     "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Follow Obsidian updates and improvements.",
-    "rating": 5
+    "summary": "Follow Obsidian updates and improvements."
   },
   {
     "id": "feed-001",
@@ -48,8 +47,7 @@
     ],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Global news coverage from BBC News (World edition).",
-    "rating": 5
+    "summary": "Global news coverage from BBC News (World edition)."
   },
   {
     "id": "feed-002",
@@ -74,8 +72,7 @@
     ],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Top news stories and breaking news from The New York Times.",
-    "rating": 5
+    "summary": "Top news stories and breaking news from The New York Times."
   },
   {
     "id": "feed-003",
@@ -100,8 +97,7 @@
     ],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Engaging people with cultural heritage and to improve history education worldwide..",
-    "rating": 5
+    "summary": "Engaging people with cultural heritage and to improve history education worldwide.."
   },
   {
     "id": "feed-004",
@@ -126,8 +122,7 @@
     ],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Global news stories and analysis from Al Jazeera English.",
-    "rating": 4
+    "summary": "Global news stories and analysis from Al Jazeera English."
   },
   {
     "id": "feed-005",
@@ -152,8 +147,7 @@
     ],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Latest world news and features from The Guardian.",
-    "rating": 4
+    "summary": "Latest world news and features from The Guardian."
   },
   {
     "id": "feed-006",
@@ -4588,27 +4582,27 @@
     "url": "https://feeds.megaphone.fm/hubermanlab",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f66aed32f8066a72781b3b12a",
     "domain": [
-    "Science",
-    "Health"
-  ],
-  "subdomain": [
-    "Neuroscience"
-  ],
-  "area": [
-    "Human Performance"
-  ],
-  "topic": [
-    "Science-Based Tools"
-  ],
-  "tags": [
-    "neuroscience",
-    "wellness",
-    "behavior"
-  ],
-  "type": "Podcast",
-  "createdAt": "2025-06-30T00:00:00Z",
-  "summary": "Stanford neuroscientist Dr. Andrew Huberman shares evidence-backed methods to improve sleep, focus, fitness and mental health.",
-  "rating": 5
+      "Science",
+      "Health"
+    ],
+    "subdomain": [
+      "Neuroscience"
+    ],
+    "area": [
+      "Human Performance"
+    ],
+    "topic": [
+      "Science-Based Tools"
+    ],
+    "tags": [
+      "neuroscience",
+      "wellness",
+      "behavior"
+    ],
+    "type": "Podcast",
+    "createdAt": "2025-06-30T00:00:00Z",
+    "summary": "Stanford neuroscientist Dr. Andrew Huberman shares evidence-backed methods to improve sleep, focus, fitness and mental health.",
+    "rating": 5
   },
   {
     "id": "feed-177",

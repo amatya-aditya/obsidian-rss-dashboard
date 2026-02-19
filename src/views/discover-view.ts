@@ -23,7 +23,7 @@ export class DiscoverView extends ItemView {
 		selectedPaths: [],
 		selectedTags: [],
 	};
-	private currentSort = "rating-desc";
+	private currentSort = "created-desc";
 	private categoryMap: {
 		categories: Record<string, Record<string, unknown>>;
 	} = { categories: {} };
@@ -243,10 +243,6 @@ export class DiscoverView extends ItemView {
 					return (a.type || "").localeCompare(b.type || "");
 				case "type-desc":
 					return (b.type || "").localeCompare(a.type || "");
-				case "rating-desc":
-					return (b.rating || 0) - (a.rating || 0);
-				case "rating-asc":
-					return (a.rating || 0) - (b.rating || 0);
 				default:
 					return 0;
 			}
@@ -719,39 +715,6 @@ export class DiscoverView extends ItemView {
 		return `hsl(${hue}, 60%, 75%)`;
 	}
 
-	private renderStarRating(container: HTMLElement, rating: number): void {
-		const ratingButton = container.createEl("button", {
-			cls: "rss-discover-card-rating-button",
-		});
-		// ratingButton.disabled = true;
-
-		const starsContainer = ratingButton.createDiv({
-			cls: "rss-discover-card-stars",
-		});
-
-		for (let i = 1; i <= 5; i++) {
-			const star = starsContainer.createDiv({
-				cls: "rss-discover-card-star",
-			});
-
-			if (rating >= i) {
-				setIcon(star, "star");
-				star.addClass("filled");
-			} else if (rating >= i - 0.5) {
-				setIcon(star, "star-half");
-				star.addClass("half-filled");
-			} else {
-				setIcon(star, "star");
-				star.addClass("empty");
-			}
-		}
-
-		const ratingText = ratingButton.createSpan({
-			cls: "rss-discover-card-rating-text",
-		});
-		ratingText.textContent = `(${rating.toFixed(1)}/5)`;
-	}
-
 	private renderContent(container: HTMLElement): void {
 		container.empty();
 
@@ -922,8 +885,6 @@ export class DiscoverView extends ItemView {
 			"title-desc": "File name (z to a)",
 			"type-asc": "Type (a to z)",
 			"type-desc": "Type (z to a)",
-			"rating-desc": "Rating (high to low)",
-			"rating-asc": "Rating (low to high)",
 			"created-desc": "Created time (new to old)",
 			"created-asc": "Created time (old to new)",
 			"tags-desc": "Tags number (most to least)",
@@ -1360,14 +1321,6 @@ export class DiscoverView extends ItemView {
 		const leftSection = footer.createDiv({
 			cls: "rss-discover-card-footer-left",
 		});
-		if (feed.rating !== undefined && feed.rating !== null) {
-			this.renderStarRating(leftSection, feed.rating);
-		} else {
-			leftSection.createEl("button", {
-				cls: "rss-discover-card-rating-button is-na",
-				text: "Rating n/a",
-			});
-		}
 
 		const rightSection = footer.createDiv({
 			cls: "rss-discover-card-footer-right",
@@ -1433,7 +1386,7 @@ export class DiscoverView extends ItemView {
 			);
 
 			if (!folderExists) {
-				await this.plugin.addFolder(folderName);
+				await this.plugin.ensureFolderExists(folderName);
 			}
 
 			// Add the feed
