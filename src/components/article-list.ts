@@ -917,7 +917,10 @@ export class ArticleList {
 			const card = container.createDiv({
 				cls:
 					"rss-dashboard-article-card" +
-					(article === this.selectedArticle ? " active" : "") +
+					(this.selectedArticle &&
+					article.guid === this.selectedArticle.guid
+						? " active"
+						: "") +
 					(article.read ? " read" : " unread") +
 					(article.saved ? " saved" : "") +
 					(article.mediaType === "video"

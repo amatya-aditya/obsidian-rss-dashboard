@@ -754,6 +754,7 @@ export class RssDashboardView extends ItemView {
 
 	private async handleArticleClick(article: FeedItem): Promise<void> {
 		this.selectedArticle = article;
+		this.render();
 
 		if (!article.read) {
 			await this.updateArticleStatus(article, { read: true }, false);
