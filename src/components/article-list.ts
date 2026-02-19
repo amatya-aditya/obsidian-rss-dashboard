@@ -317,10 +317,10 @@ export class ArticleList {
 		groupDropdown.addEventListener("change", (e: Event) => {
 			this.callbacks.onGroupChange(
 				(e.target as HTMLSelectElement).value as
-					| "none"
-					| "feed"
-					| "date"
-					| "folder",
+				| "none"
+				| "feed"
+				| "date"
+				| "folder",
 			);
 		});
 
@@ -557,7 +557,7 @@ export class ArticleList {
 				cls:
 					"rss-dashboard-article-item" +
 					(this.selectedArticle &&
-					article.guid === this.selectedArticle.guid
+						article.guid === this.selectedArticle.guid
 						? " active"
 						: "") +
 					(article.read ? " read" : " unread") +
@@ -572,28 +572,25 @@ export class ArticleList {
 				"rss-dashboard-article-content",
 			);
 
-			const firstRow = contentEl.createDiv("rss-dashboard-list-row-1");
+			const mainGrid = contentEl.createDiv("rss-dashboard-article-grid");
 
-			firstRow.createDiv({
+			// Top Left: Headline
+			const headlineEl = mainGrid.createDiv("rss-dashboard-grid-headline");
+			headlineEl.createDiv({
 				cls: "rss-dashboard-article-title rss-dashboard-list-title",
 				text: article.title,
 			});
 
-			const metaEl = firstRow.createDiv("rss-dashboard-article-meta");
-			metaEl.createSpan({ text: "|" });
-			this.renderFeedIcon(metaEl, article.feedUrl, article.mediaType);
-			metaEl
-				.createSpan("rss-dashboard-article-source")
-				.setText(article.feedTitle);
-			metaEl.createSpan({ text: "|" });
+			// Top Right: Time posted/updated
+			const timeEl = mainGrid.createDiv("rss-dashboard-grid-time");
 			const dateInfo = formatDateWithRelative(article.pubDate);
-			const dateEl = metaEl.createSpan("rss-dashboard-article-date");
+			const dateEl = timeEl.createSpan("rss-dashboard-article-date");
 			dateEl.textContent = dateInfo.text;
 			dateEl.setAttribute("title", dateInfo.title);
 
-			const secondRow = contentEl.createDiv("rss-dashboard-list-row-2");
-
-			const actionToolbar = secondRow.createDiv(
+			// Bottom Left: Interactive buttons & Tags
+			const actionsEl = mainGrid.createDiv("rss-dashboard-grid-actions");
+			const actionToolbar = actionsEl.createDiv(
 				"rss-dashboard-action-toolbar rss-dashboard-list-toolbar",
 			);
 
@@ -809,10 +806,17 @@ export class ArticleList {
 							this.articles[index] = { ...article };
 						}
 
+						if (this.callbacks.onArticleUpdate) {
+							this.callbacks.onArticleUpdate(
+								article,
+								{ tags: [...article.tags] },
+								false,
+							);
+						}
+
 						let articleEl = this.container.querySelector(
 							`[id="article-${article.guid}"]`,
 						) as HTMLElement;
-
 						if (!articleEl) {
 							articleEl = this.container
 								.closest(".rss-dashboard-container")
@@ -820,24 +824,20 @@ export class ArticleList {
 									`[id="article-${article.guid}"]`,
 								) as HTMLElement;
 						}
-
 						if (!articleEl) {
 							articleEl = document.getElementById(
 								`article-${article.guid}`,
 							) as HTMLElement;
 						}
-
 						if (articleEl) {
 							articleEl.classList.add(
 								"rss-dashboard-tag-change-feedback",
 							);
-
 							window.setTimeout(() => {
 								articleEl.classList.remove(
 									"rss-dashboard-tag-change-feedback",
 								);
 							}, 200);
-
 							let tagsContainer = articleEl.querySelector(
 								".rss-dashboard-article-tags",
 							);
@@ -867,7 +867,6 @@ export class ArticleList {
 									);
 								}
 							}
-
 							if (
 								tagsContainer &&
 								article.tags &&
@@ -888,11 +887,10 @@ export class ArticleList {
 										tagEl.style.setProperty(
 											"--tag-color",
 											tag.color ||
-												"var(--interactive-accent)",
+											"var(--interactive-accent)",
 										);
 									}
 								});
-
 								if (
 									article.tags.length > MAX_VISIBLE_TAGS &&
 									tagsContainer
@@ -915,15 +913,12 @@ export class ArticleList {
 									);
 								}
 							}
-
-							// Force reflow
 							void articleEl.offsetHeight;
 						} else {
 							const tempIndicator = document.body.createDiv({
 								cls: "rss-dashboard-tag-change-notification",
 								text: `Tag "${tag.name}" ${checked ? "added" : "removed"}`,
 							});
-
 							window.setTimeout(() => {
 								if (tempIndicator.parentNode) {
 									tempIndicator.parentNode.removeChild(
@@ -936,20 +931,24 @@ export class ArticleList {
 				);
 			});
 
-			let tagsEl: HTMLElement | null = null;
-
-			tagsEl = secondRow.createDiv("rss-dashboard-article-tags");
+			const articleTags = actionToolbar.createDiv("rss-dashboard-article-tags");
 			if (article.tags && article.tags.length > 0) {
 				article.tags.forEach((tag) => {
-					if (tagsEl) {
-						const tagEl = tagsEl.createDiv({
-							cls: "rss-dashboard-article-tag",
-							text: tag.name,
-						});
-						tagEl.style.setProperty("--tag-color", tag.color);
-					}
+					const tagEl = articleTags.createDiv({
+						cls: "rss-dashboard-article-tag",
+						text: tag.name,
+					});
+					tagEl.style.setProperty("--tag-color", tag.color);
 				});
 			}
+
+			// Bottom Right: Feed Source
+			const sourceEl = mainGrid.createDiv("rss-dashboard-grid-source");
+			const metaEl = sourceEl.createDiv("rss-dashboard-article-meta");
+			this.renderFeedIcon(metaEl, article.feedUrl, article.mediaType);
+			metaEl
+				.createSpan("rss-dashboard-article-source")
+				.setText(article.feedTitle);
 
 			articleEl.addEventListener("click", () => {
 				this.callbacks.onArticleClick(article);
@@ -967,7 +966,7 @@ export class ArticleList {
 				cls:
 					"rss-dashboard-article-card" +
 					(this.selectedArticle &&
-					article.guid === this.selectedArticle.guid
+						article.guid === this.selectedArticle.guid
 						? " active"
 						: "") +
 					(article.read ? " read" : " unread") +
@@ -1370,7 +1369,7 @@ export class ArticleList {
 										tagEl.style.setProperty(
 											"--tag-color",
 											tag.color ||
-												"var(--interactive-accent)",
+											"var(--interactive-accent)",
 										);
 									}
 								});

@@ -1,98 +1,98 @@
-.rss-dashboard-list-row-1 {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    min-width: 0;
-    margin: 2px 2px 8px;
-    
+.rss-dashboard-article-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+        "headline time"
+        "actions source";
+    gap: 8px 12px;
+    align-items: start;
+    width: 100%;
 }
-.rss-dashboard-list-row-1 .rss-dashboard-list-title {
-    /* white-space: nowrap; */
+
+.rss-dashboard-grid-headline {
+    grid-area: headline;
+    min-width: 0;
+}
+
+.rss-dashboard-grid-headline .rss-dashboard-list-title {
     overflow: hidden;
     text-overflow: ellipsis;
-    flex-shrink: 1;
     font-weight: 600;
     font-size: 1.08em;
-    margin-right: 8px;
-    min-width: 0;
-    max-width: 100%;
+    margin: 0;
     height: auto;
+    line-height: 1.3;
 }
-.rss-dashboard-list-row-1 .rss-dashboard-article-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+
+.rss-dashboard-grid-time {
+    grid-area: time;
+    text-align: right;
+    white-space: nowrap;
+    font-size: 0.9em;
     color: var(--text-muted);
-    font-size: 0.97em;
-    flex-shrink: 0;
-    min-width: 0;
-    max-width: 100%;
+    padding-top: 4px;
 }
-.rss-dashboard-list-row-1 .rss-dashboard-article-meta span {
-    margin: 0 2px;
-}
-.rss-dashboard-list-row-1 .rss-dashboard-article-meta span:first-child,
-.rss-dashboard-list-row-1 .rss-dashboard-article-meta span:last-child {
-    margin: 0 8px;
-    color: var(--text-muted);
-}
-.rss-dashboard-list-row-2 {
+
+.rss-dashboard-grid-actions {
+    grid-area: actions;
     display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 10px;
-    margin-top: 2px;
-}
-.rss-dashboard-list-toolbar {
-    display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 8px;
+    align-items: flex-start;
 }
-.rss-dashboard-list-row-2 .rss-dashboard-article-tags {
+
+.rss-dashboard-grid-actions .rss-dashboard-action-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: transparent;
+    padding: 0;
+    flex-wrap: wrap;
+}
+
+.rss-dashboard-grid-actions .rss-dashboard-article-tags {
     display: flex;
     flex-wrap: wrap;
-    margin: 8px 0;
     gap: 5px;
-    margin-bottom: 5px
+    margin-left: 4px;
 }
 
-.rss-dashboard-list-row-2 .rss-dashboard-article-tag {
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.8em;
-    color: var(--text-on-accent);
-}
-
-.rss-dashboard-list-row-2 .rss-dashboard-action-toolbar {
+.rss-dashboard-grid-source {
+    grid-area: source;
     display: flex;
-    gap: 8px;
-    align-items: center;
-    height: auto;
-    max-height: max-content;
-    width: fit-content;
-    margin-top: 0;
-    padding: 0 12px;
-    border-top: none;
-    background: var(--background-secondary);
-    box-sizing: border-box;
-    margin-left: initial;
-    padding-top: 0;
+    justify-content: flex-end;
+    align-self: end;
+}
 
+.rss-dashboard-grid-source .rss-dashboard-article-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 0.9em;
+}
+
+/* Cleanup old styles */
+.rss-dashboard-list-row-1,
+.rss-dashboard-list-row-2 {
+    display: none;
 }
 
 @media (max-width: 600px) {
-    .rss-dashboard-list-row-1 {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 2px;
+    .rss-dashboard-article-grid {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "headline"
+            "time"
+            "actions"
+            "source";
+        gap: 6px;
     }
-    .rss-dashboard-list-title {
-        margin-bottom: 2px;
-        max-width: 100%;
-    }
-    .rss-dashboard-list-row-1 .rss-dashboard-article-meta {
-        margin-left: 0;
-        max-width: 100%;
+
+    .rss-dashboard-grid-time,
+    .rss-dashboard-grid-source {
+        text-align: left;
+        justify-content: flex-start;
     }
 }
