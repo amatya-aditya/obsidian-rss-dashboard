@@ -293,7 +293,7 @@ export class Sidebar {
 						});
 				});
 				menu.addItem((item: MenuItem) => {
-					item.setTitle("Refresh All Feeds")
+					item.setTitle("Refresh all feeds")
 						.setIcon("refresh-cw")
 						.onClick(() => {
 							void this.plugin.refreshFeeds();
@@ -495,7 +495,7 @@ export class Sidebar {
 					});
 			});
 			menu.addItem((item: MenuItem) => {
-				item.setTitle("Refresh All Feeds")
+				item.setTitle("Refresh all feeds")
 					.setIcon("refresh-cw")
 					.onClick(() => {
 						void this.plugin.refreshFeeds();

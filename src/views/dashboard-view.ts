@@ -639,7 +639,7 @@ export class RssDashboardView extends ItemView {
 	}
 
 	private handleAddFolder(name: string): void {
-		void this.plugin.addFolder(name);
+		void this.plugin.ensureFolderExists(name);
 	}
 
 	private handleAddSubfolder(parent: string, name: string): void {

@@ -127,7 +127,7 @@ export class AddToFolderModal extends Modal {
 		);
 
 		if (!folderExists) {
-			await this.plugin.addFolder(folderName);
+			await this.plugin.ensureFolderExists(folderName);
 		}
 	}
 

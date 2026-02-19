@@ -44,7 +44,7 @@ async function resolveApplePodcastUrl(
 
 	const lookupUrl = `https://itunes.apple.com/lookup?id=${podcastId}&entity=podcast`;
 
-	console.log("[RSS Dashboard] Looking up Apple Podcast ID:", podcastId);
+	console.debug("[RSS Dashboard] Looking up Apple Podcast ID:", podcastId);
 
 	try {
 		const response = await requestUrl({
@@ -57,7 +57,7 @@ async function resolveApplePodcastUrl(
 			},
 		});
 
-		console.log(
+		console.debug(
 			"[RSS Dashboard] iTunes API response status:",
 			response.status,
 		);
@@ -68,7 +68,7 @@ async function resolveApplePodcastUrl(
 			throw new Error("Podcast not found in Apple Podcasts directory");
 		}
 
-		console.log(
+		console.debug(
 			"[RSS Dashboard] Resolved feed URL:",
 			data.results[0].feedUrl,
 		);
@@ -93,11 +93,11 @@ export interface FeedPreviewData {
 export async function loadFeedForPreview(
 	feedUrl: string,
 ): Promise<FeedPreviewData> {
-	console.log("[RSS Dashboard] Loading feed for preview:", feedUrl);
+	console.debug("[RSS Dashboard] Loading feed for preview:", feedUrl);
 
 	// Try direct request first
 	try {
-		console.log("[RSS Dashboard] Trying direct request...");
+		console.debug("[RSS Dashboard] Trying direct request...");
 		const response = await requestUrl({
 			url: feedUrl,
 			method: "GET",
@@ -109,23 +109,23 @@ export async function loadFeedForPreview(
 		});
 
 		if (response.text && isValidFeed(response.text)) {
-			console.log(
+			console.debug(
 				"[RSS Dashboard] Direct request succeeded, parsing XML",
 			);
 			const parser = new DOMParser();
 			const doc = parser.parseFromString(response.text, "text/xml");
 			return parseFeedDoc(doc, feedUrl);
 		}
-		console.log(
+		console.debug(
 			"[RSS Dashboard] Direct response not valid RSS, falling back to rss2json",
 		);
 	} catch (e) {
-		console.log("[RSS Dashboard] Direct request failed:", e);
+		console.debug("[RSS Dashboard] Direct request failed:", e);
 		// Fall through to rss2json
 	}
 
 	// Fallback to rss2json
-	console.log("[RSS Dashboard] Trying rss2json API...");
+	console.debug("[RSS Dashboard] Trying rss2json API...");
 	const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
 
 	try {
@@ -135,13 +135,13 @@ export async function loadFeedForPreview(
 		});
 
 		const data = JSON.parse(response.text) as Rss2JsonResponse;
-		console.log("[RSS Dashboard] rss2json response status:", data.status);
+		console.debug("[RSS Dashboard] rss2json response status:", data.status);
 
 		if (data.status !== "ok" || !data.feed) {
 			throw new Error(data.message || "Failed to load feed");
 		}
 
-		console.log(
+		console.debug(
 			"[RSS Dashboard] rss2json succeeded, title:",
 			data.feed.title,
 		);

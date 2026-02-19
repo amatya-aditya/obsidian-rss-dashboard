@@ -1318,10 +1318,6 @@ export class DiscoverView extends ItemView {
 
 		const footer = card.createDiv({ cls: "rss-discover-card-footer" });
 
-		const leftSection = footer.createDiv({
-			cls: "rss-discover-card-footer-left",
-		});
-
 		const rightSection = footer.createDiv({
 			cls: "rss-discover-card-footer-right",
 		});
