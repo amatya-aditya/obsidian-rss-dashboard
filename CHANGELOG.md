@@ -1,5 +1,18 @@
 # RSS Dashboard - Changelog
 
+## [2.0.2] - 2026-02-19
+
+### ✨ New Features
+
+### Auto-Hide on Read Toggle
+
+- **Auto-Hide Setting**: New display setting to automatically hide articles when marking them as read
+- **Configurable Animation**: Optional fade-out animation with configurable duration (0ms instant, 100ms, 200ms, 300ms, 500ms, 1000ms)
+- **Smart Filtering**: When enabled, all read articles are filtered from view (except in "Read items", "Saved items", and "Starred items" views)
+- **Persistent Behavior**: Setting persists across sessions - read articles remain hidden when returning to the dashboard
+
+---
+
 ## [2.0.1] - 2026-02-19
 
 ### 🎉 First Community Contribution - Tooltip Enhancements
@@ -11,10 +24,11 @@ This release includes our first community contribution, adding helpful hover too
 ## 🚀 Enhanced Features
 
 ### UI/UX Improvements
+
 - **Action Bar Tooltips**: Added descriptive hover tooltips to the article action icons:
-  - Read/Unread toggle: Shows "Mark as unread" or "Mark as read" based on current state
-  - Favorite/Star toggle: Shows "Add to favorites" or "Remove from favorites" based on current state
-  - Tag management: Shows "Manage tags" for the tag dropdown icon
+    - Read/Unread toggle: Shows "Mark as unread" or "Mark as read" based on current state
+    - Favorite/Star toggle: Shows "Add to favorites" or "Remove from favorites" based on current state
+    - Tag management: Shows "Manage tags" for the tag dropdown icon
 - Tooltips are now consistent across both List and Card view layouts
 
 ---
@@ -30,6 +44,7 @@ This major release brings a complete overhaul of the RSS Dashboard experience wi
 ## ✨ Shiny New Things
 
 ### Discover Page
+
 - **Curated Feed Collection**: Browse hand-picked RSS feeds organized by categories (Technology, Science, Philosophy, Engineering, etc.)
 - **Smart Filtering**: Filter feeds by domain, subdomain, area, topic, type, and tags
 - **Advanced Search**: Find feeds with real-time search functionality
@@ -38,6 +53,7 @@ This major release brings a complete overhaul of the RSS Dashboard experience wi
 - **Pagination & Sorting**: Navigate through hundreds of feeds with multiple sorting options
 
 ### Mobile & Tablet Support
+
 - **Android & iPad Optimization**: Full responsive design for mobile devices
 - **Touch-Friendly Interface**: Optimized touch targets and gestures for mobile interaction
 - **Adaptive Layout**: Automatic layout adjustments based on screen size and orientation
@@ -45,6 +61,7 @@ This major release brings a complete overhaul of the RSS Dashboard experience wi
 - **Platform Detection**: Automatic platform detection with device-specific optimizations
 
 ### Enhanced Podcast Player
+
 - **Beautiful Audio Interface**: Modern, gradient-enhanced podcast player with cover art
 - **Playlist Management**: Full episode playlist with progress tracking
 - **Advanced Controls**: Playback speed control (0.75x to 3x), shuffle, repeat modes
@@ -54,6 +71,7 @@ This major release brings a complete overhaul of the RSS Dashboard experience wi
 - **Episode Navigation**: Previous/next episode controls with visual indicators
 
 ### Individual Feed Controls
+
 - **Per-Feed Settings**: Customize settings for each feed independently
 - **Auto-Delete Duration**: Set automatic article cleanup (1 day to 1 year or custom)
 - **Max Items Limit**: Control how many articles each feed keeps (10-500 items)
@@ -66,6 +84,7 @@ This major release brings a complete overhaul of the RSS Dashboard experience wi
 ## 🚀 Enhanced Features
 
 ### Article Management
+
 - **Smart Article Saving**: Save articles as markdown with customizable templates
 - **OPML Import/Export**: Backup and restore your feed subscriptions
 - **Advanced Filtering**: Filter by read status, age, starred, saved, and more
@@ -74,6 +93,7 @@ This major release brings a complete overhaul of the RSS Dashboard experience wi
 - **Tag Management**: Add custom tags with color coding for better organization
 
 ### Media Integration
+
 - **YouTube Channel Support**: Convert YouTube channels to RSS feeds
 - **Embedded Video Player**: Watch videos directly within the dashboard
 - **Podcast Detection**: Automatic detection and categorization of podcast content
@@ -81,6 +101,7 @@ This major release brings a complete overhaul of the RSS Dashboard experience wi
 - **Cover Art Display**: Beautiful cover art for podcasts and videos
 
 ### User Experience
+
 - **Reader View**: Built-in article reader with full content fetching
 - **Responsive Design**: Adaptive layouts for all screen sizes
 - **Dark Mode Support**: Compatibility with Obsidian's dark theme
@@ -91,6 +112,7 @@ This major release brings a complete overhaul of the RSS Dashboard experience wi
 ## 🔧 Technical Improvements
 
 ### Platform Support
+
 - **Cross-Platform**: Works seamlessly on Windows, macOS, and Linux
 - **Mobile Optimization**: Automatic mobile detection and optimization
 - **Browser Compatibility**: Enhanced compatibility with various browsers
@@ -109,6 +131,7 @@ This major release brings a complete overhaul of the RSS Dashboard experience wi
 - Fixed OPML import/export edge cases
 - Enhanced mobile touch interactions
 - and many more
+
 ---
 
 ## 🙏 Community
@@ -117,5 +140,4 @@ A huge thank you to our amazing community for feedback, testing, and contributio
 
 ---
 
-
-*Happy reading! 📚✨* 
+_Happy reading! 📚✨_

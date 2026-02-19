@@ -528,9 +528,9 @@ export class ArticleList {
 					) as HTMLElement;
 
 					if (articleEl) {
-						// Get duration from settings (default 300ms)
+						// Get duration from settings (default 0ms/instant)
 						const duration =
-							this.settings.display?.autoHideDuration || 300;
+							this.settings.display?.autoHideDuration ?? 0;
 
 						// Add hiding class for animation
 						articleEl.classList.add("rss-dashboard-article-hiding");
@@ -1004,9 +1004,9 @@ export class ArticleList {
 					) as HTMLElement;
 
 					if (articleEl) {
-						// Get duration from settings (default 300ms)
+						// Get duration from settings (default 0ms/instant)
 						const duration =
-							this.settings.display?.autoHideDuration || 300;
+							this.settings.display?.autoHideDuration ?? 0;
 
 						// Add hiding class for animation
 						articleEl.classList.add("rss-dashboard-article-hiding");
