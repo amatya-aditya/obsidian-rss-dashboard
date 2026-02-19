@@ -7,6 +7,7 @@ import {
 	loadFeedForPreview,
 } from "../services/feed-parser";
 import { detectPodcastPlatform } from "../utils/podcast-platforms";
+import { MediaService } from "../services/media-service";
 
 /**
  * Helper function to collect all folder paths from a folder hierarchy
@@ -21,6 +22,22 @@ function collectAllFolders(folders: Folder[], base = ""): string[] {
 		}
 	}
 	return paths;
+}
+
+/**
+ * Check if URL is a YouTube page URL that should use the Add Youtube channel feature.
+ * Returns false for YouTube RSS feed URLs (which are valid RSS feeds).
+ */
+function isYouTubePageUrl(url: string): boolean {
+	if (!url) return false;
+
+	// Check if it matches YouTube patterns
+	if (!MediaService.isYouTubeFeed(url)) return false;
+
+	// Exclude YouTube RSS feed URLs - these are valid RSS feeds
+	if (url.includes("youtube.com/feeds/videos.xml")) return false;
+
+	return true;
 }
 
 export class EditFeedModal extends Modal {
@@ -78,8 +95,26 @@ export class EditFeedModal extends Modal {
 			.addButton((btn) => {
 				btn.setButtonText("Load").onClick(() => {
 					void (async () => {
+						// Check for YouTube page URLs first
+						if (isYouTubePageUrl(url)) {
+							status =
+								"YouTube URL detected. Use 'Add Youtube channel' instead.";
+							if (refs.statusDiv) {
+								refs.statusDiv.textContent = status;
+								refs.statusDiv.addClass(
+									"rss-dashboard-status-warning",
+								);
+							}
+							return;
+						}
+
 						status = "Loading...";
-						if (refs.statusDiv) refs.statusDiv.textContent = status;
+						if (refs.statusDiv) {
+							refs.statusDiv.textContent = status;
+							refs.statusDiv.removeClass(
+								"rss-dashboard-status-warning",
+							);
+						}
 						try {
 							let feedUrl = url;
 							const platform = detectPodcastPlatform(url);
@@ -542,8 +577,26 @@ export class AddFeedModal extends Modal {
 			.addButton((btn) => {
 				btn.setButtonText("Load").onClick(() => {
 					void (async () => {
+						// Check for YouTube page URLs first
+						if (isYouTubePageUrl(url)) {
+							status =
+								"YouTube URL detected. Use 'Add Youtube channel' instead.";
+							if (refs.statusDiv) {
+								refs.statusDiv.textContent = status;
+								refs.statusDiv.addClass(
+									"rss-dashboard-status-warning",
+								);
+							}
+							return;
+						}
+
 						status = "Loading...";
-						if (refs.statusDiv) refs.statusDiv.textContent = status;
+						if (refs.statusDiv) {
+							refs.statusDiv.textContent = status;
+							refs.statusDiv.removeClass(
+								"rss-dashboard-status-warning",
+							);
+						}
 						try {
 							let feedUrl = url;
 							const platform = detectPodcastPlatform(url);

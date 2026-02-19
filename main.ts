@@ -127,12 +127,8 @@ export default class RssDashboardPlugin extends Plugin {
             );
 
 
-            this.addRibbonIcon("rss", "RSS dashboard", () => {
+            this.addRibbonIcon("compass", "RSS dashboard", () => {
                 void this.activateView();
-            });
-
-            this.addRibbonIcon("compass", "RSS discover", () => {
-                void this.activateDiscoverView();
             });
 
 
