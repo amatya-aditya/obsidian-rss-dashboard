@@ -1,6 +1,156 @@
 import { requestUrl, Platform } from "obsidian";
 import { Feed, FeedItem, MediaSettings, Tag } from "../types/types.js";
 import { MediaService } from "./media-service";
+import { detectPodcastPlatform, APPLE_PODCASTS } from "../utils/podcast-platforms.js";
+
+interface ItunesLookupResponse {
+    resultCount: number;
+    results: Array<{
+        wrapperType?: string;
+        artistName?: string;
+        trackName?: string;
+        feedUrl?: string;
+        artworkUrl600?: string;
+        genres?: string[];
+        trackCount?: number;
+    }>;
+}
+
+export async function resolvePodcastPlatformUrl(url: string): Promise<string | null> {
+    const platform = detectPodcastPlatform(url);
+    if (!platform) return null;
+
+    if (platform.id === APPLE_PODCASTS.id) {
+        return resolveApplePodcastUrl(url);
+    }
+
+    return null;
+}
+
+async function resolveApplePodcastUrl(applePodcastsUrl: string): Promise<string | null> {
+    const podcastId = APPLE_PODCASTS.extractId(applePodcastsUrl);
+    if (!podcastId) {
+        throw new Error("Invalid Apple Podcasts URL: could not extract podcast ID");
+    }
+
+    const lookupUrl = `https://itunes.apple.com/lookup?id=${podcastId}&entity=podcast`;
+    
+    console.log("[RSS Dashboard] Looking up Apple Podcast ID:", podcastId);
+    
+    try {
+        const response = await requestUrl({
+            url: lookupUrl,
+            method: "GET",
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json"
+            }
+        });
+
+        console.log("[RSS Dashboard] iTunes API response status:", response.status);
+        
+        const data = JSON.parse(response.text) as ItunesLookupResponse;
+
+        if (data.resultCount === 0 || !data.results[0]?.feedUrl) {
+            throw new Error("Podcast not found in Apple Podcasts directory");
+        }
+
+        console.log("[RSS Dashboard] Resolved feed URL:", data.results[0].feedUrl);
+        return data.results[0].feedUrl;
+    } catch (e) {
+        console.error("[RSS Dashboard] iTunes API error:", e);
+        throw new Error(`Failed to lookup podcast: ${e instanceof Error ? e.message : String(e)}`);
+    }
+}
+
+export interface FeedPreviewData {
+    title: string;
+    description: string;
+    link: string;
+    image: string;
+    latestPubDate: string;
+    feedUrl: string;
+}
+
+export async function loadFeedForPreview(feedUrl: string): Promise<FeedPreviewData> {
+    console.log("[RSS Dashboard] Loading feed for preview:", feedUrl);
+    
+    // Try direct request first
+    try {
+        console.log("[RSS Dashboard] Trying direct request...");
+        const response = await requestUrl({
+            url: feedUrl,
+            method: "GET",
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8"
+            }
+        });
+        
+        if (response.text && isValidFeed(response.text)) {
+            console.log("[RSS Dashboard] Direct request succeeded, parsing XML");
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(response.text, "text/xml");
+            return parseFeedDoc(doc, feedUrl);
+        }
+        console.log("[RSS Dashboard] Direct response not valid RSS, falling back to rss2json");
+    } catch (e) {
+        console.log("[RSS Dashboard] Direct request failed:", e);
+        // Fall through to rss2json
+    }
+    
+    // Fallback to rss2json
+    console.log("[RSS Dashboard] Trying rss2json API...");
+    const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
+    
+    try {
+        const response = await requestUrl({
+            url: rss2jsonUrl,
+            method: "GET"
+        });
+        
+        const data = JSON.parse(response.text) as Rss2JsonResponse;
+        console.log("[RSS Dashboard] rss2json response status:", data.status);
+        
+        if (data.status !== "ok" || !data.feed) {
+            throw new Error(data.message || "Failed to load feed");
+        }
+        
+        console.log("[RSS Dashboard] rss2json succeeded, title:", data.feed.title);
+        return {
+            title: data.feed.title || "",
+            description: data.feed.description || "",
+            link: data.feed.link || "",
+            image: data.feed.image || "",
+            latestPubDate: data.items?.[0]?.pubDate || "",
+            feedUrl
+        };
+    } catch (e) {
+        console.error("[RSS Dashboard] rss2json failed:", e);
+        throw new Error(`Failed to load feed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+}
+
+function parseFeedDoc(doc: Document, feedUrl: string): FeedPreviewData {
+    const channel = doc.querySelector("channel") || doc.querySelector("feed");
+    const title = channel?.querySelector("title")?.textContent || "";
+    const description = channel?.querySelector("description")?.textContent || "";
+    const link = channel?.querySelector("link")?.textContent || "";
+    const imageEl = channel?.querySelector("image > url, itunes\\:image")?.textContent || 
+                    channel?.querySelector("itunes\\:image")?.getAttribute("href") || "";
+    
+    const firstItem = doc.querySelector("item, entry");
+    const latestPubDate = firstItem?.querySelector("pubDate, published, updated")?.textContent || "";
+    
+    return {
+        title,
+        description,
+        link,
+        image: imageEl,
+        latestPubDate,
+        feedUrl
+    };
+}
 
 // Type definitions for external API responses
 interface AllOriginsResponse {

@@ -16,3 +16,7 @@ release/
 
 # testfiles
 test_files
+
+# agent
+agent.md
+.agent/

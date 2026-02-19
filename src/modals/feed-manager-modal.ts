@@ -2,6 +2,8 @@ import { Modal, App, Setting, Notice, requestUrl } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import type { Feed, Folder, SavedTemplate } from "../types/types";
 import { FolderSuggest } from "../components/folder-suggest";
+import { resolvePodcastPlatformUrl, loadFeedForPreview } from "../services/feed-parser";
+import { detectPodcastPlatform } from "../utils/podcast-platforms";
 
 function collectAllFolders(folders: Folder[], base = ""): string[] {
     let paths: string[] = [];
@@ -60,32 +62,43 @@ export class EditFeedModal extends Modal {
                 btn.setButtonText("Load")
                     .onClick(() => {
                         void (async () => {
-                        status = "Loading...";
+                            status = "Loading...";
                             if (refs.statusDiv) refs.statusDiv.textContent = status;
-                        try {
-                            const res = await requestUrl(url);
-                            const parser = new DOMParser();
-                            const doc = parser.parseFromString(res.text, "text/xml");
-                            const feedTitle = doc.querySelector("channel > title, feed > title");
-                            if (feedTitle?.textContent) {
-                                title = feedTitle.textContent;
+                            try {
+                                let feedUrl = url;
+                                const platform = detectPodcastPlatform(url);
+                                if (platform) {
+                                    status = `Resolving ${platform.name} URL...`;
+                                    if (refs.statusDiv) refs.statusDiv.textContent = status;
+                                    const resolvedUrl = await resolvePodcastPlatformUrl(url);
+                                    if (!resolvedUrl) {
+                                        throw new Error("Could not resolve podcast feed URL");
+                                    }
+                                    feedUrl = resolvedUrl;
+                                    url = resolvedUrl;
+                                    if (urlInput) urlInput.value = feedUrl;
+                                    status = "Loading feed...";
+                                    if (refs.statusDiv) refs.statusDiv.textContent = status;
+                                }
+                                // Use loadFeedForPreview which has CORS proxy fallbacks
+                                const feedData = await loadFeedForPreview(feedUrl);
+                                title = feedData.title;
                                 if (titleInput) titleInput.value = title;
-                            }
-                            const latestItem = doc.querySelector("item > pubDate, entry > updated, entry > published");
-                            if (latestItem?.textContent) {
-                                const date = new Date(latestItem.textContent);
-                                const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
-                                latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days ago`;
-                            } else {
-                                latestEntry = "N/A";
-                            }
+                                if (feedData.latestPubDate) {
+                                    const date = new Date(feedData.latestPubDate);
+                                    const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+                                    latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days ago`;
+                                } else {
+                                    latestEntry = "N/A";
+                                }
                                 if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
-                            status = "OK";
-                            } catch {
-                            status = "Error loading feed";
-                            latestEntry = "-";
+                                status = "OK";
+                            } catch (e) {
+                                status = "Error loading feed";
+                                latestEntry = "-";
                                 if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
-                        }
+                                console.error("Feed load error:", e);
+                            }
                             if (refs.statusDiv) refs.statusDiv.textContent = status;
                         })();
                     });
@@ -128,20 +141,20 @@ export class EditFeedModal extends Modal {
                 new FolderSuggest(this.app, folderInput, this.plugin.settings.folders);
             });
 
-        
+
         new Setting(contentEl).setName("Per feed control options").setHeading();
-        
+
         let autoDeleteDuration = this.feed.autoDeleteDuration || 0;
         let maxItemsLimit = this.feed.maxItemsLimit || this.plugin.settings.maxItems;
         let scanInterval = this.feed.scanInterval || 0;
 
-        
+
         const autoDeleteSetting = new Setting(contentEl)
             .setName("Auto delete articles duration")
             .setDesc("Days to keep articles before auto-delete");
-        
+
         let autoDeleteCustomInput: HTMLInputElement | null = null;
-        
+
         autoDeleteSetting.addDropdown(dropdown => {
             dropdown
                 .addOption("0", "Disabled")
@@ -155,12 +168,12 @@ export class EditFeedModal extends Modal {
                 .addOption("180", "6 months")
                 .addOption("365", "1 year")
                 .addOption("custom", "Custom...")
-                .setValue(autoDeleteDuration === 0 ? "0" : 
-                         [1, 3, 7, 14, 30, 60, 90, 180, 365].includes(autoDeleteDuration) ? 
-                         autoDeleteDuration.toString() : "custom")
+                .setValue(autoDeleteDuration === 0 ? "0" :
+                    [1, 3, 7, 14, 30, 60, 90, 180, 365].includes(autoDeleteDuration) ?
+                        autoDeleteDuration.toString() : "custom")
                 .onChange(value => {
                     if (value === "custom") {
-                        
+
                         if (!autoDeleteCustomInput) {
                             autoDeleteCustomInput = autoDeleteSetting.controlEl.createEl("input", {
                                 type: "number",
@@ -179,7 +192,7 @@ export class EditFeedModal extends Modal {
                             autoDeleteCustomInput.addClass("visible");
                         }
                     } else {
-                        
+
                         if (autoDeleteCustomInput) {
                             autoDeleteCustomInput.addClass("hidden");
                         }
@@ -188,13 +201,13 @@ export class EditFeedModal extends Modal {
                 });
         });
 
-        
+
         const maxItemsSetting = new Setting(contentEl)
             .setName("Max items limit")
             .setDesc("Maximum number of items to keep per feed");
-        
+
         let maxItemsCustomInput: HTMLInputElement | null = null;
-        
+
         maxItemsSetting.addDropdown(dropdown => {
             dropdown
                 .addOption("0", "Unlimited")
@@ -206,12 +219,12 @@ export class EditFeedModal extends Modal {
                 .addOption("500", "500 items")
                 .addOption("1000", "1000 items")
                 .addOption("custom", "Custom...")
-                .setValue(maxItemsLimit === 0 ? "0" : 
-                         [10, 25, 50, 100, 200, 500, 1000].includes(maxItemsLimit) ? 
-                         maxItemsLimit.toString() : "custom")
+                .setValue(maxItemsLimit === 0 ? "0" :
+                    [10, 25, 50, 100, 200, 500, 1000].includes(maxItemsLimit) ?
+                        maxItemsLimit.toString() : "custom")
                 .onChange(value => {
                     if (value === "custom") {
-                        
+
                         if (!maxItemsCustomInput) {
                             maxItemsCustomInput = maxItemsSetting.controlEl.createEl("input", {
                                 type: "number",
@@ -229,7 +242,7 @@ export class EditFeedModal extends Modal {
                             maxItemsCustomInput.addClass("visible");
                         }
                     } else {
-                        
+
                         if (maxItemsCustomInput) {
                             maxItemsCustomInput.addClass("hidden");
                         }
@@ -238,13 +251,13 @@ export class EditFeedModal extends Modal {
                 });
         });
 
-        
+
         const scanIntervalSetting = new Setting(contentEl)
             .setName("Scan interval")
             .setDesc("Custom scan interval in minutes");
-        
+
         let scanIntervalCustomInput: HTMLInputElement | null = null;
-        
+
         scanIntervalSetting.addDropdown(dropdown => {
             dropdown
                 .addOption("0", "Use global setting")
@@ -259,12 +272,12 @@ export class EditFeedModal extends Modal {
                 .addOption("720", "12 hours")
                 .addOption("1440", "24 hours")
                 .addOption("custom", "Custom...")
-                .setValue(scanInterval === 0 ? "0" : 
-                         [5, 10, 15, 30, 60, 120, 240, 480, 720, 1440].includes(scanInterval) ? 
-                         scanInterval.toString() : "custom")
+                .setValue(scanInterval === 0 ? "0" :
+                    [5, 10, 15, 30, 60, 120, 240, 480, 720, 1440].includes(scanInterval) ?
+                        scanInterval.toString() : "custom")
                 .onChange(value => {
                     if (value === "custom") {
-                        
+
                         if (!scanIntervalCustomInput) {
                             scanIntervalCustomInput = scanIntervalSetting.controlEl.createEl("input", {
                                 type: "number",
@@ -282,7 +295,7 @@ export class EditFeedModal extends Modal {
                             scanIntervalCustomInput.addClass("visible");
                         }
                     } else {
-                        
+
                         if (scanIntervalCustomInput) {
                             scanIntervalCustomInput.addClass("hidden");
                         }
@@ -314,41 +327,41 @@ export class EditFeedModal extends Modal {
         const cancelBtn = btns.createEl("button", { text: "Cancel" });
         saveBtn.onclick = () => {
             void (async () => {
-            const oldTitle = this.feed.title;
-            this.feed.title = title;
-            this.feed.url = url;
-            this.feed.folder = folderInput?.value || folder;
-            this.feed.autoDeleteDuration = autoDeleteDuration;
-            
-            // Update feedTitle for all articles in this feed when the title changes
-            if (oldTitle !== title) {
-                for (const item of this.feed.items) {
-                    item.feedTitle = title;
-                }
-            }
-            
-            const newMaxItemsLimit = maxItemsLimit || this.plugin.settings.maxItems;
-            
-            this.feed.maxItemsLimit = newMaxItemsLimit;
-            this.feed.scanInterval = scanInterval;
-            this.feed.customTemplate = customTemplate || undefined;
+                const oldTitle = this.feed.title;
+                this.feed.title = title;
+                this.feed.url = url;
+                this.feed.folder = folderInput?.value || folder;
+                this.feed.autoDeleteDuration = autoDeleteDuration;
 
-            if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
-                
-                this.feed.items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-                this.feed.items = this.feed.items.slice(0, newMaxItemsLimit);
-                new Notice(`Feed updated and trimmed to ${newMaxItemsLimit} articles`);
-            } else {
-                new Notice("Feed updated");
-            }
-            
-            await this.plugin.saveSettings();
-            this.close();
-            this.onSave();
+                // Update feedTitle for all articles in this feed when the title changes
+                if (oldTitle !== title) {
+                    for (const item of this.feed.items) {
+                        item.feedTitle = title;
+                    }
+                }
+
+                const newMaxItemsLimit = maxItemsLimit || this.plugin.settings.maxItems;
+
+                this.feed.maxItemsLimit = newMaxItemsLimit;
+                this.feed.scanInterval = scanInterval;
+                this.feed.customTemplate = customTemplate || undefined;
+
+                if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
+
+                    this.feed.items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+                    this.feed.items = this.feed.items.slice(0, newMaxItemsLimit);
+                    new Notice(`Feed updated and trimmed to ${newMaxItemsLimit} articles`);
+                } else {
+                    new Notice("Feed updated");
+                }
+
+                await this.plugin.saveSettings();
+                this.close();
+                this.onSave();
             })();
         };
         cancelBtn.onclick = () => this.close();
-        
+
         window.setTimeout(() => {
             titleInput?.focus();
             titleInput?.select();
@@ -360,20 +373,20 @@ export class EditFeedModal extends Modal {
 }
 
 export class AddFeedModal extends Modal {
-	folders: Folder[];
-	onAdd: (title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) => Promise<void>;
-	onSave: () => void;
-	defaultFolder: string;
-	plugin?: RssDashboardPlugin;
+    folders: Folder[];
+    onAdd: (title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) => Promise<void>;
+    onSave: () => void;
+    defaultFolder: string;
+    plugin?: RssDashboardPlugin;
 
-	constructor(app: App, folders: Folder[], onAdd: (title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) => Promise<void>, onSave: () => void, defaultFolder = "", plugin?: RssDashboardPlugin) {
-		super(app);
-		this.folders = folders;
-		this.onAdd = onAdd;
-		this.onSave = onSave;
-		this.defaultFolder = defaultFolder;
-		this.plugin = plugin || undefined;
-	}
+    constructor(app: App, folders: Folder[], onAdd: (title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) => Promise<void>, onSave: () => void, defaultFolder = "", plugin?: RssDashboardPlugin) {
+        super(app);
+        this.folders = folders;
+        this.onAdd = onAdd;
+        this.onSave = onSave;
+        this.defaultFolder = defaultFolder;
+        this.plugin = plugin || undefined;
+    }
     onOpen() {
         const { contentEl } = this;
         this.modalEl.className += " rss-dashboard-modal rss-dashboard-modal-container";
@@ -388,7 +401,7 @@ export class AddFeedModal extends Modal {
         let urlInput: HTMLInputElement;
         let folderInput: HTMLInputElement;
         const refs: { statusDiv?: HTMLDivElement; latestEntryDiv?: HTMLDivElement } = {};
-        
+
         new Setting(contentEl)
             .setName("Feed URL")
             .addText(text => {
@@ -409,30 +422,44 @@ export class AddFeedModal extends Modal {
                 btn.setButtonText("Load")
                     .onClick(() => {
                         void (async () => {
-                        status = "Loading...";
+                            status = "Loading...";
                             if (refs.statusDiv) refs.statusDiv.textContent = status;
-                        try {
-                            const res = await requestUrl(url);
-                            const parser = new DOMParser();
-                            const doc = parser.parseFromString(res.text, "text/xml");
-                            const feedTitle = doc.querySelector("channel > title, feed > title");
-                            title = feedTitle?.textContent || "";
-                            if (titleInput) titleInput.value = title;
-                            const latestItem = doc.querySelector("item > pubDate, entry > updated, entry > published");
-                                if (latestItem?.textContent) {
-                                    const date = new Date(latestItem.textContent);
-                                const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
-                                latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days`;
-                            } else {
-								latestEntry = "N/A";
-							}
+                            try {
+                                let feedUrl = url;
+                                const platform = detectPodcastPlatform(url);
+                                if (platform) {
+                                    status = `Resolving ${platform.name} URL...`;
+                                    if (refs.statusDiv) refs.statusDiv.textContent = status;
+                                    const resolvedUrl = await resolvePodcastPlatformUrl(url);
+                                    if (!resolvedUrl) {
+                                        throw new Error("Could not resolve podcast feed URL");
+                                    }
+                                    feedUrl = resolvedUrl;
+                                    url = resolvedUrl;
+                                    if (urlInput) urlInput.value = feedUrl;
+                                    status = "Loading feed...";
+                                    if (refs.statusDiv) refs.statusDiv.textContent = status;
+                                }
+                                // Use loadFeedForPreview which has CORS proxy fallbacks
+                                const feedData = await loadFeedForPreview(feedUrl);
+                                title = feedData.title;
+                                if (titleInput) titleInput.value = title;
+                                if (feedData.latestPubDate) {
+                                    const date = new Date(feedData.latestPubDate);
+                                    const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+                                    latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days`;
+                                } else {
+                                    latestEntry = "N/A";
+                                }
                                 if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
-                            status = "OK";
-                            } catch {
-                            status = "Error loading feed";
-							latestEntry = "-";
+                                status = "OK";
+                            } catch (e) {
+                                const errorMsg = e instanceof Error ? e.message : String(e);
+                                status = `Error: ${errorMsg}`;
+                                latestEntry = "-";
                                 if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
-                        }
+                                console.error("Feed load error:", e);
+                            }
                             if (refs.statusDiv) refs.statusDiv.textContent = status;
                         })();
                     });
@@ -462,9 +489,9 @@ export class AddFeedModal extends Modal {
         const statusSetting = new Setting(contentEl)
             .setName("Status");
         refs.statusDiv = statusSetting.controlEl.createDiv({ text: status, cls: "add-feed-status" });
-        
-        
-        
+
+
+
         new Setting(contentEl)
             .setName("Folder")
             .addText(text => {
@@ -477,20 +504,20 @@ export class AddFeedModal extends Modal {
                 new FolderSuggest(this.app, folderInput, this.folders);
             });
 
-        
+
         new Setting(contentEl).setName("Per feed control options").setHeading();
-        
+
         let autoDeleteDuration = 0;
         let maxItemsLimit = this.plugin?.settings?.maxItems || 25;
         let scanInterval = 0;
 
-        
+
         const autoDeleteSetting = new Setting(contentEl)
             .setName("Auto delete articles duration")
             .setDesc("Days to keep articles before auto-delete");
-        
+
         let autoDeleteCustomInput: HTMLInputElement | null = null;
-        
+
         autoDeleteSetting.addDropdown(dropdown => {
             dropdown
                 .addOption("0", "Disabled")
@@ -507,7 +534,7 @@ export class AddFeedModal extends Modal {
                 .setValue("0")
                 .onChange(value => {
                     if (value === "custom") {
-                        
+
                         if (!autoDeleteCustomInput) {
                             autoDeleteCustomInput = autoDeleteSetting.controlEl.createEl("input", {
                                 type: "number",
@@ -526,7 +553,7 @@ export class AddFeedModal extends Modal {
                             autoDeleteCustomInput.addClass("visible");
                         }
                     } else {
-                        
+
                         if (autoDeleteCustomInput) {
                             autoDeleteCustomInput.addClass("hidden");
                         }
@@ -535,13 +562,13 @@ export class AddFeedModal extends Modal {
                 });
         });
 
-        
+
         const maxItemsSetting = new Setting(contentEl)
             .setName("Max items limit")
             .setDesc("Maximum number of items to keep per feed");
-        
+
         let maxItemsCustomInput: HTMLInputElement | null = null;
-        
+
         maxItemsSetting.addDropdown(dropdown => {
             dropdown
                 .addOption("0", "Unlimited")
@@ -553,12 +580,12 @@ export class AddFeedModal extends Modal {
                 .addOption("500", "500 items")
                 .addOption("1000", "1000 items")
                 .addOption("custom", "Custom...")
-                .setValue(maxItemsLimit === 0 ? "0" : 
-                         [10, 25, 50, 100, 200, 500, 1000].includes(maxItemsLimit) ? 
-                         maxItemsLimit.toString() : "custom")
+                .setValue(maxItemsLimit === 0 ? "0" :
+                    [10, 25, 50, 100, 200, 500, 1000].includes(maxItemsLimit) ?
+                        maxItemsLimit.toString() : "custom")
                 .onChange(value => {
                     if (value === "custom") {
-                        
+
                         if (!maxItemsCustomInput) {
                             maxItemsCustomInput = maxItemsSetting.controlEl.createEl("input", {
                                 type: "number",
@@ -577,7 +604,7 @@ export class AddFeedModal extends Modal {
                             maxItemsCustomInput.addClass("visible");
                         }
                     } else {
-                        
+
                         if (maxItemsCustomInput) {
                             maxItemsCustomInput.addClass("hidden");
                         }
@@ -586,13 +613,13 @@ export class AddFeedModal extends Modal {
                 });
         });
 
-        
+
         const scanIntervalSetting = new Setting(contentEl)
             .setName("Scan interval")
             .setDesc("Custom scan interval in minutes");
-        
+
         let scanIntervalCustomInput: HTMLInputElement | null = null;
-        
+
         scanIntervalSetting.addDropdown(dropdown => {
             dropdown
                 .addOption("0", "Use global setting")
@@ -610,7 +637,7 @@ export class AddFeedModal extends Modal {
                 .setValue("0")
                 .onChange(value => {
                     if (value === "custom") {
-                        
+
                         if (!scanIntervalCustomInput) {
                             scanIntervalCustomInput = scanIntervalSetting.controlEl.createEl("input", {
                                 type: "number",
@@ -629,7 +656,7 @@ export class AddFeedModal extends Modal {
                             scanIntervalCustomInput.addClass("visible");
                         }
                     } else {
-                        
+
                         if (scanIntervalCustomInput) {
                             scanIntervalCustomInput.addClass("hidden");
                         }
@@ -637,7 +664,7 @@ export class AddFeedModal extends Modal {
                     }
                 });
         });
-        
+
         const btns = contentEl.createDiv({ cls: "rss-dashboard-modal-buttons" });
         const saveBtn = btns.createEl("button", { text: "Save", cls: "rss-dashboard-primary-button" });
         const cancelBtn = btns.createEl("button", { text: "Cancel" });
@@ -656,7 +683,7 @@ export class AddFeedModal extends Modal {
             this.close();
         };
         cancelBtn.onclick = () => this.close();
-        
+
         window.setTimeout(() => {
             urlInput?.focus();
             urlInput?.select();
@@ -701,13 +728,13 @@ export class FeedManagerModal extends Modal {
         const addFeedBtn = topControls.createEl("button", { text: "Add feed", cls: "rss-dashboard-primary-button feed-manager-add-button" });
         addFeedBtn.onclick = () => {
             new AddFeedModal(
-				this.app,
-				this.plugin.settings.folders,
-				(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval) => this.plugin.addFeed(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval),
-				() => this.onOpen(),
-				"",
-				this.plugin
-			).open();
+                this.app,
+                this.plugin.settings.folders,
+                (title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval) => this.plugin.addFeed(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval),
+                () => this.onOpen(),
+                "",
+                this.plugin
+            ).open();
         };
 
         this.renderFeeds(contentEl);
@@ -772,25 +799,25 @@ export class FeedManagerModal extends Modal {
     renderFeedRow(parent: HTMLElement, feed: Feed) {
         const row = parent.createDiv({ cls: "feed-manager-row" });
         row.createDiv({ text: feed.title, cls: "feed-manager-title" });
-        
+
         const editBtn = row.createEl("button", { text: "Edit" });
         editBtn.onclick = () => {
             new EditFeedModal(this.app, this.plugin, feed, () => this.onOpen()).open();
         };
-        
+
         const delBtn = row.createEl("button", { text: "Delete" });
         delBtn.onclick = () => {
             this.showConfirmModal(`Delete feed '${feed.title}'?`, () => {
                 this.plugin.settings.feeds = this.plugin.settings.feeds.filter(f => f !== feed);
                 void this.plugin.saveSettings().then(() => {
-                new Notice("Feed deleted");
-                this.onOpen(); 
+                    new Notice("Feed deleted");
+                    this.onOpen();
                 });
             });
         };
     }
 
-    
+
     private showConfirmModal(message: string, onConfirm: () => void): void {
         document.querySelectorAll('.rss-dashboard-modal').forEach(el => el.remove());
         window.setTimeout(() => {
