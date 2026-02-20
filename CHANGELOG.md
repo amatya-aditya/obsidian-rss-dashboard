@@ -4,6 +4,17 @@
 
 ### 🐛 Bug Fixes
 
+### Build System
+
+- **Fixed ESLint/TypeScript Build Errors**: Resolved all build errors to ensure clean production builds
+    - Fixed `@typescript-eslint/no-explicit-any` errors by properly typing event listeners as `EventListenerOrEventListenerObject`
+    - Fixed event handler parameter types from `MouseEvent` to `Event` for DOM compatibility
+    - Removed unused variables (`badge`, `contextEvent`)
+    - Fixed `obsidianmd/ui/sentence-case` lint rule compliance
+    - Fixed `obsidianmd/no-static-styles-assignment` by using CSS classes and CSS custom properties
+    - Fixed non-existent method call `getAllFilteredArticles()` to `getFilteredArticles()`
+    - Added CSS class `.rss-dashboard-submenu-fixed` for submenu positioning
+
 ### Mobile Sidebar Viewport Height
 
 - **Fixed Mobile Sidebar Height**: Sidebar now correctly fills the full viewport height on mobile devices

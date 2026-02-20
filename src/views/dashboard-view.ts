@@ -269,7 +269,7 @@ export class RssDashboardView extends ItemView {
 				onPageChange: this.handlePageChange.bind(this),
 				onPageSizeChange: this.handlePageSizeChange.bind(this),
 				onMarkAllAsRead: () => {
-					const articles = this.getAllFilteredArticles();
+					const articles = this.getFilteredArticles();
 					let count = 0;
 					articles.forEach((item) => {
 						if (!item.read) {
@@ -1055,10 +1055,10 @@ export class RssDashboardView extends ItemView {
 
 		const file = this.settings.articleSaving.saveFullContent
 			? await this.saver.saveArticleWithFullContent(
-				article,
-				undefined,
-				customTemplate,
-			)
+					article,
+					undefined,
+					customTemplate,
+				)
 			: await this.saver.saveArticle(article, undefined, customTemplate);
 
 		if (file) {
@@ -1230,7 +1230,13 @@ export class RssDashboardView extends ItemView {
 		} else {
 			// Age filter – requires saving settings and full re-render
 			this.settings.articleFilter = {
-				type: filter.type as any,
+				type: filter.type as
+					| "age"
+					| "read"
+					| "unread"
+					| "starred"
+					| "saved"
+					| "none",
 				value: filter.value,
 			};
 			void this.plugin.saveSettings();
@@ -1672,7 +1678,6 @@ export class RssDashboardView extends ItemView {
 		}
 		void this.render();
 	}
-
 
 	private getCurrentPageSize(): number {
 		if (this.currentFeed && this.currentFeed.url) {

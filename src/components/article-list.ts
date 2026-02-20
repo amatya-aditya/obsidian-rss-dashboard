@@ -94,7 +94,7 @@ export class ArticleList {
 	private documentListeners: Array<{
 		target: Document;
 		type: string;
-		listener: any;
+		listener: EventListenerOrEventListenerObject;
 	}> = [];
 
 	constructor(
@@ -147,7 +147,7 @@ export class ArticleList {
 	private addDocumentListener(
 		target: Document,
 		type: string,
-		listener: any,
+		listener: EventListenerOrEventListenerObject,
 	) {
 		target.addEventListener(type, listener);
 		const entry = { target, type, listener };
@@ -194,10 +194,14 @@ export class ArticleList {
 		this.articles = articles;
 
 		// Update filter badge
-		const multiFilterBtn = this.container.querySelector(".rss-dashboard-multi-filter-btn");
+		const multiFilterBtn = this.container.querySelector(
+			".rss-dashboard-multi-filter-btn",
+		);
 		if (multiFilterBtn) {
 			multiFilterBtn.classList.remove("has-active-filters");
-			multiFilterBtn.querySelectorAll(".rss-dashboard-filter-badge").forEach(el => el.remove());
+			multiFilterBtn
+				.querySelectorAll(".rss-dashboard-filter-badge")
+				.forEach((el) => el.remove());
 
 			const count = this.statusFilters.size + this.tagFilters.size;
 			if (count > 0) {
@@ -308,7 +312,7 @@ export class ArticleList {
 			hamburgerButton.classList.toggle("active");
 		});
 
-		const handleDocumentClick = (e: MouseEvent) => {
+		const handleDocumentClick = (e: Event) => {
 			if (!hamburgerMenu.contains(e.target as Node)) {
 				dropdownMenu.classList.remove("active");
 				hamburgerButton.classList.remove("active");
@@ -335,7 +339,7 @@ export class ArticleList {
 		multiFilterBtn.createSpan({ text: "Filter" });
 		if (this.statusFilters.size > 0 || this.tagFilters.size > 0) {
 			multiFilterBtn.addClass("has-active-filters");
-			const badge = multiFilterBtn.createDiv({
+			multiFilterBtn.createDiv({
 				cls: "rss-dashboard-filter-badge",
 				text: String(this.statusFilters.size + this.tagFilters.size),
 			});
@@ -346,10 +350,13 @@ export class ArticleList {
 			this.showFiltersMenu(multiFilterBtn);
 		});
 
-		// Move age filter into its own space or keep as is? 
+		// Move age filter into its own space or keep as is?
 		// For now, let's keep it but make it smaller or label it better.
 		const ageDropdown = articleControls.createEl("select");
-		ageDropdown.addClass("rss-dashboard-filter", "rss-dashboard-age-filter");
+		ageDropdown.addClass(
+			"rss-dashboard-filter",
+			"rss-dashboard-age-filter",
+		);
 		const ageOptions = {
 			"Max age: Unlimited": 0,
 			"1 hour": 3600 * 1000,
@@ -427,10 +434,10 @@ export class ArticleList {
 		groupDropdown.addEventListener("change", (e: Event) => {
 			this.callbacks.onGroupChange(
 				(e.target as HTMLSelectElement).value as
-				| "none"
-				| "feed"
-				| "date"
-				| "folder",
+					| "none"
+					| "feed"
+					| "date"
+					| "folder",
 			);
 		});
 
@@ -491,7 +498,10 @@ export class ArticleList {
 			cls: "rss-dashboard-mark-all-read-text",
 			text: "Mark all read",
 		});
-		markAllReadButton.setAttr("title", "Mark all articles in current view as read");
+		markAllReadButton.setAttr(
+			"title",
+			"Mark all articles in current view as read",
+		);
 
 		markAllReadButton.addEventListener("click", () => {
 			if (this.callbacks.onMarkAllAsRead) {
@@ -535,7 +545,7 @@ export class ArticleList {
 			cls:
 				"rss-dashboard-filter-logic-btn" +
 				(this.filterLogic === "OR" ? " active" : ""),
-			text: "Either/Or",
+			text: "Either/or",
 		});
 
 		andBtn.addEventListener("click", () => {
@@ -637,7 +647,7 @@ export class ArticleList {
 		// Close menu on click outside
 		const targetWindow = targetDocument.defaultView || window;
 		targetWindow.setTimeout(() => {
-			const handleClickOutside = (e: MouseEvent) => {
+			const handleClickOutside = (e: Event) => {
 				if (
 					!menuPortal.contains(e.target as Node) &&
 					!toggleBtn.contains(e.target as Node)
@@ -727,18 +737,24 @@ export class ArticleList {
 		let subLeft = parentMenuRect.right + 4;
 		let subTop = rect.top;
 
-		subMenu.style.position = "fixed";
-		subMenu.style.top = `${subTop}px`;
-		subMenu.style.left = `${subLeft}px`;
+		subMenu.addClass("rss-dashboard-submenu-fixed");
+		subMenu.style.setProperty("--submenu-top", `${subTop}px`);
+		subMenu.style.setProperty("--submenu-left", `${subLeft}px`);
 
 		// After the browser renders it, flip left if it goes off-screen
 		requestAnimationFrame(() => {
 			const subRect = subMenu.getBoundingClientRect();
 			if (subRect.right > window.innerWidth) {
-				subMenu.style.left = `${parentMenuRect.left - subRect.width - 4}px`;
+				subMenu.style.setProperty(
+					"--submenu-left",
+					`${parentMenuRect.left - subRect.width - 4}px`,
+				);
 			}
 			if (subRect.bottom > window.innerHeight) {
-				subMenu.style.top = `${window.innerHeight - subRect.height - 8}px`;
+				subMenu.style.setProperty(
+					"--submenu-top",
+					`${window.innerHeight - subRect.height - 8}px`,
+				);
 			}
 		});
 	}
@@ -929,7 +945,7 @@ export class ArticleList {
 				cls:
 					"rss-dashboard-article-item" +
 					(this.selectedArticle &&
-						article.guid === this.selectedArticle.guid
+					article.guid === this.selectedArticle.guid
 						? " active"
 						: "") +
 					(article.read ? " read" : " unread") +
@@ -1261,7 +1277,7 @@ export class ArticleList {
 										tagEl.style.setProperty(
 											"--tag-color",
 											tag.color ||
-											"var(--interactive-accent)",
+												"var(--interactive-accent)",
 										);
 									}
 								});
@@ -1342,7 +1358,7 @@ export class ArticleList {
 				cls:
 					"rss-dashboard-article-card" +
 					(this.selectedArticle &&
-						article.guid === this.selectedArticle.guid
+					article.guid === this.selectedArticle.guid
 						? " active"
 						: "") +
 					(article.read ? " read" : " unread") +
@@ -1745,7 +1761,7 @@ export class ArticleList {
 										tagEl.style.setProperty(
 											"--tag-color",
 											tag.color ||
-											"var(--interactive-accent)",
+												"var(--interactive-accent)",
 										);
 									}
 								});

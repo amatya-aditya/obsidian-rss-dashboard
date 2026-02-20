@@ -208,3 +208,9 @@
 	max-height: 300px;
 	overflow-y: auto;
 }
+
+.rss-dashboard-submenu-fixed {
+	position: fixed;
+	top: var(--submenu-top, 0);
+	left: var(--submenu-left, 0);
+}

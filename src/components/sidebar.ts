@@ -427,7 +427,6 @@ export class Sidebar {
 		folderHeader.addEventListener("contextmenu", (e) => {
 			e.preventDefault();
 			e.stopPropagation();
-			const contextEvent = e;
 			const menu = new Menu();
 			menu.addItem((item: MenuItem) => {
 				item.setTitle("Add feed/podcast")
