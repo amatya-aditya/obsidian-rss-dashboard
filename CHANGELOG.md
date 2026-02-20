@@ -1,5 +1,43 @@
 # RSS Dashboard - Changelog
 
+## [2.0.3] - 2026-02-19
+
+### ✨ New Features
+
+### Article Display Enhancements
+
+- **Favicon Icons**: Article list and card views now display favicon icons for each feed source
+- **Feed Logo in Header**: When viewing a specific feed, the feed's logo/icon appears in the header
+- **YouTube URL Detection**: Add Feed modal now automatically detects and warns user if trying to add a YouTube channel via the RSS window
+
+### Discover Page Improvements
+
+- **Two-Button Folder Selection**: New streamlined approach for selecting feed folders directly from the Discover page
+- **Reordered Action Buttons**: Discover page buttons repositioned to the top for better accessibility
+- **Removed Star Ratings**: Cleaned up Discover cards by removing star ratings for a simpler interface
+
+### Feed Management
+
+- **Apple Podcast Resolution Support**: Enhanced podcast feed detection with Apple Podcast support
+- **Default "Uncategorized" Folder**: Fresh installations now include an "Uncategorized" folder by default. Quick added feeds will be automatically placed here
+
+---
+
+### 🎨 UI/UX Improvements
+
+### View Controls
+
+- **Accent Color Toggle**: List/Card view toggle buttons now use accent color when active for better visual feedback
+- **Action Bar Icons**: Added icons to view toggle and refresh buttons for improved clarity
+- **Icon Alignment**: Fixed alignment of icons and text in view toggle and refresh buttons
+
+### Article Cards
+
+- **Active Border Indicator**: Selected article cards now show a clear active border indicator
+- **4-Quadrant List View**: Updated list view cards to a cleaner 4-quadrant display layout
+
+---
+
 ## [2.0.2] - 2026-02-19
 
 ### ✨ New Features
