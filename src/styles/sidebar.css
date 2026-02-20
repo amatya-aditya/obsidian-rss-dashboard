@@ -416,6 +416,7 @@
 	overflow-y: auto;
 	min-height: 0;
 	max-height: 100vh;
+	max-height: 100dvh;
 	display: flex;
 	flex-direction: column;
 	padding: 0 6px 0 0;

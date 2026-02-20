@@ -1,5 +1,32 @@
 # RSS Dashboard - Changelog
 
+## [2.0.4] - 2026-02-20
+
+### 🐛 Bug Fixes
+
+### Mobile Sidebar Viewport Height
+
+- **Fixed Mobile Sidebar Height**: Sidebar now correctly fills the full viewport height on mobile devices
+    - Replaced `max-height: 100vh` with `max-height: 100dvh` (dynamic viewport height) to handle mobile browser chrome
+    - Removed incorrect `max-height: 40%` constraint in mobile media query that was limiting sidebar height
+    - Fixed dropdown portal positioning to use `100dvh` for consistent behavior
+
+### Technical Details
+
+The issue was caused by the mobile browser's dynamic address bar behavior:
+
+- `100vh` represents the "large" viewport (address bar hidden), which is larger than the visible area when the address bar is shown
+- `100dvh` (dynamic viewport height) automatically adjusts as the browser chrome expands/collapses
+- Added `100vh` fallback for older WebViews that don't support `100dvh`
+
+**Files Changed:**
+
+- `src/styles/sidebar.css`: Added `100dvh` fallback for sidebar container
+- `src/styles/responsive.css`: Fixed mobile media query to use full viewport height
+- `src/styles/dropdown-portal.css`: Fixed dropdown positioning calculations
+
+---
+
 ## [2.0.3] - 2026-02-19
 
 ### ✨ New Features
