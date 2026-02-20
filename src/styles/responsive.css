@@ -41,12 +41,11 @@
 		height: 100%;
 		height: 100dvh;
 		max-height: none;
-		border-right: 0;
-		border-bottom: 1px solid var(--background-modifier-border);
-		transform: none !important;
+		border-right: 1px solid var(--background-modifier-border);
+		border-bottom: none;
 	}
 	.sidebar-collapsed .rss-dashboard-sidebar {
-		display: none;
+		transform: translateX(-100%);
 	}
 
 	.rss-dashboard-card-view {
@@ -80,18 +79,12 @@
 		padding: 8px;
 	}
 
-	.rss-sidebar {
-		width: 100% !important;
-		max-width: none !important;
-		position: relative !important;
-		transform: none !important;
-		border-right: none;
-		border-bottom: 1px solid var(--background-modifier-border);
-		margin-bottom: 16px;
+	.rss-dashboard-sidebar {
+		width: 280px;
+		max-width: none;
 	}
 
-	.rss-content {
-		margin-left: 0 !important;
+	.rss-dashboard-content {
 		width: 100% !important;
 	}
 

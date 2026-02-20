@@ -5,14 +5,7 @@
 	flex-direction: column;
 	overflow: hidden;
 	background-color: var(--background-primary);
-	width: calc(100% - 360px);
-	transition:
-		width 0.3s ease,
-		margin-left 0.3s ease;
-}
-.sidebar-collapsed .rss-dashboard-content {
 	width: 100%;
-	margin-left: 0;
 }
 .rss-dashboard-articles {
 	padding: 0px 10px 10px 10px;

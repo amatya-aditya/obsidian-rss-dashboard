@@ -1,5 +1,42 @@
 # RSS Dashboard - Changelog
 
+## [2.0.5] - 2026-02-20
+
+### 🐛 Bug Fixes
+
+### Sidebar Overlay Refactor
+
+- **Fixed Sidebar Squishing Main Content**: Sidebar now overlays the main content instead of pushing it, preventing layout shifts and card misalignment
+    - Changed sidebar from `position: relative` to `position: absolute` with `z-index: 10`
+    - Main content now always takes full width (`width: 100%`) instead of calculating `calc(100% - 360px)`
+    - Removed width transitions that caused layout thrashing during sidebar toggle
+    - Fixed mobile CSS class name mismatch (`.rss-sidebar` → `.rss-dashboard-sidebar`, `.rss-content` → `.rss-dashboard-content`)
+
+### Mobile Improvements
+
+- **Fixed Mobile Sidebar Behavior**: Sidebar now slides off-screen smoothly on mobile instead of using `display: none`
+    - Uses `transform: translateX(-100%)` for smooth animation
+    - Main content no longer squishes when sidebar opens on mobile
+    - Card action buttons maintain proper positioning during sidebar toggle
+
+### Technical Details
+
+The sidebar squishing bug was caused by:
+
+1. Sidebar being in normal document flow with `position: relative`
+2. Main content having a calculated width `calc(100% - 360px)` that fought with `flex-grow: 1`
+3. During collapse transition, the width calculation and flex layout conflicted
+4. On mobile, CSS media queries targeted wrong class names (`.rss-sidebar` instead of `.rss-dashboard-sidebar`)
+
+**Files Changed:**
+
+- `src/styles/layout.css`: Changed sidebar to absolute positioning
+- `src/styles/articles.css`: Removed width calculation from main content
+- `src/styles/sidebar.css`: Removed transform transition from sidebar container
+- `src/styles/responsive.css`: Fixed mobile class names and sidebar behavior
+
+---
+
 ## [2.0.4] - 2026-02-20
 
 ### 🐛 Bug Fixes
