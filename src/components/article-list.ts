@@ -317,10 +317,10 @@ export class ArticleList {
 		groupDropdown.addEventListener("change", (e: Event) => {
 			this.callbacks.onGroupChange(
 				(e.target as HTMLSelectElement).value as
-				| "none"
-				| "feed"
-				| "date"
-				| "folder",
+					| "none"
+					| "feed"
+					| "date"
+					| "folder",
 			);
 		});
 
@@ -557,7 +557,7 @@ export class ArticleList {
 				cls:
 					"rss-dashboard-article-item" +
 					(this.selectedArticle &&
-						article.guid === this.selectedArticle.guid
+					article.guid === this.selectedArticle.guid
 						? " active"
 						: "") +
 					(article.read ? " read" : " unread") +
@@ -575,7 +575,9 @@ export class ArticleList {
 			const mainGrid = contentEl.createDiv("rss-dashboard-article-grid");
 
 			// Top Left: Headline
-			const headlineEl = mainGrid.createDiv("rss-dashboard-grid-headline");
+			const headlineEl = mainGrid.createDiv(
+				"rss-dashboard-grid-headline",
+			);
 			headlineEl.createDiv({
 				cls: "rss-dashboard-article-title rss-dashboard-list-title",
 				text: article.title,
@@ -731,8 +733,8 @@ export class ArticleList {
 				cls: `rss-dashboard-star-toggle ${article.starred ? "starred" : "unstarred"}`,
 				attr: {
 					title: article.starred
-						? "Remove from favorites"
-						: "Add to favorites",
+						? "Remove from starred items"
+						: "Add to starred items",
 				},
 			});
 			const starIcon = starToggle.createSpan({
@@ -887,7 +889,7 @@ export class ArticleList {
 										tagEl.style.setProperty(
 											"--tag-color",
 											tag.color ||
-											"var(--interactive-accent)",
+												"var(--interactive-accent)",
 										);
 									}
 								});
@@ -931,7 +933,9 @@ export class ArticleList {
 				);
 			});
 
-			const articleTags = actionToolbar.createDiv("rss-dashboard-article-tags");
+			const articleTags = actionToolbar.createDiv(
+				"rss-dashboard-article-tags",
+			);
 			if (article.tags && article.tags.length > 0) {
 				article.tags.forEach((tag) => {
 					const tagEl = articleTags.createDiv({
@@ -966,7 +970,7 @@ export class ArticleList {
 				cls:
 					"rss-dashboard-article-card" +
 					(this.selectedArticle &&
-						article.guid === this.selectedArticle.guid
+					article.guid === this.selectedArticle.guid
 						? " active"
 						: "") +
 					(article.read ? " read" : " unread") +
@@ -1212,8 +1216,8 @@ export class ArticleList {
 				cls: `rss-dashboard-star-toggle ${article.starred ? "starred" : "unstarred"}`,
 				attr: {
 					title: article.starred
-						? "Remove from favorites"
-						: "Add to favorites",
+						? "Remove from starred items"
+						: "Add to starred items",
 				},
 			});
 			const starIcon = starToggle.createSpan({
@@ -1369,7 +1373,7 @@ export class ArticleList {
 										tagEl.style.setProperty(
 											"--tag-color",
 											tag.color ||
-											"var(--interactive-accent)",
+												"var(--interactive-accent)",
 										);
 									}
 								});

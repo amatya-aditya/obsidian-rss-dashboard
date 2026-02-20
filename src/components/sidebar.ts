@@ -261,7 +261,10 @@ export class Sidebar {
 		});
 
 		feedFoldersSection.addEventListener("contextmenu", (e) => {
-			if (e.target === feedFoldersSection) {
+			const target = e.target as HTMLElement;
+			const isItem = target.closest(".rss-dashboard-feed") || target.closest(".rss-dashboard-feed-folder-header");
+
+			if (!isItem) {
 				e.preventDefault();
 				const menu = new Menu();
 				menu.addItem((item: MenuItem) => {
@@ -286,10 +289,10 @@ export class Sidebar {
 						});
 				});
 				menu.addItem((item: MenuItem) => {
-					item.setTitle("Sort feeds")
-						.setIcon("sort-asc")
-						.onClick((evt) => {
-							this.showFeedSortMenu(e, "");
+					item.setTitle("Add YouTube channel")
+						.setIcon("youtube")
+						.onClick(() => {
+							this.showAddYouTubeFeedModal();
 						});
 				});
 				menu.addItem((item: MenuItem) => {
@@ -427,13 +430,21 @@ export class Sidebar {
 
 		folderHeader.addEventListener("contextmenu", (e) => {
 			e.preventDefault();
+			e.stopPropagation();
 			const contextEvent = e;
 			const menu = new Menu();
 			menu.addItem((item: MenuItem) => {
-				item.setTitle("Add feed")
+				item.setTitle("Add feed/podcast")
 					.setIcon("rss")
 					.onClick(() => {
 						this.showAddFeedModal(fullPath);
+					});
+			});
+			menu.addItem((item: MenuItem) => {
+				item.setTitle("Add YouTube channel")
+					.setIcon("youtube")
+					.onClick(() => {
+						this.showAddYouTubeFeedModal();
 					});
 			});
 			menu.addItem((item: MenuItem) => {
@@ -531,13 +542,6 @@ export class Sidebar {
 								this.render();
 							},
 						);
-					});
-			});
-			menu.addItem((item: MenuItem) => {
-				item.setTitle("Sort feeds")
-					.setIcon("sort-asc")
-					.onClick(() => {
-						this.showFeedSortMenu(contextEvent, fullPath);
 					});
 			});
 			menu.showAtMouseEvent(e);
@@ -733,6 +737,7 @@ export class Sidebar {
 
 		feedEl.addEventListener("contextmenu", (e) => {
 			e.preventDefault();
+			e.stopPropagation();
 			this.showFeedContextMenu(e, feed);
 		});
 
@@ -1530,12 +1535,33 @@ export class Sidebar {
 			this.settings.display?.filterDisplayStyle || "inline";
 		filtersList.addClass(`rss-dashboard-filters-${displayStyle}`);
 
-		// Create filter items row for inline mode
-		let filterItemsRow: HTMLElement | null = null;
+		// Determine visibility for Row 2
+		const isAllActive =
+			this.options.currentFolder === null &&
+			this.options.currentFeed === null &&
+			this.options.currentTag === null;
+		const isRow2SubsetActive =
+			this.options.currentFolder === "saved" ||
+			this.options.currentFolder === "read" ||
+			this.options.currentFolder === "unread" ||
+			this.options.currentFolder === "starred" ||
+			this.options.currentTag !== null ||
+			this.isTagsExpanded;
+
+		const showRow2 = isAllActive || isRow2SubsetActive;
+
+		// Create filter items rows for inline mode
+		let row1: HTMLElement | null = null;
+		let row2: HTMLElement | null = null;
 		if (displayStyle === "inline") {
-			filterItemsRow = filtersList.createDiv({
-				cls: "rss-dashboard-filter-items-row",
+			row1 = filtersList.createDiv({
+				cls: "rss-dashboard-filter-items-row row-1",
 			});
+			if (showRow2) {
+				row2 = filtersList.createDiv({
+					cls: "rss-dashboard-filter-items-row row-2",
+				});
+			}
 		}
 
 		// Helper function to create filter items
@@ -1544,10 +1570,16 @@ export class Sidebar {
 			icon: string,
 			text: string,
 			isActive: boolean,
+			targetRow?: HTMLElement | null,
 		) => {
+			// If we are in inline mode and the target row is not provided/created, skip rendering
+			if (displayStyle === "inline" && !targetRow) {
+				return null;
+			}
+
 			const container =
-				displayStyle === "inline" && filterItemsRow
-					? filterItemsRow
+				displayStyle === "inline" && targetRow
+					? targetRow
 					: filtersList;
 			const filterEl = container.createDiv({
 				cls: "rss-dashboard-filter-item" + (isActive ? " active" : ""),
@@ -1597,51 +1629,14 @@ export class Sidebar {
 		// Get hidden filters from settings
 		const hiddenFilters = this.settings.display?.hiddenFilters || [];
 
+		// Row 1: All items, Videos, Podcasts
 		createFilterItem(
 			"all",
 			"list",
 			"All items",
-			this.options.currentFolder === null &&
-				this.options.currentFeed === null &&
-				this.options.currentTag === null,
+			isAllActive,
+			row1,
 		);
-
-		// Create other filter items only if they're not hidden
-		if (!hiddenFilters.includes("starred")) {
-			createFilterItem(
-				"starred",
-				"star",
-				"Starred items",
-				this.options.currentFolder === "starred",
-			);
-		}
-
-		if (!hiddenFilters.includes("unread")) {
-			createFilterItem(
-				"unread",
-				"circle",
-				"Unread items",
-				this.options.currentFolder === "unread",
-			);
-		}
-
-		if (!hiddenFilters.includes("read")) {
-			createFilterItem(
-				"read",
-				"check-circle",
-				"Read items",
-				this.options.currentFolder === "read",
-			);
-		}
-
-		if (!hiddenFilters.includes("saved")) {
-			createFilterItem(
-				"saved",
-				"save",
-				"Saved items",
-				this.options.currentFolder === "saved",
-			);
-		}
 
 		if (!hiddenFilters.includes("videos")) {
 			createFilterItem(
@@ -1649,6 +1644,7 @@ export class Sidebar {
 				"play",
 				"Videos",
 				this.options.currentFolder === "videos",
+				row1,
 			);
 		}
 
@@ -1658,40 +1654,114 @@ export class Sidebar {
 				"mic",
 				"Podcasts",
 				this.options.currentFolder === "podcasts",
+				row1,
 			);
 		}
 
-		// Add tags filter item
-		const tagsContainer =
-			displayStyle === "inline" && filterItemsRow
-				? filterItemsRow
-				: filtersList;
-		const tagsFilterEl = tagsContainer.createDiv({
+		// Row 2: Saved Items, Read Items, Unread Items, Starred Items
+		if (!hiddenFilters.includes("saved")) {
+			createFilterItem(
+				"saved",
+				"save",
+				"Saved items",
+				this.options.currentFolder === "saved",
+				row2,
+			);
+		}
+
+		if (!hiddenFilters.includes("read")) {
+			createFilterItem(
+				"read",
+				"check-circle",
+				"Read items",
+				this.options.currentFolder === "read",
+				row2,
+			);
+		}
+
+		if (!hiddenFilters.includes("unread")) {
+			createFilterItem(
+				"unread",
+				"circle",
+				"Unread items",
+				this.options.currentFolder === "unread",
+				row2,
+			);
+		}
+
+		if (!hiddenFilters.includes("starred")) {
+			createFilterItem(
+				"starred",
+				"star",
+				"Starred items",
+				this.options.currentFolder === "starred",
+				row2,
+			);
+		}
+
+		// Row 2: Tags filter item
+		if (displayStyle !== "inline" || row2) {
+			const tagsContainer =
+				displayStyle === "inline" && row2 ? row2 : filtersList;
+			const tagsFilterEl = tagsContainer.createDiv({
+				cls:
+					"rss-dashboard-filter-item rss-dashboard-tags-filter" +
+					(this.isTagsExpanded ? " active" : ""),
+			});
+
+			const tagsFilterIcon = tagsFilterEl.createDiv({
+				cls: "rss-dashboard-filter-icon",
+			});
+			setIcon(tagsFilterIcon, "tag");
+
+			// Only show text in vertical mode
+			if (displayStyle === "vertical") {
+				tagsFilterEl.createDiv({
+					cls: "rss-dashboard-filter-name",
+					text: "Tags",
+				});
+			}
+
+			// Add tooltip for inline mode
+			if (displayStyle === "inline") {
+				tagsFilterEl.setAttribute("title", "Tags");
+			}
+
+			tagsFilterEl.addEventListener("click", () => {
+				this.isTagsExpanded = !this.isTagsExpanded;
+				this.render();
+			});
+		}
+
+		// Add Row 1: Search filter item
+		const searchContainerRow =
+			displayStyle === "inline" && row1 ? row1 : filtersList;
+		const searchFilterEl = searchContainerRow.createDiv({
 			cls:
-				"rss-dashboard-filter-item rss-dashboard-tags-filter" +
-				(this.isTagsExpanded ? " active" : ""),
+				"rss-dashboard-filter-item rss-dashboard-search-filter" +
+				(this.isSearchExpanded ? " active" : ""),
 		});
 
-		const tagsFilterIcon = tagsFilterEl.createDiv({
+		const searchFilterIcon = searchFilterEl.createDiv({
 			cls: "rss-dashboard-filter-icon",
 		});
-		setIcon(tagsFilterIcon, "tag");
+		setIcon(searchFilterIcon, "search");
 
 		// Only show text in vertical mode
 		if (displayStyle === "vertical") {
-			tagsFilterEl.createDiv({
+			searchFilterEl.createDiv({
 				cls: "rss-dashboard-filter-name",
-				text: "Tags",
+				text: "Search",
 			});
 		}
 
 		// Add tooltip for inline mode
 		if (displayStyle === "inline") {
-			tagsFilterEl.setAttribute("title", "Tags");
+			searchFilterEl.setAttribute("title", "Search");
 		}
 
-		tagsFilterEl.addEventListener("click", () => {
-			this.isTagsExpanded = !this.isTagsExpanded;
+		searchFilterEl.addEventListener("click", () => {
+			this.isSearchExpanded = !this.isSearchExpanded;
 			this.render();
 		});
 
@@ -1760,35 +1830,6 @@ export class Sidebar {
 			}
 		}
 
-		// Add search filter item
-		const searchFilterEl = tagsContainer.createDiv({
-			cls:
-				"rss-dashboard-filter-item rss-dashboard-search-filter" +
-				(this.isSearchExpanded ? " active" : ""),
-		});
-
-		const searchFilterIcon = searchFilterEl.createDiv({
-			cls: "rss-dashboard-filter-icon",
-		});
-		setIcon(searchFilterIcon, "search");
-
-		// Only show text in vertical mode
-		if (displayStyle === "vertical") {
-			searchFilterEl.createDiv({
-				cls: "rss-dashboard-filter-name",
-				text: "Search",
-			});
-		}
-
-		// Add tooltip for inline mode
-		if (displayStyle === "inline") {
-			searchFilterEl.setAttribute("title", "Search");
-		}
-
-		searchFilterEl.addEventListener("click", () => {
-			this.isSearchExpanded = !this.isSearchExpanded;
-			this.render();
-		});
 
 		// Add collapsible search input below filters
 		if (this.isSearchExpanded) {

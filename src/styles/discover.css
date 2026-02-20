@@ -561,13 +561,12 @@
 .rss-discover-sidebar-nav {
     display: flex;
     justify-content: space-around;
-    margin-bottom: 10px;
+    margin-top: 10px;
+    margin-bottom: 20px;
     gap: 0.4rem;
-    position: sticky;
-    bottom: 0px;
     background: var(--background-primary);
     padding: 0.5rem 0;
-    border-top: 1px solid var(--color-base-35);
+    border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .rss-discover-sidebar-nav button {

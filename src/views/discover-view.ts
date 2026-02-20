@@ -302,14 +302,15 @@ export class DiscoverView extends ItemView {
 
 	private renderSidebar(container: HTMLElement): void {
 		container.empty();
+
 		this.renderSidebarHeader(container);
-		this.renderSearch(container);
+
+		const navContainer = container.createDiv({
+			cls: "rss-discover-sidebar-nav",
+		});
 
 		const contentContainer = container.createDiv({
 			cls: "rss-discover-sidebar-content",
-		});
-		const navContainer = container.createDiv({
-			cls: "rss-discover-sidebar-nav",
 		});
 
 		const renderContent = () => {
@@ -358,6 +359,11 @@ export class DiscoverView extends ItemView {
 		});
 
 		updateActiveButton();
+
+		this.renderSearch(container);
+
+		// Re-append content container to ensure it's at the bottom
+		container.appendChild(contentContainer);
 		renderContent();
 	}
 
