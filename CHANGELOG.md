@@ -11,9 +11,13 @@
     - Removed incorrect `max-height: 40%` constraint in mobile media query that was limiting sidebar height
     - Fixed dropdown portal positioning to use `100dvh` for consistent behavior
 
+### Mobile UI Improvements
+
+- **Hide Hamburger Menu When Sidebar Open**: On mobile, the hamburger menu is now hidden when the sidebar is visible to prevent UI clutter and confusion
+
 ### Technical Details
 
-The issue was caused by the mobile browser's dynamic address bar behavior:
+The viewport height issue was caused by the mobile browser's dynamic address bar behavior:
 
 - `100vh` represents the "large" viewport (address bar hidden), which is larger than the visible area when the address bar is shown
 - `100dvh` (dynamic viewport height) automatically adjusts as the browser chrome expands/collapses
@@ -24,6 +28,7 @@ The issue was caused by the mobile browser's dynamic address bar behavior:
 - `src/styles/sidebar.css`: Added `100dvh` fallback for sidebar container
 - `src/styles/responsive.css`: Fixed mobile media query to use full viewport height
 - `src/styles/dropdown-portal.css`: Fixed dropdown positioning calculations
+- `src/styles/controls.css`: Hide hamburger menu when sidebar is open on mobile
 
 ---
 

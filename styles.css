@@ -456,6 +456,7 @@
   overflow-y: auto;
   min-height: 0;
   max-height: 100vh;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
   padding: 0 6px 0 0;
@@ -2285,6 +2286,9 @@
   .rss-dashboard-hamburger-menu {
     display: block;
   }
+  .rss-dashboard-container:not(.sidebar-collapsed) .rss-dashboard-hamburger-menu {
+    display: none;
+  }
   .rss-dashboard-desktop-controls {
     display: none;
   }
@@ -2829,7 +2833,7 @@
   background: var(--background-primary);
   border-radius: 4px;
   border: 1px solid var(--background-modifier-border);
-  box-shadow: 0 2px 8px rgb(0 0 0 / .1);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
   display: block;
   transform: none;
   overflow-y: scroll;
@@ -2855,8 +2859,9 @@
 .rss-dashboard-tags-dropdown-content-portal.dropdown-align-below {
   top: auto;
   bottom: calc(100vh - var(--dropdown-anchor-top, 0));
+  bottom: calc(100dvh - var(--dropdown-anchor-top, 0));
 }
-@media (max-width:600px) {
+@media (max-width: 600px) {
   .rss-dashboard-tags-dropdown-content-portal {
     left: 8px !important;
     right: 8px !important;
@@ -7933,7 +7938,7 @@
   width: 100%;
 }
 .rss-dashboard-spinner {
-  border: 3px solid rgb(0 0 0 / .1);
+  border: 3px solid rgb(0 0 0 / 0.1);
   border-radius: 50%;
   border-top: 3px solid var(--interactive-accent);
   width: 20px;
@@ -7949,13 +7954,14 @@
     transform: rotate(360deg);
   }
 }
-@media (max-width:768px) {
+@media (max-width: 768px) {
   .rss-dashboard-layout {
     flex-direction: row;
   }
   .rss-dashboard-sidebar {
-    height: auto;
-    max-height: 40%;
+    height: 100%;
+    height: 100dvh;
+    max-height: none;
     border-right: 0;
     border-bottom: 1px solid var(--background-modifier-border);
     transform: none !important;
@@ -7968,10 +7974,10 @@
   }
 }
 .theme-dark .rss-dashboard-article-card {
-  box-shadow: 0 2px 4px rgb(0 0 0 / .2);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.2);
 }
 .theme-dark .rss-dashboard-article-card:hover {
-  box-shadow: 0 0px 8px rgb(0 0 0 / .4);
+  box-shadow: 0 0px 8px rgb(0 0 0 / 0.4);
 }
 .rss-dashboard-modal-info {
   margin-bottom: 15px;

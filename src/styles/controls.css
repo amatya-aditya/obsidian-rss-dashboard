@@ -584,6 +584,12 @@
 		display: block;
 	}
 
+	/* Hide hamburger menu when sidebar is open on mobile */
+	.rss-dashboard-container:not(.sidebar-collapsed)
+		.rss-dashboard-hamburger-menu {
+		display: none;
+	}
+
 	.rss-dashboard-desktop-controls {
 		display: none;
 	}
