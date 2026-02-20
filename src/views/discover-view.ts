@@ -1341,11 +1341,17 @@ export class DiscoverView extends ItemView {
 		);
 
 		if (isAdded) {
-			const addedBtn = rightSection.createEl("button", {
-				text: "Added",
-				cls: "rss-discover-card-add-btn",
+			const removeBtn = rightSection.createEl("button", {
+				text: "Remove",
+				cls: "rss-discover-card-remove-btn",
 			});
-			addedBtn.disabled = true;
+			removeBtn.addEventListener("click", () => {
+				void (async () => {
+					await this.removeFeed(feed.url);
+					// Refresh the view to show default state
+					this.render();
+				})();
+			});
 		} else {
 			// Quick add button - adds to Uncategorized folder
 			const quickAddBtn = rightSection.createEl("button", {
@@ -1397,6 +1403,36 @@ export class DiscoverView extends ItemView {
 		} catch (error) {
 			new Notice(
 				`Failed to add feed: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+		}
+	}
+
+	/**
+	 * Remove a feed from settings by URL
+	 */
+	private async removeFeed(feedUrl: string): Promise<void> {
+		try {
+			const feedIndex = this.plugin.settings.feeds.findIndex(
+				(f: Feed) => f.url === feedUrl,
+			);
+
+			if (feedIndex >= 0) {
+				const feedTitle = this.plugin.settings.feeds[feedIndex].title;
+				this.plugin.settings.feeds.splice(feedIndex, 1);
+				await this.plugin.saveSettings();
+
+				// Refresh the dashboard view if it exists
+				const dashboardView =
+					await this.plugin.getActiveDashboardView();
+				if (dashboardView) {
+					dashboardView.refresh();
+				}
+
+				new Notice(`Feed "${feedTitle}" removed`);
+			}
+		} catch (error) {
+			new Notice(
+				`Failed to remove feed: ${error instanceof Error ? error.message : "Unknown error"}`,
 			);
 		}
 	}
