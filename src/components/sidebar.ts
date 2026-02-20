@@ -72,6 +72,7 @@ export class Sidebar {
 	private cachedFolderPaths: string[] | null = null;
 	private isSearchExpanded = false;
 	private isTagsExpanded = false;
+	private isRefreshing = false;
 
 	/**
 	 * Extract main domain from a URL for favicon purposes (without subdomains)
@@ -262,7 +263,9 @@ export class Sidebar {
 
 		feedFoldersSection.addEventListener("contextmenu", (e) => {
 			const target = e.target as HTMLElement;
-			const isItem = target.closest(".rss-dashboard-feed") || target.closest(".rss-dashboard-feed-folder-header");
+			const isItem =
+				target.closest(".rss-dashboard-feed") ||
+				target.closest(".rss-dashboard-feed-folder-header");
 
 			if (!isItem) {
 				e.preventDefault();
@@ -293,13 +296,6 @@ export class Sidebar {
 						.setIcon("youtube")
 						.onClick(() => {
 							this.showAddYouTubeFeedModal();
-						});
-				});
-				menu.addItem((item: MenuItem) => {
-					item.setTitle("Refresh all feeds")
-						.setIcon("refresh-cw")
-						.onClick(() => {
-							void this.plugin.refreshFeeds();
 						});
 				});
 				menu.showAtMouseEvent(e);
@@ -1535,34 +1531,15 @@ export class Sidebar {
 			this.settings.display?.filterDisplayStyle || "inline";
 		filtersList.addClass(`rss-dashboard-filters-${displayStyle}`);
 
-		// Determine visibility for Row 2
+		// Row 1: All items
 		const isAllActive =
 			this.options.currentFolder === null &&
 			this.options.currentFeed === null &&
 			this.options.currentTag === null;
-		const isRow2SubsetActive =
-			this.options.currentFolder === "saved" ||
-			this.options.currentFolder === "read" ||
-			this.options.currentFolder === "unread" ||
-			this.options.currentFolder === "starred" ||
-			this.options.currentTag !== null ||
-			this.isTagsExpanded;
 
-		const showRow2 = isAllActive || isRow2SubsetActive;
-
-		// Create filter items rows for inline mode
-		let row1: HTMLElement | null = null;
-		let row2: HTMLElement | null = null;
-		if (displayStyle === "inline") {
-			row1 = filtersList.createDiv({
-				cls: "rss-dashboard-filter-items-row row-1",
-			});
-			if (showRow2) {
-				row2 = filtersList.createDiv({
-					cls: "rss-dashboard-filter-items-row row-2",
-				});
-			}
-		}
+		const row1 = filtersList.createDiv({
+			cls: "rss-dashboard-filter-items-row row-1",
+		});
 
 		// Helper function to create filter items
 		const createFilterItem = (
@@ -1570,18 +1547,9 @@ export class Sidebar {
 			icon: string,
 			text: string,
 			isActive: boolean,
-			targetRow?: HTMLElement | null,
+			targetRow: HTMLElement,
 		) => {
-			// If we are in inline mode and the target row is not provided/created, skip rendering
-			if (displayStyle === "inline" && !targetRow) {
-				return null;
-			}
-
-			const container =
-				displayStyle === "inline" && targetRow
-					? targetRow
-					: filtersList;
-			const filterEl = container.createDiv({
+			const filterEl = targetRow.createDiv({
 				cls: "rss-dashboard-filter-item" + (isActive ? " active" : ""),
 			});
 
@@ -1607,136 +1575,14 @@ export class Sidebar {
 				this.callbacks.onFolderClick(type === "all" ? null : type);
 			});
 
-			// Add context menu for unread items
-			if (type === "unread") {
-				filterEl.addEventListener("contextmenu", (e) => {
-					e.preventDefault();
-					this.showUnreadItemsContextMenu(e);
-				});
-			}
-
-			// Add context menu for read items
-			if (type === "read") {
-				filterEl.addEventListener("contextmenu", (e) => {
-					e.preventDefault();
-					this.showReadItemsContextMenu(e);
-				});
-			}
-
 			return filterEl;
 		};
 
-		// Get hidden filters from settings
-		const hiddenFilters = this.settings.display?.hiddenFilters || [];
+		// Row 1: All items
+		createFilterItem("all", "list", "All items", isAllActive, row1);
 
-		// Row 1: All items, Videos, Podcasts
-		createFilterItem(
-			"all",
-			"list",
-			"All items",
-			isAllActive,
-			row1,
-		);
-
-		if (!hiddenFilters.includes("videos")) {
-			createFilterItem(
-				"videos",
-				"play",
-				"Videos",
-				this.options.currentFolder === "videos",
-				row1,
-			);
-		}
-
-		if (!hiddenFilters.includes("podcasts")) {
-			createFilterItem(
-				"podcasts",
-				"mic",
-				"Podcasts",
-				this.options.currentFolder === "podcasts",
-				row1,
-			);
-		}
-
-		// Row 2: Saved Items, Read Items, Unread Items, Starred Items
-		if (!hiddenFilters.includes("saved")) {
-			createFilterItem(
-				"saved",
-				"save",
-				"Saved items",
-				this.options.currentFolder === "saved",
-				row2,
-			);
-		}
-
-		if (!hiddenFilters.includes("read")) {
-			createFilterItem(
-				"read",
-				"check-circle",
-				"Read items",
-				this.options.currentFolder === "read",
-				row2,
-			);
-		}
-
-		if (!hiddenFilters.includes("unread")) {
-			createFilterItem(
-				"unread",
-				"circle",
-				"Unread items",
-				this.options.currentFolder === "unread",
-				row2,
-			);
-		}
-
-		if (!hiddenFilters.includes("starred")) {
-			createFilterItem(
-				"starred",
-				"star",
-				"Starred items",
-				this.options.currentFolder === "starred",
-				row2,
-			);
-		}
-
-		// Row 2: Tags filter item
-		if (displayStyle !== "inline" || row2) {
-			const tagsContainer =
-				displayStyle === "inline" && row2 ? row2 : filtersList;
-			const tagsFilterEl = tagsContainer.createDiv({
-				cls:
-					"rss-dashboard-filter-item rss-dashboard-tags-filter" +
-					(this.isTagsExpanded ? " active" : ""),
-			});
-
-			const tagsFilterIcon = tagsFilterEl.createDiv({
-				cls: "rss-dashboard-filter-icon",
-			});
-			setIcon(tagsFilterIcon, "tag");
-
-			// Only show text in vertical mode
-			if (displayStyle === "vertical") {
-				tagsFilterEl.createDiv({
-					cls: "rss-dashboard-filter-name",
-					text: "Tags",
-				});
-			}
-
-			// Add tooltip for inline mode
-			if (displayStyle === "inline") {
-				tagsFilterEl.setAttribute("title", "Tags");
-			}
-
-			tagsFilterEl.addEventListener("click", () => {
-				this.isTagsExpanded = !this.isTagsExpanded;
-				this.render();
-			});
-		}
-
-		// Add Row 1: Search filter item
-		const searchContainerRow =
-			displayStyle === "inline" && row1 ? row1 : filtersList;
-		const searchFilterEl = searchContainerRow.createDiv({
+		// Search filter item
+		const searchFilterEl = row1.createDiv({
 			cls:
 				"rss-dashboard-filter-item rss-dashboard-search-filter" +
 				(this.isSearchExpanded ? " active" : ""),
@@ -1765,71 +1611,27 @@ export class Sidebar {
 			this.render();
 		});
 
-		// Add collapsible tags list below filters
-		if (this.isTagsExpanded) {
-			const tagsContainer = filtersList.createDiv({
-				cls: "rss-dashboard-tags-container",
-			});
+		// Refresh all feeds button (right-aligned)
+		const refreshButton = row1.createDiv({
+			cls:
+				"rss-dashboard-filter-item rss-dashboard-refresh-button" +
+				(this.isRefreshing ? " refreshing" : ""),
+			attr: {
+				title: this.isRefreshing
+					? "Refreshing feeds..."
+					: "Refresh all feeds",
+			},
+		});
 
-			// Add tag button
-			const addTagButton = tagsContainer.createDiv({
-				cls: "rss-dashboard-add-tag-button",
-			});
-			setIcon(addTagButton, "plus");
-			addTagButton.appendText(" Add tag");
+		const refreshIcon = refreshButton.createDiv({
+			cls: "rss-dashboard-filter-icon",
+		});
+		setIcon(refreshIcon, "refresh-cw");
 
-			addTagButton.addEventListener("click", (e) => {
-				e.stopPropagation();
-				this.showAddTagModal();
-			});
-
-			// Render tags list
-			for (const tag of this.settings.availableTags) {
-				const tagEl = tagsContainer.createDiv({
-					cls:
-						"rss-dashboard-sidebar-tag" +
-						(this.options.currentTag === tag.name ? " active" : ""),
-				});
-
-				const tagColorDot = tagEl.createDiv({
-					cls: "rss-dashboard-tag-color-dot",
-				});
-				tagColorDot.style.setProperty("--tag-color", tag.color);
-
-				tagEl.createDiv({
-					cls: "rss-dashboard-tag-name",
-					text: tag.name,
-				});
-
-				// Calculate tag count
-				let tagCount = 0;
-				for (const feed of this.settings.feeds) {
-					tagCount += feed.items.filter(
-						(item) =>
-							item.tags &&
-							item.tags.some((t) => t.name === tag.name),
-					).length;
-				}
-
-				if (tagCount > 0) {
-					tagEl.createDiv({
-						cls: "rss-dashboard-tag-count",
-						text: tagCount.toString(),
-					});
-				}
-
-				tagEl.addEventListener("click", (e) => {
-					e.stopPropagation();
-					this.callbacks.onTagClick(tag.name);
-				});
-
-				tagEl.addEventListener("contextmenu", (e) => {
-					e.preventDefault();
-					this.showTagContextMenu(e, tag);
-				});
-			}
-		}
-
+		refreshButton.addEventListener("click", () => {
+			if (this.isRefreshing) return;
+			void this.handleRefresh();
+		});
 
 		// Add collapsible search input below filters
 		if (this.isSearchExpanded) {
@@ -2507,6 +2309,20 @@ export class Sidebar {
 				foldersToExpand,
 			);
 			new Notice("All folders collapsed");
+		}
+	}
+
+	private async handleRefresh(): Promise<void> {
+		if (this.isRefreshing) return;
+
+		this.isRefreshing = true;
+		this.render();
+
+		try {
+			await this.plugin.refreshFeeds();
+		} finally {
+			this.isRefreshing = false;
+			this.render();
 		}
 	}
 }

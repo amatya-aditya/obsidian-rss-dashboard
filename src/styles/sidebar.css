@@ -420,3 +420,30 @@
 	flex-direction: column;
 	padding: 0 6px 0 0;
 }
+
+/* Refresh button in filters section */
+.rss-dashboard-refresh-button {
+	margin-left: auto;
+}
+
+.rss-dashboard-refresh-button:hover {
+	color: var(--text-accent);
+}
+
+.rss-dashboard-refresh-button.refreshing {
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+.rss-dashboard-refresh-button.refreshing .rss-dashboard-filter-icon {
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
