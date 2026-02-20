@@ -460,6 +460,27 @@
   flex-direction: column;
   padding: 0 6px 0 0;
 }
+.rss-dashboard-refresh-button {
+  margin-left: auto;
+}
+.rss-dashboard-refresh-button:hover {
+  color: var(--text-accent);
+}
+.rss-dashboard-refresh-button.refreshing {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.rss-dashboard-refresh-button.refreshing .rss-dashboard-filter-icon {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* src/styles/articles.css */
 .rss-dashboard-content {
@@ -2852,6 +2873,130 @@
     background-position: 100% 50%;
   }
 }
+.rss-dashboard-multi-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-normal);
+  font-size: 13px;
+  height: var(--input-height);
+  position: relative;
+  transition: background-color 0.2s;
+}
+.rss-dashboard-multi-filter-btn:hover {
+  background-color: var(--background-modifier-hover);
+}
+.rss-dashboard-multi-filter-btn.has-active-filters {
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+}
+.rss-dashboard-filter-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  border: 2px solid var(--background-primary);
+}
+.rss-dashboard-filter-menu {
+  position: fixed;
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  min-width: 190px;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+.rss-dashboard-filter-logic-toggles {
+  display: flex;
+  padding: 6px 8px;
+  gap: 4px;
+}
+.rss-dashboard-filter-logic-btn {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.rss-dashboard-filter-logic-btn:hover {
+  background: var(--background-modifier-hover);
+}
+.rss-dashboard-filter-logic-btn.active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+.rss-dashboard-filter-menu-separator {
+  height: 1px;
+  background-color: var(--background-modifier-border);
+  margin: 4px 0;
+}
+.rss-dashboard-filter-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  gap: 10px;
+  transition: background-color 0.1s;
+  position: relative;
+}
+.rss-dashboard-filter-menu-item:hover {
+  background-color: var(--background-modifier-hover);
+}
+.rss-dashboard-filter-menu-item.empty {
+  color: var(--text-muted);
+  font-style: italic;
+  cursor: default;
+}
+.rss-dashboard-filter-checkbox {
+  margin: 0;
+  cursor: pointer;
+}
+.rss-dashboard-filter-menu-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+.rss-dashboard-filter-menu-text {
+  flex-grow: 1;
+  font-size: 13px;
+}
+.rss-dashboard-filter-menu-arrow {
+  color: var(--text-muted);
+  width: 12px;
+  height: 12px;
+  display: flex;
+  align-items: center;
+}
+.rss-dashboard-tag-submenu {
+  min-width: 150px;
+  max-height: 300px;
+  overflow-y: auto;
+}
 
 /* src/styles/discover.css */
 .rss-discover-container {
@@ -3070,6 +3215,18 @@
 }
 .rss-discover-card-add-btn:hover {
   border-color: var(--interactive-accent);
+}
+.rss-discover-card-remove-btn {
+  cursor: pointer;
+  background: #e74c3c !important;
+  color: white !important;
+  border: 1px solid #c0392b !important;
+  transition: all 0.2s ease;
+}
+.rss-discover-card-remove-btn:hover {
+  background: #e74c3c !important;
+  color: white !important;
+  border-color: white !important;
 }
 .rss-discover-card-actions {
   display: flex;
