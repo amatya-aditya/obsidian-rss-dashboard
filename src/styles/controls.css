@@ -585,7 +585,9 @@
 	}
 
 	/* Hide hamburger menu when sidebar is open on mobile */
-	.rss-dashboard-container:not(.sidebar-collapsed)
+	/* sidebar-collapsed class is on the parent of rss-dashboard-container */
+	:not(.sidebar-collapsed)
+		.rss-dashboard-container
 		.rss-dashboard-hamburger-menu {
 		display: none;
 	}
