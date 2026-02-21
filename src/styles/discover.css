@@ -24,9 +24,14 @@
 	padding-right: 6px 16px;
 }
 
-@media (max-width: 768px) {
+/*
+ * Breakpoint: <= 1024px — hide sidebar filters on tablet and below.
+ * Must match the dashboard breakpoint in controls.css.
+ * On mobile/tablet the sidebar is replaced by the mobile filters modal.
+ */
+@media (max-width: 1024px) {
 	.rss-discover-sidebar {
-		display: none;
+		display: none !important;
 	}
 
 	.rss-discover-content {
@@ -426,14 +431,13 @@
 	}
 }
 
-@media (max-width: 768px) {
+/* Tablet and below: stack layout vertically, single-column grid */
+@media (max-width: 1024px) {
 	.rss-discover-layout {
 		flex-direction: column;
 	}
 
 	.rss-discover-sidebar {
-		/* width: 100%;
-        min-width: 0; */
 		border-right: none;
 		border-bottom: 1px solid var(--background-modifier-border);
 	}
@@ -663,13 +667,17 @@
 	display: none;
 }
 
-@container (max-width: 800px) {
+/*
+ * Container query breakpoint: <= 1024px — show hamburger, hide desktop filters.
+ * Must match the dashboard breakpoint in controls.css.
+ */
+@container (max-width: 1024px) {
 	.rss-discover-desktop-filters {
-		display: none;
+		display: none !important;
 	}
 
 	.rss-discover-hamburger-menu {
-		display: block;
+		display: block !important;
 		flex-shrink: 0;
 		margin-left: auto;
 	}
@@ -767,9 +775,7 @@
 	max-height: 250px;
 }
 
-.rss-discover-hamburger-menu
-	.rss-discover-dropdown-container.is-active
-	.rss-discover-filter-input {
+.rss-discover-hamburger-menu .rss-discover-dropdown-container.is-active .rss-discover-filter-input {
 	border-bottom-left-radius: 0;
 	border-bottom-right-radius: 0;
 	border-bottom-color: transparent;

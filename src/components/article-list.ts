@@ -235,7 +235,9 @@ export class ArticleList {
 		this.resizeObserver = new ResizeObserver((entries) => {
 			for (const entry of entries) {
 				const width = entry.contentRect.width;
-				if (width < 700) {
+				// Breakpoint: <= 1024px triggers hamburger menu
+				// Must match the CSS breakpoint in controls.css
+				if (width <= 1024) {
 					articlesHeader.classList.add("is-narrow");
 				} else {
 					articlesHeader.classList.remove("is-narrow");
@@ -434,10 +436,10 @@ export class ArticleList {
 		groupDropdown.addEventListener("change", (e: Event) => {
 			this.callbacks.onGroupChange(
 				(e.target as HTMLSelectElement).value as
-					| "none"
-					| "feed"
-					| "date"
-					| "folder",
+				| "none"
+				| "feed"
+				| "date"
+				| "folder",
 			);
 		});
 
@@ -945,7 +947,7 @@ export class ArticleList {
 				cls:
 					"rss-dashboard-article-item" +
 					(this.selectedArticle &&
-					article.guid === this.selectedArticle.guid
+						article.guid === this.selectedArticle.guid
 						? " active"
 						: "") +
 					(article.read ? " read" : " unread") +
@@ -1277,7 +1279,7 @@ export class ArticleList {
 										tagEl.style.setProperty(
 											"--tag-color",
 											tag.color ||
-												"var(--interactive-accent)",
+											"var(--interactive-accent)",
 										);
 									}
 								});
@@ -1358,7 +1360,7 @@ export class ArticleList {
 				cls:
 					"rss-dashboard-article-card" +
 					(this.selectedArticle &&
-					article.guid === this.selectedArticle.guid
+						article.guid === this.selectedArticle.guid
 						? " active"
 						: "") +
 					(article.read ? " read" : " unread") +
@@ -1761,7 +1763,7 @@ export class ArticleList {
 										tagEl.style.setProperty(
 											"--tag-color",
 											tag.color ||
-												"var(--interactive-accent)",
+											"var(--interactive-accent)",
 										);
 									}
 								});

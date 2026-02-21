@@ -5,12 +5,14 @@
 	padding: 0 6px 6px 6px !important;
 	border-top: 1px solid var(--background-modifier-border);
 }
+
 .rss-dashboard-layout {
 	display: flex;
 	height: 100%;
 	overflow: hidden;
 	position: relative;
 }
+
 .rss-dashboard-sidebar {
 	width: 280px;
 	height: 100%;
@@ -19,12 +21,7 @@
 	flex-direction: column;
 	overflow: hidden;
 	background-color: var(--background-primary);
-	transition: transform 0.3s ease;
-	position: absolute;
-	left: 0;
-	top: 0;
-	z-index: 10;
-	transform: translateX(0);
+	transition: width 0.3s ease, margin 0.3s ease;
 }
 
 .rss-dashboard-nav-container {
@@ -63,5 +60,6 @@
 }
 
 .sidebar-collapsed .rss-dashboard-sidebar {
-	transform: translateX(-100%);
+	display: none !important;
+	width: 0 !important;
 }

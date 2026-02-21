@@ -16,6 +16,39 @@
 	margin-right: 0;
 }
 
+/* Discover mobile header styles */
+.rss-discover-mobile-header {
+	display: none;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	background: var(--background-primary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	width: 100%;
+}
+
+.rss-discover-header-left {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
+}
+
+.rss-discover-header-right {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+}
+
+.rss-discover-header-title {
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 .rss-dashboard-filters-section .rss-dashboard-search-input {
 	width: 100%;
 	box-sizing: border-box;
@@ -96,6 +129,7 @@
 	min-width: 20px;
 	text-align: center;
 }
+
 .rss-dashboard-search-input {
 	width: 320px;
 	padding: 8px 8px 8px 35px;
@@ -105,10 +139,12 @@
 	color: var(--text-normal);
 	font-size: 14px;
 }
+
 .rss-dashboard-search-input:focus {
 	outline: 0;
 	border-color: var(--interactive-accent);
 }
+
 .rss-dashboard-toggle-container {
 	position: absolute;
 	left: 0;
@@ -200,6 +236,7 @@
 .rss-input-margin-bottom {
 	margin-bottom: 15px;
 }
+
 .per-feed-controls-header {
 	margin: 20px 0 10px 0;
 	font-size: 16px;
@@ -314,6 +351,7 @@
 	from {
 		opacity: 0;
 	}
+
 	to {
 		opacity: 1;
 	}
@@ -329,11 +367,9 @@
 	align-items: center;
 	margin: 20px 0;
 	padding: 12px 24px;
-	background: linear-gradient(
-		135deg,
-		var(--interactive-accent) 0%,
-		var(--interactive-accent-hover) 100%
-	);
+	background: linear-gradient(135deg,
+			var(--interactive-accent) 0%,
+			var(--interactive-accent-hover) 100%);
 	color: var(--text-on-accent);
 	border: none;
 	border-radius: 8px;
@@ -352,11 +388,9 @@
 .rss-dashboard-view-more:hover {
 	transform: translateY(-2px);
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-	background: linear-gradient(
-		135deg,
-		var(--interactive-accent-hover) 0%,
-		var(--interactive-accent) 100%
-	);
+	background: linear-gradient(135deg,
+			var(--interactive-accent-hover) 0%,
+			var(--interactive-accent) 100%);
 }
 
 .rss-dashboard-view-more:active {
@@ -371,12 +405,10 @@
 	left: -100%;
 	width: 100%;
 	height: 100%;
-	background: linear-gradient(
-		90deg,
-		transparent,
-		rgba(255, 255, 255, 0.2),
-		transparent
-	);
+	background: linear-gradient(90deg,
+			transparent,
+			rgba(255, 255, 255, 0.2),
+			transparent);
 	transition: left 0.5s ease;
 }
 
@@ -448,11 +480,13 @@
 		opacity: 0;
 		transform: translate(-50%, -50%) scale(0.9);
 	}
+
 	to {
 		opacity: 1;
 		transform: translate(-50%, -50%) scale(1);
 	}
 }
+
 .rss-dashboard-hamburger-menu {
 	position: relative;
 }
@@ -470,6 +504,7 @@
 	transition: all 0.2s ease;
 	color: var(--text-normal);
 }
+
 
 .rss-dashboard-hamburger-button:hover {
 	background: var(--background-modifier-hover);
@@ -573,27 +608,58 @@
 	border-color: var(--interactive-accent);
 }
 
+/*
+ * ============================================================
+ * RESPONSIVE LAYOUT - Dashboard Header Controls
+ * ============================================================
+ * Priority order (loaded via index.css):
+ *   1. controls.css (this file) — base + media queries
+ *   2. discover.css — Discover view overrides
+ *   3. responsive.css — global responsive overrides
+ *
+ * The `is-narrow` class is added dynamically by article-list.ts
+ * via ResizeObserver when the header width <= 1024px.
+ * This handles cases where the sidebar is open on desktop,
+ * making the content area narrow even though the viewport is wide.
+ *
+ * Breakpoints:
+ *   - Desktop:  > 1024px  → show desktop controls, hide hamburger
+ *   - Tablet:   769–1024px → show hamburger, hide desktop controls
+ *   - Mobile:   <= 768px   → show hamburger, hide desktop controls
+ *
+ * We use !important on display toggles to prevent overrides from
+ * later-loaded stylesheets (discover.css, responsive.css).
+ * ============================================================
+ */
+
+/* --- Base state: desktop controls visible, hamburger hidden --- */
 .rss-dashboard-desktop-controls {
-	display: flex;
+	display: flex !important;
 	align-items: center;
 	gap: 8px;
 }
 
+.rss-dashboard-hamburger-menu {
+	display: none !important;
+}
+
+/* --- Mobile: <= 768px --- */
 @media (max-width: 768px) {
 	.rss-dashboard-hamburger-menu {
-		display: block;
+		display: block !important;
+	}
+
+	.rss-discover-mobile-header {
+		display: flex;
 	}
 
 	/* Hide hamburger menu when sidebar is open on mobile */
-	/* sidebar-collapsed class is on the parent of rss-dashboard-container */
-	:not(.sidebar-collapsed)
-		.rss-dashboard-container
-		.rss-dashboard-hamburger-menu {
-		display: none;
+	:not(.sidebar-collapsed) .rss-dashboard-container .rss-dashboard-hamburger-menu {
+		display: none !important;
 	}
 
 	.rss-dashboard-desktop-controls {
-		display: none;
+		display: none !important;
 	}
 
 	.rss-dashboard-articles-header {
@@ -619,13 +685,14 @@
 	}
 }
 
+/* --- Tablet: 769px – 1024px --- */
 @media (min-width: 769px) and (max-width: 1024px) {
 	.rss-dashboard-hamburger-menu {
-		display: block;
+		display: block !important;
 	}
 
 	.rss-dashboard-desktop-controls {
-		display: none;
+		display: none !important;
 	}
 
 	.rss-dashboard-dropdown-menu {
@@ -633,16 +700,18 @@
 	}
 }
 
+/* --- Desktop: > 1024px --- */
 @media (min-width: 1025px) {
 	.rss-dashboard-hamburger-menu {
-		display: none;
+		display: none !important;
 	}
 
 	.rss-dashboard-desktop-controls {
-		display: flex;
+		display: flex !important;
 	}
 }
 
+/* --- Small mobile: <= 400px --- */
 @media (max-width: 400px) {
 	.rss-dashboard-dropdown-menu {
 		right: -10px;
@@ -670,20 +739,16 @@
 	outline-offset: 2px;
 }
 
-.rss-dashboard-desktop-controls {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-.rss-dashboard-hamburger-menu {
-	display: none;
+/*
+ * Dynamic narrow-view overrides (set by ResizeObserver in article-list.ts).
+ * These use !important to override the base state above when added.
+ */
+.rss-dashboard-articles-header.is-narrow .rss-dashboard-desktop-controls {
+	display: none !important;
 }
 
-.rss-dashboard-articles-header.is-narrow .rss-dashboard-desktop-controls {
-	display: none;
-}
 .rss-dashboard-articles-header.is-narrow .rss-dashboard-hamburger-menu {
-	display: block;
+	display: block !important;
 }
 
 .rss-dashboard-articles-header.is-narrow {

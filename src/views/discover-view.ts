@@ -7,6 +7,7 @@ import {
 import { RssDashboardSettings, Feed } from "../types/types";
 import { FeedPreviewModal } from "../modals/feed-preview-modal";
 import { AddToFolderModal } from "../modals/add-to-folder-modal";
+import { MobileDiscoverFiltersModal } from "../modals/mobile-discover-filters-modal";
 import type RssDashboardPlugin from "../../main";
 
 import feedsData from "../discover/discover-feeds.json";
@@ -253,6 +254,31 @@ export class DiscoverView extends ItemView {
 		this.app.saveLocalStorage("rss-discover-filters", this.filters);
 	}
 
+	public openMobileSidebar(): void {
+		if (this.app.isMobile) {
+			new MobileDiscoverFiltersModal(
+				this.app,
+				this.plugin,
+				this.feeds,
+				this.categoryMap,
+				this.filters,
+				{
+					onActivateView: () => this.plugin.activateView(),
+					onActivateDiscoverView: () =>
+						this.plugin.activateDiscoverView(),
+					onFilterSelection: this.handleFilterSelection.bind(this),
+					onCategorySelection: this.handleCategorySelection.bind(this),
+					onFilterChange: () => {
+						this.currentPage = 1;
+						this.filterFeeds();
+						this.saveFilterState();
+						this.render();
+					},
+				},
+			).open();
+		}
+	}
+
 	render(): void {
 		const container = this.containerEl.children[1] as HTMLElement;
 		container.empty();
@@ -369,7 +395,38 @@ export class DiscoverView extends ItemView {
 
 	private renderSidebarHeader(container: HTMLElement): void {
 		const header = container.createDiv({ cls: "rss-discover-header" });
-		const navContainer = header.createDiv({
+		this.renderNavTabs(header);
+	}
+
+	private renderMobileHeader(container: HTMLElement): void {
+		const header = container.createDiv({ cls: "rss-discover-mobile-header" });
+
+		const leftSection = header.createDiv({
+			cls: "rss-discover-header-left",
+		});
+
+		const sidebarToggleButton = leftSection.createDiv({
+			cls: "rss-dashboard-sidebar-toggle",
+			attr: { title: "Toggle filters" },
+		});
+		setIcon(sidebarToggleButton, "panel-left");
+		sidebarToggleButton.addEventListener("click", () => {
+			this.openMobileSidebar();
+		});
+
+		leftSection.createDiv({
+			cls: "rss-discover-header-title",
+			text: "RSS Discover",
+		});
+
+		const rightSection = header.createDiv({
+			cls: "rss-discover-header-right",
+		});
+		this.renderNavTabs(rightSection);
+	}
+
+	private renderNavTabs(container: HTMLElement): void {
+		const navContainer = container.createDiv({
 			cls: "rss-dashboard-nav-container",
 		});
 
@@ -731,6 +788,10 @@ export class DiscoverView extends ItemView {
 		const topSection = controlsContainer.createDiv({
 			cls: "rss-discover-top-section",
 		});
+
+		if (this.app.isMobile) {
+			this.renderMobileHeader(topSection);
+		}
 
 		const desktopControls = topSection.createDiv({
 			cls: "rss-discover-desktop-filters",

@@ -12,6 +12,8 @@ import { ArticleList } from "../components/article-list";
 import { ArticleSaver } from "../services/article-saver";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
+import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
+
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -867,7 +869,50 @@ export class RssDashboardView extends ItemView {
 		void this.plugin.exportOpml();
 	}
 
+	public openMobileSidebar(): void {
+		if (this.app.isMobile) {
+			new MobileNavigationModal(
+				this.app,
+				this.plugin,
+				this.settings,
+				{
+					currentFolder: this.currentFolder,
+					currentFeed: this.currentFeed,
+					currentTag: this.currentTag,
+					tagsCollapsed: this.tagsCollapsed,
+					collapsedFolders: this.collapsedFolders,
+				},
+				{
+					onFolderClick: this.handleFolderClick.bind(this),
+					onFeedClick: this.handleFeedClick.bind(this),
+					onTagClick: this.handleTagClick.bind(this),
+					onToggleTagsCollapse:
+						this.handleToggleTagsCollapse.bind(this),
+					onToggleFolderCollapse:
+						this.handleToggleFolderCollapse.bind(this),
+					onBatchToggleFolders:
+						this.handleBatchToggleFolders.bind(this),
+					onAddFolder: this.handleAddFolder.bind(this),
+					onAddSubfolder: this.handleAddSubfolder.bind(this),
+					onAddFeed: this.handleAddFeed.bind(this),
+					onEditFeed: this.handleEditFeed.bind(this),
+					onDeleteFeed: this.handleDeleteFeed.bind(this),
+					onDeleteFolder: this.handleDeleteFolder.bind(this),
+					onRefreshFeeds: this.handleRefreshFeeds.bind(this),
+					onUpdateFeed: this.handleUpdateFeed.bind(this),
+					onImportOpml: this.handleImportOpml.bind(this),
+					onExportOpml: this.handleExportOpml.bind(this),
+					onToggleSidebar: this.handleToggleSidebar.bind(this),
+				},
+			).open();
+		}
+	}
+
 	private handleToggleSidebar(): void {
+		if (this.app.isMobile) {
+			this.openMobileSidebar();
+			return;
+		}
 		this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
 		void this.plugin.saveSettings();
 		void this.render();
@@ -1055,10 +1100,10 @@ export class RssDashboardView extends ItemView {
 
 		const file = this.settings.articleSaving.saveFullContent
 			? await this.saver.saveArticleWithFullContent(
-					article,
-					undefined,
-					customTemplate,
-				)
+				article,
+				undefined,
+				customTemplate,
+			)
 			: await this.saver.saveArticle(article, undefined, customTemplate);
 
 		if (file) {
