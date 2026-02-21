@@ -707,7 +707,7 @@ export class AddFeedModal extends Modal {
 			cls: "rss-dashboard-advanced-options-toggle",
 		});
 		toggleHeader.createEl("span", {
-			text: "Advanced Options",
+			text: "Advanced options",
 			cls: "rss-dashboard-advanced-options-label",
 		});
 		const toggleIcon = toggleHeader.createEl("span", {
@@ -716,9 +716,15 @@ export class AddFeedModal extends Modal {
 		toggleIcon.setText(isMobileView ? "▶" : "▼");
 
 		toggleHeader.addEventListener("click", () => {
-			advancedOptionsContainer.toggleClass("collapsed");
 			const isCollapsed = advancedOptionsContainer.hasClass("collapsed");
-			toggleIcon.setText(isCollapsed ? "▶" : "▼");
+			if (isCollapsed) {
+				advancedOptionsContainer.removeClass("collapsed");
+			} else {
+				advancedOptionsContainer.addClass("collapsed");
+			}
+			toggleIcon.setText(
+				advancedOptionsContainer.hasClass("collapsed") ? "▶" : "▼",
+			);
 		});
 
 		// Move advanced options into the container
@@ -783,7 +789,7 @@ export class AddFeedModal extends Modal {
 				});
 		});
 
-		const maxItemsSetting = new Setting(contentEl)
+		const maxItemsSetting = new Setting(advancedOptionsContainer)
 			.setName("Max items limit")
 			.setDesc("Maximum number of items to keep per feed");
 
@@ -845,7 +851,7 @@ export class AddFeedModal extends Modal {
 				});
 		});
 
-		const scanIntervalSetting = new Setting(contentEl)
+		const scanIntervalSetting = new Setting(advancedOptionsContainer)
 			.setName("Scan interval")
 			.setDesc("Custom scan interval in minutes");
 
