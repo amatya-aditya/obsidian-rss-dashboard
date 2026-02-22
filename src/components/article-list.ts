@@ -1045,78 +1045,23 @@ export class ArticleList {
 				e.stopPropagation();
 				const newReadState = !article.read;
 
-				// Check if auto-hide is enabled and article is being marked as read
-				if (
-					this.settings.display?.autoHideOnReadToggle &&
-					newReadState
-				) {
-					// Find the article element
-					const articleEl = this.container.querySelector(
-						`[id="article-${article.guid}"]`,
-					) as HTMLElement;
-
-					if (articleEl) {
-						// Get duration from settings (default 0ms/instant)
-						const duration =
-							this.settings.display?.autoHideDuration ?? 0;
-
-						// Add hiding class for animation
-						articleEl.classList.add("rss-dashboard-article-hiding");
-
-						// Set custom transition duration via CSS variable
-						articleEl.style.setProperty(
-							"--hide-duration",
-							`${duration}ms`,
-						);
-
-						// Wait for animation then update and re-render
-						setTimeout(() => {
-							this.callbacks.onArticleUpdate(
-								article,
-								{ read: newReadState },
-								true,
-							);
-						}, duration);
-					} else {
-						// Fallback to normal behavior
-						this.callbacks.onArticleUpdate(
-							article,
-							{ read: newReadState },
-							false,
-						);
-						readToggle.classList.toggle(
-							"read",
-							!readToggle.classList.contains("read"),
-						);
-						readToggle.classList.toggle(
-							"unread",
-							!readToggle.classList.contains("unread"),
-						);
-						setIcon(
-							readToggle,
-							newReadState ? "check-circle" : "circle",
-						);
-					}
-				} else {
-					// Normal toggle behavior
-					this.callbacks.onArticleUpdate(
-						article,
-						{ read: newReadState },
-						false,
-					);
-					readToggle.classList.toggle(
-						"read",
-						!readToggle.classList.contains("read"),
-					);
-					readToggle.classList.toggle(
-						"unread",
-						!readToggle.classList.contains("unread"),
-					);
-					setIcon(
-						readToggle,
-						newReadState ? "check-circle" : "circle",
-					);
-				}
+				this.callbacks.onArticleUpdate(
+					article,
+					{ read: newReadState },
+					false,
+				);
+				readToggle.classList.toggle(
+					"read",
+					!readToggle.classList.contains("read"),
+				);
+				readToggle.classList.toggle(
+					"unread",
+					!readToggle.classList.contains("unread"),
+				);
+				setIcon(
+					readToggle,
+					newReadState ? "check-circle" : "circle",
+				);
 			});
 
 			const starToggle = actionToolbar.createDiv({
@@ -1181,13 +1126,13 @@ export class ArticleList {
 						if (!article.tags) article.tags = [];
 						if (checked) {
 							if (
-								!article.tags.some((t) => t.name === tag.name)
+				!article.tags.some((t) => t.name === tag.name)
 							) {
-								article.tags.push({ ...tag });
+				article.tags.push({ ...tag });
 							}
 						} else {
 							article.tags = article.tags.filter(
-								(t) => t.name !== tag.name,
+				(t) => t.name !== tag.name,
 							);
 						}
 
@@ -1200,9 +1145,9 @@ export class ArticleList {
 
 						if (this.callbacks.onArticleUpdate) {
 							this.callbacks.onArticleUpdate(
-								article,
-								{ tags: [...article.tags] },
-								false,
+				article,
+				{ tags: [...article.tags] },
+				false,
 							);
 						}
 
@@ -1211,112 +1156,112 @@ export class ArticleList {
 						) as HTMLElement;
 						if (!articleEl) {
 							articleEl = this.container
-								.closest(".rss-dashboard-container")
-								?.querySelector(
-									`[id="article-${article.guid}"]`,
-								) as HTMLElement;
+				.closest(".rss-dashboard-container")
+				?.querySelector(
+				`[id="article-${article.guid}"]`,
+				) as HTMLElement;
 						}
 						if (!articleEl) {
 							articleEl = document.getElementById(
-								`article-${article.guid}`,
+				`article-${article.guid}`,
 							) as HTMLElement;
 						}
 						if (articleEl) {
 							articleEl.classList.add(
-								"rss-dashboard-tag-change-feedback",
+				"rss-dashboard-tag-change-feedback",
 							);
 							window.setTimeout(() => {
-								articleEl.classList.remove(
-									"rss-dashboard-tag-change-feedback",
-								);
+				articleEl.classList.remove(
+				"rss-dashboard-tag-change-feedback",
+				);
 							}, 200);
 							let tagsContainer = articleEl.querySelector(
-								".rss-dashboard-article-tags",
+				".rss-dashboard-article-tags",
 							);
 							if (!tagsContainer) {
-								const cardContent =
-									articleEl.querySelector(
-										".rss-dashboard-card-content",
-									) || articleEl;
-								const actionToolbar = cardContent.querySelector(
-									".rss-dashboard-action-toolbar",
-								);
-								if (actionToolbar) {
-									tagsContainer = (
-										cardContent as HTMLElement
-									).createDiv({
-										cls: "rss-dashboard-article-tags",
-									});
-									cardContent.insertBefore(
-										tagsContainer,
-										actionToolbar,
-									);
-								}
+				const cardContent =
+				articleEl.querySelector(
+				".rss-dashboard-card-content",
+				) || articleEl;
+				const actionToolbar = cardContent.querySelector(
+				".rss-dashboard-action-toolbar",
+				);
+				if (actionToolbar) {
+				tagsContainer = (
+				cardContent as HTMLElement
+				).createDiv({
+				cls: "rss-dashboard-article-tags",
+				});
+				cardContent.insertBefore(
+				tagsContainer,
+				actionToolbar,
+				);
+				}
 							} else {
-								while (tagsContainer.firstChild) {
-									tagsContainer.removeChild(
-										tagsContainer.firstChild,
-									);
-								}
+				while (tagsContainer.firstChild) {
+				tagsContainer.removeChild(
+				tagsContainer.firstChild,
+				);
+				}
 							}
 							if (
-								tagsContainer &&
-								article.tags &&
-								article.tags.length > 0
+				tagsContainer &&
+				article.tags &&
+				article.tags.length > 0
 							) {
-								const tagsToShow = article.tags.slice(
-									0,
-									MAX_VISIBLE_TAGS,
-								);
-								tagsToShow.forEach((tag) => {
-									if (tagsContainer) {
-										const tagEl = (
-											tagsContainer as HTMLElement
-										).createDiv({
-											cls: "rss-dashboard-article-tag",
-											text: tag.name,
-										});
-										tagEl.style.setProperty(
-											"--tag-color",
-											tag.color ||
-											"var(--interactive-accent)",
-										);
-									}
-								});
-								if (
-									article.tags.length > MAX_VISIBLE_TAGS &&
-									tagsContainer
-								) {
-									(tagsContainer as HTMLElement).createDiv({
-										cls: "rss-dashboard-tag-overflow",
-										text: `+${article.tags.length - MAX_VISIBLE_TAGS}`,
-										attr: {
-											title: article.tags
-												.slice(MAX_VISIBLE_TAGS)
-												.map((t) => t.name)
-												.join(", "),
-										},
-									});
-								}
+				const tagsToShow = article.tags.slice(
+				0,
+				MAX_VISIBLE_TAGS,
+				);
+				tagsToShow.forEach((tag) => {
+				if (tagsContainer) {
+				const tagEl = (
+				tagsContainer as HTMLElement
+				).createDiv({
+				cls: "rss-dashboard-article-tag",
+				text: tag.name,
+				});
+				tagEl.style.setProperty(
+				"--tag-color",
+				tag.color ||
+				"var(--interactive-accent)",
+				);
+				}
+				});
+				if (
+				article.tags.length > MAX_VISIBLE_TAGS &&
+				tagsContainer
+				) {
+				(tagsContainer as HTMLElement).createDiv({
+				cls: "rss-dashboard-tag-overflow",
+				text: `+${article.tags.length - MAX_VISIBLE_TAGS}`,
+				attr: {
+				title: article.tags
+				.slice(MAX_VISIBLE_TAGS)
+				.map((t) => t.name)
+				.join(", "),
+				},
+				});
+				}
 							} else if (tagsContainer) {
-								while (tagsContainer.firstChild) {
-									tagsContainer.removeChild(
-										tagsContainer.firstChild,
-									);
-								}
+				while (tagsContainer.firstChild) {
+				tagsContainer.removeChild(
+				tagsContainer.firstChild,
+				);
+				}
 							}
 							void articleEl.offsetHeight;
 						} else {
 							const tempIndicator = document.body.createDiv({
-								cls: "rss-dashboard-tag-change-notification",
-								text: `Tag "${tag.name}" ${checked ? "added" : "removed"}`,
+				cls: "rss-dashboard-tag-change-notification",
+				text: `Tag "${tag.name}" ${checked ? "added" : "removed"}`,
 							});
 							window.setTimeout(() => {
-								if (tempIndicator.parentNode) {
-									tempIndicator.parentNode.removeChild(
-										tempIndicator,
-									);
-								}
+				if (tempIndicator.parentNode) {
+				tempIndicator.parentNode.removeChild(
+				tempIndicator,
+				);
+				}
 							}, 1500);
 						}
 					},
@@ -1528,78 +1473,23 @@ export class ArticleList {
 				e.stopPropagation();
 				const newReadState = !article.read;
 
-				// Check if auto-hide is enabled and article is being marked as read
-				if (
-					this.settings.display?.autoHideOnReadToggle &&
-					newReadState
-				) {
-					// Find the article element
-					const articleEl = this.container.querySelector(
-						`[id="article-${article.guid}"]`,
-					) as HTMLElement;
-
-					if (articleEl) {
-						// Get duration from settings (default 0ms/instant)
-						const duration =
-							this.settings.display?.autoHideDuration ?? 0;
-
-						// Add hiding class for animation
-						articleEl.classList.add("rss-dashboard-article-hiding");
-
-						// Set custom transition duration via CSS variable
-						articleEl.style.setProperty(
-							"--hide-duration",
-							`${duration}ms`,
-						);
-
-						// Wait for animation then update and re-render
-						setTimeout(() => {
-							this.callbacks.onArticleUpdate(
-								article,
-								{ read: newReadState },
-								true,
-							);
-						}, duration);
-					} else {
-						// Fallback to normal behavior
-						this.callbacks.onArticleUpdate(
-							article,
-							{ read: newReadState },
-							false,
-						);
-						readToggle.classList.toggle(
-							"read",
-							!readToggle.classList.contains("read"),
-						);
-						readToggle.classList.toggle(
-							"unread",
-							!readToggle.classList.contains("unread"),
-						);
-						setIcon(
-							readToggle,
-							newReadState ? "check-circle" : "circle",
-						);
-					}
-				} else {
-					// Normal toggle behavior
-					this.callbacks.onArticleUpdate(
-						article,
-						{ read: newReadState },
-						false,
-					);
-					readToggle.classList.toggle(
-						"read",
-						!readToggle.classList.contains("read"),
-					);
-					readToggle.classList.toggle(
-						"unread",
-						!readToggle.classList.contains("unread"),
-					);
-					setIcon(
-						readToggle,
-						newReadState ? "check-circle" : "circle",
-					);
-				}
+				this.callbacks.onArticleUpdate(
+					article,
+					{ read: newReadState },
+					false,
+				);
+				readToggle.classList.toggle(
+					"read",
+					!readToggle.classList.contains("read"),
+				);
+				readToggle.classList.toggle(
+					"unread",
+					!readToggle.classList.contains("unread"),
+				);
+				setIcon(
+					readToggle,
+					newReadState ? "check-circle" : "circle",
+				);
 			});
 
 			const starToggle = actionToolbar.createDiv({
@@ -1665,13 +1555,13 @@ export class ArticleList {
 						if (!article.tags) article.tags = [];
 						if (checked) {
 							if (
-								!article.tags.some((t) => t.name === tag.name)
+				!article.tags.some((t) => t.name === tag.name)
 							) {
-								article.tags.push({ ...tag });
+				article.tags.push({ ...tag });
 							}
 						} else {
 							article.tags = article.tags.filter(
-								(t) => t.name !== tag.name,
+				(t) => t.name !== tag.name,
 							);
 						}
 
@@ -1684,9 +1574,9 @@ export class ArticleList {
 
 						if (this.callbacks.onArticleUpdate) {
 							this.callbacks.onArticleUpdate(
-								article,
-								{ tags: [...article.tags] },
-								false,
+				article,
+				{ tags: [...article.tags] },
+				false,
 							);
 						}
 
@@ -1695,112 +1585,112 @@ export class ArticleList {
 						) as HTMLElement;
 						if (!articleEl) {
 							articleEl = this.container
-								.closest(".rss-dashboard-container")
-								?.querySelector(
-									`[id="article-${article.guid}"]`,
-								) as HTMLElement;
+				.closest(".rss-dashboard-container")
+				?.querySelector(
+				`[id="article-${article.guid}"]`,
+				) as HTMLElement;
 						}
 						if (!articleEl) {
 							articleEl = document.getElementById(
-								`article-${article.guid}`,
+				`article-${article.guid}`,
 							) as HTMLElement;
 						}
 						if (articleEl) {
 							articleEl.classList.add(
-								"rss-dashboard-tag-change-feedback",
+				"rss-dashboard-tag-change-feedback",
 							);
 							window.setTimeout(() => {
-								articleEl.classList.remove(
-									"rss-dashboard-tag-change-feedback",
-								);
+				articleEl.classList.remove(
+				"rss-dashboard-tag-change-feedback",
+				);
 							}, 200);
 							let tagsContainer = articleEl.querySelector(
-								".rss-dashboard-article-tags",
+				".rss-dashboard-article-tags",
 							);
 							if (!tagsContainer) {
-								const cardContent =
-									articleEl.querySelector(
-										".rss-dashboard-card-content",
-									) || articleEl;
-								const actionToolbar = cardContent.querySelector(
-									".rss-dashboard-action-toolbar",
-								);
-								if (actionToolbar) {
-									tagsContainer = (
-										cardContent as HTMLElement
-									).createDiv({
-										cls: "rss-dashboard-article-tags",
-									});
-									cardContent.insertBefore(
-										tagsContainer,
-										actionToolbar,
-									);
-								}
+				const cardContent =
+				articleEl.querySelector(
+				".rss-dashboard-card-content",
+				) || articleEl;
+				const actionToolbar = cardContent.querySelector(
+				".rss-dashboard-action-toolbar",
+				);
+				if (actionToolbar) {
+				tagsContainer = (
+				cardContent as HTMLElement
+				).createDiv({
+				cls: "rss-dashboard-article-tags",
+				});
+				cardContent.insertBefore(
+				tagsContainer,
+				actionToolbar,
+				);
+				}
 							} else {
-								while (tagsContainer.firstChild) {
-									tagsContainer.removeChild(
-										tagsContainer.firstChild,
-									);
-								}
+				while (tagsContainer.firstChild) {
+				tagsContainer.removeChild(
+				tagsContainer.firstChild,
+				);
+				}
 							}
 							if (
-								tagsContainer &&
-								article.tags &&
-								article.tags.length > 0
+				tagsContainer &&
+				article.tags &&
+				article.tags.length > 0
 							) {
-								const tagsToShow = article.tags.slice(
-									0,
-									MAX_VISIBLE_TAGS,
-								);
-								tagsToShow.forEach((tag) => {
-									if (tagsContainer) {
-										const tagEl = (
-											tagsContainer as HTMLElement
-										).createDiv({
-											cls: "rss-dashboard-article-tag",
-											text: tag.name,
-										});
-										tagEl.style.setProperty(
-											"--tag-color",
-											tag.color ||
-											"var(--interactive-accent)",
-										);
-									}
-								});
-								if (
-									article.tags.length > MAX_VISIBLE_TAGS &&
-									tagsContainer
-								) {
-									(tagsContainer as HTMLElement).createDiv({
-										cls: "rss-dashboard-tag-overflow",
-										text: `+${article.tags.length - MAX_VISIBLE_TAGS}`,
-										attr: {
-											title: article.tags
-												.slice(MAX_VISIBLE_TAGS)
-												.map((t) => t.name)
-												.join(", "),
-										},
-									});
-								}
+				const tagsToShow = article.tags.slice(
+				0,
+				MAX_VISIBLE_TAGS,
+				);
+				tagsToShow.forEach((tag) => {
+				if (tagsContainer) {
+				const tagEl = (
+				tagsContainer as HTMLElement
+				).createDiv({
+				cls: "rss-dashboard-article-tag",
+				text: tag.name,
+				});
+				tagEl.style.setProperty(
+				"--tag-color",
+				tag.color ||
+				"var(--interactive-accent)",
+				);
+				}
+				});
+				if (
+				article.tags.length > MAX_VISIBLE_TAGS &&
+				tagsContainer
+				) {
+				(tagsContainer as HTMLElement).createDiv({
+				cls: "rss-dashboard-tag-overflow",
+				text: `+${article.tags.length - MAX_VISIBLE_TAGS}`,
+				attr: {
+				title: article.tags
+				.slice(MAX_VISIBLE_TAGS)
+				.map((t) => t.name)
+				.join(", "),
+				},
+				});
+				}
 							} else if (tagsContainer) {
-								while (tagsContainer.firstChild) {
-									tagsContainer.removeChild(
-										tagsContainer.firstChild,
-									);
-								}
+				while (tagsContainer.firstChild) {
+				tagsContainer.removeChild(
+				tagsContainer.firstChild,
+				);
+				}
 							}
 							void articleEl.offsetHeight;
 						} else {
 							const tempIndicator = document.body.createDiv({
-								cls: "rss-dashboard-tag-change-notification",
-								text: `Tag "${tag.name}" ${checked ? "added" : "removed"}`,
+				cls: "rss-dashboard-tag-change-notification",
+				text: `Tag "${tag.name}" ${checked ? "added" : "removed"}`,
 							});
 							window.setTimeout(() => {
-								if (tempIndicator.parentNode) {
-									tempIndicator.parentNode.removeChild(
-										tempIndicator,
-									);
-								}
+				if (tempIndicator.parentNode) {
+				tempIndicator.parentNode.removeChild(
+				tempIndicator,
+				);
+				}
 							}, 1500);
 						}
 					},

@@ -152,18 +152,16 @@ export interface DisplaySettings {
 	showSummary: boolean;
 	filterDisplayStyle: "vertical" | "inline";
 	defaultFilter:
-		| "all"
-		| "starred"
-		| "unread"
-		| "read"
-		| "saved"
-		| "videos"
-		| "podcasts";
+	| "all"
+	| "starred"
+	| "unread"
+	| "read"
+	| "saved"
+	| "videos"
+	| "podcasts";
 	hiddenFilters: string[];
 	useDomainFavicons: boolean;
 	hideDefaultRssIcon: boolean;
-	autoHideOnReadToggle: boolean;
-	autoHideDuration: number;
 }
 
 export interface RssDashboardSettings {
@@ -314,7 +312,5 @@ guid: "{{guid}}"
 		hiddenFilters: [],
 		useDomainFavicons: true,
 		hideDefaultRssIcon: false,
-		autoHideOnReadToggle: false,
-		autoHideDuration: 0,
 	},
 };

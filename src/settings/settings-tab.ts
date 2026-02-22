@@ -390,55 +390,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
 					}),
 			);
 
-		// Auto-hide on read toggle setting
-		new Setting(containerEl)
-			.setName("Auto-hide on read toggle")
-			.setDesc(
-				"When enabled, articles will be hidden after clicking the read/unread button, and remaining articles will shift up to fill the gap.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(
-						this.plugin.settings.display.autoHideOnReadToggle ||
-							false,
-					)
-					.onChange(async (value) => {
-						this.plugin.settings.display.autoHideOnReadToggle =
-							value;
-						await this.plugin.saveSettings();
-						// Re-render to show/hide duration setting
-						this.display();
-					}),
-			);
-
-		// Fade out duration - only visible when auto-hide is enabled
-		if (this.plugin.settings.display.autoHideOnReadToggle) {
-			new Setting(containerEl)
-				.setName("Fade out duration")
-				.setDesc(
-					"Duration of the fade out animation when hiding articles",
-				)
-				.addDropdown((dropdown) =>
-					dropdown
-						.addOption("0", "0ms (instant)")
-						.addOption("100", "100ms")
-						.addOption("200", "200ms")
-						.addOption("300", "300ms")
-						.addOption("500", "500ms")
-						.addOption("1000", "1000ms")
-						.setValue(
-							String(
-								this.plugin.settings.display.autoHideDuration ??
-									0,
-							),
-						)
-						.onChange(async (value: string) => {
-							this.plugin.settings.display.autoHideDuration =
-								parseInt(value, 10);
-							await this.plugin.saveSettings();
-						}),
-				);
-		}
 
 		new Setting(containerEl)
 			.setName("Filter display style")
