@@ -1,4 +1,42 @@
 # RSS Dashboard - Changelog
+ 
+## [2.0.6] - 2026-02-21
+ 
+### ✨ New Features
+ 
+- **Mobile Navigation Drawer**: Implemented a new modal-based navigation drawer for the Dashboard view on mobile devices.
+- **Mobile Discover Filters**: Added a dedicated modal for filtering feeds on the Discover page, specifically optimized for mobile and tablet screens.
+ 
+### 🎨 UI/UX Improvements
+ 
+- **Unified 1024px Breakpoint**: Standardized the responsive layout across both Dashboard and Discover views to trigger at 1024px (Tablet).
+- **Responsive Header Controls**: Restricted desktop-style filter and sort buttons to resolutions above 1024px, ensuring the hamburger menu is the primary control on tablets and mobile.
+- **Refined Narrow View Logic**: Updated the `ResizeObserver` threshold to 1024px, ensuring the header collapses correctly when the Obsidian sidebar is open on smaller desktop screens.
+ 
+### 🐛 Bug Fixes
+ 
+- **CSS Loading Order Fixes**: Resolved conflicts where later-loaded stylesheets were overriding responsive layout rules.
+- **Breakpoint Synchronization**: Fixed inconsistencies between the Dashboard and Discover view responsive thresholds.
+- **CSS Specificity**: Applied `!important` to key responsive display toggles to ensure layout stability across all Obsidian themes.
+ 
+### Technical Details
+ 
+The responsive system was overhauled to ensure consistency:
+- **`controls.css`**: Added detailed documentation of the responsive hierarchy and load order.
+- **`discover.css`**: Updated container queries and media queries to align with the 1024px standard.
+- **`responsive.css`**: Synchronized sidebar hiding rules.
+ 
+**Files Changed:**
+- `src/styles/controls.css`
+- `src/styles/discover.css`
+- `src/styles/responsive.css`
+- `src/components/article-list.ts`
+- `src/modals/mobile-navigation-modal.ts`
+- `src/modals/mobile-discover-filters-modal.ts`
+- `src/views/dashboard-view.ts`
+- `src/views/discover-view.ts`
+ 
+---
 
 ## [2.0.5] - 2026-02-20
 
