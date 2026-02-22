@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, setIcon } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, setIcon, Platform } from "obsidian";
 import {
 	FeedMetadata,
 	CategoryPath,
@@ -255,25 +255,18 @@ export class DiscoverView extends ItemView {
 	}
 
 	public openMobileSidebar(): void {
-		if (this.app.isMobile) {
+		if (Platform.isMobile) {
 			new MobileDiscoverFiltersModal(
 				this.app,
 				this.plugin,
-				this.feeds,
-				this.categoryMap,
 				this.filters,
-				{
-					onActivateView: () => this.plugin.activateView(),
-					onActivateDiscoverView: () =>
-						this.plugin.activateDiscoverView(),
-					onFilterSelection: this.handleFilterSelection.bind(this),
-					onCategorySelection: this.handleCategorySelection.bind(this),
-					onFilterChange: () => {
-						this.currentPage = 1;
-						this.filterFeeds();
-						this.saveFilterState();
-						this.render();
-					},
+				this.feeds,
+				this.activeSidebarSection,
+				() => {
+					this.currentPage = 1;
+					this.filterFeeds();
+					this.saveFilterState();
+					this.render();
 				},
 			).open();
 		}
@@ -399,7 +392,9 @@ export class DiscoverView extends ItemView {
 	}
 
 	private renderMobileHeader(container: HTMLElement): void {
-		const header = container.createDiv({ cls: "rss-discover-mobile-header" });
+		const header = container.createDiv({
+			cls: "rss-discover-mobile-header",
+		});
 
 		const leftSection = header.createDiv({
 			cls: "rss-discover-header-left",
@@ -789,7 +784,7 @@ export class DiscoverView extends ItemView {
 			cls: "rss-discover-top-section",
 		});
 
-		if (this.app.isMobile) {
+		if (Platform.isMobile) {
 			this.renderMobileHeader(topSection);
 		}
 

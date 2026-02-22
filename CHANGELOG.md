@@ -1,32 +1,70 @@
 # RSS Dashboard - Changelog
- 
+
+## [2.0.7] - 2026-02-22
+
+### 🐛 Bug Fixes
+
+### Build System
+
+- **Fixed ESLint/TypeScript Build Errors**: Resolved all build errors to ensure clean production builds
+    - Fixed `@typescript-eslint/no-explicit-any` errors by adding proper types in `discover-sidebar.ts`
+    - Fixed `@typescript-eslint/no-unsafe-*` errors by properly typing category map and node parameters
+    - Fixed `@typescript-eslint/no-misused-promises` errors by converting async callbacks to void-returning functions
+    - Fixed `obsidianmd/no-static-styles-assignment` by using CSS classes instead of direct style assignments
+    - Exported `SidebarOptions` and `SidebarCallbacks` interfaces from `sidebar.ts` for proper typing
+    - Replaced `this.app.isMobile` with `Platform.isMobile` (correct Obsidian API for mobile detection)
+    - Added definite assignment assertions (`!`) for class properties initialized in `onOpen()`
+
+### Technical Details
+
+The build errors were caused by:
+
+1. Use of `any` types in category map generation and rendering
+2. Async functions passed where void return was expected in callback interfaces
+3. Direct style assignments (`element.style.visibility`, `element.style.display`) instead of CSS classes
+4. Non-exported interfaces being used in other modules
+5. Incorrect use of `app.isMobile` instead of `Platform.isMobile`
+
+**Files Changed:**
+
+- `src/components/discover-sidebar.ts`: Added proper types, used CSS classes for visibility
+- `src/modals/mobile-discover-filters-modal.ts`: Fixed async callback and property initialization
+- `src/modals/mobile-navigation-modal.ts`: Fixed interface usage and property initialization
+- `src/components/sidebar.ts`: Exported interfaces
+- `src/views/dashboard-view.ts`: Used `Platform.isMobile`
+- `src/views/discover-view.ts`: Used `Platform.isMobile`, fixed modal constructor call
+
+---
+
 ## [2.0.6] - 2026-02-21
- 
+
 ### ✨ New Features
- 
+
 - **Mobile Navigation Drawer**: Implemented a new modal-based navigation drawer for the Dashboard view on mobile devices.
 - **Mobile Discover Filters**: Added a dedicated modal for filtering feeds on the Discover page, specifically optimized for mobile and tablet screens.
- 
+
 ### 🎨 UI/UX Improvements
- 
+
 - **Unified 1024px Breakpoint**: Standardized the responsive layout across both Dashboard and Discover views to trigger at 1024px (Tablet).
 - **Responsive Header Controls**: Restricted desktop-style filter and sort buttons to resolutions above 1024px, ensuring the hamburger menu is the primary control on tablets and mobile.
 - **Refined Narrow View Logic**: Updated the `ResizeObserver` threshold to 1024px, ensuring the header collapses correctly when the Obsidian sidebar is open on smaller desktop screens.
- 
+
 ### 🐛 Bug Fixes
- 
+
 - **CSS Loading Order Fixes**: Resolved conflicts where later-loaded stylesheets were overriding responsive layout rules.
 - **Breakpoint Synchronization**: Fixed inconsistencies between the Dashboard and Discover view responsive thresholds.
 - **CSS Specificity**: Applied `!important` to key responsive display toggles to ensure layout stability across all Obsidian themes.
- 
+
 ### Technical Details
- 
+
 The responsive system was overhauled to ensure consistency:
+
 - **`controls.css`**: Added detailed documentation of the responsive hierarchy and load order.
 - **`discover.css`**: Updated container queries and media queries to align with the 1024px standard.
 - **`responsive.css`**: Synchronized sidebar hiding rules.
- 
+
 **Files Changed:**
+
 - `src/styles/controls.css`
 - `src/styles/discover.css`
 - `src/styles/responsive.css`
@@ -35,7 +73,7 @@ The responsive system was overhauled to ensure consistency:
 - `src/modals/mobile-discover-filters-modal.ts`
 - `src/views/dashboard-view.ts`
 - `src/views/discover-view.ts`
- 
+
 ---
 
 ## [2.0.5] - 2026-02-20

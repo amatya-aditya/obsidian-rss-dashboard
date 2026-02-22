@@ -17,7 +17,7 @@ import {
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import type RssDashboardPlugin from "../../main";
 
-interface SidebarOptions {
+export interface SidebarOptions {
 	currentFolder: string | null;
 	currentFeed: Feed | null;
 	currentTag: string | null;
@@ -25,7 +25,7 @@ interface SidebarOptions {
 	collapsedFolders: string[];
 }
 
-interface SidebarCallbacks {
+export interface SidebarCallbacks {
 	onFolderClick: (folder: string | null) => void;
 	onFeedClick: (feed: Feed) => void;
 	onTagClick: (tag: string | null) => void;

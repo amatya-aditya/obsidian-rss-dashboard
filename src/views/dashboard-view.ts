@@ -4,6 +4,7 @@ import {
 	Notice,
 	TFile,
 	requireApiVersion,
+	Platform,
 } from "obsidian";
 import { Feed, FeedItem, RssDashboardSettings, Folder } from "../types/types";
 import type RssDashboardPlugin from "../../main";
@@ -13,7 +14,6 @@ import { ArticleSaver } from "../services/article-saver";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
 import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
-
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -870,7 +870,7 @@ export class RssDashboardView extends ItemView {
 	}
 
 	public openMobileSidebar(): void {
-		if (this.app.isMobile) {
+		if (Platform.isMobile) {
 			new MobileNavigationModal(
 				this.app,
 				this.plugin,
@@ -909,7 +909,7 @@ export class RssDashboardView extends ItemView {
 	}
 
 	private handleToggleSidebar(): void {
-		if (this.app.isMobile) {
+		if (Platform.isMobile) {
 			this.openMobileSidebar();
 			return;
 		}
@@ -1100,10 +1100,10 @@ export class RssDashboardView extends ItemView {
 
 		const file = this.settings.articleSaving.saveFullContent
 			? await this.saver.saveArticleWithFullContent(
-				article,
-				undefined,
-				customTemplate,
-			)
+					article,
+					undefined,
+					customTemplate,
+				)
 			: await this.saver.saveArticle(article, undefined, customTemplate);
 
 		if (file) {
