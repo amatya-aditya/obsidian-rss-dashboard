@@ -363,7 +363,7 @@ export class Sidebar {
 		const fullPath = parentPath
 			? `${parentPath}/${folderName}`
 			: folderName;
-		const isCollapsed = this.options.collapsedFolders.includes(fullPath);
+		const isCollapsed = (this.settings.collapsedFolders || []).includes(fullPath);
 		const isActive = this.options.currentFolder === fullPath;
 
 		const folderFeeds = this.settings.feeds.filter(
@@ -418,6 +418,8 @@ export class Sidebar {
 					toggleButton.contains(e.target as Node)
 				) {
 					this.callbacks.onToggleFolderCollapse(fullPath);
+					// Trigger immediate re-render for UI update
+					this.render();
 				} else {
 					this.callbacks.onFolderClick(fullPath);
 				}
@@ -1791,10 +1793,11 @@ export class Sidebar {
 				cachedFolderPaths = this.getCachedFolderPaths();
 			}
 
+			const collapsedFolders = this.settings.collapsedFolders || [];
 			const allCollapsed =
 				cachedFolderPaths.length > 0 &&
 				cachedFolderPaths.every((path) =>
-					this.options.collapsedFolders.includes(path),
+					collapsedFolders.includes(path),
 				);
 			setIcon(
 				collapseAllButton,
@@ -2287,7 +2290,10 @@ export class Sidebar {
 			return;
 		}
 
-		const collapsedSet = new Set(this.options.collapsedFolders);
+		// Use settings.collapsedFolders directly to ensure we have the latest state
+		// especially in modal views where options might have stale references
+		const collapsedFolders = this.settings.collapsedFolders || [];
+		const collapsedSet = new Set(collapsedFolders);
 		const allCollapsed = allFolderPaths.every((path) =>
 			collapsedSet.has(path),
 		);
@@ -2309,6 +2315,9 @@ export class Sidebar {
 			);
 			new Notice("All folders collapsed");
 		}
+
+		// Trigger immediate re-render for UI update
+		this.render();
 	}
 
 	private async handleRefresh(): Promise<void> {

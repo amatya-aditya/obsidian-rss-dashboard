@@ -237,7 +237,9 @@
 
 	.rss-mobile-navigation-modal .modal,
 	.rss-mobile-discover-filters-modal .modal {
-		max-height: calc(90vh - 20px);
+		height: calc(90vh - 20px) !important;
+		min-height: calc(90vh - 20px) !important;
+		max-height: calc(90vh - 20px) !important;
 		width: 100%;
 		max-width: 480px;
 		margin: 0 auto;
