@@ -1,5 +1,16 @@
 # RSS Dashboard - Changelog
 
+## [2.0.8] - 2026-02-22
+
+### ⚙️ Refactor & Cleanup
+
+- **Consolidated List View Styling**: Moved all list-view specific styles from `articles.css` to a dedicated `list-view.css` file.
+- **Responsive CSS Cleanup**: Removed extensive legacy CSS rules and unused classes (`.rss-feed-item`, `.rss-card`, etc.) from `responsive.css`.
+- **Unified State Management**: Synchronized `.active`, `.unread`, `.read`, and `.saved` state styles across both List and Card view types to ensure visual consistency.
+- **Redundancy Removal**: Eliminated duplicate card-view container definitions from `articles.css`.
+
+---
+
 ## [2.0.7] - 2026-02-22
 
 ### 🐛 Bug Fixes
@@ -7,13 +18,13 @@
 ### Build System
 
 - **Fixed ESLint/TypeScript Build Errors**: Resolved all build errors to ensure clean production builds
-    - Fixed `@typescript-eslint/no-explicit-any` errors by adding proper types in `discover-sidebar.ts`
-    - Fixed `@typescript-eslint/no-unsafe-*` errors by properly typing category map and node parameters
-    - Fixed `@typescript-eslint/no-misused-promises` errors by converting async callbacks to void-returning functions
-    - Fixed `obsidianmd/no-static-styles-assignment` by using CSS classes instead of direct style assignments
-    - Exported `SidebarOptions` and `SidebarCallbacks` interfaces from `sidebar.ts` for proper typing
-    - Replaced `this.app.isMobile` with `Platform.isMobile` (correct Obsidian API for mobile detection)
-    - Added definite assignment assertions (`!`) for class properties initialized in `onOpen()`
+  - Fixed `@typescript-eslint/no-explicit-any` errors by adding proper types in `discover-sidebar.ts`
+  - Fixed `@typescript-eslint/no-unsafe-*` errors by properly typing category map and node parameters
+  - Fixed `@typescript-eslint/no-misused-promises` errors by converting async callbacks to void-returning functions
+  - Fixed `obsidianmd/no-static-styles-assignment` by using CSS classes instead of direct style assignments
+  - Exported `SidebarOptions` and `SidebarCallbacks` interfaces from `sidebar.ts` for proper typing
+  - Replaced `this.app.isMobile` with `Platform.isMobile` (correct Obsidian API for mobile detection)
+  - Added definite assignment assertions (`!`) for class properties initialized in `onOpen()`
 
 ### Technical Details
 
@@ -83,17 +94,17 @@ The responsive system was overhauled to ensure consistency:
 ### Sidebar Overlay Refactor
 
 - **Fixed Sidebar Squishing Main Content**: Sidebar now overlays the main content instead of pushing it, preventing layout shifts and card misalignment
-    - Changed sidebar from `position: relative` to `position: absolute` with `z-index: 10`
-    - Main content now always takes full width (`width: 100%`) instead of calculating `calc(100% - 360px)`
-    - Removed width transitions that caused layout thrashing during sidebar toggle
-    - Fixed mobile CSS class name mismatch (`.rss-sidebar` → `.rss-dashboard-sidebar`, `.rss-content` → `.rss-dashboard-content`)
+  - Changed sidebar from `position: relative` to `position: absolute` with `z-index: 10`
+  - Main content now always takes full width (`width: 100%`) instead of calculating `calc(100% - 360px)`
+  - Removed width transitions that caused layout thrashing during sidebar toggle
+  - Fixed mobile CSS class name mismatch (`.rss-sidebar` → `.rss-dashboard-sidebar`, `.rss-content` → `.rss-dashboard-content`)
 
 ### Mobile Improvements
 
 - **Fixed Mobile Sidebar Behavior**: Sidebar now slides off-screen smoothly on mobile instead of using `display: none`
-    - Uses `transform: translateX(-100%)` for smooth animation
-    - Main content no longer squishes when sidebar opens on mobile
-    - Card action buttons maintain proper positioning during sidebar toggle
+  - Uses `transform: translateX(-100%)` for smooth animation
+  - Main content no longer squishes when sidebar opens on mobile
+  - Card action buttons maintain proper positioning during sidebar toggle
 
 ### Technical Details
 
@@ -120,20 +131,20 @@ The sidebar squishing bug was caused by:
 ### Build System
 
 - **Fixed ESLint/TypeScript Build Errors**: Resolved all build errors to ensure clean production builds
-    - Fixed `@typescript-eslint/no-explicit-any` errors by properly typing event listeners as `EventListenerOrEventListenerObject`
-    - Fixed event handler parameter types from `MouseEvent` to `Event` for DOM compatibility
-    - Removed unused variables (`badge`, `contextEvent`)
-    - Fixed `obsidianmd/ui/sentence-case` lint rule compliance
-    - Fixed `obsidianmd/no-static-styles-assignment` by using CSS classes and CSS custom properties
-    - Fixed non-existent method call `getAllFilteredArticles()` to `getFilteredArticles()`
-    - Added CSS class `.rss-dashboard-submenu-fixed` for submenu positioning
+  - Fixed `@typescript-eslint/no-explicit-any` errors by properly typing event listeners as `EventListenerOrEventListenerObject`
+  - Fixed event handler parameter types from `MouseEvent` to `Event` for DOM compatibility
+  - Removed unused variables (`badge`, `contextEvent`)
+  - Fixed `obsidianmd/ui/sentence-case` lint rule compliance
+  - Fixed `obsidianmd/no-static-styles-assignment` by using CSS classes and CSS custom properties
+  - Fixed non-existent method call `getAllFilteredArticles()` to `getFilteredArticles()`
+  - Added CSS class `.rss-dashboard-submenu-fixed` for submenu positioning
 
 ### Mobile Sidebar Viewport Height
 
 - **Fixed Mobile Sidebar Height**: Sidebar now correctly fills the full viewport height on mobile devices
-    - Replaced `max-height: 100vh` with `max-height: 100dvh` (dynamic viewport height) to handle mobile browser chrome
-    - Removed incorrect `max-height: 40%` constraint in mobile media query that was limiting sidebar height
-    - Fixed dropdown portal positioning to use `100dvh` for consistent behavior
+  - Replaced `max-height: 100vh` with `max-height: 100dvh` (dynamic viewport height) to handle mobile browser chrome
+  - Removed incorrect `max-height: 40%` constraint in mobile media query that was limiting sidebar height
+  - Fixed dropdown portal positioning to use `100dvh` for consistent behavior
 
 ### Mobile UI Improvements
 
@@ -220,9 +231,9 @@ This release includes our first community contribution, adding helpful hover too
 ### UI/UX Improvements
 
 - **Action Bar Tooltips**: Added descriptive hover tooltips to the article action icons:
-    - Read/Unread toggle: Shows "Mark as unread" or "Mark as read" based on current state
-    - Favorite/Star toggle: Shows "Add to favorites" or "Remove from favorites" based on current state
-    - Tag management: Shows "Manage tags" for the tag dropdown icon
+  - Read/Unread toggle: Shows "Mark as unread" or "Mark as read" based on current state
+  - Favorite/Star toggle: Shows "Add to favorites" or "Remove from favorites" based on current state
+  - Tag management: Shows "Manage tags" for the tag dropdown icon
 - Tooltips are now consistent across both List and Card view layouts
 
 ---
