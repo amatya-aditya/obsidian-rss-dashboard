@@ -1,5 +1,13 @@
 # RSS Dashboard - Changelog
 
+## [2.2.1] - 2026-02-23
+
+### 🎨 UI/UX Improvements
+
+- **Moved Add Buttons to Top**: "Add feed" and "Add YouTube channel" buttons have been moved from the footer toolbar to the top of the sidebar, positioned before the search icon for easier access
+
+---
+
 ## [2.2.0] - 2026-02-23
 
 ### ✨ New Feature: Reader View Action Toolbar

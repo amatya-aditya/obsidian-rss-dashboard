@@ -186,6 +186,9 @@ export class Sidebar {
       cls: "rss-dashboard-feed-folders-section",
     });
 
+    // Render "All Feeds" button at the top
+    this.renderAllFeedsButton(feedFoldersSection);
+
     if (this.settings.folders && this.settings.folders.length > 0) {
       const sortOrder = this.settings.folderSortOrder || {
         by: "name",
@@ -258,7 +261,8 @@ export class Sidebar {
       const target = e.target as HTMLElement;
       const isItem =
         target.closest(".rss-dashboard-feed") ||
-        target.closest(".rss-dashboard-feed-folder-header");
+        target.closest(".rss-dashboard-feed-folder-header") ||
+        target.closest(".rss-dashboard-all-feeds-button");
 
       if (!isItem) {
         e.preventDefault();
@@ -297,6 +301,88 @@ export class Sidebar {
         menu.showAtMouseEvent(e);
       }
     });
+  }
+
+  private renderAllFeedsButton(container: HTMLElement): void {
+    const totalFeeds = this.settings.feeds.length;
+    const totalUnread = this.settings.feeds.reduce(
+      (sum, feed) => sum + feed.items.filter((item) => !item.read).length,
+      0,
+    );
+
+    const isAllActive =
+      this.options.currentFolder === null &&
+      this.options.currentFeed === null &&
+      this.options.currentTag === null;
+
+    const allFeedsButton = container.createDiv({
+      cls: "rss-dashboard-all-feeds-button" + (isAllActive ? " active" : ""),
+    });
+
+    // Feed icon
+    const feedIcon = allFeedsButton.createDiv({
+      cls: "rss-dashboard-all-feeds-icon",
+    });
+    setIcon(feedIcon, "rss");
+
+    // Label with count
+    const labelContainer = allFeedsButton.createDiv({
+      cls: "rss-dashboard-all-feeds-label-container",
+    });
+
+    labelContainer.createDiv({
+      cls: "rss-dashboard-all-feeds-label",
+      text: `All Feeds (${totalFeeds})`,
+    });
+
+    // Unread count badge (purple)
+    if (totalUnread > 0) {
+      allFeedsButton.createDiv({
+        cls: "rss-dashboard-all-feeds-unread",
+        text: totalUnread.toString(),
+      });
+    }
+
+    // Purple divider line beneath
+    container.createDiv({
+      cls: "rss-dashboard-all-feeds-divider",
+    });
+
+    // Click handler
+    allFeedsButton.addEventListener("click", () => {
+      this.callbacks.onFolderClick(null);
+    });
+
+    // Context menu for mark all as read
+    allFeedsButton.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.showAllFeedsContextMenu(e);
+    });
+  }
+
+  private showAllFeedsContextMenu(event: MouseEvent): void {
+    const menu = new Menu();
+
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Mark all as read")
+        .setIcon("check-circle")
+        .onClick(() => {
+          void this.markAllUnreadAsRead();
+        });
+    });
+
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Refresh all feeds")
+        .setIcon("refresh-cw")
+        .onClick(() => {
+          void this.callbacks.onRefreshFeeds();
+        });
+    });
+
+    menu.showAtMouseEvent(event);
   }
 
   private applySortOrder(
@@ -1507,55 +1593,39 @@ export class Sidebar {
     const displayStyle = this.settings.display?.filterDisplayStyle || "inline";
     filtersList.addClass(`rss-dashboard-filters-${displayStyle}`);
 
-    // Row 1: All items
-    const isAllActive =
-      this.options.currentFolder === null &&
-      this.options.currentFeed === null &&
-      this.options.currentTag === null;
-
     const row1 = filtersList.createDiv({
       cls: "rss-dashboard-filter-items-row row-1",
     });
 
-    // Helper function to create filter items
-    const createFilterItem = (
-      type: string,
-      icon: string,
-      text: string,
-      isActive: boolean,
-      targetRow: HTMLElement,
-    ) => {
-      const filterEl = targetRow.createDiv({
-        cls: "rss-dashboard-filter-item" + (isActive ? " active" : ""),
-      });
+    // Add feed button (at the top, before search)
+    const addFeedButton = row1.createDiv({
+      cls: "rss-dashboard-filter-item rss-dashboard-add-feed-button",
+      attr: {
+        title: "Add feed",
+      },
+    });
+    const addFeedIcon = addFeedButton.createDiv({
+      cls: "rss-dashboard-filter-icon",
+    });
+    setIcon(addFeedIcon, "plus");
+    addFeedButton.addEventListener("click", () => {
+      this.showAddFeedModal();
+    });
 
-      const filterIcon = filterEl.createDiv({
-        cls: "rss-dashboard-filter-icon",
-      });
-      setIcon(filterIcon, icon);
-
-      // Only show text in vertical mode
-      if (displayStyle === "vertical") {
-        filterEl.createDiv({
-          cls: "rss-dashboard-filter-name",
-          text: text,
-        });
-      }
-
-      // Add tooltip for inline mode
-      if (displayStyle === "inline") {
-        filterEl.setAttribute("title", text);
-      }
-
-      filterEl.addEventListener("click", () => {
-        this.callbacks.onFolderClick(type === "all" ? null : type);
-      });
-
-      return filterEl;
-    };
-
-    // Row 1: All items
-    createFilterItem("all", "list", "All items", isAllActive, row1);
+    // Add YouTube channel button (at the top, before search)
+    const addYouTubeButton = row1.createDiv({
+      cls: "rss-dashboard-filter-item rss-dashboard-add-youtube-button",
+      attr: {
+        title: "Add YouTube channel",
+      },
+    });
+    const addYouTubeIcon = addYouTubeButton.createDiv({
+      cls: "rss-dashboard-filter-icon",
+    });
+    setIcon(addYouTubeIcon, "youtube");
+    addYouTubeButton.addEventListener("click", () => {
+      this.showAddYouTubeFeedModal();
+    });
 
     // Search filter item
     const searchFilterEl = row1.createDiv({
@@ -1776,28 +1846,6 @@ export class Sidebar {
       this.toggleAllFolders();
 
       window.setTimeout(() => updateCollapseIcon(), 0);
-    });
-
-    const addFeedButton = sidebarToolbar.createDiv({
-      cls: "rss-dashboard-toolbar-button",
-      attr: {
-        title: "Add feed",
-      },
-    });
-    setIcon(addFeedButton, "plus");
-    addFeedButton.addEventListener("click", () => {
-      this.showAddFeedModal();
-    });
-
-    const addYouTubeButton = sidebarToolbar.createDiv({
-      cls: "rss-dashboard-toolbar-button",
-      attr: {
-        title: "Add youtube channel",
-      },
-    });
-    setIcon(addYouTubeButton, "youtube");
-    addYouTubeButton.addEventListener("click", () => {
-      this.showAddYouTubeFeedModal();
     });
 
     const importOpmlButton = sidebarToolbar.createDiv({
