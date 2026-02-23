@@ -1,5 +1,24 @@
 # RSS Dashboard - Changelog
 
+## [2.0.9] - 2026-02-23
+
+### 🐛 Bug Fixes
+
+- **Fixed Hamburger Menu Visibility**: Moved the hamburger button into the mobile header in Discover view to resolve layout conflicts that made the icon invisible at tablet resolutions.
+
+### 🎨 UI/UX Improvements
+
+- **Streamlined Navigation**: Removed redundant "Dashboard" and "Discover" switcher tabs from the headers of major views.
+- **Improved Modal Navigation**: Restored navigation tabs within the mobile sidebar modals for both Dashboard and Discover views, ensuring clear navigation pathways remain accessible on smaller screens.
+- **Cleaned Up Discover Sidebar**: Removed the extra header switcher from the Discover sidebar while keeping navigation categories accessible.
+
+### ⚙️ Refactor & Cleanup
+
+- **Code Cleanup**: Removed all debugging console logs and analysis code from the Discover view components.
+- **Consolidated Navigation Styling**: Restored and cleaned up navigation button styles in `layout.css`.
+
+---
+
 ## [2.0.8] - 2026-02-22
 
 ### ⚙️ Refactor & Cleanup
