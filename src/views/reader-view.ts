@@ -12,6 +12,7 @@ import {
   FeedItem,
   RssDashboardSettings,
   ArticleSavingSettings,
+  Tag,
 } from "../types/types";
 import { MediaService } from "../services/media-service";
 import { ArticleSaver } from "../services/article-saver";
@@ -34,12 +35,19 @@ export class ReaderView extends ItemView {
   private articleSaver: ArticleSaver;
   private settings: RssDashboardSettings;
   private onArticleSave: (item: FeedItem) => void;
+  private onArticleUpdate: (
+    item: FeedItem,
+    updates: Partial<FeedItem>,
+    shouldRerender?: boolean,
+  ) => void;
   private webViewerIntegration: WebViewerIntegration | null = null;
   private podcastPlayer: PodcastPlayer | null = null;
   private videoPlayer: VideoPlayer | null = null;
   private relatedItems: FeedItem[] = [];
   private currentFullContent?: string;
   private turndownService = new TurndownService();
+  private readToggleButton: HTMLElement | null = null;
+  private starToggleButton: HTMLElement | null = null;
 
   public isPodcastPlaying(): boolean {
     if (!this.podcastPlayer) return false;
@@ -59,11 +67,17 @@ export class ReaderView extends ItemView {
     settings: RssDashboardSettings,
     articleSaver: ArticleSaver,
     onArticleSave: (item: FeedItem) => void,
+    onArticleUpdate: (
+      item: FeedItem,
+      updates: Partial<FeedItem>,
+      shouldRerender?: boolean,
+    ) => void,
   ) {
     super(leaf);
     this.settings = settings;
     this.articleSaver = articleSaver;
     this.onArticleSave = onArticleSave;
+    this.onArticleUpdate = onArticleUpdate;
 
     try {
       const appWithPlugins = this.app as unknown as {
@@ -148,11 +162,7 @@ export class ReaderView extends ItemView {
 
     const actions = header.createDiv({ cls: "rss-reader-actions" });
 
-    actions.createDiv({
-      cls: "rss-reader-saved-label",
-      text: "Saved",
-    });
-
+    // Save button
     const saveButton = actions.createDiv({
       cls: "rss-reader-action-button",
       attr: { title: "Save article" },
@@ -165,6 +175,43 @@ export class ReaderView extends ItemView {
       }
     });
 
+    // Read toggle button
+    this.readToggleButton = actions.createDiv({
+      cls: "rss-reader-action-button rss-reader-read-toggle",
+      attr: { title: "Mark as read/unread" },
+    });
+    setIcon(this.readToggleButton, "circle");
+    this.readToggleButton.addEventListener("click", () => {
+      if (this.currentItem) {
+        this.toggleReadStatus();
+      }
+    });
+
+    // Star toggle button
+    this.starToggleButton = actions.createDiv({
+      cls: "rss-reader-action-button rss-reader-star-toggle",
+      attr: { title: "Star/unstar article" },
+    });
+    setIcon(this.starToggleButton, "star-off");
+    this.starToggleButton.addEventListener("click", () => {
+      if (this.currentItem) {
+        this.toggleStarStatus();
+      }
+    });
+
+    // Tags button
+    const tagsButton = actions.createDiv({
+      cls: "rss-reader-action-button rss-reader-tags-button",
+      attr: { title: "Manage tags" },
+    });
+    setIcon(tagsButton, "tag");
+    tagsButton.addEventListener("click", (e) => {
+      if (this.currentItem) {
+        this.showTagsDropdown(e, this.currentItem);
+      }
+    });
+
+    // Open in browser button
     const browserButton = actions.createDiv({
       cls: "rss-reader-action-button",
       attr: { title: "Open in Browser" },
@@ -339,7 +386,8 @@ export class ReaderView extends ItemView {
       this.titleElement.setText(item.title);
     }
 
-    this.updateSavedLabel(false);
+    // Update toggle button states
+    this.updateToggleButtons();
 
     if (item.saved) {
       const fileExists = this.checkSavedFileExists(item);
@@ -843,17 +891,125 @@ export class ReaderView extends ItemView {
   }
 
   private updateSavedLabel(saved: boolean): void {
-    const savedLabel = this.contentEl.querySelector(
-      ".rss-reader-saved-label",
-    ) as HTMLElement;
-    if (savedLabel) {
-      if (saved) {
-        savedLabel.classList.remove("hidden");
-        savedLabel.classList.add("visible");
-      } else {
-        savedLabel.classList.remove("visible");
-        savedLabel.classList.add("hidden");
+    // This method is kept for compatibility but no longer displays a label
+    // The save button icon state is now managed elsewhere
+    void saved;
+  }
+
+  private toggleReadStatus(): void {
+    if (!this.currentItem) return;
+
+    const newReadState = !this.currentItem.read;
+    this.currentItem.read = newReadState;
+
+    // Update the icon
+    if (this.readToggleButton) {
+      setIcon(this.readToggleButton, newReadState ? "check-circle" : "circle");
+      this.readToggleButton.classList.toggle("read", newReadState);
+      this.readToggleButton.classList.toggle("unread", !newReadState);
+      this.readToggleButton.setAttr(
+        "title",
+        newReadState ? "Mark as unread" : "Mark as read",
+      );
+    }
+
+    // Notify parent to persist the change
+    this.onArticleUpdate(this.currentItem, { read: newReadState }, false);
+  }
+
+  private toggleStarStatus(): void {
+    if (!this.currentItem) return;
+
+    const newStarState = !this.currentItem.starred;
+    this.currentItem.starred = newStarState;
+
+    // Update the icon
+    if (this.starToggleButton) {
+      setIcon(this.starToggleButton, newStarState ? "star" : "star-off");
+      this.starToggleButton.classList.toggle("starred", newStarState);
+      this.starToggleButton.classList.toggle("unstarred", !newStarState);
+      this.starToggleButton.setAttr(
+        "title",
+        newStarState ? "Remove from starred" : "Add to starred",
+      );
+    }
+
+    // Notify parent to persist the change
+    this.onArticleUpdate(this.currentItem, { starred: newStarState }, false);
+  }
+
+  private showTagsDropdown(event: MouseEvent, item: FeedItem): void {
+    const menu = new Menu();
+
+    // Add available tags
+    for (const tag of this.settings.availableTags) {
+      const hasTag = item.tags?.some((t) => t.name === tag.name) || false;
+
+      menu.addItem((menuItem: MenuItem) => {
+        menuItem
+          .setTitle(tag.name)
+          .setIcon(hasTag ? "check" : "tag")
+          .onClick(() => {
+            this.toggleTag(item, tag, !hasTag);
+          });
+      });
+    }
+
+    menu.showAtMouseEvent(event);
+  }
+
+  private toggleTag(item: FeedItem, tag: Tag, add: boolean): void {
+    if (!item.tags) {
+      item.tags = [];
+    }
+
+    if (add) {
+      if (!item.tags.some((t) => t.name === tag.name)) {
+        item.tags.push({ ...tag });
       }
+    } else {
+      item.tags = item.tags.filter((t) => t.name !== tag.name);
+    }
+
+    // Notify parent to persist the change
+    this.onArticleUpdate(item, { tags: [...item.tags] }, false);
+  }
+
+  private updateToggleButtons(): void {
+    if (!this.currentItem) return;
+
+    // Update read toggle
+    if (this.readToggleButton) {
+      setIcon(
+        this.readToggleButton,
+        this.currentItem.read ? "check-circle" : "circle",
+      );
+      this.readToggleButton.classList.toggle("read", this.currentItem.read);
+      this.readToggleButton.classList.toggle("unread", !this.currentItem.read);
+      this.readToggleButton.setAttr(
+        "title",
+        this.currentItem.read ? "Mark as unread" : "Mark as read",
+      );
+    }
+
+    // Update star toggle
+    if (this.starToggleButton) {
+      setIcon(
+        this.starToggleButton,
+        this.currentItem.starred ? "star" : "star-off",
+      );
+      this.starToggleButton.classList.toggle(
+        "starred",
+        this.currentItem.starred,
+      );
+      this.starToggleButton.classList.toggle(
+        "unstarred",
+        !this.currentItem.starred,
+      );
+      this.starToggleButton.setAttr(
+        "title",
+        this.currentItem.starred ? "Remove from starred" : "Add to starred",
+      );
     }
   }
 

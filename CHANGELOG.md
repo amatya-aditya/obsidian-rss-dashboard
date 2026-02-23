@@ -2,6 +2,16 @@
 
 ## [2.2.0] - 2026-02-23
 
+### ✨ New Feature: Reader View Action Toolbar
+
+- **Unified Action Toolbar**: Moved the 4-icon action toolbar from the dashboard view article list into the reader view header, consolidating with existing actions to create a unified 5-icon toolbar
+- **Read Toggle Button**: New read/unread toggle button in reader view header with dynamic icon (check-circle/circle) that updates based on article state
+- **Star Toggle Button**: New star/unstar toggle button in reader view header with dynamic icon (star/star-off) that updates based on article state
+- **Tags Dropdown Button**: New tag management dropdown in reader view header for adding/removing tags from articles
+- **Removed "Saved" Label**: Removed the redundant "Saved" text label from reader view header for a cleaner interface
+- **Right-Aligned Actions**: All 5 action icons (Save, Read, Star, Tags, Browser) are now right-aligned in the header
+- **Visual State Indicators**: Toggle buttons show visual state changes with color coding (green for read, yellow for starred)
+
 ### ✨ New Feature: Word Highlighting
 
 - **Custom Word Highlights**: Add words or phrases to be highlighted in article titles, summaries, and content
