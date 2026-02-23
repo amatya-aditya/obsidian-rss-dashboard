@@ -328,7 +328,14 @@ export class DiscoverSidebar {
     parentPath: string,
     depth = 0,
   ): void {
-    const keys = Object.keys(node).sort();
+    const keys = Object.keys(node).sort((a, b) => {
+      if (a === "Uncategorized") return 1;
+      if (b === "Uncategorized") return -1;
+      return a.localeCompare(b, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+    });
     keys.forEach((key) => {
       const currentPathStr = parentPath ? `${parentPath}/${key}` : key;
       const currentPathArr = currentPathStr.split("/");

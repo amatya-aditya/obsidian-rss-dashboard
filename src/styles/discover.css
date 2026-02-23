@@ -146,6 +146,48 @@
   cursor: pointer;
 }
 
+.rss-discover-category-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.rss-discover-category-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  padding-left: calc(var(--depth) * 16px);
+  gap: 8px;
+}
+
+.rss-discover-category-row input[type="checkbox"] {
+  margin: 0;
+}
+
+.rss-discover-category-row label {
+  flex: 1;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.rss-discover-category-expand {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.rss-discover-category-expand-hidden {
+  visibility: hidden;
+}
+
+.rss-discover-category-children.rss-collapsed {
+  display: none;
+}
+
 .rss-discover-category-count {
   background: var(--background-secondary);
   color: var(--text-muted);
