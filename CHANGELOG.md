@@ -1,5 +1,187 @@
 # RSS Dashboard - Changelog
 
+## [2.1.0] - 2026-02-23
+
+### New Display Setting
+
+- Added a new "Automatically mark article 'read' upon opening" setting. Default behavior is 'off'
+
+### 🐛 Bug Fixes
+
+- **Fixed Tablet UI Hamburger Icon Visibility**: Resolved missing SVG hamburger icon on tablet resolutions by moving the hamburger button into the mobile header in Discover view, fixing layout conflicts that made the icon invisible.
+- **Fixed Sidebar Modal Display**: Sidebar modals now properly appear and dynamically resize on mobile/tablet devices. Changed modal class assignment from `contentEl` to `modalEl` for proper CSS targeting.
+- **Fixed Card Actions with Active Filters**: Card actions now correctly update the DOM based on applied filters. For example, when "Unread-only" filter is active, marking an article as "read" will now automatically hide it from the view.
+- **Fixed Discover Sidebar Styling**: Added proper CSS class to Discover sidebar container for consistent styling with responsive CSS rules.
+
+---
+
+## [2.0.8] - 2026-02-22
+
+### ⚙️ Refactor & Cleanup
+
+- **Consolidated List View Styling**: Moved all list-view specific styles from `articles.css` to a dedicated `list-view.css` file.
+- **Responsive CSS Cleanup**: Removed extensive legacy CSS rules and unused classes (`.rss-feed-item`, `.rss-card`, etc.) from `responsive.css`.
+- **Unified State Management**: Synchronized `.active`, `.unread`, `.read`, and `.saved` state styles across both List and Card view types to ensure visual consistency.
+- **Redundancy Removal**: Eliminated duplicate card-view container definitions from `articles.css`.
+
+---
+
+## [2.0.7] - 2026-02-22
+
+### 🐛 Bug Fixes
+
+### Build System
+
+- **Fixed ESLint/TypeScript Build Errors**: Resolved all build errors to ensure clean production builds
+  - Fixed `@typescript-eslint/no-explicit-any` errors by adding proper types in `discover-sidebar.ts`
+  - Fixed `@typescript-eslint/no-unsafe-*` errors by properly typing category map and node parameters
+  - Fixed `@typescript-eslint/no-misused-promises` errors by converting async callbacks to void-returning functions
+  - Fixed `obsidianmd/no-static-styles-assignment` by using CSS classes instead of direct style assignments
+  - Exported `SidebarOptions` and `SidebarCallbacks` interfaces from `sidebar.ts` for proper typing
+  - Replaced `this.app.isMobile` with `Platform.isMobile` (correct Obsidian API for mobile detection)
+  - Added definite assignment assertions (`!`) for class properties initialized in `onOpen()`
+
+### Technical Details
+
+The build errors were caused by:
+
+1. Use of `any` types in category map generation and rendering
+2. Async functions passed where void return was expected in callback interfaces
+3. Direct style assignments (`element.style.visibility`, `element.style.display`) instead of CSS classes
+4. Non-exported interfaces being used in other modules
+5. Incorrect use of `app.isMobile` instead of `Platform.isMobile`
+
+**Files Changed:**
+
+- `src/components/discover-sidebar.ts`: Added proper types, used CSS classes for visibility
+- `src/modals/mobile-discover-filters-modal.ts`: Fixed async callback and property initialization
+- `src/modals/mobile-navigation-modal.ts`: Fixed interface usage and property initialization
+- `src/components/sidebar.ts`: Exported interfaces
+- `src/views/dashboard-view.ts`: Used `Platform.isMobile`
+- `src/views/discover-view.ts`: Used `Platform.isMobile`, fixed modal constructor call
+
+---
+
+## [2.0.6] - 2026-02-21
+
+### ✨ New Features
+
+- **Mobile Navigation Drawer**: Implemented a new modal-based navigation drawer for the Dashboard view on mobile devices.
+- **Mobile Discover Filters**: Added a dedicated modal for filtering feeds on the Discover page, specifically optimized for mobile and tablet screens.
+
+### 🎨 UI/UX Improvements
+
+- **Unified 1024px Breakpoint**: Standardized the responsive layout across both Dashboard and Discover views to trigger at 1024px (Tablet).
+- **Responsive Header Controls**: Restricted desktop-style filter and sort buttons to resolutions above 1024px, ensuring the hamburger menu is the primary control on tablets and mobile.
+- **Refined Narrow View Logic**: Updated the `ResizeObserver` threshold to 1024px, ensuring the header collapses correctly when the Obsidian sidebar is open on smaller desktop screens.
+
+### 🐛 Bug Fixes
+
+- **CSS Loading Order Fixes**: Resolved conflicts where later-loaded stylesheets were overriding responsive layout rules.
+- **Breakpoint Synchronization**: Fixed inconsistencies between the Dashboard and Discover view responsive thresholds.
+- **CSS Specificity**: Applied `!important` to key responsive display toggles to ensure layout stability across all Obsidian themes.
+
+### Technical Details
+
+The responsive system was overhauled to ensure consistency:
+
+- **`controls.css`**: Added detailed documentation of the responsive hierarchy and load order.
+- **`discover.css`**: Updated container queries and media queries to align with the 1024px standard.
+- **`responsive.css`**: Synchronized sidebar hiding rules.
+
+**Files Changed:**
+
+- `src/styles/controls.css`
+- `src/styles/discover.css`
+- `src/styles/responsive.css`
+- `src/components/article-list.ts`
+- `src/modals/mobile-navigation-modal.ts`
+- `src/modals/mobile-discover-filters-modal.ts`
+- `src/views/dashboard-view.ts`
+- `src/views/discover-view.ts`
+
+---
+
+## [2.0.5] - 2026-02-20
+
+### 🐛 Bug Fixes
+
+### Sidebar Overlay Refactor
+
+- **Fixed Sidebar Squishing Main Content**: Sidebar now overlays the main content instead of pushing it, preventing layout shifts and card misalignment
+  - Changed sidebar from `position: relative` to `position: absolute` with `z-index: 10`
+  - Main content now always takes full width (`width: 100%`) instead of calculating `calc(100% - 360px)`
+  - Removed width transitions that caused layout thrashing during sidebar toggle
+  - Fixed mobile CSS class name mismatch (`.rss-sidebar` → `.rss-dashboard-sidebar`, `.rss-content` → `.rss-dashboard-content`)
+
+### Mobile Improvements
+
+- **Fixed Mobile Sidebar Behavior**: Sidebar now slides off-screen smoothly on mobile instead of using `display: none`
+  - Uses `transform: translateX(-100%)` for smooth animation
+  - Main content no longer squishes when sidebar opens on mobile
+  - Card action buttons maintain proper positioning during sidebar toggle
+
+### Technical Details
+
+The sidebar squishing bug was caused by:
+
+1. Sidebar being in normal document flow with `position: relative`
+2. Main content having a calculated width `calc(100% - 360px)` that fought with `flex-grow: 1`
+3. During collapse transition, the width calculation and flex layout conflicted
+4. On mobile, CSS media queries targeted wrong class names (`.rss-sidebar` instead of `.rss-dashboard-sidebar`)
+
+**Files Changed:**
+
+- `src/styles/layout.css`: Changed sidebar to absolute positioning
+- `src/styles/articles.css`: Removed width calculation from main content
+- `src/styles/sidebar.css`: Removed transform transition from sidebar container
+- `src/styles/responsive.css`: Fixed mobile class names and sidebar behavior
+
+---
+
+## [2.0.4] - 2026-02-20
+
+### 🐛 Bug Fixes
+
+### Build System
+
+- **Fixed ESLint/TypeScript Build Errors**: Resolved all build errors to ensure clean production builds
+  - Fixed `@typescript-eslint/no-explicit-any` errors by properly typing event listeners as `EventListenerOrEventListenerObject`
+  - Fixed event handler parameter types from `MouseEvent` to `Event` for DOM compatibility
+  - Removed unused variables (`badge`, `contextEvent`)
+  - Fixed `obsidianmd/ui/sentence-case` lint rule compliance
+  - Fixed `obsidianmd/no-static-styles-assignment` by using CSS classes and CSS custom properties
+  - Fixed non-existent method call `getAllFilteredArticles()` to `getFilteredArticles()`
+  - Added CSS class `.rss-dashboard-submenu-fixed` for submenu positioning
+
+### Mobile Sidebar Viewport Height
+
+- **Fixed Mobile Sidebar Height**: Sidebar now correctly fills the full viewport height on mobile devices
+  - Replaced `max-height: 100vh` with `max-height: 100dvh` (dynamic viewport height) to handle mobile browser chrome
+  - Removed incorrect `max-height: 40%` constraint in mobile media query that was limiting sidebar height
+  - Fixed dropdown portal positioning to use `100dvh` for consistent behavior
+
+### Mobile UI Improvements
+
+- **Hide Hamburger Menu When Sidebar Open**: On mobile, the hamburger menu is now hidden when the sidebar is visible to prevent UI clutter and confusion
+
+### Technical Details
+
+The viewport height issue was caused by the mobile browser's dynamic address bar behavior:
+
+- `100vh` represents the "large" viewport (address bar hidden), which is larger than the visible area when the address bar is shown
+- `100dvh` (dynamic viewport height) automatically adjusts as the browser chrome expands/collapses
+- Added `100vh` fallback for older WebViews that don't support `100dvh`
+
+**Files Changed:**
+
+- `src/styles/sidebar.css`: Added `100dvh` fallback for sidebar container
+- `src/styles/responsive.css`: Fixed mobile media query to use full viewport height
+- `src/styles/dropdown-portal.css`: Fixed dropdown positioning calculations
+- `src/styles/controls.css`: Hide hamburger menu when sidebar is open on mobile
+
+---
+
 ## [2.0.3] - 2026-02-19
 
 ### ✨ New Features
@@ -64,9 +246,9 @@ This release includes our first community contribution, adding helpful hover too
 ### UI/UX Improvements
 
 - **Action Bar Tooltips**: Added descriptive hover tooltips to the article action icons:
-    - Read/Unread toggle: Shows "Mark as unread" or "Mark as read" based on current state
-    - Favorite/Star toggle: Shows "Add to favorites" or "Remove from favorites" based on current state
-    - Tag management: Shows "Manage tags" for the tag dropdown icon
+  - Read/Unread toggle: Shows "Mark as unread" or "Mark as read" based on current state
+  - Favorite/Star toggle: Shows "Add to favorites" or "Remove from favorites" based on current state
+  - Tag management: Shows "Manage tags" for the tag dropdown icon
 - Tooltips are now consistent across both List and Card view layouts
 
 ---

@@ -300,11 +300,7 @@
 .rss-dashboard-sidebar-container {
 	position: relative;
 	height: 100%;
-	transition: transform 0.3s ease;
 	overflow-y: auto;
-}
-.sidebar-collapsed .rss-dashboard-sidebar-container {
-	transform: translateX(-250px);
 }
 .rss-dashboard-sidebar {
 	font-size: 13px;
@@ -416,6 +412,7 @@
 	overflow-y: auto;
 	min-height: 0;
 	max-height: 100vh;
+	max-height: 100dvh;
 	display: flex;
 	flex-direction: column;
 	padding: 0 6px 0 0;

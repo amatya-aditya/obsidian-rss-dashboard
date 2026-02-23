@@ -691,11 +691,48 @@ export class AddFeedModal extends Modal {
 
 		new Setting(contentEl).setName("Per feed control options").setHeading();
 
+		// Create collapsible container for advanced options
+		const advancedOptionsContainer = contentEl.createDiv({
+			cls: "rss-dashboard-advanced-options-container",
+		});
+
+		// Check if mobile view for default collapsed state
+		const isMobileView = window.innerWidth <= 768;
+		if (isMobileView) {
+			advancedOptionsContainer.addClass("collapsed");
+		}
+
+		// Toggle button for advanced options
+		const toggleHeader = contentEl.createDiv({
+			cls: "rss-dashboard-advanced-options-toggle",
+		});
+		toggleHeader.createEl("span", {
+			text: "Advanced options",
+			cls: "rss-dashboard-advanced-options-label",
+		});
+		const toggleIcon = toggleHeader.createEl("span", {
+			cls: "rss-dashboard-advanced-options-icon",
+		});
+		toggleIcon.setText(isMobileView ? "▶" : "▼");
+
+		toggleHeader.addEventListener("click", () => {
+			const isCollapsed = advancedOptionsContainer.hasClass("collapsed");
+			if (isCollapsed) {
+				advancedOptionsContainer.removeClass("collapsed");
+			} else {
+				advancedOptionsContainer.addClass("collapsed");
+			}
+			toggleIcon.setText(
+				advancedOptionsContainer.hasClass("collapsed") ? "▶" : "▼",
+			);
+		});
+
+		// Move advanced options into the container
 		let autoDeleteDuration = 0;
 		let maxItemsLimit = this.plugin?.settings?.maxItems || 25;
 		let scanInterval = 0;
 
-		const autoDeleteSetting = new Setting(contentEl)
+		const autoDeleteSetting = new Setting(advancedOptionsContainer)
 			.setName("Auto delete articles duration")
 			.setDesc("Days to keep articles before auto-delete");
 
@@ -752,7 +789,7 @@ export class AddFeedModal extends Modal {
 				});
 		});
 
-		const maxItemsSetting = new Setting(contentEl)
+		const maxItemsSetting = new Setting(advancedOptionsContainer)
 			.setName("Max items limit")
 			.setDesc("Maximum number of items to keep per feed");
 
@@ -814,7 +851,7 @@ export class AddFeedModal extends Modal {
 				});
 		});
 
-		const scanIntervalSetting = new Setting(contentEl)
+		const scanIntervalSetting = new Setting(advancedOptionsContainer)
 			.setName("Scan interval")
 			.setDesc("Custom scan interval in minutes");
 
