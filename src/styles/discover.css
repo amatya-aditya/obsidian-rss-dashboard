@@ -691,7 +691,6 @@
 }
 
 .rss-discover-controls-container {
-  container-type: inline-size;
 }
 
 .rss-discover-top-section {
@@ -710,10 +709,6 @@
   flex-grow: 1;
 }
 
-.rss-discover-hamburger-menu {
-  display: none;
-}
-
 /*
  * Narrow view overrides (set by ResizeObserver in discover-view.ts).
  * Triggers when width <= 1200px.
@@ -722,15 +717,10 @@
   display: none !important;
 }
 
-.rss-discover-controls-container.is-narrow .rss-discover-hamburger-menu {
-  display: block !important;
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
 .rss-discover-controls-container.is-narrow .rss-discover-mobile-header {
   display: flex !important;
   width: 100%;
+  z-index: 10;
 }
 
 .rss-discover-hamburger-button {
@@ -754,10 +744,13 @@
   border-color: var(--background-modifier-border-hover);
 }
 
-.rss-discover-hamburger-button svg {
-  width: 18px;
-  height: 18px;
-  display: block;
+.rss-discover-hamburger-button svg,
+.rss-discover-sidebar-toggle svg {
+  width: 20px !important;
+  height: 20px !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .rss-discover-hamburger-menu .rss-discover-dropdown-menu {

@@ -23,7 +23,7 @@ export class MobileNavigationModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.addClass("rss-mobile-navigation-modal");
+    this.modalEl.addClass("rss-mobile-navigation-modal");
 
     const sidebarWrapper = contentEl.createDiv({
       cls: "rss-dashboard-sidebar-container",

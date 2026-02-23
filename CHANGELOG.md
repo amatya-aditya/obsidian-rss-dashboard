@@ -1,21 +1,17 @@
 # RSS Dashboard - Changelog
 
-## [2.0.9] - 2026-02-23
+## [2.1.0] - 2026-02-23
+
+### New Display Setting
+
+- Added a new "Automatically mark article 'read' upon opening" setting. Default behavior is 'off'
 
 ### 🐛 Bug Fixes
 
-- **Fixed Hamburger Menu Visibility**: Moved the hamburger button into the mobile header in Discover view to resolve layout conflicts that made the icon invisible at tablet resolutions.
-
-### 🎨 UI/UX Improvements
-
-- **Streamlined Navigation**: Removed redundant "Dashboard" and "Discover" switcher tabs from the headers of major views.
-- **Improved Modal Navigation**: Restored navigation tabs within the mobile sidebar modals for both Dashboard and Discover views, ensuring clear navigation pathways remain accessible on smaller screens.
-- **Cleaned Up Discover Sidebar**: Removed the extra header switcher from the Discover sidebar while keeping navigation categories accessible.
-
-### ⚙️ Refactor & Cleanup
-
-- **Code Cleanup**: Removed all debugging console logs and analysis code from the Discover view components.
-- **Consolidated Navigation Styling**: Restored and cleaned up navigation button styles in `layout.css`.
+- **Fixed Tablet UI Hamburger Icon Visibility**: Resolved missing SVG hamburger icon on tablet resolutions by moving the hamburger button into the mobile header in Discover view, fixing layout conflicts that made the icon invisible.
+- **Fixed Sidebar Modal Display**: Sidebar modals now properly appear and dynamically resize on mobile/tablet devices. Changed modal class assignment from `contentEl` to `modalEl` for proper CSS targeting.
+- **Fixed Card Actions with Active Filters**: Card actions now correctly update the DOM based on applied filters. For example, when "Unread-only" filter is active, marking an article as "read" will now automatically hide it from the view.
+- **Fixed Discover Sidebar Styling**: Added proper CSS class to Discover sidebar container for consistent styling with responsive CSS rules.
 
 ---
 

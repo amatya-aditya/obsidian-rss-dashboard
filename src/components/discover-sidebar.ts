@@ -46,6 +46,7 @@ export class DiscoverSidebar {
 
   public render(): void {
     this.container.empty();
+    this.container.addClass("rss-discover-sidebar");
 
     this.renderSidebarHeader(this.container);
 

@@ -728,6 +728,11 @@
 }
 
 .rss-dashboard-hamburger-button svg {
+  width: 20px !important;
+  height: 20px !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
   transition: transform 0.2s ease;
 }
 
