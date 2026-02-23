@@ -4,6 +4,7 @@ import {
   formatDateWithRelative,
   ensureUtf8Meta,
 } from "../utils/platform-utils";
+import { HighlightService } from "../services/highlight-service";
 
 const MAX_VISIBLE_TAGS = 6;
 
@@ -636,6 +637,75 @@ export class ArticleList {
       });
     });
 
+    // Add separator after filter options
+    menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
+
+    // Add "Show Highlights" toggle
+    const highlightsItem = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-item rss-dashboard-highlights-toggle",
+    });
+
+    const highlightsCheckbox = highlightsItem.createEl("input", {
+      attr: { type: "checkbox" },
+      cls: "rss-dashboard-filter-checkbox",
+    });
+    highlightsCheckbox.checked = this.settings.highlights?.enabled ?? false;
+
+    const highlightsIconDiv = highlightsItem.createDiv({
+      cls: "rss-dashboard-filter-menu-icon",
+    });
+    setIcon(highlightsIconDiv, "highlighter");
+
+    highlightsItem.createDiv({
+      cls: "rss-dashboard-filter-menu-text",
+      text: "Show Highlights",
+    });
+
+    highlightsCheckbox.addEventListener("change", (e) => {
+      e.stopPropagation();
+      if (!this.settings.highlights) {
+        this.settings.highlights = {
+          enabled: false,
+          defaultColor: "#ffd700",
+          caseSensitive: false,
+          highlightInContent: true,
+          highlightInTitles: true,
+          highlightInSummaries: true,
+          words: [],
+        };
+      }
+      this.settings.highlights.enabled = highlightsCheckbox.checked;
+      // Save settings and re-render
+      void this.callbacks.onFilterChange({
+        type: "highlights",
+        value: highlightsCheckbox.checked,
+        checked: highlightsCheckbox.checked,
+      });
+    });
+
+    highlightsItem.addEventListener("click", (e) => {
+      if (e.target !== highlightsCheckbox) {
+        highlightsCheckbox.checked = !highlightsCheckbox.checked;
+        if (!this.settings.highlights) {
+          this.settings.highlights = {
+            enabled: false,
+            defaultColor: "#ffd700",
+            caseSensitive: false,
+            highlightInContent: true,
+            highlightInTitles: true,
+            highlightInSummaries: true,
+            words: [],
+          };
+        }
+        this.settings.highlights.enabled = highlightsCheckbox.checked;
+        void this.callbacks.onFilterChange({
+          type: "highlights",
+          value: highlightsCheckbox.checked,
+          checked: highlightsCheckbox.checked,
+        });
+      }
+    });
+
     // Position the menu
     const rect = toggleBtn.getBoundingClientRect();
     menuPortal.style.top = `${rect.bottom + 5}px`;
@@ -953,10 +1023,20 @@ export class ArticleList {
 
       // Top Left: Headline
       const headlineEl = mainGrid.createDiv("rss-dashboard-grid-headline");
-      headlineEl.createDiv({
+      const titleEl = headlineEl.createDiv({
         cls: "rss-dashboard-article-title rss-dashboard-list-title",
-        text: article.title,
       });
+
+      // Apply highlighting to title if enabled
+      if (
+        this.settings.highlights?.enabled &&
+        this.settings.highlights.highlightInTitles
+      ) {
+        const highlightService = new HighlightService(this.settings.highlights);
+        highlightService.setHighlightedText(titleEl, article.title);
+      } else {
+        titleEl.textContent = article.title;
+      }
 
       // Top Right: Time posted/updated
       const timeEl = mainGrid.createDiv("rss-dashboard-grid-time");
@@ -1247,10 +1327,20 @@ export class ArticleList {
         cls: "rss-dashboard-card-content",
       });
 
-      cardContent.createDiv({
+      const cardTitleEl = cardContent.createDiv({
         cls: "rss-dashboard-article-title",
-        text: article.title,
       });
+
+      // Apply highlighting to title if enabled
+      if (
+        this.settings.highlights?.enabled &&
+        this.settings.highlights.highlightInTitles
+      ) {
+        const highlightService = new HighlightService(this.settings.highlights);
+        highlightService.setHighlightedText(cardTitleEl, article.title);
+      } else {
+        cardTitleEl.textContent = article.title;
+      }
 
       const articleMeta = cardContent.createDiv({
         cls: "rss-dashboard-article-meta",
@@ -1297,13 +1387,41 @@ export class ArticleList {
           const summaryOverlay = coverContainer.createDiv({
             cls: "rss-dashboard-summary-overlay",
           });
-          summaryOverlay.textContent = article.summary;
+          // Apply highlighting to summary if enabled
+          if (
+            this.settings.highlights?.enabled &&
+            this.settings.highlights.highlightInSummaries
+          ) {
+            const highlightService = new HighlightService(
+              this.settings.highlights,
+            );
+            highlightService.setHighlightedText(
+              summaryOverlay,
+              article.summary,
+            );
+          } else {
+            summaryOverlay.textContent = article.summary;
+          }
         }
       } else if (article.summary) {
         const summaryOnlyContainer = cardContent.createDiv({
           cls: "rss-dashboard-cover-summary-only",
         });
-        summaryOnlyContainer.textContent = article.summary;
+        // Apply highlighting to summary if enabled
+        if (
+          this.settings.highlights?.enabled &&
+          this.settings.highlights.highlightInSummaries
+        ) {
+          const highlightService = new HighlightService(
+            this.settings.highlights,
+          );
+          highlightService.setHighlightedText(
+            summaryOnlyContainer,
+            article.summary,
+          );
+        } else {
+          summaryOnlyContainer.textContent = article.summary;
+        }
       }
 
       if (article.tags && article.tags.length > 0) {

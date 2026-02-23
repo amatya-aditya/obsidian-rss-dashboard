@@ -94,6 +94,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     "Display",
     "Media",
     "Article saving",
+    "Highlights",
     "Import/Export",
     "Tags",
     "Support",
@@ -137,6 +138,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         break;
       case "Article saving":
         this.createArticleSavingSettings(tabContent);
+        break;
+      case "Highlights":
+        this.createHighlightsSettings(tabContent);
         break;
       case "Import/Export":
         this.createImportExportTab(tabContent);
@@ -821,6 +825,332 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           );
       });
     }
+  }
+
+  private createHighlightsSettings(containerEl: HTMLElement): void {
+    new Setting(containerEl)
+      .setName("Enable word highlighting")
+      .setDesc(
+        "Highlight specified words in article titles, summaries, and content",
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.highlights?.enabled ?? false)
+          .onChange(async (value) => {
+            if (!this.plugin.settings.highlights) {
+              this.plugin.settings.highlights = {
+                enabled: false,
+                defaultColor: "#ffd700",
+                caseSensitive: false,
+                highlightInContent: true,
+                highlightInTitles: true,
+                highlightInSummaries: true,
+                words: [],
+              };
+            }
+            this.plugin.settings.highlights.enabled = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.render();
+            }
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Default highlight color")
+      .setDesc("Default color for highlighted words")
+      .addColorPicker((colorPicker) =>
+        colorPicker
+          .setValue(this.plugin.settings.highlights?.defaultColor ?? "#ffd700")
+          .onChange(async (value) => {
+            if (!this.plugin.settings.highlights) {
+              this.plugin.settings.highlights = {
+                enabled: false,
+                defaultColor: "#ffd700",
+                caseSensitive: false,
+                highlightInContent: true,
+                highlightInTitles: true,
+                highlightInSummaries: true,
+                words: [],
+              };
+            }
+            this.plugin.settings.highlights.defaultColor = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Case sensitive")
+      .setDesc("Match words with exact case")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.highlights?.caseSensitive ?? false)
+          .onChange(async (value) => {
+            if (!this.plugin.settings.highlights) {
+              this.plugin.settings.highlights = {
+                enabled: false,
+                defaultColor: "#ffd700",
+                caseSensitive: false,
+                highlightInContent: true,
+                highlightInTitles: true,
+                highlightInSummaries: true,
+                words: [],
+              };
+            }
+            this.plugin.settings.highlights.caseSensitive = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.render();
+            }
+          }),
+      );
+
+    // Highlight location settings
+    new Setting(containerEl).setName("Highlight locations").setHeading();
+    containerEl.createEl("p", {
+      text: "Choose where to apply highlights:",
+      cls: "rss-dashboard-settings-description",
+    });
+
+    new Setting(containerEl)
+      .setName("Highlight in titles")
+      .setDesc("Apply highlights to article titles in the list/card view")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.highlights?.highlightInTitles ?? true)
+          .onChange(async (value) => {
+            if (!this.plugin.settings.highlights) {
+              this.plugin.settings.highlights = {
+                enabled: false,
+                defaultColor: "#ffd700",
+                caseSensitive: false,
+                highlightInContent: true,
+                highlightInTitles: true,
+                highlightInSummaries: true,
+                words: [],
+              };
+            }
+            this.plugin.settings.highlights.highlightInTitles = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.render();
+            }
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Highlight in summaries")
+      .setDesc("Apply highlights to article summaries in card view")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(
+            this.plugin.settings.highlights?.highlightInSummaries ?? true,
+          )
+          .onChange(async (value) => {
+            if (!this.plugin.settings.highlights) {
+              this.plugin.settings.highlights = {
+                enabled: false,
+                defaultColor: "#ffd700",
+                caseSensitive: false,
+                highlightInContent: true,
+                highlightInTitles: true,
+                highlightInSummaries: true,
+                words: [],
+              };
+            }
+            this.plugin.settings.highlights.highlightInSummaries = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.render();
+            }
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Highlight in content")
+      .setDesc("Apply highlights to article content in reader view")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.highlights?.highlightInContent ?? true)
+          .onChange(async (value) => {
+            if (!this.plugin.settings.highlights) {
+              this.plugin.settings.highlights = {
+                enabled: false,
+                defaultColor: "#ffd700",
+                caseSensitive: false,
+                highlightInContent: true,
+                highlightInTitles: true,
+                highlightInSummaries: true,
+                words: [],
+              };
+            }
+            this.plugin.settings.highlights.highlightInContent = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+
+    // Highlight words list
+    new Setting(containerEl).setName("Highlight words").setHeading();
+    containerEl.createEl("p", {
+      text: "Words and phrases to highlight in articles:",
+      cls: "rss-dashboard-settings-description",
+    });
+
+    const wordsContainer = containerEl.createDiv({
+      cls: "rss-dashboard-highlights-words-container",
+    });
+
+    const words = this.plugin.settings.highlights?.words ?? [];
+    if (words.length === 0) {
+      wordsContainer.createEl("p", {
+        text: "No highlight words configured. Add words below to highlight them in articles.",
+        cls: "rss-dashboard-settings-note",
+      });
+    } else {
+      words.forEach((word, index) => {
+        const wordRow = wordsContainer.createDiv({
+          cls: "rss-dashboard-highlight-word-row",
+        });
+
+        wordRow.createDiv({
+          cls: "rss-dashboard-highlight-word-text",
+          text: word.text,
+        });
+
+        // Show color preview
+        const colorPreview = wordRow.createDiv({
+          cls: "rss-dashboard-highlight-color-preview",
+        });
+        colorPreview.style.backgroundColor =
+          word.color ||
+          this.plugin.settings.highlights?.defaultColor ||
+          "#ffd700";
+
+        // Whole word toggle
+        const wholeWordBtn = wordRow.createEl("button", {
+          cls: `rss-dashboard-highlight-wholeword ${word.wholeWord ? "enabled" : ""}`,
+          text: word.wholeWord ? "Whole" : "Partial",
+        });
+        wholeWordBtn.onclick = async () => {
+          if (this.plugin.settings.highlights) {
+            this.plugin.settings.highlights.words[index].wholeWord =
+              !word.wholeWord;
+            await this.plugin.saveSettings();
+            this.display();
+          }
+        };
+
+        const toggleBtn = wordRow.createEl("button", {
+          cls: `rss-dashboard-highlight-toggle ${word.enabled ? "enabled" : "disabled"}`,
+          text: word.enabled ? "On" : "Off",
+        });
+        toggleBtn.onclick = async () => {
+          if (this.plugin.settings.highlights) {
+            this.plugin.settings.highlights.words[index].enabled =
+              !word.enabled;
+            await this.plugin.saveSettings();
+            this.display();
+          }
+        };
+
+        const deleteBtn = wordRow.createEl("button", {
+          cls: "rss-dashboard-highlight-delete",
+          text: "×",
+        });
+        deleteBtn.onclick = async () => {
+          if (this.plugin.settings.highlights) {
+            this.plugin.settings.highlights.words.splice(index, 1);
+            await this.plugin.saveSettings();
+            this.display();
+          }
+        };
+      });
+    }
+
+    // Add new word section
+    new Setting(containerEl).setName("Add new word").setHeading();
+
+    const newWordContainer = containerEl.createDiv();
+
+    const wordInputSetting = new Setting(newWordContainer)
+      .setName("Word or phrase")
+      .addText((text) => text.setPlaceholder("Enter word to highlight"));
+
+    const wholeWordSetting = new Setting(newWordContainer)
+      .setName("Whole word only")
+      .setDesc("Only highlight complete words (not partial matches)")
+      .addToggle((toggle) => toggle.setValue(false));
+
+    const colorSetting = new Setting(newWordContainer)
+      .setName("Highlight color (optional)")
+      .addColorPicker((colorPicker) =>
+        colorPicker.setValue(
+          this.plugin.settings.highlights?.defaultColor ?? "#ffd700",
+        ),
+      );
+
+    new Setting(newWordContainer).addButton((button) =>
+      button.setButtonText("Add word").onClick(async () => {
+        const textInput = wordInputSetting.components[0] as unknown as {
+          inputEl: HTMLInputElement;
+        };
+        const colorPicker = colorSetting.components[0] as unknown as {
+          getValue: () => string;
+        };
+        const wholeWordToggle = wholeWordSetting.components[0] as unknown as {
+          getValue: () => boolean;
+        };
+
+        const text = textInput.inputEl.value.trim();
+        const color = colorPicker.getValue();
+        const wholeWord = wholeWordToggle.getValue();
+
+        if (!text) {
+          new Notice("Please enter a word to highlight");
+          return;
+        }
+
+        if (!this.plugin.settings.highlights) {
+          this.plugin.settings.highlights = {
+            enabled: false,
+            defaultColor: "#ffd700",
+            caseSensitive: false,
+            highlightInContent: true,
+            highlightInTitles: true,
+            highlightInSummaries: true,
+            words: [],
+          };
+        }
+
+        // Check for duplicates
+        if (
+          this.plugin.settings.highlights.words.some((w) => w.text === text)
+        ) {
+          new Notice("This word is already in the list");
+          return;
+        }
+
+        this.plugin.settings.highlights.words.push({
+          id: `highlight-${Date.now()}`,
+          text,
+          color,
+          enabled: true,
+          wholeWord,
+          createdAt: Date.now(),
+        });
+
+        await this.plugin.saveSettings();
+        this.display();
+      }),
+    );
   }
 
   private async promptForTemplateName(): Promise<string | null> {

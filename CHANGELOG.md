@@ -1,5 +1,32 @@
 # RSS Dashboard - Changelog
 
+## [2.2.0] - 2026-02-23
+
+### ✨ New Feature: Word Highlighting
+
+- **Custom Word Highlights**: Add words or phrases to be highlighted in article titles, summaries, and content
+- **Per-Word Colors**: Each highlight word can have its own custom color
+- **Flexible Location Control**: Choose where highlights appear:
+  - Article titles in list/card view
+  - Article summaries in card view
+  - Article content in reader view
+- **Case Sensitivity Option**: Match words with exact case or case-insensitive
+- **Per-Word Whole Word Matching**: Each highlight word can be set to match whole words only or partial matches
+- **Toggle Individual Words**: Enable/disable individual highlight words without deleting them
+- **Default Color Setting**: Set a default highlight color for new words
+- **Quick Toggle in Filter Menu**: "Show Highlights" toggle in the Filters menu for quick enable/disable
+  - Available in both desktop filter dropdown and mobile/tablet hamburger menu
+  - Toggle state persists across sessions
+
+### Settings
+
+- New "Highlights" settings tab with full configuration options
+- Add, edit, enable/disable, and delete highlight words
+- Visual preview of highlight colors in settings
+- Per-word "Whole"/"Partial" toggle for flexible matching
+
+---
+
 ## [2.1.0] - 2026-02-23
 
 ### New Display Setting

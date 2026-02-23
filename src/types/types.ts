@@ -165,6 +165,25 @@ export interface DisplaySettings {
   autoMarkReadOnOpen: boolean;
 }
 
+export interface HighlightWord {
+  id: string;
+  text: string;
+  color?: string;
+  enabled: boolean;
+  wholeWord?: boolean;
+  createdAt: number;
+}
+
+export interface HighlightSettings {
+  enabled: boolean;
+  defaultColor: string;
+  caseSensitive: boolean;
+  highlightInContent: boolean;
+  highlightInTitles: boolean;
+  highlightInSummaries: boolean;
+  words: HighlightWord[];
+}
+
 export interface RssDashboardSettings {
   feeds: Feed[];
   folders: Folder[];
@@ -209,6 +228,7 @@ export interface RssDashboardSettings {
   media: MediaSettings;
   articleSaving: ArticleSavingSettings;
   display: DisplaySettings;
+  highlights: HighlightSettings;
 }
 
 export const DEFAULT_SETTINGS: RssDashboardSettings = {
@@ -314,5 +334,14 @@ guid: "{{guid}}"
     useDomainFavicons: true,
     hideDefaultRssIcon: false,
     autoMarkReadOnOpen: false,
+  },
+  highlights: {
+    enabled: false,
+    defaultColor: "#ffd700",
+    caseSensitive: false,
+    highlightInContent: true,
+    highlightInTitles: true,
+    highlightInSummaries: true,
+    words: [],
   },
 };

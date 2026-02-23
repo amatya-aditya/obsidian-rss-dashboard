@@ -1233,6 +1233,23 @@ export class RssDashboardView extends ItemView {
   }): void {
     if (filter.type === "logic" && filter.logic) {
       this.filterLogic = filter.logic;
+    } else if (filter.type === "highlights") {
+      // Highlights toggle – requires saving settings and full re-render
+      if (!this.settings.highlights) {
+        this.settings.highlights = {
+          enabled: false,
+          defaultColor: "#ffd700",
+          caseSensitive: false,
+          highlightInContent: true,
+          highlightInTitles: true,
+          highlightInSummaries: true,
+          words: [],
+        };
+      }
+      this.settings.highlights.enabled = filter.checked ?? false;
+      void this.plugin.saveSettings();
+      void this.render();
+      return;
     } else if (filter.isTag) {
       if (filter.checked) {
         this.activeTagFilters.add(filter.type);
