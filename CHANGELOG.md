@@ -1,5 +1,21 @@
 # RSS Dashboard - Changelog
 
+## [2.2.2] - 2026-02-23
+
+### 🎨 UI/UX Improvements
+
+- **Unified Add Feed Modal**: YouTube channel URLs can now be added directly through the standard "Add feed" modal. The modal automatically detects YouTube URLs and converts them to RSS feeds.
+- **Removed Separate YouTube Button**: Eliminated the separate "Add YouTube channel" button from the sidebar, consolidating all feed adding functionality into a single unified modal.
+- **Removed Unused Setting**: Removed the "Auto-detect media type" setting from Media settings as media type detection always happens automatically.
+
+### 🔧 Technical Changes
+
+- Media type detection is now always automatic - no setting needed
+- YouTube URL conversion happens seamlessly in the Add/Edit Feed modals
+- Cleaner sidebar UI with fewer buttons
+
+---
+
 ## [2.2.1] - 2026-02-23
 
 ### 🎨 UI/UX Improvements

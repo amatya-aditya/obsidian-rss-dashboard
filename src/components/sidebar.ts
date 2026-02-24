@@ -1,12 +1,4 @@
-import {
-  Menu,
-  MenuItem,
-  Notice,
-  App,
-  setIcon,
-  Setting,
-  requestUrl,
-} from "obsidian";
+import { Menu, MenuItem, Notice, App, setIcon, Setting } from "obsidian";
 import {
   Feed,
   Folder,
@@ -290,14 +282,6 @@ export class Sidebar {
               this.showAddFeedModal();
             });
         });
-        menu.addItem((item: MenuItem) => {
-          item
-            .setTitle("Add YouTube channel")
-            .setIcon("youtube")
-            .onClick(() => {
-              this.showAddYouTubeFeedModal();
-            });
-        });
         menu.showAtMouseEvent(e);
       }
     });
@@ -518,14 +502,6 @@ export class Sidebar {
           .setIcon("rss")
           .onClick(() => {
             this.showAddFeedModal(fullPath);
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Add YouTube channel")
-          .setIcon("youtube")
-          .onClick(() => {
-            this.showAddYouTubeFeedModal();
           });
       });
       menu.addItem((item: MenuItem) => {
@@ -817,182 +793,6 @@ export class Sidebar {
         e.dataTransfer.effectAllowed = "move";
       }
     });
-  }
-
-  private showAddYouTubeFeedModal(): void {
-    const modal = document.body.createDiv({
-      cls: "rss-dashboard-modal rss-dashboard-modal-container",
-    });
-
-    const modalContent = modal.createDiv({
-      cls: "rss-dashboard-modal-content",
-    });
-
-    new Setting(modalContent).setName("Add YouTube channel").setHeading();
-
-    const infoText = modalContent.createDiv({
-      cls: "rss-dashboard-modal-info",
-    });
-
-    infoText.createEl("p", {
-      text: "Enter a YouTube channel URL or ID.",
-    });
-
-    const list = infoText.createEl("ul");
-
-    const items = [
-      "Channel url: https://www.youtube.com/channel/UCxxxxxxxx",
-      "Channel id: UCxxxxxxxx",
-    ];
-
-    items.forEach((itemText) => {
-      list.createEl("li", { text: itemText });
-    });
-
-    const channelLabel = modalContent.createEl("label", {
-      text: "YouTube channel:",
-    });
-    const channelInput = modalContent.createEl("input", {
-      attr: {
-        type: "text",
-        placeholder: "Enter channel URL, ID, username or URL",
-      },
-    });
-
-    const titleLabel = modalContent.createEl("label", {
-      text: "Feed title (optional):",
-    });
-    const titleInput = modalContent.createEl("input", {
-      attr: {
-        type: "text",
-        placeholder: "Leave blank to use channel name",
-      },
-    });
-
-    const buttonContainer = modalContent.createDiv({
-      cls: "rss-dashboard-modal-buttons",
-    });
-
-    const cancelButton = buttonContainer.createEl("button", {
-      text: "Cancel",
-    });
-    cancelButton.addEventListener("click", () => {
-      document.body.removeChild(modal);
-    });
-
-    const addButton = buttonContainer.createEl("button", {
-      text: "Add channel",
-      cls: "rss-dashboard-primary-button",
-    });
-    addButton.addEventListener("click", () => {
-      void (async () => {
-        const channel = channelInput.value.trim();
-        let feedUrl = "";
-        let channelId = "";
-        let username = "";
-
-        if (!channel) {
-          new Notice("Please enter a YouTube channel URL or ID");
-          return;
-        }
-
-        if (/^UC[\w-]{22}$/.test(channel)) {
-          channelId = channel;
-          feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel}`;
-          const result = await this.extractChannelIdAndNameFromYouTubePage(
-            `https://www.youtube.com/channel/${channel}`,
-          );
-          if (result.channelName && !titleInput.value) {
-            titleInput.value = result.channelName;
-          } else if (!titleInput.value) {
-            titleInput.value = `YouTube: ${channel}`;
-          }
-        } else {
-          let channelName = "";
-          let inputUrl = channel;
-          if (!inputUrl.startsWith("http")) {
-            if (inputUrl.startsWith("@")) {
-              inputUrl = `https://www.youtube.com/${inputUrl}`;
-            } else {
-              inputUrl = `https://www.youtube.com/user/${inputUrl}`;
-            }
-          }
-
-          const result =
-            await this.extractChannelIdAndNameFromYouTubePage(inputUrl);
-          channelId = result.channelId || "";
-          channelName = result.channelName || "";
-          if (channelId) {
-            feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-
-            if (titleInput && !titleInput.value) {
-              titleInput.value = channelName;
-            }
-          } else {
-            if (channel.includes("youtube.com/user/")) {
-              const match = channel.match(/youtube\.com\/user\/([^/?]+)/);
-              username = match ? match[1] : "";
-            } else if (
-              !channel.startsWith("http") &&
-              !channel.startsWith("@")
-            ) {
-              username = channel;
-            }
-            if (username) {
-              feedUrl = `https://www.youtube.com/feeds/videos.xml?user=${username}`;
-            } else {
-              new Notice(
-                "Could not resolve channel ID or username. Please check the URL.",
-              );
-              return;
-            }
-          }
-        }
-
-        const title =
-          titleInput.value.trim() || `YouTube: ${channelId || username}`;
-        void this.callbacks
-          .onAddFeed(title, feedUrl, this.settings.media.defaultYouTubeFolder)
-          .catch(() => {
-            /* ignore */
-          });
-        document.body.removeChild(modal);
-      })();
-    });
-
-    buttonContainer.appendChild(cancelButton);
-    buttonContainer.appendChild(addButton);
-
-    modalContent.appendChild(infoText);
-    modalContent.appendChild(channelLabel);
-    modalContent.appendChild(channelInput);
-    modalContent.appendChild(titleLabel);
-    modalContent.appendChild(titleInput);
-    modalContent.appendChild(buttonContainer);
-
-    modal.appendChild(modalContent);
-    document.body.appendChild(modal);
-  }
-
-  private async extractChannelIdAndNameFromYouTubePage(
-    url: string,
-  ): Promise<{ channelId: string | null; channelName: string | null }> {
-    try {
-      const res = await requestUrl(url);
-      const html = res.text;
-
-      const idMatch = html.match(/channel_id=(UC[a-zA-Z0-9_-]{22})/);
-      const channelId = idMatch && idMatch[1] ? idMatch[1] : null;
-
-      const nameMatch = html.match(
-        /<meta property="og:title" content="([^"]+)"/,
-      );
-      const channelName = nameMatch && nameMatch[1] ? nameMatch[1] : null;
-      return { channelId, channelName };
-    } catch {
-      // YouTube page fetch failed
-    }
-    return { channelId: null, channelName: null };
   }
 
   private findFolderByPath(path: string): Folder | null {
@@ -1610,21 +1410,6 @@ export class Sidebar {
     setIcon(addFeedIcon, "plus");
     addFeedButton.addEventListener("click", () => {
       this.showAddFeedModal();
-    });
-
-    // Add YouTube channel button (at the top, before search)
-    const addYouTubeButton = row1.createDiv({
-      cls: "rss-dashboard-filter-item rss-dashboard-add-youtube-button",
-      attr: {
-        title: "Add YouTube channel",
-      },
-    });
-    const addYouTubeIcon = addYouTubeButton.createDiv({
-      cls: "rss-dashboard-filter-icon",
-    });
-    setIcon(addYouTubeIcon, "youtube");
-    addYouTubeButton.addEventListener("click", () => {
-      this.showAddYouTubeFeedModal();
     });
 
     // Search filter item

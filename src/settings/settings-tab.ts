@@ -541,20 +541,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
   }
 
   private createMediaSettings(containerEl: HTMLElement): void {
-    new Setting(containerEl)
-      .setName("Auto-detect media type")
-      .setDesc(
-        "Automatically detect if feeds are YouTube, podcasts, or regular articles",
-      )
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.media.autoDetectMediaType)
-          .onChange(async (value) => {
-            this.plugin.settings.media.autoDetectMediaType = value;
-            await this.plugin.saveSettings();
-          }),
-      );
-
     new Setting(containerEl).setName("YouTube").setHeading();
 
     new Setting(containerEl)

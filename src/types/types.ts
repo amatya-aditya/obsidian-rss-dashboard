@@ -125,7 +125,6 @@ export interface MediaSettings {
   defaultYouTubeTag: string;
   defaultPodcastFolder: string;
   defaultPodcastTag: string;
-  autoDetectMediaType: boolean;
   openInSplitView: boolean;
   podcastTheme: PodcastTheme;
 }
@@ -287,7 +286,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultYouTubeTag: "youtube",
     defaultPodcastFolder: "Podcasts",
     defaultPodcastTag: "podcast",
-    autoDetectMediaType: false,
     openInSplitView: true,
     podcastTheme: "obsidian",
   },
