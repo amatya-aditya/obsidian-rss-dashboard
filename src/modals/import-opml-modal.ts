@@ -332,11 +332,6 @@ export class ImportOpmlModal extends Modal {
     const updateOption = optionsWrapper.createDiv({
       cls: "import-mode-option selected",
     });
-    updateOption.onclick = () => {
-      this.importMode = "update";
-      updateOption.addClass("selected");
-      overwriteOption.removeClass("selected");
-    };
     const updateContent = updateOption.createDiv({
       cls: "import-mode-option-content",
     });
@@ -353,11 +348,6 @@ export class ImportOpmlModal extends Modal {
     const overwriteOption = optionsWrapper.createDiv({
       cls: "import-mode-option",
     });
-    overwriteOption.onclick = () => {
-      this.importMode = "overwrite";
-      overwriteOption.addClass("selected");
-      updateOption.removeClass("selected");
-    };
     const overwriteContent = overwriteOption.createDiv({
       cls: "import-mode-option-content",
     });
@@ -369,6 +359,21 @@ export class ImportOpmlModal extends Modal {
       cls: "import-mode-option-desc",
       text: "Replace all existing feeds with the imported feeds",
     });
+
+    // Add click handlers after elements are created
+    updateOption.onclick = () => {
+      this.importMode = "update";
+      console.debug("[ImportOpmlModal] Mode changed to: update");
+      updateOption.addClass("selected");
+      overwriteOption.removeClass("selected");
+    };
+
+    overwriteOption.onclick = () => {
+      this.importMode = "overwrite";
+      console.debug("[ImportOpmlModal] Mode changed to: overwrite");
+      overwriteOption.addClass("selected");
+      updateOption.removeClass("selected");
+    };
   }
 
   private showOverwriteWarning() {
@@ -445,11 +450,29 @@ export class ImportOpmlModal extends Modal {
       return;
     }
 
+    console.debug(
+      "[ImportOpmlModal] executeImport called with mode:",
+      this.importMode,
+    );
+    console.debug(
+      "[ImportOpmlModal] Current feeds count before import:",
+      this.plugin.settings.feeds.length,
+    );
+
     try {
       if (this.importMode === "overwrite") {
+        console.debug(
+          "[ImportOpmlModal] Overwrite mode - clearing existing feeds and folders",
+        );
+
         // Clear existing feeds and folders
         this.plugin.settings.feeds = [];
         this.plugin.settings.folders = [];
+
+        console.debug(
+          "[ImportOpmlModal] Feeds after clear:",
+          this.plugin.settings.feeds.length,
+        );
 
         // Add all imported feeds
         for (const feed of this.parsedFeeds) {
@@ -473,8 +496,13 @@ export class ImportOpmlModal extends Modal {
           });
         }
 
+        console.debug(
+          "[ImportOpmlModal] Feeds after import:",
+          this.plugin.settings.feeds.length,
+        );
+
         // Set folders
-        this.plugin.settings.folders = this.parsedFolders;
+        this.plugin.settings.folders = [...this.parsedFolders];
       } else {
         // Update mode - merge with existing
         const existingUrls = new Set(
