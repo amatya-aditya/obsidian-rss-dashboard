@@ -1,5 +1,21 @@
 # RSS Dashboard - Changelog
 
+## [2.2.3] - 2026-02-24
+
+### 🎨 UI/UX Improvements
+
+- **Add Feed Modal Redesign**: Improved the Add Feed modal with a cleaner, more modern interface
+  - Removed Advanced Options dropdown to simplify the modal (options still available in Edit Feed modal)
+  - Added purple "Load" button with hover effects and loading spinner animation
+  - Added color-coded status indicators: green for success, red for errors, orange for loading
+  - Added SVG format badges showing supported feed types (RSS, Apple Podcasts, YouTube)
+  - Added modal subtitle for better context
+  - Added placeholder text for URL input
+  - Added green border highlight on URL input when feed loads successfully
+  - Added loading state with disabled button to prevent double-clicks
+
+---
+
 ## [2.2.2] - 2026-02-23
 
 ### 🎨 UI/UX Improvements

@@ -508,6 +508,12 @@ export class AddFeedModal extends Modal {
       " rss-dashboard-modal rss-dashboard-modal-container";
     contentEl.empty();
     new Setting(contentEl).setName("Add feed").setHeading();
+
+    // Add subtitle
+    const subtitle = contentEl.createDiv({ cls: "add-feed-subtitle" });
+    subtitle.textContent =
+      "Add a new RSS, podcast, or YouTube feed to your dashboard";
+
     let url = "";
     let title = "";
     let status = "";
@@ -516,18 +522,21 @@ export class AddFeedModal extends Modal {
     let titleInput: HTMLInputElement;
     let urlInput: HTMLInputElement;
     let folderInput: HTMLInputElement;
+    let loadBtn: HTMLButtonElement;
     const refs: {
       statusDiv?: HTMLDivElement;
       latestEntryDiv?: HTMLDivElement;
     } = {};
 
-    new Setting(contentEl)
+    const urlSetting = new Setting(contentEl)
       .setName("Feed URL")
       .addText((text) => {
         text.onChange((v) => (url = v));
         urlInput = text.inputEl;
         urlInput.autocomplete = "off";
         urlInput.spellcheck = false;
+        urlInput.placeholder = "https://example.com/feed.xml";
+        urlInput.addClass("feed-url-input");
         urlInput.addEventListener("focus", () => urlInput.select());
         urlInput.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
@@ -537,27 +546,29 @@ export class AddFeedModal extends Modal {
           }
         });
       })
-      .setDesc(
-        document
-          .createRange()
-          .createContextualFragment(
-            "Currently Supported: <b>XML</b>, <b>Apple Podcasts</b>, <b>YouTube Channels</b>",
-          ),
-      )
       .addButton((btn) => {
-        btn.setButtonText("Load").onClick(() => {
+        btn.setButtonText("Load");
+        btn.buttonEl.addClass("rss-dashboard-load-button");
+        loadBtn = btn.buttonEl;
+        btn.onClick(() => {
           void (async () => {
-            status = "Loading...";
+            // Set loading state
+            status = "⏳ Loading...";
+            loadBtn.addClass("loading");
+            loadBtn.disabled = true;
             if (refs.statusDiv) {
               refs.statusDiv.textContent = status;
               refs.statusDiv.removeClass("rss-dashboard-status-warning");
+              refs.statusDiv.removeClass("status-ok");
+              refs.statusDiv.removeClass("status-error");
+              refs.statusDiv.addClass("status-loading");
             }
             try {
               let feedUrl = url;
 
               // Check for YouTube page URLs and convert to RSS feed
               if (isYouTubePageUrl(url)) {
-                status = "Resolving YouTube channel...";
+                status = "⏳ Resolving YouTube channel...";
                 if (refs.statusDiv) refs.statusDiv.textContent = status;
 
                 const rssUrl = await MediaService.getYouTubeRssFeed(url);
@@ -569,7 +580,7 @@ export class AddFeedModal extends Modal {
                 feedUrl = rssUrl;
                 url = rssUrl;
                 if (urlInput) urlInput.value = rssUrl;
-                status = "Loading YouTube feed...";
+                status = "⏳ Loading YouTube feed...";
                 if (refs.statusDiv) refs.statusDiv.textContent = status;
 
                 // Auto-set folder to default YouTube folder if not already set by user
@@ -600,7 +611,7 @@ export class AddFeedModal extends Modal {
                 // Check for podcast platform URLs
                 const platform = detectPodcastPlatform(url);
                 if (platform) {
-                  status = `Resolving ${platform.name} URL...`;
+                  status = `⏳ Resolving ${platform.name} URL...`;
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
                   const resolvedUrl = await resolvePodcastPlatformUrl(url);
                   if (!resolvedUrl) {
@@ -609,7 +620,7 @@ export class AddFeedModal extends Modal {
                   feedUrl = resolvedUrl;
                   url = resolvedUrl;
                   if (urlInput) urlInput.value = feedUrl;
-                  status = "Loading feed...";
+                  status = "⏳ Loading feed...";
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
                 }
               }
@@ -630,6 +641,15 @@ export class AddFeedModal extends Modal {
               if (refs.latestEntryDiv)
                 refs.latestEntryDiv.textContent = latestEntry;
               status = "OK";
+              // Success state
+              if (refs.statusDiv) {
+                refs.statusDiv.textContent = "✅ OK";
+                refs.statusDiv.removeClass("status-loading");
+                refs.statusDiv.addClass("status-ok");
+              }
+              if (urlInput) {
+                urlInput.addClass("loaded");
+              }
             } catch (e) {
               const errorMsg = e instanceof Error ? e.message : String(e);
               status = `Error: ${errorMsg}`;
@@ -637,11 +657,95 @@ export class AddFeedModal extends Modal {
               if (refs.latestEntryDiv)
                 refs.latestEntryDiv.textContent = latestEntry;
               console.error("Feed load error:", e);
+              // Error state
+              if (refs.statusDiv) {
+                refs.statusDiv.textContent = `❌ ${errorMsg}`;
+                refs.statusDiv.removeClass("status-loading");
+                refs.statusDiv.addClass("status-error");
+              }
+            } finally {
+              // Reset loading state
+              loadBtn.removeClass("loading");
+              loadBtn.disabled = false;
             }
-            if (refs.statusDiv) refs.statusDiv.textContent = status;
           })();
         });
       });
+
+    // Add supported formats badges with SVG icons
+    const formatsDesc = urlSetting.descEl.createDiv({
+      cls: "supported-formats",
+    });
+
+    // RSS badge - traditional RSS feed icon (radio waves)
+    const rssBadge = formatsDesc.createSpan({ cls: "format-badge rss" });
+    const rssSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
+    rssSvg.setAttribute("viewBox", "0 0 448 512");
+    rssSvg.setAttribute("width", "14");
+    rssSvg.setAttribute("height", "14");
+    const rssPath = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "path",
+    );
+    rssPath.setAttribute("fill", "currentColor");
+    rssPath.setAttribute(
+      "d",
+      "M0 64C0 46.3 14.3 32 32 32c229.8 0 416 186.2 416 416c0 17.7-14.3 32-32 32s-32-14.3-32-32C384 253.6 230.4 96 32 96C14.3 96 0 81.7 0 64zM0 416a64 64 0 1 1 128 0A64 64 0 1 1 0 416zM32 160c159.1 0 288 128.9 288 288c0 17.7-14.3 32-32 32s-32-14.3-32-32c0-123.7-100.3-224-224-224c-17.7 0-32-14.3-32-32s14.3-32 32-32z",
+    );
+    rssSvg.appendChild(rssPath);
+    rssBadge.appendChild(rssSvg);
+    rssBadge.appendText(" RSS");
+
+    // Apple Podcasts badge
+    const podcastBadge = formatsDesc.createSpan({
+      cls: "format-badge podcast",
+    });
+    const podcastSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
+    podcastSvg.setAttribute("viewBox", "0 0 24 24");
+    podcastSvg.setAttribute("width", "14");
+    podcastSvg.setAttribute("height", "14");
+    const podcastPath = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "path",
+    );
+    podcastPath.setAttribute("fill", "currentColor");
+    podcastPath.setAttribute(
+      "d",
+      "M5.34 0A5.328 5.328 0 0 0 0 5.34v13.32A5.328 5.328 0 0 0 5.34 24h13.32A5.328 5.328 0 0 0 24 18.66V5.34A5.328 5.328 0 0 0 18.66 0zm6.525 3.6a7.44 7.44 0 0 1 7.44 7.44 7.44 7.44 0 0 1-7.44 7.44 7.44 7.44 0 0 1-7.44-7.44 7.44 7.44 0 0 1 7.44-7.44zm-.096 1.776a5.664 5.664 0 0 0-5.664 5.664 5.664 5.664 0 0 0 5.664 5.664 5.664 5.664 0 0 0 5.664-5.664 5.664 5.664 0 0 0-5.664-5.664zm.096 2.4a.96.96 0 0 1 .96.96v2.88a.96.96 0 0 1-.96.96.96.96 0 0 1-.96-.96v-2.88a.96.96 0 0 1 .96-.96zm0 5.76a.96.96 0 0 1 .96.96.96.96 0 0 1-.96.96.96.96 0 0 1-.96-.96.96.96 0 0 1 .96-.96z",
+    );
+    podcastSvg.appendChild(podcastPath);
+    podcastBadge.appendChild(podcastSvg);
+    podcastBadge.appendText(" Apple Podcasts");
+
+    // YouTube badge
+    const youtubeBadge = formatsDesc.createSpan({
+      cls: "format-badge youtube",
+    });
+    const youtubeSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
+    youtubeSvg.setAttribute("viewBox", "0 0 24 24");
+    youtubeSvg.setAttribute("width", "14");
+    youtubeSvg.setAttribute("height", "14");
+    const youtubePath = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "path",
+    );
+    youtubePath.setAttribute("fill", "currentColor");
+    youtubePath.setAttribute(
+      "d",
+      "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z",
+    );
+    youtubeSvg.appendChild(youtubePath);
+    youtubeBadge.appendChild(youtubeSvg);
+    youtubeBadge.appendText(" YouTube");
 
     new Setting(contentEl).setName("Title").addText((text) => {
       titleInput = text.inputEl;
@@ -658,9 +762,7 @@ export class AddFeedModal extends Modal {
       });
     });
 
-    const latestEntrySetting = new Setting(contentEl).setName(
-      "Latest entry posted",
-    );
+    const latestEntrySetting = new Setting(contentEl).setName("Latest entry");
     refs.latestEntryDiv = latestEntrySetting.controlEl.createDiv({
       text: latestEntry,
       cls: "add-feed-latest-entry",
@@ -682,212 +784,10 @@ export class AddFeedModal extends Modal {
       new FolderSuggest(this.app, folderInput, this.folders);
     });
 
-    new Setting(contentEl).setName("Per feed control options").setHeading();
-
-    // Create collapsible container for advanced options
-    const advancedOptionsContainer = contentEl.createDiv({
-      cls: "rss-dashboard-advanced-options-container",
-    });
-
-    // Check if mobile view for default collapsed state
-    const isMobileView = window.innerWidth <= 768;
-    if (isMobileView) {
-      advancedOptionsContainer.addClass("collapsed");
-    }
-
-    // Toggle button for advanced options
-    const toggleHeader = contentEl.createDiv({
-      cls: "rss-dashboard-advanced-options-toggle",
-    });
-    toggleHeader.createEl("span", {
-      text: "Advanced options",
-      cls: "rss-dashboard-advanced-options-label",
-    });
-    const toggleIcon = toggleHeader.createEl("span", {
-      cls: "rss-dashboard-advanced-options-icon",
-    });
-    toggleIcon.setText(isMobileView ? "▶" : "▼");
-
-    toggleHeader.addEventListener("click", () => {
-      const isCollapsed = advancedOptionsContainer.hasClass("collapsed");
-      if (isCollapsed) {
-        advancedOptionsContainer.removeClass("collapsed");
-      } else {
-        advancedOptionsContainer.addClass("collapsed");
-      }
-      toggleIcon.setText(
-        advancedOptionsContainer.hasClass("collapsed") ? "▶" : "▼",
-      );
-    });
-
-    // Move advanced options into the container
-    let autoDeleteDuration = 0;
-    let maxItemsLimit = this.plugin?.settings?.maxItems || 25;
-    let scanInterval = 0;
-
-    const autoDeleteSetting = new Setting(advancedOptionsContainer)
-      .setName("Auto delete articles duration")
-      .setDesc("Days to keep articles before auto-delete");
-
-    let autoDeleteCustomInput: HTMLInputElement | null = null;
-
-    autoDeleteSetting.addDropdown((dropdown) => {
-      dropdown
-        .addOption("0", "Disabled")
-        .addOption("1", "1 day")
-        .addOption("3", "3 days")
-        .addOption("7", "1 week")
-        .addOption("14", "2 weeks")
-        .addOption("30", "1 month")
-        .addOption("60", "2 months")
-        .addOption("90", "3 months")
-        .addOption("180", "6 months")
-        .addOption("365", "1 year")
-        .addOption("custom", "Custom...")
-        .setValue("0")
-        .onChange((value) => {
-          if (value === "custom") {
-            if (!autoDeleteCustomInput) {
-              autoDeleteCustomInput = autoDeleteSetting.controlEl.createEl(
-                "input",
-                {
-                  type: "number",
-                  placeholder: "Enter days",
-                  cls: "rss-custom-input",
-                },
-              );
-              autoDeleteCustomInput.min = "1";
-              autoDeleteCustomInput.value =
-                autoDeleteDuration > 0 ? autoDeleteDuration.toString() : "";
-              autoDeleteCustomInput.addEventListener("change", (evt: Event) => {
-                const target = evt.target as HTMLInputElement;
-                autoDeleteDuration = parseInt(target.value) || 0;
-              });
-            }
-            if (autoDeleteCustomInput) {
-              autoDeleteCustomInput.removeClass("hidden");
-              autoDeleteCustomInput.addClass("visible");
-            }
-          } else {
-            if (autoDeleteCustomInput) {
-              autoDeleteCustomInput.addClass("hidden");
-            }
-            autoDeleteDuration = parseInt(value) || 0;
-          }
-        });
-    });
-
-    const maxItemsSetting = new Setting(advancedOptionsContainer)
-      .setName("Max items limit")
-      .setDesc("Maximum number of items to keep per feed");
-
-    let maxItemsCustomInput: HTMLInputElement | null = null;
-
-    maxItemsSetting.addDropdown((dropdown) => {
-      dropdown
-        .addOption("0", "Unlimited")
-        .addOption("10", "10 items")
-        .addOption("25", "25 items")
-        .addOption("50", "50 items")
-        .addOption("100", "100 items")
-        .addOption("200", "200 items")
-        .addOption("500", "500 items")
-        .addOption("1000", "1000 items")
-        .addOption("custom", "Custom...")
-        .setValue(
-          maxItemsLimit === 0
-            ? "0"
-            : [10, 25, 50, 100, 200, 500, 1000].includes(maxItemsLimit)
-              ? maxItemsLimit.toString()
-              : "custom",
-        )
-        .onChange((value) => {
-          if (value === "custom") {
-            if (!maxItemsCustomInput) {
-              maxItemsCustomInput = maxItemsSetting.controlEl.createEl(
-                "input",
-                {
-                  type: "number",
-                  placeholder: "Enter number",
-                  cls: "rss-custom-input",
-                },
-              );
-              maxItemsCustomInput.min = "1";
-              maxItemsCustomInput.value =
-                maxItemsLimit > 0 ? maxItemsLimit.toString() : "";
-              maxItemsCustomInput.addEventListener("change", (evt: Event) => {
-                const target = evt.target as HTMLInputElement;
-                maxItemsLimit = parseInt(target.value) || 0;
-              });
-            }
-            if (maxItemsCustomInput) {
-              maxItemsCustomInput.removeClass("hidden");
-              maxItemsCustomInput.addClass("visible");
-            }
-          } else {
-            if (maxItemsCustomInput) {
-              maxItemsCustomInput.addClass("hidden");
-            }
-            maxItemsLimit = parseInt(value) || 0;
-          }
-        });
-    });
-
-    const scanIntervalSetting = new Setting(advancedOptionsContainer)
-      .setName("Scan interval")
-      .setDesc("Custom scan interval in minutes");
-
-    let scanIntervalCustomInput: HTMLInputElement | null = null;
-
-    scanIntervalSetting.addDropdown((dropdown) => {
-      dropdown
-        .addOption("0", "Use global setting")
-        .addOption("5", "5 minutes")
-        .addOption("10", "10 minutes")
-        .addOption("15", "15 minutes")
-        .addOption("30", "30 minutes")
-        .addOption("60", "1 hour")
-        .addOption("120", "2 hours")
-        .addOption("240", "4 hours")
-        .addOption("480", "8 hours")
-        .addOption("720", "12 hours")
-        .addOption("1440", "24 hours")
-        .addOption("custom", "Custom...")
-        .setValue("0")
-        .onChange((value) => {
-          if (value === "custom") {
-            if (!scanIntervalCustomInput) {
-              scanIntervalCustomInput = scanIntervalSetting.controlEl.createEl(
-                "input",
-                {
-                  type: "number",
-                  placeholder: "Enter minutes",
-                  cls: "rss-custom-input",
-                },
-              );
-              scanIntervalCustomInput.min = "1";
-              scanIntervalCustomInput.value =
-                scanInterval > 0 ? scanInterval.toString() : "";
-              scanIntervalCustomInput.addEventListener(
-                "change",
-                (evt: Event) => {
-                  const target = evt.target as HTMLInputElement;
-                  scanInterval = parseInt(target.value) || 0;
-                },
-              );
-            }
-            if (scanIntervalCustomInput) {
-              scanIntervalCustomInput.removeClass("hidden");
-              scanIntervalCustomInput.addClass("visible");
-            }
-          } else {
-            if (scanIntervalCustomInput) {
-              scanIntervalCustomInput.addClass("hidden");
-            }
-            scanInterval = parseInt(value) || 0;
-          }
-        });
-    });
+    // Default values for the removed advanced options
+    const autoDeleteDuration = 0;
+    const maxItemsLimit = this.plugin?.settings?.maxItems || 25;
+    const scanInterval = 0;
 
     const btns = contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons",
