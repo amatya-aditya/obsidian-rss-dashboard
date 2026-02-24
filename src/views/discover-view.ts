@@ -433,13 +433,6 @@ export class DiscoverView extends ItemView {
       cls: "rss-discover-header-title",
       text: "RSS Discover",
     });
-
-    const rightSection = header.createDiv({
-      cls: "rss-discover-header-right",
-    });
-
-    // Add sort dropdown directly to mobile header
-    this.renderSortDropdown(rightSection);
   }
 
   private renderSearch(container: HTMLElement): void {

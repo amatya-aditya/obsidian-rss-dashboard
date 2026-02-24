@@ -219,7 +219,25 @@
   .modal.rss-mobile-navigation-modal .modal-close-button,
   .modal.rss-mobile-discover-filters-modal .modal-close-button,
   .modal.rss-mobile-feed-manager-modal .modal-close-button {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    left: auto;
+    z-index: 10;
+  }
+
+  /* Center the X icon inside the close button circle */
+  .modal.rss-mobile-navigation-modal .modal-close-button::before,
+  .modal.rss-mobile-discover-filters-modal .modal-close-button::before,
+  .modal.rss-mobile-feed-manager-modal .modal-close-button::before {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
   }
 
   .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar {
@@ -450,171 +468,55 @@
   }
 }
 
-@media (min-width: 600px) and (max-width: 767px) {
+/* Mobile Card View - Single card per row for better readability */
+@media (max-width: 599px) {
   .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: 1fr;
     gap: 12px;
   }
 
   .rss-dashboard-article-card {
-    min-height: 300px;
-    max-height: 300px;
+    min-height: 320px;
+    max-height: 420px;
+    height: auto;
   }
 
   .rss-dashboard-card-content {
-    padding: 12px 10px 8px 10px;
+    padding: 14px 12px 10px 12px;
   }
 
   .rss-dashboard-article-title {
-    font-size: 0.95em;
-    line-height: 1.25;
-    height: 2.5em;
+    font-size: 1em;
+    line-height: 1.35;
+    height: auto;
+    margin-bottom: 8px;
   }
 
   .rss-dashboard-article-meta {
-    font-size: 0.8em;
-    gap: 4px;
-  }
-
-  .rss-dashboard-action-toolbar {
-    padding: 0 8px;
-    gap: 4px;
-    height: 28px;
-    min-height: 28px;
-  }
-
-  .rss-dashboard-article-tag {
-    padding: 1px 6px;
-    font-size: 0.75em;
-  }
-}
-
-@media (min-width: 480px) and (max-width: 599px) {
-  .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 10px;
-  }
-
-  .rss-dashboard-article-card {
-    min-height: 280px;
-    max-height: 280px;
-  }
-
-  .rss-dashboard-card-content {
-    padding: 10px 8px 6px 8px;
-  }
-
-  .rss-dashboard-article-title {
-    font-size: 0.9em;
-    line-height: 1.2;
-    height: 2.4em;
-  }
-
-  .rss-dashboard-article-meta {
-    font-size: 0.75em;
-    gap: 3px;
-  }
-
-  .rss-dashboard-action-toolbar {
-    padding: 0 6px;
-    gap: 3px;
-    height: 26px;
-    min-height: 26px;
-  }
-
-  .rss-dashboard-article-tag {
-    padding: 1px 4px;
-    font-size: 0.7em;
-  }
-
-  .rss-dashboard-cover-container {
-    margin: 6px 0;
-  }
-}
-
-@media (min-width: 400px) and (max-width: 479px) {
-  .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 8px;
-  }
-
-  .rss-dashboard-article-card {
-    min-height: 260px;
-    max-height: 260px;
-  }
-
-  .rss-dashboard-card-content {
-    padding: 8px 6px 4px 6px;
-  }
-
-  .rss-dashboard-article-title {
     font-size: 0.85em;
-    line-height: 1.15;
-    height: 2.3em;
-  }
-
-  .rss-dashboard-article-meta {
-    font-size: 0.7em;
-    gap: 2px;
-  }
-
-  .rss-dashboard-action-toolbar {
-    padding: 0 4px;
-    gap: 2px;
-    height: 24px;
-    min-height: 24px;
-  }
-
-  .rss-dashboard-article-tag {
-    padding: 1px 3px;
-    font-size: 0.65em;
-  }
-
-  .rss-dashboard-cover-container {
-    margin: 4px 0;
-  }
-}
-
-@media (min-width: 320px) and (max-width: 399px) {
-  .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 6px;
   }
 
-  .rss-dashboard-article-card {
-    min-height: 240px;
-    max-height: 240px;
-  }
-
-  .rss-dashboard-card-content {
-    padding: 6px 4px 3px 4px;
-  }
-
-  .rss-dashboard-article-title {
-    font-size: 0.8em;
-    line-height: 1.1;
-    height: 2.2em;
-  }
-
-  .rss-dashboard-article-meta {
-    font-size: 0.65em;
-    gap: 1px;
-  }
-
   .rss-dashboard-action-toolbar {
-    padding: 0 3px;
-    gap: 1px;
-    height: 22px;
-    min-height: 22px;
+    padding: 0 10px;
+    gap: 8px;
+    height: 36px;
+    min-height: 36px;
   }
 
   .rss-dashboard-article-tag {
-    padding: 1px 2px;
-    font-size: 0.6em;
+    padding: 2px 8px;
+    font-size: 0.8em;
   }
 
   .rss-dashboard-cover-container {
-    margin: 3px 0;
+    margin: 8px 0;
+  }
+
+  .rss-dashboard-article-cover {
+    height: 180px;
+    min-height: 180px;
+    max-height: 180px;
   }
 }
 
@@ -748,39 +650,17 @@
   }
 }
 
-@container (min-width: 480px) and (max-width: 599px) {
+/* Container Queries - Mobile single card layout */
+@container (max-width: 599px) {
   .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 10px;
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .rss-dashboard-article-card {
-    min-height: 380px;
-    max-height: 380px;
-  }
-}
-
-@container (min-width: 400px) and (max-width: 479px) {
-  .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 8px;
-  }
-
-  .rss-dashboard-article-card {
-    min-height: 360px;
-    max-height: 360px;
-  }
-}
-
-@container (min-width: 320px) and (max-width: 399px) {
-  .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 6px;
-  }
-
-  .rss-dashboard-article-card {
-    min-height: 340px;
-    max-height: 340px;
+    min-height: 320px;
+    max-height: 420px;
+    height: auto;
   }
 }
 
@@ -859,19 +739,21 @@
   }
 }
 
+/* Mobile landscape - still single card for better readability */
 @media (max-width: 768px) and (orientation: landscape) {
   .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .rss-dashboard-article-card {
     min-height: 280px;
-    max-height: 280px;
+    max-height: 380px;
+    height: auto;
   }
 
   .rss-dashboard-card-content {
-    padding: 10px 8px 6px 8px;
+    padding: 10px 12px 8px 12px;
   }
 }
 

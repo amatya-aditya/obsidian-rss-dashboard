@@ -1,5 +1,17 @@
 # RSS Dashboard - Changelog
 
+## [2.2.8] - 2026-02-24
+
+### 🐛 Bug Fixes
+
+- **Fixed Modal Close Button Alignment on Mobile/Tablet**: The "x" icon inside the close button circle was not centered on mobile/tablet views. Added flexbox centering styles to properly align the icon within the button for all modal types (Manage feeds, Add feed, Edit feed, etc.).
+
+### 🎨 UI/UX Improvements
+
+- **Mobile Card View Simplified**: Changed the default mobile card view to display only 1 card at a time to avoid overcrowding on smaller screens.
+
+---
+
 ## [2.2.7] - 2026-02-24
 
 ### 🐛 Bug Fixes
