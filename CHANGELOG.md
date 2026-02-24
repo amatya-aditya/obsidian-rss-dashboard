@@ -1,5 +1,34 @@
 # RSS Dashboard - Changelog
 
+## [2.2.9] - 2026-02-24
+
+### ✨ New Features
+
+- **Import OPML Modal**: Completely redesigned the OPML import experience with a new dedicated modal
+  - File selector with "Import OPML file..." button and folder icon
+  - OPML validation with clear error messages in red for invalid files
+  - Preview section showing all feeds found in the OPML file grouped by folder
+  - Import mode selector with two options:
+    - **Update**: Add new feeds to existing list (duplicates skipped)
+    - **Overwrite**: Replace all existing feeds with imported feeds
+  - Overwrite warning modal with export backup recommendation
+  - Click-to-select mode options with visual selection indicator (blue border/glow)
+  - Mobile-responsive design
+
+### 🎨 UI/UX Improvements
+
+- **Mode Selector Styling**: New click-to-select pattern for import mode options
+  - Removed radio buttons in favor of clickable boxes
+  - Selected option shows prominent blue border with glow effect
+  - Hover states with border color change
+  - Title text changes color when selected
+
+### 🐛 Bug Fixes
+
+- **Fixed Mode Selector Layout Issue**: Resolved a CSS conflict where text was appearing outside container boundaries due to global modal label styles
+
+---
+
 ## [2.2.8] - 2026-02-24
 
 ### 🐛 Bug Fixes

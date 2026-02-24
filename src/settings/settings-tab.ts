@@ -19,6 +19,7 @@ import {
   FolderSuggest,
   VaultFolderSuggest,
 } from "../components/folder-suggest";
+import { ImportOpmlModal } from "../modals/import-opml-modal";
 
 class TemplateNameModal extends Modal {
   private result: string | null = null;
@@ -1249,7 +1250,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       text: "Import opml",
       cls: "rss-dashboard-import-export-btn",
     });
-    importOpmlBtn.onclick = () => this.plugin.importOpml();
+    importOpmlBtn.onclick = () => {
+      new ImportOpmlModal(this.app, this.plugin).open();
+    };
 
     const exportOpmlBtn = opmlBtnRow.createEl("button", {
       text: "Export opml",

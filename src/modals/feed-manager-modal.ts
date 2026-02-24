@@ -1,4 +1,4 @@
-import { Modal, App, Setting, Notice } from "obsidian";
+import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import type { Feed, Folder, SavedTemplate } from "../types/types";
 import { DEFAULT_SETTINGS } from "../types/types";
@@ -9,6 +9,7 @@ import {
 } from "../services/feed-parser";
 import { detectPodcastPlatform } from "../utils/podcast-platforms";
 import { MediaService } from "../services/media-service";
+import { ImportOpmlModal } from "./import-opml-modal";
 
 /**
  * Helper function to collect all folder paths from a folder hierarchy
@@ -1145,7 +1146,7 @@ export class FeedManagerModal extends Modal {
     contentEl.empty();
     new Setting(contentEl).setName("Manage feeds").setHeading();
 
-    // Search and Add Feed button container
+    // Search and button container
     const topControls = contentEl.createDiv({
       cls: "feed-manager-top-controls",
     });
@@ -1165,7 +1166,13 @@ export class FeedManagerModal extends Modal {
       this.renderFeeds(contentEl);
     });
 
-    const addFeedBtn = topControls.createEl("button", {
+    // First button row - Add feed
+    const buttonRowPrimary = topControls.createDiv({
+      cls: "feed-manager-button-row feed-manager-button-row-primary",
+    });
+
+    // Add feed button
+    const addFeedBtn = buttonRowPrimary.createEl("button", {
       text: "Add feed",
       cls: "rss-dashboard-primary-button feed-manager-add-button",
     });
@@ -1188,8 +1195,33 @@ export class FeedManagerModal extends Modal {
       ).open();
     };
 
+    // Second button row - Import, Export, Delete All
+    const buttonRowSecondary = topControls.createDiv({
+      cls: "feed-manager-button-row feed-manager-button-row-secondary",
+    });
+
+    // Import OPML button
+    const importOpmlBtn = buttonRowSecondary.createEl("button", {
+      cls: "feed-manager-opml-button feed-manager-import-button",
+    });
+    setIcon(importOpmlBtn, "upload");
+    importOpmlBtn.createSpan({ text: " Import" });
+    importOpmlBtn.onclick = () => {
+      new ImportOpmlModal(this.app, this.plugin).open();
+    };
+
+    // Export OPML button
+    const exportOpmlBtn = buttonRowSecondary.createEl("button", {
+      cls: "feed-manager-opml-button feed-manager-export-button",
+    });
+    setIcon(exportOpmlBtn, "download");
+    exportOpmlBtn.createSpan({ text: " Export" });
+    exportOpmlBtn.onclick = () => {
+      this.plugin.exportOpml();
+    };
+
     // Delete All button
-    const deleteAllBtn = topControls.createEl("button", {
+    const deleteAllBtn = buttonRowSecondary.createEl("button", {
       text: "Delete all",
       cls: "rss-dashboard-danger-button feed-manager-delete-all-button",
     });

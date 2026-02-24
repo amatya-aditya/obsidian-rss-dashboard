@@ -7,6 +7,7 @@ import {
   FeedMetadata,
 } from "../types/types";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
+import { ImportOpmlModal } from "../modals/import-opml-modal";
 import type RssDashboardPlugin from "../../main";
 
 export interface SidebarOptions {
@@ -1641,7 +1642,7 @@ export class Sidebar {
     });
     setIcon(importOpmlButton, "upload");
     importOpmlButton.addEventListener("click", () => {
-      this.callbacks.onImportOpml();
+      new ImportOpmlModal(this.app, this.plugin).open();
     });
 
     const exportOpmlButton = sidebarToolbar.createDiv({

@@ -31,6 +31,7 @@ import { ArticleSaver } from "./src/services/article-saver";
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
 import { sleep, setCssProps } from "./src/utils/platform-utils";
+import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 
 export default class RssDashboardPlugin extends Plugin {
   settings!: RssDashboardSettings;
@@ -173,7 +174,7 @@ export default class RssDashboardPlugin extends Plugin {
         id: "import-opml",
         name: "Import opml",
         callback: () => {
-          void this.importOpml();
+          new ImportOpmlModal(this.app, this).open();
         },
       });
 
@@ -671,7 +672,7 @@ export default class RssDashboardPlugin extends Plugin {
     input.click();
   }
 
-  private startBackgroundImport(feeds: Feed[]): void {
+  public startBackgroundImport(feeds: Feed[]): void {
     this.backgroundImportQueue.push(
       ...feeds.map((feed) => ({
         ...feed,

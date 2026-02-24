@@ -1132,3 +1132,418 @@
     margin-top: 8px;
   }
 }
+
+/* ============================================
+   Feed Manager Button Rows
+   ============================================ */
+
+.feed-manager-button-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Primary row - Add feed button */
+.feed-manager-button-row-primary {
+  justify-content: flex-start;
+}
+
+/* Secondary row - Import, Export, Delete All */
+.feed-manager-button-row-secondary {
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+
+/* OPML Button Styles */
+.feed-manager-opml-button {
+  background: var(--interactive-normal);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.feed-manager-opml-button:hover {
+  background: var(--interactive-hover);
+  border-color: var(--interactive-accent);
+}
+
+.feed-manager-opml-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Compact button sizing for the button rows */
+.feed-manager-button-row .rss-dashboard-primary-button,
+.feed-manager-button-row .rss-dashboard-danger-button {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+/* ============================================
+   Mobile Responsive Styles for Button Rows
+   ============================================ */
+
+@media (max-width: 768px) {
+  .feed-manager-top-controls {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .feed-manager-search-container {
+    width: 100%;
+  }
+
+  .feed-manager-search-input {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .feed-manager-button-row {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .feed-manager-button-row-primary {
+    margin-top: 0;
+  }
+
+  .feed-manager-button-row-secondary {
+    margin-top: 8px;
+  }
+
+  .feed-manager-button-row button {
+    flex: 1 1 auto;
+    min-height: 44px;
+    min-width: 80px;
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  /* OPML button mobile adjustments */
+  .feed-manager-opml-button {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 400px) {
+  .feed-manager-button-row {
+    flex-direction: column;
+  }
+
+  .feed-manager-button-row button {
+    width: 100%;
+  }
+}
+
+/* ============================================
+   Import OPML Modal Styles
+   ============================================ */
+
+/* File selector row */
+.import-file-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1rem;
+}
+
+.import-file-path-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.import-file-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--interactive-accent, #3498db);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.import-file-button:hover {
+  background: var(--interactive-accent-hover, #217dbb);
+}
+
+.import-file-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Error message styling */
+.import-error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  color: #ef4444;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.import-error-message svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Preview container */
+.import-preview-container {
+  margin-bottom: 1rem;
+}
+
+.import-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.import-preview-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.import-preview-count {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: var(--background-modifier-hover);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.import-preview-list {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+}
+
+.import-preview-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: 0.9rem;
+}
+
+.import-preview-item:last-child {
+  border-bottom: none;
+}
+
+.import-preview-item .feed-title {
+  flex: 1;
+  color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-preview-item .feed-folder {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  background: var(--background-modifier-hover);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+.import-preview-folder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.5rem 0.75rem;
+  background: var(--background-primary);
+  font-weight: 500;
+  color: var(--text-normal);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.import-preview-folder svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+}
+
+.import-preview-folder-indent {
+  padding-left: calc(0.75rem + var(--indent, 0px));
+}
+
+/* Mode selector */
+.import-mode-selector {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--background-secondary);
+  border-radius: 8px;
+}
+
+.import-mode-label {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.import-mode-selector h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.import-mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.import-mode-option {
+  display: block;
+  padding: 1rem;
+  border: 2px solid var(--background-modifier-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--background-primary);
+}
+
+.import-mode-option:hover {
+  border-color: var(--interactive-accent-hover);
+  background: var(--background-modifier-hover);
+}
+
+.import-mode-option.selected {
+  border-color: var(--interactive-accent, #3498db);
+  border-width: 3px;
+  background: rgba(52, 152, 219, 0.1);
+  box-shadow: 0 0 0 1px var(--interactive-accent, #3498db);
+}
+
+.import-mode-option-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.import-mode-option-title {
+  font-weight: 600;
+  color: var(--text-normal);
+  font-size: 1rem;
+}
+
+.import-mode-option.selected .import-mode-option-title {
+  color: var(--interactive-accent, #3498db);
+}
+
+.import-mode-option-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Import actions */
+.import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 1rem;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.import-actions button {
+  min-width: 100px;
+}
+
+/* Overwrite warning specific styles */
+.import-overwrite-warning .delete-all-backup-notice {
+  margin-bottom: 0;
+}
+
+/* ============================================
+   Mobile Responsive Styles for Import OPML Modal
+   ============================================ */
+
+@media (max-width: 768px) {
+  .import-file-selector {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .import-file-path-input {
+    text-align: center;
+  }
+
+  .import-file-button {
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .import-preview-list {
+    max-height: 200px;
+  }
+
+  .import-mode-option {
+    padding: 12px;
+  }
+
+  .import-actions {
+    flex-direction: column;
+  }
+
+  .import-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 400px) {
+  .import-preview-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .import-mode-options {
+    gap: 8px;
+  }
+}
+
+/* Hidden/visible utility classes for import modal */
+.import-hidden {
+  display: none !important;
+}
+
+.import-visible {
+  display: block !important;
+}
