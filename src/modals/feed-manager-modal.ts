@@ -40,6 +40,13 @@ function isYouTubePageUrl(url: string): boolean {
   return true;
 }
 
+/**
+ * Helper function to check if screen is mobile/tablet width
+ */
+function isMobileWidth(): boolean {
+  return window.innerWidth <= 1200;
+}
+
 export class EditFeedModal extends Modal {
   feed: Feed;
   plugin: RssDashboardPlugin;
@@ -61,6 +68,10 @@ export class EditFeedModal extends Modal {
       "rss-dashboard-modal",
       "rss-dashboard-modal-container",
     ]);
+    // Add mobile-specific class for proper styling on mobile/tablet
+    if (isMobileWidth()) {
+      this.modalEl.addClass("rss-mobile-feed-manager-modal");
+    }
     contentEl.empty();
     new Setting(contentEl).setName("Edit feed").setHeading();
 
@@ -639,6 +650,10 @@ export class AddFeedModal extends Modal {
     const { contentEl } = this;
     this.modalEl.className +=
       " rss-dashboard-modal rss-dashboard-modal-container";
+    // Add mobile-specific class for proper styling on mobile/tablet
+    if (isMobileWidth()) {
+      this.modalEl.addClass("rss-mobile-feed-manager-modal");
+    }
     contentEl.empty();
     new Setting(contentEl).setName("Add feed").setHeading();
 
@@ -1073,8 +1088,59 @@ export class FeedManagerModal extends Modal {
 
   onOpen() {
     const { contentEl } = this;
+    const isMobile = isMobileWidth();
+
+    // Debug logging
+    console.debug("[FeedManagerModal] onOpen called");
+    console.debug("[FeedManagerModal] window.innerWidth:", window.innerWidth);
+    console.debug("[FeedManagerModal] isMobileWidth():", isMobile);
+
     this.modalEl.className +=
       " rss-dashboard-modal rss-dashboard-modal-container";
+    // Add mobile-specific class for proper styling on mobile/tablet
+    if (isMobile) {
+      this.modalEl.addClass("rss-mobile-feed-manager-modal");
+      console.debug(
+        "[FeedManagerModal] Added rss-mobile-feed-manager-modal class",
+      );
+    }
+
+    // Debug: Log modal element state after classes are added
+    console.debug(
+      "[FeedManagerModal] modalEl.className:",
+      this.modalEl.className,
+    );
+    console.debug(
+      "[FeedManagerModal] modalEl classes:",
+      this.modalEl.classList.toString(),
+    );
+
+    // Debug: Log computed styles after a short delay to ensure CSS is applied
+    setTimeout(() => {
+      const computedStyle = window.getComputedStyle(this.modalEl);
+      console.debug("[FeedManagerModal] Computed styles:");
+      console.debug("  - display:", computedStyle.display);
+      console.debug("  - visibility:", computedStyle.visibility);
+      console.debug("  - position:", computedStyle.position);
+      console.debug("  - z-index:", computedStyle.zIndex);
+      console.debug("  - width:", computedStyle.width);
+      console.debug("  - height:", computedStyle.height);
+      console.debug("  - top:", computedStyle.top);
+      console.debug("  - left:", computedStyle.left);
+      console.debug("  - bottom:", computedStyle.bottom);
+      console.debug("  - right:", computedStyle.right);
+      console.debug("  - opacity:", computedStyle.opacity);
+      console.debug("  - transform:", computedStyle.transform);
+      console.debug(
+        "[FeedManagerModal] modalEl in DOM:",
+        document.body.contains(this.modalEl),
+      );
+      console.debug(
+        "[FeedManagerModal] modalEl parent:",
+        this.modalEl.parentElement?.className,
+      );
+    }, 100);
+
     contentEl.empty();
     new Setting(contentEl).setName("Manage feeds").setHeading();
 

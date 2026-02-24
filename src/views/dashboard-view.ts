@@ -159,7 +159,14 @@ export class RssDashboardView extends ItemView {
           onExportOpml: this.handleExportOpml.bind(this),
           onToggleSidebar: this.handleToggleSidebar.bind(this),
           onManageFeeds: () => {
-            new FeedManagerModal(this.app, this.plugin).open();
+            console.debug("[DashboardView] onManageFeeds callback called");
+            console.debug("[DashboardView] Creating FeedManagerModal...");
+            const modal = new FeedManagerModal(this.app, this.plugin);
+            console.debug(
+              "[DashboardView] FeedManagerModal created, calling open()...",
+            );
+            modal.open();
+            console.debug("[DashboardView] FeedManagerModal.open() returned");
           },
         },
       );
@@ -769,6 +776,9 @@ export class RssDashboardView extends ItemView {
         onImportOpml: this.handleImportOpml.bind(this),
         onExportOpml: this.handleExportOpml.bind(this),
         onToggleSidebar: this.handleToggleSidebar.bind(this),
+        onManageFeeds: () => {
+          new FeedManagerModal(this.app, this.plugin).open();
+        },
         onActivateDashboard: () => void this.plugin.activateView(),
         onActivateDiscover: () => void this.plugin.activateDiscoverView(),
       },

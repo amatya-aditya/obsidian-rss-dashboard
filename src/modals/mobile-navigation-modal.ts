@@ -27,8 +27,55 @@ export class MobileNavigationModal extends Modal {
 
   onOpen() {
     const { contentEl } = this;
+
+    // Debug logging
+    console.debug("[MobileNavigationModal] onOpen called");
+    console.debug(
+      "[MobileNavigationModal] window.innerWidth:",
+      window.innerWidth,
+    );
+
     contentEl.empty();
     this.modalEl.addClass("rss-mobile-navigation-modal");
+    console.debug(
+      "[MobileNavigationModal] Added rss-mobile-navigation-modal class",
+    );
+
+    // Debug: Log modal element state after classes are added
+    console.debug(
+      "[MobileNavigationModal] modalEl.className:",
+      this.modalEl.className,
+    );
+    console.debug(
+      "[MobileNavigationModal] modalEl classes:",
+      this.modalEl.classList.toString(),
+    );
+
+    // Debug: Log computed styles after a short delay to ensure CSS is applied
+    setTimeout(() => {
+      const computedStyle = window.getComputedStyle(this.modalEl);
+      console.debug("[MobileNavigationModal] Computed styles:");
+      console.debug("  - display:", computedStyle.display);
+      console.debug("  - visibility:", computedStyle.visibility);
+      console.debug("  - position:", computedStyle.position);
+      console.debug("  - z-index:", computedStyle.zIndex);
+      console.debug("  - width:", computedStyle.width);
+      console.debug("  - height:", computedStyle.height);
+      console.debug("  - top:", computedStyle.top);
+      console.debug("  - left:", computedStyle.left);
+      console.debug("  - bottom:", computedStyle.bottom);
+      console.debug("  - right:", computedStyle.right);
+      console.debug("  - opacity:", computedStyle.opacity);
+      console.debug("  - transform:", computedStyle.transform);
+      console.debug(
+        "[MobileNavigationModal] modalEl in DOM:",
+        document.body.contains(this.modalEl),
+      );
+      console.debug(
+        "[MobileNavigationModal] modalEl parent:",
+        this.modalEl.parentElement?.className,
+      );
+    }, 100);
 
     const sidebarWrapper = contentEl.createDiv({
       cls: "rss-dashboard-sidebar-container",

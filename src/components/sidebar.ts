@@ -1663,8 +1663,19 @@ export class Sidebar {
     });
     setIcon(manageFeedsButton, "list");
     manageFeedsButton.addEventListener("click", () => {
+      console.debug("[Sidebar] Manage feeds button clicked");
+      console.debug(
+        "[Sidebar] onManageFeeds callback exists:",
+        !!this.callbacks.onManageFeeds,
+      );
       if (this.callbacks.onManageFeeds) {
+        console.debug("[Sidebar] Calling onManageFeeds callback...");
         this.callbacks.onManageFeeds();
+        console.debug("[Sidebar] onManageFeeds callback returned");
+      } else {
+        console.debug(
+          "[Sidebar] ERROR: onManageFeeds callback is not defined!",
+        );
       }
     });
   }

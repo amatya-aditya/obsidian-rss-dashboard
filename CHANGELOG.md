@@ -1,5 +1,13 @@
 # RSS Dashboard - Changelog
 
+## [2.2.7] - 2026-02-24
+
+### 🐛 Bug Fixes
+
+- **Fixed Manage Feeds Modal Not Opening on Mobile/Tablet**: The "Manage feeds" button in the mobile navigation sidebar was not opening the FeedManagerModal. The root cause was a missing `onManageFeeds` callback in the `MobileNavigationModal` callbacks object. The callback has been added to properly open the modal when the button is clicked on screens <= 1200px width.
+
+---
+
 ## [2.2.6] - 2026-02-24
 
 ### 🎨 UI/UX Improvements
