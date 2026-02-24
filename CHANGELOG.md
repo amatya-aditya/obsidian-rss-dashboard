@@ -1,5 +1,21 @@
 # RSS Dashboard - Changelog
 
+## [2.2.6] - 2026-02-24
+
+### 🎨 UI/UX Improvements
+
+- **Discover Page Dropdown Cleanup**: Removed redundant dropdown menus (Domain, Sub domain, Area, Topic, Type, Tag) from the top controls since the sidebar tabs already provide filtering functionality
+  - Sort dropdown moved to the filter header row alongside results count
+  - Cleaner, less cluttered interface on the Discover page
+  - Mobile filtering still available via the hamburger menu
+
+### 🐛 Bug Fixes
+
+- **Fixed Sort Dropdown Visual Bug**: Dropdown option backgrounds were transitioning from white to black on first open. Fixed by removing CSS transition and using consistent `background-secondary` color
+- **Fixed Default Sort Value**: Changed default sort from "Date added (newest)" to "File name (a to z)"
+
+---
+
 ## [2.2.5] - 2026-02-24
 
 ### 🐛 Bug Fixes

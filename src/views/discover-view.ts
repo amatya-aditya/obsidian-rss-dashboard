@@ -24,7 +24,7 @@ export class DiscoverView extends ItemView {
     selectedPaths: [],
     selectedTags: [],
   };
-  private currentSort = "created-desc";
+  private currentSort = "title-asc";
   private categoryMap: {
     categories: Record<string, Record<string, unknown>>;
   } = { categories: {} };
@@ -411,10 +411,7 @@ export class DiscoverView extends ItemView {
     );
   }
 
-  private renderMobileHeader(container: HTMLElement): {
-    hamburgerMenu: HTMLElement;
-    hamburgerButton: HTMLElement;
-  } {
+  private renderMobileHeader(container: HTMLElement): void {
     const header = container.createDiv({
       cls: "rss-discover-mobile-header",
     });
@@ -441,15 +438,8 @@ export class DiscoverView extends ItemView {
       cls: "rss-discover-header-right",
     });
 
-    const hamburgerMenu = rightSection.createDiv({
-      cls: "rss-discover-hamburger-menu",
-    });
-    const hamburgerButton = hamburgerMenu.createEl("button", {
-      cls: "rss-discover-hamburger-button",
-    });
-    setIcon(hamburgerButton, "menu");
-
-    return { hamburgerMenu, hamburgerButton };
+    // Add sort dropdown directly to mobile header
+    this.renderSortDropdown(rightSection);
   }
 
   private renderSearch(container: HTMLElement): void {
@@ -775,23 +765,14 @@ export class DiscoverView extends ItemView {
       this.resizeObserver.disconnect();
     }
 
-    const topSection = controlsContainer.createDiv({
-      cls: "rss-discover-top-section",
-    });
-
-    const { hamburgerMenu, hamburgerButton } =
-      this.renderMobileHeader(topSection);
-
-    const desktopControls = topSection.createDiv({
-      cls: "rss-discover-desktop-filters",
-    });
-    this.createTopFilterControls(desktopControls);
+    // Mobile header with filter toggle and sort
+    this.renderMobileHeader(controlsContainer);
 
     // Set up ResizeObserver
     this.resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const width = entry.contentRect.width;
-        // Breakpoint: <= 1200px triggers hamburger menu
+        // Breakpoint: <= 1200px triggers mobile layout
         if (width <= 1200) {
           controlsContainer.classList.add("is-narrow");
         } else {
@@ -801,35 +782,31 @@ export class DiscoverView extends ItemView {
     });
     this.resizeObserver.observe(controlsContainer);
 
-    const dropdownMenu = hamburgerMenu.createDiv({
-      cls: "rss-discover-dropdown-menu",
-    });
-    this.createTopFilterControls(dropdownMenu);
-
-    hamburgerButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      dropdownMenu.classList.toggle("active");
-    });
-
-    this.registerDomEvent(document, "click", (e: MouseEvent) => {
-      if (!hamburgerMenu.contains(e.target as Node)) {
-        dropdownMenu.classList.remove("active");
-      }
-    });
-
     const filterHeader = controlsContainer.createDiv({
       cls: "rss-discover-filter-header",
     });
-    const resultsCount = filterHeader.createDiv({
+
+    const leftSection = filterHeader.createDiv({
+      cls: "rss-discover-filter-header-left",
+    });
+
+    const resultsCount = leftSection.createDiv({
       cls: "rss-discover-results-count",
     });
     resultsCount.textContent = `${this.filteredFeeds.length} feeds found`;
 
-    this.renderSelectedFilters(filterHeader);
+    this.renderSelectedFilters(leftSection);
+
+    const rightSection = filterHeader.createDiv({
+      cls: "rss-discover-filter-header-right",
+    });
+
+    // Sort dropdown on the same row as results count
+    this.renderSortDropdown(rightSection);
 
     if (this.hasActiveFilters()) {
-      const clearBtn = filterHeader.createEl("button", {
-        cls: "rss-clear-filter-button mod-cta",
+      const clearBtn = rightSection.createEl("button", {
+        cls: "rss-clear-filter-button",
       });
       clearBtn.textContent = "Clear filters";
       clearBtn.addEventListener("click", () => {
@@ -884,56 +861,6 @@ export class DiscoverView extends ItemView {
     );
   }
 
-  private createTopFilterControls(container: HTMLElement): void {
-    const topFilters = container.createDiv({
-      cls: "rss-discover-top-filters",
-    });
-
-    this.renderFilterDropdown(
-      topFilters,
-      "Domain",
-      "domain",
-      "folder",
-      this.getAllDomains(),
-    );
-    this.renderFilterDropdown(
-      topFilters,
-      "Sub domain",
-      "subdomain",
-      "folder-open",
-      this.getAllSubdomains(),
-    );
-    this.renderFilterDropdown(
-      topFilters,
-      "Area",
-      "area",
-      "folder-tree",
-      this.getAllAreas(),
-    );
-    this.renderFilterDropdown(
-      topFilters,
-      "Topic",
-      "topic",
-      "file-text",
-      this.getAllTopics(),
-    );
-    this.renderFilterDropdown(
-      topFilters,
-      "Type",
-      "type",
-      "tag",
-      this.getAllTypes(),
-    );
-    this.renderFilterDropdown(
-      topFilters,
-      "Tag",
-      "tag",
-      "hash",
-      this.getAllTags(),
-    );
-    this.renderSortDropdown(topFilters);
-  }
-
   private renderSortDropdown(container: HTMLElement): void {
     const sortContainer = container.createDiv({
       cls: "rss-discover-sort-container",
@@ -975,157 +902,6 @@ export class DiscoverView extends ItemView {
     });
   }
 
-  private renderFilterDropdown(
-    container: HTMLElement,
-    label: string,
-    filterType: string,
-    iconName: string,
-    options: string[],
-  ): void {
-    const filterContainer = container.createDiv({
-      cls: "rss-discover-filter-container",
-    });
-
-    const dropdownContainer = filterContainer.createDiv({
-      cls: "rss-discover-dropdown-container",
-    });
-
-    const input = dropdownContainer.createEl("input", {
-      type: "text",
-      placeholder: `Search ${label.toLowerCase()}...`,
-    });
-    input.addClass("rss-discover-filter-input");
-
-    const dropdown = dropdownContainer.createDiv({
-      cls: "rss-discover-filter-dropdown",
-    });
-    dropdown.addClass("hidden");
-
-    this.populateFilterDropdown(dropdown, options, filterType, "");
-
-    let searchTimeout: number | undefined;
-    input.addEventListener("input", (e) => {
-      const query = (e.target as HTMLInputElement).value;
-
-      if (searchTimeout) {
-        window.clearTimeout(searchTimeout);
-      }
-
-      if (query.trim()) {
-        const filteredOptions = options.filter((option) =>
-          option.toLowerCase().includes(query.toLowerCase()),
-        );
-        this.populateFilterDropdown(
-          dropdown,
-          filteredOptions,
-          filterType,
-          query,
-        );
-        dropdown.removeClass("hidden");
-        dropdown.addClass("visible");
-      } else {
-        this.populateFilterDropdown(dropdown, options, filterType, "");
-        dropdown.removeClass("hidden");
-        dropdown.addClass("visible");
-      }
-    });
-
-    input.addEventListener("focus", () => {
-      this.populateFilterDropdown(dropdown, options, filterType, "");
-      dropdown.removeClass("hidden");
-      dropdown.addClass("visible");
-    });
-
-    this.registerDomEvent(document, "click", (e: MouseEvent) => {
-      if (!dropdownContainer.contains(e.target as Node)) {
-        dropdown.removeClass("visible");
-        dropdown.addClass("hidden");
-      }
-    });
-  }
-
-  private populateFilterDropdown(
-    dropdown: HTMLElement,
-    options: string[],
-    filterType: string,
-    searchQuery: string,
-  ): void {
-    dropdown.empty();
-
-    if (options.length === 0) {
-      const noResults = dropdown.createDiv({
-        cls: "rss-discover-dropdown-no-results",
-      });
-      noResults.textContent = "No matches found";
-      return;
-    }
-
-    options.forEach((option) => {
-      const item = dropdown.createDiv({
-        cls: "rss-discover-dropdown-item",
-      });
-
-      const checkbox = item.createEl("input", { type: "checkbox" });
-      checkbox.checked = this.isOptionSelected(filterType, option);
-
-      const text = item.createDiv({ cls: "rss-discover-dropdown-text" });
-      text.textContent = option;
-
-      const count = item.createDiv({
-        cls: "rss-discover-dropdown-count",
-      });
-      count.textContent = this.getOptionCount(filterType, option).toString();
-
-      checkbox.addEventListener("change", () => {
-        this.handleFilterSelection(filterType, option, checkbox.checked);
-        this.currentPage = 1;
-        this.filterFeeds();
-        this.saveFilterState();
-        void this.render();
-      });
-
-      item.addEventListener("click", (e) => {
-        if (e.target !== checkbox) {
-          checkbox.checked = !checkbox.checked;
-          this.handleFilterSelection(filterType, option, checkbox.checked);
-          this.currentPage = 1;
-          this.filterFeeds();
-          this.saveFilterState();
-          this.render();
-        }
-      });
-    });
-  }
-
-  private isOptionSelected(filterType: string, option: string): boolean {
-    switch (filterType) {
-      case "type":
-        return this.filters.selectedTypes.includes(option);
-      case "tag":
-        return this.filters.selectedTags.includes(option);
-      case "domain":
-      case "subdomain":
-      case "area":
-      case "topic":
-        return this.filters.selectedPaths.some((path) => {
-          switch (filterType) {
-            case "domain":
-              return path.domain === option;
-            case "subdomain":
-              return path.subdomain === option;
-            case "area":
-              return path.area === option;
-            case "topic":
-              return path.topic === option;
-            default:
-              return false;
-          }
-        });
-      default:
-        return false;
-    }
-  }
-
   private getOptionCount(filterType: string, option: string): number {
     switch (filterType) {
       case "type":
@@ -1144,128 +920,6 @@ export class DiscoverView extends ItemView {
         return 0;
     }
   }
-
-  private handleFilterSelection(
-    filterType: string,
-    option: string,
-    selected: boolean,
-  ): void {
-    switch (filterType) {
-      case "type":
-        if (selected) {
-          if (!this.filters.selectedTypes.includes(option)) {
-            this.filters.selectedTypes.push(option);
-          }
-        } else {
-          this.filters.selectedTypes = this.filters.selectedTypes.filter(
-            (t) => t !== option,
-          );
-        }
-        break;
-      case "tag":
-        if (selected) {
-          if (!this.filters.selectedTags.includes(option)) {
-            this.filters.selectedTags.push(option);
-          }
-        } else {
-          this.filters.selectedTags = this.filters.selectedTags.filter(
-            (t) => t !== option,
-          );
-        }
-        break;
-      case "domain":
-      case "subdomain":
-      case "area":
-      case "topic":
-        if (selected) {
-          const path: CategoryPath = { domain: "" };
-          switch (filterType) {
-            case "domain":
-              path.domain = option;
-              break;
-            case "subdomain":
-              path.subdomain = option;
-              break;
-            case "area":
-              path.area = option;
-              break;
-            case "topic":
-              path.topic = option;
-              break;
-          }
-
-          const pathExists = this.filters.selectedPaths.some((p) => {
-            return (
-              p.domain === path.domain &&
-              p.subdomain === path.subdomain &&
-              p.area === path.area &&
-              p.topic === path.topic
-            );
-          });
-
-          if (!pathExists) {
-            this.filters.selectedPaths.push(path);
-          }
-        } else {
-          this.filters.selectedPaths = this.filters.selectedPaths.filter(
-            (p) => {
-              switch (filterType) {
-                case "domain":
-                  return p.domain !== option;
-                case "subdomain":
-                  return p.subdomain !== option;
-                case "area":
-                  return p.area !== option;
-                case "topic":
-                  return p.topic !== option;
-                default:
-                  return true;
-              }
-            },
-          );
-        }
-        break;
-    }
-  }
-
-  private getAllDomains(): string[] {
-    const domains = new Set<string>();
-    this.feeds.forEach((feed) => {
-      feed.domain.forEach((domain) => domains.add(domain));
-    });
-    return Array.from(domains).sort();
-  }
-
-  private getAllSubdomains(): string[] {
-    const subdomains = new Set<string>();
-    this.feeds.forEach((feed) => {
-      feed.subdomain.forEach((subdomain) => subdomains.add(subdomain));
-    });
-    return Array.from(subdomains).sort();
-  }
-
-  private getAllAreas(): string[] {
-    const areas = new Set<string>();
-    this.feeds.forEach((feed) => {
-      feed.area.forEach((area) => areas.add(area));
-    });
-    return Array.from(areas).sort();
-  }
-
-  private getAllTopics(): string[] {
-    const topics = new Set<string>();
-    this.feeds.forEach((feed) => {
-      feed.topic.forEach((topic) => topics.add(topic));
-    });
-    return Array.from(topics).sort();
-  }
-
-  private getAllTypes(): string[] {
-    return Array.from(new Set(this.feeds.map((f) => f.type))).sort();
-  }
-
-  private getAllTags = () =>
-    [...new Set(this.feeds.flatMap((f) => f.tags))].sort();
 
   private getInitials(title: string): string {
     const words = title.split(" ");
