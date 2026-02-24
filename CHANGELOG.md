@@ -1,5 +1,13 @@
 # RSS Dashboard - Changelog
 
+## [2.2.5] - 2026-02-24
+
+### 🐛 Bug Fixes
+
+- **Fixed Resizable Sidebar Not Working**: The sidebar resize handle was being destroyed during render because it was created before `sidebar.render()` which empties the container. The resize handle is now created after the sidebar finishes rendering.
+
+---
+
 ## [2.2.4] - 2026-02-24
 
 ### ✨ New Features

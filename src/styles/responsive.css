@@ -48,6 +48,11 @@
     display: none !important;
   }
 
+  /* Hide resize handle on tablet/mobile */
+  .rss-dashboard-sidebar-resize-handle {
+    display: none !important;
+  }
+
   .rss-dashboard-card-view {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   }
@@ -239,6 +244,21 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    width: 100% !important;
+  }
+
+  /* Mobile modal resize handle - positioned on left side */
+  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
+    display: block !important;
+    left: 0;
+    right: auto;
+  }
+
+  /* Hide resize handle in mobile modal on very small screens */
+  @media (max-width: 768px) {
+    .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
+      display: none !important;
+    }
   }
 
   .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-nav,

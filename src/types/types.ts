@@ -194,6 +194,7 @@ export interface RssDashboardSettings {
   showFeedArt: boolean;
   showThumbnails: boolean;
   sidebarCollapsed: boolean;
+  sidebarWidth: number;
   collapsedFolders: string[];
   tagsCollapsed: boolean;
   articleFilter: {
@@ -266,6 +267,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   showFeedArt: true,
   showThumbnails: true,
   sidebarCollapsed: false,
+  sidebarWidth: 280,
   collapsedFolders: [],
   tagsCollapsed: true,
   articleFilter: { type: "none", value: null },

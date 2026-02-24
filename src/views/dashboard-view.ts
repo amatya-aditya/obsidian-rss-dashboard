@@ -43,6 +43,9 @@ export class RssDashboardView extends ItemView {
   private feedPages: Record<string, number> = {};
   private feedPageSizes: Record<string, number> = {};
   private articleReaderLeafWhilePodcast: WorkspaceLeaf | null = null;
+  private isResizing: boolean = false;
+  private resizeHandle: HTMLElement | null = null;
+  private dashboardContainer: HTMLElement | null = null;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -162,7 +165,11 @@ export class RssDashboardView extends ItemView {
       );
     }
 
+    // Store dashboard container reference
+    this.dashboardContainer = dashboardContainer;
+
     this.render();
+
     return Promise.resolve();
   }
 
@@ -178,6 +185,9 @@ export class RssDashboardView extends ItemView {
     } else {
       this.containerEl.removeClass("sidebar-collapsed");
     }
+
+    // Apply sidebar width on render
+    this.applySidebarWidth();
 
     if (this.sidebar) {
       this.sidebar.clearFolderPathCache();
@@ -294,6 +304,10 @@ export class RssDashboardView extends ItemView {
     this.articleList.render();
 
     this.updateRefreshButtonText();
+
+    // Setup sidebar resize handle AFTER sidebar.render() completes
+    // because sidebar.render() empties the container which would destroy the handle
+    this.setupSidebarResize();
   }
 
   private renderToolbar(container: HTMLElement): void {
@@ -1151,7 +1165,84 @@ export class RssDashboardView extends ItemView {
     if (this.articleList) {
       this.articleList.destroy();
     }
+    this.resizeHandle = null;
+    this.dashboardContainer = null;
     return Promise.resolve();
+  }
+
+  private setupSidebarResize(): void {
+    // Don't setup resize on mobile/tablet
+    if (Platform.isMobile || window.innerWidth <= 1200) {
+      return;
+    }
+
+    // Remove existing resize handle if any
+    if (this.resizeHandle) {
+      this.resizeHandle.remove();
+    }
+
+    // Create resize handle
+    if (this.sidebarContainer) {
+      this.resizeHandle = this.sidebarContainer.createDiv({
+        cls: "rss-dashboard-sidebar-resize-handle",
+      });
+    }
+
+    // Apply saved width
+    this.applySidebarWidth();
+
+    // Setup drag handlers using registerDomEvent for proper cleanup
+    if (this.resizeHandle) {
+      this.registerDomEvent(this.resizeHandle, "mousedown", (e) => {
+        this.handleResizeStart(e);
+      });
+    }
+    this.registerDomEvent(document, "mousemove", (e) => {
+      this.handleResizeMove(e);
+    });
+    this.registerDomEvent(document, "mouseup", () => {
+      this.handleResizeEnd();
+    });
+  }
+
+  private handleResizeStart(e: MouseEvent): void {
+    e.preventDefault();
+    this.isResizing = true;
+    this.resizeHandle?.addClass("dragging");
+    this.dashboardContainer?.addClass("resizing");
+  }
+
+  private handleResizeMove(e: MouseEvent): void {
+    if (!this.isResizing) return;
+
+    const containerRect = this.containerEl.getBoundingClientRect();
+    let newWidth = e.clientX - containerRect.left;
+
+    // Apply constraints
+    const minWidth = 200;
+    const maxWidth = 500;
+    newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+
+    this.settings.sidebarWidth = newWidth;
+    this.applySidebarWidth();
+  }
+
+  private handleResizeEnd(): void {
+    if (!this.isResizing) return;
+
+    this.isResizing = false;
+    this.resizeHandle?.removeClass("dragging");
+    this.dashboardContainer?.removeClass("resizing");
+
+    // Save width to settings
+    void this.plugin.saveSettings();
+  }
+
+  private applySidebarWidth(): void {
+    if (this.sidebarContainer && !this.settings.sidebarCollapsed) {
+      const width = this.settings.sidebarWidth || 280;
+      this.sidebarContainer.style.width = `${width}px`;
+    }
   }
 
   private async handleUpdateFeed(feed: Feed): Promise<void> {

@@ -21,9 +21,75 @@
   flex-direction: column;
   overflow: hidden;
   background-color: var(--background-primary);
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Sidebar Resize Handle */
+.rss-dashboard-sidebar-resize-handle {
+  position: absolute;
+  right: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rss-dashboard-sidebar-resize-handle::before {
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 32px;
+  background: var(--background-modifier-border);
+  border-radius: 2px;
+  opacity: 0;
   transition:
-    width 0.3s ease,
-    margin 0.3s ease;
+    opacity 0.2s ease,
+    background 0.2s ease;
+}
+
+.rss-dashboard-sidebar-resize-handle:hover::before,
+.rss-dashboard-sidebar-resize-handle.dragging::before {
+  opacity: 1;
+  background: var(--interactive-accent);
+}
+
+.rss-dashboard-sidebar-resize-handle:hover {
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--interactive-accent-hover) 50%,
+    transparent 100%
+  );
+  background-size: 2px 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.rss-dashboard-sidebar-resize-handle.dragging {
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--interactive-accent) 50%,
+    transparent 100%
+  );
+  background-size: 2px 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Prevent text selection during drag */
+.rss-dashboard-layout.resizing {
+  user-select: none;
+}
+
+.rss-dashboard-layout.resizing iframe {
+  pointer-events: none;
 }
 
 .rss-dashboard-nav-container {
