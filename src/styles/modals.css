@@ -876,3 +876,259 @@
     width: 100%;
   }
 }
+
+/* ============================================
+   Delete Confirmation Modal Overlay
+   ============================================ */
+
+/* Overlay that appears on top of other modals */
+.rss-dashboard-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fade-in 0.15s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Confirmation modal inside overlay */
+.rss-dashboard-modal-overlay .rss-dashboard-modal-container {
+  z-index: 100001 !important;
+  animation: modal-slide-in 0.2s ease-out;
+}
+
+@keyframes modal-slide-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* ============================================
+   Danger Button Styles
+   ============================================ */
+
+/* Base danger button - red background with hover stroke */
+.rss-dashboard-danger-button {
+  background: #dc2626 !important;
+  color: #fff !important;
+  border: 2px solid transparent !important;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rss-dashboard-danger-button:hover {
+  background: #b91c1c !important;
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.3);
+}
+
+.rss-dashboard-danger-button:active {
+  background: #991b1b !important;
+  transform: translateY(1px);
+}
+
+/* Delete All button specific styling */
+.feed-manager-delete-all-button {
+  min-width: 100px;
+}
+
+/* ============================================
+   Delete Warning and Backup Notice
+   ============================================ */
+
+.delete-all-warning {
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.delete-all-warning p {
+  margin: 0;
+  color: var(--text-normal);
+  font-size: 0.95rem;
+}
+
+.delete-all-backup-notice {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.delete-all-backup-notice strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-normal);
+  font-size: 0.95rem;
+}
+
+.delete-all-backup-notice p {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.delete-all-backup-notice .export-opml-btn {
+  background: var(--interactive-accent, #3498db) !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.delete-all-backup-notice .export-opml-btn:hover {
+  background: var(--interactive-accent-hover, #217dbb) !important;
+}
+
+/* ============================================
+   Folder Header with Delete Button
+   ============================================ */
+
+.feed-manager-folder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  margin-top: 1rem;
+  border-bottom: 2px solid var(--background-modifier-border);
+}
+
+.feed-manager-folder-header:first-child {
+  margin-top: 0;
+}
+
+.feed-manager-folder-name {
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--text-normal);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.feed-manager-folder-count {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: var(--background-modifier-hover);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.feed-manager-delete-folder-button {
+  background: transparent !important;
+  color: #dc2626 !important;
+  border: 1px solid #dc2626 !important;
+  border-radius: 4px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.feed-manager-delete-folder-button:hover {
+  background: #dc2626 !important;
+  color: #fff !important;
+}
+
+/* ============================================
+   Mobile Responsive Styles for Delete Features
+   ============================================ */
+
+@media (max-width: 768px) {
+  /* Danger button mobile sizing */
+  .rss-dashboard-danger-button {
+    min-height: 44px;
+    padding: 12px 20px;
+    font-size: 16px;
+    min-width: 80px;
+  }
+
+  /* Delete All button full width on mobile */
+  .feed-manager-delete-all-button {
+    width: 100%;
+    min-width: unset;
+  }
+
+  /* Folder header mobile layout */
+  .feed-manager-folder-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 0;
+  }
+
+  .feed-manager-folder-name {
+    flex: 1 1 auto;
+    font-size: 1rem;
+  }
+
+  .feed-manager-delete-folder-button {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+
+  /* Warning and backup notice mobile */
+  .delete-all-warning,
+  .delete-all-backup-notice {
+    padding: 12px;
+  }
+
+  .delete-all-backup-notice .export-opml-btn {
+    width: 100%;
+    min-height: 44px;
+    margin-top: 8px;
+  }
+
+  /* Modal overlay mobile adjustments */
+  .rss-dashboard-modal-overlay .rss-dashboard-modal-container {
+    width: 95% !important;
+    max-width: 95% !important;
+    max-height: 85vh !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .rss-dashboard-danger-button {
+    width: 100%;
+  }
+
+  .feed-manager-folder-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .feed-manager-delete-folder-button {
+    width: 100%;
+    margin-top: 8px;
+  }
+}

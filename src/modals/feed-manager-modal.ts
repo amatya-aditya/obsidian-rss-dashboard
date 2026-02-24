@@ -1,6 +1,7 @@
 import { Modal, App, Setting, Notice } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import type { Feed, Folder, SavedTemplate } from "../types/types";
+import { DEFAULT_SETTINGS } from "../types/types";
 import { FolderSuggest } from "../components/folder-suggest";
 import {
   resolvePodcastPlatformUrl,
@@ -1187,6 +1188,15 @@ export class FeedManagerModal extends Modal {
       ).open();
     };
 
+    // Delete All button
+    const deleteAllBtn = topControls.createEl("button", {
+      text: "Delete all",
+      cls: "rss-dashboard-danger-button feed-manager-delete-all-button",
+    });
+    deleteAllBtn.onclick = () => {
+      this.showDeleteConfirmModal({ type: "all" });
+    };
+
     this.renderFeeds(contentEl);
   }
 
@@ -1238,7 +1248,26 @@ export class FeedManagerModal extends Modal {
         const folderDiv = feedsContainer.createDiv({
           cls: "feed-manager-folder",
         });
-        new Setting(folderDiv).setName(folderPath).setHeading();
+
+        // Create folder header with delete button
+        const folderHeader = folderDiv.createDiv({
+          cls: "feed-manager-folder-header",
+        });
+        new Setting(folderHeader).setName(folderPath).setHeading();
+
+        // Add delete folder button
+        const deleteFolderBtn = folderHeader.createEl("button", {
+          text: "Delete",
+          cls: "rss-dashboard-danger-button feed-manager-delete-folder-button",
+        });
+        deleteFolderBtn.onclick = () => {
+          this.showDeleteConfirmModal({
+            type: "folder",
+            folderPath,
+            feedCount: feeds.length,
+          });
+        };
+
         for (const feed of feeds) {
           this.renderFeedRow(folderDiv, feed);
         }
@@ -1249,7 +1278,26 @@ export class FeedManagerModal extends Modal {
       const uncategorizedDiv = feedsContainer.createDiv({
         cls: "feed-manager-folder",
       });
-      new Setting(uncategorizedDiv).setName("Uncategorized").setHeading();
+
+      // Create folder header with delete button for Uncategorized
+      const folderHeader = uncategorizedDiv.createDiv({
+        cls: "feed-manager-folder-header",
+      });
+      new Setting(folderHeader).setName("Uncategorized").setHeading();
+
+      // Add delete folder button for Uncategorized
+      const deleteFolderBtn = folderHeader.createEl("button", {
+        text: "Delete",
+        cls: "rss-dashboard-danger-button feed-manager-delete-folder-button",
+      });
+      deleteFolderBtn.onclick = () => {
+        this.showDeleteConfirmModal({
+          type: "folder",
+          folderPath: "Uncategorized",
+          feedCount: uncategorized.length,
+        });
+      };
+
       for (const feed of uncategorized) {
         this.renderFeedRow(uncategorizedDiv, feed);
       }
@@ -1269,50 +1317,274 @@ export class FeedManagerModal extends Modal {
 
     const delBtn = row.createEl("button", { text: "Delete" });
     delBtn.onclick = () => {
-      this.showConfirmModal(`Delete feed '${feed.title}'?`, () => {
-        this.plugin.settings.feeds = this.plugin.settings.feeds.filter(
-          (f) => f !== feed,
-        );
-        void this.plugin.saveSettings().then(() => {
-          new Notice("Feed deleted");
-          this.onOpen();
-        });
-      });
+      this.showDeleteConfirmModal({ type: "feed", feed });
     };
   }
 
-  private showConfirmModal(message: string, onConfirm: () => void): void {
-    document
-      .querySelectorAll(".rss-dashboard-modal")
-      .forEach((el) => el.remove());
-    window.setTimeout(() => {
-      const modal = document.body.createDiv({
-        cls: "rss-dashboard-modal",
+  /**
+   * Unified delete confirmation modal that appears as an overlay
+   * Handles Delete All, Delete Folder, and Delete Feed actions
+   */
+  private showDeleteConfirmModal(options: {
+    type: "all" | "folder" | "feed";
+    folderPath?: string;
+    feedCount?: number;
+    feed?: Feed;
+  }): void {
+    const { type, folderPath, feedCount, feed } = options;
+
+    // Create overlay modal that appears ON TOP of the manage feeds modal
+    const overlay = document.body.createDiv({
+      cls: "rss-dashboard-modal-overlay",
+    });
+
+    const modal = overlay.createDiv({
+      cls: "rss-dashboard-modal rss-dashboard-modal-container rss-dashboard-confirm-modal",
+    });
+    const modalContent = modal.createDiv({
+      cls: "rss-dashboard-modal-content",
+    });
+
+    // Context-specific header and message
+    let title: string;
+    let warningMessage: string;
+    let confirmButtonText: string;
+
+    switch (type) {
+      case "all":
+        title = "⚠️ Delete All Feeds?";
+        warningMessage =
+          "This action is irreversible. All your feeds will be permanently deleted.";
+        confirmButtonText = "Delete All";
+        break;
+      case "folder":
+        title = `⚠️ Delete Folder "${folderPath}"?`;
+        warningMessage = `This action is irreversible. The folder "${folderPath}" and all ${feedCount} feed(s) within it will be permanently deleted.`;
+        confirmButtonText = "Delete Folder";
+        break;
+      case "feed":
+        title = `⚠️ Delete Feed "${feed?.title}"?`;
+        warningMessage =
+          "This action is irreversible. The feed will be permanently deleted.";
+        confirmButtonText = "Delete";
+        break;
+    }
+
+    new Setting(modalContent).setName(title).setHeading();
+
+    // Warning message
+    const warningDiv = modalContent.createDiv({
+      cls: "delete-all-warning",
+    });
+    warningDiv.createEl("p", { text: warningMessage });
+
+    // Backup recommendation (only for folder and all deletions)
+    if (type === "all" || type === "folder") {
+      const backupDiv = modalContent.createDiv({
+        cls: "delete-all-backup-notice",
       });
-      const modalContent = modal.createDiv({
-        cls: "rss-dashboard-modal-content",
+      backupDiv.createEl("strong", {
+        text: "Recommended: export your feeds first",
       });
-      new Setting(modalContent).setName("Confirm").setHeading();
-      modalContent.createDiv({
-        text: message,
+      backupDiv.createEl("p", {
+        // OPML is an acronym - sentence case doesn't apply
+        // eslint-disable-next-line obsidianmd/ui/sentence-case
+        text: "Before deleting, we strongly recommend backing up your feeds by exporting to an OPML file.",
       });
-      const buttonContainer = modalContent.createDiv({
-        cls: "rss-dashboard-modal-buttons",
+
+      // Export OPML button
+      const exportBtn = backupDiv.createEl("button", {
+        // OPML is an acronym - sentence case doesn't apply
+        // eslint-disable-next-line obsidianmd/ui/sentence-case
+        text: "Export OPML",
+        cls: "rss-dashboard-primary-button export-opml-btn",
       });
-      const cancelButton = buttonContainer.createEl("button", {
-        text: "Cancel",
-      });
-      cancelButton.onclick = () => document.body.removeChild(modal);
-      const okButton = buttonContainer.createEl("button", {
-        text: "OK",
-        cls: "rss-dashboard-primary-button",
-      });
-      okButton.onclick = () => {
-        document.body.removeChild(modal);
-        onConfirm();
+      exportBtn.onclick = () => {
+        this.plugin.exportOpml();
       };
-      window.setTimeout(() => okButton.focus(), 0);
-    }, 0);
+    }
+
+    // Button container
+    const buttonContainer = modalContent.createDiv({
+      cls: "rss-dashboard-modal-buttons",
+    });
+
+    const cancelButton = buttonContainer.createEl("button", {
+      text: "Cancel",
+    });
+    cancelButton.onclick = () => {
+      // Remove overlay, returning to the manage feeds modal
+      document.body.removeChild(overlay);
+    };
+
+    const confirmButton = buttonContainer.createEl("button", {
+      text: confirmButtonText,
+      cls: "rss-dashboard-danger-button",
+    });
+    confirmButton.onclick = () => {
+      // Execute the appropriate deletion
+      switch (type) {
+        case "all":
+          void this.resetToFactorySettings();
+          break;
+        case "folder":
+          void this.deleteFolder(folderPath!);
+          break;
+        case "feed":
+          void this.deleteFeed(feed!);
+          break;
+      }
+      // Remove overlay
+      document.body.removeChild(overlay);
+    };
+  }
+
+  /**
+   * Reset to factory settings - delete all feeds and restore default folders
+   */
+  private async resetToFactorySettings(): Promise<void> {
+    // Clear all feeds
+    this.plugin.settings.feeds = [];
+
+    // Reset folders to default
+    this.plugin.settings.folders = DEFAULT_SETTINGS.folders.map((f) => ({
+      ...f,
+      createdAt: Date.now(),
+      modifiedAt: Date.now(),
+    }));
+
+    // Save settings
+    await this.plugin.saveSettings();
+
+    // Refresh the dashboard view if it exists
+    const dashboardView = await this.plugin.getActiveDashboardView();
+    if (dashboardView) {
+      dashboardView.refresh();
+    }
+
+    // Show success notice
+    new Notice("All feeds deleted. Settings reset to factory defaults.");
+
+    // Re-render the modal
+    this.onOpen();
+  }
+
+  /**
+   * Delete a folder and all feeds within it
+   */
+  private async deleteFolder(folderPath: string): Promise<void> {
+    // Remove all feeds in this folder (including subfolders)
+    this.plugin.settings.feeds = this.plugin.settings.feeds.filter((feed) => {
+      // Check if feed is in this folder or a subfolder
+      return (
+        feed.folder !== folderPath && !feed.folder?.startsWith(folderPath + "/")
+      );
+    });
+
+    // Remove the folder from the folder hierarchy
+    this.removeFolderFromHierarchy(folderPath);
+
+    // Save settings
+    await this.plugin.saveSettings();
+
+    // Refresh the dashboard view if it exists
+    const dashboardView = await this.plugin.getActiveDashboardView();
+    if (dashboardView) {
+      dashboardView.refresh();
+    }
+
+    // Show success notice
+    new Notice(`Folder "${folderPath}" and its feeds deleted.`);
+
+    // Re-render the modal
+    this.onOpen();
+  }
+
+  /**
+   * Delete a single feed
+   */
+  private async deleteFeed(feed: Feed): Promise<void> {
+    // Remove the feed from the feeds array
+    this.plugin.settings.feeds = this.plugin.settings.feeds.filter(
+      (f) => f !== feed,
+    );
+
+    // Save settings
+    await this.plugin.saveSettings();
+
+    // Refresh the dashboard view if it exists
+    const dashboardView = await this.plugin.getActiveDashboardView();
+    if (dashboardView) {
+      dashboardView.refresh();
+    }
+
+    // Show success notice
+    new Notice(`Feed "${feed.title}" deleted.`);
+
+    // Re-render the modal
+    this.onOpen();
+  }
+
+  /**
+   * Remove a folder from the folder hierarchy
+   */
+  private removeFolderFromHierarchy(folderPath: string): void {
+    const parts = folderPath.split("/");
+    const folderName = parts[0];
+
+    if (parts.length === 1) {
+      // Top-level folder - remove directly
+      this.plugin.settings.folders = this.plugin.settings.folders.filter(
+        (f) => f.name !== folderName,
+      );
+    } else {
+      // Nested folder - need to find parent and remove from subfolders
+      const targetFolderName = parts[parts.length - 1];
+
+      const findAndRemoveFromFolder = (folders: Folder[]): boolean => {
+        for (let i = 0; i < folders.length; i++) {
+          const folder = folders[i];
+
+          // Check if this folder's path matches the parent path
+          const currentFolderPath = this.getFolderPath(folder.name, folders);
+          if (currentFolderPath === folderPath) {
+            // Found it, remove from parent's subfolders
+            return true;
+          }
+
+          // Check if we're on the path to the target
+          if (folderPath.startsWith(folder.name + "/")) {
+            // Look in subfolders
+            const subfolderIndex = folder.subfolders.findIndex(
+              (sf) => sf.name === targetFolderName,
+            );
+            if (subfolderIndex >= 0) {
+              folder.subfolders.splice(subfolderIndex, 1);
+              return true;
+            }
+            // Recurse into subfolders
+            if (findAndRemoveFromFolder(folder.subfolders)) {
+              return true;
+            }
+          }
+        }
+        return false;
+      };
+
+      findAndRemoveFromFolder(this.plugin.settings.folders);
+    }
+  }
+
+  /**
+   * Helper to get folder path (simplified version)
+   */
+  private getFolderPath(folderName: string, folders: Folder[]): string {
+    for (const folder of folders) {
+      if (folder.name === folderName) {
+        return folderName;
+      }
+    }
+    return folderName;
   }
 
   onClose() {
