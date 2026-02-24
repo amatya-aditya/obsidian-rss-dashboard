@@ -536,6 +536,7 @@
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 4px;
+  padding-bottom: 4px;
 }
 
 .format-badge {
@@ -574,6 +575,7 @@
   animation: badge-glow 1.5s ease-in-out infinite;
   transform: scale(1.05);
   transition: transform 0.2s ease;
+  margin: 2px;
 }
 
 .format-badge.rss.active {
