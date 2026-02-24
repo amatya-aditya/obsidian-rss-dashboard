@@ -159,6 +159,15 @@ export class Sidebar {
   }
 
   public render(): void {
+    console.debug(
+      "[Sidebar] render() called. Feeds in settings:",
+      this.settings.feeds.length,
+    );
+    console.debug(
+      "[Sidebar] render() - first feed title:",
+      this.settings.feeds[0]?.title || "none",
+    );
+
     const scrollPosition = this.container.scrollTop;
 
     this.container.empty();

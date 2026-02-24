@@ -181,6 +181,15 @@ export class RssDashboardView extends ItemView {
   }
 
   render(): void {
+    console.debug(
+      "[DashboardView] render() called. plugin.settings.feeds.length:",
+      this.plugin.settings.feeds.length,
+    );
+    console.debug(
+      "[DashboardView] this.settings === plugin.settings:",
+      this.settings === this.plugin.settings,
+    );
+
     this.verifySavedArticles();
 
     if (this.articleList) {

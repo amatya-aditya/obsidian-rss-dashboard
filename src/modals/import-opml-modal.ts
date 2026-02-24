@@ -503,6 +503,9 @@ export class ImportOpmlModal extends Modal {
 
         // Set folders
         this.plugin.settings.folders = [...this.parsedFolders];
+        console.debug(
+          "[ImportOpmlModal] Overwrite complete. About to save settings...",
+        );
       } else {
         // Update mode - merge with existing
         const existingUrls = new Set(
@@ -551,15 +554,58 @@ export class ImportOpmlModal extends Modal {
 
       await this.plugin.saveSettings();
 
+      console.debug(
+        "[ImportOpmlModal] Settings saved. Feeds count:",
+        this.plugin.settings.feeds.length,
+      );
+      console.debug(
+        "[ImportOpmlModal] Folders count:",
+        this.plugin.settings.folders.length,
+      );
+
+      // Close any open MobileNavigationModal to ensure fresh data on mobile
+      const mobileModals = document.querySelectorAll(
+        ".rss-mobile-navigation-modal",
+      );
+      mobileModals.forEach((modal) => {
+        const closeBtn = modal.querySelector(".modal-close-button");
+        if (closeBtn) {
+          (closeBtn as HTMLElement).click();
+        }
+      });
+      console.debug(
+        "[ImportOpmlModal] Closed mobile navigation modals:",
+        mobileModals.length,
+      );
+
       // Refresh the dashboard view and sidebar if they exist
       const dashboardView = await this.plugin.getActiveDashboardView();
+      console.debug(
+        "[ImportOpmlModal] getActiveDashboardView returned:",
+        dashboardView ? "view found" : "null",
+      );
+
       if (dashboardView) {
+        console.debug(
+          "[ImportOpmlModal] dashboardView.sidebar exists:",
+          !!dashboardView.sidebar,
+        );
+
         // Clear the sidebar's folder path cache to ensure fresh data
         if (dashboardView.sidebar) {
+          console.debug(
+            "[ImportOpmlModal] Sidebar settings reference matches plugin:",
+            dashboardView.sidebar["settings"] === this.plugin.settings,
+          );
+          // Explicitly update sidebar's settings reference
+          dashboardView.sidebar["settings"] = this.plugin.settings;
           dashboardView.sidebar.clearFolderPathCache();
+          console.debug("[ImportOpmlModal] Cleared folder path cache");
         }
         // Full re-render
+        console.debug("[ImportOpmlModal] Calling dashboardView.refresh()");
         dashboardView.refresh();
+        console.debug("[ImportOpmlModal] dashboardView.refresh() returned");
       }
 
       const modeText =
