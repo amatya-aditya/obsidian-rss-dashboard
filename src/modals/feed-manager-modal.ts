@@ -586,29 +586,34 @@ export class AddFeedModal extends Modal {
                 status = "⏳ Loading YouTube feed...";
                 if (refs.statusDiv) refs.statusDiv.textContent = status;
 
-                // Auto-set folder to default YouTube folder if not already set by user
+                // Auto-set folder to default YouTube folder
+                // Update if folder is empty, "Uncategorized", or was previously auto-assigned
                 const defaultYouTubeFolder =
                   this.plugin?.settings?.media?.defaultYouTubeFolder ||
                   "Videos";
-                console.warn("[YouTube] Load handler - folder check:", {
-                  hasFolderInput: !!folderInput,
-                  folderInputValue: folderInput?.value,
-                  folder,
-                  defaultYouTubeFolder,
-                });
-                // Check if folder is empty or still at default "Uncategorized"
+                const defaultPodcastFolder =
+                  this.plugin?.settings?.media?.defaultPodcastFolder ||
+                  "Podcasts";
+                const defaultRssFolder =
+                  this.plugin?.settings?.media?.defaultRssFolder || "RSS";
+
+                const currentFolder = folderInput?.value || "";
+                const isAutoAssignedFolder =
+                  currentFolder === defaultYouTubeFolder ||
+                  currentFolder === defaultPodcastFolder ||
+                  currentFolder === defaultRssFolder ||
+                  currentFolder === "Videos" ||
+                  currentFolder === "Podcasts" ||
+                  currentFolder === "RSS";
+
                 if (
                   folderInput &&
-                  (!folderInput.value || folderInput.value === "Uncategorized")
+                  (!currentFolder ||
+                    currentFolder === "Uncategorized" ||
+                    isAutoAssignedFolder)
                 ) {
                   folder = defaultYouTubeFolder;
                   folderInput.value = defaultYouTubeFolder;
-                  console.warn(
-                    "[YouTube] Set folder to:",
-                    defaultYouTubeFolder,
-                    "folderInput.value is now:",
-                    folderInput.value,
-                  );
                 }
               } else {
                 // Check for podcast platform URLs
@@ -627,14 +632,31 @@ export class AddFeedModal extends Modal {
                   status = "⏳ Loading feed...";
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
 
-                  // Auto-set folder to default podcast folder if not already set by user
+                  // Auto-set folder to default podcast folder
+                  // Update if folder is empty, "Uncategorized", or was previously auto-assigned
                   const defaultPodcastFolder =
                     this.plugin?.settings?.media?.defaultPodcastFolder ||
                     "Podcasts";
+                  const defaultYouTubeFolder =
+                    this.plugin?.settings?.media?.defaultYouTubeFolder ||
+                    "Videos";
+                  const defaultRssFolder =
+                    this.plugin?.settings?.media?.defaultRssFolder || "RSS";
+
+                  const currentFolder = folderInput?.value || "";
+                  const isAutoAssignedFolder =
+                    currentFolder === defaultYouTubeFolder ||
+                    currentFolder === defaultPodcastFolder ||
+                    currentFolder === defaultRssFolder ||
+                    currentFolder === "Videos" ||
+                    currentFolder === "Podcasts" ||
+                    currentFolder === "RSS";
+
                   if (
                     folderInput &&
-                    (!folderInput.value ||
-                      folderInput.value === "Uncategorized")
+                    (!currentFolder ||
+                      currentFolder === "Uncategorized" ||
+                      isAutoAssignedFolder)
                   ) {
                     folder = defaultPodcastFolder;
                     folderInput.value = defaultPodcastFolder;
@@ -671,12 +693,31 @@ export class AddFeedModal extends Modal {
               setActiveBadge(detectedType);
 
               // Auto-set folder for RSS feeds if not YouTube or Podcast
+              // Update if folder is empty, "Uncategorized", or was previously auto-assigned
               if (detectedType === "rss") {
                 const defaultRssFolder =
                   this.plugin?.settings?.media?.defaultRssFolder || "RSS";
+                const defaultYouTubeFolder =
+                  this.plugin?.settings?.media?.defaultYouTubeFolder ||
+                  "Videos";
+                const defaultPodcastFolder =
+                  this.plugin?.settings?.media?.defaultPodcastFolder ||
+                  "Podcasts";
+
+                const currentFolder = folderInput?.value || "";
+                const isAutoAssignedFolder =
+                  currentFolder === defaultYouTubeFolder ||
+                  currentFolder === defaultPodcastFolder ||
+                  currentFolder === defaultRssFolder ||
+                  currentFolder === "Videos" ||
+                  currentFolder === "Podcasts" ||
+                  currentFolder === "RSS";
+
                 if (
                   folderInput &&
-                  (!folderInput.value || folderInput.value === "Uncategorized")
+                  (!currentFolder ||
+                    currentFolder === "Uncategorized" ||
+                    isAutoAssignedFolder)
                 ) {
                   folder = defaultRssFolder;
                   folderInput.value = defaultRssFolder;
