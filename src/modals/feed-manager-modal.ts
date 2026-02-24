@@ -556,6 +556,7 @@ export class AddFeedModal extends Modal {
             status = "⏳ Loading...";
             loadBtn.addClass("loading");
             loadBtn.disabled = true;
+            clearBadgeActiveStates(); // Clear any previous active states
             if (refs.statusDiv) {
               refs.statusDiv.textContent = status;
               refs.statusDiv.removeClass("rss-dashboard-status-warning");
@@ -565,9 +566,11 @@ export class AddFeedModal extends Modal {
             }
             try {
               let feedUrl = url;
+              let detectedType: "rss" | "podcast" | "youtube" = "rss";
 
               // Check for YouTube page URLs and convert to RSS feed
               if (isYouTubePageUrl(url)) {
+                detectedType = "youtube";
                 status = "⏳ Resolving YouTube channel...";
                 if (refs.statusDiv) refs.statusDiv.textContent = status;
 
@@ -611,6 +614,7 @@ export class AddFeedModal extends Modal {
                 // Check for podcast platform URLs
                 const platform = detectPodcastPlatform(url);
                 if (platform) {
+                  detectedType = "podcast";
                   status = `⏳ Resolving ${platform.name} URL...`;
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
                   const resolvedUrl = await resolvePodcastPlatformUrl(url);
@@ -650,6 +654,8 @@ export class AddFeedModal extends Modal {
               if (urlInput) {
                 urlInput.addClass("loaded");
               }
+              // Set the active badge based on detected type
+              setActiveBadge(detectedType);
             } catch (e) {
               const errorMsg = e instanceof Error ? e.message : String(e);
               status = `Error: ${errorMsg}`;
@@ -746,6 +752,25 @@ export class AddFeedModal extends Modal {
     youtubeSvg.appendChild(youtubePath);
     youtubeBadge.appendChild(youtubeSvg);
     youtubeBadge.appendText(" YouTube");
+
+    // Helper function to clear all active badge states
+    const clearBadgeActiveStates = () => {
+      rssBadge.removeClass("active");
+      podcastBadge.removeClass("active");
+      youtubeBadge.removeClass("active");
+    };
+
+    // Helper function to set active badge based on feed type
+    const setActiveBadge = (feedType: "rss" | "podcast" | "youtube") => {
+      clearBadgeActiveStates();
+      if (feedType === "rss") {
+        rssBadge.addClass("active");
+      } else if (feedType === "podcast") {
+        podcastBadge.addClass("active");
+      } else if (feedType === "youtube") {
+        youtubeBadge.addClass("active");
+      }
+    };
 
     new Setting(contentEl).setName("Title").addText((text) => {
       titleInput = text.inputEl;

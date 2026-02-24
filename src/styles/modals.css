@@ -569,6 +569,38 @@
   color: #ff0000;
 }
 
+/* Active badge glow effect */
+.format-badge.active {
+  animation: badge-glow 1.5s ease-in-out infinite;
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+.format-badge.rss.active {
+  box-shadow: 0 0 12px rgba(239, 136, 51, 0.6);
+  border: 1px solid rgba(239, 136, 51, 0.4);
+}
+
+.format-badge.podcast.active {
+  box-shadow: 0 0 12px rgba(123, 40, 242, 0.6);
+  border: 1px solid rgba(123, 40, 242, 0.4);
+}
+
+.format-badge.youtube.active {
+  box-shadow: 0 0 12px rgba(255, 0, 0, 0.6);
+  border: 1px solid rgba(255, 0, 0, 0.4);
+}
+
+@keyframes badge-glow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
 /* ============================================
    Mobile/Tablet Responsive Modal Styles
    ============================================ */

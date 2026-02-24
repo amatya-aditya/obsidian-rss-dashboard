@@ -357,6 +357,85 @@ YouTube Icon (simplified):
 └─────────────────────────────────────────────────┘
 ```
 
+### 6. Glowing Format Badge on Detection
+
+When a feed is successfully loaded, the corresponding format badge should glow to indicate which type of feed was detected.
+
+#### 6.1 CSS for Active/Glowing State
+
+```css
+/* Active badge glow effect */
+.format-badge.active {
+  animation: badge-glow 1.5s ease-in-out infinite;
+  transform: scale(1.05);
+}
+
+.format-badge.rss.active {
+  box-shadow: 0 0 12px rgba(239, 136, 51, 0.6);
+  border: 1px solid rgba(239, 136, 51, 0.4);
+}
+
+.format-badge.podcast.active {
+  box-shadow: 0 0 12px rgba(123, 40, 242, 0.6);
+  border: 1px solid rgba(123, 40, 242, 0.4);
+}
+
+.format-badge.youtube.active {
+  box-shadow: 0 0 12px rgba(255, 0, 0, 0.6);
+  border: 1px solid rgba(255, 0, 0, 0.4);
+}
+
+@keyframes badge-glow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+```
+
+#### 6.2 Detection Logic
+
+In the Load button click handler, after successfully loading the feed:
+
+1. **Clear all active classes** from badges
+2. **Determine feed type** based on:
+   - YouTube: URL was resolved from YouTube page URL (`isYouTubePageUrl()` check)
+   - Podcast: URL was resolved from podcast platform URL (`detectPodcastPlatform()` check)
+   - RSS: Default for all other feeds
+3. **Add active class** to the corresponding badge
+
+```typescript
+// Clear all active classes
+rssBadge.removeClass("active");
+podcastBadge.removeClass("active");
+youtubeBadge.removeClass("active");
+
+// Determine which badge to activate
+if (isYouTubePageUrl(originalUrl)) {
+  youtubeBadge.addClass("active");
+} else if (detectPodcastPlatform(originalUrl)) {
+  podcastBadge.addClass("active");
+} else {
+  rssBadge.addClass("active");
+}
+```
+
+#### 6.3 Badge Element References
+
+Store references to badge elements in the modal class to allow manipulation after load:
+
+```typescript
+// Create badges and store references
+const badgeRefs = {
+  rss: rssBadge,
+  podcast: podcastBadge,
+  youtube: youtubeBadge,
+};
+```
+
 ## Notes
 
 - All changes should maintain backward compatibility with existing functionality

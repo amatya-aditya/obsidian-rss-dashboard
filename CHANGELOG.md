@@ -9,6 +9,7 @@
   - Added purple "Load" button with hover effects and loading spinner animation
   - Added color-coded status indicators: green for success, red for errors, orange for loading
   - Added SVG format badges showing supported feed types (RSS, Apple Podcasts, YouTube)
+  - Added glowing badge effect when feed type is detected (RSS, YouTube, or Podcast badge glows based on detected type)
   - Added modal subtitle for better context
   - Added placeholder text for URL input
   - Added green border highlight on URL input when feed loads successfully
