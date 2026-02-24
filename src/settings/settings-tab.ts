@@ -597,6 +597,33 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
+    new Setting(containerEl).setName("RSS").setHeading();
+
+    new Setting(containerEl)
+      .setName("Default RSS folder")
+      .setDesc("Default folder for RSS feeds")
+      .addText((text) => {
+        text
+          .setValue(this.plugin.settings.media.defaultRssFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.media.defaultRssFolder = normalizePath(value);
+            await this.plugin.saveSettings();
+          });
+        new FolderSuggest(this.app, text.inputEl, this.plugin.settings.folders);
+      });
+
+    new Setting(containerEl)
+      .setName("Default RSS tag")
+      .setDesc("Default tag for RSS articles")
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.media.defaultRssTag)
+          .onChange(async (value) => {
+            this.plugin.settings.media.defaultRssTag = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+
     new Setting(containerEl).setName("Podcast player").setHeading();
 
     new Setting(containerEl)

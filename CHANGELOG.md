@@ -1,5 +1,26 @@
 # RSS Dashboard - Changelog
 
+## [2.2.4] - 2026-02-24
+
+### ✨ New Features
+
+- **Auto-Folder Assignment for Podcasts & RSS**: Extended the YouTube auto-folder feature to support Apple Podcasts and regular RSS feeds
+  - Apple Podcasts URLs now auto-assign to the default Podcast folder (configurable in settings)
+  - Regular RSS feeds now auto-assign to the default RSS folder (configurable in settings)
+  - All auto-assignments only occur if the folder field is empty or "Uncategorized"
+
+### ⚙️ Settings
+
+- **New RSS Settings**: Added "Default RSS folder" and "Default RSS tag" settings in the Media settings tab
+- **RSS Default Folder**: New installations now include an "RSS" folder by default
+
+### 🔧 Technical Changes
+
+- Added `defaultRssFolder` and `defaultRssTag` to `MediaSettings` interface
+- Folder auto-assignment now follows a consistent pattern for YouTube, Podcasts, and RSS feeds
+
+---
+
 ## [2.2.3] - 2026-02-24
 
 ### 🎨 UI/UX Improvements

@@ -125,6 +125,8 @@ export interface MediaSettings {
   defaultYouTubeTag: string;
   defaultPodcastFolder: string;
   defaultPodcastTag: string;
+  defaultRssFolder: string;
+  defaultRssTag: string;
   openInSplitView: boolean;
   podcastTheme: PodcastTheme;
 }
@@ -251,6 +253,12 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
       createdAt: Date.now(),
       modifiedAt: Date.now(),
     },
+    {
+      name: "RSS",
+      subfolders: [],
+      createdAt: Date.now(),
+      modifiedAt: Date.now(),
+    },
   ],
   refreshInterval: 60,
   maxItems: 25,
@@ -286,6 +294,8 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultYouTubeTag: "youtube",
     defaultPodcastFolder: "Podcasts",
     defaultPodcastTag: "podcast",
+    defaultRssFolder: "RSS",
+    defaultRssTag: "RSS",
     openInSplitView: true,
     podcastTheme: "obsidian",
   },

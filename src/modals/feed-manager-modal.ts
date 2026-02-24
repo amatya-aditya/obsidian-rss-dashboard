@@ -626,6 +626,19 @@ export class AddFeedModal extends Modal {
                   if (urlInput) urlInput.value = feedUrl;
                   status = "⏳ Loading feed...";
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
+
+                  // Auto-set folder to default podcast folder if not already set by user
+                  const defaultPodcastFolder =
+                    this.plugin?.settings?.media?.defaultPodcastFolder ||
+                    "Podcasts";
+                  if (
+                    folderInput &&
+                    (!folderInput.value ||
+                      folderInput.value === "Uncategorized")
+                  ) {
+                    folder = defaultPodcastFolder;
+                    folderInput.value = defaultPodcastFolder;
+                  }
                 }
               }
 
@@ -656,6 +669,19 @@ export class AddFeedModal extends Modal {
               }
               // Set the active badge based on detected type
               setActiveBadge(detectedType);
+
+              // Auto-set folder for RSS feeds if not YouTube or Podcast
+              if (detectedType === "rss") {
+                const defaultRssFolder =
+                  this.plugin?.settings?.media?.defaultRssFolder || "RSS";
+                if (
+                  folderInput &&
+                  (!folderInput.value || folderInput.value === "Uncategorized")
+                ) {
+                  folder = defaultRssFolder;
+                  folderInput.value = defaultRssFolder;
+                }
+              }
             } catch (e) {
               const errorMsg = e instanceof Error ? e.message : String(e);
               status = `Error: ${errorMsg}`;
