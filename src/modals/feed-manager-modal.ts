@@ -63,6 +63,11 @@ export class EditFeedModal extends Modal {
     ]);
     contentEl.empty();
     new Setting(contentEl).setName("Edit feed").setHeading();
+
+    // Add subtitle
+    const subtitle = contentEl.createDiv({ cls: "add-feed-subtitle" });
+    subtitle.textContent = "Modify feed settings and configuration";
+
     let title = this.feed.title;
     let url = this.feed.url;
     let folder = this.feed.folder || "";
@@ -71,18 +76,21 @@ export class EditFeedModal extends Modal {
     let titleInput: HTMLInputElement;
     let urlInput: HTMLInputElement;
     let folderInput: HTMLInputElement;
+    let loadBtn: HTMLButtonElement;
     const refs: {
       statusDiv?: HTMLDivElement;
       latestEntryDiv?: HTMLDivElement;
     } = {};
 
-    new Setting(contentEl)
+    const urlSetting = new Setting(contentEl)
       .setName("Feed URL")
       .addText((text) => {
         text.setValue(url).onChange((v) => (url = v));
         urlInput = text.inputEl;
         urlInput.autocomplete = "off";
         urlInput.spellcheck = false;
+        urlInput.placeholder = "https://example.com/feed.xml";
+        urlInput.addClass("feed-url-input");
         urlInput.addEventListener("focus", () => urlInput.select());
         urlInput.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
@@ -93,19 +101,31 @@ export class EditFeedModal extends Modal {
         });
       })
       .addButton((btn) => {
-        btn.setButtonText("Load").onClick(() => {
+        btn.setButtonText("Load");
+        btn.buttonEl.addClass("rss-dashboard-load-button");
+        loadBtn = btn.buttonEl;
+        btn.onClick(() => {
           void (async () => {
-            status = "Loading...";
+            // Set loading state
+            loadBtn.addClass("loading");
+            loadBtn.disabled = true;
+            clearBadgeActiveStates();
+            status = "⏳ Loading...";
             if (refs.statusDiv) {
               refs.statusDiv.textContent = status;
               refs.statusDiv.removeClass("rss-dashboard-status-warning");
+              refs.statusDiv.removeClass("status-ok");
+              refs.statusDiv.removeClass("status-error");
+              refs.statusDiv.addClass("status-loading");
             }
+            let detectedType: "rss" | "podcast" | "youtube" = "rss";
             try {
               let feedUrl = url;
 
               // Check for YouTube page URLs and convert to RSS feed
               if (isYouTubePageUrl(url)) {
-                status = "Resolving YouTube channel...";
+                detectedType = "youtube";
+                status = "⏳ Resolving YouTube channel...";
                 if (refs.statusDiv) refs.statusDiv.textContent = status;
 
                 const rssUrl = await MediaService.getYouTubeRssFeed(url);
@@ -117,13 +137,14 @@ export class EditFeedModal extends Modal {
                 feedUrl = rssUrl;
                 url = rssUrl;
                 if (urlInput) urlInput.value = rssUrl;
-                status = "Loading YouTube feed...";
+                status = "⏳ Loading YouTube feed...";
                 if (refs.statusDiv) refs.statusDiv.textContent = status;
               } else {
                 // Check for podcast platform URLs
                 const platform = detectPodcastPlatform(url);
                 if (platform) {
-                  status = `Resolving ${platform.name} URL...`;
+                  detectedType = "podcast";
+                  status = `⏳ Resolving ${platform.name} URL...`;
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
                   const resolvedUrl = await resolvePodcastPlatformUrl(url);
                   if (!resolvedUrl) {
@@ -132,7 +153,7 @@ export class EditFeedModal extends Modal {
                   feedUrl = resolvedUrl;
                   url = resolvedUrl;
                   if (urlInput) urlInput.value = feedUrl;
-                  status = "Loading feed...";
+                  status = "⏳ Loading feed...";
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
                 }
               }
@@ -153,17 +174,131 @@ export class EditFeedModal extends Modal {
               if (refs.latestEntryDiv)
                 refs.latestEntryDiv.textContent = latestEntry;
               status = "OK";
+              // Success state
+              if (refs.statusDiv) {
+                refs.statusDiv.textContent = "✅ OK";
+                refs.statusDiv.removeClass("status-loading");
+                refs.statusDiv.addClass("status-ok");
+              }
+              if (urlInput) {
+                urlInput.addClass("loaded");
+              }
+              setActiveBadge(detectedType);
             } catch (e) {
+              const errorMsg = e instanceof Error ? e.message : String(e);
               status = "Error loading feed";
               latestEntry = "-";
               if (refs.latestEntryDiv)
                 refs.latestEntryDiv.textContent = latestEntry;
               console.error("Feed load error:", e);
+              // Error state
+              if (refs.statusDiv) {
+                refs.statusDiv.textContent = `❌ ${errorMsg}`;
+                refs.statusDiv.removeClass("status-loading");
+                refs.statusDiv.addClass("status-error");
+              }
+            } finally {
+              // Reset loading state
+              loadBtn.removeClass("loading");
+              loadBtn.disabled = false;
             }
-            if (refs.statusDiv) refs.statusDiv.textContent = status;
           })();
         });
       });
+
+    // Add supported formats badges with SVG icons
+    const formatsDesc = urlSetting.descEl.createDiv({
+      cls: "supported-formats",
+    });
+
+    // RSS badge - traditional RSS feed icon (radio waves)
+    const rssBadge = formatsDesc.createSpan({ cls: "format-badge rss" });
+    const rssSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
+    rssSvg.setAttribute("viewBox", "0 0 448 512");
+    rssSvg.setAttribute("width", "14");
+    rssSvg.setAttribute("height", "14");
+    const rssPath = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "path",
+    );
+    rssPath.setAttribute("fill", "currentColor");
+    rssPath.setAttribute(
+      "d",
+      "M0 64C0 46.3 14.3 32 32 32c229.8 0 416 186.2 416 416c0 17.7-14.3 32-32 32s-32-14.3-32-32C384 253.6 230.4 96 32 96C14.3 96 0 81.7 0 64zM0 416a64 64 0 1 1 128 0A64 64 0 1 1 0 416zM32 160c159.1 0 288 128.9 288 288c0 17.7-14.3 32-32 32s-32-14.3-32-32c0-123.7-100.3-224-224-224c-17.7 0-32-14.3-32-32s14.3-32 32-32z",
+    );
+    rssSvg.appendChild(rssPath);
+    rssBadge.appendChild(rssSvg);
+    rssBadge.appendText(" RSS");
+
+    // Apple Podcasts badge
+    const podcastBadge = formatsDesc.createSpan({
+      cls: "format-badge podcast",
+    });
+    const podcastSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
+    podcastSvg.setAttribute("viewBox", "0 0 24 24");
+    podcastSvg.setAttribute("width", "14");
+    podcastSvg.setAttribute("height", "14");
+    const podcastPath = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "path",
+    );
+    podcastPath.setAttribute("fill", "currentColor");
+    podcastPath.setAttribute(
+      "d",
+      "M5.34 0A5.328 5.328 0 0 0 0 5.34v13.32A5.328 5.328 0 0 0 5.34 24h13.32A5.328 5.328 0 0 0 24 18.66V5.34A5.328 5.328 0 0 0 18.66 0zm6.525 3.6a7.44 7.44 0 0 1 7.44 7.44 7.44 7.44 0 0 1-7.44 7.44 7.44 7.44 0 0 1-7.44-7.44 7.44 7.44 0 0 1 7.44-7.44zm-.096 1.776a5.664 5.664 0 0 0-5.664 5.664 5.664 5.664 0 0 0 5.664 5.664 5.664 5.664 0 0 0 5.664-5.664 5.664 5.664 0 0 0-5.664-5.664zm.096 2.4a.96.96 0 0 1 .96.96v2.88a.96.96 0 0 1-.96.96.96.96 0 0 1-.96-.96v-2.88a.96.96 0 0 1 .96-.96zm0 5.76a.96.96 0 0 1 .96.96.96.96 0 0 1-.96.96.96.96 0 0 1-.96-.96.96.96 0 0 1 .96-.96z",
+    );
+    podcastSvg.appendChild(podcastPath);
+    podcastBadge.appendChild(podcastSvg);
+    podcastBadge.appendText(" Apple Podcasts");
+
+    // YouTube badge
+    const youtubeBadge = formatsDesc.createSpan({
+      cls: "format-badge youtube",
+    });
+    const youtubeSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
+    youtubeSvg.setAttribute("viewBox", "0 0 24 24");
+    youtubeSvg.setAttribute("width", "14");
+    youtubeSvg.setAttribute("height", "14");
+    const youtubePath = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "path",
+    );
+    youtubePath.setAttribute("fill", "currentColor");
+    youtubePath.setAttribute(
+      "d",
+      "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z",
+    );
+    youtubeSvg.appendChild(youtubePath);
+    youtubeBadge.appendChild(youtubeSvg);
+    youtubeBadge.appendText(" YouTube");
+
+    // Helper function to clear all active badge states
+    const clearBadgeActiveStates = () => {
+      rssBadge.removeClass("active");
+      podcastBadge.removeClass("active");
+      youtubeBadge.removeClass("active");
+    };
+
+    // Helper function to set active badge based on feed type
+    const setActiveBadge = (feedType: "rss" | "podcast" | "youtube") => {
+      clearBadgeActiveStates();
+      if (feedType === "rss") {
+        rssBadge.addClass("active");
+      } else if (feedType === "podcast") {
+        podcastBadge.addClass("active");
+      } else if (feedType === "youtube") {
+        youtubeBadge.addClass("active");
+      }
+    };
 
     new Setting(contentEl).setName("Title").addText((text) => {
       text.setValue(title).onChange((v) => (title = v));
@@ -180,9 +315,7 @@ export class EditFeedModal extends Modal {
       });
     });
 
-    const latestEntrySetting = new Setting(contentEl).setName(
-      "Latest entry posted",
-    );
+    const latestEntrySetting = new Setting(contentEl).setName("Latest entry");
     refs.latestEntryDiv = latestEntrySetting.controlEl.createDiv({
       text: latestEntry,
       cls: "add-feed-latest-entry",
