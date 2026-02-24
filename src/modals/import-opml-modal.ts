@@ -551,10 +551,14 @@ export class ImportOpmlModal extends Modal {
 
       await this.plugin.saveSettings();
 
-      // Refresh the dashboard view if it exists
+      // Refresh the dashboard view and sidebar if they exist
       const dashboardView = await this.plugin.getActiveDashboardView();
       if (dashboardView) {
         dashboardView.refresh();
+        // Also refresh the sidebar to show updated folders/feeds
+        if (dashboardView.sidebar) {
+          dashboardView.sidebar.render();
+        }
       }
 
       const modeText =
