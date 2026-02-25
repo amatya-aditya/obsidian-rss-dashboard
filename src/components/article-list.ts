@@ -92,6 +92,7 @@ export class ArticleList {
   private statusFilters: Set<string>;
   private tagFilters: Set<string>;
   private filterLogic: "AND" | "OR";
+  private articleSearchQuery: string = "";
   private documentListeners: Array<{
     target: Document;
     type: string;
@@ -224,6 +225,32 @@ export class ArticleList {
     this.renderArticles();
   }
 
+  /**
+   * Filter articles by search query (client-side filtering by title)
+   */
+  private filterArticlesBySearch(query: string): void {
+    const articlesList = this.container.querySelector(
+      ".rss-dashboard-articles-list",
+    );
+
+    if (!articlesList) return;
+
+    const articleElements = articlesList.querySelectorAll(
+      ".rss-dashboard-article-item, .rss-dashboard-article-card",
+    );
+
+    articleElements.forEach((el) => {
+      const titleEl = el.querySelector(".rss-dashboard-article-title");
+      const title = titleEl?.textContent?.toLowerCase() || "";
+
+      if (query && !title.includes(query)) {
+        (el as HTMLElement).classList.add("search-hidden");
+      } else {
+        (el as HTMLElement).classList.remove("search-hidden");
+      }
+    });
+  }
+
   private renderHeader(): void {
     const articlesHeader = this.container.createDiv({
       cls: "rss-dashboard-articles-header",
@@ -349,6 +376,43 @@ export class ArticleList {
     multiFilterBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       this.showFiltersMenu(multiFilterBtn);
+    });
+
+    // Article search input
+    const searchContainer = articleControls.createDiv({
+      cls: "rss-dashboard-article-search-container",
+    });
+
+    const searchInput = searchContainer.createEl("input", {
+      cls: "rss-dashboard-article-search-input",
+      attr: {
+        type: "text",
+        placeholder: "Search articles...",
+        autocomplete: "off",
+        spellcheck: "false",
+      },
+    });
+
+    const searchIcon = searchContainer.createDiv({
+      cls: "rss-dashboard-article-search-icon",
+    });
+    setIcon(searchIcon, "search");
+
+    // Search input event handler with debouncing
+    let searchTimeout: number;
+    searchInput.addEventListener("input", (e) => {
+      const query = ((e.target as HTMLInputElement)?.value || "")
+        .toLowerCase()
+        .trim();
+      this.articleSearchQuery = query;
+
+      if (searchTimeout) {
+        window.clearTimeout(searchTimeout);
+      }
+
+      searchTimeout = window.setTimeout(() => {
+        this.filterArticlesBySearch(query);
+      }, 150);
     });
 
     // Move age filter into its own space or keep as is?
