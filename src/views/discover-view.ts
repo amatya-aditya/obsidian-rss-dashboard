@@ -3,6 +3,7 @@ import {
   FeedMetadata,
   CategoryPath,
   DiscoverFilters,
+  FollowStatus,
 } from "../types/discover-types";
 import { RssDashboardSettings, Feed } from "../types/types";
 import { FeedPreviewModal } from "../modals/feed-preview-modal";
@@ -23,6 +24,7 @@ export class DiscoverView extends ItemView {
     selectedTypes: [],
     selectedPaths: [],
     selectedTags: [],
+    followStatus: "all",
   };
   private currentSort = "title-asc";
   private categoryMap: {
@@ -195,6 +197,23 @@ export class DiscoverView extends ItemView {
           feed.tags.includes(tag),
         );
         if (!hasMatchingTag) {
+          return false;
+        }
+      }
+
+      // Follow status filter
+      if (this.filters.followStatus === "followed") {
+        const isFollowed = this.plugin.settings.feeds.some(
+          (f: Feed) => f.url === feed.url,
+        );
+        if (!isFollowed) {
+          return false;
+        }
+      } else if (this.filters.followStatus === "unfollowed") {
+        const isFollowed = this.plugin.settings.feeds.some(
+          (f: Feed) => f.url === feed.url,
+        );
+        if (isFollowed) {
           return false;
         }
       }
@@ -794,6 +813,9 @@ export class DiscoverView extends ItemView {
       cls: "rss-discover-filter-header-right",
     });
 
+    // Follow status dropdown next to sort dropdown
+    this.renderFollowStatusDropdown(rightSection);
+
     // Sort dropdown on the same row as results count
     this.renderSortDropdown(rightSection);
 
@@ -808,6 +830,7 @@ export class DiscoverView extends ItemView {
           selectedTypes: [],
           selectedPaths: [],
           selectedTags: [],
+          followStatus: "all",
         };
         this.currentPage = 1;
         this.filterFeeds();
@@ -859,6 +882,12 @@ export class DiscoverView extends ItemView {
       cls: "rss-discover-sort-container",
     });
 
+    // Add sort icon
+    const sortIcon = sortContainer.createDiv({
+      cls: "rss-discover-dropdown-icon",
+    });
+    setIcon(sortIcon, "arrow-up-down");
+
     const sortDropdown = sortContainer.createEl("select");
     sortDropdown.addClass("rss-discover-sort-dropdown");
 
@@ -886,6 +915,58 @@ export class DiscoverView extends ItemView {
       this.currentSort = (e.target as HTMLSelectElement).value;
       this.currentPage = 1;
       this.sortFeeds();
+      const contentEl = this.containerEl.querySelector(
+        ".rss-discover-content",
+      ) as HTMLElement;
+      if (contentEl) {
+        this.renderContent(contentEl);
+      }
+    });
+  }
+
+  private renderFollowStatusDropdown(container: HTMLElement): void {
+    const dropdownContainer = container.createDiv({
+      cls: "rss-discover-sort-container",
+    });
+
+    // Add filter icon
+    const filterIcon = dropdownContainer.createDiv({
+      cls: "rss-discover-dropdown-icon",
+    });
+    setIcon(filterIcon, "filter");
+
+    const dropdown = dropdownContainer.createEl("select");
+    dropdown.addClass("rss-discover-sort-dropdown");
+
+    // Calculate counts for each status
+    const followedCount = this.feeds.filter((feed) =>
+      this.plugin.settings.feeds.some((f: Feed) => f.url === feed.url),
+    ).length;
+    const unfollowedCount = this.feeds.length - followedCount;
+    const totalCount = this.feeds.length;
+
+    const options: { value: FollowStatus; text: string }[] = [
+      { value: "all", text: `All feeds (${totalCount})` },
+      { value: "followed", text: `Followed (${followedCount})` },
+      { value: "unfollowed", text: `Unfollowed (${unfollowedCount})` },
+    ];
+
+    options.forEach((opt) => {
+      const optionEl = dropdown.createEl("option", {
+        value: opt.value,
+        text: opt.text,
+      });
+      if (opt.value === this.filters.followStatus) {
+        optionEl.selected = true;
+      }
+    });
+
+    dropdown.addEventListener("change", (e) => {
+      this.filters.followStatus = (e.target as HTMLSelectElement)
+        .value as FollowStatus;
+      this.currentPage = 1;
+      this.filterFeeds();
+      this.saveFilterState();
       const contentEl = this.containerEl.querySelector(
         ".rss-discover-content",
       ) as HTMLElement;
@@ -1145,7 +1226,8 @@ export class DiscoverView extends ItemView {
       this.filters.query !== "" ||
       this.filters.selectedTypes.length > 0 ||
       this.filters.selectedPaths.length > 0 ||
-      this.filters.selectedTags.length > 0
+      this.filters.selectedTags.length > 0 ||
+      this.filters.followStatus !== "all"
     );
   }
 

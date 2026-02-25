@@ -388,6 +388,19 @@
 .rss-discover-sort-container {
   display: flex;
   align-items: center;
+  gap: 6px;
+}
+
+.rss-discover-dropdown-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.rss-discover-dropdown-icon svg {
+  width: 14px;
+  height: 14px;
 }
 
 .rss-discover-sort-dropdown {
@@ -398,7 +411,7 @@
   color: var(--text-normal);
   font-size: 13px;
   cursor: pointer;
-  min-width: 160px;
+  min-width: 120px;
 }
 
 .rss-discover-sort-dropdown:hover {

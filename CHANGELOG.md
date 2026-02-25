@@ -1,5 +1,23 @@
 # RSS Dashboard - Changelog
 
+## [2.2.10] - 2026-02-25
+
+### ✨ New Features
+
+- **Follow Status Filter for Discover Page**: New dropdown filter in the Discover page header to filter feeds by follow status
+  - Filter options: All feeds, Followed, Unfollowed
+  - Each option shows count of feeds in that category
+  - Filter state persists across sessions
+  - Works in combination with other filters (type, tags, search, etc.)
+
+### 🎨 UI/UX Improvements
+
+- **Dropdown Icons**: Added icons to dropdown menus for better visual recognition
+  - Filter icon for the follow status dropdown
+  - Arrow-up-down icon for the sort dropdown
+
+---
+
 ## [2.2.9] - 2026-02-24
 
 ### ✨ New Features
