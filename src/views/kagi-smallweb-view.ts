@@ -215,6 +215,17 @@ export class KagiSmallwebView extends ItemView {
     return normalized.substring(0, maxLength - 3) + "...";
   }
 
+  /**
+   * Truncate a title to a maximum length with ellipses
+   */
+  private truncateTitle(text: string, maxLength: number = 50): string {
+    if (!text) return "";
+    if (text.length <= maxLength) {
+      return text;
+    }
+    return text.substring(0, maxLength) + "...";
+  }
+
   private renderSmallwebLoading(container: HTMLElement): void {
     const loadingEl = container.createDiv({ cls: "rss-discover-loading" });
     setIcon(loadingEl, "loader-2");
@@ -443,13 +454,13 @@ export class KagiSmallwebView extends ItemView {
     const titleArea = titleGroup.createDiv();
     titleArea.createDiv({
       cls: "rss-discover-card-title",
-      text: entry.blogName,
+      text: this.truncateTitle(entry.blogName, 50),
     });
 
     if (entry.postTitle && entry.postTitle !== entry.blogName) {
       titleArea.createDiv({
         cls: "rss-smallweb-post-title",
-        text: entry.postTitle,
+        text: this.truncateTitle(entry.postTitle, 50),
       });
     }
 
