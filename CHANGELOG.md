@@ -1,5 +1,23 @@
 # RSS Dashboard - Changelog
 
+## [2.2.11] - 2026-02-25
+
+### ✨ New Features
+
+- **Kagi Smallweb Integration**: New "✦ Smallweb" button in the Discover page header that opens a live feed of recently published posts from independent blogs, curated by Kagi
+  - Live feed refreshed every 5 hours from Kagi's Smallweb API
+  - Search/filter functionality to find blogs and posts
+  - Letter avatars with deterministic colors for each blog
+  - "Follow blog" button to subscribe directly to blogs
+  - Back button to return to the main Discover page
+  - Attribution footer with links to Kagi Smallweb
+
+### 🎨 UI/UX Improvements
+
+- **Integrated Smallweb Mode**: Smallweb content now displays within the Discover page instead of opening a separate view, providing a seamless navigation experience
+
+---
+
 ## [2.2.10] - 2026-02-25
 
 ### ✨ New Features

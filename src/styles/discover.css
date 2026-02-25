@@ -1129,3 +1129,220 @@
     0 8px 32px rgba(0, 0, 0, 0.18),
     0 1.5px 6px rgba(0, 0, 0, 0.08);
 }
+
+/* ============================================
+ * Kagi Smallweb View Styles
+ * ============================================ */
+
+.rss-smallweb-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0 16px;
+}
+
+.rss-smallweb-header {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 16px;
+}
+
+.rss-smallweb-title-section {
+  margin-top: 12px;
+}
+
+.rss-smallweb-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.rss-smallweb-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.rss-smallweb-refresh-btn {
+  background: var(--interactive-normal);
+  color: var(--text-muted);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.rss-smallweb-refresh-btn:hover {
+  background: var(--interactive-hover);
+  color: var(--text-normal);
+  border-color: var(--interactive-accent);
+}
+
+.rss-smallweb-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.rss-smallweb-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.rss-smallweb-timestamp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.rss-smallweb-timestamp svg {
+  width: 14px;
+  height: 14px;
+}
+
+.rss-smallweb-search-wrapper {
+  flex: 1;
+  max-width: 300px;
+}
+
+.rss-smallweb-results-count {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Smallweb badge styling */
+.rss-smallweb-badge {
+  background: linear-gradient(
+    135deg,
+    hsl(260, 60%, 65%),
+    hsl(280, 60%, 65%)
+  ) !important;
+  color: white !important;
+}
+
+/* Post title sub-line */
+.rss-smallweb-post-title {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Following button state */
+.rss-smallweb-following-btn {
+  background: var(--background-modifier-success) !important;
+  color: var(--text-success) !important;
+  border: 1px solid var(--background-modifier-success) !important;
+  cursor: default;
+  opacity: 0.9;
+}
+
+/* Error button state */
+.rss-smallweb-error-btn {
+  background: var(--background-modifier-error) !important;
+  color: var(--text-error) !important;
+  border-color: var(--background-modifier-error) !important;
+}
+
+/* Skeleton loading cards */
+.rss-smallweb-skeleton {
+  opacity: 0.6;
+  animation: rss-smallweb-pulse 1.5s ease-in-out infinite;
+}
+
+.rss-smallweb-skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 5px;
+  background: var(--background-modifier-border);
+}
+
+.rss-smallweb-skeleton-title {
+  width: 120px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--background-modifier-border);
+  margin-bottom: 4px;
+}
+
+.rss-smallweb-skeleton-text {
+  width: 100%;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--background-modifier-border);
+  margin-bottom: 8px;
+}
+
+.rss-smallweb-skeleton-text-short {
+  width: 60%;
+}
+
+.rss-smallweb-skeleton-button {
+  width: 100px;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--background-modifier-border);
+}
+
+@keyframes rss-smallweb-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Footer */
+.rss-smallweb-footer {
+  padding: 24px 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: auto;
+}
+
+.rss-smallweb-footer a {
+  color: var(--text-accent);
+  text-decoration: none;
+}
+
+.rss-smallweb-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .rss-smallweb-title {
+    font-size: 1.25rem;
+  }
+
+  .rss-smallweb-controls-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rss-smallweb-search-wrapper {
+    max-width: none;
+  }
+
+  .rss-smallweb-timestamp {
+    order: 1;
+  }
+}
