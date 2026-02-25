@@ -14,6 +14,7 @@ import {
   Feed,
   FeedItem,
   FeedMetadata,
+  FeedFilterSettings,
 } from "./src/types/types";
 
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
@@ -37,6 +38,12 @@ import { MediaService } from "./src/services/media-service";
 import { sleep, setCssProps } from "./src/utils/platform-utils";
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 
+export interface FiltersUpdatedEventPayload {
+  source: string;
+  feedUrl?: string;
+  timestamp: number;
+}
+
 export default class RssDashboardPlugin extends Plugin {
   settings!: RssDashboardSettings;
   feedParser!: FeedParser;
@@ -57,6 +64,24 @@ export default class RssDashboardPlugin extends Plugin {
       }
     }
     return null;
+  }
+
+  public async refreshDashboardViews(): Promise<void> {
+    const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+    for (const leaf of leaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      if (view instanceof RssDashboardView) {
+        view.refresh();
+      }
+    }
+  }
+
+  public notifyFiltersUpdated(payload: FiltersUpdatedEventPayload): void {
+    console.debug("[RSS Dashboard] notifyFiltersUpdated", payload);
+    this.app.workspace.trigger("rss-dashboard:filters-updated", payload);
   }
 
   public async getActiveDiscoverView(): Promise<DiscoverView | null> {
@@ -670,6 +695,11 @@ export default class RssDashboardPlugin extends Plugin {
               autoDeleteDuration: feedMetadata.autoDeleteDuration,
               maxItemsLimit: feedMetadata.maxItemsLimit || 50,
               scanInterval: feedMetadata.scanInterval,
+              filters: {
+                overrideGlobalFilters: false,
+                includeLogic: "AND",
+                rules: [],
+              },
             };
 
             if (
@@ -890,6 +920,7 @@ export default class RssDashboardPlugin extends Plugin {
     autoDeleteDuration?: number,
     maxItemsLimit?: number,
     scanInterval?: number,
+    feedFilters?: FeedFilterSettings,
   ) {
     try {
       if (this.settings.feeds.some((f) => f.url === url)) {
@@ -914,6 +945,11 @@ export default class RssDashboardPlugin extends Plugin {
         maxItemsLimit: maxItemsLimit || this.settings.maxItems,
         scanInterval: scanInterval || 0,
         mediaType: mediaType,
+        filters: feedFilters || {
+          overrideGlobalFilters: false,
+          includeLogic: "AND",
+          rules: [],
+        },
       };
 
       // Try to parse the feed BEFORE adding it to settings
@@ -1062,6 +1098,37 @@ export default class RssDashboardPlugin extends Plugin {
           this.settings.display,
         );
       }
+
+      if (!this.settings.filters) {
+        this.settings.filters = DEFAULT_SETTINGS.filters;
+      } else {
+        this.settings.filters = Object.assign(
+          {},
+          DEFAULT_SETTINGS.filters,
+          this.settings.filters,
+        );
+      }
+
+      for (const feed of this.settings.feeds) {
+        if (!feed.filters) {
+          feed.filters = {
+            overrideGlobalFilters: false,
+            includeLogic: "AND",
+            rules: [],
+          };
+          continue;
+        }
+
+        feed.filters = Object.assign(
+          {},
+          {
+            overrideGlobalFilters: false,
+            includeLogic: "AND",
+            rules: [],
+          },
+          feed.filters,
+        );
+      }
     } catch (error) {
       new Notice(
         `Error loading settings: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -1137,6 +1204,41 @@ export default class RssDashboardPlugin extends Plugin {
           DEFAULT_SETTINGS.display.hiddenFilters;
       }
     }
+
+    if (!this.settings.filters) {
+      this.settings.filters = DEFAULT_SETTINGS.filters;
+    } else {
+      if (!this.settings.filters.includeLogic) {
+        this.settings.filters.includeLogic = "AND";
+      }
+      if (this.settings.filters.bypassAll === undefined) {
+        this.settings.filters.bypassAll = false;
+      }
+      if (!this.settings.filters.rules) {
+        this.settings.filters.rules = [];
+      }
+    }
+
+    this.settings.feeds.forEach((feed) => {
+      if (!feed.filters) {
+        feed.filters = {
+          overrideGlobalFilters: false,
+          includeLogic: "AND",
+          rules: [],
+        };
+        return;
+      }
+
+      if (feed.filters.overrideGlobalFilters === undefined) {
+        feed.filters.overrideGlobalFilters = false;
+      }
+      if (!feed.filters.includeLogic) {
+        feed.filters.includeLogic = "AND";
+      }
+      if (!feed.filters.rules) {
+        feed.filters.rules = [];
+      }
+    });
   }
 
   async saveSettings() {

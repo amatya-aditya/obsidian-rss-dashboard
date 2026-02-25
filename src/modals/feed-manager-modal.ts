@@ -1,6 +1,11 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
-import type { Feed, Folder, SavedTemplate } from "../types/types";
+import type {
+  Feed,
+  FeedFilterSettings,
+  Folder,
+  SavedTemplate,
+} from "../types/types";
 import { DEFAULT_SETTINGS } from "../types/types";
 import { FolderSuggest } from "../components/folder-suggest";
 import {
@@ -10,6 +15,9 @@ import {
 import { detectPodcastPlatform } from "../utils/podcast-platforms";
 import { MediaService } from "../services/media-service";
 import { ImportOpmlModal } from "./import-opml-modal";
+import {
+  renderKeywordFilterEditor,
+} from "../components/keyword-filter-editor";
 
 /**
  * Helper function to collect all folder paths from a folder hierarchy
@@ -535,6 +543,17 @@ export class EditFeedModal extends Modal {
     let customTemplate = this.feed.customTemplate || "";
     const savedTemplates =
       this.plugin.settings.articleSaving.savedTemplates || [];
+    let feedFilters: FeedFilterSettings = this.feed.filters
+      ? {
+          overrideGlobalFilters: this.feed.filters.overrideGlobalFilters,
+          includeLogic: this.feed.filters.includeLogic,
+          rules: [...this.feed.filters.rules],
+        }
+      : {
+          overrideGlobalFilters: false,
+          includeLogic: "AND",
+          rules: [],
+        };
 
     new Setting(contentEl)
       .setName("Article template")
@@ -549,6 +568,38 @@ export class EditFeedModal extends Modal {
           customTemplate = value;
         });
       });
+
+    const feedFiltersDetails = contentEl.createEl("details", {
+      cls: "rss-keyword-filter-details",
+    });
+    feedFiltersDetails.createEl("summary", {
+      cls: "rss-keyword-filter-summary",
+      text: "Filters",
+    });
+    const feedFiltersBody = feedFiltersDetails.createDiv({
+      cls: "rss-keyword-filter-details-body",
+    });
+
+    const renderFeedFilterEditor = () => {
+      renderKeywordFilterEditor({
+        containerEl: feedFiltersBody,
+        state: {
+          includeLogic: feedFilters.includeLogic,
+          rules: feedFilters.rules,
+          overrideGlobalFilters: feedFilters.overrideGlobalFilters,
+        },
+        showOverrideToggle: true,
+        onChange: (nextState) => {
+          feedFilters = {
+            includeLogic: nextState.includeLogic,
+            rules: nextState.rules,
+            overrideGlobalFilters: !!nextState.overrideGlobalFilters,
+          };
+          renderFeedFilterEditor();
+        },
+      });
+    };
+    renderFeedFilterEditor();
 
     const btns = contentEl.createDiv("rss-dashboard-modal-buttons");
     const saveBtn = btns.createEl("button", {
@@ -581,6 +632,11 @@ export class EditFeedModal extends Modal {
         this.feed.maxItemsLimit = newMaxItemsLimit;
         this.feed.scanInterval = scanInterval;
         this.feed.customTemplate = customTemplate || undefined;
+        this.feed.filters = {
+          overrideGlobalFilters: feedFilters.overrideGlobalFilters,
+          includeLogic: feedFilters.includeLogic,
+          rules: feedFilters.rules,
+        };
 
         if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
           this.feed.items.sort(
@@ -595,7 +651,22 @@ export class EditFeedModal extends Modal {
           new Notice("Feed updated");
         }
 
+        console.debug("[EditFeedModal] Saving feed updates", {
+          feedTitle: this.feed.title,
+          feedUrl: this.feed.url,
+          includeLogic: this.feed.filters?.includeLogic,
+          overrideGlobalFilters: this.feed.filters?.overrideGlobalFilters,
+          ruleCount: this.feed.filters?.rules?.length || 0,
+        });
         await this.plugin.saveSettings();
+        console.debug(
+          "[EditFeedModal] Feed settings saved, dispatching filters-updated event",
+        );
+        this.plugin.notifyFiltersUpdated({
+          source: "edit-feed-modal",
+          feedUrl: this.feed.url,
+          timestamp: Date.now(),
+        });
         this.close();
         this.onSave();
       })();
@@ -621,6 +692,7 @@ export class AddFeedModal extends Modal {
     autoDeleteDuration?: number,
     maxItemsLimit?: number,
     scanInterval?: number,
+    feedFilters?: FeedFilterSettings,
   ) => Promise<boolean | void>;
   onSave: () => void;
   defaultFolder: string;
@@ -636,6 +708,7 @@ export class AddFeedModal extends Modal {
       autoDeleteDuration?: number,
       maxItemsLimit?: number,
       scanInterval?: number,
+      feedFilters?: FeedFilterSettings,
     ) => Promise<boolean | void>,
     onSave: () => void,
     defaultFolder = "",
@@ -1030,6 +1103,43 @@ export class AddFeedModal extends Modal {
     const autoDeleteDuration = 0;
     const maxItemsLimit = this.plugin?.settings?.maxItems || 25;
     const scanInterval = 0;
+    let feedFilters: FeedFilterSettings = {
+      overrideGlobalFilters: false,
+      includeLogic: "AND",
+      rules: [],
+    };
+
+    const feedFiltersDetails = contentEl.createEl("details", {
+      cls: "rss-keyword-filter-details",
+    });
+    feedFiltersDetails.createEl("summary", {
+      cls: "rss-keyword-filter-summary",
+      text: "Filters",
+    });
+    const feedFiltersBody = feedFiltersDetails.createDiv({
+      cls: "rss-keyword-filter-details-body",
+    });
+
+    const renderFeedFilterEditor = () => {
+      renderKeywordFilterEditor({
+        containerEl: feedFiltersBody,
+        state: {
+          includeLogic: feedFilters.includeLogic,
+          rules: feedFilters.rules,
+          overrideGlobalFilters: feedFilters.overrideGlobalFilters,
+        },
+        showOverrideToggle: true,
+        onChange: (nextState) => {
+          feedFilters = {
+            includeLogic: nextState.includeLogic,
+            rules: nextState.rules,
+            overrideGlobalFilters: !!nextState.overrideGlobalFilters,
+          };
+          renderFeedFilterEditor();
+        },
+      });
+    };
+    renderFeedFilterEditor();
 
     const btns = contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons",
@@ -1060,6 +1170,7 @@ export class AddFeedModal extends Modal {
           autoDeleteDuration,
           maxItemsLimit,
           scanInterval,
+          feedFilters,
         ).catch(() => {
           /* ignore */
         });
@@ -1180,7 +1291,15 @@ export class FeedManagerModal extends Modal {
       new AddFeedModal(
         this.app,
         this.plugin.settings.folders,
-        (title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval) =>
+        (
+          title,
+          url,
+          folder,
+          autoDeleteDuration,
+          maxItemsLimit,
+          scanInterval,
+          feedFilters,
+        ) =>
           this.plugin.addFeed(
             title,
             url,
@@ -1188,6 +1307,7 @@ export class FeedManagerModal extends Modal {
             autoDeleteDuration,
             maxItemsLimit,
             scanInterval,
+            feedFilters,
           ),
         () => this.onOpen(),
         "",

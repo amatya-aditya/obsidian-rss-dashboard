@@ -222,6 +222,16 @@
   text-overflow: ellipsis;
 }
 
+.rss-dashboard-filter-subheader {
+  padding: 8px 10px;
+  margin: 0 10px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+}
+
 .rss-dashboard-modal-buttons.inline-buttons {
   display: flex;
   gap: 0.5em;

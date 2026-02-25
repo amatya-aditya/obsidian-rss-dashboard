@@ -195,6 +195,10 @@
 	font-size: 13px;
 }
 
+.rss-dashboard-bypass-filters-toggle .rss-dashboard-filter-menu-icon {
+	color: var(--text-accent);
+}
+
 .rss-dashboard-filter-menu-arrow {
 	color: var(--text-muted);
 	width: 12px;

@@ -510,3 +510,180 @@
   opacity: 0.9;
   transform: translateY(-1px);
 }
+
+.rss-keyword-filter-editor {
+  margin-top: 8px;
+}
+
+.rss-keyword-filter-editor-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin: 8px 0 12px;
+}
+
+.rss-keyword-filter-toggle-row,
+.rss-keyword-filter-logic-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rss-keyword-filter-logic-label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.rss-keyword-filter-rules-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rss-keyword-filter-rules-header,
+.rss-keyword-filter-rule-row {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.rss-keyword-filter-rules-header {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.rss-keyword-filter-rules-header-enabled,
+.rss-keyword-filter-rule-enabled-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rss-keyword-filter-rules-header-rule {
+  display: flex;
+  align-items: center;
+}
+
+.rss-keyword-filter-rule-row {
+  padding-bottom: 2px;
+}
+
+.rss-keyword-filter-rule-enabled-col {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+  min-height: 68px;
+}
+
+.rss-keyword-filter-rule-col {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--background-secondary);
+}
+
+.rss-keyword-filter-rule-row.is-disabled .rss-keyword-filter-rule-col {
+  opacity: 0.45;
+  pointer-events: none;
+  filter: grayscale(0.2);
+}
+
+.rss-keyword-filter-rule-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.rss-keyword-filter-select,
+.rss-keyword-filter-input {
+  height: var(--input-height);
+}
+
+.rss-keyword-filter-select {
+  min-width: 112px;
+}
+
+.rss-keyword-filter-input {
+  flex: 1 1 240px;
+  min-width: 220px;
+}
+
+.rss-keyword-filter-locations-row {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.rss-keyword-filter-location-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rss-keyword-filter-label {
+  color: var(--text-normal);
+  font-size: 12px;
+}
+
+.rss-keyword-filter-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #a32020;
+  border-radius: 6px;
+  background: #c93030;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rss-keyword-filter-delete:hover {
+  background: #b62828;
+}
+
+.rss-keyword-filter-delete:disabled {
+  background: #7a2a2a;
+  border-color: #6a2020;
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
+.rss-keyword-filter-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  vertical-align: middle;
+  accent-color: var(--interactive-accent);
+}
+
+.rss-keyword-filter-empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 8px 10px;
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: 8px;
+}
+
+.rss-keyword-filter-add-btn {
+  margin-top: 10px;
+}
+
+@media (max-width: 920px) {
+  .rss-keyword-filter-rules-header,
+  .rss-keyword-filter-rule-row {
+    grid-template-columns: 64px 1fr;
+  }
+
+  .rss-keyword-filter-input {
+    min-width: 160px;
+  }
+}

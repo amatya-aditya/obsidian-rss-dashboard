@@ -20,6 +20,9 @@ import {
   VaultFolderSuggest,
 } from "../components/folder-suggest";
 import { ImportOpmlModal } from "../modals/import-opml-modal";
+import {
+  renderKeywordFilterEditor,
+} from "../components/keyword-filter-editor";
 
 class TemplateNameModal extends Modal {
   private result: string | null = null;
@@ -95,6 +98,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     "Display",
     "Media",
     "Article saving",
+    "Filters",
     "Highlights",
     "Import/Export",
     "Tags",
@@ -139,6 +143,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         break;
       case "Article saving":
         this.createArticleSavingSettings(tabContent);
+        break;
+      case "Filters":
+        this.createFiltersSettings(tabContent);
         break;
       case "Highlights":
         this.createHighlightsSettings(tabContent);
@@ -873,6 +880,50 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           );
       });
     }
+  }
+
+  private createFiltersSettings(containerEl: HTMLElement): void {
+    new Setting(containerEl).setName("Keyword filters").setHeading();
+    containerEl.createEl("p", {
+      cls: "rss-dashboard-settings-description",
+      text: "Create global include/exclude keyword rules. Rules are case-insensitive, and per-feed settings can optionally override these global rules.",
+    });
+
+    if (!this.plugin.settings.filters) {
+      this.plugin.settings.filters = {
+        includeLogic: "AND",
+        bypassAll: false,
+        rules: [],
+      };
+    }
+
+    const editorContainer = containerEl.createDiv({
+      cls: "rss-keyword-filter-editor",
+    });
+
+    renderKeywordFilterEditor({
+      containerEl: editorContainer,
+      state: {
+        includeLogic: this.plugin.settings.filters.includeLogic,
+        rules: this.plugin.settings.filters.rules,
+      },
+      onChange: (nextState) => {
+        this.plugin.settings.filters.includeLogic = nextState.includeLogic;
+        this.plugin.settings.filters.rules = nextState.rules;
+        void (async () => {
+          console.debug("[SettingsTab] Global filters updated", {
+            includeLogic: nextState.includeLogic,
+            ruleCount: nextState.rules.length,
+          });
+          await this.plugin.saveSettings();
+          this.plugin.notifyFiltersUpdated({
+            source: "settings-filters-tab",
+            timestamp: Date.now(),
+          });
+        })();
+        this.display();
+      },
+    });
   }
 
   private createHighlightsSettings(containerEl: HTMLElement): void {

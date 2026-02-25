@@ -5,6 +5,7 @@ import {
   Tag,
   RssDashboardSettings,
   FeedMetadata,
+  FeedFilterSettings,
 } from "../types/types";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import { ImportOpmlModal } from "../modals/import-opml-modal";
@@ -37,6 +38,7 @@ export interface SidebarCallbacks {
     autoDeleteDuration?: number,
     maxItemsLimit?: number,
     scanInterval?: number,
+    feedFilters?: FeedFilterSettings,
   ) => Promise<void>;
   onEditFeed: (feed: Feed, title: string, url: string, folder: string) => void;
   onDeleteFeed: (feed: Feed) => void;
@@ -1679,6 +1681,7 @@ export class Sidebar {
         autoDeleteDuration,
         maxItemsLimit,
         scanInterval,
+        feedFilters,
       ) =>
         await this.callbacks.onAddFeed(
           title,
@@ -1687,6 +1690,7 @@ export class Sidebar {
           autoDeleteDuration,
           maxItemsLimit,
           scanInterval,
+          feedFilters,
         ),
       () => this.render(),
       defaultFolder,

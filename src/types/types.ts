@@ -73,6 +73,7 @@ export interface Feed {
   maxItemsLimit?: number;
   scanInterval?: number;
   iconUrl?: string;
+  filters?: FeedFilterSettings;
 }
 
 export interface FeedMetadata {
@@ -187,6 +188,30 @@ export interface HighlightSettings {
   words: HighlightWord[];
 }
 
+export interface KeywordFilterRule {
+  id: string;
+  type: "include" | "exclude";
+  keyword: string;
+  matchMode: "exact" | "partial";
+  applyToTitle: boolean;
+  applyToSummary: boolean;
+  applyToContent: boolean;
+  enabled: boolean;
+  createdAt: number;
+}
+
+export interface GlobalFilterSettings {
+  includeLogic: "AND" | "OR";
+  bypassAll: boolean;
+  rules: KeywordFilterRule[];
+}
+
+export interface FeedFilterSettings {
+  overrideGlobalFilters: boolean;
+  includeLogic: "AND" | "OR";
+  rules: KeywordFilterRule[];
+}
+
 export interface RssDashboardSettings {
   feeds: Feed[];
   folders: Folder[];
@@ -233,6 +258,7 @@ export interface RssDashboardSettings {
   articleSaving: ArticleSavingSettings;
   display: DisplaySettings;
   highlights: HighlightSettings;
+  filters: GlobalFilterSettings;
 }
 
 export const DEFAULT_SETTINGS: RssDashboardSettings = {
@@ -357,5 +383,10 @@ guid: "{{guid}}"
     highlightInTitles: true,
     highlightInSummaries: true,
     words: [],
+  },
+  filters: {
+    includeLogic: "AND",
+    bypassAll: false,
+    rules: [],
   },
 };

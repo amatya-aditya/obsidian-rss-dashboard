@@ -1,5 +1,65 @@
 # RSS Dashboard - Changelog
 
+## [2.2.14] - 2026-02-25
+
+### New Features
+
+- **Keyword filtering system (global + per-feed)**:
+  - New **Filters** settings tab for global include/exclude keyword rules
+  - Rule options include:
+    - Type: Include or Exclude
+    - Match mode: Exact or Partial
+    - Locations: Title, Summary, Content (multi-select)
+  - Multiple include rules now support selectable logic: **AND** or **Either/or**
+  - Rules are case-insensitive by default
+  - Invalid/empty rules are retained in settings and ignored at runtime
+
+- **Per-feed filters in Add/Edit feed modals**:
+  - Added collapsible **Filters** section to both Add Feed and Edit Feed modals
+  - Added per-feed **Override global filters** toggle
+  - Per-feed filter rules are stored on each feed configuration
+
+- **Dashboard filtering enhancements**:
+  - Added dashboard filter subheader with live filter stats
+    - Articles retrieved
+    - Global filters excluded
+    - Feed filters excluded
+  - Added subheader tooltip showing active/applied rules and keywords
+  - Added **Bypass All Filters** option in dashboard Filters dropdown
+  - Bypass state now persists in plugin settings
+
+### UI/UX Improvements
+
+- **Keyword rule editor redesign**:
+  - Added `Enabled | Rule` column layout with header row
+  - Rule delete action is now a red button with a white `X`
+  - Disabled rules are visually darkened and non-interactive (except enable toggle)
+
+- **Modal filter editor fixes**:
+  - Fixed malformed checkbox/input/select rendering in Add/Edit Feed filter sections
+  - Improved filter control spacing and layout consistency in modal contexts
+
+### Bug Fixes
+
+- **Edit Feed filter save not refreshing dashboard DOM immediately**:
+  - Implemented event-driven refresh flow using `rss-dashboard:filters-updated`
+  - Dashboard views now re-render on filter update events for immediate UI updates
+  - Added feed reference synchronization before filtering/render to reduce stale-view cases
+
+### Technical Changes
+
+- Added shared keyword filtering engine:
+  - `src/services/keyword-filter-service.ts`
+- Added reusable filter rule editor component:
+  - `src/components/keyword-filter-editor.ts`
+- Added plugin-level filter update notifier:
+  - `notifyFiltersUpdated(...)` in `main.ts`
+- Added diagnostics for filter update flow:
+  - Edit Feed save logs
+  - Event dispatch logs
+  - Dashboard event listener logs
+
+---
 ## [2.2.13] - 2026-02-25
 
 ### ✨ New Features
@@ -640,3 +700,4 @@ A huge thank you to our amazing community for feedback, testing, and contributio
 ---
 
 _Happy reading! 📚✨_
+

@@ -730,6 +730,43 @@ export class ArticleList {
     // Add separator after filter options
     menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
 
+    const bypassItem = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-item rss-dashboard-bypass-filters-toggle",
+    });
+    const bypassCheckbox = bypassItem.createEl("input", {
+      attr: { type: "checkbox" },
+      cls: "rss-dashboard-filter-checkbox",
+    });
+    bypassCheckbox.checked = this.settings.filters?.bypassAll ?? false;
+    const bypassIconDiv = bypassItem.createDiv({
+      cls: "rss-dashboard-filter-menu-icon",
+    });
+    setIcon(bypassIconDiv, "power");
+    bypassItem.createDiv({
+      cls: "rss-dashboard-filter-menu-text",
+      text: "Bypass All Filters",
+    });
+    bypassCheckbox.addEventListener("change", (e) => {
+      e.stopPropagation();
+      void this.callbacks.onFilterChange({
+        type: "bypass-filters",
+        value: bypassCheckbox.checked,
+        checked: bypassCheckbox.checked,
+      });
+    });
+    bypassItem.addEventListener("click", (e) => {
+      if (e.target !== bypassCheckbox) {
+        bypassCheckbox.checked = !bypassCheckbox.checked;
+        void this.callbacks.onFilterChange({
+          type: "bypass-filters",
+          value: bypassCheckbox.checked,
+          checked: bypassCheckbox.checked,
+        });
+      }
+    });
+
+    menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
+
     // Add "Show Highlights" toggle
     const highlightsItem = menuPortal.createDiv({
       cls: "rss-dashboard-filter-menu-item rss-dashboard-highlights-toggle",

@@ -6,14 +6,25 @@ import {
   requireApiVersion,
   Platform,
 } from "obsidian";
-import { Feed, FeedItem, RssDashboardSettings, Folder } from "../types/types";
-import type RssDashboardPlugin from "../../main";
+import {
+  Feed,
+  FeedFilterSettings,
+  FeedItem,
+  KeywordFilterRule,
+  RssDashboardSettings,
+  Folder,
+} from "../types/types";
+import type {
+  FiltersUpdatedEventPayload,
+  default as RssDashboardPlugin,
+} from "../../main";
 import { Sidebar } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { ArticleSaver } from "../services/article-saver";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
 import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
+import { KeywordFilterService } from "../services/keyword-filter-service";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -46,6 +57,15 @@ export class RssDashboardView extends ItemView {
   private isResizing: boolean = false;
   private resizeHandle: HTMLElement | null = null;
   private dashboardContainer: HTMLElement | null = null;
+  private keywordFilterStats = {
+    articlesRetrieved: 0,
+    globalExcluded: 0,
+    feedExcluded: 0,
+    finalVisible: 0,
+    bypassActive: false,
+    filtersActive: false,
+  };
+  private keywordFilterTooltip = "";
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -106,6 +126,30 @@ export class RssDashboardView extends ItemView {
           void this.verifySavedArticles();
         }, 300000);
       }),
+    );
+
+    this.registerEvent(
+      (this.app.workspace as unknown as {
+        on: (
+          name: string,
+          callback: (payload: FiltersUpdatedEventPayload) => void,
+        ) => unknown;
+      }).on(
+        "rss-dashboard:filters-updated",
+        (payload: FiltersUpdatedEventPayload) => {
+          console.debug(
+            "[DashboardView] Received rss-dashboard:filters-updated event",
+            {
+              payload,
+              currentFeedUrl: this.currentFeed?.url,
+              currentFolder: this.currentFolder,
+              currentTag: this.currentTag,
+            },
+          );
+          this.syncCurrentFeedReference();
+          this.render();
+        },
+      ) as never,
     );
 
     const container = this.containerEl.children[1];
@@ -190,6 +234,7 @@ export class RssDashboardView extends ItemView {
       this.settings === this.plugin.settings,
     );
 
+    this.syncCurrentFeedReference();
     this.verifySavedArticles();
 
     if (this.articleList) {
@@ -238,12 +283,13 @@ export class RssDashboardView extends ItemView {
       contentContainer.empty();
     }
 
+    const allFilteredArticles = this.getFilteredArticles();
     this.renderToolbar(contentContainer);
+    this.renderFilterSubheader(contentContainer);
 
     const articlesContainer = contentContainer.createDiv({
       cls: "rss-dashboard-articles",
     });
-    const allFilteredArticles = this.getFilteredArticles();
     const pageSize = this.getCurrentPageSize();
     const currentPage = this.getCurrentPage();
     const totalArticles = allFilteredArticles.length;
@@ -330,6 +376,34 @@ export class RssDashboardView extends ItemView {
     container.createDiv({ cls: "rss-dashboard-toolbar" });
   }
 
+  private renderFilterSubheader(container: HTMLElement): void {
+    const { keywordFilterStats } = this;
+    const shouldShow =
+      keywordFilterStats.bypassActive || keywordFilterStats.filtersActive;
+
+    if (!shouldShow) {
+      return;
+    }
+
+    const subheader = container.createDiv({
+      cls: "rss-dashboard-filter-subheader",
+    });
+    if (this.keywordFilterTooltip) {
+      subheader.setAttribute("title", this.keywordFilterTooltip);
+    }
+
+    if (keywordFilterStats.bypassActive) {
+      subheader.setText(
+        `Filters bypassed - showing all ${keywordFilterStats.articlesRetrieved} articles`,
+      );
+      return;
+    }
+
+    subheader.setText(
+      `Articles retrieved: ${keywordFilterStats.articlesRetrieved} | Global filters excluded: ${keywordFilterStats.globalExcluded} | Feed filters excluded: ${keywordFilterStats.feedExcluded}`,
+    );
+  }
+
   private getArticlesTitle(): string {
     if (this.currentFeed) {
       return this.currentFeed.title;
@@ -355,6 +429,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private getFilteredArticles(): FeedItem[] {
+    this.syncCurrentFeedReference();
     let articles: FeedItem[] = [];
 
     if (this.currentFeed) {
@@ -433,6 +508,9 @@ export class RssDashboardView extends ItemView {
       }
     }
 
+    // Apply keyword filters (global/per-feed) before status/tag/age filters.
+    articles = this.applyKeywordFiltersWithStats(articles);
+
     // Apply filters (multi-filters, special folders, age, etc.)
     articles = articles.filter((item) => this.matchesFilters(item));
 
@@ -479,6 +557,215 @@ export class RssDashboardView extends ItemView {
     }
 
     return articles;
+  }
+
+  private syncCurrentFeedReference(): void {
+    if (!this.currentFeed) {
+      return;
+    }
+
+    const feedByUrl = this.settings.feeds.find(
+      (feed) => feed.url === this.currentFeed?.url,
+    );
+    if (feedByUrl) {
+      this.currentFeed = feedByUrl;
+      return;
+    }
+
+    const fallbackFeed = this.settings.feeds.find(
+      (feed) =>
+        feed.title === this.currentFeed?.title &&
+        feed.folder === this.currentFeed?.folder,
+    );
+    if (fallbackFeed) {
+      this.currentFeed = fallbackFeed;
+    }
+  }
+
+  private applyKeywordFiltersWithStats(articles: FeedItem[]): FeedItem[] {
+    const globalFilters = this.settings.filters || {
+      includeLogic: "AND" as const,
+      bypassAll: false,
+      rules: [],
+    };
+
+    const hasGlobalRules = KeywordFilterService.hasActiveRules(globalFilters.rules);
+    const hasFeedRules = this.hasActiveFeedRulesInScope(articles);
+    const filtersActive = hasGlobalRules || hasFeedRules;
+    const activeGlobalRules = KeywordFilterService.getActiveRules(
+      globalFilters.rules,
+    );
+    const activeFeedRules = this.getActiveFeedRulesForScope(articles);
+    this.keywordFilterTooltip = this.buildKeywordFilterTooltip(
+      globalFilters.includeLogic,
+      activeGlobalRules,
+      activeFeedRules,
+      globalFilters.bypassAll,
+    );
+
+    if (globalFilters.bypassAll) {
+      this.keywordFilterStats = {
+        articlesRetrieved: articles.length,
+        globalExcluded: 0,
+        feedExcluded: 0,
+        finalVisible: articles.length,
+        bypassActive: true,
+        filtersActive,
+      };
+      return articles;
+    }
+
+    let globalExcluded = 0;
+    let feedExcluded = 0;
+    const filtered: FeedItem[] = [];
+
+    for (const article of articles) {
+      const feed = this.findFeedForArticle(article);
+      const decision = KeywordFilterService.evaluateForArticle(
+        article,
+        feed,
+        globalFilters,
+      );
+      if (decision.included) {
+        filtered.push(article);
+      } else if (decision.excludedBy === "global") {
+        globalExcluded++;
+      } else if (decision.excludedBy === "feed") {
+        feedExcluded++;
+      }
+    }
+
+    this.keywordFilterStats = {
+      articlesRetrieved: articles.length,
+      globalExcluded,
+      feedExcluded,
+      finalVisible: filtered.length,
+      bypassActive: false,
+      filtersActive,
+    };
+
+    return filtered;
+  }
+
+  private hasActiveFeedRulesInScope(articles: FeedItem[]): boolean {
+    const seenFeeds = new Set<string>();
+    for (const article of articles) {
+      const feed = this.findFeedForArticle(article);
+      if (!feed || !feed.url || seenFeeds.has(feed.url)) {
+        continue;
+      }
+      seenFeeds.add(feed.url);
+      if (KeywordFilterService.hasActiveRules(feed.filters?.rules || [])) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private getActiveFeedRulesForScope(
+    articles: FeedItem[],
+  ): Array<{ feedTitle: string; includeLogic: "AND" | "OR"; rules: KeywordFilterRule[] }> {
+    const seenFeeds = new Set<string>();
+    const result: Array<{
+      feedTitle: string;
+      includeLogic: "AND" | "OR";
+      rules: KeywordFilterRule[];
+    }> = [];
+
+    for (const article of articles) {
+      const feed = this.findFeedForArticle(article);
+      if (!feed || !feed.url || seenFeeds.has(feed.url)) {
+        continue;
+      }
+      seenFeeds.add(feed.url);
+
+      const rules = KeywordFilterService.getActiveRules(feed.filters?.rules || []);
+      if (rules.length === 0) {
+        continue;
+      }
+
+      result.push({
+        feedTitle: feed.title || "Untitled feed",
+        includeLogic: feed.filters?.includeLogic || "AND",
+        rules,
+      });
+    }
+
+    return result;
+  }
+
+  private buildKeywordFilterTooltip(
+    globalIncludeLogic: "AND" | "OR",
+    globalRules: KeywordFilterRule[],
+    feedRules: Array<{
+      feedTitle: string;
+      includeLogic: "AND" | "OR";
+      rules: KeywordFilterRule[];
+    }>,
+    bypassAll: boolean,
+  ): string {
+    if (globalRules.length === 0 && feedRules.length === 0) {
+      return "";
+    }
+
+    const lines: string[] = [];
+
+    if (bypassAll) {
+      lines.push("Bypass all filters is enabled.");
+      lines.push("");
+    }
+
+    if (globalRules.length > 0) {
+      lines.push(`Global rules (include logic: ${globalIncludeLogic}):`);
+      globalRules.forEach((rule) => {
+        lines.push(`- ${this.formatRuleForTooltip(rule)}`);
+      });
+      lines.push("");
+    }
+
+    if (feedRules.length > 0) {
+      lines.push("Feed rules:");
+      feedRules.forEach((entry) => {
+        lines.push(`- ${entry.feedTitle} (include logic: ${entry.includeLogic})`);
+        entry.rules.forEach((rule) => {
+          lines.push(`  - ${this.formatRuleForTooltip(rule)}`);
+        });
+      });
+    }
+
+    return lines.join("\n").trim();
+  }
+
+  private formatRuleForTooltip(rule: KeywordFilterRule): string {
+    return `${rule.type.toUpperCase()} "${rule.keyword.trim()}" (${rule.matchMode}) [${this.formatRuleLocations(rule)}]`;
+  }
+
+  private formatRuleLocations(rule: KeywordFilterRule): string {
+    const parts: string[] = [];
+    if (rule.applyToTitle) {
+      parts.push("title");
+    }
+    if (rule.applyToSummary) {
+      parts.push("summary");
+    }
+    if (rule.applyToContent) {
+      parts.push("content");
+    }
+    return parts.join(", ");
+  }
+
+  private findFeedForArticle(article: FeedItem): Feed | undefined {
+    if (article.feedUrl) {
+      return this.settings.feeds.find((feed) => feed.url === article.feedUrl);
+    }
+
+    if (this.currentFeed) {
+      return this.currentFeed;
+    }
+
+    return this.settings.feeds.find((feed) =>
+      feed.items.some((item) => item.guid === article.guid),
+    );
   }
 
   private findFolderByPath(path: string): Folder | null {
@@ -667,6 +954,7 @@ export class RssDashboardView extends ItemView {
     autoDeleteDuration?: number,
     maxItemsLimit?: number,
     scanInterval?: number,
+    feedFilters?: FeedFilterSettings,
   ): Promise<void> {
     await this.plugin.addFeed(
       title,
@@ -675,6 +963,7 @@ export class RssDashboardView extends ItemView {
       autoDeleteDuration,
       maxItemsLimit,
       scanInterval,
+      feedFilters,
     );
     void this.render();
   }
@@ -1343,6 +1632,18 @@ export class RssDashboardView extends ItemView {
   }): void {
     if (filter.type === "logic" && filter.logic) {
       this.filterLogic = filter.logic;
+    } else if (filter.type === "bypass-filters") {
+      if (!this.settings.filters) {
+        this.settings.filters = {
+          includeLogic: "AND",
+          bypassAll: false,
+          rules: [],
+        };
+      }
+      this.settings.filters.bypassAll = filter.checked ?? false;
+      void this.plugin.saveSettings();
+      void this.render();
+      return;
     } else if (filter.type === "highlights") {
       // Highlights toggle – requires saving settings and full re-render
       if (!this.settings.highlights) {
