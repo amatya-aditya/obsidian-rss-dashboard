@@ -403,26 +403,26 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
-    new Setting(containerEl)
-      .setName("Filter display style")
-      .setDesc("Choose how to display the filter buttons in the sidebar")
-      .addDropdown((dropdown) =>
-        dropdown
-          .addOption("vertical", "Vertical list")
-          .addOption("inline", "Inline icons")
-          .setValue(this.plugin.settings.display.filterDisplayStyle)
-          .onChange(async (value: string) => {
-            this.plugin.settings.display.filterDisplayStyle = value as
-              | "vertical"
-              | "inline";
-            await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
-          }),
-      );
+    // new Setting(containerEl)
+    //   .setName("Filter display style")
+    //   .setDesc("Choose how to display the filter buttons in the sidebar")
+    //   .addDropdown((dropdown) =>
+    //     dropdown
+    //       .addOption("vertical", "Vertical list")
+    //       .addOption("inline", "Inline icons")
+    //       .setValue(this.plugin.settings.display.filterDisplayStyle)
+    //       .onChange(async (value: string) => {
+    //         this.plugin.settings.display.filterDisplayStyle = value as
+    //           | "vertical"
+    //           | "inline";
+    //         await this.plugin.saveSettings();
+    //         const view = await this.plugin.getActiveDashboardView();
+    //         if (view?.sidebar) {
+    //           await this.app.workspace.revealLeaf(view.leaf);
+    //           view.sidebar.render();
+    //         }
+    //       }),
+    //   );
 
     new Setting(containerEl)
       .setName("Default filter")
@@ -470,75 +470,75 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     // Add separator
     containerEl.createEl("hr", { cls: "rss-dashboard-settings-separator" });
 
-    // Filter visibility settings
-    new Setting(containerEl).setName("Filter visibility").setHeading();
-    containerEl.createEl("p", {
-      text: "Choose which filter items to show or hide in the sidebar:",
-      cls: "rss-dashboard-settings-description",
-    });
+    //   // Filter visibility settings
+    //   new Setting(containerEl).setName("Filter visibility").setHeading();
+    //   containerEl.createEl("p", {
+    //     text: "Choose which filter items to show or hide in the sidebar:",
+    //     cls: "rss-dashboard-settings-description",
+    //   });
 
-    const filterOptions = [
-      { key: "starred", label: "Starred items", icon: "star" },
-      { key: "unread", label: "Unread items", icon: "circle" },
-      { key: "read", label: "Read items", icon: "check-circle" },
-      { key: "saved", label: "Saved items", icon: "save" },
-      { key: "videos", label: "Videos", icon: "play" },
-      { key: "podcasts", label: "Podcasts", icon: "mic" },
-    ];
+    //   const filterOptions = [
+    //     { key: "starred", label: "Starred items", icon: "star" },
+    //     { key: "unread", label: "Unread items", icon: "circle" },
+    //     { key: "read", label: "Read items", icon: "check-circle" },
+    //     { key: "saved", label: "Saved items", icon: "save" },
+    //     { key: "videos", label: "Videos", icon: "play" },
+    //     { key: "podcasts", label: "Podcasts", icon: "mic" },
+    //   ];
 
-    filterOptions.forEach((filter) => {
-      // Ensure hiddenFilters array exists and initialize if needed
-      if (!this.plugin.settings.display.hiddenFilters) {
-        this.plugin.settings.display.hiddenFilters = [];
-      }
+    //   filterOptions.forEach((filter) => {
+    //     // Ensure hiddenFilters array exists and initialize if needed
+    //     if (!this.plugin.settings.display.hiddenFilters) {
+    //       this.plugin.settings.display.hiddenFilters = [];
+    //     }
 
-      const isHidden = this.plugin.settings.display.hiddenFilters.includes(
-        filter.key,
-      );
-      new Setting(containerEl)
-        .setName(filter.label)
-        .setDesc(`${isHidden ? "Hidden" : "Visible"} in sidebar`)
-        .addToggle((toggle) =>
-          toggle.setValue(!isHidden).onChange(async (value) => {
-            // Ensure hiddenFilters array exists
-            if (!this.plugin.settings.display.hiddenFilters) {
-              this.plugin.settings.display.hiddenFilters = [];
-            }
+    //     const isHidden = this.plugin.settings.display.hiddenFilters.includes(
+    //       filter.key,
+    //     );
+    //     new Setting(containerEl)
+    //       .setName(filter.label)
+    //       .setDesc(`${isHidden ? "Hidden" : "Visible"} in sidebar`)
+    //       .addToggle((toggle) =>
+    //         toggle.setValue(!isHidden).onChange(async (value) => {
+    //           // Ensure hiddenFilters array exists
+    //           if (!this.plugin.settings.display.hiddenFilters) {
+    //             this.plugin.settings.display.hiddenFilters = [];
+    //           }
 
-            if (value) {
-              // Show filter - remove from hidden list
-              this.plugin.settings.display.hiddenFilters =
-                this.plugin.settings.display.hiddenFilters.filter(
-                  (f) => f !== filter.key,
-                );
-            } else {
-              // Hide filter - add to hidden list
-              if (
-                !this.plugin.settings.display.hiddenFilters.includes(filter.key)
-              ) {
-                this.plugin.settings.display.hiddenFilters.push(filter.key);
-              }
+    //           if (value) {
+    //             // Show filter - remove from hidden list
+    //             this.plugin.settings.display.hiddenFilters =
+    //               this.plugin.settings.display.hiddenFilters.filter(
+    //                 (f) => f !== filter.key,
+    //               );
+    //           } else {
+    //             // Hide filter - add to hidden list
+    //             if (
+    //               !this.plugin.settings.display.hiddenFilters.includes(filter.key)
+    //             ) {
+    //               this.plugin.settings.display.hiddenFilters.push(filter.key);
+    //             }
 
-              // If we're hiding the currently selected filter, reset to "all"
-              const view = await this.plugin.getActiveDashboardView();
-              if (view?.sidebar && view.currentFolder === filter.key) {
-                view.currentFolder = null;
-              }
-            }
-            await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
-          }),
-        );
-    });
+    //             // If we're hiding the currently selected filter, reset to "all"
+    //             const view = await this.plugin.getActiveDashboardView();
+    //             if (view?.sidebar && view.currentFolder === filter.key) {
+    //               view.currentFolder = null;
+    //             }
+    //           }
+    //           await this.plugin.saveSettings();
+    //           const view = await this.plugin.getActiveDashboardView();
+    //           if (view?.sidebar) {
+    //             await this.app.workspace.revealLeaf(view.leaf);
+    //             view.sidebar.render();
+    //           }
+    //         }),
+    //       );
+    //   });
 
-    containerEl.createEl("p", {
-      text: "The 'all items' filter cannot be hidden as it's always required.",
-      cls: "rss-dashboard-settings-note",
-    });
+    //   containerEl.createEl("p", {
+    //     text: "The 'all items' filter cannot be hidden as it's always required.",
+    //     cls: "rss-dashboard-settings-note",
+    //   });
   }
 
   private createMediaSettings(containerEl: HTMLElement): void {
@@ -549,7 +549,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       .setDesc("Default folder for YouTube feeds")
       .addText((text) => {
         text
-          .setValue(this.plugin.settings.media.defaultYouTubeFolder)
+          .setValue(
+            this.plugin.settings.media.defaultYouTubeFolder || "YouTube",
+          )
           .onChange(async (value) => {
             this.plugin.settings.media.defaultYouTubeFolder =
               normalizePath(value);
@@ -563,7 +565,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       .setDesc("Default tag for YouTube videos")
       .addText((text) =>
         text
-          .setValue(this.plugin.settings.media.defaultYouTubeTag)
+          .setValue(this.plugin.settings.media.defaultYouTubeTag || "youtube")
           .onChange(async (value) => {
             this.plugin.settings.media.defaultYouTubeTag = value;
             await this.plugin.saveSettings();
@@ -577,7 +579,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       .setDesc("Default folder for podcast feeds")
       .addText((text) => {
         text
-          .setValue(this.plugin.settings.media.defaultPodcastFolder)
+          .setValue(
+            this.plugin.settings.media.defaultPodcastFolder || "Podcasts",
+          )
           .onChange(async (value) => {
             this.plugin.settings.media.defaultPodcastFolder =
               normalizePath(value);
@@ -591,7 +595,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       .setDesc("Default tag for podcast episodes")
       .addText((text) =>
         text
-          .setValue(this.plugin.settings.media.defaultPodcastTag)
+          .setValue(this.plugin.settings.media.defaultPodcastTag || "podcast")
           .onChange(async (value) => {
             this.plugin.settings.media.defaultPodcastTag = value;
             await this.plugin.saveSettings();
@@ -605,7 +609,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       .setDesc("Default folder for RSS feeds")
       .addText((text) => {
         text
-          .setValue(this.plugin.settings.media.defaultRssFolder)
+          .setValue(this.plugin.settings.media.defaultRssFolder || "RSS")
           .onChange(async (value) => {
             this.plugin.settings.media.defaultRssFolder = normalizePath(value);
             await this.plugin.saveSettings();
@@ -618,7 +622,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       .setDesc("Default tag for RSS articles")
       .addText((text) =>
         text
-          .setValue(this.plugin.settings.media.defaultRssTag)
+          .setValue(this.plugin.settings.media.defaultRssTag || "rss")
           .onChange(async (value) => {
             this.plugin.settings.media.defaultRssTag = value;
             await this.plugin.saveSettings();
@@ -1134,7 +1138,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       .addToggle((toggle) => toggle.setValue(false));
 
     const colorSetting = new Setting(newWordContainer)
-      .setName("Highlight color (optional)")
+      .setName("Highlight color")
       .addColorPicker((colorPicker) =>
         colorPicker.setValue(
           this.plugin.settings.highlights?.defaultColor ?? "#ffd700",

@@ -521,3 +521,8 @@
 .theme-dark .rss-dashboard-all-feeds-divider {
   background-color: #9b59b6;
 }
+
+/* Search hidden class for feed/folder search */
+.rss-dashboard-search-hidden {
+  display: none !important;
+}

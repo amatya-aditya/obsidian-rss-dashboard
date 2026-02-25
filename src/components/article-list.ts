@@ -93,6 +93,8 @@ export class ArticleList {
   private tagFilters: Set<string>;
   private filterLogic: "AND" | "OR";
   private articleSearchQuery: string = "";
+  private articleSearchDesktopInput: HTMLInputElement | null = null;
+  private articleSearchDropdownInput: HTMLInputElement | null = null;
   private documentListeners: Array<{
     target: Document;
     type: string;
@@ -383,6 +385,12 @@ export class ArticleList {
       cls: "rss-dashboard-article-search-container",
     });
 
+    // Create search icon first (so it's absolutely positioned correctly)
+    const searchIcon = searchContainer.createDiv({
+      cls: "rss-dashboard-article-search-icon",
+    });
+    setIcon(searchIcon, "search");
+
     const searchInput = searchContainer.createEl("input", {
       cls: "rss-dashboard-article-search-input",
       attr: {
@@ -393,10 +401,17 @@ export class ArticleList {
       },
     });
 
-    const searchIcon = searchContainer.createDiv({
-      cls: "rss-dashboard-article-search-icon",
-    });
-    setIcon(searchIcon, "search");
+    // Check if this is dropdown (hamburger menu) or desktop controls
+    const isDropdown = container.classList.contains(
+      "rss-dashboard-dropdown-controls",
+    );
+
+    // Store reference to sync between dropdown and desktop
+    if (isDropdown) {
+      this.articleSearchDropdownInput = searchInput;
+    } else {
+      this.articleSearchDesktopInput = searchInput;
+    }
 
     // Search input event handler with debouncing
     let searchTimeout: number;
@@ -405,6 +420,17 @@ export class ArticleList {
         .toLowerCase()
         .trim();
       this.articleSearchQuery = query;
+
+      // Sync the other search input if it exists
+      if (isDropdown && this.articleSearchDesktopInput) {
+        this.articleSearchDesktopInput.value = (
+          e.target as HTMLInputElement
+        ).value;
+      } else if (!isDropdown && this.articleSearchDropdownInput) {
+        this.articleSearchDropdownInput.value = (
+          e.target as HTMLInputElement
+        ).value;
+      }
 
       if (searchTimeout) {
         window.clearTimeout(searchTimeout);

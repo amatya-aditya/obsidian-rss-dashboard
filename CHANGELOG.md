@@ -1,5 +1,40 @@
 # RSS Dashboard - Changelog
 
+## [2.2.13] - 2026-02-25
+
+### ✨ New Features
+
+- **Article Search in Article View**: Moved the article search feature from the sidebar to the article view
+  - Search input appears next to the filter button on desktop view
+  - Search input is accessible inside the hamburger menu on mobile/tablet views
+  - Same search functionality (debounced search, matches article titles)
+  - Uses flexbox layout for better alignment and responsiveness
+
+- **Sidebar Search Now "Search Feeds"**: Converted the sidebar search to only search feed and folder names
+  - New placeholder text: "Search feeds..."
+  - Filters visible feeds and folders based on search query
+  - Expands folders containing matching feeds when searching
+  - Collapses folders when search is cleared
+
+### 🎨 UI/UX Improvements
+
+- **Cleaner Sidebar Design**: Removed article search from sidebar, focusing it on feed management
+- **Unified Search UI**: Article search now matches the style of other controls in the article header
+- **Improved Responsiveness**: Search input in hamburger menu takes full width for better usability
+
+### 🔧 Technical Changes
+
+- **New Article Search Method**: Added `filterArticlesBySearch()` method in ArticleList class
+- **Feed Search Method**: Added `filterFeedsAndFolders()` method in Sidebar class
+- **Search Input Synchronization**: Added support for synchronizing search inputs across desktop and hamburger menu
+- **New CSS Classes**: Added `.rss-dashboard-article-search-container`, `.rss-dashboard-article-search-input`, and `.rss-dashboard-article-search-icon`
+
+### 🐛 Bug Fixes
+
+- **Search Input Placeholder Overlap**: Fixed the search icon overlapping with placeholder text by using flexbox layout
+
+---
+
 ## [2.2.12] - 2026-02-25
 
 ### ✨ New Features
