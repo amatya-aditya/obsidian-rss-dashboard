@@ -1,4 +1,10 @@
-import { ItemView, WorkspaceLeaf, Notice, setIcon } from "obsidian";
+import {
+  ItemView,
+  WorkspaceLeaf,
+  Notice,
+  setIcon,
+  Platform,
+} from "obsidian";
 import {
   FeedMetadata,
   CategoryPath,
@@ -36,6 +42,11 @@ export class DiscoverView extends ItemView {
   private currentPage = 1;
   private pageSize = 20;
   private resizeObserver: ResizeObserver | null = null;
+  private sidebarContainer: HTMLElement | null = null;
+  private discoverContainer: HTMLElement | null = null;
+  private isResizing: boolean = false;
+  private resizeHandle: HTMLElement | null = null;
+  private hasRegisteredResizeEvents: boolean = false;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -324,12 +335,17 @@ export class DiscoverView extends ItemView {
 
   private renderLayout(container: HTMLElement): void {
     const layout = container.createDiv({ cls: "rss-discover-layout" });
+    this.discoverContainer = layout;
 
     const sidebar = layout.createDiv({ cls: "rss-discover-sidebar" });
+    this.sidebarContainer = sidebar;
     this.renderSidebar(sidebar);
 
     const content = layout.createDiv({ cls: "rss-discover-content" });
     this.renderContent(content);
+
+    // Setup sidebar resize handle after sidebar content is rendered.
+    this.setupSidebarResize();
   }
 
   private renderSidebar(container: HTMLElement): void {
@@ -592,20 +608,25 @@ export class DiscoverView extends ItemView {
     const row = itemContainer.createDiv({
       cls: "rss-discover-category-row",
     });
+    const mainContent = row.createDiv({
+      cls: "rss-discover-category-main",
+    });
 
     // Create expand/collapse icon
-    const expandIcon = row.createDiv({ cls: "rss-discover-category-expand" });
+    const expandIcon = mainContent.createDiv({
+      cls: "rss-discover-category-expand",
+    });
     if (hasChildren) {
       setIcon(expandIcon, "chevron-right");
     } else {
       expandIcon.addClass("rss-discover-category-expand-hidden");
     }
 
-    const checkbox = row.createEl("input", { type: "checkbox" });
+    const checkbox = mainContent.createEl("input", { type: "checkbox" });
 
     checkbox.checked = this.isCategorySelected(name, categoryType);
 
-    const label = row.createEl("label");
+    const label = mainContent.createEl("label");
     label.textContent = name;
 
     const count = row.createDiv({ cls: "rss-discover-category-count" });
@@ -1278,7 +1299,90 @@ export class DiscoverView extends ItemView {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
     }
+    this.isResizing = false;
+    this.resizeHandle = null;
+    this.sidebarContainer = null;
+    this.discoverContainer = null;
+    this.hasRegisteredResizeEvents = false;
     await super.onClose();
+  }
+
+  private setupSidebarResize(): void {
+    // Don't setup resize on mobile/tablet.
+    if (Platform.isMobile || window.innerWidth <= 1200) {
+      return;
+    }
+
+    // Remove existing resize handle if any.
+    if (this.resizeHandle) {
+      this.resizeHandle.remove();
+      this.resizeHandle = null;
+    }
+
+    // Create resize handle.
+    if (this.sidebarContainer) {
+      this.resizeHandle = this.sidebarContainer.createDiv({
+        cls: "rss-dashboard-sidebar-resize-handle",
+      });
+    }
+
+    this.applySidebarWidth();
+
+    if (this.resizeHandle) {
+      this.registerDomEvent(this.resizeHandle, "mousedown", (e) => {
+        this.handleResizeStart(e);
+      });
+    }
+
+    if (!this.hasRegisteredResizeEvents) {
+      this.registerDomEvent(document, "mousemove", (e) => {
+        this.handleResizeMove(e);
+      });
+      this.registerDomEvent(document, "mouseup", () => {
+        this.handleResizeEnd();
+      });
+      this.hasRegisteredResizeEvents = true;
+    }
+  }
+
+  private handleResizeStart(e: MouseEvent): void {
+    e.preventDefault();
+    this.isResizing = true;
+    this.resizeHandle?.addClass("dragging");
+    this.discoverContainer?.addClass("resizing");
+  }
+
+  private handleResizeMove(e: MouseEvent): void {
+    if (!this.isResizing) return;
+
+    const containerRect = this.containerEl.getBoundingClientRect();
+    let newWidth = e.clientX - containerRect.left;
+
+    // Match dashboard constraints.
+    const minWidth = 200;
+    const maxWidth = 500;
+    newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+
+    this.settings.sidebarWidth = newWidth;
+    this.applySidebarWidth();
+  }
+
+  private handleResizeEnd(): void {
+    if (!this.isResizing) return;
+
+    this.isResizing = false;
+    this.resizeHandle?.removeClass("dragging");
+    this.discoverContainer?.removeClass("resizing");
+
+    // Persist width setting.
+    void this.plugin.saveSettings();
+  }
+
+  private applySidebarWidth(): void {
+    if (!this.sidebarContainer) return;
+    const width = this.settings.sidebarWidth || 280;
+    this.sidebarContainer.style.width = `${width}px`;
+    this.sidebarContainer.style.minWidth = `${width}px`;
   }
 
   private hasActiveFilters(): boolean {

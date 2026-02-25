@@ -10,12 +10,22 @@
   gap: 8px;
 }
 
+.rss-discover-layout.resizing {
+  user-select: none;
+}
+
+.rss-discover-layout.resizing iframe {
+  pointer-events: none;
+}
+
 .rss-discover-sidebar {
   width: 250px;
-  min-width: 250px;
+  min-width: 200px;
   border-right: 1px solid var(--background-modifier-border);
   padding: 0 6px;
   overflow-y: auto;
+  position: relative;
+  flex-shrink: 0;
 }
 
 .rss-discover-content {
@@ -158,11 +168,22 @@
 }
 
 .rss-discover-category-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 4px 8px 4px 0;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.rss-discover-category-main {
   display: flex;
   align-items: center;
-  padding: 4px 0;
-  padding-left: calc(var(--depth) * 16px);
   gap: 8px;
+  min-width: 0;
+  padding-left: calc(var(--depth) * 16px);
 }
 
 .rss-discover-category-row input[type="checkbox"] {
@@ -173,6 +194,10 @@
   flex: 1;
   font-size: 14px;
   cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rss-discover-category-expand {
@@ -192,7 +217,9 @@
 .rss-discover-category-children {
   display: flex;
   flex-direction: column;
-  width: 100%;
+  width: auto;
+  min-width: 0;
+  box-sizing: border-box;
   margin-left: 12px;
   padding-left: 8px;
   border-left: 1px solid var(--background-modifier-border);
@@ -210,6 +237,9 @@
   font-size: 12px;
   min-width: 20px;
   text-align: center;
+  justify-self: end;
+  margin-right: 6px;
+  flex-shrink: 0;
 }
 
 .rss-discover-header {
