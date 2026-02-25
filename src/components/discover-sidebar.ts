@@ -330,8 +330,6 @@ export class DiscoverSidebar {
     depth = 0,
   ): void {
     const keys = Object.keys(node).sort((a, b) => {
-      if (a === "Uncategorized") return 1;
-      if (b === "Uncategorized") return -1;
       return a.localeCompare(b, undefined, {
         numeric: true,
         sensitivity: "base",
@@ -357,7 +355,7 @@ export class DiscoverSidebar {
       const hasChildren = childNode && Object.keys(childNode).length > 0;
 
       if (hasChildren) {
-        setIcon(expandIcon, "chevron-down");
+        setIcon(expandIcon, "chevron-right");
       } else {
         expandIcon.addClass("rss-discover-category-expand-hidden");
       }
@@ -397,7 +395,7 @@ export class DiscoverSidebar {
 
       if (hasChildren) {
         const childrenContainer = itemContainer.createDiv({
-          cls: "rss-discover-category-children",
+          cls: "rss-discover-category-children rss-collapsed",
         });
         this.renderCategoryNode(
           childrenContainer,

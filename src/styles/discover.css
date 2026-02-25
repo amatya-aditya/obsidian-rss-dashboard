@@ -127,12 +127,17 @@
 
 .rss-discover-category-node {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   padding: 4px 0;
-  gap: 8px;
+  gap: 0;
 }
 
 .rss-discover-category-node.disabled {
+  opacity: 0.5;
+}
+
+.rss-discover-category-item.disabled {
   opacity: 0.5;
 }
 
@@ -182,6 +187,15 @@
 
 .rss-discover-category-expand-hidden {
   visibility: hidden;
+}
+
+.rss-discover-category-children {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-left: 12px;
+  padding-left: 8px;
+  border-left: 1px solid var(--background-modifier-border);
 }
 
 .rss-discover-category-children.rss-collapsed {

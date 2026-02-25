@@ -23,7 +23,7 @@
 		"eslint-plugin-obsidianmd": "^0.1.9",
 		"globals": "^16.5.0",
 		"obsidian": "latest",
-		"prettier": "3.8.1",
+		"prettier": "^3.8.1",
 		"tslib": "2.4.0",
 		"typescript": "^5.9.3"
 	},

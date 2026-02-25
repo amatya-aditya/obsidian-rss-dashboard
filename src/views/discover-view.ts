@@ -538,7 +538,17 @@ export class DiscoverView extends ItemView {
       cls: "rss-discover-category-tree",
     });
 
-    Object.entries(this.categoryMap.categories).forEach(
+    // Sort categories alphabetically
+    const sortedEntries = Object.entries(this.categoryMap.categories).sort(
+      (a, b) => {
+        return a[0].localeCompare(b[0], undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+      },
+    );
+
+    sortedEntries.forEach(
       ([domain, subdomains]: [string, Record<string, unknown>]) => {
         this.renderCategoryNode(categoryTree, domain, subdomains, 0);
       },
@@ -551,9 +561,10 @@ export class DiscoverView extends ItemView {
     children: Record<string, unknown>,
     depth: number,
   ): void {
-    const node = container.createDiv({ cls: "rss-discover-category-node" });
-    const depthClass = `rss-discover-category-node-depth-${Math.min(depth, 5)}`;
-    node.addClass(depthClass);
+    const itemContainer = container.createDiv({
+      cls: "rss-discover-category-item",
+    });
+    itemContainer.style.setProperty("--depth", depth.toString());
 
     let categoryType: "domain" | "subdomain" | "area" | "topic";
     switch (depth) {
@@ -573,19 +584,36 @@ export class DiscoverView extends ItemView {
         categoryType = "domain";
     }
 
-    const checkbox = node.createEl("input", { type: "checkbox" });
+    const hasChildren =
+      children &&
+      typeof children === "object" &&
+      Object.keys(children).length > 0;
+
+    const row = itemContainer.createDiv({
+      cls: "rss-discover-category-row",
+    });
+
+    // Create expand/collapse icon
+    const expandIcon = row.createDiv({ cls: "rss-discover-category-expand" });
+    if (hasChildren) {
+      setIcon(expandIcon, "chevron-right");
+    } else {
+      expandIcon.addClass("rss-discover-category-expand-hidden");
+    }
+
+    const checkbox = row.createEl("input", { type: "checkbox" });
 
     checkbox.checked = this.isCategorySelected(name, categoryType);
 
-    const label = node.createEl("label");
+    const label = row.createEl("label");
     label.textContent = name;
 
-    const count = node.createDiv({ cls: "rss-discover-category-count" });
+    const count = row.createDiv({ cls: "rss-discover-category-count" });
     const feedCount = this.getOptionCount(categoryType, name);
     count.textContent = feedCount.toString();
 
     if (feedCount === 0) {
-      node.addClass("disabled");
+      itemContainer.addClass("disabled");
       checkbox.disabled = true;
     }
 
@@ -597,17 +625,30 @@ export class DiscoverView extends ItemView {
       this.render();
     });
 
-    if (children && typeof children === "object") {
+    if (hasChildren) {
+      const childrenContainer = itemContainer.createDiv({
+        cls: "rss-discover-category-children rss-collapsed",
+      });
+
       if (Array.isArray(children)) {
-        children.forEach((topic: string) => {
-          this.renderCategoryNode(container, topic, {}, depth + 1);
+        const sortedChildren = [...children].sort((a: string, b: string) =>
+          a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+        );
+        sortedChildren.forEach((topic: string) => {
+          this.renderCategoryNode(childrenContainer, topic, {}, depth + 1);
         });
       } else {
-        Object.entries(children).forEach(
+        const sortedEntries = Object.entries(children).sort((a, b) =>
+          String(a[0]).localeCompare(String(b[0]), undefined, {
+            numeric: true,
+            sensitivity: "base",
+          }),
+        );
+        sortedEntries.forEach(
           ([childName, childChildren]: [string, unknown]) => {
             if (childChildren && typeof childChildren === "object") {
               this.renderCategoryNode(
-                container,
+                childrenContainer,
                 childName,
                 childChildren as Record<string, unknown>,
                 depth + 1,
@@ -616,6 +657,17 @@ export class DiscoverView extends ItemView {
           },
         );
       }
+
+      expandIcon.addEventListener("click", () => {
+        const isCollapsed = childrenContainer.hasClass("rss-collapsed");
+        if (isCollapsed) {
+          childrenContainer.removeClass("rss-collapsed");
+          setIcon(expandIcon, "chevron-down");
+        } else {
+          childrenContainer.addClass("rss-collapsed");
+          setIcon(expandIcon, "chevron-right");
+        }
+      });
     }
   }
 
