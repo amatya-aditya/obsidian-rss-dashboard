@@ -625,6 +625,36 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
+    new Setting(containerEl).setName("Kagi smallweb").setHeading();
+
+    new Setting(containerEl)
+      .setName("Default smallweb folder")
+      .setDesc("Default folder for smallweb feeds")
+      .addText((text) => {
+        text
+          .setValue(
+            this.plugin.settings.media.defaultSmallwebFolder || "Smallweb",
+          )
+          .onChange(async (value) => {
+            this.plugin.settings.media.defaultSmallwebFolder =
+              normalizePath(value);
+            await this.plugin.saveSettings();
+          });
+        new FolderSuggest(this.app, text.inputEl, this.plugin.settings.folders);
+      });
+
+    new Setting(containerEl)
+      .setName("Default smallweb tag")
+      .setDesc("Default tag for smallweb articles")
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.media.defaultSmallwebTag || "smallweb")
+          .onChange(async (value) => {
+            this.plugin.settings.media.defaultSmallwebTag = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+
     new Setting(containerEl).setName("Podcast player").setHeading();
 
     new Setting(containerEl)

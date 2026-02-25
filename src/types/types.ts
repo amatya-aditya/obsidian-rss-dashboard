@@ -127,6 +127,8 @@ export interface MediaSettings {
   defaultPodcastTag: string;
   defaultRssFolder: string;
   defaultRssTag: string;
+  defaultSmallwebFolder: string;
+  defaultSmallwebTag: string;
   openInSplitView: boolean;
   podcastTheme: PodcastTheme;
 }
@@ -298,6 +300,8 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultPodcastTag: "podcast",
     defaultRssFolder: "RSS",
     defaultRssTag: "RSS",
+    defaultSmallwebFolder: "Smallweb",
+    defaultSmallwebTag: "smallweb",
     openInSplitView: true,
     podcastTheme: "obsidian",
   },

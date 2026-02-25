@@ -1439,3 +1439,176 @@
     order: 1;
   }
 }
+
+/* ============================================
+ * Folder Selector Popup Styles
+ * ============================================ */
+
+.rss-folder-selector-popup {
+  position: fixed;
+  min-width: 220px;
+  max-width: 320px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 99999;
+  animation: rss-folder-popup-fade-in 0.15s ease-out;
+}
+
+.rss-folder-selector-popup-above {
+  animation: rss-folder-popup-fade-in-above 0.15s ease-out;
+}
+
+@keyframes rss-folder-popup-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rss-folder-popup-fade-in-above {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rss-folder-selector-input-wrapper {
+  padding: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rss-folder-selector-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: 13px;
+  transition: border-color 0.15s ease;
+}
+
+.rss-folder-selector-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.rss-folder-selector-input-invalid {
+  animation: rss-folder-input-shake 0.3s ease;
+  border-color: var(--text-error) !important;
+}
+
+@keyframes rss-folder-input-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+.rss-folder-selector-list {
+  overflow-y: auto;
+  padding: 4px 0;
+  max-height: calc(5 * 32px); /* 5 items max visible */
+}
+
+.rss-folder-selector-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-normal);
+  transition: background-color 0.1s ease;
+}
+
+.rss-folder-selector-item:hover,
+.rss-folder-selector-item.is-selected {
+  background-color: var(--background-modifier-hover);
+}
+
+.rss-folder-selector-item.is-selected {
+  border-left: 2px solid var(--interactive-accent);
+  padding-left: 10px;
+}
+
+.rss-folder-selector-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.rss-folder-selector-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.rss-folder-selector-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rss-folder-selector-create {
+  color: var(--interactive-accent);
+}
+
+.rss-folder-selector-create .rss-folder-selector-icon {
+  color: var(--interactive-accent);
+}
+
+.rss-folder-selector-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  cursor: default;
+}
+
+.rss-folder-selector-empty:hover {
+  background-color: transparent;
+}
+
+/* Scrollbar styling for folder list */
+.rss-folder-selector-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.rss-folder-selector-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rss-folder-selector-list::-webkit-scrollbar-thumb {
+  background: var(--background-modifier-border);
+  border-radius: 3px;
+}
+
+.rss-folder-selector-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Mobile adjustments for folder selector */
+@media (max-width: 600px) {
+  .rss-folder-selector-popup {
+    left: 16px !important;
+    right: 16px !important;
+    max-width: none;
+    min-width: auto;
+  }
+}

@@ -1,5 +1,30 @@
 # RSS Dashboard - Changelog
 
+## [2.2.12] - 2026-02-25
+
+### ✨ New Features
+
+- **Folder Selector Popup for Smallweb**: New popup menu when clicking the "+ Follow" button in Kagi Smallweb view
+  - Scrollable list showing all available folders (5 rows visible at a time)
+  - Search/filter input to quickly find folders
+  - Create new folder by typing a name and pressing Enter
+  - Keyboard navigation (Arrow keys, Enter, Escape)
+  - Obsidian filename validation (forbidden characters stripped: `\ : * ? " < > |`)
+  - Double-click Follow button to add to default folder directly
+
+### ⚙️ Settings
+
+- **Smallweb Default Folder/Tag**: New settings in Media tab for default smallweb folder and tag
+  - Default folder: "Smallweb"
+  - Default tag: "smallweb"
+  - Default folder appears at top of folder selector popup
+
+### 🐛 Bug Fixes
+
+- **Fixed Folder Selector Showing Only Default Folder**: Popup now correctly shows all folders instead of filtering to only the default folder
+
+---
+
 ## [2.2.11] - 2026-02-25
 
 ### ✨ New Features

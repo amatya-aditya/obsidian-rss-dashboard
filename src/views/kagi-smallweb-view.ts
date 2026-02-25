@@ -2,6 +2,7 @@ import { ItemView, WorkspaceLeaf, Notice, setIcon, requestUrl } from "obsidian";
 import { Feed } from "../types/types";
 import type RssDashboardPlugin from "../../main";
 import { setCssProps } from "../utils/platform-utils";
+import { FolderSelectorPopup } from "../components/folder-selector-popup";
 
 export const RSS_SMALLWEB_VIEW_TYPE = "rss-smallweb-view";
 
@@ -536,8 +537,26 @@ export class KagiSmallwebView extends ItemView {
       });
       setIcon(followBtn, "plus");
       followBtn.createSpan({ text: " Follow" });
+
+      // Get default folder from settings
+      const defaultFolder =
+        this.plugin.settings.media.defaultSmallwebFolder || "Smallweb";
+
+      // Single click: Show folder selector popup
       followBtn.addEventListener("click", () => {
-        void this.handleSmallwebSubscribe(entry);
+        // Show folder selector popup with default folder prioritized
+        new FolderSelectorPopup(this.plugin, {
+          anchorEl: followBtn,
+          defaultFolder: defaultFolder,
+          onSelect: (folderName) => {
+            void this.handleSmallwebSubscribeToFolder(entry, folderName);
+          },
+        });
+      });
+
+      // Double click: Add to default folder directly
+      followBtn.addEventListener("dblclick", () => {
+        void this.handleSmallwebSubscribeToFolder(entry, defaultFolder);
       });
     }
   }
@@ -618,6 +637,50 @@ export class KagiSmallwebView extends ItemView {
 
       if (success) {
         new Notice(`Following "${entry.blogName}"`);
+        // Force re-render to update all cards with the new following state
+        this.render();
+      } else {
+        new Notice(`Failed to follow "${entry.blogName}"`);
+      }
+    } catch (err) {
+      console.error("[Kagi Smallweb] Error subscribing:", err);
+      new Notice("Failed to follow blog");
+    }
+  }
+
+  /**
+   * Handle subscribing to a feed with a specific folder selection
+   */
+  private async handleSmallwebSubscribeToFolder(
+    entry: SmallwebEntry,
+    folderName: string,
+  ): Promise<void> {
+    try {
+      // Try to discover the RSS feed URL from the blog
+      const feedUrl = await this.discoverRssFeed(entry.blogUrl);
+
+      if (!feedUrl) {
+        new Notice(`Could not find RSS feed for "${entry.blogName}"`);
+        return;
+      }
+
+      // Ensure folder exists before adding feed
+      const folderExists = this.plugin.settings.folders.some(
+        (f) => f.name.toLowerCase() === folderName.toLowerCase(),
+      );
+
+      if (!folderExists) {
+        await this.plugin.ensureFolderExists(folderName);
+      }
+
+      const success = await this.plugin.addFeed(
+        entry.blogName,
+        feedUrl,
+        folderName,
+      );
+
+      if (success) {
+        new Notice(`Following "${entry.blogName}" in "${folderName}"`);
         // Force re-render to update all cards with the new following state
         this.render();
       } else {
