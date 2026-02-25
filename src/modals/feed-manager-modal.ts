@@ -1281,17 +1281,17 @@ export class FeedManagerModal extends Modal {
           cls: "feed-manager-folder",
         });
 
-        // Create folder header with delete button
+        // Create folder header with delete button on left
         const folderHeader = folderDiv.createDiv({
           cls: "feed-manager-folder-header",
         });
-        new Setting(folderHeader).setName(folderPath).setHeading();
 
-        // Add delete folder button
+        // Add delete folder button (X icon) on the left
         const deleteFolderBtn = folderHeader.createEl("button", {
-          text: "Delete",
-          cls: "rss-dashboard-danger-button feed-manager-delete-folder-button",
+          cls: "feed-manager-delete-folder-button",
         });
+        setIcon(deleteFolderBtn, "x");
+        deleteFolderBtn.setAttribute("aria-label", "Delete folder");
         deleteFolderBtn.onclick = () => {
           this.showDeleteConfirmModal({
             type: "folder",
@@ -1299,6 +1299,15 @@ export class FeedManagerModal extends Modal {
             feedCount: feeds.length,
           });
         };
+
+        // Add folder name
+        const folderName = folderHeader.createDiv({
+          cls: "feed-manager-folder-name",
+        });
+        folderName.setText(folderPath);
+
+        // Add horizontal divider below header
+        folderDiv.createDiv({ cls: "feed-manager-folder-divider" });
 
         for (const feed of feeds) {
           this.renderFeedRow(folderDiv, feed);
@@ -1311,17 +1320,17 @@ export class FeedManagerModal extends Modal {
         cls: "feed-manager-folder",
       });
 
-      // Create folder header with delete button for Uncategorized
+      // Create folder header with delete button on left
       const folderHeader = uncategorizedDiv.createDiv({
         cls: "feed-manager-folder-header",
       });
-      new Setting(folderHeader).setName("Uncategorized").setHeading();
 
-      // Add delete folder button for Uncategorized
+      // Add delete folder button (X icon) on the left
       const deleteFolderBtn = folderHeader.createEl("button", {
-        text: "Delete",
-        cls: "rss-dashboard-danger-button feed-manager-delete-folder-button",
+        cls: "feed-manager-delete-folder-button",
       });
+      setIcon(deleteFolderBtn, "x");
+      deleteFolderBtn.setAttribute("aria-label", "Delete folder");
       deleteFolderBtn.onclick = () => {
         this.showDeleteConfirmModal({
           type: "folder",
@@ -1329,6 +1338,15 @@ export class FeedManagerModal extends Modal {
           feedCount: uncategorized.length,
         });
       };
+
+      // Add folder name
+      const folderName = folderHeader.createDiv({
+        cls: "feed-manager-folder-name",
+      });
+      folderName.setText("Uncategorized");
+
+      // Add horizontal divider below header
+      uncategorizedDiv.createDiv({ cls: "feed-manager-folder-divider" });
 
       for (const feed of uncategorized) {
         this.renderFeedRow(uncategorizedDiv, feed);

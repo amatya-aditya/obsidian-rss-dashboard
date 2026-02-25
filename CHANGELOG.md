@@ -23,6 +23,12 @@
   - Hover states with border color change
   - Title text changes color when selected
 
+- **Folder Header Redesign in Manage Feeds Modal**: Cleaner folder header presentation
+  - Removed underline from folder headers
+  - Moved delete folder button to the left of the folder name
+  - Changed delete button to a red X icon with "Delete folder" hover tooltip
+  - Added horizontal divider between header and first feed row
+
 ### 🐛 Bug Fixes
 
 - **Fixed Mode Selector Layout Issue**: Resolved a CSS conflict where text was appearing outside container boundaries due to global modal label styles

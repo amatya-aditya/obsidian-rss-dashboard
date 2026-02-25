@@ -1015,10 +1015,9 @@
 .feed-manager-folder-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.5rem 0;
   margin-top: 1rem;
-  border-bottom: 2px solid var(--background-modifier-border);
 }
 
 .feed-manager-folder-header:first-child {
@@ -1043,21 +1042,36 @@
   border-radius: 10px;
 }
 
+/* Horizontal divider below folder header */
+.feed-manager-folder-divider {
+  height: 1px;
+  background: var(--background-modifier-border);
+  margin-bottom: 0.5rem;
+}
+
+/* Red X delete button for folders */
 .feed-manager-delete-folder-button {
-  background: transparent !important;
+  background: rgba(220, 38, 38, 0.1) !important;
   color: #dc2626 !important;
-  border: 1px solid #dc2626 !important;
+  border: none !important;
   border-radius: 4px;
-  padding: 0.25rem 0.6rem;
-  font-size: 0.85rem;
-  font-weight: 500;
+  padding: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .feed-manager-delete-folder-button:hover {
-  background: #dc2626 !important;
-  color: #fff !important;
+  border-color: #fff !important;
+}
+
+.feed-manager-delete-folder-button svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* ============================================
@@ -1081,7 +1095,7 @@
 
   /* Folder header mobile layout */
   .feed-manager-folder-header {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
     padding: 12px 0;
   }
@@ -1092,9 +1106,14 @@
   }
 
   .feed-manager-delete-folder-button {
-    min-height: 36px;
-    padding: 6px 12px;
-    font-size: 14px;
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+  }
+
+  .feed-manager-delete-folder-button svg {
+    width: 18px;
+    height: 18px;
   }
 
   /* Warning and backup notice mobile */
@@ -1123,13 +1142,14 @@
   }
 
   .feed-manager-folder-header {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
   }
 
   .feed-manager-delete-folder-button {
-    width: 100%;
-    margin-top: 8px;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
   }
 }
 
@@ -1152,7 +1172,6 @@
 /* Secondary row - Import, Export, Delete All */
 .feed-manager-button-row-secondary {
   justify-content: flex-start;
-  margin-top: 8px;
 }
 
 /* OPML Button Styles */
