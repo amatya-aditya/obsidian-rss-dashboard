@@ -7,7 +7,7 @@ import {
 } from "../types/discover-types";
 import { RssDashboardSettings, Feed } from "../types/types";
 import { FeedPreviewModal } from "../modals/feed-preview-modal";
-import { AddToFolderModal } from "../modals/add-to-folder-modal";
+import { FolderSelectorPopup } from "../components/folder-selector-popup";
 import { MobileDiscoverFiltersModal } from "../modals/mobile-discover-filters-modal";
 import type RssDashboardPlugin from "../../main";
 
@@ -1135,42 +1135,38 @@ export class DiscoverView extends ItemView {
         })();
       });
     } else {
-      // Quick add button - adds to Uncategorized folder
-      const quickAddBtn = rightSection.createEl("button", {
-        text: "Quick add",
-        cls: "rss-discover-card-add-btn",
-      });
-      quickAddBtn.addEventListener("click", () => {
-        void (async () => {
-          await this.quickAddFeed(feed);
-          // Refresh the card to show "Added" state
-          this.render();
-        })();
-      });
-
-      // Add to... button - opens folder selection modal
+      // Add to... button - shows folder selector popup
       const addToBtn = rightSection.createEl("button", {
         text: "Add to...",
         cls: "rss-discover-card-add-btn rss-discover-card-add-to-btn",
       });
+
+      // Default folder for discover feeds
+      const defaultFolder = "Uncategorized";
+
+      // Single click: Show folder selector popup
       addToBtn.addEventListener("click", () => {
-        new AddToFolderModal(this.app, this.plugin, feed, () => {
-          // Refresh the view after adding
-          this.render();
-        }).open();
+        new FolderSelectorPopup(this.plugin, {
+          anchorEl: addToBtn,
+          defaultFolder: defaultFolder,
+          onSelect: (folderName) => {
+            void this.addFeedToFolder(feed, folderName);
+          },
+        });
       });
     }
   }
 
   /**
-   * Quick add feed to "Uncategorized" folder
+   * Add feed to a specific folder
    * Creates the folder if it doesn't exist
    */
-  private async quickAddFeed(feed: FeedMetadata): Promise<void> {
+  private async addFeedToFolder(
+    feed: FeedMetadata,
+    folderName: string,
+  ): Promise<void> {
     try {
-      const folderName = "Uncategorized";
-
-      // Ensure the Uncategorized folder exists
+      // Ensure the folder exists
       const folderExists = this.plugin.settings.folders.some(
         (f) => f.name.toLowerCase() === folderName.toLowerCase(),
       );
@@ -1182,6 +1178,9 @@ export class DiscoverView extends ItemView {
       // Add the feed
       await this.plugin.addFeed(feed.title, feed.url, folderName);
       new Notice(`Feed "${feed.title}" added to "${folderName}"`);
+
+      // Refresh the view to show "Added" state
+      this.render();
     } catch (error) {
       new Notice(
         `Failed to add feed: ${error instanceof Error ? error.message : "Unknown error"}`,

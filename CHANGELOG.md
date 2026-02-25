@@ -12,6 +12,11 @@
   - Obsidian filename validation (forbidden characters stripped: `\ : * ? " < > |`)
   - Double-click Follow button to add to default folder directly
 
+- **Folder Selector Popup for Discover**: Unified folder selection experience across Discover and Smallweb views
+  - Replaced "Quick add" and "Add to..." buttons with single "Add to..." button
+  - Same popup menu as Smallweb view for consistent UX
+  - Removed AddToFolderModal in favor of FolderSelectorPopup
+
 ### ⚙️ Settings
 
 - **Smallweb Default Folder/Tag**: New settings in Media tab for default smallweb folder and tag
