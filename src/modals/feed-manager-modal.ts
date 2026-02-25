@@ -621,7 +621,7 @@ export class AddFeedModal extends Modal {
     autoDeleteDuration?: number,
     maxItemsLimit?: number,
     scanInterval?: number,
-  ) => Promise<void>;
+  ) => Promise<boolean | void>;
   onSave: () => void;
   defaultFolder: string;
   plugin?: RssDashboardPlugin;
@@ -636,7 +636,7 @@ export class AddFeedModal extends Modal {
       autoDeleteDuration?: number,
       maxItemsLimit?: number,
       scanInterval?: number,
-    ) => Promise<void>,
+    ) => Promise<boolean | void>,
     onSave: () => void,
     defaultFolder = "",
     plugin?: RssDashboardPlugin,

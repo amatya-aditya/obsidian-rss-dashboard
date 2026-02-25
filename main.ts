@@ -25,6 +25,10 @@ import {
   DiscoverView,
   RSS_DISCOVER_VIEW_TYPE,
 } from "./src/views/discover-view";
+import {
+  KagiSmallwebView,
+  RSS_SMALLWEB_VIEW_TYPE,
+} from "./src/views/kagi-smallweb-view";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./src/views/reader-view";
 import { FeedParser } from "./src/services/feed-parser";
 import { ArticleSaver } from "./src/services/article-saver";
@@ -138,6 +142,11 @@ export default class RssDashboardPlugin extends Plugin {
               void this.updateArticleFromReader(item, updates, shouldRerender);
             },
           ),
+      );
+
+      this.registerView(
+        RSS_SMALLWEB_VIEW_TYPE,
+        (leaf) => new KagiSmallwebView(leaf, this),
       );
 
       this.addRibbonIcon("compass", "RSS dashboard", () => {
@@ -317,6 +326,41 @@ export default class RssDashboardPlugin extends Plugin {
       }
     } catch {
       new Notice("Error opening RSS discover view");
+    }
+  }
+
+  async activateSmallwebView() {
+    const { workspace } = this.app;
+
+    try {
+      let leaf: WorkspaceLeaf | null = null;
+      const leaves = workspace.getLeavesOfType(RSS_SMALLWEB_VIEW_TYPE);
+
+      if (leaves.length > 0) {
+        leaf = leaves[0];
+      } else {
+        switch (this.settings.viewLocation) {
+          case "left-sidebar":
+            leaf = workspace.getLeftLeaf(false);
+            break;
+          case "right-sidebar":
+            leaf = workspace.getRightLeaf(false);
+            break;
+          default:
+            leaf = workspace.getLeaf("tab");
+            break;
+        }
+      }
+
+      if (leaf) {
+        await leaf.setViewState({
+          type: RSS_SMALLWEB_VIEW_TYPE,
+          active: true,
+        });
+        void workspace.revealLeaf(leaf);
+      }
+    } catch {
+      new Notice("Error opening kagi smallweb");
     }
   }
 
@@ -850,7 +894,7 @@ export default class RssDashboardPlugin extends Plugin {
     try {
       if (this.settings.feeds.some((f) => f.url === url)) {
         new Notice("This feed URL already exists");
-        return;
+        return false;
       }
 
       let mediaType: "article" | "video" | "podcast" = "article";
@@ -872,31 +916,30 @@ export default class RssDashboardPlugin extends Plugin {
         mediaType: mediaType,
       };
 
-      this.settings.feeds.push(newFeed);
-      await this.saveSettings();
-
+      // Try to parse the feed BEFORE adding it to settings
       try {
         const parsedFeed = await this.feedParser.parseFeed(url, newFeed);
-        const index = this.settings.feeds.findIndex((f) => f.url === url);
-        if (index >= 0) {
-          this.settings.feeds[index] = parsedFeed;
-        }
+        // Only add to settings if parsing succeeded
+        this.settings.feeds.push(parsedFeed);
         await this.saveSettings();
+
+        const view = await this.getActiveDashboardView();
+        if (view) {
+          void view.refresh();
+        }
+        new Notice(`Feed "${title}" added`);
+        return true;
       } catch (error) {
         new Notice(
           `Error parsing feed: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
+        return false;
       }
-
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        void view.refresh();
-      }
-      new Notice(`Feed "${title}" added`);
     } catch (error) {
       new Notice(
         `Error adding feed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
+      return false;
     }
   }
 

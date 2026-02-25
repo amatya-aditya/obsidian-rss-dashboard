@@ -258,6 +258,8 @@
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .rss-discover-card:hover {
@@ -278,6 +280,10 @@
   color: var(--text-normal);
   flex: 1;
   margin-right: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0; /* Required for text-overflow in flex context */
 }
 
 .rss-discover-card-type {
@@ -304,9 +310,24 @@
   margin-bottom: 0.5rem;
 }
 
+.rss-discover-card-meta-top > * {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
 .rss-discover-card-summary {
   font-size: var(--font-ui-small);
   color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  line-clamp: 3;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 .rss-discover-card-pipe {
@@ -535,6 +556,7 @@
   align-items: center;
   gap: 10px;
   flex-grow: 1;
+  min-width: 0; /* Required for text-overflow to work in flex children */
 }
 
 .rss-discover-card-logo-container {
@@ -1076,6 +1098,14 @@
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rss-discover-card-preview-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .rss-discover-card-preview-btn:hover {
@@ -1191,6 +1221,30 @@
   line-height: 1.4;
 }
 
+/* Warning message styling */
+.rss-smallweb-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: var(--background-modifier-warning);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-normal);
+  line-height: 1.4;
+}
+
+.rss-smallweb-warning svg {
+  flex-shrink: 0;
+  color: var(--text-warning);
+}
+
+/* Last update section with API link */
+.rss-smallweb-last-update {
+  margin-bottom: 12px;
+}
+
 .rss-smallweb-controls-row {
   display: flex;
   align-items: center;
@@ -1207,6 +1261,26 @@
 }
 
 .rss-smallweb-timestamp svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Timestamp link to API */
+.rss-smallweb-timestamp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.rss-smallweb-timestamp-link:hover {
+  color: var(--text-accent);
+}
+
+.rss-smallweb-timestamp-link svg {
   width: 14px;
   height: 14px;
 }
@@ -1230,6 +1304,10 @@
     hsl(280, 60%, 65%)
   ) !important;
   color: white !important;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  line-height: 1.4;
 }
 
 /* Post title sub-line */
@@ -1245,10 +1323,25 @@
 /* Following button state */
 .rss-smallweb-following-btn {
   background: var(--background-modifier-success) !important;
-  color: var(--text-success) !important;
+  color: white !important;
   border: 1px solid var(--background-modifier-success) !important;
-  cursor: default;
+  cursor: pointer !important;
   opacity: 0.9;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rss-smallweb-following-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Unfollow hover state */
+.rss-smallweb-unfollow-hover {
+  background: var(--background-modifier-error) !important;
+  color: white !important;
+  border-color: var(--background-modifier-error) !important;
 }
 
 /* Error button state */
