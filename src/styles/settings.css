@@ -278,6 +278,7 @@
   width: 30px;
   height: 30px;
   border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
@@ -331,7 +332,7 @@
   padding: 2px 12px;
   margin: 2px 0;
   border-radius: 6px;
-  border: 1px solid transparent;
+  border: 1px solid var(--background-modifier-border);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -369,6 +370,38 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+@media (max-width: 1200px) {
+  .rss-dashboard-filters-inline .rss-dashboard-filter-item.rss-dashboard-mobile-action-button {
+    width: auto;
+    min-width: 118px;
+    min-height: 40px;
+    height: 40px;
+    padding: 0 10px;
+    justify-content: flex-start;
+    gap: 8px;
+    border-radius: 10px;
+  }
+
+  .rss-dashboard-filters-inline
+    .rss-dashboard-filter-item.rss-dashboard-mobile-action-button
+    .rss-dashboard-filter-name {
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .rss-dashboard-filters-inline
+    .rss-dashboard-filter-item.rss-dashboard-mobile-refresh-button {
+    background-color: #8e44ad;
+    color: #fff;
+  }
+
+  .rss-dashboard-filters-inline
+    .rss-dashboard-filter-item.rss-dashboard-mobile-refresh-button:hover {
+    background-color: #9b59b6;
+    color: #fff;
+  }
 }
 
 /* Settings styling */

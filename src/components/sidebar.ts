@@ -8,7 +8,6 @@ import {
   FeedFilterSettings,
 } from "../types/types";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
-import { ImportOpmlModal } from "../modals/import-opml-modal";
 import type RssDashboardPlugin from "../../main";
 
 export interface SidebarOptions {
@@ -65,6 +64,8 @@ export class Sidebar {
   private isSearchExpanded = false;
   private isTagsExpanded = false;
   private isRefreshing = false;
+  private longPressTimer: number | null = null;
+  private isDrawerExpanded = true;
 
   /**
    * Extract main domain from a URL for favicon purposes (without subdomains)
@@ -168,9 +169,8 @@ export class Sidebar {
     this.container.addClass("rss-dashboard-sidebar");
 
     this.renderHeader();
-    this.renderFilters();
     this.renderFeedFolders();
-    this.renderToolbar();
+    this.renderBottomDrawer();
 
     requestAnimationFrame(() => {
       this.container.scrollTop = scrollPosition;
@@ -791,10 +791,89 @@ export class Sidebar {
       this.showFeedContextMenu(e, feed);
     });
 
+    this.attachLongPressContextMenu(feedEl, feed);
+
     feedEl.addEventListener("dragstart", (e) => {
       if (e.dataTransfer) {
         e.dataTransfer.setData("feed-url", feed.url);
         e.dataTransfer.effectAllowed = "move";
+      }
+    });
+  }
+
+  private renderBottomDrawer(): void {
+    const drawer = this.container.createDiv({
+      cls:
+        "rss-dashboard-bottom-drawer" +
+        (this.isDrawerExpanded ? " is-expanded" : " is-collapsed"),
+    });
+
+    const drawerToggle = drawer.createEl("button", {
+      cls: "rss-dashboard-drawer-toggle-button",
+      attr: {
+        type: "button",
+        "aria-label": this.isDrawerExpanded
+          ? "Collapse drawer controls"
+          : "Expand drawer controls",
+      },
+    });
+    setIcon(
+      drawerToggle,
+      this.isDrawerExpanded ? "chevrons-down-up" : "chevrons-up-down",
+    );
+    drawerToggle.addEventListener("click", () => {
+      this.isDrawerExpanded = !this.isDrawerExpanded;
+      this.render();
+    });
+
+    if (!this.isDrawerExpanded) {
+      return;
+    }
+
+    const drawerContent = drawer.createDiv({
+      cls: "rss-dashboard-bottom-drawer-content",
+    });
+    this.renderSearchDock(drawerContent);
+    this.renderFilters(drawerContent);
+    this.renderToolbar(drawerContent);
+  }
+
+  private attachLongPressContextMenu(feedEl: HTMLElement, feed: Feed): void {
+    let longPressTriggered = false;
+
+    const clearTimer = () => {
+      if (this.longPressTimer !== null) {
+        window.clearTimeout(this.longPressTimer);
+        this.longPressTimer = null;
+      }
+    };
+
+    feedEl.addEventListener("pointerdown", (event: PointerEvent) => {
+      if (event.pointerType === "mouse") return;
+
+      longPressTriggered = false;
+      clearTimer();
+      this.longPressTimer = window.setTimeout(() => {
+        longPressTriggered = true;
+        const syntheticEvent = new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          clientX: event.clientX,
+          clientY: event.clientY,
+        });
+        this.showFeedContextMenu(syntheticEvent, feed);
+      }, 500);
+    });
+
+    feedEl.addEventListener("pointerup", clearTimer);
+    feedEl.addEventListener("pointercancel", clearTimer);
+    feedEl.addEventListener("pointermove", clearTimer);
+
+    feedEl.addEventListener("click", (event) => {
+      if (longPressTriggered) {
+        event.preventDefault();
+        event.stopPropagation();
+        longPressTriggered = false;
       }
     });
   }
@@ -909,9 +988,11 @@ export class Sidebar {
     const modal = document.body.createDiv({
       cls: "rss-dashboard-modal rss-dashboard-modal-container",
     });
+    modal.addClass("rss-folder-name-modal");
     const modalContent = modal.createDiv({
       cls: "rss-dashboard-modal-content",
     });
+    modalContent.addClass("rss-folder-name-modal-content");
     new Setting(modalContent).setName(options.title).setHeading();
     const nameInput = modalContent.createEl("input", {
       attr: {
@@ -922,6 +1003,7 @@ export class Sidebar {
       },
       cls: "rss-full-width-input rss-input-margin-bottom",
     });
+    nameInput.addClass("rss-folder-name-modal-input");
     nameInput.spellcheck = false;
     nameInput.addEventListener("focus", () => nameInput.select());
     nameInput.addEventListener("keydown", (e) => {
@@ -932,11 +1014,12 @@ export class Sidebar {
       }
     });
     const buttonContainer = modalContent.createDiv({
-      cls: "rss-dashboard-modal-buttons",
+      cls: "rss-dashboard-modal-buttons rss-folder-name-modal-buttons",
     });
     const cancelButton = buttonContainer.createEl("button", {
       text: "Cancel",
     });
+    cancelButton.addClass("rss-folder-name-modal-cancel");
     cancelButton.addEventListener("click", () => {
       document.body.removeChild(modal);
     });
@@ -944,6 +1027,7 @@ export class Sidebar {
       text: "OK",
     });
     okButton.className = "rss-dashboard-primary-button";
+    okButton.addClass("rss-folder-name-modal-ok");
     okButton.addEventListener("click", submit);
     function submit() {
       const name = nameInput.value.trim();
@@ -1388,22 +1472,13 @@ export class Sidebar {
     });
   }
 
-  public renderFilters(): void {
-    const filtersList = this.container.createDiv({
-      cls: "rss-dashboard-filters-section",
+  public renderFilters(parentEl: HTMLElement): void {
+    const row = parentEl.createDiv({
+      cls: "rss-dashboard-drawer-actions",
     });
 
-    // Add display style class for CSS styling
-    const displayStyle = this.settings.display?.filterDisplayStyle || "inline";
-    filtersList.addClass(`rss-dashboard-filters-${displayStyle}`);
-
-    const row1 = filtersList.createDiv({
-      cls: "rss-dashboard-filter-items-row row-1",
-    });
-
-    // Add feed button (at the top, before search)
-    const addFeedButton = row1.createDiv({
-      cls: "rss-dashboard-filter-item rss-dashboard-add-feed-button",
+    const addFeedButton = row.createDiv({
+      cls: "rss-dashboard-filter-item rss-dashboard-drawer-action-button",
       attr: {
         title: "Add feed",
       },
@@ -1412,113 +1487,99 @@ export class Sidebar {
       cls: "rss-dashboard-filter-icon",
     });
     setIcon(addFeedIcon, "plus");
+    addFeedButton.createDiv({
+      cls: "rss-dashboard-filter-name",
+      text: "Add Feed",
+    });
     addFeedButton.addEventListener("click", () => {
       this.showAddFeedModal();
     });
 
-    // Search filter item
-    const searchFilterEl = row1.createDiv({
-      cls:
-        "rss-dashboard-filter-item rss-dashboard-search-filter" +
-        (this.isSearchExpanded ? " active" : ""),
+    const manageFeedsButton = row.createDiv({
+      cls: "rss-dashboard-filter-item rss-dashboard-drawer-action-button",
+      attr: {
+        title: "Manage feeds",
+      },
     });
-
-    const searchFilterIcon = searchFilterEl.createDiv({
+    const manageFeedsIcon = manageFeedsButton.createDiv({
       cls: "rss-dashboard-filter-icon",
     });
-    setIcon(searchFilterIcon, "search");
-
-    // Only show text in vertical mode
-    if (displayStyle === "vertical") {
-      searchFilterEl.createDiv({
-        cls: "rss-dashboard-filter-name",
-        text: "Search feeds",
-      });
-    }
-
-    // Add tooltip for inline mode
-    if (displayStyle === "inline") {
-      searchFilterEl.setAttribute("title", "Search feeds");
-    }
-
-    searchFilterEl.addEventListener("click", () => {
-      this.isSearchExpanded = !this.isSearchExpanded;
-      this.render();
+    setIcon(manageFeedsIcon, "list");
+    manageFeedsButton.createDiv({
+      cls: "rss-dashboard-filter-name",
+      text: "Edit Feeds",
+    });
+    manageFeedsButton.addEventListener("click", () => {
+      if (this.callbacks.onManageFeeds) {
+        this.callbacks.onManageFeeds();
+      }
     });
 
-    // Refresh all feeds button (right-aligned)
-    const refreshButton = row1.createDiv({
+    const refreshButton = row.createDiv({
       cls:
-        "rss-dashboard-filter-item rss-dashboard-refresh-button" +
+        "rss-dashboard-filter-item rss-dashboard-refresh-button rss-dashboard-drawer-refresh-button" +
         (this.isRefreshing ? " refreshing" : ""),
       attr: {
         title: this.isRefreshing ? "Refreshing feeds..." : "Refresh all feeds",
       },
     });
-
     const refreshIcon = refreshButton.createDiv({
       cls: "rss-dashboard-filter-icon",
     });
     setIcon(refreshIcon, "refresh-cw");
-
+    refreshButton.createDiv({
+      cls: "rss-dashboard-filter-name",
+      text: "Refresh",
+    });
     refreshButton.addEventListener("click", () => {
       if (this.isRefreshing) return;
       void this.handleRefresh();
     });
-
-    // Add collapsible search input below filters
-    if (this.isSearchExpanded) {
-      const searchContainer = filtersList.createDiv({
-        cls: "rss-dashboard-search-container",
-      });
-
-      const searchInput = searchContainer.createEl("input", {
-        cls: "rss-dashboard-search-input",
-        attr: {
-          type: "text",
-          placeholder: "Search feeds...",
-          autocomplete: "off",
-          spellcheck: "false",
-        },
-      });
-
-      // Focus and select text when search is expanded
-      searchInput.addEventListener("focus", () => {
-        searchInput.select();
-      });
-
-      // Search functionality for feeds and folders
-      let searchTimeout: number;
-
-      searchInput.addEventListener("input", (e) => {
-        const query = ((e.target as HTMLInputElement)?.value || "")
-          .toLowerCase()
-          .trim();
-
-        // Clear previous timeout
-        if (searchTimeout) {
-          window.clearTimeout(searchTimeout);
-        }
-
-        // Debounce search
-        searchTimeout = window.setTimeout(() => {
-          this.filterFeedsAndFolders(query);
-        }, 150);
-      });
-
-      // Auto-focus the search input when expanded
-      requestAnimationFrame(() => {
-        searchInput.focus();
-      });
-    }
   }
 
-  public renderToolbar(): void {
-    const oldToolbar = this.container.querySelector(
-      ".rss-dashboard-sidebar-toolbar",
-    );
-    if (oldToolbar) oldToolbar.remove();
-    const sidebarToolbar = this.container.createDiv({
+  private renderSearchDock(parentEl: HTMLElement): void {
+    if (!this.isSearchExpanded) return;
+
+    const searchDock = parentEl.createDiv({
+      cls: "rss-dashboard-search-dock",
+    });
+    const searchContainer = searchDock.createDiv({
+      cls: "rss-dashboard-search-container",
+    });
+    const searchInput = searchContainer.createEl("input", {
+      cls: "rss-dashboard-search-input",
+      attr: {
+        type: "text",
+        placeholder: "Search feeds...",
+        autocomplete: "off",
+        spellcheck: "false",
+      },
+    });
+
+    searchInput.addEventListener("focus", () => {
+      searchInput.select();
+    });
+
+    let searchTimeout: number;
+    searchInput.addEventListener("input", (e) => {
+      const query = ((e.target as HTMLInputElement)?.value || "")
+        .toLowerCase()
+        .trim();
+      if (searchTimeout) {
+        window.clearTimeout(searchTimeout);
+      }
+      searchTimeout = window.setTimeout(() => {
+        this.filterFeedsAndFolders(query);
+      }, 150);
+    });
+
+    requestAnimationFrame(() => {
+      searchInput.focus();
+    });
+  }
+
+  public renderToolbar(parentEl: HTMLElement): void {
+    const sidebarToolbar = parentEl.createDiv({
       cls: "rss-dashboard-sidebar-toolbar",
     });
 
@@ -1615,39 +1676,16 @@ export class Sidebar {
       window.setTimeout(() => updateCollapseIcon(), 0);
     });
 
-    const importOpmlButton = sidebarToolbar.createDiv({
+    const searchButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        title: "Import opml",
+        title: "Search feeds",
       },
     });
-    setIcon(importOpmlButton, "upload");
-    importOpmlButton.addEventListener("click", () => {
-      new ImportOpmlModal(this.app, this.plugin).open();
-    });
-
-    const exportOpmlButton = sidebarToolbar.createDiv({
-      cls: "rss-dashboard-toolbar-button",
-      attr: {
-        title: "Export opml",
-      },
-    });
-    setIcon(exportOpmlButton, "download");
-    exportOpmlButton.addEventListener("click", () => {
-      this.callbacks.onExportOpml();
-    });
-
-    const manageFeedsButton = sidebarToolbar.createDiv({
-      cls: "rss-dashboard-toolbar-button",
-      attr: {
-        title: "Manage feeds",
-      },
-    });
-    setIcon(manageFeedsButton, "list");
-    manageFeedsButton.addEventListener("click", () => {
-      if (this.callbacks.onManageFeeds) {
-        this.callbacks.onManageFeeds();
-      }
+    setIcon(searchButton, "search");
+    searchButton.addEventListener("click", () => {
+      this.isSearchExpanded = !this.isSearchExpanded;
+      this.render();
     });
   }
 

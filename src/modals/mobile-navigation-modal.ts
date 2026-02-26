@@ -137,11 +137,10 @@ export class MobileNavigationModal extends Modal {
   }
 
   private applyModalWidth(): void {
-    // Modal slides from bottom on mobile, but we can set width for tablet
-    if (window.innerWidth > 768) {
-      this.modalEl.style.width = `${this.modalWidth}px`;
-      this.modalEl.style.maxWidth = `${this.modalWidth}px`;
-    }
+    const maxAllowedWidth = Math.floor(window.innerWidth * 0.9);
+    const width = Math.max(240, Math.min(this.modalWidth, maxAllowedWidth));
+    this.modalEl.style.width = `${width}px`;
+    this.modalEl.style.maxWidth = `${width}px`;
   }
 
   onClose() {
