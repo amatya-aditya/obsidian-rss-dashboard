@@ -95,6 +95,19 @@
   gap: 0.5rem;
   padding: 0.8rem;
 }
+
+.rss-dashboard-modal-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rss-dashboard-modal-actions button {
+  width: 100%;
+  margin: 0 !important;
+  border-radius: 8px !important;
+}
 .rss-dashboard-primary-button {
   background: var(--interactive-accent, #3498db);
   color: #fff;
@@ -520,10 +533,10 @@
 
 .rss-dashboard-modal .rss-keyword-filter-checkbox,
 .feed-manager-modal .rss-keyword-filter-checkbox {
-  width: 16px !important;
-  min-width: 16px !important;
-  max-width: 16px !important;
-  height: 16px !important;
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
   margin: 0 !important;
   padding: 0 !important;
   border-radius: 3px;
@@ -810,10 +823,10 @@
   }
 
   /* Larger touch targets for inputs */
-  .rss-dashboard-modal input,
+  .rss-dashboard-modal input:not([type="checkbox"]),
   .rss-dashboard-modal textarea,
   .rss-dashboard-modal select,
-  .feed-manager-modal input,
+  .feed-manager-modal input:not([type="checkbox"]),
   .feed-manager-modal textarea,
   .feed-manager-modal select {
     min-height: 44px;
@@ -932,6 +945,12 @@
   .rss-dashboard-modal-buttons,
   .feed-manager-modal-buttons {
     flex-direction: column;
+    gap: 8px;
+  }
+
+  .rss-dashboard-modal-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 

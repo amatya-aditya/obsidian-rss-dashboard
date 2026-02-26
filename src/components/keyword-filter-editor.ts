@@ -72,33 +72,43 @@ export function renderKeywordFilterEditor(
     cls: "rss-keyword-filter-logic-label",
     text: "Include logic:",
   });
-  const logicSelect = includeLogicRow.createEl("select", {
-    cls: "rss-keyword-filter-select",
+  const logicSegmented = includeLogicRow.createDiv({
+    cls: "rss-keyword-filter-segmented",
   });
-  logicSelect.createEl("option", { text: "AND", value: "AND" });
-  logicSelect.createEl("option", { text: "Either/or", value: "OR" });
-  logicSelect.value = state.includeLogic;
-  logicSelect.addEventListener("change", () => {
+  const andBtn = createSegmentedButton(logicSegmented, "AND", "AND");
+  const orBtn = createSegmentedButton(logicSegmented, "OR", "OR");
+
+  const updateLogicSegmentedState = () => {
+    const isAnd = state.includeLogic === "AND";
+    andBtn.classList.toggle("is-active", isAnd);
+    orBtn.classList.toggle("is-active", !isAnd);
+  };
+
+  andBtn.addEventListener("click", () => {
+    if (state.includeLogic === "AND") return;
     onChange({
       ...state,
-      includeLogic: logicSelect.value as "AND" | "OR",
+      includeLogic: "AND",
     });
+  });
+
+  orBtn.addEventListener("click", () => {
+    if (state.includeLogic === "OR") return;
+    onChange({
+      ...state,
+      includeLogic: "OR",
+    });
+  });
+
+  updateLogicSegmentedState();
+
+  controlsRow.createDiv({
+    cls: "rss-keyword-filter-logic-help",
+    text: "AND logic combines all rules and filters only when all enabled rules match applicable content. OR logic filters content that matches any enabled rule.",
   });
 
   const rulesContainer = containerEl.createDiv({
     cls: "rss-keyword-filter-rules-container",
-  });
-
-  const headerRow = rulesContainer.createDiv({
-    cls: "rss-keyword-filter-rules-header",
-  });
-  headerRow.createDiv({
-    cls: "rss-keyword-filter-rules-header-enabled",
-    text: "Enabled",
-  });
-  headerRow.createDiv({
-    cls: "rss-keyword-filter-rules-header-rule",
-    text: "Rule",
   });
 
   if (state.rules.length === 0) {
@@ -113,43 +123,151 @@ export function renderKeywordFilterEditor(
           "rss-keyword-filter-rule-row" + (rule.enabled ? "" : " is-disabled"),
       });
 
-      const enabledCol = row.createDiv({
-        cls: "rss-keyword-filter-rule-enabled-col",
-      });
       const ruleCol = row.createDiv({ cls: "rss-keyword-filter-rule-col" });
-
-      const topRow = ruleCol.createDiv({ cls: "rss-keyword-filter-rule-top" });
-
-      const enabledToggle = enabledCol.createEl("input", {
-        cls: "rss-keyword-filter-checkbox",
-        attr: { type: "checkbox" },
+      const headerRow = ruleCol.createDiv({
+        cls: "rss-keyword-filter-rule-header",
       });
-      enabledToggle.checked = rule.enabled;
-      enabledToggle.title = "Enable rule";
-      enabledToggle.addEventListener("change", () => {
+      const headerLeft = headerRow.createDiv({
+        cls: "rss-keyword-filter-rule-header-left",
+      });
+
+      headerLeft.createSpan({
+        cls: "rss-keyword-filter-rule-title",
+        text: `Rule ${index + 1}`,
+      });
+
+      const enabledBtn = headerLeft.createEl("button", {
+        cls:
+          "rss-keyword-filter-enabled-btn" + (rule.enabled ? " is-checked" : ""),
+        attr: {
+          type: "button",
+          "aria-pressed": rule.enabled ? "true" : "false",
+          "aria-label": `Toggle enabled state for rule ${index + 1}`,
+        },
+      });
+      enabledBtn.createSpan({
+        cls:
+          "rss-keyword-filter-enabled-btn-box" +
+          (rule.enabled ? " is-checked" : ""),
+        text: rule.enabled ? "\u2713" : "",
+      });
+      enabledBtn.createSpan({
+        cls: "rss-keyword-filter-enabled-btn-label",
+        text: "Enabled",
+      });
+      enabledBtn.addEventListener("click", () => {
         onChange({
           ...state,
-          rules: updateRule(state.rules, index, { enabled: enabledToggle.checked }),
+          rules: updateRule(state.rules, index, { enabled: !rule.enabled }),
         });
       });
 
-      const typeSelect = topRow.createEl("select", {
-        cls: "rss-keyword-filter-select",
+      const removeBtn = headerRow.createEl("button", {
+        cls: "rss-keyword-filter-delete rss-keyword-filter-delete-header",
+        attr: { "aria-label": `Delete rule ${index + 1}` },
       });
-      typeSelect.createEl("option", { text: "Include", value: "include" });
-      typeSelect.createEl("option", { text: "Exclude", value: "exclude" });
-      typeSelect.value = rule.type;
-      typeSelect.disabled = !rule.enabled;
-      typeSelect.addEventListener("change", () => {
+      // "X" is intentional icon-like prefix for quick visual scanning.
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
+      removeBtn.setText("X Delete rule");
+      removeBtn.addEventListener("click", () => {
+        onChange({
+          ...state,
+          rules: state.rules.filter((_, i) => i !== index),
+        });
+      });
+
+      const ruleBody = ruleCol.createDiv({
+        cls: "rss-keyword-filter-rule-body",
+      });
+
+      const typeRow = ruleBody.createDiv({
+        cls: "rss-keyword-filter-rule-type-row",
+      });
+      typeRow.createSpan({
+        cls: "rss-keyword-filter-inline-label",
+        text: "Rule type:",
+      });
+      const typeSegmented = typeRow.createDiv({
+        cls: "rss-keyword-filter-segmented rss-keyword-filter-rule-segmented",
+      });
+      const includeTypeBtn = createSegmentedButton(
+        typeSegmented,
+        "Include",
+        "include",
+      );
+      const excludeTypeBtn = createSegmentedButton(
+        typeSegmented,
+        "Exclude",
+        "exclude",
+      );
+      const isIncludeType = rule.type === "include";
+      includeTypeBtn.classList.toggle("is-active", isIncludeType);
+      excludeTypeBtn.classList.toggle("is-active", !isIncludeType);
+      includeTypeBtn.disabled = !rule.enabled;
+      excludeTypeBtn.disabled = !rule.enabled;
+      includeTypeBtn.addEventListener("click", () => {
+        if (!rule.enabled || rule.type === "include") return;
+        onChange({
+          ...state,
+          rules: updateRule(state.rules, index, { type: "include" }),
+        });
+      });
+      excludeTypeBtn.addEventListener("click", () => {
+        if (!rule.enabled || rule.type === "exclude") return;
+        onChange({
+          ...state,
+          rules: updateRule(state.rules, index, { type: "exclude" }),
+        });
+      });
+
+      const matchModeRow = ruleBody.createDiv({
+        cls: "rss-keyword-filter-rule-match-row",
+      });
+      matchModeRow.createSpan({
+        cls: "rss-keyword-filter-inline-label",
+        text: "Match mode:",
+      });
+      const matchModeSegmented = matchModeRow.createDiv({
+        cls: "rss-keyword-filter-segmented rss-keyword-filter-rule-segmented",
+      });
+      const exactModeBtn = createSegmentedButton(
+        matchModeSegmented,
+        "Exact",
+        "exact",
+      );
+      const partialModeBtn = createSegmentedButton(
+        matchModeSegmented,
+        "Partial",
+        "partial",
+      );
+      const isExactMatch = rule.matchMode === "exact";
+      exactModeBtn.classList.toggle("is-active", isExactMatch);
+      partialModeBtn.classList.toggle("is-active", !isExactMatch);
+      exactModeBtn.disabled = !rule.enabled;
+      partialModeBtn.disabled = !rule.enabled;
+      exactModeBtn.addEventListener("click", () => {
+        if (!rule.enabled || rule.matchMode === "exact") return;
         onChange({
           ...state,
           rules: updateRule(state.rules, index, {
-            type: typeSelect.value as "include" | "exclude",
+            matchMode: "exact",
+          }),
+        });
+      });
+      partialModeBtn.addEventListener("click", () => {
+        if (!rule.enabled || rule.matchMode === "partial") return;
+        onChange({
+          ...state,
+          rules: updateRule(state.rules, index, {
+            matchMode: "partial",
           }),
         });
       });
 
-      const keywordInput = topRow.createEl("input", {
+      const keywordRow = ruleBody.createDiv({
+        cls: "rss-keyword-filter-rule-keyword-row",
+      });
+      const keywordInput = keywordRow.createEl("input", {
         cls: "rss-keyword-filter-input",
         attr: { type: "text", placeholder: "Keyword or phrase" },
       });
@@ -164,36 +282,7 @@ export function renderKeywordFilterEditor(
         });
       });
 
-      const matchModeSelect = topRow.createEl("select", {
-        cls: "rss-keyword-filter-select",
-      });
-      matchModeSelect.createEl("option", { text: "Exact", value: "exact" });
-      matchModeSelect.createEl("option", { text: "Partial", value: "partial" });
-      matchModeSelect.value = rule.matchMode;
-      matchModeSelect.disabled = !rule.enabled;
-      matchModeSelect.addEventListener("change", () => {
-        onChange({
-          ...state,
-          rules: updateRule(state.rules, index, {
-            matchMode: matchModeSelect.value as "exact" | "partial",
-          }),
-        });
-      });
-
-      const removeBtn = topRow.createEl("button", {
-        cls: "rss-keyword-filter-delete",
-        attr: { "aria-label": "Delete rule" },
-      });
-      removeBtn.setText("X");
-      removeBtn.disabled = !rule.enabled;
-      removeBtn.addEventListener("click", () => {
-        onChange({
-          ...state,
-          rules: state.rules.filter((_, i) => i !== index),
-        });
-      });
-
-      const locationsRow = ruleCol.createDiv({
+      const locationsRow = ruleBody.createDiv({
         cls: "rss-keyword-filter-locations-row",
       });
 
@@ -235,7 +324,7 @@ export function renderKeywordFilterEditor(
 
   const addRuleBtn = containerEl.createEl("button", {
     cls: "rss-keyword-filter-add-btn",
-    text: "Add rule",
+    text: "Add new rule...",
   });
   addRuleBtn.addEventListener("click", () => {
     onChange({
@@ -277,5 +366,20 @@ function renderLocationToggle(
   text.addEventListener("click", () => {
     checkbox.checked = !checkbox.checked;
     onChange(checkbox.checked);
+  });
+}
+
+function createSegmentedButton(
+  containerEl: HTMLElement,
+  text: string,
+  value: string,
+): HTMLButtonElement {
+  return containerEl.createEl("button", {
+    cls: "rss-keyword-filter-segmented-btn",
+    text,
+    attr: {
+      type: "button",
+      "data-value": value,
+    },
   });
 }

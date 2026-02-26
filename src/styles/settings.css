@@ -549,10 +549,11 @@
 }
 
 .rss-keyword-filter-editor-controls {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr);
   align-items: center;
-  gap: 14px;
+  column-gap: 18px;
+  row-gap: 10px;
   margin: 8px 0 12px;
 }
 
@@ -561,6 +562,16 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rss-keyword-filter-toggle-row {
+  grid-column: 1;
+}
+
+.rss-keyword-filter-logic-row {
+  grid-column: 2;
+  justify-self: start;
 }
 
 .rss-keyword-filter-logic-label {
@@ -568,69 +579,177 @@
   font-size: 12px;
 }
 
+.rss-keyword-filter-logic-help {
+  flex-basis: 100%;
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 0;
+}
+
+.rss-keyword-filter-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+
+.rss-keyword-filter-segmented-btn {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  min-width: 56px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rss-keyword-filter-segmented-btn.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.rss-keyword-filter-segmented-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .rss-keyword-filter-rules-container {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.rss-keyword-filter-rules-header,
-.rss-keyword-filter-rule-row {
-  display: grid;
-  grid-template-columns: 78px 1fr;
   gap: 10px;
-  align-items: stretch;
-}
-
-.rss-keyword-filter-rules-header {
-  margin-top: 2px;
-  color: var(--text-muted);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.rss-keyword-filter-rules-header-enabled,
-.rss-keyword-filter-rule-enabled-col {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.rss-keyword-filter-rules-header-rule {
-  display: flex;
-  align-items: center;
 }
 
 .rss-keyword-filter-rule-row {
-  padding-bottom: 2px;
-}
-
-.rss-keyword-filter-rule-enabled-col {
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
-  background: var(--background-secondary);
-  min-height: 68px;
+  padding-bottom: 0;
 }
 
 .rss-keyword-filter-rule-col {
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
-  padding: 10px;
+  padding: 10px 12px;
   background: var(--background-secondary);
 }
 
-.rss-keyword-filter-rule-row.is-disabled .rss-keyword-filter-rule-col {
-  opacity: 0.45;
-  pointer-events: none;
-  filter: grayscale(0.2);
+.rss-keyword-filter-rule-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
-.rss-keyword-filter-rule-top {
-  display: flex;
+.rss-keyword-filter-rule-header-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
+}
+
+.rss-keyword-filter-rule-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.rss-keyword-filter-enabled-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rss-keyword-filter-enabled-btn:hover {
+  border-color: var(--interactive-accent);
+}
+
+.rss-keyword-filter-enabled-btn-box {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border-hover);
+  background: var(--background-secondary);
+  color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.rss-keyword-filter-enabled-btn-box.is-checked {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.rss-keyword-filter-enabled-btn.is-checked {
+  border-color: var(--interactive-accent);
+}
+
+.rss-keyword-filter-enabled-btn-label {
+  color: var(--text-normal);
+}
+
+.rss-keyword-filter-enabled-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
+.rss-keyword-filter-rule-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rss-keyword-filter-rule-row.is-disabled .rss-keyword-filter-rule-body {
+  opacity: 0.65;
+  filter: grayscale(0.2);
+  pointer-events: none;
+}
+
+.rss-keyword-filter-rule-type-row,
+.rss-keyword-filter-rule-match-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, auto);
   gap: 8px;
   align-items: center;
+}
+
+.rss-keyword-filter-inline-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  min-width: 0;
+}
+
+.rss-keyword-filter-rule-keyword-row {
+  display: flex;
+  min-width: 0;
+}
+
+.rss-keyword-filter-rule-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(102px, 1fr));
+}
+
+.rss-keyword-filter-rule-segmented .rss-keyword-filter-segmented-btn {
+  min-width: 0;
 }
 
 .rss-keyword-filter-select,
@@ -643,8 +762,8 @@
 }
 
 .rss-keyword-filter-input {
-  flex: 1 1 240px;
-  min-width: 220px;
+  width: 100%;
+  min-width: 0;
 }
 
 .rss-keyword-filter-locations-row {
@@ -658,6 +777,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 28px;
 }
 
 .rss-keyword-filter-label {
@@ -669,14 +789,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  min-height: 30px;
+  padding: 0 10px;
   border: 1px solid #a32020;
   border-radius: 6px;
   background: #c93030;
   color: #fff;
   font-weight: 700;
   cursor: pointer;
+}
+
+.rss-keyword-filter-delete-header {
+  margin-left: auto;
+  text-transform: capitalize;
 }
 
 .rss-keyword-filter-delete:hover {
@@ -691,8 +816,8 @@
 }
 
 .rss-keyword-filter-checkbox {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   margin: 0;
   vertical-align: middle;
   accent-color: var(--interactive-accent);
@@ -708,15 +833,36 @@
 
 .rss-keyword-filter-add-btn {
   margin-top: 10px;
+  width: 100%;
+  min-height: 38px;
+  border-radius: 8px !important;
+  text-align: center;
 }
 
 @media (max-width: 920px) {
-  .rss-keyword-filter-rules-header,
-  .rss-keyword-filter-rule-row {
-    grid-template-columns: 64px 1fr;
+  .rss-keyword-filter-editor-controls {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 12px;
   }
 
   .rss-keyword-filter-input {
     min-width: 160px;
+  }
+}
+
+@media (max-width: 768px) {
+  .rss-keyword-filter-editor-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .rss-keyword-filter-toggle-row,
+  .rss-keyword-filter-logic-row,
+  .rss-keyword-filter-logic-help {
+    grid-column: 1;
+  }
+
+  .rss-keyword-filter-rule-type-row,
+  .rss-keyword-filter-rule-match-row {
+    grid-template-columns: 1fr;
   }
 }

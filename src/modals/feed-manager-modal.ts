@@ -601,12 +601,17 @@ export class EditFeedModal extends Modal {
     };
     renderFeedFilterEditor();
 
-    const btns = contentEl.createDiv("rss-dashboard-modal-buttons");
+    const btns = contentEl.createDiv(
+      "rss-dashboard-modal-buttons rss-dashboard-modal-actions",
+    );
     const saveBtn = btns.createEl("button", {
       text: "Save",
       cls: "rss-dashboard-primary-button",
     });
-    const cancelBtn = btns.createEl("button", { text: "Cancel" });
+    const cancelBtn = btns.createEl("button", {
+      text: "Cancel",
+      cls: "rss-dashboard-danger-button rss-dashboard-cancel-button",
+    });
     saveBtn.onclick = () => {
       void (async () => {
         const oldTitle = this.feed.title;
@@ -1131,13 +1136,16 @@ export class AddFeedModal extends Modal {
     renderFeedFilterEditor();
 
     const btns = contentEl.createDiv({
-      cls: "rss-dashboard-modal-buttons",
+      cls: "rss-dashboard-modal-buttons rss-dashboard-modal-actions",
     });
     const saveBtn = btns.createEl("button", {
       text: "Save",
       cls: "rss-dashboard-primary-button",
     });
-    const cancelBtn = btns.createEl("button", { text: "Cancel" });
+    const cancelBtn = btns.createEl("button", {
+      text: "Cancel",
+      cls: "rss-dashboard-danger-button rss-dashboard-cancel-button",
+    });
     saveBtn.onclick = () => {
       if (!url) {
         new Notice("Feed URL cannot be empty");
@@ -1423,14 +1431,20 @@ export class FeedManagerModal extends Modal {
     const row = parent.createDiv({ cls: "feed-manager-row" });
     row.createDiv({ text: feed.title, cls: "feed-manager-title" });
 
-    const editBtn = row.createEl("button", { text: "Edit" });
+    const editBtn = row.createEl("button", {
+      text: "Edit",
+      cls: "rss-dashboard-primary-button",
+    });
     editBtn.onclick = () => {
       new EditFeedModal(this.app, this.plugin, feed, () =>
         this.onOpen(),
       ).open();
     };
 
-    const delBtn = row.createEl("button", { text: "Delete" });
+    const delBtn = row.createEl("button", {
+      text: "Delete",
+      cls: "rss-dashboard-danger-button",
+    });
     delBtn.onclick = () => {
       this.showDeleteConfirmModal({ type: "feed", feed });
     };
