@@ -1,4 +1,4 @@
-import { Modal, App, Setting, Notice, setIcon } from "obsidian";
+﻿import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import type {
   Feed,
@@ -650,18 +650,7 @@ export class EditFeedModal extends Modal {
         } else {
           new Notice("Feed updated");
         }
-
-        console.debug("[EditFeedModal] Saving feed updates", {
-          feedTitle: this.feed.title,
-          feedUrl: this.feed.url,
-          includeLogic: this.feed.filters?.includeLogic,
-          overrideGlobalFilters: this.feed.filters?.overrideGlobalFilters,
-          ruleCount: this.feed.filters?.rules?.length || 0,
-        });
         await this.plugin.saveSettings();
-        console.debug(
-          "[EditFeedModal] Feed settings saved, dispatching filters-updated event",
-        );
         this.plugin.notifyFiltersUpdated({
           source: "edit-feed-modal",
           feedUrl: this.feed.url,
@@ -1203,56 +1192,12 @@ export class FeedManagerModal extends Modal {
     const { contentEl } = this;
     const isMobile = isMobileWidth();
 
-    // Debug logging
-    console.debug("[FeedManagerModal] onOpen called");
-    console.debug("[FeedManagerModal] window.innerWidth:", window.innerWidth);
-    console.debug("[FeedManagerModal] isMobileWidth():", isMobile);
-
     this.modalEl.className +=
       " rss-dashboard-modal rss-dashboard-modal-container";
     // Add mobile-specific class for proper styling on mobile/tablet
     if (isMobile) {
       this.modalEl.addClass("rss-mobile-feed-manager-modal");
-      console.debug(
-        "[FeedManagerModal] Added rss-mobile-feed-manager-modal class",
-      );
     }
-
-    // Debug: Log modal element state after classes are added
-    console.debug(
-      "[FeedManagerModal] modalEl.className:",
-      this.modalEl.className,
-    );
-    console.debug(
-      "[FeedManagerModal] modalEl classes:",
-      this.modalEl.classList.toString(),
-    );
-
-    // Debug: Log computed styles after a short delay to ensure CSS is applied
-    setTimeout(() => {
-      const computedStyle = window.getComputedStyle(this.modalEl);
-      console.debug("[FeedManagerModal] Computed styles:");
-      console.debug("  - display:", computedStyle.display);
-      console.debug("  - visibility:", computedStyle.visibility);
-      console.debug("  - position:", computedStyle.position);
-      console.debug("  - z-index:", computedStyle.zIndex);
-      console.debug("  - width:", computedStyle.width);
-      console.debug("  - height:", computedStyle.height);
-      console.debug("  - top:", computedStyle.top);
-      console.debug("  - left:", computedStyle.left);
-      console.debug("  - bottom:", computedStyle.bottom);
-      console.debug("  - right:", computedStyle.right);
-      console.debug("  - opacity:", computedStyle.opacity);
-      console.debug("  - transform:", computedStyle.transform);
-      console.debug(
-        "[FeedManagerModal] modalEl in DOM:",
-        document.body.contains(this.modalEl),
-      );
-      console.debug(
-        "[FeedManagerModal] modalEl parent:",
-        this.modalEl.parentElement?.className,
-      );
-    }, 100);
 
     contentEl.empty();
     new Setting(contentEl).setName("Manage feeds").setHeading();
@@ -1522,18 +1467,18 @@ export class FeedManagerModal extends Modal {
 
     switch (type) {
       case "all":
-        title = "⚠️ Delete All Feeds?";
+        title = "Delete all feeds?";
         warningMessage =
           "This action is irreversible. All your feeds will be permanently deleted.";
         confirmButtonText = "Delete All";
         break;
       case "folder":
-        title = `⚠️ Delete Folder "${folderPath}"?`;
+        title = `Delete folder "${folderPath}"?`;
         warningMessage = `This action is irreversible. The folder "${folderPath}" and all ${feedCount} feed(s) within it will be permanently deleted.`;
         confirmButtonText = "Delete Folder";
         break;
       case "feed":
-        title = `⚠️ Delete Feed "${feed?.title}"?`;
+        title = `Delete feed "${feed?.title}"?`;
         warningMessage =
           "This action is irreversible. The feed will be permanently deleted.";
         confirmButtonText = "Delete";
@@ -1761,3 +1706,4 @@ export class FeedManagerModal extends Modal {
     this.contentEl.empty();
   }
 }
+

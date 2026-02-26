@@ -1,4 +1,4 @@
-import {
+﻿import {
   App,
   PluginSettingTab,
   Setting,
@@ -911,10 +911,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         this.plugin.settings.filters.includeLogic = nextState.includeLogic;
         this.plugin.settings.filters.rules = nextState.rules;
         void (async () => {
-          console.debug("[SettingsTab] Global filters updated", {
-            includeLogic: nextState.includeLogic,
-            ruleCount: nextState.rules.length,
-          });
           await this.plugin.saveSettings();
           this.plugin.notifyFiltersUpdated({
             source: "settings-filters-tab",
@@ -1162,7 +1158,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
 
         const deleteBtn = wordRow.createEl("button", {
           cls: "rss-dashboard-highlight-delete",
-          text: "×",
+          text: "Ã—",
         });
         deleteBtn.onclick = async () => {
           if (this.plugin.settings.highlights) {
@@ -1442,3 +1438,4 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     kofiBtn.target = "_blank";
   }
 }
+

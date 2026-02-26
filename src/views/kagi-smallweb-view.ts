@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, setIcon, requestUrl } from "obsidian";
+﻿import { ItemView, WorkspaceLeaf, Notice, setIcon, requestUrl } from "obsidian";
 import { Feed } from "../types/types";
 import type RssDashboardPlugin from "../../main";
 import { setCssProps } from "../utils/platform-utils";
@@ -197,8 +197,8 @@ export class KagiSmallwebView extends ItemView {
           excerpt,
           domain,
         });
-      } catch (err) {
-        console.debug("[Kagi Smallweb] Skipping malformed entry:", err);
+      } catch {
+        continue;
       }
     }
 
@@ -807,7 +807,7 @@ export class KagiSmallwebView extends ItemView {
       attr: { href: "https://kagi.com/smallweb", target: "_blank" },
     });
 
-    footer.appendText(" · ");
+    footer.appendText(" Â· ");
 
     footer.createEl("a", {
       text: "Browse all ~5,000 feeds",
@@ -815,3 +815,4 @@ export class KagiSmallwebView extends ItemView {
     });
   }
 }
+

@@ -1,4 +1,4 @@
-import { Modal, App, Setting, Notice, setIcon } from "obsidian";
+﻿import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import type { Feed, Folder } from "../types/types";
 import { OpmlManager } from "../services/opml-manager";
@@ -363,14 +363,12 @@ export class ImportOpmlModal extends Modal {
     // Add click handlers after elements are created
     updateOption.onclick = () => {
       this.importMode = "update";
-      console.debug("[ImportOpmlModal] Mode changed to: update");
       updateOption.addClass("selected");
       overwriteOption.removeClass("selected");
     };
 
     overwriteOption.onclick = () => {
       this.importMode = "overwrite";
-      console.debug("[ImportOpmlModal] Mode changed to: overwrite");
       overwriteOption.addClass("selected");
       updateOption.removeClass("selected");
     };
@@ -450,29 +448,12 @@ export class ImportOpmlModal extends Modal {
       return;
     }
 
-    console.debug(
-      "[ImportOpmlModal] executeImport called with mode:",
-      this.importMode,
-    );
-    console.debug(
-      "[ImportOpmlModal] Current feeds count before import:",
-      this.plugin.settings.feeds.length,
-    );
-
     try {
       if (this.importMode === "overwrite") {
-        console.debug(
-          "[ImportOpmlModal] Overwrite mode - clearing existing feeds and folders",
-        );
 
         // Clear existing feeds and folders
         this.plugin.settings.feeds = [];
         this.plugin.settings.folders = [];
-
-        console.debug(
-          "[ImportOpmlModal] Feeds after clear:",
-          this.plugin.settings.feeds.length,
-        );
 
         // Add all imported feeds
         for (const feed of this.parsedFeeds) {
@@ -496,16 +477,8 @@ export class ImportOpmlModal extends Modal {
           });
         }
 
-        console.debug(
-          "[ImportOpmlModal] Feeds after import:",
-          this.plugin.settings.feeds.length,
-        );
-
         // Set folders
         this.plugin.settings.folders = [...this.parsedFolders];
-        console.debug(
-          "[ImportOpmlModal] Overwrite complete. About to save settings...",
-        );
       } else {
         // Update mode - merge with existing
         const existingUrls = new Set(
@@ -554,15 +527,6 @@ export class ImportOpmlModal extends Modal {
 
       await this.plugin.saveSettings();
 
-      console.debug(
-        "[ImportOpmlModal] Settings saved. Feeds count:",
-        this.plugin.settings.feeds.length,
-      );
-      console.debug(
-        "[ImportOpmlModal] Folders count:",
-        this.plugin.settings.folders.length,
-      );
-
       // Close any open MobileNavigationModal to ensure fresh data on mobile
       const mobileModals = document.querySelectorAll(
         ".rss-mobile-navigation-modal",
@@ -573,39 +537,20 @@ export class ImportOpmlModal extends Modal {
           (closeBtn as HTMLElement).click();
         }
       });
-      console.debug(
-        "[ImportOpmlModal] Closed mobile navigation modals:",
-        mobileModals.length,
-      );
 
       // Refresh the dashboard view and sidebar if they exist
       const dashboardView = await this.plugin.getActiveDashboardView();
-      console.debug(
-        "[ImportOpmlModal] getActiveDashboardView returned:",
-        dashboardView ? "view found" : "null",
-      );
 
       if (dashboardView) {
-        console.debug(
-          "[ImportOpmlModal] dashboardView.sidebar exists:",
-          !!dashboardView.sidebar,
-        );
 
         // Clear the sidebar's folder path cache to ensure fresh data
         if (dashboardView.sidebar) {
-          console.debug(
-            "[ImportOpmlModal] Sidebar settings reference matches plugin:",
-            dashboardView.sidebar["settings"] === this.plugin.settings,
-          );
           // Explicitly update sidebar's settings reference
           dashboardView.sidebar["settings"] = this.plugin.settings;
           dashboardView.sidebar.clearFolderPathCache();
-          console.debug("[ImportOpmlModal] Cleared folder path cache");
         }
         // Full re-render
-        console.debug("[ImportOpmlModal] Calling dashboardView.refresh()");
         dashboardView.refresh();
-        console.debug("[ImportOpmlModal] dashboardView.refresh() returned");
       }
 
       const modeText =
@@ -631,3 +576,4 @@ export class ImportOpmlModal extends Modal {
     this.contentEl.empty();
   }
 }
+

@@ -1,4 +1,4 @@
-import { requestUrl, Platform } from "obsidian";
+﻿import { requestUrl, Platform } from "obsidian";
 import { Feed, FeedItem, MediaSettings, Tag } from "../types/types.js";
 import { MediaService } from "./media-service";
 import {
@@ -42,8 +42,6 @@ async function resolveApplePodcastUrl(
 
   const lookupUrl = `https://itunes.apple.com/lookup?id=${podcastId}&entity=podcast`;
 
-  console.debug("[RSS Dashboard] Looking up Apple Podcast ID:", podcastId);
-
   try {
     const response = await requestUrl({
       url: lookupUrl,
@@ -55,21 +53,11 @@ async function resolveApplePodcastUrl(
       },
     });
 
-    console.debug(
-      "[RSS Dashboard] iTunes API response status:",
-      response.status,
-    );
-
     const data = JSON.parse(response.text) as ItunesLookupResponse;
 
     if (data.resultCount === 0 || !data.results[0]?.feedUrl) {
       throw new Error("Podcast not found in Apple Podcasts directory");
     }
-
-    console.debug(
-      "[RSS Dashboard] Resolved feed URL:",
-      data.results[0].feedUrl,
-    );
     return data.results[0].feedUrl;
   } catch (e) {
     console.error("[RSS Dashboard] iTunes API error:", e);
@@ -91,11 +79,9 @@ export interface FeedPreviewData {
 export async function loadFeedForPreview(
   feedUrl: string,
 ): Promise<FeedPreviewData> {
-  console.debug("[RSS Dashboard] Loading feed for preview:", feedUrl);
 
   // Try direct request first
   try {
-    console.debug("[RSS Dashboard] Trying direct request...");
     const response = await requestUrl({
       url: feedUrl,
       method: "GET",
@@ -108,21 +94,15 @@ export async function loadFeedForPreview(
     });
 
     if (response.text && isValidFeed(response.text)) {
-      console.debug("[RSS Dashboard] Direct request succeeded, parsing XML");
       const parser = new DOMParser();
       const doc = parser.parseFromString(response.text, "text/xml");
       return parseFeedDoc(doc, feedUrl);
     }
-    console.debug(
-      "[RSS Dashboard] Direct response not valid RSS, falling back to rss2json",
-    );
-  } catch (e) {
-    console.debug("[RSS Dashboard] Direct request failed:", e);
+  } catch {
     // Fall through to rss2json
   }
 
   // Fallback to rss2json
-  console.debug("[RSS Dashboard] Trying rss2json API...");
   const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
 
   try {
@@ -132,16 +112,10 @@ export async function loadFeedForPreview(
     });
 
     const data = JSON.parse(response.text) as Rss2JsonResponse;
-    console.debug("[RSS Dashboard] rss2json response status:", data.status);
 
     if (data.status !== "ok" || !data.feed) {
       throw new Error(data.message || "Failed to load feed");
     }
-
-    console.debug(
-      "[RSS Dashboard] rss2json succeeded, title:",
-      data.feed.title,
-    );
     return {
       title: data.feed.title || "",
       description: data.feed.description || "",
@@ -2858,3 +2832,4 @@ export class FeedParserService {
     };
   }
 }
+

@@ -1,4 +1,4 @@
-import {
+﻿import {
   Plugin,
   Notice,
   WorkspaceLeaf,
@@ -80,7 +80,6 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public notifyFiltersUpdated(payload: FiltersUpdatedEventPayload): void {
-    console.debug("[RSS Dashboard] notifyFiltersUpdated", payload);
     this.app.workspace.trigger("rss-dashboard:filters-updated", payload);
   }
 
@@ -1308,3 +1307,4 @@ export default class RssDashboardPlugin extends Plugin {
     return allArticles;
   }
 }
+

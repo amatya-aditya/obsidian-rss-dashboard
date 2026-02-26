@@ -1,4 +1,4 @@
-import { Menu, MenuItem, Notice, App, setIcon, Setting } from "obsidian";
+﻿import { Menu, MenuItem, Notice, App, setIcon, Setting } from "obsidian";
 import {
   Feed,
   Folder,
@@ -161,14 +161,6 @@ export class Sidebar {
   }
 
   public render(): void {
-    console.debug(
-      "[Sidebar] render() called. Feeds in settings:",
-      this.settings.feeds.length,
-    );
-    console.debug(
-      "[Sidebar] render() - first feed title:",
-      this.settings.feeds[0]?.title || "none",
-    );
 
     const scrollPosition = this.container.scrollTop;
 
@@ -1653,19 +1645,8 @@ export class Sidebar {
     });
     setIcon(manageFeedsButton, "list");
     manageFeedsButton.addEventListener("click", () => {
-      console.debug("[Sidebar] Manage feeds button clicked");
-      console.debug(
-        "[Sidebar] onManageFeeds callback exists:",
-        !!this.callbacks.onManageFeeds,
-      );
       if (this.callbacks.onManageFeeds) {
-        console.debug("[Sidebar] Calling onManageFeeds callback...");
         this.callbacks.onManageFeeds();
-        console.debug("[Sidebar] onManageFeeds callback returned");
-      } else {
-        console.debug(
-          "[Sidebar] ERROR: onManageFeeds callback is not defined!",
-        );
       }
     });
   }
@@ -2204,3 +2185,4 @@ export class Sidebar {
     this.render();
   }
 }
+

@@ -1,4 +1,4 @@
-import {
+﻿import {
   ItemView,
   WorkspaceLeaf,
   Notice,
@@ -137,15 +137,6 @@ export class RssDashboardView extends ItemView {
       }).on(
         "rss-dashboard:filters-updated",
         (payload: FiltersUpdatedEventPayload) => {
-          console.debug(
-            "[DashboardView] Received rss-dashboard:filters-updated event",
-            {
-              payload,
-              currentFeedUrl: this.currentFeed?.url,
-              currentFolder: this.currentFolder,
-              currentTag: this.currentTag,
-            },
-          );
           this.syncCurrentFeedReference();
           this.render();
         },
@@ -203,14 +194,8 @@ export class RssDashboardView extends ItemView {
           onExportOpml: this.handleExportOpml.bind(this),
           onToggleSidebar: this.handleToggleSidebar.bind(this),
           onManageFeeds: () => {
-            console.debug("[DashboardView] onManageFeeds callback called");
-            console.debug("[DashboardView] Creating FeedManagerModal...");
             const modal = new FeedManagerModal(this.app, this.plugin);
-            console.debug(
-              "[DashboardView] FeedManagerModal created, calling open()...",
-            );
             modal.open();
-            console.debug("[DashboardView] FeedManagerModal.open() returned");
           },
         },
       );
@@ -225,14 +210,6 @@ export class RssDashboardView extends ItemView {
   }
 
   render(): void {
-    console.debug(
-      "[DashboardView] render() called. plugin.settings.feeds.length:",
-      this.plugin.settings.feeds.length,
-    );
-    console.debug(
-      "[DashboardView] this.settings === plugin.settings:",
-      this.settings === this.plugin.settings,
-    );
 
     this.syncCurrentFeedReference();
     this.verifySavedArticles();
@@ -1645,7 +1622,7 @@ export class RssDashboardView extends ItemView {
       void this.render();
       return;
     } else if (filter.type === "highlights") {
-      // Highlights toggle – requires saving settings and full re-render
+      // Highlights toggle - requires saving settings and full re-render
       if (!this.settings.highlights) {
         this.settings.highlights = {
           enabled: false,
@@ -1675,7 +1652,7 @@ export class RssDashboardView extends ItemView {
         this.activeStatusFilters.delete(filterType);
       }
     } else {
-      // Age filter – requires saving settings and full re-render
+      // Age filter - requires saving settings and full re-render
       this.settings.articleFilter = {
         type: filter.type as
           | "age"
@@ -2119,3 +2096,4 @@ export class RssDashboardView extends ItemView {
     return this.settings.allArticlesPageSize;
   }
 }
+
