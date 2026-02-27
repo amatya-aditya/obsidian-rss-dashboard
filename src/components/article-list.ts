@@ -2224,6 +2224,40 @@ export class ArticleList {
     const tagsListContainer = portalDropdown.createDiv({
       cls: "rss-dashboard-tag-list",
     });
+    const tagSeparator = portalDropdown.createDiv({
+      cls: "rss-dashboard-tag-item-separator",
+    });
+
+    const updateTagSeparatorVisibility = () => {
+      const hasTags = this.settings.availableTags.length > 0;
+      tagSeparator.style.display = hasTags ? "" : "none";
+    };
+
+    const deleteTagFromProfile = (tag: Tag) => {
+      const tagIndex = this.settings.availableTags.findIndex(
+        (t) => t.name === tag.name,
+      );
+      if (tagIndex === -1) {
+        return;
+      }
+
+      this.settings.availableTags.splice(tagIndex, 1);
+      this.settings.feeds.forEach((feed) => {
+        feed.items.forEach((item) => {
+          if (item.tags) {
+            item.tags = item.tags.filter((t) => t.name !== tag.name);
+          }
+        });
+      });
+
+      if (article.tags?.some((t) => t.name === tag.name)) {
+        onTagChange(tag, false);
+      }
+
+      this.persistSettings();
+      new Notice(`Tag "${tag.name}" deleted successfully!`);
+      updateTagSeparatorVisibility();
+    };
 
     const appendTagItem = (tag: Tag, checkedOverride?: boolean) => {
       const tagItem = tagsListContainer.createDiv({
@@ -2244,6 +2278,11 @@ export class ArticleList {
         text: tag.name,
       });
       tagLabel.style.setProperty("--tag-color", tag.color);
+      const deleteButton = tagItem.createEl("button", {
+        cls: "rss-dashboard-tag-delete-button",
+        attr: { title: `Delete "${tag.name}" tag`, "aria-label": "Delete tag" },
+      });
+      setIcon(deleteButton, "trash");
 
       tagCheckbox.addEventListener("change", (e) => {
         e.stopPropagation();
@@ -2260,19 +2299,22 @@ export class ArticleList {
         }, 200);
       });
 
+      deleteButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        deleteTagFromProfile(tag);
+        tagItem.remove();
+      });
+
       tagItem.appendChild(tagCheckbox);
       tagItem.appendChild(tagLabel);
+      tagItem.appendChild(deleteButton);
     };
 
     for (const tag of this.settings.availableTags) {
       appendTagItem(tag);
     }
-
-    if (this.settings.availableTags.length > 0) {
-      portalDropdown.createDiv({
-        cls: "rss-dashboard-tag-item-separator",
-      });
-    }
+    updateTagSeparatorVisibility();
 
     const inlineAddRow = portalDropdown.createDiv({
       cls: "rss-dashboard-tag-inline-add-row",

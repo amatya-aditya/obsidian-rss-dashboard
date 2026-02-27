@@ -400,6 +400,33 @@
 	flex-grow: 1;
 }
 
+.rss-dashboard-tag-delete-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	margin-left: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.rss-dashboard-tag-delete-button:hover {
+	color: var(--text-error);
+	border-color: var(--text-error);
+	background: var(--background-modifier-hover);
+}
+
+.rss-dashboard-tag-delete-button svg {
+	width: 13px;
+	height: 13px;
+}
+
 .rss-dashboard-article-tag {
 	padding: 1px 6px;
 	border-radius: 3px;
