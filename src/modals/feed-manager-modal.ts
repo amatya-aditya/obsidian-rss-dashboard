@@ -1237,9 +1237,10 @@ export class FeedManagerModal extends Modal {
 
     // Add feed button
     const addFeedBtn = buttonRowPrimary.createEl("button", {
-      text: "Add feed",
       cls: "rss-dashboard-primary-button feed-manager-add-button",
     });
+    setIcon(addFeedBtn, "plus");
+    addFeedBtn.createSpan({ text: " Add feed" });
     addFeedBtn.onclick = () => {
       new AddFeedModal(
         this.app,
@@ -1295,9 +1296,10 @@ export class FeedManagerModal extends Modal {
 
     // Delete All button
     const deleteAllBtn = buttonRowSecondary.createEl("button", {
-      text: "Delete all",
       cls: "rss-dashboard-danger-button feed-manager-delete-all-button",
     });
+    setIcon(deleteAllBtn, "trash-2");
+    deleteAllBtn.createSpan({ text: " Delete all" });
     deleteAllBtn.onclick = () => {
       this.showDeleteConfirmModal({ type: "all" });
     };
@@ -1363,7 +1365,7 @@ export class FeedManagerModal extends Modal {
         const deleteFolderBtn = folderHeader.createEl("button", {
           cls: "feed-manager-delete-folder-button",
         });
-        setIcon(deleteFolderBtn, "x");
+        setIcon(deleteFolderBtn, "trash-2");
         deleteFolderBtn.setAttribute("aria-label", "Delete folder");
         deleteFolderBtn.onclick = () => {
           this.showDeleteConfirmModal({
@@ -1378,6 +1380,12 @@ export class FeedManagerModal extends Modal {
           cls: "feed-manager-folder-name",
         });
         folderName.setText(folderPath);
+        folderName.setAttribute("title", "Click to rename folder");
+        folderName.addClass("is-editable");
+        folderName.addEventListener("click", (event) => {
+          event.stopPropagation();
+          this.startInlineFolderRename(folderName, folderPath);
+        });
 
         // Add horizontal divider below header
         folderDiv.createDiv({ cls: "feed-manager-folder-divider" });
@@ -1402,7 +1410,7 @@ export class FeedManagerModal extends Modal {
       const deleteFolderBtn = folderHeader.createEl("button", {
         cls: "feed-manager-delete-folder-button",
       });
-      setIcon(deleteFolderBtn, "x");
+      setIcon(deleteFolderBtn, "trash-2");
       deleteFolderBtn.setAttribute("aria-label", "Delete folder");
       deleteFolderBtn.onclick = () => {
         this.showDeleteConfirmModal({
@@ -1432,9 +1440,10 @@ export class FeedManagerModal extends Modal {
     row.createDiv({ text: feed.title, cls: "feed-manager-title" });
 
     const editBtn = row.createEl("button", {
-      text: "Edit",
       cls: "rss-dashboard-primary-button",
     });
+    setIcon(editBtn, "pencil");
+    editBtn.createSpan({ text: " Edit" });
     editBtn.onclick = () => {
       new EditFeedModal(this.app, this.plugin, feed, () =>
         this.onOpen(),
@@ -1442,9 +1451,10 @@ export class FeedManagerModal extends Modal {
     };
 
     const delBtn = row.createEl("button", {
-      text: "Delete",
       cls: "rss-dashboard-danger-button",
     });
+    setIcon(delBtn, "trash-2");
+    delBtn.createSpan({ text: " Delete" });
     delBtn.onclick = () => {
       this.showDeleteConfirmModal({ type: "feed", feed });
     };
@@ -1550,6 +1560,11 @@ export class FeedManagerModal extends Modal {
       text: confirmButtonText,
       cls: "rss-dashboard-danger-button",
     });
+    if (type === "all" || type === "folder" || type === "feed") {
+      confirmButton.empty();
+      setIcon(confirmButton, "trash-2");
+      confirmButton.createSpan({ text: ` ${confirmButtonText}` });
+    }
     confirmButton.onclick = () => {
       // Execute the appropriate deletion
       switch (type) {
@@ -1652,6 +1667,125 @@ export class FeedManagerModal extends Modal {
 
     // Re-render the modal
     this.onOpen();
+  }
+
+  private startInlineFolderRename(
+    nameEl: HTMLElement,
+    folderPath: string,
+  ): void {
+    const oldName = folderPath.split("/").pop() || folderPath;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = oldName;
+    input.className = "feed-manager-folder-name-input";
+    input.setAttribute("aria-label", "Rename folder");
+
+    const finish = (save: boolean) => {
+      if (!input.parentElement) return;
+
+      if (!save) {
+        input.replaceWith(nameEl);
+        return;
+      }
+
+      const nextName = input.value.trim();
+      void this.renameFolder(folderPath, nextName);
+    };
+
+    input.addEventListener("keydown", (event: KeyboardEvent) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        finish(true);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        finish(false);
+      }
+    });
+    input.addEventListener("blur", () => finish(true));
+
+    nameEl.replaceWith(input);
+    input.focus();
+    input.select();
+  }
+
+  private async renameFolder(folderPath: string, newName: string): Promise<void> {
+    const oldName = folderPath.split("/").pop() || folderPath;
+    if (newName === oldName) {
+      this.onOpen();
+      return;
+    }
+    if (!newName) {
+      new Notice("Folder name cannot be empty.");
+      this.onOpen();
+      return;
+    }
+    if (newName.includes("/")) {
+      new Notice("Folder name cannot contain '/'.");
+      this.onOpen();
+      return;
+    }
+
+    const parentPath = folderPath.includes("/")
+      ? folderPath.substring(0, folderPath.lastIndexOf("/"))
+      : "";
+    const siblings = parentPath
+      ? collectAllFolders(this.plugin.settings.folders)
+          .filter(
+            (path) =>
+              path.startsWith(`${parentPath}/`) &&
+              !path.substring(parentPath.length + 1).includes("/"),
+          )
+          .map((path) => path.substring(path.lastIndexOf("/") + 1))
+      : this.plugin.settings.folders.map((folder) => folder.name);
+
+    if (siblings.includes(newName)) {
+      new Notice(`Folder "${newName}" already exists at this level.`);
+      this.onOpen();
+      return;
+    }
+
+    const target = this.findFolderByPath(folderPath);
+    if (!target) {
+      new Notice("Folder not found.");
+      this.onOpen();
+      return;
+    }
+
+    target.name = newName;
+    target.modifiedAt = Date.now();
+
+    const newPath = parentPath ? `${parentPath}/${newName}` : newName;
+    this.plugin.settings.feeds.forEach((feed) => {
+      if (!feed.folder) return;
+      if (feed.folder === folderPath) {
+        feed.folder = newPath;
+      } else if (feed.folder.startsWith(`${folderPath}/`)) {
+        feed.folder = feed.folder.replace(folderPath, newPath);
+      }
+    });
+
+    await this.plugin.saveSettings();
+
+    const dashboardView = await this.plugin.getActiveDashboardView();
+    if (dashboardView) {
+      dashboardView.refresh();
+    }
+
+    new Notice(`Folder renamed to "${newName}".`);
+    this.onOpen();
+  }
+
+  private findFolderByPath(folderPath: string): Folder | undefined {
+    const parts = folderPath.split("/").filter(Boolean);
+    if (parts.length === 0) return undefined;
+
+    let current = this.plugin.settings.folders.find(
+      (folder) => folder.name === parts[0],
+    );
+    for (let i = 1; i < parts.length && current; i++) {
+      current = current.subfolders.find((folder) => folder.name === parts[i]);
+    }
+    return current;
   }
 
   /**

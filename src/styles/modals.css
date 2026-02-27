@@ -1116,6 +1116,20 @@
   gap: 0.5rem;
 }
 
+.feed-manager-folder-name.is-editable {
+  cursor: text;
+}
+
+.feed-manager-folder-name.is-editable:hover {
+  color: var(--text-accent);
+}
+
+.feed-manager-folder-name-input {
+  width: 100%;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
 .feed-manager-folder-count {
   font-weight: 400;
   font-size: 0.85rem;
@@ -1153,8 +1167,8 @@
 }
 
 .feed-manager-delete-folder-button svg {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
 }
 
 /* ============================================
@@ -1279,8 +1293,8 @@
 }
 
 .feed-manager-opml-button svg {
-  width: 14px;
-  height: 14px;
+  width: 11px;
+  height: 11px;
 }
 
 /* Compact button sizing for the button rows */
@@ -1288,6 +1302,24 @@
 .feed-manager-button-row .rss-dashboard-danger-button {
   padding: 0.4rem 0.8rem;
   font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.feed-manager-button-row .rss-dashboard-primary-button svg,
+.feed-manager-button-row .rss-dashboard-danger-button svg,
+.feed-manager-row .rss-dashboard-primary-button svg,
+.feed-manager-row .rss-dashboard-danger-button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.feed-manager-row .rss-dashboard-primary-button,
+.feed-manager-row .rss-dashboard-danger-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* ============================================
