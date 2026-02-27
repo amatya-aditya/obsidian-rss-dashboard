@@ -235,7 +235,9 @@
 }
 
 .rss-dashboard-filter-subheader-content {
-  transition: max-height 120ms ease, opacity 120ms ease;
+  transition:
+    max-height 120ms ease,
+    opacity 120ms ease;
 }
 
 .rss-dashboard-filter-subheader.is-collapsed
@@ -578,46 +580,6 @@
   flex-shrink: 0;
 }
 
-.rss-dashboard-mobile-zen-button {
-  display: none !important;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 40px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  color: var(--text-normal);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.rss-dashboard-mobile-zen-button:hover {
-  background: var(--background-modifier-hover);
-  border-color: var(--interactive-accent);
-}
-
-.rss-dashboard-mobile-zen-button.active {
-  background: var(--interactive-accent);
-  border-color: var(--interactive-accent);
-  color: var(--text-on-accent);
-}
-
-.rss-dashboard-mobile-zen-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.rss-dashboard-mobile-zen-icon svg {
-  width: 16px;
-  height: 16px;
-}
-
 .rss-dashboard-mobile-filter-button:hover {
   background: var(--background-modifier-hover);
   border-color: var(--interactive-accent);
@@ -829,9 +791,15 @@
   height: 15px;
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-select-with-icon .rss-dashboard-filter,
-.rss-dashboard-dropdown-controls .rss-dashboard-select-with-icon .rss-dashboard-sort,
-.rss-dashboard-dropdown-controls .rss-dashboard-select-with-icon .rss-dashboard-group {
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-select-with-icon
+  .rss-dashboard-filter,
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-select-with-icon
+  .rss-dashboard-sort,
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-select-with-icon
+  .rss-dashboard-group {
   width: 100%;
   height: 42px;
   min-height: 42px;
@@ -1047,10 +1015,6 @@
   display: none !important;
 }
 
-.rss-dashboard-mobile-zen-button {
-  display: none !important;
-}
-
 .rss-dashboard-hamburger-menu {
   display: none !important;
 }
@@ -1059,10 +1023,6 @@
 @media (max-width: 768px) {
   .rss-dashboard-mobile-filter-button {
     display: flex !important;
-  }
-
-  .rss-dashboard-mobile-zen-button {
-    display: inline-flex !important;
   }
 
   .rss-dashboard-hamburger-menu {
@@ -1074,9 +1034,6 @@
   }
 
   /* Hide hamburger menu when sidebar is open on mobile */
-  :not(.sidebar-collapsed)
-    .rss-dashboard-container
-    .rss-dashboard-mobile-zen-button,
   :not(.sidebar-collapsed)
     .rss-dashboard-container
     .rss-dashboard-mobile-filter-button,
@@ -1119,10 +1076,6 @@
     display: flex !important;
   }
 
-  .rss-dashboard-mobile-zen-button {
-    display: none !important;
-  }
-
   .rss-dashboard-hamburger-menu {
     display: block !important;
   }
@@ -1139,10 +1092,6 @@
 /* --- Desktop: > 1200px --- */
 @media (min-width: 1201px) {
   .rss-dashboard-mobile-filter-button {
-    display: none !important;
-  }
-
-  .rss-dashboard-mobile-zen-button {
     display: none !important;
   }
 
@@ -1187,11 +1136,6 @@
   outline-offset: 2px;
 }
 
-.rss-dashboard-mobile-zen-button:focus {
-  outline: 2px solid var(--interactive-accent);
-  outline-offset: 2px;
-}
-
 /*
  * Dynamic narrow-view overrides (set by ResizeObserver in article-list.ts).
  * These use !important to override the base state above when added.
@@ -1207,7 +1151,6 @@
 .rss-dashboard-articles-header.is-narrow .rss-dashboard-mobile-filter-button {
   display: flex !important;
 }
-
 
 .rss-dashboard-articles-header.is-narrow {
   padding: 8px 12px;

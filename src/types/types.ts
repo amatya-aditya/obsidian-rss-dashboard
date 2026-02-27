@@ -159,7 +159,6 @@ export interface DisplaySettings {
   mobileShowCardToolbar: boolean;
   mobileShowListToolbar: boolean;
   mobileListToolbarStyle: "left-grid" | "bottom-row" | "minimal";
-  mobileZenMode: boolean;
   defaultFilter:
     | "all"
     | "starred"
@@ -378,7 +377,6 @@ guid: "{{guid}}"
     mobileShowCardToolbar: true,
     mobileShowListToolbar: true,
     mobileListToolbarStyle: "minimal",
-    mobileZenMode: false,
     defaultFilter: "all",
     hiddenFilters: [],
     useDomainFavicons: true,

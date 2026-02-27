@@ -197,14 +197,7 @@ export class ArticleList {
         ? this.settings.display.mobileShowCardToolbar
         : this.settings.display.mobileShowListToolbar;
 
-    return showToolbarSetting && !this.settings.display.mobileZenMode;
-  }
-
-  private shouldShowZenToggle(): boolean {
-    return (
-      !!this.settings.display.mobileShowCardToolbar ||
-      !!this.settings.display.mobileShowListToolbar
-    );
+    return showToolbarSetting;
   }
 
   private getMobileListToolbarStyle(): "left-grid" | "bottom-row" | "minimal" {
@@ -224,41 +217,6 @@ export class ArticleList {
     if (result instanceof Promise) {
       void result;
     }
-  }
-
-  private renderMobileZenToggle(container: HTMLElement): void {
-    if (!this.shouldShowZenToggle()) {
-      return;
-    }
-
-    const button = container.createEl("button", {
-      cls:
-        "rss-dashboard-mobile-zen-button" +
-        (this.settings.display.mobileZenMode ? " active" : ""),
-      attr: {
-        title: this.settings.display.mobileZenMode
-          ? "Turn off Zen mode"
-          : "Turn on Zen mode",
-        "aria-label": this.settings.display.mobileZenMode
-          ? "Turn off Zen mode"
-          : "Turn on Zen mode",
-      },
-    });
-
-    const icon = button.createDiv({ cls: "rss-dashboard-mobile-zen-icon" });
-    setIcon(icon, this.settings.display.mobileZenMode ? "eye-off" : "eye");
-    button.createSpan({
-      cls: "rss-dashboard-mobile-zen-label",
-      text: this.settings.display.mobileZenMode ? "Zen On" : "Zen Off",
-    });
-
-    button.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this.settings.display.mobileZenMode =
-        !this.settings.display.mobileZenMode;
-      this.persistSettings();
-      this.render();
-    });
   }
 
   private addDocumentListener(
@@ -566,8 +524,6 @@ export class ArticleList {
     const rightSection = articlesHeader.createDiv({
       cls: "rss-dashboard-header-right",
     });
-
-    this.renderMobileZenToggle(rightSection);
 
     const mobileFilterButton = rightSection.createEl("button", {
       cls: "rss-dashboard-mobile-filter-button rss-dashboard-filter-trigger",
@@ -2576,7 +2532,10 @@ export class ArticleList {
       const syncMobileViewportHeight = () => {
         const viewportHeight =
           targetWindow.visualViewport?.height ?? targetWindow.innerHeight;
-        portalDropdown.style.setProperty("--rss-mobile-vvh", `${viewportHeight}px`);
+        portalDropdown.style.setProperty(
+          "--rss-mobile-vvh",
+          `${viewportHeight}px`,
+        );
       };
       syncMobileViewportHeight();
 
@@ -2585,8 +2544,14 @@ export class ArticleList {
         visualViewport.addEventListener("resize", syncMobileViewportHeight);
         visualViewport.addEventListener("scroll", syncMobileViewportHeight);
         removeViewportListener = () => {
-          visualViewport.removeEventListener("resize", syncMobileViewportHeight);
-          visualViewport.removeEventListener("scroll", syncMobileViewportHeight);
+          visualViewport.removeEventListener(
+            "resize",
+            syncMobileViewportHeight,
+          );
+          visualViewport.removeEventListener(
+            "scroll",
+            syncMobileViewportHeight,
+          );
         };
       } else {
         targetWindow.addEventListener("resize", syncMobileViewportHeight);
