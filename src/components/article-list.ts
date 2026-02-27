@@ -829,6 +829,77 @@ export class ArticleList {
       this.callbacks.onToggleViewStyle("card");
     });
 
+    if (isDropdown && this.isMobileViewport()) {
+      const toolbarModeRow = articleControls.createDiv({
+        cls: "rss-dashboard-toolbar-mode-row",
+      });
+      toolbarModeRow.createSpan({
+        cls: "rss-dashboard-toolbar-mode-label",
+        text: "Toolbar:",
+      });
+
+      const toolbarModeSelect = toolbarModeRow.createEl("select", {
+        cls: "rss-dashboard-toolbar-mode-select",
+        attr: { "aria-label": "Mobile toolbar mode" },
+      });
+
+      if (this.settings.viewStyle === "list") {
+        toolbarModeSelect.createEl("option", {
+          text: "2x2",
+          value: "left-grid",
+        });
+        toolbarModeSelect.createEl("option", {
+          text: "Bottom row",
+          value: "bottom-row",
+        });
+        toolbarModeSelect.createEl("option", {
+          text: "Single read/unread",
+          value: "minimal",
+        });
+        toolbarModeSelect.createEl("option", {
+          text: "None",
+          value: "none",
+        });
+        toolbarModeSelect.value = this.settings.display.mobileShowListToolbar
+          ? this.getMobileListToolbarStyle()
+          : "none";
+      } else {
+        toolbarModeSelect.createEl("option", {
+          text: "Bottom",
+          value: "bottom",
+        });
+        toolbarModeSelect.createEl("option", {
+          text: "None",
+          value: "none",
+        });
+        toolbarModeSelect.value = this.settings.display.mobileShowCardToolbar
+          ? "bottom"
+          : "none";
+      }
+
+      toolbarModeSelect.addEventListener("change", (e: Event) => {
+        const value = (e.target as HTMLSelectElement).value;
+
+        if (this.settings.viewStyle === "list") {
+          if (value === "none") {
+            this.settings.display.mobileShowListToolbar = false;
+          } else if (
+            value === "left-grid" ||
+            value === "bottom-row" ||
+            value === "minimal"
+          ) {
+            this.settings.display.mobileShowListToolbar = true;
+            this.settings.display.mobileListToolbarStyle = value;
+          }
+        } else {
+          this.settings.display.mobileShowCardToolbar = value !== "none";
+        }
+
+        this.persistSettings();
+        this.render();
+      });
+    }
+
     const dashboardRefreshButton = articleControls.createEl("button", {
       cls: "rss-dashboard-refresh-button",
     });
