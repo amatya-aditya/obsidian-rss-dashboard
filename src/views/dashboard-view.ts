@@ -342,6 +342,9 @@ export class RssDashboardView extends ItemView {
       this.activeTagFilters,
       this.filterLogic,
       this.currentFeed?.url,
+      this.currentFeed === null &&
+        this.currentFolder === null &&
+        this.currentTag === null,
     );
     this.articleList.render();
 

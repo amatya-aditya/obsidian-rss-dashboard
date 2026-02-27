@@ -90,6 +90,7 @@ export class ArticleList {
   private pageSize: number;
   private totalArticles: number;
   private currentFeedUrl: string | null = null;
+  private showFeedSource: boolean = true;
   private statusFilters: Set<string>;
   private tagFilters: Set<string>;
   private filterLogic: "AND" | "OR";
@@ -119,6 +120,7 @@ export class ArticleList {
     tagFilters: Set<string>,
     filterLogic: "AND" | "OR",
     currentFeedUrl?: string | null,
+    showFeedSource: boolean = true,
   ) {
     this.container = container;
     this.settings = settings;
@@ -134,6 +136,7 @@ export class ArticleList {
     this.tagFilters = tagFilters;
     this.filterLogic = filterLogic;
     this.currentFeedUrl = currentFeedUrl || null;
+    this.showFeedSource = showFeedSource;
   }
 
   public destroy(): void {
@@ -1595,12 +1598,14 @@ export class ArticleList {
       } else {
         actionsEl.addClass("rss-dashboard-grid-actions-empty");
       }
-      const sourceEl = mainGrid.createDiv("rss-dashboard-grid-source");
-      const metaEl = sourceEl.createDiv("rss-dashboard-article-meta");
-      this.renderFeedIcon(metaEl, article.feedUrl, article.mediaType);
-      metaEl
-        .createSpan("rss-dashboard-article-source")
-        .setText(article.feedTitle);
+      if (this.showFeedSource) {
+        const sourceEl = mainGrid.createDiv("rss-dashboard-grid-source");
+        const metaEl = sourceEl.createDiv("rss-dashboard-article-meta");
+        this.renderFeedIcon(metaEl, article.feedUrl, article.mediaType);
+        metaEl
+          .createSpan("rss-dashboard-article-source")
+          .setText(article.feedTitle);
+      }
       if (showListToolbar && useBottomRow) {
         const footerToolbar = contentEl.createDiv(
           "rss-dashboard-action-toolbar rss-dashboard-list-toolbar rss-dashboard-list-toolbar-bottom-row",
@@ -1658,19 +1663,21 @@ export class ArticleList {
         cardTitleEl.textContent = article.title;
       }
 
-      const articleMeta = cardContent.createDiv({
-        cls: "rss-dashboard-article-meta",
-      });
+      if (this.showFeedSource) {
+        const articleMeta = cardContent.createDiv({
+          cls: "rss-dashboard-article-meta",
+        });
 
-      const feedContainer = articleMeta.createDiv({
-        cls: "rss-dashboard-article-feed-container",
-      });
+        const feedContainer = articleMeta.createDiv({
+          cls: "rss-dashboard-article-feed-container",
+        });
 
-      this.renderFeedIcon(feedContainer, article.feedUrl, article.mediaType);
-      feedContainer.createDiv({
-        cls: "rss-dashboard-article-feed",
-        text: article.feedTitle,
-      });
+        this.renderFeedIcon(feedContainer, article.feedUrl, article.mediaType);
+        feedContainer.createDiv({
+          cls: "rss-dashboard-article-feed",
+          text: article.feedTitle,
+        });
+      }
 
       let coverImgSrc = article.coverImage;
       if (!coverImgSrc && article.content) {
@@ -1993,12 +2000,17 @@ export class ArticleList {
     const portalDropdown = targetBody.createDiv({
       cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal",
     });
+    const tagsListContainer = portalDropdown.createDiv({
+      cls: "rss-dashboard-tag-list",
+    });
 
-    for (const tag of this.settings.availableTags) {
-      const tagItem = portalDropdown.createDiv({
+    const appendTagItem = (tag: Tag, checkedOverride?: boolean) => {
+      const tagItem = tagsListContainer.createDiv({
         cls: "rss-dashboard-tag-item",
       });
-      const hasTag = article.tags?.some((t) => t.name === tag.name) || false;
+      const hasTag =
+        checkedOverride ??
+        (article.tags?.some((t) => t.name === tag.name) || false);
 
       const tagCheckbox = tagItem.createEl("input", {
         attr: { type: "checkbox" },
@@ -2029,8 +2041,91 @@ export class ArticleList {
 
       tagItem.appendChild(tagCheckbox);
       tagItem.appendChild(tagLabel);
-      portalDropdown.appendChild(tagItem);
+    };
+
+    for (const tag of this.settings.availableTags) {
+      appendTagItem(tag);
     }
+
+    if (this.settings.availableTags.length > 0) {
+      portalDropdown.createDiv({
+        cls: "rss-dashboard-tag-item-separator",
+      });
+    }
+
+    const inlineAddRow = portalDropdown.createDiv({
+      cls: "rss-dashboard-tag-inline-add-row",
+    });
+
+    const colorInput = inlineAddRow.createEl("input", {
+      attr: {
+        type: "color",
+        value: "#3498db",
+      },
+      cls: "rss-dashboard-tag-inline-color",
+    });
+
+    const nameInput = inlineAddRow.createEl("input", {
+      attr: {
+        type: "text",
+        placeholder: "Add new tag...",
+        autocomplete: "off",
+      },
+      cls: "rss-dashboard-tag-inline-input",
+    });
+    nameInput.spellcheck = false;
+
+    const addButton = inlineAddRow.createEl("button", {
+      cls: "rss-dashboard-tag-inline-button",
+      attr: { title: "Add tag" },
+    });
+    setIcon(addButton, "plus");
+
+    const submitInlineTag = () => {
+      const tagName = nameInput.value.trim();
+      const tagColor = colorInput.value;
+
+      if (!tagName) {
+        new Notice("Please enter a tag name!");
+        return;
+      }
+
+      if (
+        this.settings.availableTags.some(
+          (tag) => tag.name.toLowerCase() === tagName.toLowerCase(),
+        )
+      ) {
+        new Notice("A tag with this name already exists!");
+        return;
+      }
+
+      const newTag: Tag = {
+        name: tagName,
+        color: tagColor,
+      };
+
+      this.settings.availableTags.push(newTag);
+      this.persistSettings();
+      onTagChange(newTag, true);
+      appendTagItem(newTag, true);
+
+      nameInput.value = "";
+      requestAnimationFrame(() => nameInput.focus());
+      new Notice(`Tag "${tagName}" added`);
+    };
+
+    addButton.addEventListener("click", (e) => {
+      e.stopPropagation();
+      submitInlineTag();
+    });
+
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        submitInlineTag();
+      }
+    });
 
     targetBody.appendChild(portalDropdown);
     portalDropdown.addClass("rss-dashboard-tags-dropdown-content-portal");
