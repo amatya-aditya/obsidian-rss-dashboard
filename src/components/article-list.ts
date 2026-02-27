@@ -104,6 +104,7 @@ export class ArticleList {
   }> = [];
   private activePortal: HTMLElement | null = null;
   private activeFilterToggleBtn: HTMLElement | null = null;
+  private tagsDropdownCleanup: (() => void) | null = null;
 
   constructor(
     container: HTMLElement,
@@ -149,6 +150,10 @@ export class ArticleList {
       target.removeEventListener(type, listener);
     });
     this.documentListeners = [];
+    if (this.tagsDropdownCleanup) {
+      this.tagsDropdownCleanup();
+      this.tagsDropdownCleanup = null;
+    }
   }
 
   private closeActiveFilterMenu(): void {
@@ -2323,18 +2328,57 @@ export class ArticleList {
     article: FeedItem,
     onTagChange: (tag: Tag, checked: boolean) => void,
   ): void {
+    if (this.tagsDropdownCleanup) {
+      this.tagsDropdownCleanup();
+      this.tagsDropdownCleanup = null;
+    }
+
     const targetDocument = toggleElement.ownerDocument;
     const targetBody = targetDocument.body;
+    const targetWindow = targetDocument.defaultView || window;
+    const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
 
     targetDocument
-      .querySelectorAll(".rss-dashboard-tags-dropdown-content-portal")
+      .querySelectorAll(
+        ".rss-dashboard-tags-dropdown-content-portal, .rss-dashboard-tags-sheet-backdrop",
+      )
       .forEach((el) => {
         (el as HTMLElement).parentNode?.removeChild(el);
       });
 
+    const sheetBackdrop = isMobile
+      ? targetBody.createDiv({
+          cls: "rss-dashboard-tags-sheet-backdrop",
+        })
+      : null;
+
     const portalDropdown = targetBody.createDiv({
       cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal",
     });
+    if (isMobile) {
+      portalDropdown.addClass("rss-dashboard-tags-mobile-sheet");
+      const sheetHeader = portalDropdown.createDiv({
+        cls: "rss-dashboard-tags-sheet-header",
+      });
+      sheetHeader.createDiv({
+        cls: "rss-dashboard-tags-sheet-title",
+        text: "Manage tags",
+      });
+      const sheetActions = sheetHeader.createDiv({
+        cls: "rss-dashboard-tags-sheet-actions",
+      });
+      const doneBtn = sheetActions.createEl("button", {
+        cls: "rss-dashboard-tags-sheet-btn rss-dashboard-tags-sheet-btn-done",
+        text: "Done",
+      });
+      doneBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.tagsDropdownCleanup) {
+          this.tagsDropdownCleanup();
+        }
+      });
+    }
     const tagsListContainer = portalDropdown.createDiv({
       cls: "rss-dashboard-tag-list",
     });
@@ -2507,6 +2551,58 @@ export class ArticleList {
     targetBody.appendChild(portalDropdown);
     portalDropdown.addClass("rss-dashboard-tags-dropdown-content-portal");
 
+    let removeDesktopListener: (() => void) | null = null;
+    let removeViewportListener: (() => void) | null = null;
+    let isClosed = false;
+
+    const closeDropdown = () => {
+      if (isClosed) {
+        return;
+      }
+      isClosed = true;
+      portalDropdown.remove();
+      sheetBackdrop?.remove();
+      removeDesktopListener?.();
+      removeDesktopListener = null;
+      removeViewportListener?.();
+      removeViewportListener = null;
+      if (this.tagsDropdownCleanup === closeDropdown) {
+        this.tagsDropdownCleanup = null;
+      }
+    };
+    this.tagsDropdownCleanup = closeDropdown;
+
+    if (isMobile) {
+      const syncMobileViewportHeight = () => {
+        const viewportHeight =
+          targetWindow.visualViewport?.height ?? targetWindow.innerHeight;
+        portalDropdown.style.setProperty("--rss-mobile-vvh", `${viewportHeight}px`);
+      };
+      syncMobileViewportHeight();
+
+      const visualViewport = targetWindow.visualViewport;
+      if (visualViewport) {
+        visualViewport.addEventListener("resize", syncMobileViewportHeight);
+        visualViewport.addEventListener("scroll", syncMobileViewportHeight);
+        removeViewportListener = () => {
+          visualViewport.removeEventListener("resize", syncMobileViewportHeight);
+          visualViewport.removeEventListener("scroll", syncMobileViewportHeight);
+        };
+      } else {
+        targetWindow.addEventListener("resize", syncMobileViewportHeight);
+        removeViewportListener = () => {
+          targetWindow.removeEventListener("resize", syncMobileViewportHeight);
+        };
+      }
+
+      if (sheetBackdrop) {
+        sheetBackdrop.addEventListener("click", () => {
+          closeDropdown();
+        });
+      }
+      return;
+    }
+
     const rect = toggleElement.getBoundingClientRect();
     const dropdownRect = portalDropdown.getBoundingClientRect();
     const appContainer =
@@ -2524,7 +2620,6 @@ export class ArticleList {
       left = appContainerRect.left;
     }
 
-    const targetWindow = targetDocument.defaultView || window;
     if (top + dropdownRect.height > targetWindow.innerHeight) {
       top = targetWindow.innerHeight - dropdownRect.height - 5;
     }
@@ -2533,13 +2628,18 @@ export class ArticleList {
     portalDropdown.style.top = `${top}px`;
 
     targetWindow.setTimeout(() => {
+      if (isClosed) {
+        return;
+      }
       const handleClickOutside = (ev: MouseEvent) => {
         if (portalDropdown && !portalDropdown.contains(ev.target as Node)) {
-          portalDropdown.remove();
-          targetDocument.removeEventListener("mousedown", handleClickOutside);
+          closeDropdown();
         }
       };
       targetDocument.addEventListener("mousedown", handleClickOutside);
+      removeDesktopListener = () => {
+        targetDocument.removeEventListener("mousedown", handleClickOutside);
+      };
     }, 0);
   }
 

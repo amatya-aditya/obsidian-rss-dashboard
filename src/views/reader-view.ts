@@ -50,9 +50,11 @@ export class ReaderView extends ItemView {
   private starToggleButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
   private tagsDropdownPortal: HTMLElement | null = null;
+  private tagsDropdownBackdrop: HTMLElement | null = null;
   private tagsDropdownOutsideHandler: ((event: MouseEvent) => void) | null =
     null;
   private tagsDropdownDocument: Document | null = null;
+  private tagsDropdownViewportCleanup: (() => void) | null = null;
 
   public setReturnLeaf(leaf: WorkspaceLeaf | null): void {
     this.returnLeaf = leaf;
@@ -970,10 +972,39 @@ export class ReaderView extends ItemView {
     const targetDocument = anchor.ownerDocument;
     const targetBody = targetDocument.body;
     const targetWindow = targetDocument.defaultView || window;
+    const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
+
+    if (isMobile) {
+      this.tagsDropdownBackdrop = targetBody.createDiv({
+        cls: "rss-dashboard-tags-sheet-backdrop",
+      });
+    }
 
     const portalDropdown = targetBody.createDiv({
       cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal rss-reader-tags-dropdown-portal",
     });
+    if (isMobile) {
+      portalDropdown.addClass("rss-dashboard-tags-mobile-sheet");
+      const sheetHeader = portalDropdown.createDiv({
+        cls: "rss-dashboard-tags-sheet-header",
+      });
+      sheetHeader.createDiv({
+        cls: "rss-dashboard-tags-sheet-title",
+        text: "Manage tags",
+      });
+      const sheetActions = sheetHeader.createDiv({
+        cls: "rss-dashboard-tags-sheet-actions",
+      });
+      const doneBtn = sheetActions.createEl("button", {
+        cls: "rss-dashboard-tags-sheet-btn rss-dashboard-tags-sheet-btn-done",
+        text: "Done",
+      });
+      doneBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeTagsDropdownPortal();
+      });
+    }
     const tagsListContainer = portalDropdown.createDiv({
       cls: "rss-dashboard-tag-list",
     });
@@ -1107,6 +1138,35 @@ export class ReaderView extends ItemView {
       this.contentEl.closest(".workspace-leaf-content") || targetBody;
     const appContainerRect = appContainer.getBoundingClientRect();
 
+    if (isMobile) {
+      const syncMobileViewportHeight = () => {
+        const viewportHeight =
+          targetWindow.visualViewport?.height ?? targetWindow.innerHeight;
+        portalDropdown.style.setProperty("--rss-mobile-vvh", `${viewportHeight}px`);
+      };
+      syncMobileViewportHeight();
+
+      const visualViewport = targetWindow.visualViewport;
+      if (visualViewport) {
+        visualViewport.addEventListener("resize", syncMobileViewportHeight);
+        visualViewport.addEventListener("scroll", syncMobileViewportHeight);
+        this.tagsDropdownViewportCleanup = () => {
+          visualViewport.removeEventListener("resize", syncMobileViewportHeight);
+          visualViewport.removeEventListener("scroll", syncMobileViewportHeight);
+        };
+      } else {
+        targetWindow.addEventListener("resize", syncMobileViewportHeight);
+        this.tagsDropdownViewportCleanup = () => {
+          targetWindow.removeEventListener("resize", syncMobileViewportHeight);
+        };
+      }
+
+      this.tagsDropdownBackdrop?.addEventListener("click", () => {
+        this.closeTagsDropdownPortal();
+      });
+      return;
+    }
+
     let left = rect.right;
     let top = rect.top;
 
@@ -1141,6 +1201,11 @@ export class ReaderView extends ItemView {
   }
 
   private closeTagsDropdownPortal(): void {
+    if (this.tagsDropdownBackdrop) {
+      this.tagsDropdownBackdrop.remove();
+      this.tagsDropdownBackdrop = null;
+    }
+
     if (this.tagsDropdownPortal) {
       this.tagsDropdownPortal.remove();
       this.tagsDropdownPortal = null;
@@ -1151,6 +1216,11 @@ export class ReaderView extends ItemView {
         "mousedown",
         this.tagsDropdownOutsideHandler,
       );
+    }
+
+    if (this.tagsDropdownViewportCleanup) {
+      this.tagsDropdownViewportCleanup();
+      this.tagsDropdownViewportCleanup = null;
     }
 
     this.tagsDropdownOutsideHandler = null;
