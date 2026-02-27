@@ -6,6 +6,7 @@ import {
   App,
   Setting,
   Platform,
+  Notice,
 } from "obsidian";
 import { setIcon } from "obsidian";
 import {
@@ -48,6 +49,10 @@ export class ReaderView extends ItemView {
   private turndownService = new TurndownService();
   private readToggleButton: HTMLElement | null = null;
   private starToggleButton: HTMLElement | null = null;
+  private tagsDropdownPortal: HTMLElement | null = null;
+  private tagsDropdownOutsideHandler: ((event: MouseEvent) => void) | null =
+    null;
+  private tagsDropdownDocument: Document | null = null;
 
   public isPodcastPlaying(): boolean {
     if (!this.podcastPlayer) return false;
@@ -788,6 +793,7 @@ export class ReaderView extends ItemView {
   }
 
   onClose(): Promise<void> {
+    this.closeTagsDropdownPortal();
     this.contentEl.empty();
     return Promise.resolve();
   }
@@ -939,23 +945,205 @@ export class ReaderView extends ItemView {
   }
 
   private showTagsDropdown(event: MouseEvent, item: FeedItem): void {
-    const menu = new Menu();
+    event.stopPropagation();
+    const anchor = event.currentTarget;
+    if (!(anchor instanceof HTMLElement)) {
+      return;
+    }
+    this.createTagsDropdownPortal(anchor, item);
+  }
 
-    // Add available tags
+  private createTagsDropdownPortal(anchor: HTMLElement, item: FeedItem): void {
+    this.closeTagsDropdownPortal();
+
+    const targetDocument = anchor.ownerDocument;
+    const targetBody = targetDocument.body;
+    const targetWindow = targetDocument.defaultView || window;
+
+    const portalDropdown = targetBody.createDiv({
+      cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal rss-reader-tags-dropdown-portal",
+    });
+    const tagsListContainer = portalDropdown.createDiv({
+      cls: "rss-dashboard-tag-list",
+    });
+    this.tagsDropdownPortal = portalDropdown;
+    this.tagsDropdownDocument = targetDocument;
+
+    const appendTagItem = (tag: Tag, checkedOverride?: boolean) => {
+      const tagItem = tagsListContainer.createDiv({
+        cls: "rss-dashboard-tag-item",
+      });
+      const hasTag =
+        checkedOverride ??
+        (item.tags?.some((existing) => existing.name === tag.name) || false);
+
+      const tagCheckbox = tagItem.createEl("input", {
+        attr: { type: "checkbox" },
+        cls: "rss-dashboard-tag-checkbox",
+      });
+      tagCheckbox.checked = hasTag;
+
+      const tagLabel = tagItem.createDiv({
+        cls: "rss-dashboard-tag-label",
+        text: tag.name,
+      });
+      tagLabel.style.setProperty("--tag-color", tag.color);
+
+      tagCheckbox.addEventListener("change", (e) => {
+        e.stopPropagation();
+        const isChecked = (e.target as HTMLInputElement).checked;
+        this.toggleTag(item, tag, isChecked);
+      });
+
+      tagItem.addEventListener("click", (e) => {
+        if (e.target === tagCheckbox) {
+          return;
+        }
+        tagCheckbox.checked = !tagCheckbox.checked;
+        this.toggleTag(item, tag, tagCheckbox.checked);
+      });
+
+      tagItem.appendChild(tagCheckbox);
+      tagItem.appendChild(tagLabel);
+    };
+
     for (const tag of this.settings.availableTags) {
-      const hasTag = item.tags?.some((t) => t.name === tag.name) || false;
+      appendTagItem(tag);
+    }
 
-      menu.addItem((menuItem: MenuItem) => {
-        menuItem
-          .setTitle(tag.name)
-          .setIcon(hasTag ? "check" : "tag")
-          .onClick(() => {
-            this.toggleTag(item, tag, !hasTag);
-          });
+    if (this.settings.availableTags.length > 0) {
+      portalDropdown.createDiv({
+        cls: "rss-dashboard-tag-item-separator",
       });
     }
 
-    menu.showAtMouseEvent(event);
+    const inlineAddRow = portalDropdown.createDiv({
+      cls: "rss-dashboard-tag-inline-add-row",
+    });
+
+    const colorInput = inlineAddRow.createEl("input", {
+      attr: {
+        type: "color",
+        value: "#3498db",
+      },
+      cls: "rss-dashboard-tag-inline-color",
+    });
+
+    const nameInput = inlineAddRow.createEl("input", {
+      attr: {
+        type: "text",
+        placeholder: "Add new tag...",
+        autocomplete: "off",
+      },
+      cls: "rss-dashboard-tag-inline-input",
+    });
+    nameInput.spellcheck = false;
+
+    const addButton = inlineAddRow.createEl("button", {
+      cls: "rss-dashboard-tag-inline-button",
+      attr: { title: "Add tag" },
+    });
+    setIcon(addButton, "plus");
+
+    const submitInlineTag = () => {
+      const tagName = nameInput.value.trim();
+      const tagColor = colorInput.value;
+
+      if (!tagName) {
+        new Notice("Please enter a tag name!");
+        return;
+      }
+
+      if (
+        this.settings.availableTags.some(
+          (tag) => tag.name.toLowerCase() === tagName.toLowerCase(),
+        )
+      ) {
+        new Notice("A tag with this name already exists!");
+        return;
+      }
+
+      const newTag: Tag = {
+        name: tagName,
+        color: tagColor,
+      };
+
+      this.settings.availableTags.push(newTag);
+      this.toggleTag(item, newTag, true);
+      appendTagItem(newTag, true);
+
+      nameInput.value = "";
+      requestAnimationFrame(() => nameInput.focus());
+      new Notice(`Tag "${tagName}" added`);
+    };
+
+    addButton.addEventListener("click", (e) => {
+      e.stopPropagation();
+      submitInlineTag();
+    });
+
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        submitInlineTag();
+      }
+    });
+
+    const rect = anchor.getBoundingClientRect();
+    const dropdownRect = portalDropdown.getBoundingClientRect();
+    const appContainer =
+      this.contentEl.closest(".workspace-leaf-content") || targetBody;
+    const appContainerRect = appContainer.getBoundingClientRect();
+
+    let left = rect.right;
+    let top = rect.top;
+
+    if (left + dropdownRect.width > appContainerRect.right) {
+      left = rect.left - dropdownRect.width;
+    }
+
+    if (left < appContainerRect.left) {
+      left = appContainerRect.left;
+    }
+
+    if (top + dropdownRect.height > targetWindow.innerHeight) {
+      top = targetWindow.innerHeight - dropdownRect.height - 5;
+    }
+
+    portalDropdown.style.left = `${left}px`;
+    portalDropdown.style.top = `${top}px`;
+
+    targetWindow.setTimeout(() => {
+      const outsideHandler = (ev: MouseEvent) => {
+        if (
+          this.tagsDropdownPortal &&
+          !this.tagsDropdownPortal.contains(ev.target as Node) &&
+          !anchor.contains(ev.target as Node)
+        ) {
+          this.closeTagsDropdownPortal();
+        }
+      };
+      this.tagsDropdownOutsideHandler = outsideHandler;
+      targetDocument.addEventListener("mousedown", outsideHandler);
+    }, 0);
+  }
+
+  private closeTagsDropdownPortal(): void {
+    if (this.tagsDropdownPortal) {
+      this.tagsDropdownPortal.remove();
+      this.tagsDropdownPortal = null;
+    }
+
+    if (this.tagsDropdownOutsideHandler && this.tagsDropdownDocument) {
+      this.tagsDropdownDocument.removeEventListener(
+        "mousedown",
+        this.tagsDropdownOutsideHandler,
+      );
+    }
+
+    this.tagsDropdownOutsideHandler = null;
+    this.tagsDropdownDocument = null;
   }
 
   private toggleTag(item: FeedItem, tag: Tag, add: boolean): void {

@@ -322,6 +322,70 @@
 	background-color: var(--background-modifier-hover);
 }
 
+.rss-dashboard-tag-item-separator {
+	height: 1px;
+	background-color: var(--background-modifier-border);
+	margin: 4px 0;
+}
+
+.rss-dashboard-tag-inline-add-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 8px;
+}
+
+.rss-dashboard-tag-inline-color {
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	background: transparent;
+}
+
+.rss-dashboard-tag-inline-input {
+	flex: 1;
+	min-width: 0;
+	padding: 4px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: 12px;
+}
+
+.rss-dashboard-tag-inline-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.rss-dashboard-tag-inline-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.rss-dashboard-tag-inline-button:hover {
+	color: var(--text-normal);
+	border-color: var(--interactive-accent);
+}
+
+.rss-dashboard-tag-inline-button svg {
+	width: 14px;
+	height: 14px;
+}
+
 .rss-dashboard-tag-checkbox {
 	margin: 0;
 	cursor: pointer;
