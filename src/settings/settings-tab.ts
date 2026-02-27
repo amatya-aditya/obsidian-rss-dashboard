@@ -410,6 +410,49 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
+    new Setting(containerEl)
+      .setName("Default filter")
+      .setDesc(
+        "Choose which filter to show by default when opening the dashboard",
+      )
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("all", "All items")
+          .addOption("starred", "Starred items")
+          .addOption("unread", "Unread items")
+          .addOption("read", "Read items")
+          .addOption("saved", "Saved items")
+          .addOption("videos", "Videos")
+          .addOption("podcasts", "Podcasts")
+          .setValue(this.plugin.settings.display.defaultFilter)
+          .onChange(async (value: string) => {
+            this.plugin.settings.display.defaultFilter = value as
+              | "all"
+              | "starred"
+              | "unread"
+              | "read"
+              | "saved"
+              | "videos"
+              | "podcasts";
+
+            // If the new default filter is hidden, show a warning
+            const hiddenFilters =
+              this.plugin.settings.display.hiddenFilters || [];
+            if (hiddenFilters.includes(value)) {
+              new Notice(
+                `Warning: "${value}" filter is currently hidden. Consider showing it first.`,
+              );
+            }
+
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      );
+
     new Setting(containerEl).setName("Mobile toolbar").setHeading();
 
     new Setting(containerEl)
@@ -491,49 +534,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     //         }
     //       }),
     //   );
-
-    new Setting(containerEl)
-      .setName("Default filter")
-      .setDesc(
-        "Choose which filter to show by default when opening the dashboard",
-      )
-      .addDropdown((dropdown) =>
-        dropdown
-          .addOption("all", "All items")
-          .addOption("starred", "Starred items")
-          .addOption("unread", "Unread items")
-          .addOption("read", "Read items")
-          .addOption("saved", "Saved items")
-          .addOption("videos", "Videos")
-          .addOption("podcasts", "Podcasts")
-          .setValue(this.plugin.settings.display.defaultFilter)
-          .onChange(async (value: string) => {
-            this.plugin.settings.display.defaultFilter = value as
-              | "all"
-              | "starred"
-              | "unread"
-              | "read"
-              | "saved"
-              | "videos"
-              | "podcasts";
-
-            // If the new default filter is hidden, show a warning
-            const hiddenFilters =
-              this.plugin.settings.display.hiddenFilters || [];
-            if (hiddenFilters.includes(value)) {
-              new Notice(
-                `Warning: "${value}" filter is currently hidden. Consider showing it first.`,
-              );
-            }
-
-            await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
-          }),
-      );
 
     // Add separator
     containerEl.createEl("hr", { cls: "rss-dashboard-settings-separator" });
