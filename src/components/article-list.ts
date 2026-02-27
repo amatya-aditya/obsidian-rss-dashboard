@@ -403,7 +403,7 @@ export class ArticleList {
 
     const hasTags = tags.length > 0;
     if (!hasTags && existingContainers.length > 0) {
-      existingContainers.forEach((container) => container.empty());
+      existingContainers.forEach((container) => container.remove());
       return;
     }
 
@@ -412,15 +412,12 @@ export class ArticleList {
         const cardContent = articleEl.querySelector<HTMLElement>(
           ".rss-dashboard-card-content",
         );
-        const actionToolbar = cardContent?.querySelector(
-          ".rss-dashboard-action-toolbar",
-        );
-        if (cardContent && actionToolbar) {
-          const newContainer = cardContent.createDiv({
-            cls: "rss-dashboard-article-tags",
-          });
-          cardContent.insertBefore(newContainer, actionToolbar);
-          existingContainers.push(newContainer);
+        if (cardContent) {
+          existingContainers.push(
+            cardContent.createDiv({
+              cls: "rss-dashboard-article-tags",
+            }),
+          );
         }
       } else {
         const toolbar = articleEl.querySelector<HTMLElement>(
@@ -1597,55 +1594,7 @@ export class ArticleList {
           window.setTimeout(() => {
             articleEl.classList.remove("rss-dashboard-tag-change-feedback");
           }, 200);
-          let tagsContainer = articleEl.querySelector(".rss-dashboard-article-tags");
-          if (!tagsContainer) {
-            const cardContent =
-              articleEl.querySelector(".rss-dashboard-card-content") || articleEl;
-            const actionToolbar = cardContent.querySelector(
-              ".rss-dashboard-action-toolbar",
-            );
-            if (actionToolbar) {
-              tagsContainer = (cardContent as HTMLElement).createDiv({
-                cls: "rss-dashboard-article-tags",
-              });
-              cardContent.insertBefore(tagsContainer, actionToolbar);
-            }
-          } else {
-            while (tagsContainer.firstChild) {
-              tagsContainer.removeChild(tagsContainer.firstChild);
-            }
-          }
-          if (tagsContainer && article.tags && article.tags.length > 0) {
-            const tagsToShow = article.tags.slice(0, MAX_VISIBLE_TAGS);
-            tagsToShow.forEach((tagItem) => {
-              if (tagsContainer) {
-                const tagEl = (tagsContainer as HTMLElement).createDiv({
-                  cls: "rss-dashboard-article-tag",
-                  text: tagItem.name,
-                });
-                tagEl.style.setProperty(
-                  "--tag-color",
-                  tagItem.color || "var(--interactive-accent)",
-                );
-              }
-            });
-            if (article.tags.length > MAX_VISIBLE_TAGS && tagsContainer) {
-              (tagsContainer as HTMLElement).createDiv({
-                cls: "rss-dashboard-tag-overflow",
-                text: `+${article.tags.length - MAX_VISIBLE_TAGS}`,
-                attr: {
-                  title: article.tags
-                    .slice(MAX_VISIBLE_TAGS)
-                    .map((t) => t.name)
-                    .join(", "),
-                },
-              });
-            }
-          } else if (tagsContainer) {
-            while (tagsContainer.firstChild) {
-              tagsContainer.removeChild(tagsContainer.firstChild);
-            }
-          }
+          this.syncArticleTags(articleEl, article);
           void articleEl.offsetHeight;
         } else {
           const tempIndicator = document.body.createDiv({
@@ -1916,8 +1865,11 @@ export class ArticleList {
       }
 
       if (this.shouldShowToolbarForView("card")) {
-        const actionToolbar = cardContent.createDiv({
-          cls: "rss-dashboard-action-toolbar",
+        const cardFooter = card.createEl("footer", {
+          cls: "rss-dashboard-card-footer",
+        });
+        const actionToolbar = cardFooter.createDiv({
+          cls: "rss-dashboard-action-toolbar rss-dashboard-card-toolbar",
         });
         this.createArticleActionButtons(actionToolbar, article, "full");
 
