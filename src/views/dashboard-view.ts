@@ -130,12 +130,14 @@ export class RssDashboardView extends ItemView {
     );
 
     this.registerEvent(
-      (this.app.workspace as unknown as {
-        on: (
-          name: string,
-          callback: (payload: FiltersUpdatedEventPayload) => void,
-        ) => unknown;
-      }).on(
+      (
+        this.app.workspace as unknown as {
+          on: (
+            name: string,
+            callback: (payload: FiltersUpdatedEventPayload) => void,
+          ) => unknown;
+        }
+      ).on(
         "rss-dashboard:filters-updated",
         (payload: FiltersUpdatedEventPayload) => {
           this.syncCurrentFeedReference();
@@ -211,7 +213,6 @@ export class RssDashboardView extends ItemView {
   }
 
   render(): void {
-
     this.syncCurrentFeedReference();
     this.verifySavedArticles();
 
@@ -606,7 +607,9 @@ export class RssDashboardView extends ItemView {
       rules: [],
     };
 
-    const hasGlobalRules = KeywordFilterService.hasActiveRules(globalFilters.rules);
+    const hasGlobalRules = KeywordFilterService.hasActiveRules(
+      globalFilters.rules,
+    );
     const hasFeedRules = this.hasActiveFeedRulesInScope(articles);
     const filtersActive = hasGlobalRules || hasFeedRules;
     const activeGlobalRules = KeywordFilterService.getActiveRules(
@@ -681,7 +684,11 @@ export class RssDashboardView extends ItemView {
 
   private getActiveFeedRulesForScope(
     articles: FeedItem[],
-  ): Array<{ feedTitle: string; includeLogic: "AND" | "OR"; rules: KeywordFilterRule[] }> {
+  ): Array<{
+    feedTitle: string;
+    includeLogic: "AND" | "OR";
+    rules: KeywordFilterRule[];
+  }> {
     const seenFeeds = new Set<string>();
     const result: Array<{
       feedTitle: string;
@@ -696,7 +703,9 @@ export class RssDashboardView extends ItemView {
       }
       seenFeeds.add(feed.url);
 
-      const rules = KeywordFilterService.getActiveRules(feed.filters?.rules || []);
+      const rules = KeywordFilterService.getActiveRules(
+        feed.filters?.rules || [],
+      );
       if (rules.length === 0) {
         continue;
       }
@@ -743,7 +752,9 @@ export class RssDashboardView extends ItemView {
     if (feedRules.length > 0) {
       lines.push("Feed rules:");
       feedRules.forEach((entry) => {
-        lines.push(`- ${entry.feedTitle} (include logic: ${entry.includeLogic})`);
+        lines.push(
+          `- ${entry.feedTitle} (include logic: ${entry.includeLogic})`,
+        );
         entry.rules.forEach((rule) => {
           lines.push(`  - ${this.formatRuleForTooltip(rule)}`);
         });
@@ -1026,16 +1037,16 @@ export class RssDashboardView extends ItemView {
     void this.render();
   }
 
-  private handleRefreshFeeds(): void {
+  private async handleRefreshFeeds(): Promise<void> {
     if (this.currentFeed) {
-      void this.plugin.refreshSelectedFeed(this.currentFeed);
+      await this.plugin.refreshSelectedFeed(this.currentFeed);
     } else if (
       this.currentFolder &&
       !["read", "unread", "starred", "saved", "videos", "podcasts"].includes(
         this.currentFolder,
       )
     ) {
-      void this.plugin.refreshFeedsInFolder(this.currentFolder);
+      await this.plugin.refreshFeedsInFolder(this.currentFolder);
     } else if (this.currentTag) {
       const feedsWithTag = this.settings.feeds.filter((feed) =>
         feed.items.some(
@@ -1044,12 +1055,12 @@ export class RssDashboardView extends ItemView {
         ),
       );
       if (feedsWithTag.length > 0) {
-        void this.plugin.refreshFeeds(feedsWithTag);
+        await this.plugin.refreshFeeds(feedsWithTag);
       } else {
         new Notice("No feeds found with the selected tag");
       }
     } else {
-      void this.plugin.refreshFeeds();
+      await this.plugin.refreshFeeds();
     }
   }
 
@@ -1336,7 +1347,9 @@ export class RssDashboardView extends ItemView {
     const feed = this.settings.feeds.find((f) => f.url === feedUrl);
     if (!feed) return;
 
-    const originalArticle = feed.items.find((item) => item.guid === articleGuid);
+    const originalArticle = feed.items.find(
+      (item) => item.guid === articleGuid,
+    );
     if (!originalArticle) return;
 
     Object.assign(originalArticle, updates);
@@ -1452,7 +1465,7 @@ export class RssDashboardView extends ItemView {
           if (!tagMatch) return false;
         }
       } else {
-        // "Either/Or" (OR) logic: Item matches if it satisfies ANY checked filter.
+        // "Or" (OR) logic: Item matches if it satisfies ANY checked filter.
         let match = false;
         if (this.activeStatusFilters.has("unread") && !isRead) match = true;
         else if (this.activeStatusFilters.has("read") && isRead) match = true;
@@ -2182,4 +2195,3 @@ export class RssDashboardView extends ItemView {
     return this.settings.allArticlesPageSize;
   }
 }
-

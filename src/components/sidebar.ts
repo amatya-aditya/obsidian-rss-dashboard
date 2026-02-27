@@ -42,7 +42,7 @@ export interface SidebarCallbacks {
   onEditFeed: (feed: Feed, title: string, url: string, folder: string) => void;
   onDeleteFeed: (feed: Feed) => void;
   onDeleteFolder: (folder: string) => void;
-  onRefreshFeeds: () => void;
+  onRefreshFeeds: () => Promise<void> | void;
   onUpdateFeed: (feed: Feed) => Promise<void>;
   onImportOpml: () => void;
   onExportOpml: () => void;
@@ -1527,10 +1527,6 @@ export class Sidebar {
       cls: "rss-dashboard-filter-icon",
     });
     setIcon(refreshIcon, "refresh-cw");
-    refreshButton.createDiv({
-      cls: "rss-dashboard-filter-name",
-      text: "Refresh",
-    });
     refreshButton.addEventListener("click", () => {
       if (this.isRefreshing) return;
       void this.handleRefresh();

@@ -51,7 +51,7 @@ function getFaviconUrl(domain: string): string {
 interface ArticleListCallbacks {
   onArticleClick: (article: FeedItem) => void;
   onToggleViewStyle: (style: "list" | "card") => void;
-  onRefreshFeeds: () => void;
+  onRefreshFeeds: () => Promise<void> | void;
   onArticleUpdate: (
     article: FeedItem,
     updates: Partial<FeedItem>,
@@ -204,7 +204,11 @@ export class ArticleList {
 
   private getMobileListToolbarStyle(): "left-grid" | "bottom-row" | "minimal" {
     const style = this.settings.display.mobileListToolbarStyle;
-    if (style === "left-grid" || style === "bottom-row" || style === "minimal") {
+    if (
+      style === "left-grid" ||
+      style === "bottom-row" ||
+      style === "minimal"
+    ) {
       return style;
     }
     return "minimal";
@@ -245,7 +249,8 @@ export class ArticleList {
 
     button.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.settings.display.mobileZenMode = !this.settings.display.mobileZenMode;
+      this.settings.display.mobileZenMode =
+        !this.settings.display.mobileZenMode;
       this.persistSettings();
       this.render();
     });
@@ -380,9 +385,7 @@ export class ArticleList {
       starToggle.classList.toggle("unstarred", !article.starred);
       starToggle.setAttr(
         "title",
-        article.starred
-          ? "Remove from starred items"
-          : "Add to starred items",
+        article.starred ? "Remove from starred items" : "Add to starred items",
       );
       const starIcon = starToggle.querySelector<HTMLElement>(
         ".rss-dashboard-star-icon",
@@ -636,21 +639,25 @@ export class ArticleList {
 
     const createSelectControl = (
       iconName: string,
-      ...classNames: string[]
+      classNames: string[],
+      labelText?: string,
     ): HTMLSelectElement => {
-      if (!isDropdown) {
-        const select = articleControls.createEl("select");
-        select.addClass(...classNames);
-        return select;
-      }
-
       const selectWrapper = articleControls.createDiv({
-        cls: "rss-dashboard-select-with-icon",
+        cls:
+          "rss-dashboard-select-with-icon" +
+          (!isDropdown && labelText ? " rss-dashboard-select-with-label" : ""),
       });
       const selectIcon = selectWrapper.createDiv({
         cls: "rss-dashboard-select-icon",
       });
       setIcon(selectIcon, iconName);
+
+      if (!isDropdown && labelText) {
+        selectWrapper.createSpan({
+          cls: "rss-dashboard-select-label",
+          text: labelText,
+        });
+      }
 
       const select = selectWrapper.createEl("select");
       select.addClass(...classNames);
@@ -731,12 +738,12 @@ export class ArticleList {
     // Move age filter into its own space or keep as is?
     // For now, let's keep it but make it smaller or label it better.
     const ageDropdown = createSelectControl(
-      "clock-3",
-      "rss-dashboard-filter",
-      "rss-dashboard-age-filter",
+      "history",
+      ["rss-dashboard-filter", "rss-dashboard-age-filter"],
+      "Age:",
     );
     const ageOptions = {
-      "Max age: Unlimited": 0,
+      All: 0,
       "1 hour": 3600 * 1000,
       "2 hours": 2 * 3600 * 1000,
       "4 hours": 4 * 3600 * 1000,
@@ -773,13 +780,17 @@ export class ArticleList {
       });
     });
 
-    const sortDropdown = createSelectControl("arrow-up-down", "rss-dashboard-sort");
+    const sortDropdown = createSelectControl(
+      "arrow-up-down",
+      ["rss-dashboard-sort"],
+      "Sort:",
+    );
     sortDropdown.createEl("option", {
-      text: "Sort by newest",
+      text: "Newest",
       value: "newest",
     });
     sortDropdown.createEl("option", {
-      text: "Sort by oldest",
+      text: "Oldest",
       value: "oldest",
     });
     sortDropdown.value = this.settings.articleSort;
@@ -789,21 +800,25 @@ export class ArticleList {
       );
     });
 
-    const groupDropdown = createSelectControl("layers", "rss-dashboard-group");
+    const groupDropdown = createSelectControl(
+      "folders",
+      ["rss-dashboard-group"],
+      "Grouping:",
+    );
     groupDropdown.createEl("option", {
-      text: "No grouping",
+      text: "None",
       value: "none",
     });
     groupDropdown.createEl("option", {
-      text: "Group by feed",
+      text: "Feed",
       value: "feed",
     });
     groupDropdown.createEl("option", {
-      text: "Group by date",
+      text: "Date",
       value: "date",
     });
     groupDropdown.createEl("option", {
-      text: "Group by folder",
+      text: "Folder",
       value: "folder",
     });
     groupDropdown.value = this.settings.articleGroupBy;
@@ -918,21 +933,36 @@ export class ArticleList {
       });
     }
 
-    const dashboardRefreshButton = articleControls.createEl("button", {
-      cls: "rss-dashboard-refresh-button",
-    });
-    const refreshIcon = dashboardRefreshButton.createDiv();
-    setIcon(refreshIcon, "refresh-cw");
-    dashboardRefreshButton.createSpan({ text: "Refresh" });
-    dashboardRefreshButton.setAttr("title", "Refresh feeds");
+    const createRefreshButton = (
+      parentEl: HTMLElement,
+      extraClass = "",
+      storeReference = false,
+    ): void => {
+      const dashboardRefreshButton = parentEl.createEl("button", {
+        cls:
+          "rss-dashboard-refresh-button" + (extraClass ? ` ${extraClass}` : ""),
+      });
+      const refreshIcon = dashboardRefreshButton.createDiv({
+        cls: "rss-dashboard-refresh-icon",
+      });
+      setIcon(refreshIcon, "refresh-cw");
+      dashboardRefreshButton.setAttr("title", "Refresh feeds");
 
-    if (!container.classList.contains("rss-dashboard-dropdown-controls")) {
-      this.refreshButton = dashboardRefreshButton;
+      if (storeReference) {
+        this.refreshButton = dashboardRefreshButton;
+      }
+
+      dashboardRefreshButton.addEventListener("click", () => {
+        if (dashboardRefreshButton.classList.contains("refreshing")) return;
+        void this.handleRefreshButtonClick();
+      });
+    };
+
+    if (isDropdown) {
+      createRefreshButton(viewStyleToggle, "rss-dashboard-view-refresh-button");
+    } else {
+      createRefreshButton(articleControls, "", true);
     }
-
-    dashboardRefreshButton.addEventListener("click", () => {
-      this.callbacks.onRefreshFeeds();
-    });
 
     const markAllReadButton = articleControls.createEl("button", {
       cls: "rss-dashboard-mark-all-read-button",
@@ -996,7 +1026,7 @@ export class ArticleList {
         .forEach((el) => el.remove());
     };
 
-    // Logic Toggles: And / Either/Or
+    // Logic Toggles: And / Or
     const logicToggles = menuPortal.createDiv({
       cls: "rss-dashboard-filter-logic-toggles",
     });
@@ -1011,7 +1041,7 @@ export class ArticleList {
       cls:
         "rss-dashboard-filter-logic-btn" +
         (pendingFilterLogic === "OR" ? " active" : ""),
-      text: "Either/or",
+      text: "Or",
     });
 
     andBtn.addEventListener("click", () => {
@@ -1423,9 +1453,16 @@ export class ArticleList {
       cls: `rss-dashboard-articles-list rss-dashboard-${this.settings.viewStyle}-view`,
     });
     const showToolbar = this.shouldShowToolbarForView(this.settings.viewStyle);
-    articlesList.toggleClass("rss-dashboard-mobile-toolbar-hidden", !showToolbar);
+    articlesList.toggleClass(
+      "rss-dashboard-mobile-toolbar-hidden",
+      !showToolbar,
+    );
 
-    if (this.settings.viewStyle === "list" && this.isMobileViewport() && showToolbar) {
+    if (
+      this.settings.viewStyle === "list" &&
+      this.isMobileViewport() &&
+      showToolbar
+    ) {
       articlesList.addClass(
         `rss-dashboard-mobile-list-style-${this.getMobileListToolbarStyle()}`,
       );
@@ -1601,7 +1638,10 @@ export class ArticleList {
     }
   }
 
-  private createReadToggle(actionToolbar: HTMLElement, article: FeedItem): void {
+  private createReadToggle(
+    actionToolbar: HTMLElement,
+    article: FeedItem,
+  ): void {
     const readToggle = actionToolbar.createDiv({
       cls: `rss-dashboard-read-toggle ${article.read ? "read" : "unread"}`,
       attr: {
@@ -1620,7 +1660,10 @@ export class ArticleList {
     });
   }
 
-  private createSaveButton(actionToolbar: HTMLElement, article: FeedItem): void {
+  private createSaveButton(
+    actionToolbar: HTMLElement,
+    article: FeedItem,
+  ): void {
     const saveButton = actionToolbar.createDiv({
       cls: `rss-dashboard-save-toggle ${article.saved ? "saved" : ""}`,
       attr: {
@@ -1662,7 +1705,10 @@ export class ArticleList {
     });
   }
 
-  private createStarToggle(actionToolbar: HTMLElement, article: FeedItem): void {
+  private createStarToggle(
+    actionToolbar: HTMLElement,
+    article: FeedItem,
+  ): void {
     const starToggle = actionToolbar.createDiv({
       cls: `rss-dashboard-star-toggle ${article.starred ? "starred" : "unstarred"}`,
       attr: {
@@ -1696,7 +1742,10 @@ export class ArticleList {
     });
   }
 
-  private createTagsToggle(actionToolbar: HTMLElement, article: FeedItem): void {
+  private createTagsToggle(
+    actionToolbar: HTMLElement,
+    article: FeedItem,
+  ): void {
     const tagsDropdown = actionToolbar.createDiv({
       cls: "rss-dashboard-tags-dropdown",
     });
@@ -1722,7 +1771,11 @@ export class ArticleList {
           this.articles[index] = { ...article };
         }
 
-        this.callbacks.onArticleUpdate(article, { tags: [...article.tags] }, false);
+        this.callbacks.onArticleUpdate(
+          article,
+          { tags: [...article.tags] },
+          false,
+        );
 
         let articleEl = this.container.querySelector(
           `[id="article-${article.guid}"]`,
@@ -1733,7 +1786,9 @@ export class ArticleList {
             ?.querySelector(`[id="article-${article.guid}"]`) as HTMLElement;
         }
         if (!articleEl) {
-          articleEl = document.getElementById(`article-${article.guid}`) as HTMLElement;
+          articleEl = document.getElementById(
+            `article-${article.guid}`,
+          ) as HTMLElement;
         }
         if (articleEl) {
           articleEl.classList.add("rss-dashboard-tag-change-feedback");
@@ -1829,7 +1884,9 @@ export class ArticleList {
           useMinimal ? "minimal-read" : "full",
         );
         if (!useMinimal && article.tags && article.tags.length > 0) {
-          const articleTags = actionToolbar.createDiv("rss-dashboard-article-tags");
+          const articleTags = actionToolbar.createDiv(
+            "rss-dashboard-article-tags",
+          );
           article.tags.forEach((tag) => {
             const tagEl = articleTags.createDiv({
               cls: "rss-dashboard-article-tag",
@@ -2489,6 +2546,21 @@ export class ArticleList {
   updateRefreshButtonText(text: string): void {
     if (this.refreshButton) {
       this.refreshButton.setAttribute("title", text);
+    }
+  }
+
+  private setRefreshButtonsRefreshing(refreshing: boolean): void {
+    this.container
+      .querySelectorAll<HTMLElement>(".rss-dashboard-refresh-button")
+      .forEach((button) => button.classList.toggle("refreshing", refreshing));
+  }
+
+  private async handleRefreshButtonClick(): Promise<void> {
+    this.setRefreshButtonsRefreshing(true);
+    try {
+      await Promise.resolve(this.callbacks.onRefreshFeeds());
+    } finally {
+      this.setRefreshButtonsRefreshing(false);
     }
   }
 }
