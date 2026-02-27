@@ -305,9 +305,19 @@ export class KagiSmallwebView extends ItemView {
     });
 
     // Subtitle
-    titleSection.createDiv({
+    const subtitle = titleSection.createDiv({
       cls: "rss-smallweb-subtitle",
-      text: "Recently published posts from independent blogs, curated by Kagi. Refreshed every 5 hours.",
+    });
+    subtitle.appendText(
+      "Recently published posts from independent blogs, curated by Kagi. Refreshed every 5 hours. ",
+    );
+    subtitle.createEl("a", {
+      text: "Read more here",
+      attr: {
+        href: "https://blog.kagi.com/small-web",
+        target: "_blank",
+        rel: "noopener noreferrer",
+      },
     });
 
     // Warning about RSS feed availability
@@ -807,7 +817,7 @@ export class KagiSmallwebView extends ItemView {
       attr: { href: "https://kagi.com/smallweb", target: "_blank" },
     });
 
-    footer.appendText(" Â· ");
+    footer.appendText(" · ");
 
     footer.createEl("a", {
       text: "Browse all ~5,000 feeds",
@@ -815,4 +825,3 @@ export class KagiSmallwebView extends ItemView {
     });
   }
 }
-
