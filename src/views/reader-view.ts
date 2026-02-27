@@ -5,7 +5,6 @@ import {
   MenuItem,
   App,
   Setting,
-  Platform,
   Notice,
 } from "obsidian";
 import { setIcon } from "obsidian";
@@ -49,10 +48,31 @@ export class ReaderView extends ItemView {
   private turndownService = new TurndownService();
   private readToggleButton: HTMLElement | null = null;
   private starToggleButton: HTMLElement | null = null;
+  private returnLeaf: WorkspaceLeaf | null = null;
   private tagsDropdownPortal: HTMLElement | null = null;
   private tagsDropdownOutsideHandler: ((event: MouseEvent) => void) | null =
     null;
   private tagsDropdownDocument: Document | null = null;
+
+  public setReturnLeaf(leaf: WorkspaceLeaf | null): void {
+    this.returnLeaf = leaf;
+  }
+
+  private async navigateBackToDashboard(): Promise<void> {
+    const dashboardLeaves =
+      this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+    const targetLeaf =
+      this.returnLeaf && dashboardLeaves.includes(this.returnLeaf)
+        ? this.returnLeaf
+        : dashboardLeaves[0] ?? null;
+
+    if (targetLeaf) {
+      this.app.workspace.setActiveLeaf(targetLeaf, { focus: true });
+      await this.app.workspace.revealLeaf(targetLeaf);
+    }
+
+    this.leaf.detach();
+  }
 
   public isPodcastPlaying(): boolean {
     if (!this.podcastPlayer) return false;
@@ -144,16 +164,7 @@ export class ReaderView extends ItemView {
     setIcon(backButton, "arrow-left");
 
     const handleBackClick = () => {
-      if (Platform.isMobile) {
-        // On mobile, getLeaf("split") replaces the dashboard leaf,
-        // so we switch this leaf back to dashboard view
-        void this.leaf.setViewState({
-          type: RSS_DASHBOARD_VIEW_TYPE,
-          active: true,
-        });
-      } else {
-        this.app.workspace.detachLeavesOfType(RSS_READER_VIEW_TYPE);
-      }
+      void this.navigateBackToDashboard();
     };
 
     backButton.addEventListener("click", handleBackClick);

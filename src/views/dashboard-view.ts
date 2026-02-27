@@ -1161,7 +1161,7 @@ export class RssDashboardView extends ItemView {
 
   private async openArticleInNewTab(article: FeedItem): Promise<WorkspaceLeaf> {
     const { workspace } = this.app;
-    const leaf = workspace.getLeaf("split");
+    const leaf = workspace.getLeaf(Platform.isMobile ? "tab" : "split");
     if (leaf) {
       await leaf.setViewState({
         type: RSS_READER_VIEW_TYPE,
@@ -1170,6 +1170,7 @@ export class RssDashboardView extends ItemView {
       await workspace.revealLeaf(leaf);
       if (leaf.view instanceof ReaderView) {
         const view = leaf.view;
+        view.setReturnLeaf(this.leaf);
         const relatedItems = this.getRelatedItems(article);
         await view.displayItem(article, relatedItems);
       }
@@ -1189,6 +1190,7 @@ export class RssDashboardView extends ItemView {
       await this.app.workspace.revealLeaf(leaf);
       if (leaf.view instanceof ReaderView) {
         const view = leaf.view;
+        view.setReturnLeaf(this.leaf);
         const relatedItems = this.getRelatedItems(article);
         await view.displayItem(article, relatedItems);
       }
@@ -1287,26 +1289,65 @@ export class RssDashboardView extends ItemView {
     if (shouldRerender) {
       void this.render();
     } else {
-      // If full rerender is suppressed, check if the item should still be visible
-      // in the current filtered view. If it no longer matches, trigger a refilter.
-      if (this.articleList) {
-        if (!this.matchesFilters(article)) {
-          const filtered = this.getFilteredArticles();
-          const pageSize = this.getCurrentPageSize();
-          const currentPage = this.getCurrentPage();
-          const startIdx = (currentPage - 1) * pageSize;
-          const endIdx = startIdx + pageSize;
-          const articlesForPage = filtered.slice(startIdx, endIdx);
+      this.syncArticleListAfterUpdate(article);
+    }
+  }
 
-          this.articleList.refilter(
-            new Set(this.activeStatusFilters),
-            new Set(this.activeTagFilters),
-            this.filterLogic,
-            articlesForPage,
-          );
-        }
+  public applyExternalArticleUpdate(
+    articleGuid: string,
+    feedUrl: string,
+    updates: Partial<FeedItem>,
+    shouldRerender = false,
+  ): void {
+    const feed = this.settings.feeds.find((f) => f.url === feedUrl);
+    if (!feed) return;
+
+    const originalArticle = feed.items.find((item) => item.guid === articleGuid);
+    if (!originalArticle) return;
+
+    Object.assign(originalArticle, updates);
+    if (updates.tags) {
+      originalArticle.tags = updates.tags;
+    }
+
+    if (this.selectedArticle?.guid === articleGuid) {
+      Object.assign(this.selectedArticle, updates);
+      if (updates.tags) {
+        this.selectedArticle.tags = updates.tags;
       }
     }
+
+    if (shouldRerender) {
+      void this.render();
+      return;
+    }
+
+    this.syncArticleListAfterUpdate(originalArticle);
+  }
+
+  private syncArticleListAfterUpdate(article: FeedItem): void {
+    if (!this.articleList) {
+      return;
+    }
+
+    if (!this.matchesFilters(article)) {
+      const filtered = this.getFilteredArticles();
+      const pageSize = this.getCurrentPageSize();
+      const currentPage = this.getCurrentPage();
+      const startIdx = (currentPage - 1) * pageSize;
+      const endIdx = startIdx + pageSize;
+      const articlesForPage = filtered.slice(startIdx, endIdx);
+
+      this.articleList.refilter(
+        new Set(this.activeStatusFilters),
+        new Set(this.activeTagFilters),
+        this.filterLogic,
+        articlesForPage,
+      );
+      return;
+    }
+
+    this.articleList.updateArticleInPlace(article);
   }
 
   /**

@@ -415,12 +415,16 @@ export default class RssDashboardPlugin extends Plugin {
             }
           }
 
-          void this.saveSettings();
-
-          const view = await this.getActiveDashboardView();
-          if (view) {
-            view.updateArticleSaveButton(item.guid);
-          }
+          await this.saveSettings();
+          await this.syncDashboardArticleUpdate(
+            item.guid,
+            item.feedUrl,
+            {
+              saved: true,
+              tags: originalItem.tags ? [...originalItem.tags] : [],
+            },
+            false,
+          );
         }
       }
     }
@@ -439,13 +443,36 @@ export default class RssDashboardPlugin extends Plugin {
           Object.assign(originalItem, updates);
           await this.saveSettings();
 
-          if (shouldRerender) {
-            const view = await this.getActiveDashboardView();
-            if (view) {
-              view.refresh();
-            }
-          }
+          await this.syncDashboardArticleUpdate(
+            item.guid,
+            item.feedUrl,
+            updates,
+            !!shouldRerender,
+          );
         }
+      }
+    }
+  }
+
+  private async syncDashboardArticleUpdate(
+    articleGuid: string,
+    feedUrl: string,
+    updates: Partial<FeedItem>,
+    shouldRerender: boolean,
+  ): Promise<void> {
+    const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+    for (const leaf of leaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      if (view instanceof RssDashboardView) {
+        view.applyExternalArticleUpdate(
+          articleGuid,
+          feedUrl,
+          updates,
+          shouldRerender,
+        );
       }
     }
   }

@@ -315,6 +315,152 @@ export class ArticleList {
     this.renderArticles();
   }
 
+  public updateArticleInPlace(article: FeedItem): void {
+    const index = this.articles.findIndex((a) => a.guid === article.guid);
+    if (index !== -1) {
+      this.articles[index] = article;
+    }
+
+    const targetId = `article-${article.guid}`;
+    const articleEls = Array.from(
+      this.container.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-article-item, .rss-dashboard-article-card",
+      ),
+    ).filter((el) => el.id === targetId);
+
+    if (articleEls.length === 0) {
+      return;
+    }
+
+    articleEls.forEach((articleEl) => {
+      this.syncArticleElement(articleEl, article);
+    });
+  }
+
+  private syncArticleElement(articleEl: HTMLElement, article: FeedItem): void {
+    articleEl.classList.toggle("read", !!article.read);
+    articleEl.classList.toggle("unread", !article.read);
+    articleEl.classList.toggle("saved", !!article.saved);
+    articleEl.classList.toggle("starred", !!article.starred);
+    articleEl.classList.toggle("unstarred", !article.starred);
+
+    const readToggle = articleEl.querySelector<HTMLElement>(
+      ".rss-dashboard-read-toggle",
+    );
+    if (readToggle) {
+      readToggle.classList.toggle("read", !!article.read);
+      readToggle.classList.toggle("unread", !article.read);
+      readToggle.setAttr(
+        "title",
+        article.read ? "Mark as unread" : "Mark as read",
+      );
+      setIcon(readToggle, article.read ? "check-circle" : "circle");
+    }
+
+    const saveToggle = articleEl.querySelector<HTMLElement>(
+      ".rss-dashboard-save-toggle",
+    );
+    if (saveToggle) {
+      saveToggle.classList.toggle("saved", !!article.saved);
+      saveToggle.setAttr(
+        "title",
+        article.saved
+          ? "Click to open saved article"
+          : this.settings.articleSaving.saveFullContent
+            ? "Save full article content to notes"
+            : "Save article summary to notes",
+      );
+    }
+
+    const starToggle = articleEl.querySelector<HTMLElement>(
+      ".rss-dashboard-star-toggle",
+    );
+    if (starToggle) {
+      starToggle.classList.toggle("starred", !!article.starred);
+      starToggle.classList.toggle("unstarred", !article.starred);
+      starToggle.setAttr(
+        "title",
+        article.starred
+          ? "Remove from starred items"
+          : "Add to starred items",
+      );
+      const starIcon = starToggle.querySelector<HTMLElement>(
+        ".rss-dashboard-star-icon",
+      );
+      if (starIcon) {
+        setIcon(starIcon, article.starred ? "star" : "star-off");
+      }
+    }
+
+    this.syncArticleTags(articleEl, article);
+  }
+
+  private syncArticleTags(articleEl: HTMLElement, article: FeedItem): void {
+    const tags = article.tags || [];
+    const existingContainers = Array.from(
+      articleEl.querySelectorAll<HTMLElement>(".rss-dashboard-article-tags"),
+    );
+
+    const hasTags = tags.length > 0;
+    if (!hasTags && existingContainers.length > 0) {
+      existingContainers.forEach((container) => container.empty());
+      return;
+    }
+
+    if (hasTags && existingContainers.length === 0) {
+      if (articleEl.classList.contains("rss-dashboard-article-card")) {
+        const cardContent = articleEl.querySelector<HTMLElement>(
+          ".rss-dashboard-card-content",
+        );
+        const actionToolbar = cardContent?.querySelector(
+          ".rss-dashboard-action-toolbar",
+        );
+        if (cardContent && actionToolbar) {
+          const newContainer = cardContent.createDiv({
+            cls: "rss-dashboard-article-tags",
+          });
+          cardContent.insertBefore(newContainer, actionToolbar);
+          existingContainers.push(newContainer);
+        }
+      } else {
+        const toolbar = articleEl.querySelector<HTMLElement>(
+          ".rss-dashboard-action-toolbar",
+        );
+        if (toolbar) {
+          existingContainers.push(
+            toolbar.createDiv({ cls: "rss-dashboard-article-tags" }),
+          );
+        }
+      }
+    }
+
+    existingContainers.forEach((container) => {
+      container.empty();
+      const tagsToShow = tags.slice(0, MAX_VISIBLE_TAGS);
+      tagsToShow.forEach((tag) => {
+        const tagEl = container.createDiv({
+          cls: "rss-dashboard-article-tag",
+          text: tag.name,
+        });
+        tagEl.style.setProperty(
+          "--tag-color",
+          tag.color || "var(--interactive-accent)",
+        );
+      });
+
+      if (tags.length > MAX_VISIBLE_TAGS) {
+        const overflow = container.createDiv({
+          cls: "rss-dashboard-tag-overflow",
+          text: `+${tags.length - MAX_VISIBLE_TAGS}`,
+        });
+        overflow.title = tags
+          .slice(MAX_VISIBLE_TAGS)
+          .map((t) => t.name)
+          .join(", ");
+      }
+    });
+  }
+
   /**
    * Filter articles by search query (client-side filtering by title)
    */
