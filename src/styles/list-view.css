@@ -143,7 +143,10 @@
     padding: 4px 8px 4px 8px;
   }
 
-  .rss-dashboard-article-grid {
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
+    .rss-dashboard-article-grid,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-minimal
+    .rss-dashboard-article-grid {
     grid-template-columns: auto 1px 1fr;
     grid-template-rows: auto auto auto;
     grid-template-areas:
@@ -181,7 +184,12 @@
     justify-content: center;
   }
 
-  .rss-dashboard-grid-actions .rss-dashboard-action-toolbar {
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
+    .rss-dashboard-grid-actions
+    .rss-dashboard-action-toolbar,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-minimal
+    .rss-dashboard-grid-actions
+    .rss-dashboard-action-toolbar {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: repeat(2, 1fr);
@@ -200,7 +208,10 @@
   }
 
   /* Vertical Divider */
-  .rss-dashboard-article-grid::before {
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
+    .rss-dashboard-article-grid::before,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-minimal
+    .rss-dashboard-article-grid::before {
     content: "";
     grid-area: divider;
     width: 1px;
@@ -212,8 +223,66 @@
   }
 
   /* Adjust tags in list view on mobile */
-  .rss-dashboard-grid-actions .rss-dashboard-article-tags {
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
+    .rss-dashboard-grid-actions
+    .rss-dashboard-article-tags,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-minimal
+    .rss-dashboard-grid-actions
+    .rss-dashboard-article-tags {
     display: none;
     /* Hide tags in the small 2x2 grid area to keep it clean */
+  }
+
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-minimal
+    .rss-dashboard-grid-actions
+    .rss-dashboard-action-toolbar {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+  }
+
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-bottom-row
+    .rss-dashboard-article-grid,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-toolbar-hidden
+    .rss-dashboard-article-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "headline"
+      "source"
+      "time";
+    gap: 6px 0;
+  }
+
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-bottom-row
+    .rss-dashboard-grid-actions,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-toolbar-hidden
+    .rss-dashboard-grid-actions {
+    display: none;
+  }
+
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-bottom-row
+    .rss-dashboard-grid-source,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-toolbar-hidden
+    .rss-dashboard-grid-source {
+    justify-content: flex-start;
+    padding: 2px 0;
+  }
+
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-bottom-row
+    .rss-dashboard-grid-time,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-toolbar-hidden
+    .rss-dashboard-grid-time {
+    text-align: left;
+    padding: 0;
+  }
+
+  .rss-dashboard-list-toolbar-bottom-row {
+    margin-top: 8px;
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: 8px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }

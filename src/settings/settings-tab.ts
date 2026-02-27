@@ -410,6 +410,67 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
+    new Setting(containerEl).setName("Mobile toolbar").setHeading();
+
+    new Setting(containerEl)
+      .setName("Show toolbar in card view (mobile)")
+      .setDesc("Show per-article action buttons in card view on mobile")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(!!this.plugin.settings.display.mobileShowCardToolbar)
+          .onChange(async (value) => {
+            this.plugin.settings.display.mobileShowCardToolbar = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.render();
+            }
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Show toolbar in list view (mobile)")
+      .setDesc("Show per-article action buttons in list view on mobile")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(!!this.plugin.settings.display.mobileShowListToolbar)
+          .onChange(async (value) => {
+            this.plugin.settings.display.mobileShowListToolbar = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.render();
+            }
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("List toolbar style (mobile)")
+      .setDesc("Choose how action buttons are laid out in mobile list view")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("left-grid", "Left grid (2x2)")
+          .addOption("bottom-row", "Bottom row")
+          .addOption("minimal", "Minimal (read/unread only)")
+          .setValue(
+            this.plugin.settings.display.mobileListToolbarStyle || "minimal",
+          )
+          .onChange(async (value: string) => {
+            this.plugin.settings.display.mobileListToolbarStyle = value as
+              | "left-grid"
+              | "bottom-row"
+              | "minimal";
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.render();
+            }
+          }),
+      );
+
     // new Setting(containerEl)
     //   .setName("Filter display style")
     //   .setDesc("Choose how to display the filter buttons in the sidebar")

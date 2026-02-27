@@ -362,3 +362,8 @@
   padding-top: 8px;
   flex-shrink: 0;
 }
+
+.rss-dashboard-articles-list.rss-dashboard-mobile-toolbar-hidden
+  .rss-dashboard-action-toolbar {
+  display: none;
+}

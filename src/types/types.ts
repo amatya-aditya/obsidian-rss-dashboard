@@ -155,6 +155,10 @@ export interface DisplaySettings {
   showCoverImage: boolean;
   showSummary: boolean;
   filterDisplayStyle: "vertical" | "inline";
+  mobileShowCardToolbar: boolean;
+  mobileShowListToolbar: boolean;
+  mobileListToolbarStyle: "left-grid" | "bottom-row" | "minimal";
+  mobileZenMode: boolean;
   defaultFilter:
     | "all"
     | "starred"
@@ -369,6 +373,10 @@ guid: "{{guid}}"
     showCoverImage: true,
     showSummary: true,
     filterDisplayStyle: "inline",
+    mobileShowCardToolbar: true,
+    mobileShowListToolbar: true,
+    mobileListToolbarStyle: "minimal",
+    mobileZenMode: false,
     defaultFilter: "all",
     hiddenFilters: [],
     useDomainFavicons: true,

@@ -312,6 +312,9 @@ export class RssDashboardView extends ItemView {
         },
         onPageChange: this.handlePageChange.bind(this),
         onPageSizeChange: this.handlePageSizeChange.bind(this),
+        onPersistSettings: async () => {
+          await this.plugin.saveSettings();
+        },
         onMarkAllAsRead: () => {
           const articles = this.getFilteredArticles();
           let count = 0;
