@@ -361,6 +361,25 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName("Show filter status bar")
+      .setDesc(
+        "Show the dashboard status bar with retrieved and filtered article counts",
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.display.showFilterStatusBar ?? true)
+          .onChange(async (value) => {
+            this.plugin.settings.display.showFilterStatusBar = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.render();
+            }
+          }),
+      );
+
+    new Setting(containerEl)
       .setName("Use domain favicons")
       .setDesc(
         "Show domain-specific favicons instead of generic RSS icons for feeds",

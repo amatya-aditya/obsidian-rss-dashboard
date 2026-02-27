@@ -66,6 +66,7 @@ export class RssDashboardView extends ItemView {
     filtersActive: false,
   };
   private keywordFilterTooltip = "";
+  private isFilterSubheaderCollapsed = false;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -360,6 +361,10 @@ export class RssDashboardView extends ItemView {
   }
 
   private renderFilterSubheader(container: HTMLElement): void {
+    if (this.settings.display.showFilterStatusBar === false) {
+      return;
+    }
+
     const { keywordFilterStats } = this;
     const shouldShow =
       keywordFilterStats.bypassActive || keywordFilterStats.filtersActive;
@@ -371,20 +376,49 @@ export class RssDashboardView extends ItemView {
     const subheader = container.createDiv({
       cls: "rss-dashboard-filter-subheader",
     });
+    const subheaderContent = subheader.createDiv({
+      cls: "rss-dashboard-filter-subheader-content",
+    });
     if (this.keywordFilterTooltip) {
-      subheader.setAttribute("title", this.keywordFilterTooltip);
+      subheaderContent.setAttribute("title", this.keywordFilterTooltip);
     }
 
-    if (keywordFilterStats.bypassActive) {
-      subheader.setText(
-        `Filters bypassed - showing all ${keywordFilterStats.articlesRetrieved} articles`,
+    const statusText = keywordFilterStats.bypassActive
+      ? `Filters bypassed - showing all ${keywordFilterStats.articlesRetrieved} articles`
+      : `Articles retrieved: ${keywordFilterStats.articlesRetrieved} | Global filters excluded: ${keywordFilterStats.globalExcluded} | Feed filters excluded: ${keywordFilterStats.feedExcluded}`;
+    subheaderContent.setText(statusText);
+
+    const toggleButton = subheader.createEl("button", {
+      cls: "rss-dashboard-filter-subheader-toggle",
+      attr: {
+        type: "button",
+      },
+    });
+
+    const applyCollapsedState = () => {
+      subheader.classList.toggle(
+        "is-collapsed",
+        this.isFilterSubheaderCollapsed,
       );
-      return;
-    }
+      toggleButton.setAttribute(
+        "aria-label",
+        this.isFilterSubheaderCollapsed
+          ? "Expand filter status"
+          : "Collapse filter status",
+      );
+      toggleButton.setAttribute(
+        "aria-expanded",
+        (!this.isFilterSubheaderCollapsed).toString(),
+      );
+      toggleButton.setText(this.isFilterSubheaderCollapsed ? "▾" : "▴");
+    };
 
-    subheader.setText(
-      `Articles retrieved: ${keywordFilterStats.articlesRetrieved} | Global filters excluded: ${keywordFilterStats.globalExcluded} | Feed filters excluded: ${keywordFilterStats.feedExcluded}`,
-    );
+    toggleButton.addEventListener("click", () => {
+      this.isFilterSubheaderCollapsed = !this.isFilterSubheaderCollapsed;
+      applyCollapsedState();
+    });
+
+    applyCollapsedState();
   }
 
   private getArticlesTitle(): string {
@@ -1656,6 +1690,11 @@ export class RssDashboardView extends ItemView {
   }): void {
     if (filter.type === "logic" && filter.logic) {
       this.filterLogic = filter.logic;
+    } else if (filter.type === "status-bar-visibility") {
+      this.settings.display.showFilterStatusBar = filter.checked ?? true;
+      void this.plugin.saveSettings();
+      void this.render();
+      return;
     } else if (filter.type === "bypass-filters") {
       if (!this.settings.filters) {
         this.settings.filters = {

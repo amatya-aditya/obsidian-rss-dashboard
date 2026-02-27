@@ -987,6 +987,14 @@ export class ArticleList {
     let pendingBypassAll = currentBypassAll;
     const currentHighlightsEnabled = this.settings.highlights?.enabled ?? false;
     let pendingHighlightsEnabled = currentHighlightsEnabled;
+    const currentStatusBarVisible =
+      this.settings.display.showFilterStatusBar ?? true;
+    let pendingStatusBarVisible = currentStatusBarVisible;
+    const removeTagSubmenus = () => {
+      menuPortal
+        .querySelectorAll(".rss-dashboard-tag-submenu")
+        .forEach((el) => el.remove());
+    };
 
     // Logic Toggles: And / Either/Or
     const logicToggles = menuPortal.createDiv({
@@ -1063,10 +1071,7 @@ export class ArticleList {
         });
       } else {
         item.addEventListener("mouseenter", () => {
-          // Remove submenus if hovering non-tagged items
-          menuPortal
-            .querySelectorAll(".rss-dashboard-tag-submenu")
-            .forEach((el) => el.remove());
+          removeTagSubmenus();
         });
       }
 
@@ -1092,7 +1097,43 @@ export class ArticleList {
     });
 
     // Add separator after filter options
-    menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
+    const postFilterSeparator = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-separator",
+    });
+    postFilterSeparator.addEventListener("mouseenter", removeTagSubmenus);
+
+    const statusBarItem = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-item rss-dashboard-status-bar-toggle",
+    });
+    const statusBarCheckbox = statusBarItem.createEl("input", {
+      attr: { type: "checkbox" },
+      cls: "rss-dashboard-filter-checkbox",
+    });
+    statusBarCheckbox.checked = pendingStatusBarVisible;
+    const statusBarIconDiv = statusBarItem.createDiv({
+      cls: "rss-dashboard-filter-menu-icon",
+    });
+    setIcon(statusBarIconDiv, "info");
+    statusBarItem.createDiv({
+      cls: "rss-dashboard-filter-menu-text",
+      text: "Show Status Bar",
+    });
+    statusBarCheckbox.addEventListener("change", (e) => {
+      e.stopPropagation();
+      pendingStatusBarVisible = statusBarCheckbox.checked;
+    });
+    statusBarItem.addEventListener("click", (e) => {
+      if (e.target !== statusBarCheckbox) {
+        statusBarCheckbox.checked = !statusBarCheckbox.checked;
+        pendingStatusBarVisible = statusBarCheckbox.checked;
+      }
+    });
+    statusBarItem.addEventListener("mouseenter", removeTagSubmenus);
+
+    const postStatusBarSeparator = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-separator",
+    });
+    postStatusBarSeparator.addEventListener("mouseenter", removeTagSubmenus);
 
     const bypassItem = menuPortal.createDiv({
       cls: "rss-dashboard-filter-menu-item rss-dashboard-bypass-filters-toggle",
@@ -1120,8 +1161,12 @@ export class ArticleList {
         pendingBypassAll = bypassCheckbox.checked;
       }
     });
+    bypassItem.addEventListener("mouseenter", removeTagSubmenus);
 
-    menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
+    const postBypassSeparator = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-separator",
+    });
+    postBypassSeparator.addEventListener("mouseenter", removeTagSubmenus);
 
     // Add "Show Highlights" toggle
     const highlightsItem = menuPortal.createDiv({
@@ -1155,8 +1200,12 @@ export class ArticleList {
         pendingHighlightsEnabled = highlightsCheckbox.checked;
       }
     });
+    highlightsItem.addEventListener("mouseenter", removeTagSubmenus);
 
-    menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
+    const preApplySeparator = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-separator",
+    });
+    preApplySeparator.addEventListener("mouseenter", removeTagSubmenus);
 
     const applyBtn = menuPortal.createEl("button", {
       cls: "rss-dashboard-filter-apply-btn",
@@ -1231,6 +1280,14 @@ export class ArticleList {
           type: "highlights",
           value: pendingHighlightsEnabled,
           checked: pendingHighlightsEnabled,
+        });
+      }
+
+      if (pendingStatusBarVisible !== currentStatusBarVisible) {
+        void this.callbacks.onFilterChange({
+          type: "status-bar-visibility",
+          value: pendingStatusBarVisible,
+          checked: pendingStatusBarVisible,
         });
       }
 

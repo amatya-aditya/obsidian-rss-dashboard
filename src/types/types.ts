@@ -154,6 +154,7 @@ export interface ArticleSavingSettings {
 export interface DisplaySettings {
   showCoverImage: boolean;
   showSummary: boolean;
+  showFilterStatusBar: boolean;
   filterDisplayStyle: "vertical" | "inline";
   mobileShowCardToolbar: boolean;
   mobileShowListToolbar: boolean;
@@ -372,6 +373,7 @@ guid: "{{guid}}"
   display: {
     showCoverImage: true,
     showSummary: true,
+    showFilterStatusBar: true,
     filterDisplayStyle: "inline",
     mobileShowCardToolbar: true,
     mobileShowListToolbar: true,

@@ -1229,6 +1229,10 @@ export default class RssDashboardPlugin extends Plugin {
         this.settings.display.hiddenFilters =
           DEFAULT_SETTINGS.display.hiddenFilters;
       }
+      if (this.settings.display.showFilterStatusBar === undefined) {
+        this.settings.display.showFilterStatusBar =
+          DEFAULT_SETTINGS.display.showFilterStatusBar;
+      }
     }
 
     if (!this.settings.filters) {
