@@ -140,99 +140,106 @@ export class DiscoverView extends ItemView {
   }
 
   private filterFeeds(): void {
-    this.filteredFeeds = this.feeds.filter((feed) => {
-      if (this.filters.query) {
-        const query = this.filters.query.toLowerCase();
-        const searchableText = [
-          feed.title,
-          feed.url,
-          ...feed.domain,
-          ...feed.subdomain,
-          ...feed.area,
-          ...feed.topic,
-          ...feed.tags,
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        if (!searchableText.includes(query)) {
-          return false;
-        }
-      }
-
-      if (this.filters.selectedTypes.length > 0) {
-        if (!this.filters.selectedTypes.includes(feed.type)) {
-          return false;
-        }
-      }
-
-      if (this.filters.selectedPaths.length > 0) {
-        const hasMatchingPath = this.filters.selectedPaths.some(
-          (selectedPath: CategoryPath) => {
-            if (
-              selectedPath.domain &&
-              !feed.domain.includes(selectedPath.domain)
-            ) {
-              return false;
-            }
-
-            if (
-              selectedPath.subdomain &&
-              !feed.subdomain.includes(selectedPath.subdomain)
-            ) {
-              return false;
-            }
-
-            if (selectedPath.area && !feed.area.includes(selectedPath.area)) {
-              return false;
-            }
-
-            if (
-              selectedPath.topic &&
-              !feed.topic.includes(selectedPath.topic)
-            ) {
-              return false;
-            }
-
-            return true;
-          },
-        );
-
-        if (!hasMatchingPath) {
-          return false;
-        }
-      }
-
-      if (this.filters.selectedTags.length > 0) {
-        const hasMatchingTag = this.filters.selectedTags.some((tag: string) =>
-          feed.tags.includes(tag),
-        );
-        if (!hasMatchingTag) {
-          return false;
-        }
-      }
-
-      // Follow status filter
-      if (this.filters.followStatus === "followed") {
-        const isFollowed = this.plugin.settings.feeds.some(
-          (f: Feed) => f.url === feed.url,
-        );
-        if (!isFollowed) {
-          return false;
-        }
-      } else if (this.filters.followStatus === "unfollowed") {
-        const isFollowed = this.plugin.settings.feeds.some(
-          (f: Feed) => f.url === feed.url,
-        );
-        if (isFollowed) {
-          return false;
-        }
-      }
-
-      return true;
-    });
+    this.filteredFeeds = this.feeds.filter((feed) => this.matchesFilters(feed));
     this.sortFeeds();
     this.currentPage = 1;
+  }
+
+  private isFollowedFeed(feed: FeedMetadata): boolean {
+    return this.plugin.settings.feeds.some((f: Feed) => f.url === feed.url);
+  }
+
+  private matchesFilters(
+    feed: FeedMetadata,
+    options?: { skipFollowStatus?: boolean },
+  ): boolean {
+    if (this.filters.query) {
+      const query = this.filters.query.toLowerCase();
+      const searchableText = [
+        feed.title,
+        feed.url,
+        ...feed.domain,
+        ...feed.subdomain,
+        ...feed.area,
+        ...feed.topic,
+        ...feed.tags,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      if (!searchableText.includes(query)) {
+        return false;
+      }
+    }
+
+    if (this.filters.selectedTypes.length > 0) {
+      if (!this.filters.selectedTypes.includes(feed.type)) {
+        return false;
+      }
+    }
+
+    if (this.filters.selectedPaths.length > 0) {
+      const hasMatchingPath = this.filters.selectedPaths.some(
+        (selectedPath: CategoryPath) => {
+          if (
+            selectedPath.domain &&
+            !feed.domain.includes(selectedPath.domain)
+          ) {
+            return false;
+          }
+
+          if (
+            selectedPath.subdomain &&
+            !feed.subdomain.includes(selectedPath.subdomain)
+          ) {
+            return false;
+          }
+
+          if (selectedPath.area && !feed.area.includes(selectedPath.area)) {
+            return false;
+          }
+
+          if (
+            selectedPath.topic &&
+            !feed.topic.includes(selectedPath.topic)
+          ) {
+            return false;
+          }
+
+          return true;
+        },
+      );
+
+      if (!hasMatchingPath) {
+        return false;
+      }
+    }
+
+    if (this.filters.selectedTags.length > 0) {
+      const hasMatchingTag = this.filters.selectedTags.some((tag: string) =>
+        feed.tags.includes(tag),
+      );
+      if (!hasMatchingTag) {
+        return false;
+      }
+    }
+
+    if (options?.skipFollowStatus) {
+      return true;
+    }
+
+    // Follow status filter
+    if (this.filters.followStatus === "followed") {
+      if (!this.isFollowedFeed(feed)) {
+        return false;
+      }
+    } else if (this.filters.followStatus === "unfollowed") {
+      if (this.isFollowedFeed(feed)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   private sortFeeds(): void {
@@ -1124,12 +1131,15 @@ export class DiscoverView extends ItemView {
     const selectedFollowStatus =
       options?.selectedValue ?? this.filters.followStatus;
 
-    // Calculate counts for each status
-    const followedCount = this.feeds.filter((feed) =>
-      this.plugin.settings.feeds.some((f: Feed) => f.url === feed.url),
+    // Calculate counts within current non-follow filters (query/type/category/tag).
+    const feedsInCurrentScope = this.feeds.filter((feed) =>
+      this.matchesFilters(feed, { skipFollowStatus: true }),
+    );
+    const followedCount = feedsInCurrentScope.filter((feed) =>
+      this.isFollowedFeed(feed),
     ).length;
-    const unfollowedCount = this.feeds.length - followedCount;
-    const totalCount = this.feeds.length;
+    const unfollowedCount = feedsInCurrentScope.length - followedCount;
+    const totalCount = feedsInCurrentScope.length;
 
     const followStatusOptions: { value: FollowStatus; text: string }[] = [
       { value: "all", text: `All feeds (${totalCount})` },
