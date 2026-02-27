@@ -325,7 +325,6 @@
   overflow: hidden;
   word-wrap: break-word;
   hyphens: auto;
-  display: contents;
 }
 
 .rss-dashboard-article-meta {
