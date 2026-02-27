@@ -255,6 +255,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 12px;
   padding: 8px 16px;
   background: var(--background-secondary);
@@ -274,6 +276,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
   flex-shrink: 0;
 }
 
@@ -282,8 +285,58 @@
   color: var(--text-normal);
 }
 
-.rss-clear-filter-button {
-  margin-right: 16px;
+.rss-discover-filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rss-discover-mobile-filters-menu {
+  display: none;
+  position: relative;
+}
+
+.rss-discover-mobile-filters-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+}
+
+.rss-discover-mobile-filters-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+.rss-discover-mobile-filters-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(320px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  padding: 10px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+  z-index: 120;
+}
+
+.rss-discover-mobile-filters-menu.active .rss-discover-mobile-filters-dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rss-discover-mobile-filters-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: stretch;
 }
 
 .rss-discover-grid {
@@ -379,13 +432,36 @@
   opacity: 0.2;
 }
 
-.rss-discover-card-add-btn {
-  cursor: pointer;
+.rss-discover-card-add-btn,
+.rss-discover-card-preview-btn {
+  background: var(--interactive-normal);
+  color: var(--text-normal);
   border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.9rem;
+  line-height: 1;
+  min-height: 30px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  appearance: none;
 }
 
-.rss-discover-card-add-btn:hover {
+.rss-discover-card-add-btn:hover,
+.rss-discover-card-preview-btn:hover {
+  background: var(--interactive-hover);
   border-color: var(--interactive-accent);
+}
+
+.rss-discover-card-add-btn svg,
+.rss-discover-card-preview-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .rss-discover-card-remove-btn {
@@ -454,6 +530,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
 .rss-discover-dropdown-icon {
@@ -477,6 +554,7 @@
   font-size: 13px;
   cursor: pointer;
   min-width: 120px;
+  max-width: 100%;
 }
 
 .rss-discover-sort-dropdown:hover {
@@ -500,16 +578,52 @@
   padding: 6px 12px;
   border-radius: 6px;
   font-size: 13px;
+  line-height: 1.2;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: var(--background-modifier-border);
-  color: var(--text-muted);
+  background: #c0392b;
+  color: #fff;
   border: none;
+  margin: 0;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .rss-clear-filter-button:hover {
+  background: #a93226;
+  color: #fff;
+}
+
+.rss-clear-filter-button-danger {
+  background: #c0392b;
+  color: #fff;
+}
+
+.rss-clear-filter-button-danger:hover {
+  background: #a93226;
+}
+
+.rss-discover-ok-button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: pointer;
+  border: none;
   background: var(--interactive-accent);
   color: var(--text-on-accent);
+  transition: all 0.2s ease;
+  margin: 0;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rss-discover-ok-button:hover {
+  filter: brightness(1.08);
 }
 
 /* Tablet and below: stack layout vertically, single-column grid */
@@ -654,23 +768,26 @@
 }
 
 .rss-discover-sidebar-nav button {
-  background: none;
-  border: none;
-  padding: 10px 15px;
+  background: var(--background-modifier-active-hover);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  box-shadow: none;
+  padding: 8px 12px;
   cursor: pointer;
-  color: var(--text-muted);
+  color: var(--color-accent);
   flex-grow: 1;
   transition: all 0.2s ease-in-out;
+  appearance: none;
 }
 
 .rss-discover-sidebar-nav button:hover {
-  color: var(--text-normal);
+  background: var(--color-accent);
+  color: var(--text-on-accent);
 }
 
 .rss-discover-sidebar-nav button.active {
-  border-bottom-color: var(--interactive-accent);
   background: var(--color-accent);
-  color: var(--text-color);
+  color: var(--text-on-accent);
 }
 
 .rss-discover-card-summary {
@@ -740,6 +857,37 @@
   display: flex !important;
   width: 100%;
   z-index: 10;
+}
+
+.rss-discover-controls-container.is-narrow .rss-discover-filter-controls {
+  display: none !important;
+}
+
+.rss-discover-controls-container.is-narrow
+  .rss-discover-mobile-filters-menu {
+  display: block;
+}
+
+.rss-discover-controls-container.is-narrow
+  .rss-discover-mobile-filters-dropdown
+  .rss-discover-sort-container {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.rss-discover-controls-container.is-narrow
+  .rss-discover-mobile-filters-dropdown
+  .rss-discover-sort-dropdown {
+  width: 100%;
+  min-width: 0;
+}
+
+.rss-discover-controls-container.is-narrow
+  .rss-discover-mobile-filters-dropdown
+  .rss-clear-filter-button {
+  margin-top: 0;
 }
 
 /* Mobile header styles */
@@ -1131,30 +1279,6 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.rss-discover-card-preview-btn {
-  background: var(--interactive-normal);
-  color: var(--text-normal);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  padding: 0.3rem 0.8rem;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.rss-discover-card-preview-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-.rss-discover-card-preview-btn:hover {
-  background: var(--interactive-hover);
-  border-color: var(--interactive-accent);
 }
 
 @media (max-width: 768px) {

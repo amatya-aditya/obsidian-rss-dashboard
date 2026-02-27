@@ -348,7 +348,11 @@ export class DiscoverSidebar {
         cls: "rss-discover-category-row",
       });
 
-      const expandIcon = contentRow.createDiv({
+      const mainContent = contentRow.createDiv({
+        cls: "rss-discover-category-main",
+      });
+
+      const expandIcon = mainContent.createDiv({
         cls: "rss-discover-category-expand",
       });
       const childNode = node[key] as CategoryNode;
@@ -360,13 +364,13 @@ export class DiscoverSidebar {
         expandIcon.addClass("rss-discover-category-expand-hidden");
       }
 
-      const checkbox = contentRow.createEl("input", { type: "checkbox" });
+      const checkbox = mainContent.createEl("input", { type: "checkbox" });
       const isSelected = this.filters.selectedPaths.some(
         (p: CategoryPath) => this.categoryPathToString(p) === currentPathStr,
       );
       checkbox.checked = isSelected;
 
-      const label = contentRow.createEl("label");
+      const label = mainContent.createEl("label");
       label.textContent = key;
 
       const count = contentRow.createDiv({

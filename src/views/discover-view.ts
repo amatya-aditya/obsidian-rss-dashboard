@@ -895,18 +895,84 @@ export class DiscoverView extends ItemView {
       void this.plugin.activateSmallwebView();
     });
 
-    // Follow status dropdown next to sort dropdown
-    this.renderFollowStatusDropdown(rightSection);
+    const desktopFilterControls = rightSection.createDiv({
+      cls: "rss-discover-filter-controls",
+    });
 
-    // Sort dropdown on the same row as results count
-    this.renderSortDropdown(rightSection);
-
+    // Follow status + sort controls stay in desktop header.
+    this.renderFollowStatusDropdown(desktopFilterControls);
+    this.renderSortDropdown(desktopFilterControls);
     if (this.hasActiveFilters()) {
-      const clearBtn = rightSection.createEl("button", {
-        cls: "rss-clear-filter-button",
-      });
-      clearBtn.textContent = "Clear filters";
-      clearBtn.addEventListener("click", () => {
+      this.renderClearFiltersButton(desktopFilterControls);
+    }
+
+    const mobileFiltersMenu = rightSection.createDiv({
+      cls: "rss-discover-mobile-filters-menu",
+    });
+    const mobileFiltersButton = mobileFiltersMenu.createEl("button", {
+      cls: "rss-discover-mobile-filters-button",
+      attr: {
+        type: "button",
+        "aria-label": "Toggle discover filters menu",
+      },
+    });
+    setIcon(mobileFiltersButton, "menu");
+
+    const mobileFiltersDropdown = mobileFiltersMenu.createDiv({
+      cls: "rss-discover-mobile-filters-dropdown",
+    });
+    let pendingFollowStatus: FollowStatus = this.filters.followStatus;
+    let pendingSort: string = this.currentSort;
+    let pendingClearFilters = false;
+
+    const mobileFollowDropdown = this.renderFollowStatusDropdown(
+      mobileFiltersDropdown,
+      {
+        selectedValue: pendingFollowStatus,
+        immediateApply: false,
+        onChange: (value: FollowStatus) => {
+          pendingFollowStatus = value;
+          pendingClearFilters = false;
+        },
+      },
+    );
+    const mobileSortDropdown = this.renderSortDropdown(mobileFiltersDropdown, {
+      selectedValue: pendingSort,
+      immediateApply: false,
+      onChange: (value: string) => {
+        pendingSort = value;
+      },
+    });
+
+    const mobileActionRow = mobileFiltersDropdown.createDiv({
+      cls: "rss-discover-mobile-filters-actions",
+    });
+    const okBtn = mobileActionRow.createEl("button", {
+      cls: "rss-discover-ok-button",
+      text: "OK",
+      attr: { type: "button" },
+    });
+    const clearBtn = mobileActionRow.createEl("button", {
+      cls: "rss-clear-filter-button rss-clear-filter-button-danger",
+      text: "Clear filters",
+      attr: { type: "button" },
+    });
+
+    clearBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      pendingClearFilters = true;
+      pendingFollowStatus = "all";
+      pendingSort = "title-asc";
+      mobileFollowDropdown.value = pendingFollowStatus;
+      mobileSortDropdown.value = pendingSort;
+    });
+
+    okBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (pendingClearFilters) {
         this.filters = {
           query: "",
           selectedTypes: [],
@@ -914,12 +980,28 @@ export class DiscoverView extends ItemView {
           selectedTags: [],
           followStatus: "all",
         };
-        this.currentPage = 1;
-        this.filterFeeds();
-        this.saveFilterState();
-        void this.render();
-      });
-    }
+      } else {
+        this.filters.followStatus = pendingFollowStatus;
+      }
+
+      this.currentSort = pendingSort;
+      this.currentPage = 1;
+      this.filterFeeds();
+      this.saveFilterState();
+
+      const contentEl = this.containerEl.querySelector(
+        ".rss-discover-content",
+      ) as HTMLElement;
+      if (contentEl) {
+        this.renderContent(contentEl);
+      }
+    });
+
+    mobileFiltersButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      mobileFiltersMenu.classList.toggle("active");
+    });
 
     const grid = container.createDiv({ cls: "rss-discover-grid" });
 
@@ -959,7 +1041,14 @@ export class DiscoverView extends ItemView {
     );
   }
 
-  private renderSortDropdown(container: HTMLElement): void {
+  private renderSortDropdown(
+    container: HTMLElement,
+    options?: {
+      selectedValue?: string;
+      immediateApply?: boolean;
+      onChange?: (value: string) => void;
+    },
+  ): HTMLSelectElement {
     const sortContainer = container.createDiv({
       cls: "rss-discover-sort-container",
     });
@@ -972,8 +1061,9 @@ export class DiscoverView extends ItemView {
 
     const sortDropdown = sortContainer.createEl("select");
     sortDropdown.addClass("rss-discover-sort-dropdown");
+    const selectedSort = options?.selectedValue ?? this.currentSort;
 
-    const options = {
+    const sortOptions: Record<string, string> = {
       "title-asc": "File name (a to z)",
       "title-desc": "File name (z to a)",
       "type-asc": "Type (a to z)",
@@ -986,27 +1076,39 @@ export class DiscoverView extends ItemView {
       "tag-name-asc": "First tag (a to z)",
     };
 
-    for (const [value, text] of Object.entries(options)) {
+    for (const [value, text] of Object.entries(sortOptions)) {
       const optionEl = sortDropdown.createEl("option", { value, text });
-      if (value === this.currentSort) {
+      if (value === selectedSort) {
         optionEl.selected = true;
       }
     }
 
     sortDropdown.addEventListener("change", (e) => {
-      this.currentSort = (e.target as HTMLSelectElement).value;
-      this.currentPage = 1;
-      this.sortFeeds();
-      const contentEl = this.containerEl.querySelector(
-        ".rss-discover-content",
-      ) as HTMLElement;
-      if (contentEl) {
-        this.renderContent(contentEl);
+      const value = (e.target as HTMLSelectElement).value;
+      options?.onChange?.(value);
+      if (options?.immediateApply !== false) {
+        this.currentSort = value;
+        this.currentPage = 1;
+        this.sortFeeds();
+        const contentEl = this.containerEl.querySelector(
+          ".rss-discover-content",
+        ) as HTMLElement;
+        if (contentEl) {
+          this.renderContent(contentEl);
+        }
       }
     });
+    return sortDropdown;
   }
 
-  private renderFollowStatusDropdown(container: HTMLElement): void {
+  private renderFollowStatusDropdown(
+    container: HTMLElement,
+    options?: {
+      selectedValue?: FollowStatus;
+      immediateApply?: boolean;
+      onChange?: (value: FollowStatus) => void;
+    },
+  ): HTMLSelectElement {
     const dropdownContainer = container.createDiv({
       cls: "rss-discover-sort-container",
     });
@@ -1019,6 +1121,8 @@ export class DiscoverView extends ItemView {
 
     const dropdown = dropdownContainer.createEl("select");
     dropdown.addClass("rss-discover-sort-dropdown");
+    const selectedFollowStatus =
+      options?.selectedValue ?? this.filters.followStatus;
 
     // Calculate counts for each status
     const followedCount = this.feeds.filter((feed) =>
@@ -1027,35 +1131,63 @@ export class DiscoverView extends ItemView {
     const unfollowedCount = this.feeds.length - followedCount;
     const totalCount = this.feeds.length;
 
-    const options: { value: FollowStatus; text: string }[] = [
+    const followStatusOptions: { value: FollowStatus; text: string }[] = [
       { value: "all", text: `All feeds (${totalCount})` },
       { value: "followed", text: `Followed (${followedCount})` },
       { value: "unfollowed", text: `Unfollowed (${unfollowedCount})` },
     ];
 
-    options.forEach((opt) => {
+    followStatusOptions.forEach((opt) => {
       const optionEl = dropdown.createEl("option", {
         value: opt.value,
         text: opt.text,
       });
-      if (opt.value === this.filters.followStatus) {
+      if (opt.value === selectedFollowStatus) {
         optionEl.selected = true;
       }
     });
 
     dropdown.addEventListener("change", (e) => {
-      this.filters.followStatus = (e.target as HTMLSelectElement)
-        .value as FollowStatus;
-      this.currentPage = 1;
-      this.filterFeeds();
-      this.saveFilterState();
-      const contentEl = this.containerEl.querySelector(
-        ".rss-discover-content",
-      ) as HTMLElement;
-      if (contentEl) {
-        this.renderContent(contentEl);
+      const value = (e.target as HTMLSelectElement).value as FollowStatus;
+      options?.onChange?.(value);
+      if (options?.immediateApply !== false) {
+        this.filters.followStatus = value;
+        this.currentPage = 1;
+        this.filterFeeds();
+        this.saveFilterState();
+        const contentEl = this.containerEl.querySelector(
+          ".rss-discover-content",
+        ) as HTMLElement;
+        if (contentEl) {
+          this.renderContent(contentEl);
+        }
       }
     });
+    return dropdown;
+  }
+
+  private renderClearFiltersButton(container: HTMLElement): void {
+    const clearBtn = container.createEl("button", {
+      cls: "rss-clear-filter-button",
+    });
+    clearBtn.textContent = "Clear filters";
+    clearBtn.addEventListener("click", () => {
+      this.clearFilters();
+    });
+  }
+
+  private clearFilters(): void {
+    this.filters = {
+      query: "",
+      selectedTypes: [],
+      selectedPaths: [],
+      selectedTags: [],
+      followStatus: "all",
+    };
+    this.currentPage = 1;
+    this.filterFeeds();
+    this.saveFilterState();
+    void this.render();
   }
 
   private getOptionCount(filterType: string, option: string): number {
@@ -1184,9 +1316,10 @@ export class DiscoverView extends ItemView {
     });
 
     const previewBtn = rightSection.createEl("button", {
-      text: "Preview",
       cls: "rss-discover-card-preview-btn",
     });
+    setIcon(previewBtn, "file-search");
+    previewBtn.createSpan({ text: "Preview" });
     previewBtn.addEventListener("click", () => {
       new FeedPreviewModal(this.app, feed).open();
     });
@@ -1210,9 +1343,10 @@ export class DiscoverView extends ItemView {
     } else {
       // Add to... button - shows folder selector popup
       const addToBtn = rightSection.createEl("button", {
-        text: "Add to...",
         cls: "rss-discover-card-add-btn rss-discover-card-add-to-btn",
       });
+      setIcon(addToBtn, "plus");
+      addToBtn.createSpan({ text: "Add to..." });
 
       // Default folder for discover feeds
       const defaultFolder = "Uncategorized";
