@@ -194,7 +194,7 @@
     width: min(88vw, 360px) !important;
     max-width: min(88vw, 360px) !important;
     margin: 0 !important;
-    border-radius: 0 16px 16px 0;
+    border-radius: 0;
     position: fixed;
     top: 0;
     bottom: 0;
@@ -304,13 +304,96 @@
   /* Hide resize handle in mobile modal on very small screens */
   @media (max-width: 768px) {
     .modal.rss-mobile-navigation-modal {
-      width: 100vw !important;
-      max-width: 100vw !important;
+      width: 95vw !important;
+      max-width: 95vw !important;
       border-radius: 0 !important;
+      border: 1px solid var(--background-modifier-border) !important;
+      border-left: none !important;
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
       display: none !important;
+    }
+
+    /* Hide top-right close button for mobile navigation modal */
+    .modal.rss-mobile-navigation-modal .modal-close-button {
+      display: none !important;
+    }
+
+    /* Add notch safe-area padding for mobile navigation modal */
+    .modal.rss-mobile-navigation-modal .rss-dashboard-header {
+      padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    }
+
+    /* Add safe-area padding to bottom drawer */
+    .modal.rss-mobile-navigation-modal .rss-dashboard-bottom-drawer {
+      padding-bottom: calc(2px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* Enlarge nav buttons for mobile */
+    .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button {
+      font-size: 18px;
+      padding: 12px 20px;
+      min-height: 48px;
+    }
+
+    /* Enlarge feed items for mobile touch targets */
+    .modal.rss-mobile-navigation-modal .rss-dashboard-feed {
+      min-height: 44px;
+      padding: 10px 10px 10px 35px;
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folder-header {
+      min-height: 44px;
+      padding: 10px;
+    }
+
+    /* Enable momentum scrolling on mobile */
+    .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Drawer toggle button styling for mobile */
+    .modal.rss-mobile-navigation-modal .rss-dashboard-drawer-toggle-button {
+      min-height: 16px;
+      font-size: 4px;
+      padding: 8px 16px;
+    }
+
+    /* Header close button for mobile - match footer button styling */
+    .modal.rss-mobile-navigation-modal .rss-dashboard-header {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-nav-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-header-close-button {
+      width: 36px;
+      min-width: 36px;
+      height: 36px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 8px;
+      border: 1px solid var(--background-secondary);
+      background: var(--background-secondary);
+      color: #fff;
+      margin-right: 2px;
+    }
+
+    .modal.rss-mobile-navigation-modal
+      .rss-dashboard-header-close-button:hover {
+      border-color: #9b59b6;
+      background: #9b59b6;
+      color: #fff;
     }
   }
 

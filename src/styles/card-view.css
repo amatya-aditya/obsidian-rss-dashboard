@@ -204,7 +204,7 @@
   max-height: unset;
   height: auto;
   display: block;
-  overflow: scroll;
+  overflow-y: auto;
 }
 
 .rss-dashboard-card-view {
@@ -357,7 +357,8 @@
   flex-shrink: 0;
 }
 
-.rss-dashboard-card-footer .rss-dashboard-action-toolbar.rss-dashboard-card-toolbar {
+.rss-dashboard-card-footer
+  .rss-dashboard-action-toolbar.rss-dashboard-card-toolbar {
   margin: 0;
   padding: 0;
   height: auto;

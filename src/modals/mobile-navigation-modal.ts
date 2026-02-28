@@ -72,6 +72,9 @@ export class MobileNavigationModal extends Modal {
         }
         this.close();
       },
+      onCloseMobileSidebar: () => {
+        this.close();
+      },
     };
 
     this.sidebar = new Sidebar(
@@ -149,4 +152,3 @@ export class MobileNavigationModal extends Modal {
     this.resizeHandle = null;
   }
 }
-

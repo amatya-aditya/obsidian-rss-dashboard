@@ -51,6 +51,7 @@ export interface SidebarCallbacks {
   onManageFeeds?: () => void;
   onActivateDashboard?: () => void;
   onActivateDiscover?: () => void;
+  onCloseMobileSidebar?: () => void;
 }
 
 export class Sidebar {
@@ -162,7 +163,6 @@ export class Sidebar {
   }
 
   public render(): void {
-
     const scrollPosition = this.container.scrollTop;
 
     this.container.empty();
@@ -184,6 +184,13 @@ export class Sidebar {
 
     // Render "All Feeds" button at the top
     this.renderAllFeedsButton(feedFoldersSection);
+
+    if (this.settings.feeds.length === 0) {
+      feedFoldersSection.createDiv({
+        cls: "rss-dashboard-empty-state",
+        text: "No feeds yet — click ⋯ to add one",
+      });
+    }
 
     if (this.settings.folders && this.settings.folders.length > 0) {
       const sortOrder = this.settings.folderSortOrder || {
@@ -307,11 +314,22 @@ export class Sidebar {
       cls: "rss-dashboard-all-feeds-button" + (isAllActive ? " active" : ""),
     });
 
-    // Feed icon
+    // Feed icon (refresh button) - clickable
     const feedIcon = allFeedsButton.createDiv({
-      cls: "rss-dashboard-all-feeds-icon",
+      cls:
+        "rss-dashboard-all-feeds-icon" +
+        (this.isRefreshing ? " refreshing" : ""),
+      attr: {
+        title: "Refresh all feeds",
+        "aria-label": "Refresh all feeds",
+      },
     });
-    setIcon(feedIcon, "rss");
+    setIcon(feedIcon, "refresh-cw");
+    feedIcon.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (this.isRefreshing) return;
+      void this.handleRefresh();
+    });
 
     // Label with count
     const labelContainer = allFeedsButton.createDiv({
@@ -323,9 +341,13 @@ export class Sidebar {
       text: `All Feeds (${totalFeeds})`,
     });
 
+    const rightContainer = allFeedsButton.createDiv({
+      cls: "rss-dashboard-all-feeds-right",
+    });
+
     // Unread count badge (purple)
     if (totalUnread > 0) {
-      allFeedsButton.createDiv({
+      rightContainer.createDiv({
         cls: "rss-dashboard-all-feeds-unread",
         text: totalUnread.toString(),
       });
@@ -803,38 +825,13 @@ export class Sidebar {
 
   private renderBottomDrawer(): void {
     const drawer = this.container.createDiv({
-      cls:
-        "rss-dashboard-bottom-drawer" +
-        (this.isDrawerExpanded ? " is-expanded" : " is-collapsed"),
+      cls: "rss-dashboard-bottom-drawer is-expanded",
     });
-
-    const drawerToggle = drawer.createEl("button", {
-      cls: "rss-dashboard-drawer-toggle-button",
-      attr: {
-        type: "button",
-        "aria-label": this.isDrawerExpanded
-          ? "Collapse drawer controls"
-          : "Expand drawer controls",
-      },
-    });
-    setIcon(
-      drawerToggle,
-      this.isDrawerExpanded ? "chevrons-down-up" : "chevrons-up-down",
-    );
-    drawerToggle.addEventListener("click", () => {
-      this.isDrawerExpanded = !this.isDrawerExpanded;
-      this.render();
-    });
-
-    if (!this.isDrawerExpanded) {
-      return;
-    }
 
     const drawerContent = drawer.createDiv({
       cls: "rss-dashboard-bottom-drawer-content",
     });
     this.renderSearchDock(drawerContent);
-    this.renderFilters(drawerContent);
     this.renderToolbar(drawerContent);
   }
 
@@ -1470,67 +1467,160 @@ export class Sidebar {
         void this.plugin.activateDiscoverView();
       }
     });
-  }
 
-  public renderFilters(parentEl: HTMLElement): void {
-    const row = parentEl.createDiv({
-      cls: "rss-dashboard-drawer-actions",
+    // Add Toolbar right behind the nav tabs
+    const headerToolbar = header.createDiv({
+      cls: "rss-dashboard-header-toolbar",
     });
 
-    const addFeedButton = row.createDiv({
-      cls: "rss-dashboard-filter-item rss-dashboard-drawer-action-button",
+    const manageBtnContainer = headerToolbar.createDiv({
+      cls: "rss-dashboard-header-manage-container",
+    });
+
+    const manageBtn = manageBtnContainer.createDiv({
+      cls: "rss-dashboard-header-icon-button",
       attr: {
-        title: "Add feed",
+        title: "Add or manage feeds",
+        "aria-label": "Add or manage feeds",
       },
     });
-    const addFeedIcon = addFeedButton.createDiv({
-      cls: "rss-dashboard-filter-icon",
+    setIcon(manageBtn, "edit");
+    manageBtn.addEventListener("click", (e) => {
+      this.showManageMenu(e);
+      if (!this.app.loadLocalStorage("rss-first-launch-coachmark-shown")) {
+        this.app.saveLocalStorage("rss-first-launch-coachmark-shown", "true");
+        const coachmark = manageBtnContainer.querySelector(
+          ".rss-dashboard-coachmark",
+        );
+        if (coachmark) coachmark.remove();
+      }
     });
-    setIcon(addFeedIcon, "plus");
-    addFeedButton.createDiv({
-      cls: "rss-dashboard-filter-name",
-      text: "Add Feed",
+
+    if (!this.app.loadLocalStorage("rss-first-launch-coachmark-shown")) {
+      const coachmark = manageBtnContainer.createDiv({
+        cls: "rss-dashboard-coachmark",
+        text: "Add your first feed here",
+      });
+      window.setTimeout(() => {
+        if (!this.app.loadLocalStorage("rss-first-launch-coachmark-shown")) {
+          this.app.saveLocalStorage("rss-first-launch-coachmark-shown", "true");
+          if (coachmark.parentNode) coachmark.remove();
+        }
+      }, 5000);
+    }
+
+    const collapseBtn = headerToolbar.createDiv({
+      cls: "rss-dashboard-header-icon-button rss-dashboard-mobile-only",
+      attr: {
+        title: "Collapse sidebar",
+        "aria-label": "Collapse sidebar",
+      },
     });
-    addFeedButton.addEventListener("click", () => {
+    setIcon(collapseBtn, "panel-left-close");
+    collapseBtn.addEventListener("click", () => {
+      if (this.callbacks.onCloseMobileSidebar) {
+        this.callbacks.onCloseMobileSidebar();
+      } else if (this.callbacks.onToggleSidebar) {
+        this.callbacks.onToggleSidebar();
+      }
+    });
+  }
+
+  private showManageMenu(event: MouseEvent): void {
+    const isMobile = window.innerWidth < 768;
+
+    if (isMobile) {
+      this.showMobileManageBottomSheet();
+    } else {
+      const menu = new Menu();
+
+      menu.addItem((item: MenuItem) => {
+        item
+          .setTitle("Add feed")
+          .setIcon("plus")
+          .onClick(() => {
+            this.showAddFeedModal();
+          });
+      });
+
+      menu.addItem((item: MenuItem) => {
+        item
+          .setTitle("Edit feeds")
+          .setIcon("list")
+          .onClick(() => {
+            if (this.callbacks.onManageFeeds) {
+              this.callbacks.onManageFeeds();
+            }
+          });
+      });
+
+      menu.showAtMouseEvent(event);
+    }
+  }
+
+  private showMobileManageBottomSheet(): void {
+    const modal = document.body.createDiv({
+      cls: "rss-mobile-bottom-sheet-container",
+    });
+
+    const overlay = modal.createDiv({
+      cls: "rss-mobile-bottom-sheet-overlay",
+    });
+
+    const sheet = modal.createDiv({
+      cls: "rss-mobile-bottom-sheet",
+    });
+
+    sheet.createDiv({
+      cls: "rss-mobile-bottom-sheet-handle",
+    });
+
+    const addFeedBtn = sheet.createDiv({
+      cls: "rss-mobile-bottom-sheet-item",
+    });
+    setIcon(
+      addFeedBtn.createDiv({ cls: "rss-mobile-bottom-sheet-icon" }),
+      "plus",
+    );
+    addFeedBtn.createSpan({ text: "Add feed" });
+    addFeedBtn.addEventListener("click", () => {
+      document.body.removeChild(modal);
       this.showAddFeedModal();
     });
 
-    const manageFeedsButton = row.createDiv({
-      cls: "rss-dashboard-filter-item rss-dashboard-drawer-action-button",
-      attr: {
-        title: "Manage feeds",
-      },
+    const editFeedsBtn = sheet.createDiv({
+      cls: "rss-mobile-bottom-sheet-item",
     });
-    const manageFeedsIcon = manageFeedsButton.createDiv({
-      cls: "rss-dashboard-filter-icon",
-    });
-    setIcon(manageFeedsIcon, "list");
-    manageFeedsButton.createDiv({
-      cls: "rss-dashboard-filter-name",
-      text: "Edit Feeds",
-    });
-    manageFeedsButton.addEventListener("click", () => {
+    setIcon(
+      editFeedsBtn.createDiv({ cls: "rss-mobile-bottom-sheet-icon" }),
+      "list",
+    );
+    editFeedsBtn.createSpan({ text: "Edit feeds" });
+    editFeedsBtn.addEventListener("click", () => {
+      document.body.removeChild(modal);
       if (this.callbacks.onManageFeeds) {
         this.callbacks.onManageFeeds();
       }
     });
 
-    const refreshButton = row.createDiv({
-      cls:
-        "rss-dashboard-filter-item rss-dashboard-refresh-button rss-dashboard-drawer-refresh-button" +
-        (this.isRefreshing ? " refreshing" : ""),
-      attr: {
-        title: this.isRefreshing ? "Refreshing feeds..." : "Refresh all feeds",
-      },
+    const closeSheet = () => {
+      sheet.addClass("closing");
+      window.setTimeout(() => {
+        if (document.body.contains(modal)) {
+          document.body.removeChild(modal);
+        }
+      }, 200);
+    };
+
+    overlay.addEventListener("click", closeSheet);
+    document.body.appendChild(modal);
+    overlay.addEventListener("touchmove", (e) => e.preventDefault(), {
+      passive: false,
     });
-    const refreshIcon = refreshButton.createDiv({
-      cls: "rss-dashboard-filter-icon",
-    });
-    setIcon(refreshIcon, "refresh-cw");
-    refreshButton.addEventListener("click", () => {
-      if (this.isRefreshing) return;
-      void this.handleRefresh();
-    });
+  }
+
+  public renderFilters(parentEl: HTMLElement): void {
+    // Deprecated: the filter actions are now in the header toolbar
   }
 
   private renderSearchDock(parentEl: HTMLElement): void {
@@ -2219,4 +2309,3 @@ export class Sidebar {
     this.render();
   }
 }
-

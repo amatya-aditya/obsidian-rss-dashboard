@@ -450,7 +450,6 @@ export class ImportOpmlModal extends Modal {
 
     try {
       if (this.importMode === "overwrite") {
-
         // Clear existing feeds and folders
         this.plugin.settings.feeds = [];
         this.plugin.settings.folders = [];
@@ -532,9 +531,12 @@ export class ImportOpmlModal extends Modal {
         ".rss-mobile-navigation-modal",
       );
       mobileModals.forEach((modal) => {
-        const closeBtn = modal.querySelector(".modal-close-button");
-        if (closeBtn) {
-          (closeBtn as HTMLElement).click();
+        // Try to close via the header close button
+        const headerCloseBtn = modal.querySelector(
+          ".rss-dashboard-header-close-button",
+        );
+        if (headerCloseBtn) {
+          (headerCloseBtn as HTMLElement).click();
         }
       });
 
@@ -542,7 +544,6 @@ export class ImportOpmlModal extends Modal {
       const dashboardView = await this.plugin.getActiveDashboardView();
 
       if (dashboardView) {
-
         // Clear the sidebar's folder path cache to ensure fresh data
         if (dashboardView.sidebar) {
           // Explicitly update sidebar's settings reference
@@ -576,4 +577,3 @@ export class ImportOpmlModal extends Modal {
     this.contentEl.empty();
   }
 }
-
