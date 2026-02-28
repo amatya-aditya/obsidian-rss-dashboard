@@ -212,15 +212,13 @@
 }
 
 .rss-dashboard-folder-feeds {
-  max-height: fit-content;
-  transition: max-height 0.3s ease;
   overflow: hidden;
   background-color: var(--background-primary);
   padding-left: var(--sidebar-row-indentation);
 }
 
 .rss-dashboard-folder-feeds.collapsed {
-  max-height: 0;
+  display: none;
 }
 .rss-dashboard-feed {
   cursor: pointer;

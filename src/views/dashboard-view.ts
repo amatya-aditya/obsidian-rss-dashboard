@@ -829,23 +829,6 @@ export class RssDashboardView extends ItemView {
   }
 
   private handleFolderClick(folder: string | null): void {
-    // Normalize special folder names to support case-insensitive matching
-    // This allows a user-created "Read" folder to trigger the special "read" view logic
-    if (folder) {
-      const lower = folder.toLowerCase();
-      const specialFolders = [
-        "read",
-        "unread",
-        "starred",
-        "saved",
-        "videos",
-        "podcasts",
-      ];
-      if (specialFolders.includes(lower)) {
-        folder = lower;
-      }
-    }
-
     let scrollPosition = 0;
     if (this.sidebarContainer) {
       const foldersSection = this.sidebarContainer.querySelector(

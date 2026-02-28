@@ -23,7 +23,7 @@ export interface SidebarCallbacks {
   onFeedClick: (feed: Feed) => void;
   onTagClick: (tag: string | null) => void;
   onToggleTagsCollapse: () => void;
-  onToggleFolderCollapse: (folder: string) => void;
+  onToggleFolderCollapse: (folder: string, shouldRerender?: boolean) => void;
   onBatchToggleFolders?: (
     foldersToCollapse: string[],
     foldersToExpand: string[],
@@ -164,6 +164,15 @@ export class Sidebar {
   public render(): void {
     const scrollPosition = this.container.scrollTop;
 
+    // Also preserve folders section scroll if it exists
+    let foldersScroll = 0;
+    const oldFoldersSection = this.container.querySelector(
+      ".rss-dashboard-feed-folders-section",
+    );
+    if (oldFoldersSection) {
+      foldersScroll = oldFoldersSection.scrollTop;
+    }
+
     this.container.empty();
     this.container.addClass("rss-dashboard-sidebar");
 
@@ -184,6 +193,12 @@ export class Sidebar {
 
     requestAnimationFrame(() => {
       this.container.scrollTop = scrollPosition;
+      const newFoldersSection = this.container.querySelector(
+        ".rss-dashboard-feed-folders-section",
+      );
+      if (newFoldersSection) {
+        newFoldersSection.scrollTop = foldersScroll;
+      }
     });
   }
 
@@ -198,7 +213,7 @@ export class Sidebar {
     if (this.settings.feeds.length === 0) {
       feedFoldersSection.createDiv({
         cls: "rss-dashboard-empty-state",
-        text: "No feeds yet — click ⋯ to add one",
+        text: "No feeds yet — add one of your own or visit the Discover tab!",
       });
     }
 
@@ -223,16 +238,24 @@ export class Sidebar {
     );
 
     if (rootFeeds.length > 0) {
+      // Wrap root feeds in indentation container
+      const rootFeedsContainer = feedFoldersSection.createDiv({
+        cls: "rss-dashboard-folder-feeds",
+      });
       rootFeeds.forEach((feed) => {
-        this.renderFeed(feed, feedFoldersSection);
+        this.renderFeed(feed, rootFeedsContainer);
       });
     }
 
     // Add drop handler for root area - only when dropping on the actual root section, not on folders
     feedFoldersSection.addEventListener("dragover", (e) => {
       // Only show drag-over if we're not over a folder header
+      // Only show drag-over if we're not over a folder header or folder feed area
       const target = e.target as HTMLElement;
-      if (!target.closest(".rss-dashboard-feed-folder-header")) {
+      if (
+        !target.closest(".rss-dashboard-feed-folder-header") &&
+        !target.closest(".rss-dashboard-folder-feeds")
+      ) {
         e.preventDefault();
         feedFoldersSection.classList.add("drag-over");
       }
@@ -240,8 +263,12 @@ export class Sidebar {
 
     feedFoldersSection.addEventListener("dragleave", (e) => {
       // Only remove drag-over if we're actually leaving the root section
+      // Only remove drag-over if we're actually leaving the root section
       const target = e.target as HTMLElement;
-      if (!target.closest(".rss-dashboard-feed-folder-header")) {
+      if (
+        !target.closest(".rss-dashboard-feed-folder-header") &&
+        !target.closest(".rss-dashboard-folder-feeds")
+      ) {
         feedFoldersSection.classList.remove("drag-over");
       }
     });
@@ -249,9 +276,12 @@ export class Sidebar {
     feedFoldersSection.addEventListener("drop", (e) => {
       const target = e.target as HTMLElement;
 
-      // Only process drops on the root section, not on folder headers
-      if (target.closest(".rss-dashboard-feed-folder-header")) {
-        return; // Let the folder header handle this drop
+      // Only process drops on the root section, not on folder headers or folder feed areas
+      if (
+        target.closest(".rss-dashboard-feed-folder-header") ||
+        target.closest(".rss-dashboard-folder-feeds")
+      ) {
+        return; // Let the folder handle this drop
       }
 
       e.preventDefault();
@@ -466,11 +496,13 @@ export class Sidebar {
     const isCollapsed = (this.settings.collapsedFolders || []).includes(
       fullPath,
     );
+    const hasSubfolders = (folderObj.subfolders?.length || 0) > 0;
     const isActive = this.options.currentFolder === fullPath;
 
     const folderFeeds = this.settings.feeds.filter(
       (feed) => feed.folder === fullPath,
     );
+    const isExpandable = hasSubfolders || folderFeeds.length > 0;
     const hasActiveFeed = folderFeeds.some(
       (feed) => feed === this.options.currentFeed,
     );
@@ -517,9 +549,28 @@ export class Sidebar {
           e.target === toggleButton ||
           toggleButton.contains(e.target as Node)
         ) {
-          this.callbacks.onToggleFolderCollapse(fullPath);
-          // Trigger immediate re-render for UI update
-          this.render();
+          if (!isExpandable) {
+            this.callbacks.onFolderClick(fullPath);
+            return;
+          }
+
+          // Local DOM toggle to avoid scroll-bounce
+          const isNowCollapsed = !folderHeader.classList.contains("collapsed");
+          folderHeader.classList.toggle("collapsed", isNowCollapsed);
+          folderFeedsList.classList.toggle("collapsed", isNowCollapsed);
+
+          setIcon(
+            toggleButton as HTMLElement,
+            isNowCollapsed ? "chevron-right" : "chevron-down",
+          );
+
+          toggleButton.setAttr(
+            "aria-label",
+            isNowCollapsed ? "Expand folder" : "Collapse folder",
+          );
+
+          this.callbacks.onToggleFolderCollapse(fullPath, false);
+          this.callbacks.onFolderClick(fullPath);
         } else {
           this.callbacks.onFolderClick(fullPath);
         }
@@ -669,12 +720,48 @@ export class Sidebar {
       }
     });
 
-    // First, render subfolders
-    if (
-      folderObj.subfolders &&
-      folderObj.subfolders.length > 0 &&
-      !isCollapsed
-    ) {
+    // Create the container for both subfolders and feeds
+    const folderFeedsList = folderEl.createDiv({
+      cls: "rss-dashboard-folder-feeds" + (isCollapsed ? " collapsed" : ""),
+    });
+
+    // Add drag and drop support for the folder's feed list
+    folderFeedsList.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      folderFeedsList.classList.add("drag-over");
+    });
+
+    folderFeedsList.addEventListener("dragleave", (e) => {
+      e.stopPropagation();
+      folderFeedsList.classList.remove("drag-over");
+    });
+
+    folderFeedsList.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      folderFeedsList.classList.remove("drag-over");
+      if (e.dataTransfer) {
+        const feedUrl = e.dataTransfer.getData("feed-url");
+        if (feedUrl) {
+          const feed = this.settings.feeds.find((f) => f.url === feedUrl);
+          if (feed && feed.folder !== fullPath) {
+            if (feed.folder) {
+              const oldFolder = this.findFolderByPath(feed.folder);
+              if (oldFolder) oldFolder.modifiedAt = Date.now();
+            }
+            feed.folder = fullPath;
+            const newFolder = this.findFolderByPath(fullPath);
+            if (newFolder) newFolder.modifiedAt = Date.now();
+
+            void this.plugin.saveSettings().then(() => this.render());
+          }
+        }
+      }
+    });
+
+    // First, render subfolders inside folderFeedsList
+    if (folderObj.subfolders && folderObj.subfolders.length > 0) {
       const sortOrder = this.settings.folderSortOrder || {
         by: "name",
         ascending: true,
@@ -685,23 +772,14 @@ export class Sidebar {
       );
 
       sortedSubfolders.forEach((subfolder: Folder) => {
-        this.renderFolder(subfolder, fullPath, depth + 1, folderEl);
+        this.renderFolder(subfolder, fullPath, depth + 1, folderFeedsList);
       });
     }
 
-    // Then, render feeds in the folder
-    const folderFeedsList = folderEl.createDiv({
-      cls: "rss-dashboard-folder-feeds" + (isCollapsed ? " collapsed" : ""),
-    });
-
-    const feedsInFolder = this.settings.feeds.filter(
-      (feed) => feed.folder === fullPath,
-    );
-
     const folderSortOrder = this.settings.folderFeedSortOrders?.[fullPath];
     const sortedFeedsInFolder = folderSortOrder
-      ? this.applyFeedSortOrder([...feedsInFolder], folderSortOrder)
-      : feedsInFolder;
+      ? this.applyFeedSortOrder([...folderFeeds], folderSortOrder)
+      : folderFeeds;
 
     sortedFeedsInFolder.forEach((feed) => {
       this.renderFeed(feed, folderFeedsList);

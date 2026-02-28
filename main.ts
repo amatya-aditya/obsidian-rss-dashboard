@@ -748,6 +748,15 @@ export default class RssDashboardPlugin extends Plugin {
             this.settings.folders,
             newFolders,
           );
+
+          for (const feed of addedFeeds) {
+            if (feed.folder) {
+              await this.ensureFolderExists(feed.folder, {
+                saveSettings: false,
+                refreshView: false,
+              });
+            }
+          }
           await this.saveSettings();
 
           const view = await this.getActiveDashboardView();
@@ -903,19 +912,86 @@ export default class RssDashboardPlugin extends Plugin {
     URL.revokeObjectURL(url);
   }
 
+  private folderPathExists(folderPath: string): boolean {
+    if (!folderPath || folderPath === "Uncategorized") {
+      return true;
+    }
+
+    const parts = folderPath
+      .split("/")
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0);
+
+    if (parts.length === 0) {
+      return true;
+    }
+
+    let currentLevel = this.settings.folders;
+    for (const part of parts) {
+      const folder = currentLevel.find((f) => f.name === part);
+      if (!folder) {
+        return false;
+      }
+      currentLevel = folder.subfolders || [];
+    }
+
+    return true;
+  }
+
+  private async repairMissingFolderPathsForFeeds(): Promise<void> {
+    const missingPaths = new Set<string>();
+
+    for (const feed of this.settings.feeds) {
+      if (!feed.folder || feed.folder === "Uncategorized") {
+        continue;
+      }
+      if (!this.folderPathExists(feed.folder)) {
+        missingPaths.add(feed.folder);
+      }
+    }
+
+    if (missingPaths.size === 0) {
+      return;
+    }
+
+    let changed = false;
+    for (const path of missingPaths) {
+      const created = await this.ensureFolderExists(path, {
+        saveSettings: false,
+        refreshView: false,
+      });
+      if (created) {
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      await this.saveSettings();
+      console.warn(
+        `[RSS dashboard] Repaired ${missingPaths.size} missing feed folder path(s) during settings load.`,
+      );
+    }
+  }
+
   /**
    * Ensures a folder path exists in the settings hierarchy
    * Handles nested paths like "News/Tech"
    */
-  async ensureFolderExists(folderPath: string) {
-    if (!folderPath || folderPath === "Uncategorized") return;
+  async ensureFolderExists(
+    folderPath: string,
+    options?: { saveSettings?: boolean; refreshView?: boolean },
+  ): Promise<boolean> {
+    if (!folderPath || folderPath === "Uncategorized") return false;
 
+    const shouldSave = options?.saveSettings ?? true;
+    const shouldRefresh = options?.refreshView ?? true;
     const parts = folderPath.split("/");
     let currentLevel = this.settings.folders;
     let changed = false;
 
-    for (const part of parts) {
-      if (!part.trim()) continue;
+    for (const rawPart of parts) {
+      const part = rawPart.trim();
+      if (!part) continue;
       let folder = currentLevel.find((f) => f.name === part);
       if (!folder) {
         folder = {
@@ -927,16 +1003,23 @@ export default class RssDashboardPlugin extends Plugin {
         currentLevel.push(folder);
         changed = true;
       }
+      if (!folder.subfolders) {
+        folder.subfolders = [];
+      }
       currentLevel = folder.subfolders;
     }
 
-    if (changed) {
+    if (changed && shouldSave) {
       await this.saveSettings();
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        void view.refresh();
+      if (shouldRefresh) {
+        const view = await this.getActiveDashboardView();
+        if (view) {
+          void view.refresh();
+        }
       }
     }
+
+    return changed;
   }
 
   async addFeed(
@@ -981,6 +1064,12 @@ export default class RssDashboardPlugin extends Plugin {
       // Try to parse the feed BEFORE adding it to settings
       try {
         const parsedFeed = await this.feedParser.parseFeed(url, newFeed);
+        if (parsedFeed.folder) {
+          await this.ensureFolderExists(parsedFeed.folder, {
+            saveSettings: false,
+            refreshView: false,
+          });
+        }
         // Only add to settings if parsing succeeded
         this.settings.feeds.push(parsedFeed);
         await this.saveSettings();
@@ -1067,6 +1156,13 @@ export default class RssDashboardPlugin extends Plugin {
     newUrl: string,
     newFolder: string,
   ) {
+    if (newFolder) {
+      await this.ensureFolderExists(newFolder, {
+        saveSettings: false,
+        refreshView: false,
+      });
+    }
+
     const oldTitle = feed.title;
     feed.title = newTitle;
     feed.url = newUrl;
@@ -1155,6 +1251,8 @@ export default class RssDashboardPlugin extends Plugin {
           feed.filters,
         );
       }
+
+      await this.repairMissingFolderPathsForFeeds();
     } catch (error) {
       new Notice(
         `Error loading settings: ${error instanceof Error ? error.message : "Unknown error"}`,

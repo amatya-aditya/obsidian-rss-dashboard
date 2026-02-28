@@ -15,9 +15,7 @@ import {
 import { detectPodcastPlatform } from "../utils/podcast-platforms";
 import { MediaService } from "../services/media-service";
 import { ImportOpmlModal } from "./import-opml-modal";
-import {
-  renderKeywordFilterEditor,
-} from "../components/keyword-filter-editor";
+import { renderKeywordFilterEditor } from "../components/keyword-filter-editor";
 
 /**
  * Helper function to collect all folder paths from a folder hierarchy
@@ -1239,8 +1237,7 @@ export class FeedManagerModal extends Modal {
     const addFeedBtn = buttonRowPrimary.createEl("button", {
       cls: "rss-dashboard-primary-button feed-manager-add-button",
     });
-    setIcon(addFeedBtn, "plus");
-    addFeedBtn.createSpan({ text: " Add feed" });
+    addFeedBtn.createSpan({ text: "Add feed..." });
     addFeedBtn.onclick = () => {
       new AddFeedModal(
         this.app,
@@ -1708,7 +1705,10 @@ export class FeedManagerModal extends Modal {
     input.select();
   }
 
-  private async renameFolder(folderPath: string, newName: string): Promise<void> {
+  private async renameFolder(
+    folderPath: string,
+    newName: string,
+  ): Promise<void> {
     const oldName = folderPath.split("/").pop() || folderPath;
     if (newName === oldName) {
       this.onOpen();
@@ -1854,4 +1854,3 @@ export class FeedManagerModal extends Modal {
     this.contentEl.empty();
   }
 }
-
