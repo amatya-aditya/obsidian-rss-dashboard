@@ -1547,31 +1547,45 @@ export class Sidebar {
       cls: "rss-dashboard-header-toolbar",
     });
 
-    const manageBtnContainer = headerToolbar.createDiv({
+    const addBtnContainer = headerToolbar.createDiv({
       cls: "rss-dashboard-header-manage-container",
     });
 
-    const manageBtn = manageBtnContainer.createDiv({
+    const addBtn = addBtnContainer.createDiv({
       cls: "rss-dashboard-header-icon-button",
       attr: {
-        title: "Add or manage feeds",
-        "aria-label": "Add or manage feeds",
+        title: "Add feed",
+        "aria-label": "Add feed",
       },
     });
-    setIcon(manageBtn, "edit");
-    manageBtn.addEventListener("click", (e) => {
-      this.showManageMenu(e);
+    setIcon(addBtn, "plus");
+    addBtn.addEventListener("click", () => {
+      this.showAddFeedModal();
       if (!this.app.loadLocalStorage("rss-first-launch-coachmark-shown")) {
         this.app.saveLocalStorage("rss-first-launch-coachmark-shown", "true");
-        const coachmark = manageBtnContainer.querySelector(
+        const coachmark = addBtnContainer.querySelector(
           ".rss-dashboard-coachmark",
         );
         if (coachmark) coachmark.remove();
       }
     });
 
+    const manageBtn = headerToolbar.createDiv({
+      cls: "rss-dashboard-header-icon-button",
+      attr: {
+        title: "Manage feeds",
+        "aria-label": "Manage feeds",
+      },
+    });
+    setIcon(manageBtn, "edit");
+    manageBtn.addEventListener("click", () => {
+      if (this.callbacks.onManageFeeds) {
+        this.callbacks.onManageFeeds();
+      }
+    });
+
     if (!this.app.loadLocalStorage("rss-first-launch-coachmark-shown")) {
-      const coachmark = manageBtnContainer.createDiv({
+      const coachmark = addBtnContainer.createDiv({
         cls: "rss-dashboard-coachmark",
         text: "Add your first feed here",
       });
@@ -1598,99 +1612,6 @@ export class Sidebar {
     //       this.callbacks.onToggleSidebar();
     //     }
     //   });
-  }
-
-  private showManageMenu(event: MouseEvent): void {
-    const isMobile = window.innerWidth < 768;
-
-    if (isMobile) {
-      this.showMobileManageBottomSheet();
-    } else {
-      const menu = new Menu();
-
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Add feed")
-          .setIcon("plus")
-          .onClick(() => {
-            this.showAddFeedModal();
-          });
-      });
-
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Edit feeds")
-          .setIcon("list")
-          .onClick(() => {
-            if (this.callbacks.onManageFeeds) {
-              this.callbacks.onManageFeeds();
-            }
-          });
-      });
-
-      menu.showAtMouseEvent(event);
-    }
-  }
-
-  private showMobileManageBottomSheet(): void {
-    const modal = document.body.createDiv({
-      cls: "rss-mobile-bottom-sheet-container",
-    });
-
-    const overlay = modal.createDiv({
-      cls: "rss-mobile-bottom-sheet-overlay",
-    });
-
-    const sheet = modal.createDiv({
-      cls: "rss-mobile-bottom-sheet",
-    });
-
-    sheet.createDiv({
-      cls: "rss-mobile-bottom-sheet-handle",
-    });
-
-    const addFeedBtn = sheet.createDiv({
-      cls: "rss-mobile-bottom-sheet-item",
-    });
-    setIcon(
-      addFeedBtn.createDiv({ cls: "rss-mobile-bottom-sheet-icon" }),
-      "plus",
-    );
-    addFeedBtn.createSpan({ text: "Add feed" });
-    addFeedBtn.addEventListener("click", () => {
-      document.body.removeChild(modal);
-      this.showAddFeedModal();
-    });
-
-    const editFeedsBtn = sheet.createDiv({
-      cls: "rss-mobile-bottom-sheet-item",
-    });
-    setIcon(
-      editFeedsBtn.createDiv({ cls: "rss-mobile-bottom-sheet-icon" }),
-      "list",
-    );
-    editFeedsBtn.createSpan({ text: "Edit feeds" });
-    editFeedsBtn.addEventListener("click", () => {
-      document.body.removeChild(modal);
-      if (this.callbacks.onManageFeeds) {
-        this.callbacks.onManageFeeds();
-      }
-    });
-
-    const closeSheet = () => {
-      sheet.addClass("closing");
-      window.setTimeout(() => {
-        if (document.body.contains(modal)) {
-          document.body.removeChild(modal);
-        }
-      }, 200);
-    };
-
-    overlay.addEventListener("click", closeSheet);
-    document.body.appendChild(modal);
-    overlay.addEventListener("touchmove", (e) => e.preventDefault(), {
-      passive: false,
-    });
   }
 
   public renderFilters(parentEl: HTMLElement): void {
