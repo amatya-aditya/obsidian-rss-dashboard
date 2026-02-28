@@ -329,6 +329,20 @@ export class RssDashboardSettingTab extends PluginSettingTab {
   }
 
   private createDisplaySettings(containerEl: HTMLElement): void {
+    const normalizeHexColor = (value: string): string | null => {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+
+      const withHash = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+      if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(withHash)) {
+        return null;
+      }
+
+      return withHash.toLowerCase();
+    };
+
+    new Setting(containerEl).setName("Dashboard").setHeading();
+
     new Setting(containerEl)
       .setName("Show cover images")
       .setDesc("Display cover images for articles in reader view")
@@ -373,80 +387,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             if (view) {
               await this.app.workspace.revealLeaf(view.leaf);
               view.render();
-            }
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName("Use domain favicons")
-      .setDesc(
-        "Show domain-specific favicons instead of generic RSS icons for feeds",
-      )
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.display.useDomainFavicons)
-          .onChange(async (value) => {
-            this.plugin.settings.display.useDomainFavicons = value;
-            await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName("Hide default RSS icon")
-      .setDesc("Hide the default RSS icon for regular feeds in the sidebar")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(!!this.plugin.settings.display.hideDefaultRssIcon)
-          .onChange(async (value) => {
-            this.plugin.settings.display.hideDefaultRssIcon = value;
-            await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName("Sidebar row spacing")
-      .setDesc("Adjust the height between rows in the sidebar feed list")
-      .addSlider((slider) =>
-        slider
-          .setLimits(10, 44, 1)
-          .setValue(this.plugin.settings.display.sidebarRowSpacing ?? 10)
-          .setDynamicTooltip()
-          .onChange(async (value) => {
-            this.plugin.settings.display.sidebarRowSpacing = value;
-            await this.plugin.saveSettings();
-            // Apply the new spacing to the sidebar by re-rendering
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              view.sidebar.render();
-            }
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName("Sidebar row indentation")
-      .setDesc("Adjust the indentation of nested items in the sidebar")
-      .addSlider((slider) =>
-        slider
-          .setLimits(0, 50, 1)
-          .setValue(this.plugin.settings.display.sidebarRowIndentation ?? 20)
-          .setDynamicTooltip()
-          .onChange(async (value) => {
-            this.plugin.settings.display.sidebarRowIndentation = value;
-            await this.plugin.saveSettings();
-            // Apply the new indentation to the sidebar by re-rendering
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              view.sidebar.render();
             }
           }),
       );
@@ -503,6 +443,334 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             const view = await this.plugin.getActiveDashboardView();
             if (view?.sidebar) {
               await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      );
+
+    new Setting(containerEl).setName("Sidebar").setHeading();
+
+    new Setting(containerEl)
+      .setName("Use domain favicons")
+      .setDesc(
+        "Show domain-specific favicons instead of generic RSS icons for feeds",
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.display.useDomainFavicons)
+          .onChange(async (value) => {
+            this.plugin.settings.display.useDomainFavicons = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Hide default RSS icon")
+      .setDesc("Hide the default RSS icon for regular feeds in the sidebar")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(!!this.plugin.settings.display.hideDefaultRssIcon)
+          .onChange(async (value) => {
+            this.plugin.settings.display.hideDefaultRssIcon = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      );
+
+    const unreadBadgeVisibilitySetting = new Setting(containerEl)
+      .setName("Unread badge visibility")
+      .setDesc("Choose where unread count badges appear in the sidebar");
+
+    const visibilityGroup = unreadBadgeVisibilitySetting.controlEl.createDiv({
+      cls: "rss-dashboard-badge-visibility-group",
+    });
+
+    const createVisibilityOption = (
+      labelText: string,
+      checked: boolean,
+      onChange: (value: boolean) => Promise<void>,
+    ) => {
+      const optionLabel = visibilityGroup.createEl("label", {
+        cls: "rss-dashboard-badge-visibility-option",
+      });
+      const checkbox = optionLabel.createEl("input", {
+        attr: { type: "checkbox" },
+      });
+      checkbox.checked = checked;
+      optionLabel.createSpan({ text: labelText });
+
+      checkbox.addEventListener("change", () => {
+        void onChange(checkbox.checked);
+      });
+    };
+
+    createVisibilityOption(
+      "All feeds",
+      this.plugin.settings.display.showAllFeedsUnreadBadges ?? true,
+      async (value) => {
+        this.plugin.settings.display.showAllFeedsUnreadBadges = value;
+        await this.plugin.saveSettings();
+        const view = await this.plugin.getActiveDashboardView();
+        if (view?.sidebar) {
+          await this.app.workspace.revealLeaf(view.leaf);
+          view.sidebar.render();
+        }
+      },
+    );
+
+    createVisibilityOption(
+      "Folders",
+      this.plugin.settings.display.showFolderUnreadBadges ?? true,
+      async (value) => {
+        this.plugin.settings.display.showFolderUnreadBadges = value;
+        await this.plugin.saveSettings();
+        const view = await this.plugin.getActiveDashboardView();
+        if (view?.sidebar) {
+          await this.app.workspace.revealLeaf(view.leaf);
+          view.sidebar.render();
+        }
+      },
+    );
+
+    createVisibilityOption(
+      "Feeds",
+      this.plugin.settings.display.showFeedUnreadBadges ?? true,
+      async (value) => {
+        this.plugin.settings.display.showFeedUnreadBadges = value;
+        await this.plugin.saveSettings();
+        const view = await this.plugin.getActiveDashboardView();
+        if (view?.sidebar) {
+          await this.app.workspace.revealLeaf(view.leaf);
+          view.sidebar.render();
+        }
+      },
+    );
+
+    new Setting(containerEl)
+      .setName("All feeds badge color")
+      .setDesc("Set the unread badge color for the all feeds row")
+      .addColorPicker((colorPicker) =>
+        colorPicker
+          .setValue(this.plugin.settings.display.allFeedsUnreadBadgeColor)
+          .onChange(async (value) => {
+            this.plugin.settings.display.allFeedsUnreadBadgeColor = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      )
+      .addText((text) => {
+        text
+          .setPlaceholder("#8e44ad")
+          .setValue(this.plugin.settings.display.allFeedsUnreadBadgeColor)
+          .onChange(async (value) => {
+            const normalized = normalizeHexColor(value);
+            if (!normalized) return;
+            this.plugin.settings.display.allFeedsUnreadBadgeColor = normalized;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          });
+        text.inputEl.addClass("rss-dashboard-color-hex-input");
+      })
+      .addButton((button) =>
+        button
+          .setButtonText("Set default")
+          .setTooltip("Use the current color as the reset default")
+          .onClick(async () => {
+            this.plugin.settings.display.allFeedsUnreadBadgeDefaultColor =
+              this.plugin.settings.display.allFeedsUnreadBadgeColor;
+            await this.plugin.saveSettings();
+          }),
+      )
+      .addExtraButton((button) =>
+        button
+          .setIcon("rotate-ccw")
+          .setTooltip("Reset to default color")
+          .onClick(async () => {
+            this.plugin.settings.display.allFeedsUnreadBadgeColor =
+              this.plugin.settings.display.allFeedsUnreadBadgeDefaultColor ||
+              DEFAULT_SETTINGS.display.allFeedsUnreadBadgeColor;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+            this.display();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Folder badge color")
+      .setDesc("Set the unread badge color for folder rows")
+      .addColorPicker((colorPicker) =>
+        colorPicker
+          .setValue(this.plugin.settings.display.folderUnreadBadgeColor)
+          .onChange(async (value) => {
+            this.plugin.settings.display.folderUnreadBadgeColor = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      )
+      .addText((text) => {
+        text
+          .setPlaceholder("#d85b9f")
+          .setValue(this.plugin.settings.display.folderUnreadBadgeColor)
+          .onChange(async (value) => {
+            const normalized = normalizeHexColor(value);
+            if (!normalized) return;
+            this.plugin.settings.display.folderUnreadBadgeColor = normalized;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          });
+        text.inputEl.addClass("rss-dashboard-color-hex-input");
+      })
+      .addButton((button) =>
+        button
+          .setButtonText("Set default")
+          .setTooltip("Use the current color as the reset default")
+          .onClick(async () => {
+            this.plugin.settings.display.folderUnreadBadgeDefaultColor =
+              this.plugin.settings.display.folderUnreadBadgeColor;
+            await this.plugin.saveSettings();
+          }),
+      )
+      .addExtraButton((button) =>
+        button
+          .setIcon("rotate-ccw")
+          .setTooltip("Reset to default color")
+          .onClick(async () => {
+            this.plugin.settings.display.folderUnreadBadgeColor =
+              this.plugin.settings.display.folderUnreadBadgeDefaultColor ||
+              DEFAULT_SETTINGS.display.folderUnreadBadgeColor;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+            this.display();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Feed badge color")
+      .setDesc("Set the unread badge color for feed rows")
+      .addColorPicker((colorPicker) =>
+        colorPicker
+          .setValue(this.plugin.settings.display.feedUnreadBadgeColor)
+          .onChange(async (value) => {
+            this.plugin.settings.display.feedUnreadBadgeColor = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      )
+      .addText((text) => {
+        text
+          .setPlaceholder("#8e44ad")
+          .setValue(this.plugin.settings.display.feedUnreadBadgeColor)
+          .onChange(async (value) => {
+            const normalized = normalizeHexColor(value);
+            if (!normalized) return;
+            this.plugin.settings.display.feedUnreadBadgeColor = normalized;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          });
+        text.inputEl.addClass("rss-dashboard-color-hex-input");
+      })
+      .addButton((button) =>
+        button
+          .setButtonText("Set default")
+          .setTooltip("Use the current color as the reset default")
+          .onClick(async () => {
+            this.plugin.settings.display.feedUnreadBadgeDefaultColor =
+              this.plugin.settings.display.feedUnreadBadgeColor;
+            await this.plugin.saveSettings();
+          }),
+      )
+      .addExtraButton((button) =>
+        button
+          .setIcon("rotate-ccw")
+          .setTooltip("Reset to default color")
+          .onClick(async () => {
+            this.plugin.settings.display.feedUnreadBadgeColor =
+              this.plugin.settings.display.feedUnreadBadgeDefaultColor ||
+              DEFAULT_SETTINGS.display.feedUnreadBadgeColor;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+            this.display();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Sidebar row spacing")
+      .setDesc("Adjust the height between rows in the sidebar feed list")
+      .addSlider((slider) =>
+        slider
+          .setLimits(10, 44, 1)
+          .setValue(this.plugin.settings.display.sidebarRowSpacing ?? 10)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            this.plugin.settings.display.sidebarRowSpacing = value;
+            await this.plugin.saveSettings();
+            // Apply the new spacing to the sidebar by re-rendering
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              view.sidebar.render();
+            }
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Sidebar row indentation")
+      .setDesc("Adjust the indentation of nested items in the sidebar")
+      .addSlider((slider) =>
+        slider
+          .setLimits(0, 50, 1)
+          .setValue(this.plugin.settings.display.sidebarRowIndentation ?? 20)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            this.plugin.settings.display.sidebarRowIndentation = value;
+            await this.plugin.saveSettings();
+            // Apply the new indentation to the sidebar by re-rendering
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
               view.sidebar.render();
             }
           }),

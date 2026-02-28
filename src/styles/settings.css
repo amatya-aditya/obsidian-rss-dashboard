@@ -718,6 +718,26 @@
   gap: 8px;
 }
 
+.rss-dashboard-badge-visibility-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rss-dashboard-badge-visibility-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-normal);
+  cursor: pointer;
+}
+
+.rss-dashboard-color-hex-input {
+  width: 96px;
+}
+
 .rss-keyword-filter-rule-row.is-disabled .rss-keyword-filter-rule-body {
   opacity: 0.65;
   filter: grayscale(0.2);

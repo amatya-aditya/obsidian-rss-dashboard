@@ -184,6 +184,18 @@ export class Sidebar {
       "--sidebar-row-indentation",
       `${indentation}px`,
     );
+    this.container.style.setProperty(
+      "--rss-unread-badge-all-feeds-color",
+      this.settings.display.allFeedsUnreadBadgeColor || "#8e44ad",
+    );
+    this.container.style.setProperty(
+      "--rss-unread-badge-folder-color",
+      this.settings.display.folderUnreadBadgeColor || "#d85b9f",
+    );
+    this.container.style.setProperty(
+      "--rss-unread-badge-feed-color",
+      this.settings.display.feedUnreadBadgeColor || "#8e44ad",
+    );
 
     this.renderHeader();
     this.renderFeedFolders();
@@ -206,6 +218,7 @@ export class Sidebar {
     const feedFoldersSection = this.container.createDiv({
       cls: "rss-dashboard-feed-folders-section",
     });
+    const folderUnreadCountMap = this.buildFolderUnreadCountMap();
 
     // Render "All Feeds" button at the top
     this.renderAllFeedsButton(feedFoldersSection);
@@ -228,7 +241,7 @@ export class Sidebar {
       );
 
       sortedFolders.forEach((folderObj: Folder) =>
-        this.renderFolder(folderObj, "", 0, feedFoldersSection),
+        this.renderFolder(folderObj, "", 0, feedFoldersSection, folderUnreadCountMap),
       );
     }
 
@@ -386,7 +399,7 @@ export class Sidebar {
     });
 
     // Unread count badge (purple)
-    if (totalUnread > 0) {
+    if (this.settings.display.showAllFeedsUnreadBadges && totalUnread > 0) {
       rightContainer.createDiv({
         cls: "rss-dashboard-all-feeds-unread",
         text: totalUnread.toString(),
@@ -490,6 +503,7 @@ export class Sidebar {
     parentPath = "",
     depth = 0,
     container: HTMLElement,
+    folderUnreadCountMap: Map<string, number>,
   ): void {
     const folderName = folderObj.name;
     const fullPath = parentPath ? `${parentPath}/${folderName}` : folderName;
@@ -542,6 +556,14 @@ export class Sidebar {
       cls: "rss-dashboard-feed-folder-name",
       text: folderName,
     });
+
+    const folderUnreadCount = folderUnreadCountMap.get(fullPath) ?? 0;
+    if (this.settings.display.showFolderUnreadBadges && folderUnreadCount > 0) {
+      folderHeader.createDiv({
+        cls: "rss-dashboard-folder-unread-count",
+        text: folderUnreadCount.toString(),
+      });
+    }
 
     folderHeader.addEventListener("click", (e) => {
       if (e.button === 0) {
@@ -772,7 +794,13 @@ export class Sidebar {
       );
 
       sortedSubfolders.forEach((subfolder: Folder) => {
-        this.renderFolder(subfolder, fullPath, depth + 1, folderFeedsList);
+        this.renderFolder(
+          subfolder,
+          fullPath,
+          depth + 1,
+          folderFeedsList,
+          folderUnreadCountMap,
+        );
       });
     }
 
@@ -784,6 +812,33 @@ export class Sidebar {
     sortedFeedsInFolder.forEach((feed) => {
       this.renderFeed(feed, folderFeedsList);
     });
+  }
+
+  private buildFolderUnreadCountMap(): Map<string, number> {
+    const unreadCountByFolderPath = new Map<string, number>();
+
+    for (const feed of this.settings.feeds) {
+      if (!feed.folder) continue;
+
+      const unreadCount = feed.items.reduce(
+        (count, item) => count + (item.read ? 0 : 1),
+        0,
+      );
+      if (unreadCount === 0) continue;
+
+      const parts = feed.folder.split("/").filter((part) => part.length > 0);
+      let path = "";
+
+      for (const part of parts) {
+        path = path ? `${path}/${part}` : part;
+        unreadCountByFolderPath.set(
+          path,
+          (unreadCountByFolderPath.get(path) ?? 0) + unreadCount,
+        );
+      }
+    }
+
+    return unreadCountByFolderPath;
   }
 
   private renderFeed(feed: Feed, container: HTMLElement): void {
@@ -870,7 +925,7 @@ export class Sidebar {
       text: feed.title,
     });
 
-    if (unreadCount > 0) {
+    if (this.settings.display.showFeedUnreadBadges && unreadCount > 0) {
       feedNameContainer.createDiv({
         cls: "rss-dashboard-feed-unread-count",
         text: unreadCount.toString(),

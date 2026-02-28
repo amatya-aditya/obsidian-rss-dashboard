@@ -1331,6 +1331,42 @@ export default class RssDashboardPlugin extends Plugin {
         this.settings.display.showFilterStatusBar =
           DEFAULT_SETTINGS.display.showFilterStatusBar;
       }
+      if (this.settings.display.showFolderUnreadBadges === undefined) {
+        this.settings.display.showFolderUnreadBadges =
+          DEFAULT_SETTINGS.display.showFolderUnreadBadges;
+      }
+      if (this.settings.display.showAllFeedsUnreadBadges === undefined) {
+        this.settings.display.showAllFeedsUnreadBadges =
+          DEFAULT_SETTINGS.display.showAllFeedsUnreadBadges;
+      }
+      if (this.settings.display.showFeedUnreadBadges === undefined) {
+        this.settings.display.showFeedUnreadBadges =
+          DEFAULT_SETTINGS.display.showFeedUnreadBadges;
+      }
+      if (!this.settings.display.allFeedsUnreadBadgeColor) {
+        this.settings.display.allFeedsUnreadBadgeColor =
+          DEFAULT_SETTINGS.display.allFeedsUnreadBadgeColor;
+      }
+      if (!this.settings.display.folderUnreadBadgeColor) {
+        this.settings.display.folderUnreadBadgeColor =
+          DEFAULT_SETTINGS.display.folderUnreadBadgeColor;
+      }
+      if (!this.settings.display.feedUnreadBadgeColor) {
+        this.settings.display.feedUnreadBadgeColor =
+          DEFAULT_SETTINGS.display.feedUnreadBadgeColor;
+      }
+      if (!this.settings.display.allFeedsUnreadBadgeDefaultColor) {
+        this.settings.display.allFeedsUnreadBadgeDefaultColor =
+          DEFAULT_SETTINGS.display.allFeedsUnreadBadgeDefaultColor;
+      }
+      if (!this.settings.display.folderUnreadBadgeDefaultColor) {
+        this.settings.display.folderUnreadBadgeDefaultColor =
+          DEFAULT_SETTINGS.display.folderUnreadBadgeDefaultColor;
+      }
+      if (!this.settings.display.feedUnreadBadgeDefaultColor) {
+        this.settings.display.feedUnreadBadgeDefaultColor =
+          DEFAULT_SETTINGS.display.feedUnreadBadgeDefaultColor;
+      }
     }
 
     if (!this.settings.filters) {

@@ -248,19 +248,33 @@
   flex-grow: 1;
 }
 .rss-dashboard-feed-unread-count,
-.rss-dashboard-all-feeds-unread {
-  background-color: #8e44ad;
+.rss-dashboard-all-feeds-unread,
+.rss-dashboard-folder-unread-count {
   color: white;
-  border-radius: 10px;
-  padding: 1px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  min-height: 1.4em;
+  min-width: 1.6em;
+  padding: 0 0.55em;
   font-size: 10px;
   font-weight: 600;
-  line-height: normal;
-  min-width: 20px;
-  text-align: center;
+  line-height: 1;
+  box-sizing: border-box;
 }
 .rss-dashboard-feed-unread-count {
   margin-left: auto;
+  background-color: var(--rss-unread-badge-feed-color, #8e44ad);
+}
+
+.rss-dashboard-all-feeds-unread {
+  background-color: var(--rss-unread-badge-all-feeds-color, #8e44ad);
+}
+
+.rss-dashboard-folder-unread-count {
+  margin-left: auto;
+  background-color: var(--rss-unread-badge-folder-color, #d85b9f);
 }
 .rss-dashboard-sidebar-toolbar {
   --rss-toolbar-base-pad: 2px;
@@ -515,11 +529,6 @@
   height: 1px;
   background-color: #8e44ad;
   margin: 4px 10px 8px 10px;
-}
-
-/* Dark theme adjustment for purple badge */
-.theme-dark .rss-dashboard-all-feeds-unread {
-  background-color: #9b59b6;
 }
 
 .theme-dark .rss-dashboard-all-feeds-divider {

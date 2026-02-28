@@ -139,10 +139,26 @@ export class DiscoverView extends ItemView {
     return categoryMap;
   }
 
-  private filterFeeds(): void {
+  private filterFeeds(resetPage = true): void {
     this.filteredFeeds = this.feeds.filter((feed) => this.matchesFilters(feed));
     this.sortFeeds();
-    this.currentPage = 1;
+    if (resetPage) {
+      this.currentPage = 1;
+      return;
+    }
+
+    const totalPages = Math.max(
+      1,
+      Math.ceil(this.filteredFeeds.length / this.pageSize),
+    );
+    this.currentPage = Math.min(this.currentPage, totalPages);
+  }
+
+  private refreshViewAfterFollowStateChange(): void {
+    if (this.filters.followStatus !== "all") {
+      this.filterFeeds(false);
+    }
+    this.render();
   }
 
   private isFollowedFeed(feed: FeedMetadata): boolean {
@@ -1346,8 +1362,8 @@ export class DiscoverView extends ItemView {
       removeBtn.addEventListener("click", () => {
         void (async () => {
           await this.removeFeed(feed.url);
-          // Refresh the view to show default state
-          this.render();
+          // Re-filter when follow status filters are active, then refresh.
+          this.refreshViewAfterFollowStateChange();
         })();
       });
     } else {
@@ -1396,8 +1412,8 @@ export class DiscoverView extends ItemView {
       await this.plugin.addFeed(feed.title, feed.url, folderName);
       new Notice(`Feed "${feed.title}" added to "${folderName}"`);
 
-      // Refresh the view to show "Added" state
-      this.render();
+      // Re-filter when follow status filters are active, then refresh.
+      this.refreshViewAfterFollowStateChange();
     } catch (error) {
       new Notice(
         `Failed to add feed: ${error instanceof Error ? error.message : "Unknown error"}`,

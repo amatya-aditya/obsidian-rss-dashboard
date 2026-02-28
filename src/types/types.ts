@@ -155,6 +155,15 @@ export interface DisplaySettings {
   showCoverImage: boolean;
   showSummary: boolean;
   showFilterStatusBar: boolean;
+  showAllFeedsUnreadBadges: boolean;
+  showFolderUnreadBadges: boolean;
+  showFeedUnreadBadges: boolean;
+  allFeedsUnreadBadgeColor: string;
+  folderUnreadBadgeColor: string;
+  feedUnreadBadgeColor: string;
+  allFeedsUnreadBadgeDefaultColor: string;
+  folderUnreadBadgeDefaultColor: string;
+  feedUnreadBadgeDefaultColor: string;
   filterDisplayStyle: "vertical" | "inline";
   mobileShowCardToolbar: boolean;
   mobileShowListToolbar: boolean;
@@ -375,6 +384,15 @@ guid: "{{guid}}"
     showCoverImage: true,
     showSummary: true,
     showFilterStatusBar: true,
+    showAllFeedsUnreadBadges: true,
+    showFolderUnreadBadges: true,
+    showFeedUnreadBadges: true,
+    allFeedsUnreadBadgeColor: "#8e44ad",
+    folderUnreadBadgeColor: "#d85b9f",
+    feedUnreadBadgeColor: "#8e44ad",
+    allFeedsUnreadBadgeDefaultColor: "#8e44ad",
+    folderUnreadBadgeDefaultColor: "#d85b9f",
+    feedUnreadBadgeDefaultColor: "#8e44ad",
     filterDisplayStyle: "inline",
     mobileShowCardToolbar: true,
     mobileShowListToolbar: true,
