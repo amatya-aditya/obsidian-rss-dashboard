@@ -263,13 +263,20 @@
   margin-left: auto;
 }
 .rss-dashboard-sidebar-toolbar {
+  --rss-toolbar-base-pad: 2px;
+  --rss-toolbar-safe-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 2;
   background: var(--background-secondary);
   border-radius: 0px;
   border-bottom: 1px solid var(--background-secondary);
   display: flex;
   justify-content: space-around;
-  padding: 2px;
+  padding-top: var(--rss-toolbar-base-pad);
+  padding-right: var(--rss-toolbar-base-pad);
+  padding-left: var(--rss-toolbar-base-pad);
+  padding-bottom: calc(
+    var(--rss-toolbar-base-pad) + var(--rss-toolbar-safe-bottom)
+  );
   flex-shrink: 0;
   /* Position toolbar at bottom of sidebar - independent of drawer */
   position: sticky;
@@ -313,7 +320,7 @@
   overflow-y: auto;
 }
 .rss-dashboard-sidebar {
-  --sidebar-row-spacing: 20px;
+  --sidebar-row-spacing: 10px;
   --sidebar-row-indentation: 20px;
   font-size: 13px;
   padding: 0;
@@ -486,6 +493,7 @@
   flex-grow: 1;
   display: flex;
   align-items: center;
+  padding: 4px 2px;
 }
 
 .rss-dashboard-all-feeds-label {

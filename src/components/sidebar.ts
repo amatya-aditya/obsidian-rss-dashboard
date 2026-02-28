@@ -176,7 +176,7 @@ export class Sidebar {
     this.container.empty();
     this.container.addClass("rss-dashboard-sidebar");
 
-    const spacing = this.settings.display.sidebarRowSpacing ?? 20;
+    const spacing = this.settings.display.sidebarRowSpacing ?? 10;
     this.container.style.setProperty("--sidebar-row-spacing", `${spacing}px`);
 
     const indentation = this.settings.display.sidebarRowIndentation ?? 20;

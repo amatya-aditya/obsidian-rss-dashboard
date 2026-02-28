@@ -86,6 +86,11 @@
   color: red;
 }
 
+/* Remove Obsidian default modal-content padding for sidebar modal at all sizes. */
+.modal.rss-mobile-navigation-modal .modal-content {
+  padding: 0 !important;
+}
+
 @media (max-width: 1200px) {
   .rss-dashboard-container {
     padding: 8px;
@@ -339,12 +344,13 @@
 
     /* Enlarge feed items for mobile touch targets */
     .modal.rss-mobile-navigation-modal .rss-dashboard-feed {
-      min-height: 44px;
-      padding: 10px 10px 10px var(--sidebar-row-indentation);
+      padding-top: calc(var(--sidebar-row-spacing) / 2);
+      padding-bottom: calc(var(--sidebar-row-spacing) / 2);
+      padding-right: 10px;
+      padding-left: var(--sidebar-row-indentation);
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folder-header {
-      min-height: 44px;
       padding: 10px;
     }
 

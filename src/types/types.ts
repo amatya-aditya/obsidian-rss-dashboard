@@ -384,7 +384,7 @@ guid: "{{guid}}"
     useDomainFavicons: true,
     hideDefaultRssIcon: false,
     autoMarkReadOnOpen: false,
-    sidebarRowSpacing: 20,
+    sidebarRowSpacing: 10,
     sidebarRowIndentation: 20,
   },
   highlights: {

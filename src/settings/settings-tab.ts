@@ -419,7 +419,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       .addSlider((slider) =>
         slider
           .setLimits(10, 44, 1)
-          .setValue(this.plugin.settings.display.sidebarRowSpacing ?? 20)
+          .setValue(this.plugin.settings.display.sidebarRowSpacing ?? 10)
           .setDynamicTooltip()
           .onChange(async (value) => {
             this.plugin.settings.display.sidebarRowSpacing = value;
