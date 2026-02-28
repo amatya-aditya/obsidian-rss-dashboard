@@ -167,6 +167,15 @@ export class Sidebar {
     this.container.empty();
     this.container.addClass("rss-dashboard-sidebar");
 
+    const spacing = this.settings.display.sidebarRowSpacing ?? 20;
+    this.container.style.setProperty("--sidebar-row-spacing", `${spacing}px`);
+
+    const indentation = this.settings.display.sidebarRowIndentation ?? 20;
+    this.container.style.setProperty(
+      "--sidebar-row-indentation",
+      `${indentation}px`,
+    );
+
     this.renderHeader();
     this.renderFeedFolders();
     this.renderSearchDock(this.container);
@@ -470,8 +479,6 @@ export class Sidebar {
     const folderEl = container.createDiv({
       cls: "rss-dashboard-feed-folder",
     });
-    const depthClass = `rss-dashboard-folder-depth-${Math.min(depth, 5)}`;
-    folderEl.addClass(depthClass);
 
     const folderHeader = folderEl.createDiv({
       cls:

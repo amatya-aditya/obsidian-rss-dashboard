@@ -171,6 +171,8 @@ export interface DisplaySettings {
   useDomainFavicons: boolean;
   hideDefaultRssIcon: boolean;
   autoMarkReadOnOpen: boolean;
+  sidebarRowSpacing: number;
+  sidebarRowIndentation: number;
 }
 
 export interface HighlightWord {
@@ -382,6 +384,8 @@ guid: "{{guid}}"
     useDomainFavicons: true,
     hideDefaultRssIcon: false,
     autoMarkReadOnOpen: false,
+    sidebarRowSpacing: 20,
+    sidebarRowIndentation: 20,
   },
   highlights: {
     enabled: false,

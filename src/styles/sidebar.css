@@ -216,6 +216,7 @@
   transition: max-height 0.3s ease;
   overflow: hidden;
   background-color: var(--background-primary);
+  padding-left: var(--sidebar-row-indentation);
 }
 
 .rss-dashboard-folder-feeds.collapsed {
@@ -225,6 +226,8 @@
   cursor: pointer;
   display: flex;
   align-items: center;
+  padding-top: calc(var(--sidebar-row-spacing) / 2);
+  padding-bottom: calc(var(--sidebar-row-spacing) / 2);
 }
 .rss-dashboard-feed:hover {
   background-color: var(--background-modifier-hover);
@@ -312,6 +315,8 @@
   overflow-y: auto;
 }
 .rss-dashboard-sidebar {
+  --sidebar-row-spacing: 20px;
+  --sidebar-row-indentation: 20px;
   font-size: 13px;
   padding: 0;
   overflow-y: auto;

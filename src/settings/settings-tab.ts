@@ -433,6 +433,25 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName("Sidebar row indentation")
+      .setDesc("Adjust the indentation of nested items in the sidebar")
+      .addSlider((slider) =>
+        slider
+          .setLimits(0, 50, 1)
+          .setValue(this.plugin.settings.display.sidebarRowIndentation ?? 20)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            this.plugin.settings.display.sidebarRowIndentation = value;
+            await this.plugin.saveSettings();
+            // Apply the new indentation to the sidebar by re-rendering
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              view.sidebar.render();
+            }
+          }),
+      );
+
+    new Setting(containerEl)
       .setName('Automatically mark article "read" upon opening')
       .setDesc(
         "When an article is opened, it will be automatically marked as read",
