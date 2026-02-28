@@ -4,6 +4,8 @@
   overflow: hidden;
   padding: 0 6px 6px 6px !important;
   border-top: 1px solid var(--background-modifier-border);
+  background-color: var(--background-primary);
+  color: var(--text-normal);
 }
 
 .rss-dashboard-layout {
@@ -131,4 +133,19 @@
 .sidebar-collapsed .rss-dashboard-sidebar {
   display: none !important;
   width: 0 !important;
+}
+
+/* Tablet and below: hide dashboard sidebar in favor of mobile navigation modal. */
+@media (max-width: 1200px) {
+  .rss-dashboard-sidebar {
+    display: none !important;
+  }
+
+  .rss-dashboard-sidebar-resize-handle {
+    display: none !important;
+  }
+
+  .rss-dashboard-container {
+    padding: 8px;
+  }
 }

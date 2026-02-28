@@ -985,9 +985,9 @@
  * RESPONSIVE LAYOUT - Dashboard Header Controls
  * ============================================================
  * Priority order (loaded via index.css):
- *   1. controls.css (this file) — base + media queries
- *   2. discover.css — Discover view overrides
- *   3. responsive.css — global responsive overrides
+ *   1. controls.css (this file) - base + media queries
+ *   2. modals.css - modal and drawer overrides
+ *   3. discover.css - Discover view overrides
  *
  * The `is-narrow` class is added dynamically by article-list.ts
  * via ResizeObserver when the header width <= 1024px.
@@ -1000,7 +1000,7 @@
  *   - Mobile:   <= 768px   → show hamburger, hide desktop controls
  *
  * We use !important on display toggles to prevent overrides from
- * later-loaded stylesheets (discover.css, responsive.css).
+ * later-loaded stylesheets (modals.css, discover.css).
  * ============================================================
  */
 
@@ -1268,3 +1268,5 @@
 .search-hidden {
   display: none !important;
 }
+
+

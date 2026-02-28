@@ -8,6 +8,14 @@
 	width: 100%;
 }
 
+@media (max-width: 1200px) {
+	/* Override inline sizing when tablet/mobile sidebar is hidden. */
+	.rss-dashboard-content {
+		width: 100% !important;
+		margin-left: 0 !important;
+	}
+}
+
 .rss-dashboard-articles {
 	padding: 0px 10px 10px 10px;
 	overflow-y: auto;
@@ -79,6 +87,7 @@
 	flex-direction: column;
 	gap: 10px;
 	padding: 12px 0;
+	animation: rss-dashboard-fade-in 0.3s ease;
 }
 
 
@@ -573,4 +582,27 @@
 		background-color 0.15s ease,
 		box-shadow 0.18s ease,
 		border 0.18s ease;
+}
+
+@media (hover: none) and (pointer: coarse) {
+	.rss-dashboard-article-card:hover,
+	.rss-dashboard-article-item:hover {
+		cursor: pointer;
+		transition: background-color 0.2s ease;
+	}
+
+	.rss-dashboard-article-card:active,
+	.rss-dashboard-article-item:active {
+		background-color: var(--background-modifier-active);
+	}
+}
+
+@keyframes rss-dashboard-fade-in {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
 }

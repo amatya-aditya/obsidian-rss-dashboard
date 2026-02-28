@@ -1316,6 +1316,18 @@
   }
 }
 
+@media (max-width: 1200px) {
+  .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-nav,
+  .modal.rss-mobile-discover-filters-modal .rss-discover-header {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-content {
+    padding: 0 16px;
+  }
+}
+
 .feed-preview-modal {
   position: fixed !important;
   top: 50% !important;

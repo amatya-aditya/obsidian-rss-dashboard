@@ -182,3 +182,48 @@ mark.rss-highlight {
   background-color: var(--highlight-color, #ffd700);
   color: #333;
 }
+
+@media (max-width: 1200px) {
+  .rss-reader-article-header {
+    margin-bottom: 20px;
+  }
+
+  .rss-reader-item-title {
+    font-size: 24px;
+    line-height: 1.3;
+    margin-bottom: 16px;
+  }
+
+  .rss-reader-meta {
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .rss-reader-cover-image img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+
+  .rss-reader-article-content {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .rss-reader-responsive-img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .rss-reader-back-button,
+  .rss-reader-action-button {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
