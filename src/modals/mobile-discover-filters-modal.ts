@@ -22,6 +22,12 @@ export class MobileDiscoverFiltersModal extends Modal {
     contentEl.empty();
     this.modalEl.addClass("rss-mobile-discover-filters-modal");
 
+    // Remove Obsidian's default floating close button to avoid mobile overlap.
+    const closeBtn = this.modalEl.querySelector(".modal-close-button");
+    if (closeBtn) {
+      closeBtn.remove();
+    }
+
     const sidebarWrapper = contentEl.createDiv({
       cls: "rss-dashboard-sidebar-container",
     });
@@ -36,6 +42,9 @@ export class MobileDiscoverFiltersModal extends Modal {
       {
         onFilterChange: () => {
           this.onFilterChange();
+        },
+        onCloseMobileSidebar: () => {
+          this.close();
         },
         onActivateView: () => {
           this.close();

@@ -1326,6 +1326,29 @@
   .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-content {
     padding: 0 16px;
   }
+
+  .modal.rss-mobile-discover-filters-modal .rss-dashboard-header-close-button {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 8px;
+    border: 1px solid var(--background-secondary);
+    background: var(--background-secondary);
+    color: #fff;
+    margin-right: 2px;
+  }
+
+  .modal.rss-mobile-discover-filters-modal
+    .rss-dashboard-header-close-button:hover {
+    border-color: #9b59b6;
+    background: #9b59b6;
+    color: #fff;
+  }
 }
 
 .feed-preview-modal {

@@ -100,17 +100,19 @@
 }
 
 .rss-dashboard-nav-button {
-  padding: 4px 6px;
+  padding: 6px 12px;
+  min-height: 34px;
   border-radius: 6px;
   color: var(--color-accent);
   background: var(--background-modifier-active-hover);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
 }
 
 .rss-dashboard-nav-button.active {
   background: var(--color-accent);
-  padding: 4px 6px;
+  padding: 6px 12px;
   border-radius: 6px;
   color: var(--text-on-accent);
 }
