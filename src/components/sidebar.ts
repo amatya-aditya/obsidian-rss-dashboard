@@ -1715,6 +1715,23 @@ export class Sidebar {
         spellcheck: "false",
       },
     });
+    const clearButton = searchContainer.createEl("button", {
+      cls: "rss-dashboard-search-clear is-hidden",
+      attr: {
+        type: "button",
+        "aria-label": "Clear search",
+        title: "Clear search",
+      },
+    });
+    setIcon(clearButton, "x");
+
+    const updateClearButtonVisibility = () => {
+      if (searchInput.value.trim()) {
+        clearButton.removeClass("is-hidden");
+      } else {
+        clearButton.addClass("is-hidden");
+      }
+    };
 
     searchInput.addEventListener("focus", () => {
       searchInput.select();
@@ -1725,12 +1742,24 @@ export class Sidebar {
       const query = ((e.target as HTMLInputElement)?.value || "")
         .toLowerCase()
         .trim();
+      updateClearButtonVisibility();
       if (searchTimeout) {
         window.clearTimeout(searchTimeout);
       }
       searchTimeout = window.setTimeout(() => {
         this.filterFeedsAndFolders(query);
       }, 150);
+    });
+
+    clearButton.addEventListener("click", (e) => {
+      e.preventDefault();
+      searchInput.value = "";
+      updateClearButtonVisibility();
+      if (searchTimeout) {
+        window.clearTimeout(searchTimeout);
+      }
+      this.filterFeedsAndFolders("");
+      searchInput.focus();
     });
 
     requestAnimationFrame(() => {

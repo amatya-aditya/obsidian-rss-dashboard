@@ -568,6 +568,36 @@
 
 .rss-dashboard-search-dock .rss-dashboard-search-container {
   max-width: none;
+  position: relative;
+}
+
+.rss-dashboard-search-dock .rss-dashboard-search-input {
+  padding-right: 32px;
+}
+
+.rss-dashboard-search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rss-dashboard-search-clear:hover {
+  color: var(--text-normal);
+}
+
+.rss-dashboard-search-clear.is-hidden {
+  display: none;
 }
 
 /* --- REDESIGN LAYOUT --- */
