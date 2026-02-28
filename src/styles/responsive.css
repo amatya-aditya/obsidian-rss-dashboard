@@ -234,6 +234,25 @@
     transform: none !important;
   }
 
+  /* Functional mobile layout for add/edit/manage feed modals */
+  .modal.rss-mobile-feed-manager-modal {
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    border-radius: 0 !important;
+    transform: none !important;
+  }
+
   .rss-mobile-navigation-modal .modal-content,
   .rss-mobile-discover-filters-modal .modal-content,
   .rss-mobile-feed-manager-modal .modal-content {
@@ -242,6 +261,113 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+  }
+
+  .rss-mobile-feed-manager-modal .modal-content {
+    padding: 12px !important;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item.setting-item-heading {
+    padding-right: 44px;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item {
+    display: block;
+    padding: 10px 0;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-info {
+    margin-bottom: 6px;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control input,
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control textarea,
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control select {
+    flex: 1 1 220px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control button {
+    min-height: 44px;
+  }
+
+  .rss-mobile-feed-manager-modal .rss-dashboard-modal-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    background: var(--background-primary);
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: 8px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    margin-top: 12px;
+    grid-template-columns: 1fr;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-top-controls {
+    position: static;
+    background: var(--background-primary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-button-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-button-row-primary {
+    grid-template-columns: minmax(180px, 320px);
+    justify-content: center;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-button-row-primary
+    .feed-manager-add-button {
+    width: 100%;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-button-row-secondary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-button-row-secondary
+    .feed-manager-import-button,
+  .rss-mobile-feed-manager-modal .feed-manager-button-row-secondary
+    .feed-manager-export-button {
+    width: 100%;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-button-row-secondary
+    .feed-manager-delete-all-button {
+    grid-column: 1 / -1;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-title {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-row button {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .modal.rss-mobile-navigation-modal .modal-close-button,

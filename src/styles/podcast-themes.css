@@ -1874,16 +1874,42 @@
 
 .feed-manager-search-container {
   flex-grow: 1;
+  position: relative;
 }
 
 .feed-manager-search-input {
   width: 100%;
-  padding: 6px 12px;
+  padding: 6px 34px 6px 12px;
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
   background: var(--background-primary);
   color: var(--text-normal);
   font-size: 14px;
+}
+
+.feed-manager-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feed-manager-search-clear:hover {
+  color: var(--text-normal);
+}
+
+.feed-manager-search-clear.is-hidden {
+  display: none;
 }
 
 .feed-manager-search-input:focus {

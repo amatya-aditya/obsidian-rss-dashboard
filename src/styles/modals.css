@@ -1257,6 +1257,39 @@
    Feed Manager Button Rows
    ============================================ */
 
+.feed-manager-search-container {
+  position: relative;
+}
+
+.feed-manager-search-input {
+  padding-right: 34px;
+}
+
+.feed-manager-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feed-manager-search-clear:hover {
+  color: var(--text-normal);
+}
+
+.feed-manager-search-clear.is-hidden {
+  display: none;
+}
+
 .feed-manager-button-row {
   display: flex;
   align-items: center;
@@ -1266,7 +1299,12 @@
 
 /* Primary row - Add feed button */
 .feed-manager-button-row-primary {
-  justify-content: flex-start;
+  justify-content: center;
+}
+
+.feed-manager-add-button {
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Secondary row - Import, Export, Delete All */

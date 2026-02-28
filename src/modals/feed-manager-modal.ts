@@ -1222,11 +1222,37 @@ export class FeedManagerModal extends Modal {
       placeholder: "Search feeds...",
       cls: "feed-manager-search-input",
     });
+    const searchClearBtn = searchContainer.createEl("button", {
+      cls: "feed-manager-search-clear is-hidden",
+      attr: {
+        title: "Clear search",
+        "aria-label": "Clear search",
+        type: "button",
+      },
+    });
+    setIcon(searchClearBtn, "x");
+
+    const updateSearchClearVisibility = () => {
+      const hasValue = searchInput.value.trim().length > 0;
+      searchClearBtn.toggleClass("is-hidden", !hasValue);
+    };
+
     searchInput.value = this.searchQuery;
     searchInput.addEventListener("input", () => {
       this.searchQuery = searchInput.value;
       this.renderFeeds(contentEl);
+      updateSearchClearVisibility();
     });
+    searchClearBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      searchInput.value = "";
+      this.searchQuery = "";
+      this.renderFeeds(contentEl);
+      updateSearchClearVisibility();
+      searchInput.focus();
+    });
+    updateSearchClearVisibility();
 
     // First button row - Add feed
     const buttonRowPrimary = topControls.createDiv({
@@ -1237,7 +1263,7 @@ export class FeedManagerModal extends Modal {
     const addFeedBtn = buttonRowPrimary.createEl("button", {
       cls: "rss-dashboard-primary-button feed-manager-add-button",
     });
-    addFeedBtn.createSpan({ text: "Add feed..." });
+    addFeedBtn.createSpan({ text: "Add new feed..." });
     addFeedBtn.onclick = () => {
       new AddFeedModal(
         this.app,
