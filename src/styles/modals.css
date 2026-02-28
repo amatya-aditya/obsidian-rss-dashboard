@@ -712,6 +712,7 @@
     width: 90vw !important;
     max-width: 600px !important;
     max-height: 85vh !important;
+    padding: 0 !important;
   }
 
   .modal-container.mod-dim .modal.rss-dashboard-modal-container,
@@ -719,6 +720,7 @@
     width: 90vw !important;
     max-width: 600px !important;
     max-height: 85vh !important;
+    padding: 0 !important;
   }
 }
 
@@ -737,6 +739,7 @@
     border-radius: 16px 16px 0 0 !important;
     z-index: 99999 !important;
     margin: 0 !important;
+    padding: 0 !important;
   }
 
   /* Close button positioning for mobile bottom sheet */
@@ -774,7 +777,7 @@
     border-radius: 16px 16px 0 0 !important;
     z-index: 99999 !important;
     margin: 0 !important;
-    padding: 16px 14px;
+    padding: 0 !important;
   }
 
   /* Close button positioning for mobile bottom sheet in dim container */

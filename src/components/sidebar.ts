@@ -66,7 +66,6 @@ export class Sidebar {
   private isTagsExpanded = false;
   private isRefreshing = false;
   private longPressTimer: number | null = null;
-  private isDrawerExpanded = true;
 
   /**
    * Extract main domain from a URL for favicon purposes (without subdomains)
@@ -170,7 +169,9 @@ export class Sidebar {
 
     this.renderHeader();
     this.renderFeedFolders();
-    this.renderBottomDrawer();
+    this.renderSearchDock(this.container);
+    // Toolbar always visible at bottom of sidebar
+    this.renderToolbar(this.container);
 
     requestAnimationFrame(() => {
       this.container.scrollTop = scrollPosition;
@@ -821,18 +822,6 @@ export class Sidebar {
         e.dataTransfer.effectAllowed = "move";
       }
     });
-  }
-
-  private renderBottomDrawer(): void {
-    const drawer = this.container.createDiv({
-      cls: "rss-dashboard-bottom-drawer is-expanded",
-    });
-
-    const drawerContent = drawer.createDiv({
-      cls: "rss-dashboard-bottom-drawer-content",
-    });
-    this.renderSearchDock(drawerContent);
-    this.renderToolbar(drawerContent);
   }
 
   private attachLongPressContextMenu(feedEl: HTMLElement, feed: Feed): void {
@@ -1509,21 +1498,21 @@ export class Sidebar {
       }, 5000);
     }
 
-    const collapseBtn = headerToolbar.createDiv({
-      cls: "rss-dashboard-header-icon-button rss-dashboard-mobile-only",
-      attr: {
-        title: "Collapse sidebar",
-        "aria-label": "Collapse sidebar",
-      },
-    });
-    setIcon(collapseBtn, "panel-left-close");
-    collapseBtn.addEventListener("click", () => {
-      if (this.callbacks.onCloseMobileSidebar) {
-        this.callbacks.onCloseMobileSidebar();
-      } else if (this.callbacks.onToggleSidebar) {
-        this.callbacks.onToggleSidebar();
-      }
-    });
+    //   const collapseBtn = headerToolbar.createDiv({
+    //     cls: "rss-dashboard-header-icon-button rss-dashboard-mobile-only",
+    //     attr: {
+    //       title: "Collapse sidebar",
+    //       "aria-label": "Collapse sidebar",
+    //     },
+    //   });
+    //   setIcon(collapseBtn, "panel-left-close");
+    //   collapseBtn.addEventListener("click", () => {
+    //     if (this.callbacks.onCloseMobileSidebar) {
+    //       this.callbacks.onCloseMobileSidebar();
+    //     } else if (this.callbacks.onToggleSidebar) {
+    //       this.callbacks.onToggleSidebar();
+    //     }
+    //   });
   }
 
   private showManageMenu(event: MouseEvent): void {

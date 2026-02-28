@@ -31,6 +31,12 @@ export class MobileNavigationModal extends Modal {
     contentEl.empty();
     this.modalEl.addClass("rss-mobile-navigation-modal");
 
+    // Remove the default Obsidian close button
+    const closeBtn = this.modalEl.querySelector(".modal-close-button");
+    if (closeBtn) {
+      closeBtn.remove();
+    }
+
     const sidebarWrapper = contentEl.createDiv({
       cls: "rss-dashboard-sidebar-container",
     });

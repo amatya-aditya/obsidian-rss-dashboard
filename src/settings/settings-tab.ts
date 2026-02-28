@@ -20,9 +20,7 @@ import {
   VaultFolderSuggest,
 } from "../components/folder-suggest";
 import { ImportOpmlModal } from "../modals/import-opml-modal";
-import {
-  renderKeywordFilterEditor,
-} from "../components/keyword-filter-editor";
+import { renderKeywordFilterEditor } from "../components/keyword-filter-editor";
 
 class TemplateNameModal extends Modal {
   private result: string | null = null;
@@ -410,6 +408,25 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             const view = await this.plugin.getActiveDashboardView();
             if (view?.sidebar) {
               await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Sidebar row spacing")
+      .setDesc("Adjust the height between rows in the sidebar feed list")
+      .addSlider((slider) =>
+        slider
+          .setLimits(10, 44, 1)
+          .setValue(this.plugin.settings.display.sidebarRowSpacing ?? 20)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            this.plugin.settings.display.sidebarRowSpacing = value;
+            await this.plugin.saveSettings();
+            // Apply the new spacing to the sidebar by re-rendering
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
               view.sidebar.render();
             }
           }),
@@ -1518,4 +1535,3 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     kofiBtn.target = "_blank";
   }
 }
-

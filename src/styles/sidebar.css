@@ -270,8 +270,11 @@
   justify-content: space-around;
   padding: 2px;
   flex-shrink: 0;
-  position: static !important;
-  bottom: auto !important;
+  /* Position toolbar at bottom of sidebar - independent of drawer */
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .rss-dashboard-toolbar-button {
@@ -327,15 +330,15 @@
 .rss-dashboard-feed-name {
   font-size: 13px;
 }
-/* Deprecated feed padding rule */
+/* Deprecated feed padding rule
 .rss-dashboard-folder-icon,
 .rss-dashboard-feed-icon {
   width: 14px;
   height: 14px;
   margin-right: 6px;
-}
+} */
 .rss-dashboard-section-header {
-  padding: 6px 8px;
+  padding: 10px 8px;
 }
 
 .rss-dashboard-tag-label {
@@ -564,177 +567,6 @@
   max-width: none;
 }
 
-.rss-dashboard-bottom-drawer {
-  flex-shrink: 0;
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
-  padding: 4px 0 2px;
-  background: var(--background-primary);
-  border-top: 1px solid var(--background-modifier-border);
-}
-
-.rss-dashboard-drawer-toggle-button {
-  width: calc(100% - 8px);
-  margin: 0 4px 6px;
-  height: 16px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
-  background: var(--background-secondary);
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.rss-dashboard-drawer-toggle-button:hover {
-  color: var(--text-normal);
-  background: var(--background-modifier-hover);
-}
-
-.rss-dashboard-bottom-drawer-content {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.rss-dashboard-bottom-drawer.is-collapsed .rss-dashboard-bottom-drawer-content {
-  display: none;
-}
-
-.rss-dashboard-drawer-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px;
-}
-
-.rss-dashboard-drawer-action-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid var(--background-modifier-border);
-  background: var(--background-secondary);
-  cursor: pointer;
-}
-
-.rss-dashboard-drawer-action-button .rss-dashboard-filter-name {
-  font-weight: 600;
-}
-
-.rss-dashboard-drawer-action-button:hover {
-  background: var(--background-modifier-hover);
-}
-
-.rss-dashboard-drawer-refresh-button {
-  margin-left: auto;
-  margin-right: 2px;
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  border-radius: 8px;
-  border: 1px solid #8e44ad;
-  background: #8e44ad;
-  color: #fff;
-}
-
-.rss-dashboard-drawer-refresh-button .rss-dashboard-filter-icon {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.rss-dashboard-drawer-refresh-button:hover {
-  border-color: #9b59b6;
-  background: #9b59b6;
-  color: #fff;
-}
-
-/* Close sidebar button in drawer */
-.rss-dashboard-close-sidebar-button {
-  margin-left: 4px;
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  border-radius: 8px;
-  border: 1px solid var(--background-modifier-border);
-  background: var(--background-secondary);
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.rss-dashboard-close-sidebar-button .rss-dashboard-filter-icon {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.rss-dashboard-close-sidebar-button:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-.rss-dashboard-bottom-drawer-content .rss-dashboard-sidebar-toolbar {
-  margin: 0 8px;
-  border: 1px solid var(--background-modifier-border);
-}
-
-@media (max-width: 1200px) {
-  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-toolbar {
-    border-radius: 0;
-    padding: 6px 0;
-    margin: 0;
-    width: 100%;
-    border-top: 1px solid var(--background-modifier-border);
-    border-bottom: none;
-    border-left: none;
-    border-right: none;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-search-dock {
-    border-top: 1px solid var(--background-modifier-border);
-    padding: 8px 4px 6px;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-drawer-actions {
-    padding-right: 2px;
-    padding-left: 4px;
-  }
-
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-bottom-drawer-content
-    .rss-dashboard-sidebar-toolbar {
-    margin: 0;
-    border-left: none;
-    border-right: none;
-  }
-
-  .rss-folder-name-modal {
-    top: 44% !important;
-    transform: translate(-50%, -44%) !important;
-  }
-
-  .rss-folder-name-modal-input {
-    font-size: 16px;
-  }
-}
-
 /* --- REDESIGN LAYOUT --- */
 /* Base Toolbar */
 .rss-dashboard-header-toolbar {
@@ -826,61 +658,6 @@
   animation: spin 1s linear infinite;
 }
 
-/* Desktop (>1024px) */
-@media (min-width: 1025px) {
-  .rss-dashboard-mobile-only {
-    display: none !important;
-  }
-  .rss-dashboard-feed,
-  .rss-dashboard-all-feeds-button {
-    min-height: 28px;
-    padding: 3px 8px 3px 20px;
-  }
-  .rss-dashboard-feed-folder-header {
-    min-height: 28px;
-    padding: 3px 10px;
-  }
-  .rss-dashboard-all-feeds-button {
-    padding-left: 10px;
-  }
-  .rss-dashboard-header-icon-button {
-    width: 36px;
-    height: 36px;
-  }
-}
-
-/* Tablet (768px - 1024px) */
-@media (min-width: 768px) and (max-width: 1024px) {
-  .rss-dashboard-feed,
-  .rss-dashboard-all-feeds-button {
-    min-height: 36px;
-    padding: 5px 8px 5px 32px;
-  }
-  .rss-dashboard-feed-folder-header {
-    min-height: 36px;
-    padding: 4px 10px;
-  }
-  .rss-dashboard-all-feeds-button {
-    padding-left: 10px;
-  }
-}
-
-/* Mobile (<768px) */
-@media (max-width: 767px) {
-  .rss-dashboard-feed,
-  .rss-dashboard-all-feeds-button {
-    min-height: 36px;
-    padding: 4px 8px 4px 20px;
-  }
-  .rss-dashboard-feed-folder-header {
-    min-height: 36px;
-    padding: 4px 10px;
-  }
-  .rss-dashboard-all-feeds-button {
-    padding-left: 10px;
-  }
-}
-
 /* Mobile Bottom Sheet */
 .rss-mobile-bottom-sheet-container {
   position: fixed;
@@ -923,7 +700,7 @@
 .rss-mobile-bottom-sheet-item {
   display: flex;
   align-items: center;
-  min-height: 48px;
+  min-height: 44px;
   font-size: 16px;
   cursor: pointer;
   padding: 0 8px;
