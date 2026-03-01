@@ -1,4 +1,4 @@
-﻿import {
+import {
   App,
   PluginSettingTab,
   Setting,
@@ -106,6 +106,14 @@ export class RssDashboardSettingTab extends PluginSettingTab {
   constructor(app: App, plugin: RssDashboardPlugin) {
     super(app, plugin);
     this.plugin = plugin;
+  }
+
+  
+  public activateTab(tabName: string): void {
+    if (this.tabNames.includes(tabName)) {
+      this.currentTab = tabName;
+      this.display();
+    }
   }
 
   display(): void {
@@ -1542,7 +1550,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
 
         const deleteBtn = wordRow.createEl("button", {
           cls: "rss-dashboard-highlight-delete",
-          text: "Ã—",
+          text: "×",
         });
         deleteBtn.onclick = async () => {
           if (this.plugin.settings.highlights) {
@@ -1800,7 +1808,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
   private createSupportTab(containerEl: HTMLElement): void {
     containerEl.createEl("div", {
       cls: "rss-dashboard-support-message",
-      text: "If you enjoy using this plugin, consider supporting development! ❤️ ",
+      text: "If you enjoy using this plugin, consider supporting development! ?? ",
     });
 
     const btnRow = containerEl.createDiv({
@@ -1808,14 +1816,14 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     });
 
     const bmcBtn = btnRow.createEl("a", {
-      text: "Buy me a pizza 🍕",
+      text: "Buy me a pizza ??",
       href: "https://www.buymeacoffee.com/amatya_aditya",
       cls: "rss-dashboard-support-btn rss-dashboard-bmc-btn",
     });
     bmcBtn.target = "_blank";
 
     const kofiBtn = btnRow.createEl("a", {
-      text: "Ko-fi 💙",
+      text: "Ko-fi ??",
       href: "https://ko-fi.com/Y8Y41FV4WI",
       cls: "rss-dashboard-support-btn rss-dashboard-kofi-btn",
     });

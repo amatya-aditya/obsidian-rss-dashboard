@@ -1215,7 +1215,7 @@ export class FeedManagerModal extends Modal {
         cls: "feed-manager-header-container",
       });
 
-      const heading = headerContainer.createEl("h2", {
+      headerContainer.createEl("h2", {
         text: "Manage feeds",
         cls: "feed-manager-header-title",
       });

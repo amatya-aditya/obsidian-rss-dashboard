@@ -880,15 +880,18 @@
 
 @media (max-width: 768px) {
   .rss-dashboard-badge-visibility-group {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 8px;
-    justify-items: start;
+    align-items: flex-start;
   }
 
   .rss-dashboard-badge-visibility-option {
     min-height: 22px;
+    width: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .rss-keyword-filter-editor-controls {

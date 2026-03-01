@@ -973,6 +973,11 @@ export class ReaderView extends ItemView {
     const targetBody = targetDocument.body;
     const targetWindow = targetDocument.defaultView || window;
     const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
+    if (isMobile) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+      void (this.app as any).plugins.plugins['rss-dashboard'].openTagsSettings();
+      return;
+    }
 
     if (isMobile) {
       this.tagsDropdownBackdrop = targetBody.createDiv({
