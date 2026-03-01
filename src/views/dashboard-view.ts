@@ -1,4 +1,4 @@
-﻿import {
+import {
   ItemView,
   WorkspaceLeaf,
   Notice,
@@ -314,6 +314,9 @@ export class RssDashboardView extends ItemView {
         },
         onPageChange: this.handlePageChange.bind(this),
         onPageSizeChange: this.handlePageSizeChange.bind(this),
+        onOpenTagsSettings: () => {
+          void (this.app as any).plugins.plugins['rss-dashboard'].openTagsSettings();
+        },
         onPersistSettings: async () => {
           await this.plugin.saveSettings();
         },
