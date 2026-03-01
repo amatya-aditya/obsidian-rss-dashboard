@@ -183,6 +183,7 @@
   align-items: center;
   justify-content: space-between;
   background: var(--background-primary);
+  position: -webkit-sticky;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -225,6 +226,7 @@
 
 .rss-dashboard-filter-subheader {
   position: relative;
+  z-index: 1;
   padding: 8px 10px;
   margin: 0 10px 14px;
   border: 1px solid var(--background-modifier-border);
@@ -236,6 +238,7 @@
 }
 
 .rss-dashboard-filter-subheader-content {
+  max-height: 200px;
   transition:
     max-height 120ms ease,
     opacity 120ms ease;

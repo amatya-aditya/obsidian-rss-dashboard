@@ -68,11 +68,11 @@
 	left: 8px !important;
 	right: 8px !important;
 	top: auto !important;
-	bottom: var(--rss-mobile-sheet-bottom, max(8px, env(safe-area-inset-bottom))) !important;
+	bottom: max(8px, env(safe-area-inset-bottom));
 	width: auto !important;
 	max-width: none !important;
 	min-width: 0 !important;
-	max-height: calc(var(--rss-mobile-vvh, 100vh) - 16px) !important;
+	max-height: calc(100svh - 16px);
 	border-radius: 12px;
 	box-shadow: 0 10px 30px rgb(0 0 0 / 0.28);
 	padding: 8px 0 calc(8px + env(safe-area-inset-bottom));

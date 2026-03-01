@@ -2533,18 +2533,11 @@ export class ArticleList {
       const syncMobileViewportHeight = () => {
         const vvp = targetWindow.visualViewport;
         const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
-        const keyboardOffset = vvp
-          ? Math.max(0, targetWindow.innerHeight - (vvp.offsetTop + vvp.height))
+        const keyboardHeight = vvp
+          ? Math.max(0, targetWindow.innerHeight - vvp.height)
           : 0;
-        portalDropdown.style.setProperty("--rss-mobile-vvh", `${viewportHeight}px`);
-        if (keyboardOffset > 0) {
-          portalDropdown.style.setProperty(
-            "--rss-mobile-sheet-bottom",
-            `${keyboardOffset + 8}px`,
-          );
-        } else {
-          portalDropdown.style.removeProperty("--rss-mobile-sheet-bottom");
-        }
+        portalDropdown.style.setProperty("max-height", `${viewportHeight - 16}px`, "important");
+        portalDropdown.style.setProperty("bottom", `${keyboardHeight + 8}px`, "important");
       };
       syncMobileViewportHeight();
 
@@ -2574,6 +2567,17 @@ export class ArticleList {
           closeDropdown();
         });
       }
+
+      nameInput.addEventListener("focus", () => {
+        targetWindow.setTimeout(() => {
+          syncMobileViewportHeight();
+          nameInput.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 350);
+      });
+      nameInput.addEventListener("blur", () => {
+        targetWindow.setTimeout(syncMobileViewportHeight, 100);
+      });
+
       return;
     }
 

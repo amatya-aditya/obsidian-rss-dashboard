@@ -718,30 +718,6 @@
   gap: 8px;
 }
 
-.rss-dashboard-badge-visibility-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.rss-dashboard-badge-visibility-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text-normal);
-  cursor: pointer;
-}
-
-.rss-dashboard-badge-visibility-option input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  flex: 0 0 auto;
-  vertical-align: middle;
-}
-
 .rss-dashboard-color-hex-input {
   width: 96px;
 }
@@ -879,21 +855,6 @@
 }
 
 @media (max-width: 768px) {
-  .rss-dashboard-badge-visibility-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    align-items: flex-start;
-  }
-
-  .rss-dashboard-badge-visibility-option {
-    min-height: 22px;
-    width: auto;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
   .rss-keyword-filter-editor-controls {
     grid-template-columns: 1fr;
   }

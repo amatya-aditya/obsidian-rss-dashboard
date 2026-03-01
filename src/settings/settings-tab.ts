@@ -494,74 +494,53 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
-    const unreadBadgeVisibilitySetting = new Setting(containerEl)
-      .setName("Unread badge visibility")
-      .setDesc("Choose where unread count badges appear in the sidebar");
+    new Setting(containerEl)
+      .setName("Show unread badge: all feeds")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.display.showAllFeedsUnreadBadges ?? true)
+          .onChange(async (value) => {
+            this.plugin.settings.display.showAllFeedsUnreadBadges = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      );
 
-    const visibilityGroup = unreadBadgeVisibilitySetting.controlEl.createDiv({
-      cls: "rss-dashboard-badge-visibility-group",
-    });
+    new Setting(containerEl)
+      .setName("Show unread badge: folders")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.display.showFolderUnreadBadges ?? true)
+          .onChange(async (value) => {
+            this.plugin.settings.display.showFolderUnreadBadges = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      );
 
-    const createVisibilityOption = (
-      labelText: string,
-      checked: boolean,
-      onChange: (value: boolean) => Promise<void>,
-    ) => {
-      const optionLabel = visibilityGroup.createEl("label", {
-        cls: "rss-dashboard-badge-visibility-option",
-      });
-      const checkbox = optionLabel.createEl("input", {
-        attr: { type: "checkbox" },
-      });
-      checkbox.checked = checked;
-      optionLabel.createSpan({ text: labelText });
-
-      checkbox.addEventListener("change", () => {
-        void onChange(checkbox.checked);
-      });
-    };
-
-    createVisibilityOption(
-      "All feeds",
-      this.plugin.settings.display.showAllFeedsUnreadBadges ?? true,
-      async (value) => {
-        this.plugin.settings.display.showAllFeedsUnreadBadges = value;
-        await this.plugin.saveSettings();
-        const view = await this.plugin.getActiveDashboardView();
-        if (view?.sidebar) {
-          await this.app.workspace.revealLeaf(view.leaf);
-          view.sidebar.render();
-        }
-      },
-    );
-
-    createVisibilityOption(
-      "Folders",
-      this.plugin.settings.display.showFolderUnreadBadges ?? true,
-      async (value) => {
-        this.plugin.settings.display.showFolderUnreadBadges = value;
-        await this.plugin.saveSettings();
-        const view = await this.plugin.getActiveDashboardView();
-        if (view?.sidebar) {
-          await this.app.workspace.revealLeaf(view.leaf);
-          view.sidebar.render();
-        }
-      },
-    );
-
-    createVisibilityOption(
-      "Feeds",
-      this.plugin.settings.display.showFeedUnreadBadges ?? true,
-      async (value) => {
-        this.plugin.settings.display.showFeedUnreadBadges = value;
-        await this.plugin.saveSettings();
-        const view = await this.plugin.getActiveDashboardView();
-        if (view?.sidebar) {
-          await this.app.workspace.revealLeaf(view.leaf);
-          view.sidebar.render();
-        }
-      },
-    );
+    new Setting(containerEl)
+      .setName("Show unread badge: feeds")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.display.showFeedUnreadBadges ?? true)
+          .onChange(async (value) => {
+            this.plugin.settings.display.showFeedUnreadBadges = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      );
 
     new Setting(containerEl)
       .setName("All feeds badge color")
