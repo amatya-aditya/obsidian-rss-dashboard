@@ -734,6 +734,14 @@
   cursor: pointer;
 }
 
+.rss-dashboard-badge-visibility-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+
 .rss-dashboard-color-hex-input {
   width: 96px;
 }
@@ -871,6 +879,18 @@
 }
 
 @media (max-width: 768px) {
+  .rss-dashboard-badge-visibility-group {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    justify-items: start;
+  }
+
+  .rss-dashboard-badge-visibility-option {
+    min-height: 22px;
+  }
+
   .rss-keyword-filter-editor-controls {
     grid-template-columns: 1fr;
   }

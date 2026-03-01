@@ -74,6 +74,7 @@ interface ArticleListCallbacks {
   onPageSizeChange: (pageSize: number) => void;
   onMarkAllAsRead?: () => void;
   onPersistSettings?: () => Promise<void> | void;
+  onOpenTagsSettings?: () => Promise<void> | void;
 }
 
 export class ArticleList {
@@ -1717,6 +1718,13 @@ export class ArticleList {
     setIcon(tagsToggle, "tag");
     tagsToggle.addEventListener("click", (e) => {
       e.stopPropagation();
+      if (this.isMobileViewport()) {
+        const result = this.callbacks.onOpenTagsSettings?.();
+        if (result instanceof Promise) {
+          void result;
+        }
+        return;
+      }
       this.createPortalDropdown(tagsToggle, article, (tag, checked) => {
         if (!article.tags) article.tags = [];
         if (checked) {

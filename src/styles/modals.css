@@ -1872,7 +1872,8 @@
     justify-content: center;
   }
 
-  .rss-mobile-feed-manager-modal .feed-manager-button-row-primary
+  .rss-mobile-feed-manager-modal
+    .feed-manager-button-row-primary
     .feed-manager-add-button {
     width: 100%;
   }
@@ -1881,14 +1882,17 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .rss-mobile-feed-manager-modal .feed-manager-button-row-secondary
+  .rss-mobile-feed-manager-modal
+    .feed-manager-button-row-secondary
     .feed-manager-import-button,
-  .rss-mobile-feed-manager-modal .feed-manager-button-row-secondary
+  .rss-mobile-feed-manager-modal
+    .feed-manager-button-row-secondary
     .feed-manager-export-button {
     width: 100%;
   }
 
-  .rss-mobile-feed-manager-modal .feed-manager-button-row-secondary
+  .rss-mobile-feed-manager-modal
+    .feed-manager-button-row-secondary
     .feed-manager-delete-all-button {
     grid-column: 1 / -1;
   }
@@ -2017,7 +2021,10 @@
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folder-header {
-      padding: 10px;
+      padding-top: calc(var(--sidebar-row-spacing) / 2);
+      padding-bottom: calc(var(--sidebar-row-spacing) / 2);
+      padding-right: 10px;
+      padding-left: 10px;
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-all-feeds-button {

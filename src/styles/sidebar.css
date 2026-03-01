@@ -1,4 +1,5 @@
 .rss-dashboard-header {
+  order: 1;
   padding: 10px;
   border-bottom: 1px solid var(--background-modifier-border);
   display: flex;
@@ -144,6 +145,7 @@
   color: var(--text-normal);
 }
 .rss-dashboard-feed-folders-section {
+  order: 3;
   flex: 1 1 auto;
   overflow-y: auto;
   min-height: fit-content;
@@ -166,6 +168,8 @@
     padding-left 0.2s ease;
   position: relative;
   border-left: 3px solid transparent;
+  padding-top: calc(var(--sidebar-row-spacing) / 2);
+  padding-bottom: calc(var(--sidebar-row-spacing) / 2);
 }
 .rss-dashboard-feed-folder-header:hover {
   background: var(--background-modifier-hover);
@@ -277,7 +281,9 @@
   background-color: var(--rss-unread-badge-folder-color, #d85b9f);
 }
 .rss-dashboard-sidebar-toolbar {
-  --rss-toolbar-base-pad: 2px;
+  order: 5;
+  --rss-toolbar-v-pad: 10px;
+  --rss-toolbar-h-pad: 4px;
   --rss-toolbar-safe-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 2;
   background: var(--background-secondary);
@@ -285,11 +291,11 @@
   border-bottom: 1px solid var(--background-secondary);
   display: flex;
   justify-content: space-around;
-  padding-top: var(--rss-toolbar-base-pad);
-  padding-right: var(--rss-toolbar-base-pad);
-  padding-left: var(--rss-toolbar-base-pad);
+  padding-top: var(--rss-toolbar-v-pad);
+  padding-right: var(--rss-toolbar-h-pad);
+  padding-left: var(--rss-toolbar-h-pad);
   padding-bottom: calc(
-    var(--rss-toolbar-base-pad) + var(--rss-toolbar-safe-bottom)
+    var(--rss-toolbar-v-pad) + var(--rss-toolbar-safe-bottom)
   );
   flex-shrink: 0;
   /* Position toolbar at bottom of sidebar - independent of drawer */
@@ -332,6 +338,8 @@
   position: relative;
   height: 100%;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 .rss-dashboard-sidebar {
   --sidebar-row-spacing: 10px;
@@ -339,6 +347,8 @@
   font-size: 13px;
   padding: 0;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .rss-dashboard-filters-section,
@@ -577,10 +587,19 @@
 }
 
 .rss-dashboard-search-dock {
+  order: 4;
   flex-shrink: 0;
   padding: 6px 0;
   border-top: 1px solid var(--background-modifier-border);
   background: var(--background-primary);
+}
+
+@media (max-width: 768px) {
+  .rss-dashboard-search-dock {
+    order: 2;
+    border-top: none;
+    border-bottom: 1px solid var(--background-modifier-border);
+  }
 }
 
 .rss-dashboard-search-dock .rss-dashboard-search-container {

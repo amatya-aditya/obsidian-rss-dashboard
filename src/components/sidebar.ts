@@ -241,7 +241,13 @@ export class Sidebar {
       );
 
       sortedFolders.forEach((folderObj: Folder) =>
-        this.renderFolder(folderObj, "", 0, feedFoldersSection, folderUnreadCountMap),
+        this.renderFolder(
+          folderObj,
+          "",
+          0,
+          feedFoldersSection,
+          folderUnreadCountMap,
+        ),
       );
     }
 
@@ -1711,6 +1717,13 @@ export class Sidebar {
 
     searchInput.addEventListener("focus", () => {
       searchInput.select();
+
+      // On mobile, ensure the input is visible above the keyboard
+      if (window.innerWidth <= 768) {
+        window.setTimeout(() => {
+          searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 100);
+      }
     });
 
     let searchTimeout: number;
@@ -1740,6 +1753,11 @@ export class Sidebar {
 
     requestAnimationFrame(() => {
       searchInput.focus();
+      if (window.innerWidth <= 768) {
+        window.setTimeout(() => {
+          searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 100);
+      }
     });
   }
 
