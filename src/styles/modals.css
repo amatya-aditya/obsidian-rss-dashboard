@@ -1856,7 +1856,9 @@
   .rss-mobile-feed-manager-modal .feed-manager-top-controls {
     position: static;
     background: var(--background-primary);
-    border-bottom: 1px solid var(--background-modifier-border);
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 12px;
     padding-bottom: 10px;
     margin-bottom: 10px;
   }
@@ -2098,6 +2100,59 @@
       border-color: #9b59b6;
       background: #9b59b6;
       color: #fff;
+    }
+
+    /* Feed manager mobile header close button */
+    .modal.rss-mobile-feed-manager-modal .feed-manager-header-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px 12px;
+      background: var(--background-primary);
+      border-bottom: 1px solid var(--background-modifier-border);
+      gap: 10px;
+    }
+
+    .modal.rss-mobile-feed-manager-modal .feed-manager-header-title {
+      margin: 0;
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text-normal);
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .modal.rss-mobile-feed-manager-modal .feed-manager-header-close-button {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      min-height: 36px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: var(--background-secondary);
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .modal.rss-mobile-feed-manager-modal .feed-manager-header-close-button:hover {
+      background: var(--background-modifier-hover);
+      color: var(--text-normal);
+    }
+
+    .modal.rss-mobile-feed-manager-modal .feed-manager-header-close-button:active {
+      transform: scale(0.95);
+    }
+
+    /* Hide default close button on mobile feed manager */
+    .modal.rss-mobile-feed-manager-modal.hide-default-close-button
+      .modal-close-button {
+      display: none !important;
     }
   }
 
