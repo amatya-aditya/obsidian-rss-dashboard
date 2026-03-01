@@ -569,6 +569,7 @@ export class KagiSmallwebView extends ItemView {
         new FolderSelectorPopup(this.plugin, {
           anchorEl: followBtn,
           defaultFolder: defaultFolder,
+          initialQuery: "Smallweb",
           onSelect: (folderName) => {
             void this.handleSmallwebSubscribeToFolder(entry, folderName);
           },

@@ -11,6 +11,8 @@ export interface FolderSelectorOptions {
   onClose?: () => void;
   /** Default folder to pre-select and prioritize */
   defaultFolder?: string;
+  /** Initial query to pre-fill the input */
+  initialQuery?: string;
 }
 
 /**
@@ -21,6 +23,7 @@ export class FolderSelectorPopup {
   private plugin: RssDashboardPlugin;
   private popupEl!: HTMLElement;
   private inputEl!: HTMLInputElement;
+  private clearBtnEl!: HTMLElement;
   private listEl!: HTMLElement;
   private folders: string[];
   private filteredFolders: string[];
@@ -40,8 +43,16 @@ export class FolderSelectorPopup {
     this.folders = this.collectAllFolders(plugin.settings.folders);
     this.filteredFolders = this.getPrioritizedFolders(options.defaultFolder);
 
-    this.popupEl = this.createPopup(options.anchorEl, options.defaultFolder);
+    this.popupEl = this.createPopup(
+      options.anchorEl,
+      options.defaultFolder,
+      options.initialQuery,
+    );
     this.attachEventListeners();
+
+    if (options.initialQuery) {
+      this.filterFolders(options.initialQuery);
+    }
 
     // Focus input after popup is rendered
     window.setTimeout(() => {
@@ -97,6 +108,7 @@ export class FolderSelectorPopup {
   private createPopup(
     anchorEl: HTMLElement,
     defaultFolder?: string,
+    initialQuery?: string,
   ): HTMLElement {
     const popup = document.body.createDiv({
       cls: "rss-folder-selector-popup",
@@ -139,7 +151,19 @@ export class FolderSelectorPopup {
         placeholder: "Select or create folder...",
         autocomplete: "off",
         spellcheck: "false",
+        value: initialQuery || "",
       },
+    });
+
+    this.clearBtnEl = inputWrapper.createDiv({
+      cls: `rss-folder-selector-clear${initialQuery ? "" : " is-hidden"}`,
+    });
+    setIcon(this.clearBtnEl, "x");
+    this.clearBtnEl.addEventListener("click", () => {
+      this.inputEl.value = "";
+      this.clearBtnEl.addClass("is-hidden");
+      this.filterFolders("");
+      this.inputEl.focus();
     });
 
     // Note: We don't pre-fill the input with defaultFolder because that would
@@ -274,6 +298,12 @@ export class FolderSelectorPopup {
         }, 500);
       }
       this.filterFolders(this.inputEl.value);
+
+      if (this.inputEl.value) {
+        this.clearBtnEl.removeClass("is-hidden");
+      } else {
+        this.clearBtnEl.addClass("is-hidden");
+      }
     });
 
     // Click outside to close - delay registration to avoid immediate trigger

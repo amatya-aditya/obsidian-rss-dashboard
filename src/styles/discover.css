@@ -1815,3 +1815,4 @@
     min-width: auto;
   }
 }
+.rss-folder-selector-input-wrapper { position: relative !important; } .rss-folder-selector-input { padding-right: 32px !important; } .rss-folder-selector-clear { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; display: flex !important; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); border-radius: 4px; transition: background-color 0.15s ease, color 0.15s ease; z-index: 10; } .rss-folder-selector-clear:hover { background-color: var(--background-modifier-hover); color: var(--text-normal); } .rss-folder-selector-clear.is-hidden { display: none !important; }

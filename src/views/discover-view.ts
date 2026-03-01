@@ -1,10 +1,4 @@
-import {
-  ItemView,
-  WorkspaceLeaf,
-  Notice,
-  setIcon,
-  Platform,
-} from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, setIcon, Platform } from "obsidian";
 import {
   FeedMetadata,
   CategoryPath,
@@ -215,10 +209,7 @@ export class DiscoverView extends ItemView {
             return false;
           }
 
-          if (
-            selectedPath.topic &&
-            !feed.topic.includes(selectedPath.topic)
-          ) {
+          if (selectedPath.topic && !feed.topic.includes(selectedPath.topic)) {
             return false;
           }
 
@@ -1382,6 +1373,7 @@ export class DiscoverView extends ItemView {
         new FolderSelectorPopup(this.plugin, {
           anchorEl: addToBtn,
           defaultFolder: defaultFolder,
+          initialQuery: feed.type,
           onSelect: (folderName) => {
             void this.addFeedToFolder(feed, folderName);
           },
