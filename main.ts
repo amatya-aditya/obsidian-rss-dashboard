@@ -919,6 +919,19 @@ export default class RssDashboardPlugin extends Plugin {
       this.settings.folders,
     );
 
+    // Detect iOS: it's neither Android app nor Desktop app
+    const isIOS = !Platform.isAndroidApp && !Platform.isDesktopApp;
+
+    if (isIOS) {
+      // iOS fallback: copy to clipboard
+      this.exportOpmlToClipboardIos(opmlContent);
+    } else {
+      // Desktop and Android: use traditional blob download
+      this.exportOpmlAsFile(opmlContent);
+    }
+  }
+
+  private exportOpmlAsFile(opmlContent: string): void {
     const blob = new Blob([opmlContent], { type: "text/xml" });
     const url = URL.createObjectURL(blob);
     const a = document.body.createEl("a", {
@@ -927,6 +940,34 @@ export default class RssDashboardPlugin extends Plugin {
     a.download = "obsidian-rss-feeds.opml";
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  private async exportOpmlToClipboardIos(opmlContent: string): Promise<void> {
+    try {
+      // Try to use navigator.clipboard API (available on iOS 13.2+)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(opmlContent);
+        new Notice(
+          "✓ OPML content copied to clipboard\nPaste into your RSS reader to import"
+        );
+        return;
+      }
+    } catch (error) {
+      console.warn("[RSS Dashboard] Clipboard copy failed:", error);
+    }
+
+    // Fallback: open OPML content in a new window for user to save manually
+    try {
+      const blob = new Blob([opmlContent], { type: "text/xml" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      new Notice("OPML opened in new window. Save it to your device.");
+      // Note: Don't revoke the URL immediately - the new window needs it
+      // It will be revoked when the window closes or navigates away
+    } catch (error) {
+      console.error("[RSS Dashboard] Failed to export OPML:", error);
+      new Notice("✗ Failed to export OPML. Please try again.");
+    }
   }
 
   private folderPathExists(folderPath: string): boolean {
