@@ -808,7 +808,7 @@ export class AddFeedModal extends Modal {
                   "Videos";
                 const defaultPodcastFolder =
                   this.plugin?.settings?.media?.defaultPodcastFolder ||
-                  "Podcasts";
+                  "Podcast";
                 const defaultRssFolder =
                   this.plugin?.settings?.media?.defaultRssFolder || "RSS";
 
@@ -818,7 +818,7 @@ export class AddFeedModal extends Modal {
                   currentFolder === defaultPodcastFolder ||
                   currentFolder === defaultRssFolder ||
                   currentFolder === "Videos" ||
-                  currentFolder === "Podcasts" ||
+                  currentFolder === "Podcast" ||
                   currentFolder === "RSS";
 
                 if (
@@ -851,7 +851,7 @@ export class AddFeedModal extends Modal {
                   // Update if folder is empty, "Uncategorized", or was previously auto-assigned
                   const defaultPodcastFolder =
                     this.plugin?.settings?.media?.defaultPodcastFolder ||
-                    "Podcasts";
+                    "Podcast";
                   const defaultYouTubeFolder =
                     this.plugin?.settings?.media?.defaultYouTubeFolder ||
                     "Videos";
@@ -864,7 +864,7 @@ export class AddFeedModal extends Modal {
                     currentFolder === defaultPodcastFolder ||
                     currentFolder === defaultRssFolder ||
                     currentFolder === "Videos" ||
-                    currentFolder === "Podcasts" ||
+                    currentFolder === "Podcast" ||
                     currentFolder === "RSS";
 
                   if (
@@ -917,7 +917,7 @@ export class AddFeedModal extends Modal {
                   "Videos";
                 const defaultPodcastFolder =
                   this.plugin?.settings?.media?.defaultPodcastFolder ||
-                  "Podcasts";
+                  "Podcast";
 
                 const currentFolder = folderInput?.value || "";
                 const isAutoAssignedFolder =
@@ -925,7 +925,7 @@ export class AddFeedModal extends Modal {
                   currentFolder === defaultPodcastFolder ||
                   currentFolder === defaultRssFolder ||
                   currentFolder === "Videos" ||
-                  currentFolder === "Podcasts" ||
+                  currentFolder === "Podcast" ||
                   currentFolder === "RSS";
 
                 if (

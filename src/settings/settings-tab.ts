@@ -979,7 +979,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       .addText((text) => {
         text
           .setValue(
-            this.plugin.settings.media.defaultPodcastFolder || "Podcasts",
+            this.plugin.settings.media.defaultPodcastFolder || "Podcast",
           )
           .onChange(async (value) => {
             this.plugin.settings.media.defaultPodcastFolder =

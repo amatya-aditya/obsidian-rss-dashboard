@@ -1025,7 +1025,7 @@ export class ArticleList {
       { id: "read", name: "Read", icon: "check-circle" },
       { id: "saved", name: "Saved", icon: "save" },
       { id: "starred", name: "Starred", icon: "star" },
-      { id: "podcasts", name: "Podcasts", icon: "mic" },
+      { id: "podcasts", name: "Podcast", icon: "mic" },
       { id: "videos", name: "Videos", icon: "play" },
       { id: "tagged", name: "Tagged", icon: "tag" },
     ];

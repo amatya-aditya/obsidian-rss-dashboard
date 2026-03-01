@@ -337,7 +337,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   media: {
     defaultYouTubeFolder: "Videos",
     defaultYouTubeTag: "youtube",
-    defaultPodcastFolder: "Podcasts",
+    defaultPodcastFolder: "Podcast",
     defaultPodcastTag: "podcast",
     defaultRssFolder: "RSS",
     defaultRssTag: "RSS",
