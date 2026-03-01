@@ -924,10 +924,10 @@ export default class RssDashboardPlugin extends Plugin {
 
     if (isIOS) {
       // iOS fallback: copy to clipboard
-      this.exportOpmlToClipboardIos(opmlContent);
+      void this.exportOpmlToClipboardIos(opmlContent);
     } else {
       // Desktop and Android: use traditional blob download
-      this.exportOpmlAsFile(opmlContent);
+      void this.exportOpmlAsFile(opmlContent);
     }
   }
 
@@ -948,7 +948,7 @@ export default class RssDashboardPlugin extends Plugin {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(opmlContent);
         new Notice(
-          "✓ OPML content copied to clipboard\nPaste into your RSS reader to import"
+          "Feed list copied to clipboard. Paste into your reader to import"
         );
         return;
       }
@@ -961,12 +961,12 @@ export default class RssDashboardPlugin extends Plugin {
       const blob = new Blob([opmlContent], { type: "text/xml" });
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
-      new Notice("OPML opened in new window. Save it to your device.");
+      new Notice("Feed list opened in a new window. Save to download and import");
       // Note: Don't revoke the URL immediately - the new window needs it
       // It will be revoked when the window closes or navigates away
     } catch (error) {
       console.error("[RSS Dashboard] Failed to export OPML:", error);
-      new Notice("✗ Failed to export OPML. Please try again.");
+      new Notice("Unable to export feed list. Please try again.");
     }
   }
 

@@ -1718,13 +1718,6 @@ export class ArticleList {
     setIcon(tagsToggle, "tag");
     tagsToggle.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (this.isMobileViewport()) {
-        const result = this.callbacks.onOpenTagsSettings?.();
-        if (result instanceof Promise) {
-          void result;
-        }
-        return;
-      }
       this.createPortalDropdown(tagsToggle, article, (tag, checked) => {
         if (!article.tags) article.tags = [];
         if (checked) {
@@ -2538,12 +2531,20 @@ export class ArticleList {
 
     if (isMobile) {
       const syncMobileViewportHeight = () => {
-        const viewportHeight =
-          targetWindow.visualViewport?.height ?? targetWindow.innerHeight;
-        portalDropdown.style.setProperty(
-          "--rss-mobile-vvh",
-          `${viewportHeight}px`,
-        );
+        const vvp = targetWindow.visualViewport;
+        const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
+        const keyboardOffset = vvp
+          ? Math.max(0, targetWindow.innerHeight - (vvp.offsetTop + vvp.height))
+          : 0;
+        portalDropdown.style.setProperty("--rss-mobile-vvh", `${viewportHeight}px`);
+        if (keyboardOffset > 0) {
+          portalDropdown.style.setProperty(
+            "--rss-mobile-sheet-bottom",
+            `${keyboardOffset + 8}px`,
+          );
+        } else {
+          portalDropdown.style.removeProperty("--rss-mobile-sheet-bottom");
+        }
       };
       syncMobileViewportHeight();
 

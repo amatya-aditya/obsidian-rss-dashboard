@@ -974,12 +974,6 @@ export class ReaderView extends ItemView {
     const targetWindow = targetDocument.defaultView || window;
     const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
     if (isMobile) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-      void (this.app as any).plugins.plugins['rss-dashboard'].openTagsSettings();
-      return;
-    }
-
-    if (isMobile) {
       this.tagsDropdownBackdrop = targetBody.createDiv({
         cls: "rss-dashboard-tags-sheet-backdrop",
       });
@@ -1013,6 +1007,33 @@ export class ReaderView extends ItemView {
     const tagsListContainer = portalDropdown.createDiv({
       cls: "rss-dashboard-tag-list",
     });
+    const tagSeparator = portalDropdown.createDiv({
+      cls: "rss-dashboard-tag-item-separator",
+    });
+    const updateTagSeparatorVisibility = (): void => {
+      const hasTags = this.settings.availableTags.length > 0;
+      tagSeparator.style.display = hasTags ? "" : "none";
+    };
+    const deleteTagFromProfile = (tag: Tag): void => {
+      const tagIndex = this.settings.availableTags.findIndex(
+        (t) => t.name === tag.name,
+      );
+      if (tagIndex === -1) return;
+      this.settings.availableTags.splice(tagIndex, 1);
+      this.settings.feeds.forEach((feed) => {
+        feed.items.forEach((feedItem) => {
+          if (feedItem.tags) {
+            feedItem.tags = feedItem.tags.filter((t) => t.name !== tag.name);
+          }
+        });
+      });
+      if (item.tags?.some((t) => t.name === tag.name)) {
+        item.tags = item.tags.filter((t) => t.name !== tag.name);
+      }
+      this.onArticleUpdate(item, {}, false);
+      new Notice(`Tag "${tag.name}" deleted successfully!`);
+      updateTagSeparatorVisibility();
+    };
     this.tagsDropdownPortal = portalDropdown;
     this.tagsDropdownDocument = targetDocument;
 
@@ -1036,6 +1057,12 @@ export class ReaderView extends ItemView {
       });
       tagLabel.style.setProperty("--tag-color", tag.color);
 
+      const deleteButton = tagItem.createEl("button", {
+        cls: "rss-dashboard-tag-delete-button",
+        attr: { title: `Delete "${tag.name}" tag`, "aria-label": "Delete tag" },
+      });
+      setIcon(deleteButton, "trash");
+
       tagCheckbox.addEventListener("change", (e) => {
         e.stopPropagation();
         const isChecked = (e.target as HTMLInputElement).checked;
@@ -1043,26 +1070,33 @@ export class ReaderView extends ItemView {
       });
 
       tagItem.addEventListener("click", (e) => {
-        if (e.target === tagCheckbox) {
+        if (
+          e.target === tagCheckbox ||
+          (e.target instanceof Element &&
+            e.target.closest(".rss-dashboard-tag-delete-button"))
+        ) {
           return;
         }
         tagCheckbox.checked = !tagCheckbox.checked;
         this.toggleTag(item, tag, tagCheckbox.checked);
       });
 
+      deleteButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        deleteTagFromProfile(tag);
+        tagItem.remove();
+      });
+
       tagItem.appendChild(tagCheckbox);
       tagItem.appendChild(tagLabel);
+      tagItem.appendChild(deleteButton);
     };
 
     for (const tag of this.settings.availableTags) {
       appendTagItem(tag);
     }
-
-    if (this.settings.availableTags.length > 0) {
-      portalDropdown.createDiv({
-        cls: "rss-dashboard-tag-item-separator",
-      });
-    }
+    updateTagSeparatorVisibility();
 
     const inlineAddRow = portalDropdown.createDiv({
       cls: "rss-dashboard-tag-inline-add-row",
@@ -1145,9 +1179,20 @@ export class ReaderView extends ItemView {
 
     if (isMobile) {
       const syncMobileViewportHeight = () => {
-        const viewportHeight =
-          targetWindow.visualViewport?.height ?? targetWindow.innerHeight;
+        const vvp = targetWindow.visualViewport;
+        const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
+        const keyboardOffset = vvp
+          ? Math.max(0, targetWindow.innerHeight - (vvp.offsetTop + vvp.height))
+          : 0;
         portalDropdown.style.setProperty("--rss-mobile-vvh", `${viewportHeight}px`);
+        if (keyboardOffset > 0) {
+          portalDropdown.style.setProperty(
+            "--rss-mobile-sheet-bottom",
+            `${keyboardOffset + 8}px`,
+          );
+        } else {
+          portalDropdown.style.removeProperty("--rss-mobile-sheet-bottom");
+        }
       };
       syncMobileViewportHeight();
 

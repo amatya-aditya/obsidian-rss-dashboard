@@ -68,7 +68,7 @@
 	left: 8px !important;
 	right: 8px !important;
 	top: auto !important;
-	bottom: max(8px, env(safe-area-inset-bottom)) !important;
+	bottom: var(--rss-mobile-sheet-bottom, max(8px, env(safe-area-inset-bottom))) !important;
 	width: auto !important;
 	max-width: none !important;
 	min-width: 0 !important;
