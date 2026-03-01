@@ -2324,6 +2324,22 @@ export class ArticleList {
       const sheetActions = sheetHeader.createDiv({
         cls: "rss-dashboard-tags-sheet-actions",
       });
+      const addTagBtn = sheetActions.createEl("button", {
+        cls: "rss-dashboard-tags-sheet-btn",
+        text: "Add tag",
+      });
+      setIcon(addTagBtn, "plus");
+      addTagBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.tagsDropdownCleanup) {
+          this.tagsDropdownCleanup();
+        }
+        const result = this.callbacks.onOpenTagsSettings?.();
+        if (result instanceof Promise) {
+          void result;
+        }
+      });
       const doneBtn = sheetActions.createEl("button", {
         cls: "rss-dashboard-tags-sheet-btn rss-dashboard-tags-sheet-btn-done",
         text: "Done",
@@ -2431,6 +2447,7 @@ export class ArticleList {
     }
     updateTagSeparatorVisibility();
 
+    if (!isMobile) {
     const inlineAddRow = portalDropdown.createDiv({
       cls: "rss-dashboard-tag-inline-add-row",
     });
@@ -2504,6 +2521,7 @@ export class ArticleList {
         submitInlineTag();
       }
     });
+    } // end !isMobile
 
     targetBody.appendChild(portalDropdown);
     portalDropdown.addClass("rss-dashboard-tags-dropdown-content-portal");
@@ -2533,11 +2551,7 @@ export class ArticleList {
       const syncMobileViewportHeight = () => {
         const vvp = targetWindow.visualViewport;
         const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
-        const keyboardHeight = vvp
-          ? Math.max(0, targetWindow.innerHeight - vvp.height)
-          : 0;
         portalDropdown.style.setProperty("max-height", `${viewportHeight - 16}px`, "important");
-        portalDropdown.style.setProperty("bottom", `${keyboardHeight + 8}px`, "important");
       };
       syncMobileViewportHeight();
 
@@ -2567,16 +2581,6 @@ export class ArticleList {
           closeDropdown();
         });
       }
-
-      nameInput.addEventListener("focus", () => {
-        targetWindow.setTimeout(() => {
-          syncMobileViewportHeight();
-          nameInput.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }, 350);
-      });
-      nameInput.addEventListener("blur", () => {
-        targetWindow.setTimeout(syncMobileViewportHeight, 100);
-      });
 
       return;
     }

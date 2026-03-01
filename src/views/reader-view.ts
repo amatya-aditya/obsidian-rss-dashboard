@@ -994,6 +994,18 @@ export class ReaderView extends ItemView {
       const sheetActions = sheetHeader.createDiv({
         cls: "rss-dashboard-tags-sheet-actions",
       });
+      const addTagBtn = sheetActions.createEl("button", {
+        cls: "rss-dashboard-tags-sheet-btn",
+        text: "Add tag",
+      });
+      setIcon(addTagBtn, "plus");
+      addTagBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeTagsDropdownPortal();
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+        void (this.app as any).plugins.plugins["rss-dashboard"].openTagsSettings();
+      });
       const doneBtn = sheetActions.createEl("button", {
         cls: "rss-dashboard-tags-sheet-btn rss-dashboard-tags-sheet-btn-done",
         text: "Done",
@@ -1098,6 +1110,7 @@ export class ReaderView extends ItemView {
     }
     updateTagSeparatorVisibility();
 
+    if (!isMobile) {
     const inlineAddRow = portalDropdown.createDiv({
       cls: "rss-dashboard-tag-inline-add-row",
     });
@@ -1170,6 +1183,7 @@ export class ReaderView extends ItemView {
         submitInlineTag();
       }
     });
+    } // end !isMobile
 
     const rect = anchor.getBoundingClientRect();
     const dropdownRect = portalDropdown.getBoundingClientRect();
@@ -1181,11 +1195,7 @@ export class ReaderView extends ItemView {
       const syncMobileViewportHeight = () => {
         const vvp = targetWindow.visualViewport;
         const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
-        const keyboardHeight = vvp
-          ? Math.max(0, targetWindow.innerHeight - vvp.height)
-          : 0;
         portalDropdown.style.setProperty("max-height", `${viewportHeight - 16}px`, "important");
-        portalDropdown.style.setProperty("bottom", `${keyboardHeight + 8}px`, "important");
       };
       syncMobileViewportHeight();
 
@@ -1206,16 +1216,6 @@ export class ReaderView extends ItemView {
 
       this.tagsDropdownBackdrop?.addEventListener("click", () => {
         this.closeTagsDropdownPortal();
-      });
-
-      nameInput.addEventListener("focus", () => {
-        targetWindow.setTimeout(() => {
-          syncMobileViewportHeight();
-          nameInput.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }, 350);
-      });
-      nameInput.addEventListener("blur", () => {
-        targetWindow.setTimeout(syncMobileViewportHeight, 100);
       });
 
       return;
