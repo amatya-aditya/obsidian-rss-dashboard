@@ -232,6 +232,7 @@
   font-size: 12px;
   color: var(--text-muted);
   background: var(--background-secondary);
+  flex-shrink: 0;
 }
 
 .rss-dashboard-filter-subheader-content {
