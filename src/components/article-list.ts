@@ -327,6 +327,103 @@ export class ArticleList {
     return this.articles.some((a) => a.guid === guid);
   }
 
+  private findSortedInsertIndex(
+    article: FeedItem,
+    sortOrder: "newest" | "oldest",
+  ): number {
+    const newTime = new Date(article.pubDate).getTime();
+    for (let i = 0; i < this.articles.length; i++) {
+      const existingTime = new Date(this.articles[i].pubDate).getTime();
+      if (sortOrder === "newest" ? newTime > existingTime : newTime < existingTime) {
+        return i;
+      }
+    }
+    return this.articles.length;
+  }
+
+  public insertArticleInPlace(
+    article: FeedItem,
+    sortOrder: "newest" | "oldest",
+  ): boolean {
+    if (this.settings.articleGroupBy !== "none") {
+      return false;
+    }
+
+    const listEl = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-list",
+    );
+    if (!listEl) {
+      return false;
+    }
+
+    const insertIdx = this.findSortedInsertIndex(article, sortOrder);
+    const temp = document.createElement("div");
+
+    if (this.settings.viewStyle === "list") {
+      this.renderListView(temp, [article]);
+    } else {
+      this.renderCardView(temp, [article]);
+    }
+
+    const newEl = temp.firstElementChild as HTMLElement | null;
+    if (!newEl) {
+      return false;
+    }
+
+    const nextArticle = this.articles[insertIdx];
+    const referenceEl = nextArticle
+      ? listEl.querySelector<HTMLElement>(
+          `#article-${CSS.escape(nextArticle.guid)}`,
+        )
+      : null;
+
+    if (nextArticle && !referenceEl) {
+      return false;
+    }
+
+    this.articles.splice(insertIdx, 0, article);
+
+    if (referenceEl) {
+      listEl.insertBefore(newEl, referenceEl);
+    } else {
+      listEl.appendChild(newEl);
+    }
+
+    const naturalHeight = newEl.offsetHeight;
+    setCssProps(newEl, {
+      overflow: "hidden",
+      "max-height": "0",
+      opacity: "0",
+      "margin-top": "0",
+      "margin-bottom": "0",
+      "padding-top": "0",
+      "padding-bottom": "0",
+    });
+
+    requestAnimationFrame(() => {
+      setCssProps(newEl, {
+        transition:
+          "opacity 150ms ease, max-height 200ms ease 100ms, margin 200ms ease 100ms, padding 200ms ease 100ms",
+        "max-height": `${naturalHeight}px`,
+        opacity: "1",
+        "margin-top": "",
+        "margin-bottom": "",
+        "padding-top": "",
+        "padding-bottom": "",
+      });
+    });
+
+    setTimeout(() => {
+      setCssProps(newEl, {
+        overflow: "",
+        "max-height": "",
+        transition: "",
+      });
+    }, 320);
+
+    return true;
+  }
+
   public setSelectedArticle(article: FeedItem): void {
     this.selectedArticle = article;
     // Remove active class from any currently active element
