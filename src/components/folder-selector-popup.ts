@@ -399,7 +399,10 @@ export class FolderSelectorPopup {
         const query = this.inputEl?.value.trim() || "";
 
         if (selectedItem) {
-          if (!this.listOnly && selectedItem.hasClass("rss-folder-selector-create")) {
+          if (
+            !this.listOnly &&
+            selectedItem.hasClass("rss-folder-selector-create")
+          ) {
             // Create new folder with the typed text (only if not in list-only mode)
             this.selectFolder(query);
           } else {

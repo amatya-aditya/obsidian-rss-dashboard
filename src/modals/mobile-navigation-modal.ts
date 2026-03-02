@@ -146,7 +146,7 @@ export class MobileNavigationModal extends Modal {
   }
 
   private applyModalWidth(): void {
-    const maxAllowedWidth = Math.floor(window.innerWidth * 0.9);
+    const maxAllowedWidth = Math.floor(window.innerWidth * 0.8);
     const width = Math.max(240, Math.min(this.modalWidth, maxAllowedWidth));
     this.modalEl.style.width = `${width}px`;
     this.modalEl.style.maxWidth = `${width}px`;

@@ -280,7 +280,7 @@
   color: var(--text-muted);
   cursor: pointer;
   padding: 0;
-  font-size: 11px;
+  font-size: 16px;
   line-height: 1;
   transition:
     color 120ms ease,

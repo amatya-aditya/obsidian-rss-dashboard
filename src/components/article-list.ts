@@ -106,6 +106,7 @@ export class ArticleList {
   }> = [];
   private activePortal: HTMLElement | null = null;
   private activeFilterToggleBtn: HTMLElement | null = null;
+  private activeFilterOutsideListenerCleanup: (() => void) | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
 
   constructor(
@@ -159,6 +160,10 @@ export class ArticleList {
   }
 
   private closeActiveFilterMenu(): void {
+    if (this.activeFilterOutsideListenerCleanup) {
+      this.activeFilterOutsideListenerCleanup();
+      this.activeFilterOutsideListenerCleanup = null;
+    }
     if (this.activePortal) {
       this.activePortal.remove();
       this.activePortal = null;
@@ -730,7 +735,12 @@ export class ArticleList {
     });
 
     const handleDocumentClick = (e: Event) => {
-      if (!hamburgerMenu.contains(e.target as Node)) {
+      const clickTarget = e.target as Node;
+      const isInsideHamburgerMenu = hamburgerMenu.contains(clickTarget);
+      const isInsideActiveFilterMenu =
+        this.activePortal?.contains(clickTarget) ?? false;
+
+      if (!isInsideHamburgerMenu && !isInsideActiveFilterMenu) {
         dropdownMenu.classList.remove("active");
         hamburgerButton.classList.remove("active");
       }
@@ -1234,6 +1244,7 @@ export class ArticleList {
       });
 
       item.addEventListener("click", (e) => {
+        e.stopPropagation();
         if (e.target !== checkbox) {
           checkbox.checked = !checkbox.checked;
           if (checkbox.checked) {
@@ -1272,6 +1283,7 @@ export class ArticleList {
       pendingStatusBarVisible = statusBarCheckbox.checked;
     });
     statusBarItem.addEventListener("click", (e) => {
+      e.stopPropagation();
       if (e.target !== statusBarCheckbox) {
         statusBarCheckbox.checked = !statusBarCheckbox.checked;
         pendingStatusBarVisible = statusBarCheckbox.checked;
@@ -1305,6 +1317,7 @@ export class ArticleList {
       pendingBypassAll = bypassCheckbox.checked;
     });
     bypassItem.addEventListener("click", (e) => {
+      e.stopPropagation();
       if (e.target !== bypassCheckbox) {
         bypassCheckbox.checked = !bypassCheckbox.checked;
         pendingBypassAll = bypassCheckbox.checked;
@@ -1344,6 +1357,7 @@ export class ArticleList {
     });
 
     highlightsItem.addEventListener("click", (e) => {
+      e.stopPropagation();
       if (e.target !== highlightsCheckbox) {
         highlightsCheckbox.checked = !highlightsCheckbox.checked;
         pendingHighlightsEnabled = highlightsCheckbox.checked;
@@ -1457,16 +1471,24 @@ export class ArticleList {
 
     // Close menu on click outside
     targetWindow.setTimeout(() => {
+      if (this.activePortal !== menuPortal) {
+        return;
+      }
+
       const handleClickOutside = (e: Event) => {
+        if (this.activePortal !== menuPortal) {
+          return;
+        }
+
         if (
           !menuPortal.contains(e.target as Node) &&
           !toggleBtn.contains(e.target as Node)
         ) {
           this.closeActiveFilterMenu();
-          removeListener();
         }
       };
-      const removeListener = this.addDocumentListener(
+
+      this.activeFilterOutsideListenerCleanup = this.addDocumentListener(
         targetDocument,
         "mousedown",
         handleClickOutside,
