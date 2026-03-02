@@ -1363,19 +1363,7 @@ export class RssDashboardView extends ItemView {
     }
 
     if (!this.matchesFilters(article)) {
-      const filtered = this.getFilteredArticles();
-      const pageSize = this.getCurrentPageSize();
-      const currentPage = this.getCurrentPage();
-      const startIdx = (currentPage - 1) * pageSize;
-      const endIdx = startIdx + pageSize;
-      const articlesForPage = filtered.slice(startIdx, endIdx);
-
-      this.articleList.refilter(
-        new Set(this.activeStatusFilters),
-        new Set(this.activeTagFilters),
-        this.filterLogic,
-        articlesForPage,
-      );
+      this.articleList.removeArticleInPlace(article.guid);
       return;
     }
 

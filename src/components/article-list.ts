@@ -3,6 +3,7 @@ import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import {
   formatDateWithRelative,
   ensureUtf8Meta,
+  setCssProps,
 } from "../utils/platform-utils";
 import { HighlightService } from "../services/highlight-service";
 
@@ -282,6 +283,44 @@ export class ArticleList {
       )
       .forEach((el) => el.remove());
     this.renderArticles();
+  }
+
+  public removeArticleInPlace(guid: string): void {
+    this.articles = this.articles.filter((a) => a.guid !== guid);
+
+    const targetEl = this.container.querySelector<HTMLElement>(
+      `#article-${CSS.escape(guid)}`,
+    );
+    if (!targetEl) return;
+
+    const listEl = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-list",
+    );
+    const scrollPos = listEl?.scrollTop ?? 0;
+
+    const originalHeight = targetEl.offsetHeight;
+    setCssProps(targetEl, {
+      overflow: "hidden",
+      "max-height": `${originalHeight}px`,
+      transition:
+        "opacity 150ms ease, max-height 200ms ease 100ms, margin 200ms ease 100ms, padding 200ms ease 100ms",
+    });
+
+    requestAnimationFrame(() => {
+      setCssProps(targetEl, {
+        opacity: "0",
+        "max-height": "0",
+        "margin-top": "0",
+        "margin-bottom": "0",
+        "padding-top": "0",
+        "padding-bottom": "0",
+      });
+    });
+
+    setTimeout(() => {
+      targetEl.remove();
+      if (listEl) listEl.scrollTop = scrollPos;
+    }, 320);
   }
 
   public setSelectedArticle(article: FeedItem): void {
