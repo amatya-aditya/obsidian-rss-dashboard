@@ -148,11 +148,42 @@ export class DiscoverView extends ItemView {
     this.currentPage = Math.min(this.currentPage, totalPages);
   }
 
-  private refreshViewAfterFollowStateChange(): void {
+  private refreshViewAfterFollowStateChange(feedUrl?: string): void {
     if (this.filters.followStatus !== "all") {
       this.filterFeeds(false);
+      this.render();
+      return;
+    }
+    // No follow-status filter active — just swap the button on the existing card
+    if (feedUrl) {
+      this.updateCardFollowState(feedUrl);
+      return;
     }
     this.render();
+  }
+
+  private updateCardFollowState(feedUrl: string): void {
+    const card = this.containerEl.querySelector<HTMLElement>(
+      `[data-feed-url="${CSS.escape(feedUrl)}"]`,
+    );
+    if (!card) return;
+
+    const feed = this.feeds.find((f) => f.url === feedUrl);
+    if (!feed) return;
+
+    const rightSection = card.querySelector<HTMLElement>(
+      ".rss-discover-card-footer-right",
+    );
+    if (!rightSection) return;
+
+    // Remove the existing Add/Remove button, leave Preview intact
+    rightSection
+      .querySelectorAll(
+        ".rss-discover-card-remove-btn, .rss-discover-card-add-btn",
+      )
+      .forEach((el) => el.remove());
+
+    this.renderFollowButton(rightSection, feed);
   }
 
   private isFollowedFeed(feed: FeedMetadata): boolean {
@@ -1238,11 +1269,54 @@ export class DiscoverView extends ItemView {
     return "NA";
   }
 
+  private renderFollowButton(
+    rightSection: HTMLElement,
+    feed: FeedMetadata,
+  ): void {
+    const isAdded = this.plugin.settings.feeds.some(
+      (f: Feed) => f.url === feed.url,
+    );
+
+    if (isAdded) {
+      const removeBtn = rightSection.createEl("button", {
+        text: "Remove",
+        cls: "rss-discover-card-remove-btn",
+      });
+      removeBtn.addEventListener("click", () => {
+        void (async () => {
+          await this.removeFeed(feed.url);
+          this.refreshViewAfterFollowStateChange(feed.url);
+        })();
+      });
+    } else {
+      const addToBtn = rightSection.createEl("button", {
+        cls: "rss-discover-card-add-btn rss-discover-card-add-to-btn",
+      });
+      setIcon(addToBtn, "plus");
+      addToBtn.createSpan({ text: "Add to..." });
+
+      const defaultFolder = "Uncategorized";
+      addToBtn.addEventListener("click", () => {
+        new FolderSelectorPopup(this.plugin, {
+          anchorEl: addToBtn,
+          defaultFolder: defaultFolder,
+          listOnly: true,
+          onSelect: (folderName) => {
+            void this.addFeedToFolder(feed, folderName);
+          },
+        });
+      });
+    }
+  }
+
   private renderFeedCard(
     container: HTMLElement | DocumentFragment,
     feed: FeedMetadata,
   ): void {
-    const card = container.createDiv({ cls: "rss-discover-card" });
+    const card = container.createDiv({
+      cls: "rss-discover-card",
+      attr: { "data-feed-url": feed.url },
+    });
 
     const header = card.createDiv({ cls: "rss-discover-card-header" });
 
@@ -1341,45 +1415,7 @@ export class DiscoverView extends ItemView {
       new FeedPreviewModal(this.app, feed).open();
     });
 
-    const isAdded = this.plugin.settings.feeds.some(
-      (f: Feed) => f.url === feed.url,
-    );
-
-    if (isAdded) {
-      const removeBtn = rightSection.createEl("button", {
-        text: "Remove",
-        cls: "rss-discover-card-remove-btn",
-      });
-      removeBtn.addEventListener("click", () => {
-        void (async () => {
-          await this.removeFeed(feed.url);
-          // Re-filter when follow status filters are active, then refresh.
-          this.refreshViewAfterFollowStateChange();
-        })();
-      });
-    } else {
-      // Add to... button - shows folder selector popup
-      const addToBtn = rightSection.createEl("button", {
-        cls: "rss-discover-card-add-btn rss-discover-card-add-to-btn",
-      });
-      setIcon(addToBtn, "plus");
-      addToBtn.createSpan({ text: "Add to..." });
-
-      // Default folder for discover feeds
-      const defaultFolder = "Uncategorized";
-
-      // Single click: Show folder selector popup (list-only mode)
-      addToBtn.addEventListener("click", () => {
-        new FolderSelectorPopup(this.plugin, {
-          anchorEl: addToBtn,
-          defaultFolder: defaultFolder,
-          listOnly: true,
-          onSelect: (folderName) => {
-            void this.addFeedToFolder(feed, folderName);
-          },
-        });
-      });
-    }
+    this.renderFollowButton(rightSection, feed);
   }
 
   /**
@@ -1405,7 +1441,7 @@ export class DiscoverView extends ItemView {
       new Notice(`Feed "${feed.title}" added to "${folderName}"`);
 
       // Re-filter when follow status filters are active, then refresh.
-      this.refreshViewAfterFollowStateChange();
+      this.refreshViewAfterFollowStateChange(feed.url);
     } catch (error) {
       new Notice(
         `Failed to add feed: ${error instanceof Error ? error.message : "Unknown error"}`,
