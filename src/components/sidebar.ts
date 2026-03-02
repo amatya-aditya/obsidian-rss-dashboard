@@ -1,4 +1,4 @@
-﻿import { Menu, MenuItem, Notice, App, setIcon, Setting } from "obsidian";
+﻿import { Menu, MenuItem, Notice, App, Modal, setIcon, Setting } from "obsidian";
 import {
   Feed,
   Folder,
@@ -52,6 +52,120 @@ export interface SidebarCallbacks {
   onActivateDashboard?: () => void;
   onActivateDiscover?: () => void;
   onCloseMobileSidebar?: () => void;
+}
+
+// FolderNameModal — Uses Obsidian's Modal class to prevent mobile focus bugs.
+// ⚠️ DO NOT move the input to a raw document.body div or add event.stopPropagation()
+// guards. Previous attempts created race conditions with Obsidian's workspace handler,
+// causing text deletion, lag, and dropped keystrokes. See bug docs for history.
+class FolderNameModal extends Modal {
+  private readonly opts: {
+    title: string;
+    defaultValue?: string;
+    existingNames?: string[];
+    onSubmit: (name: string) => void;
+  };
+
+  constructor(
+    app: App,
+    opts: {
+      title: string;
+      defaultValue?: string;
+      existingNames?: string[];
+      onSubmit: (name: string) => void;
+    },
+  ) {
+    super(app);
+    this.opts = opts;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    // Scope CSS to this modal element (used for input iOS sizing rules).
+    this.modalEl.addClass("rss-folder-name-modal");
+
+    new Setting(contentEl).setName(this.opts.title).setHeading();
+
+    const nameInput = contentEl.createEl("input", {
+      attr: {
+        type: "text",
+        value: this.opts.defaultValue ?? "",
+        placeholder: "Enter folder name",
+        autocomplete: "off",
+        autocorrect: "off",
+        autocapitalize: "off",
+        spellcheck: "false",
+      },
+      cls: "rss-full-width-input rss-input-margin-bottom rss-folder-name-modal-input",
+    });
+    nameInput.spellcheck = false;
+
+    const errorMsg = contentEl.createDiv({
+      cls: "rss-folder-name-modal-error rss-folder-name-modal-error-hidden",
+    });
+
+    const showError = (msg: string) => {
+      errorMsg.textContent = msg;
+      errorMsg.removeClass("rss-folder-name-modal-error-hidden");
+      nameInput.classList.add("rss-folder-name-modal-input-error");
+    };
+    const clearError = () => {
+      errorMsg.addClass("rss-folder-name-modal-error-hidden");
+      nameInput.classList.remove("rss-folder-name-modal-input-error");
+    };
+
+    const submit = () => {
+      const name = nameInput.value.trim();
+      if (!name) {
+        showError("Please enter a folder name.");
+        nameInput.focus();
+        return;
+      }
+      if (
+        this.opts.existingNames?.includes(name) &&
+        name !== this.opts.defaultValue
+      ) {
+        showError("A folder with this name already exists.");
+        nameInput.focus();
+        return;
+      }
+      this.close();
+      this.opts.onSubmit(name);
+    };
+
+    nameInput.addEventListener("input", clearError);
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submit();
+    });
+
+    const buttonContainer = contentEl.createDiv({
+      cls: "rss-dashboard-modal-buttons rss-folder-name-modal-buttons",
+    });
+
+    const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
+    cancelButton.addClass("rss-folder-name-modal-cancel");
+    cancelButton.addEventListener("click", () => this.close());
+
+    const okButton = buttonContainer.createEl("button", { text: "OK" });
+    okButton.className = "rss-dashboard-primary-button";
+    okButton.addClass("rss-folder-name-modal-ok");
+    okButton.addEventListener("click", submit);
+
+    // Single focus+select; Obsidian's Modal handles focus isolation.
+    // ⚠️ Do NOT add rAF re-focus, blur recovery, or stopPropagation.
+    setTimeout(() => {
+      if (this.contentEl.isConnected) {
+        nameInput.focus();
+        nameInput.select();
+      }
+    }, 50);
+  }
+
+  onClose() {
+    this.contentEl.empty();
+  }
 }
 
 export class Sidebar {
@@ -336,6 +450,7 @@ export class Sidebar {
             .onClick(() => {
               this.showFolderNameModal({
                 title: "Add folder",
+                existingNames: this.settings.folders.map((f) => f.name),
                 onSubmit: (folderName) => {
                   void this.addTopLevelFolder(folderName).then(() =>
                     this.render(),
@@ -624,6 +739,10 @@ export class Sidebar {
           .onClick(() => {
             this.showFolderNameModal({
               title: "Add subfolder",
+              existingNames:
+                this.findFolderByPath(fullPath)?.subfolders.map(
+                  (f) => f.name,
+                ) ?? [],
               onSubmit: (subfolderName) => {
                 void this.addSubfolderByPath(fullPath, subfolderName).then(() =>
                   this.render(),
@@ -640,6 +759,16 @@ export class Sidebar {
             this.showFolderNameModal({
               title: "Rename folder",
               defaultValue: folderName,
+              existingNames: (() => {
+                const parentPath = fullPath.includes("/")
+                  ? fullPath.split("/").slice(0, -1).join("/")
+                  : "";
+                return parentPath
+                  ? (this.findFolderByPath(parentPath)?.subfolders.map(
+                      (f) => f.name,
+                    ) ?? [])
+                  : this.settings.folders.map((f) => f.name);
+              })(),
               onSubmit: (newName) => {
                 if (newName !== folderName) {
                   void this.renameFolderByPath(fullPath, newName).then(() =>
@@ -1115,69 +1244,12 @@ export class Sidebar {
   public showFolderNameModal(options: {
     title: string;
     defaultValue?: string;
+    existingNames?: string[];
     onSubmit: (name: string) => void;
   }) {
-    const modal = document.body.createDiv({
-      cls: "rss-dashboard-modal rss-dashboard-modal-container",
-    });
-    modal.addClass("rss-folder-name-modal");
-    const modalContent = modal.createDiv({
-      cls: "rss-dashboard-modal-content",
-    });
-    modalContent.addClass("rss-folder-name-modal-content");
-    new Setting(modalContent).setName(options.title).setHeading();
-    const nameInput = modalContent.createEl("input", {
-      attr: {
-        type: "text",
-        value: options.defaultValue || "",
-        placeholder: "Enter folder name",
-        autocomplete: "off",
-      },
-      cls: "rss-full-width-input rss-input-margin-bottom",
-    });
-    nameInput.addClass("rss-folder-name-modal-input");
-    nameInput.spellcheck = false;
-    nameInput.addEventListener("focus", () => nameInput.select());
-    nameInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        okButton.click();
-      } else if (e.key === "Escape") {
-        cancelButton.click();
-      }
-    });
-    const buttonContainer = modalContent.createDiv({
-      cls: "rss-dashboard-modal-buttons rss-folder-name-modal-buttons",
-    });
-    const cancelButton = buttonContainer.createEl("button", {
-      text: "Cancel",
-    });
-    cancelButton.addClass("rss-folder-name-modal-cancel");
-    cancelButton.addEventListener("click", () => {
-      document.body.removeChild(modal);
-    });
-    const okButton = buttonContainer.createEl("button", {
-      text: "OK",
-    });
-    okButton.className = "rss-dashboard-primary-button";
-    okButton.addClass("rss-folder-name-modal-ok");
-    okButton.addEventListener("click", submit);
-    function submit() {
-      const name = nameInput.value.trim();
-      if (name) {
-        document.body.removeChild(modal);
-        options.onSubmit(name);
-      }
-    }
-    buttonContainer.appendChild(cancelButton);
-    buttonContainer.appendChild(okButton);
-    modalContent.appendChild(nameInput);
-    modalContent.appendChild(buttonContainer);
-    modal.appendChild(modalContent);
-    document.body.appendChild(modal);
-    requestAnimationFrame(() => {
-      nameInput.focus();
-      nameInput.select();
-    });
+    // Delegate to FolderNameModal (extends Obsidian Modal) for focus stability.
+    // See FolderNameModal class comments for context on why Modal is required.
+    new FolderNameModal(this.app, options).open();
   }
 
   private removeFolderByPath(path: string) {
@@ -1776,6 +1848,7 @@ export class Sidebar {
     addFolderButton.addEventListener("click", () => {
       this.showFolderNameModal({
         title: "Add folder",
+        existingNames: this.settings.folders.map((f) => f.name),
         onSubmit: (folderName) => {
           void this.addTopLevelFolder(folderName).then(() => this.render());
         },
@@ -2069,6 +2142,7 @@ export class Sidebar {
         .onClick(() => {
           this.showFolderNameModal({
             title: "Create new folder",
+            existingNames: this.settings.folders.map((f) => f.name),
             onSubmit: (folderName) => {
               void (async () => {
                 await this.addTopLevelFolder(folderName);

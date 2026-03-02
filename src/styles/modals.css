@@ -964,6 +964,49 @@
 }
 
 /* ============================================
+   Folder Name Modal (Add / Rename)
+   ============================================ */
+
+/* Error message below the input */
+.rss-folder-name-modal-error {
+  color: var(--text-error, #ef4444);
+  font-size: 0.85em;
+  margin-top: -8px;
+  margin-bottom: 10px;
+}
+
+.rss-folder-name-modal-error-hidden {
+  display: none;
+}
+
+/* Red border on input when validation fails */
+.rss-folder-name-modal-input.rss-folder-name-modal-input-error {
+  border-color: var(--text-error, #ef4444) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+}
+
+/* On mobile the generic modal is a bottom sheet; the folder-name modal is
+   small enough that we pin it to the top instead so the soft keyboard never
+   slides up over it. */
+@media (max-width: 768px) {
+  .rss-folder-name-modal.rss-dashboard-modal-container {
+    top: env(safe-area-inset-top, 0px) !important;
+    bottom: auto !important;
+    border-radius: 0 0 16px 16px !important;
+    max-height: 60vh !important;
+  }
+
+  /* Ensure the text input accepts taps and opens the iOS soft keyboard */
+  .rss-folder-name-modal .rss-folder-name-modal-input {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    touch-action: manipulation;
+    /* 16 px prevents iOS auto-zoom on focus */
+    font-size: 16px;
+  }
+}
+
+/* ============================================
    Delete Confirmation Modal Overlay
    ============================================ */
 
