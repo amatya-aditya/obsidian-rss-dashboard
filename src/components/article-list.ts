@@ -284,6 +284,23 @@ export class ArticleList {
     this.renderArticles();
   }
 
+  public setSelectedArticle(article: FeedItem): void {
+    this.selectedArticle = article;
+    // Remove active class from any currently active element
+    this.container
+      .querySelectorAll<HTMLElement>(
+        ".rss-dashboard-article-item.active, .rss-dashboard-article-card.active",
+      )
+      .forEach((el) => el.classList.remove("active"));
+    // Add active class to the newly selected article element
+    const targetEl = this.container.querySelector<HTMLElement>(
+      `#article-${CSS.escape(article.guid)}`,
+    );
+    if (targetEl) {
+      targetEl.classList.add("active");
+    }
+  }
+
   public updateArticleInPlace(article: FeedItem): void {
     const index = this.articles.findIndex((a) => a.guid === article.guid);
     if (index !== -1) {

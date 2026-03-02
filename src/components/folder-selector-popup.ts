@@ -13,6 +13,8 @@ export interface FolderSelectorOptions {
   defaultFolder?: string;
   /** Initial query to pre-fill the input */
   initialQuery?: string;
+  /** List-only mode: no text input, no folder creation — just select from existing folders */
+  listOnly?: boolean;
 }
 
 /**
@@ -22,8 +24,8 @@ export interface FolderSelectorOptions {
 export class FolderSelectorPopup {
   private plugin: RssDashboardPlugin;
   private popupEl!: HTMLElement;
-  private inputEl!: HTMLInputElement;
-  private clearBtnEl!: HTMLElement;
+  private inputEl?: HTMLInputElement;
+  private clearBtnEl?: HTMLElement;
   private listEl!: HTMLElement;
   private folders: string[];
   private filteredFolders: string[];
@@ -34,12 +36,14 @@ export class FolderSelectorPopup {
   private clickOutsideHandler!: (e: MouseEvent) => void;
   private keydownHandler!: (e: KeyboardEvent) => void;
   private isDestroyed = false;
+  private listOnly: boolean = false;
 
   constructor(plugin: RssDashboardPlugin, options: FolderSelectorOptions) {
     this.plugin = plugin;
     this.onSelect = options.onSelect;
     this.onClose = options.onClose;
     this.defaultFolder = options.defaultFolder;
+    this.listOnly = options.listOnly ?? false;
     this.folders = this.collectAllFolders(plugin.settings.folders);
     this.filteredFolders = this.getPrioritizedFolders(options.defaultFolder);
 
@@ -50,14 +54,16 @@ export class FolderSelectorPopup {
     );
     this.attachEventListeners();
 
-    if (options.initialQuery) {
+    if (!this.listOnly && options.initialQuery) {
       this.filterFolders(options.initialQuery);
     }
 
-    // Focus input after popup is rendered
-    window.setTimeout(() => {
-      this.inputEl?.focus();
-    }, 0);
+    // Focus input after popup is rendered (only if not in list-only mode)
+    if (!this.listOnly) {
+      window.setTimeout(() => {
+        this.inputEl?.focus();
+      }, 0);
+    }
   }
 
   /**
@@ -139,36 +145,38 @@ export class FolderSelectorPopup {
     popup.style.left = `${left}px`;
     popup.style.top = `${top}px`;
 
-    // Search input container
-    const inputWrapper = popup.createDiv({
-      cls: "rss-folder-selector-input-wrapper",
-    });
+    // Search input container — skip in list-only mode
+    if (!this.listOnly) {
+      const inputWrapper = popup.createDiv({
+        cls: "rss-folder-selector-input-wrapper",
+      });
 
-    this.inputEl = inputWrapper.createEl("input", {
-      cls: "rss-folder-selector-input",
-      attr: {
-        type: "text",
-        placeholder: "Select or create folder...",
-        autocomplete: "off",
-        spellcheck: "false",
-        value: initialQuery || "",
-      },
-    });
+      this.inputEl = inputWrapper.createEl("input", {
+        cls: "rss-folder-selector-input",
+        attr: {
+          type: "text",
+          placeholder: "Select or create folder...",
+          autocomplete: "off",
+          spellcheck: "false",
+          value: initialQuery || "",
+        },
+      });
 
-    this.clearBtnEl = inputWrapper.createDiv({
-      cls: `rss-folder-selector-clear${initialQuery ? "" : " is-hidden"}`,
-    });
-    setIcon(this.clearBtnEl, "x");
-    this.clearBtnEl.addEventListener("click", () => {
-      this.inputEl.value = "";
-      this.clearBtnEl.addClass("is-hidden");
-      this.filterFolders("");
-      this.inputEl.focus();
-    });
-
-    // Note: We don't pre-fill the input with defaultFolder because that would
-    // filter the list to only show matching folders. Instead, we pre-select
-    // the default folder in the list (done via getPrioritizedFolders and selectedIndex).
+      this.clearBtnEl = inputWrapper.createDiv({
+        cls: `rss-folder-selector-clear${initialQuery ? "" : " is-hidden"}`,
+      });
+      setIcon(this.clearBtnEl, "x");
+      this.clearBtnEl.addEventListener("click", () => {
+        if (this.inputEl) {
+          this.inputEl.value = "";
+          if (this.clearBtnEl) {
+            this.clearBtnEl.addClass("is-hidden");
+          }
+          this.filterFolders("");
+          this.inputEl.focus();
+        }
+      });
+    }
 
     // Folder list container
     this.listEl = popup.createDiv({
@@ -189,14 +197,15 @@ export class FolderSelectorPopup {
     const maxVisible = 5;
     this.listEl.style.maxHeight = `${maxVisible * itemHeight}px`;
 
-    const query = this.inputEl.value.trim();
+    const query = this.inputEl?.value.trim() || "";
     const showCreateOption =
+      !this.listOnly &&
       query.length > 0 &&
       !this.filteredFolders.some(
         (f) => f.toLowerCase() === query.toLowerCase(),
       );
 
-    // Show "Create new folder" option if query doesn't match existing folder
+    // Show "Create new folder" option if query doesn't match existing folder (and not in list-only mode)
     if (showCreateOption) {
       const createItem = this.listEl.createDiv({
         cls: "rss-folder-selector-item rss-folder-selector-create",
@@ -285,26 +294,28 @@ export class FolderSelectorPopup {
    * Attaches event listeners for user interaction
    */
   private attachEventListeners(): void {
-    // Input filtering with validation
-    this.inputEl.addEventListener("input", () => {
-      // Sanitize input in real-time
-      const sanitized = this.sanitizeFolderName(this.inputEl.value);
-      if (sanitized !== this.inputEl.value) {
-        // Show visual feedback for invalid characters
-        this.inputEl.addClass("rss-folder-selector-input-invalid");
-        this.inputEl.value = sanitized;
-        window.setTimeout(() => {
-          this.inputEl.removeClass("rss-folder-selector-input-invalid");
-        }, 500);
-      }
-      this.filterFolders(this.inputEl.value);
+    // Input filtering with validation — skip in list-only mode
+    if (!this.listOnly && this.inputEl) {
+      this.inputEl.addEventListener("input", () => {
+        // Sanitize input in real-time
+        const sanitized = this.sanitizeFolderName(this.inputEl!.value);
+        if (sanitized !== this.inputEl!.value) {
+          // Show visual feedback for invalid characters
+          this.inputEl!.addClass("rss-folder-selector-input-invalid");
+          this.inputEl!.value = sanitized;
+          window.setTimeout(() => {
+            this.inputEl?.removeClass("rss-folder-selector-input-invalid");
+          }, 500);
+        }
+        this.filterFolders(this.inputEl!.value);
 
-      if (this.inputEl.value) {
-        this.clearBtnEl.removeClass("is-hidden");
-      } else {
-        this.clearBtnEl.addClass("is-hidden");
-      }
-    });
+        if (this.inputEl!.value) {
+          this.clearBtnEl?.removeClass("is-hidden");
+        } else {
+          this.clearBtnEl?.addClass("is-hidden");
+        }
+      });
+    }
 
     // Click outside to close - delay registration to avoid immediate trigger
     // from the same click that opened the popup
@@ -385,11 +396,11 @@ export class FolderSelectorPopup {
         const selectedItem = this.listEl.querySelector(
           ".rss-folder-selector-item.is-selected",
         );
-        const query = this.inputEl.value.trim();
+        const query = this.inputEl?.value.trim() || "";
 
         if (selectedItem) {
-          if (selectedItem.hasClass("rss-folder-selector-create")) {
-            // Create new folder with the typed text
+          if (!this.listOnly && selectedItem.hasClass("rss-folder-selector-create")) {
+            // Create new folder with the typed text (only if not in list-only mode)
             this.selectFolder(query);
           } else {
             // Select existing folder
@@ -400,8 +411,8 @@ export class FolderSelectorPopup {
               this.selectFolder(textEl.textContent || "");
             }
           }
-        } else if (query.length > 0) {
-          // No item selected but there's text - create new folder
+        } else if (!this.listOnly && query.length > 0) {
+          // No item selected but there's text - create new folder (only if not in list-only mode)
           this.selectFolder(query);
         }
         break;
@@ -463,6 +474,6 @@ export class FolderSelectorPopup {
    */
   updateFolders(): void {
     this.folders = this.collectAllFolders(this.plugin.settings.folders);
-    this.filterFolders(this.inputEl.value);
+    this.filterFolders(this.inputEl?.value || "");
   }
 }

@@ -1368,12 +1368,12 @@ export class DiscoverView extends ItemView {
       // Default folder for discover feeds
       const defaultFolder = "Uncategorized";
 
-      // Single click: Show folder selector popup
+      // Single click: Show folder selector popup (list-only mode)
       addToBtn.addEventListener("click", () => {
         new FolderSelectorPopup(this.plugin, {
           anchorEl: addToBtn,
           defaultFolder: defaultFolder,
-          initialQuery: feed.type,
+          listOnly: true,
           onSelect: (folderName) => {
             void this.addFeedToFolder(feed, folderName);
           },

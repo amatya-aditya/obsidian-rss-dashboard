@@ -456,10 +456,6 @@ export class ReaderView extends ItemView {
       this.currentFullContent = fullContent;
       await this.displayArticle(item, fullContent);
     }
-
-    if (!item.read) {
-      item.read = true;
-    }
   }
 
   private async displayVideo(item: FeedItem): Promise<void> {
