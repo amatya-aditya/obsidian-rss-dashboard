@@ -720,6 +720,11 @@ export class AddFeedModal extends Modal {
     // Add mobile-specific class for proper styling on mobile/tablet
     if (isMobileWidth()) {
       this.modalEl.addClass("rss-mobile-feed-manager-modal");
+      // Remove Obsidian's default floating close button on mobile
+      const closeBtn = this.modalEl.querySelector(".modal-close-button");
+      if (closeBtn) {
+        closeBtn.remove();
+      }
     }
     contentEl.empty();
     new Setting(contentEl).setName("Add feed").setHeading();
