@@ -3,6 +3,11 @@
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
+	/* Creates a stacking context so iOS WebKit compositing of the overflow-y:auto
+	   scroll child (.rss-dashboard-articles) cannot paint over preceding siblings
+	   like .rss-dashboard-filter-subheader. Without this, real iPhone hides the
+	   filter/highlight status bar even though it renders correctly in emulation. */
+	isolation: isolate;
 	background-color: var(--background-primary);
 	width: 100%;
 }
