@@ -574,10 +574,10 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-article-header",
     });
 
-    const titleSetting = new Setting(headerContainer)
-      .setName(item.title)
-      .setHeading();
-    titleSetting.settingEl.addClass("rss-reader-item-title");
+    headerContainer.createEl("h1", {
+      cls: "rss-reader-item-title",
+      text: item.title,
+    });
 
     const metaContainer = headerContainer.createDiv({
       cls: "rss-reader-meta",

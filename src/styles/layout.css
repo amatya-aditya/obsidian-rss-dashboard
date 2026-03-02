@@ -27,13 +27,31 @@
   flex-shrink: 0;
 }
 
-/* Sidebar Resize Handle */
+/*
+ * Sidebar Resize Handle
+ *
+ * The handle is appended to the LAYOUT container (not the sidebar) so that:
+ *   1. Its height always spans the full bounded layout — fixes the bug where
+ *      the handle was cut short on tall pages (e.g. discover/tags) because
+ *      the sidebar itself can scroll beyond the viewport.
+ *   2. It is never clipped by the sidebar's overflow-x: hidden — this was
+ *      silently halving the clickable hitbox (8px declared, but only ~4px
+ *      visible/clickable because the other half extended outside the sidebar).
+ *
+ * Positioning:
+ *   - `left` is set via JS in applySidebarWidth() to always track the
+ *     sidebar's right edge as the user drags or on initial render.
+ *   - `transform: translateX(-50%)` centers the element on that edge,
+ *     giving equal hitbox on both sides of the dividing line.
+ *   - `width: 14px` gives a comfortable 7 px hitbox on each side.
+ */
 .rss-dashboard-sidebar-resize-handle {
   position: absolute;
-  right: -4px;
+  left: 0; /* overridden inline by applySidebarWidth() */
   top: 0;
   bottom: 0;
-  width: 8px;
+  width: 14px; /* 7px hitbox on each side of the sidebar/content border */
+  transform: translateX(-50%); /* center on the border line */
   cursor: col-resize;
   background: transparent;
   z-index: 100;

@@ -277,6 +277,53 @@
   border-color: var(--interactive-accent);
 }
 
+/* ── Filter status bar: highlight match stats row ─────────────────────────── *
+ * Second row inside the filter subheader. Shown when highlight words are       *
+ * enabled, listing each word with a color dot and article count.               *
+ * Rendered by renderFilterSubheader() when highlightMatchCounts is non-empty.  *
+ * ─────────────────────────────────────────────────────────────────────────── */
+.rss-dashboard-highlight-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 5px;
+  padding-top: 5px;
+  /* Visual separator from the keyword stats row above */
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.rss-highlight-stats-label {
+  font-weight: 600;
+  margin-right: 2px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* One chip per enabled highlight word: "● word (N)" */
+.rss-highlight-stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* Color dot — background driven by --highlight-color set inline per-word,
+   matching the same variable used on <mark class="rss-highlight"> tags */
+.rss-highlight-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--highlight-color, #ffd700);
+  flex-shrink: 0;
+}
+
+.rss-highlight-stats-sep {
+  color: var(--text-faint);
+  user-select: none;
+}
+
 .rss-dashboard-modal-buttons.inline-buttons {
   display: flex;
   gap: 0.5em;

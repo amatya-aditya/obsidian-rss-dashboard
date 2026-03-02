@@ -1507,9 +1507,15 @@ export class DiscoverView extends ItemView {
       this.resizeHandle = null;
     }
 
-    // Create resize handle.
-    if (this.sidebarContainer) {
-      this.resizeHandle = this.sidebarContainer.createDiv({
+    // Append the resize handle to the LAYOUT container, not the sidebar.
+    // The layout container has position: relative, overflow: hidden and a
+    // fixed height, so the handle's top:0/bottom:0 always spans the full
+    // visible panel — even when the sidebar content (e.g. a long tags list)
+    // overflows beyond the viewport. Attaching to the sidebar would clip
+    // the handle via the sidebar's overflow: hidden and only fill the
+    // initial window height.
+    if (this.discoverContainer) {
+      this.resizeHandle = this.discoverContainer.createDiv({
         cls: "rss-dashboard-sidebar-resize-handle",
       });
     }
@@ -1571,6 +1577,12 @@ export class DiscoverView extends ItemView {
     const width = this.settings.sidebarWidth || 280;
     this.sidebarContainer.style.width = `${width}px`;
     this.sidebarContainer.style.minWidth = `${width}px`;
+    // Keep the resize handle pinned to the sidebar's right edge.
+    // CSS `transform: translateX(-50%)` on the handle centers it on this
+    // position, giving equal hitbox on both sides of the border line.
+    if (this.resizeHandle) {
+      this.resizeHandle.style.left = `${width}px`;
+    }
   }
 
   private hasActiveFilters(): boolean {

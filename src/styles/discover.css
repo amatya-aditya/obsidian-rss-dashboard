@@ -8,6 +8,17 @@
   display: flex;
   height: 100%;
   gap: 8px;
+  /*
+   * These two properties mirror .rss-dashboard-layout and are required for
+   * the sidebar resize handle to work correctly:
+   *   - position: relative  makes this the CSS containing block for the
+   *     absolutely-positioned resize handle child.
+   *   - overflow: hidden    prevents tall sidebar/content from stretching
+   *     the layout beyond its height: 100% parent, which would push the
+   *     handle's bottom: 0 anchor far below the visible viewport.
+   */
+  position: relative;
+  overflow: hidden;
 }
 
 .rss-discover-layout.resizing {

@@ -10,6 +10,7 @@ import {
   Feed,
   FeedFilterSettings,
   FeedItem,
+  HighlightWord,
   KeywordFilterRule,
   RssDashboardSettings,
   Folder,
@@ -67,6 +68,14 @@ export class RssDashboardView extends ItemView {
   };
   private keywordFilterTooltip = "";
   private isFilterSubheaderCollapsed = false;
+
+  // ── Highlight match stats ─────────────────────────────────────────────────
+  // Populated by computeHighlightMatchCounts() on every render cycle (before
+  // renderFilterSubheader() runs). Each entry holds one enabled highlight word
+  // and the count of currently-displayed articles that contain it.
+  // Reset to [] when highlights are disabled or no words are enabled.
+  private highlightMatchCounts: Array<{ word: HighlightWord; count: number }> =
+    [];
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -263,6 +272,9 @@ export class RssDashboardView extends ItemView {
     }
 
     const allFilteredArticles = this.getFilteredArticles();
+    // Must run after getFilteredArticles() so counts reflect the active view,
+    // and before renderFilterSubheader() which reads this.highlightMatchCounts.
+    this.computeHighlightMatchCounts(allFilteredArticles);
     this.renderToolbar(contentContainer);
     this.renderFilterSubheader(contentContainer);
 
@@ -363,22 +375,49 @@ export class RssDashboardView extends ItemView {
     container.createDiv({ cls: "rss-dashboard-toolbar" });
   }
 
+  /**
+   * FILTER STATUS BAR
+   * ─────────────────
+   * Renders a collapsible info strip directly below the toolbar. It contains
+   * up to two rows:
+   *
+   *   Row 1 – Keyword filter stats:
+   *     "Articles retrieved: N | Global filters excluded: X | Feed filters excluded: Y"
+   *     or "Filters bypassed - showing all N articles" when bypass mode is on.
+   *     Only rendered when keyword filters are active or bypassed.
+   *     (Data written by applyKeywordFiltersWithStats() → this.keywordFilterStats)
+   *
+   *   Row 2 – Highlight match stats:
+   *     "Highlights: ● word1 (N) | ● word2 (N) …"
+   *     One chip per enabled highlight word, showing how many of the currently-
+   *     displayed articles contain that word/phrase. Counts are per-article
+   *     (an article counted once even if the word appears multiple times).
+   *     (Data written by computeHighlightMatchCounts() → this.highlightMatchCounts)
+   *
+   * Visibility: hidden entirely when settings.display.showFilterStatusBar is
+   * false, or when neither row has anything to show.
+   *
+   * Collapse state persisted in this.isFilterSubheaderCollapsed across renders.
+   */
   private renderFilterSubheader(container: HTMLElement): void {
     if (this.settings.display.showFilterStatusBar === false) {
       return;
     }
 
     const { keywordFilterStats } = this;
-    const shouldShow =
+    const hasKeywordStats =
       keywordFilterStats.bypassActive || keywordFilterStats.filtersActive;
+    const hasHighlightStats = this.highlightMatchCounts.length > 0;
 
-    if (!shouldShow) {
+    // Only render when there is at least one row worth of content
+    if (!hasKeywordStats && !hasHighlightStats) {
       return;
     }
 
     const subheader = container.createDiv({
       cls: "rss-dashboard-filter-subheader",
     });
+    // subheaderContent animates between open/collapsed via CSS max-height transition
     const subheaderContent = subheader.createDiv({
       cls: "rss-dashboard-filter-subheader-content",
     });
@@ -386,16 +425,49 @@ export class RssDashboardView extends ItemView {
       subheaderContent.setAttribute("title", this.keywordFilterTooltip);
     }
 
-    const statusText = keywordFilterStats.bypassActive
-      ? `Filters bypassed - showing all ${keywordFilterStats.articlesRetrieved} articles`
-      : `Articles retrieved: ${keywordFilterStats.articlesRetrieved} | Global filters excluded: ${keywordFilterStats.globalExcluded} | Feed filters excluded: ${keywordFilterStats.feedExcluded}`;
-    subheaderContent.setText(statusText);
+    // ── Row 1: Keyword filter stats ──────────────────────────────────────────
+    if (hasKeywordStats) {
+      const statusText = keywordFilterStats.bypassActive
+        ? `Filters bypassed - showing all ${keywordFilterStats.articlesRetrieved} articles`
+        : `Articles retrieved: ${keywordFilterStats.articlesRetrieved} | Global filters excluded: ${keywordFilterStats.globalExcluded} | Feed filters excluded: ${keywordFilterStats.feedExcluded}`;
+      subheaderContent.createDiv({
+        cls: "rss-dashboard-filter-stats-row",
+        text: statusText,
+      });
+    }
 
+    // ── Row 2: Highlight match stats ─────────────────────────────────────────
+    // Renders "Highlights: ● word (N) | ● word (N)" chips.
+    // Each dot's background uses the word's individual --highlight-color,
+    // matching the <mark> tags applied to article text.
+    if (hasHighlightStats) {
+      const highlightRow = subheaderContent.createDiv({
+        cls: "rss-dashboard-highlight-stats",
+      });
+      highlightRow.createSpan({
+        cls: "rss-highlight-stats-label",
+        text: "Highlights:",
+      });
+
+      this.highlightMatchCounts.forEach((entry, i) => {
+        if (i > 0) {
+          highlightRow.createSpan({ cls: "rss-highlight-stats-sep", text: "|" });
+        }
+        const chip = highlightRow.createSpan({ cls: "rss-highlight-stat-item" });
+        // Colored dot — reuses the same CSS variable as the <mark> highlight tags
+        const dot = chip.createSpan({ cls: "rss-highlight-dot" });
+        dot.style.setProperty(
+          "--highlight-color",
+          entry.word.color || this.settings.highlights.defaultColor,
+        );
+        chip.appendText(`${entry.word.text} (${entry.count})`);
+      });
+    }
+
+    // ── Collapse toggle button ───────────────────────────────────────────────
     const toggleButton = subheader.createEl("button", {
       cls: "rss-dashboard-filter-subheader-toggle",
-      attr: {
-        type: "button",
-      },
+      attr: { type: "button" },
     });
 
     const applyCollapsedState = () => {
@@ -422,6 +494,69 @@ export class RssDashboardView extends ItemView {
     });
 
     applyCollapsedState();
+  }
+
+  /**
+   * HIGHLIGHT MATCH COUNTING
+   * ─────────────────────────
+   * For each enabled highlight word, counts how many articles in the
+   * currently-displayed set contain at least one match. Counts are
+   * per-article (an article is counted once regardless of how many times
+   * the word appears inside it).
+   *
+   * Called once per render cycle, after getFilteredArticles() returns and
+   * before renderFilterSubheader() reads this.highlightMatchCounts.
+   *
+   * Field selection mirrors HighlightService behaviour:
+   *   settings.highlights.highlightInTitles    → article.title
+   *   settings.highlights.highlightInSummaries → article.description + article.summary
+   *   settings.highlights.highlightInContent   → article.content
+   *
+   * Regex building replicates HighlightService.buildPattern() without DOM
+   * dependency: escapes the word text, applies optional whole-word boundaries,
+   * and respects the caseSensitive setting.
+   */
+  private computeHighlightMatchCounts(articles: FeedItem[]): void {
+    // Always reset so stale data from a previous render doesn't linger
+    this.highlightMatchCounts = [];
+
+    const hs = this.settings.highlights;
+    if (!hs?.enabled || !hs.words?.length) return;
+
+    const enabledWords = hs.words.filter((w) => w.enabled);
+    if (enabledWords.length === 0) return;
+
+    // Mirror HighlightService: no "i" flag when caseSensitive, add "i" when not
+    const regexFlags = hs.caseSensitive ? "" : "i";
+
+    for (const word of enabledWords) {
+      // Escape special regex characters (same as HighlightService.escapeRegex)
+      const escaped = word.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      // Optional whole-word boundaries (same logic as HighlightService.buildPattern)
+      const pattern = word.wholeWord
+        ? `(?:^|\\W)(${escaped})(?:$|\\W)`
+        : escaped;
+      const regex = new RegExp(pattern, regexFlags);
+
+      let count = 0;
+      for (const article of articles) {
+        // Collect the text fields governed by the highlight scope settings
+        const fields: string[] = [];
+        if (hs.highlightInTitles !== false) fields.push(article.title ?? "");
+        if (hs.highlightInSummaries !== false) {
+          fields.push(article.description ?? "");
+          fields.push(article.summary ?? "");
+        }
+        if (hs.highlightInContent !== false) fields.push(article.content ?? "");
+
+        // Fallback: always test the title when no scopes are enabled
+        if (fields.length === 0) fields.push(article.title ?? "");
+
+        if (fields.some((f) => regex.test(f))) count++;
+      }
+
+      this.highlightMatchCounts.push({ word, count });
+    }
   }
 
   private getArticlesTitle(): string {
@@ -1533,9 +1668,15 @@ export class RssDashboardView extends ItemView {
       this.resizeHandle.remove();
     }
 
-    // Create resize handle
-    if (this.sidebarContainer) {
-      this.resizeHandle = this.sidebarContainer.createDiv({
+    // Append the resize handle to the LAYOUT container, not the sidebar.
+    // The layout container is bounded (overflow: hidden, height: 100%) so the
+    // handle's top:0/bottom:0 spans the full visible panel height. Attaching
+    // to the sidebar fails because: (a) the sidebar's overflow: hidden clips
+    // half the handle's width, cutting the hitbox in half; and (b) when
+    // sidebar content is taller than the viewport the handle stops short of
+    // the bottom of the panel.
+    if (this.dashboardContainer) {
+      this.resizeHandle = this.dashboardContainer.createDiv({
         cls: "rss-dashboard-sidebar-resize-handle",
       });
     }
@@ -1594,6 +1735,12 @@ export class RssDashboardView extends ItemView {
     if (this.sidebarContainer && !this.settings.sidebarCollapsed) {
       const width = this.settings.sidebarWidth || 280;
       this.sidebarContainer.style.width = `${width}px`;
+      // Keep the resize handle pinned to the sidebar's right edge.
+      // CSS `transform: translateX(-50%)` on the handle centers it on this
+      // position, giving equal hitbox on both sides of the border line.
+      if (this.resizeHandle) {
+        this.resizeHandle.style.left = `${width}px`;
+      }
     }
   }
 
