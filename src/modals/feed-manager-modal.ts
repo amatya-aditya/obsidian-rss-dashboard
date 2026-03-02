@@ -767,6 +767,18 @@ export class AddFeedModal extends Modal {
         loadBtn = btn.buttonEl;
         btn.onClick(() => {
           void (async () => {
+            // Validate that URL is not empty
+            if (!url || url.trim() === "") {
+              status = "❌ Please enter a feed URL";
+              if (refs.statusDiv) {
+                refs.statusDiv.textContent = status;
+                refs.statusDiv.removeClass("status-loading");
+                refs.statusDiv.removeClass("status-ok");
+                refs.statusDiv.addClass("status-error");
+              }
+              return;
+            }
+
             // Set loading state
             status = "⏳ Loading...";
             loadBtn.addClass("loading");
