@@ -224,10 +224,20 @@
   text-overflow: ellipsis;
 }
 
+/* ═════════════════════════════════════════════════════════════════════════════
+ * FILTER STATUS BAR
+ * ═════════════════════════════════════════════════════════════════════════════
+ * Collapsible info strip below toolbar showing keyword filter stats and highlight
+ * match counts. Rendered by RssDashboardView.renderFilterSubheader() based on
+ * this.keywordFilterStats and this.highlightMatchCounts.
+ */
+
+/* Container holding both status rows (keyword + highlight). Positioned with
+   right padding to reserve space for the collapse/expand toggle button. */
 .rss-dashboard-filter-subheader {
   position: relative;
   z-index: 1;
-  padding: 8px 10px;
+  padding: 8px 44px 8px 10px;
   margin: 0 10px 14px;
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
@@ -237,6 +247,7 @@
   flex-shrink: 0;
 }
 
+/* Inner content container that animates collapse/expand via max-height transition */
 .rss-dashboard-filter-subheader-content {
   max-height: 200px;
   transition:
@@ -244,6 +255,7 @@
     opacity 120ms ease;
 }
 
+/* Collapsed state: hide content and prevent pointer events */
 .rss-dashboard-filter-subheader.is-collapsed
   .rss-dashboard-filter-subheader-content {
   max-height: 0;
@@ -252,36 +264,45 @@
   pointer-events: none;
 }
 
+/* Chevron toggle button (top-right). Expands/collapses the status bar content */
 .rss-dashboard-filter-subheader-toggle {
   position: absolute;
-  left: 50%;
-  bottom: -10px;
-  transform: translateX(-50%);
-  width: 24px;
+  top: 7px;
+  right: 8px;
+  width: 32px;
   height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 999px;
-  background: var(--background-primary);
+  border-radius: 4px;
+  background: var(--background-secondary);
   color: var(--text-muted);
   cursor: pointer;
   padding: 0;
-  font-size: 13px;
+  font-size: 11px;
   line-height: 1;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
 }
 
 .rss-dashboard-filter-subheader-toggle:hover {
   color: var(--text-normal);
   border-color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
 }
 
-/* ── Filter status bar: highlight match stats row ─────────────────────────── *
- * Second row inside the filter subheader. Shown when highlight words are       *
- * enabled, listing each word with a color dot and article count.               *
- * Rendered by renderFilterSubheader() when highlightMatchCounts is non-empty.  *
- * ─────────────────────────────────────────────────────────────────────────── */
+/* Row 1: Keyword filter stats (articles retrieved/excluded counts) */
+.rss-dashboard-filter-stats-row {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ── Row 2: Highlight match stats ─────────────────────────────────────────── */
+
+/* Container for "Highlights: ● word (N) | ● word (N)" chips */
 .rss-dashboard-highlight-stats {
   display: flex;
   flex-wrap: wrap;
@@ -289,18 +310,18 @@
   gap: 4px 6px;
   margin-top: 5px;
   padding-top: 5px;
-  /* Visual separator from the keyword stats row above */
   border-top: 1px solid var(--background-modifier-border);
+  font-size: 12px;
 }
 
+/* "Highlights:" label prefix */
 .rss-highlight-stats-label {
-  font-weight: 600;
   margin-right: 2px;
   color: var(--text-muted);
   white-space: nowrap;
 }
 
-/* One chip per enabled highlight word: "● word (N)" */
+/* Individual chip: "● word (N)" */
 .rss-highlight-stat-item {
   display: inline-flex;
   align-items: center;
@@ -308,8 +329,7 @@
   white-space: nowrap;
 }
 
-/* Color dot — background driven by --highlight-color set inline per-word,
-   matching the same variable used on <mark class="rss-highlight"> tags */
+/* Color dot matching the highlight color. CSS variable set inline by renderFilterSubheader() */
 .rss-highlight-dot {
   display: inline-block;
   width: 8px;
@@ -319,6 +339,7 @@
   flex-shrink: 0;
 }
 
+/* Pipe separator "|" between highlight chips */
 .rss-highlight-stats-sep {
   color: var(--text-faint);
   user-select: none;
@@ -1319,5 +1340,3 @@
 .search-hidden {
   display: none !important;
 }
-
-
