@@ -328,7 +328,9 @@ export class RssDashboardView extends ItemView {
         onPageSizeChange: this.handlePageSizeChange.bind(this),
         onOpenTagsSettings: () => {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-          void (this.app as any).plugins.plugins['rss-dashboard'].openTagsSettings();
+          void (this.app as any).plugins.plugins[
+            "rss-dashboard"
+          ].openTagsSettings();
         },
         onPersistSettings: async () => {
           await this.plugin.saveSettings();
@@ -451,9 +453,14 @@ export class RssDashboardView extends ItemView {
 
       this.highlightMatchCounts.forEach((entry, i) => {
         if (i > 0) {
-          highlightRow.createSpan({ cls: "rss-highlight-stats-sep", text: "|" });
+          highlightRow.createSpan({
+            cls: "rss-highlight-stats-sep",
+            text: "|",
+          });
         }
-        const chip = highlightRow.createSpan({ cls: "rss-highlight-stat-item" });
+        const chip = highlightRow.createSpan({
+          cls: "rss-highlight-stat-item",
+        });
         // Colored dot — reuses the same CSS variable as the <mark> highlight tags
         const dot = chip.createSpan({ cls: "rss-highlight-dot" });
         dot.style.setProperty(
@@ -819,9 +826,7 @@ export class RssDashboardView extends ItemView {
     return false;
   }
 
-  private getActiveFeedRulesForScope(
-    articles: FeedItem[],
-  ): Array<{
+  private getActiveFeedRulesForScope(articles: FeedItem[]): Array<{
     feedTitle: string;
     includeLogic: "AND" | "OR";
     rules: KeywordFilterRule[];
@@ -1499,6 +1504,25 @@ export class RssDashboardView extends ItemView {
 
     if (!this.matchesFilters(article)) {
       this.articleList.removeArticleInPlace(article.guid);
+      return;
+    }
+
+    if (!this.articleList.hasArticle(article.guid)) {
+      // Article was previously removed (e.g. auto-marked read when opened) but
+      // now matches the filter again (e.g. user un-read it from the reader).
+      // Rebuild just the articles list to re-insert it at the correct position.
+      const filtered = this.getFilteredArticles();
+      const pageSize = this.getCurrentPageSize();
+      const currentPage = this.getCurrentPage();
+      const startIdx = (currentPage - 1) * pageSize;
+      const endIdx = startIdx + pageSize;
+      const articlesForPage = filtered.slice(startIdx, endIdx);
+      this.articleList.refilter(
+        new Set(this.activeStatusFilters),
+        new Set(this.activeTagFilters),
+        this.filterLogic,
+        articlesForPage,
+      );
       return;
     }
 

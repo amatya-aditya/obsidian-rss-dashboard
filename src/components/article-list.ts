@@ -323,6 +323,10 @@ export class ArticleList {
     }, 320);
   }
 
+  public hasArticle(guid: string): boolean {
+    return this.articles.some((a) => a.guid === guid);
+  }
+
   public setSelectedArticle(article: FeedItem): void {
     this.selectedArticle = article;
     // Remove active class from any currently active element
