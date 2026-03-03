@@ -542,7 +542,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
-    new Setting(containerEl)
+    const allFeedsBadgeColorSetting = new Setting(containerEl)
       .setName("All feeds badge color")
       .setDesc("Set the unread badge color for the all feeds row")
       .addColorPicker((colorPicker) =>
@@ -574,36 +574,10 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             }
           });
         text.inputEl.addClass("rss-dashboard-color-hex-input");
-      })
-      .addButton((button) =>
-        button
-          .setButtonText("Set default")
-          .setTooltip("Use the current color as the reset default")
-          .onClick(async () => {
-            this.plugin.settings.display.allFeedsUnreadBadgeDefaultColor =
-              this.plugin.settings.display.allFeedsUnreadBadgeColor;
-            await this.plugin.saveSettings();
-          }),
-      )
-      .addExtraButton((button) =>
-        button
-          .setIcon("rotate-ccw")
-          .setTooltip("Reset to default color")
-          .onClick(async () => {
-            this.plugin.settings.display.allFeedsUnreadBadgeColor =
-              this.plugin.settings.display.allFeedsUnreadBadgeDefaultColor ||
-              DEFAULT_SETTINGS.display.allFeedsUnreadBadgeColor;
-            await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
-            this.display();
-          }),
-      );
+      });
+    allFeedsBadgeColorSetting.settingEl.addClass("rss-dashboard-settings-two-row");
 
-    new Setting(containerEl)
+    const folderBadgeColorSetting = new Setting(containerEl)
       .setName("Folder badge color")
       .setDesc("Set the unread badge color for folder rows")
       .addColorPicker((colorPicker) =>
@@ -635,36 +609,10 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             }
           });
         text.inputEl.addClass("rss-dashboard-color-hex-input");
-      })
-      .addButton((button) =>
-        button
-          .setButtonText("Set default")
-          .setTooltip("Use the current color as the reset default")
-          .onClick(async () => {
-            this.plugin.settings.display.folderUnreadBadgeDefaultColor =
-              this.plugin.settings.display.folderUnreadBadgeColor;
-            await this.plugin.saveSettings();
-          }),
-      )
-      .addExtraButton((button) =>
-        button
-          .setIcon("rotate-ccw")
-          .setTooltip("Reset to default color")
-          .onClick(async () => {
-            this.plugin.settings.display.folderUnreadBadgeColor =
-              this.plugin.settings.display.folderUnreadBadgeDefaultColor ||
-              DEFAULT_SETTINGS.display.folderUnreadBadgeColor;
-            await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
-            this.display();
-          }),
-      );
+      });
+    folderBadgeColorSetting.settingEl.addClass("rss-dashboard-settings-two-row");
 
-    new Setting(containerEl)
+    const feedBadgeColorSetting = new Setting(containerEl)
       .setName("Feed badge color")
       .setDesc("Set the unread badge color for feed rows")
       .addColorPicker((colorPicker) =>
@@ -696,34 +644,8 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             }
           });
         text.inputEl.addClass("rss-dashboard-color-hex-input");
-      })
-      .addButton((button) =>
-        button
-          .setButtonText("Set default")
-          .setTooltip("Use the current color as the reset default")
-          .onClick(async () => {
-            this.plugin.settings.display.feedUnreadBadgeDefaultColor =
-              this.plugin.settings.display.feedUnreadBadgeColor;
-            await this.plugin.saveSettings();
-          }),
-      )
-      .addExtraButton((button) =>
-        button
-          .setIcon("rotate-ccw")
-          .setTooltip("Reset to default color")
-          .onClick(async () => {
-            this.plugin.settings.display.feedUnreadBadgeColor =
-              this.plugin.settings.display.feedUnreadBadgeDefaultColor ||
-              DEFAULT_SETTINGS.display.feedUnreadBadgeColor;
-            await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
-            this.display();
-          }),
-      );
+      });
+    feedBadgeColorSetting.settingEl.addClass("rss-dashboard-settings-two-row");
 
     new Setting(containerEl)
       .setName("Sidebar row spacing")
@@ -799,7 +721,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
-    new Setting(containerEl)
+    const mobileListToolbarStyleSetting = new Setting(containerEl)
       .setName("List toolbar style (mobile)")
       .setDesc("Choose how action buttons are laid out in mobile list view")
       .addDropdown((dropdown) =>
@@ -823,6 +745,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             }
           }),
       );
+    mobileListToolbarStyleSetting.settingEl.addClass(
+      "rss-dashboard-settings-two-row",
+    );
 
     // new Setting(containerEl)
     //   .setName("Filter display style")

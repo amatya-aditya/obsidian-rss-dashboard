@@ -722,6 +722,30 @@
   width: 96px;
 }
 
+@media (max-width: 1024px) {
+  .rss-dashboard-settings-two-row.setting-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .rss-dashboard-settings-two-row .setting-item-info {
+    width: 100%;
+    padding-right: 0;
+  }
+
+  .rss-dashboard-settings-two-row .setting-item-control {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .rss-dashboard-settings-two-row .dropdown {
+    width: 100%;
+  }
+}
+
 .rss-keyword-filter-rule-row.is-disabled .rss-keyword-filter-rule-body {
   opacity: 0.65;
   filter: grayscale(0.2);
