@@ -296,8 +296,42 @@
 
 /* Row 1: Keyword filter stats (articles retrieved/excluded counts) */
 .rss-dashboard-filter-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   line-height: 1.4;
+}
+
+/* Edit button for filters row */
+.rss-dashboard-filter-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  min-height: 15px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.rss-dashboard-filter-edit-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+  border-radius: 4px;
+}
+
+/* Filter stats text */
+.rss-dashboard-filter-stats-text {
+  flex: 1;
 }
 
 /* ── Row 2: Highlight match stats ─────────────────────────────────────────── */
@@ -319,6 +353,33 @@
   margin-right: 2px;
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* Edit button for highlights row */
+.rss-dashboard-highlight-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  min-height: 15px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-right: 4px;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.rss-dashboard-highlight-edit-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+  border-radius: 4px;
 }
 
 /* Individual chip: "● word (N)" */

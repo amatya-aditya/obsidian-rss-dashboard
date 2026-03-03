@@ -5,6 +5,7 @@ import {
   TFile,
   requireApiVersion,
   Platform,
+  setIcon,
 } from "obsidian";
 import {
   Feed,
@@ -429,11 +430,31 @@ export class RssDashboardView extends ItemView {
 
     // ── Row 1: Keyword filter stats ──────────────────────────────────────────
     if (hasKeywordStats) {
+      const filterStatsRow = subheaderContent.createDiv({
+        cls: "rss-dashboard-filter-stats-row",
+      });
+
+      // Edit button for filters settings
+      const filterEditBtn = filterStatsRow.createEl("button", {
+        cls: "rss-dashboard-filter-edit-btn clickable-icon",
+        attr: {
+          type: "button",
+          title: "Edit filters",
+          "aria-label": "Edit filters",
+        },
+      });
+      setIcon(filterEditBtn, "cog");
+      filterEditBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void this.plugin.openSettingsToTab("Filters");
+      });
+
+      // Filter stats text
       const statusText = keywordFilterStats.bypassActive
         ? `Filters bypassed - showing all ${keywordFilterStats.articlesRetrieved} articles`
         : `Articles retrieved: ${keywordFilterStats.articlesRetrieved} | Global filters excluded: ${keywordFilterStats.globalExcluded} | Feed filters excluded: ${keywordFilterStats.feedExcluded}`;
-      subheaderContent.createDiv({
-        cls: "rss-dashboard-filter-stats-row",
+      filterStatsRow.createSpan({
+        cls: "rss-dashboard-filter-stats-text",
         text: statusText,
       });
     }
@@ -446,6 +467,22 @@ export class RssDashboardView extends ItemView {
       const highlightRow = subheaderContent.createDiv({
         cls: "rss-dashboard-highlight-stats",
       });
+
+      // Edit button for highlights settings
+      const highlightEditBtn = highlightRow.createEl("button", {
+        cls: "rss-dashboard-highlight-edit-btn clickable-icon",
+        attr: {
+          type: "button",
+          title: "Edit highlights",
+          "aria-label": "Edit highlights",
+        },
+      });
+      setIcon(highlightEditBtn, "cog");
+      highlightEditBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void this.plugin.openSettingsToTab("Highlights");
+      });
+
       highlightRow.createSpan({
         cls: "rss-highlight-stats-label",
         text: "Highlights:",
