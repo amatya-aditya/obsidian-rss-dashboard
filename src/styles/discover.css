@@ -45,6 +45,13 @@
   padding-right: 6px 16px;
 }
 
+/* Touch tablets with wide CSS viewports should still use filter modal mode. */
+.rss-discover-container.rss-touch-tablet-layout .rss-discover-sidebar,
+.rss-discover-container.rss-touch-tablet-layout
+  .rss-dashboard-sidebar-resize-handle {
+  display: none !important;
+}
+
 /*
  * Breakpoint: <= 1024px — hide sidebar filters on tablet and below.
  * Must match the dashboard breakpoint in controls.css.
@@ -315,11 +322,27 @@
   width: 40px;
   height: 40px;
   border-radius: 6px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .rss-discover-mobile-filters-button svg {
   width: 24px;
   height: 24px;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+
+.rss-discover-mobile-filters-button:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
 }
 
 .rss-discover-mobile-filters-dropdown {
