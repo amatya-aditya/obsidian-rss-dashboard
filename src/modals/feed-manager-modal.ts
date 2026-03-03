@@ -16,6 +16,7 @@ import { detectPodcastPlatform } from "../utils/podcast-platforms";
 import { MediaService } from "../services/media-service";
 import { ImportOpmlModal } from "./import-opml-modal";
 import { renderKeywordFilterEditor } from "../components/keyword-filter-editor";
+import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 
 /**
  * Helper function to collect all folder paths from a folder hierarchy
@@ -48,13 +49,6 @@ function isYouTubePageUrl(url: string): boolean {
   return true;
 }
 
-/**
- * Helper function to check if screen is mobile/tablet width
- */
-function isMobileWidth(): boolean {
-  return window.innerWidth <= 1200;
-}
-
 export class EditFeedModal extends Modal {
   feed: Feed;
   plugin: RssDashboardPlugin;
@@ -77,7 +71,7 @@ export class EditFeedModal extends Modal {
       "rss-dashboard-modal-container",
     ]);
     // Add mobile-specific class for proper styling on mobile/tablet
-    if (isMobileWidth()) {
+    if (shouldUseMobileSidebarLayout()) {
       this.modalEl.addClass("rss-mobile-feed-manager-modal");
     }
     contentEl.empty();
@@ -718,7 +712,7 @@ export class AddFeedModal extends Modal {
     this.modalEl.className +=
       " rss-dashboard-modal rss-dashboard-modal-container";
     // Add mobile-specific class for proper styling on mobile/tablet
-    if (isMobileWidth()) {
+    if (shouldUseMobileSidebarLayout()) {
       this.modalEl.addClass("rss-mobile-feed-manager-modal");
       // Remove Obsidian's default floating close button on mobile
       const closeBtn = this.modalEl.querySelector(".modal-close-button");
@@ -1213,7 +1207,7 @@ export class FeedManagerModal extends Modal {
 
   onOpen() {
     const { contentEl } = this;
-    const isMobile = isMobileWidth();
+    const isMobile = shouldUseMobileSidebarLayout();
 
     this.modalEl.className +=
       " rss-dashboard-modal rss-dashboard-modal-container";

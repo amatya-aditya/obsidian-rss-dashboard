@@ -10,6 +10,11 @@ import { FeedPreviewModal } from "../modals/feed-preview-modal";
 import { FolderSelectorPopup } from "../components/folder-selector-popup";
 import { MobileDiscoverFiltersModal } from "../modals/mobile-discover-filters-modal";
 import type RssDashboardPlugin from "../../main";
+import {
+  TABLET_LAYOUT_MAX_WIDTH,
+  isTouchTabletViewport,
+  shouldUseMobileSidebarLayout,
+} from "../utils/platform-utils";
 
 import feedsData from "../discover/discover-feeds.json";
 
@@ -345,6 +350,7 @@ export class DiscoverView extends ItemView {
     const container = this.containerEl.children[1] as HTMLElement;
     container.empty();
     container.addClass("rss-discover-container");
+    this.applyResponsiveContainerClasses(container);
 
     if (this.isLoading) {
       this.renderLoading(container);
@@ -902,8 +908,11 @@ export class DiscoverView extends ItemView {
     this.resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const width = entry.contentRect.width;
-        // Breakpoint: <= 1200px triggers mobile layout
-        if (width <= 1200) {
+        // Keep header controls compact on narrow panes and touch tablets.
+        if (
+          width <= TABLET_LAYOUT_MAX_WIDTH ||
+          isTouchTabletViewport(window.innerWidth)
+        ) {
           controlsContainer.classList.add("is-narrow");
         } else {
           controlsContainer.classList.remove("is-narrow");
@@ -1497,7 +1506,7 @@ export class DiscoverView extends ItemView {
 
   private setupSidebarResize(): void {
     // Don't setup resize on mobile/tablet.
-    if (Platform.isMobile || window.innerWidth <= 1200) {
+    if (Platform.isMobile || shouldUseMobileSidebarLayout()) {
       return;
     }
 
@@ -1537,6 +1546,14 @@ export class DiscoverView extends ItemView {
       });
       this.hasRegisteredResizeEvents = true;
     }
+  }
+
+  private applyResponsiveContainerClasses(container: HTMLElement): void {
+    if (isTouchTabletViewport()) {
+      container.addClass("rss-touch-tablet-layout");
+      return;
+    }
+    container.removeClass("rss-touch-tablet-layout");
   }
 
   private handleResizeStart(e: MouseEvent): void {

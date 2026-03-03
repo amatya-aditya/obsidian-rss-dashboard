@@ -2,13 +2,7 @@
 import type RssDashboardPlugin from "../../main";
 import type { Feed, Folder } from "../types/types";
 import { OpmlManager } from "../services/opml-manager";
-
-/**
- * Helper function to check if screen is mobile/tablet width
- */
-function isMobileWidth(): boolean {
-  return window.innerWidth <= 1200;
-}
+import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 
 /**
  * Import OPML Modal - Provides a preview-based import experience
@@ -39,7 +33,7 @@ export class ImportOpmlModal extends Modal {
 
   onOpen() {
     const { contentEl } = this;
-    const isMobile = isMobileWidth();
+    const isMobile = shouldUseMobileSidebarLayout();
 
     this.modalEl.addClasses([
       "rss-dashboard-modal",

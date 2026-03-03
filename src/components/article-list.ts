@@ -4,6 +4,8 @@ import {
   formatDateWithRelative,
   ensureUtf8Meta,
   setCssProps,
+  TABLET_LAYOUT_MAX_WIDTH,
+  isTouchTabletViewport,
 } from "../utils/platform-utils";
 import { HighlightService } from "../services/highlight-service";
 
@@ -643,9 +645,11 @@ export class ArticleList {
     this.resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const width = entry.contentRect.width;
-        // Breakpoint: <= 1200px triggers hamburger menu
-        // Must match the CSS breakpoint in controls.css
-        if (width <= 1200) {
+        // Keep header actions compact on narrow panes and touch tablets.
+        if (
+          width <= TABLET_LAYOUT_MAX_WIDTH ||
+          isTouchTabletViewport(window.innerWidth)
+        ) {
           articlesHeader.classList.add("is-narrow");
         } else {
           articlesHeader.classList.remove("is-narrow");
