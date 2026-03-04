@@ -70,6 +70,8 @@ export class RssDashboardView extends ItemView {
   };
   private keywordFilterTooltip = "";
   private isFilterSubheaderCollapsed = false;
+  private mobileSidebarModal: MobileNavigationModal | null = null;
+  private lastViewportMobileSidebarMode: boolean | null = null;
 
   // ── Highlight match stats ─────────────────────────────────────────────────
   // Populated by computeHighlightMatchCounts() on every render cycle (before
@@ -157,6 +159,13 @@ export class RssDashboardView extends ItemView {
       ) as never,
     );
 
+    this.lastViewportMobileSidebarMode = this.shouldUseMobileSidebarMode(
+      window.innerWidth,
+    );
+    this.registerDomEvent(window, "resize", () => {
+      this.handleViewportResizeModeTransition();
+    });
+
     const container = this.containerEl.children[1];
     container.addClass("rss-dashboard-container");
     let dashboardContainer = container.querySelector(
@@ -226,6 +235,10 @@ export class RssDashboardView extends ItemView {
   render(): void {
     this.syncCurrentFeedReference();
     this.verifySavedArticles();
+
+    if (!this.shouldUseMobileSidebarMode(window.innerWidth)) {
+      this.closeMobileSidebarModal();
+    }
 
     if (this.articleList) {
       this.articleList.destroy();
@@ -1236,7 +1249,17 @@ export class RssDashboardView extends ItemView {
   }
 
   public openMobileSidebar(): void {
-    new MobileNavigationModal(
+    if (!this.shouldUseMobileSidebarMode()) {
+      this.closeMobileSidebarModal();
+      return;
+    }
+
+    // Keep one sidebar modal instance to prevent duplicate overlays.
+    if (this.mobileSidebarModal) {
+      return;
+    }
+
+    const modal = new MobileNavigationModal(
       this.app,
       this.plugin,
       this.settings,
@@ -1271,11 +1294,55 @@ export class RssDashboardView extends ItemView {
         onActivateDashboard: () => void this.plugin.activateView(),
         onActivateDiscover: () => void this.plugin.activateDiscoverView(),
       },
-    ).open();
+    );
+
+    const originalOnClose = modal.onClose.bind(modal);
+    modal.onClose = () => {
+      originalOnClose();
+      if (this.mobileSidebarModal === modal) {
+        this.mobileSidebarModal = null;
+      }
+    };
+
+    this.mobileSidebarModal = modal;
+    modal.open();
+  }
+
+  private shouldUseMobileSidebarMode(viewportWidth?: number): boolean {
+    return shouldUseMobileSidebarLayout(viewportWidth);
+  }
+
+  private closeMobileSidebarModal(): void {
+    if (!this.mobileSidebarModal) {
+      return;
+    }
+    this.mobileSidebarModal.close();
+    this.mobileSidebarModal = null;
+  }
+
+  private handleViewportResizeModeTransition(): void {
+    const currentMode = this.shouldUseMobileSidebarMode(window.innerWidth);
+
+    if (this.lastViewportMobileSidebarMode === null) {
+      this.lastViewportMobileSidebarMode = currentMode;
+      return;
+    }
+
+    if (this.lastViewportMobileSidebarMode === currentMode) {
+      return;
+    }
+
+    this.lastViewportMobileSidebarMode = currentMode;
+
+    if (!currentMode) {
+      this.closeMobileSidebarModal();
+    }
+
+    this.render();
   }
 
   private handleToggleSidebar(): void {
-    if (Platform.isMobile || shouldUseMobileSidebarLayout()) {
+    if (this.shouldUseMobileSidebarMode()) {
       this.openMobileSidebar();
       return;
     }
@@ -1713,6 +1780,9 @@ export class RssDashboardView extends ItemView {
   }
 
   onClose(): Promise<void> {
+    this.closeMobileSidebarModal();
+    this.lastViewportMobileSidebarMode = null;
+
     if (this.verificationTimeout) {
       window.clearTimeout(this.verificationTimeout);
     }
@@ -1726,7 +1796,7 @@ export class RssDashboardView extends ItemView {
 
   private setupSidebarResize(): void {
     // Don't setup resize on mobile/tablet
-    if (Platform.isMobile || shouldUseMobileSidebarLayout()) {
+    if (this.shouldUseMobileSidebarMode()) {
       return;
     }
 

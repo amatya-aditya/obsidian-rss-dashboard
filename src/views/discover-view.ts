@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, setIcon, Platform } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, setIcon } from "obsidian";
 import {
   FeedMetadata,
   CategoryPath,
@@ -45,6 +45,8 @@ export class DiscoverView extends ItemView {
   private isResizing: boolean = false;
   private resizeHandle: HTMLElement | null = null;
   private hasRegisteredResizeEvents: boolean = false;
+  private mobileSidebarModal: MobileDiscoverFiltersModal | null = null;
+  private lastViewportMobileSidebarMode: boolean | null = null;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -67,6 +69,13 @@ export class DiscoverView extends ItemView {
   }
 
   onOpen(): Promise<void> {
+    this.lastViewportMobileSidebarMode = this.shouldUseMobileSidebarMode(
+      window.innerWidth,
+    );
+    this.registerDomEvent(window, "resize", () => {
+      this.handleViewportResizeModeTransition();
+    });
+
     this.loadData();
     this.render();
     return Promise.resolve();
@@ -329,8 +338,51 @@ export class DiscoverView extends ItemView {
     this.app.saveLocalStorage("rss-discover-filters", this.filters);
   }
 
+  private shouldUseMobileSidebarMode(viewportWidth?: number): boolean {
+    return shouldUseMobileSidebarLayout(viewportWidth);
+  }
+
+  private handleViewportResizeModeTransition(): void {
+    const currentMode = this.shouldUseMobileSidebarMode(window.innerWidth);
+
+    if (this.lastViewportMobileSidebarMode === null) {
+      this.lastViewportMobileSidebarMode = currentMode;
+      return;
+    }
+
+    if (this.lastViewportMobileSidebarMode === currentMode) {
+      return;
+    }
+
+    this.lastViewportMobileSidebarMode = currentMode;
+
+    if (!currentMode) {
+      this.closeMobileSidebarModal();
+    }
+
+    this.render();
+  }
+
+  private closeMobileSidebarModal(): void {
+    if (!this.mobileSidebarModal) {
+      return;
+    }
+    this.mobileSidebarModal.close();
+    this.mobileSidebarModal = null;
+  }
+
   public openMobileSidebar(): void {
-    new MobileDiscoverFiltersModal(
+    if (!this.shouldUseMobileSidebarMode()) {
+      this.closeMobileSidebarModal();
+      return;
+    }
+
+    // Keep a single instance to avoid stacked duplicate sidebars.
+    if (this.mobileSidebarModal) {
+      return;
+    }
+
+    const modal = new MobileDiscoverFiltersModal(
       this.app,
       this.plugin,
       this.filters,
@@ -342,7 +394,18 @@ export class DiscoverView extends ItemView {
         this.saveFilterState();
         this.render();
       },
-    ).open();
+    );
+
+    const originalOnClose = modal.onClose.bind(modal);
+    modal.onClose = () => {
+      originalOnClose();
+      if (this.mobileSidebarModal === modal) {
+        this.mobileSidebarModal = null;
+      }
+    };
+
+    this.mobileSidebarModal = modal;
+    modal.open();
   }
 
   render(): void {
@@ -899,8 +962,13 @@ export class DiscoverView extends ItemView {
       this.resizeObserver.disconnect();
     }
 
-    // Mobile header with filter toggle and sort
-    this.renderMobileHeader(controlsContainer);
+    // Render mobile-only sidebar controls strictly from viewport mode.
+    if (this.shouldUseMobileSidebarMode()) {
+      this.renderMobileHeader(controlsContainer);
+    } else {
+      // Ensure stale mobile sidebar modal is closed on desktop widths.
+      this.closeMobileSidebarModal();
+    }
 
     // Set up ResizeObserver
     this.resizeObserver = new ResizeObserver((entries) => {
@@ -1487,6 +1555,9 @@ export class DiscoverView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    this.closeMobileSidebarModal();
+    this.lastViewportMobileSidebarMode = null;
+
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
@@ -1501,7 +1572,7 @@ export class DiscoverView extends ItemView {
 
   private setupSidebarResize(): void {
     // Don't setup resize on mobile/tablet.
-    if (Platform.isMobile || shouldUseMobileSidebarLayout()) {
+    if (shouldUseMobileSidebarLayout()) {
       return;
     }
 
