@@ -282,20 +282,34 @@
 }
 .rss-dashboard-sidebar-toolbar {
   order: 5;
-  --rss-toolbar-v-pad: 10px;
+  /*
+   * Footer clearance contract:
+   * - visual pad controls how "high" the toolbar feels above the bottom edge
+   * - safe/system/fallback values protect against OS UI overlap
+   * Keep these tokens centralized here so mobile/tablet tweaks do not fork into
+   * component-specific magic numbers.
+   */
+  --rss-footer-visual-pad: 10px;
   --rss-toolbar-h-pad: 4px;
-  --rss-toolbar-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --rss-footer-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --rss-footer-system-bottom: 0px;
+  --rss-footer-platform-fallback-bottom: 0px;
   z-index: 2;
   background: var(--background-secondary);
   border-radius: 0px;
   border-bottom: 1px solid var(--background-secondary);
   display: flex;
   justify-content: space-around;
-  padding-top: var(--rss-toolbar-v-pad);
+  padding-top: var(--rss-footer-visual-pad);
   padding-right: var(--rss-toolbar-h-pad);
   padding-left: var(--rss-toolbar-h-pad);
   padding-bottom: calc(
-    var(--rss-toolbar-v-pad) + var(--rss-toolbar-safe-bottom)
+    var(--rss-footer-visual-pad) +
+      max(
+        var(--rss-footer-safe-bottom),
+        var(--rss-footer-system-bottom),
+        var(--rss-footer-platform-fallback-bottom)
+      )
   );
   flex-shrink: 0;
   /* Position toolbar at bottom of sidebar - independent of drawer */
@@ -303,6 +317,26 @@
   bottom: 0;
   width: 100%;
   box-sizing: border-box;
+}
+
+/*
+ * Keep iPhone toolbar visually closer to the bottom edge while preserving
+ * separate OS-safe clearance from the runtime insets contract.
+ */
+@media (max-width: 768px) {
+  .rss-dashboard-sidebar-toolbar {
+    --rss-footer-visual-pad: 8px;
+  }
+}
+
+/*
+ * Tablet gets a touch more visual lift because system UI overlap risk is higher,
+ * especially on Android devices where safe-area may under-report.
+ */
+@media (min-width: 769px) and (max-width: 1200px) {
+  .rss-dashboard-sidebar-toolbar {
+    --rss-footer-visual-pad: 10px;
+  }
 }
 
 .rss-dashboard-toolbar-button {
@@ -454,7 +488,8 @@
   max-height: 100dvh;
   display: flex;
   flex-direction: column;
-  padding: 0 6px;
+  /* Keep Obsidian's default 16px container padding from leaking into sidebar surfaces. */
+  padding: 0 !important;
   box-sizing: border-box;
 }
 

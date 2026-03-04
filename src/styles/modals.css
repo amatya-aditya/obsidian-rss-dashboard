@@ -1771,6 +1771,34 @@
   padding: 0 !important;
 }
 
+/*
+ * Drawer shell guard:
+ * Obsidian can apply default spacing on the modal shell/wrapper itself,
+ * which leaks as side gutters on tablet/mobile even when inner content is 0.
+ */
+.modal.rss-mobile-navigation-modal,
+.modal.rss-mobile-discover-filters-modal {
+  padding: 0 !important;
+}
+
+.modal-container.mod-dim .modal.rss-mobile-navigation-modal,
+.modal-container.mod-dim .modal.rss-mobile-discover-filters-modal {
+  padding: 0 !important;
+}
+
+/*
+ * Future regression guard:
+ * If Obsidian reintroduces default 16px padding in nested modal surfaces,
+ * keep these selectors aligned with sidebar container classes before touching
+ * breakpoint logic in dashboard/discover views.
+ */
+.modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container,
+.modal.rss-mobile-navigation-modal .rss-dashboard-sidebar,
+.modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar-container,
+.modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
+  padding: 0 !important;
+}
+
 @media (max-width: 1200px) {
   .modal.rss-mobile-navigation-modal,
   .modal.rss-mobile-discover-filters-modal {
