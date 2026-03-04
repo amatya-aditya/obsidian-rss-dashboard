@@ -2165,9 +2165,9 @@ export class ArticleList {
         const sourceEl = mainGrid.createDiv("rss-dashboard-grid-source");
         const metaEl = sourceEl.createDiv("rss-dashboard-article-meta");
         this.renderFeedIcon(metaEl, article.feedUrl, article.mediaType);
-        metaEl
-          .createSpan("rss-dashboard-article-source")
-          .setText(article.feedTitle);
+        const sourceSpan = metaEl.createSpan("rss-dashboard-article-source");
+        sourceSpan.setText(article.feedTitle);
+        sourceSpan.setAttribute("title", article.feedTitle);
       }
       if (showListToolbar && useBottomRow) {
         if (article.tags && article.tags.length > 0) {
@@ -2271,6 +2271,7 @@ export class ArticleList {
         feedContainer.createDiv({
           cls: "rss-dashboard-article-feed",
           text: article.feedTitle,
+          attr: { title: article.feedTitle },
         });
       }
 

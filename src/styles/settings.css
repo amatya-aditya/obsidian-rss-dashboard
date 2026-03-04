@@ -722,6 +722,10 @@
   width: 96px;
 }
 
+.rss-dashboard-settings-number-input {
+  width: 72px;
+}
+
 @media (max-width: 1024px) {
   .rss-dashboard-settings-two-row.setting-item {
     flex-direction: column;

@@ -122,6 +122,9 @@
   display: flex;
   justify-content: flex-end;
   align-self: end;
+  min-width: 0;
+  max-width: 35%;
+  overflow: hidden;
 }
 
 .rss-dashboard-grid-source .rss-dashboard-article-meta {
@@ -130,6 +133,8 @@
   gap: 6px;
   color: var(--text-muted);
   font-size: 0.9em;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Cleanup old styles */
@@ -175,6 +180,7 @@
     justify-content: flex-start;
     align-self: center;
     padding: 4px 0;
+    max-width: 100%;
   }
 
   .rss-dashboard-grid-actions {

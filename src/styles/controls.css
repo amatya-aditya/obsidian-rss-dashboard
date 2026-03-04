@@ -1026,7 +1026,7 @@
 
 .rss-dashboard-dropdown-controls .rss-dashboard-view-toggle button.active {
   background: rgba(155, 89, 182, 0.22);
-  color: #f3e8ff;
+  color: var(--text-normal);
   border-color: var(--rss-dashboard-dropdown-accent);
 }
 
@@ -1041,7 +1041,7 @@
   padding: 0;
   border: 1px solid #8e44ad;
   background: #8e44ad;
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .rss-dashboard-dropdown-controls
@@ -1049,7 +1049,7 @@
   .rss-dashboard-view-refresh-button:hover {
   border-color: #9b59b6;
   background: #9b59b6;
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .rss-dashboard-dropdown-controls

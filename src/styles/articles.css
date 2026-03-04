@@ -196,6 +196,16 @@
 	text-overflow: ellipsis;
 }
 
+.rss-dashboard-article-feed,
+.rss-dashboard-article-source {
+	display: block;
+	min-width: 0;
+	max-width: 100%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 .rss-dashboard-article-date {
 	cursor: help;
 	position: relative;
@@ -463,6 +473,9 @@
 	display: flex;
 	align-items: center;
 	gap: 5px;
+	min-width: 0;
+	max-width: 100%;
+	flex: 1 1 auto;
 }
 
 .rss-dashboard-article-feed-icon {
@@ -470,6 +483,7 @@
 	height: 16px;
 	display: flex;
 	align-items: center;
+	flex: 0 0 auto;
 }
 
 .rss-dashboard-article-feed-icon.video {

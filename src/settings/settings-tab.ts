@@ -647,43 +647,139 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       });
     feedBadgeColorSetting.settingEl.addClass("rss-dashboard-settings-two-row");
 
-    new Setting(containerEl)
+    const sidebarRowSpacingSetting = new Setting(containerEl)
       .setName("Sidebar row spacing")
       .setDesc("Adjust the height between rows in the sidebar feed list")
-      .addSlider((slider) =>
+      ;
+
+    const spacingMin = 5;
+    const spacingMax = 44;
+    const spacingStep = 1;
+    let isSyncingSpacingControls = false;
+    let sidebarRowSpacingSlider: { setValue: (value: number) => void } | null =
+      null;
+    let sidebarRowSpacingInput: TextComponent | null = null;
+
+    const applySidebarRowSpacing = async (value: number): Promise<void> => {
+      this.plugin.settings.display.sidebarRowSpacing = value;
+      await this.plugin.saveSettings();
+      // Apply the new spacing to the sidebar by re-rendering.
+      const view = await this.plugin.getActiveDashboardView();
+      if (view?.sidebar) {
+        view.sidebar.render();
+      }
+    };
+
+    sidebarRowSpacingSetting
+      .addSlider((slider) => {
+        sidebarRowSpacingSlider = slider;
         slider
-          .setLimits(10, 44, 1)
+          .setLimits(spacingMin, spacingMax, spacingStep)
           .setValue(this.plugin.settings.display.sidebarRowSpacing ?? 10)
           .setDynamicTooltip()
           .onChange(async (value) => {
-            this.plugin.settings.display.sidebarRowSpacing = value;
-            await this.plugin.saveSettings();
-            // Apply the new spacing to the sidebar by re-rendering
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              view.sidebar.render();
-            }
-          }),
-      );
+            if (isSyncingSpacingControls) return;
+            isSyncingSpacingControls = true;
+            sidebarRowSpacingInput?.setValue(String(value));
+            isSyncingSpacingControls = false;
+            await applySidebarRowSpacing(value);
+          });
+      })
+      .addText((text) => {
+        const initialValue = this.plugin.settings.display.sidebarRowSpacing ?? 10;
+        sidebarRowSpacingInput = text;
+        text
+          .setValue(String(initialValue))
+          .onChange(async (value) => {
+            if (isSyncingSpacingControls) return;
 
-    new Setting(containerEl)
+            const parsed = Number.parseInt(value, 10);
+            if (Number.isNaN(parsed)) return;
+
+            const clampedValue = Math.max(spacingMin, Math.min(spacingMax, parsed));
+            isSyncingSpacingControls = true;
+            text.setValue(String(clampedValue));
+            sidebarRowSpacingSlider?.setValue(clampedValue);
+            isSyncingSpacingControls = false;
+            await applySidebarRowSpacing(clampedValue);
+          });
+        text.inputEl.type = "number";
+        text.inputEl.min = String(spacingMin);
+        text.inputEl.max = String(spacingMax);
+        text.inputEl.step = String(spacingStep);
+        text.inputEl.addClass("rss-dashboard-settings-number-input");
+      });
+    sidebarRowSpacingSetting.settingEl.addClass("rss-dashboard-settings-two-row");
+
+    const sidebarRowIndentationSetting = new Setting(containerEl)
       .setName("Sidebar row indentation")
       .setDesc("Adjust the indentation of nested items in the sidebar")
-      .addSlider((slider) =>
+      ;
+
+    const indentationMin = 0;
+    const indentationMax = 50;
+    const indentationStep = 1;
+    let isSyncingIndentationControls = false;
+    let sidebarRowIndentationSlider: { setValue: (value: number) => void } | null =
+      null;
+    let sidebarRowIndentationInput: TextComponent | null = null;
+
+    const applySidebarRowIndentation = async (value: number): Promise<void> => {
+      this.plugin.settings.display.sidebarRowIndentation = value;
+      await this.plugin.saveSettings();
+      // Apply the new indentation to the sidebar by re-rendering.
+      const view = await this.plugin.getActiveDashboardView();
+      if (view?.sidebar) {
+        view.sidebar.render();
+      }
+    };
+
+    sidebarRowIndentationSetting
+      .addSlider((slider) => {
+        sidebarRowIndentationSlider = slider;
         slider
-          .setLimits(0, 50, 1)
+          .setLimits(indentationMin, indentationMax, indentationStep)
           .setValue(this.plugin.settings.display.sidebarRowIndentation ?? 20)
           .setDynamicTooltip()
           .onChange(async (value) => {
-            this.plugin.settings.display.sidebarRowIndentation = value;
-            await this.plugin.saveSettings();
-            // Apply the new indentation to the sidebar by re-rendering
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              view.sidebar.render();
-            }
-          }),
-      );
+            if (isSyncingIndentationControls) return;
+            isSyncingIndentationControls = true;
+            sidebarRowIndentationInput?.setValue(String(value));
+            isSyncingIndentationControls = false;
+            await applySidebarRowIndentation(value);
+          });
+      })
+      .addText((text) => {
+        const initialValue =
+          this.plugin.settings.display.sidebarRowIndentation ?? 20;
+        sidebarRowIndentationInput = text;
+        text
+          .setValue(String(initialValue))
+          .onChange(async (value) => {
+            if (isSyncingIndentationControls) return;
+
+            const parsed = Number.parseInt(value, 10);
+            if (Number.isNaN(parsed)) return;
+
+            const clampedValue = Math.max(
+              indentationMin,
+              Math.min(indentationMax, parsed),
+            );
+            isSyncingIndentationControls = true;
+            text.setValue(String(clampedValue));
+            sidebarRowIndentationSlider?.setValue(clampedValue);
+            isSyncingIndentationControls = false;
+            await applySidebarRowIndentation(clampedValue);
+          });
+        text.inputEl.type = "number";
+        text.inputEl.min = String(indentationMin);
+        text.inputEl.max = String(indentationMax);
+        text.inputEl.step = String(indentationStep);
+        text.inputEl.addClass("rss-dashboard-settings-number-input");
+      });
+    sidebarRowIndentationSetting.settingEl.addClass(
+      "rss-dashboard-settings-two-row",
+    );
 
     new Setting(containerEl).setName("Mobile toolbar").setHeading();
 
