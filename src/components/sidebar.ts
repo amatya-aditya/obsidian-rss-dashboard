@@ -89,7 +89,11 @@ class FolderNameModal extends Modal {
 
     new Setting(contentEl).setName(this.opts.title).setHeading();
 
-    const nameInput = contentEl.createEl("input", {
+    const inputWrapper = contentEl.createDiv({
+      cls: "rss-folder-name-modal-input-wrapper rss-input-margin-bottom",
+    });
+
+    const nameInput = inputWrapper.createEl("input", {
       attr: {
         type: "text",
         value: this.opts.defaultValue ?? "",
@@ -99,9 +103,26 @@ class FolderNameModal extends Modal {
         autocapitalize: "off",
         spellcheck: "false",
       },
-      cls: "rss-full-width-input rss-input-margin-bottom rss-folder-name-modal-input",
+      cls: "rss-full-width-input rss-folder-name-modal-input",
     });
     nameInput.spellcheck = false;
+
+    const clearInputButton = inputWrapper.createEl("button", {
+      cls: "rss-folder-name-modal-input-clear",
+      attr: {
+        type: "button",
+        "aria-label": "Clear folder name",
+        title: "Clear",
+      },
+    });
+    setIcon(clearInputButton, "x");
+
+    const updateClearButtonState = () => {
+      clearInputButton.classList.toggle(
+        "is-hidden",
+        nameInput.value.length === 0,
+      );
+    };
 
     const errorMsg = contentEl.createDiv({
       cls: "rss-folder-name-modal-error rss-folder-name-modal-error-hidden",
@@ -136,23 +157,41 @@ class FolderNameModal extends Modal {
       this.opts.onSubmit(name);
     };
 
-    nameInput.addEventListener("input", clearError);
+    nameInput.addEventListener("input", () => {
+      clearError();
+      updateClearButtonState();
+    });
     nameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") submit();
     });
+
+    clearInputButton.addEventListener("click", () => {
+      nameInput.value = "";
+      clearError();
+      updateClearButtonState();
+      nameInput.focus();
+    });
+
+    updateClearButtonState();
 
     const buttonContainer = contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons rss-folder-name-modal-buttons",
     });
 
-    const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
-    cancelButton.addClass("rss-folder-name-modal-cancel");
-    cancelButton.addEventListener("click", () => this.close());
-
-    const okButton = buttonContainer.createEl("button", { text: "OK" });
+    const okButton = buttonContainer.createEl("button");
     okButton.className = "rss-dashboard-primary-button";
     okButton.addClass("rss-folder-name-modal-ok");
+    const okIcon = okButton.createSpan();
+    setIcon(okIcon, "check");
+    okButton.createSpan({ text: "OK" });
     okButton.addEventListener("click", submit);
+
+    const cancelButton = buttonContainer.createEl("button");
+    cancelButton.addClass("rss-folder-name-modal-cancel");
+    const cancelIcon = cancelButton.createSpan();
+    setIcon(cancelIcon, "x");
+    cancelButton.createSpan({ text: "Cancel" });
+    cancelButton.addEventListener("click", () => this.close());
 
     // Single focus+select; Obsidian's Modal handles focus isolation.
     // ⚠️ Do NOT add rAF re-focus, blur recovery, or stopPropagation.
@@ -1380,37 +1419,38 @@ export class Sidebar {
   }
 
   private showConfirmModal(message: string, onConfirm: () => void): void {
-    document
-      .querySelectorAll(".rss-dashboard-modal")
-      .forEach((el) => el.remove());
-    window.setTimeout(() => {
-      const modal = document.body.createDiv({
-        cls: "rss-dashboard-modal rss-dashboard-modal-container",
-      });
-      const modalContent = modal.createDiv({
-        cls: "rss-dashboard-modal-content",
-      });
-      new Setting(modalContent).setName("Confirm").setHeading();
-      modalContent.createDiv({
-        text: message,
-      });
-      const buttonContainer = modalContent.createDiv({
-        cls: "rss-dashboard-modal-buttons",
-      });
-      const cancelButton = buttonContainer.createEl("button", {
-        text: "Cancel",
-      });
-      cancelButton.onclick = () => document.body.removeChild(modal);
-      const okButton = buttonContainer.createEl("button", {
-        text: "OK",
-        cls: "rss-dashboard-primary-button",
-      });
-      okButton.onclick = () => {
-        document.body.removeChild(modal);
-        onConfirm();
-      };
-      window.setTimeout(() => okButton.focus(), 0);
-    }, 0);
+    const confirmModal = new Modal(this.app);
+    confirmModal.modalEl.addClass("rss-sidebar-confirm-modal");
+
+    const { contentEl } = confirmModal;
+    contentEl.empty();
+
+    new Setting(contentEl).setName("Confirm").setHeading();
+    contentEl.createDiv({ cls: "rss-sidebar-confirm-message", text: message });
+
+    const buttonContainer = contentEl.createDiv({
+      cls: "rss-dashboard-modal-buttons rss-folder-name-modal-buttons",
+    });
+
+    const okButton = buttonContainer.createEl("button");
+    okButton.addClass("rss-folder-name-modal-ok");
+    const okIcon = okButton.createSpan();
+    setIcon(okIcon, "check");
+    okButton.createSpan({ text: "OK" });
+    okButton.onclick = () => {
+      confirmModal.close();
+      onConfirm();
+    };
+
+    const cancelButton = buttonContainer.createEl("button");
+    cancelButton.addClass("rss-folder-name-modal-cancel");
+    const cancelIcon = cancelButton.createSpan();
+    setIcon(cancelIcon, "x");
+    cancelButton.createSpan({ text: "Cancel" });
+    cancelButton.onclick = () => confirmModal.close();
+
+    confirmModal.open();
+    window.setTimeout(() => okButton.focus(), 50);
   }
 
   public showAddTagModal(): void {
@@ -2023,12 +2063,42 @@ export class Sidebar {
       cls: "rss-dashboard-toolbar-button",
       attr: {
         title: "Search feeds",
+        "aria-label": "Search feeds",
+        role: "button",
+        tabindex: "0",
       },
     });
+    searchButton.toggleClass("is-active", this.isSearchExpanded);
+    searchButton.setAttr(
+      "aria-pressed",
+      this.isSearchExpanded ? "true" : "false",
+    );
     setIcon(searchButton, "search");
-    searchButton.addEventListener("click", () => {
+    const toggleSearch = () => {
       this.isSearchExpanded = !this.isSearchExpanded;
       this.render();
+
+      if (this.isSearchExpanded) {
+        requestAnimationFrame(() => {
+          const searchInput = this.container.querySelector<HTMLInputElement>(
+            ".rss-dashboard-search-input",
+          );
+          if (!searchInput) return;
+          searchInput.focus();
+          searchInput.select();
+          searchInput.scrollIntoView({ block: "nearest" });
+        });
+      }
+    };
+    searchButton.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleSearch();
+    });
+    searchButton.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleSearch();
+      }
     });
   }
 

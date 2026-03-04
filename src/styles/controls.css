@@ -390,12 +390,12 @@
   white-space: nowrap;
 }
 
-/* Color dot matching the highlight color. CSS variable set inline by renderFilterSubheader() */
+/* Color square matching the highlight color. CSS variable set inline by renderFilterSubheader() */
 .rss-highlight-dot {
   display: inline-block;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 0;
   background-color: var(--highlight-color, #ffd700);
   flex-shrink: 0;
 }
@@ -802,8 +802,7 @@
 
 .rss-dashboard-dropdown-controls .rss-dashboard-multi-filter-btn,
 .rss-dashboard-dropdown-controls .rss-dashboard-view-toggle button,
-.rss-dashboard-dropdown-controls .rss-dashboard-refresh-button,
-.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-read-button {
+.rss-dashboard-dropdown-controls .rss-dashboard-refresh-button {
   width: 100%;
   height: 42px;
   min-height: 42px;
@@ -848,9 +847,45 @@
 .rss-dashboard-dropdown-controls .rss-dashboard-article-search-input {
   width: 100%;
   min-height: 42px;
-  padding: 10px 12px 10px 40px;
+  padding: 10px 40px 10px 40px;
   border-radius: 999px;
   font-size: 14px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-article-search-clear-button {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-article-search-clear-button:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-article-search-clear-button.is-hidden {
+  display: none;
+}
+
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-article-search-clear-button
+  svg {
+  width: 14px;
+  height: 14px;
 }
 
 .rss-dashboard-dropdown-controls .rss-dashboard-article-search-input:focus {
@@ -1076,12 +1111,43 @@
   color: #fff;
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-read-button {
+.rss-dashboard-mark-all-row {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  padding: 0 16px;
+}
+
+.rss-dashboard-mark-all-label {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.rss-dashboard-mark-all-buttons-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.rss-dashboard-mark-all-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-button {
+  flex: 1 1 calc(50% - 4px);
+  min-width: 0;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-size: 13px;
   border: 1px solid var(--background-modifier-border);
   background: var(--background-secondary);
   color: var(--text-normal);
@@ -1090,25 +1156,36 @@
   transition: all 0.2s ease;
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-read-button:hover {
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-read-button,
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-unread-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-button:hover {
   background: var(--background-modifier-hover);
   border-color: var(--rss-dashboard-dropdown-accent);
 }
 
-.rss-dashboard-mark-all-read-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-read-icon {
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-read-icon,
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-unread-icon {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-read-icon {
   color: var(--rss-dashboard-dropdown-accent);
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-read-icon svg {
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-unread-icon {
+  color: var(--text-muted);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-read-icon svg,
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-unread-icon svg {
   width: 16px;
   height: 16px;
 }
@@ -1128,28 +1205,28 @@
  * making the content area narrow even though the viewport is wide.
  *
  * Breakpoints:
- *   - Desktop:  > 1200px  → show desktop controls, hide hamburger
- *   - Tablet:   769–1200px → show hamburger, hide desktop controls
- *   - Mobile:   <= 768px   → show hamburger, hide desktop controls
+ *   - Desktop:  > 1200px  → compact mode (filter + hamburger)
+ *   - Tablet:   769–1200px → compact mode (filter + hamburger)
+ *   - Mobile:   <= 768px   → compact mode (filter + hamburger)
  *
  * We use !important on display toggles to prevent overrides from
  * later-loaded stylesheets (modals.css, discover.css).
  * ============================================================
  */
 
-/* --- Base state: desktop controls visible, hamburger hidden --- */
+/* --- Base state: compact controls visible (all widths) --- */
 .rss-dashboard-desktop-controls {
-  display: flex !important;
+  display: none !important;
   align-items: center;
   gap: 8px;
 }
 
 .rss-dashboard-mobile-filter-button {
-  display: none !important;
+  display: flex !important;
 }
 
 .rss-dashboard-hamburger-menu {
-  display: none !important;
+  display: block !important;
 }
 
 /* --- Mobile: <= 768px --- */
@@ -1225,15 +1302,15 @@
 /* --- Desktop: > 1200px --- */
 @media (min-width: 1201px) {
   .rss-dashboard-mobile-filter-button {
-    display: none !important;
+    display: flex !important;
   }
 
   .rss-dashboard-hamburger-menu {
-    display: none !important;
+    display: block !important;
   }
 
   .rss-dashboard-desktop-controls {
-    display: flex !important;
+    display: none !important;
   }
 }
 

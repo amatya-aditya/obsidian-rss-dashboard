@@ -1071,6 +1071,46 @@
   background: #b91c1c !important;
   border-color: #dc2626 !important;
   box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.3);
+  cursor: pointer;
+}
+
+.rss-dashboard-modal-interactions-disabled {
+  pointer-events: none !important;
+}
+
+.rss-confirm-modal-cancel {
+  background: var(--background-modifier-border);
+  color: var(--text-normal);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  min-height: 38px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.rss-confirm-modal-cancel:hover {
+  background: var(--background-modifier-border-hover);
+  cursor: pointer;
+}
+
+.rss-dashboard-confirm-modal .rss-folder-name-modal-cancel {
+  background: #ef4444 !important;
+  color: #fff !important;
+  border: 2px solid transparent !important;
+  cursor: pointer;
+}
+
+.rss-dashboard-confirm-modal .rss-folder-name-modal-cancel:hover {
+  background: #dc2626 !important;
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
+  cursor: pointer;
 }
 
 .rss-dashboard-danger-button:active {

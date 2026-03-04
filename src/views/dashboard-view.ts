@@ -368,6 +368,24 @@ export class RssDashboardView extends ItemView {
             new Notice("No unread items in current view");
           }
         },
+        onMarkAllAsUnread: () => {
+          const articles = this.getFilteredArticles();
+          let count = 0;
+          articles.forEach((item) => {
+            if (item.read) {
+              item.read = false;
+              count++;
+            }
+          });
+
+          if (count > 0) {
+            void this.plugin.saveSettings();
+            void this.render();
+            new Notice(`Marked ${count} items as unread`);
+          } else {
+            new Notice("No read items in current view");
+          }
+        },
       },
       currentPage,
       totalPages,

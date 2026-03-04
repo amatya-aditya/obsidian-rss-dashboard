@@ -75,6 +75,7 @@ interface ArticleListCallbacks {
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   onMarkAllAsRead?: () => void;
+  onMarkAllAsUnread?: () => void;
   onPersistSettings?: () => Promise<void> | void;
   onOpenTagsSettings?: () => Promise<void> | void;
 }
@@ -227,6 +228,14 @@ export class ArticleList {
     }
   }
 
+  private getCardColumnsPerRow(): number {
+    const value = this.settings.display.cardColumnsPerRow;
+    if (!Number.isFinite(value) || value <= 0) {
+      return 0;
+    }
+    return Math.max(1, Math.min(6, Math.round(value)));
+  }
+
   private addDocumentListener(
     target: Document,
     type: string,
@@ -340,7 +349,9 @@ export class ArticleList {
     const newTime = new Date(article.pubDate).getTime();
     for (let i = 0; i < this.articles.length; i++) {
       const existingTime = new Date(this.articles[i].pubDate).getTime();
-      if (sortOrder === "newest" ? newTime > existingTime : newTime < existingTime) {
+      if (
+        sortOrder === "newest" ? newTime > existingTime : newTime < existingTime
+      ) {
         return i;
       }
     }
@@ -829,6 +840,19 @@ export class ArticleList {
       },
     });
 
+    let clearSearchButton: HTMLButtonElement | null = null;
+    if (isDropdown) {
+      clearSearchButton = searchContainer.createEl("button", {
+        cls: "rss-dashboard-article-search-clear-button is-hidden",
+        attr: {
+          type: "button",
+          title: "Clear search",
+          "aria-label": "Clear search",
+        },
+      });
+      setIcon(clearSearchButton, "x");
+    }
+
     // Store reference to sync between dropdown and desktop
     if (isDropdown) {
       this.articleSearchDropdownInput = searchInput;
@@ -836,33 +860,51 @@ export class ArticleList {
       this.articleSearchDesktopInput = searchInput;
     }
 
-    // Search input event handler with debouncing
     let searchTimeout: number;
-    searchInput.addEventListener("input", (e) => {
-      const query = ((e.target as HTMLInputElement)?.value || "")
-        .toLowerCase()
-        .trim();
+    const applySearchQuery = (rawValue: string, debounce = true): void => {
+      const query = rawValue.toLowerCase().trim();
       this.articleSearchQuery = query;
+
+      if (clearSearchButton) {
+        const hasValue = rawValue.trim().length > 0;
+        clearSearchButton.toggleClass("is-hidden", !hasValue);
+      }
 
       // Sync the other search input if it exists
       if (isDropdown && this.articleSearchDesktopInput) {
-        this.articleSearchDesktopInput.value = (
-          e.target as HTMLInputElement
-        ).value;
+        this.articleSearchDesktopInput.value = rawValue;
       } else if (!isDropdown && this.articleSearchDropdownInput) {
-        this.articleSearchDropdownInput.value = (
-          e.target as HTMLInputElement
-        ).value;
+        this.articleSearchDropdownInput.value = rawValue;
       }
 
       if (searchTimeout) {
         window.clearTimeout(searchTimeout);
       }
 
+      if (!debounce) {
+        this.filterArticlesBySearch(query);
+        return;
+      }
+
       searchTimeout = window.setTimeout(() => {
         this.filterArticlesBySearch(query);
       }, 150);
+    };
+
+    // Search input event handler with debouncing
+    searchInput.addEventListener("input", (e) => {
+      applySearchQuery((e.target as HTMLInputElement)?.value || "", true);
     });
+
+    if (clearSearchButton) {
+      clearSearchButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        searchInput.value = "";
+        applySearchQuery("", false);
+        searchInput.focus();
+      });
+    }
 
     // Move age filter into its own space or keep as is?
     // For now, let's keep it but make it smaller or label it better.
@@ -1062,6 +1104,44 @@ export class ArticleList {
       });
     }
 
+    if (isDropdown && this.settings.viewStyle === "card") {
+      const cardsPerRowRow = articleControls.createDiv({
+        cls: "rss-dashboard-toolbar-mode-row",
+      });
+      cardsPerRowRow.createSpan({
+        cls: "rss-dashboard-toolbar-mode-label",
+        text: "Cards / row:",
+      });
+
+      const cardsPerRowSelect = cardsPerRowRow.createEl("select", {
+        cls: "rss-dashboard-toolbar-mode-select",
+        attr: { "aria-label": "Cards per row" },
+      });
+
+      cardsPerRowSelect.createEl("option", {
+        text: "Auto",
+        value: "0",
+      });
+
+      for (const count of [1, 2, 3, 4, 5, 6]) {
+        cardsPerRowSelect.createEl("option", {
+          text: `${count}`,
+          value: String(count),
+        });
+      }
+
+      cardsPerRowSelect.value = String(this.getCardColumnsPerRow());
+
+      cardsPerRowSelect.addEventListener("change", (e: Event) => {
+        const value = Number((e.target as HTMLSelectElement).value);
+        this.settings.display.cardColumnsPerRow = Number.isFinite(value)
+          ? Math.max(0, Math.min(6, Math.round(value)))
+          : 0;
+        this.persistSettings();
+        this.render();
+      });
+    }
+
     const createRefreshButton = (
       parentEl: HTMLElement,
       extraClass = "",
@@ -1093,16 +1173,29 @@ export class ArticleList {
       createRefreshButton(articleControls, "", true);
     }
 
-    const markAllReadButton = articleControls.createEl("button", {
-      cls: "rss-dashboard-mark-all-read-button",
+    const markAllRow = articleControls.createDiv({
+      cls: "rss-dashboard-mark-all-row",
     });
-    const markIcon = markAllReadButton.createDiv({
+
+    markAllRow.createSpan({
+      cls: "rss-dashboard-mark-all-label",
+      text: "Mark all:",
+    });
+
+    const markAllButtonsContainer = markAllRow.createDiv({
+      cls: "rss-dashboard-mark-all-buttons-row",
+    });
+
+    const markAllReadButton = markAllButtonsContainer.createEl("button", {
+      cls: "rss-dashboard-mark-all-read-button rss-dashboard-mark-all-button",
+    });
+    const markReadIcon = markAllReadButton.createDiv({
       cls: "rss-dashboard-mark-all-read-icon",
     });
-    setIcon(markIcon, "check-circle");
+    setIcon(markReadIcon, "check-circle");
     markAllReadButton.createSpan({
       cls: "rss-dashboard-mark-all-read-text",
-      text: "Mark all read",
+      text: "Read",
     });
     markAllReadButton.setAttr(
       "title",
@@ -1110,9 +1203,27 @@ export class ArticleList {
     );
 
     markAllReadButton.addEventListener("click", () => {
-      if (this.callbacks.onMarkAllAsRead) {
-        this.callbacks.onMarkAllAsRead();
-      }
+      this.callbacks.onMarkAllAsRead?.();
+    });
+
+    const markAllUnreadButton = markAllButtonsContainer.createEl("button", {
+      cls: "rss-dashboard-mark-all-unread-button rss-dashboard-mark-all-button",
+    });
+    const markUnreadIcon = markAllUnreadButton.createDiv({
+      cls: "rss-dashboard-mark-all-unread-icon",
+    });
+    setIcon(markUnreadIcon, "circle");
+    markAllUnreadButton.createSpan({
+      cls: "rss-dashboard-mark-all-unread-text",
+      text: "Unread",
+    });
+    markAllUnreadButton.setAttr(
+      "title",
+      "Mark all articles in current view as unread",
+    );
+
+    markAllUnreadButton.addEventListener("click", () => {
+      this.callbacks.onMarkAllAsUnread?.();
     });
   }
 
@@ -1593,6 +1704,17 @@ export class ArticleList {
     const articlesList = this.container.createDiv({
       cls: `rss-dashboard-articles-list rss-dashboard-${this.settings.viewStyle}-view`,
     });
+    if (this.settings.viewStyle === "card") {
+      const cardColumns = this.getCardColumnsPerRow();
+      if (cardColumns > 0) {
+        articlesList.style.setProperty(
+          "grid-template-columns",
+          `repeat(${cardColumns}, minmax(0, 1fr))`,
+        );
+      } else {
+        articlesList.style.removeProperty("grid-template-columns");
+      }
+    }
     const showToolbar = this.shouldShowToolbarForView(this.settings.viewStyle);
     articlesList.toggleClass(
       "rss-dashboard-mobile-toolbar-hidden",
@@ -2627,79 +2749,79 @@ export class ArticleList {
     updateTagSeparatorVisibility();
 
     if (!isMobile) {
-    const inlineAddRow = portalDropdown.createDiv({
-      cls: "rss-dashboard-tag-inline-add-row",
-    });
+      const inlineAddRow = portalDropdown.createDiv({
+        cls: "rss-dashboard-tag-inline-add-row",
+      });
 
-    const colorInput = inlineAddRow.createEl("input", {
-      attr: {
-        type: "color",
-        value: "#3498db",
-      },
-      cls: "rss-dashboard-tag-inline-color",
-    });
+      const colorInput = inlineAddRow.createEl("input", {
+        attr: {
+          type: "color",
+          value: "#3498db",
+        },
+        cls: "rss-dashboard-tag-inline-color",
+      });
 
-    const nameInput = inlineAddRow.createEl("input", {
-      attr: {
-        type: "text",
-        placeholder: "Add new tag...",
-        autocomplete: "off",
-      },
-      cls: "rss-dashboard-tag-inline-input",
-    });
-    nameInput.spellcheck = false;
+      const nameInput = inlineAddRow.createEl("input", {
+        attr: {
+          type: "text",
+          placeholder: "Add new tag...",
+          autocomplete: "off",
+        },
+        cls: "rss-dashboard-tag-inline-input",
+      });
+      nameInput.spellcheck = false;
 
-    const addButton = inlineAddRow.createEl("button", {
-      cls: "rss-dashboard-tag-inline-button",
-      attr: { title: "Add tag" },
-    });
-    setIcon(addButton, "plus");
+      const addButton = inlineAddRow.createEl("button", {
+        cls: "rss-dashboard-tag-inline-button",
+        attr: { title: "Add tag" },
+      });
+      setIcon(addButton, "plus");
 
-    const submitInlineTag = () => {
-      const tagName = nameInput.value.trim();
-      const tagColor = colorInput.value;
+      const submitInlineTag = () => {
+        const tagName = nameInput.value.trim();
+        const tagColor = colorInput.value;
 
-      if (!tagName) {
-        new Notice("Please enter a tag name!");
-        return;
-      }
+        if (!tagName) {
+          new Notice("Please enter a tag name!");
+          return;
+        }
 
-      if (
-        this.settings.availableTags.some(
-          (tag) => tag.name.toLowerCase() === tagName.toLowerCase(),
-        )
-      ) {
-        new Notice("A tag with this name already exists!");
-        return;
-      }
+        if (
+          this.settings.availableTags.some(
+            (tag) => tag.name.toLowerCase() === tagName.toLowerCase(),
+          )
+        ) {
+          new Notice("A tag with this name already exists!");
+          return;
+        }
 
-      const newTag: Tag = {
-        name: tagName,
-        color: tagColor,
+        const newTag: Tag = {
+          name: tagName,
+          color: tagColor,
+        };
+
+        this.settings.availableTags.push(newTag);
+        this.persistSettings();
+        onTagChange(newTag, true);
+        appendTagItem(newTag, true);
+
+        nameInput.value = "";
+        requestAnimationFrame(() => nameInput.focus());
+        new Notice(`Tag "${tagName}" added`);
       };
 
-      this.settings.availableTags.push(newTag);
-      this.persistSettings();
-      onTagChange(newTag, true);
-      appendTagItem(newTag, true);
-
-      nameInput.value = "";
-      requestAnimationFrame(() => nameInput.focus());
-      new Notice(`Tag "${tagName}" added`);
-    };
-
-    addButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      submitInlineTag();
-    });
-
-    nameInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
+      addButton.addEventListener("click", (e) => {
         e.stopPropagation();
         submitInlineTag();
-      }
-    });
+      });
+
+      nameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          submitInlineTag();
+        }
+      });
     } // end !isMobile
 
     targetBody.appendChild(portalDropdown);
@@ -2730,7 +2852,11 @@ export class ArticleList {
       const syncMobileViewportHeight = () => {
         const vvp = targetWindow.visualViewport;
         const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
-        portalDropdown.style.setProperty("max-height", `${viewportHeight - 16}px`, "important");
+        portalDropdown.style.setProperty(
+          "max-height",
+          `${viewportHeight - 16}px`,
+          "important",
+        );
       };
       syncMobileViewportHeight();
 

@@ -1530,18 +1530,28 @@ export class FeedManagerModal extends Modal {
     feed?: Feed;
   }): void {
     const { type, folderPath, feedCount, feed } = options;
+    const parentModalEl = this.modalEl;
+    parentModalEl.addClass("rss-dashboard-modal-interactions-disabled");
 
-    // Create overlay modal that appears ON TOP of the manage feeds modal
-    const overlay = document.body.createDiv({
-      cls: "rss-dashboard-modal-overlay",
-    });
+    // Use a real Obsidian Modal so background interactions are blocked.
+    const confirmModal = new Modal(this.app);
+    confirmModal.modalEl.addClasses([
+      "rss-dashboard-modal",
+      "rss-dashboard-modal-container",
+      "rss-dashboard-confirm-modal",
+    ]);
+    confirmModal.contentEl.empty();
+    confirmModal.contentEl.addClass("rss-dashboard-modal-content");
+    const { contentEl: modalContent } = confirmModal;
 
-    const modal = overlay.createDiv({
-      cls: "rss-dashboard-modal rss-dashboard-modal-container rss-dashboard-confirm-modal",
-    });
-    const modalContent = modal.createDiv({
-      cls: "rss-dashboard-modal-content",
-    });
+    const restoreParentInteractivity = () => {
+      parentModalEl.removeClass("rss-dashboard-modal-interactions-disabled");
+    };
+    const originalOnClose = confirmModal.onClose.bind(confirmModal);
+    confirmModal.onClose = () => {
+      originalOnClose();
+      restoreParentInteractivity();
+    };
 
     // Context-specific header and message
     let title: string;
@@ -1604,26 +1614,15 @@ export class FeedManagerModal extends Modal {
 
     // Button container
     const buttonContainer = modalContent.createDiv({
-      cls: "rss-dashboard-modal-buttons",
+      cls: "rss-dashboard-modal-buttons rss-folder-name-modal-buttons",
     });
-
-    const cancelButton = buttonContainer.createEl("button", {
-      text: "Cancel",
-    });
-    cancelButton.onclick = () => {
-      // Remove overlay, returning to the manage feeds modal
-      document.body.removeChild(overlay);
-    };
 
     const confirmButton = buttonContainer.createEl("button", {
-      text: confirmButtonText,
       cls: "rss-dashboard-danger-button",
     });
-    if (type === "all" || type === "folder" || type === "feed") {
-      confirmButton.empty();
-      setIcon(confirmButton, "trash-2");
-      confirmButton.createSpan({ text: ` ${confirmButtonText}` });
-    }
+    const deleteIcon = confirmButton.createSpan();
+    setIcon(deleteIcon, "trash-2");
+    confirmButton.createSpan({ text: confirmButtonText });
     confirmButton.onclick = () => {
       // Execute the appropriate deletion
       switch (type) {
@@ -1637,9 +1636,19 @@ export class FeedManagerModal extends Modal {
           void this.deleteFeed(feed!);
           break;
       }
-      // Remove overlay
-      document.body.removeChild(overlay);
+      confirmModal.close();
     };
+
+    const cancelButton = buttonContainer.createEl("button");
+    cancelButton.addClass("rss-confirm-modal-cancel");
+    const cancelIcon = cancelButton.createSpan();
+    setIcon(cancelIcon, "x");
+    cancelButton.createSpan({ text: "Cancel" });
+    cancelButton.onclick = () => {
+      confirmModal.close();
+    };
+
+    confirmModal.open();
   }
 
   /**

@@ -182,6 +182,7 @@ export interface DisplaySettings {
   autoMarkReadOnOpen: boolean;
   sidebarRowSpacing: number;
   sidebarRowIndentation: number;
+  cardColumnsPerRow: number;
 }
 
 export interface HighlightWord {
@@ -404,6 +405,7 @@ guid: "{{guid}}"
     autoMarkReadOnOpen: false,
     sidebarRowSpacing: 10,
     sidebarRowIndentation: 20,
+    cardColumnsPerRow: 0,
   },
   highlights: {
     enabled: false,

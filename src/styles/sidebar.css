@@ -356,6 +356,16 @@
   background-color: var(--background-modifier-hover);
   color: var(--text-normal);
 }
+
+.rss-dashboard-toolbar-button.is-active {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.rss-dashboard-toolbar-button:focus-visible {
+  outline: 2px solid var(--interactive-accent-hover);
+  outline-offset: 1px;
+}
 .rss-dashboard-feed-folder-header.drag-over {
   background-color: var(--interactive-accent);
   color: var(--text-on-accent);
@@ -588,10 +598,41 @@
   padding-bottom: 1.2rem;
 }
 
+.rss-folder-name-modal-input-wrapper {
+  position: relative;
+}
+
 .rss-folder-name-modal-input {
   position: relative;
   z-index: 1;
   pointer-events: auto;
+  padding-right: 34px;
+}
+
+.rss-folder-name-modal-input-clear {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  z-index: 2;
+}
+
+.rss-folder-name-modal-input-clear:hover {
+  color: var(--text-normal);
+}
+
+.rss-folder-name-modal-input-clear.is-hidden {
+  display: none;
 }
 
 .rss-folder-name-modal-buttons {
@@ -605,15 +646,40 @@
   min-height: 38px;
   border-radius: 8px;
   margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
 }
 
 .rss-folder-name-modal-cancel {
-  background-color: var(--text-error);
-  color: var(--text-on-accent, #fff);
+  background-color: #ef4444;
+  color: #fff;
 }
 
 .rss-folder-name-modal-cancel:hover {
-  filter: brightness(0.95);
+  background-color: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.rss-folder-name-modal-ok {
+  background-color: #8b5cf6;
+  color: #fff;
+}
+
+.rss-folder-name-modal-ok:hover {
+  background-color: #7c3aed;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.rss-sidebar-confirm-message {
+  margin-bottom: 1.2rem;
+  color: var(--text-normal);
 }
 
 /* Search hidden class for feed/folder search */

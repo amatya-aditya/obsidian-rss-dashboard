@@ -209,6 +209,7 @@
 
 .rss-dashboard-card-view {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 15px;
   align-items: start;
   justify-items: stretch;
@@ -380,16 +381,8 @@
   display: none;
 }
 
-/* Card grid breakpoints migrated from responsive.css */
-@media (max-width: 1200px) {
-  .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  }
-}
-
 @media (min-width: 1600px) {
   .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 20px;
   }
 
@@ -401,7 +394,6 @@
 
 @media (min-width: 1400px) and (max-width: 1599px) {
   .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
   }
 
@@ -423,7 +415,6 @@
 
 @media (min-width: 1200px) and (max-width: 1399px) {
   .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 18px;
   }
 
@@ -435,7 +426,6 @@
 
 @media (min-width: 1000px) and (max-width: 1199px) {
   .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 16px;
   }
 
@@ -451,7 +441,6 @@
 
 @media (min-width: 900px) and (max-width: 999px) {
   .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 15px;
   }
 
@@ -469,7 +458,6 @@
 
 @media (min-width: 768px) and (max-width: 899px) {
   .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 14px;
   }
 
