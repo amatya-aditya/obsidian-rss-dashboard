@@ -1,6 +1,6 @@
 # RSS Dashboard - Changelog
 
-## [2.2.0] - 2026-02-25
+## [2.2.10] - 2026-03-02
 
 ### Highlights
 
@@ -41,7 +41,7 @@
 
 - New "Highlights" settings tab
 - New "Filters" settings tab
-- Updated "Display" settings tab, including new sidebar row features (see below) and new list/card toolbar options
+- Updated "Display" settings tab, including new sidebar row features and new list/card toolbar options
 
 ### UI/UX Improvements
 
@@ -63,6 +63,6 @@
 
 ---
 
-## [2.0.0] - 2024-12-19
+## [2.1.9] - 2026-02-01
 
 - Upstream base release from the original author.
