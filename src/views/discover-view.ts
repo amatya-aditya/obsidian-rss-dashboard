@@ -12,7 +12,6 @@ import { MobileDiscoverFiltersModal } from "../modals/mobile-discover-filters-mo
 import type RssDashboardPlugin from "../../main";
 import {
   TABLET_LAYOUT_MAX_WIDTH,
-  isTouchTabletViewport,
   shouldUseMobileSidebarLayout,
 } from "../utils/platform-utils";
 
@@ -350,7 +349,6 @@ export class DiscoverView extends ItemView {
     const container = this.containerEl.children[1] as HTMLElement;
     container.empty();
     container.addClass("rss-discover-container");
-    this.applyResponsiveContainerClasses(container);
 
     if (this.isLoading) {
       this.renderLoading(container);
@@ -908,11 +906,8 @@ export class DiscoverView extends ItemView {
     this.resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const width = entry.contentRect.width;
-        // Keep header controls compact on narrow panes and touch tablets.
-        if (
-          width <= TABLET_LAYOUT_MAX_WIDTH ||
-          isTouchTabletViewport(window.innerWidth)
-        ) {
+        // Keep header controls compact on narrow panes.
+        if (width <= TABLET_LAYOUT_MAX_WIDTH) {
           controlsContainer.classList.add("is-narrow");
         } else {
           controlsContainer.classList.remove("is-narrow");
@@ -1546,14 +1541,6 @@ export class DiscoverView extends ItemView {
       });
       this.hasRegisteredResizeEvents = true;
     }
-  }
-
-  private applyResponsiveContainerClasses(container: HTMLElement): void {
-    if (isTouchTabletViewport()) {
-      container.addClass("rss-touch-tablet-layout");
-      return;
-    }
-    container.removeClass("rss-touch-tablet-layout");
   }
 
   private handleResizeStart(e: MouseEvent): void {

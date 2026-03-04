@@ -27,10 +27,7 @@ import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
 import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
 import { KeywordFilterService } from "../services/keyword-filter-service";
-import {
-  isTouchTabletViewport,
-  shouldUseMobileSidebarLayout,
-} from "../utils/platform-utils";
+import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -162,7 +159,6 @@ export class RssDashboardView extends ItemView {
 
     const container = this.containerEl.children[1];
     container.addClass("rss-dashboard-container");
-    this.applyResponsiveContainerClasses(container as HTMLElement);
     let dashboardContainer = container.querySelector(
       ".rss-dashboard-layout",
     ) as HTMLElement;
@@ -258,7 +254,6 @@ export class RssDashboardView extends ItemView {
     }
 
     const container = this.containerEl.children[1];
-    this.applyResponsiveContainerClasses(container as HTMLElement);
     let dashboardContainer = container.querySelector(
       ".rss-dashboard-layout",
     ) as HTMLElement;
@@ -1768,14 +1763,6 @@ export class RssDashboardView extends ItemView {
     this.registerDomEvent(document, "mouseup", () => {
       this.handleResizeEnd();
     });
-  }
-
-  private applyResponsiveContainerClasses(container: HTMLElement): void {
-    if (isTouchTabletViewport()) {
-      container.addClass("rss-touch-tablet-layout");
-      return;
-    }
-    container.removeClass("rss-touch-tablet-layout");
   }
 
   private handleResizeStart(e: MouseEvent): void {

@@ -157,13 +157,6 @@
   width: 0 !important;
 }
 
-/* Touch tablets with desktop-sized CSS widths use the modal sidebar pattern. */
-.rss-dashboard-container.rss-touch-tablet-layout .rss-dashboard-sidebar,
-.rss-dashboard-container.rss-touch-tablet-layout
-  .rss-dashboard-sidebar-resize-handle {
-  display: none !important;
-}
-
 /* Tablet and below: hide dashboard sidebar in favor of mobile navigation modal. */
 @media (max-width: 1200px) {
   .rss-dashboard-sidebar {

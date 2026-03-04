@@ -117,7 +117,6 @@ export function setCssProps(
 
 export const PHONE_MAX_WIDTH = 768;
 export const TABLET_LAYOUT_MAX_WIDTH = 1200;
-export const TOUCH_TABLET_MAX_WIDTH = 1366;
 
 export type ViewportTier = "phone" | "tablet" | "desktop";
 
@@ -131,37 +130,13 @@ function getViewportWidth(viewportWidth?: number): number {
   return window.innerWidth;
 }
 
-export function hasTouchInput(): boolean {
-  if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return false;
-  }
-
-  if (navigator.maxTouchPoints > 0) {
-    return true;
-  }
-
-  return window.matchMedia?.("(pointer: coarse)").matches ?? false;
-}
-
 export function isPhoneViewport(viewportWidth?: number): boolean {
   return getViewportWidth(viewportWidth) <= PHONE_MAX_WIDTH;
 }
 
-export function isTouchTabletViewport(viewportWidth?: number): boolean {
-  const width = getViewportWidth(viewportWidth);
-  return (
-    width > TABLET_LAYOUT_MAX_WIDTH &&
-    width <= TOUCH_TABLET_MAX_WIDTH &&
-    hasTouchInput()
-  );
-}
-
 export function isTabletViewport(viewportWidth?: number): boolean {
   const width = getViewportWidth(viewportWidth);
-  return (
-    (width > PHONE_MAX_WIDTH && width <= TABLET_LAYOUT_MAX_WIDTH) ||
-    isTouchTabletViewport(width)
-  );
+  return width > PHONE_MAX_WIDTH && width <= TABLET_LAYOUT_MAX_WIDTH;
 }
 
 export function shouldUseMobileSidebarLayout(viewportWidth?: number): boolean {

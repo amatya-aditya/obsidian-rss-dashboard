@@ -51,3 +51,37 @@ The approach is to centralize viewport classification in TypeScript, align CSS b
 1. Consider moving shared breakpoints to CSS custom properties or a single constants module consumed by both TS and style docs to reduce future drift.
 2. If high-resolution tablets still identify as desktop in edge cases, add a secondary heuristic (touch-capable + width band) in the shared helper behind a clearly named option.
 3. Add a lightweight QA checklist doc under `docs/plans/` for responsive regression testing before releases.
+
+## Progress Update (2026-03-03)
+- Completed: Added shared responsive helpers in `src/utils/platform-utils.ts` and migrated key modal/view call sites away from duplicated local `isMobileWidth()` helpers.
+- Completed: Updated dashboard/discover sidebar toggle and resize gating to use shared viewport helpers.
+- Completed: Added responsive overrides and updated generated bundle output (`styles.css`) via build.
+- Completed: Plan export and documentation handoff in `docs/plans/`.
+- Observed regression: Above `1200px`, sidebar can become dislodged from the left edge on some environments.
+- Observed regression: Discover can show duplicate sidebar behavior (left sidebar plus centered modal-style panel) under certain tablet/desktop-touch conditions.
+- Root cause identified: Touch-tablet pathway (`isTouchTabletViewport` + `.rss-touch-tablet-layout`) is too broad and can force mixed inline+modal behavior on wide viewports.
+
+## Next Actions
+1. Remove touch-tablet layout forcing path from TS and CSS:
+- Remove `applyResponsiveContainerClasses` usage/method from `src/views/dashboard-view.ts`.
+- Remove `applyResponsiveContainerClasses` usage/method from `src/views/discover-view.ts`.
+- Remove `.rss-touch-tablet-layout` CSS overrides from `src/styles/layout.css` and `src/styles/discover.css`.
+2. **[CRITICAL — missing from original plan]** Simplify `isTabletViewport()` in `src/utils/platform-utils.ts` to width-only:
+- Remove the `|| isTouchTabletViewport(width)` OR branch from `isTabletViewport()`.
+- Remove the `isTouchTabletViewport()` export and `TOUCH_TABLET_MAX_WIDTH` constant (dead code once step 1 is complete).
+- Remove `hasTouchInput()` export (only ever called by `isTouchTabletViewport`).
+- Without this step, `shouldUseMobileSidebarLayout()` still returns `true` for the 1200–1366px touch range while no CSS rule hides the inline sidebar anymore — reproducing the exact split-brain duplicate-sidebar regression the plan aims to fix.
+3. Narrow header compact-mode logic to width-only checks:
+- Update `src/components/article-list.ts` ResizeObserver condition to `width <= TABLET_LAYOUT_MAX_WIDTH`.
+- Update `src/views/discover-view.ts` ResizeObserver condition to `width <= TABLET_LAYOUT_MAX_WIDTH`.
+4. Keep modal mobile classes guarded by stable runtime checks:
+- Ensure `src/modals/feed-manager-modal.ts` and `src/modals/import-opml-modal.ts` use `Platform.isMobile || shouldUseMobileSidebarLayout()` where mobile class application is required.
+5. Rebuild and verify:
+- Run `npm run build` to regenerate `styles.css` from source updates.
+- Re-run viewport matrix (`768`, `820`, `1024`, `1180`, `1200`, `1280`, `1366`, `1600`) and validate single-sidebar behavior in dashboard and discover.
+
+## Current Status
+- Phase 1: Complete.
+- Phase 2: In progress (helper migration complete; regression cleanup pending).
+- Phase 3: In progress (CSS normalization partially complete; touch-tablet rollback pending).
+- Phase 4: In progress (documentation updated; final post-fix verification pending).
