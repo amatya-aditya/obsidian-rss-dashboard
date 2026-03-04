@@ -373,7 +373,8 @@
 }
 
 @media (max-width: 1200px) {
-  .rss-dashboard-filters-inline .rss-dashboard-filter-item.rss-dashboard-mobile-action-button {
+  .rss-dashboard-filters-inline
+    .rss-dashboard-filter-item.rss-dashboard-mobile-action-button {
     width: auto;
     min-width: 118px;
     min-height: 40px;

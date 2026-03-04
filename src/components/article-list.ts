@@ -2116,6 +2116,12 @@ export class ArticleList {
       }
       const contentEl = articleEl.createDiv("rss-dashboard-article-content");
       const mainGrid = contentEl.createDiv("rss-dashboard-article-grid");
+      if (this.showFeedSource) {
+        mainGrid.addClass("rss-dashboard-list-has-source");
+      }
+      if (showListToolbar && !useBottomRow) {
+        mainGrid.addClass("rss-dashboard-list-has-actions");
+      }
       const headlineEl = mainGrid.createDiv("rss-dashboard-grid-headline");
       const titleEl = headlineEl.createDiv({
         cls: "rss-dashboard-article-title rss-dashboard-list-title",

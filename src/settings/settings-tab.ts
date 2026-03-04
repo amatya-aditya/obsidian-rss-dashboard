@@ -108,7 +108,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
-  
   public activateTab(tabName: string): void {
     if (this.tabNames.includes(tabName)) {
       this.currentTab = tabName;
@@ -498,7 +497,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       .setName("Show unread badge: all feeds")
       .addToggle((toggle) =>
         toggle
-          .setValue(this.plugin.settings.display.showAllFeedsUnreadBadges ?? true)
+          .setValue(
+            this.plugin.settings.display.showAllFeedsUnreadBadges ?? true,
+          )
           .onChange(async (value) => {
             this.plugin.settings.display.showAllFeedsUnreadBadges = value;
             await this.plugin.saveSettings();
@@ -575,7 +576,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           });
         text.inputEl.addClass("rss-dashboard-color-hex-input");
       });
-    allFeedsBadgeColorSetting.settingEl.addClass("rss-dashboard-settings-two-row");
+    allFeedsBadgeColorSetting.settingEl.addClass(
+      "rss-dashboard-settings-two-row",
+    );
 
     const folderBadgeColorSetting = new Setting(containerEl)
       .setName("Folder badge color")
@@ -610,7 +613,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           });
         text.inputEl.addClass("rss-dashboard-color-hex-input");
       });
-    folderBadgeColorSetting.settingEl.addClass("rss-dashboard-settings-two-row");
+    folderBadgeColorSetting.settingEl.addClass(
+      "rss-dashboard-settings-two-row",
+    );
 
     const feedBadgeColorSetting = new Setting(containerEl)
       .setName("Feed badge color")
@@ -649,10 +654,8 @@ export class RssDashboardSettingTab extends PluginSettingTab {
 
     const sidebarRowSpacingSetting = new Setting(containerEl)
       .setName("Sidebar row spacing")
-      .setDesc("Adjust the height between rows in the sidebar feed list")
-      ;
-
-    const spacingMin = 5;
+      .setDesc("Adjust the height between rows in the sidebar feed list");
+    const spacingMin = 0;
     const spacingMax = 44;
     const spacingStep = 1;
     let isSyncingSpacingControls = false;
@@ -686,42 +689,45 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           });
       })
       .addText((text) => {
-        const initialValue = this.plugin.settings.display.sidebarRowSpacing ?? 10;
+        const initialValue =
+          this.plugin.settings.display.sidebarRowSpacing ?? 10;
         sidebarRowSpacingInput = text;
-        text
-          .setValue(String(initialValue))
-          .onChange(async (value) => {
-            if (isSyncingSpacingControls) return;
+        text.setValue(String(initialValue)).onChange(async (value) => {
+          if (isSyncingSpacingControls) return;
 
-            const parsed = Number.parseInt(value, 10);
-            if (Number.isNaN(parsed)) return;
+          const parsed = Number.parseInt(value, 10);
+          if (Number.isNaN(parsed)) return;
 
-            const clampedValue = Math.max(spacingMin, Math.min(spacingMax, parsed));
-            isSyncingSpacingControls = true;
-            text.setValue(String(clampedValue));
-            sidebarRowSpacingSlider?.setValue(clampedValue);
-            isSyncingSpacingControls = false;
-            await applySidebarRowSpacing(clampedValue);
-          });
+          const clampedValue = Math.max(
+            spacingMin,
+            Math.min(spacingMax, parsed),
+          );
+          isSyncingSpacingControls = true;
+          text.setValue(String(clampedValue));
+          sidebarRowSpacingSlider?.setValue(clampedValue);
+          isSyncingSpacingControls = false;
+          await applySidebarRowSpacing(clampedValue);
+        });
         text.inputEl.type = "number";
         text.inputEl.min = String(spacingMin);
         text.inputEl.max = String(spacingMax);
         text.inputEl.step = String(spacingStep);
         text.inputEl.addClass("rss-dashboard-settings-number-input");
       });
-    sidebarRowSpacingSetting.settingEl.addClass("rss-dashboard-settings-two-row");
+    sidebarRowSpacingSetting.settingEl.addClass(
+      "rss-dashboard-settings-two-row",
+    );
 
     const sidebarRowIndentationSetting = new Setting(containerEl)
       .setName("Sidebar row indentation")
-      .setDesc("Adjust the indentation of nested items in the sidebar")
-      ;
-
+      .setDesc("Adjust the indentation of nested items in the sidebar");
     const indentationMin = 0;
     const indentationMax = 50;
     const indentationStep = 1;
     let isSyncingIndentationControls = false;
-    let sidebarRowIndentationSlider: { setValue: (value: number) => void } | null =
-      null;
+    let sidebarRowIndentationSlider: {
+      setValue: (value: number) => void;
+    } | null = null;
     let sidebarRowIndentationInput: TextComponent | null = null;
 
     const applySidebarRowIndentation = async (value: number): Promise<void> => {
@@ -753,24 +759,22 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         const initialValue =
           this.plugin.settings.display.sidebarRowIndentation ?? 20;
         sidebarRowIndentationInput = text;
-        text
-          .setValue(String(initialValue))
-          .onChange(async (value) => {
-            if (isSyncingIndentationControls) return;
+        text.setValue(String(initialValue)).onChange(async (value) => {
+          if (isSyncingIndentationControls) return;
 
-            const parsed = Number.parseInt(value, 10);
-            if (Number.isNaN(parsed)) return;
+          const parsed = Number.parseInt(value, 10);
+          if (Number.isNaN(parsed)) return;
 
-            const clampedValue = Math.max(
-              indentationMin,
-              Math.min(indentationMax, parsed),
-            );
-            isSyncingIndentationControls = true;
-            text.setValue(String(clampedValue));
-            sidebarRowIndentationSlider?.setValue(clampedValue);
-            isSyncingIndentationControls = false;
-            await applySidebarRowIndentation(clampedValue);
-          });
+          const clampedValue = Math.max(
+            indentationMin,
+            Math.min(indentationMax, parsed),
+          );
+          isSyncingIndentationControls = true;
+          text.setValue(String(clampedValue));
+          sidebarRowIndentationSlider?.setValue(clampedValue);
+          isSyncingIndentationControls = false;
+          await applySidebarRowIndentation(clampedValue);
+        });
         text.inputEl.type = "number";
         text.inputEl.min = String(indentationMin);
         text.inputEl.max = String(indentationMax);

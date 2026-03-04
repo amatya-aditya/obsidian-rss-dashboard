@@ -60,13 +60,33 @@
 .rss-dashboard-article-grid {
   display: grid;
   grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
-  grid-template-areas:
-    "headline time"
-    "actions source";
+  grid-template-rows: auto;
+  grid-template-areas: "headline time";
   gap: 8px 12px;
   align-items: start;
   width: 100%;
+}
+
+.rss-dashboard-article-grid.rss-dashboard-list-has-source {
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "headline time"
+    "source source";
+}
+
+.rss-dashboard-article-grid.rss-dashboard-list-has-actions {
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "headline time"
+    "actions actions";
+}
+
+.rss-dashboard-article-grid.rss-dashboard-list-has-source.rss-dashboard-list-has-actions {
+  grid-template-rows: auto auto auto;
+  grid-template-areas:
+    "headline time"
+    "source source"
+    "actions actions";
 }
 
 .rss-dashboard-grid-headline {
@@ -101,6 +121,10 @@
   align-items: flex-start;
 }
 
+.rss-dashboard-grid-actions.rss-dashboard-grid-actions-empty {
+  display: none;
+}
+
 .rss-dashboard-grid-actions .rss-dashboard-action-toolbar {
   display: flex;
   gap: 8px;
@@ -120,10 +144,10 @@
 .rss-dashboard-grid-source {
   grid-area: source;
   display: flex;
-  justify-content: flex-end;
-  align-self: end;
+  justify-content: flex-start;
+  align-self: center;
   min-width: 0;
-  max-width: 35%;
+  max-width: 100%;
   overflow: hidden;
 }
 
