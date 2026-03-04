@@ -319,10 +319,13 @@
   white-space: normal;
   text-overflow: ellipsis;
   display: -webkit-box;
+  -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
-  height: 2.8em;
   line-height: 1.4;
+  min-height: calc(2 * 1.4em);
+  max-height: calc(2 * 1.4em);
+  flex-shrink: 0;
   overflow: hidden;
   word-wrap: break-word;
   hyphens: auto;
@@ -409,7 +412,8 @@
   .rss-dashboard-article-title {
     font-size: 1.15em;
     line-height: 1.4;
-    height: 3em;
+    min-height: calc(2 * 1.4em);
+    max-height: calc(2 * 1.4em);
   }
 }
 
@@ -452,7 +456,8 @@
   .rss-dashboard-article-title {
     font-size: 1.05em;
     line-height: 1.35;
-    height: 2.7em;
+    min-height: calc(2 * 1.35em);
+    max-height: calc(2 * 1.35em);
   }
 }
 
@@ -473,7 +478,8 @@
   .rss-dashboard-article-title {
     font-size: 1em;
     line-height: 1.3;
-    height: 2.6em;
+    min-height: calc(2 * 1.3em);
+    max-height: calc(2 * 1.3em);
   }
 
   .rss-dashboard-article-meta {
@@ -506,7 +512,8 @@
   .rss-dashboard-article-title {
     font-size: 1em;
     line-height: 1.35;
-    height: auto;
+    min-height: calc(2 * 1.35em);
+    max-height: calc(2 * 1.35em);
     margin-bottom: 8px;
   }
 
@@ -556,8 +563,10 @@
   .rss-dashboard-article-title {
     font-size: 1em;
     line-height: 1.3;
-    height: auto;
+    min-height: calc(2 * 1.3em);
+    max-height: calc(2 * 1.3em);
     line-clamp: 3;
+    -webkit-line-clamp: 3;
   }
 
   .rss-dashboard-article-meta {
