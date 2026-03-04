@@ -1,7 +1,18 @@
 # Adaptive Sidebar Footer Clearance Plan
 
 Date: 2026-03-04
-Status: Implemented in code; pending device visual validation
+Status: Superseded on 2026-03-04 by top-toolbar simplification
+
+## Superseded Note (2026-03-04)
+
+This adaptive footer-clearance approach was intentionally retired in favor of a deterministic layout:
+
+1. Header/nav + main buttons
+2. Sidebar toolbar
+3. Search dock (when expanded)
+4. Feed/folder list beginning with "All Feeds"
+
+The sidebar toolbar is now top-positioned in all dashboard sidebar surfaces, and footer/device inset compensation logic is no longer used for toolbar placement.
 
 ## Completed Work (2026-03-04)
 

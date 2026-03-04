@@ -145,11 +145,11 @@
   color: var(--text-normal);
 }
 .rss-dashboard-feed-folders-section {
-  order: 3;
+  order: 4;
   flex: 1 1 auto;
   overflow-y: auto;
-  min-height: fit-content;
-  margin-top: 10px;
+  min-height: 0;
+  margin-top: 0;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -281,58 +281,17 @@
   background-color: var(--rss-unread-badge-folder-color, #d85b9f);
 }
 .rss-dashboard-sidebar-toolbar {
-  order: 5;
-  /*
-   * Footer clearance contract:
-   * - visual pad controls how "high" the toolbar feels above the bottom edge
-   * - safe/system/fallback values protect against OS UI overlap
-   * Keep these tokens centralized here so mobile/tablet tweaks do not fork into
-   * component-specific magic numbers.
-   */
-  --rss-toolbar-h-pad: 4px;
+  order: 2;
   z-index: 2;
-  background: var(--background-secondary);
-  border-radius: 0px;
-  border-bottom: 1px solid var(--background-secondary);
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--background-modifier-border);
   display: flex;
   justify-content: space-around;
-  padding-top: var(--rss-footer-visual-pad);
-  padding-right: var(--rss-toolbar-h-pad);
-  padding-left: var(--rss-toolbar-h-pad);
-  padding-bottom: calc(
-    var(--rss-footer-visual-pad) +
-      max(
-        var(--rss-footer-safe-bottom),
-        var(--rss-footer-system-bottom),
-        var(--rss-footer-platform-fallback-bottom)
-      )
-  );
+  gap: 4px;
+  padding: 6px 4px;
   flex-shrink: 0;
-  /* Position toolbar at bottom of sidebar - independent of drawer */
-  position: sticky;
-  bottom: 0;
   width: 100%;
   box-sizing: border-box;
-}
-
-/*
- * Keep iPhone toolbar visually closer to the bottom edge while preserving
- * separate OS-safe clearance from the runtime insets contract.
- */
-@media (max-width: 768px) {
-  .rss-dashboard-sidebar {
-    --rss-footer-visual-pad: 6px;
-  }
-}
-
-/*
- * Tablet gets a touch more visual lift because system UI overlap risk is higher,
- * especially on Android devices where safe-area may under-report.
- */
-@media (min-width: 769px) and (max-width: 1200px) {
-  .rss-dashboard-sidebar {
-    --rss-footer-visual-pad: 10px;
-  }
 }
 
 .rss-dashboard-toolbar-button {
@@ -384,10 +343,6 @@
 .rss-dashboard-sidebar {
   --sidebar-row-spacing: 10px;
   --sidebar-row-indentation: 20px;
-  --rss-footer-visual-pad: 10px;
-  --rss-footer-safe-bottom: env(safe-area-inset-bottom, 0px);
-  --rss-footer-system-bottom: 0px;
-  --rss-footer-platform-fallback-bottom: 0px;
   font-size: 13px;
   padding: 0;
   overflow-y: auto;
@@ -688,7 +643,7 @@
 }
 
 .rss-dashboard-search-dock {
-  order: 4;
+  order: 3;
   flex-shrink: 0;
   padding: 6px 0;
   border-top: 1px solid var(--background-modifier-border);
@@ -697,7 +652,6 @@
 
 @media (max-width: 768px) {
   .rss-dashboard-search-dock {
-    order: 2;
     border-top: none;
     border-bottom: 1px solid var(--background-modifier-border);
   }

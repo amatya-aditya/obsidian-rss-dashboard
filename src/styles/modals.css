@@ -1907,10 +1907,19 @@
   .rss-mobile-discover-filters-modal .modal-content,
   .rss-mobile-feed-manager-modal .modal-content {
     padding: 0;
-    overflow-y: auto;
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-height: 0;
+  }
+
+  .rss-mobile-navigation-modal .modal-content,
+  .rss-mobile-discover-filters-modal .modal-content {
+    overflow: hidden;
+  }
+
+  .rss-mobile-feed-manager-modal .modal-content {
+    overflow-y: auto;
   }
 
   .rss-mobile-feed-manager-modal .modal-content {
@@ -2050,13 +2059,21 @@
   }
 
   .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar {
+    /* Sidebar toolbar is rendered under the header; avoid footer-style offsets. */
     display: flex !important;
     width: 100% !important;
     height: 100%;
     max-height: none;
+    min-height: 0;
     border-right: none;
     padding: 0;
     flex-direction: column;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
     visibility: visible !important;
     opacity: 1 !important;
   }
@@ -2074,10 +2091,41 @@
 
   .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container {
     height: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
     width: 100% !important;
     padding-bottom: 0 !important;
+  }
+
+  .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folders-section {
+    min-height: 0;
+  }
+
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-sidebar-container::-webkit-scrollbar,
+  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-sidebar-container::-webkit-scrollbar-track,
+  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar::-webkit-scrollbar-track {
+    background: var(--background-secondary);
+  }
+
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-sidebar-container::-webkit-scrollbar-thumb,
+  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar::-webkit-scrollbar-thumb {
+    background: var(--background-modifier-border);
+    border-radius: 8px;
   }
 
   .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
@@ -2110,17 +2158,6 @@
       display: flex;
       align-items: center;
       justify-content: flex-start;
-    }
-
-    .modal.rss-mobile-navigation-modal .rss-dashboard-bottom-drawer {
-      padding-bottom: calc(
-        var(--rss-footer-visual-pad, 6px) +
-          max(
-            var(--rss-footer-safe-bottom, env(safe-area-inset-bottom, 0px)),
-            var(--rss-footer-system-bottom, 0px),
-            var(--rss-footer-platform-fallback-bottom, 0px)
-          )
-      );
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button {

@@ -6,7 +6,6 @@
   Modal,
   setIcon,
   Setting,
-  Platform,
 } from "obsidian";
 import {
   Feed,
@@ -17,7 +16,6 @@ import {
   FeedFilterSettings,
 } from "../types/types";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
-import { getViewportTier, setCssProps } from "../utils/platform-utils";
 import type RssDashboardPlugin from "../../main";
 
 export interface SidebarOptions {
@@ -229,8 +227,6 @@ export class Sidebar {
   private isTagsExpanded = false;
   private isRefreshing = false;
   private longPressTimer: number | null = null;
-  private footerInsetSyncCleanup: (() => void) | null = null;
-  private readonly tabletTouchMinFooterClearancePx = 20;
 
   /**
    * Extract main domain from a URL for favicon purposes (without subdomains)
@@ -324,90 +320,10 @@ export class Sidebar {
     this.settings = settings;
     this.options = options;
     this.callbacks = callbacks;
-    this.setupFooterInsetSync();
-  }
-
-  private parsePxValue(rawValue: string): number {
-    const numeric = Number.parseFloat(rawValue);
-    return Number.isFinite(numeric) ? numeric : 0;
-  }
-
-  private updateFooterInsetVariables(): void {
-    const tier = getViewportTier(window.innerWidth);
-    if (tier === "desktop") {
-      setCssProps(this.container, {
-        "--rss-footer-system-bottom": "0px",
-        "--rss-footer-platform-fallback-bottom": "0px",
-      });
-      return;
-    }
-
-    const visualViewport = window.visualViewport;
-    const measuredSystemInset = visualViewport
-      ? Math.max(
-          0,
-          Math.round(
-            window.innerHeight -
-              (visualViewport.height + visualViewport.offsetTop),
-          ),
-        )
-      : 0;
-
-    // Safe-area env() resolves via computed styles, so read the final px value.
-    const computed = window.getComputedStyle(this.container);
-    const safeInsetBottom = this.parsePxValue(
-      computed.getPropertyValue("--rss-footer-safe-bottom"),
-    );
-
-    const isTouchDevice =
-      window.matchMedia("(hover: none) and (pointer: coarse)").matches ||
-      navigator.maxTouchPoints > 0;
-    const isAndroidTouchTablet =
-      tier === "tablet" &&
-      isTouchDevice &&
-      Platform.isAndroidApp;
-    const strongestDetectedInset = Math.max(safeInsetBottom, measuredSystemInset);
-    const fallbackInset =
-      isAndroidTouchTablet &&
-      strongestDetectedInset < this.tabletTouchMinFooterClearancePx
-        ? this.tabletTouchMinFooterClearancePx
-        : 0;
-
-    setCssProps(this.container, {
-      "--rss-footer-system-bottom": `${measuredSystemInset}px`,
-      "--rss-footer-platform-fallback-bottom": `${fallbackInset}px`,
-    });
-  }
-
-  private setupFooterInsetSync(): void {
-    this.footerInsetSyncCleanup?.();
-    this.footerInsetSyncCleanup = null;
-
-    const syncInsets = () => this.updateFooterInsetVariables();
-    syncInsets();
-
-    const visualViewport = window.visualViewport;
-    if (visualViewport) {
-      visualViewport.addEventListener("resize", syncInsets);
-      visualViewport.addEventListener("scroll", syncInsets);
-      window.addEventListener("resize", syncInsets);
-      this.footerInsetSyncCleanup = () => {
-        visualViewport.removeEventListener("resize", syncInsets);
-        visualViewport.removeEventListener("scroll", syncInsets);
-        window.removeEventListener("resize", syncInsets);
-      };
-      return;
-    }
-
-    window.addEventListener("resize", syncInsets);
-    this.footerInsetSyncCleanup = () => {
-      window.removeEventListener("resize", syncInsets);
-    };
   }
 
   public destroy(): void {
-    this.footerInsetSyncCleanup?.();
-    this.footerInsetSyncCleanup = null;
+    // No-op for now; kept for call-site compatibility.
   }
 
   public render(): void {
@@ -446,14 +362,10 @@ export class Sidebar {
       this.settings.display.feedUnreadBadgeColor || "#8e44ad",
     );
 
-    // Re-sync after render so toolbar insets stay accurate after orientation or modal changes.
-    this.updateFooterInsetVariables();
-
     this.renderHeader();
-    this.renderFeedFolders();
-    this.renderSearchDock(this.container);
-    // Toolbar always visible at bottom of sidebar
     this.renderToolbar(this.container);
+    this.renderSearchDock(this.container);
+    this.renderFeedFolders();
 
     requestAnimationFrame(() => {
       this.container.scrollTop = scrollPosition;
