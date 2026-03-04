@@ -2,7 +2,7 @@
   font-size: 14px;
   height: 100%;
   overflow: hidden;
-  padding: 0 6px 6px 6px !important;
+  padding: 0px !important;
   border-top: 1px solid var(--background-modifier-border);
   background-color: var(--background-primary);
   color: var(--text-normal);
