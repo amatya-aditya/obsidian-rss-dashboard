@@ -2113,7 +2113,14 @@
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-bottom-drawer {
-      padding-bottom: calc(2px + env(safe-area-inset-bottom, 0px));
+      padding-bottom: calc(
+        var(--rss-footer-visual-pad, 6px) +
+          max(
+            var(--rss-footer-safe-bottom, env(safe-area-inset-bottom, 0px)),
+            var(--rss-footer-system-bottom, 0px),
+            var(--rss-footer-platform-fallback-bottom, 0px)
+          )
+      );
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button {

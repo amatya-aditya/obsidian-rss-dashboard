@@ -289,11 +289,7 @@
    * Keep these tokens centralized here so mobile/tablet tweaks do not fork into
    * component-specific magic numbers.
    */
-  --rss-footer-visual-pad: 10px;
   --rss-toolbar-h-pad: 4px;
-  --rss-footer-safe-bottom: env(safe-area-inset-bottom, 0px);
-  --rss-footer-system-bottom: 0px;
-  --rss-footer-platform-fallback-bottom: 0px;
   z-index: 2;
   background: var(--background-secondary);
   border-radius: 0px;
@@ -324,8 +320,8 @@
  * separate OS-safe clearance from the runtime insets contract.
  */
 @media (max-width: 768px) {
-  .rss-dashboard-sidebar-toolbar {
-    --rss-footer-visual-pad: 8px;
+  .rss-dashboard-sidebar {
+    --rss-footer-visual-pad: 6px;
   }
 }
 
@@ -334,7 +330,7 @@
  * especially on Android devices where safe-area may under-report.
  */
 @media (min-width: 769px) and (max-width: 1200px) {
-  .rss-dashboard-sidebar-toolbar {
+  .rss-dashboard-sidebar {
     --rss-footer-visual-pad: 10px;
   }
 }
@@ -388,6 +384,10 @@
 .rss-dashboard-sidebar {
   --sidebar-row-spacing: 10px;
   --sidebar-row-indentation: 20px;
+  --rss-footer-visual-pad: 10px;
+  --rss-footer-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --rss-footer-system-bottom: 0px;
+  --rss-footer-platform-fallback-bottom: 0px;
   font-size: 13px;
   padding: 0;
   overflow-y: auto;

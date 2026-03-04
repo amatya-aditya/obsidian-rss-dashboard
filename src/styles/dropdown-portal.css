@@ -68,14 +68,29 @@
 	left: 8px !important;
 	right: 8px !important;
 	top: auto !important;
-	bottom: max(8px, env(safe-area-inset-bottom));
+	bottom: calc(
+		var(--rss-footer-visual-pad, 8px) +
+			max(
+				var(--rss-footer-safe-bottom, env(safe-area-inset-bottom, 0px)),
+				var(--rss-footer-system-bottom, 0px),
+				var(--rss-footer-platform-fallback-bottom, 0px)
+			)
+	);
 	width: auto !important;
 	max-width: none !important;
 	min-width: 0 !important;
 	max-height: calc(100svh - 16px);
 	border-radius: 12px;
 	box-shadow: 0 10px 30px rgb(0 0 0 / 0.28);
-	padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+	padding: 8px 0
+		calc(
+			var(--rss-footer-visual-pad, 8px) +
+				max(
+					var(--rss-footer-safe-bottom, env(safe-area-inset-bottom, 0px)),
+					var(--rss-footer-system-bottom, 0px),
+					var(--rss-footer-platform-fallback-bottom, 0px)
+				)
+		);
 }
 
 .rss-dashboard-tags-sheet-header {

@@ -1,4 +1,13 @@
-﻿import { Menu, MenuItem, Notice, App, Modal, setIcon, Setting } from "obsidian";
+﻿import {
+  Menu,
+  MenuItem,
+  Notice,
+  App,
+  Modal,
+  setIcon,
+  Setting,
+  Platform,
+} from "obsidian";
 import {
   Feed,
   Folder,
@@ -221,7 +230,7 @@ export class Sidebar {
   private isRefreshing = false;
   private longPressTimer: number | null = null;
   private footerInsetSyncCleanup: (() => void) | null = null;
-  private readonly tabletTouchFooterFallbackPx = 12;
+  private readonly tabletTouchMinFooterClearancePx = 20;
 
   /**
    * Extract main domain from a URL for favicon purposes (without subdomains)
@@ -353,12 +362,15 @@ export class Sidebar {
     const isTouchDevice =
       window.matchMedia("(hover: none) and (pointer: coarse)").matches ||
       navigator.maxTouchPoints > 0;
-    const fallbackInset =
+    const isAndroidTouchTablet =
       tier === "tablet" &&
       isTouchDevice &&
-      safeInsetBottom === 0 &&
-      measuredSystemInset === 0
-        ? this.tabletTouchFooterFallbackPx
+      Platform.isAndroidApp;
+    const strongestDetectedInset = Math.max(safeInsetBottom, measuredSystemInset);
+    const fallbackInset =
+      isAndroidTouchTablet &&
+      strongestDetectedInset < this.tabletTouchMinFooterClearancePx
+        ? this.tabletTouchMinFooterClearancePx
         : 0;
 
     setCssProps(this.container, {
