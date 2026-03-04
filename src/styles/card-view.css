@@ -200,18 +200,19 @@
   line-height: 1.5;
   padding: 16px 12px;
   box-sizing: border-box;
-  min-height: unset;
-  max-height: unset;
-  height: auto;
-  display: block;
-  overflow-y: auto;
+  min-height: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+  line-clamp: 8;
+  overflow: hidden;
 }
 
 .rss-dashboard-card-view {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: var(--rss-dashboard-card-gap, 15px);
-  align-items: start;
+  align-items: stretch;
   justify-items: stretch;
   padding: 15px;
 }
@@ -219,6 +220,7 @@
 .rss-dashboard-article-card {
   display: flex;
   flex-direction: column;
+  height: 100%;
   min-height: 360px;
   max-height: 360px;
   background-color: var(--background-secondary);
