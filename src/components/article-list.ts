@@ -197,16 +197,15 @@ export class ArticleList {
   }
 
   private shouldShowToolbarForView(view: "list" | "card"): boolean {
+    if (view === "list") {
+      return this.settings.display.mobileShowListToolbar;
+    }
+
     if (!this.isMobileViewport()) {
       return true;
     }
 
-    const showToolbarSetting =
-      view === "card"
-        ? this.settings.display.mobileShowCardToolbar
-        : this.settings.display.mobileShowListToolbar;
-
-    return showToolbarSetting;
+    return this.settings.display.mobileShowCardToolbar;
   }
 
   private getMobileListToolbarStyle(): "left-grid" | "bottom-row" | "minimal" {
@@ -1784,11 +1783,7 @@ export class ArticleList {
       !showToolbar,
     );
 
-    if (
-      this.settings.viewStyle === "list" &&
-      this.isMobileViewport() &&
-      showToolbar
-    ) {
+    if (this.settings.viewStyle === "list" && showToolbar) {
       articlesList.addClass(
         `rss-dashboard-mobile-list-style-${this.getMobileListToolbarStyle()}`,
       );
@@ -2167,13 +2162,10 @@ export class ArticleList {
           (article.mediaType === "podcast" ? " podcast" : ""),
         attr: { id: `article-${article.guid}` },
       });
-      const isMobileList = this.isMobileViewport();
       const showListToolbar = this.shouldShowToolbarForView("list");
       const listToolbarStyle = this.getMobileListToolbarStyle();
-      const useBottomRow =
-        isMobileList && showListToolbar && listToolbarStyle === "bottom-row";
-      const useMinimal =
-        isMobileList && showListToolbar && listToolbarStyle === "minimal";
+      const useBottomRow = showListToolbar && listToolbarStyle === "bottom-row";
+      const useMinimal = showListToolbar && listToolbarStyle === "minimal";
       if (useBottomRow) {
         articleEl.addClass("rss-dashboard-list-item-bottom-row");
       }
