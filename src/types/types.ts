@@ -183,6 +183,7 @@ export interface DisplaySettings {
   sidebarRowSpacing: number;
   sidebarRowIndentation: number;
   cardColumnsPerRow: number;
+  cardSpacing: number;
 }
 
 export interface HighlightWord {
@@ -406,6 +407,7 @@ guid: "{{guid}}"
     sidebarRowSpacing: 10,
     sidebarRowIndentation: 20,
     cardColumnsPerRow: 0,
+    cardSpacing: 15,
   },
   highlights: {
     enabled: false,

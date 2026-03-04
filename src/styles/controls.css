@@ -390,12 +390,12 @@
   white-space: nowrap;
 }
 
-/* Color square matching the highlight color. CSS variable set inline by renderFilterSubheader() */
+/* Color dot matching the highlight color. CSS variable set inline by renderFilterSubheader() */
 .rss-highlight-dot {
   display: inline-block;
   width: 8px;
   height: 8px;
-  border-radius: 0;
+  border-radius: 50%;
   background-color: var(--highlight-color, #ffd700);
   flex-shrink: 0;
 }
@@ -1026,7 +1026,7 @@
 
 .rss-dashboard-dropdown-controls .rss-dashboard-view-toggle button.active {
   background: rgba(155, 89, 182, 0.22);
-  color: var(--text-normal);
+  color: #f3e8ff;
   border-color: var(--rss-dashboard-dropdown-accent);
 }
 
@@ -1041,7 +1041,7 @@
   padding: 0;
   border: 1px solid #8e44ad;
   background: #8e44ad;
-  color: var(--text-on-accent);
+  color: #fff;
 }
 
 .rss-dashboard-dropdown-controls
@@ -1049,7 +1049,7 @@
   .rss-dashboard-view-refresh-button:hover {
   border-color: #9b59b6;
   background: #9b59b6;
-  color: var(--text-on-accent);
+  color: #fff;
 }
 
 .rss-dashboard-dropdown-controls
@@ -1088,6 +1088,30 @@
 .rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-select:hover,
 .rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-select:focus {
   border-color: var(--rss-dashboard-dropdown-accent);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: 14px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-input:hover,
+.rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-input:focus {
+  border-color: var(--rss-dashboard-dropdown-accent);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-slider {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--rss-dashboard-dropdown-accent);
 }
 
 .rss-dashboard-dropdown-controls .rss-dashboard-refresh-button {

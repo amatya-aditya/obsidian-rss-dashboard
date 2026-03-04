@@ -236,6 +236,14 @@ export class ArticleList {
     return Math.max(1, Math.min(6, Math.round(value)));
   }
 
+  private getCardSpacing(): number {
+    const value = this.settings.display.cardSpacing;
+    if (!Number.isFinite(value)) {
+      return 15;
+    }
+    return Math.max(0, Math.min(40, Math.round(value)));
+  }
+
   private addDocumentListener(
     target: Document,
     type: string,
@@ -1134,9 +1142,46 @@ export class ArticleList {
 
       cardsPerRowSelect.addEventListener("change", (e: Event) => {
         const value = Number((e.target as HTMLSelectElement).value);
+        // Shared with Display settings tab: keep this value normalized in the
+        // same range so either surface can update the same persisted field.
         this.settings.display.cardColumnsPerRow = Number.isFinite(value)
           ? Math.max(0, Math.min(6, Math.round(value)))
           : 0;
+        this.persistSettings();
+        this.render();
+      });
+
+      const cardSpacingRow = articleControls.createDiv({
+        cls: "rss-dashboard-toolbar-mode-row",
+      });
+      const cardSpacingLabel = cardSpacingRow.createSpan({
+        cls: "rss-dashboard-toolbar-mode-label",
+        text: "Card spacing: 15px",
+      });
+
+      const cardSpacingSlider = cardSpacingRow.createEl("input", {
+        cls: "rss-dashboard-toolbar-mode-slider",
+        attr: {
+          type: "range",
+          min: "0",
+          max: "40",
+          step: "1",
+          "aria-label": "Card spacing",
+        },
+      });
+
+      cardSpacingSlider.value = String(this.getCardSpacing());
+      cardSpacingLabel.setText(`Card spacing: ${cardSpacingSlider.value}px`);
+
+      cardSpacingSlider.addEventListener("input", (e: Event) => {
+        const value = Number((e.target as HTMLInputElement).value);
+        const cardSpacing = Number.isFinite(value)
+          ? Math.max(0, Math.min(40, Math.round(value)))
+          : 15;
+        // Shared with Display settings tab; this drives the runtime CSS gap.
+        this.settings.display.cardSpacing = cardSpacing;
+        cardSpacingSlider.value = String(cardSpacing);
+        cardSpacingLabel.setText(`Card spacing: ${cardSpacing}px`);
         this.persistSettings();
         this.render();
       });
@@ -1705,7 +1750,11 @@ export class ArticleList {
       cls: `rss-dashboard-articles-list rss-dashboard-${this.settings.viewStyle}-view`,
     });
     if (this.settings.viewStyle === "card") {
+      // Keep card layout controls in one render-time path so both hamburger
+      // controls and formal settings stay in sync with the same persisted fields.
       const cardColumns = this.getCardColumnsPerRow();
+      const cardSpacing = this.getCardSpacing();
+
       if (cardColumns > 0) {
         articlesList.style.setProperty(
           "grid-template-columns",
@@ -1714,6 +1763,11 @@ export class ArticleList {
       } else {
         articlesList.style.removeProperty("grid-template-columns");
       }
+
+      articlesList.style.setProperty(
+        "--rss-dashboard-card-gap",
+        `${cardSpacing}px`,
+      );
     }
     const showToolbar = this.shouldShowToolbarForView(this.settings.viewStyle);
     articlesList.toggleClass(

@@ -379,6 +379,134 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
+    const cardsPerRowSetting = new Setting(containerEl)
+      .setName("Cards per row")
+      .setDesc("Set card columns in dashboard card view (0 = auto)");
+    const cardsPerRowMin = 0;
+    const cardsPerRowMax = 6;
+    const cardsPerRowStep = 1;
+    let isSyncingCardsPerRowControls = false;
+    let cardsPerRowSlider: { setValue: (value: number) => void } | null = null;
+    let cardsPerRowInput: TextComponent | null = null;
+
+    const applyCardsPerRow = async (value: number): Promise<void> => {
+      // Mirrors the dashboard hamburger control so both surfaces update
+      // the same persisted display setting.
+      this.plugin.settings.display.cardColumnsPerRow = value;
+      await this.plugin.saveSettings();
+      const view = await this.plugin.getActiveDashboardView();
+      if (view) {
+        await this.app.workspace.revealLeaf(view.leaf);
+        view.render();
+      }
+    };
+
+    cardsPerRowSetting
+      .addSlider((slider) => {
+        cardsPerRowSlider = slider;
+        slider
+          .setLimits(cardsPerRowMin, cardsPerRowMax, cardsPerRowStep)
+          .setValue(this.plugin.settings.display.cardColumnsPerRow ?? 0)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            if (isSyncingCardsPerRowControls) return;
+            isSyncingCardsPerRowControls = true;
+            cardsPerRowInput?.setValue(String(value));
+            isSyncingCardsPerRowControls = false;
+            await applyCardsPerRow(value);
+          });
+      })
+      .addText((text) => {
+        const initialValue =
+          this.plugin.settings.display.cardColumnsPerRow ?? 0;
+        cardsPerRowInput = text;
+        text.setValue(String(initialValue)).onChange(async (value) => {
+          if (isSyncingCardsPerRowControls) return;
+
+          const parsed = Number.parseInt(value, 10);
+          if (Number.isNaN(parsed)) return;
+
+          const clampedValue = Math.max(
+            cardsPerRowMin,
+            Math.min(cardsPerRowMax, parsed),
+          );
+          isSyncingCardsPerRowControls = true;
+          text.setValue(String(clampedValue));
+          cardsPerRowSlider?.setValue(clampedValue);
+          isSyncingCardsPerRowControls = false;
+          await applyCardsPerRow(clampedValue);
+        });
+        text.inputEl.type = "number";
+        text.inputEl.min = String(cardsPerRowMin);
+        text.inputEl.max = String(cardsPerRowMax);
+        text.inputEl.step = String(cardsPerRowStep);
+        text.inputEl.addClass("rss-dashboard-settings-number-input");
+      });
+    cardsPerRowSetting.settingEl.addClass("rss-dashboard-settings-two-row");
+
+    const cardSpacingSetting = new Setting(containerEl)
+      .setName("Card spacing")
+      .setDesc("Adjust the spacing between cards in dashboard card view");
+    const cardSpacingMin = 0;
+    const cardSpacingMax = 40;
+    const cardSpacingStep = 1;
+    let isSyncingCardSpacingControls = false;
+    let cardSpacingSlider: { setValue: (value: number) => void } | null = null;
+    let cardSpacingInput: TextComponent | null = null;
+
+    const applyCardSpacing = async (value: number): Promise<void> => {
+      // Mirrors the dashboard hamburger control and feeds card-view grid gap.
+      this.plugin.settings.display.cardSpacing = value;
+      await this.plugin.saveSettings();
+      const view = await this.plugin.getActiveDashboardView();
+      if (view) {
+        await this.app.workspace.revealLeaf(view.leaf);
+        view.render();
+      }
+    };
+
+    cardSpacingSetting
+      .addSlider((slider) => {
+        cardSpacingSlider = slider;
+        slider
+          .setLimits(cardSpacingMin, cardSpacingMax, cardSpacingStep)
+          .setValue(this.plugin.settings.display.cardSpacing ?? 15)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            if (isSyncingCardSpacingControls) return;
+            isSyncingCardSpacingControls = true;
+            cardSpacingInput?.setValue(String(value));
+            isSyncingCardSpacingControls = false;
+            await applyCardSpacing(value);
+          });
+      })
+      .addText((text) => {
+        const initialValue = this.plugin.settings.display.cardSpacing ?? 15;
+        cardSpacingInput = text;
+        text.setValue(String(initialValue)).onChange(async (value) => {
+          if (isSyncingCardSpacingControls) return;
+
+          const parsed = Number.parseInt(value, 10);
+          if (Number.isNaN(parsed)) return;
+
+          const clampedValue = Math.max(
+            cardSpacingMin,
+            Math.min(cardSpacingMax, parsed),
+          );
+          isSyncingCardSpacingControls = true;
+          text.setValue(String(clampedValue));
+          cardSpacingSlider?.setValue(clampedValue);
+          isSyncingCardSpacingControls = false;
+          await applyCardSpacing(clampedValue);
+        });
+        text.inputEl.type = "number";
+        text.inputEl.min = String(cardSpacingMin);
+        text.inputEl.max = String(cardSpacingMax);
+        text.inputEl.step = String(cardSpacingStep);
+        text.inputEl.addClass("rss-dashboard-settings-number-input");
+      });
+    cardSpacingSetting.settingEl.addClass("rss-dashboard-settings-two-row");
+
     new Setting(containerEl)
       .setName("Show filter status bar")
       .setDesc(

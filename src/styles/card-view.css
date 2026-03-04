@@ -210,7 +210,7 @@
 .rss-dashboard-card-view {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 15px;
+  gap: var(--rss-dashboard-card-gap, 15px);
   align-items: start;
   justify-items: stretch;
   padding: 15px;
@@ -383,7 +383,7 @@
 
 @media (min-width: 1600px) {
   .rss-dashboard-card-view {
-    gap: 20px;
+    gap: var(--rss-dashboard-card-gap, 20px);
   }
 
   .rss-dashboard-article-card {
@@ -394,7 +394,7 @@
 
 @media (min-width: 1400px) and (max-width: 1599px) {
   .rss-dashboard-card-view {
-    gap: 20px;
+    gap: var(--rss-dashboard-card-gap, 20px);
   }
 
   .rss-dashboard-article-card {
@@ -415,7 +415,7 @@
 
 @media (min-width: 1200px) and (max-width: 1399px) {
   .rss-dashboard-card-view {
-    gap: 18px;
+    gap: var(--rss-dashboard-card-gap, 18px);
   }
 
   .rss-dashboard-article-card {
@@ -426,7 +426,7 @@
 
 @media (min-width: 1000px) and (max-width: 1199px) {
   .rss-dashboard-card-view {
-    gap: 16px;
+    gap: var(--rss-dashboard-card-gap, 16px);
   }
 
   .rss-dashboard-article-card {
@@ -441,7 +441,7 @@
 
 @media (min-width: 900px) and (max-width: 999px) {
   .rss-dashboard-card-view {
-    gap: 15px;
+    gap: var(--rss-dashboard-card-gap, 15px);
   }
 
   .rss-dashboard-article-card {
@@ -458,7 +458,7 @@
 
 @media (min-width: 768px) and (max-width: 899px) {
   .rss-dashboard-card-view {
-    gap: 14px;
+    gap: var(--rss-dashboard-card-gap, 14px);
   }
 
   .rss-dashboard-article-card {
@@ -490,7 +490,7 @@
 @media (max-width: 599px) {
   .rss-dashboard-card-view {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: var(--rss-dashboard-card-gap, 12px);
   }
 
   .rss-dashboard-article-card {
@@ -541,7 +541,7 @@
 @media (max-width: 319px) {
   .rss-dashboard-card-view {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: var(--rss-dashboard-card-gap, 8px);
   }
 
   .rss-dashboard-article-card {
