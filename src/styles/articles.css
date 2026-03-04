@@ -87,6 +87,10 @@
 	color: var(--text-on-accent);
 }
 
+.theme-light .rss-dashboard-view-toggle button.active {
+	color: #000;
+}
+
 .rss-dashboard-articles-list {
 	display: flex;
 	flex-direction: column;

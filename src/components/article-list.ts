@@ -1041,7 +1041,10 @@ export class ArticleList {
       this.callbacks.onToggleViewStyle("card");
     });
 
-    if (isDropdown && this.isMobileViewport()) {
+    if (
+      isDropdown &&
+      (this.settings.viewStyle === "list" || this.isMobileViewport())
+    ) {
       const toolbarModeRow = articleControls.createDiv({
         cls: "rss-dashboard-toolbar-mode-row",
       });
@@ -1183,7 +1186,13 @@ export class ArticleList {
         cardSpacingSlider.value = String(cardSpacing);
         cardSpacingLabel.setText(`Card spacing: ${cardSpacing}px`);
         this.persistSettings();
-        this.render();
+        const currentArticlesList = this.container.querySelector<HTMLElement>(
+          ".rss-dashboard-articles-list.rss-dashboard-card-view",
+        );
+        currentArticlesList?.style.setProperty(
+          "--rss-dashboard-card-gap",
+          `${cardSpacing}px`,
+        );
       });
     }
 

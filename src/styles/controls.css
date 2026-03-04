@@ -1030,6 +1030,13 @@
   border-color: var(--rss-dashboard-dropdown-accent);
 }
 
+.theme-light
+  .rss-dashboard-dropdown-controls
+  .rss-dashboard-view-toggle
+  button.active {
+  color: #000;
+}
+
 .rss-dashboard-dropdown-controls
   .rss-dashboard-view-toggle
   .rss-dashboard-view-refresh-button {
