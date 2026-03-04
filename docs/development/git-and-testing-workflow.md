@@ -21,7 +21,6 @@ This document captures the local quality gates used during day-to-day developmen
 - Script: `test:unit` in `package.json`
 - Runner: `vitest run --config vitest.config.mjs`
 - Current scope: `test_files/unit/**/*.test.ts`
-- Current tests include AI summary service coverage in `test_files/unit/ai-summary-service.test.ts`.
 
 ## Setup for new machines/contributors
 

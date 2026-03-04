@@ -1789,6 +1789,7 @@ export class RssDashboardView extends ItemView {
     if (this.articleList) {
       this.articleList.destroy();
     }
+    this.sidebar?.destroy();
     this.resizeHandle = null;
     this.dashboardContainer = null;
     return Promise.resolve();

@@ -153,6 +153,7 @@ export class MobileNavigationModal extends Modal {
   }
 
   onClose() {
+    this.sidebar?.destroy();
     const { contentEl } = this;
     contentEl.empty();
     this.resizeHandle = null;
