@@ -1034,7 +1034,30 @@
   .rss-dashboard-dropdown-controls
   .rss-dashboard-view-toggle
   button.active {
-  color: #000;
+  color: #000 !important;
+}
+
+.theme-light
+  .rss-dashboard-dropdown-controls
+  .rss-dashboard-view-toggle
+  button.active
+  svg {
+  color: #000 !important;
+}
+
+body:not(.theme-dark)
+  .rss-dashboard-dropdown-controls
+  .rss-dashboard-view-toggle
+  button.active {
+  color: #000 !important;
+}
+
+body:not(.theme-dark)
+  .rss-dashboard-dropdown-controls
+  .rss-dashboard-view-toggle
+  button.active
+  svg {
+  color: #000 !important;
 }
 
 .rss-dashboard-dropdown-controls

@@ -87,8 +87,14 @@
 	color: var(--text-on-accent);
 }
 
-.theme-light .rss-dashboard-view-toggle button.active {
-	color: #000;
+.theme-light .rss-dashboard-view-toggle button.active,
+body:not(.theme-dark) .rss-dashboard-view-toggle button.active {
+	color: #000 !important;
+}
+
+.theme-light .rss-dashboard-view-toggle button.active svg,
+body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
+	color: #000 !important;
 }
 
 .rss-dashboard-articles-list {
