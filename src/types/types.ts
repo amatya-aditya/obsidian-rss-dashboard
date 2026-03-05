@@ -155,6 +155,7 @@ export interface DisplaySettings {
   showCoverImage: boolean;
   showSummary: boolean;
   showFilterStatusBar: boolean;
+  showSidebarScrollbar: boolean;
   showAllFeedsUnreadBadges: boolean;
   showFolderUnreadBadges: boolean;
   showFeedUnreadBadges: boolean;
@@ -386,6 +387,7 @@ guid: "{{guid}}"
     showCoverImage: true,
     showSummary: true,
     showFilterStatusBar: true,
+    showSidebarScrollbar: true,
     showAllFeedsUnreadBadges: true,
     showFolderUnreadBadges: true,
     showFeedUnreadBadges: true,

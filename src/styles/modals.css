@@ -2146,6 +2146,18 @@
     border-radius: 8px;
   }
 
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
   .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
     display: block !important;
     left: 0;

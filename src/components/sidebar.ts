@@ -387,8 +387,14 @@ export class Sidebar {
   }
 
   private renderFeedFolders(): void {
+    const showSidebarScrollbar =
+      this.settings.display.showSidebarScrollbar ?? true;
     const feedFoldersSection = this.container.createDiv({
-      cls: "rss-dashboard-feed-folders-section",
+      cls:
+        "rss-dashboard-feed-folders-section" +
+        (showSidebarScrollbar
+          ? ""
+          : " rss-dashboard-feed-folders-section--scrollbar-hidden"),
     });
     const folderUnreadCountMap = this.buildFolderUnreadCountMap();
 

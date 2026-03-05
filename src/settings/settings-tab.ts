@@ -586,6 +586,23 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     new Setting(containerEl).setName("Sidebar").setHeading();
 
     new Setting(containerEl)
+      .setName("Show sidebar scrollbar")
+      .setDesc("Show the scrollbar in the sidebar feed list")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.display.showSidebarScrollbar ?? true)
+          .onChange(async (value) => {
+            this.plugin.settings.display.showSidebarScrollbar = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      );
+
+    new Setting(containerEl)
       .setName("Use domain favicons")
       .setDesc(
         "Show domain-specific favicons instead of generic RSS icons for feeds",

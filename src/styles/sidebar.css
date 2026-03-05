@@ -501,6 +501,16 @@
   border-radius: 8px;
 }
 
+.rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 /* Refresh button in filters section */
 .rss-dashboard-refresh-button:hover {
   color: var(--text-accent);
