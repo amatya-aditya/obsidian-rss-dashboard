@@ -2171,12 +2171,16 @@
       display: none !important;
     }
 
-    .modal.rss-mobile-navigation-modal.rss-mobile-platform-ios {
-      --rss-dashboard-header-top-padding: calc(2px + env(safe-area-inset-top, 0px));
-    }
-
+    .modal.rss-mobile-navigation-modal.rss-mobile-platform-ios,
     .modal.rss-mobile-discover-filters-modal.rss-mobile-platform-ios {
-      --rss-discover-header-top-padding: calc(8px + env(safe-area-inset-top, 0px));
+      --rss-ios-top-safe-raw: env(safe-area-inset-top, 0px);
+      --rss-ios-top-safe-effective: clamp(
+        0px,
+        calc(var(--rss-ios-top-safe-raw) - 40px),
+        12px
+      );
+      --rss-dashboard-header-top-padding: calc(4px + var(--rss-ios-top-safe-effective));
+      --rss-discover-header-top-padding: calc(8px + var(--rss-ios-top-safe-effective));
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-header {

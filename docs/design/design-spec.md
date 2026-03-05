@@ -109,6 +109,7 @@ Rules:
 
 - Platform marker classes (`.rss-mobile-platform-ios`, `.rss-mobile-platform-android`) live on mobile modal root elements.
 - Mobile sidebar header top-padding tokens and rules are defined in `src/styles/modals.css`, including `.modal.rss-mobile-navigation-modal .rss-dashboard-header` and `.modal.rss-mobile-discover-filters-modal .rss-discover-header`.
+- iPhone modal header top spacing must use normalized safe-area tokens (not direct raw `env(safe-area-inset-top)` additions) to avoid duplicate status-bar clearance/headroom.
 
 ## Color and Token Usage
 
