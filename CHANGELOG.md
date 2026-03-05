@@ -1,65 +1,100 @@
 # RSS Dashboard - Changelog
 
-## [2.2.10] - 2026-03-02
+## [2.2.10] - March 5, 2026
 
-### Highlights
+> Large feature release built on top of 2.1.9, focused on content filtering, word highlighting, Discover workflow improvements, mobile/tablet UX, and feed management quality-of-life updates.
 
-- Large feature release on top of upstream `2.0.0`, focused on filtering, discover workflow improvements, mobile/tablet UX, and feed management quality-of-life updates.
+---
 
-### New Features
+### ✨ New Features
 
-- Added keyword and phrase filtering with global and per-feed rule sets (via Add & Edit feed modals):
-  - Include/exclude rules with exact or partial matching
-  - Selectable rule targets: title, summary, content
-  - Rule logic (`AND` or `OR`)
-  - Per-feed "Override global filters" support
-  - Dashboard-level "Bypass All Filters" toggle
-- Added Word Highlighting feature:
-  - Custom Word Highlights: Add words or phrases to be highlighted in article titles, summaries, and content
-  - Per-Word Colors: Each highlight word can have its own custom color
-  - Flexible Location Control: Choose where highlights appear:
-    - Titles in list/card view
-    - Summaries in card view
-    - Content in reader view
-  - Case Sensitivity Option: Match words with exact case or case-insensitive
-  - Per-Word Whole Word Matching: Each highlight word can be set to match whole words only or partial matches
-  - Default Color Setting: Set a default highlight color for new words
-  - Quick Toggle in Filter Menu: "Show Highlights" toggle in the Filters menu for quick enable/disable
-- Added new customizable 'unread' badges for 'All feeds' button, Folder rows, and Feed rows -
-  - Added ability in settings to show/hide each and custom colors for badges
-- Customizable sidebar row spacing and indentation via settings
-- Added article search on the dashboard page
-- Added Kagi Smallweb integration (50 most recently updated feeds, 5 hour refresh) in Discover view
-- Added support for Apple Podcasts URLs
-- Added new folder selector popup for Discover and Smallweb follow action
-- Added feed filtering in Discover (All / Followed / Unfollowed)
-- Added modern OPML import modal with validation, preview, and update/overwrite modes.
-- Added auto-folder assignment expansion for podcasts and standard RSS feeds.
-- Added resizable sidebars to both the left and right panes.
+#### Keyword & Phrase Filtering
 
-### Settings
+- Global and per-feed filter rule sets, configurable via the Add & Edit Feed modals
+- Include/exclude rules with exact or partial matching
+- Selectable rule targets: title, summary, or content
+- Rule logic: AND or OR per rule set
+- Per-feed "Override global filters" support
+- Dashboard-level "Bypass All Filters" toggle
+- Clear-search button and filter status area with optional match statistics
 
-- New "Highlights" settings tab
-- New "Filters" settings tab
-- Updated "Display" settings tab, including new sidebar row features and new list/card toolbar options
+#### Word Highlighting
 
-### UI/UX Improvements
+- Highlight custom words or phrases in article titles, summaries, and reader content
+- Per-word custom colors and a configurable default highlight color for new entries
+- Per-word whole-word matching (exact or partial)
+- Case sensitivity option per highlight word
+- Location control: titles in list/card view, summaries in card view, content in reader view
+- Quick "Show Highlights" toggle in the Filters menu
 
-- Sidebar button makeover
-- Consolidated RSS, Podcast, and Youtube add-feed workflows for more streamlined flow
-- Simplified Discover controls and improved category tree behavior/hierarchy.
-- Redesigned Add/Edit feed modal experiences and filter editor layout.
-- Improved responsive behavior for mobile/tablet navigation, modal presentation, and card density.
-- Improved reader/action-toolbar ergonomics and related interaction consistency.
+#### Dashboard & Navigation Controls
 
-### Bug Fixes
+- Cards-per-row selector in the hamburger menu and Display settings
+- Custom card spacing slider in the hamburger menu and Display settings
+- Mark All Unread button added alongside Mark All Read in the hamburger menu
+- Article search on the dashboard page
+- Resizable left and right sidebars
 
-- Fixed feed filter edits not refreshing dashboard content immediately.
-- Fixed Discover category indentation, badge alignment, and sorting consistency.
-- Fixed resizable sidebar handle lifecycle/render timing regressions.
-- Fixed mobile/tablet issues across manage-feeds modal access, hamburger visibility, and close-button alignment.
-- Fixed OPML post-import refresh/state update issues.
-- Fixed multiple build/lint/type issues affecting release stability.
+#### Sidebar Customization
+
+- Configurable row spacing and indentation via settings
+- Adjustable left and right sidebar padding
+- Option to show or hide the sidebar scrollbar
+- Customizable unread badges for All Feeds, Folder rows, and Feed rows — with per-badge visibility toggles and custom colors
+
+#### Discover & Feed Management
+
+- Kagi Smallweb integration (50 most recently updated independent feeds, refreshed every 5 hours)
+- Feed filtering in Discover: All / Followed / Unfollowed
+- Folder picker popup for Discover and Smallweb follow actions
+- Follow-status indicators and streamlined follow actions throughout Discover
+- Apple Podcasts URL support
+- Smarter auto-folder assignment for podcasts, RSS feeds, and YouTube/video feeds
+- Modern OPML import modal with validation, preview, and update/overwrite modes
+- Option to delete a folder or delete all feeds from the OPML import flow
+
+#### Settings
+
+- New **Highlights** settings tab
+- New **Filters** settings tab
+- Updated **Display** settings tab with new sidebar row controls and list/card toolbar options
+
+---
+
+### 🛠 Improvements
+
+- Consolidated RSS, Podcast, and YouTube add-feed workflows into a more streamlined unified flow
+- Redesigned Add/Edit Feed modal with clearer actions, better icon and button alignment, and improved mobile usability
+- Simplified Discover controls — removed redundant menus, tightened button and filter layout, improved category tree hierarchy and sorting
+- Sidebar button and navigation layout reworked for cleaner behavior across desktop, tablet, and mobile
+- Improved list and card readability: stabilized row heights, prevented title squishing, normalized feed label truncation
+- Dashboard spacing changes no longer force disruptive re-renders
+- Light-mode color toggles remain readable after theme changes
+- Unified action toolbar in Reader view with configurable mobile toolbar mode options
+- Improved responsive drawer and modal spacing for more consistent behavior with Obsidian on mobile
+- Cleaner settings layouts for badge and status controls with better mobile/tablet organization
+
+---
+
+### 🐛 Bug Fixes
+
+- Fixed feed filter edits not refreshing dashboard content immediately
+- Fixed intermittent filter menu closures caused by stale outside-click listeners
+- Fixed unread/read state updates so articles are correctly removed and reinserted when filters are active
+- Fixed scroll-jump issues — position is now preserved when filtering articles or changing follow state in Discover
+- Fixed multiple mobile/tablet sidebar issues including missing hamburger/toolbar icons and incorrect header inset behavior on iOS and Android
+- Fixed an iOS rendering issue where the article scroll layer could cover the filter status bar
+- Fixed OPML workflows: resolved iOS export failures and duplication, and ensured imported feeds refresh correctly in the sidebar
+- Fixed mobile tag management issues including keyboard overlap, missing delete actions, and incorrect settings redirects
+- Fixed Discover category indentation, badge alignment, and sorting consistency
+- Fixed resizable sidebar handle lifecycle and render timing regressions
+- Fixed sidebar and Discover edge cases: broken resize-handle behavior, stale folder cache after import, and filter visibility mismatches
+- Fixed mobile/tablet issues across manage-feeds modal access, hamburger visibility, and close-button alignment
+- Fixed multiple build, lint, and type issues affecting release stability
+
+---
+
+_Released by [@marcd35](https://github.com/marcd35) · Fork of [amatya-aditya/obsidian-rss-dashboard](https://github.com/amatya-aditya/obsidian-rss-dashboard)_
 
 ---
 
