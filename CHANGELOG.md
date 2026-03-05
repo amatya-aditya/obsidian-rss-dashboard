@@ -1,6 +1,25 @@
 # RSS Dashboard - Changelog
 
-## [2.2.10] - March 5, 2026
+## [2.2.16] - March 5, 2026
+
+### Added
+
+- Added new 2.2 feature screenshots under `assets/2.2/` for documentation.
+
+### Improved
+
+- Refined highlight-word editing controls and responsive settings layout.
+- Consolidated sidebar badge controls into a simpler 3-row settings layout.
+- Refreshed changelog content to match the latest PR scope.
+
+### Fixed
+
+- Fixed sidebar row spacing via sidebar settings.
+- Fixed highlight status bar refresh behavior. No longer refreshes entire dashboard.
+
+---
+
+## [2.2.15] - March 5, 2026
 
 > Large feature release built on top of 2.1.9, focused on content filtering, word highlighting, Discover workflow improvements, mobile/tablet UX, and feed management quality-of-life updates.
 
