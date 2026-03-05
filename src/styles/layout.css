@@ -118,6 +118,9 @@
 }
 
 .rss-dashboard-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 6px 12px;
   min-height: 34px;
   border-radius: 6px;
@@ -125,6 +128,9 @@
   background: var(--background-modifier-active-hover);
   font-size: 14px;
   font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -159,6 +165,18 @@
 
 /* Tablet and below: hide dashboard sidebar in favor of mobile navigation modal. */
 @media (max-width: 1200px) {
+  .rss-dashboard-nav-container {
+    gap: 0.375rem;
+  }
+
+  .rss-dashboard-nav-button,
+  .rss-dashboard-nav-button.active {
+    min-height: 30px;
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 5px;
+  }
+
   .rss-dashboard-sidebar {
     display: none !important;
   }
@@ -169,5 +187,14 @@
 
   .rss-dashboard-container {
     padding: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .rss-dashboard-nav-button,
+  .rss-dashboard-nav-button.active {
+    min-height: 28px;
+    padding: 3px 8px;
+    font-size: 11px;
   }
 }

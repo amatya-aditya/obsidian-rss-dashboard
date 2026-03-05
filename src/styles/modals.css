@@ -2159,16 +2159,14 @@
       justify-content: flex-start;
     }
 
-    .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button {
-      font-size: 18px;
-      padding: 12px 20px;
-      min-height: 48px;
-    }
-
-    .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button {
-      font-size: 18px;
-      padding: 12px 20px;
-      min-height: 48px;
+    .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button,
+    .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button.active,
+    .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button,
+    .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button.active {
+      font-size: 12px;
+      padding: 4px 10px;
+      min-height: 30px;
+      line-height: 1.2;
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-feed {
