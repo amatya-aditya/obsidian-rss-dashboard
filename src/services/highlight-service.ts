@@ -1,5 +1,12 @@
 import { HighlightSettings, HighlightWord } from "../types/types";
 
+interface HighlightMatch {
+  start: number;
+  end: number;
+  text: string;
+  word: HighlightWord;
+}
+
 /**
  * Service for applying word highlights to article content.
  * Uses DOM traversal to safely highlight text without breaking HTML structure.
@@ -22,11 +29,6 @@ export class HighlightService {
 
     const enabledWords = this.settings.words.filter((w) => w.enabled);
     if (enabledWords.length === 0) {
-      return;
-    }
-
-    const pattern = this.buildPattern(enabledWords);
-    if (!pattern) {
       return;
     }
 
@@ -59,7 +61,7 @@ export class HighlightService {
 
     // Process each text node
     for (const textNode of textNodes) {
-      this.highlightTextNode(textNode, pattern, enabledWords);
+      this.highlightTextNode(textNode, enabledWords);
     }
   }
 
@@ -77,16 +79,26 @@ export class HighlightService {
       return text;
     }
 
-    const pattern = this.buildPattern(enabledWords);
-    if (!pattern) {
+    const matches = this.collectMatches(text, enabledWords);
+    if (matches.length === 0) {
       return text;
     }
 
-    return text.replace(pattern, (match) => {
-      const word = this.findWordForMatch(match, enabledWords);
-      const color = word?.color || this.settings.defaultColor;
-      return `<mark class="rss-highlight" style="--highlight-color: ${color}">${match}</mark>`;
-    });
+    let lastIndex = 0;
+    let result = "";
+    for (const match of matches) {
+      if (match.start > lastIndex) {
+        result += text.slice(lastIndex, match.start);
+      }
+      const color = match.word.color || this.settings.defaultColor;
+      result += `<mark class="rss-highlight" style="--highlight-color: ${color}">${match.text}</mark>`;
+      lastIndex = match.end;
+    }
+    if (lastIndex < text.length) {
+      result += text.slice(lastIndex);
+    }
+
+    return result;
   }
 
   /**
@@ -105,8 +117,8 @@ export class HighlightService {
       return;
     }
 
-    const pattern = this.buildPattern(enabledWords);
-    if (!pattern) {
+    const matches = this.collectMatches(text, enabledWords);
+    if (matches.length === 0) {
       element.textContent = text;
       return;
     }
@@ -115,7 +127,7 @@ export class HighlightService {
     element.empty();
 
     // Build fragments and create DOM nodes
-    const fragments = this.buildFragments(text, pattern, enabledWords);
+    const fragments = this.buildFragments(text, matches);
     for (const fragment of fragments) {
       if (fragment.isMatch) {
         const mark = document.createElement("mark");
@@ -137,8 +149,7 @@ export class HighlightService {
    */
   private buildFragments(
     text: string,
-    pattern: RegExp,
-    words: HighlightWord[],
+    matches: HighlightMatch[],
   ): Array<{ text: string; isMatch: boolean; word?: HighlightWord }> {
     const fragments: Array<{
       text: string;
@@ -146,7 +157,6 @@ export class HighlightService {
       word?: HighlightWord;
     }> = [];
 
-    const matches = [...text.matchAll(pattern)];
     if (matches.length === 0) {
       fragments.push({ text, isMatch: false });
       return fragments;
@@ -154,25 +164,22 @@ export class HighlightService {
 
     let lastIndex = 0;
     for (const match of matches) {
-      const matchIndex = match.index ?? 0;
-      const matchText = match[0];
-
       // Add text before the match
-      if (matchIndex > lastIndex) {
+      if (match.start > lastIndex) {
         fragments.push({
-          text: text.slice(lastIndex, matchIndex),
+          text: text.slice(lastIndex, match.start),
           isMatch: false,
         });
       }
 
       // Add the match
       fragments.push({
-        text: matchText,
+        text: match.text,
         isMatch: true,
-        word: this.findWordForMatch(matchText, words),
+        word: match.word,
       });
 
-      lastIndex = matchIndex + matchText.length;
+      lastIndex = match.end;
     }
 
     // Add remaining text after last match
@@ -189,57 +196,17 @@ export class HighlightService {
   /**
    * Process a single text node and wrap matches in <mark> tags.
    */
-  private highlightTextNode(
-    textNode: Text,
-    pattern: RegExp,
-    words: HighlightWord[],
-  ): void {
+  private highlightTextNode(textNode: Text, words: HighlightWord[]): void {
     const text = textNode.textContent;
     if (!text) return;
 
-    const matches = [...text.matchAll(pattern)];
+    const matches = this.collectMatches(text, words);
     if (matches.length === 0) return;
 
     const parent = textNode.parentNode;
     if (!parent) return;
 
-    // Build a list of fragments to insert
-    const fragments: Array<{
-      text: string;
-      isMatch: boolean;
-      word?: HighlightWord;
-    }> = [];
-    let lastIndex = 0;
-
-    for (const match of matches) {
-      const matchIndex = match.index ?? 0;
-      const matchText = match[0];
-
-      // Add text before the match
-      if (matchIndex > lastIndex) {
-        fragments.push({
-          text: text.slice(lastIndex, matchIndex),
-          isMatch: false,
-        });
-      }
-
-      // Add the match
-      fragments.push({
-        text: matchText,
-        isMatch: true,
-        word: this.findWordForMatch(matchText, words),
-      });
-
-      lastIndex = matchIndex + matchText.length;
-    }
-
-    // Add remaining text after last match
-    if (lastIndex < text.length) {
-      fragments.push({
-        text: text.slice(lastIndex),
-        isMatch: false,
-      });
-    }
+    const fragments = this.buildFragments(text, matches);
 
     // Create new DOM nodes
     const newNodes: Node[] = [];
@@ -266,28 +233,69 @@ export class HighlightService {
   }
 
   /**
-   * Build a regex pattern from the highlight words.
-   * Each word can have its own wholeWord preference.
+   * Collect non-overlapping matches for all enabled words.
+   * Matches are ordered left-to-right; if multiple words start at the same
+   * position, the longest match wins.
    */
-  private buildPattern(words: HighlightWord[]): RegExp | null {
-    if (words.length === 0) return null;
+  private collectMatches(text: string, words: HighlightWord[]): HighlightMatch[] {
+    if (!text || words.length === 0) return [];
 
-    // Sort words by length (longest first) to ensure longer matches are found first
-    const sortedWords = [...words].sort(
-      (a, b) => b.text.length - a.text.length,
-    );
+    const rawMatches: Array<HighlightMatch & { priority: number }> = [];
+    words.forEach((word, priority) => {
+      const regex = this.getWordRegex(word);
+      if (!regex) return;
 
-    // Build pattern with word boundaries per-word
-    const patternParts = sortedWords.map((word) => {
-      const escaped = this.escapeRegex(word.text);
-      if (word.wholeWord) {
-        return `(?<=^|\\W)(${escaped})(?=$|\\W)`;
+      for (const match of text.matchAll(regex)) {
+        const matchText = match[0];
+        if (!matchText) continue;
+        const start = match.index ?? -1;
+        if (start < 0) continue;
+        rawMatches.push({
+          start,
+          end: start + matchText.length,
+          text: matchText,
+          word,
+          priority,
+        });
       }
-      return `(${escaped})`;
     });
 
-    const flags = this.settings.caseSensitive ? "g" : "gi";
-    return new RegExp(patternParts.join("|"), flags);
+    rawMatches.sort((a, b) => {
+      if (a.start !== b.start) return a.start - b.start;
+      const lenDiff = b.text.length - a.text.length;
+      if (lenDiff !== 0) return lenDiff;
+      return a.priority - b.priority;
+    });
+
+    const resolved: HighlightMatch[] = [];
+    let lastEnd = -1;
+    for (const candidate of rawMatches) {
+      if (candidate.start < lastEnd) continue;
+      resolved.push({
+        start: candidate.start,
+        end: candidate.end,
+        text: candidate.text,
+        word: candidate.word,
+      });
+      lastEnd = candidate.end;
+    }
+
+    return resolved;
+  }
+
+  /**
+   * Build the regex for one word using per-word whole-word and case sensitivity.
+   */
+  private getWordRegex(word: HighlightWord): RegExp | null {
+    const rawText = word.text?.trim();
+    if (!rawText) return null;
+
+    const escaped = this.escapeRegex(rawText);
+    const pattern = word.wholeWord
+      ? `(?<=^|\\W)(${escaped})(?=$|\\W)`
+      : `(${escaped})`;
+    const flags = word.caseSensitive ? "g" : "gi";
+    return new RegExp(pattern, flags);
   }
 
   /**
@@ -295,25 +303,6 @@ export class HighlightService {
    */
   private escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  }
-
-  /**
-   * Find the HighlightWord object for a matched text.
-   */
-  private findWordForMatch(
-    matchText: string,
-    words: HighlightWord[],
-  ): HighlightWord | undefined {
-    const compareText = this.settings.caseSensitive
-      ? matchText
-      : matchText.toLowerCase();
-
-    return words.find((w) => {
-      const wordText = this.settings.caseSensitive
-        ? w.text
-        : w.text.toLowerCase();
-      return wordText === compareText;
-    });
   }
 
   /**

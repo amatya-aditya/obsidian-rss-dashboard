@@ -88,6 +88,125 @@ class TemplateNameModal extends Modal {
   }
 }
 
+class HighlightWordEditModal extends Modal {
+  private value: string;
+  private result: string | null = null;
+  private resolvePromise: ((value: string | null) => void) | null = null;
+
+  constructor(app: App, initialValue: string) {
+    super(app);
+    this.value = initialValue;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    contentEl.createEl("h2", { text: "Edit highlight word" });
+
+    let inputComponent: TextComponent;
+    new Setting(contentEl).setName("Word or phrase").addText((text) => {
+      inputComponent = text;
+      text.setValue(this.value);
+      text.inputEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          this.result = text.getValue();
+          this.close();
+        }
+      });
+    });
+
+    new Setting(contentEl)
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => {
+          this.result = null;
+          this.close();
+        }),
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Save")
+          .setCta()
+          .onClick(() => {
+            this.result = inputComponent.getValue();
+            this.close();
+          }),
+      );
+
+    setTimeout(() => {
+      inputComponent.inputEl.focus();
+      inputComponent.inputEl.select();
+    }, 50);
+  }
+
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+    if (this.resolvePromise) {
+      this.resolvePromise(this.result);
+    }
+  }
+
+  waitForClose(): Promise<string | null> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}
+
+class ConfirmDeleteModal extends Modal {
+  private targetLabel: string;
+  private confirmed = false;
+  private resolvePromise: ((value: boolean) => void) | null = null;
+
+  constructor(app: App, targetLabel: string) {
+    super(app);
+    this.targetLabel = targetLabel;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    contentEl.createEl("h2", { text: "Delete highlight word?" });
+    contentEl.createEl("p", {
+      text: `Are you sure you want to delete "${this.targetLabel}"?`,
+    });
+
+    new Setting(contentEl)
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => {
+          this.confirmed = false;
+          this.close();
+        }),
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Delete")
+          .setWarning()
+          .onClick(() => {
+            this.confirmed = true;
+            this.close();
+          }),
+      );
+  }
+
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+    if (this.resolvePromise) {
+      this.resolvePromise(this.confirmed);
+    }
+  }
+
+  waitForClose(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}
+
 export class RssDashboardSettingTab extends PluginSettingTab {
   plugin: RssDashboardPlugin;
   private currentTab = "General";
@@ -1594,6 +1713,40 @@ export class RssDashboardSettingTab extends PluginSettingTab {
   }
 
   private createHighlightsSettings(containerEl: HTMLElement): void {
+    const rerenderHighlightViews = async (): Promise<void> => {
+      const dashboardView = await this.plugin.getActiveDashboardView();
+      if (dashboardView) {
+        await this.app.workspace.revealLeaf(dashboardView.leaf);
+        dashboardView.render();
+      }
+
+      const readerView = await this.plugin.getActiveReaderView();
+      if (readerView) {
+        try {
+          const viewState = readerView as unknown as {
+            currentItem?: unknown;
+            relatedItems?: unknown[];
+            displayItem?: (
+              item: unknown,
+              relatedItems?: unknown[],
+            ) => Promise<void>;
+          };
+
+          if (
+            viewState.currentItem &&
+            typeof viewState.displayItem === "function"
+          ) {
+            await viewState.displayItem(
+              viewState.currentItem,
+              viewState.relatedItems ?? [],
+            );
+          }
+        } catch {
+          // Best-effort refresh: avoid surfacing non-critical reader rerender errors.
+        }
+      }
+    };
+
     new Setting(containerEl)
       .setName("Enable word highlighting")
       .setDesc(
@@ -1607,7 +1760,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
               this.plugin.settings.highlights = {
                 enabled: false,
                 defaultColor: "#ffd700",
-                caseSensitive: false,
                 highlightInContent: true,
                 highlightInTitles: true,
                 highlightInSummaries: true,
@@ -1616,62 +1768,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             }
             this.plugin.settings.highlights.enabled = value;
             await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.render();
-            }
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName("Default highlight color")
-      .setDesc("Default color for highlighted words")
-      .addColorPicker((colorPicker) =>
-        colorPicker
-          .setValue(this.plugin.settings.highlights?.defaultColor ?? "#ffd700")
-          .onChange(async (value) => {
-            if (!this.plugin.settings.highlights) {
-              this.plugin.settings.highlights = {
-                enabled: false,
-                defaultColor: "#ffd700",
-                caseSensitive: false,
-                highlightInContent: true,
-                highlightInTitles: true,
-                highlightInSummaries: true,
-                words: [],
-              };
-            }
-            this.plugin.settings.highlights.defaultColor = value;
-            await this.plugin.saveSettings();
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName("Case sensitive")
-      .setDesc("Match words with exact case")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.highlights?.caseSensitive ?? false)
-          .onChange(async (value) => {
-            if (!this.plugin.settings.highlights) {
-              this.plugin.settings.highlights = {
-                enabled: false,
-                defaultColor: "#ffd700",
-                caseSensitive: false,
-                highlightInContent: true,
-                highlightInTitles: true,
-                highlightInSummaries: true,
-                words: [],
-              };
-            }
-            this.plugin.settings.highlights.caseSensitive = value;
-            await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.render();
-            }
+            await rerenderHighlightViews();
           }),
       );
 
@@ -1693,7 +1790,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
               this.plugin.settings.highlights = {
                 enabled: false,
                 defaultColor: "#ffd700",
-                caseSensitive: false,
                 highlightInContent: true,
                 highlightInTitles: true,
                 highlightInSummaries: true,
@@ -1702,11 +1798,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             }
             this.plugin.settings.highlights.highlightInTitles = value;
             await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.render();
-            }
+            await rerenderHighlightViews();
           }),
       );
 
@@ -1723,7 +1815,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
               this.plugin.settings.highlights = {
                 enabled: false,
                 defaultColor: "#ffd700",
-                caseSensitive: false,
                 highlightInContent: true,
                 highlightInTitles: true,
                 highlightInSummaries: true,
@@ -1732,11 +1823,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             }
             this.plugin.settings.highlights.highlightInSummaries = value;
             await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.render();
-            }
+            await rerenderHighlightViews();
           }),
       );
 
@@ -1751,7 +1838,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
               this.plugin.settings.highlights = {
                 enabled: false,
                 defaultColor: "#ffd700",
-                caseSensitive: false,
                 highlightInContent: true,
                 highlightInTitles: true,
                 highlightInSummaries: true,
@@ -1760,6 +1846,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             }
             this.plugin.settings.highlights.highlightInContent = value;
             await this.plugin.saveSettings();
+            await rerenderHighlightViews();
           }),
       );
 
@@ -1782,62 +1869,118 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       });
     } else {
       words.forEach((word, index) => {
-        const wordRow = wordsContainer.createDiv({
-          cls: "rss-dashboard-highlight-word-row",
-        });
+        const matchMode = word.wholeWord ? "Whole word" : "Partial match";
+        const enabledState = word.enabled ? "Enabled" : "Disabled";
+        const statusParts = [matchMode, enabledState];
+        if (word.caseSensitive) {
+          statusParts.push("Case sensitive");
+        }
 
-        wordRow.createDiv({
-          cls: "rss-dashboard-highlight-word-text",
-          text: word.text,
-        });
-
-        // Show color preview
-        const colorPreview = wordRow.createDiv({
-          cls: "rss-dashboard-highlight-color-preview",
-        });
-        colorPreview.style.backgroundColor =
-          word.color ||
-          this.plugin.settings.highlights?.defaultColor ||
-          "#ffd700";
-
-        // Whole word toggle
-        const wholeWordBtn = wordRow.createEl("button", {
-          cls: `rss-dashboard-highlight-wholeword ${word.wholeWord ? "enabled" : ""}`,
-          text: word.wholeWord ? "Whole" : "Partial",
-        });
-        wholeWordBtn.onclick = async () => {
-          if (this.plugin.settings.highlights) {
-            this.plugin.settings.highlights.words[index].wholeWord =
-              !word.wholeWord;
+        const editWord = () => {
+          void (async () => {
+            const nextTextRaw = await this.promptForHighlightWordEdit(word.text);
+            if (nextTextRaw === null) return;
+            const nextText = nextTextRaw.trim();
+            if (!nextText) {
+              new Notice("Please enter a word to highlight");
+              return;
+            }
+            if (
+              this.plugin.settings.highlights?.words.some(
+                (w, i) => i !== index && w.text === nextText,
+              )
+            ) {
+              new Notice("This word is already in the list");
+              return;
+            }
+            if (!this.plugin.settings.highlights) return;
+            this.plugin.settings.highlights.words[index].text = nextText;
             await this.plugin.saveSettings();
             this.display();
-          }
+            await rerenderHighlightViews();
+          })();
         };
 
-        const toggleBtn = wordRow.createEl("button", {
-          cls: `rss-dashboard-highlight-toggle ${word.enabled ? "enabled" : "disabled"}`,
-          text: word.enabled ? "On" : "Off",
-        });
-        toggleBtn.onclick = async () => {
-          if (this.plugin.settings.highlights) {
-            this.plugin.settings.highlights.words[index].enabled =
-              !word.enabled;
-            await this.plugin.saveSettings();
-            this.display();
-          }
-        };
-
-        const deleteBtn = wordRow.createEl("button", {
-          cls: "rss-dashboard-highlight-delete",
-          text: "×",
-        });
-        deleteBtn.onclick = async () => {
-          if (this.plugin.settings.highlights) {
-            this.plugin.settings.highlights.words.splice(index, 1);
-            await this.plugin.saveSettings();
-            this.display();
-          }
-        };
+        const wordSetting = new Setting(wordsContainer)
+          .setName(word.text)
+          .setClass("rss-dashboard-highlight-word-setting")
+          .setDesc(statusParts.join(" | "))
+          .addColorPicker((colorPicker) =>
+            colorPicker
+              .setValue(
+                word.color ||
+                  this.plugin.settings.highlights?.defaultColor ||
+                  "#ffd700",
+              )
+              .onChange(async (value) => {
+                if (!this.plugin.settings.highlights) return;
+                this.plugin.settings.highlights.words[index].color = value;
+                await this.plugin.saveSettings();
+                await rerenderHighlightViews();
+              }),
+          )
+          .addToggle((toggle) =>
+            toggle
+              .setValue(word.enabled)
+              .onChange(async (value) => {
+                if (!this.plugin.settings.highlights) return;
+                this.plugin.settings.highlights.words[index].enabled = value;
+                await this.plugin.saveSettings();
+                this.display();
+                await rerenderHighlightViews();
+              }),
+          )
+          .addButton((button) =>
+            button
+              .setButtonText(word.wholeWord ? "Whole" : "Partial")
+              .setTooltip("Toggle whole-word matching")
+              .onClick(async () => {
+                if (!this.plugin.settings.highlights) return;
+                this.plugin.settings.highlights.words[index].wholeWord =
+                  !word.wholeWord;
+                await this.plugin.saveSettings();
+                this.display();
+                await rerenderHighlightViews();
+              }),
+          )
+          .addButton((button) => {
+            button.setButtonText("Case").setTooltip("Toggle case sensitivity");
+            if (word.caseSensitive) {
+              button.setCta();
+            }
+            return button.onClick(async () => {
+              if (!this.plugin.settings.highlights) return;
+              this.plugin.settings.highlights.words[index].caseSensitive =
+                !word.caseSensitive;
+              await this.plugin.saveSettings();
+              this.display();
+              await rerenderHighlightViews();
+            });
+          })
+          .addExtraButton((button) =>
+            button
+              .setIcon("pencil")
+              .setTooltip(`Edit "${word.text}"`)
+              .onClick(editWord),
+          )
+          .addExtraButton((button) =>
+            button
+              .setIcon("trash")
+              .setTooltip(`Delete "${word.text}"`)
+              .onClick(async () => {
+                const shouldDelete =
+                  await this.promptForHighlightWordDeleteConfirm(word.text);
+                if (!shouldDelete) return;
+                if (!this.plugin.settings.highlights) return;
+                this.plugin.settings.highlights.words.splice(index, 1);
+                await this.plugin.saveSettings();
+                this.display();
+                await rerenderHighlightViews();
+              }),
+          );
+        wordSetting.nameEl.addClass("rss-dashboard-highlight-word-name-click");
+        wordSetting.nameEl.setAttr("title", `Edit "${word.text}"`);
+        wordSetting.nameEl.addEventListener("click", editWord);
       });
     }
 
@@ -1853,6 +1996,11 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     const wholeWordSetting = new Setting(newWordContainer)
       .setName("Whole word only")
       .setDesc("Only highlight complete words (not partial matches)")
+      .addToggle((toggle) => toggle.setValue(false));
+
+    const caseSensitiveSetting = new Setting(newWordContainer)
+      .setName("Case sensitive")
+      .setDesc("Only match this word/phrase with exact letter case")
       .addToggle((toggle) => toggle.setValue(false));
 
     const colorSetting = new Setting(newWordContainer)
@@ -1874,10 +2022,15 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         const wholeWordToggle = wholeWordSetting.components[0] as unknown as {
           getValue: () => boolean;
         };
+        const caseSensitiveToggle = caseSensitiveSetting.components[0] as
+          unknown as {
+            getValue: () => boolean;
+          };
 
         const text = textInput.inputEl.value.trim();
         const color = colorPicker.getValue();
         const wholeWord = wholeWordToggle.getValue();
+        const caseSensitive = caseSensitiveToggle.getValue();
 
         if (!text) {
           new Notice("Please enter a word to highlight");
@@ -1888,7 +2041,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           this.plugin.settings.highlights = {
             enabled: false,
             defaultColor: "#ffd700",
-            caseSensitive: false,
             highlightInContent: true,
             highlightInTitles: true,
             highlightInSummaries: true,
@@ -1910,6 +2062,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           color,
           enabled: true,
           wholeWord,
+          caseSensitive,
           createdAt: Date.now(),
         });
 
@@ -1925,92 +2078,124 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     return modal.waitForClose();
   }
 
+  private async promptForHighlightWordEdit(
+    initialValue: string,
+  ): Promise<string | null> {
+    const modal = new HighlightWordEditModal(this.app, initialValue);
+    modal.open();
+    return modal.waitForClose();
+  }
+
+  private async promptForHighlightWordDeleteConfirm(
+    wordText: string,
+  ): Promise<boolean> {
+    const modal = new ConfirmDeleteModal(this.app, wordText);
+    modal.open();
+    return modal.waitForClose();
+  }
+
   private createImportExportTab(containerEl: HTMLElement): void {
     const dataSection = containerEl.createDiv();
     new Setting(dataSection)
       .setName("Backup & restore (data.json)")
+      .setDesc(
+        "Import or export your full dashboard dataset, including preferences, folders, feeds, and stored article retrievals.",
+      )
       .setHeading();
 
-    const dataBtnRow = dataSection.createDiv({
-      cls: "rss-dashboard-import-export-btn-row",
-    });
-    const exportBtn = dataBtnRow.createEl("button", {
-      text: "Export data.json",
-      cls: "rss-dashboard-import-export-btn",
-    });
-    exportBtn.onclick = () => {
-      const data = this.plugin.settings;
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.body.createEl("a", {
-        attr: {
-          href: url,
-          download: "rss-dashboard-data.json",
-        },
-      });
-      a.click();
-      URL.revokeObjectURL(url);
-    };
-
-    const importBtn = dataBtnRow.createEl("button", {
-      text: "Import data.json",
-      cls: "rss-dashboard-import-export-btn",
-    });
-    importBtn.onclick = () => {
-      const input = document.body.createEl("input", {
-        attr: {
-          type: "file",
-          accept: ".json,application/json",
-        },
-      });
-      input.onchange = () => {
-        void (async () => {
-          const file = input.files?.[0];
-          if (!file) return;
-          const text = await file.text();
-          try {
-            const data = JSON.parse(text) as Partial<RssDashboardSettings>;
-            this.plugin.settings = Object.assign(
-              {},
-              this.plugin.settings,
-              data,
-            );
-            await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.render();
-            }
-            new Notice("Data imported successfully!");
-          } catch {
-            new Notice("Invalid data.json file");
-          }
-        })();
-      };
-      input.click();
-    };
+    const dataActionsSetting = new Setting(dataSection);
+    dataActionsSetting.settingEl.addClass(
+      "rss-dashboard-import-export-actions",
+    );
+    dataActionsSetting
+      .addButton((button) =>
+        button
+          .setIcon("upload")
+          .setButtonText("Import data.json")
+          .onClick(() => {
+            const input = document.body.createEl("input", {
+              attr: {
+                type: "file",
+                accept: ".json,application/json",
+              },
+            });
+            input.onchange = () => {
+              void (async () => {
+                const file = input.files?.[0];
+                if (!file) return;
+                const text = await file.text();
+                try {
+                  const data = JSON.parse(
+                    text,
+                  ) as Partial<RssDashboardSettings>;
+                  this.plugin.settings = Object.assign(
+                    {},
+                    this.plugin.settings,
+                    data,
+                  );
+                  await this.plugin.saveSettings();
+                  const view = await this.plugin.getActiveDashboardView();
+                  if (view) {
+                    await this.app.workspace.revealLeaf(view.leaf);
+                    view.render();
+                  }
+                  new Notice("Data imported successfully!");
+                } catch {
+                  new Notice("Invalid data.json file");
+                }
+              })();
+            };
+            input.click();
+          }),
+      )
+      .addButton((button) =>
+        button
+          .setIcon("download")
+          .setButtonText("Export data.json")
+          .onClick(() => {
+            const data = this.plugin.settings;
+            const blob = new Blob([JSON.stringify(data, null, 2)], {
+              type: "application/json",
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.body.createEl("a", {
+              attr: {
+                href: url,
+                download: "rss-dashboard-data.json",
+              },
+            });
+            a.click();
+            URL.revokeObjectURL(url);
+          }),
+      );
 
     const opmlSection = containerEl.createDiv();
-    new Setting(opmlSection).setName("OPML").setHeading();
+    new Setting(opmlSection)
+      .setName("OPML")
+      .setDesc(
+        "Import or export an opml subscription list containing your configured feed addresses.",
+      )
+      .setHeading();
 
-    const opmlBtnRow = opmlSection.createDiv({
-      cls: "rss-dashboard-import-export-btn-row",
-    });
-    const importOpmlBtn = opmlBtnRow.createEl("button", {
-      text: "Import opml",
-      cls: "rss-dashboard-import-export-btn",
-    });
-    importOpmlBtn.onclick = () => {
-      new ImportOpmlModal(this.app, this.plugin).open();
-    };
-
-    const exportOpmlBtn = opmlBtnRow.createEl("button", {
-      text: "Export opml",
-      cls: "rss-dashboard-import-export-btn",
-    });
-    exportOpmlBtn.onclick = () => this.plugin.exportOpml();
+    const opmlActionsSetting = new Setting(opmlSection);
+    opmlActionsSetting.settingEl.addClass(
+      "rss-dashboard-import-export-actions",
+    );
+    opmlActionsSetting
+      .addButton((button) =>
+        button
+          .setIcon("upload")
+          .setButtonText("Import opml")
+          .onClick(() => {
+            new ImportOpmlModal(this.app, this.plugin).open();
+          }),
+      )
+      .addButton((button) =>
+        button
+          .setIcon("download")
+          .setButtonText("Export opml")
+          .onClick(() => this.plugin.exportOpml()),
+      );
   }
 
   private createTagsSettings(containerEl: HTMLElement): void {

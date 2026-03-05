@@ -1603,7 +1603,6 @@ export class ArticleList {
           this.settings.highlights = {
             enabled: false,
             defaultColor: "#ffd700",
-            caseSensitive: false,
             highlightInContent: true,
             highlightInTitles: true,
             highlightInSummaries: true,

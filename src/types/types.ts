@@ -195,13 +195,13 @@ export interface HighlightWord {
   color?: string;
   enabled: boolean;
   wholeWord?: boolean;
+  caseSensitive?: boolean;
   createdAt: number;
 }
 
 export interface HighlightSettings {
   enabled: boolean;
   defaultColor: string;
-  caseSensitive: boolean;
   highlightInContent: boolean;
   highlightInTitles: boolean;
   highlightInSummaries: boolean;
@@ -418,7 +418,6 @@ guid: "{{guid}}"
   highlights: {
     enabled: false,
     defaultColor: "#ffd700",
-    caseSensitive: false,
     highlightInContent: true,
     highlightInTitles: true,
     highlightInSummaries: true,

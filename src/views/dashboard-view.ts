@@ -509,7 +509,7 @@ export class RssDashboardView extends ItemView {
           "aria-label": "Edit highlights",
         },
       });
-      setIcon(highlightEditBtn, "cog");
+      setIcon(highlightEditBtn, "pencil");
       highlightEditBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         void this.plugin.openSettingsToTab("Highlights");
@@ -588,9 +588,9 @@ export class RssDashboardView extends ItemView {
    *   settings.highlights.highlightInSummaries → article.description + article.summary
    *   settings.highlights.highlightInContent   → article.content
    *
-   * Regex building replicates HighlightService.buildPattern() without DOM
-   * dependency: escapes the word text, applies optional whole-word boundaries,
-   * and respects the caseSensitive setting.
+   * Regex building mirrors HighlightService behaviour per-word: escapes each
+   * word text, applies optional whole-word boundaries, and respects each
+   * word's caseSensitive flag.
    */
   private computeHighlightMatchCounts(articles: FeedItem[]): void {
     // Always reset so stale data from a previous render doesn't linger
@@ -602,9 +602,6 @@ export class RssDashboardView extends ItemView {
     const enabledWords = hs.words.filter((w) => w.enabled);
     if (enabledWords.length === 0) return;
 
-    // Mirror HighlightService: no "i" flag when caseSensitive, add "i" when not
-    const regexFlags = hs.caseSensitive ? "" : "i";
-
     for (const word of enabledWords) {
       // Escape special regex characters (same as HighlightService.escapeRegex)
       const escaped = word.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -612,6 +609,8 @@ export class RssDashboardView extends ItemView {
       const pattern = word.wholeWord
         ? `(?:^|\\W)(${escaped})(?:$|\\W)`
         : escaped;
+      // Per-word case sensitivity: add "i" only for case-insensitive words.
+      const regexFlags = word.caseSensitive ? "" : "i";
       const regex = new RegExp(pattern, regexFlags);
 
       let count = 0;
@@ -2002,7 +2001,6 @@ export class RssDashboardView extends ItemView {
         this.settings.highlights = {
           enabled: false,
           defaultColor: "#ffd700",
-          caseSensitive: false,
           highlightInContent: true,
           highlightInTitles: true,
           highlightInSummaries: true,
