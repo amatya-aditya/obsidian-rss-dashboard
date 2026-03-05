@@ -629,6 +629,13 @@
   width: 96px;
 }
 
+.rss-dashboard-sidebar-badge-setting .setting-item-control {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .rss-dashboard-settings-number-input {
   width: 72px;
 }
@@ -662,6 +669,19 @@
 
   .rss-dashboard-settings-two-row .dropdown {
     width: 100%;
+  }
+
+  .rss-dashboard-sidebar-badge-setting .setting-item-control {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .rss-dashboard-sidebar-badge-setting
+    .setting-item-control
+    .rss-dashboard-color-hex-input {
+    width: 100%;
+    min-width: 120px;
+    flex: 1 1 140px;
   }
 
   .rss-dashboard-highlight-word-setting.setting-item {

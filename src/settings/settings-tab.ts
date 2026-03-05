@@ -758,7 +758,10 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Show unread badge: all feeds")
+      .setName("All feeds badge")
+      .setDesc("Enabled | color picker | hex input")
+      .setClass("rss-dashboard-settings-two-row")
+      .setClass("rss-dashboard-sidebar-badge-setting")
       .addToggle((toggle) =>
         toggle
           .setValue(
@@ -773,43 +776,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
               view.sidebar.render();
             }
           }),
-      );
-
-    new Setting(containerEl)
-      .setName("Show unread badge: folders")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.display.showFolderUnreadBadges ?? true)
-          .onChange(async (value) => {
-            this.plugin.settings.display.showFolderUnreadBadges = value;
-            await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName("Show unread badge: feeds")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.display.showFeedUnreadBadges ?? true)
-          .onChange(async (value) => {
-            this.plugin.settings.display.showFeedUnreadBadges = value;
-            await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
-          }),
-      );
-
-    const allFeedsBadgeColorSetting = new Setting(containerEl)
-      .setName("All feeds badge color")
-      .setDesc("Set the unread badge color for the all feeds row")
+      )
       .addColorPicker((colorPicker) =>
         colorPicker
           .setValue(this.plugin.settings.display.allFeedsUnreadBadgeColor)
@@ -840,13 +807,25 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           });
         text.inputEl.addClass("rss-dashboard-color-hex-input");
       });
-    allFeedsBadgeColorSetting.settingEl.addClass(
-      "rss-dashboard-settings-two-row",
-    );
 
-    const folderBadgeColorSetting = new Setting(containerEl)
-      .setName("Folder badge color")
-      .setDesc("Set the unread badge color for folder rows")
+    new Setting(containerEl)
+      .setName("Folders badge")
+      .setDesc("Enabled | color picker | hex input")
+      .setClass("rss-dashboard-settings-two-row")
+      .setClass("rss-dashboard-sidebar-badge-setting")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.display.showFolderUnreadBadges ?? true)
+          .onChange(async (value) => {
+            this.plugin.settings.display.showFolderUnreadBadges = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      )
       .addColorPicker((colorPicker) =>
         colorPicker
           .setValue(this.plugin.settings.display.folderUnreadBadgeColor)
@@ -877,13 +856,25 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           });
         text.inputEl.addClass("rss-dashboard-color-hex-input");
       });
-    folderBadgeColorSetting.settingEl.addClass(
-      "rss-dashboard-settings-two-row",
-    );
 
-    const feedBadgeColorSetting = new Setting(containerEl)
-      .setName("Feed badge color")
-      .setDesc("Set the unread badge color for feed rows")
+    new Setting(containerEl)
+      .setName("Feeds badge")
+      .setDesc("Enabled | color picker | hex input")
+      .setClass("rss-dashboard-settings-two-row")
+      .setClass("rss-dashboard-sidebar-badge-setting")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.display.showFeedUnreadBadges ?? true)
+          .onChange(async (value) => {
+            this.plugin.settings.display.showFeedUnreadBadges = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      )
       .addColorPicker((colorPicker) =>
         colorPicker
           .setValue(this.plugin.settings.display.feedUnreadBadgeColor)
@@ -914,7 +905,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           });
         text.inputEl.addClass("rss-dashboard-color-hex-input");
       });
-    feedBadgeColorSetting.settingEl.addClass("rss-dashboard-settings-two-row");
 
     new Setting(containerEl).setName("Sidebar padding").setHeading();
 
