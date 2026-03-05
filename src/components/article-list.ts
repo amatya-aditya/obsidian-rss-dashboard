@@ -729,6 +729,14 @@ export class ArticleList {
       attr: { title: "Menu" },
     });
     setIcon(hamburgerButton, "menu");
+    const hamburgerSvg = hamburgerButton.querySelector("svg");
+    const hasRenderableIcon = !!hamburgerSvg?.querySelector(
+      "path, line, polyline, polygon, circle, rect",
+    );
+    if (!hasRenderableIcon) {
+      hamburgerButton.addClass("rss-dashboard-icon-fallback");
+      hamburgerButton.setText("☰");
+    }
 
     const dropdownMenu = hamburgerMenu.createDiv({
       cls: "rss-dashboard-dropdown-menu",

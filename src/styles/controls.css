@@ -1373,6 +1373,9 @@ body:not(.theme-dark)
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2.2 !important;
   transition: transform 0.2s ease;
 }
 

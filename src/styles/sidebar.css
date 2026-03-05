@@ -733,6 +733,12 @@
 .rss-dashboard-toolbar-toggle-button svg {
   width: 11px;
   height: 11px;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2.2 !important;
 }
 
 .rss-dashboard-toolbar-toggle-button:hover {

@@ -1827,6 +1827,13 @@ export class Sidebar {
     });
     toggleButton.toggleClass("is-collapsed", this.isSidebarToolbarCollapsed);
     setIcon(toggleButton, this.isSidebarToolbarCollapsed ? "chevron-down" : "chevron-up");
+    const toolbarToggleSvg = toggleButton.querySelector("svg");
+    const hasRenderableIcon = !!toolbarToggleSvg?.querySelector(
+      "path, line, polyline, polygon, circle, rect",
+    );
+    if (!hasRenderableIcon) {
+      toggleButton.setText(this.isSidebarToolbarCollapsed ? "▾" : "▴");
+    }
     toggleButton.addEventListener("click", () => {
       this.isSidebarToolbarCollapsed = !this.isSidebarToolbarCollapsed;
       if (this.isSidebarToolbarCollapsed) {
