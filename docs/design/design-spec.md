@@ -103,6 +103,12 @@ Rules:
 2. Modal overrides must not invert hierarchy.
 3. Discover secondary tabs must keep tab semantics in both sidebar and modal.
 4. Any breakpoint-specific overrides for nav controls must be declared in one place per component and referenced here.
+5. Mobile sidebar modal header top spacing must be status-bar aware and may include platform-scoped overrides.
+
+### Modal Header Inset Ownership
+
+- Platform marker classes (`.rss-mobile-platform-ios`, `.rss-mobile-platform-android`) live on mobile modal root elements.
+- Mobile sidebar header top-padding tokens and rules are defined in `src/styles/modals.css`, including `.modal.rss-mobile-navigation-modal .rss-dashboard-header` and `.modal.rss-mobile-discover-filters-modal .rss-discover-header`.
 
 ## Color and Token Usage
 

@@ -1,4 +1,4 @@
-﻿import { App, Modal } from "obsidian";
+import { App, Modal, Platform } from "obsidian";
 import {
   Sidebar,
   SidebarOptions,
@@ -30,6 +30,15 @@ export class MobileNavigationModal extends Modal {
 
     contentEl.empty();
     this.modalEl.addClass("rss-mobile-navigation-modal");
+    this.modalEl.classList.remove(
+      "rss-mobile-platform-ios",
+      "rss-mobile-platform-android",
+    );
+    this.modalEl.classList.add(
+      Platform.isAndroidApp
+        ? "rss-mobile-platform-android"
+        : "rss-mobile-platform-ios",
+    );
 
     // Remove the default Obsidian close button
     const closeBtn = this.modalEl.querySelector(".modal-close-button");

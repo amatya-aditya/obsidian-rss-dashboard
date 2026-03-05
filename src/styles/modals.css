@@ -1842,6 +1842,17 @@
 @media (max-width: 1200px) {
   .modal.rss-mobile-navigation-modal,
   .modal.rss-mobile-discover-filters-modal {
+    --rss-mobile-statusbar-fallback-top: 24px;
+    --rss-mobile-statusbar-inset-top: max(
+      env(safe-area-inset-top, 0px),
+      var(--rss-mobile-statusbar-fallback-top)
+    );
+    --rss-dashboard-header-top-padding: calc(
+      6px + var(--rss-mobile-statusbar-inset-top)
+    );
+    --rss-discover-header-top-padding: calc(
+      10px + var(--rss-mobile-statusbar-inset-top)
+    );
     height: 100vh !important;
     height: 100dvh !important;
     min-height: 100vh !important;
@@ -1862,6 +1873,14 @@
     z-index: 99999 !important;
     transform: none !important;
     animation: rss-mobile-drawer-in 0.18s ease-out;
+  }
+
+  .modal.rss-mobile-navigation-modal .rss-dashboard-header {
+    padding-top: var(--rss-dashboard-header-top-padding);
+  }
+
+  .modal.rss-mobile-discover-filters-modal .rss-discover-header {
+    padding-top: var(--rss-discover-header-top-padding);
   }
 
   .modal.rss-mobile-feed-manager-modal {
@@ -2152,8 +2171,15 @@
       display: none !important;
     }
 
+    .modal.rss-mobile-navigation-modal.rss-mobile-platform-ios {
+      --rss-dashboard-header-top-padding: calc(2px + env(safe-area-inset-top, 0px));
+    }
+
+    .modal.rss-mobile-discover-filters-modal.rss-mobile-platform-ios {
+      --rss-discover-header-top-padding: calc(8px + env(safe-area-inset-top, 0px));
+    }
+
     .modal.rss-mobile-navigation-modal .rss-dashboard-header {
-      padding-top: calc(10px + env(safe-area-inset-top, 0px));
       display: flex;
       align-items: center;
       justify-content: flex-start;
