@@ -42,12 +42,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${GITHUB_REF#refs/tags/}"
-          
+
+          release_notes="Release $tag"
+          release_flags=(--title="$tag" --notes="$release_notes" --draft)
+
+          # Beta tags must be formatted without a leading "v", e.g. 2.1.0-beta.1
+          if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]]; then
+            release_notes="Beta release $tag"
+            release_flags=(--title="$tag" --notes="$release_notes" --draft --prerelease)
+          fi
+
           # Create release with all assets
           gh release create "$tag" \
-            --title="$tag" \
-            --notes="Release $tag" \
-            --draft \
+            "${release_flags[@]}" \
             main.js \
             manifest.json \
             styles.css \
