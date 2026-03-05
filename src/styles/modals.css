@@ -2068,12 +2068,10 @@
     border-right: none;
     padding: 0;
     flex-direction: column;
-    overflow-y: auto;
+    overflow: hidden;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
     visibility: visible !important;
     opacity: 1 !important;
   }
@@ -2095,35 +2093,36 @@
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
+    overflow: hidden;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
     width: 100% !important;
     padding-bottom: 0 !important;
   }
 
   .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folders-section {
     min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
   }
 
   .modal.rss-mobile-navigation-modal
-    .rss-dashboard-sidebar-container::-webkit-scrollbar,
-  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar::-webkit-scrollbar {
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar {
     width: 8px;
   }
 
   .modal.rss-mobile-navigation-modal
-    .rss-dashboard-sidebar-container::-webkit-scrollbar-track,
-  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar::-webkit-scrollbar-track {
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar-track {
     background: var(--background-secondary);
   }
 
   .modal.rss-mobile-navigation-modal
-    .rss-dashboard-sidebar-container::-webkit-scrollbar-thumb,
-  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar::-webkit-scrollbar-thumb {
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb {
     background: var(--background-modifier-border);
     border-radius: 8px;
   }

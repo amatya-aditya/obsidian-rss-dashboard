@@ -224,6 +224,7 @@ export class Sidebar {
   private plugin: RssDashboardPlugin;
   private cachedFolderPaths: string[] | null = null;
   private isSearchExpanded = false;
+  private isSidebarToolbarCollapsed = false;
   private isTagsExpanded = false;
   private isRefreshing = false;
   private longPressTimer: number | null = null;
@@ -362,9 +363,16 @@ export class Sidebar {
       this.settings.display.feedUnreadBadgeColor || "#8e44ad",
     );
 
-    this.renderHeader();
-    this.renderToolbar(this.container);
-    this.renderSearchDock(this.container);
+    const controlsSurface = this.container.createDiv({
+      cls: "rss-dashboard-sidebar-controls-surface",
+    });
+
+    this.renderHeader(controlsSurface);
+    this.renderToolbarToggle(controlsSurface);
+    if (!this.isSidebarToolbarCollapsed) {
+      this.renderToolbar(controlsSurface);
+      this.renderSearchDock(controlsSurface);
+    }
     this.renderFeedFolders();
 
     requestAnimationFrame(() => {
@@ -1691,8 +1699,8 @@ export class Sidebar {
     }
   }
 
-  public renderHeader(): void {
-    const header = this.container.createDiv({
+  public renderHeader(parentEl: HTMLElement = this.container): void {
+    const header = parentEl.createDiv({
       cls: "rss-dashboard-header",
     });
 
@@ -1800,6 +1808,32 @@ export class Sidebar {
 
   public renderFilters(parentEl: HTMLElement): void {
     // Deprecated: the filter actions are now in the header toolbar
+  }
+
+  private renderToolbarToggle(parentEl: HTMLElement): void {
+    const toggleRow = parentEl.createDiv({
+      cls: "rss-dashboard-toolbar-toggle-row",
+    });
+    const toggleButton = toggleRow.createEl("button", {
+      cls: "rss-dashboard-toolbar-toggle-button",
+      attr: {
+        type: "button",
+        "aria-label": this.isSidebarToolbarCollapsed
+          ? "Show sidebar toolbar"
+          : "Hide sidebar toolbar",
+        "aria-expanded": this.isSidebarToolbarCollapsed ? "false" : "true",
+        title: this.isSidebarToolbarCollapsed ? "Show toolbar" : "Hide toolbar",
+      },
+    });
+    toggleButton.toggleClass("is-collapsed", this.isSidebarToolbarCollapsed);
+    setIcon(toggleButton, this.isSidebarToolbarCollapsed ? "chevron-down" : "chevron-up");
+    toggleButton.addEventListener("click", () => {
+      this.isSidebarToolbarCollapsed = !this.isSidebarToolbarCollapsed;
+      if (this.isSidebarToolbarCollapsed) {
+        this.isSearchExpanded = false;
+      }
+      this.render();
+    });
   }
 
   private renderSearchDock(parentEl: HTMLElement): void {

@@ -1297,16 +1297,6 @@ body:not(.theme-dark)
     display: flex;
   }
 
-  /* Hide hamburger menu when sidebar is open on mobile */
-  :not(.sidebar-collapsed)
-    .rss-dashboard-container
-    .rss-dashboard-mobile-filter-button,
-  :not(.sidebar-collapsed)
-    .rss-dashboard-container
-    .rss-dashboard-hamburger-menu {
-    display: none !important;
-  }
-
   .rss-dashboard-desktop-controls {
     display: none !important;
   }

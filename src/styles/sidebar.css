@@ -1,7 +1,9 @@
 .rss-dashboard-header {
   order: 1;
   padding: 10px;
-  border-bottom: 1px solid var(--background-modifier-border);
+  border-bottom: 1px solid
+    var(--rss-sidebar-controls-border, var(--background-modifier-border));
+  background: var(--rss-sidebar-controls-bg, var(--background-secondary));
   display: flex;
   align-items: center;
 }
@@ -145,19 +147,24 @@
   color: var(--text-normal);
 }
 .rss-dashboard-feed-folders-section {
-  order: 4;
+  order: 5;
   flex: 1 1 auto;
   overflow-y: auto;
   min-height: 0;
   margin-top: 0;
-  display: flex;
-  flex-direction: column;
+  display: block;
   position: relative;
   padding: 6px !important;
+  background: var(--background-primary);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 
 .rss-dashboard-feed-folder {
   overflow: hidden;
+  flex: 0 0 auto;
 }
 .rss-dashboard-feed-folder-header {
   display: flex;
@@ -170,6 +177,8 @@
   border-left: 3px solid transparent;
   padding-top: calc(var(--sidebar-row-spacing) / 2);
   padding-bottom: calc(var(--sidebar-row-spacing) / 2);
+  min-height: 32px;
+  flex-shrink: 0;
 }
 .rss-dashboard-feed-folder-header:hover {
   background: var(--background-modifier-hover);
@@ -219,6 +228,7 @@
   overflow: hidden;
   background-color: var(--background-primary);
   padding-left: var(--sidebar-row-indentation);
+  flex: 0 0 auto;
 }
 
 .rss-dashboard-folder-feeds.collapsed {
@@ -230,6 +240,8 @@
   align-items: center;
   padding-top: calc(var(--sidebar-row-spacing) / 2);
   padding-bottom: calc(var(--sidebar-row-spacing) / 2);
+  min-height: 32px;
+  flex-shrink: 0;
 }
 .rss-dashboard-feed:hover {
   background-color: var(--background-modifier-hover);
@@ -281,10 +293,9 @@
   background-color: var(--rss-unread-badge-folder-color, #d85b9f);
 }
 .rss-dashboard-sidebar-toolbar {
-  order: 2;
+  order: 3;
   z-index: 2;
-  background: var(--background-primary);
-  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--rss-sidebar-controls-bg, var(--background-secondary));
   display: flex;
   justify-content: space-around;
   gap: 4px;
@@ -336,18 +347,33 @@
 .rss-dashboard-sidebar-container {
   position: relative;
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 .rss-dashboard-sidebar {
   --sidebar-row-spacing: 10px;
   --sidebar-row-indentation: 20px;
+  --rss-sidebar-controls-bg: var(--background-secondary);
+  --rss-sidebar-controls-border: var(--background-modifier-border);
+  --rss-sidebar-controls-shadow: 0 2px 6px rgb(0 0 0 / 0.08);
   font-size: 13px;
   padding: 0;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.rss-dashboard-sidebar-controls-surface {
+  order: 1;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--rss-sidebar-controls-bg, var(--background-secondary));
+  border-bottom: 1px solid
+    var(--rss-sidebar-controls-border, var(--background-modifier-border));
+  box-shadow: var(--rss-sidebar-controls-shadow, 0 2px 6px rgb(0 0 0 / 0.08));
+  z-index: 3;
 }
 
 .rss-dashboard-filters-section,
@@ -447,7 +473,7 @@
 }
 .rss-dashboard-sidebar-container,
 .rss-dashboard-sidebar {
-  overflow-y: auto;
+  overflow: hidden;
   min-height: 0;
   max-height: 100vh;
   max-height: 100dvh;
@@ -456,6 +482,23 @@
   /* Keep Obsidian's default 16px container padding from leaking into sidebar surfaces. */
   padding: 0 !important;
   box-sizing: border-box;
+}
+
+.rss-dashboard-feed-folders-section > * {
+  flex: 0 0 auto;
+}
+
+.rss-dashboard-feed-folders-section::-webkit-scrollbar {
+  width: 8px;
+}
+
+.rss-dashboard-feed-folders-section::-webkit-scrollbar-track {
+  background: var(--background-secondary);
+}
+
+.rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb {
+  background: var(--background-modifier-border);
+  border-radius: 8px;
 }
 
 /* Refresh button in filters section */
@@ -643,11 +686,69 @@
 }
 
 .rss-dashboard-search-dock {
-  order: 3;
+  order: 4;
   flex-shrink: 0;
   padding: 6px 0;
-  border-top: 1px solid var(--background-modifier-border);
-  background: var(--background-primary);
+  border-top: 1px solid
+    var(--rss-sidebar-controls-border, var(--background-modifier-border));
+  background: var(--rss-sidebar-controls-bg, var(--background-secondary));
+}
+
+.rss-dashboard-toolbar-toggle-row {
+  order: 2;
+  position: relative;
+  height: 0;
+  flex-shrink: 0;
+  overflow: visible;
+  z-index: 4;
+}
+
+.rss-dashboard-toolbar-toggle-button {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid
+    var(--rss-sidebar-controls-border, var(--background-modifier-border));
+  border-radius: 999px;
+  background: var(--rss-sidebar-controls-bg, var(--background-secondary));
+  color: var(--text-muted);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.22);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.rss-dashboard-toolbar-toggle-button svg {
+  width: 11px;
+  height: 11px;
+}
+
+.rss-dashboard-toolbar-toggle-button:hover {
+  transform: translate(-50%, -50%) scale(1.05);
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent-hover);
+}
+
+.rss-dashboard-toolbar-toggle-button.is-collapsed {
+  background: var(--background-secondary);
+}
+
+.rss-dashboard-toolbar-toggle-button:focus-visible {
+  outline: 2px solid var(--interactive-accent-hover);
+  outline-offset: 1px;
 }
 
 @media (max-width: 768px) {
@@ -664,6 +765,14 @@
 
 .rss-dashboard-search-dock .rss-dashboard-search-input {
   padding-right: 32px;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .rss-dashboard-feed-folder-header,
+  .rss-dashboard-feed,
+  .rss-dashboard-all-feeds-button {
+    min-height: 44px;
+  }
 }
 
 .rss-dashboard-search-clear {
