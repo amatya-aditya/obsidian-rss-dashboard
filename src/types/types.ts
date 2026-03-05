@@ -183,6 +183,8 @@ export interface DisplaySettings {
   autoMarkReadOnOpen: boolean;
   sidebarRowSpacing: number;
   sidebarRowIndentation: number;
+  sidebarItemPaddingLeft: number;
+  sidebarItemPaddingRight: number;
   cardColumnsPerRow: number;
   cardSpacing: number;
 }
@@ -408,6 +410,8 @@ guid: "{{guid}}"
     autoMarkReadOnOpen: false,
     sidebarRowSpacing: 10,
     sidebarRowIndentation: 20,
+    sidebarItemPaddingLeft: 2,
+    sidebarItemPaddingRight: 2,
     cardColumnsPerRow: 0,
     cardSpacing: 15,
   },

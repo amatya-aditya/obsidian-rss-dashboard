@@ -797,6 +797,136 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       });
     feedBadgeColorSetting.settingEl.addClass("rss-dashboard-settings-two-row");
 
+    new Setting(containerEl).setName("Sidebar padding").setHeading();
+
+    const sidebarLeftPaddingSetting = new Setting(containerEl)
+      .setName("Left padding")
+      .setDesc("Adjust left padding for sidebar rows");
+    const sidebarPaddingMin = 0;
+    const sidebarPaddingMax = 40;
+    const sidebarPaddingStep = 1;
+    let isSyncingLeftPaddingControls = false;
+    let sidebarLeftPaddingSlider: { setValue: (value: number) => void } | null =
+      null;
+    let sidebarLeftPaddingInput: TextComponent | null = null;
+
+    const applySidebarLeftPadding = async (value: number): Promise<void> => {
+      this.plugin.settings.display.sidebarItemPaddingLeft = value;
+      await this.plugin.saveSettings();
+      const view = await this.plugin.getActiveDashboardView();
+      if (view?.sidebar) {
+        view.sidebar.render();
+      }
+    };
+
+    sidebarLeftPaddingSetting
+      .addSlider((slider) => {
+        sidebarLeftPaddingSlider = slider;
+        slider
+          .setLimits(sidebarPaddingMin, sidebarPaddingMax, sidebarPaddingStep)
+          .setValue(this.plugin.settings.display.sidebarItemPaddingLeft ?? 2)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            if (isSyncingLeftPaddingControls) return;
+            isSyncingLeftPaddingControls = true;
+            sidebarLeftPaddingInput?.setValue(String(value));
+            isSyncingLeftPaddingControls = false;
+            await applySidebarLeftPadding(value);
+          });
+      })
+      .addText((text) => {
+        const initialValue =
+          this.plugin.settings.display.sidebarItemPaddingLeft ?? 2;
+        sidebarLeftPaddingInput = text;
+        text.setValue(String(initialValue)).onChange(async (value) => {
+          if (isSyncingLeftPaddingControls) return;
+
+          const parsed = Number.parseInt(value, 10);
+          if (Number.isNaN(parsed)) return;
+
+          const clampedValue = Math.max(
+            sidebarPaddingMin,
+            Math.min(sidebarPaddingMax, parsed),
+          );
+          isSyncingLeftPaddingControls = true;
+          text.setValue(String(clampedValue));
+          sidebarLeftPaddingSlider?.setValue(clampedValue);
+          isSyncingLeftPaddingControls = false;
+          await applySidebarLeftPadding(clampedValue);
+        });
+        text.inputEl.type = "number";
+        text.inputEl.min = String(sidebarPaddingMin);
+        text.inputEl.max = String(sidebarPaddingMax);
+        text.inputEl.step = String(sidebarPaddingStep);
+        text.inputEl.addClass("rss-dashboard-settings-number-input");
+      });
+    sidebarLeftPaddingSetting.settingEl.addClass(
+      "rss-dashboard-settings-two-row",
+    );
+
+    const sidebarRightPaddingSetting = new Setting(containerEl)
+      .setName("Right padding")
+      .setDesc("Adjust right padding for sidebar rows");
+    let isSyncingRightPaddingControls = false;
+    let sidebarRightPaddingSlider: {
+      setValue: (value: number) => void;
+    } | null = null;
+    let sidebarRightPaddingInput: TextComponent | null = null;
+
+    const applySidebarRightPadding = async (value: number): Promise<void> => {
+      this.plugin.settings.display.sidebarItemPaddingRight = value;
+      await this.plugin.saveSettings();
+      const view = await this.plugin.getActiveDashboardView();
+      if (view?.sidebar) {
+        view.sidebar.render();
+      }
+    };
+
+    sidebarRightPaddingSetting
+      .addSlider((slider) => {
+        sidebarRightPaddingSlider = slider;
+        slider
+          .setLimits(sidebarPaddingMin, sidebarPaddingMax, sidebarPaddingStep)
+          .setValue(this.plugin.settings.display.sidebarItemPaddingRight ?? 2)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            if (isSyncingRightPaddingControls) return;
+            isSyncingRightPaddingControls = true;
+            sidebarRightPaddingInput?.setValue(String(value));
+            isSyncingRightPaddingControls = false;
+            await applySidebarRightPadding(value);
+          });
+      })
+      .addText((text) => {
+        const initialValue =
+          this.plugin.settings.display.sidebarItemPaddingRight ?? 2;
+        sidebarRightPaddingInput = text;
+        text.setValue(String(initialValue)).onChange(async (value) => {
+          if (isSyncingRightPaddingControls) return;
+
+          const parsed = Number.parseInt(value, 10);
+          if (Number.isNaN(parsed)) return;
+
+          const clampedValue = Math.max(
+            sidebarPaddingMin,
+            Math.min(sidebarPaddingMax, parsed),
+          );
+          isSyncingRightPaddingControls = true;
+          text.setValue(String(clampedValue));
+          sidebarRightPaddingSlider?.setValue(clampedValue);
+          isSyncingRightPaddingControls = false;
+          await applySidebarRightPadding(clampedValue);
+        });
+        text.inputEl.type = "number";
+        text.inputEl.min = String(sidebarPaddingMin);
+        text.inputEl.max = String(sidebarPaddingMax);
+        text.inputEl.step = String(sidebarPaddingStep);
+        text.inputEl.addClass("rss-dashboard-settings-number-input");
+      });
+    sidebarRightPaddingSetting.settingEl.addClass(
+      "rss-dashboard-settings-two-row",
+    );
+
     const sidebarRowSpacingSetting = new Setting(containerEl)
       .setName("Sidebar row spacing")
       .setDesc("Adjust the height between rows in the sidebar feed list");

@@ -2215,19 +2215,22 @@
     .modal.rss-mobile-navigation-modal .rss-dashboard-feed {
       padding-top: calc(var(--sidebar-row-spacing) / 2);
       padding-bottom: calc(var(--sidebar-row-spacing) / 2);
-      padding-right: 10px;
-      padding-left: var(--sidebar-row-indentation);
+      padding-right: var(--sidebar-item-padding-right);
+      padding-left: var(--sidebar-item-padding-left);
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folder-header {
       padding-top: calc(var(--sidebar-row-spacing) / 2);
       padding-bottom: calc(var(--sidebar-row-spacing) / 2);
-      padding-right: 10px;
-      padding-left: 10px;
+      padding-right: var(--sidebar-item-padding-right);
+      padding-left: var(--sidebar-item-padding-left);
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-all-feeds-button {
-      padding: 10px;
+      padding-top: 10px;
+      padding-bottom: 10px;
+      padding-right: var(--sidebar-item-padding-right);
+      padding-left: var(--sidebar-item-padding-left);
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container {

@@ -350,6 +350,17 @@ export class Sidebar {
       "--sidebar-row-indentation",
       `${indentation}px`,
     );
+    const itemPaddingLeft = this.settings.display.sidebarItemPaddingLeft ?? 2;
+    this.container.style.setProperty(
+      "--sidebar-item-padding-left",
+      `${itemPaddingLeft}px`,
+    );
+    const itemPaddingRight =
+      this.settings.display.sidebarItemPaddingRight ?? 2;
+    this.container.style.setProperty(
+      "--sidebar-item-padding-right",
+      `${itemPaddingRight}px`,
+    );
     this.container.style.setProperty(
       "--rss-unread-badge-all-feeds-color",
       this.settings.display.allFeedsUnreadBadgeColor || "#8e44ad",
