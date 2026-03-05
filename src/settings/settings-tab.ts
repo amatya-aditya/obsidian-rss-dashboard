@@ -1713,6 +1713,11 @@ export class RssDashboardSettingTab extends PluginSettingTab {
   }
 
   private createHighlightsSettings(containerEl: HTMLElement): void {
+    const refreshHighlightStatusBarOnly = async (): Promise<void> => {
+      const dashboardView = await this.plugin.getActiveDashboardView();
+      dashboardView?.refreshFilterStatusBarOnly();
+    };
+
     const rerenderHighlightViews = async (): Promise<void> => {
       const dashboardView = await this.plugin.getActiveDashboardView();
       if (dashboardView) {
@@ -1974,8 +1979,11 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                 if (!this.plugin.settings.highlights) return;
                 this.plugin.settings.highlights.words.splice(index, 1);
                 await this.plugin.saveSettings();
+                new Notice(
+                  `Deleted highlight word "${word.text}". Refresh the dashboard to apply highlight changes.`,
+                );
                 this.display();
-                await rerenderHighlightViews();
+                await refreshHighlightStatusBarOnly();
               }),
           );
         wordSetting.nameEl.addClass("rss-dashboard-highlight-word-name-click");
@@ -2068,6 +2076,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
 
         await this.plugin.saveSettings();
         this.display();
+        await refreshHighlightStatusBarOnly();
       }),
     );
   }

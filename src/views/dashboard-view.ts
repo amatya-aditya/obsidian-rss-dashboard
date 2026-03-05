@@ -1792,6 +1792,37 @@ export class RssDashboardView extends ItemView {
     this.sidebar.showEditFeedModal(feed);
   }
 
+  /**
+   * Refresh only the filter/highlight status subheader without rebuilding the
+   * articles list. This preserves current scroll position while keeping counts
+   * and chips in sync with latest settings.
+   */
+  refreshFilterStatusBarOnly(): void {
+    const contentContainer = this.containerEl.querySelector<HTMLElement>(
+      ".rss-dashboard-content",
+    );
+    if (!contentContainer) return;
+
+    const existingSubheader = contentContainer.querySelector(
+      ".rss-dashboard-filter-subheader",
+    );
+    existingSubheader?.remove();
+
+    const allFilteredArticles = this.getFilteredArticles();
+    this.computeHighlightMatchCounts(allFilteredArticles);
+    this.renderFilterSubheader(contentContainer);
+
+    const newSubheader = contentContainer.querySelector(
+      ".rss-dashboard-filter-subheader",
+    );
+    const articlesContainer = contentContainer.querySelector(
+      ".rss-dashboard-articles",
+    );
+    if (newSubheader && articlesContainer) {
+      contentContainer.insertBefore(newSubheader, articlesContainer);
+    }
+  }
+
   refresh(): void {
     this.render();
   }

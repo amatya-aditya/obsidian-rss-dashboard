@@ -574,10 +574,18 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-article-header",
     });
 
-    headerContainer.createEl("h1", {
+    const articleTitleEl = headerContainer.createEl("h1", {
       cls: "rss-reader-item-title",
-      text: item.title,
     });
+    if (
+      this.settings.highlights?.enabled &&
+      this.settings.highlights.highlightInTitles
+    ) {
+      const highlightService = new HighlightService(this.settings.highlights);
+      highlightService.setHighlightedText(articleTitleEl, item.title);
+    } else {
+      articleTitleEl.setText(item.title);
+    }
 
     const metaContainer = headerContainer.createDiv({
       cls: "rss-reader-meta",
