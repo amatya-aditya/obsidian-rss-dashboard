@@ -780,36 +780,58 @@
 
 .rss-discover-sidebar-nav {
   display: flex;
-  justify-content: space-around;
-  margin-top: 10px;
-  margin-bottom: 20px;
-  gap: 0.4rem;
-  background: var(--background-primary);
-  padding: 0.5rem 0;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  gap: 0.25rem;
+  background: transparent;
+  padding: 0 0 4px;
   border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .rss-discover-sidebar-nav button {
-  background: var(--background-modifier-active-hover);
-  border: 1px solid transparent;
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   box-shadow: none;
-  padding: 8px 12px;
+  margin: 0;
+  padding: 0 8px 2px;
+  min-height: 28px;
   cursor: pointer;
-  color: var(--color-accent);
-  flex-grow: 1;
-  transition: all 0.2s ease-in-out;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  flex: 1 1 0;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
   appearance: none;
 }
 
 .rss-discover-sidebar-nav button:hover {
-  background: var(--color-accent);
-  color: var(--text-on-accent);
+  background: transparent;
+  color: var(--color-accent);
 }
 
 .rss-discover-sidebar-nav button.active {
-  background: var(--color-accent);
-  color: var(--text-on-accent);
+  background: transparent;
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+  font-weight: 600;
+}
+
+.rss-discover-sidebar-nav button:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .rss-discover-card-summary {
@@ -1343,6 +1365,23 @@
   .modal.rss-mobile-discover-filters-modal .rss-discover-header {
     padding-left: 16px;
     padding-right: 16px;
+  }
+
+  .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-nav {
+    margin-top: 2px;
+    margin-bottom: 8px;
+    padding-top: 0;
+    padding-bottom: 4px;
+    align-items: flex-end;
+  }
+
+  .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-nav button {
+    height: auto;
+    min-height: 28px;
+    padding: 0 8px 2px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
   }
 
   .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-content {

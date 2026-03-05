@@ -121,14 +121,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 12px;
-  min-height: 34px;
-  border-radius: 6px;
+  padding: 7px 14px;
+  min-height: 38px;
+  border-radius: 8px;
   color: var(--color-accent);
   background: var(--background-modifier-active-hover);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.2;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.1;
   text-align: center;
   white-space: nowrap;
   cursor: pointer;
@@ -136,8 +136,8 @@
 
 .rss-dashboard-nav-button.active {
   background: var(--color-accent);
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
   color: var(--text-on-accent);
 }
 
@@ -171,10 +171,10 @@
 
   .rss-dashboard-nav-button,
   .rss-dashboard-nav-button.active {
-    min-height: 30px;
-    padding: 4px 10px;
-    font-size: 12px;
-    border-radius: 5px;
+    min-height: 34px;
+    padding: 5px 12px;
+    font-size: 16px;
+    border-radius: 6px;
   }
 
   .rss-dashboard-sidebar {
@@ -193,8 +193,8 @@
 @media (max-width: 768px) {
   .rss-dashboard-nav-button,
   .rss-dashboard-nav-button.active {
-    min-height: 28px;
-    padding: 3px 8px;
-    font-size: 11px;
+    min-height: 32px;
+    padding: 4px 10px;
+    font-size: 16px;
   }
 }

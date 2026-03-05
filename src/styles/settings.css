@@ -746,6 +746,14 @@
     gap: 8px;
   }
 
+  /*
+   * iOS WebView/Safari can fail to apply flex gap in some settings contexts.
+   * Add explicit sibling spacing so slider/color controls don't collapse.
+   */
+  .rss-dashboard-settings-two-row .setting-item-control > * + * {
+    margin-top: 8px;
+  }
+
   .rss-dashboard-settings-two-row .dropdown {
     width: 100%;
   }

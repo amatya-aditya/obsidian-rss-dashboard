@@ -2163,10 +2163,11 @@
     .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button.active,
     .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button,
     .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button.active {
-      font-size: 12px;
-      padding: 4px 10px;
-      min-height: 30px;
-      line-height: 1.2;
+      font-size: 16px;
+      font-weight: 600;
+      padding: 4px 12px;
+      min-height: 32px;
+      line-height: 1.1;
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-feed {
