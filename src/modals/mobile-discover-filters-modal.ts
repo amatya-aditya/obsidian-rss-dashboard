@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App, Modal, Platform } from "obsidian";
 import { DiscoverSidebar } from "../components/discover-sidebar";
 import type RssDashboardPlugin from "../../main";
 import { DiscoverFilters, FeedMetadata } from "../types/discover-types";
@@ -21,6 +21,15 @@ export class MobileDiscoverFiltersModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     this.modalEl.addClass("rss-mobile-discover-filters-modal");
+    this.modalEl.classList.remove(
+      "rss-mobile-platform-ios",
+      "rss-mobile-platform-android",
+    );
+    this.modalEl.classList.add(
+      Platform.isAndroidApp
+        ? "rss-mobile-platform-android"
+        : "rss-mobile-platform-ios",
+    );
 
     // Remove Obsidian's default floating close button to avoid mobile overlap.
     const closeBtn = this.modalEl.querySelector(".modal-close-button");
