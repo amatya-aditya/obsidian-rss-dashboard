@@ -1,66 +1,200 @@
 .rss-dashboard-container {
-	font-size: 14px;
-	height: 100%;
-	overflow: hidden;
-	padding: 0 6px 6px 6px!important;
-	border-top: 1px solid var(--background-modifier-border)
-  }
-  .rss-dashboard-layout {
-	display: flex;
-	height: 100%;
-	overflow: hidden;
-	position: relative
-  }
-  .rss-dashboard-sidebar {
-	width: 280px;
-	height: 100%;
-	border-right: 1px solid var(--background-modifier-border);
-	display: flex;
-	flex-direction: column;
-	overflow: hidden;
-	background-color: var(--background-primary);
-	transition: transform 0.3s ease;
-	position: relative;
-   }
+  font-size: 14px;
+  height: 100%;
+  overflow: hidden;
+  padding: 0px !important;
+  border-top: 1px solid var(--background-modifier-border);
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+}
 
-   .rss-dashboard-nav-container{
-	display: flex;
-	gap: 0.5rem;
-   }
+.rss-dashboard-layout {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
 
-   .rss-dashboard-nav-button{
-	padding: 4px 6px;
-    border-radius: 6px;
-    color: var(--color-accent);
-	background: var(--background-modifier-active-hover);
-	font-size: 13px;
-   }
+.rss-dashboard-sidebar {
+  width: 280px;
+  height: 100%;
+  border-right: 1px solid var(--background-modifier-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--background-primary);
+  position: relative;
+  flex-shrink: 0;
+}
 
-   .rss-dashboard-nav-button.active{
-	background: var(--color-accent);
-    padding: 4px 6px;
-    border-radius: 6px;
+/*
+ * Sidebar Resize Handle
+ *
+ * The handle is appended to the LAYOUT container (not the sidebar) so that:
+ *   1. Its height always spans the full bounded layout — fixes the bug where
+ *      the handle was cut short on tall pages (e.g. discover/tags) because
+ *      the sidebar itself can scroll beyond the viewport.
+ *   2. It is never clipped by the sidebar's overflow-x: hidden — this was
+ *      silently halving the clickable hitbox (8px declared, but only ~4px
+ *      visible/clickable because the other half extended outside the sidebar).
+ *
+ * Positioning:
+ *   - `left` is set via JS in applySidebarWidth() to always track the
+ *     sidebar's right edge as the user drags or on initial render.
+ *   - `transform: translateX(-50%)` centers the element on that edge,
+ *     giving equal hitbox on both sides of the dividing line.
+ *   - `width: 14px` gives a comfortable 7 px hitbox on each side.
+ */
+.rss-dashboard-sidebar-resize-handle {
+  position: absolute;
+  left: 0; /* overridden inline by applySidebarWidth() */
+  top: 0;
+  bottom: 0;
+  width: 14px; /* 7px hitbox on each side of the sidebar/content border */
+  transform: translateX(-50%); /* center on the border line */
+  cursor: col-resize;
+  background: transparent;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rss-dashboard-sidebar-resize-handle::before {
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 32px;
+  background: var(--background-modifier-border);
+  border-radius: 2px;
+  opacity: 0;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease;
+}
+
+.rss-dashboard-sidebar-resize-handle:hover::before,
+.rss-dashboard-sidebar-resize-handle.dragging::before {
+  opacity: 1;
+  background: var(--interactive-accent);
+}
+
+.rss-dashboard-sidebar-resize-handle:hover {
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--interactive-accent-hover) 50%,
+    transparent 100%
+  );
+  background-size: 2px 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.rss-dashboard-sidebar-resize-handle.dragging {
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--interactive-accent) 50%,
+    transparent 100%
+  );
+  background-size: 2px 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Prevent text selection during drag */
+.rss-dashboard-layout.resizing {
+  user-select: none;
+}
+
+.rss-dashboard-layout.resizing iframe {
+  pointer-events: none;
+}
+
+.rss-dashboard-nav-container {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.rss-dashboard-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px;
+  min-height: 38px;
+  border-radius: 8px;
+  color: var(--color-accent);
+  background: var(--background-modifier-active-hover);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rss-dashboard-nav-button.active {
+  background: var(--color-accent);
+  padding: 7px 14px;
+  border-radius: 8px;
+  color: var(--text-on-accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rss-dashboard-nav-button:hover {
+    background: var(--color-accent);
     color: var(--text-on-accent);
-   }
+  }
+}
 
-   .rss-dashboard-nav-button:hover{
-   background: var(--color-accent);
-   color: var(--text-on-accent);
-   }
+.rss-dashboard-header,
+.rss-dashboard-filters-section,
+.rss-dashboard-tags-section,
+.rss-dashboard-sponsor-section {
+  flex: 0 0 auto;
+  overflow: visible !important;
+  max-height: none !important;
+  min-height: unset !important;
+}
 
-   .rss-dashboard-header,
-   .rss-dashboard-filters-section,
-   .rss-dashboard-tags-section,
-   .rss-dashboard-sponsor-section {
-	flex: 0 0 auto;
-	overflow: visible !important;
-	max-height: none !important;
-	min-height: unset !important;
-   }
-  
-   
-  .sidebar-collapsed .rss-dashboard-sidebar {
-	transform: translateX(-250px);
-	z-index: 10;
-	position: absolute
-   }
+.sidebar-collapsed .rss-dashboard-sidebar {
+  display: none !important;
+  width: 0 !important;
+}
+
+/* Tablet and below: hide dashboard sidebar in favor of mobile navigation modal. */
+@media (max-width: 1200px) {
+  .rss-dashboard-nav-container {
+    gap: 0.375rem;
+  }
+
+  .rss-dashboard-nav-button,
+  .rss-dashboard-nav-button.active {
+    min-height: 34px;
+    padding: 5px 12px;
+    font-size: 16px;
+    border-radius: 6px;
+  }
+
+  .rss-dashboard-sidebar {
+    display: none !important;
+  }
+
+  .rss-dashboard-sidebar-resize-handle {
+    display: none !important;
+  }
+
+  .rss-dashboard-container {
+    padding: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .rss-dashboard-nav-button,
+  .rss-dashboard-nav-button.active {
+    min-height: 32px;
+    padding: 4px 10px;
+    font-size: 16px;
+  }
+}

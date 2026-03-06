@@ -71,6 +71,21 @@ export class FolderSuggest extends AbstractInputSuggest<string> {
         super(app, inputEl);
         this.inputEl = inputEl;
         this.folders = this.collectAllFolders(folders);
+
+        // Naming restrictions validation
+        this.inputEl.addEventListener("input", () => {
+            const forbidden = /[\\:*?"<>|]/g;
+            if (forbidden.test(this.inputEl.value)) {
+                this.inputEl.value = this.inputEl.value.replace(forbidden, "");
+            }
+        });
+
+        // Trigger suggestions on click if empty
+        this.inputEl.addEventListener("click", () => {
+            if (this.inputEl.value === "") {
+                this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+        });
     }
 
     /**
@@ -85,25 +100,46 @@ export class FolderSuggest extends AbstractInputSuggest<string> {
      */
     protected getSuggestions(query: string): string[] {
         const lowerQuery = query.toLowerCase();
-        return this.folders.filter(folder =>
+
+        // If query is empty OR matches exactly one of our folders, show ALL folders
+        // This solves the issue where pre-filled folders filter out everything else
+        if (lowerQuery === "" || this.folders.some(f => f.toLowerCase() === lowerQuery)) {
+            return [...this.folders, "Add new folder..."];
+        }
+
+        const filtered = this.folders.filter(folder =>
             folder.toLowerCase().includes(lowerQuery)
         );
+
+        // Always add "Add new folder..." at the end
+        return [...filtered, "Add new folder..."];
     }
 
     /**
      * Renders a folder suggestion in the dropdown
      */
     public renderSuggestion(folder: string, el: HTMLElement): void {
-        el.setText(folder);
+        if (folder === "Add new folder...") {
+            el.addClass("rss-dashboard-add-new-suggestion");
+            el.setText("Add new folder...");
+        } else {
+            el.setText(folder);
+        }
     }
 
     /**
      * Called when a folder is selected
      */
     public selectSuggestion(folder: string, _evt: MouseEvent | KeyboardEvent): void {
-        this.inputEl.value = folder;
+        if (folder === "Add new folder...") {
+            this.inputEl.value = "";
+        } else {
+            this.inputEl.value = folder;
+        }
+
         this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
         this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
+        this.inputEl.focus();
         this.close();
     }
 }

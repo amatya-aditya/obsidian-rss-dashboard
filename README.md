@@ -17,7 +17,6 @@
   <img  src="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/assets/d4.png">
 </p>
 
-
 <p align="center">
   <a href="https://github.com/amatya-aditya/obsidian-rss-dashboard/releases/latest">
 		<img src="https://img.shields.io/github/v/release/amatya-aditya/obsidian-rss-dashboard?style=flat-square&color=573E7A&label=release">
@@ -33,13 +32,11 @@
 
 </p>
 
-
 <p align="center">
   <a href="https://www.buymeacoffee.com/amatya_aditya" target="_blank">☕ Buy me a coffee</a>
 </p>
 
 <p align="center"> <a href='https://ko-fi.com/Y8Y41FV4WI' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a></p>
-
 
 <p align="center">
   <a href="https://youtu.be/YwBu3Kdn1Qk" target="_blank">
@@ -58,9 +55,10 @@
   <a href="#license">License</a>
 </p>
 
+## Community <h3>
 
-## Community <h3> 
-Want to influence the next release? </h3>  : Join our [Discord server](https://discord.gg/9bu7V9BBbs): it's where we:
+Want to influence the next release? </h3> : Join our [Discord server](https://discord.gg/9bu7V9BBbs): it's where we:
+
 - Help build our manually curated Discover page (Collection of hand-pick RSS feeds, grouped by category (philosophy, engineering, physics etc.) for one-click subscribe.)
 - Discuss ideas, questions, and best practices in real time
 - Share sneak peeks of upcoming features (get early feedback!)
@@ -71,46 +69,39 @@ Want to influence the next release? </h3>  : Join our [Discord server](https://d
 
 <div align="left">✅ Implemented</div>
 
-| **Feature**                             | **Description**                                                                                | **Status** |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------- |
-| **Multi-Format RSS Support**            | Support for RSS, Atom, and JSON feeds with automatic feed discovery and parsing               | ✅         |
-| **YouTube Integration**                 | Convert YouTube channels, users, and playlists to RSS feeds with embedded video player        | ✅         |
-| **Podcast Support**                     | Full podcast feed support with integrated podcast player                                      | ✅         |
-| **Discover Page**                       | Curated collection of RSS feeds organized by categories (News, Technology, Science, etc.)     | ✅         |
-| **Article Reader View**                 | Built-in reader with full article content fetching and markdown conversion                    | ✅         |
-| **Article Saving**                      | Save articles as markdown files with customizable templates and frontmatter                   | ✅         |
-| **Folder Organization**                 | Organize feeds into folders and subfolders with hierarchical structure                        | ✅         |
-| **Tag Management**                      | Add custom tags to feeds and articles for better organization                                 | ✅         |
-| **OPML Import/Export**                  | Import and export feed subscriptions in OPML format                                           | ✅         |
-| **Auto-Refresh**                        | Automatic feed refresh with configurable intervals                                            | ✅         |
-| **Article Filtering**                   | Filter articles by read status, age, starred, saved, and more                                 | ✅         |
-| **Article Sorting**                     | Sort articles by newest, oldest, and group by feed, date, or folder                           | ✅         |
-| **Pagination**                          | Paginated article lists with configurable page sizes                                          | ✅         |
-| **Media Detection**                     | Automatic detection of video and podcast content                                              | ✅         |
-| **Custom Templates**                    | Customizable templates for saved articles with variable substitution                          | ✅         |
-| **Androi/iPad Support**                 | Support mobile devices with responsive design                                                 | ✅         |
-
+| **Feature**                  | **Description**                                                                           | **Status** |
+| ---------------------------- | ----------------------------------------------------------------------------------------- | ---------- |
+| **Multi-Format RSS Support** | Support for RSS, Atom, and JSON feeds with automatic feed discovery and parsing           | ✅         |
+| **YouTube Integration**      | Convert YouTube channels, users, and playlists to RSS feeds with embedded video player    | ✅         |
+| **Podcast Support**          | Full podcast feed support with integrated podcast player                                  | ✅         |
+| **Discover Page**            | Curated collection of RSS feeds organized by categories (News, Technology, Science, etc.) | ✅         |
+| **Article Reader View**      | Built-in reader with full article content fetching and markdown conversion                | ✅         |
+| **Article Saving**           | Save articles as markdown files with customizable templates and frontmatter               | ✅         |
+| **Folder Organization**      | Organize feeds into folders and subfolders with hierarchical structure                    | ✅         |
+| **Tag Management**           | Add custom tags to feeds and articles for better organization                             | ✅         |
+| **OPML Import/Export**       | Import and export feed subscriptions in OPML format                                       | ✅         |
+| **Auto-Refresh**             | Automatic feed refresh with configurable intervals                                        | ✅         |
+| **Article Filtering**        | Filter articles by read status, age, starred, saved, and more                             | ✅         |
+| **Article Sorting**          | Sort articles by newest, oldest, and group by feed, date, or folder                       | ✅         |
+| **Pagination**               | Paginated article lists with configurable page sizes                                      | ✅         |
+| **Media Detection**          | Automatic detection of video and podcast content                                          | ✅         |
+| **Custom Templates**         | Customizable templates for saved articles with variable substitution                      | ✅         |
+| **Androi/iPad Support**      | Support mobile devices with responsive design                                             | ✅         |
 
 ## Planned Features
 
 <div align="left">🔄 Planned</div>
 
-| **Feature**                             | **Description**                                                                            | **Status**   |
-| --------------------------------------- | ------------------------------------------------------------------------------------------ | ------------ |
-| **Advanced Analytics**                  | Track reading time, articles read, and detailed insights                                   | 🔄           |
-| **Text-to-Speech (TTS) Support**        | Enjoy smooth, multilingual narration—even within article.                                  | 🔄           |
-| **Keyboard Shortcuts**                  | Implement keybindings for navigation                                                       | 🔄           |
-| **Newsletter Integration**              | Support for newsletter subscriptions and management                                        | 🔄           |
-| **YouTube Transcripts**                 | Extract and display YouTube video transcripts                                              | 🔄           |
-| **NoteStamp Integration**               | Enhanced note-taking with timestamps and annotations                                       | 🔄           |
-| **Advanced Search**                     | Full-text search across all saved articles and feeds                                       | 🔄           |
-| **AI-Powered Summarization**            | Generate summaries of articles using AI for quick insights                                 | 🔄           |
-| **Progress Tracking**                   | Track reading progress and podcast playback position                                       | 🔄           |
-
-
-
-
-
+| **Feature**                      | **Description**                                           | **Status** |
+| -------------------------------- | --------------------------------------------------------- | ---------- |
+| **Advanced Analytics**           | Track reading time, articles read, and detailed insights  | 🔄         |
+| **Text-to-Speech (TTS) Support** | Enjoy smooth, multilingual narration—even within article. | 🔄         |
+| **Keyboard Shortcuts**           | Implement keybindings for navigation                      | 🔄         |
+| **Newsletter Integration**       | Support for newsletter subscriptions and management       | 🔄         |
+| **YouTube Transcripts**          | Extract and display YouTube video transcripts             | 🔄         |
+| **NoteStamp Integration**        | Enhanced note-taking with timestamps and annotations      | 🔄         |
+| **Advanced Search**              | Full-text search across all saved articles and feeds      | 🔄         |
+| **Progress Tracking**            | Track reading progress and podcast playback position      | 🔄         |
 
 ## Installation
 
@@ -167,17 +158,20 @@ Want to influence the next release? </h3>  : Join our [Discord server](https://d
 
 ### Common Issues
 
-**Feed not loading**: 
+**Feed not loading**:
+
 - Check if the feed URL is correct
 - Try refreshing the feed manually
 - Some feeds may require authentication
 
 **YouTube feeds not working**:
+
 - Make sure you're using a valid YouTube channel URL
 - Try using the channel ID instead of the custom URL
 - Some channels may have disabled RSS feeds
 
 **Podcast audio not playing**:
+
 - Check if the audio URL is accessible
 - Some podcasts may require authentication
 - Try opening the audio URL in a browser
@@ -185,6 +179,7 @@ Want to influence the next release? </h3>  : Join our [Discord server](https://d
 ### Getting Help
 
 If you encounter any issues or have suggestions:
+
 - Create an issue on [GitHub](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)
 - Join our [Discord community](https://discord.com/invite/9bu7V9BBbs)
 - Check the existing issues for solutions
@@ -207,6 +202,3 @@ If you find this plugin useful, consider supporting its long-term development:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-
-

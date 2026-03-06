@@ -1,883 +1,1471 @@
-import { ItemView, WorkspaceLeaf, Menu, MenuItem, App, Setting } from "obsidian";
+import {
+  ItemView,
+  WorkspaceLeaf,
+  Menu,
+  MenuItem,
+  App,
+  Setting,
+  Notice,
+} from "obsidian";
 import { setIcon } from "obsidian";
-import { FeedItem, RssDashboardSettings, ArticleSavingSettings } from "../types/types";
+import {
+  FeedItem,
+  RssDashboardSettings,
+  ArticleSavingSettings,
+  Tag,
+} from "../types/types";
 import { MediaService } from "../services/media-service";
 import { ArticleSaver } from "../services/article-saver";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
+import { HighlightService } from "../services/highlight-service";
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { requestUrl } from "obsidian";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
-import { ensureUtf8Meta } from '../utils/platform-utils';
+import { ensureUtf8Meta } from "../utils/platform-utils";
+import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
 export class ReaderView extends ItemView {
-    private currentItem: FeedItem | null = null;
-    private readingContainer!: HTMLElement;
-    private titleElement!: HTMLElement;
-    private articleSaver: ArticleSaver;
-    private settings: RssDashboardSettings;
-    private onArticleSave: (item: FeedItem) => void;
-    private webViewerIntegration: WebViewerIntegration | null = null;
-    private podcastPlayer: PodcastPlayer | null = null;
-    private videoPlayer: VideoPlayer | null = null;
-    private relatedItems: FeedItem[] = [];
-    private currentFullContent?: string;
-    private turndownService = new TurndownService();
-    
-    public isPodcastPlaying(): boolean {
-        if (!this.podcastPlayer) return false;
-        const audioElement = (this.podcastPlayer as unknown as { audioElement?: HTMLAudioElement }).audioElement;
-        return audioElement !== null && audioElement !== undefined && 
-               !audioElement.paused && 
-               audioElement.currentTime > 0;
+  private currentItem: FeedItem | null = null;
+  private readingContainer!: HTMLElement;
+  private titleElement!: HTMLElement;
+  private articleSaver: ArticleSaver;
+  private settings: RssDashboardSettings;
+  private onArticleSave: (item: FeedItem) => void;
+  private onArticleUpdate: (
+    item: FeedItem,
+    updates: Partial<FeedItem>,
+    shouldRerender?: boolean,
+  ) => void;
+  private webViewerIntegration: WebViewerIntegration | null = null;
+  private podcastPlayer: PodcastPlayer | null = null;
+  private videoPlayer: VideoPlayer | null = null;
+  private relatedItems: FeedItem[] = [];
+  private currentFullContent?: string;
+  private turndownService = new TurndownService();
+  private readToggleButton: HTMLElement | null = null;
+  private starToggleButton: HTMLElement | null = null;
+  private returnLeaf: WorkspaceLeaf | null = null;
+  private tagsDropdownPortal: HTMLElement | null = null;
+  private tagsDropdownBackdrop: HTMLElement | null = null;
+  private tagsDropdownOutsideHandler: ((event: MouseEvent) => void) | null =
+    null;
+  private tagsDropdownDocument: Document | null = null;
+  private tagsDropdownViewportCleanup: (() => void) | null = null;
+
+  public setReturnLeaf(leaf: WorkspaceLeaf | null): void {
+    this.returnLeaf = leaf;
+  }
+
+  private async navigateBackToDashboard(): Promise<void> {
+    const dashboardLeaves =
+      this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+    const targetLeaf =
+      this.returnLeaf && dashboardLeaves.includes(this.returnLeaf)
+        ? this.returnLeaf
+        : dashboardLeaves[0] ?? null;
+
+    if (targetLeaf) {
+      this.app.workspace.setActiveLeaf(targetLeaf, { focus: true });
+      await this.app.workspace.revealLeaf(targetLeaf);
     }
 
-    constructor(leaf: WorkspaceLeaf, settings: RssDashboardSettings, articleSaver: ArticleSaver, onArticleSave: (item: FeedItem) => void) {
-        super(leaf);
-        this.settings = settings;
-        this.articleSaver = articleSaver;
-        this.onArticleSave = onArticleSave;
-        
-        
-        try {
-            const appWithPlugins = this.app as unknown as { plugins?: { plugins?: Record<string, unknown> } };
-            const plugins = appWithPlugins.plugins?.plugins;
-            if (plugins && "webpage-html-export" in plugins) {
-                interface WebViewerPlugin {
-                    openWebpage?(url: string, title: string): Promise<void>;
-                    currentTitle?: string;
-                    currentUrl?: string;
-                    cleanedHtml?: string;
-                }
-                interface ObsidianPlugins {
-                    plugins: {
-                        [key: string]: unknown;
-                        "webpage-html-export"?: WebViewerPlugin;
-                    };
-                }
-                interface ObsidianApp extends App {
-                    plugins: ObsidianPlugins;
-                }
-                this.webViewerIntegration = new WebViewerIntegration(this.app as unknown as ObsidianApp, settings.articleSaving);
-            }
-        } catch {
-            // Web viewer integration not available
+    this.leaf.detach();
+  }
+
+  public isPodcastPlaying(): boolean {
+    if (!this.podcastPlayer) return false;
+    const audioElement = (
+      this.podcastPlayer as unknown as { audioElement?: HTMLAudioElement }
+    ).audioElement;
+    return (
+      audioElement !== null &&
+      audioElement !== undefined &&
+      !audioElement.paused &&
+      audioElement.currentTime > 0
+    );
+  }
+
+  constructor(
+    leaf: WorkspaceLeaf,
+    settings: RssDashboardSettings,
+    articleSaver: ArticleSaver,
+    onArticleSave: (item: FeedItem) => void,
+    onArticleUpdate: (
+      item: FeedItem,
+      updates: Partial<FeedItem>,
+      shouldRerender?: boolean,
+    ) => void,
+  ) {
+    super(leaf);
+    this.settings = settings;
+    this.articleSaver = articleSaver;
+    this.onArticleSave = onArticleSave;
+    this.onArticleUpdate = onArticleUpdate;
+
+    try {
+      const appWithPlugins = this.app as unknown as {
+        plugins?: { plugins?: Record<string, unknown> };
+      };
+      const plugins = appWithPlugins.plugins?.plugins;
+      if (plugins && "webpage-html-export" in plugins) {
+        interface WebViewerPlugin {
+          openWebpage?(url: string, title: string): Promise<void>;
+          currentTitle?: string;
+          currentUrl?: string;
+          cleanedHtml?: string;
         }
+        interface ObsidianPlugins {
+          plugins: {
+            [key: string]: unknown;
+            "webpage-html-export"?: WebViewerPlugin;
+          };
+        }
+        interface ObsidianApp extends App {
+          plugins: ObsidianPlugins;
+        }
+        this.webViewerIntegration = new WebViewerIntegration(
+          this.app as unknown as ObsidianApp,
+          settings.articleSaving,
+        );
+      }
+    } catch {
+      // Web viewer integration not available
+    }
+  }
+
+  getViewType(): string {
+    return RSS_READER_VIEW_TYPE;
+  }
+
+  getDisplayText(): string {
+    return this.currentItem ? this.currentItem.title : "RSS reader";
+  }
+
+  getIcon(): string {
+    if (this.currentItem) {
+      if (this.currentItem.mediaType === "video") {
+        return "play-circle";
+      } else if (this.currentItem.mediaType === "podcast") {
+        return "headphones";
+      }
+    }
+    return "file-text";
+  }
+
+  onOpen(): Promise<void> {
+    this.contentEl.empty();
+    this.contentEl.addClass("rss-reader-view");
+
+    const header = this.contentEl.createDiv({ cls: "rss-reader-header" });
+
+    const backButton = header.createDiv({ cls: "rss-reader-back-button" });
+    setIcon(backButton, "arrow-left");
+
+    const handleBackClick = () => {
+      void this.navigateBackToDashboard();
+    };
+
+    backButton.addEventListener("click", handleBackClick);
+
+    this.titleElement = header.createDiv({
+      cls: "rss-reader-title",
+      text: "RSS reader",
+    });
+
+    this.currentItem = null;
+
+    const actions = header.createDiv({ cls: "rss-reader-actions" });
+
+    // Save button
+    const saveButton = actions.createDiv({
+      cls: "rss-reader-action-button",
+      attr: { title: "Save article" },
+    });
+
+    setIcon(saveButton, "save");
+    saveButton.addEventListener("click", (e) => {
+      if (this.currentItem) {
+        this.showSaveOptions(e, this.currentItem);
+      }
+    });
+
+    // Read toggle button
+    this.readToggleButton = actions.createDiv({
+      cls: "rss-reader-action-button rss-reader-read-toggle",
+      attr: { title: "Mark as read/unread" },
+    });
+    setIcon(this.readToggleButton, "circle");
+    this.readToggleButton.addEventListener("click", () => {
+      if (this.currentItem) {
+        this.toggleReadStatus();
+      }
+    });
+
+    // Star toggle button
+    this.starToggleButton = actions.createDiv({
+      cls: "rss-reader-action-button rss-reader-star-toggle",
+      attr: { title: "Star/unstar article" },
+    });
+    setIcon(this.starToggleButton, "star-off");
+    this.starToggleButton.addEventListener("click", () => {
+      if (this.currentItem) {
+        this.toggleStarStatus();
+      }
+    });
+
+    // Tags button
+    const tagsButton = actions.createDiv({
+      cls: "rss-reader-action-button rss-reader-tags-button",
+      attr: { title: "Manage tags" },
+    });
+    setIcon(tagsButton, "tag");
+    tagsButton.addEventListener("click", (e) => {
+      if (this.currentItem) {
+        this.showTagsDropdown(e, this.currentItem);
+      }
+    });
+
+    // Open in browser button
+    const browserButton = actions.createDiv({
+      cls: "rss-reader-action-button",
+      attr: { title: "Open in Browser" },
+    });
+    setIcon(browserButton, "globe-2");
+    browserButton.addEventListener("click", () => {
+      if (this.currentItem) {
+        window.open(this.currentItem.link, "_blank");
+      }
+    });
+
+    this.readingContainer = this.contentEl.createDiv({
+      cls: "rss-reader-content",
+    });
+    return Promise.resolve();
+  }
+
+  private getCustomTemplateForArticle(item: FeedItem): string | undefined {
+    const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
+    if (feed?.customTemplate) {
+      const articleSaving: ArticleSavingSettings = this.settings.articleSaving;
+      const savedTemplates = articleSaving.savedTemplates ?? [];
+      const templateObj = savedTemplates.find(
+        (t) => t.id === feed.customTemplate,
+      );
+      if (templateObj) {
+        return templateObj.template;
+      }
+    }
+    return undefined;
+  }
+
+  private showSaveOptions(event: MouseEvent, item: FeedItem): void {
+    const menu = new Menu();
+
+    menu.addItem((menuItem: MenuItem) => {
+      menuItem
+        .setTitle("Save with default settings")
+        .setIcon("save")
+        .onClick(async () => {
+          const markdownContent = this.turndownService.turndown(
+            this.currentFullContent || item.description || "",
+          );
+          const customTemplate = this.getCustomTemplateForArticle(item);
+          const file = await this.articleSaver.saveArticle(
+            item,
+            undefined,
+            customTemplate,
+            markdownContent,
+          );
+          if (file) {
+            this.onArticleSave(item);
+
+            this.updateSavedLabel(true);
+          }
+        });
+    });
+
+    menu.addItem((menuItem: MenuItem) => {
+      menuItem
+        .setTitle("Save to custom folder...")
+        .setIcon("folder")
+        .onClick(() => {
+          this.showCustomSaveModal(item);
+        });
+    });
+
+    menu.showAtMouseEvent(event);
+  }
+
+  private showCustomSaveModal(item: FeedItem): void {
+    const modal = document.body.createDiv({
+      cls: "rss-dashboard-modal rss-dashboard-modal-container",
+    });
+
+    const modalContent = modal.createDiv({
+      cls: "rss-dashboard-modal-content",
+    });
+
+    new Setting(modalContent).setName("Save article").setHeading();
+
+    const folderLabel = modalContent.createEl("label", {
+      text: "Save to folder:",
+    });
+
+    const folderInput = modalContent.createEl("input", {
+      attr: {
+        type: "text",
+        placeholder: "Enter folder path",
+        value: this.settings.articleSaving.defaultFolder || "",
+      },
+    });
+
+    const templateLabel = modalContent.createEl("label", {
+      text: "Use template:",
+    });
+
+    const templateInput = modalContent.createEl("textarea", {
+      attr: {
+        placeholder: "Enter template",
+        rows: "6",
+      },
+    });
+    // Pre-populate with feed's custom template if available, otherwise use default
+    const feedTemplate = this.getCustomTemplateForArticle(item);
+    templateInput.value =
+      feedTemplate || this.settings.articleSaving.defaultTemplate || "";
+
+    const buttonContainer = modalContent.createDiv({
+      cls: "rss-dashboard-modal-buttons",
+    });
+
+    const cancelButton = buttonContainer.createEl("button", {
+      text: "Cancel",
+    });
+    cancelButton.addEventListener("click", () => {
+      document.body.removeChild(modal);
+    });
+
+    const saveButton = buttonContainer.createEl("button", {
+      text: "Save",
+      cls: "rss-dashboard-primary-button",
+    });
+    saveButton.addEventListener("click", () => {
+      void (async () => {
+        const folder = folderInput.value.trim();
+        const template = templateInput.value.trim() || undefined;
+
+        const markdownContent = this.turndownService.turndown(
+          this.currentFullContent || item.description || "",
+        );
+        const file = await this.articleSaver.saveArticle(
+          item,
+          folder,
+          template,
+          markdownContent,
+        );
+        if (file) {
+          this.onArticleSave(item);
+
+          this.updateSavedLabel(true);
+        }
+
+        document.body.removeChild(modal);
+      })();
+    });
+
+    buttonContainer.appendChild(cancelButton);
+    buttonContainer.appendChild(saveButton);
+
+    modalContent.appendChild(folderLabel);
+    modalContent.appendChild(folderInput);
+    modalContent.appendChild(templateLabel);
+    modalContent.appendChild(templateInput);
+    modalContent.appendChild(buttonContainer);
+
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+  }
+
+  async displayItem(
+    item: FeedItem,
+    relatedItems: FeedItem[] = [],
+  ): Promise<void> {
+    if (this.readingContainer) {
+      this.readingContainer.empty();
+    }
+    this.currentItem = item;
+    this.relatedItems = relatedItems;
+
+    if (this.titleElement) {
+      this.titleElement.setText(item.title);
     }
 
-    getViewType(): string {
-        return RSS_READER_VIEW_TYPE;
-    }
+    // Update toggle button states
+    this.updateToggleButtons();
 
-    getDisplayText(): string {
-        return this.currentItem ? this.currentItem.title : "RSS reader";
-    }
-
-    getIcon(): string {
-        if (this.currentItem) {
-            if (this.currentItem.mediaType === 'video') {
-                return "play-circle";
-            } else if (this.currentItem.mediaType === 'podcast') {
-                return "headphones";
-            }
+    if (item.saved) {
+      const fileExists = this.checkSavedFileExists(item);
+      if (!fileExists) {
+        item.saved = false;
+        if (item.tags) {
+          item.tags = item.tags.filter(
+            (tag) => tag.name.toLowerCase() !== "saved",
+          );
         }
-        return "file-text";
-    }
-
-    onOpen(): Promise<void> {
-        this.contentEl.empty();
-        this.contentEl.addClass("rss-reader-view");
-        
-        
-        const header = this.contentEl.createDiv({ cls: "rss-reader-header" });
-        
-        
-        const backButton = header.createDiv({ cls: "rss-reader-back-button" });
-        setIcon(backButton, "arrow-left");
-        backButton.addEventListener("click", () => {
-            this.app.workspace.detachLeavesOfType(RSS_READER_VIEW_TYPE);
-        });
-        
-        
-        this.titleElement = header.createDiv({ cls: "rss-reader-title", text: "RSS reader" });
-        
-        
-        this.currentItem = null;
-        
-        
-        const actions = header.createDiv({ cls: "rss-reader-actions" });
-        
-        
-        actions.createDiv({ 
-            cls: "rss-reader-saved-label",
-            text: "Saved"
-        });
-        
-        
-        const saveButton = actions.createDiv({ 
-            cls: "rss-reader-action-button", 
-            attr: { title: "Save article" } 
-        });
-        
-        setIcon(saveButton, "save");
-        saveButton.addEventListener("click", (e) => {
-            if (this.currentItem) {
-                this.showSaveOptions(e, this.currentItem);
-            }
-        });
-        
-        
-        const browserButton = actions.createDiv({ 
-            cls: "rss-reader-action-button", 
-            attr: { title: "Open in Browser" } 
-        });
-        setIcon(browserButton, "globe-2");
-        browserButton.addEventListener("click", () => {
-            if (this.currentItem) {
-                window.open(this.currentItem.link, "_blank");
-            }
-        });
-        
-        
-        this.readingContainer = this.contentEl.createDiv({ cls: "rss-reader-content" });
-        return Promise.resolve();
-    }
-
-    
-    private getCustomTemplateForArticle(item: FeedItem): string | undefined {
-        const feed = this.settings.feeds.find(f => f.url === item.feedUrl);
-        if (feed?.customTemplate) {
-            const articleSaving: ArticleSavingSettings = this.settings.articleSaving;
-            const savedTemplates = articleSaving.savedTemplates ?? [];
-            const templateObj = savedTemplates.find(t => t.id === feed.customTemplate);
-            if (templateObj) {
-                return templateObj.template;
-            }
-        }
-        return undefined;
-    }
-
-    private showSaveOptions(event: MouseEvent, item: FeedItem): void {
-        const menu = new Menu();
-
-        menu.addItem((menuItem: MenuItem) => {
-            menuItem
-                .setTitle("Save with default settings")
-                .setIcon("save")
-                .onClick(async () => {
-                    const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
-                    const customTemplate = this.getCustomTemplateForArticle(item);
-                    const file = await this.articleSaver.saveArticle(item, undefined, customTemplate, markdownContent);
-                    if (file) {
-                        this.onArticleSave(item);
-
-                        this.updateSavedLabel(true);
-                    }
-                });
-        });
-        
-        menu.addItem((menuItem: MenuItem) => {
-            menuItem
-                .setTitle("Save to custom folder...")
-                .setIcon("folder")
-                .onClick(() => {
-                    this.showCustomSaveModal(item);
-                });
-        });
-        
-        menu.showAtMouseEvent(event);
-    }
-    
-    
-    private showCustomSaveModal(item: FeedItem): void {
-        const modal = document.body.createDiv({
-            cls: "rss-dashboard-modal rss-dashboard-modal-container"
-        });
-        
-        const modalContent = modal.createDiv({
-            cls: "rss-dashboard-modal-content"
-        });
-        
-        new Setting(modalContent).setName("Save article").setHeading();
-        
-        const folderLabel = modalContent.createEl("label", {
-            text: "Save to folder:"
-        });
-        
-        const folderInput = modalContent.createEl("input", {
-            attr: {
-                type: "text",
-                placeholder: "Enter folder path",
-                value: this.settings.articleSaving.defaultFolder || ""
-            }
-        });
-        
-        const templateLabel = modalContent.createEl("label", {
-            text: "Use template:"
-        });
-        
-        const templateInput = modalContent.createEl("textarea", {
-            attr: {
-                placeholder: "Enter template",
-                rows: "6"
-            }
-        });
-        // Pre-populate with feed's custom template if available, otherwise use default
-        const feedTemplate = this.getCustomTemplateForArticle(item);
-        templateInput.value = feedTemplate || this.settings.articleSaving.defaultTemplate || "";
-
-        const buttonContainer = modalContent.createDiv({
-            cls: "rss-dashboard-modal-buttons"
-        });
-
-        const cancelButton = buttonContainer.createEl("button", {
-            text: "Cancel"
-        });
-        cancelButton.addEventListener("click", () => {
-            document.body.removeChild(modal);
-        });
-
-        const saveButton = buttonContainer.createEl("button", {
-            text: "Save",
-            cls: "rss-dashboard-primary-button"
-        });
-        saveButton.addEventListener("click", () => {
-            void (async () => {
-            const folder = folderInput.value.trim();
-            const template = templateInput.value.trim() || undefined;
-
-            const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
-            const file = await this.articleSaver.saveArticle(item, folder, template, markdownContent);
-            if (file) {
-                this.onArticleSave(item);
-
-                this.updateSavedLabel(true);
-            }
-
-            document.body.removeChild(modal);
-            })();
-        });
-        
-        
-        buttonContainer.appendChild(cancelButton);
-        buttonContainer.appendChild(saveButton);
-        
-        modalContent.appendChild(folderLabel);
-        modalContent.appendChild(folderInput);
-        modalContent.appendChild(templateLabel);
-        modalContent.appendChild(templateInput);
-        modalContent.appendChild(buttonContainer);
-        
-        modal.appendChild(modalContent);
-        document.body.appendChild(modal);
-    }
-
-    
-    async displayItem(item: FeedItem, relatedItems: FeedItem[] = []): Promise<void> {
-        if (this.readingContainer) {
-            this.readingContainer.empty();
-        }
-        this.currentItem = item;
-        this.relatedItems = relatedItems;
-
-       
-        if (this.titleElement) {
-            this.titleElement.setText(item.title);
-        }
-
-        this.updateSavedLabel(false);
-
-        if (item.saved) {
-            const fileExists = this.checkSavedFileExists(item);
-            if (!fileExists) {
-                item.saved = false;
-                if (item.tags) {
-                    item.tags = item.tags.filter(tag => tag.name.toLowerCase() !== "saved");
-                }
-                if (item.feedUrl) {
-                    const feed = this.settings.feeds.find(f => f.url === item.feedUrl);
-                    if (feed) {
-                        const originalItem = feed.items.find(i => i.guid === item.guid);
-                        if (originalItem) {
-                            originalItem.saved = false;
-                            if (originalItem.tags) {
-                                originalItem.tags = originalItem.tags.filter(tag => tag.name.toLowerCase() !== "saved");
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (item.mediaType === 'video' && !item.videoId && item.link) {
-            const vid = MediaService.extractYouTubeVideoId(item.link);
-            if (vid) item.videoId = vid;
-        }
-
-        if (item.mediaType === 'video' && item.videoId) {
-            await this.displayVideo(item);
-        } else if (item.mediaType === 'video' && item.videoUrl) {
-            await this.displayVideoPodcast(item);
-        } else if (item.mediaType === 'podcast' && (item.audioUrl || MediaService.extractPodcastAudio(item.description))) {
-            if (!item.audioUrl) {
-                const aud = MediaService.extractPodcastAudio(item.description);
-                if (aud) item.audioUrl = aud;
-            }
-            await this.displayPodcast(item);
-        } else {
-            const fullContent = await this.fetchFullArticleContent(item.link);
-            this.currentFullContent = fullContent;
-            await this.displayArticle(item, fullContent);
-        }
-
-        if (!item.read) {
-            item.read = true;
-        }
-    }
-    
-    
-    private async displayVideo(item: FeedItem): Promise<void> {
-        if (this.podcastPlayer) {
-            this.podcastPlayer.destroy();
-            this.podcastPlayer = null;
-        }
-        const container = this.readingContainer.createDiv({ 
-            cls: "rss-reader-video-container enhanced" 
-        });
-        if (item.videoId) {
-            this.videoPlayer = new VideoPlayer(container, (selectedVideo) => {
-                void this.displayItem(selectedVideo, this.relatedItems);
-            });
-            this.videoPlayer.loadVideo(item);
-            if (this.relatedItems.length > 0) {
-                this.videoPlayer.setRelatedVideos(this.relatedItems);
-            }
-        } else {
-            container.createDiv({
-                cls: "rss-reader-error",
-                text: "Video id not found. Cannot play this video."
-            });
-            await this.displayArticle(item);
-        }
-    }
-    
-    
-    private async displayPodcast(item: FeedItem): Promise<void> {
-        if (this.videoPlayer) {
-            this.videoPlayer.destroy();
-            this.videoPlayer = null;
-        }
-        
-        const container = this.readingContainer.createDiv({ 
-            cls: "rss-reader-podcast-container enhanced" 
-        });
-        
-        
-        let fullFeedEpisodes: FeedItem[] | undefined = undefined;
         if (item.feedUrl) {
-            const feed = this.settings.feeds.find(f => f.url === item.feedUrl);
-            if (feed) {
-                fullFeedEpisodes = feed.items.filter(i => i.mediaType === 'podcast');
+          const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
+          if (feed) {
+            const originalItem = feed.items.find((i) => i.guid === item.guid);
+            if (originalItem) {
+              originalItem.saved = false;
+              if (originalItem.tags) {
+                originalItem.tags = originalItem.tags.filter(
+                  (tag) => tag.name.toLowerCase() !== "saved",
+                );
+              }
             }
+          }
         }
-        
-        if (item.audioUrl) {
-            this.podcastPlayer = new PodcastPlayer(container, this.app, this.settings.media.podcastTheme);
-            this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
-        } else {
-            const audioUrl = MediaService.extractPodcastAudio(item.description);
-            if (audioUrl) {
-                const podcastItem: FeedItem = {
-                    ...item,
-                    audioUrl: audioUrl
-                };
-                this.podcastPlayer = new PodcastPlayer(container, this.app, this.settings.media.podcastTheme);
-                this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
-            } else {
-                container.createDiv({
-                    cls: "rss-reader-error",
-                    text: "Audio url not found. Cannot play this podcast."
-                });
-                await this.displayArticle(item);
-            }
-        }
-    }
-    
-    
-    updatePodcastTheme(theme: string): void {
-        if (this.podcastPlayer) {
-            this.podcastPlayer.updateTheme(theme);
-        }
+      }
     }
 
-    private async displayArticle(item: FeedItem, fullContent?: string): Promise<void> {
-        
-        if (this.podcastPlayer) {
-            this.podcastPlayer.destroy();
-            this.podcastPlayer = null;
+    if (item.mediaType === "video" && !item.videoId && item.link) {
+      const vid = MediaService.extractYouTubeVideoId(item.link);
+      if (vid) item.videoId = vid;
+    }
+
+    if (item.mediaType === "video" && item.videoId) {
+      await this.displayVideo(item);
+    } else if (item.mediaType === "video" && item.videoUrl) {
+      await this.displayVideoPodcast(item);
+    } else if (
+      item.mediaType === "podcast" &&
+      (item.audioUrl || MediaService.extractPodcastAudio(item.description))
+    ) {
+      if (!item.audioUrl) {
+        const aud = MediaService.extractPodcastAudio(item.description);
+        if (aud) item.audioUrl = aud;
+      }
+      await this.displayPodcast(item);
+    } else {
+      const fullContent = await this.fetchFullArticleContent(item.link);
+      this.currentFullContent = fullContent;
+      await this.displayArticle(item, fullContent);
+    }
+  }
+
+  private async displayVideo(item: FeedItem): Promise<void> {
+    if (this.podcastPlayer) {
+      this.podcastPlayer.destroy();
+      this.podcastPlayer = null;
+    }
+    const container = this.readingContainer.createDiv({
+      cls: "rss-reader-video-container enhanced",
+    });
+    if (item.videoId) {
+      this.videoPlayer = new VideoPlayer(container, (selectedVideo) => {
+        void this.displayItem(selectedVideo, this.relatedItems);
+      });
+      this.videoPlayer.loadVideo(item);
+      if (this.relatedItems.length > 0) {
+        this.videoPlayer.setRelatedVideos(this.relatedItems);
+      }
+    } else {
+      container.createDiv({
+        cls: "rss-reader-error",
+        text: "Video id not found. Cannot play this video.",
+      });
+      await this.displayArticle(item);
+    }
+  }
+
+  private async displayPodcast(item: FeedItem): Promise<void> {
+    if (this.videoPlayer) {
+      this.videoPlayer.destroy();
+      this.videoPlayer = null;
+    }
+
+    const container = this.readingContainer.createDiv({
+      cls: "rss-reader-podcast-container enhanced",
+    });
+
+    let fullFeedEpisodes: FeedItem[] | undefined = undefined;
+    if (item.feedUrl) {
+      const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
+      if (feed) {
+        fullFeedEpisodes = feed.items.filter((i) => i.mediaType === "podcast");
+      }
+    }
+
+    if (item.audioUrl) {
+      this.podcastPlayer = new PodcastPlayer(
+        container,
+        this.app,
+        this.settings.media.podcastTheme,
+      );
+      this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
+    } else {
+      const audioUrl = MediaService.extractPodcastAudio(item.description);
+      if (audioUrl) {
+        const podcastItem: FeedItem = {
+          ...item,
+          audioUrl: audioUrl,
+        };
+        this.podcastPlayer = new PodcastPlayer(
+          container,
+          this.app,
+          this.settings.media.podcastTheme,
+        );
+        this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
+      } else {
+        container.createDiv({
+          cls: "rss-reader-error",
+          text: "Audio url not found. Cannot play this podcast.",
+        });
+        await this.displayArticle(item);
+      }
+    }
+  }
+
+  updatePodcastTheme(theme: string): void {
+    if (this.podcastPlayer) {
+      this.podcastPlayer.updateTheme(theme);
+    }
+  }
+
+  private async displayArticle(
+    item: FeedItem,
+    fullContent?: string,
+  ): Promise<void> {
+    if (this.podcastPlayer) {
+      this.podcastPlayer.destroy();
+      this.podcastPlayer = null;
+    }
+    if (this.videoPlayer) {
+      this.videoPlayer.destroy();
+      this.videoPlayer = null;
+    }
+
+    if (this.webViewerIntegration) {
+      try {
+        const success = await this.webViewerIntegration.openInWebViewer(
+          item.link,
+          item.title,
+        );
+        if (!success) {
+          this.renderArticle(item, fullContent);
         }
-        if (this.videoPlayer) {
-            this.videoPlayer.destroy();
-            this.videoPlayer = null;
-        }
-        
-        
-        if (this.webViewerIntegration) {
-            try {
-                const success = await this.webViewerIntegration.openInWebViewer(item.link, item.title);
-                if (!success) {
-                    
-                    this.renderArticle(item, fullContent);
-                }
-            } catch {
-                
-                this.renderArticle(item, fullContent);
-            }
-            
-            return;
-        }
-        
-        
+      } catch {
         this.renderArticle(item, fullContent);
-    }
-    
-    
-    private renderArticle(item: FeedItem, fullContent?: string): void {
-        
-        const headerContainer = this.readingContainer.createDiv({ cls: "rss-reader-article-header" });
-        
-        const titleSetting = new Setting(headerContainer).setName(item.title).setHeading();
-        titleSetting.settingEl.addClass("rss-reader-item-title");
-        
-        
-        const metaContainer = headerContainer.createDiv({ cls: "rss-reader-meta" });
-        
-        metaContainer.createDiv({ 
-            cls: "rss-reader-feed-title",
-            text: item.feedTitle 
-        });
-        
-        metaContainer.createDiv({ 
-            cls: "rss-reader-pub-date",
-            text: new Date(item.pubDate).toLocaleString() 
-        });
-        
-        
-        if (item.tags && item.tags.length > 0) {
-            const tagsContainer = headerContainer.createDiv({ cls: "rss-reader-tags" });
-            
-            for (const tag of item.tags) {
-                const tagElement = tagsContainer.createDiv({ cls: "rss-reader-tag" });
-                tagElement.textContent = tag.name;
-                tagElement.style.setProperty('--tag-color', tag.color);
-            }
-        }
-        
-        
-        if (this.settings.display.showCoverImage && (item.coverImage || (item.image && typeof item.image === "object" && (item.image as { url?: string }).url) || (typeof item.image === "string" ? item.image : ""))) {
-            const imageContainer = this.readingContainer.createDiv({ cls: "rss-reader-cover-image" });
-            const coverImg = imageContainer.createEl("img", {
-                attr: {
-                    src: (item.coverImage || (item.image && typeof item.image === "object" && (item.image as { url?: string }).url) || (typeof item.image === "string" ? item.image : "")) ?? "",
-                    alt: item.title
-                }
-            });
-            coverImg.addEventListener('error', function() {
-                this.remove();
-            });
-        }
-        
-        const contentContainer = this.readingContainer.createDiv({ cls: "rss-reader-article-content" });
+      }
 
-        
-        const htmlString = ensureUtf8Meta(fullContent || item.description || "");
-        const processedHtmlString = this.convertRelativeUrlsInContent(htmlString, item.link);
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(processedHtmlString, "text/html");
-
-        
-        function appendNodes(parent: HTMLElement, nodes: NodeListOf<ChildNode>) {
-            nodes.forEach(node => {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    parent.appendText(node.textContent || "");
-                } else if (node.nodeType === Node.ELEMENT_NODE) {
-                    const element = node as HTMLElement;
-                    // Skip icon elements that shouldn't be rendered
-                    const isIconElement = element.tagName === "I" && element.classList.contains("icon-class");
-                    if (!isIconElement) {
-                        const tag = element.tagName.toLowerCase() as keyof HTMLElementTagNameMap;
-                        const el = parent.createEl(tag);
-                        
-                        Array.from(element.attributes).forEach(attr => {
-                            el.setAttr(attr.name, attr.value);
-                        });
-                        
-                        appendNodes(el, node.childNodes);
-                    }
-                }
-            });
-        }
-
-        appendNodes(contentContainer, doc.body.childNodes);
-
-        
-        contentContainer.querySelectorAll("img").forEach(img => {
-            const src = img.getAttribute("src");
-            if (src && src.startsWith("app://")) {
-                img.setAttribute("src", src.replace("app://", "https://"));
-            }
-            img.classList.add("rss-reader-responsive-img");
-            
-            img.addEventListener('error', function() {
-                this.remove();
-            });
-        });
-
-        
-        contentContainer.querySelectorAll("source").forEach(source => {
-            const srcset = source.getAttribute("srcset");
-            if (srcset) {
-                
-                const processedSrcset = srcset.split(',').map((part: string) => {
-                    const trimmedPart = part.trim();
-                    
-                    const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
-                    if (urlMatch) {
-                        const url = urlMatch[1];
-                        const sizeDescriptor = urlMatch[2] || '';
-                        
-                        let absoluteUrl = url;
-                        if (url.startsWith('app://')) {
-                            absoluteUrl = url.replace('app://', 'https://');
-                        } else if (url.startsWith('//')) {
-                            absoluteUrl = 'https:' + url;
-                        }
-                        return absoluteUrl + sizeDescriptor;
-                    }
-                    return trimmedPart;
-                }).join(', ');
-                source.setAttribute("srcset", processedSrcset);
-            }
-        });
-
-        
-        contentContainer.querySelectorAll("a").forEach(link => {
-            const href = link.getAttribute("href");
-            if (href && href.startsWith("app://")) {
-                link.setAttribute("href", href.replace("app://", "https://"));
-            }
-        });
-        
-        this.app.workspace.trigger("parse-math", contentContainer);
-        
-    
-        
-        
-        const links = contentContainer.querySelectorAll("a");
-        links.forEach((link) => {
-            link.setAttribute("target", "_blank");
-            link.setAttribute("rel", "noopener noreferrer");
-        });
+      return;
     }
 
-    
-    async fetchFullArticleContent(url: string): Promise<string> {
+    this.renderArticle(item, fullContent);
+  }
+
+  private renderArticle(item: FeedItem, fullContent?: string): void {
+    const headerContainer = this.readingContainer.createDiv({
+      cls: "rss-reader-article-header",
+    });
+
+    const articleTitleEl = headerContainer.createEl("h1", {
+      cls: "rss-reader-item-title",
+    });
+    if (
+      this.settings.highlights?.enabled &&
+      this.settings.highlights.highlightInTitles
+    ) {
+      const highlightService = new HighlightService(this.settings.highlights);
+      highlightService.setHighlightedText(articleTitleEl, item.title);
+    } else {
+      articleTitleEl.setText(item.title);
+    }
+
+    const metaContainer = headerContainer.createDiv({
+      cls: "rss-reader-meta",
+    });
+
+    metaContainer.createDiv({
+      cls: "rss-reader-feed-title",
+      text: item.feedTitle,
+    });
+
+    metaContainer.createDiv({
+      cls: "rss-reader-pub-date",
+      text: new Date(item.pubDate).toLocaleString(),
+    });
+
+    if (item.tags && item.tags.length > 0) {
+      const tagsContainer = headerContainer.createDiv({
+        cls: "rss-reader-tags",
+      });
+
+      for (const tag of item.tags) {
+        const tagElement = tagsContainer.createDiv({
+          cls: "rss-reader-tag",
+        });
+        tagElement.textContent = tag.name;
+        tagElement.style.setProperty("--tag-color", tag.color);
+      }
+    }
+
+    if (
+      this.settings.display.showCoverImage &&
+      (item.coverImage ||
+        (item.image &&
+          typeof item.image === "object" &&
+          (item.image as { url?: string }).url) ||
+        (typeof item.image === "string" ? item.image : ""))
+    ) {
+      const imageContainer = this.readingContainer.createDiv({
+        cls: "rss-reader-cover-image",
+      });
+      const coverImg = imageContainer.createEl("img", {
+        attr: {
+          src:
+            (item.coverImage ||
+              (item.image &&
+                typeof item.image === "object" &&
+                (item.image as { url?: string }).url) ||
+              (typeof item.image === "string" ? item.image : "")) ??
+            "",
+          alt: item.title,
+        },
+      });
+      coverImg.addEventListener("error", function () {
+        this.remove();
+      });
+    }
+
+    const contentContainer = this.readingContainer.createDiv({
+      cls: "rss-reader-article-content",
+    });
+
+    const htmlString = ensureUtf8Meta(fullContent || item.description || "");
+    const processedHtmlString = this.convertRelativeUrlsInContent(
+      htmlString,
+      item.link,
+    );
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(processedHtmlString, "text/html");
+
+    function appendNodes(parent: HTMLElement, nodes: NodeListOf<ChildNode>) {
+      nodes.forEach((node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          parent.appendText(node.textContent || "");
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          const element = node as HTMLElement;
+          // Skip icon elements that shouldn't be rendered
+          const isIconElement =
+            element.tagName === "I" && element.classList.contains("icon-class");
+          if (!isIconElement) {
+            const tag =
+              element.tagName.toLowerCase() as keyof HTMLElementTagNameMap;
+            const el = parent.createEl(tag);
+
+            Array.from(element.attributes).forEach((attr) => {
+              el.setAttr(attr.name, attr.value);
+            });
+
+            appendNodes(el, node.childNodes);
+          }
+        }
+      });
+    }
+
+    appendNodes(contentContainer, doc.body.childNodes);
+
+    contentContainer.querySelectorAll("img").forEach((img) => {
+      const src = img.getAttribute("src");
+      if (src && src.startsWith("app://")) {
+        img.setAttribute("src", src.replace("app://", "https://"));
+      }
+      img.classList.add("rss-reader-responsive-img");
+
+      img.addEventListener("error", function () {
+        this.remove();
+      });
+    });
+
+    contentContainer.querySelectorAll("source").forEach((source) => {
+      const srcset = source.getAttribute("srcset");
+      if (srcset) {
+        const processedSrcset = srcset
+          .split(",")
+          .map((part: string) => {
+            const trimmedPart = part.trim();
+
+            const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
+            if (urlMatch) {
+              const url = urlMatch[1];
+              const sizeDescriptor = urlMatch[2] || "";
+
+              let absoluteUrl = url;
+              if (url.startsWith("app://")) {
+                absoluteUrl = url.replace("app://", "https://");
+              } else if (url.startsWith("//")) {
+                absoluteUrl = "https:" + url;
+              }
+              return absoluteUrl + sizeDescriptor;
+            }
+            return trimmedPart;
+          })
+          .join(", ");
+        source.setAttribute("srcset", processedSrcset);
+      }
+    });
+
+    contentContainer.querySelectorAll("a").forEach((link) => {
+      const href = link.getAttribute("href");
+      if (href && href.startsWith("app://")) {
+        link.setAttribute("href", href.replace("app://", "https://"));
+      }
+    });
+
+    this.app.workspace.trigger("parse-math", contentContainer);
+
+    const links = contentContainer.querySelectorAll("a");
+    links.forEach((link) => {
+      link.setAttribute("target", "_blank");
+      link.setAttribute("rel", "noopener noreferrer");
+    });
+
+    // Apply word highlighting to content if enabled
+    if (
+      this.settings.highlights?.enabled &&
+      this.settings.highlights.highlightInContent
+    ) {
+      const highlightService = new HighlightService(this.settings.highlights);
+      highlightService.highlightElement(contentContainer);
+    }
+  }
+
+  async fetchFullArticleContent(url: string): Promise<string> {
+    try {
+      const response = await requestUrl({ url });
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(response.text, "text/html");
+      const reader = new Readability(doc);
+      const article = reader.parse();
+      const content = article?.content || "";
+
+      return this.convertRelativeUrlsInContent(content, url);
+    } catch {
+      return "";
+    }
+  }
+
+  private convertHtmlToMarkdown(html: string): string {
+    return this.turndownService.turndown(html);
+  }
+
+  private showMarkdownView(markdownContent: string, item: FeedItem): void {
+    const modal = document.body.createDiv({
+      cls: "rss-reader-markdown-modal",
+    });
+
+    const modalContent = modal.createDiv({
+      cls: "rss-reader-markdown-content",
+    });
+
+    modalContent.createDiv({
+      text: markdownContent,
+    });
+
+    const saveButton = modalContent.createEl("button", {
+      text: "Save to vault",
+    });
+    saveButton.addEventListener("click", () => {
+      void (async () => {
+        const markdownContent = this.turndownService.turndown(
+          this.currentFullContent || item.description || "",
+        );
+        const customTemplate = this.getCustomTemplateForArticle(item);
+        const file = await this.articleSaver.saveArticle(
+          item,
+          undefined,
+          customTemplate,
+          markdownContent,
+        );
+        if (file) {
+          this.onArticleSave(item);
+        }
+        document.body.removeChild(modal);
+      })();
+    });
+
+    const closeButton = modalContent.createEl("button", {
+      text: "Close",
+    });
+    closeButton.addEventListener("click", () => {
+      document.body.removeChild(modal);
+    });
+    document.body.appendChild(modal);
+  }
+
+  onClose(): Promise<void> {
+    this.closeTagsDropdownPortal();
+    this.contentEl.empty();
+    return Promise.resolve();
+  }
+
+  private convertRelativeUrlsInContent(
+    content: string,
+    baseUrl: string,
+  ): string {
+    if (!content || !baseUrl) return content;
+    try {
+      const baseHost = (() => {
         try {
-            
-            const response = await requestUrl({ url });
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(response.text, "text/html");
-            const reader = new Readability(doc);
-            const article = reader.parse();
-            const content = article?.content || "";
-            
-            return this.convertRelativeUrlsInContent(content, url);
+          return new URL(baseUrl).host;
         } catch {
-            
-            return "";
+          return "";
         }
-    }
+      })();
 
-    
-    private convertHtmlToMarkdown(html: string): string {
-        return this.turndownService.turndown(html);
-    }
+      content = content.replace(/app:\/\//g, "https://");
 
-    
-    private showMarkdownView(markdownContent: string, item: FeedItem): void {
-        const modal = document.body.createDiv({
-            cls: "rss-reader-markdown-modal"
-        });
-        
-        const modalContent = modal.createDiv({
-            cls: "rss-reader-markdown-content"
-        });
-        
-        modalContent.createDiv({
-            text: markdownContent
-        });
-        
-        const saveButton = modalContent.createEl("button", {
-            text: "Save to vault"
-        });
-        saveButton.addEventListener("click", () => {
-            void (async () => {
-            const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
-            const customTemplate = this.getCustomTemplateForArticle(item);
-            const file = await this.articleSaver.saveArticle(item, undefined, customTemplate, markdownContent);
-            if (file) {
-                this.onArticleSave(item);
+      content = content.replace(
+        /<img([^>]+)src=["']([^"']+)["']/gi,
+        (match: string, attributes: string, src: string) => {
+          try {
+            const srcUrl = new URL(src, baseUrl);
+            if (srcUrl.host !== baseHost) {
+              srcUrl.host = baseHost;
+              srcUrl.protocol = "https:";
+              return `<img${attributes}src="${srcUrl.toString()}"`;
             }
-            document.body.removeChild(modal);
-            })();
+            return `<img${attributes}src="${srcUrl.toString()}"`;
+          } catch {
+            return `<img${attributes}src="${src}"`;
+          }
+        },
+      );
+
+      content = content.replace(
+        /<source([^>]+)srcset=["']([^"']+)["']/gi,
+        (match: string, attributes: string, srcset: string) => {
+          const processedSrcset = srcset
+            .split(",")
+            .map((part: string) => {
+              const trimmedPart = part.trim();
+              const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
+              if (urlMatch) {
+                const url = urlMatch[1];
+                const sizeDescriptor = urlMatch[2] || "";
+                const absoluteUrl = this.convertToAbsoluteUrl(url, baseUrl);
+                return absoluteUrl + sizeDescriptor;
+              }
+              return trimmedPart;
+            })
+            .join(", ");
+          return `<source${attributes}srcset="${processedSrcset}"`;
+        },
+      );
+
+      content = content.replace(
+        /<a([^>]+)href=["']([^"']+)["']/gi,
+        (match: string, attributes: string, href: string) => {
+          const absoluteHref = this.convertToAbsoluteUrl(href, baseUrl);
+          return `<a${attributes}href="${absoluteHref}"`;
+        },
+      );
+      return content;
+    } catch {
+      return content;
+    }
+  }
+
+  private convertToAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
+    if (!relativeUrl || !baseUrl) return relativeUrl;
+
+    if (relativeUrl.startsWith("app://")) {
+      return relativeUrl.replace("app://", "https://");
+    }
+
+    if (relativeUrl.startsWith("//")) {
+      return "https:" + relativeUrl;
+    }
+
+    if (
+      relativeUrl.startsWith("http://") ||
+      relativeUrl.startsWith("https://")
+    ) {
+      return relativeUrl;
+    }
+
+    try {
+      const base = new URL(baseUrl);
+
+      if (relativeUrl.startsWith("/")) {
+        return `${base.protocol}//${base.host}${relativeUrl}`;
+      }
+
+      return new URL(relativeUrl, base).href;
+    } catch {
+      return relativeUrl;
+    }
+  }
+
+  private updateSavedLabel(saved: boolean): void {
+    // This method is kept for compatibility but no longer displays a label
+    // The save button icon state is now managed elsewhere
+    void saved;
+  }
+
+  private toggleReadStatus(): void {
+    if (!this.currentItem) return;
+
+    const newReadState = !this.currentItem.read;
+    this.currentItem.read = newReadState;
+
+    // Update the icon
+    if (this.readToggleButton) {
+      setIcon(this.readToggleButton, newReadState ? "check-circle" : "circle");
+      this.readToggleButton.classList.toggle("read", newReadState);
+      this.readToggleButton.classList.toggle("unread", !newReadState);
+      this.readToggleButton.setAttr(
+        "title",
+        newReadState ? "Mark as unread" : "Mark as read",
+      );
+    }
+
+    // Notify parent to persist the change
+    this.onArticleUpdate(this.currentItem, { read: newReadState }, false);
+  }
+
+  private toggleStarStatus(): void {
+    if (!this.currentItem) return;
+
+    const newStarState = !this.currentItem.starred;
+    this.currentItem.starred = newStarState;
+
+    // Update the icon
+    if (this.starToggleButton) {
+      setIcon(this.starToggleButton, newStarState ? "star" : "star-off");
+      this.starToggleButton.classList.toggle("starred", newStarState);
+      this.starToggleButton.classList.toggle("unstarred", !newStarState);
+      this.starToggleButton.setAttr(
+        "title",
+        newStarState ? "Remove from starred" : "Add to starred",
+      );
+    }
+
+    // Notify parent to persist the change
+    this.onArticleUpdate(this.currentItem, { starred: newStarState }, false);
+  }
+
+  private showTagsDropdown(event: MouseEvent, item: FeedItem): void {
+    event.stopPropagation();
+    const anchor = event.currentTarget;
+    if (!(anchor instanceof HTMLElement)) {
+      return;
+    }
+    this.createTagsDropdownPortal(anchor, item);
+  }
+
+  private createTagsDropdownPortal(anchor: HTMLElement, item: FeedItem): void {
+    this.closeTagsDropdownPortal();
+
+    const targetDocument = anchor.ownerDocument;
+    const targetBody = targetDocument.body;
+    const targetWindow = targetDocument.defaultView || window;
+    const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
+    if (isMobile) {
+      this.tagsDropdownBackdrop = targetBody.createDiv({
+        cls: "rss-dashboard-tags-sheet-backdrop",
+      });
+    }
+
+    const portalDropdown = targetBody.createDiv({
+      cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal rss-reader-tags-dropdown-portal",
+    });
+    if (isMobile) {
+      portalDropdown.addClass("rss-dashboard-tags-mobile-sheet");
+      const sheetHeader = portalDropdown.createDiv({
+        cls: "rss-dashboard-tags-sheet-header",
+      });
+      sheetHeader.createDiv({
+        cls: "rss-dashboard-tags-sheet-title",
+        text: "Manage tags",
+      });
+      const sheetActions = sheetHeader.createDiv({
+        cls: "rss-dashboard-tags-sheet-actions",
+      });
+      const addTagBtn = sheetActions.createEl("button", {
+        cls: "rss-dashboard-tags-sheet-btn",
+        text: "Add tag",
+      });
+      setIcon(addTagBtn, "plus");
+      addTagBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeTagsDropdownPortal();
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+        void (this.app as any).plugins.plugins["rss-dashboard"].openTagsSettings();
+      });
+      const doneBtn = sheetActions.createEl("button", {
+        cls: "rss-dashboard-tags-sheet-btn rss-dashboard-tags-sheet-btn-done",
+        text: "Done",
+      });
+      doneBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeTagsDropdownPortal();
+      });
+    }
+    const tagsListContainer = portalDropdown.createDiv({
+      cls: "rss-dashboard-tag-list",
+    });
+    const tagSeparator = portalDropdown.createDiv({
+      cls: "rss-dashboard-tag-item-separator",
+    });
+    const updateTagSeparatorVisibility = (): void => {
+      const hasTags = this.settings.availableTags.length > 0;
+      tagSeparator.style.display = hasTags ? "" : "none";
+    };
+    const deleteTagFromProfile = (tag: Tag): void => {
+      const tagIndex = this.settings.availableTags.findIndex(
+        (t) => t.name === tag.name,
+      );
+      if (tagIndex === -1) return;
+      this.settings.availableTags.splice(tagIndex, 1);
+      this.settings.feeds.forEach((feed) => {
+        feed.items.forEach((feedItem) => {
+          if (feedItem.tags) {
+            feedItem.tags = feedItem.tags.filter((t) => t.name !== tag.name);
+          }
         });
-        
-        const closeButton = modalContent.createEl("button", {
-            text: "Close"
+      });
+      if (item.tags?.some((t) => t.name === tag.name)) {
+        item.tags = item.tags.filter((t) => t.name !== tag.name);
+      }
+      this.onArticleUpdate(item, {}, false);
+      new Notice(`Tag "${tag.name}" deleted successfully!`);
+      updateTagSeparatorVisibility();
+    };
+    this.tagsDropdownPortal = portalDropdown;
+    this.tagsDropdownDocument = targetDocument;
+
+    const appendTagItem = (tag: Tag, checkedOverride?: boolean) => {
+      const tagItem = tagsListContainer.createDiv({
+        cls: "rss-dashboard-tag-item",
+      });
+      const hasTag =
+        checkedOverride ??
+        (item.tags?.some((existing) => existing.name === tag.name) || false);
+
+      const tagCheckbox = tagItem.createEl("input", {
+        attr: { type: "checkbox" },
+        cls: "rss-dashboard-tag-checkbox",
+      });
+      tagCheckbox.checked = hasTag;
+
+      const tagLabel = tagItem.createDiv({
+        cls: "rss-dashboard-tag-label",
+        text: tag.name,
+      });
+      tagLabel.style.setProperty("--tag-color", tag.color);
+
+      const deleteButton = tagItem.createEl("button", {
+        cls: "rss-dashboard-tag-delete-button",
+        attr: { title: `Delete "${tag.name}" tag`, "aria-label": "Delete tag" },
+      });
+      setIcon(deleteButton, "trash");
+
+      tagCheckbox.addEventListener("change", (e) => {
+        e.stopPropagation();
+        const isChecked = (e.target as HTMLInputElement).checked;
+        this.toggleTag(item, tag, isChecked);
+      });
+
+      tagItem.addEventListener("click", (e) => {
+        if (
+          e.target === tagCheckbox ||
+          (e.target instanceof Element &&
+            e.target.closest(".rss-dashboard-tag-delete-button"))
+        ) {
+          return;
+        }
+        tagCheckbox.checked = !tagCheckbox.checked;
+        this.toggleTag(item, tag, tagCheckbox.checked);
+      });
+
+      deleteButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        deleteTagFromProfile(tag);
+        tagItem.remove();
+      });
+
+      tagItem.appendChild(tagCheckbox);
+      tagItem.appendChild(tagLabel);
+      tagItem.appendChild(deleteButton);
+    };
+
+    for (const tag of this.settings.availableTags) {
+      appendTagItem(tag);
+    }
+    updateTagSeparatorVisibility();
+
+    if (!isMobile) {
+    const inlineAddRow = portalDropdown.createDiv({
+      cls: "rss-dashboard-tag-inline-add-row",
+    });
+
+    const colorInput = inlineAddRow.createEl("input", {
+      attr: {
+        type: "color",
+        value: "#3498db",
+      },
+      cls: "rss-dashboard-tag-inline-color",
+    });
+
+    const nameInput = inlineAddRow.createEl("input", {
+      attr: {
+        type: "text",
+        placeholder: "Add new tag...",
+        autocomplete: "off",
+      },
+      cls: "rss-dashboard-tag-inline-input",
+    });
+    nameInput.spellcheck = false;
+
+    const addButton = inlineAddRow.createEl("button", {
+      cls: "rss-dashboard-tag-inline-button",
+      attr: { title: "Add tag" },
+    });
+    setIcon(addButton, "plus");
+
+    const submitInlineTag = () => {
+      const tagName = nameInput.value.trim();
+      const tagColor = colorInput.value;
+
+      if (!tagName) {
+        new Notice("Please enter a tag name!");
+        return;
+      }
+
+      if (
+        this.settings.availableTags.some(
+          (tag) => tag.name.toLowerCase() === tagName.toLowerCase(),
+        )
+      ) {
+        new Notice("A tag with this name already exists!");
+        return;
+      }
+
+      const newTag: Tag = {
+        name: tagName,
+        color: tagColor,
+      };
+
+      this.settings.availableTags.push(newTag);
+      this.toggleTag(item, newTag, true);
+      appendTagItem(newTag, true);
+
+      nameInput.value = "";
+      requestAnimationFrame(() => nameInput.focus());
+      new Notice(`Tag "${tagName}" added`);
+    };
+
+    addButton.addEventListener("click", (e) => {
+      e.stopPropagation();
+      submitInlineTag();
+    });
+
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        submitInlineTag();
+      }
+    });
+    } // end !isMobile
+
+    const rect = anchor.getBoundingClientRect();
+    const dropdownRect = portalDropdown.getBoundingClientRect();
+    const appContainer =
+      this.contentEl.closest(".workspace-leaf-content") || targetBody;
+    const appContainerRect = appContainer.getBoundingClientRect();
+
+    if (isMobile) {
+      const syncMobileViewportHeight = () => {
+        const vvp = targetWindow.visualViewport;
+        const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
+        portalDropdown.style.setProperty("max-height", `${viewportHeight - 16}px`, "important");
+      };
+      syncMobileViewportHeight();
+
+      const visualViewport = targetWindow.visualViewport;
+      if (visualViewport) {
+        visualViewport.addEventListener("resize", syncMobileViewportHeight);
+        visualViewport.addEventListener("scroll", syncMobileViewportHeight);
+        this.tagsDropdownViewportCleanup = () => {
+          visualViewport.removeEventListener("resize", syncMobileViewportHeight);
+          visualViewport.removeEventListener("scroll", syncMobileViewportHeight);
+        };
+      } else {
+        targetWindow.addEventListener("resize", syncMobileViewportHeight);
+        this.tagsDropdownViewportCleanup = () => {
+          targetWindow.removeEventListener("resize", syncMobileViewportHeight);
+        };
+      }
+
+      this.tagsDropdownBackdrop?.addEventListener("click", () => {
+        this.closeTagsDropdownPortal();
+      });
+
+      return;
+    }
+
+    let left = rect.right;
+    let top = rect.top;
+
+    if (left + dropdownRect.width > appContainerRect.right) {
+      left = rect.left - dropdownRect.width;
+    }
+
+    if (left < appContainerRect.left) {
+      left = appContainerRect.left;
+    }
+
+    if (top + dropdownRect.height > targetWindow.innerHeight) {
+      top = targetWindow.innerHeight - dropdownRect.height - 5;
+    }
+
+    portalDropdown.style.left = `${left}px`;
+    portalDropdown.style.top = `${top}px`;
+
+    targetWindow.setTimeout(() => {
+      const outsideHandler = (ev: MouseEvent) => {
+        if (
+          this.tagsDropdownPortal &&
+          !this.tagsDropdownPortal.contains(ev.target as Node) &&
+          !anchor.contains(ev.target as Node)
+        ) {
+          this.closeTagsDropdownPortal();
+        }
+      };
+      this.tagsDropdownOutsideHandler = outsideHandler;
+      targetDocument.addEventListener("mousedown", outsideHandler);
+    }, 0);
+  }
+
+  private closeTagsDropdownPortal(): void {
+    if (this.tagsDropdownBackdrop) {
+      this.tagsDropdownBackdrop.remove();
+      this.tagsDropdownBackdrop = null;
+    }
+
+    if (this.tagsDropdownPortal) {
+      this.tagsDropdownPortal.remove();
+      this.tagsDropdownPortal = null;
+    }
+
+    if (this.tagsDropdownOutsideHandler && this.tagsDropdownDocument) {
+      this.tagsDropdownDocument.removeEventListener(
+        "mousedown",
+        this.tagsDropdownOutsideHandler,
+      );
+    }
+
+    if (this.tagsDropdownViewportCleanup) {
+      this.tagsDropdownViewportCleanup();
+      this.tagsDropdownViewportCleanup = null;
+    }
+
+    this.tagsDropdownOutsideHandler = null;
+    this.tagsDropdownDocument = null;
+  }
+
+  private toggleTag(item: FeedItem, tag: Tag, add: boolean): void {
+    if (!item.tags) {
+      item.tags = [];
+    }
+
+    if (add) {
+      if (!item.tags.some((t) => t.name === tag.name)) {
+        item.tags.push({ ...tag });
+      }
+    } else {
+      item.tags = item.tags.filter((t) => t.name !== tag.name);
+    }
+
+    // Notify parent to persist the change
+    this.onArticleUpdate(item, { tags: [...item.tags] }, false);
+  }
+
+  private updateToggleButtons(): void {
+    if (!this.currentItem) return;
+
+    // Update read toggle
+    if (this.readToggleButton) {
+      setIcon(
+        this.readToggleButton,
+        this.currentItem.read ? "check-circle" : "circle",
+      );
+      this.readToggleButton.classList.toggle("read", this.currentItem.read);
+      this.readToggleButton.classList.toggle("unread", !this.currentItem.read);
+      this.readToggleButton.setAttr(
+        "title",
+        this.currentItem.read ? "Mark as unread" : "Mark as read",
+      );
+    }
+
+    // Update star toggle
+    if (this.starToggleButton) {
+      setIcon(
+        this.starToggleButton,
+        this.currentItem.starred ? "star" : "star-off",
+      );
+      this.starToggleButton.classList.toggle(
+        "starred",
+        this.currentItem.starred,
+      );
+      this.starToggleButton.classList.toggle(
+        "unstarred",
+        !this.currentItem.starred,
+      );
+      this.starToggleButton.setAttr(
+        "title",
+        this.currentItem.starred ? "Remove from starred" : "Add to starred",
+      );
+    }
+  }
+
+  private resetTitle(): void {
+    if (this.titleElement) {
+      this.titleElement.setText("RSS reader");
+    }
+  }
+
+  private checkSavedFileExists(item: FeedItem): boolean {
+    try {
+      const folder =
+        this.settings.articleSaving.defaultFolder || "RSS articles";
+      const filename = this.sanitizeFilename(item.title);
+      const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
+
+      return this.app.vault.getAbstractFileByPath(filePath) !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  private sanitizeFilename(name: string): string {
+    return name
+      .replace(/[/\\:*?"<>|]/g, "_")
+      .replace(/\s+/g, "_")
+      .replace(/_+/g, "_")
+      .substring(0, 100);
+  }
+
+  private async displayVideoPodcast(item: FeedItem): Promise<void> {
+    if (this.podcastPlayer) {
+      this.podcastPlayer.destroy();
+      this.podcastPlayer = null;
+    }
+    if (this.videoPlayer) {
+      this.videoPlayer.destroy();
+      this.videoPlayer = null;
+    }
+    const container = this.readingContainer.createDiv({
+      cls: "rss-reader-video-podcast-container enhanced",
+    });
+
+    if (item.videoUrl) {
+      const video = container.createEl("video", {
+        cls: "rss-reader-video",
+        attr: {
+          controls: "true",
+          ...(item.coverImage ? { poster: item.coverImage } : {}),
+        },
+      });
+      video.createEl("source", {
+        attr: {
+          src: item.videoUrl,
+          type: "video/mp4",
+        },
+      });
+      video.appendText("Your browser does not support the video tag.");
+    } else {
+      container.createDiv({
+        cls: "rss-reader-error",
+        text: "Video url not found. Cannot play this video podcast.",
+      });
+      await this.displayArticle(item);
+      return;
+    }
+
+    const infoSection = container.createDiv({ cls: "rss-video-info" });
+    const titleSetting = new Setting(infoSection)
+      .setName(item.title)
+      .setHeading();
+    titleSetting.settingEl.addClass("rss-video-title");
+    const metaRow = infoSection.createDiv({ cls: "rss-video-meta-row" });
+    metaRow.createDiv({ text: item.feedTitle, cls: "rss-video-channel" });
+    metaRow.createDiv({
+      text: new Date(item.pubDate).toLocaleDateString(),
+      cls: "rss-video-date",
+    });
+
+    const relatedContainer = container.createDiv({
+      cls: "rss-video-related",
+    });
+    relatedContainer.createEl("h4", { text: "From the same channel" });
+
+    const relatedVideos = (
+      this.settings.feeds.find((f) => f.url === item.feedUrl)?.items || []
+    )
+      .filter((i) => i.mediaType === "video" && i.guid !== item.guid)
+      .slice(0, 6);
+
+    if (relatedVideos.length > 0) {
+      const relatedList = relatedContainer.createDiv({
+        cls: "rss-video-related-list rss-video-related-grid",
+      });
+      relatedVideos.forEach((video) => {
+        const videoItem = relatedList.createDiv({
+          cls: "rss-video-related-item rss-video-related-card",
         });
-        closeButton.addEventListener("click", () => {
-            document.body.removeChild(modal);
+        if (video.coverImage) {
+          const thumbnail = videoItem.createDiv({
+            cls: "rss-video-related-thumbnail",
+          });
+          thumbnail.createEl("img", {
+            attr: {
+              src: video.coverImage,
+              alt: video.title,
+            },
+          });
+        }
+        const videoInfo = videoItem.createDiv({
+          cls: "rss-video-related-info",
         });
-        document.body.appendChild(modal);
-    }
-
-    onClose(): Promise<void> {
-        this.contentEl.empty();
-        return Promise.resolve();
-    }
-
-    
-    private convertRelativeUrlsInContent(content: string, baseUrl: string): string {
-        if (!content || !baseUrl) return content;
-        try {
-            
-            const baseHost = (() => {
-                try {
-                    return new URL(baseUrl).host;
-                } catch {
-                    return "";
-                }
-            })();
-
-            content = content.replace(
-                /app:\/\//g,
-                'https://'
-            );
-
-            
-            content = content.replace(
-                /<img([^>]+)src=["']([^"']+)["']/gi,
-                (match: string, attributes: string, src: string) => {
-                    try {
-                        const srcUrl = new URL(src, baseUrl);
-                        if (srcUrl.host !== baseHost) {
-                            srcUrl.host = baseHost;
-                            srcUrl.protocol = "https:";
-                            return `<img${attributes}src="${srcUrl.toString()}"`;
-                        }
-                        return `<img${attributes}src="${srcUrl.toString()}"`;
-                    } catch {
-                        return `<img${attributes}src="${src}"`;
-                    }
-                }
-            );
-
-            content = content.replace(
-                /<source([^>]+)srcset=["']([^"']+)["']/gi,
-                (match: string, attributes: string, srcset: string) => {
-                    const processedSrcset = srcset.split(',').map((part: string) => {
-                        const trimmedPart = part.trim();
-                        const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
-                        if (urlMatch) {
-                            const url = urlMatch[1];
-                            const sizeDescriptor = urlMatch[2] || '';
-                            const absoluteUrl = this.convertToAbsoluteUrl(url, baseUrl);
-                            return absoluteUrl + sizeDescriptor;
-                        }
-                        return trimmedPart;
-                    }).join(', ');
-                    return `<source${attributes}srcset="${processedSrcset}"`;
-                }
-            );
-
-            content = content.replace(
-                /<a([^>]+)href=["']([^"']+)["']/gi,
-                (match: string, attributes: string, href: string) => {
-                    const absoluteHref = this.convertToAbsoluteUrl(href, baseUrl);
-                    return `<a${attributes}href="${absoluteHref}"`;
-                }
-            );
-            return content;
-        } catch {
-            
-            return content;
-        }
-    }
-
-    
-    private convertToAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
-        if (!relativeUrl || !baseUrl) return relativeUrl;
-        
-        
-        if (relativeUrl.startsWith('app://')) {
-            return relativeUrl.replace('app://', 'https://');
-        }
-        
-        
-        if (relativeUrl.startsWith('//')) {
-            return 'https:' + relativeUrl;
-        }
-        
-        
-        if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://')) {
-            return relativeUrl;
-        }
-        
-        try {
-            
-            const base = new URL(baseUrl);
-            
-            
-            if (relativeUrl.startsWith('/')) {
-                return `${base.protocol}//${base.host}${relativeUrl}`;
-            }
-            
-            
-            return new URL(relativeUrl, base).href;
-        } catch {
-            
-            return relativeUrl;
-        }
-    }
-
-    
-    private updateSavedLabel(saved: boolean): void {
-        const savedLabel = this.contentEl.querySelector(".rss-reader-saved-label") as HTMLElement;
-        if (savedLabel) {
-            if (saved) {
-                savedLabel.classList.remove("hidden");
-                savedLabel.classList.add("visible");
-            } else {
-                savedLabel.classList.remove("visible");
-                savedLabel.classList.add("hidden");
-            }
-        }
-    }
-
-    private resetTitle(): void {
-        if (this.titleElement) {
-            this.titleElement.setText("RSS reader");
-        }
-    }
-    
-    
-    private checkSavedFileExists(item: FeedItem): boolean {
-        try {
-            
-            const folder = this.settings.articleSaving.defaultFolder || "RSS articles";
-            const filename = this.sanitizeFilename(item.title);
-            const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
-            
-            
-            return this.app.vault.getAbstractFileByPath(filePath) !== null;
-        } catch {
-            
-            return false;
-        }
-    }
-    
-    
-    private sanitizeFilename(name: string): string {
-        return name
-            .replace(/[/\\:*?"<>|]/g, '_')
-            .replace(/\s+/g, '_')
-            .replace(/_+/g, '_')
-            .substring(0, 100);
-    }
-
-    
-    private async displayVideoPodcast(item: FeedItem): Promise<void> {
-        if (this.podcastPlayer) {
-            this.podcastPlayer.destroy();
-            this.podcastPlayer = null;
-        }
-        if (this.videoPlayer) {
-            this.videoPlayer.destroy();
-            this.videoPlayer = null;
-        }
-        const container = this.readingContainer.createDiv({
-            cls: "rss-reader-video-podcast-container enhanced"
+        videoInfo.createDiv({
+          cls: "rss-video-related-title",
+          text: video.title,
         });
-
-        
-        if (item.videoUrl) {
-            const video = container.createEl("video", {
-                cls: "rss-reader-video",
-                attr: {
-                    controls: "true",
-                    ...(item.coverImage ? { poster: item.coverImage } : {})
-                }
-            });
-            video.createEl("source", {
-                attr: {
-                    src: item.videoUrl,
-                    type: "video/mp4"
-                }
-            });
-            video.appendText("Your browser does not support the video tag.");
-        } else {
-            container.createDiv({
-                cls: "rss-reader-error",
-                text: "Video url not found. Cannot play this video podcast."
-            });
-            await this.displayArticle(item);
-            return;
-        }
-
-        const infoSection = container.createDiv({ cls: "rss-video-info" });
-        const titleSetting = new Setting(infoSection).setName(item.title).setHeading();
-        titleSetting.settingEl.addClass("rss-video-title");
-        const metaRow = infoSection.createDiv({ cls: "rss-video-meta-row" });
-        metaRow.createDiv({ text: item.feedTitle, cls: "rss-video-channel" });
-        metaRow.createDiv({ text: new Date(item.pubDate).toLocaleDateString(), cls: "rss-video-date" });
-
-        const relatedContainer = container.createDiv({ cls: "rss-video-related" });
-        relatedContainer.createEl("h4", { text: "From the same channel" });
-
-        const relatedVideos = (this.settings.feeds.find(f => f.url === item.feedUrl)?.items || [])
-            .filter(i => i.mediaType === "video" && i.guid !== item.guid)
-            .slice(0, 6);
-
-        if (relatedVideos.length > 0) {
-            const relatedList = relatedContainer.createDiv({ cls: "rss-video-related-list rss-video-related-grid" });
-            relatedVideos.forEach(video => {
-                const videoItem = relatedList.createDiv({ cls: "rss-video-related-item rss-video-related-card" });
-                if (video.coverImage) {
-                    const thumbnail = videoItem.createDiv({ cls: "rss-video-related-thumbnail" });
-                    thumbnail.createEl("img", {
-                        attr: {
-                            src: video.coverImage,
-                            alt: video.title,
-                        },
-                    });
-                }
-                const videoInfo = videoItem.createDiv({ cls: "rss-video-related-info" });
-                videoInfo.createDiv({ cls: "rss-video-related-title", text: video.title });
-                videoInfo.createDiv({ cls: "rss-video-related-date", text: new Date(video.pubDate).toLocaleDateString() });
-                videoItem.addEventListener("click", () => {
-                    void this.displayItem(video, relatedVideos);
-                });
-            });
-        } else {
-            relatedContainer.createDiv({
-                cls: "rss-video-related-empty",
-                text: "No related videos found",
-            });
-        }
+        videoInfo.createDiv({
+          cls: "rss-video-related-date",
+          text: new Date(video.pubDate).toLocaleDateString(),
+        });
+        videoItem.addEventListener("click", () => {
+          void this.displayItem(video, relatedVideos);
+        });
+      });
+    } else {
+      relatedContainer.createDiv({
+        cls: "rss-video-related-empty",
+        text: "No related videos found",
+      });
     }
+  }
 }
-
-

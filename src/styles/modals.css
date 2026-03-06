@@ -1,418 +1,2369 @@
-.rss-dashboard-modal, .feed-manager-modal {
-	position: fixed;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
-	background: var(--background-primary, #fff);
-	border-radius: 12px;
-	box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-	z-index: 1000;
-	max-width: 700px;
-	width: 95vw;
-	max-height: 80vh;
-	overflow-y: auto;
-	padding: 0;
-	display: flex;
-	flex-direction: column;
-   }
-   .rss-dashboard-modal-content, .feed-manager-modal-content {
-	padding: 2rem 1.5rem 1.5rem 1.5rem;
-   }
-   .rss-dashboard-modal h2, .feed-manager-modal h2 {
-	margin: 0 0 1.2rem 0;
-	font-size: 1.5rem;
-	font-weight: 600;
-	color: var(--text-normal, #222);
-   }
-   .rss-dashboard-modal h3, .feed-manager-modal h3 {
-	margin: 1.2rem 0 0.5rem 0;
-	font-size: 1.1rem;
-	font-weight: 500;
-	color: var(--text-normal);
-   }
-   .rss-dashboard-modal .setting-item, .feed-manager-modal .feed-manager-row {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 0.5rem 0;
-   }
-   .feed-manager-row {
-	display: flex;
-	align-items: center;
-	gap: 1.2rem;
-	padding: 0.5rem 0;
-	border-bottom: 1px solid var(--background-secondary);
-   }
-   .feed-manager-title {
-	font-weight: 500;
-	color: var(--text-normal, #222);
-	flex: 1 1 22%;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-   }
-   .feed-manager-url {
-	color: var(--text-faint, #888);
-	flex: 1 1 38%;
-	font-size: 0.95em;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-   }
-   .feed-manager-foldername {
-	color: var(--text-muted, #666);
-	flex: 1 1 18%;
-	font-size: 0.95em;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-   }
-   .feed-manager-row button {
-	background: var(--interactive-accent, #3498db);
-	color: #fff;
-	border: none;
-	border-radius: 6px;
-	padding: 0.3rem 0.8rem;
-	margin-left: 0.5rem;
-	font-size: 0.95rem;
-	cursor: pointer;
-	transition: background 0.15s;
-	min-width: 60px;
-	margin-right: 0;
-   }
-   .feed-manager-row button:hover {
-	background: var(--interactive-accent-hover, #217dbb);
-   }
-   .rss-dashboard-modal-buttons, .feed-manager-modal-buttons {
-	display: flex;
-	justify-content: flex-end;
-	gap: 0.5rem;
-    padding: 0.8rem;
-   }
-   .rss-dashboard-primary-button {
-	background: var(--interactive-accent, #3498db);
-	color: #fff;
-	border: none;
-	border-radius: 6px;
-	padding: 0.4rem 1.2rem;
-	margin: 0 0.4rem;
-	font-weight: 500;
-	cursor: pointer;
-	transition: background 0.15s;
-   }
-   .rss-dashboard-primary-button:hover {
-	background: var(--interactive-accent-hover, #217dbb);
-   }
-   .rss-dashboard-modal input, .rss-dashboard-modal textarea {
-	width: 100%;
-	border-radius: 5px;
-	border: 1px solid var(--background-modifier-border, #ccc);
-	padding: 0.4rem 0.6rem;
-	font-size: 0.9rem;
-	color: var(--text-normal, #222);
-   }
-   .rss-dashboard-modal label {
-	font-size: 0.98rem;
-	color: var(--text-muted, #666);
-	margin-bottom: 0.2rem;
-	display: block;
-   }
-   .rss-dashboard-modal .setting-item:last-child {
-	border-bottom: none;
-   }
+.rss-dashboard-modal,
+.feed-manager-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--background-primary, #fff);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  z-index: 1000;
+  max-width: 700px;
+  width: 95vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rss-dashboard-modal-content,
+.feed-manager-modal-content {
+  padding: 2rem 1.5rem 1.5rem 1.5rem;
+}
+.rss-dashboard-modal h2,
+.feed-manager-modal h2 {
+  margin: 0 0 1.2rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-normal, #222);
+}
+.rss-dashboard-modal h3,
+.feed-manager-modal h3 {
+  margin: 1.2rem 0 0.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-normal);
+}
+.rss-dashboard-modal .setting-item,
+.feed-manager-modal .feed-manager-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+}
+.feed-manager-row {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--background-secondary);
+}
+.feed-manager-title {
+  font-weight: 500;
+  color: var(--text-normal, #222);
+  flex: 1 1 22%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feed-manager-url {
+  color: var(--text-faint, #888);
+  flex: 1 1 38%;
+  font-size: 0.95em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feed-manager-foldername {
+  color: var(--text-muted, #666);
+  flex: 1 1 18%;
+  font-size: 0.95em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feed-manager-row button {
+  background: var(--interactive-accent, #3498db);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.8rem;
+  margin-left: 0.5rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  min-width: 60px;
+  margin-right: 0;
+}
+.feed-manager-row button:hover {
+  background: var(--interactive-accent-hover, #217dbb);
+}
+.rss-dashboard-modal-buttons,
+.feed-manager-modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.8rem;
+}
 
-   .rss-dashboard-modal input .setting-item-control,
-   .feed-manager-modal input .setting-item-control {
-	width: 100% !important;
-   }
-   
-   .rss-dashboard-modal, .feed-manager-modal {
-	box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 1.5px 6px rgba(0,0,0,0.08);
-   }
+.rss-dashboard-modal-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rss-dashboard-modal-actions button {
+  width: 100%;
+  margin: 0 !important;
+  border-radius: 8px !important;
+}
+.rss-dashboard-primary-button {
+  background: var(--interactive-accent, #3498db);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 1.2rem;
+  margin: 0 0.4rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.rss-dashboard-primary-button:hover {
+  background: var(--interactive-accent-hover, #217dbb);
+}
+.rss-dashboard-modal input,
+.rss-dashboard-modal textarea {
+  width: 100%;
+  border-radius: 5px;
+  border: 1px solid var(--background-modifier-border, #ccc);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+  color: var(--text-normal, #222);
+}
+.rss-dashboard-modal label {
+  font-size: 0.98rem;
+  color: var(--text-muted, #666);
+  margin-bottom: 0.2rem;
+  display: block;
+}
+.rss-dashboard-modal .setting-item:last-child {
+  border-bottom: none;
+}
+
+.rss-dashboard-modal input .setting-item-control,
+.feed-manager-modal input .setting-item-control {
+  width: 100% !important;
+}
+
+.rss-dashboard-modal,
+.feed-manager-modal {
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.18),
+    0 1.5px 6px rgba(0, 0, 0, 0.08);
+}
 .rss-dashboard-modal-container {
-    width: 760px;
-    height: fit-content;
-    max-width: 1100px;
-    max-height: 1000px;
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    z-index: 10000 !important;
-    margin: 0 !important;
-    border: 1px solid var(--background-modifier-border-hover);
+  width: 760px;
+  height: fit-content;
+  max-width: 1100px;
+  max-height: 1000px;
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 10000 !important;
+  margin: 0 !important;
+  border: 1px solid var(--background-modifier-border-hover);
+}
+
+/* Close button positioning for modal container */
+.rss-dashboard-modal-container .modal-close-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
 }
 
 .modal-container.mod-dim .modal.rss-dashboard-modal-container,
 .modal-container.mod-dim .modal .rss-dashboard-modal-container {
-    width: 760px;
-    height: fit-content;
-    max-width: 1100px;
-    max-height: 85vh;
-    padding: 15px 14px;
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    z-index: 10000 !important;
-    margin: 0 !important;
+  width: 760px;
+  height: fit-content;
+  max-width: 1100px;
+  max-height: 85vh;
+  padding: 15px 14px;
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 10000 !important;
+  margin: 0 !important;
 }
 
+/* Close button positioning for dim modal container */
+.modal-container.mod-dim
+  .modal.rss-dashboard-modal-container
+  .modal-close-button,
+.modal-container.mod-dim
+  .modal
+  .rss-dashboard-modal-container
+  .modal-close-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+}
 
-.rss-dashboard-modal input, .rss-dashboard-modal textarea, .feed-manager-modal input, .feed-manager-modal textarea {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    box-sizing: border-box;
+.rss-dashboard-modal input,
+.rss-dashboard-modal textarea,
+.feed-manager-modal input,
+.feed-manager-modal textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .edit-feed-folder-input {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    box-sizing: border-box;
-    position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  position: relative;
 }
 
 .edit-feed-folder-dropdown {
-    position: absolute;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border, #ccc);
-    z-index: 10000;
-    max-height: 180px;
-    overflow-y: auto;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  position: absolute;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border, #ccc);
+  z-index: 10000;
+  max-height: 180px;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .edit-feed-folder-option {
-    padding: 8px 16px;
-    cursor: pointer;
-    color: var(--text-normal, #222);
-    font-size: 1em;
-    transition: background 0.15s, color 0.15s;
+  padding: 8px 16px;
+  cursor: pointer;
+  color: var(--text-normal, #222);
+  font-size: 1em;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
-.edit-feed-folder-option:hover, .edit-feed-folder-option:focus {
-    background: var(--background-modifier-hover, #f0f0f0);
-    color: var(--interactive-accent, #3498db);
+.edit-feed-folder-option:hover,
+.edit-feed-folder-option:focus {
+  background: var(--background-modifier-hover, #f0f0f0);
+  color: var(--interactive-accent, #3498db);
 }
 .add-tag-modal .tag-input-row.full-inline-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5em;
-    margin-bottom: 1em;
-    width: 100%;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 1em;
+  width: 100%;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
 }
 
 .add-tag-modal .color-label {
-    display: inline-block;
-    align-items: center;
-    margin: 2px 6px;
-    padding: 0;
-    height: 36px;
+  display: inline-block;
+  align-items: center;
+  margin: 2px 6px;
+  padding: 0;
+  height: 36px;
 }
 
 .add-tag-modal .color-circle {
-    line-height: 32px;
-    width: 32px;
-    height: 32px;
-    -webkit-appearance: none;
-    appearance: none;
-    display: inline-block;
-    background: none;
-    box-sizing: border-box;
-    line-height: 32px;
-    inline-size: 32px;
-    block-size: 32px;
+  line-height: 32px;
+  width: 32px;
+  height: 32px;
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-block;
+  background: none;
+  box-sizing: border-box;
+  line-height: 32px;
+  inline-size: 32px;
+  block-size: 32px;
 }
 
 .add-tag-modal input.color-circle {
-    width: auto !important;
-    height: fit-content;
+  width: auto !important;
+  height: fit-content;
 }
 
 .add-tag-modal .color-circle::-webkit-color-swatch-wrapper {
-    padding: 0;
-    border-radius: 50%;
+  padding: 0;
+  border-radius: 50%;
 }
 
 .add-tag-modal .color-circle::-webkit-color-swatch {
-    border: none;
-    border-radius: 50%;
+  border: none;
+  border-radius: 50%;
 }
 
 .add-tag-modal .color-circle::-moz-color-swatch {
-    border: none;
-    border-radius: 50%;
+  border: none;
+  border-radius: 50%;
 }
 
 .add-tag-modal .tag-name-input {
-    flex: 0 1 180px;
-    min-width: 100px;
-    max-width: 220px;
-    margin-right: 0.5em;
-    width: auto;
-    box-sizing: border-box;
-    height: 36px;
-    line-height: 36px;
-    display: inline-block;
-    vertical-align: middle;
+  flex: 0 1 180px;
+  min-width: 100px;
+  max-width: 220px;
+  margin-right: 0.5em;
+  width: auto;
+  box-sizing: border-box;
+  height: 36px;
+  line-height: 36px;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .add-tag-modal .tag-input-row.full-inline-row button {
-    margin-left: 0.5em;
-    min-width: 70px;
-    padding: 0 16px;
-    font-size: 1em;
-    height: 36px;
-    line-height: 36px;
-    display: inline-block;
-    vertical-align: middle;
-    box-sizing: border-box;
+  margin-left: 0.5em;
+  min-width: 70px;
+  padding: 0 16px;
+  font-size: 1em;
+  height: 36px;
+  line-height: 36px;
+  display: inline-block;
+  vertical-align: middle;
+  box-sizing: border-box;
 }
 
 .add-tag-modal .tag-input-row.full-inline-row button:first-of-type {
-    margin-left: 0;
+  margin-left: 0;
 }
 
 .add-tag-modal .tag-input-row.full-inline-row input,
 .add-tag-modal .tag-input-row.full-inline-row .color-circle,
-.add-tag-modal .tag-input-row.full-inline-row .rss-dashboard-modal-buttons.inline-buttons,
-.add-tag-modal .tag-input-row.full-inline-row .rss-dashboard-modal-buttons.inline-buttons button {
-    width: auto !important;
-    min-width: unset !important;
-    max-width: unset !important;
-    box-sizing: border-box;
-    flex: 0 0 auto;
-    margin: 0 !important;
-    padding: 0 !important;
+.add-tag-modal
+  .tag-input-row.full-inline-row
+  .rss-dashboard-modal-buttons.inline-buttons,
+.add-tag-modal
+  .tag-input-row.full-inline-row
+  .rss-dashboard-modal-buttons.inline-buttons
+  button {
+  width: auto !important;
+  min-width: unset !important;
+  max-width: unset !important;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .rss-dashboard-import-modal .rss-dashboard-modal-content {
-    width: 90vw;
-    height: 85vh;
-    max-width: 1100px;
-    max-height: fit-content;
+  width: 90vw;
+  height: 85vh;
+  max-width: 1100px;
+  max-height: fit-content;
 }
 
 .rss-dashboard-import-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
 }
 
 .rss-dashboard-import-modal-header button {
-    background: var(--interactive-normal);
-    color: var(--text-normal);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    padding: 6px 12px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+  background: var(--interactive-normal);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .rss-dashboard-import-modal-header button:hover {
-    background: var(--interactive-hover);
-    border-color: var(--interactive-accent);
+  background: var(--interactive-hover);
+  border-color: var(--interactive-accent);
 }
 
 .rss-dashboard-import-modal-header button.clickable-icon {
-    padding: 6px;
-    min-width: 32px;
-    justify-content: center;
+  padding: 6px;
+  min-width: 32px;
+  justify-content: center;
 }
 
 .rss-dashboard-import-modal-title {
-    margin: 0;
+  margin: 0;
 }
 
 .rss-dashboard-import-progress-text {
-    margin-bottom: 10px;
+  margin-bottom: 10px;
 }
 
 .rss-dashboard-import-progress-bar {
-    width: 95%;
-    height: 20px;
-    background-color: var(--background-modifier-border);
-    border-radius: 10px;
-    overflow: hidden;
-    margin: 5px auto;
+  width: 95%;
+  height: 20px;
+  background-color: var(--background-modifier-border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 5px auto;
 }
 
 .rss-dashboard-import-progress-fill {
-    height: 100%;
-    background-color: var(--interactive-accent);
-    transition: width 0.3s ease;
+  height: 100%;
+  background-color: var(--interactive-accent);
+  transition: width 0.3s ease;
 }
 
 .rss-dashboard-import-current-feed {
-    margin-top: 10px;
-    font-size: 12px;
-    color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-
 .rss-dashboard-tag-modal-form {
-    display: flex;
-    align-items: center;
-    gap: 30px;
+  display: flex;
+  align-items: center;
+  gap: 30px;
 }
 
 .rss-dashboard-tag-modal-color-picker {
-    -webkit-appearance: none !important;
-    -moz-appearance: none !important;
-    appearance: none !important;
-    width: 38px !important;
-    height: 38px !important;
-    padding: 0 !important;
-    border: none !important;
-    border-radius: 50% !important;
-    cursor: pointer !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  width: 38px !important;
+  height: 38px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 50% !important;
+  cursor: pointer !important;
 }
 
 .rss-dashboard-tag-modal-color-picker::-webkit-color-swatch-wrapper {
-    padding: 0 !important;
+  padding: 0 !important;
 }
 
 .rss-dashboard-tag-modal-color-picker::-webkit-color-swatch {
-    border: none !important;
-    border-radius: 50% !important;
+  border: none !important;
+  border-radius: 50% !important;
 }
 
 .rss-dashboard-tag-modal-color-picker::-moz-color-swatch {
-    border: none !important;
-    border-radius: 50% !important;
+  border: none !important;
+  border-radius: 50% !important;
 }
 
 .rss-dashboard-tag-modal-name-input {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    background-color: var(--background-primary);
-    color: var(--text-normal);
-    font-size: 14px;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 14px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .rss-dashboard-tag-modal-name-input:focus {
-    outline: none;
-    border-color: var(--interactive-accent);
-    box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+  outline: none;
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--interactive-accent-hover);
 }
 
 .import-modal-header-buttons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Warning status style for YouTube URL detection */
+.rss-dashboard-status-warning {
+  color: var(--text-warning, #e6a700);
+  font-weight: 500;
+}
+
+/* ============================================
+   Add Feed Modal UI Improvements
+   ============================================ */
+
+/* Modal subtitle */
+.add-feed-subtitle {
+  font-size: 0.9em;
+  color: var(--text-muted);
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+}
+
+.rss-keyword-filter-details {
+  margin: 12px 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+}
+
+.rss-keyword-filter-summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  font-weight: 600;
+}
+
+.rss-keyword-filter-details-body {
+  padding: 0 12px 12px;
+}
+
+.rss-keyword-filter-details .rss-keyword-filter-rule-col,
+.rss-keyword-filter-details .rss-keyword-filter-rule-enabled-col {
+  min-width: 0;
+}
+
+.rss-keyword-filter-details .rss-keyword-filter-select,
+.rss-keyword-filter-details .rss-keyword-filter-input {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  border-radius: 6px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+}
+
+.rss-keyword-filter-details .rss-keyword-filter-rule-top {
+  align-items: stretch;
+}
+
+.rss-keyword-filter-details .rss-keyword-filter-label {
+  line-height: 1.2;
+}
+
+.rss-dashboard-modal .rss-keyword-filter-checkbox,
+.feed-manager-modal .rss-keyword-filter-checkbox {
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 3px;
+}
+
+.rss-dashboard-modal .rss-keyword-filter-select,
+.feed-manager-modal .rss-keyword-filter-select {
+  width: auto;
+  min-width: 112px;
+}
+
+.rss-dashboard-modal .rss-keyword-filter-input,
+.feed-manager-modal .rss-keyword-filter-input {
+  width: auto;
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+/* Purple Load button */
+.rss-dashboard-load-button {
+  background: #8b5cf6 !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rss-dashboard-load-button:hover {
+  background: #7c3aed !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.rss-dashboard-load-button:active {
+  transform: translateY(0);
+}
+
+.rss-dashboard-load-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+/* Loading spinner for Load button */
+.rss-dashboard-load-button.loading {
+  opacity: 0.7;
+  cursor: wait;
+  position: relative;
+}
+
+.rss-dashboard-load-button.loading::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid transparent;
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-left: 8px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Status color classes */
+.add-feed-status.status-ok {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.add-feed-status.status-error {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.add-feed-status.status-loading {
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+/* URL input loaded state */
+.feed-url-input.loaded {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+/* Supported formats badges */
+.supported-formats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  padding-bottom: 4px;
+}
+
+.format-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75em;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+}
+
+.format-badge svg {
+  width: 14px;
+  height: 14px;
+}
+
+.format-badge.rss {
+  background: rgba(239, 136, 51, 0.1);
+  color: #ef8833;
+}
+
+.format-badge.podcast {
+  background: rgba(123, 40, 242, 0.1);
+  color: #7b28f2;
+}
+
+.format-badge.youtube {
+  background: rgba(255, 0, 0, 0.1);
+  color: #ff0000;
+}
+
+/* Active badge glow effect */
+.format-badge.active {
+  animation: badge-glow 1.5s ease-in-out infinite;
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+  margin: 2px;
+}
+
+.format-badge.rss.active {
+  box-shadow: 0 0 12px rgba(239, 136, 51, 0.6);
+  border: 1px solid rgba(239, 136, 51, 0.4);
+}
+
+.format-badge.podcast.active {
+  box-shadow: 0 0 12px rgba(123, 40, 242, 0.6);
+  border: 1px solid rgba(123, 40, 242, 0.4);
+}
+
+.format-badge.youtube.active {
+  box-shadow: 0 0 12px rgba(255, 0, 0, 0.6);
+  border: 1px solid rgba(255, 0, 0, 0.4);
+}
+
+@keyframes badge-glow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* ============================================
+   Mobile/Tablet Responsive Modal Styles
+   ============================================ */
+
+/* Tablet styles (<= 1200px) */
+@media (max-width: 1200px) {
+  .rss-dashboard-modal-container {
+    width: 90vw !important;
+    max-width: 600px !important;
+    max-height: 85vh !important;
+    padding: 0 !important;
+  }
+
+  .modal-container.mod-dim .modal.rss-dashboard-modal-container,
+  .modal-container.mod-dim .modal .rss-dashboard-modal-container {
+    width: 90vw !important;
+    max-width: 600px !important;
+    max-height: 85vh !important;
+    padding: 0 !important;
+  }
+}
+
+/* Mobile styles (<= 768px) - Bottom sheet style */
+@media (max-width: 768px) {
+  .rss-dashboard-modal-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 90vh !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important;
+    border-radius: 16px 16px 0 0 !important;
+    z-index: 99999 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Close button positioning for mobile bottom sheet */
+  .rss-dashboard-modal-container .modal-close-button {
     display: flex;
-    gap: 12px;
     align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    left: auto;
+    z-index: 10;
+  }
+
+  /* Center the X icon inside the close button circle */
+  .rss-dashboard-modal-container .modal-close-button::before {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+
+  .modal-container.mod-dim .modal.rss-dashboard-modal-container,
+  .modal-container.mod-dim .modal .rss-dashboard-modal-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 90vh !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important;
+    border-radius: 16px 16px 0 0 !important;
+    z-index: 99999 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Close button positioning for mobile bottom sheet in dim container */
+  .modal-container.mod-dim
+    .modal.rss-dashboard-modal-container
+    .modal-close-button,
+  .modal-container.mod-dim
+    .modal
+    .rss-dashboard-modal-container
+    .modal-close-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    left: auto;
+    z-index: 10;
+  }
+
+  /* Center the X icon inside the close button circle for dim container */
+  .modal-container.mod-dim
+    .modal.rss-dashboard-modal-container
+    .modal-close-button::before,
+  .modal-container.mod-dim
+    .modal
+    .rss-dashboard-modal-container
+    .modal-close-button::before {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Modal content adjustments */
+  .rss-dashboard-modal,
+  .feed-manager-modal {
+    border-radius: 16px 16px 0 0;
+    max-height: 90vh;
+  }
+
+  .rss-dashboard-modal-content,
+  .feed-manager-modal-content {
+    padding: 1rem 1rem 1rem 1rem;
+  }
+
+  /* Larger touch targets for inputs */
+  .rss-dashboard-modal input:not([type="checkbox"]),
+  .rss-dashboard-modal textarea,
+  .rss-dashboard-modal select,
+  .feed-manager-modal input:not([type="checkbox"]),
+  .feed-manager-modal textarea,
+  .feed-manager-modal select {
+    min-height: 44px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+    padding: 10px 12px;
+  }
+
+  /* Larger buttons */
+  .rss-dashboard-modal-buttons button,
+  .feed-manager-modal-buttons button,
+  .rss-dashboard-primary-button {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px 20px;
+    font-size: 16px;
+  }
+
+  /* Setting items with better spacing */
+  .rss-dashboard-modal .setting-item,
+  .feed-manager-modal .setting-item {
+    padding: 12px 0;
+    gap: 12px;
+  }
+
+  /* Heading adjustments */
+  .rss-dashboard-modal h2,
+  .feed-manager-modal h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .rss-dashboard-modal h3,
+  .feed-manager-modal h3 {
+    font-size: 1rem;
+    margin-top: 1rem;
+  }
+
+  /* Feed manager specific mobile styles */
+  .feed-manager-row {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 0;
+  }
+
+  .feed-manager-title {
+    flex: 1 1 100%;
+    font-size: 1em;
+  }
+
+  .feed-manager-url,
+  .feed-manager-foldername {
+    flex: 1 1 45%;
+    font-size: 0.85em;
+  }
+
+  .feed-manager-row button {
+    flex: 1 1 auto;
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  /* Top controls for feed manager */
+  .feed-manager-top-controls {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .feed-manager-search-input {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .feed-manager-add-button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* Dropdown styling */
+  .rss-dashboard-modal select,
+  .feed-manager-modal select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Custom input for dropdowns */
+  .rss-custom-input {
+    min-height: 44px;
+    font-size: 16px;
+    width: 100%;
+    margin-top: 8px;
+  }
+}
+
+/* Very small screens (<= 400px) */
+@media (max-width: 400px) {
+  .rss-dashboard-modal-container {
+    max-height: 95vh !important;
+  }
+
+  .modal-container.mod-dim .modal.rss-dashboard-modal-container,
+  .modal-container.mod-dim .modal .rss-dashboard-modal-container {
+    max-height: 95vh !important;
+    padding: 12px 10px;
+  }
+
+  .rss-dashboard-modal-content,
+  .feed-manager-modal-content {
+    padding: 0.75rem 0.5rem 0.75rem 0.5rem;
+  }
+
+  .rss-dashboard-modal h2,
+  .feed-manager-modal h2 {
+    font-size: 1.1rem;
+  }
+
+  .rss-dashboard-modal-buttons,
+  .feed-manager-modal-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .rss-dashboard-modal-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .rss-dashboard-modal-buttons button,
+  .feed-manager-modal-buttons button {
+    width: 100%;
+  }
+}
+
+/* ============================================
+   Folder Name Modal (Add / Rename)
+   ============================================ */
+
+/* Error message below the input */
+.rss-folder-name-modal-error {
+  color: var(--text-error, #ef4444);
+  font-size: 0.85em;
+  margin-top: -8px;
+  margin-bottom: 10px;
+}
+
+.rss-folder-name-modal-error-hidden {
+  display: none;
+}
+
+/* Red border on input when validation fails */
+.rss-folder-name-modal-input.rss-folder-name-modal-input-error {
+  border-color: var(--text-error, #ef4444) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+}
+
+/* On mobile the generic modal is a bottom sheet; the folder-name modal is
+   small enough that we pin it to the top instead so the soft keyboard never
+   slides up over it. */
+@media (max-width: 768px) {
+  .rss-folder-name-modal.rss-dashboard-modal-container {
+    top: env(safe-area-inset-top, 0px) !important;
+    bottom: auto !important;
+    border-radius: 0 0 16px 16px !important;
+    max-height: 60vh !important;
+  }
+
+  /* Ensure the text input accepts taps and opens the iOS soft keyboard */
+  .rss-folder-name-modal .rss-folder-name-modal-input {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    touch-action: manipulation;
+    /* 16 px prevents iOS auto-zoom on focus */
+    font-size: 16px;
+  }
+}
+
+/* ============================================
+   Delete Confirmation Modal Overlay
+   ============================================ */
+
+/* Overlay that appears on top of other modals */
+.rss-dashboard-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fade-in 0.15s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Confirmation modal inside overlay */
+.rss-dashboard-modal-overlay .rss-dashboard-modal-container {
+  z-index: 100001 !important;
+  animation: modal-slide-in 0.2s ease-out;
+}
+
+@keyframes modal-slide-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* ============================================
+   Danger Button Styles
+   ============================================ */
+
+/* Base danger button - red background with hover stroke */
+.rss-dashboard-danger-button {
+  background: #dc2626 !important;
+  color: #fff !important;
+  border: 2px solid transparent !important;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rss-dashboard-danger-button:hover {
+  background: #b91c1c !important;
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.3);
+  cursor: pointer;
+}
+
+.rss-dashboard-modal-interactions-disabled {
+  pointer-events: none !important;
+}
+
+.rss-confirm-modal-cancel {
+  background: var(--background-modifier-border);
+  color: var(--text-normal);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  min-height: 38px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.rss-confirm-modal-cancel:hover {
+  background: var(--background-modifier-border-hover);
+  cursor: pointer;
+}
+
+.rss-dashboard-confirm-modal .rss-folder-name-modal-cancel {
+  background: #ef4444 !important;
+  color: #fff !important;
+  border: 2px solid transparent !important;
+  cursor: pointer;
+}
+
+.rss-dashboard-confirm-modal .rss-folder-name-modal-cancel:hover {
+  background: #dc2626 !important;
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
+  cursor: pointer;
+}
+
+.rss-dashboard-danger-button:active {
+  background: #991b1b !important;
+  transform: translateY(1px);
+}
+
+/* Delete All button specific styling */
+.feed-manager-delete-all-button {
+  min-width: 100px;
+}
+
+/* ============================================
+   Delete Warning and Backup Notice
+   ============================================ */
+
+.delete-all-warning {
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.delete-all-warning p {
+  margin: 0;
+  color: var(--text-normal);
+  font-size: 0.95rem;
+}
+
+.delete-all-backup-notice {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.delete-all-backup-notice strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-normal);
+  font-size: 0.95rem;
+}
+
+.delete-all-backup-notice p {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.delete-all-backup-notice .export-opml-btn {
+  background: var(--interactive-accent, #3498db) !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.delete-all-backup-notice .export-opml-btn:hover {
+  background: var(--interactive-accent-hover, #217dbb) !important;
+}
+
+/* ============================================
+   Folder Header with Delete Button
+   ============================================ */
+
+.feed-manager-folder-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  margin-top: 1rem;
+}
+
+.feed-manager-folder-header:first-child {
+  margin-top: 0;
+}
+
+.feed-manager-folder-name {
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--text-normal);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.feed-manager-folder-name.is-editable {
+  cursor: text;
+}
+
+.feed-manager-folder-name.is-editable:hover {
+  color: var(--text-accent);
+}
+
+.feed-manager-folder-name-input {
+  width: 100%;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.feed-manager-folder-count {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: var(--background-modifier-hover);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* Horizontal divider below folder header */
+.feed-manager-folder-divider {
+  height: 1px;
+  background: var(--background-modifier-border);
+  margin-bottom: 0.5rem;
+}
+
+/* Red X delete button for folders */
+.feed-manager-delete-folder-button {
+  background: rgba(220, 38, 38, 0.1) !important;
+  color: #dc2626 !important;
+  border: none !important;
+  border-radius: 4px;
+  padding: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.feed-manager-delete-folder-button:hover {
+  border-color: #fff !important;
+}
+
+.feed-manager-delete-folder-button svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* ============================================
+   Mobile Responsive Styles for Delete Features
+   ============================================ */
+
+@media (max-width: 768px) {
+  /* Danger button mobile sizing */
+  .rss-dashboard-danger-button {
+    min-height: 44px;
+    padding: 12px 20px;
+    font-size: 16px;
+    min-width: 80px;
+  }
+
+  /* Delete All button full width on mobile */
+  .feed-manager-delete-all-button {
+    width: 100%;
+    min-width: unset;
+  }
+
+  /* Folder header mobile layout */
+  .feed-manager-folder-header {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 12px 0;
+  }
+
+  .feed-manager-folder-name {
+    flex: 1 1 auto;
+    font-size: 1rem;
+  }
+
+  .feed-manager-delete-folder-button {
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+  }
+
+  .feed-manager-delete-folder-button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Warning and backup notice mobile */
+  .delete-all-warning,
+  .delete-all-backup-notice {
+    padding: 12px;
+  }
+
+  .delete-all-backup-notice .export-opml-btn {
+    width: 100%;
+    min-height: 44px;
+    margin-top: 8px;
+  }
+
+  /* Modal overlay mobile adjustments */
+  .rss-dashboard-modal-overlay .rss-dashboard-modal-container {
+    width: 95% !important;
+    max-width: 95% !important;
+    max-height: 85vh !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .rss-dashboard-danger-button {
+    width: 100%;
+  }
+
+  .feed-manager-folder-header {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .feed-manager-delete-folder-button {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+}
+
+/* ============================================
+   Feed Manager Button Rows
+   ============================================ */
+
+.feed-manager-search-container {
+  position: relative;
+}
+
+.feed-manager-search-input {
+  padding-right: 34px;
+}
+
+.feed-manager-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feed-manager-search-clear:hover {
+  color: var(--text-normal);
+}
+
+.feed-manager-search-clear.is-hidden {
+  display: none;
+}
+
+.feed-manager-button-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Primary row - Add feed button */
+.feed-manager-button-row-primary {
+  justify-content: center;
+}
+
+.feed-manager-add-button {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Secondary row - Import, Export, Delete All */
+.feed-manager-button-row-secondary {
+  justify-content: flex-start;
+}
+
+/* OPML Button Styles */
+.feed-manager-opml-button {
+  background: var(--interactive-normal);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.feed-manager-opml-button:hover {
+  background: var(--interactive-hover);
+  border-color: var(--interactive-accent);
+}
+
+.feed-manager-opml-button svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* Compact button sizing for the button rows */
+.feed-manager-button-row .rss-dashboard-primary-button,
+.feed-manager-button-row .rss-dashboard-danger-button {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.feed-manager-button-row .rss-dashboard-primary-button svg,
+.feed-manager-button-row .rss-dashboard-danger-button svg,
+.feed-manager-row .rss-dashboard-primary-button svg,
+.feed-manager-row .rss-dashboard-danger-button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.feed-manager-row .rss-dashboard-primary-button,
+.feed-manager-row .rss-dashboard-danger-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ============================================
+   Mobile Responsive Styles for Button Rows
+   ============================================ */
+
+@media (max-width: 768px) {
+  .feed-manager-top-controls {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .feed-manager-search-container {
+    width: 100%;
+  }
+
+  .feed-manager-search-input {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .feed-manager-button-row {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .feed-manager-button-row-primary {
+    margin-top: 0;
+  }
+
+  .feed-manager-button-row-secondary {
+    margin-top: 8px;
+  }
+
+  .feed-manager-button-row button {
+    flex: 1 1 auto;
+    min-height: 44px;
+    min-width: 80px;
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  /* OPML button mobile adjustments */
+  .feed-manager-opml-button {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 400px) {
+  .feed-manager-button-row {
+    flex-direction: column;
+  }
+
+  .feed-manager-button-row button {
+    width: 100%;
+  }
+}
+
+/* ============================================
+   Import OPML Modal Styles
+   ============================================ */
+
+/* File selector row */
+.import-file-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1rem;
+}
+
+.import-file-path-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.import-file-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--interactive-accent, #3498db);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.import-file-button:hover {
+  background: var(--interactive-accent-hover, #217dbb);
+}
+
+.import-file-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Error message styling */
+.import-error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  color: #ef4444;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.import-error-message svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Preview container */
+.import-preview-container {
+  margin-bottom: 1rem;
+}
+
+.import-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.import-preview-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.import-preview-count {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: var(--background-modifier-hover);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.import-preview-list {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+}
+
+.import-preview-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: 0.9rem;
+}
+
+.import-preview-item:last-child {
+  border-bottom: none;
+}
+
+.import-preview-item .feed-title {
+  flex: 1;
+  color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-preview-item .feed-folder {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  background: var(--background-modifier-hover);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+.import-preview-folder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.5rem 0.75rem;
+  background: var(--background-primary);
+  font-weight: 500;
+  color: var(--text-normal);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.import-preview-folder svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+}
+
+.import-preview-folder-indent {
+  padding-left: calc(0.75rem + var(--indent, 0px));
+}
+
+/* Mode selector */
+.import-mode-selector {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--background-secondary);
+  border-radius: 8px;
+}
+
+.import-mode-label {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.import-mode-selector h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.import-mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.import-mode-option {
+  display: block;
+  padding: 1rem;
+  border: 2px solid var(--background-modifier-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--background-primary);
+}
+
+.import-mode-option:hover {
+  border-color: var(--interactive-accent-hover);
+  background: var(--background-modifier-hover);
+}
+
+.import-mode-option.selected {
+  border-color: var(--interactive-accent, #3498db);
+  border-width: 3px;
+  background: rgba(52, 152, 219, 0.1);
+  box-shadow: 0 0 0 1px var(--interactive-accent, #3498db);
+}
+
+.import-mode-option-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.import-mode-option-title {
+  font-weight: 600;
+  color: var(--text-normal);
+  font-size: 1rem;
+}
+
+.import-mode-option.selected .import-mode-option-title {
+  color: var(--interactive-accent, #3498db);
+}
+
+.import-mode-option-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Import actions */
+.import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 1rem;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.import-actions button {
+  min-width: 100px;
+}
+
+/* Overwrite warning specific styles */
+.import-overwrite-warning .delete-all-backup-notice {
+  margin-bottom: 0;
+}
+
+/* ============================================
+   Mobile Responsive Styles for Import OPML Modal
+   ============================================ */
+
+@media (max-width: 768px) {
+  .import-file-selector {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .import-file-path-input {
+    text-align: center;
+  }
+
+  .import-file-button {
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .import-preview-list {
+    max-height: 200px;
+  }
+
+  .import-mode-option {
+    padding: 12px;
+  }
+
+  .import-actions {
+    flex-direction: column;
+  }
+
+  .import-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 400px) {
+  .import-preview-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .import-mode-options {
+    gap: 8px;
+  }
+}
+
+/* Hidden/visible utility classes for import modal */
+.import-hidden {
+  display: none !important;
+}
+
+.import-visible {
+  display: block !important;
+}
+
+/* Remove default Obsidian modal-content padding for navigation drawer modal. */
+.modal.rss-mobile-navigation-modal .modal-content {
+  padding: 0 !important;
+}
+
+/*
+ * Drawer shell guard:
+ * Obsidian can apply default spacing on the modal shell/wrapper itself,
+ * which leaks as side gutters on tablet/mobile even when inner content is 0.
+ */
+.modal.rss-mobile-navigation-modal,
+.modal.rss-mobile-discover-filters-modal {
+  padding: 0 !important;
+}
+
+.modal-container.mod-dim .modal.rss-mobile-navigation-modal,
+.modal-container.mod-dim .modal.rss-mobile-discover-filters-modal {
+  padding: 0 !important;
+}
+
+/*
+ * Future regression guard:
+ * If Obsidian reintroduces default 16px padding in nested modal surfaces,
+ * keep these selectors aligned with sidebar container classes before touching
+ * breakpoint logic in dashboard/discover views.
+ */
+.modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container,
+.modal.rss-mobile-navigation-modal .rss-dashboard-sidebar,
+.modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar-container,
+.modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
+  padding: 0 !important;
+}
+
+@media (max-width: 1200px) {
+  .modal.rss-mobile-navigation-modal,
+  .modal.rss-mobile-discover-filters-modal {
+    --rss-mobile-statusbar-fallback-top: 24px;
+    --rss-mobile-statusbar-inset-top: max(
+      env(safe-area-inset-top, 0px),
+      var(--rss-mobile-statusbar-fallback-top)
+    );
+    --rss-dashboard-header-top-padding: calc(
+      6px + var(--rss-mobile-statusbar-inset-top)
+    );
+    --rss-discover-header-top-padding: calc(
+      10px + var(--rss-mobile-statusbar-inset-top)
+    );
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    width: min(88vw, 360px) !important;
+    max-width: min(88vw, 360px) !important;
+    margin: 0 !important;
+    border-radius: 0;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: auto;
+    display: flex;
+    flex-direction: column;
+    z-index: 99999 !important;
+    transform: none !important;
+    animation: rss-mobile-drawer-in 0.18s ease-out;
+  }
+
+  .modal.rss-mobile-navigation-modal .rss-dashboard-header {
+    padding-top: var(--rss-dashboard-header-top-padding);
+  }
+
+  .modal.rss-mobile-discover-filters-modal .rss-discover-header {
+    padding-top: var(--rss-discover-header-top-padding);
+  }
+
+  .modal.rss-mobile-feed-manager-modal {
+    height: calc(90vh - 20px) !important;
+    min-height: calc(90vh - 20px) !important;
+    max-height: calc(90vh - 20px) !important;
+    width: 100%;
+    max-width: clamp(480px, 85vw, 900px);
+    margin: 0 auto;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-radius: 16px 16px 0 0;
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    top: auto;
+    display: flex;
+    flex-direction: column;
+    z-index: 99999 !important;
+    transform: none !important;
+  }
+
+  .modal.rss-mobile-feed-manager-modal {
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    border-radius: 0 !important;
+    transform: none !important;
+  }
+
+  .rss-mobile-navigation-modal .modal-content,
+  .rss-mobile-discover-filters-modal .modal-content,
+  .rss-mobile-feed-manager-modal .modal-content {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .rss-mobile-navigation-modal .modal-content,
+  .rss-mobile-discover-filters-modal .modal-content {
+    overflow: hidden;
+  }
+
+  .rss-mobile-feed-manager-modal .modal-content {
+    overflow-y: auto;
+  }
+
+  .rss-mobile-feed-manager-modal .modal-content {
+    padding: 12px !important;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item.setting-item-heading {
+    padding-right: 44px;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item {
+    display: block;
+    padding: 10px 0;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-info {
+    margin-bottom: 6px;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control input,
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control textarea,
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control select {
+    flex: 1 1 220px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control button {
+    min-height: 44px;
+  }
+
+  .rss-mobile-feed-manager-modal .rss-dashboard-modal-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    background: var(--background-primary);
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: 8px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    margin-top: 12px;
+    grid-template-columns: 1fr;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-top-controls {
+    position: static;
+    background: var(--background-primary);
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 12px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-button-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-button-row-primary {
+    grid-template-columns: minmax(180px, 320px);
+    justify-content: center;
+  }
+
+  .rss-mobile-feed-manager-modal
+    .feed-manager-button-row-primary
+    .feed-manager-add-button {
+    width: 100%;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-button-row-secondary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .rss-mobile-feed-manager-modal
+    .feed-manager-button-row-secondary
+    .feed-manager-import-button,
+  .rss-mobile-feed-manager-modal
+    .feed-manager-button-row-secondary
+    .feed-manager-export-button {
+    width: 100%;
+  }
+
+  .rss-mobile-feed-manager-modal
+    .feed-manager-button-row-secondary
+    .feed-manager-delete-all-button {
+    grid-column: 1 / -1;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-title {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-row button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .modal.rss-mobile-navigation-modal .modal-close-button,
+  .modal.rss-mobile-discover-filters-modal .modal-close-button,
+  .modal.rss-mobile-feed-manager-modal .modal-close-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    left: auto;
+    z-index: 10;
+  }
+
+  .modal.rss-mobile-navigation-modal .modal-close-button::before,
+  .modal.rss-mobile-discover-filters-modal .modal-close-button::before,
+  .modal.rss-mobile-feed-manager-modal .modal-close-button::before {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+
+  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar {
+    /* Sidebar toolbar is rendered under the header; avoid footer-style offsets. */
+    display: flex !important;
+    width: 100% !important;
+    height: 100%;
+    max-height: none;
+    min-height: 0;
+    border-right: none;
+    padding: 0;
+    flex-direction: column;
+    overflow: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar {
+    display: block !important;
+    width: 100% !important;
+    height: 100%;
+    max-height: none;
+    border-right: none;
+    padding: 0;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container {
+    height: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    width: 100% !important;
+    padding-bottom: 0 !important;
+  }
+
+  .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folders-section {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+  }
+
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar-track {
+    background: var(--background-secondary);
+  }
+
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb {
+    background: var(--background-modifier-border);
+    border-radius: 8px;
+  }
+
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
+    display: block !important;
+    left: 0;
+    right: auto;
+  }
+
+  @media (max-width: 768px) {
+    .modal.rss-mobile-navigation-modal,
+    .modal.rss-mobile-discover-filters-modal {
+      width: 95vw !important;
+      max-width: 95vw !important;
+      border-radius: 0 !important;
+      border: 1px solid var(--background-modifier-border) !important;
+      border-left: none !important;
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
+      display: none !important;
+    }
+
+    .modal.rss-mobile-navigation-modal .modal-close-button,
+    .modal.rss-mobile-discover-filters-modal .modal-close-button {
+      display: none !important;
+    }
+
+    .modal.rss-mobile-navigation-modal.rss-mobile-platform-ios,
+    .modal.rss-mobile-discover-filters-modal.rss-mobile-platform-ios {
+      --rss-ios-top-safe-raw: env(safe-area-inset-top, 0px);
+      --rss-ios-top-safe-effective: clamp(
+        0px,
+        calc(var(--rss-ios-top-safe-raw) - 40px),
+        12px
+      );
+      --rss-dashboard-header-top-padding: calc(4px + var(--rss-ios-top-safe-effective));
+      --rss-discover-header-top-padding: calc(8px + var(--rss-ios-top-safe-effective));
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-header {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button,
+    .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button.active,
+    .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button,
+    .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button.active {
+      font-size: 16px;
+      font-weight: 600;
+      padding: 4px 12px;
+      min-height: 32px;
+      line-height: 1.1;
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-feed {
+      padding-top: calc(var(--sidebar-row-spacing) / 2);
+      padding-bottom: calc(var(--sidebar-row-spacing) / 2);
+      padding-right: var(--sidebar-item-padding-right);
+      padding-left: var(--sidebar-item-padding-left);
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folder-header {
+      padding-top: calc(var(--sidebar-row-spacing) / 2);
+      padding-bottom: calc(var(--sidebar-row-spacing) / 2);
+      padding-right: var(--sidebar-item-padding-right);
+      padding-left: var(--sidebar-item-padding-left);
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-all-feeds-button {
+      padding-top: 10px;
+      padding-bottom: 10px;
+      padding-right: var(--sidebar-item-padding-right);
+      padding-left: var(--sidebar-item-padding-left);
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-drawer-toggle-button {
+      min-height: 16px;
+      font-size: 4px;
+      padding: 8px 16px;
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-nav-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-header-close-button {
+      width: 36px;
+      min-width: 36px;
+      height: 36px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 8px;
+      border: 1px solid var(--background-secondary);
+      background: var(--background-secondary);
+      color: #fff;
+      margin-right: 2px;
+    }
+
+    .modal.rss-mobile-discover-filters-modal
+      .rss-dashboard-header-close-button {
+      width: 36px;
+      min-width: 36px;
+      height: 36px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 8px;
+      border: 1px solid var(--background-secondary);
+      background: var(--background-secondary);
+      color: #fff;
+      margin-right: 2px;
+    }
+
+    .modal.rss-mobile-navigation-modal
+      .rss-dashboard-header-close-button:hover {
+      border-color: #9b59b6;
+      background: #9b59b6;
+      color: #fff;
+    }
+
+    .modal.rss-mobile-discover-filters-modal
+      .rss-dashboard-header-close-button:hover {
+      border-color: #9b59b6;
+      background: #9b59b6;
+      color: #fff;
+    }
+
+    /* Feed manager mobile header close button */
+    .modal.rss-mobile-feed-manager-modal .feed-manager-header-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px 12px;
+      background: var(--background-primary);
+      border-bottom: 1px solid var(--background-modifier-border);
+      gap: 10px;
+    }
+
+    .modal.rss-mobile-feed-manager-modal .feed-manager-header-title {
+      margin: 0;
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text-normal);
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .modal.rss-mobile-feed-manager-modal .feed-manager-header-close-button {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      min-height: 36px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: var(--background-secondary);
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .modal.rss-mobile-feed-manager-modal
+      .feed-manager-header-close-button:hover {
+      background: var(--background-modifier-hover);
+      color: var(--text-normal);
+    }
+
+    .modal.rss-mobile-feed-manager-modal
+      .feed-manager-header-close-button:active {
+      transform: scale(0.95);
+    }
+
+    /* Hide default close button on mobile feed manager */
+    .modal.rss-mobile-feed-manager-modal.hide-default-close-button
+      .modal-close-button {
+      display: none !important;
+    }
+  }
+
+  @keyframes rss-mobile-drawer-in {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
 }

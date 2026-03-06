@@ -16,3 +16,8 @@ release/
 
 # testfiles
 test_files
+
+# agent
+docs/archive
+CLAUDE.md
+agent.md

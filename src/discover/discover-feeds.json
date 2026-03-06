@@ -4,178 +4,95 @@
     "title": "Obsidian Changelog",
     "url": "https://obsidian.md/changelog.xml",
     "imageUrl": "https://obsidian.md/images/obsidian-logo-gradient.svg",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Productivity"
-    ],
-    "area": [
-      "PKM"
-    ],
-    "topic": [
-      "Updates"
-    ],
-    "tags": [
-      "obsidian",
-      "changelog"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Productivity"],
+    "area": ["PKM"],
+    "topic": ["Updates"],
+    "tags": ["obsidian", "changelog"],
     "type": "Release Notes",
     "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Follow Obsidian updates and improvements.",
-    "rating": 5
+    "summary": "Follow Obsidian updates and improvements."
   },
   {
     "id": "feed-001",
     "title": "BBC News - World",
     "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=bbc.com&sz=128",
-    "domain": [
-      "News"
-    ],
-    "subdomain": [
-      "World News"
-    ],
-    "area": [
-      "International"
-    ],
-    "topic": [
-      "General News"
-    ],
-    "tags": [
-      "news",
-      "international"
-    ],
+    "domain": ["News"],
+    "subdomain": ["World News"],
+    "area": ["International"],
+    "topic": ["General News"],
+    "tags": ["news", "international"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Global news coverage from BBC News (World edition).",
-    "rating": 5
+    "summary": "Global news coverage from BBC News (World edition)."
   },
   {
     "id": "feed-002",
     "title": "The New York Times - Top Stories",
     "url": "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nytimes.com&sz=128",
-    "domain": [
-      "News"
-    ],
-    "subdomain": [
-      "Top Stories"
-    ],
-    "area": [
-      "U.S. & World"
-    ],
-    "topic": [
-      "Current Events"
-    ],
-    "tags": [
-      "news",
-      "politics"
-    ],
+    "domain": ["News"],
+    "subdomain": ["Top Stories"],
+    "area": ["U.S. & World"],
+    "topic": ["Current Events"],
+    "tags": ["news", "politics"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Top news stories and breaking news from The New York Times.",
-    "rating": 5
+    "summary": "Top news stories and breaking news from The New York Times."
   },
   {
     "id": "feed-003",
     "title": "World History Encyclopedia",
     "url": "http://www.ancient.eu.com/rss/",
     "imageUrl": "https://pbs.twimg.com/profile_images/1365290462383198212/TzOD8oZj_400x400.jpg",
-    "domain": [
-      "History"
-    ],
-    "subdomain": [
-      "World History"
-    ],
-    "area": [
-      "International"
-    ],
-    "topic": [
-      "General News"
-    ],
-    "tags": [
-      "news",
-      "wire"
-    ],
+    "domain": ["History"],
+    "subdomain": ["World History"],
+    "area": ["International"],
+    "topic": ["General News"],
+    "tags": ["news", "wire"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Engaging people with cultural heritage and to improve history education worldwide..",
-    "rating": 5
+    "summary": "Engaging people with cultural heritage and to improve history education worldwide.."
   },
   {
     "id": "feed-004",
     "title": "Al Jazeera English - News",
     "url": "https://www.aljazeera.com/xml/rss/all.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=aljazeera.com&sz=128",
-    "domain": [
-      "News"
-    ],
-    "subdomain": [
-      "World News"
-    ],
-    "area": [
-      "Global"
-    ],
-    "topic": [
-      "International Affairs"
-    ],
-    "tags": [
-      "news",
-      "global"
-    ],
+    "domain": ["News"],
+    "subdomain": ["World News"],
+    "area": ["Global"],
+    "topic": ["International Affairs"],
+    "tags": ["news", "global"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Global news stories and analysis from Al Jazeera English.",
-    "rating": 4
+    "summary": "Global news stories and analysis from Al Jazeera English."
   },
   {
     "id": "feed-005",
     "title": "The Guardian - World News",
     "url": "https://www.theguardian.com/world/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=theguardian.com&sz=128",
-    "domain": [
-      "News"
-    ],
-    "subdomain": [
-      "World News"
-    ],
-    "area": [
-      "International"
-    ],
-    "topic": [
-      "General News"
-    ],
-    "tags": [
-      "news",
-      "international"
-    ],
+    "domain": ["News"],
+    "subdomain": ["World News"],
+    "area": ["International"],
+    "topic": ["General News"],
+    "tags": ["news", "international"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Latest world news and features from The Guardian.",
-    "rating": 4
+    "summary": "Latest world news and features from The Guardian."
   },
   {
     "id": "feed-006",
     "title": "NPR News",
     "url": "https://feeds.npr.org/1001/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=npr.org&sz=128",
-    "domain": [
-      "News"
-    ],
-    "subdomain": [
-      "US News"
-    ],
-    "area": [
-      "Politics & Society"
-    ],
-    "topic": [
-      "Current Events"
-    ],
-    "tags": [
-      "news",
-      "US"
-    ],
+    "domain": ["News"],
+    "subdomain": ["US News"],
+    "area": ["Politics & Society"],
+    "topic": ["Current Events"],
+    "tags": ["news", "US"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Breaking news and feature stories from NPR.",
@@ -186,22 +103,11 @@
     "title": "Hacker News (Y Combinator)",
     "url": "https://news.ycombinator.com/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=ycombinator.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Software Development"
-    ],
-    "area": [
-      "DevOps"
-    ],
-    "topic": [
-      "Startups"
-    ],
-    "tags": [
-      "programming",
-      "entrepreneurship"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Software Development"],
+    "area": ["DevOps"],
+    "topic": ["Startups"],
+    "tags": ["programming", "entrepreneurship"],
     "type": "Forum",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Front-page stories from Hacker News, a popular tech forum for startups and programming.",
@@ -212,22 +118,11 @@
     "title": "TechCrunch",
     "url": "http://feeds.feedburner.com/TechCrunch/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=techcrunch.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Startup News"
-    ],
-    "area": [
-      "Technology Business"
-    ],
-    "topic": [
-      "Startups"
-    ],
-    "tags": [
-      "tech",
-      "startups"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Startup News"],
+    "area": ["Technology Business"],
+    "topic": ["Startups"],
+    "tags": ["tech", "startups"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Technology and startup news updates from TechCrunch.",
@@ -238,22 +133,11 @@
     "title": "WIRED",
     "url": "https://www.wired.com/feed/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=wired.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Consumer Tech"
-    ],
-    "area": [
-      "Innovation"
-    ],
-    "topic": [
-      "Gadgets"
-    ],
-    "tags": [
-      "tech",
-      "innovation"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Consumer Tech"],
+    "area": ["Innovation"],
+    "topic": ["Gadgets"],
+    "tags": ["tech", "innovation"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Magazine featuring technology, science, and culture news (WIRED).",
@@ -264,23 +148,11 @@
     "title": "Ars Technica",
     "url": "http://feeds.arstechnica.com/arstechnica/index",
     "imageUrl": "https://www.google.com/s2/favicons?domain=arstechnica.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "IT & Science"
-    ],
-    "area": [
-      "Computing"
-    ],
-    "topic": [
-      "Tech Policy"
-    ],
-    "tags": [
-      "tech",
-      "software",
-      "hardware"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["IT & Science"],
+    "area": ["Computing"],
+    "topic": ["Tech Policy"],
+    "tags": ["tech", "software", "hardware"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "In-depth technology, science, and IT news from Ars Technica.",
@@ -291,22 +163,11 @@
     "title": "IEEE Spectrum",
     "url": "https://spectrum.ieee.org/feeds/feed.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=ieee.org&sz=128",
-    "domain": [
-      "Engineering"
-    ],
-    "subdomain": [
-      "Electrical Engineering"
-    ],
-    "area": [
-      "Technology"
-    ],
-    "topic": [
-      "Innovation"
-    ],
-    "tags": [
-      "engineering",
-      "technology"
-    ],
+    "domain": ["Engineering"],
+    "subdomain": ["Electrical Engineering"],
+    "area": ["Technology"],
+    "topic": ["Innovation"],
+    "tags": ["engineering", "technology"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Flagship magazine of IEEE, covering engineering and technology news.",
@@ -317,22 +178,11 @@
     "title": "MIT Technology Review",
     "url": "https://www.technologyreview.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=technologyreview.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Emerging Tech"
-    ],
-    "area": [
-      "Innovation"
-    ],
-    "topic": [
-      "Future Tech"
-    ],
-    "tags": [
-      "technology",
-      "innovation"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Emerging Tech"],
+    "area": ["Innovation"],
+    "topic": ["Future Tech"],
+    "tags": ["technology", "innovation"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Insights and analyses of emerging technologies from MIT Technology Review.",
@@ -343,22 +193,11 @@
     "title": "Slashdot",
     "url": "https://rss.slashdot.org/Slashdot/slashdotMain",
     "imageUrl": "https://www.google.com/s2/favicons?domain=slashdot.org&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "IT"
-    ],
-    "area": [
-      "Software"
-    ],
-    "topic": [
-      "Open Source"
-    ],
-    "tags": [
-      "tech",
-      "news"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["IT"],
+    "area": ["Software"],
+    "topic": ["Open Source"],
+    "tags": ["tech", "news"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "User-submitted technology news and discussion from Slashdot.",
@@ -369,22 +208,11 @@
     "title": "Engadget",
     "url": "https://www.engadget.com/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=engadget.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Consumer Electronics"
-    ],
-    "area": [
-      "Gadgets"
-    ],
-    "topic": [
-      "Electronics"
-    ],
-    "tags": [
-      "gadgets",
-      "tech"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Consumer Electronics"],
+    "area": ["Gadgets"],
+    "topic": ["Electronics"],
+    "tags": ["gadgets", "tech"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Consumer technology news and reviews from Engadget.",
@@ -395,22 +223,11 @@
     "title": "The Verge",
     "url": "https://feeds.megaphone.fm/vergecast",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f8e08d3b0f126c847db80f0a6",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Tech Culture"
-    ],
-    "area": [
-      "Consumer Tech"
-    ],
-    "topic": [
-      "Devices"
-    ],
-    "tags": [
-      "tech",
-      "culture"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Tech Culture"],
+    "area": ["Consumer Tech"],
+    "topic": ["Devices"],
+    "tags": ["tech", "culture"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Technology, science, and culture news from The Verge.",
@@ -421,22 +238,11 @@
     "title": "Stack Overflow Blog",
     "url": "https://stackoverflow.blog/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=stackoverflow.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Software Development"
-    ],
-    "area": [
-      "Programming"
-    ],
-    "topic": [
-      "Development"
-    ],
-    "tags": [
-      "programming",
-      "community"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Software Development"],
+    "area": ["Programming"],
+    "topic": ["Development"],
+    "tags": ["programming", "community"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Articles on software development and the Stack Overflow developer community.",
@@ -447,22 +253,11 @@
     "title": "Scientific American",
     "url": "https://www.scientificamerican.com/platform/syndication/rss/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=scientificamerican.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General Science"
-    ],
-    "area": [
-      "Science News"
-    ],
-    "topic": [
-      "Research"
-    ],
-    "tags": [
-      "science",
-      "research"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General Science"],
+    "area": ["Science News"],
+    "topic": ["Research"],
+    "tags": ["science", "research"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Popular science news and articles from Scientific American.",
@@ -473,22 +268,11 @@
     "title": "Science News Magazine",
     "url": "https://www.sciencenews.org/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=sciencenews.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General Science"
-    ],
-    "area": [
-      "News"
-    ],
-    "topic": [
-      "Discoveries"
-    ],
-    "tags": [
-      "science",
-      "news"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General Science"],
+    "area": ["News"],
+    "topic": ["Discoveries"],
+    "tags": ["science", "news"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Latest research news in science from Science News magazine.",
@@ -499,22 +283,11 @@
     "title": "ScienceDaily",
     "url": "https://www.sciencedaily.com/rss/all.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=sciencedaily.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General Science"
-    ],
-    "area": [
-      "News"
-    ],
-    "topic": [
-      "Research Updates"
-    ],
-    "tags": [
-      "science",
-      "research"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General Science"],
+    "area": ["News"],
+    "topic": ["Research Updates"],
+    "tags": ["science", "research"],
     "type": "Research Digest",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Daily updates on the latest discoveries across science and medicine.",
@@ -525,22 +298,11 @@
     "title": "New Scientist",
     "url": "https://www.newscientist.com/feed/home",
     "imageUrl": "https://www.google.com/s2/favicons?domain=newscientist.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General Science"
-    ],
-    "area": [
-      "News"
-    ],
-    "topic": [
-      "Tech & Biology"
-    ],
-    "tags": [
-      "science",
-      "tech"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General Science"],
+    "area": ["News"],
+    "topic": ["Tech & Biology"],
+    "tags": ["science", "tech"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Science and technology news from New Scientist magazine.",
@@ -551,23 +313,11 @@
     "title": "Quanta Magazine",
     "url": "https://www.quantamagazine.org/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=quantamagazine.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Mathematics"
-    ],
-    "area": [
-      "Fundamental Science"
-    ],
-    "topic": [
-      "Research"
-    ],
-    "tags": [
-      "science",
-      "math",
-      "physics"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Mathematics"],
+    "area": ["Fundamental Science"],
+    "topic": ["Research"],
+    "tags": ["science", "math", "physics"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "In-depth articles on mathematics, physics, and computer science from Quanta Magazine.",
@@ -578,22 +328,11 @@
     "title": "Space.com – Space & Astronomy",
     "url": "https://www.space.com/feeds/all",
     "imageUrl": "https://www.google.com/s2/favicons?domain=space.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Astronomy"
-    ],
-    "area": [
-      "Space Exploration"
-    ],
-    "topic": [
-      "Astronomy"
-    ],
-    "tags": [
-      "space",
-      "astronomy"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Astronomy"],
+    "area": ["Space Exploration"],
+    "topic": ["Astronomy"],
+    "tags": ["space", "astronomy"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Latest news on space exploration and astronomy from Space.com.",
@@ -604,22 +343,11 @@
     "title": "Futurity.org",
     "url": "https://www.futurity.org/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=futurity.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Research News"
-    ],
-    "area": [
-      "Academic Research"
-    ],
-    "topic": [
-      "Discoveries"
-    ],
-    "tags": [
-      "research",
-      "science"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Research News"],
+    "area": ["Academic Research"],
+    "topic": ["Discoveries"],
+    "tags": ["research", "science"],
     "type": "Research Digest",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Research news highlights from leading universities (Futurity).",
@@ -630,22 +358,11 @@
     "title": "Bloomberg Markets News",
     "url": "https://feeds.bloomberg.com/markets/news.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=bloomberg.com&sz=128",
-    "domain": [
-      "Business"
-    ],
-    "subdomain": [
-      "Finance"
-    ],
-    "area": [
-      "Markets"
-    ],
-    "topic": [
-      "Investing"
-    ],
-    "tags": [
-      "business",
-      "finance"
-    ],
+    "domain": ["Business"],
+    "subdomain": ["Finance"],
+    "area": ["Markets"],
+    "topic": ["Investing"],
+    "tags": ["business", "finance"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Financial markets and business news from Bloomberg.",
@@ -656,21 +373,11 @@
     "title": "Encyclopedia Geopolitica",
     "url": "https://encyclopediageopolitica.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=encyclopediageopolitica.com&sz=128",
-    "domain": [
-      "Society"
-    ],
-    "subdomain": [
-      "Policy & Culture"
-    ],
-    "area": [
-      "Geopolitics"
-    ],
-    "topic": [
-      "Geopolitics"
-    ],
-    "tags": [
-      "politics"
-    ],
+    "domain": ["Society"],
+    "subdomain": ["Policy & Culture"],
+    "area": ["Geopolitics"],
+    "topic": ["Geopolitics"],
+    "tags": ["politics"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Articles, reading lists, and podcasts discussing geopolitics.",
@@ -681,22 +388,11 @@
     "title": "The Economist – Finance & Economics",
     "url": "https://www.economist.com/finance-and-economics/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=economist.com&sz=128",
-    "domain": [
-      "Business"
-    ],
-    "subdomain": [
-      "Economics"
-    ],
-    "area": [
-      "Global Economy"
-    ],
-    "topic": [
-      "Finance"
-    ],
-    "tags": [
-      "economics",
-      "business"
-    ],
+    "domain": ["Business"],
+    "subdomain": ["Economics"],
+    "area": ["Global Economy"],
+    "topic": ["Finance"],
+    "tags": ["economics", "business"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Global economic analysis and finance news from The Economist.",
@@ -707,22 +403,11 @@
     "title": "Harvard Business Review",
     "url": "http://feeds.harvardbusiness.org/harvardbusiness/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=hbr.org&sz=128",
-    "domain": [
-      "Business"
-    ],
-    "subdomain": [
-      "Management"
-    ],
-    "area": [
-      "Leadership"
-    ],
-    "topic": [
-      "Strategy"
-    ],
-    "tags": [
-      "business",
-      "management"
-    ],
+    "domain": ["Business"],
+    "subdomain": ["Management"],
+    "area": ["Leadership"],
+    "topic": ["Strategy"],
+    "tags": ["business", "management"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Leadership, management, and business insights from Harvard Business Review.",
@@ -733,22 +418,11 @@
     "title": "Forbes – Innovation",
     "url": "https://www.forbes.com/innovation/feed2",
     "imageUrl": "https://www.google.com/s2/favicons?domain=forbes.com&sz=128",
-    "domain": [
-      "Business"
-    ],
-    "subdomain": [
-      "Technology"
-    ],
-    "area": [
-      "Innovation"
-    ],
-    "topic": [
-      "Entrepreneurship"
-    ],
-    "tags": [
-      "business",
-      "technology"
-    ],
+    "domain": ["Business"],
+    "subdomain": ["Technology"],
+    "area": ["Innovation"],
+    "topic": ["Entrepreneurship"],
+    "tags": ["business", "technology"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Innovation and tech trends news from Forbes.",
@@ -759,22 +433,11 @@
     "title": "Aeon - A World of Ideas",
     "url": "https://aeon.co/feed.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=aeon.co&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Culture"
-    ],
-    "area": [
-      "Ideas"
-    ],
-    "topic": [
-      "Essays"
-    ],
-    "tags": [
-      "philosophy",
-      "culture"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["Culture"],
+    "area": ["Ideas"],
+    "topic": ["Essays"],
+    "tags": ["philosophy", "culture"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "In-depth essays on philosophy, science, and culture from Aeon magazine.",
@@ -785,22 +448,11 @@
     "title": "Arts & Letters Daily",
     "url": "https://www.aldaily.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=aldaily.com&sz=128",
-    "domain": [
-      "Culture"
-    ],
-    "subdomain": [
-      "Literature"
-    ],
-    "area": [
-      "Criticism"
-    ],
-    "topic": [
-      "Ideas"
-    ],
-    "tags": [
-      "arts",
-      "ideas"
-    ],
+    "domain": ["Culture"],
+    "subdomain": ["Literature"],
+    "area": ["Criticism"],
+    "topic": ["Ideas"],
+    "tags": ["arts", "ideas"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Daily curated links to essays on literature, philosophy, and the arts.",
@@ -811,23 +463,11 @@
     "title": "The Marginalian",
     "url": "https://www.themarginalian.org/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=themarginalian.org&sz=128",
-    "domain": [
-      "Culture"
-    ],
-    "subdomain": [
-      "Literature"
-    ],
-    "area": [
-      "Art & Philosophy"
-    ],
-    "topic": [
-      "Books"
-    ],
-    "tags": [
-      "literature",
-      "art",
-      "philosophy"
-    ],
+    "domain": ["Culture"],
+    "subdomain": ["Literature"],
+    "area": ["Art & Philosophy"],
+    "topic": ["Books"],
+    "tags": ["literature", "art", "philosophy"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Reflections on art, literature, science, and philosophy by The Marginalian (formerly Brain Pickings).",
@@ -838,22 +478,11 @@
     "title": "Farnam Street (FS Blog)",
     "url": "https://fs.blog/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=fs.blog&sz=128",
-    "domain": [
-      "Self-Improvement"
-    ],
-    "subdomain": [
-      "Learning"
-    ],
-    "area": [
-      "Personal Development"
-    ],
-    "topic": [
-      "Mental Models"
-    ],
-    "tags": [
-      "learning",
-      "productivity"
-    ],
+    "domain": ["Self-Improvement"],
+    "subdomain": ["Learning"],
+    "area": ["Personal Development"],
+    "topic": ["Mental Models"],
+    "tags": ["learning", "productivity"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Mental models, decision-making, and personal growth insights from Farnam Street.",
@@ -864,22 +493,11 @@
     "title": "Seth's Blog (Seth Godin)",
     "url": "https://seths.blog/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=seths.blog&sz=128",
-    "domain": [
-      "Business"
-    ],
-    "subdomain": [
-      "Marketing"
-    ],
-    "area": [
-      "Entrepreneurship"
-    ],
-    "topic": [
-      "Marketing"
-    ],
-    "tags": [
-      "marketing",
-      "insight"
-    ],
+    "domain": ["Business"],
+    "subdomain": ["Marketing"],
+    "area": ["Entrepreneurship"],
+    "topic": ["Marketing"],
+    "tags": ["marketing", "insight"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Daily marketing, business, and life insights from Seth Godin's blog.",
@@ -890,22 +508,11 @@
     "title": "Smithsonian Magazine - History",
     "url": "https://www.smithsonianmag.com/rss/history/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=smithsonianmag.com&sz=128",
-    "domain": [
-      "History"
-    ],
-    "subdomain": [
-      "World History"
-    ],
-    "area": [
-      "Culture"
-    ],
-    "topic": [
-      "Historical Events"
-    ],
-    "tags": [
-      "history",
-      "culture"
-    ],
+    "domain": ["History"],
+    "subdomain": ["World History"],
+    "area": ["Culture"],
+    "topic": ["Historical Events"],
+    "tags": ["history", "culture"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Historical articles and insights from Smithsonian Magazine's History category.",
@@ -916,22 +523,11 @@
     "title": "Sapiens Magazine",
     "url": "https://www.sapiens.org/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=sapiens.org&sz=128",
-    "domain": [
-      "Anthropology"
-    ],
-    "subdomain": [
-      "Culture"
-    ],
-    "area": [
-      "Human Evolution"
-    ],
-    "topic": [
-      "Anthropology"
-    ],
-    "tags": [
-      "anthropology",
-      "culture"
-    ],
+    "domain": ["Anthropology"],
+    "subdomain": ["Culture"],
+    "area": ["Human Evolution"],
+    "topic": ["Anthropology"],
+    "tags": ["anthropology", "culture"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Anthropology, archaeology, and evolutionary insights from Sapiens magazine.",
@@ -942,21 +538,11 @@
     "title": "History Today",
     "url": "https://www.historytoday.com/feed/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=historytoday.com&sz=128",
-    "domain": [
-      "History"
-    ],
-    "subdomain": [
-      "World History"
-    ],
-    "area": [
-      "Historical Analysis"
-    ],
-    "topic": [
-      "General History"
-    ],
-    "tags": [
-      "history"
-    ],
+    "domain": ["History"],
+    "subdomain": ["World History"],
+    "area": ["Historical Analysis"],
+    "topic": ["General History"],
+    "tags": ["history"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Articles on world history and historical analysis from History Today magazine.",
@@ -967,22 +553,11 @@
     "title": "Foreign Affairs",
     "url": "https://www.foreignaffairs.com/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=foreignaffairs.com&sz=128",
-    "domain": [
-      "Politics"
-    ],
-    "subdomain": [
-      "International Relations"
-    ],
-    "area": [
-      "Foreign Policy"
-    ],
-    "topic": [
-      "Geopolitics"
-    ],
-    "tags": [
-      "international",
-      "policy"
-    ],
+    "domain": ["Politics"],
+    "subdomain": ["International Relations"],
+    "area": ["Foreign Policy"],
+    "topic": ["Geopolitics"],
+    "tags": ["international", "policy"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "In-depth analysis of foreign policy and global affairs from Foreign Affairs magazine.",
@@ -993,22 +568,11 @@
     "title": "War on the Rocks",
     "url": "https://warontherocks.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=warontherocks.com&sz=128",
-    "domain": [
-      "Politics"
-    ],
-    "subdomain": [
-      "Defense"
-    ],
-    "area": [
-      "Security"
-    ],
-    "topic": [
-      "Military"
-    ],
-    "tags": [
-      "geopolitics",
-      "security"
-    ],
+    "domain": ["Politics"],
+    "subdomain": ["Defense"],
+    "area": ["Security"],
+    "topic": ["Military"],
+    "tags": ["geopolitics", "security"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Commentary on strategy, defense, and foreign affairs from War on the Rocks.",
@@ -1019,22 +583,11 @@
     "title": "Futurism",
     "url": "https://futurism.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=futurism.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Futurism"
-    ],
-    "area": [
-      "Emerging Tech"
-    ],
-    "topic": [
-      "Future"
-    ],
-    "tags": [
-      "future",
-      "technology"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Futurism"],
+    "area": ["Emerging Tech"],
+    "topic": ["Future"],
+    "tags": ["future", "technology"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Science and technology news focusing on emerging tech and futurism (Futurism.com).",
@@ -1045,22 +598,11 @@
     "title": "Singularity Hub",
     "url": "https://singularityhub.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=singularityhub.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Futurism"
-    ],
-    "area": [
-      "Innovation"
-    ],
-    "topic": [
-      "Future"
-    ],
-    "tags": [
-      "future",
-      "science"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Futurism"],
+    "area": ["Innovation"],
+    "topic": ["Future"],
+    "tags": ["future", "science"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "News and insights on future technologies and trends from Singularity Hub.",
@@ -1071,22 +613,11 @@
     "title": "OpenAI News",
     "url": "https://openai.com/news/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=openai.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "Machine Learning"
-    ],
-    "topic": [
-      "AI Research"
-    ],
-    "tags": [
-      "AI",
-      "ML"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["Machine Learning"],
+    "topic": ["AI Research"],
+    "tags": ["AI", "ML"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Updates on artificial intelligence research and projects from OpenAI.",
@@ -1097,22 +628,11 @@
     "title": "arXiv AI (cs.AI) New Papers",
     "url": "https://export.arxiv.org/rss/cs.AI",
     "imageUrl": "https://www.google.com/s2/favicons?domain=arxiv.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Computer Science"
-    ],
-    "area": [
-      "Artificial Intelligence"
-    ],
-    "topic": [
-      "Research Papers"
-    ],
-    "tags": [
-      "AI",
-      "research"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Computer Science"],
+    "area": ["Artificial Intelligence"],
+    "topic": ["Research Papers"],
+    "tags": ["AI", "research"],
     "type": "Preprint Server",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Daily list of new AI research papers from arXiv (computer science category).",
@@ -1123,22 +643,11 @@
     "title": "Two Minute Papers (YouTube)",
     "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg",
     "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "Machine Learning"
-    ],
-    "topic": [
-      "Research Highlights"
-    ],
-    "tags": [
-      "AI",
-      "videos"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["Machine Learning"],
+    "topic": ["Research Highlights"],
+    "tags": ["AI", "videos"],
     "type": "YouTube",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Short video summaries of the latest AI research from the Two Minute Papers YouTube channel.",
@@ -1149,22 +658,11 @@
     "title": "Last Week in AI",
     "url": "https://lastweekin.ai/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=lastweekin.ai&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "News"
-    ],
-    "topic": [
-      "AI News"
-    ],
-    "tags": [
-      "AI",
-      "newsletter"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["News"],
+    "topic": ["AI News"],
+    "tags": ["AI", "newsletter"],
     "type": "Newsletter",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Weekly digest of the most interesting AI news and developments.",
@@ -1175,22 +673,11 @@
     "title": "NYTimes Books",
     "url": "https://rss.nytimes.com/services/xml/rss/nyt/Books.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nytimes.com&sz=128",
-    "domain": [
-      "Arts"
-    ],
-    "subdomain": [
-      "Literature"
-    ],
-    "area": [
-      "Book Reviews"
-    ],
-    "topic": [
-      "Books"
-    ],
-    "tags": [
-      "books",
-      "reviews"
-    ],
+    "domain": ["Arts"],
+    "subdomain": ["Literature"],
+    "area": ["Book Reviews"],
+    "topic": ["Books"],
+    "tags": ["books", "reviews"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "The latest book reviews, literary news, and author interviews from The New York Times.",
@@ -1201,22 +688,11 @@
     "title": "The Guardian - Books",
     "url": "https://www.theguardian.com/books/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=theguardian.com&sz=128",
-    "domain": [
-      "Arts"
-    ],
-    "subdomain": [
-      "Literature"
-    ],
-    "area": [
-      "Books"
-    ],
-    "topic": [
-      "Publishing"
-    ],
-    "tags": [
-      "books",
-      "literature"
-    ],
+    "domain": ["Arts"],
+    "subdomain": ["Literature"],
+    "area": ["Books"],
+    "topic": ["Publishing"],
+    "tags": ["books", "literature"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Book news, reviews, and literary commentary from The Guardian.",
@@ -1227,22 +703,11 @@
     "title": "Pitchfork - Latest Music News",
     "url": "https://pitchfork.com/feed/feed-news/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=pitchfork.com&sz=128",
-    "domain": [
-      "Arts"
-    ],
-    "subdomain": [
-      "Music"
-    ],
-    "area": [
-      "Music News"
-    ],
-    "topic": [
-      "Music"
-    ],
-    "tags": [
-      "music",
-      "reviews"
-    ],
+    "domain": ["Arts"],
+    "subdomain": ["Music"],
+    "area": ["Music News"],
+    "topic": ["Music"],
+    "tags": ["music", "reviews"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Latest music news, album reviews, and features from Pitchfork.",
@@ -1253,22 +718,11 @@
     "title": "NPR Music",
     "url": "https://feeds.npr.org/1039/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=npr.org&sz=128",
-    "domain": [
-      "Arts"
-    ],
-    "subdomain": [
-      "Music"
-    ],
-    "area": [
-      "Music News"
-    ],
-    "topic": [
-      "Music"
-    ],
-    "tags": [
-      "music",
-      "news"
-    ],
+    "domain": ["Arts"],
+    "subdomain": ["Music"],
+    "area": ["Music News"],
+    "topic": ["Music"],
+    "tags": ["music", "news"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Music news, reviews, and artist interviews from NPR Music.",
@@ -1279,22 +733,11 @@
     "title": "3D Printing Industry",
     "url": "https://3dprintingindustry.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=3dprintingindustry.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Additive Manufacturing"
-    ],
-    "area": [
-      "3D Printing"
-    ],
-    "topic": [
-      "Manufacturing"
-    ],
-    "tags": [
-      "3D printing",
-      "manufacturing"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Additive Manufacturing"],
+    "area": ["3D Printing"],
+    "topic": ["Manufacturing"],
+    "tags": ["3D printing", "manufacturing"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "News and analysis on the 3D printing and additive manufacturing industry.",
@@ -1305,22 +748,11 @@
     "title": "Terence Tao's Blog",
     "url": "https://terrytao.wordpress.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=wordpress.com&sz=128",
-    "domain": [
-      "Mathematics"
-    ],
-    "subdomain": [
-      "Analysis"
-    ],
-    "area": [
-      "Academic"
-    ],
-    "topic": [
-      "Mathematics"
-    ],
-    "tags": [
-      "math",
-      "academic"
-    ],
+    "domain": ["Mathematics"],
+    "subdomain": ["Analysis"],
+    "area": ["Academic"],
+    "topic": ["Mathematics"],
+    "tags": ["math", "academic"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Mathematical insights and research commentary by Fields Medalist Terence Tao.",
@@ -1331,22 +763,11 @@
     "title": "Numberphile (YouTube)",
     "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCoxcjq-8xIDTYp3uz647V5A",
     "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=128",
-    "domain": [
-      "Mathematics"
-    ],
-    "subdomain": [
-      "Mathematics"
-    ],
-    "area": [
-      "Education"
-    ],
-    "topic": [
-      "Numbers"
-    ],
-    "tags": [
-      "math",
-      "video"
-    ],
+    "domain": ["Mathematics"],
+    "subdomain": ["Mathematics"],
+    "area": ["Education"],
+    "topic": ["Numbers"],
+    "tags": ["math", "video"],
     "type": "YouTube",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Entertaining videos about numbers and math concepts from the Numberphile YouTube channel.",
@@ -1357,22 +778,11 @@
     "title": "HPCwire",
     "url": "https://www.hpcwire.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=hpcwire.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Computing"
-    ],
-    "area": [
-      "Supercomputing"
-    ],
-    "topic": [
-      "HPC"
-    ],
-    "tags": [
-      "computing",
-      "HPC"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Computing"],
+    "area": ["Supercomputing"],
+    "topic": ["HPC"],
+    "tags": ["computing", "HPC"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "High-performance computing and supercomputer industry news from HPCwire.",
@@ -1383,22 +793,11 @@
     "title": "Interesting Engineering",
     "url": "https://interestingengineering.com/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=interestingengineering.com&sz=128",
-    "domain": [
-      "Engineering"
-    ],
-    "subdomain": [
-      "Technology"
-    ],
-    "area": [
-      "Innovation"
-    ],
-    "topic": [
-      "Engineering"
-    ],
-    "tags": [
-      "engineering",
-      "tech"
-    ],
+    "domain": ["Engineering"],
+    "subdomain": ["Technology"],
+    "area": ["Innovation"],
+    "topic": ["Engineering"],
+    "tags": ["engineering", "tech"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Engineering breakthroughs, tech innovations, and scientific curiosities from Interesting Engineering.",
@@ -1409,22 +808,11 @@
     "title": "Phys.org - Science News",
     "url": "http://www.physorg.com/rss-feed/science-news/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=phys.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General Science"
-    ],
-    "area": [
-      "Research"
-    ],
-    "topic": [
-      "Science News"
-    ],
-    "tags": [
-      "science",
-      "tech"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General Science"],
+    "area": ["Research"],
+    "topic": ["Science News"],
+    "tags": ["science", "tech"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Up-to-the-minute science and technology news updates from Phys.org.",
@@ -1435,22 +823,11 @@
     "title": "ZDNet",
     "url": "https://www.zdnet.com/news/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=zdnet.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "IT"
-    ],
-    "area": [
-      "Business Tech"
-    ],
-    "topic": [
-      "Tech Industry"
-    ],
-    "tags": [
-      "technology",
-      "IT"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["IT"],
+    "area": ["Business Tech"],
+    "topic": ["Tech Industry"],
+    "tags": ["technology", "IT"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Technology industry news, analysis, and product coverage from ZDNet.",
@@ -1461,22 +838,11 @@
     "title": "Fortune Magazine",
     "url": "https://fortune.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=fortune.com&sz=128",
-    "domain": [
-      "Business"
-    ],
-    "subdomain": [
-      "Business News"
-    ],
-    "area": [
-      "Corporate"
-    ],
-    "topic": [
-      "Business"
-    ],
-    "tags": [
-      "business",
-      "finance"
-    ],
+    "domain": ["Business"],
+    "subdomain": ["Business News"],
+    "area": ["Corporate"],
+    "topic": ["Business"],
+    "tags": ["business", "finance"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Business news and analysis on companies, markets, and tech from Fortune.",
@@ -1487,22 +853,11 @@
     "title": "Rolling Stone – Music",
     "url": "https://www.rollingstone.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=rollingstone.com&sz=128",
-    "domain": [
-      "Arts"
-    ],
-    "subdomain": [
-      "Music"
-    ],
-    "area": [
-      "Entertainment"
-    ],
-    "topic": [
-      "Music News"
-    ],
-    "tags": [
-      "music",
-      "entertainment"
-    ],
+    "domain": ["Arts"],
+    "subdomain": ["Music"],
+    "area": ["Entertainment"],
+    "topic": ["Music News"],
+    "tags": ["music", "entertainment"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Music news, album reviews, and pop culture coverage from Rolling Stone.",
@@ -1513,22 +868,11 @@
     "title": "Tiny Buddha",
     "url": "https://tinybuddha.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=tinybuddha.com&sz=128",
-    "domain": [
-      "Self-Improvement"
-    ],
-    "subdomain": [
-      "Wellness"
-    ],
-    "area": [
-      "Mindfulness"
-    ],
-    "topic": [
-      "Personal Growth"
-    ],
-    "tags": [
-      "self-help",
-      "mindfulness"
-    ],
+    "domain": ["Self-Improvement"],
+    "subdomain": ["Wellness"],
+    "area": ["Mindfulness"],
+    "topic": ["Personal Growth"],
+    "tags": ["self-help", "mindfulness"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Inspiration, wisdom, and tips for happiness and mindfulness from Tiny Buddha.",
@@ -1539,22 +883,11 @@
     "title": "Becoming Minimalist",
     "url": "https://www.becomingminimalist.com/feed/",
     "imageUrl": "https://www.becomingminimalist.com/wp-content/themes/becoming-minimalist/images/header.png",
-    "domain": [
-      "Self-Improvement"
-    ],
-    "subdomain": [
-      "Lifestyle"
-    ],
-    "area": [
-      "Minimalism"
-    ],
-    "topic": [
-      "Simplicity"
-    ],
-    "tags": [
-      "minimalism",
-      "lifestyle"
-    ],
+    "domain": ["Self-Improvement"],
+    "subdomain": ["Lifestyle"],
+    "area": ["Minimalism"],
+    "topic": ["Simplicity"],
+    "tags": ["minimalism", "lifestyle"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Insights on minimalism and intentional living from Becoming Minimalist.",
@@ -1565,22 +898,11 @@
     "title": "NYTimes Opinion",
     "url": "https://rss.nytimes.com/services/xml/rss/nyt/Opinion.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nytimes.com&sz=128",
-    "domain": [
-      "News"
-    ],
-    "subdomain": [
-      "Opinion"
-    ],
-    "area": [
-      "Editorial"
-    ],
-    "topic": [
-      "Opinion"
-    ],
-    "tags": [
-      "opinion",
-      "politics"
-    ],
+    "domain": ["News"],
+    "subdomain": ["Opinion"],
+    "area": ["Editorial"],
+    "topic": ["Opinion"],
+    "tags": ["opinion", "politics"],
     "type": "Opinion Column",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Opinions, editorials, and op-eds from The New York Times.",
@@ -1591,22 +913,11 @@
     "title": "Project Syndicate",
     "url": "https://www.project-syndicate.org/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=project-syndicate.org&sz=128",
-    "domain": [
-      "News"
-    ],
-    "subdomain": [
-      "Opinion"
-    ],
-    "area": [
-      "Global Opinion"
-    ],
-    "topic": [
-      "Economics & Politics"
-    ],
-    "tags": [
-      "opinion",
-      "economics"
-    ],
+    "domain": ["News"],
+    "subdomain": ["Opinion"],
+    "area": ["Global Opinion"],
+    "topic": ["Economics & Politics"],
+    "tags": ["opinion", "economics"],
     "type": "Opinion Column",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Global commentary and opinion pieces by leading thinkers (Project Syndicate).",
@@ -1617,22 +928,11 @@
     "title": "Universe Today",
     "url": "https://www.universetoday.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=universetoday.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Astronomy"
-    ],
-    "area": [
-      "Space"
-    ],
-    "topic": [
-      "Astronomy"
-    ],
-    "tags": [
-      "space",
-      "astronomy"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Astronomy"],
+    "area": ["Space"],
+    "topic": ["Astronomy"],
+    "tags": ["space", "astronomy"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Space and astronomy news, night sky tips, and space exploration updates from Universe Today.",
@@ -1643,22 +943,11 @@
     "title": "Quantum Computing Report",
     "url": "https://quantumcomputingreport.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=quantumcomputingreport.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Quantum Computing"
-    ],
-    "area": [
-      "Emerging Tech"
-    ],
-    "topic": [
-      "Quantum"
-    ],
-    "tags": [
-      "quantum",
-      "computing"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Quantum Computing"],
+    "area": ["Emerging Tech"],
+    "topic": ["Quantum"],
+    "tags": ["quantum", "computing"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Updates on the quantum computing industry, research, and policy (Quantum Computing Report).",
@@ -1669,22 +958,11 @@
     "title": "TCT Magazine (3D Printing)",
     "url": "https://www.tctmagazine.com/api/rss/content.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=tctmagazine.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Additive Manufacturing"
-    ],
-    "area": [
-      "3D Printing"
-    ],
-    "topic": [
-      "Industry News"
-    ],
-    "tags": [
-      "3D printing",
-      "technology"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Additive Manufacturing"],
+    "area": ["3D Printing"],
+    "topic": ["Industry News"],
+    "tags": ["3D printing", "technology"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Additive manufacturing and 3D printing industry news from TCT Magazine.",
@@ -1695,22 +973,11 @@
     "title": "Mozilla Hacks (MDN Web Docs)",
     "url": "https://hacks.mozilla.org/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=mozilla.org&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Web Development"
-    ],
-    "area": [
-      "Front-end"
-    ],
-    "topic": [
-      "Web Technology"
-    ],
-    "tags": [
-      "development",
-      "web"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Web Development"],
+    "area": ["Front-end"],
+    "topic": ["Web Technology"],
+    "tags": ["development", "web"],
     "type": "Documentation",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Web development tips, browser technology updates, and tutorials from Mozilla Hacks (MDN).",
@@ -1721,22 +988,11 @@
     "title": "Stack Exchange - Hot Questions",
     "url": "https://stackexchange.com/feeds/questions",
     "imageUrl": "https://www.google.com/s2/favicons?domain=stackexchange.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Q&A"
-    ],
-    "area": [
-      "Programming"
-    ],
-    "topic": [
-      "Various Topics"
-    ],
-    "tags": [
-      "Q&A",
-      "community"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Q&A"],
+    "area": ["Programming"],
+    "topic": ["Various Topics"],
+    "tags": ["Q&A", "community"],
     "type": "Forum",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Newest popular questions across the Stack Exchange network of Q&A communities.",
@@ -1747,22 +1003,11 @@
     "title": "GitHub Blog",
     "url": "https://github.blog/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=github.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Software Development"
-    ],
-    "area": [
-      "Version Control"
-    ],
-    "topic": [
-      "Dev Tools"
-    ],
-    "tags": [
-      "development",
-      "tools"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Software Development"],
+    "area": ["Version Control"],
+    "topic": ["Dev Tools"],
+    "tags": ["development", "tools"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Product updates, engineering posts, and community news from the official GitHub Blog.",
@@ -1773,22 +1018,11 @@
     "title": "Techmeme",
     "url": "https://www.techmeme.com/feed.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=techmeme.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Tech News"
-    ],
-    "area": [
-      "Aggregators"
-    ],
-    "topic": [
-      "Technology"
-    ],
-    "tags": [
-      "news",
-      "tech"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Tech News"],
+    "area": ["Aggregators"],
+    "topic": ["Technology"],
+    "tags": ["news", "tech"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Real-time aggregator of trending technology news headlines (Techmeme).",
@@ -1799,22 +1033,11 @@
     "title": "TED Talks Daily (Podcast)",
     "url": "https://feeds.feedburner.com/tedtalks_video",
     "imageUrl": "https://www.google.com/s2/favicons?domain=ted.com&sz=128",
-    "domain": [
-      "Education"
-    ],
-    "subdomain": [
-      "Ideas"
-    ],
-    "area": [
-      "Inspiration"
-    ],
-    "topic": [
-      "TED Talks"
-    ],
-    "tags": [
-      "ideas",
-      "inspiration"
-    ],
+    "domain": ["Education"],
+    "subdomain": ["Ideas"],
+    "area": ["Inspiration"],
+    "topic": ["TED Talks"],
+    "tags": ["ideas", "inspiration"],
     "type": "Podcast",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Daily video feed of TED Talks featuring thought leaders on technology, entertainment, design, and more.",
@@ -1825,22 +1048,11 @@
     "title": "KDnuggets",
     "url": "https://www.kdnuggets.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=kdnuggets.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Data Science"
-    ],
-    "area": [
-      "Machine Learning"
-    ],
-    "topic": [
-      "Analytics"
-    ],
-    "tags": [
-      "data science",
-      "ML"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Data Science"],
+    "area": ["Machine Learning"],
+    "topic": ["Analytics"],
+    "tags": ["data science", "ML"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Data science and machine learning news, tutorials, and insights from KDnuggets.",
@@ -1851,22 +1063,11 @@
     "title": "LWN.net (Linux News)",
     "url": "https://lwn.net/headlines/newrss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=lwn.net&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Software"
-    ],
-    "area": [
-      "Open Source"
-    ],
-    "topic": [
-      "Linux"
-    ],
-    "tags": [
-      "linux",
-      "software"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Software"],
+    "area": ["Open Source"],
+    "topic": ["Linux"],
+    "tags": ["linux", "software"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Linux and open-source industry news and analysis from LWN.net.",
@@ -1877,22 +1078,11 @@
     "title": "RemoteOK - Remote Jobs",
     "url": "https://remoteok.com/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=remoteok.com&sz=128",
-    "domain": [
-      "Career"
-    ],
-    "subdomain": [
-      "Tech Jobs"
-    ],
-    "area": [
-      "Employment"
-    ],
-    "topic": [
-      "Job Postings"
-    ],
-    "tags": [
-      "jobs",
-      "tech"
-    ],
+    "domain": ["Career"],
+    "subdomain": ["Tech Jobs"],
+    "area": ["Employment"],
+    "topic": ["Job Postings"],
+    "tags": ["jobs", "tech"],
     "type": "Job Board",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Latest remote tech job listings from the RemoteOK job board.",
@@ -1903,22 +1093,11 @@
     "title": "The Atlantic - Latest",
     "url": "https://www.theatlantic.com/feed/all/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=theatlantic.com&sz=128",
-    "domain": [
-      "News"
-    ],
-    "subdomain": [
-      "Culture"
-    ],
-    "area": [
-      "Society"
-    ],
-    "topic": [
-      "General Interest"
-    ],
-    "tags": [
-      "news",
-      "culture"
-    ],
+    "domain": ["News"],
+    "subdomain": ["Culture"],
+    "area": ["Society"],
+    "topic": ["General Interest"],
+    "tags": ["news", "culture"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Latest articles and in-depth reporting on politics, culture, and society from The Atlantic.",
@@ -1929,22 +1108,11 @@
     "title": "Vox",
     "url": "https://www.vox.com/rss/index.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=vox.com&sz=128",
-    "domain": [
-      "News"
-    ],
-    "subdomain": [
-      "Explainers"
-    ],
-    "area": [
-      "General Interest"
-    ],
-    "topic": [
-      "Explainers"
-    ],
-    "tags": [
-      "news",
-      "explainers"
-    ],
+    "domain": ["News"],
+    "subdomain": ["Explainers"],
+    "area": ["General Interest"],
+    "topic": ["Explainers"],
+    "tags": ["news", "explainers"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Explanatory journalism on politics, policy, and culture from Vox.",
@@ -1955,22 +1123,11 @@
     "title": "Long Now Foundation (Blog)",
     "url": "http://feeds.feedburner.com/longnow",
     "imageUrl": "https://www.google.com/s2/favicons?domain=longnow.org&sz=128",
-    "domain": [
-      "Society"
-    ],
-    "subdomain": [
-      "Futurism"
-    ],
-    "area": [
-      "Long-term Thinking"
-    ],
-    "topic": [
-      "Civilization"
-    ],
-    "tags": [
-      "future",
-      "society"
-    ],
+    "domain": ["Society"],
+    "subdomain": ["Futurism"],
+    "area": ["Long-term Thinking"],
+    "topic": ["Civilization"],
+    "tags": ["future", "society"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Essays and updates on long-term thinking, future civilization, and projects from the Long Now Foundation.",
@@ -1981,22 +1138,11 @@
     "title": "Noema Magazine",
     "url": "https://www.noemamag.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=noemamag.com&sz=128",
-    "domain": [
-      "Society"
-    ],
-    "subdomain": [
-      "Philosophy"
-    ],
-    "area": [
-      "Global Perspectives"
-    ],
-    "topic": [
-      "Future"
-    ],
-    "tags": [
-      "society",
-      "culture"
-    ],
+    "domain": ["Society"],
+    "subdomain": ["Philosophy"],
+    "area": ["Global Perspectives"],
+    "topic": ["Future"],
+    "tags": ["society", "culture"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Interdisciplinary essays and analyses on global challenges and the future of society (Noema Magazine).",
@@ -2007,22 +1153,11 @@
     "title": "Marginal Revolution",
     "url": "https://marginalrevolution.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=marginalrevolution.com&sz=128",
-    "domain": [
-      "Business"
-    ],
-    "subdomain": [
-      "Economics"
-    ],
-    "area": [
-      "Economics"
-    ],
-    "topic": [
-      "Economic Policy"
-    ],
-    "tags": [
-      "economics",
-      "blog"
-    ],
+    "domain": ["Business"],
+    "subdomain": ["Economics"],
+    "area": ["Economics"],
+    "topic": ["Economic Policy"],
+    "tags": ["economics", "blog"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Daily economics commentary and eclectic insights from the Marginal Revolution blog.",
@@ -2033,22 +1168,11 @@
     "title": "Reddit r/AskScience",
     "url": "https://www.reddit.com/r/askscience/.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General Science"
-    ],
-    "area": [
-      "Q&A"
-    ],
-    "topic": [
-      "Science"
-    ],
-    "tags": [
-      "community",
-      "science"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General Science"],
+    "area": ["Q&A"],
+    "topic": ["Science"],
+    "tags": ["community", "science"],
     "type": "Forum",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Crowd-sourced science questions and expert answers from Reddit's r/AskScience community.",
@@ -2059,22 +1183,11 @@
     "title": "Reddit r/AskHistorians",
     "url": "https://www.reddit.com/r/AskHistorians/.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
-    "domain": [
-      "History"
-    ],
-    "subdomain": [
-      "World History"
-    ],
-    "area": [
-      "Q&A"
-    ],
-    "topic": [
-      "History"
-    ],
-    "tags": [
-      "community",
-      "history"
-    ],
+    "domain": ["History"],
+    "subdomain": ["World History"],
+    "area": ["Q&A"],
+    "topic": ["History"],
+    "tags": ["community", "history"],
     "type": "Forum",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Expert answers to historical questions from the Reddit r/AskHistorians community.",
@@ -2085,22 +1198,11 @@
     "title": "freeCodeCamp News",
     "url": "https://www.freecodecamp.org/news/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=freecodecamp.org&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Programming"
-    ],
-    "area": [
-      "Education"
-    ],
-    "topic": [
-      "Tutorials"
-    ],
-    "tags": [
-      "coding",
-      "tutorials"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Programming"],
+    "area": ["Education"],
+    "topic": ["Tutorials"],
+    "tags": ["coding", "tutorials"],
     "type": "Tutorial Series",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Coding tutorials, how-to guides, and developer articles from freeCodeCamp News.",
@@ -2111,22 +1213,11 @@
     "title": "FiveThirtyEight",
     "url": "https://fivethirtyeight.com/all/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=fivethirtyeight.com&sz=128",
-    "domain": [
-      "News"
-    ],
-    "subdomain": [
-      "Data Journalism"
-    ],
-    "area": [
-      "Politics & Sports"
-    ],
-    "topic": [
-      "Analysis"
-    ],
-    "tags": [
-      "data",
-      "analysis"
-    ],
+    "domain": ["News"],
+    "subdomain": ["Data Journalism"],
+    "area": ["Politics & Sports"],
+    "topic": ["Analysis"],
+    "tags": ["data", "analysis"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Data-driven news and analysis on politics, economics, science, and sports from FiveThirtyEight.",
@@ -2137,22 +1228,11 @@
     "title": "Open Culture",
     "url": "http://www.openculture.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=openculture.com&sz=128",
-    "domain": [
-      "Education"
-    ],
-    "subdomain": [
-      "Culture"
-    ],
-    "area": [
-      "Free Learning"
-    ],
-    "topic": [
-      "Online Education"
-    ],
-    "tags": [
-      "education",
-      "culture"
-    ],
+    "domain": ["Education"],
+    "subdomain": ["Culture"],
+    "area": ["Free Learning"],
+    "topic": ["Online Education"],
+    "tags": ["education", "culture"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Free cultural and educational media (courses, ebooks, films) curated by Open Culture.",
@@ -2163,22 +1243,11 @@
     "title": "Paul Krugman (NYT Opinion)",
     "url": "https://rss.nytimes.com/services/xml/rss/nyt/Opinion.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nytimes.com&sz=128",
-    "domain": [
-      "News"
-    ],
-    "subdomain": [
-      "Opinion"
-    ],
-    "area": [
-      "Economics"
-    ],
-    "topic": [
-      "Opinion"
-    ],
-    "tags": [
-      "economics",
-      "opinion"
-    ],
+    "domain": ["News"],
+    "subdomain": ["Opinion"],
+    "area": ["Economics"],
+    "topic": ["Opinion"],
+    "tags": ["economics", "opinion"],
     "type": "Opinion Column",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Opinion columns on economics and policy by Paul Krugman (NYTimes).",
@@ -2189,22 +1258,11 @@
     "title": "bioRxiv (Latest Preprints)",
     "url": "https://connect.biorxiv.org/biorxiv_xml.php?subject=all",
     "imageUrl": "https://www.google.com/s2/favicons?domain=biorxiv.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Biology"
-    ],
-    "area": [
-      "Preprints"
-    ],
-    "topic": [
-      "Life Sciences"
-    ],
-    "tags": [
-      "biology",
-      "preprints"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Biology"],
+    "area": ["Preprints"],
+    "topic": ["Life Sciences"],
+    "tags": ["biology", "preprints"],
     "type": "Preprint Server",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Latest open access preprints in the life sciences from bioRxiv.",
@@ -2215,22 +1273,11 @@
     "title": "Science Magazine News",
     "url": "https://www.sciencemag.org/rss/news_current.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=sciencemag.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General Science"
-    ],
-    "area": [
-      "News"
-    ],
-    "topic": [
-      "Research"
-    ],
-    "tags": [
-      "science",
-      "policy"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General Science"],
+    "area": ["News"],
+    "topic": ["Research"],
+    "tags": ["science", "policy"],
     "type": "Journal",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Science Magazine news on the latest scientific research and science policy developments.",
@@ -2241,22 +1288,11 @@
     "title": "Nature News",
     "url": "https://www.nature.com/nature.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nature.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General Science"
-    ],
-    "area": [
-      "News"
-    ],
-    "topic": [
-      "Science"
-    ],
-    "tags": [
-      "science",
-      "research"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General Science"],
+    "area": ["News"],
+    "topic": ["Science"],
+    "tags": ["science", "research"],
     "type": "Journal",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Scientific news and highlights from Nature, covering the latest research across disciplines.",
@@ -2267,22 +1303,11 @@
     "title": "Reddit r/technology",
     "url": "https://www.reddit.com/r/technology/.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "General Tech"
-    ],
-    "area": [
-      "Community"
-    ],
-    "topic": [
-      "Tech News"
-    ],
-    "tags": [
-      "technology",
-      "community"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["General Tech"],
+    "area": ["Community"],
+    "topic": ["Tech News"],
+    "tags": ["technology", "community"],
     "type": "Forum",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "User-submitted technology news and discussions from Reddit's r/technology community.",
@@ -2293,22 +1318,11 @@
     "title": "The Diplomat",
     "url": "https://thediplomat.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=thediplomat.com&sz=128",
-    "domain": [
-      "Politics"
-    ],
-    "subdomain": [
-      "Asia-Pacific"
-    ],
-    "area": [
-      "International Relations"
-    ],
-    "topic": [
-      "Geopolitics"
-    ],
-    "tags": [
-      "Asia",
-      "politics"
-    ],
+    "domain": ["Politics"],
+    "subdomain": ["Asia-Pacific"],
+    "area": ["International Relations"],
+    "topic": ["Geopolitics"],
+    "tags": ["Asia", "politics"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Geopolitical news and analysis focusing on Asia-Pacific affairs from The Diplomat.",
@@ -2319,22 +1333,11 @@
     "title": "Palladium Magazine",
     "url": "https://palladiummag.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=palladiummag.com&sz=128",
-    "domain": [
-      "Society"
-    ],
-    "subdomain": [
-      "Civilization"
-    ],
-    "area": [
-      "Politics & Culture"
-    ],
-    "topic": [
-      "Societal Future"
-    ],
-    "tags": [
-      "society",
-      "politics"
-    ],
+    "domain": ["Society"],
+    "subdomain": ["Civilization"],
+    "area": ["Politics & Culture"],
+    "topic": ["Societal Future"],
+    "tags": ["society", "politics"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Long-form essays on governance, society, and the future of civilization from Palladium Magazine.",
@@ -2345,22 +1348,11 @@
     "title": "Anthropocene Magazine",
     "url": "https://www.anthropocenemagazine.org/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=anthropocenemagazine.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Environment"
-    ],
-    "area": [
-      "Anthropocene"
-    ],
-    "topic": [
-      "Sustainability"
-    ],
-    "tags": [
-      "environment",
-      "society"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Environment"],
+    "area": ["Anthropocene"],
+    "topic": ["Sustainability"],
+    "tags": ["environment", "society"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Exploring environmental change and sustainability challenges in the Anthropocene (Anthropocene Magazine).",
@@ -2371,22 +1363,11 @@
     "title": "CoinDesk",
     "url": "https://feeds.feedburner.com/CoinDesk",
     "imageUrl": "https://www.google.com/s2/favicons?domain=coindesk.com&sz=128",
-    "domain": [
-      "Business"
-    ],
-    "subdomain": [
-      "Finance"
-    ],
-    "area": [
-      "Cryptocurrency"
-    ],
-    "topic": [
-      "Blockchain"
-    ],
-    "tags": [
-      "crypto",
-      "finance"
-    ],
+    "domain": ["Business"],
+    "subdomain": ["Finance"],
+    "area": ["Cryptocurrency"],
+    "topic": ["Blockchain"],
+    "tags": ["crypto", "finance"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Cryptocurrency, blockchain, and fintech news and analysis from CoinDesk.",
@@ -2397,22 +1378,11 @@
     "title": "NVIDIA Technical Blog",
     "url": "https://developer.nvidia.com/blog/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nvidia.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Computing"
-    ],
-    "area": [
-      "AI & Graphics"
-    ],
-    "topic": [
-      "Developer Updates"
-    ],
-    "tags": [
-      "GPU",
-      "AI"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Computing"],
+    "area": ["AI & Graphics"],
+    "topic": ["Developer Updates"],
+    "tags": ["GPU", "AI"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "News and tutorials for developers, data scientists, and researchers from NVIDIA's technical blog.",
@@ -2423,24 +1393,11 @@
     "title": "Nautilus",
     "url": "https://nautil.us/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nautil.us&sz=128",
-    "domain": [
-      "Science",
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Culture & Ideas"
-    ],
-    "area": [
-      "Interdisciplinary Essays"
-    ],
-    "topic": [
-      "Big Questions"
-    ],
-    "tags": [
-      "science",
-      "culture",
-      "philosophy"
-    ],
+    "domain": ["Science", "Philosophy"],
+    "subdomain": ["Culture & Ideas"],
+    "area": ["Interdisciplinary Essays"],
+    "topic": ["Big Questions"],
+    "tags": ["science", "culture", "philosophy"],
     "type": "Magazine",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Narrative essays blending science, culture, and philosophy.",
@@ -2451,22 +1408,11 @@
     "title": "Science News",
     "url": "https://www.sciencenews.org/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=sciencenews.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General Science"
-    ],
-    "area": [
-      "Research News"
-    ],
-    "topic": [
-      "Latest Discoveries"
-    ],
-    "tags": [
-      "news",
-      "research"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General Science"],
+    "area": ["Research News"],
+    "topic": ["Latest Discoveries"],
+    "tags": ["news", "research"],
     "type": "News",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Daily reports on discoveries across scientific disciplines.",
@@ -2477,23 +1423,11 @@
     "title": "NASA Breaking News",
     "url": "http://www.nasa.gov/rss/dyn/breaking_news.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nasa.gov&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Space Agency"
-    ],
-    "area": [
-      "Missions & Policy"
-    ],
-    "topic": [
-      "Press Releases"
-    ],
-    "tags": [
-      "NASA",
-      "missions",
-      "astronomy"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Space Agency"],
+    "area": ["Missions & Policy"],
+    "topic": ["Press Releases"],
+    "tags": ["NASA", "missions", "astronomy"],
     "type": "Alert Feed",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Official NASA press releases and mission updates.",
@@ -2504,23 +1438,11 @@
     "title": "Phys.org",
     "url": "https://phys.org/rss-feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=phys.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General Science"
-    ],
-    "area": [
-      "Daily Research"
-    ],
-    "topic": [
-      "Science & Tech News"
-    ],
-    "tags": [
-      "physics",
-      "technology",
-      "biology"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General Science"],
+    "area": ["Daily Research"],
+    "topic": ["Science & Tech News"],
+    "tags": ["physics", "technology", "biology"],
     "type": "News",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Daily science and technology research news.",
@@ -2531,22 +1453,11 @@
     "title": "DeepMind Blog",
     "url": "https://deepmind.com/blog/feed/basic/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=deepmind.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "Research Updates"
-    ],
-    "topic": [
-      "ML Innovations"
-    ],
-    "tags": [
-      "AI",
-      "deep-learning"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["Research Updates"],
+    "topic": ["ML Innovations"],
+    "tags": ["AI", "deep-learning"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "DeepMind research advances and insights.",
@@ -2557,22 +1468,11 @@
     "title": "Stanford Encyclopedia of Philosophy",
     "url": "https://plato.stanford.edu/rss/sep.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=stanford.edu&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Reference"
-    ],
-    "area": [
-      "Scholarly Entries"
-    ],
-    "topic": [
-      "Concept Overviews"
-    ],
-    "tags": [
-      "philosophy",
-      "reference"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["Reference"],
+    "area": ["Scholarly Entries"],
+    "topic": ["Concept Overviews"],
+    "tags": ["philosophy", "reference"],
     "type": "Documentation",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Authoritative, peer‑reviewed philosophy entries.",
@@ -2583,23 +1483,11 @@
     "title": "The Marginalian",
     "url": "https://www.themarginalian.org/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=themarginalian.org&sz=128",
-    "domain": [
-      "Culture"
-    ],
-    "subdomain": [
-      "Ideas & Art"
-    ],
-    "area": [
-      "Reflective Essays"
-    ],
-    "topic": [
-      "Creativity & Life"
-    ],
-    "tags": [
-      "literature",
-      "philosophy",
-      "art"
-    ],
+    "domain": ["Culture"],
+    "subdomain": ["Ideas & Art"],
+    "area": ["Reflective Essays"],
+    "topic": ["Creativity & Life"],
+    "tags": ["literature", "philosophy", "art"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Exploring art, science, and philosophy to illuminate the human spirit.",
@@ -2610,22 +1498,11 @@
     "title": "Astral Codex Ten",
     "url": "https://astralcodexten.substack.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=substack.com&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Rationalism"
-    ],
-    "area": [
-      "Long-Form Essays"
-    ],
-    "topic": [
-      "Medicine, Science & Society"
-    ],
-    "tags": [
-      "rationality",
-      "psychology"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["Rationalism"],
+    "area": ["Long-Form Essays"],
+    "topic": ["Medicine, Science & Society"],
+    "tags": ["rationality", "psychology"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Scott Alexander's essays on medicine, science, politics, and philosophy.",
@@ -2636,22 +1513,11 @@
     "title": "LessWrong",
     "url": "http://lesserwrong.com/feed.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=lesserwrong.com&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Rationality"
-    ],
-    "area": [
-      "Community Forum"
-    ],
-    "topic": [
-      "Decision Science"
-    ],
-    "tags": [
-      "AI-alignment",
-      "epistemology"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["Rationality"],
+    "area": ["Community Forum"],
+    "topic": ["Decision Science"],
+    "tags": ["AI-alignment", "epistemology"],
     "type": "Forum",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Community blog on rational thinking and AI alignment.",
@@ -2662,22 +1528,11 @@
     "title": "Noahpinion",
     "url": "https://noahpinion.substack.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=substack.com&sz=128",
-    "domain": [
-      "Economics"
-    ],
-    "subdomain": [
-      "Policy & Tech"
-    ],
-    "area": [
-      "Data-Driven Essays"
-    ],
-    "topic": [
-      "Macro & Markets"
-    ],
-    "tags": [
-      "finance",
-      "policy"
-    ],
+    "domain": ["Economics"],
+    "subdomain": ["Policy & Tech"],
+    "area": ["Data-Driven Essays"],
+    "topic": ["Macro & Markets"],
+    "tags": ["finance", "policy"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Noah Smith on economics, finance, and tech trends.",
@@ -2688,22 +1543,11 @@
     "title": "Behavioral Scientist",
     "url": "https://behavioralscientist.org/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=behavioralscientist.org&sz=128",
-    "domain": [
-      "Psychology"
-    ],
-    "subdomain": [
-      "Behavioral Science"
-    ],
-    "area": [
-      "Research Insights"
-    ],
-    "topic": [
-      "Decision‑Making"
-    ],
-    "tags": [
-      "behavior",
-      "society"
-    ],
+    "domain": ["Psychology"],
+    "subdomain": ["Behavioral Science"],
+    "area": ["Research Insights"],
+    "topic": ["Decision‑Making"],
+    "tags": ["behavior", "society"],
     "type": "Magazine",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Making behavioral research accessible to the public.",
@@ -2714,22 +1558,11 @@
     "title": "Our World in Data",
     "url": "https://ourworldindata.org/atom.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=ourworldindata.org&sz=128",
-    "domain": [
-      "Data"
-    ],
-    "subdomain": [
-      "Global Development"
-    ],
-    "area": [
-      "Open Statistics"
-    ],
-    "topic": [
-      "Public Datasets"
-    ],
-    "tags": [
-      "visualization",
-      "policy"
-    ],
+    "domain": ["Data"],
+    "subdomain": ["Global Development"],
+    "area": ["Open Statistics"],
+    "topic": ["Public Datasets"],
+    "tags": ["visualization", "policy"],
     "type": "Open Access Feed",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Data‑driven research and charts on global issues.",
@@ -2740,22 +1573,11 @@
     "title": "Yale Environment 360",
     "url": "https://e360.yale.edu/feed.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=yale.edu&sz=128",
-    "domain": [
-      "Environment"
-    ],
-    "subdomain": [
-      "Climate & Ecology"
-    ],
-    "area": [
-      "Policy & Science"
-    ],
-    "topic": [
-      "Analysis"
-    ],
-    "tags": [
-      "climate",
-      "sustainability"
-    ],
+    "domain": ["Environment"],
+    "subdomain": ["Climate & Ecology"],
+    "area": ["Policy & Science"],
+    "topic": ["Analysis"],
+    "tags": ["climate", "sustainability"],
     "type": "Magazine",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "In‑depth reporting on global environmental topics.",
@@ -2766,22 +1588,11 @@
     "title": "The Conversation (US)",
     "url": "https://theconversation.com/us/feeds/articles.atom",
     "imageUrl": "https://www.google.com/s2/favicons?domain=theconversation.com&sz=128",
-    "domain": [
-      "News"
-    ],
-    "subdomain": [
-      "Academic Commentary"
-    ],
-    "area": [
-      "Multidisciplinary"
-    ],
-    "topic": [
-      "Expert Analysis"
-    ],
-    "tags": [
-      "research",
-      "policy"
-    ],
+    "domain": ["News"],
+    "subdomain": ["Academic Commentary"],
+    "area": ["Multidisciplinary"],
+    "topic": ["Expert Analysis"],
+    "tags": ["research", "policy"],
     "type": "News",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Fact‑checked commentary from academics and researchers.",
@@ -2792,22 +1603,11 @@
     "title": "Public Domain Review",
     "url": "https://publicdomainreview.org/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=publicdomainreview.org&sz=128",
-    "domain": [
-      "Culture"
-    ],
-    "subdomain": [
-      "Archives"
-    ],
-    "area": [
-      "Historical Artifacts"
-    ],
-    "topic": [
-      "Essays"
-    ],
-    "tags": [
-      "history",
-      "public-domain"
-    ],
+    "domain": ["Culture"],
+    "subdomain": ["Archives"],
+    "area": ["Historical Artifacts"],
+    "topic": ["Essays"],
+    "tags": ["history", "public-domain"],
     "type": "Magazine",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Curated essays on obscure historical works in the public domain.",
@@ -2818,22 +1618,11 @@
     "title": "Atlas Obscura",
     "url": "https://www.atlasobscura.com/feeds/latest",
     "imageUrl": "https://www.google.com/s2/favicons?domain=atlasobscura.com&sz=128",
-    "domain": [
-      "Culture"
-    ],
-    "subdomain": [
-      "Travel & Curiosities"
-    ],
-    "area": [
-      "Global Wonders"
-    ],
-    "topic": [
-      "Hidden Places"
-    ],
-    "tags": [
-      "travel",
-      "oddities"
-    ],
+    "domain": ["Culture"],
+    "subdomain": ["Travel & Curiosities"],
+    "area": ["Global Wonders"],
+    "topic": ["Hidden Places"],
+    "tags": ["travel", "oddities"],
     "type": "Magazine",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Guide to the world's hidden wonders and curiosities.",
@@ -2844,22 +1633,11 @@
     "title": "Low-Tech Magazine",
     "url": "https://solar.lowtechmagazine.com/feeds/all-en.atom.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=lowtechmagazine.com&sz=128",
-    "domain": [
-      "Sustainability"
-    ],
-    "subdomain": [
-      "Appropriate Technology"
-    ],
-    "area": [
-      "Historical Tech"
-    ],
-    "topic": [
-      "Low‑Energy Solutions"
-    ],
-    "tags": [
-      "sustainability",
-      "technology"
-    ],
+    "domain": ["Sustainability"],
+    "subdomain": ["Appropriate Technology"],
+    "area": ["Historical Tech"],
+    "topic": ["Low‑Energy Solutions"],
+    "tags": ["sustainability", "technology"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Exploring sustainable, low-tech solutions and historical technologies.",
@@ -2870,22 +1648,11 @@
     "title": "Literary Hub",
     "url": "https://lithub.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=lithub.com&sz=128",
-    "domain": [
-      "Arts"
-    ],
-    "subdomain": [
-      "Literature"
-    ],
-    "area": [
-      "Book Culture"
-    ],
-    "topic": [
-      "Reviews & Essays"
-    ],
-    "tags": [
-      "books",
-      "literature"
-    ],
+    "domain": ["Arts"],
+    "subdomain": ["Literature"],
+    "area": ["Book Culture"],
+    "topic": ["Reviews & Essays"],
+    "tags": ["books", "literature"],
     "type": "News",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Daily literary news, reviews, and commentary.",
@@ -2896,22 +1663,11 @@
     "title": "Tor.com",
     "url": "https://www.tor.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=tor.com&sz=128",
-    "domain": [
-      "Arts"
-    ],
-    "subdomain": [
-      "Science Fiction"
-    ],
-    "area": [
-      "Genre Publishing"
-    ],
-    "topic": [
-      "Reviews & Fiction"
-    ],
-    "tags": [
-      "scifi",
-      "fantasy"
-    ],
+    "domain": ["Arts"],
+    "subdomain": ["Science Fiction"],
+    "area": ["Genre Publishing"],
+    "topic": ["Reviews & Fiction"],
+    "tags": ["scifi", "fantasy"],
     "type": "News",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Sci‑fi & fantasy book reviews, fiction, and commentary.",
@@ -2922,22 +1678,11 @@
     "title": "Standard Ebooks",
     "url": "https://standardebooks.org/rss/new-releases",
     "imageUrl": "https://www.google.com/s2/favicons?domain=standardebooks.org&sz=128",
-    "domain": [
-      "Arts"
-    ],
-    "subdomain": [
-      "Literature"
-    ],
-    "area": [
-      "Public Domain Ebooks"
-    ],
-    "topic": [
-      "New Releases"
-    ],
-    "tags": [
-      "ebooks",
-      "classics"
-    ],
+    "domain": ["Arts"],
+    "subdomain": ["Literature"],
+    "area": ["Public Domain Ebooks"],
+    "topic": ["New Releases"],
+    "tags": ["ebooks", "classics"],
     "type": "Book Releases",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Newly released, carefully formatted public‑domain ebooks.",
@@ -2948,22 +1693,11 @@
     "title": "xkcd",
     "url": "https://xkcd.com/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=xkcd.com&sz=128",
-    "domain": [
-      "Humor"
-    ],
-    "subdomain": [
-      "Webcomic"
-    ],
-    "area": [
-      "Science Jokes"
-    ],
-    "topic": [
-      "Comics"
-    ],
-    "tags": [
-      "science",
-      "math"
-    ],
+    "domain": ["Humor"],
+    "subdomain": ["Webcomic"],
+    "area": ["Science Jokes"],
+    "topic": ["Comics"],
+    "tags": ["science", "math"],
     "type": "Webcomic",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Stick‑figure comics about science, technology, math, and life.",
@@ -2974,22 +1708,11 @@
     "title": "SMBC",
     "url": "http://www.smbc-comics.com/rss.php",
     "imageUrl": "https://www.google.com/s2/favicons?domain=smbc-comics.com&sz=128",
-    "domain": [
-      "Humor"
-    ],
-    "subdomain": [
-      "Webcomic"
-    ],
-    "area": [
-      "Geek Satire"
-    ],
-    "topic": [
-      "Comics"
-    ],
-    "tags": [
-      "science",
-      "philosophy"
-    ],
+    "domain": ["Humor"],
+    "subdomain": ["Webcomic"],
+    "area": ["Geek Satire"],
+    "topic": ["Comics"],
+    "tags": ["science", "philosophy"],
     "type": "Webcomic",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Daily webcomic with sharp science‑themed humor.",
@@ -3000,22 +1723,11 @@
     "title": "Boing Boing",
     "url": "https://boingboing.net/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=boingboing.net&sz=128",
-    "domain": [
-      "Culture"
-    ],
-    "subdomain": [
-      "Tech & Oddities"
-    ],
-    "area": [
-      "Blog"
-    ],
-    "topic": [
-      "Curiosities"
-    ],
-    "tags": [
-      "DIY",
-      "culture"
-    ],
+    "domain": ["Culture"],
+    "subdomain": ["Tech & Oddities"],
+    "area": ["Blog"],
+    "topic": ["Curiosities"],
+    "tags": ["DIY", "culture"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Eclectic blog of tech, culture, and curiosities.",
@@ -3026,22 +1738,11 @@
     "title": "Futility Closet",
     "url": "https://www.futilitycloset.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=futilitycloset.com&sz=128",
-    "domain": [
-      "Culture"
-    ],
-    "subdomain": [
-      "Puzzles & History"
-    ],
-    "area": [
-      "Quirky Facts"
-    ],
-    "topic": [
-      "Historical Tales"
-    ],
-    "tags": [
-      "puzzles",
-      "history"
-    ],
+    "domain": ["Culture"],
+    "subdomain": ["Puzzles & History"],
+    "area": ["Quirky Facts"],
+    "topic": ["Historical Tales"],
+    "tags": ["puzzles", "history"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Anecdotes, puzzles, and scholarly curiosities.",
@@ -3052,22 +1753,11 @@
     "title": "Improbable Research",
     "url": "https://www.improbable.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=improbable.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Humor"
-    ],
-    "area": [
-      "Unusual Studies"
-    ],
-    "topic": [
-      "Ig Nobel"
-    ],
-    "tags": [
-      "weird",
-      "research"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Humor"],
+    "area": ["Unusual Studies"],
+    "topic": ["Ig Nobel"],
+    "tags": ["weird", "research"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Showcases humorous and unusual scientific studies.",
@@ -3078,22 +1768,11 @@
     "title": "Mental Floss",
     "url": "http://mentalfloss.com/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=mentalfloss.com&sz=128",
-    "domain": [
-      "Culture"
-    ],
-    "subdomain": [
-      "Trivia"
-    ],
-    "area": [
-      "Fun Facts"
-    ],
-    "topic": [
-      "Explainers"
-    ],
-    "tags": [
-      "trivia",
-      "history"
-    ],
+    "domain": ["Culture"],
+    "subdomain": ["Trivia"],
+    "area": ["Fun Facts"],
+    "topic": ["Explainers"],
+    "tags": ["trivia", "history"],
     "type": "Magazine",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Surprising facts, trivia, and smart explanations.",
@@ -3104,22 +1783,11 @@
     "title": "Reddit r/TodayILearned",
     "url": "https://www.reddit.com/r/todayilearned/.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
-    "domain": [
-      "Community"
-    ],
-    "subdomain": [
-      "Trivia"
-    ],
-    "area": [
-      "Crowdsourced Facts"
-    ],
-    "topic": [
-      "TIL"
-    ],
-    "tags": [
-      "facts",
-      "learning"
-    ],
+    "domain": ["Community"],
+    "subdomain": ["Trivia"],
+    "area": ["Crowdsourced Facts"],
+    "topic": ["TIL"],
+    "tags": ["facts", "learning"],
     "type": "Forum",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Crowdsourced 'Today I Learned' facts with backstory links.",
@@ -3130,22 +1798,11 @@
     "title": "McSweeney's Internet Tendency",
     "url": "http://feeds.feedburner.com/mcsweeneys/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=mcsweeneys.net&sz=128",
-    "domain": [
-      "Humor"
-    ],
-    "subdomain": [
-      "Satire"
-    ],
-    "area": [
-      "Literary Humor"
-    ],
-    "topic": [
-      "Essays"
-    ],
-    "tags": [
-      "satire",
-      "comedy"
-    ],
+    "domain": ["Humor"],
+    "subdomain": ["Satire"],
+    "area": ["Literary Humor"],
+    "topic": ["Essays"],
+    "tags": ["satire", "comedy"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Satirical lists and witty essays on everyday absurdities.",
@@ -3156,22 +1813,11 @@
     "title": "Wait But Why",
     "url": "https://waitbutwhy.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=waitbutwhy.com&sz=128",
-    "domain": [
-      "Culture"
-    ],
-    "subdomain": [
-      "Ideas"
-    ],
-    "area": [
-      "Long‑Form"
-    ],
-    "topic": [
-      "Deep Dives"
-    ],
-    "tags": [
-      "illustrated",
-      "essays"
-    ],
+    "domain": ["Culture"],
+    "subdomain": ["Ideas"],
+    "area": ["Long‑Form"],
+    "topic": ["Deep Dives"],
+    "tags": ["illustrated", "essays"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Illustrated deep‑dive posts on science, technology, and human nature.",
@@ -3182,22 +1828,11 @@
     "title": "Damn Interesting",
     "url": "https://www.damninteresting.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=damninteresting.com&sz=128",
-    "domain": [
-      "History"
-    ],
-    "subdomain": [
-      "Curiosities"
-    ],
-    "area": [
-      "Well‑Researched Tales"
-    ],
-    "topic": [
-      "Fascinating Stories"
-    ],
-    "tags": [
-      "history",
-      "science"
-    ],
+    "domain": ["History"],
+    "subdomain": ["Curiosities"],
+    "area": ["Well‑Researched Tales"],
+    "topic": ["Fascinating Stories"],
+    "tags": ["history", "science"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Meticulously researched true stories in science and history.",
@@ -3208,22 +1843,11 @@
     "title": "The New Atlantis",
     "url": "https://www.thenewatlantis.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=thenewatlantis.com&sz=128",
-    "domain": [
-      "Society"
-    ],
-    "subdomain": [
-      "Tech & Ethics"
-    ],
-    "area": [
-      "Policy Essays"
-    ],
-    "topic": [
-      "Science & Humanity"
-    ],
-    "tags": [
-      "bioethics",
-      "policy"
-    ],
+    "domain": ["Society"],
+    "subdomain": ["Tech & Ethics"],
+    "area": ["Policy Essays"],
+    "topic": ["Science & Humanity"],
+    "tags": ["bioethics", "policy"],
     "type": "Magazine",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Essays on technology, ethics, and society.",
@@ -3234,22 +1858,11 @@
     "title": "Symmetry Magazine",
     "url": "https://www.symmetrymagazine.org/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=symmetrymagazine.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Particle Physics"
-    ],
-    "area": [
-      "Research Highlights"
-    ],
-    "topic": [
-      "Fundamental Physics"
-    ],
-    "tags": [
-      "physics",
-      "research"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Particle Physics"],
+    "area": ["Research Highlights"],
+    "topic": ["Fundamental Physics"],
+    "tags": ["physics", "research"],
     "type": "Magazine",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Accessible magazine about particle physics and its people.",
@@ -3260,23 +1873,11 @@
     "title": "Kottke.org",
     "url": "https://feeds.kottke.org/main",
     "imageUrl": "https://www.google.com/s2/favicons?domain=kottke.org&sz=128",
-    "domain": [
-      "Culture"
-    ],
-    "subdomain": [
-      "Curation"
-    ],
-    "area": [
-      "Interesting Links"
-    ],
-    "topic": [
-      "Cool Finds"
-    ],
-    "tags": [
-      "design",
-      "science",
-      "art"
-    ],
+    "domain": ["Culture"],
+    "subdomain": ["Curation"],
+    "area": ["Interesting Links"],
+    "topic": ["Cool Finds"],
+    "tags": ["design", "science", "art"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Curating fascinating finds across art, science, and design.",
@@ -3287,22 +1888,11 @@
     "title": "Product Hunt",
     "url": "https://www.producthunt.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=producthunt.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Startups"
-    ],
-    "area": [
-      "Product Launches"
-    ],
-    "topic": [
-      "New Products"
-    ],
-    "tags": [
-      "startups",
-      "apps"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Startups"],
+    "area": ["Product Launches"],
+    "topic": ["New Products"],
+    "tags": ["startups", "apps"],
     "type": "Alert Feed",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Daily listing of new products and startup launches.",
@@ -3313,22 +1903,11 @@
     "title": "Existential Comics",
     "url": "https://existentialcomics.com/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=existentialcomics.com&sz=128",
-    "domain": [
-      "Humor"
-    ],
-    "subdomain": [
-      "Philosophy"
-    ],
-    "area": [
-      "Comics"
-    ],
-    "topic": [
-      "Existential Jokes"
-    ],
-    "tags": [
-      "philosophy",
-      "comic"
-    ],
+    "domain": ["Humor"],
+    "subdomain": ["Philosophy"],
+    "area": ["Comics"],
+    "topic": ["Existential Jokes"],
+    "tags": ["philosophy", "comic"],
     "type": "Webcomic",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Webcomic about existential philosophy.",
@@ -3339,22 +1918,12 @@
     "title": "1000-Word Philosophy",
     "url": "https://1000wordphilosophy.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=1000wordphilosophy.com&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Introductory Essays"
-    ],
-    "area": [
-      "Concise Explanations"
-    ],
-    "topic": [
-      "Concept Overviews"
-    ],
-    "tags": [
-      "philosophy"
-    ],
-    "type": "Tutorial Series",
+    "domain": ["Philosophy"],
+    "subdomain": ["Introductory Essays"],
+    "area": ["Concise Explanations"],
+    "topic": ["Concept Overviews"],
+    "tags": ["philosophy"],
+    "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Concise 1000‑word essays on philosophical topics.",
     "rating": 4
@@ -3364,21 +1933,11 @@
     "title": "Daily Nous",
     "url": "https://dailynous.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=dailynous.com&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Academic News"
-    ],
-    "area": [
-      "Professional Updates"
-    ],
-    "topic": [
-      "Philosophy World"
-    ],
-    "tags": [
-      "academia"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["Academic News"],
+    "area": ["Professional Updates"],
+    "topic": ["Philosophy World"],
+    "tags": ["academia"],
     "type": "News",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "News, links, and events in the philosophy profession.",
@@ -3389,22 +1948,11 @@
     "title": "Philosophy Now",
     "url": "https://philosophynow.org/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=philosophynow.org&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Public Philosophy"
-    ],
-    "area": [
-      "Magazine"
-    ],
-    "topic": [
-      "Essays & Debates"
-    ],
-    "tags": [
-      "ethics",
-      "metaphysics"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["Public Philosophy"],
+    "area": ["Magazine"],
+    "topic": ["Essays & Debates"],
+    "tags": ["ethics", "metaphysics"],
     "type": "Magazine",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Popular philosophy magazine with accessible essays.",
@@ -3415,21 +1963,11 @@
     "title": "APA Blog",
     "url": "https://blog.apaonline.org/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=apaonline.org&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Professional Association"
-    ],
-    "area": [
-      "Commentary"
-    ],
-    "topic": [
-      "Community Voices"
-    ],
-    "tags": [
-      "academia"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["Professional Association"],
+    "area": ["Commentary"],
+    "topic": ["Community Voices"],
+    "tags": ["academia"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Official blog of the American Philosophical Association.",
@@ -3440,22 +1978,11 @@
     "title": "Quartz",
     "url": "https://qz.com/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=qz.com&sz=128",
-    "domain": [
-      "News"
-    ],
-    "subdomain": [
-      "Business & Tech"
-    ],
-    "area": [
-      "Global Economy"
-    ],
-    "topic": [
-      "Explainers"
-    ],
-    "tags": [
-      "business",
-      "tech"
-    ],
+    "domain": ["News"],
+    "subdomain": ["Business & Tech"],
+    "area": ["Global Economy"],
+    "topic": ["Explainers"],
+    "tags": ["business", "tech"],
     "type": "News",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Global business news and in‑depth explainer articles.",
@@ -3466,22 +1993,11 @@
     "title": "Book Riot",
     "url": "https://bookriot.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=bookriot.com&sz=128",
-    "domain": [
-      "Arts"
-    ],
-    "subdomain": [
-      "Books"
-    ],
-    "area": [
-      "Reading Culture"
-    ],
-    "topic": [
-      "Lists & Reviews"
-    ],
-    "tags": [
-      "books",
-      "reading"
-    ],
+    "domain": ["Arts"],
+    "subdomain": ["Books"],
+    "area": ["Reading Culture"],
+    "topic": ["Lists & Reviews"],
+    "tags": ["books", "reading"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "News and recommendations for book lovers.",
@@ -3492,21 +2008,11 @@
     "title": "Reddit r/BookSuggestions",
     "url": "https://www.reddit.com/r/booksuggestions/.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
-    "domain": [
-      "Community"
-    ],
-    "subdomain": [
-      "Books"
-    ],
-    "area": [
-      "Forum"
-    ],
-    "topic": [
-      "Recommendations"
-    ],
-    "tags": [
-      "books"
-    ],
+    "domain": ["Community"],
+    "subdomain": ["Books"],
+    "area": ["Forum"],
+    "topic": ["Recommendations"],
+    "tags": ["books"],
     "type": "Forum",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Crowdsourced book recommendation community.",
@@ -3517,21 +2023,11 @@
     "title": "Scientific American Global",
     "url": "http://rss.sciam.com/ScientificAmerican-Global",
     "imageUrl": "https://www.google.com/s2/favicons?domain=scientificamerican.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General Science"
-    ],
-    "area": [
-      "Magazine"
-    ],
-    "topic": [
-      "Research News"
-    ],
-    "tags": [
-      "science"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General Science"],
+    "area": ["Magazine"],
+    "topic": ["Research News"],
+    "tags": ["science"],
     "type": "Magazine",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Global science news from Scientific American.",
@@ -3542,22 +2038,11 @@
     "title": "Fast.ai",
     "url": "https://www.fast.ai/index.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=fast.ai&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Machine Learning"
-    ],
-    "area": [
-      "Education"
-    ],
-    "topic": [
-      "Tutorials"
-    ],
-    "tags": [
-      "deep-learning",
-      "course"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Machine Learning"],
+    "area": ["Education"],
+    "topic": ["Tutorials"],
+    "tags": ["deep-learning", "course"],
     "type": "Tutorial Series",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Practical machine learning lessons and updates.",
@@ -3568,21 +2053,11 @@
     "title": "APOD",
     "url": "http://www.acme.com/jef/apod/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nasa.gov&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Astronomy"
-    ],
-    "area": [
-      "Image of the Day"
-    ],
-    "topic": [
-      "Space Photography"
-    ],
-    "tags": [
-      "astrophotography"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Astronomy"],
+    "area": ["Image of the Day"],
+    "topic": ["Space Photography"],
+    "tags": ["astrophotography"],
     "type": "Alert Feed",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "NASA's Astronomy Picture of the Day with explanations.",
@@ -3593,21 +2068,11 @@
     "title": "ScienceDaily Astronomy",
     "url": "http://www.sciencedaily.com/rss/space_time/astronomy.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=sciencedaily.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Astronomy"
-    ],
-    "area": [
-      "Research News"
-    ],
-    "topic": [
-      "Discoveries"
-    ],
-    "tags": [
-      "space"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Astronomy"],
+    "area": ["Research News"],
+    "topic": ["Discoveries"],
+    "tags": ["space"],
     "type": "News",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Latest astronomy and space science news.",
@@ -3618,21 +2083,11 @@
     "title": "Sci-News Astronomy",
     "url": "http://www.sci-news.com/news/astronomy/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=sci-news.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Astronomy"
-    ],
-    "area": [
-      "Research News"
-    ],
-    "topic": [
-      "Discoveries"
-    ],
-    "tags": [
-      "space"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Astronomy"],
+    "area": ["Research News"],
+    "topic": ["Discoveries"],
+    "tags": ["space"],
     "type": "News",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Breaking astronomy and space exploration stories.",
@@ -3643,21 +2098,11 @@
     "title": "A Philosopher's Blog",
     "url": "http://aphilosopher.drmcl.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=drmcl.com&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Personal Blog"
-    ],
-    "area": [
-      "Applied Ethics"
-    ],
-    "topic": [
-      "Opinion"
-    ],
-    "tags": [
-      "ethics"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["Personal Blog"],
+    "area": ["Applied Ethics"],
+    "topic": ["Opinion"],
+    "tags": ["ethics"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Commentary on philosophy, politics, and ethics.",
@@ -3668,22 +2113,11 @@
     "title": "Mental Floss",
     "url": "http://mentalfloss.com/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=mentalfloss.com&sz=128",
-    "domain": [
-      "Culture"
-    ],
-    "subdomain": [
-      "Trivia"
-    ],
-    "area": [
-      "Fun Facts"
-    ],
-    "topic": [
-      "Explainers"
-    ],
-    "tags": [
-      "trivia",
-      "history"
-    ],
+    "domain": ["Culture"],
+    "subdomain": ["Trivia"],
+    "area": ["Fun Facts"],
+    "topic": ["Explainers"],
+    "tags": ["trivia", "history"],
     "type": "Magazine",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Surprising facts, trivia, and smart explanations.",
@@ -3694,22 +2128,11 @@
     "title": "Reddit r/TodayILearned",
     "url": "https://www.reddit.com/r/todayilearned/.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
-    "domain": [
-      "Community"
-    ],
-    "subdomain": [
-      "Trivia"
-    ],
-    "area": [
-      "Crowdsourced Facts"
-    ],
-    "topic": [
-      "TIL"
-    ],
-    "tags": [
-      "facts",
-      "learning"
-    ],
+    "domain": ["Community"],
+    "subdomain": ["Trivia"],
+    "area": ["Crowdsourced Facts"],
+    "topic": ["TIL"],
+    "tags": ["facts", "learning"],
     "type": "Forum",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Crowdsourced 'Today I Learned' facts with backstory links.",
@@ -3720,22 +2143,11 @@
     "title": "McSweeney's Internet Tendency",
     "url": "http://feeds.feedburner.com/mcsweeneys/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=mcsweeneys.net&sz=128",
-    "domain": [
-      "Humor"
-    ],
-    "subdomain": [
-      "Satire"
-    ],
-    "area": [
-      "Literary Humor"
-    ],
-    "topic": [
-      "Essays"
-    ],
-    "tags": [
-      "satire",
-      "comedy"
-    ],
+    "domain": ["Humor"],
+    "subdomain": ["Satire"],
+    "area": ["Literary Humor"],
+    "topic": ["Essays"],
+    "tags": ["satire", "comedy"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Satirical lists and witty essays on everyday absurdities.",
@@ -3746,22 +2158,11 @@
     "title": "Wait But Why",
     "url": "https://waitbutwhy.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=waitbutwhy.com&sz=128",
-    "domain": [
-      "Culture"
-    ],
-    "subdomain": [
-      "Ideas"
-    ],
-    "area": [
-      "Long-Form"
-    ],
-    "topic": [
-      "Deep Dives"
-    ],
-    "tags": [
-      "illustrated",
-      "essays"
-    ],
+    "domain": ["Culture"],
+    "subdomain": ["Ideas"],
+    "area": ["Long-Form"],
+    "topic": ["Deep Dives"],
+    "tags": ["illustrated", "essays"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Illustrated deep-dive posts on science, technology, and human nature.",
@@ -3772,23 +2173,11 @@
     "title": "Real Engineering (YouTube)",
     "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCR1IuLEqb6UEA_zQ81kwXfg",
     "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Engineering",
-      "Technology"
-    ],
-    "area": [
-      "Fun Facts"
-    ],
-    "topic": [
-      "Innovation"
-    ],
-    "tags": [
-      "engineering",
-      "videos"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Engineering", "Technology"],
+    "area": ["Fun Facts"],
+    "topic": ["Innovation"],
+    "tags": ["engineering", "videos"],
     "type": "YouTube",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "The home of innovation.",
@@ -3799,23 +2188,11 @@
     "title": "Veritasium (YouTube)",
     "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCHnyfMqiRRG1u-2MsSQLbXA",
     "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Engineering",
-      "Technology"
-    ],
-    "area": [
-      "Crowdsourced Facts"
-    ],
-    "topic": [
-      "Innovation"
-    ],
-    "tags": [
-      "engineering",
-      "videos"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Engineering", "Technology"],
+    "area": ["Crowdsourced Facts"],
+    "topic": ["Innovation"],
+    "tags": ["engineering", "videos"],
     "type": "YouTube",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "An element of truth - videos about science, education, and anything else we find interesting.",
@@ -3826,22 +2203,11 @@
     "title": "3Blue1Brown (YouTube)",
     "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCYO_jab_esuFRV4b17AJtAw",
     "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Mathematics"
-    ],
-    "area": [
-      "Literary Humor"
-    ],
-    "topic": [
-      "animation"
-    ],
-    "tags": [
-      "manim",
-      "videos"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Mathematics"],
+    "area": ["Literary Humor"],
+    "topic": ["animation"],
+    "tags": ["manim", "videos"],
     "type": "YouTube",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Videos covers a variety of topics in math, or adjacent fields like physics and CS, all with an emphasis on visualizing the core ideas. The goal is to use animation to help elucidate and motivate otherwise tricky topics, and for difficult problems to be made simple with changes in perspective.",
@@ -3852,22 +2218,11 @@
     "title": "Internet Encyclopedia of Philosophy (IEP)",
     "url": "https://iep.utm.edu/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=iep.utm.edu/&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Philosophy"
-    ],
-    "area": [
-      "Long-Form"
-    ],
-    "topic": [
-      "Philosophy"
-    ],
-    "tags": [
-      "iep",
-      "peer-reviewed"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["Philosophy"],
+    "area": ["Long-Form"],
+    "topic": ["Philosophy"],
+    "tags": ["iep", "peer-reviewed"],
     "type": "Open Access Feed",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "The purpose of the IEP is to provide detailed, scholarly, peer-reviewed information on key topics and philosophers in all areas of academic philosophy.",
@@ -3878,21 +2233,11 @@
     "title": "Daily JSTOR",
     "url": "http://daily.jstor.org/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=daily.jstor.org&sz=128",
-    "domain": [
-      "Education"
-    ],
-    "subdomain": [
-      "Digital Library"
-    ],
-    "area": [
-      "Academic Journals"
-    ],
-    "topic": [
-      "Daily Digest"
-    ],
-    "tags": [
-      "digital-library"
-    ],
+    "domain": ["Education"],
+    "subdomain": ["Digital Library"],
+    "area": ["Academic Journals"],
+    "topic": ["Daily Digest"],
+    "tags": ["digital-library"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": " JSTOR is a digital library for scholars, researchers, and students of all kinds that provides access to more than 12 million academic journal articles, books, images, JSTOR collections, and primary sources in 75 disciplines.",
@@ -3903,24 +2248,11 @@
     "title": "Lex Fridman Podcast",
     "url": "https://lexfridman.com/feed/podcast/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=lexfridman.com&sz=128",
-    "domain": [
-      "Technology",
-      "Science"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "Interviews"
-    ],
-    "topic": [
-      "Machine Learning"
-    ],
-    "tags": [
-      "AI",
-      "robotics",
-      "ethics"
-    ],
+    "domain": ["Technology", "Science"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["Interviews"],
+    "topic": ["Machine Learning"],
+    "tags": ["AI", "robotics", "ethics"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Long-form conversations on AI, science, history and philosophy with world-class thinkers.",
@@ -3931,23 +2263,11 @@
     "title": "Mindscape with Sean Carroll",
     "url": "https://rss.art19.com/sean-carrolls-mindscape",
     "imageUrl": "https://www.google.com/s2/favicons?domain=preposterousuniverse.com&sz=128",
-    "domain": [
-      "Science",
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Fundamental Science"
-    ],
-    "area": [
-      "Ideas"
-    ],
-    "topic": [
-      "Cosmology"
-    ],
-    "tags": [
-      "physics",
-      "consciousness"
-    ],
+    "domain": ["Science", "Philosophy"],
+    "subdomain": ["Fundamental Science"],
+    "area": ["Ideas"],
+    "topic": ["Cosmology"],
+    "tags": ["physics", "consciousness"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Physicist Sean Carroll explores the biggest questions in science and philosophy.",
@@ -3958,22 +2278,11 @@
     "title": "NVIDIA AI Podcast",
     "url": "https://feeds.megaphone.fm/nvidiaaipodcast",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nvidia.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Computing"
-    ],
-    "area": [
-      "AI Applications"
-    ],
-    "topic": [
-      "GPU Computing"
-    ],
-    "tags": [
-      "deep learning",
-      "graphics"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Computing"],
+    "area": ["AI Applications"],
+    "topic": ["GPU Computing"],
+    "tags": ["deep learning", "graphics"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Stories of how AI is changing the world, told by NVIDIA engineers and partners.",
@@ -3984,22 +2293,11 @@
     "title": "TWiML AI Podcast",
     "url": "https://feeds.megaphone.fm/MLN2155636147",
     "imageUrl": "https://www.google.com/s2/favicons?domain=twimlai.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "Research"
-    ],
-    "topic": [
-      "Machine Learning"
-    ],
-    "tags": [
-      "ML",
-      "data science"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["Research"],
+    "topic": ["Machine Learning"],
+    "tags": ["ML", "data science"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Sam Charrington interviews leading ML and data practitioners about cutting-edge work.",
@@ -4010,22 +2308,11 @@
     "title": "Science Vs",
     "url": "https://feeds.megaphone.fm/sciencevs",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f2d1e9a999f8e07cc0d579f41",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General Science"
-    ],
-    "area": [
-      "Myth Busting"
-    ],
-    "topic": [
-      "Evidence"
-    ],
-    "tags": [
-      "biology",
-      "health"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General Science"],
+    "area": ["Myth Busting"],
+    "topic": ["Evidence"],
+    "tags": ["biology", "health"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Gimlet's team pits facts against fads to reveal what science really says.",
@@ -4036,22 +2323,11 @@
     "title": "The Skeptics' Guide to the Universe",
     "url": "http://feed.theskepticsguide.org/feed/rss.aspx?feed=sgu",
     "imageUrl": "https://www.google.com/s2/favicons?domain=theskepticsguide.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Critical Thinking"
-    ],
-    "area": [
-      "Skepticism"
-    ],
-    "topic": [
-      "Science News"
-    ],
-    "tags": [
-      "skepticism",
-      "rationality"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Critical Thinking"],
+    "area": ["Skepticism"],
+    "topic": ["Science News"],
+    "tags": ["skepticism", "rationality"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Weekly panel show dissecting science news and pseudoscience.",
@@ -4062,23 +2338,11 @@
     "title": "StarTalk Radio",
     "url": "https://feeds.simplecast.com/4T39_jAj",
     "imageUrl": "https://www.google.com/s2/favicons?domain=startalkmedia.com&sz=128",
-    "domain": [
-      "Science",
-      "Culture"
-    ],
-    "subdomain": [
-      "Astronomy"
-    ],
-    "area": [
-      "Popular Science"
-    ],
-    "topic": [
-      "Space"
-    ],
-    "tags": [
-      "astrophysics",
-      "pop culture"
-    ],
+    "domain": ["Science", "Culture"],
+    "subdomain": ["Astronomy"],
+    "area": ["Popular Science"],
+    "topic": ["Space"],
+    "tags": ["astrophysics", "pop culture"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Neil deGrasse Tyson mixes science, comedy, and celebrity guests.",
@@ -4089,22 +2353,11 @@
     "title": "Philosophize This!",
     "url": "http://philosophizethis.libsyn.com/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=philosophizethis.org&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "History of Ideas"
-    ],
-    "area": [
-      "Education"
-    ],
-    "topic": [
-      "Western Philosophy"
-    ],
-    "tags": [
-      "ethics",
-      "thinkers"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["History of Ideas"],
+    "area": ["Education"],
+    "topic": ["Western Philosophy"],
+    "tags": ["ethics", "thinkers"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Accessible, chronological exploration of philosophers and schools of thought.",
@@ -4115,22 +2368,11 @@
     "title": "Dan Carlin's Hardcore History: Addendum",
     "url": "https://dchhaddendum.libsyn.com/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=dancarlin.com&sz=128",
-    "domain": [
-      "History"
-    ],
-    "subdomain": [
-      "Military History"
-    ],
-    "area": [
-      "Narrative"
-    ],
-    "topic": [
-      "Deep Dives"
-    ],
-    "tags": [
-      "war",
-      "civilizations"
-    ],
+    "domain": ["History"],
+    "subdomain": ["Military History"],
+    "area": ["Narrative"],
+    "topic": ["Deep Dives"],
+    "tags": ["war", "civilizations"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Extra interviews and commentary from Dan Carlin's famed storytelling series.",
@@ -4141,22 +2383,11 @@
     "title": "History of Philosophy Without Any Gaps",
     "url": "https://feed.podbean.com/hopwag/feed.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=historyofphilosophy.net&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "History of Ideas"
-    ],
-    "area": [
-      "Education"
-    ],
-    "topic": [
-      "Global Philosophy"
-    ],
-    "tags": [
-      "ancient",
-      "medieval"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["History of Ideas"],
+    "area": ["Education"],
+    "topic": ["Global Philosophy"],
+    "tags": ["ancient", "medieval"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Peter Adamson covers every major philosopher and school—East and West.",
@@ -4167,23 +2398,11 @@
     "title": "Exponential View with Azeem Azhar",
     "url": "https://api.substack.com/feed/podcast/265424/s/1354.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=www.exponentialview.co&sz=128",
-    "domain": [
-      "Technology",
-      "Society"
-    ],
-    "subdomain": [
-      "Futures"
-    ],
-    "area": [
-      "Analysis"
-    ],
-    "topic": [
-      "Exponential Tech"
-    ],
-    "tags": [
-      "climate",
-      "policy"
-    ],
+    "domain": ["Technology", "Society"],
+    "subdomain": ["Futures"],
+    "area": ["Analysis"],
+    "topic": ["Exponential Tech"],
+    "tags": ["climate", "policy"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "How fast-moving technologies reshape business, work and geopolitics.",
@@ -4194,23 +2413,11 @@
     "title": "Darknet Diaries",
     "url": "https://podcast.darknetdiaries.com/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=darknetdiaries.com&sz=128",
-    "domain": [
-      "Technology",
-      "History"
-    ],
-    "subdomain": [
-      "Cybersecurity"
-    ],
-    "area": [
-      "Storytelling"
-    ],
-    "topic": [
-      "Hacking"
-    ],
-    "tags": [
-      "security",
-      "true crime"
-    ],
+    "domain": ["Technology", "History"],
+    "subdomain": ["Cybersecurity"],
+    "area": ["Storytelling"],
+    "topic": ["Hacking"],
+    "tags": ["security", "true crime"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "True tales from the dark side of the internet.",
@@ -4221,22 +2428,11 @@
     "title": "The Amp Hour",
     "url": "https://theamphour.com/feed/podcast/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=theamphour.com&sz=128",
-    "domain": [
-      "Engineering"
-    ],
-    "subdomain": [
-      "Electronics"
-    ],
-    "area": [
-      "Industry"
-    ],
-    "topic": [
-      "Hardware Design"
-    ],
-    "tags": [
-      "embedded",
-      "EE"
-    ],
+    "domain": ["Engineering"],
+    "subdomain": ["Electronics"],
+    "area": ["Industry"],
+    "topic": ["Hardware Design"],
+    "tags": ["embedded", "EE"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Casual weekly chat for hardware engineers and makers.",
@@ -4247,23 +2443,11 @@
     "title": "The Knowledge Project with Shane Parrish",
     "url": "https://feeds.megaphone.fm/FSMI7575968096",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f58d37d79547df4d8141a13ea",
-    "domain": [
-      "Philosophy",
-      "Business"
-    ],
-    "subdomain": [
-      "Decision Science"
-    ],
-    "area": [
-      "Self-Improvement"
-    ],
-    "topic": [
-      "Mental Models"
-    ],
-    "tags": [
-      "learning",
-      "productivity"
-    ],
+    "domain": ["Philosophy", "Business"],
+    "subdomain": ["Decision Science"],
+    "area": ["Self-Improvement"],
+    "topic": ["Mental Models"],
+    "tags": ["learning", "productivity"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Shane Parrish interviews experts on better thinking and living.",
@@ -4274,22 +2458,11 @@
     "title": "Alignment Newsletter Podcast",
     "url": "https://alignment-newsletter.libsyn.com/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=rohinshah.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "AI Safety"
-    ],
-    "area": [
-      "Research Digest"
-    ],
-    "topic": [
-      "Alignment"
-    ],
-    "tags": [
-      "AI ethics",
-      "safety"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["AI Safety"],
+    "area": ["Research Digest"],
+    "topic": ["Alignment"],
+    "tags": ["AI ethics", "safety"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Audio version of the weekly Alignment Newsletter, tracking AI-safety papers.",
@@ -4300,22 +2473,11 @@
     "title": "Nature Podcast",
     "url": "https://rss.acast.com/nature",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nature.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Research Highlights"
-    ],
-    "area": [
-      "Journal"
-    ],
-    "topic": [
-      "Multidisciplinary"
-    ],
-    "tags": [
-      "papers",
-      "news"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Research Highlights"],
+    "area": ["Journal"],
+    "topic": ["Multidisciplinary"],
+    "tags": ["papers", "news"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Editors of *Nature* discuss the week's most interesting studies.",
@@ -4326,23 +2488,11 @@
     "title": "Freakonomics Radio",
     "url": "https://feeds.simplecast.com/Y8lFbOT4",
     "imageUrl": "https://www.google.com/s2/favicons?domain=freakonomics.com&sz=128",
-    "domain": [
-      "Economics",
-      "Society"
-    ],
-    "subdomain": [
-      "Behavioral Economics"
-    ],
-    "area": [
-      "Narrative"
-    ],
-    "topic": [
-      "Hidden Incentives"
-    ],
-    "tags": [
-      "data",
-      "policy"
-    ],
+    "domain": ["Economics", "Society"],
+    "subdomain": ["Behavioral Economics"],
+    "area": ["Narrative"],
+    "topic": ["Hidden Incentives"],
+    "tags": ["data", "policy"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Stephen Dubner uncovers the hidden side of everything using data.",
@@ -4353,22 +2503,11 @@
     "title": "Planet Money",
     "url": "https://feeds.npr.org/510289/podcast.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=npr.org&sz=128",
-    "domain": [
-      "Economics"
-    ],
-    "subdomain": [
-      "Finance"
-    ],
-    "area": [
-      "Storytelling"
-    ],
-    "topic": [
-      "Markets"
-    ],
-    "tags": [
-      "money",
-      "business"
-    ],
+    "domain": ["Economics"],
+    "subdomain": ["Finance"],
+    "area": ["Storytelling"],
+    "topic": ["Markets"],
+    "tags": ["money", "business"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Economics explained through creative, relatable stories.",
@@ -4379,22 +2518,11 @@
     "title": "The Vergecast",
     "url": "https://feeds.megaphone.fm/vergecast",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f8e08d3b0f126c847db80f0a6",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Consumer Tech"
-    ],
-    "area": [
-      "News"
-    ],
-    "topic": [
-      "Gadgets"
-    ],
-    "tags": [
-      "big tech",
-      "devices"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Consumer Tech"],
+    "area": ["News"],
+    "topic": ["Gadgets"],
+    "tags": ["big tech", "devices"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "The Verge editors break down the week in tech and gadgets.",
@@ -4405,22 +2533,11 @@
     "title": "Radiolab",
     "url": "https://feeds.simplecast.com/EmVW7VGp",
     "imageUrl": "https://www.google.com/s2/favicons?domain=wnycstudios.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Storytelling"
-    ],
-    "area": [
-      "Interdisciplinary"
-    ],
-    "topic": [
-      "Curiosity"
-    ],
-    "tags": [
-      "biology",
-      "culture"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Storytelling"],
+    "area": ["Interdisciplinary"],
+    "topic": ["Curiosity"],
+    "tags": ["biology", "culture"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "WNYC's seminal show exploring big ideas through sound-rich narratives.",
@@ -4431,22 +2548,11 @@
     "title": "Hidden Brain",
     "url": "https://feeds.npr.org/510308/podcast.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=npr.org&sz=128",
-    "domain": [
-      "Psychology"
-    ],
-    "subdomain": [
-      "Behavioral Science"
-    ],
-    "area": [
-      "Storytelling"
-    ],
-    "topic": [
-      "Mind & Behavior"
-    ],
-    "tags": [
-      "cognition",
-      "society"
-    ],
+    "domain": ["Psychology"],
+    "subdomain": ["Behavioral Science"],
+    "area": ["Storytelling"],
+    "topic": ["Mind & Behavior"],
+    "tags": ["cognition", "society"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Shankar Vedantam reveals the unconscious patterns shaping our lives.",
@@ -4457,22 +2563,11 @@
     "title": "99% Invisible",
     "url": "https://feeds.99percentinvisible.org/99percentinvisible",
     "imageUrl": "https://www.google.com/s2/favicons?domain=99percentinvisible.org&sz=128",
-    "domain": [
-      "Design"
-    ],
-    "subdomain": [
-      "Architecture"
-    ],
-    "area": [
-      "Hidden Systems"
-    ],
-    "topic": [
-      "Built World"
-    ],
-    "tags": [
-      "urbanism",
-      "culture"
-    ],
+    "domain": ["Design"],
+    "subdomain": ["Architecture"],
+    "area": ["Hidden Systems"],
+    "topic": ["Built World"],
+    "tags": ["urbanism", "culture"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Roman Mars uncovers the unnoticed design that shapes our lives.",
@@ -4483,22 +2578,11 @@
     "title": "Reply All",
     "url": "https://feeds.megaphone.fm/replyall",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1fb8d998a58b08ab9eca2c1b11",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Internet Culture"
-    ],
-    "area": [
-      "Narrative"
-    ],
-    "topic": [
-      "Online Life"
-    ],
-    "tags": [
-      "stories",
-      "culture"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Internet Culture"],
+    "area": ["Narrative"],
+    "topic": ["Online Life"],
+    "tags": ["stories", "culture"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Gimlet's cult-favorite podcast about life on the internet.",
@@ -4509,22 +2593,11 @@
     "title": "Accidental Tech Podcast",
     "url": "https://anchor.fm/s/f0658d80/podcast/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=atp.fm&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Software Development"
-    ],
-    "area": [
-      "Apple & Dev"
-    ],
-    "topic": [
-      "Tech News"
-    ],
-    "tags": [
-      "programming",
-      "hardware"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Software Development"],
+    "area": ["Apple & Dev"],
+    "topic": ["Tech News"],
+    "tags": ["programming", "hardware"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Three developers chat weekly about Apple, code, and gadgets.",
@@ -4535,22 +2608,11 @@
     "title": "Software Engineering Daily",
     "url": "https://softwareengineeringdaily.com/feed/podcast/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=softwareengineeringdaily.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Software Engineering"
-    ],
-    "area": [
-      "Interviews"
-    ],
-    "topic": [
-      "Infrastructure"
-    ],
-    "tags": [
-      "cloud",
-      "devops"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Software Engineering"],
+    "area": ["Interviews"],
+    "topic": ["Infrastructure"],
+    "tags": ["cloud", "devops"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Daily interviews with engineers on modern software topics.",
@@ -4561,22 +2623,11 @@
     "title": "Command Line Heroes",
     "url": "https://feeds.simplecast.com/vUHP7wpf",
     "imageUrl": "https://www.google.com/s2/favicons?domain=redhat.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Open Source"
-    ],
-    "area": [
-      "Tech History"
-    ],
-    "topic": [
-      "Developer Culture"
-    ],
-    "tags": [
-      "linux",
-      "history"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Open Source"],
+    "area": ["Tech History"],
+    "topic": ["Developer Culture"],
+    "tags": ["linux", "history"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Red Hat's documentary-style series on open-source pioneers.",
@@ -4587,50 +2638,26 @@
     "title": "Huberman Lab Podcast",
     "url": "https://feeds.megaphone.fm/hubermanlab",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f66aed32f8066a72781b3b12a",
-    "domain": [
-    "Science",
-    "Health"
-  ],
-  "subdomain": [
-    "Neuroscience"
-  ],
-  "area": [
-    "Human Performance"
-  ],
-  "topic": [
-    "Science-Based Tools"
-  ],
-  "tags": [
-    "neuroscience",
-    "wellness",
-    "behavior"
-  ],
-  "type": "Podcast",
-  "createdAt": "2025-06-30T00:00:00Z",
-  "summary": "Stanford neuroscientist Dr. Andrew Huberman shares evidence-backed methods to improve sleep, focus, fitness and mental health.",
-  "rating": 5
+    "domain": ["Science", "Health"],
+    "subdomain": ["Neuroscience"],
+    "area": ["Human Performance"],
+    "topic": ["Science-Based Tools"],
+    "tags": ["neuroscience", "wellness", "behavior"],
+    "type": "Podcast",
+    "createdAt": "2025-06-30T00:00:00Z",
+    "summary": "Stanford neuroscientist Dr. Andrew Huberman shares evidence-backed methods to improve sleep, focus, fitness and mental health.",
+    "rating": 5
   },
   {
     "id": "feed-177",
     "title": "In Our Time: Philosophy",
     "url": "http://podcasts.files.bbci.co.uk/b006qy05.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=bbc.co.uk&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "History of Ideas"
-    ],
-    "area": [
-      "Panel Discussion"
-    ],
-    "topic": [
-      "Classics"
-    ],
-    "tags": [
-      "BBC",
-      "scholarship"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["History of Ideas"],
+    "area": ["Panel Discussion"],
+    "topic": ["Classics"],
+    "tags": ["BBC", "scholarship"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Melvyn Bragg's BBC round-table on classic philosophical texts.",
@@ -4641,22 +2668,11 @@
     "title": "Philosophy Bites",
     "url": "https://philosophybites.libsyn.com/rss",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f3f0380e58b5660033a29df48",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Interviews"
-    ],
-    "area": [
-      "Accessible"
-    ],
-    "topic": [
-      "Key Thinkers"
-    ],
-    "tags": [
-      "ethics",
-      "metaphysics"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["Interviews"],
+    "area": ["Accessible"],
+    "topic": ["Key Thinkers"],
+    "tags": ["ethics", "metaphysics"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Short interviews with leading philosophers on specific topics.",
@@ -4667,22 +2683,11 @@
     "title": "Rationally Speaking",
     "url": "https://rationallyspeakingpodcast.libsyn.com/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=rationallyspeakingpodcast.org&sz=128",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Rationality"
-    ],
-    "area": [
-      "Interviews"
-    ],
-    "topic": [
-      "Critical Thinking"
-    ],
-    "tags": [
-      "skepticism",
-      "science"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["Rationality"],
+    "area": ["Interviews"],
+    "topic": ["Critical Thinking"],
+    "tags": ["skepticism", "science"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Exploring where science meets philosophy and life's messy questions.",
@@ -4693,22 +2698,11 @@
     "title": "EconTalk",
     "url": "https://feeds.simplecast.com/wgl4xEgL",
     "imageUrl": "https://www.google.com/s2/favicons?domain=econlib.org&sz=128",
-    "domain": [
-      "Economics"
-    ],
-    "subdomain": [
-      "Policy"
-    ],
-    "area": [
-      "Interviews"
-    ],
-    "topic": [
-      "Markets"
-    ],
-    "tags": [
-      "data",
-      "behavior"
-    ],
+    "domain": ["Economics"],
+    "subdomain": ["Policy"],
+    "area": ["Interviews"],
+    "topic": ["Markets"],
+    "tags": ["data", "behavior"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Russ Roberts hosts in-depth conversations on economics and beyond.",
@@ -4719,22 +2713,11 @@
     "title": "The Indicator from Planet Money",
     "url": "https://feeds.npr.org/510325/podcast.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=npr.org&sz=128",
-    "domain": [
-      "Economics"
-    ],
-    "subdomain": [
-      "Finance"
-    ],
-    "area": [
-      "Daily News"
-    ],
-    "topic": [
-      "Indicators"
-    ],
-    "tags": [
-      "business",
-      "stats"
-    ],
+    "domain": ["Economics"],
+    "subdomain": ["Finance"],
+    "area": ["Daily News"],
+    "topic": ["Indicators"],
+    "tags": ["business", "stats"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Quick takes on work, business and the economy from NPR.",
@@ -4745,22 +2728,11 @@
     "title": "The Carbon Copy",
     "url": "https://feeds.megaphone.fm/carboncopy",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1fc7a5addd15c28fd3057b0801",
-    "domain": [
-      "Environment"
-    ],
-    "subdomain": [
-      "Climate Tech"
-    ],
-    "area": [
-      "Policy"
-    ],
-    "topic": [
-      "Energy Transition"
-    ],
-    "tags": [
-      "climate",
-      "policy"
-    ],
+    "domain": ["Environment"],
+    "subdomain": ["Climate Tech"],
+    "area": ["Policy"],
+    "topic": ["Energy Transition"],
+    "tags": ["climate", "policy"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Stories of climate action and the future of energy.",
@@ -4771,22 +2743,11 @@
     "title": "Big Picture Science",
     "url": "https://feeds.megaphone.fm/ADV9362943796",
     "imageUrl": "https://www.google.com/s2/favicons?domain=seti.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General"
-    ],
-    "area": [
-      "Connections"
-    ],
-    "topic": [
-      "Interdisciplinary"
-    ],
-    "tags": [
-      "SETI",
-      "skepticism"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General"],
+    "area": ["Connections"],
+    "topic": ["Interdisciplinary"],
+    "tags": ["SETI", "skepticism"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "SETI's radio show connecting ideas across scientific fields.",
@@ -4797,22 +2758,11 @@
     "title": "Planetary Radio",
     "url": "https://www.omnycontent.com/d/playlist/d95da206-8ee8-4ba5-ba8d-ad1200b4e5a4/cf13d5f5-6040-458d-ab5a-ad200189747d/b75c9f7f-4a63-438e-b506-ad2001897499/podcast.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=planetary.org&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Astronomy"
-    ],
-    "area": [
-      "Interview"
-    ],
-    "topic": [
-      "Space Missions"
-    ],
-    "tags": [
-      "space",
-      "planets"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Astronomy"],
+    "area": ["Interview"],
+    "topic": ["Space Missions"],
+    "tags": ["space", "planets"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Weekly conversations with scientists and engineers exploring our solar system.",
@@ -4823,22 +2773,11 @@
     "title": "The History of Rome",
     "url": "https://historyofrome.libsyn.com/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=thehistoryofrome.typepad.com&sz=128",
-    "domain": [
-      "History"
-    ],
-    "subdomain": [
-      "Ancient"
-    ],
-    "area": [
-      "Narrative"
-    ],
-    "topic": [
-      "Roman Empire"
-    ],
-    "tags": [
-      "ancient",
-      "rome"
-    ],
+    "domain": ["History"],
+    "subdomain": ["Ancient"],
+    "area": ["Narrative"],
+    "topic": ["Roman Empire"],
+    "tags": ["ancient", "rome"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Mike Duncan's celebrated chronicle of Rome from founding to fall.",
@@ -4849,22 +2788,11 @@
     "title": "Revolutions",
     "url": "https://revolutionspodcast.libsyn.com/rss",
     "imageUrl": "https://cdn-images.podbay.fm/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJodHRwczovL3N0YXRpYy5saWJzeW4uY29tL3AvYXNzZXRzLzMvNC81L2YvMzQ1ZmJkNmEyNTM2NDljMC9SZXZvbHV0aW9uc0xvZ29fVjIuanBnIiwiZmFsbGJhY2siOiJodHRwczovL2lzMS1zc2wubXpzdGF0aWMuY29tL2ltYWdlL3RodW1iL1BvZGNhc3RzL3Y0L2ZjLzkwLzA0L2ZjOTAwNGM3LWFmZDYtNGI1ZS01MDMzLTBmYjNkZmQ2YzNhMy9temFfNzYyMzcxMTQxODc4MDg5ODI3Ni5qcGcvNjAweDYwMGJiLmpwZyJ9.5rFXy4LXYgh_cpPq0V_Sdv30D5QroKcitC4bNJbMzjs.jpg?width=400&height=400",
-    "domain": [
-      "History"
-    ],
-    "subdomain": [
-      "Political"
-    ],
-    "area": [
-      "Narrative"
-    ],
-    "topic": [
-      "World Revolutions"
-    ],
-    "tags": [
-      "politics",
-      "biography"
-    ],
+    "domain": ["History"],
+    "subdomain": ["Political"],
+    "area": ["Narrative"],
+    "topic": ["World Revolutions"],
+    "tags": ["politics", "biography"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Deep dives into the great political revolutions of history.",
@@ -4875,22 +2803,11 @@
     "title": "Stuff You Missed in History Class",
     "url": "https://anchor.fm/s/65b1f688/podcast/rss",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f7a1606494e24613eb8c4d990",
-    "domain": [
-      "History"
-    ],
-    "subdomain": [
-      "Social"
-    ],
-    "area": [
-      "Stories"
-    ],
-    "topic": [
-      "Lesser-Known Events"
-    ],
-    "tags": [
-      "culture",
-      "women"
-    ],
+    "domain": ["History"],
+    "subdomain": ["Social"],
+    "area": ["Stories"],
+    "topic": ["Lesser-Known Events"],
+    "tags": ["culture", "women"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "HowStuffWorks hosts reveal overlooked historical tales.",
@@ -4901,22 +2818,11 @@
     "title": "Omnibus",
     "url": "https://audioboom.com/channels/5127257.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=omnibusproject.com&sz=128",
-    "domain": [
-      "History"
-    ],
-    "subdomain": [
-      "Curiosities"
-    ],
-    "area": [
-      "Encyclopedic"
-    ],
-    "topic": [
-      "Bizarre Knowledge"
-    ],
-    "tags": [
-      "trivia",
-      "culture"
-    ],
+    "domain": ["History"],
+    "subdomain": ["Curiosities"],
+    "area": ["Encyclopedic"],
+    "topic": ["Bizarre Knowledge"],
+    "tags": ["trivia", "culture"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "John Roderick & Ken Jennings document strange historical stories.",
@@ -4927,22 +2833,11 @@
     "title": "Skeptoid",
     "url": "https://feed.skeptoid.com/",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f75b0d4f08553742be6e66982",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Critical Thinking"
-    ],
-    "area": [
-      "Mythbusting"
-    ],
-    "topic": [
-      "Skepticism"
-    ],
-    "tags": [
-      "debunking",
-      "logic"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Critical Thinking"],
+    "area": ["Mythbusting"],
+    "topic": ["Skepticism"],
+    "tags": ["debunking", "logic"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Brian Dunning investigates myths, hoaxes and pseudoscience.",
@@ -4953,22 +2848,11 @@
     "title": "Science Friday",
     "url": "https://feeds.simplecast.com/h18ZIZD_",
     "imageUrl": "https://www.google.com/s2/favicons?domain=sciencefriday.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "General"
-    ],
-    "area": [
-      "Weekly News"
-    ],
-    "topic": [
-      "Interviews"
-    ],
-    "tags": [
-      "biology",
-      "space"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["General"],
+    "area": ["Weekly News"],
+    "topic": ["Interviews"],
+    "tags": ["biology", "space"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Ira Flatow shares the latest in science and technology.",
@@ -4979,22 +2863,11 @@
     "title": "Houston We Have a Podcast",
     "url": "https://www.nasa.gov/rss/dyn/Houston-We-Have-a-Podcast.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nasa.gov&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Spaceflight"
-    ],
-    "area": [
-      "Agency"
-    ],
-    "topic": [
-      "ISS & Artemis"
-    ],
-    "tags": [
-      "astronauts",
-      "missions"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Spaceflight"],
+    "area": ["Agency"],
+    "topic": ["ISS & Artemis"],
+    "tags": ["astronauts", "missions"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "NASA Johnson insiders discuss human space exploration.",
@@ -5005,22 +2878,11 @@
     "title": "Modern Wisdom",
     "url": "https://feeds.megaphone.fm/SIXMSB5088139739",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1fc27a8d722b0ba5ca0f788f35",
-    "domain": [
-      "Philosophy"
-    ],
-    "subdomain": [
-      "Self-Improvement"
-    ],
-    "area": [
-      "Interviews"
-    ],
-    "topic": [
-      "Life Advice"
-    ],
-    "tags": [
-      "productivity",
-      "culture"
-    ],
+    "domain": ["Philosophy"],
+    "subdomain": ["Self-Improvement"],
+    "area": ["Interviews"],
+    "topic": ["Life Advice"],
+    "tags": ["productivity", "culture"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Chris Williamson talks with world-class minds about better living.",
@@ -5031,22 +2893,11 @@
     "title": "AI Today Podcast",
     "url": "https://anchor.fm/s/f0214058/podcast/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=cognilytica.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "Industry"
-    ],
-    "topic": [
-      "Use Cases"
-    ],
-    "tags": [
-      "enterprise",
-      "ML"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["Industry"],
+    "topic": ["Use Cases"],
+    "tags": ["enterprise", "ML"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Cognilytica hosts discuss real-world AI implementations.",
@@ -5057,22 +2908,11 @@
     "title": "Voices in AI",
     "url": "https://voicesinai.com/show/voices-in-ai/podcast-feed/",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f4882416c1d16481e7d887fe5",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "Interviews"
-    ],
-    "topic": [
-      "Research & Ethics"
-    ],
-    "tags": [
-      "future",
-      "policy"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["Interviews"],
+    "topic": ["Research & Ethics"],
+    "tags": ["future", "policy"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Byron Reese interviews AI leaders on the tech's impact.",
@@ -5083,22 +2923,11 @@
     "title": "AXRP: The AI X-risk Research Podcast",
     "url": "https://axrpodcast.libsyn.com/rss",
     "imageUrl": "https://avatars.githubusercontent.com/u/68572739?v=4",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "AI Safety"
-    ],
-    "area": [
-      "Research"
-    ],
-    "topic": [
-      "Existential Risk"
-    ],
-    "tags": [
-      "alignment",
-      "safety"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["AI Safety"],
+    "area": ["Research"],
+    "topic": ["Existential Risk"],
+    "tags": ["alignment", "safety"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Interviews with researchers reducing catastrophic AI risks.",
@@ -5109,22 +2938,11 @@
     "title": "Malicious Life",
     "url": "https://maliciouslife.libsyn.com/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=cybereason.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Cybersecurity"
-    ],
-    "area": [
-      "History"
-    ],
-    "topic": [
-      "Hacks"
-    ],
-    "tags": [
-      "infosec",
-      "crime"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Cybersecurity"],
+    "area": ["History"],
+    "topic": ["Hacks"],
+    "tags": ["infosec", "crime"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "The history of cyber-attacks and the people behind them.",
@@ -5135,22 +2953,11 @@
     "title": "History Extra Podcast",
     "url": "https://feeds.megaphone.fm/GLT5697813216",
     "imageUrl": "https://www.google.com/s2/favicons?domain=historyextra.com&sz=128",
-    "domain": [
-      "History"
-    ],
-    "subdomain": [
-      "General"
-    ],
-    "area": [
-      "Interviews"
-    ],
-    "topic": [
-      "New Research"
-    ],
-    "tags": [
-      "historians",
-      "BBC"
-    ],
+    "domain": ["History"],
+    "subdomain": ["General"],
+    "area": ["Interviews"],
+    "topic": ["New Research"],
+    "tags": ["historians", "BBC"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "BBC History Magazine's weekly talks with leading historians.",
@@ -5161,22 +2968,11 @@
     "title": "The Happiness Lab",
     "url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/96c5c41e-0bc8-4661-b184-ae32006cd726/d623ef0b-3fee-4c26-b815-ae32006cd739/podcast.rss",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1fcad1cf743dc23b0d0cb311ae",
-    "domain": [
-      "Psychology"
-    ],
-    "subdomain": [
-      "Well-Being"
-    ],
-    "area": [
-      "Science of Happiness"
-    ],
-    "topic": [
-      "Positive Psych"
-    ],
-    "tags": [
-      "behavior",
-      "mental health"
-    ],
+    "domain": ["Psychology"],
+    "subdomain": ["Well-Being"],
+    "area": ["Science of Happiness"],
+    "topic": ["Positive Psych"],
+    "tags": ["behavior", "mental health"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Yale's Dr. Laurie Santos translates happiness research into daily habits.",
@@ -5187,22 +2983,11 @@
     "title": "Science Rules! with Bill Nye",
     "url": "https://feeds.simplecast.com/K0NWGFwM",
     "imageUrl": "https://www.google.com/s2/favicons?domain=billnye.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Futurism"
-    ],
-    "area": [
-      "Education"
-    ],
-    "topic": [
-      "Explainers"
-    ],
-    "tags": [
-      "STEM",
-      "fun"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Futurism"],
+    "area": ["Education"],
+    "topic": ["Explainers"],
+    "tags": ["STEM", "fun"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Bill Nye answers listener questions about science and life.",
@@ -5213,22 +2998,11 @@
     "title": "The Curious Cases of Rutherford & Fry",
     "url": "https://podcasts.files.bbci.co.uk/p05ltqxn.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=bbc.co.uk&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Explainers"
-    ],
-    "area": [
-      "Mysteries"
-    ],
-    "topic": [
-      "Everyday Science"
-    ],
-    "tags": [
-      "BBC",
-      "fun"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Explainers"],
+    "area": ["Mysteries"],
+    "topic": ["Everyday Science"],
+    "tags": ["BBC", "fun"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "BBC duo investigate quirky questions from listeners.",
@@ -5239,22 +3013,11 @@
     "title": "Data Skeptic",
     "url": "https://anchor.fm/s/f06031a0/podcast/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=dataskeptic.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Data Science"
-    ],
-    "area": [
-      "Interviews"
-    ],
-    "topic": [
-      "ML & Stats"
-    ],
-    "tags": [
-      "AI",
-      "analytics"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Data Science"],
+    "area": ["Interviews"],
+    "topic": ["ML & Stats"],
+    "tags": ["AI", "analytics"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Short explanatory segments and interviews on data science topics.",
@@ -5265,22 +3028,11 @@
     "title": "The Infinite Monkey Cage",
     "url": "http://podcasts.files.bbci.co.uk/b00snr0w.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=bbc.co.uk&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Physics"
-    ],
-    "area": [
-      "Comedy Panel"
-    ],
-    "topic": [
-      "Big Questions"
-    ],
-    "tags": [
-      "humor",
-      "astronomy"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Physics"],
+    "area": ["Comedy Panel"],
+    "topic": ["Big Questions"],
+    "tags": ["humor", "astronomy"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Physicist Brian Cox and comedian Robin Ince mix jokes with science facts.",
@@ -5291,22 +3043,11 @@
     "title": "The Orbital Mechanics Podcast",
     "url": "http://feeds.feedburner.com/orbitalpodcast",
     "imageUrl": "https://www.google.com/s2/favicons?domain=theorbitalmechanics.com&sz=128",
-    "domain": [
-      "Science"
-    ],
-    "subdomain": [
-      "Spaceflight"
-    ],
-    "area": [
-      "Engineering"
-    ],
-    "topic": [
-      "Rocketry"
-    ],
-    "tags": [
-      "aerospace",
-      "missions"
-    ],
+    "domain": ["Science"],
+    "subdomain": ["Spaceflight"],
+    "area": ["Engineering"],
+    "topic": ["Rocketry"],
+    "tags": ["aerospace", "missions"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Weekly news and deep dives into spacecraft and rockets.",
@@ -5317,22 +3058,11 @@
     "title": "Structural Engineering Channel Podcast",
     "url": "https://engineeringmanagementinstitute.org/category/tsec-podcast/feed/",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f055783d96264860f64bd474e",
-    "domain": [
-      "Engineering"
-    ],
-    "subdomain": [
-      "Structural"
-    ],
-    "area": [
-      "Career"
-    ],
-    "topic": [
-      "Design"
-    ],
-    "tags": [
-      "buildings",
-      "materials"
-    ],
+    "domain": ["Engineering"],
+    "subdomain": ["Structural"],
+    "area": ["Career"],
+    "topic": ["Design"],
+    "tags": ["buildings", "materials"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Discussions on best practices in structural engineering.",
@@ -5343,22 +3073,11 @@
     "title": "Materialism: The Materials Science Podcast",
     "url": "https://pinecast.com/feed/materialism",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f4f2f9a39cc236e51db81149b",
-    "domain": [
-      "Engineering"
-    ],
-    "subdomain": [
-      "Materials"
-    ],
-    "area": [
-      "Education"
-    ],
-    "topic": [
-      "Metals & Polymers"
-    ],
-    "tags": [
-      "nanotech",
-      "manufacturing"
-    ],
+    "domain": ["Engineering"],
+    "subdomain": ["Materials"],
+    "area": ["Education"],
+    "topic": ["Metals & Polymers"],
+    "tags": ["nanotech", "manufacturing"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Accessible deep dives into the science behind everyday materials.",
@@ -5369,23 +3088,11 @@
     "title": "Engines of Our Ingenuity",
     "url": "https://cdn.houstonpublicmedia.org/podcasts/engines-of-our-ingenuity-apple-podcasts.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=houstonpublicmedia.org&sz=128",
-    "domain": [
-      "History",
-      "Engineering"
-    ],
-    "subdomain": [
-      "Technology History"
-    ],
-    "area": [
-      "Short Essays"
-    ],
-    "topic": [
-      "Innovation"
-    ],
-    "tags": [
-      "invention",
-      "culture"
-    ],
+    "domain": ["History", "Engineering"],
+    "subdomain": ["Technology History"],
+    "area": ["Short Essays"],
+    "topic": ["Innovation"],
+    "tags": ["invention", "culture"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Five-minute vignettes on the machines and ideas that shape our world.",

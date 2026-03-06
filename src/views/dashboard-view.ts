@@ -1,1539 +1,2502 @@
-import { ItemView, WorkspaceLeaf, Notice, TFile, requireApiVersion } from "obsidian";
-import { Feed, FeedItem, RssDashboardSettings, Folder } from "../types/types";
-import type RssDashboardPlugin from "../../main";
+import {
+  ItemView,
+  WorkspaceLeaf,
+  Notice,
+  TFile,
+  requireApiVersion,
+  Platform,
+  setIcon,
+} from "obsidian";
+import {
+  Feed,
+  FeedFilterSettings,
+  FeedItem,
+  HighlightWord,
+  KeywordFilterRule,
+  RssDashboardSettings,
+  Folder,
+} from "../types/types";
+import type {
+  FiltersUpdatedEventPayload,
+  default as RssDashboardPlugin,
+} from "../../main";
 import { Sidebar } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { ArticleSaver } from "../services/article-saver";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
+import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
+import { KeywordFilterService } from "../services/keyword-filter-service";
+import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
 export class RssDashboardView extends ItemView {
-    private settings: RssDashboardSettings;
-    private saver: ArticleSaver;
-    public currentFolder: string | null = null;
-    private currentFeed: Feed | null = null;
-    private currentTag: string | null = null;
-    private selectedArticle: FeedItem | null = null;
-    private tagsCollapsed = true;
-    private collapsedFolders: string[] = [];
-    private allArticlesPage = 1;
-    private unreadArticlesPage = 1;
-    private readArticlesPage = 1;
-    private savedArticlesPage = 1;
-    private starredArticlesPage = 1;
-    public sidebar!: Sidebar;
-    private articleList!: ArticleList;
-    private sidebarContainer: HTMLElement | null = null;
-    private verificationTimeout: number | null = null;
-    private folderPages: Record<string, number> = {};
-    private folderPageSizes: Record<string, number> = {};
-    private feedPages: Record<string, number> = {};
-    private feedPageSizes: Record<string, number> = {};
-    private articleReaderLeafWhilePodcast: WorkspaceLeaf | null = null;
-    
-    constructor(
-        leaf: WorkspaceLeaf, 
-        private plugin: RssDashboardPlugin 
-    ) {
-        super(leaf);
-        this.settings = this.plugin.settings;
-        this.collapsedFolders = this.settings.collapsedFolders || [];
-        this.saver = new ArticleSaver(this.app, this.settings.articleSaving);
-        
-        // Set default filter based on settings
-        const defaultFilter = this.settings.display?.defaultFilter || "all";
-        const hiddenFilters = this.settings.display?.hiddenFilters || [];
-        
-        // Only set the default filter if it's not hidden
-        if (defaultFilter !== "all" && !hiddenFilters.includes(defaultFilter)) {
-            this.currentFolder = defaultFilter;
-        } else {
-            this.currentFolder = null; 
+  private settings: RssDashboardSettings;
+  private saver: ArticleSaver;
+  public currentFolder: string | null = null;
+  private currentFeed: Feed | null = null;
+  private currentTag: string | null = null;
+  private selectedArticle: FeedItem | null = null;
+  private tagsCollapsed = true;
+  private collapsedFolders: string[] = [];
+  private allArticlesPage = 1;
+  private unreadArticlesPage = 1;
+  private readArticlesPage = 1;
+  private savedArticlesPage = 1;
+  private starredArticlesPage = 1;
+  private activeStatusFilters = new Set<string>();
+  private activeTagFilters = new Set<string>();
+  private filterLogic: "AND" | "OR" = "OR";
+  public sidebar!: Sidebar;
+  private articleList!: ArticleList;
+  private sidebarContainer: HTMLElement | null = null;
+  private verificationTimeout: number | null = null;
+  private folderPages: Record<string, number> = {};
+  private folderPageSizes: Record<string, number> = {};
+  private feedPages: Record<string, number> = {};
+  private feedPageSizes: Record<string, number> = {};
+  private articleReaderLeafWhilePodcast: WorkspaceLeaf | null = null;
+  private isResizing: boolean = false;
+  private resizeHandle: HTMLElement | null = null;
+  private dashboardContainer: HTMLElement | null = null;
+  private keywordFilterStats = {
+    articlesRetrieved: 0,
+    globalExcluded: 0,
+    feedExcluded: 0,
+    finalVisible: 0,
+    bypassActive: false,
+    filtersActive: false,
+  };
+  private keywordFilterTooltip = "";
+  private isFilterSubheaderCollapsed = false;
+  private mobileSidebarModal: MobileNavigationModal | null = null;
+  private lastViewportMobileSidebarMode: boolean | null = null;
+
+  // ── Highlight match stats ─────────────────────────────────────────────────
+  // Populated by computeHighlightMatchCounts() on every render cycle (before
+  // renderFilterSubheader() runs). Each entry holds one enabled highlight word
+  // and the count of currently-displayed articles that contain it.
+  // Reset to [] when highlights are disabled or no words are enabled.
+  private highlightMatchCounts: Array<{ word: HighlightWord; count: number }> =
+    [];
+
+  constructor(
+    leaf: WorkspaceLeaf,
+    private plugin: RssDashboardPlugin,
+  ) {
+    super(leaf);
+    this.settings = this.plugin.settings;
+    this.collapsedFolders = this.settings.collapsedFolders || [];
+    this.saver = new ArticleSaver(this.app, this.settings.articleSaving);
+
+    // Set default filter based on settings
+    const defaultFilter = this.settings.display?.defaultFilter || "all";
+    const hiddenFilters = this.settings.display?.hiddenFilters || [];
+
+    // Only set the default filter if it's not hidden
+    if (defaultFilter !== "all" && !hiddenFilters.includes(defaultFilter)) {
+      this.currentFolder = defaultFilter;
+    } else {
+      this.currentFolder = null;
+    }
+  }
+
+  getViewType(): string {
+    return RSS_DASHBOARD_VIEW_TYPE;
+  }
+
+  getDisplayText(): string {
+    return "RSS dashboard";
+  }
+
+  getIcon(): string {
+    return "rss";
+  }
+
+  onOpen(): Promise<void> {
+    this.registerEvent(
+      this.app.vault.on("delete", (file) => {
+        if (file instanceof TFile) {
+          this.handleFileDeleted(file);
         }
-    }
+      }),
+    );
 
-    getViewType(): string {
-        return RSS_DASHBOARD_VIEW_TYPE;
-    }
-
-    getDisplayText(): string {
-        return "RSS dashboard";
-    }
-
-    getIcon(): string {
-        return "rss";
-    }
-
-    onOpen(): Promise<void> {
-
-        this.registerEvent(
-            this.app.vault.on('delete', (file) => {
-                if (file instanceof TFile) {
-                    this.handleFileDeleted(file);
-                }
-            })
-        );
-
-
-        this.registerEvent(
-            this.app.vault.on('rename', (file, oldPath) => {
-                if (file instanceof TFile) {
-                    this.handleFileRenamed(file, oldPath);
-                }
-            })
-        );
-
-
-        this.registerEvent(
-            this.app.vault.on('modify', () => {
-
-                if (this.verificationTimeout) {
-                    window.clearTimeout(this.verificationTimeout);
-                }
-                this.verificationTimeout = window.setTimeout(() => {
-                    void this.verifySavedArticles();
-                }, 300000);
-            })
-        );
-
-        const container = this.containerEl.children[1];
-        container.addClass("rss-dashboard-container");
-        let dashboardContainer = container.querySelector('.rss-dashboard-layout') as HTMLElement;
-        if (!dashboardContainer) {
-            dashboardContainer = container.createDiv({ cls: "rss-dashboard-layout" });
+    this.registerEvent(
+      this.app.vault.on("rename", (file, oldPath) => {
+        if (file instanceof TFile) {
+          this.handleFileRenamed(file, oldPath);
         }
+      }),
+    );
 
-        if (!this.sidebarContainer) {
-            this.sidebarContainer = dashboardContainer.createDiv({
-                cls: "rss-dashboard-sidebar-container"
-            });
-        } else if (this.sidebarContainer.parentElement !== dashboardContainer) {
-            dashboardContainer.appendChild(this.sidebarContainer);
+    this.registerEvent(
+      this.app.vault.on("modify", () => {
+        if (this.verificationTimeout) {
+          window.clearTimeout(this.verificationTimeout);
         }
+        this.verificationTimeout = window.setTimeout(() => {
+          void this.verifySavedArticles();
+        }, 300000);
+      }),
+    );
 
+    this.registerEvent(
+      (
+        this.app.workspace as unknown as {
+          on: (
+            name: string,
+            callback: (payload: FiltersUpdatedEventPayload) => void,
+          ) => unknown;
+        }
+      ).on(
+        "rss-dashboard:filters-updated",
+        (payload: FiltersUpdatedEventPayload) => {
+          this.syncCurrentFeedReference();
+          this.render();
+        },
+      ) as never,
+    );
 
-        if (!this.sidebar) {
-            this.sidebar = new Sidebar(
-                this.app,
-                this.sidebarContainer,
-                this.plugin,
-                this.settings,
-                {
-                    currentFolder: this.currentFolder,
-                    currentFeed: this.currentFeed,
-                    currentTag: this.currentTag,
-                    tagsCollapsed: this.tagsCollapsed,
-                    collapsedFolders: this.collapsedFolders
-                },
-                {
-                    onFolderClick: this.handleFolderClick.bind(this),
-                    onFeedClick: this.handleFeedClick.bind(this),
-                    onTagClick: this.handleTagClick.bind(this),
-                    onToggleTagsCollapse: this.handleToggleTagsCollapse.bind(this),
-                    onToggleFolderCollapse: this.handleToggleFolderCollapse.bind(this),
-                    onBatchToggleFolders: this.handleBatchToggleFolders.bind(this),
-                    onAddFolder: this.handleAddFolder.bind(this),
-                    onAddSubfolder: this.handleAddSubfolder.bind(this),
-                    onAddFeed: this.handleAddFeed.bind(this),
-                    onEditFeed: this.handleEditFeed.bind(this),
-                    onDeleteFeed: this.handleDeleteFeed.bind(this),
-                    onDeleteFolder: this.handleDeleteFolder.bind(this),
-                    onRefreshFeeds: this.handleRefreshFeeds.bind(this),
-                    onUpdateFeed: this.handleUpdateFeed.bind(this),
-                    onImportOpml: this.handleImportOpml.bind(this),
-                    onExportOpml: this.handleExportOpml.bind(this),
-                    onToggleSidebar: this.handleToggleSidebar.bind(this),
-                    onManageFeeds: () => {
-                        new FeedManagerModal(this.app, this.plugin).open();
-                    }
-                }
+    this.lastViewportMobileSidebarMode = this.shouldUseMobileSidebarMode(
+      window.innerWidth,
+    );
+    this.registerDomEvent(window, "resize", () => {
+      this.handleViewportResizeModeTransition();
+    });
+
+    const container = this.containerEl.children[1];
+    container.addClass("rss-dashboard-container");
+    let dashboardContainer = container.querySelector(
+      ".rss-dashboard-layout",
+    ) as HTMLElement;
+    if (!dashboardContainer) {
+      dashboardContainer = container.createDiv({
+        cls: "rss-dashboard-layout",
+      });
+    }
+
+    if (!this.sidebarContainer) {
+      this.sidebarContainer = dashboardContainer.createDiv({
+        cls: "rss-dashboard-sidebar-container",
+      });
+    } else if (this.sidebarContainer.parentElement !== dashboardContainer) {
+      dashboardContainer.appendChild(this.sidebarContainer);
+    }
+
+    if (!this.sidebar) {
+      this.sidebar = new Sidebar(
+        this.app,
+        this.sidebarContainer,
+        this.plugin,
+        this.settings,
+        {
+          currentFolder: this.currentFolder,
+          currentFeed: this.currentFeed,
+          currentTag: this.currentTag,
+          tagsCollapsed: this.tagsCollapsed,
+          collapsedFolders: this.collapsedFolders,
+        },
+        {
+          onFolderClick: this.handleFolderClick.bind(this),
+          onFeedClick: this.handleFeedClick.bind(this),
+          onTagClick: this.handleTagClick.bind(this),
+          onToggleTagsCollapse: this.handleToggleTagsCollapse.bind(this),
+          onToggleFolderCollapse: this.handleToggleFolderCollapse.bind(this),
+          onBatchToggleFolders: this.handleBatchToggleFolders.bind(this),
+          onAddFolder: this.handleAddFolder.bind(this),
+          onAddSubfolder: this.handleAddSubfolder.bind(this),
+          onAddFeed: this.handleAddFeed.bind(this),
+          onEditFeed: this.handleEditFeed.bind(this),
+          onDeleteFeed: this.handleDeleteFeed.bind(this),
+          onDeleteFolder: this.handleDeleteFolder.bind(this),
+          onRefreshFeeds: this.handleRefreshFeeds.bind(this),
+          onUpdateFeed: this.handleUpdateFeed.bind(this),
+          onImportOpml: this.handleImportOpml.bind(this),
+          onExportOpml: this.handleExportOpml.bind(this),
+          onToggleSidebar: this.handleToggleSidebar.bind(this),
+          onManageFeeds: () => {
+            const modal = new FeedManagerModal(this.app, this.plugin);
+            modal.open();
+          },
+        },
+      );
+    }
+
+    // Store dashboard container reference
+    this.dashboardContainer = dashboardContainer;
+
+    this.render();
+
+    return Promise.resolve();
+  }
+
+  render(): void {
+    this.syncCurrentFeedReference();
+    this.verifySavedArticles();
+
+    if (!this.shouldUseMobileSidebarMode(window.innerWidth)) {
+      this.closeMobileSidebarModal();
+    }
+
+    if (this.articleList) {
+      this.articleList.destroy();
+    }
+
+    if (this.settings.sidebarCollapsed) {
+      this.containerEl.addClass("sidebar-collapsed");
+    } else {
+      this.containerEl.removeClass("sidebar-collapsed");
+    }
+
+    // Apply sidebar width on render
+    this.applySidebarWidth();
+
+    if (this.sidebar) {
+      this.sidebar.clearFolderPathCache();
+      this.sidebar["options"] = {
+        currentFolder: this.currentFolder,
+        currentFeed: this.currentFeed,
+        currentTag: this.currentTag,
+        tagsCollapsed: this.tagsCollapsed,
+        collapsedFolders: this.collapsedFolders,
+      };
+      this.sidebar["settings"] = this.settings;
+      this.sidebar.render();
+    }
+
+    const container = this.containerEl.children[1];
+    let dashboardContainer = container.querySelector(
+      ".rss-dashboard-layout",
+    ) as HTMLElement;
+    if (!dashboardContainer) {
+      dashboardContainer = container.createDiv({
+        cls: "rss-dashboard-layout",
+      });
+    }
+    let contentContainer = dashboardContainer.querySelector(
+      ".rss-dashboard-content",
+    ) as HTMLElement;
+    if (!contentContainer) {
+      contentContainer = dashboardContainer.createDiv({
+        cls: "rss-dashboard-content",
+      });
+    } else {
+      contentContainer.empty();
+    }
+
+    const allFilteredArticles = this.getFilteredArticles();
+    // Must run after getFilteredArticles() so counts reflect the active view,
+    // and before renderFilterSubheader() which reads this.highlightMatchCounts.
+    this.computeHighlightMatchCounts(allFilteredArticles);
+    this.renderToolbar(contentContainer);
+    this.renderFilterSubheader(contentContainer);
+
+    const articlesContainer = contentContainer.createDiv({
+      cls: "rss-dashboard-articles",
+    });
+    const pageSize = this.getCurrentPageSize();
+    const currentPage = this.getCurrentPage();
+    const totalArticles = allFilteredArticles.length;
+    const totalPages = Math.max(1, Math.ceil(totalArticles / pageSize));
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    const articlesForPage = allFilteredArticles.slice(startIdx, endIdx);
+
+    this.articleList = new ArticleList(
+      articlesContainer,
+      this.settings,
+      this.getArticlesTitle(),
+      articlesForPage,
+      this.selectedArticle,
+      {
+        onArticleClick: (article) => {
+          void this.handleArticleClick(article);
+        },
+        onToggleViewStyle: this.handleToggleViewStyle.bind(this),
+        onRefreshFeeds: this.handleRefreshFeeds.bind(this),
+        onArticleUpdate: (article, updates, shouldRerender) => {
+          void this.handleArticleUpdate(article, updates, shouldRerender);
+        },
+        onArticleSave: (article) => {
+          void this.handleArticleSave(article);
+        },
+        onOpenSavedArticle: (article) => {
+          void this.handleOpenSavedArticle(article);
+        },
+        onOpenInReaderView: (article) => {
+          void this.handleOpenInReaderView(article);
+        },
+        onToggleSidebar: this.handleToggleSidebar.bind(this),
+        onSortChange: this.handleSortChange.bind(this),
+        onGroupChange: this.handleGroupChange.bind(this),
+        onFilterChange: (value: {
+          type: string;
+          value: unknown;
+          checked?: boolean;
+          isTag?: boolean;
+        }) => {
+          void this.handleFilterChange(value);
+        },
+        onPageChange: this.handlePageChange.bind(this),
+        onPageSizeChange: this.handlePageSizeChange.bind(this),
+        onOpenTagsSettings: () => {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+          void (this.app as any).plugins.plugins[
+            "rss-dashboard"
+          ].openTagsSettings();
+        },
+        onPersistSettings: async () => {
+          await this.plugin.saveSettings();
+        },
+        onMarkAllAsRead: () => {
+          const articles = this.getFilteredArticles();
+          let count = 0;
+          articles.forEach((item) => {
+            if (!item.read) {
+              item.read = true;
+              count++;
+            }
+          });
+
+          if (count > 0) {
+            void this.plugin.saveSettings();
+            void this.render();
+            new Notice(`Marked ${count} items as read`);
+          } else {
+            new Notice("No unread items in current view");
+          }
+        },
+        onMarkAllAsUnread: () => {
+          const articles = this.getFilteredArticles();
+          let count = 0;
+          articles.forEach((item) => {
+            if (item.read) {
+              item.read = false;
+              count++;
+            }
+          });
+
+          if (count > 0) {
+            void this.plugin.saveSettings();
+            void this.render();
+            new Notice(`Marked ${count} items as unread`);
+          } else {
+            new Notice("No read items in current view");
+          }
+        },
+      },
+      currentPage,
+      totalPages,
+      pageSize,
+      totalArticles,
+      this.activeStatusFilters,
+      this.activeTagFilters,
+      this.filterLogic,
+      this.currentFeed?.url,
+      this.currentFeed === null,
+    );
+    this.articleList.render();
+
+    this.updateRefreshButtonText();
+
+    // Setup sidebar resize handle AFTER sidebar.render() completes
+    // because sidebar.render() empties the container which would destroy the handle
+    this.setupSidebarResize();
+  }
+
+  private renderToolbar(container: HTMLElement): void {
+    container.createDiv({ cls: "rss-dashboard-toolbar" });
+  }
+
+  /**
+   * FILTER STATUS BAR
+   * ─────────────────
+   * Renders a collapsible info strip directly below the toolbar. It contains
+   * up to two rows:
+   *
+   *   Row 1 – Keyword filter stats:
+   *     "Articles retrieved: N | Global filters excluded: X | Feed filters excluded: Y"
+   *     or "Filters bypassed - showing all N articles" when bypass mode is on.
+   *     Only rendered when keyword filters are active or bypassed.
+   *     (Data written by applyKeywordFiltersWithStats() → this.keywordFilterStats)
+   *
+   *   Row 2 – Highlight match stats:
+   *     "Highlights: ● word1 (N) | ● word2 (N) …"
+   *     One chip per enabled highlight word, showing how many of the currently-
+   *     displayed articles contain that word/phrase. Counts are per-article
+   *     (an article counted once even if the word appears multiple times).
+   *     (Data written by computeHighlightMatchCounts() → this.highlightMatchCounts)
+   *
+   * Visibility: hidden entirely when settings.display.showFilterStatusBar is
+   * false, or when neither row has anything to show.
+   *
+   * Collapse state persisted in this.isFilterSubheaderCollapsed across renders.
+   */
+  private renderFilterSubheader(container: HTMLElement): void {
+    if (this.settings.display.showFilterStatusBar === false) {
+      return;
+    }
+
+    const { keywordFilterStats } = this;
+    const hasKeywordStats =
+      keywordFilterStats.bypassActive || keywordFilterStats.filtersActive;
+    const hasHighlightStats = this.highlightMatchCounts.length > 0;
+
+    // Only render when there is at least one row worth of content
+    if (!hasKeywordStats && !hasHighlightStats) {
+      return;
+    }
+
+    const subheader = container.createDiv({
+      cls: "rss-dashboard-filter-subheader",
+    });
+    // subheaderContent animates between open/collapsed via CSS max-height transition
+    const subheaderContent = subheader.createDiv({
+      cls: "rss-dashboard-filter-subheader-content",
+    });
+    if (this.keywordFilterTooltip) {
+      subheaderContent.setAttribute("title", this.keywordFilterTooltip);
+    }
+
+    // ── Row 1: Keyword filter stats ──────────────────────────────────────────
+    if (hasKeywordStats) {
+      const filterStatsRow = subheaderContent.createDiv({
+        cls: "rss-dashboard-filter-stats-row",
+      });
+
+      // Edit button for filters settings
+      const filterEditBtn = filterStatsRow.createEl("button", {
+        cls: "rss-dashboard-filter-edit-btn clickable-icon",
+        attr: {
+          type: "button",
+          title: "Edit filters",
+          "aria-label": "Edit filters",
+        },
+      });
+      setIcon(filterEditBtn, "cog");
+      filterEditBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void this.plugin.openSettingsToTab("Filters");
+      });
+
+      // Filter stats text
+      const statusText = keywordFilterStats.bypassActive
+        ? `Filters bypassed - showing all ${keywordFilterStats.articlesRetrieved} articles`
+        : `Articles retrieved: ${keywordFilterStats.articlesRetrieved} | Global filters excluded: ${keywordFilterStats.globalExcluded} | Feed filters excluded: ${keywordFilterStats.feedExcluded}`;
+      filterStatsRow.createSpan({
+        cls: "rss-dashboard-filter-stats-text",
+        text: statusText,
+      });
+    }
+
+    // ── Row 2: Highlight match stats ─────────────────────────────────────────
+    // Renders "Highlights: ● word (N) | ● word (N)" chips.
+    // Each dot's background uses the word's individual --highlight-color,
+    // matching the <mark> tags applied to article text.
+    if (hasHighlightStats) {
+      const highlightRow = subheaderContent.createDiv({
+        cls: "rss-dashboard-highlight-stats",
+      });
+
+      // Edit button for highlights settings
+      const highlightEditBtn = highlightRow.createEl("button", {
+        cls: "rss-dashboard-highlight-edit-btn clickable-icon",
+        attr: {
+          type: "button",
+          title: "Edit highlights",
+          "aria-label": "Edit highlights",
+        },
+      });
+      setIcon(highlightEditBtn, "pencil");
+      highlightEditBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void this.plugin.openSettingsToTab("Highlights");
+      });
+
+      highlightRow.createSpan({
+        cls: "rss-highlight-stats-label",
+        text: "Highlights:",
+      });
+
+      this.highlightMatchCounts.forEach((entry, i) => {
+        if (i > 0) {
+          highlightRow.createSpan({
+            cls: "rss-highlight-stats-sep",
+            text: "|",
+          });
+        }
+        const chip = highlightRow.createSpan({
+          cls: "rss-highlight-stat-item",
+        });
+        // Colored dot — reuses the same CSS variable as the <mark> highlight tags
+        const dot = chip.createSpan({ cls: "rss-highlight-dot" });
+        dot.style.setProperty(
+          "--highlight-color",
+          entry.word.color || this.settings.highlights.defaultColor,
+        );
+        chip.appendText(`${entry.word.text} (${entry.count})`);
+      });
+    }
+
+    // ── Collapse toggle button ───────────────────────────────────────────────
+    const toggleButton = subheader.createEl("button", {
+      cls: "rss-dashboard-filter-subheader-toggle",
+      attr: { type: "button" },
+    });
+
+    const applyCollapsedState = () => {
+      subheader.classList.toggle(
+        "is-collapsed",
+        this.isFilterSubheaderCollapsed,
+      );
+      toggleButton.setAttribute(
+        "aria-label",
+        this.isFilterSubheaderCollapsed
+          ? "Expand filter status"
+          : "Collapse filter status",
+      );
+      toggleButton.setAttribute(
+        "aria-expanded",
+        (!this.isFilterSubheaderCollapsed).toString(),
+      );
+      toggleButton.setText(this.isFilterSubheaderCollapsed ? "▾" : "▴");
+    };
+
+    toggleButton.addEventListener("click", () => {
+      this.isFilterSubheaderCollapsed = !this.isFilterSubheaderCollapsed;
+      applyCollapsedState();
+    });
+
+    applyCollapsedState();
+  }
+
+  /**
+   * HIGHLIGHT MATCH COUNTING
+   * ─────────────────────────
+   * For each enabled highlight word, counts how many articles in the
+   * currently-displayed set contain at least one match. Counts are
+   * per-article (an article is counted once regardless of how many times
+   * the word appears inside it).
+   *
+   * Called once per render cycle, after getFilteredArticles() returns and
+   * before renderFilterSubheader() reads this.highlightMatchCounts.
+   *
+   * Field selection mirrors HighlightService behaviour:
+   *   settings.highlights.highlightInTitles    → article.title
+   *   settings.highlights.highlightInSummaries → article.description + article.summary
+   *   settings.highlights.highlightInContent   → article.content
+   *
+   * Regex building mirrors HighlightService behaviour per-word: escapes each
+   * word text, applies optional whole-word boundaries, and respects each
+   * word's caseSensitive flag.
+   */
+  private computeHighlightMatchCounts(articles: FeedItem[]): void {
+    // Always reset so stale data from a previous render doesn't linger
+    this.highlightMatchCounts = [];
+
+    const hs = this.settings.highlights;
+    if (!hs?.enabled || !hs.words?.length) return;
+
+    const enabledWords = hs.words.filter((w) => w.enabled);
+    if (enabledWords.length === 0) return;
+
+    for (const word of enabledWords) {
+      // Escape special regex characters (same as HighlightService.escapeRegex)
+      const escaped = word.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      // Optional whole-word boundaries (same logic as HighlightService.buildPattern)
+      const pattern = word.wholeWord
+        ? `(?:^|\\W)(${escaped})(?:$|\\W)`
+        : escaped;
+      // Per-word case sensitivity: add "i" only for case-insensitive words.
+      const regexFlags = word.caseSensitive ? "" : "i";
+      const regex = new RegExp(pattern, regexFlags);
+
+      let count = 0;
+      for (const article of articles) {
+        // Collect the text fields governed by the highlight scope settings
+        const fields: string[] = [];
+        if (hs.highlightInTitles !== false) fields.push(article.title ?? "");
+        if (hs.highlightInSummaries !== false) {
+          fields.push(article.description ?? "");
+          fields.push(article.summary ?? "");
+        }
+        if (hs.highlightInContent !== false) fields.push(article.content ?? "");
+
+        // Fallback: always test the title when no scopes are enabled
+        if (fields.length === 0) fields.push(article.title ?? "");
+
+        if (fields.some((f) => regex.test(f))) count++;
+      }
+
+      this.highlightMatchCounts.push({ word, count });
+    }
+  }
+
+  private getArticlesTitle(): string {
+    if (this.currentFeed) {
+      return this.currentFeed.title;
+    } else if (this.currentFolder === "starred") {
+      return "Starred items";
+    } else if (this.currentFolder === "unread") {
+      return "Unread items";
+    } else if (this.currentFolder === "read") {
+      return "Read items";
+    } else if (this.currentFolder === "saved") {
+      return "Saved items";
+    } else if (this.currentFolder === "videos") {
+      return "Videos";
+    } else if (this.currentFolder === "podcasts") {
+      return "Podcasts";
+    } else if (this.currentTag) {
+      return `Tag: ${this.currentTag}`;
+    } else if (this.currentFolder) {
+      return this.currentFolder;
+    } else {
+      return "All articles";
+    }
+  }
+
+  private getFilteredArticles(): FeedItem[] {
+    this.syncCurrentFeedReference();
+    let articles: FeedItem[] = [];
+
+    if (this.currentFeed) {
+      const limit = this.currentFeed.maxItemsLimit || this.settings.maxItems;
+      articles = this.currentFeed.items.slice(0, limit);
+    } else if (this.currentTag) {
+      for (const feed of this.settings.feeds) {
+        articles = articles.concat(
+          feed.items
+            .filter(
+              (item) =>
+                item.tags && item.tags.some((t) => t.name === this.currentTag),
+            )
+            .map((item) => ({
+              ...item,
+              feedTitle: feed.title,
+              feedUrl: feed.url,
+            })),
+        );
+      }
+    } else if (this.currentFolder) {
+      const specialFolders = [
+        "read",
+        "unread",
+        "starred",
+        "saved",
+        "videos",
+        "podcasts",
+      ];
+      if (specialFolders.includes(this.currentFolder)) {
+        // Legacy support or fallback
+        for (const feed of this.settings.feeds) {
+          articles = articles.concat(
+            feed.items
+              .filter((item) => {
+                if (this.currentFolder === "starred") return item.starred;
+                if (this.currentFolder === "unread") return !item.read;
+                if (this.currentFolder === "read") return item.read;
+                if (this.currentFolder === "saved") return item.saved;
+                if (this.currentFolder === "videos")
+                  return item.mediaType === "video";
+                if (this.currentFolder === "podcasts")
+                  return item.mediaType === "podcast";
+                return true;
+              })
+              .map((item) => ({
+                ...item,
+                feedTitle: feed.title,
+                feedUrl: feed.url,
+              })),
+          );
+        }
+      } else {
+        const allFolders = this.getAllDescendantFolders(this.currentFolder);
+        for (const feed of this.settings.feeds) {
+          if (feed.folder && allFolders.includes(feed.folder)) {
+            articles = articles.concat(
+              feed.items.map((item) => ({
+                ...item,
+                feedTitle: feed.title,
+                feedUrl: feed.url,
+              })),
             );
+          }
         }
-
-
-        this.render();
-        return Promise.resolve();
+      }
+    } else {
+      for (const feed of this.settings.feeds) {
+        articles = articles.concat(
+          feed.items.map((item) => ({
+            ...item,
+            feedTitle: feed.title,
+            feedUrl: feed.url,
+          })),
+        );
+      }
     }
-    
-    
-    render(): void {
-        
-        this.verifySavedArticles();
-        
-        if (this.articleList) {
-            this.articleList.destroy();
+
+    // Apply keyword filters (global/per-feed) before status/tag/age filters.
+    articles = this.applyKeywordFiltersWithStats(articles);
+
+    // Apply filters (multi-filters, special folders, age, etc.)
+    articles = articles.filter((item) => this.matchesFilters(item));
+
+    if (this.settings.articleSort === "oldest") {
+      articles.sort(
+        (a, b) => new Date(a.pubDate).getTime() - new Date(b.pubDate).getTime(),
+      );
+    } else {
+      articles.sort(
+        (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
+      );
+    }
+
+    // Apply pagination limits for special views (legacy/fallback)
+    if (
+      this.currentFolder === null &&
+      this.currentFeed === null &&
+      this.currentTag === null
+    ) {
+      const pageSize = this.settings.allArticlesPageSize;
+      const start = 0;
+      const end = this.allArticlesPage * pageSize;
+      return articles.slice(start, end);
+    } else if (this.currentFolder === "unread") {
+      const pageSize = this.settings.unreadArticlesPageSize;
+      const start = 0;
+      const end = this.unreadArticlesPage * pageSize;
+      return articles.slice(start, end);
+    } else if (this.currentFolder === "read") {
+      const pageSize = this.settings.readArticlesPageSize;
+      const start = 0;
+      const end = this.readArticlesPage * pageSize;
+      return articles.slice(start, end);
+    } else if (this.currentFolder === "saved") {
+      const pageSize = this.settings.savedArticlesPageSize;
+      const start = 0;
+      const end = this.savedArticlesPage * pageSize;
+      return articles.slice(start, end);
+    } else if (this.currentFolder === "starred") {
+      const pageSize = this.settings.starredArticlesPageSize;
+      const start = 0;
+      const end = this.starredArticlesPage * pageSize;
+      return articles.slice(start, end);
+    }
+
+    return articles;
+  }
+
+  private syncCurrentFeedReference(): void {
+    if (!this.currentFeed) {
+      return;
+    }
+
+    const feedByUrl = this.settings.feeds.find(
+      (feed) => feed.url === this.currentFeed?.url,
+    );
+    if (feedByUrl) {
+      this.currentFeed = feedByUrl;
+      return;
+    }
+
+    const fallbackFeed = this.settings.feeds.find(
+      (feed) =>
+        feed.title === this.currentFeed?.title &&
+        feed.folder === this.currentFeed?.folder,
+    );
+    if (fallbackFeed) {
+      this.currentFeed = fallbackFeed;
+    }
+  }
+
+  private applyKeywordFiltersWithStats(articles: FeedItem[]): FeedItem[] {
+    const globalFilters = this.settings.filters || {
+      includeLogic: "AND" as const,
+      bypassAll: false,
+      rules: [],
+    };
+
+    const hasGlobalRules = KeywordFilterService.hasActiveRules(
+      globalFilters.rules,
+    );
+    const hasFeedRules = this.hasActiveFeedRulesInScope(articles);
+    const filtersActive = hasGlobalRules || hasFeedRules;
+    const activeGlobalRules = KeywordFilterService.getActiveRules(
+      globalFilters.rules,
+    );
+    const activeFeedRules = this.getActiveFeedRulesForScope(articles);
+    this.keywordFilterTooltip = this.buildKeywordFilterTooltip(
+      globalFilters.includeLogic,
+      activeGlobalRules,
+      activeFeedRules,
+      globalFilters.bypassAll,
+    );
+
+    if (globalFilters.bypassAll) {
+      this.keywordFilterStats = {
+        articlesRetrieved: articles.length,
+        globalExcluded: 0,
+        feedExcluded: 0,
+        finalVisible: articles.length,
+        bypassActive: true,
+        filtersActive,
+      };
+      return articles;
+    }
+
+    let globalExcluded = 0;
+    let feedExcluded = 0;
+    const filtered: FeedItem[] = [];
+
+    for (const article of articles) {
+      const feed = this.findFeedForArticle(article);
+      const decision = KeywordFilterService.evaluateForArticle(
+        article,
+        feed,
+        globalFilters,
+      );
+      if (decision.included) {
+        filtered.push(article);
+      } else if (decision.excludedBy === "global") {
+        globalExcluded++;
+      } else if (decision.excludedBy === "feed") {
+        feedExcluded++;
+      }
+    }
+
+    this.keywordFilterStats = {
+      articlesRetrieved: articles.length,
+      globalExcluded,
+      feedExcluded,
+      finalVisible: filtered.length,
+      bypassActive: false,
+      filtersActive,
+    };
+
+    return filtered;
+  }
+
+  private hasActiveFeedRulesInScope(articles: FeedItem[]): boolean {
+    const seenFeeds = new Set<string>();
+    for (const article of articles) {
+      const feed = this.findFeedForArticle(article);
+      if (!feed || !feed.url || seenFeeds.has(feed.url)) {
+        continue;
+      }
+      seenFeeds.add(feed.url);
+      if (KeywordFilterService.hasActiveRules(feed.filters?.rules || [])) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private getActiveFeedRulesForScope(articles: FeedItem[]): Array<{
+    feedTitle: string;
+    includeLogic: "AND" | "OR";
+    rules: KeywordFilterRule[];
+  }> {
+    const seenFeeds = new Set<string>();
+    const result: Array<{
+      feedTitle: string;
+      includeLogic: "AND" | "OR";
+      rules: KeywordFilterRule[];
+    }> = [];
+
+    for (const article of articles) {
+      const feed = this.findFeedForArticle(article);
+      if (!feed || !feed.url || seenFeeds.has(feed.url)) {
+        continue;
+      }
+      seenFeeds.add(feed.url);
+
+      const rules = KeywordFilterService.getActiveRules(
+        feed.filters?.rules || [],
+      );
+      if (rules.length === 0) {
+        continue;
+      }
+
+      result.push({
+        feedTitle: feed.title || "Untitled feed",
+        includeLogic: feed.filters?.includeLogic || "AND",
+        rules,
+      });
+    }
+
+    return result;
+  }
+
+  private buildKeywordFilterTooltip(
+    globalIncludeLogic: "AND" | "OR",
+    globalRules: KeywordFilterRule[],
+    feedRules: Array<{
+      feedTitle: string;
+      includeLogic: "AND" | "OR";
+      rules: KeywordFilterRule[];
+    }>,
+    bypassAll: boolean,
+  ): string {
+    if (globalRules.length === 0 && feedRules.length === 0) {
+      return "";
+    }
+
+    const lines: string[] = [];
+
+    if (bypassAll) {
+      lines.push("Bypass all filters is enabled.");
+      lines.push("");
+    }
+
+    if (globalRules.length > 0) {
+      lines.push(`Global rules (include logic: ${globalIncludeLogic}):`);
+      globalRules.forEach((rule) => {
+        lines.push(`- ${this.formatRuleForTooltip(rule)}`);
+      });
+      lines.push("");
+    }
+
+    if (feedRules.length > 0) {
+      lines.push("Feed rules:");
+      feedRules.forEach((entry) => {
+        lines.push(
+          `- ${entry.feedTitle} (include logic: ${entry.includeLogic})`,
+        );
+        entry.rules.forEach((rule) => {
+          lines.push(`  - ${this.formatRuleForTooltip(rule)}`);
+        });
+      });
+    }
+
+    return lines.join("\n").trim();
+  }
+
+  private formatRuleForTooltip(rule: KeywordFilterRule): string {
+    return `${rule.type.toUpperCase()} "${rule.keyword.trim()}" (${rule.matchMode}) [${this.formatRuleLocations(rule)}]`;
+  }
+
+  private formatRuleLocations(rule: KeywordFilterRule): string {
+    const parts: string[] = [];
+    if (rule.applyToTitle) {
+      parts.push("title");
+    }
+    if (rule.applyToSummary) {
+      parts.push("summary");
+    }
+    if (rule.applyToContent) {
+      parts.push("content");
+    }
+    return parts.join(", ");
+  }
+
+  private findFeedForArticle(article: FeedItem): Feed | undefined {
+    if (article.feedUrl) {
+      return this.settings.feeds.find((feed) => feed.url === article.feedUrl);
+    }
+
+    if (this.currentFeed) {
+      return this.currentFeed;
+    }
+
+    return this.settings.feeds.find((feed) =>
+      feed.items.some((item) => item.guid === article.guid),
+    );
+  }
+
+  private findFolderByPath(path: string): Folder | null {
+    const parts = path.split("/");
+    let current: Folder | undefined = this.settings.folders.find(
+      (f) => f.name === parts[0],
+    );
+    for (let i = 1; i < parts.length && current; i++) {
+      current = (current.subfolders || []).find((f) => f.name === parts[i]);
+    }
+    return current || null;
+  }
+
+  private getAllDescendantFolders(folderPath: string): string[] {
+    const result: string[] = [folderPath];
+    const folder = this.findFolderByPath(folderPath);
+
+    function collect(f: Folder, base: string) {
+      if (f.subfolders) {
+        for (const sub of f.subfolders) {
+          const subPath = base + "/" + sub.name;
+          result.push(subPath);
+          collect(sub, subPath);
         }
-        
-        
-        if (this.settings.sidebarCollapsed) {
-            this.containerEl.addClass('sidebar-collapsed');
+      }
+    }
+
+    if (folder) {
+      collect(folder, folderPath);
+    }
+
+    return result;
+  }
+
+  private handleFolderClick(folder: string | null): void {
+    let scrollPosition = 0;
+    if (this.sidebarContainer) {
+      const foldersSection = this.sidebarContainer.querySelector(
+        ".rss-dashboard-feed-folders-section",
+      );
+      if (foldersSection)
+        scrollPosition = (foldersSection as HTMLElement).scrollTop;
+    }
+
+    this.currentFeed = null;
+    this.currentTag = null;
+    this.activeStatusFilters = new Set();
+    this.activeTagFilters.clear();
+    this.filterLogic = "OR";
+
+    if (this.currentFolder !== folder) {
+      if (folder === "unread") {
+        this.unreadArticlesPage = 1;
+      } else if (folder === "read") {
+        this.readArticlesPage = 1;
+      } else if (folder === "saved") {
+        this.savedArticlesPage = 1;
+      } else if (folder === "starred") {
+        this.starredArticlesPage = 1;
+      } else if (folder === null) {
+        this.allArticlesPage = 1;
+      } else if (folder) {
+        this.folderPages[folder] = 1;
+      }
+    }
+
+    this.currentFolder = folder;
+
+    if (this.sidebarContainer) {
+      const foldersSection = this.sidebarContainer.querySelector(
+        ".rss-dashboard-feed-folders-section",
+      );
+      if (foldersSection)
+        (foldersSection as HTMLElement).scrollTop = scrollPosition;
+    }
+
+    void this.render();
+  }
+
+  private handleFeedClick(feed: Feed): void {
+    let scrollPosition = 0;
+    if (this.sidebarContainer) {
+      const foldersSection = this.sidebarContainer.querySelector(
+        ".rss-dashboard-feed-folders-section",
+      );
+      if (foldersSection)
+        scrollPosition = (foldersSection as HTMLElement).scrollTop;
+    }
+    this.currentFeed = feed;
+    this.currentFolder = null;
+    this.currentTag = null;
+    this.selectedArticle = null;
+
+    if (feed && feed.url) {
+      this.feedPages[feed.url] = 1;
+    }
+    void this.render();
+    if (this.sidebarContainer) {
+      window.setTimeout(() => {
+        const foldersSection = this.sidebarContainer?.querySelector(
+          ".rss-dashboard-feed-folders-section",
+        );
+        if (foldersSection)
+          (foldersSection as HTMLElement).scrollTop = scrollPosition;
+      }, 0);
+    }
+  }
+
+  private handleTagClick(tag: string | null): void {
+    this.currentTag = tag;
+    this.currentFolder = null;
+    this.currentFeed = null;
+    this.selectedArticle = null;
+    void this.render();
+  }
+
+  private handleToggleTagsCollapse(): void {
+    this.tagsCollapsed = !this.tagsCollapsed;
+    void this.render();
+  }
+
+  private handleToggleFolderCollapse(
+    folder: string,
+    shouldRerender = true,
+  ): void {
+    if (this.collapsedFolders.includes(folder)) {
+      this.collapsedFolders = this.collapsedFolders.filter((f) => f !== folder);
+    } else {
+      this.collapsedFolders.push(folder);
+    }
+    this.settings.collapsedFolders = this.collapsedFolders;
+    void this.plugin.saveSettings();
+
+    if (shouldRerender) {
+      void this.render();
+    }
+  }
+
+  private handleBatchToggleFolders(
+    foldersToCollapse: string[],
+    foldersToExpand: string[],
+  ): void {
+    this.collapsedFolders = this.collapsedFolders.filter(
+      (f) => !foldersToExpand.includes(f),
+    );
+    foldersToCollapse.forEach((folder) => {
+      if (!this.collapsedFolders.includes(folder)) {
+        this.collapsedFolders.push(folder);
+      }
+    });
+
+    this.settings.collapsedFolders = this.collapsedFolders;
+    void this.plugin.saveSettings();
+    void this.render();
+  }
+
+  private handleAddFolder(name: string): void {
+    void this.plugin.ensureFolderExists(name);
+  }
+
+  private handleAddSubfolder(parent: string, name: string): void {
+    void this.plugin.addSubfolder(parent, name);
+  }
+
+  private async handleAddFeed(
+    title: string,
+    url: string,
+    folder: string,
+    autoDeleteDuration?: number,
+    maxItemsLimit?: number,
+    scanInterval?: number,
+    feedFilters?: FeedFilterSettings,
+  ): Promise<void> {
+    await this.plugin.addFeed(
+      title,
+      url,
+      folder,
+      autoDeleteDuration,
+      maxItemsLimit,
+      scanInterval,
+      feedFilters,
+    );
+    void this.render();
+  }
+
+  private handleEditFeed(
+    feed: Feed,
+    title: string,
+    url: string,
+    folder: string,
+  ): void {
+    void this.plugin.editFeed(feed, title, url, folder);
+    void this.render();
+  }
+
+  private handleDeleteFeed(feed: Feed): void {
+    this.plugin.settings.feeds = this.plugin.settings.feeds.filter(
+      (f: Feed) => f !== feed,
+    );
+    void this.plugin.saveSettings();
+
+    if (this.currentFeed === feed) {
+      this.currentFeed = null;
+    }
+
+    void this.render();
+  }
+
+  private handleDeleteFolder(folder: string): void {
+    this.plugin.settings.feeds = this.plugin.settings.feeds.filter(
+      (feed: Feed) => feed.folder !== folder,
+    );
+
+    this.plugin.settings.folders = this.plugin.settings.folders.filter(
+      (f: { name: string }) => f.name !== folder,
+    );
+
+    void this.plugin.saveSettings();
+
+    if (this.currentFolder === folder) {
+      this.currentFolder = null;
+    }
+
+    void this.render();
+  }
+
+  private async handleRefreshFeeds(): Promise<void> {
+    if (this.currentFeed) {
+      await this.plugin.refreshSelectedFeed(this.currentFeed);
+    } else if (
+      this.currentFolder &&
+      !["read", "unread", "starred", "saved", "videos", "podcasts"].includes(
+        this.currentFolder,
+      )
+    ) {
+      await this.plugin.refreshFeedsInFolder(this.currentFolder);
+    } else if (this.currentTag) {
+      const feedsWithTag = this.settings.feeds.filter((feed) =>
+        feed.items.some(
+          (item) =>
+            item.tags && item.tags.some((tag) => tag.name === this.currentTag),
+        ),
+      );
+      if (feedsWithTag.length > 0) {
+        await this.plugin.refreshFeeds(feedsWithTag);
+      } else {
+        new Notice("No feeds found with the selected tag");
+      }
+    } else {
+      await this.plugin.refreshFeeds();
+    }
+  }
+
+  private handleImportOpml(): void {
+    void this.plugin.importOpml();
+  }
+
+  private handleExportOpml(): void {
+    void this.plugin.exportOpml();
+  }
+
+  public openMobileSidebar(): void {
+    if (!this.shouldUseMobileSidebarMode()) {
+      this.closeMobileSidebarModal();
+      return;
+    }
+
+    // Keep one sidebar modal instance to prevent duplicate overlays.
+    if (this.mobileSidebarModal) {
+      return;
+    }
+
+    const modal = new MobileNavigationModal(
+      this.app,
+      this.plugin,
+      this.settings,
+      {
+        currentFolder: this.currentFolder,
+        currentFeed: this.currentFeed,
+        currentTag: this.currentTag,
+        tagsCollapsed: this.tagsCollapsed,
+        collapsedFolders: this.collapsedFolders,
+      },
+      {
+        onFolderClick: this.handleFolderClick.bind(this),
+        onFeedClick: this.handleFeedClick.bind(this),
+        onTagClick: this.handleTagClick.bind(this),
+        onToggleTagsCollapse: this.handleToggleTagsCollapse.bind(this),
+        onToggleFolderCollapse: this.handleToggleFolderCollapse.bind(this),
+        onBatchToggleFolders: this.handleBatchToggleFolders.bind(this),
+        onAddFolder: this.handleAddFolder.bind(this),
+        onAddSubfolder: this.handleAddSubfolder.bind(this),
+        onAddFeed: this.handleAddFeed.bind(this),
+        onEditFeed: this.handleEditFeed.bind(this),
+        onDeleteFeed: this.handleDeleteFeed.bind(this),
+        onDeleteFolder: this.handleDeleteFolder.bind(this),
+        onRefreshFeeds: this.handleRefreshFeeds.bind(this),
+        onUpdateFeed: this.handleUpdateFeed.bind(this),
+        onImportOpml: this.handleImportOpml.bind(this),
+        onExportOpml: this.handleExportOpml.bind(this),
+        onToggleSidebar: this.handleToggleSidebar.bind(this),
+        onManageFeeds: () => {
+          new FeedManagerModal(this.app, this.plugin).open();
+        },
+        onActivateDashboard: () => void this.plugin.activateView(),
+        onActivateDiscover: () => void this.plugin.activateDiscoverView(),
+      },
+    );
+
+    const originalOnClose = modal.onClose.bind(modal);
+    modal.onClose = () => {
+      originalOnClose();
+      if (this.mobileSidebarModal === modal) {
+        this.mobileSidebarModal = null;
+      }
+    };
+
+    this.mobileSidebarModal = modal;
+    modal.open();
+  }
+
+  private shouldUseMobileSidebarMode(viewportWidth?: number): boolean {
+    return shouldUseMobileSidebarLayout(viewportWidth);
+  }
+
+  private closeMobileSidebarModal(): void {
+    if (!this.mobileSidebarModal) {
+      return;
+    }
+    this.mobileSidebarModal.close();
+    this.mobileSidebarModal = null;
+  }
+
+  private handleViewportResizeModeTransition(): void {
+    const currentMode = this.shouldUseMobileSidebarMode(window.innerWidth);
+
+    if (this.lastViewportMobileSidebarMode === null) {
+      this.lastViewportMobileSidebarMode = currentMode;
+      return;
+    }
+
+    if (this.lastViewportMobileSidebarMode === currentMode) {
+      return;
+    }
+
+    this.lastViewportMobileSidebarMode = currentMode;
+
+    if (!currentMode) {
+      this.closeMobileSidebarModal();
+    }
+
+    this.render();
+  }
+
+  private handleToggleSidebar(): void {
+    if (this.shouldUseMobileSidebarMode()) {
+      this.openMobileSidebar();
+      return;
+    }
+    this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
+    void this.plugin.saveSettings();
+    void this.render();
+  }
+
+  private async handleArticleClick(article: FeedItem): Promise<void> {
+    this.selectedArticle = article;
+    this.articleList?.setSelectedArticle(article);
+
+    if (!article.read && this.settings.display.autoMarkReadOnOpen) {
+      await this.updateArticleStatus(article, { read: true }, false);
+    }
+
+    if (article.saved) {
+      const loadingNotice = new Notice("Opening saved article...", 0);
+      try {
+        const savedFile = await this.findSavedArticleFile(article);
+        if (savedFile) {
+          await this.openSavedArticleFile(savedFile);
+          loadingNotice.hide();
+          return;
         } else {
-            this.containerEl.removeClass('sidebar-collapsed');
+          await this.updateArticleStatus(article, { saved: false }, false);
+          if (article.tags) {
+            article.tags = article.tags.filter(
+              (tag) => tag.name.toLowerCase() !== "saved",
+            );
+          }
+          loadingNotice.hide();
+          new Notice(
+            "Saved article file not found. Opening original source instead.",
+          );
         }
+      } catch (error) {
+        loadingNotice.hide();
+        const message = error instanceof Error ? error.message : String(error);
+        new Notice(`Error opening saved article: ${message}`);
+      }
+    }
 
-        if (this.sidebar) {
-            this.sidebar.clearFolderPathCache();
-            this.sidebar["options"] = {
-                currentFolder: this.currentFolder,
-                currentFeed: this.currentFeed,
-                currentTag: this.currentTag,
-                tagsCollapsed: this.tagsCollapsed,
-                collapsedFolders: this.collapsedFolders
-            };
-            this.sidebar["settings"] = this.settings;
-            this.sidebar.render();
+    const readerLeaves =
+      this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
+    const results = await Promise.all(
+      readerLeaves.map(async (leaf) => {
+        if (requireApiVersion("1.7.2")) {
+          await leaf.loadIfDeferred();
         }
+        if (leaf.view instanceof ReaderView) {
+          return leaf.view.isPodcastPlaying();
+        }
+        return false;
+      }),
+    );
+    const podcastPlaying = results.some((result) => result);
 
-        
-        const container = this.containerEl.children[1];
-        let dashboardContainer = container.querySelector('.rss-dashboard-layout') as HTMLElement;
-        if (!dashboardContainer) {
-            dashboardContainer = container.createDiv({ cls: "rss-dashboard-layout" });
-        }
-        let contentContainer = dashboardContainer.querySelector('.rss-dashboard-content') as HTMLElement;
-        if (!contentContainer) {
-            contentContainer = dashboardContainer.createDiv({ cls: "rss-dashboard-content" });
+    if (podcastPlaying) {
+      if (this.settings.media.openInSplitView) {
+        if (
+          this.articleReaderLeafWhilePodcast &&
+          this.app.workspace
+            .getLeavesOfType(RSS_READER_VIEW_TYPE)
+            .includes(this.articleReaderLeafWhilePodcast)
+        ) {
+          await this.openArticleInSpecificLeaf(
+            article,
+            this.articleReaderLeafWhilePodcast,
+          );
         } else {
-            contentContainer.empty();
+          const newLeaf = await this.openArticleInNewTab(article);
+          this.articleReaderLeafWhilePodcast = newLeaf;
         }
+      } else {
+        window.open(article.link, "_blank");
+      }
+    } else {
+      this.articleReaderLeafWhilePodcast = null;
+      if (this.settings.media.openInSplitView) {
+        if (readerLeaves.length > 0) {
+          await this.openArticleInSpecificLeaf(article, readerLeaves[0]);
+        } else {
+          await this.openArticleInNewTab(article);
+        }
+      } else {
+        window.open(article.link, "_blank");
+      }
+    }
+  }
 
-        this.renderToolbar(contentContainer);
+  private async openArticleInNewTab(article: FeedItem): Promise<WorkspaceLeaf> {
+    const { workspace } = this.app;
+    const leaf = workspace.getLeaf(Platform.isMobile ? "tab" : "split");
+    if (leaf) {
+      await leaf.setViewState({
+        type: RSS_READER_VIEW_TYPE,
+        active: true,
+      });
+      await workspace.revealLeaf(leaf);
+      if (leaf.view instanceof ReaderView) {
+        const view = leaf.view;
+        view.setReturnLeaf(this.leaf);
+        const relatedItems = this.getRelatedItems(article);
+        await view.displayItem(article, relatedItems);
+      }
+    }
+    return leaf;
+  }
 
-        const articlesContainer = contentContainer.createDiv({ cls: "rss-dashboard-articles" });
-        const allFilteredArticles = this.getAllFilteredArticles();
+  private async openArticleInSpecificLeaf(
+    article: FeedItem,
+    leaf: WorkspaceLeaf,
+  ): Promise<void> {
+    if (leaf) {
+      await leaf.setViewState({
+        type: RSS_READER_VIEW_TYPE,
+        active: true,
+      });
+      await this.app.workspace.revealLeaf(leaf);
+      if (leaf.view instanceof ReaderView) {
+        const view = leaf.view;
+        view.setReturnLeaf(this.leaf);
+        const relatedItems = this.getRelatedItems(article);
+        await view.displayItem(article, relatedItems);
+      }
+    }
+  }
+
+  private getRelatedItems(article: FeedItem): FeedItem[] {
+    if (!article.feedUrl) return [];
+
+    const feed = this.settings.feeds.find(
+      (f: Feed) => f.url === article.feedUrl,
+    );
+    if (!feed) return [];
+
+    return feed.items
+      .filter((item) => item.guid !== article.guid)
+      .sort(
+        (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
+      )
+      .slice(0, 5);
+  }
+
+  private handleToggleViewStyle(style: "list" | "card"): void {
+    this.settings.viewStyle = style;
+    void this.plugin.saveSettings();
+    void this.render();
+  }
+
+  private async handleArticleUpdate(
+    article: FeedItem,
+    updates: Partial<FeedItem>,
+    shouldRerender = true,
+  ): Promise<void> {
+    await this.updateArticleStatus(article, updates, shouldRerender);
+  }
+
+  private async handleArticleSave(article: FeedItem): Promise<void> {
+    // Find the feed to check for custom template
+    const feed = this.settings.feeds.find(
+      (f: Feed) => f.url === article.feedUrl,
+    );
+    let customTemplate: string | undefined;
+
+    // If feed has a custom template ID, resolve it to the actual template content
+    if (feed?.customTemplate) {
+      const savedTemplates = this.settings.articleSaving.savedTemplates || [];
+      const templateObj = savedTemplates.find(
+        (t) => t.id === feed.customTemplate,
+      );
+      if (templateObj) {
+        customTemplate = templateObj.template;
+      }
+    }
+
+    const file = this.settings.articleSaving.saveFullContent
+      ? await this.saver.saveArticleWithFullContent(
+          article,
+          undefined,
+          customTemplate,
+        )
+      : await this.saver.saveArticle(article, undefined, customTemplate);
+
+    if (file) {
+      await this.updateArticleStatus(article, { saved: true }, false);
+      this.updateArticleSaveButton(article.guid);
+    }
+  }
+
+  private async updateArticleStatus(
+    article: FeedItem,
+    updates: Partial<FeedItem>,
+    shouldRerender = true,
+  ): Promise<void> {
+    const feed = this.settings.feeds.find(
+      (f: Feed) => f.url === article.feedUrl,
+    );
+
+    if (!feed) return;
+
+    const originalArticle = feed.items.find(
+      (item: FeedItem) => item.guid === article.guid,
+    );
+
+    if (!originalArticle) return;
+
+    Object.assign(originalArticle, updates);
+    Object.assign(article, updates);
+
+    if (updates.tags) {
+      originalArticle.tags = updates.tags;
+      article.tags = updates.tags;
+    }
+
+    await this.plugin.saveSettings();
+
+    if (shouldRerender) {
+      void this.render();
+    } else {
+      this.syncArticleListAfterUpdate(article);
+    }
+  }
+
+  public applyExternalArticleUpdate(
+    articleGuid: string,
+    feedUrl: string,
+    updates: Partial<FeedItem>,
+    shouldRerender = false,
+  ): void {
+    const feed = this.settings.feeds.find((f) => f.url === feedUrl);
+    if (!feed) return;
+
+    const originalArticle = feed.items.find(
+      (item) => item.guid === articleGuid,
+    );
+    if (!originalArticle) return;
+
+    Object.assign(originalArticle, updates);
+    if (updates.tags) {
+      originalArticle.tags = updates.tags;
+    }
+
+    if (this.selectedArticle?.guid === articleGuid) {
+      Object.assign(this.selectedArticle, updates);
+      if (updates.tags) {
+        this.selectedArticle.tags = updates.tags;
+      }
+    }
+
+    if (shouldRerender) {
+      void this.render();
+      return;
+    }
+
+    this.syncArticleListAfterUpdate(originalArticle);
+  }
+
+  private syncArticleListAfterUpdate(article: FeedItem): void {
+    if (!this.articleList) {
+      return;
+    }
+
+    if (!this.matchesFilters(article)) {
+      this.articleList.removeArticleInPlace(article.guid);
+      return;
+    }
+
+    if (!this.articleList.hasArticle(article.guid)) {
+      const inserted = this.articleList.insertArticleInPlace(
+        article,
+        this.settings.articleSort,
+      );
+
+      if (!inserted) {
+        const filtered = this.getFilteredArticles();
         const pageSize = this.getCurrentPageSize();
         const currentPage = this.getCurrentPage();
-        const totalArticles = allFilteredArticles.length;
-        const totalPages = Math.max(1, Math.ceil(totalArticles / pageSize));
         const startIdx = (currentPage - 1) * pageSize;
         const endIdx = startIdx + pageSize;
-        const articlesForPage = allFilteredArticles.slice(startIdx, endIdx);
-
-        this.articleList = new ArticleList(
-            articlesContainer,
-            this.settings,
-            this.getArticlesTitle(),
-            articlesForPage,
-            this.selectedArticle,
-            {
-                onArticleClick: (article) => { void this.handleArticleClick(article); },
-                onToggleViewStyle: this.handleToggleViewStyle.bind(this),
-                onRefreshFeeds: this.handleRefreshFeeds.bind(this),
-                onArticleUpdate: (article, updates, shouldRerender) => { void this.handleArticleUpdate(article, updates, shouldRerender); },
-                onArticleSave: (article) => { void this.handleArticleSave(article); },
-                onOpenSavedArticle: (article) => { void this.handleOpenSavedArticle(article); },
-                onOpenInReaderView: (article) => { void this.handleOpenInReaderView(article); },
-                onToggleSidebar: this.handleToggleSidebar.bind(this),
-                onSortChange: this.handleSortChange.bind(this),
-                onGroupChange: this.handleGroupChange.bind(this),
-                onFilterChange: this.handleFilterChange.bind(this),
-                onPageChange: this.handlePageChange.bind(this),
-                onPageSizeChange: this.handlePageSizeChange.bind(this)
-            },
-            currentPage,
-            totalPages,
-            pageSize,
-            totalArticles
+        const articlesForPage = filtered.slice(startIdx, endIdx);
+        this.articleList.refilter(
+          new Set(this.activeStatusFilters),
+          new Set(this.activeTagFilters),
+          this.filterLogic,
+          articlesForPage,
         );
-        this.articleList.render();
-        
-        
-        this.updateRefreshButtonText();
-    }
-    
-    private renderToolbar(container: HTMLElement): void {
-        container.createDiv({ cls: 'rss-dashboard-toolbar' });
-    }
-    
-    
-    private getArticlesTitle(): string {
-        if (this.currentFeed) {
-            return this.currentFeed.title;
-        } else if (this.currentFolder === "starred") {
-            return "Starred items";
-        } else if (this.currentFolder === "unread") {
-            return "Unread items";
-        } else if (this.currentFolder === "read") {
-            return "Read items";
-        } else if (this.currentFolder === "saved") {
-            return "Saved items";
-        } else if (this.currentFolder === "videos") {
-            return "Videos";
-        } else if (this.currentFolder === "podcasts") {
-            return "Podcasts";
-        } else if (this.currentTag) {
-            return `Tag: ${this.currentTag}`;
-        } else if (this.currentFolder) {
-            return this.currentFolder;
-        } else {
-            return "All articles";
-        }
-    }
-    
-    
-    private getFilteredArticles(): FeedItem[] {
-        let articles: FeedItem[] = [];
-        
-        if (this.currentFeed) {
-            const limit = this.currentFeed.maxItemsLimit || this.settings.maxItems;
-            articles = this.currentFeed.items.slice(0, limit);
-        } else {
-            
-            if (this.currentFolder === "starred") {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => item.starred)
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentFolder === "unread") {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => !item.read)
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url,
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentFolder === "read") {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => item.read)
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url,
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentFolder === "saved") {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => item.saved)
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url,
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentFolder === "videos") {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => item.mediaType === "video")
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url,
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentFolder === "podcasts") {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => item.mediaType === "podcast")
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url,
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentTag) {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => item.tags && item.tags.some(t => t.name === this.currentTag))
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url,
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentFolder) {
-                
-                const allFolders = this.getAllDescendantFolders(this.currentFolder);
-                for (const feed of this.settings.feeds) {
-                    if (feed.folder && allFolders.includes(feed.folder)) {
-                        articles = articles.concat(
-                            feed.items
-                                .map((item) => ({
-                                    ...item,
-                                    feedTitle: feed.title,
-                                    feedUrl: feed.url,
-                                }))
-                        );
-                    }
-                }
-            }
-            
-            else {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .map((item) => ({
-                            ...item,
-                            feedTitle: feed.title,
-                            feedUrl: feed.url,
-                        }))
-                    );
-                }
-            }
-        }
-        
-        if (this.settings.articleFilter.type === 'age' && typeof this.settings.articleFilter.value === 'number' && this.settings.articleFilter.value > 0) {
-            const maxAge = Date.now() - this.settings.articleFilter.value;
-            articles = articles.filter(a => new Date(a.pubDate).getTime() > maxAge);
-        }
+      }
 
-        if (this.settings.articleSort === 'oldest') {
-            articles.sort((a, b) => new Date(a.pubDate).getTime() - new Date(b.pubDate).getTime());
-        } else {
-            articles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-        }
-
-        
-        if (this.currentFolder === null && this.currentFeed === null && this.currentTag === null) {
-            
-            const pageSize = this.settings.allArticlesPageSize;
-            const start = 0;
-            const end = this.allArticlesPage * pageSize;
-            return articles.slice(start, end);
-        } else if (this.currentFolder === "unread") {
-            
-            const pageSize = this.settings.unreadArticlesPageSize;
-            const start = 0;
-            const end = this.unreadArticlesPage * pageSize;
-            return articles.slice(start, end);
-        } else if (this.currentFolder === "read") {
-            
-            const pageSize = this.settings.readArticlesPageSize;
-            const start = 0;
-            const end = this.readArticlesPage * pageSize;
-            return articles.slice(start, end);
-        } else if (this.currentFolder === "saved") {
-            
-            const pageSize = this.settings.savedArticlesPageSize;
-            const start = 0;
-            const end = this.savedArticlesPage * pageSize;
-            return articles.slice(start, end);
-        } else if (this.currentFolder === "starred") {
-            
-            const pageSize = this.settings.starredArticlesPageSize;
-            const start = 0;
-            const end = this.starredArticlesPage * pageSize;
-            return articles.slice(start, end);
-        }
-        
-        return articles;
-    }
-    
-    private findFolderByPath(path: string): Folder | null {
-        const parts = path.split("/");
-        let current: Folder | undefined = this.settings.folders.find(f => f.name === parts[0]);
-        for (let i = 1; i < parts.length && current; i++) {
-            current = (current.subfolders || []).find(f => f.name === parts[i]);
-        }
-        return current || null;
+      return;
     }
 
-    private getAllDescendantFolders(folderPath: string): string[] {
-        const result: string[] = [folderPath];
-        const folder = this.findFolderByPath(folderPath);
+    this.articleList.updateArticleInPlace(article);
+  }
 
-        function collect(f: Folder, base: string) {
-            if (f.subfolders) {
-                for (const sub of f.subfolders) {
-                    const subPath = base + '/' + sub.name;
-                    result.push(subPath);
-                    collect(sub, subPath);
-                }
-            }
-        }
-
-        if (folder) {
-            collect(folder, folderPath);
-        }
-
-        return result;
+  /**
+   * Checks if an item matches all active filters (sidebar tag/folder, header multi-filters, age filter).
+   */
+  private matchesFilters(item: FeedItem): boolean {
+    // 1. Check current tag (if selected in sidebar)
+    if (this.currentTag) {
+      if (!item.tags || !item.tags.some((t) => t.name === this.currentTag))
+        return false;
     }
 
-    
-    private handleFolderClick(folder: string | null): void {
-        let scrollPosition = 0;
-        if (this.sidebarContainer) {
-            const foldersSection = this.sidebarContainer.querySelector('.rss-dashboard-feed-folders-section');
-            if (foldersSection) scrollPosition = (foldersSection as HTMLElement).scrollTop;
-        }
-
-        
-        this.currentFeed = null;
-        this.currentTag = null;
-
-        
-        if (this.currentFolder !== folder) {
-            if (folder === "unread") {
-                this.unreadArticlesPage = 1;
-            } else if (folder === "read") {
-                this.readArticlesPage = 1;
-            } else if (folder === "saved") {
-                this.savedArticlesPage = 1;
-            } else if (folder === "starred") {
-                this.starredArticlesPage = 1;
-            } else if (folder === null) {
-                this.allArticlesPage = 1;
-            } else if (folder) {
-                this.folderPages[folder] = 1;
-            }
-        }
-
-        this.currentFolder = folder;
-
-        
-        if (this.sidebarContainer) {
-            const foldersSection = this.sidebarContainer.querySelector('.rss-dashboard-feed-folders-section');
-            if (foldersSection) (foldersSection as HTMLElement).scrollTop = scrollPosition;
-        }
-
-        void this.render();
-    }
-    
-    
-    private handleFeedClick(feed: Feed): void {
-        let scrollPosition = 0;
-        if (this.sidebarContainer) {
-            const foldersSection = this.sidebarContainer.querySelector('.rss-dashboard-feed-folders-section');
-            if (foldersSection) scrollPosition = (foldersSection as HTMLElement).scrollTop;
-        }
-        this.currentFeed = feed;
-        this.currentFolder = null;
-        this.currentTag = null;
-        this.selectedArticle = null;
-        
-        if (feed && feed.url) {
-            this.feedPages[feed.url] = 1;
-        }
-        void this.render();
-        if (this.sidebarContainer) {
-            window.setTimeout(() => {
-                const foldersSection = this.sidebarContainer?.querySelector('.rss-dashboard-feed-folders-section');
-                if (foldersSection) (foldersSection as HTMLElement).scrollTop = scrollPosition;
-            }, 0);
-        }
-    }
-    
-    
-    private handleTagClick(tag: string | null): void {
-        this.currentTag = tag;
-        this.currentFolder = null;
-        this.currentFeed = null;
-        this.selectedArticle = null;
-        void this.render();
-    }
-    
-    
-    private handleToggleTagsCollapse(): void {
-        this.tagsCollapsed = !this.tagsCollapsed;
-        void this.render();
-    }
-    
-    
-    private handleToggleFolderCollapse(folder: string, shouldRerender = true): void {
-        if (this.collapsedFolders.includes(folder)) {
-            this.collapsedFolders = this.collapsedFolders.filter(
-                (f) => f !== folder
-            );
-        } else {
-            this.collapsedFolders.push(folder);
-        }
-        this.settings.collapsedFolders = this.collapsedFolders;
-        void this.plugin.saveSettings();
-        
-        
-        if (shouldRerender) {
-            void this.render();
-        }
+    // 2. Check special folder status (if selected in sidebar)
+    const specialFolders = [
+      "read",
+      "unread",
+      "starred",
+      "saved",
+      "videos",
+      "podcasts",
+    ];
+    if (this.currentFolder && specialFolders.includes(this.currentFolder)) {
+      if (this.currentFolder === "starred" && !item.starred) return false;
+      if (this.currentFolder === "unread" && item.read) return false;
+      if (this.currentFolder === "read" && !item.read) return false;
+      if (this.currentFolder === "saved" && !item.saved) return false;
+      if (this.currentFolder === "videos" && item.mediaType !== "video")
+        return false;
+      if (this.currentFolder === "podcasts" && item.mediaType !== "podcast")
+        return false;
     }
 
-    private handleBatchToggleFolders(foldersToCollapse: string[], foldersToExpand: string[]): void {
-        
-        this.collapsedFolders = this.collapsedFolders.filter(f => !foldersToExpand.includes(f));
-        foldersToCollapse.forEach(folder => {
-            if (!this.collapsedFolders.includes(folder)) {
-                this.collapsedFolders.push(folder);
-            }
-        });
-        
-        this.settings.collapsedFolders = this.collapsedFolders;
-        void this.plugin.saveSettings();
-        void this.render();
-    }
-    
-    
-    private handleAddFolder(name: string): void {
-        void this.plugin.addFolder(name);
-    }
-    
-    
-    private handleAddSubfolder(parent: string, name: string): void {
-        void this.plugin.addSubfolder(parent, name);
-    }
-    
-    
-    private async handleAddFeed(title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number): Promise<void> {
-        await this.plugin.addFeed(title, url, folder, autoDeleteDuration, maxItemsLimit, scanInterval);
-        void this.render();
-    }
-    
-   
-    private handleEditFeed(feed: Feed, title: string, url: string, folder: string): void {
-        void this.plugin.editFeed(feed, title, url, folder);
-        void this.render();
-    }
-    
- 
-    private handleDeleteFeed(feed: Feed): void {
-        this.plugin.settings.feeds = this.plugin.settings.feeds.filter((f: Feed) => f !== feed);
-        void this.plugin.saveSettings();
-        
-        
-        if (this.currentFeed === feed) {
-            this.currentFeed = null;
+    // 3. Check multi-filters (header checkboxes)
+    if (this.activeStatusFilters.size > 0 || this.activeTagFilters.size > 0) {
+      const isRead = !!item.read;
+      const isSaved = !!item.saved;
+      const isStarred = !!item.starred;
+
+      if (this.filterLogic === "AND") {
+        // Strict matching: Item MUST satisfy EVERY checked status filter
+        if (this.activeStatusFilters.has("unread") && isRead) return false;
+        if (this.activeStatusFilters.has("read") && !isRead) return false;
+        if (this.activeStatusFilters.has("saved") && !isSaved) return false;
+        if (this.activeStatusFilters.has("starred") && !isStarred) return false;
+        if (
+          this.activeStatusFilters.has("videos") &&
+          item.mediaType !== "video"
+        )
+          return false;
+        if (
+          this.activeStatusFilters.has("podcasts") &&
+          item.mediaType !== "podcast"
+        )
+          return false;
+        if (
+          this.activeStatusFilters.has("tagged") &&
+          (!item.tags || item.tags.length === 0)
+        )
+          return false;
+
+        // Specific tag checks (AND mode: match ANY of the selected tags)
+        if (this.activeTagFilters.size > 0) {
+          if (!item.tags || item.tags.length === 0) return false;
+          const itemTagNames = item.tags.map((t) => t.name);
+          const tagMatch = Array.from(this.activeTagFilters).some((tagName) =>
+            itemTagNames.includes(tagName),
+          );
+          if (!tagMatch) return false;
         }
-        
-        void this.render();
+      } else {
+        // "Or" (OR) logic: Item matches if it satisfies ANY checked filter.
+        let match = false;
+        if (this.activeStatusFilters.has("unread") && !isRead) match = true;
+        else if (this.activeStatusFilters.has("read") && isRead) match = true;
+        else if (this.activeStatusFilters.has("saved") && isSaved) match = true;
+        else if (this.activeStatusFilters.has("starred") && isStarred)
+          match = true;
+        else if (
+          this.activeStatusFilters.has("videos") &&
+          item.mediaType === "video"
+        )
+          match = true;
+        else if (
+          this.activeStatusFilters.has("podcasts") &&
+          item.mediaType === "podcast"
+        )
+          match = true;
+        else if (
+          this.activeStatusFilters.has("tagged") &&
+          item.tags &&
+          item.tags.length > 0
+        )
+          match = true;
+        else if (
+          this.activeTagFilters.size > 0 &&
+          item.tags &&
+          item.tags.length > 0
+        ) {
+          const itemTagNames = item.tags.map((t) => t.name);
+          if (
+            Array.from(this.activeTagFilters).some((tagName) =>
+              itemTagNames.includes(tagName),
+            )
+          ) {
+            match = true;
+          }
+        }
+        if (!match) return false;
+      }
     }
-    
-    
-    private handleDeleteFolder(folder: string): void {
-        
-        this.plugin.settings.feeds = this.plugin.settings.feeds.filter(
-            (feed: Feed) => feed.folder !== folder
+
+    // 4. Check age filter
+    if (
+      this.settings.articleFilter.type === "age" &&
+      typeof this.settings.articleFilter.value === "number" &&
+      this.settings.articleFilter.value > 0
+    ) {
+      const maxAge = Date.now() - this.settings.articleFilter.value;
+      if (new Date(item.pubDate).getTime() <= maxAge) return false;
+    }
+
+    return true;
+  }
+
+  public updateArticleSaveButton(articleGuid: string): void {
+    const articleEl = document.getElementById(`article-${articleGuid}`);
+    if (articleEl) {
+      const saveButton = articleEl.querySelector(".rss-dashboard-save-toggle");
+      if (saveButton) {
+        saveButton.classList.add("saved");
+      }
+    }
+  }
+
+  showEditFeedModal(feed: Feed): void {
+    this.sidebar.showEditFeedModal(feed);
+  }
+
+  /**
+   * Refresh only the filter/highlight status subheader without rebuilding the
+   * articles list. This preserves current scroll position while keeping counts
+   * and chips in sync with latest settings.
+   */
+  refreshFilterStatusBarOnly(): void {
+    const contentContainer = this.containerEl.querySelector<HTMLElement>(
+      ".rss-dashboard-content",
+    );
+    if (!contentContainer) return;
+
+    const existingSubheader = contentContainer.querySelector(
+      ".rss-dashboard-filter-subheader",
+    );
+    existingSubheader?.remove();
+
+    const allFilteredArticles = this.getFilteredArticles();
+    this.computeHighlightMatchCounts(allFilteredArticles);
+    this.renderFilterSubheader(contentContainer);
+
+    const newSubheader = contentContainer.querySelector(
+      ".rss-dashboard-filter-subheader",
+    );
+    const articlesContainer = contentContainer.querySelector(
+      ".rss-dashboard-articles",
+    );
+    if (newSubheader && articlesContainer) {
+      contentContainer.insertBefore(newSubheader, articlesContainer);
+    }
+  }
+
+  refresh(): void {
+    this.render();
+  }
+
+  onClose(): Promise<void> {
+    this.closeMobileSidebarModal();
+    this.lastViewportMobileSidebarMode = null;
+
+    if (this.verificationTimeout) {
+      window.clearTimeout(this.verificationTimeout);
+    }
+    if (this.articleList) {
+      this.articleList.destroy();
+    }
+    this.sidebar?.destroy();
+    this.resizeHandle = null;
+    this.dashboardContainer = null;
+    return Promise.resolve();
+  }
+
+  private setupSidebarResize(): void {
+    // Don't setup resize on mobile/tablet
+    if (this.shouldUseMobileSidebarMode()) {
+      return;
+    }
+
+    // Remove existing resize handle if any
+    if (this.resizeHandle) {
+      this.resizeHandle.remove();
+    }
+
+    // Append the resize handle to the LAYOUT container, not the sidebar.
+    // The layout container is bounded (overflow: hidden, height: 100%) so the
+    // handle's top:0/bottom:0 spans the full visible panel height. Attaching
+    // to the sidebar fails because: (a) the sidebar's overflow: hidden clips
+    // half the handle's width, cutting the hitbox in half; and (b) when
+    // sidebar content is taller than the viewport the handle stops short of
+    // the bottom of the panel.
+    if (this.dashboardContainer) {
+      this.resizeHandle = this.dashboardContainer.createDiv({
+        cls: "rss-dashboard-sidebar-resize-handle",
+      });
+    }
+
+    // Apply saved width
+    this.applySidebarWidth();
+
+    // Setup drag handlers using registerDomEvent for proper cleanup
+    if (this.resizeHandle) {
+      this.registerDomEvent(this.resizeHandle, "mousedown", (e) => {
+        this.handleResizeStart(e);
+      });
+    }
+    this.registerDomEvent(document, "mousemove", (e) => {
+      this.handleResizeMove(e);
+    });
+    this.registerDomEvent(document, "mouseup", () => {
+      this.handleResizeEnd();
+    });
+  }
+
+  private handleResizeStart(e: MouseEvent): void {
+    e.preventDefault();
+    this.isResizing = true;
+    this.resizeHandle?.addClass("dragging");
+    this.dashboardContainer?.addClass("resizing");
+  }
+
+  private handleResizeMove(e: MouseEvent): void {
+    if (!this.isResizing) return;
+
+    const containerRect = this.containerEl.getBoundingClientRect();
+    let newWidth = e.clientX - containerRect.left;
+
+    // Apply constraints
+    const minWidth = 200;
+    const maxWidth = 500;
+    newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+
+    this.settings.sidebarWidth = newWidth;
+    this.applySidebarWidth();
+  }
+
+  private handleResizeEnd(): void {
+    if (!this.isResizing) return;
+
+    this.isResizing = false;
+    this.resizeHandle?.removeClass("dragging");
+    this.dashboardContainer?.removeClass("resizing");
+
+    // Save width to settings
+    void this.plugin.saveSettings();
+  }
+
+  private applySidebarWidth(): void {
+    if (this.sidebarContainer && !this.settings.sidebarCollapsed) {
+      const width = this.settings.sidebarWidth || 280;
+      this.sidebarContainer.style.width = `${width}px`;
+      // Keep the resize handle pinned to the sidebar's right edge.
+      // CSS `transform: translateX(-50%)` on the handle centers it on this
+      // position, giving equal hitbox on both sides of the border line.
+      if (this.resizeHandle) {
+        this.resizeHandle.style.left = `${width}px`;
+      }
+    }
+  }
+
+  private async handleUpdateFeed(feed: Feed): Promise<void> {
+    try {
+      new Notice(`Updating feed "${feed.title}"...`);
+
+      const updatedFeed = await this.plugin.feedParser.parseFeed(
+        feed.url,
+        feed,
+      );
+
+      if (updatedFeed) {
+        const feedIndex = this.settings.feeds.findIndex(
+          (f) => f.url === feed.url,
         );
-        
-        
-        this.plugin.settings.folders = this.plugin.settings.folders.filter(
-            (f: { name: string }) => f.name !== folder
+        if (feedIndex >= 0) {
+          this.settings.feeds[feedIndex] = updatedFeed;
+          await this.plugin.saveSettings();
+        }
+      }
+
+      void this.render();
+      new Notice(`Feed "${feed.title}" updated successfully`);
+    } catch (error) {
+      new Notice(
+        `Error updating feed "${feed.title}": ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  private updateRefreshButtonText(): void {
+    if (!this.articleList) return;
+
+    let refreshText = "Refresh all feeds";
+
+    if (this.currentFeed) {
+      refreshText = `Refresh feed: "${this.currentFeed.title}"`;
+    } else if (
+      this.currentFolder &&
+      !["read", "unread", "starred", "saved", "videos", "podcasts"].includes(
+        this.currentFolder,
+      )
+    ) {
+      const feedsInFolder = this.settings.feeds.filter((feed) => {
+        if (!feed.folder) return false;
+        return (
+          feed.folder === this.currentFolder ||
+          feed.folder.startsWith(this.currentFolder + "/")
         );
-        
-        void this.plugin.saveSettings();
-        
-        
-        if (this.currentFolder === folder) {
-            this.currentFolder = null;
-        }
-        
-        void this.render();
-    }
-    
-    
-    private handleRefreshFeeds(): void {
-        
-        if (this.currentFeed) {
-            void this.plugin.refreshSelectedFeed(this.currentFeed);
-        }
-        
-        else if (this.currentFolder && 
-                 !["read", "unread", "starred", "saved", "videos", "podcasts"].includes(this.currentFolder)) {
-            void this.plugin.refreshFeedsInFolder(this.currentFolder);
-        }
-        
-        else if (this.currentTag) {
-            const feedsWithTag = this.settings.feeds.filter(feed => 
-                feed.items.some(item => item.tags && item.tags.some(tag => tag.name === this.currentTag))
-            );
-            if (feedsWithTag.length > 0) {
-                void this.plugin.refreshFeeds(feedsWithTag);
-            } else {
-                new Notice("No feeds found with the selected tag");
-            }
-        }
-        
-        else {
-            void this.plugin.refreshFeeds();
-        }
-    }
-    
-    
-    private handleImportOpml(): void {
-        void this.plugin.importOpml();
-    }
-    
-    
-    private handleExportOpml(): void {
-        void this.plugin.exportOpml();
-    }
-    
-    
-    private handleToggleSidebar(): void {
-        this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
-        void this.plugin.saveSettings();
-        void this.render();
-    }
-    
-
-    private async handleArticleClick(article: FeedItem): Promise<void> {
-        this.selectedArticle = article;
-        
-        if (!article.read) {
-            await this.updateArticleStatus(article, { read: true }, false);
-        }
-        
-        
-        if (article.saved) {
-            const loadingNotice = new Notice("Opening saved article...", 0);
-            try {
-                const savedFile = await this.findSavedArticleFile(article);
-                if (savedFile) {
-                    await this.openSavedArticleFile(savedFile);
-                    loadingNotice.hide();
-                    return;
-                } else {
-                    
-                    await this.updateArticleStatus(article, { saved: false }, false);
-                    if (article.tags) {
-                        article.tags = article.tags.filter(tag => tag.name.toLowerCase() !== "saved");
-                    }
-                    loadingNotice.hide();
-                    new Notice("Saved article file not found. Opening original source instead.");
-                }
-            } catch (error) {
-                loadingNotice.hide();
-                const message = error instanceof Error ? error.message : String(error);
-                new Notice(`Error opening saved article: ${message}`);
-            }
-        }
-        
-        
-        const readerLeaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
-        const results = await Promise.all(readerLeaves.map(async (leaf) => {
-            if (requireApiVersion('1.7.2')) {
-                await leaf.loadIfDeferred();
-            }
-            if (leaf.view instanceof ReaderView) {
-                return leaf.view.isPodcastPlaying();
-            }
-            return false;
-        }));
-        const podcastPlaying = results.some(result => result);
-        
-        if (podcastPlaying) {
-            if (this.settings.media.openInSplitView) {
-                
-                if (
-                    this.articleReaderLeafWhilePodcast &&
-                    this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE).includes(this.articleReaderLeafWhilePodcast)
-                ) {
-                    await this.openArticleInSpecificLeaf(article, this.articleReaderLeafWhilePodcast);
-                } else {
-                    
-                    const newLeaf = await this.openArticleInNewTab(article);
-                    this.articleReaderLeafWhilePodcast = newLeaf;
-                }
-            } else {
-                window.open(article.link, "_blank");
-            }
-        } else {
-            
-            this.articleReaderLeafWhilePodcast = null;
-            if (this.settings.media.openInSplitView) {
-                
-                if (readerLeaves.length > 0) {
-                    await this.openArticleInSpecificLeaf(article, readerLeaves[0]);
-                } else {
-                    await this.openArticleInNewTab(article);
-                }
-            } else {
-                window.open(article.link, "_blank");
-            }
-        }
-    }
-    
-    
-    private async openArticleInNewTab(article: FeedItem): Promise<WorkspaceLeaf> {
-        const { workspace } = this.app;
-        const leaf = workspace.getLeaf("split");
-        if (leaf) {
-            await leaf.setViewState({
-                type: RSS_READER_VIEW_TYPE,
-                active: true,
-            });
-            await workspace.revealLeaf(leaf);
-            if (leaf.view instanceof ReaderView) {
-                const view = leaf.view;
-                const relatedItems = this.getRelatedItems(article);
-                await view.displayItem(article, relatedItems);
-            }
-        }
-        return leaf;
+      });
+      refreshText = `Refresh ${feedsInFolder.length} feed${feedsInFolder.length !== 1 ? "s" : ""} in folder: "${this.currentFolder}"`;
+    } else if (this.currentTag) {
+      const feedsWithTag = this.settings.feeds.filter((feed) =>
+        feed.items.some(
+          (item) =>
+            item.tags && item.tags.some((tag) => tag.name === this.currentTag),
+        ),
+      );
+      refreshText = `Refresh ${feedsWithTag.length} feed${feedsWithTag.length !== 1 ? "s" : ""} with tag: "${this.currentTag}"`;
+    } else {
+      refreshText = `Refresh all ${this.settings.feeds.length} feeds`;
     }
 
-    
-    private async openArticleInSpecificLeaf(article: FeedItem, leaf: WorkspaceLeaf): Promise<void> {
-        if (leaf) {
-            await leaf.setViewState({
-                type: RSS_READER_VIEW_TYPE,
-                active: true,
-            });
-            await this.app.workspace.revealLeaf(leaf);
-            if (leaf.view instanceof ReaderView) {
-                const view = leaf.view;
-                const relatedItems = this.getRelatedItems(article);
-                await view.displayItem(article, relatedItems);
-            }
-        }
-    }
-    
-    
-    private getRelatedItems(article: FeedItem): FeedItem[] {
-        if (!article.feedUrl) return [];
-        
-        
-        const feed = this.settings.feeds.find((f: Feed) => f.url === article.feedUrl);
-        if (!feed) return [];
-        
-        
-        return feed.items
-            .filter(item => item.guid !== article.guid)
-            .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
-            .slice(0, 5);
-    }
-    
-    
-    private handleToggleViewStyle(style: "list" | "card"): void {
-        this.settings.viewStyle = style;
-        void this.plugin.saveSettings();
-        void this.render();
-    }
-    
-    
-    private async handleArticleUpdate(article: FeedItem, updates: Partial<FeedItem>, shouldRerender = true): Promise<void> {
-        await this.updateArticleStatus(article, updates, shouldRerender);
-    }
-    
-    
-    private async handleArticleSave(article: FeedItem): Promise<void> {
-        // Find the feed to check for custom template
-        const feed = this.settings.feeds.find((f: Feed) => f.url === article.feedUrl);
-        let customTemplate: string | undefined;
+    this.articleList.updateRefreshButtonText(refreshText);
+  }
 
-        // If feed has a custom template ID, resolve it to the actual template content
-        if (feed?.customTemplate) {
-            const savedTemplates = this.settings.articleSaving.savedTemplates || [];
-            const templateObj = savedTemplates.find(t => t.id === feed.customTemplate);
-            if (templateObj) {
-                customTemplate = templateObj.template;
-            }
-        }
+  private handleSortChange(value: "newest" | "oldest"): void {
+    this.settings.articleSort = value;
+    void this.plugin.saveSettings();
+    void this.render();
+  }
 
-        const file = this.settings.articleSaving.saveFullContent
-            ? await this.saver.saveArticleWithFullContent(article, undefined, customTemplate)
-            : await this.saver.saveArticle(article, undefined, customTemplate);
-
-        if (file) {
-            await this.updateArticleStatus(article, { saved: true }, false);
-            this.updateArticleSaveButton(article.guid);
-        }
+  private handleFilterChange(filter: {
+    type: string;
+    value: unknown;
+    checked?: boolean;
+    isTag?: boolean;
+    logic?: "AND" | "OR";
+  }): void {
+    if (filter.type === "logic" && filter.logic) {
+      this.filterLogic = filter.logic;
+    } else if (filter.type === "status-bar-visibility") {
+      this.settings.display.showFilterStatusBar = filter.checked ?? true;
+      void this.plugin.saveSettings();
+      void this.render();
+      return;
+    } else if (filter.type === "bypass-filters") {
+      if (!this.settings.filters) {
+        this.settings.filters = {
+          includeLogic: "AND",
+          bypassAll: false,
+          rules: [],
+        };
+      }
+      this.settings.filters.bypassAll = filter.checked ?? false;
+      void this.plugin.saveSettings();
+      void this.render();
+      return;
+    } else if (filter.type === "highlights") {
+      // Highlights toggle - requires saving settings and full re-render
+      if (!this.settings.highlights) {
+        this.settings.highlights = {
+          enabled: false,
+          defaultColor: "#ffd700",
+          highlightInContent: true,
+          highlightInTitles: true,
+          highlightInSummaries: true,
+          words: [],
+        };
+      }
+      this.settings.highlights.enabled = filter.checked ?? false;
+      void this.plugin.saveSettings();
+      void this.render();
+      return;
+    } else if (filter.isTag) {
+      if (filter.checked) {
+        this.activeTagFilters.add(filter.type);
+      } else {
+        this.activeTagFilters.delete(filter.type);
+      }
+    } else if (filter.checked !== undefined) {
+      const filterType = filter.type.toLowerCase();
+      if (filter.checked) {
+        this.activeStatusFilters.add(filterType);
+      } else {
+        this.activeStatusFilters.delete(filterType);
+      }
+    } else {
+      // Age filter - requires saving settings and full re-render
+      this.settings.articleFilter = {
+        type: filter.type as
+          | "age"
+          | "read"
+          | "unread"
+          | "starred"
+          | "saved"
+          | "none",
+        value: filter.value,
+      };
+      void this.plugin.saveSettings();
+      void this.render();
+      return;
     }
-    
-    
-    private async updateArticleStatus(article: FeedItem, updates: Partial<FeedItem>, shouldRerender = true): Promise<void> {
-        
-        const feed = this.settings.feeds.find((f: Feed) => f.url === article.feedUrl);
-        
-        if (!feed) return;
 
-        
-        const originalArticle = feed.items.find(
-            (item: FeedItem) => item.guid === article.guid
+    // For status/tag/logic changes, do a partial re-render
+    // so the filter menu stays open
+    if (this.articleList) {
+      const filtered = this.getFilteredArticles();
+      this.articleList.refilter(
+        new Set(this.activeStatusFilters),
+        new Set(this.activeTagFilters),
+        this.filterLogic,
+        filtered,
+      );
+    }
+  }
+
+  private handleGroupChange(value: "none" | "feed" | "date" | "folder"): void {
+    this.settings.articleGroupBy = value;
+    void this.plugin.saveSettings();
+    void this.render();
+  }
+
+  private getTotalArticlesCountForCurrentView(): number {
+    let articles: FeedItem[] = [];
+
+    if (this.currentFeed) {
+      return this.currentFeed.items.length;
+    }
+
+    if (this.currentFolder === "starred") {
+      for (const feed of this.settings.feeds) {
+        articles = articles.concat(feed.items.filter((item) => item.starred));
+      }
+    } else if (this.currentFolder === "unread") {
+      for (const feed of this.settings.feeds) {
+        articles = articles.concat(feed.items.filter((item) => !item.read));
+      }
+    } else if (this.currentFolder === "read") {
+      for (const feed of this.settings.feeds) {
+        articles = articles.concat(feed.items.filter((item) => item.read));
+      }
+    } else if (this.currentFolder === "saved") {
+      for (const feed of this.settings.feeds) {
+        articles = articles.concat(feed.items.filter((item) => item.saved));
+      }
+    } else if (this.currentFolder === "videos") {
+      for (const feed of this.settings.feeds) {
+        articles = articles.concat(
+          feed.items.filter((item) => item.mediaType === "video"),
         );
-        
-        if (!originalArticle) return;
-
-        
-        Object.assign(originalArticle, updates);
-        Object.assign(article, updates);
-
-        
-        if (updates.tags) {
-            originalArticle.tags = updates.tags;
-            article.tags = updates.tags;
-        }
-
-        
-        await this.plugin.saveSettings();
-
-        
-        if (shouldRerender) {
-            void this.render();
-        }
-    }
-    
-    
-    public updateArticleSaveButton(articleGuid: string): void {
-        const articleEl = document.getElementById(`article-${articleGuid}`);
-        if (articleEl) {
-            const saveButton = articleEl.querySelector('.rss-dashboard-save-toggle');
-            if (saveButton) {
-                saveButton.classList.add('saved');
-            }
-        }
-    }
-    
-    
-    showEditFeedModal(feed: Feed): void {
-        this.sidebar.showEditFeedModal(feed);
-    }
-    
-    
-    refresh(): void {
-        this.render();
-    }
-
-    onClose(): Promise<void> {
-        if (this.verificationTimeout) {
-            window.clearTimeout(this.verificationTimeout);
-        }
-        if (this.articleList) {
-            this.articleList.destroy();
-        }
-        return Promise.resolve();
-    }
-
-    
-    private async handleUpdateFeed(feed: Feed): Promise<void> {
-        try {
-            
-            new Notice(`Updating feed "${feed.title}"...`);
-            
-            
-            const updatedFeed = await this.plugin.feedParser.parseFeed(feed.url, feed);
-            
-            
-            if (updatedFeed) {
-                const feedIndex = this.settings.feeds.findIndex(f => f.url === feed.url);
-                if (feedIndex >= 0) {
-                    this.settings.feeds[feedIndex] = updatedFeed;
-                    await this.plugin.saveSettings();
-                }
-            }
-            
-            
-            void this.render();
-            new Notice(`Feed "${feed.title}" updated successfully`);
-            
-        } catch (error) {
-            
-            new Notice(`Error updating feed "${feed.title}": ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    }
-
-    private updateRefreshButtonText(): void {
-        if (!this.articleList) return;
-        
-        let refreshText = "Refresh all feeds";
-        
-        
-        if (this.currentFeed) {
-            refreshText = `Refresh feed: "${this.currentFeed.title}"`;
-        }
-        
-        else if (this.currentFolder && 
-                 !["read", "unread", "starred", "saved", "videos", "podcasts"].includes(this.currentFolder)) {
-            const feedsInFolder = this.settings.feeds.filter(feed => {
-                if (!feed.folder) return false;
-                return feed.folder === this.currentFolder || feed.folder.startsWith(this.currentFolder + '/');
-            });
-            refreshText = `Refresh ${feedsInFolder.length} feed${feedsInFolder.length !== 1 ? 's' : ''} in folder: "${this.currentFolder}"`;
-        }
-        
-        else if (this.currentTag) {
-            const feedsWithTag = this.settings.feeds.filter(feed => 
-                feed.items.some(item => item.tags && item.tags.some(tag => tag.name === this.currentTag))
-            );
-            refreshText = `Refresh ${feedsWithTag.length} feed${feedsWithTag.length !== 1 ? 's' : ''} with tag: "${this.currentTag}"`;
-        }
-        
-        else {
-            refreshText = `Refresh all ${this.settings.feeds.length} feeds`;
-        }
-        
-        this.articleList.updateRefreshButtonText(refreshText);
-    }
-
-    private handleSortChange(value: 'newest' | 'oldest'): void {
-        this.settings.articleSort = value;
-        void this.plugin.saveSettings();
-        void this.render();
-    }
-
-    private handleFilterChange(value: { type: 'age' | 'read' | 'unread' | 'starred' | 'saved' | 'none'; value: unknown; }): void {
-        this.settings.articleFilter = value;
-        void this.plugin.saveSettings();
-        void this.render();
-    }
-
-    private handleGroupChange(value: 'none' | 'feed' | 'date' | 'folder'): void {
-        this.settings.articleGroupBy = value;
-        void this.plugin.saveSettings();
-        void this.render();
-    }
-
-    
-    private getTotalArticlesCountForCurrentView(): number {
-        let articles: FeedItem[] = [];
-        
-        if (this.currentFeed) {
-            return this.currentFeed.items.length;
-        }
-        
-        if (this.currentFolder === "starred") {
-            for (const feed of this.settings.feeds) {
-                articles = articles.concat(
-                    feed.items.filter((item) => item.starred)
-                );
-            }
-        } else if (this.currentFolder === "unread") {
-            for (const feed of this.settings.feeds) {
-                articles = articles.concat(
-                    feed.items.filter((item) => !item.read)
-                );
-            }
-        } else if (this.currentFolder === "read") {
-            for (const feed of this.settings.feeds) {
-                articles = articles.concat(
-                    feed.items.filter((item) => item.read)
-                );
-            }
-        } else if (this.currentFolder === "saved") {
-            for (const feed of this.settings.feeds) {
-                articles = articles.concat(
-                    feed.items.filter((item) => item.saved)
-                );
-            }
-        } else if (this.currentFolder === "videos") {
-            for (const feed of this.settings.feeds) {
-                articles = articles.concat(
-                    feed.items.filter((item) => item.mediaType === "video")
-                );
-            }
-        } else if (this.currentFolder === "podcasts") {
-            for (const feed of this.settings.feeds) {
-                articles = articles.concat(
-                    feed.items.filter((item) => item.mediaType === "podcast")
-                );
-            }
-        } else if (this.currentTag) {
-            for (const feed of this.settings.feeds) {
-                articles = articles.concat(
-                    feed.items.filter((item) => item.tags && item.tags.some(t => t.name === this.currentTag))
-                );
-            }
-        } else if (this.currentFolder) {
-            const allFolders = this.getAllDescendantFolders(this.currentFolder);
-            for (const feed of this.settings.feeds) {
-                if (feed.folder && allFolders.includes(feed.folder)) {
-                    articles = articles.concat(feed.items);
-                }
-            }
-        } else {
-            
-            for (const feed of this.settings.feeds) {
-                articles = articles.concat(feed.items);
-            }
-        }
-        
-        
-        if (this.settings.articleFilter.type === 'age' && typeof this.settings.articleFilter.value === 'number' && this.settings.articleFilter.value > 0) {
-            const maxAge = Date.now() - this.settings.articleFilter.value;
-            articles = articles.filter(a => new Date(a.pubDate).getTime() > maxAge);
-        }
-        
-        return articles.length;
-    }
-
-    
-    private getCurrentPage(): number {
-        if (this.currentFeed && this.currentFeed.url) {
-            return this.feedPages[this.currentFeed.url] || 1;
-        } else if (this.currentFolder && !["unread", "read", "saved", "starred", "videos", "podcasts"].includes(this.currentFolder)) {
-            return this.folderPages[this.currentFolder] || 1;
-        } else if (this.currentFolder === null && this.currentFeed === null && this.currentTag === null) {
-            return this.allArticlesPage;
-        } else if (this.currentFolder === "unread") {
-            return this.unreadArticlesPage;
-        } else if (this.currentFolder === "read") {
-            return this.readArticlesPage;
-        } else if (this.currentFolder === "saved") {
-            return this.savedArticlesPage;
-        } else if (this.currentFolder === "starred") {
-            return this.starredArticlesPage;
-        } else {
-            return this.allArticlesPage;
-        }
-    }
-
-    
-    private async findSavedArticleFile(article: FeedItem): Promise<TFile | null> {
-        if (!article.saved) {
-            return null;
-        }
-        
-        
-        if (article.savedFilePath) {
-            try {
-                const file = this.app.vault.getAbstractFileByPath(article.savedFilePath);
-                if (file !== null) {
-                    if (file instanceof TFile) {
-                        return file;
-                    }
-                } else {
-                    
-                    await this.updateArticleStatus(article, { saved: false, savedFilePath: undefined }, false);
-                    return null;
-                }
-            } catch {
-                // File path check failed, continue with filename search
-            }
-        }
-        
-        
-        const filename = this.sanitizeFilename(article.title);
-        const folder = this.settings.articleSaving.defaultFolder || '';
-        const expectedPath = folder && folder.trim() !== '' ? `${folder}/${filename}.md` : `${filename}.md`;
-        
-        try {
-            const file = this.app.vault.getAbstractFileByPath(expectedPath);
-            if (file !== null) {
-                if (file instanceof TFile) {
-                    
-                    await this.updateArticleStatus(article, { savedFilePath: expectedPath }, false);
-                    return file;
-                }
-            }
-        } catch {
-            // File lookup failed
-        }
-        
-        return null;
-    }
-    
-    
-    private async openSavedArticleFile(file: TFile): Promise<void> {
-        try {
-            
-            const leaf = this.app.workspace.getLeaf("split");
-            await leaf.openFile(file);
-            void this.app.workspace.revealLeaf(leaf);
-            
-            new Notice(`Opened saved article: ${file.basename}`);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            new Notice(`Error opening saved article: ${message}`);
-        }
-    }
-    
-    
-    private sanitizeFilename(name: string): string {
-        
-        const sanitized = name
-            .replace(/[/\\:*?"<>|]/g, '') 
-            .replace(/\s+/g, ' ') 
-            .trim(); 
-
-        
-        const words = sanitized.split(' ');
-        const shortened = words.slice(0, 5).join(' ');
-        return shortened.substring(0, 50);
-    }
-
-    
-    private async handleOpenSavedArticle(article: FeedItem): Promise<void> {
-        if (!article.saved) {
-            new Notice("Article is not saved locally");
-            return;
-        }
-        
-        
-        const loadingNotice = new Notice("Opening saved article...", 0);
-        
-        try {
-            const savedFile = await this.findSavedArticleFile(article);
-            if (savedFile) {
-                await this.openSavedArticleFile(savedFile);
-                loadingNotice.hide();
-            } else {
-                
-                
-                await this.updateArticleStatus(article, { saved: false }, false);
-                
-                
-                if (article.tags) {
-                    article.tags = article.tags.filter(tag => tag.name.toLowerCase() !== "saved");
-                }
-                
-                loadingNotice.hide();
-                new Notice("Saved article file not found. Article status updated.");
-            }
-        } catch (error) {
-            loadingNotice.hide();
-            const message = error instanceof Error ? error.message : String(error);
-            new Notice(`Error opening saved article: ${message}`);
-        }
-    }
-
-    
-    private async handleOpenInReaderView(article: FeedItem): Promise<void> {
-        this.selectedArticle = article;
-        
-        if (!article.read) {
-            await this.updateArticleStatus(article, { read: true }, false);
-        }
-        
-        const readerLeaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
-        const results = await Promise.all(readerLeaves.map(async (leaf) => {
-            if (requireApiVersion('1.7.2')) {
-                await leaf.loadIfDeferred();
-            }
-            if (leaf.view instanceof ReaderView) {
-                return leaf.view.isPodcastPlaying();
-            }
-            return false;
-        }));
-        const podcastPlaying = results.some(result => result);
-        
-        if (podcastPlaying) {
-            if (this.settings.media.openInSplitView) {
-                
-                if (
-                    this.articleReaderLeafWhilePodcast &&
-                    this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE).includes(this.articleReaderLeafWhilePodcast)
-                ) {
-                    await this.openArticleInSpecificLeaf(article, this.articleReaderLeafWhilePodcast);
-                } else {
-                    
-                    const newLeaf = await this.openArticleInNewTab(article);
-                    this.articleReaderLeafWhilePodcast = newLeaf;
-                }
-            } else {
-                window.open(article.link, "_blank");
-            }
-        } else {
-            
-            this.articleReaderLeafWhilePodcast = null;
-            if (this.settings.media.openInSplitView) {
-                
-                if (readerLeaves.length > 0) {
-                    await this.openArticleInSpecificLeaf(article, readerLeaves[0]);
-                } else {
-                    await this.openArticleInNewTab(article);
-                }
-            } else {
-                window.open(article.link, "_blank");
-            }
-        }
-    }
-
-    
-    private verifySavedArticles(): void {
-        const allArticles = this.getFilteredArticles();
-        this.saver.verifyAllSavedArticles(allArticles);
-    }
-
-    
-    private handleFileDeleted(file: TFile): void {
-        
-        const allArticles = this.getAllArticles();
-        const affectedArticles = allArticles.filter(article => 
-            article.saved && article.savedFilePath === file.path
+      }
+    } else if (this.currentFolder === "podcasts") {
+      for (const feed of this.settings.feeds) {
+        articles = articles.concat(
+          feed.items.filter((item) => item.mediaType === "podcast"),
         );
-        
-        
-        affectedArticles.forEach(article => {
-            article.saved = false;
-            article.savedFilePath = undefined;
-            
-            
-            if (article.tags) {
-                article.tags = article.tags.filter(tag => tag.name.toLowerCase() !== "saved");
-            }
-        });
-        
-        
-        if (affectedArticles.length > 0) {
-            void this.render();
-        }
-    }
-
-    
-    private handleFileRenamed(file: TFile, oldPath: string): void {
-        
-        const allArticles = this.getAllArticles();
-        const affectedArticles = allArticles.filter(article => 
-            article.saved && article.savedFilePath === oldPath
+      }
+    } else if (this.currentTag) {
+      for (const feed of this.settings.feeds) {
+        articles = articles.concat(
+          feed.items.filter(
+            (item) =>
+              item.tags && item.tags.some((t) => t.name === this.currentTag),
+          ),
         );
-        
-        
-        affectedArticles.forEach(article => {
-            article.saved = false;
-            article.savedFilePath = file.path;
-            
-            
-            if (article.tags) {
-                article.tags = article.tags.filter(tag => tag.name.toLowerCase() !== "saved");
-            }
-        });
-        
-        
-        if (affectedArticles.length > 0) {
-            void this.render();
+      }
+    } else if (this.currentFolder) {
+      const allFolders = this.getAllDescendantFolders(this.currentFolder);
+      for (const feed of this.settings.feeds) {
+        if (feed.folder && allFolders.includes(feed.folder)) {
+          articles = articles.concat(feed.items);
         }
+      }
+    } else {
+      for (const feed of this.settings.feeds) {
+        articles = articles.concat(feed.items);
+      }
     }
 
-    
-    private getAllArticles(): FeedItem[] {
-        let allArticles: FeedItem[] = [];
-        for (const feed of this.settings.feeds) {
-            allArticles = allArticles.concat(feed.items);
-        }
-        return allArticles;
+    if (
+      this.settings.articleFilter.type === "age" &&
+      typeof this.settings.articleFilter.value === "number" &&
+      this.settings.articleFilter.value > 0
+    ) {
+      const maxAge = Date.now() - this.settings.articleFilter.value;
+      articles = articles.filter((a) => new Date(a.pubDate).getTime() > maxAge);
     }
 
-    private handlePageChange(page: number): void {
-        if (this.currentFeed && this.currentFeed.url) {
-            this.feedPages[this.currentFeed.url] = page;
-        } else if (this.currentFolder && !["unread", "read", "saved", "starred", "videos", "podcasts"].includes(this.currentFolder)) {
-            this.folderPages[this.currentFolder] = page;
-        } else if (this.currentFolder === null && this.currentFeed === null && this.currentTag === null) {
-            this.allArticlesPage = page;
-        } else if (this.currentFolder === "unread") {
-            this.unreadArticlesPage = page;
-        } else if (this.currentFolder === "read") {
-            this.readArticlesPage = page;
-        } else if (this.currentFolder === "saved") {
-            this.savedArticlesPage = page;
-        } else if (this.currentFolder === "starred") {
-            this.starredArticlesPage = page;
-        }
-        void this.render();
+    return articles.length;
+  }
+
+  private getCurrentPage(): number {
+    if (this.currentFeed && this.currentFeed.url) {
+      return this.feedPages[this.currentFeed.url] || 1;
+    } else if (
+      this.currentFolder &&
+      !["unread", "read", "saved", "starred", "videos", "podcasts"].includes(
+        this.currentFolder,
+      )
+    ) {
+      return this.folderPages[this.currentFolder] || 1;
+    } else if (
+      this.currentFolder === null &&
+      this.currentFeed === null &&
+      this.currentTag === null
+    ) {
+      return this.allArticlesPage;
+    } else if (this.currentFolder === "unread") {
+      return this.unreadArticlesPage;
+    } else if (this.currentFolder === "read") {
+      return this.readArticlesPage;
+    } else if (this.currentFolder === "saved") {
+      return this.savedArticlesPage;
+    } else if (this.currentFolder === "starred") {
+      return this.starredArticlesPage;
+    } else {
+      return this.allArticlesPage;
+    }
+  }
+
+  private async findSavedArticleFile(article: FeedItem): Promise<TFile | null> {
+    if (!article.saved) {
+      return null;
     }
 
-    private handlePageSizeChange(pageSize: number): void {
-        if (this.currentFeed && this.currentFeed.url) {
-            this.feedPageSizes[this.currentFeed.url] = pageSize;
-        } else if (this.currentFolder && !["unread", "read", "saved", "starred", "videos", "podcasts"].includes(this.currentFolder)) {
-            this.folderPageSizes[this.currentFolder] = pageSize;
-        } else if (this.currentFolder === null && this.currentFeed === null && this.currentTag === null) {
-            this.settings.allArticlesPageSize = pageSize;
-        } else if (this.currentFolder === "unread") {
-            this.settings.unreadArticlesPageSize = pageSize;
-        } else if (this.currentFolder === "read") {
-            this.settings.readArticlesPageSize = pageSize;
-        } else if (this.currentFolder === "saved") {
-            this.settings.savedArticlesPageSize = pageSize;
-        } else if (this.currentFolder === "starred") {
-            this.settings.starredArticlesPageSize = pageSize;
-        }
-        void this.render();
-    }
-
-    private getAllFilteredArticles(): FeedItem[] {
-        
-        let articles: FeedItem[] = [];
-        
-        if (this.currentFeed) {
-            const limit = this.currentFeed.maxItemsLimit || this.settings.maxItems;
-            articles = this.currentFeed.items.slice(0, limit);
+    if (article.savedFilePath) {
+      try {
+        const file = this.app.vault.getAbstractFileByPath(
+          article.savedFilePath,
+        );
+        if (file !== null) {
+          if (file instanceof TFile) {
+            return file;
+          }
         } else {
-            
-            if (this.currentFolder === "starred") {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => item.starred)
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentFolder === "unread") {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => !item.read)
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url,
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentFolder === "read") {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => item.read)
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url,
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentFolder === "saved") {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => item.saved)
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url,
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentFolder === "videos") {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => item.mediaType === "video")
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url,
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentFolder === "podcasts") {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => item.mediaType === "podcast")
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url,
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentTag) {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .filter((item) => item.tags && item.tags.some(t => t.name === this.currentTag))
-                            .map((item) => ({
-                                ...item,
-                                feedTitle: feed.title,
-                                feedUrl: feed.url,
-                            }))
-                    );
-                }
-            }
-            
-            else if (this.currentFolder) {
-                
-                const allFolders = this.getAllDescendantFolders(this.currentFolder);
-                for (const feed of this.settings.feeds) {
-                    if (feed.folder && allFolders.includes(feed.folder)) {
-                        articles = articles.concat(
-                            feed.items
-                                .map((item) => ({
-                                    ...item,
-                                    feedTitle: feed.title,
-                                    feedUrl: feed.url,
-                                }))
-                        );
-                    }
-                }
-            }
-            
-            else {
-                for (const feed of this.settings.feeds) {
-                    articles = articles.concat(
-                        feed.items
-                            .map((item) => ({
-                            ...item,
-                            feedTitle: feed.title,
-                            feedUrl: feed.url,
-                        }))
-                    );
-                }
-            }
+          await this.updateArticleStatus(
+            article,
+            { saved: false, savedFilePath: undefined },
+            false,
+          );
+          return null;
         }
-        
-        if (this.settings.articleFilter.type === 'age' && typeof this.settings.articleFilter.value === 'number' && this.settings.articleFilter.value > 0) {
-            const maxAge = Date.now() - this.settings.articleFilter.value;
-            articles = articles.filter(a => new Date(a.pubDate).getTime() > maxAge);
+      } catch {
+        // File path check failed, continue with filename search
+      }
+    }
+
+    const filename = this.sanitizeFilename(article.title);
+    const folder = this.settings.articleSaving.defaultFolder || "";
+    const expectedPath =
+      folder && folder.trim() !== ""
+        ? `${folder}/${filename}.md`
+        : `${filename}.md`;
+
+    try {
+      const file = this.app.vault.getAbstractFileByPath(expectedPath);
+      if (file !== null) {
+        if (file instanceof TFile) {
+          await this.updateArticleStatus(
+            article,
+            { savedFilePath: expectedPath },
+            false,
+          );
+          return file;
+        }
+      }
+    } catch {
+      // File lookup failed
+    }
+
+    return null;
+  }
+
+  private async openSavedArticleFile(file: TFile): Promise<void> {
+    try {
+      const leaf = this.app.workspace.getLeaf("split");
+      await leaf.openFile(file);
+      void this.app.workspace.revealLeaf(leaf);
+
+      new Notice(`Opened saved article: ${file.basename}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      new Notice(`Error opening saved article: ${message}`);
+    }
+  }
+
+  private sanitizeFilename(name: string): string {
+    const sanitized = name
+      .replace(/[/\\:*?"<>|]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const words = sanitized.split(" ");
+    const shortened = words.slice(0, 5).join(" ");
+    return shortened.substring(0, 50);
+  }
+
+  private async handleOpenSavedArticle(article: FeedItem): Promise<void> {
+    if (!article.saved) {
+      new Notice("Article is not saved locally");
+      return;
+    }
+
+    const loadingNotice = new Notice("Opening saved article...", 0);
+
+    try {
+      const savedFile = await this.findSavedArticleFile(article);
+      if (savedFile) {
+        await this.openSavedArticleFile(savedFile);
+        loadingNotice.hide();
+      } else {
+        await this.updateArticleStatus(article, { saved: false }, false);
+
+        if (article.tags) {
+          article.tags = article.tags.filter(
+            (tag) => tag.name.toLowerCase() !== "saved",
+          );
         }
 
-        if (this.settings.articleSort === 'oldest') {
-            articles.sort((a, b) => new Date(a.pubDate).getTime() - new Date(b.pubDate).getTime());
+        loadingNotice.hide();
+        new Notice("Saved article file not found. Article status updated.");
+      }
+    } catch (error) {
+      loadingNotice.hide();
+      const message = error instanceof Error ? error.message : String(error);
+      new Notice(`Error opening saved article: ${message}`);
+    }
+  }
+
+  private async handleOpenInReaderView(article: FeedItem): Promise<void> {
+    this.selectedArticle = article;
+
+    if (!article.read) {
+      await this.updateArticleStatus(article, { read: true }, false);
+    }
+
+    const readerLeaves =
+      this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
+    const results = await Promise.all(
+      readerLeaves.map(async (leaf) => {
+        if (requireApiVersion("1.7.2")) {
+          await leaf.loadIfDeferred();
+        }
+        if (leaf.view instanceof ReaderView) {
+          return leaf.view.isPodcastPlaying();
+        }
+        return false;
+      }),
+    );
+    const podcastPlaying = results.some((result) => result);
+
+    if (podcastPlaying) {
+      if (this.settings.media.openInSplitView) {
+        if (
+          this.articleReaderLeafWhilePodcast &&
+          this.app.workspace
+            .getLeavesOfType(RSS_READER_VIEW_TYPE)
+            .includes(this.articleReaderLeafWhilePodcast)
+        ) {
+          await this.openArticleInSpecificLeaf(
+            article,
+            this.articleReaderLeafWhilePodcast,
+          );
         } else {
-            articles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+          const newLeaf = await this.openArticleInNewTab(article);
+          this.articleReaderLeafWhilePodcast = newLeaf;
         }
-
-        return articles;
-    }
-
-    private getCurrentPageSize(): number {
-        if (this.currentFeed && this.currentFeed.url) {
-            return this.feedPageSizes[this.currentFeed.url] || this.settings.allArticlesPageSize;
-        } else if (this.currentFolder && !["unread", "read", "saved", "starred", "videos", "podcasts"].includes(this.currentFolder)) {
-            return this.folderPageSizes[this.currentFolder] || this.settings.allArticlesPageSize;
-        } else if (this.currentFolder === null && this.currentFeed === null && this.currentTag === null) {
-            return this.settings.allArticlesPageSize;
-        } else if (this.currentFolder === "unread") {
-            return this.settings.unreadArticlesPageSize;
-        } else if (this.currentFolder === "read") {
-            return this.settings.readArticlesPageSize;
-        } else if (this.currentFolder === "saved") {
-            return this.settings.savedArticlesPageSize;
-        } else if (this.currentFolder === "starred") {
-            return this.settings.starredArticlesPageSize;
+      } else {
+        window.open(article.link, "_blank");
+      }
+    } else {
+      this.articleReaderLeafWhilePodcast = null;
+      if (this.settings.media.openInSplitView) {
+        if (readerLeaves.length > 0) {
+          await this.openArticleInSpecificLeaf(article, readerLeaves[0]);
+        } else {
+          await this.openArticleInNewTab(article);
         }
-        return this.settings.allArticlesPageSize;
+      } else {
+        window.open(article.link, "_blank");
+      }
     }
+  }
+
+  private verifySavedArticles(): void {
+    const allArticles = this.getFilteredArticles();
+    this.saver.verifyAllSavedArticles(allArticles);
+  }
+
+  private handleFileDeleted(file: TFile): void {
+    const allArticles = this.getAllArticles();
+    const affectedArticles = allArticles.filter(
+      (article) => article.saved && article.savedFilePath === file.path,
+    );
+
+    affectedArticles.forEach((article) => {
+      article.saved = false;
+      article.savedFilePath = undefined;
+
+      if (article.tags) {
+        article.tags = article.tags.filter(
+          (tag) => tag.name.toLowerCase() !== "saved",
+        );
+      }
+    });
+
+    if (affectedArticles.length > 0) {
+      void this.render();
+    }
+  }
+
+  private handleFileRenamed(file: TFile, oldPath: string): void {
+    const allArticles = this.getAllArticles();
+    const affectedArticles = allArticles.filter(
+      (article) => article.saved && article.savedFilePath === oldPath,
+    );
+
+    affectedArticles.forEach((article) => {
+      article.saved = false;
+      article.savedFilePath = file.path;
+
+      if (article.tags) {
+        article.tags = article.tags.filter(
+          (tag) => tag.name.toLowerCase() !== "saved",
+        );
+      }
+    });
+
+    if (affectedArticles.length > 0) {
+      void this.render();
+    }
+  }
+
+  private getAllArticles(): FeedItem[] {
+    let allArticles: FeedItem[] = [];
+    for (const feed of this.settings.feeds) {
+      allArticles = allArticles.concat(feed.items);
+    }
+    return allArticles;
+  }
+
+  private handlePageChange(page: number): void {
+    if (this.currentFeed && this.currentFeed.url) {
+      this.feedPages[this.currentFeed.url] = page;
+    } else if (
+      this.currentFolder &&
+      !["unread", "read", "saved", "starred", "videos", "podcasts"].includes(
+        this.currentFolder,
+      )
+    ) {
+      this.folderPages[this.currentFolder] = page;
+    } else if (
+      this.currentFolder === null &&
+      this.currentFeed === null &&
+      this.currentTag === null
+    ) {
+      this.allArticlesPage = page;
+    } else if (this.currentFolder === "unread") {
+      this.unreadArticlesPage = page;
+    } else if (this.currentFolder === "read") {
+      this.readArticlesPage = page;
+    } else if (this.currentFolder === "saved") {
+      this.savedArticlesPage = page;
+    } else if (this.currentFolder === "starred") {
+      this.starredArticlesPage = page;
+    }
+    void this.render();
+  }
+
+  private handlePageSizeChange(pageSize: number): void {
+    if (this.currentFeed && this.currentFeed.url) {
+      this.feedPageSizes[this.currentFeed.url] = pageSize;
+    } else if (
+      this.currentFolder &&
+      !["unread", "read", "saved", "starred", "videos", "podcasts"].includes(
+        this.currentFolder,
+      )
+    ) {
+      this.folderPageSizes[this.currentFolder] = pageSize;
+    } else if (
+      this.currentFolder === null &&
+      this.currentFeed === null &&
+      this.currentTag === null
+    ) {
+      this.settings.allArticlesPageSize = pageSize;
+    } else if (this.currentFolder === "unread") {
+      this.settings.unreadArticlesPageSize = pageSize;
+    } else if (this.currentFolder === "read") {
+      this.settings.readArticlesPageSize = pageSize;
+    } else if (this.currentFolder === "saved") {
+      this.settings.savedArticlesPageSize = pageSize;
+    } else if (this.currentFolder === "starred") {
+      this.settings.starredArticlesPageSize = pageSize;
+    }
+    void this.render();
+  }
+
+  private getCurrentPageSize(): number {
+    if (this.currentFeed && this.currentFeed.url) {
+      return (
+        this.feedPageSizes[this.currentFeed.url] ||
+        this.settings.allArticlesPageSize
+      );
+    } else if (
+      this.currentFolder &&
+      !["unread", "read", "saved", "starred", "videos", "podcasts"].includes(
+        this.currentFolder,
+      )
+    ) {
+      return (
+        this.folderPageSizes[this.currentFolder] ||
+        this.settings.allArticlesPageSize
+      );
+    } else if (
+      this.currentFolder === null &&
+      this.currentFeed === null &&
+      this.currentTag === null
+    ) {
+      return this.settings.allArticlesPageSize;
+    } else if (this.currentFolder === "unread") {
+      return this.settings.unreadArticlesPageSize;
+    } else if (this.currentFolder === "read") {
+      return this.settings.readArticlesPageSize;
+    } else if (this.currentFolder === "saved") {
+      return this.settings.savedArticlesPageSize;
+    } else if (this.currentFolder === "starred") {
+      return this.settings.starredArticlesPageSize;
+    }
+    return this.settings.allArticlesPageSize;
+  }
 }

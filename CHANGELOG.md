@@ -1,102 +1,122 @@
 # RSS Dashboard - Changelog
 
-## [2.0.0] - 2024-12-19
+## [2.2.16] - March 5, 2026
 
-### 🎉 Major Release - Discover, Mobile Support & Enhanced Media Experience
+### Added
 
-This major release brings a complete overhaul of the RSS Dashboard experience with new features, mobile optimization, and enhanced media capabilities.
+- Added new 2.2 feature screenshots under `assets/2.2/` for documentation.
 
----
+### Improved
 
-## ✨ Shiny New Things
+- Refined highlight-word editing controls and responsive settings layout.
+- Consolidated sidebar badge controls into a simpler 3-row settings layout.
+- Refreshed changelog content to match the latest PR scope.
 
-### Discover Page
-- **Curated Feed Collection**: Browse hand-picked RSS feeds organized by categories (Technology, Science, Philosophy, Engineering, etc.)
-- **Smart Filtering**: Filter feeds by domain, subdomain, area, topic, type, and tags
-- **Advanced Search**: Find feeds with real-time search functionality
-- **Rating System**: Discover high-quality feeds with community ratings
-- **One-Click Subscribe**: Add feeds directly from the discover page with preview functionality
-- **Pagination & Sorting**: Navigate through hundreds of feeds with multiple sorting options
+### Fixed
 
-### Mobile & Tablet Support
-- **Android & iPad Optimization**: Full responsive design for mobile devices
-- **Touch-Friendly Interface**: Optimized touch targets and gestures for mobile interaction
-- **Adaptive Layout**: Automatic layout adjustments based on screen size and orientation
-- **Mobile Performance**: Optimized parsing and reduced resource usage for mobile devices
-- **Platform Detection**: Automatic platform detection with device-specific optimizations
-
-### Enhanced Podcast Player
-- **Beautiful Audio Interface**: Modern, gradient-enhanced podcast player with cover art
-- **Playlist Management**: Full episode playlist with progress tracking
-- **Advanced Controls**: Playback speed control (0.75x to 3x), shuffle, repeat modes
-- **Progress Persistence**: Automatic progress saving and resume functionality
-- **Touch Controls**: Optimized controls for mobile devices with 10-second rewind/45-second forward
-- **Volume Control**: Integrated volume slider with visual feedback
-- **Episode Navigation**: Previous/next episode controls with visual indicators
-
-### Individual Feed Controls
-- **Per-Feed Settings**: Customize settings for each feed independently
-- **Auto-Delete Duration**: Set automatic article cleanup (1 day to 1 year or custom)
-- **Max Items Limit**: Control how many articles each feed keeps (10-500 items)
-- **Custom Scan Intervals**: Set different refresh intervals per feed
-- **Feed-Specific Folders**: Organize feeds into custom folders and subfolders
-- **Bulk Operations**: Apply settings to multiple feeds at once
+- Fixed sidebar row spacing via sidebar settings.
+- Fixed highlight status bar refresh behavior. No longer refreshes entire dashboard.
 
 ---
 
-## 🚀 Enhanced Features
+## [2.2.15] - March 5, 2026
 
-### Article Management
-- **Smart Article Saving**: Save articles as markdown with customizable templates
-- **OPML Import/Export**: Backup and restore your feed subscriptions
-- **Advanced Filtering**: Filter by read status, age, starred, saved, and more
-- **Flexible Sorting**: Sort by newest, oldest, and group by feed, date, or folder
-- **Pagination**: Configurable page sizes for better performance
-- **Tag Management**: Add custom tags with color coding for better organization
-
-### Media Integration
-- **YouTube Channel Support**: Convert YouTube channels to RSS feeds
-- **Embedded Video Player**: Watch videos directly within the dashboard
-- **Podcast Detection**: Automatic detection and categorization of podcast content
-- **Media Type Filtering**: Separate views for videos, podcasts, and articles
-- **Cover Art Display**: Beautiful cover art for podcasts and videos
-
-### User Experience
-- **Reader View**: Built-in article reader with full content fetching
-- **Responsive Design**: Adaptive layouts for all screen sizes
-- **Dark Mode Support**: Compatibility with Obsidian's dark theme
-- **Loading States**: Smooth loading animations and progress indicators
+> Large feature release built on top of 2.1.9, focused on content filtering, word highlighting, Discover workflow improvements, mobile/tablet UX, and feed management quality-of-life updates.
 
 ---
 
-## 🔧 Technical Improvements
+### ✨ New Features
 
-### Platform Support
-- **Cross-Platform**: Works seamlessly on Windows, macOS, and Linux
-- **Mobile Optimization**: Automatic mobile detection and optimization
-- **Browser Compatibility**: Enhanced compatibility with various browsers
-- **Accessibility**: Improved accessibility features and keyboard navigation
+#### Keyword & Phrase Filtering
+
+- Global and per-feed filter rule sets, configurable via the Add & Edit Feed modals
+- Include/exclude rules with exact or partial matching
+- Selectable rule targets: title, summary, or content
+- Rule logic: AND or OR per rule set
+- Per-feed "Override global filters" support
+- Dashboard-level "Bypass All Filters" toggle
+- Clear-search button and filter status area with optional match statistics
+
+#### Word Highlighting
+
+- Highlight custom words or phrases in article titles, summaries, and reader content
+- Per-word custom colors and a configurable default highlight color for new entries
+- Per-word whole-word matching (exact or partial)
+- Case sensitivity option per highlight word
+- Location control: titles in list/card view, summaries in card view, content in reader view
+- Quick "Show Highlights" toggle in the Filters menu
+
+#### Dashboard & Navigation Controls
+
+- Cards-per-row selector in the hamburger menu and Display settings
+- Custom card spacing slider in the hamburger menu and Display settings
+- Mark All Unread button added alongside Mark All Read in the hamburger menu
+- Article search on the dashboard page
+- Resizable left and right sidebars
+
+#### Sidebar Customization
+
+- Configurable row spacing and indentation via settings
+- Adjustable left and right sidebar padding
+- Option to show or hide the sidebar scrollbar
+- Customizable unread badges for All Feeds, Folder rows, and Feed rows — with per-badge visibility toggles and custom colors
+
+#### Discover & Feed Management
+
+- Kagi Smallweb integration (50 most recently updated independent feeds, refreshed every 5 hours)
+- Feed filtering in Discover: All / Followed / Unfollowed
+- Folder picker popup for Discover and Smallweb follow actions
+- Follow-status indicators and streamlined follow actions throughout Discover
+- Apple Podcasts URL support
+- Smarter auto-folder assignment for podcasts, RSS feeds, and YouTube/video feeds
+- Modern OPML import modal with validation, preview, and update/overwrite modes
+- Option to delete a folder or delete all feeds from the OPML import flow
+
+#### Settings
+
+- New **Highlights** settings tab
+- New **Filters** settings tab
+- Updated **Display** settings tab with new sidebar row controls and list/card toolbar options
 
 ---
 
-## Bug Fixes & Polish
+### 🛠 Improvements
 
-- Fixed feed refresh issues on mobile devices
-- Improved error handling for malformed RSS feeds
-- Enhanced article saving reliability
-- Fixed podcast player progress tracking
-- Improved discover page performance
-- Better handling of large feed collections
-- Fixed OPML import/export edge cases
-- Enhanced mobile touch interactions
-- and many more
----
-
-## 🙏 Community
-
-A huge thank you to our amazing community for feedback, testing, and contributions! Join our [Discord server](https://discord.gg/NCHuzyhj) to help shape future releases and discover new feeds.
+- Consolidated RSS, Podcast, and YouTube add-feed workflows into a more streamlined unified flow
+- Redesigned Add/Edit Feed modal with clearer actions, better icon and button alignment, and improved mobile usability
+- Simplified Discover controls — removed redundant menus, tightened button and filter layout, improved category tree hierarchy and sorting
+- Sidebar button and navigation layout reworked for cleaner behavior across desktop, tablet, and mobile
+- Improved list and card readability: stabilized row heights, prevented title squishing, normalized feed label truncation
+- Dashboard spacing changes no longer force disruptive re-renders
+- Light-mode color toggles remain readable after theme changes
+- Unified action toolbar in Reader view with configurable mobile toolbar mode options
+- Improved responsive drawer and modal spacing for more consistent behavior with Obsidian on mobile
+- Cleaner settings layouts for badge and status controls with better mobile/tablet organization
 
 ---
 
+### 🐛 Bug Fixes
 
-*Happy reading! 📚✨* 
+- Fixed feed filter edits not refreshing dashboard content immediately
+- Fixed intermittent filter menu closures caused by stale outside-click listeners
+- Fixed unread/read state updates so articles are correctly removed and reinserted when filters are active
+- Fixed scroll-jump issues — position is now preserved when filtering articles or changing follow state in Discover
+- Fixed multiple mobile/tablet sidebar issues including missing hamburger/toolbar icons and incorrect header inset behavior on iOS and Android
+- Fixed an iOS rendering issue where the article scroll layer could cover the filter status bar
+- Fixed OPML workflows: resolved iOS export failures and duplication, and ensured imported feeds refresh correctly in the sidebar
+- Fixed mobile tag management issues including keyboard overlap, missing delete actions, and incorrect settings redirects
+- Fixed Discover category indentation, badge alignment, and sorting consistency
+- Fixed resizable sidebar handle lifecycle and render timing regressions
+- Fixed sidebar and Discover edge cases: broken resize-handle behavior, stale folder cache after import, and filter visibility mismatches
+- Fixed mobile/tablet issues across manage-feeds modal access, hamburger visibility, and close-button alignment
+- Fixed multiple build, lint, and type issues affecting release stability
+
+---
+
+_Released by [@marcd35](https://github.com/marcd35) · Fork of [amatya-aditya/obsidian-rss-dashboard](https://github.com/amatya-aditya/obsidian-rss-dashboard)_
+
+---
+
+## [2.1.9] - 2026-02-01
+
+- Upstream base release from the original author.

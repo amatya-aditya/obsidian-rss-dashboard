@@ -1,0 +1,9 @@
+#!/bin/sh
+
+if [ "$SKIP_GIT_HOOKS" = "1" ]; then
+  echo "[pre-push] SKIP_GIT_HOOKS=1 set, skipping."
+  exit 0
+fi
+
+echo "[pre-push] Running full build gate..."
+npm run --silent build
