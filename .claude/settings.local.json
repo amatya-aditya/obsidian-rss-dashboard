@@ -6,7 +6,8 @@
       "Bash(npx eslint:*)",
       "Bash(npm run build:*)",
       "Bash(grep:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(npm install)"
     ]
   }
 }

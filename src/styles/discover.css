@@ -23,6 +23,7 @@
 
 .rss-discover-layout.resizing {
   user-select: none;
+  -webkit-user-select: none;
 }
 
 .rss-discover-layout.resizing iframe {

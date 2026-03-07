@@ -12,7 +12,6 @@ import {
   Folder,
   Tag,
   RssDashboardSettings,
-  FeedMetadata,
   FeedFilterSettings,
 } from "../types/types";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
@@ -229,6 +228,8 @@ export class Sidebar {
   private isTagsExpanded = false;
   private isRefreshing = false;
   private longPressTimer: number | null = null;
+  private pendingImportFeedUrls = new Set<string>();
+  private processingImportFeedUrls = new Set<string>();
 
   /**
    * Extract main domain from a URL for favicon purposes (without subdomains)
@@ -374,6 +375,7 @@ export class Sidebar {
       "--rss-unread-badge-feed-color",
       this.settings.display.feedUnreadBadgeColor || "#8e44ad",
     );
+    this.refreshImportStatusLookups();
 
     const controlsSurface = this.container.createDiv({
       cls: "rss-dashboard-sidebar-controls-surface",
@@ -397,6 +399,23 @@ export class Sidebar {
         newFoldersSection.scrollTop = foldersScroll;
       }
     });
+  }
+
+  private refreshImportStatusLookups(): void {
+    this.pendingImportFeedUrls.clear();
+    this.processingImportFeedUrls.clear();
+
+    const queue = this.plugin.backgroundImportQueue;
+    if (!queue || queue.length === 0) {
+      return;
+    }
+
+    for (const queuedFeed of queue) {
+      this.pendingImportFeedUrls.add(queuedFeed.url);
+      if (queuedFeed.importStatus === "processing") {
+        this.processingImportFeedUrls.add(queuedFeed.url);
+      }
+    }
   }
 
   private renderFeedFolders(): void {
@@ -1074,12 +1093,9 @@ export class Sidebar {
     });
 
     const isProcessing =
-      feed.items.length === 0 &&
-      this.plugin?.backgroundImportQueue?.some(
-        (queuedFeed: FeedMetadata) =>
-          queuedFeed.url === feed.url &&
-          queuedFeed.importStatus === "processing",
-      );
+      feed.items.length === 0 && this.processingImportFeedUrls.has(feed.url);
+    const isQueuedForImport =
+      feed.items.length === 0 && this.pendingImportFeedUrls.has(feed.url);
 
     if (isProcessing) {
       // Show loading spinner for processing feeds
@@ -1144,7 +1160,7 @@ export class Sidebar {
       });
     }
 
-    if (feed.items.length === 0 && !isProcessing) {
+    if (isQueuedForImport && !isProcessing) {
       const processingIndicator = feedNameContainer.createDiv({
         cls: "rss-dashboard-feed-processing-indicator",
         text: "⏳",

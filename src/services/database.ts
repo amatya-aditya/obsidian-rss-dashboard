@@ -12,10 +12,14 @@ export class DatabaseService {
     private saveTimer: ReturnType<typeof setTimeout> | null = null;
     private pluginDir = "";
     private adapter: DataAdapter | null = null;
+    private encounteredCorruption = false;
+    private corruptionMessage: string | null = null;
 
     async init(pluginDir: string, adapter: DataAdapter): Promise<void> {
         this.pluginDir = pluginDir;
         this.adapter = adapter;
+        this.encounteredCorruption = false;
+        this.corruptionMessage = null;
 
         // WASM binary is inlined in the bundle by esbuild (binary loader)
         // This ensures it works regardless of install method (BRAT, manual, etc.)
@@ -26,13 +30,37 @@ export class DatabaseService {
         const dbPath = `${pluginDir}/${DB_FILENAME}`;
         try {
             const existingData = await adapter.readBinary(dbPath);
-            this.db = new this.SQL.Database(new Uint8Array(existingData));
+            try {
+                this.db = new this.SQL.Database(new Uint8Array(existingData));
+                const integrityCheck = this.db.exec("PRAGMA integrity_check");
+                const result = integrityCheck?.[0]?.values?.[0]?.[0];
+                if (typeof result !== "string" || result.toLowerCase() !== "ok") {
+                    throw new Error(
+                        typeof result === "string"
+                            ? `PRAGMA integrity_check returned: ${result}`
+                            : "PRAGMA integrity_check did not return 'ok'"
+                    );
+                }
+            } catch (error) {
+                this.encounteredCorruption = true;
+                this.corruptionMessage =
+                    error instanceof Error ? error.message : "Unknown SQLite read error";
+                this.db = new this.SQL.Database();
+            }
         } catch {
             // No existing DB - create new
             this.db = new this.SQL.Database();
         }
 
         this.createSchema();
+    }
+
+    hasCorruption(): boolean {
+        return this.encounteredCorruption;
+    }
+
+    getCorruptionMessage(): string | null {
+        return this.corruptionMessage;
     }
 
     isInitialized(): boolean {
@@ -518,7 +546,13 @@ export class DatabaseService {
 
         const data = this.db.export();
         const dbPath = `${this.pluginDir}/${DB_FILENAME}`;
-        await this.adapter.writeBinary(dbPath, data.buffer as ArrayBuffer);
+        const byteOffset = data.byteOffset;
+        const byteLength = data.byteLength;
+        const rawBuffer = data.buffer as ArrayBuffer;
+        const exactBuffer = (byteOffset === 0 && byteLength === rawBuffer.byteLength)
+            ? rawBuffer
+            : rawBuffer.slice(byteOffset, byteOffset + byteLength);
+        await this.adapter.writeBinary(dbPath, exactBuffer);
     }
 
     scheduleSave(delayMs = 2000): void {
@@ -536,6 +570,36 @@ export class DatabaseService {
             clearTimeout(this.saveTimer);
             this.saveTimer = null;
         }
+        await this.save();
+    }
+
+    async compactStorage(): Promise<void> {
+        if (!this.db) return;
+
+        if (this.saveTimer) {
+            clearTimeout(this.saveTimer);
+            this.saveTimer = null;
+        }
+
+        // Persist current in-memory state before maintenance.
+        await this.save();
+
+        // Best effort WAL checkpoint before VACUUM.
+        try {
+            this.db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+        } catch {
+            // ignore checkpoint failures
+        }
+
+        this.db.run("VACUUM");
+
+        // Best effort query planner/statistics optimization.
+        try {
+            this.db.run("PRAGMA optimize");
+        } catch {
+            // ignore optimize failures
+        }
+
         await this.save();
     }
 

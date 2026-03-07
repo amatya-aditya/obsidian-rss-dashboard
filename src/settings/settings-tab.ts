@@ -219,7 +219,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     "Highlights",
     "Import/Export",
     "Tags",
-    "Support",
+    "About",
   ];
 
   constructor(app: App, plugin: RssDashboardPlugin) {
@@ -280,8 +280,8 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       case "Tags":
         this.createTagsSettings(tabContent);
         break;
-      case "Support":
-        this.createSupportTab(tabContent);
+      case "About":
+        this.createAboutTab(tabContent);
         break;
     }
   }
@@ -2322,28 +2322,84 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     );
   }
 
-  private createSupportTab(containerEl: HTMLElement): void {
-    containerEl.createEl("div", {
-      cls: "rss-dashboard-support-message",
-      text: "If you enjoy using this plugin, consider supporting development! ?? ",
+  private createAboutTab(containerEl: HTMLElement): void {
+    const aboutContainer = containerEl.createDiv({
+      cls: "rss-dashboard-about-tab",
     });
 
-    const btnRow = containerEl.createDiv({
-      cls: "rss-dashboard-support-btn-row",
+    aboutContainer.createDiv({
+      cls: "rss-dashboard-about-title",
+      text: this.plugin.manifest.name,
+    });
+    aboutContainer.createDiv({
+      cls: "rss-dashboard-about-version",
+      text: `v${this.plugin.manifest.version}`,
     });
 
-    const bmcBtn = btnRow.createEl("a", {
-      text: "Buy me a pizza ??",
-      href: "https://www.buymeacoffee.com/amatya_aditya",
-      cls: "rss-dashboard-support-btn rss-dashboard-bmc-btn",
-    });
-    bmcBtn.target = "_blank";
+    const createLinkButton = (
+      parent: HTMLElement,
+      label: string,
+      href: string,
+    ): void => {
+      const link = parent.createEl("a", {
+        text: label,
+        href,
+        cls: "rss-dashboard-about-btn",
+      });
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+    };
 
-    const kofiBtn = btnRow.createEl("a", {
-      text: "Ko-fi ??",
-      href: "https://ko-fi.com/Y8Y41FV4WI",
-      cls: "rss-dashboard-support-btn rss-dashboard-kofi-btn",
+    const actionsRow = aboutContainer.createDiv({
+      cls: "rss-dashboard-about-btn-row",
     });
-    kofiBtn.target = "_blank";
+    createLinkButton(
+      actionsRow,
+      "GitHub",
+      "https://github.com/amatya-aditya/obsidian-rss-dashboard",
+    );
+    createLinkButton(
+      actionsRow,
+      "Report issue",
+      "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues",
+    );
+    createLinkButton(actionsRow, "Discord", "https://discord.gg/9bu7V9BBbs");
+
+    aboutContainer.createDiv({
+      cls: "rss-dashboard-about-section-title",
+      text: "Support development",
+    });
+    const supportRow = aboutContainer.createDiv({
+      cls: "rss-dashboard-about-btn-row",
+    });
+    createLinkButton(
+      supportRow,
+      "Buy me a coffee",
+      "https://www.buymeacoffee.com/amatya_aditya",
+    );
+    createLinkButton(supportRow, "Ko-fi", "https://ko-fi.com/Y8Y41FV4WI");
+
+    aboutContainer.createDiv({
+      cls: "rss-dashboard-about-section-title",
+      text: "Other plugins",
+    });
+    const otherPluginsRow = aboutContainer.createDiv({
+      cls: "rss-dashboard-about-btn-row",
+    });
+    createLinkButton(
+      otherPluginsRow,
+      "Advanced Multi Column",
+      "https://github.com/amatya-aditya/advanced-multi-column",
+    );
+    createLinkButton(
+      otherPluginsRow,
+      "Media Slider",
+      "https://github.com/amatya-aditya/obsidian-media-slider",
+    );
+    createLinkButton(
+      otherPluginsRow,
+      "Zen Space",
+      "https://github.com/amatya-aditya/obsidian-zen-space",
+    );
   }
 }

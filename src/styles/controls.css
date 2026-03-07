@@ -404,6 +404,7 @@
 .rss-highlight-stats-sep {
   color: var(--text-faint);
   user-select: none;
+  -webkit-user-select: none;
 }
 
 .rss-dashboard-modal-buttons.inline-buttons {
@@ -1525,4 +1526,13 @@ body:not(.theme-dark)
 /* Search hidden class for articles */
 .search-hidden {
   display: none !important;
+}
+
+.import-statusbar-icon{
+	width: 12px;
+}
+
+
+.status-bar-item .svg-icon {
+	--icon-size: 10px !important ;
 }
