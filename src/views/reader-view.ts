@@ -776,23 +776,73 @@ export class ReaderView extends ItemView {
       return false;
     }
 
+    const firstText = this.extractNormalizedTextFromHtml(first);
+    const secondText = this.extractNormalizedTextFromHtml(second);
+
+    if (!firstText || !secondText) {
+      return false;
+    }
+    if (firstText === secondText) {
+      return true;
+    }
+
+    const [shorter, longer] =
+      firstText.length <= secondText.length
+        ? [firstText, secondText]
+        : [secondText, firstText];
+
+    // Treat large near-subset matches as equivalent (common in RSS summary/full duplication).
+    if (shorter.length >= 200 && longer.includes(shorter)) {
+      return true;
+    }
+
+    if (shorter.length >= 120) {
+      const shortPrefix = shorter.slice(0, Math.min(shorter.length, 400));
+      if (longer.includes(shortPrefix)) {
+        const lengthRatio = shorter.length / longer.length;
+        if (lengthRatio >= 0.7) {
+          return true;
+        }
+      }
+    }
+
+    const shorterWords = this.getSignificantWordSet(shorter);
+    const longerWords = this.getSignificantWordSet(longer);
+    if (shorterWords.size === 0 || longerWords.size === 0) {
+      return false;
+    }
+
+    let overlapCount = 0;
+    shorterWords.forEach((word) => {
+      if (longerWords.has(word)) {
+        overlapCount++;
+      }
+    });
+
+    const overlapRatio = overlapCount / shorterWords.size;
+    return overlapRatio >= 0.9;
+  }
+
+  private extractNormalizedTextFromHtml(html: string): string {
     try {
       const parser = new DOMParser();
-      const firstDoc = parser.parseFromString(ensureUtf8Meta(first), "text/html");
-      const secondDoc = parser.parseFromString(
-        ensureUtf8Meta(second),
-        "text/html",
-      );
-      const firstText = (firstDoc.body.textContent || "")
+      const doc = parser.parseFromString(ensureUtf8Meta(html), "text/html");
+      return (doc.body.textContent || "")
+        .toLowerCase()
         .replace(/\s+/g, " ")
         .trim();
-      const secondText = (secondDoc.body.textContent || "")
-        .replace(/\s+/g, " ")
-        .trim();
-      return firstText.length > 0 && firstText === secondText;
     } catch {
-      return first.trim() === second.trim();
+      return html
+        .toLowerCase()
+        .replace(/<[^>]*>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
     }
+  }
+
+  private getSignificantWordSet(text: string): Set<string> {
+    const matches = text.match(/[a-z0-9]{4,}/g) || [];
+    return new Set(matches);
   }
 
   async fetchFullArticleContent(url: string): Promise<string> {
