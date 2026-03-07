@@ -621,7 +621,7 @@ export class KagiSmallwebView extends ItemView {
   private getSmallwebFaviconUrl(domain: string): string {
     if (!domain) return "";
     const normalized = this.getPrimaryDomain(domain);
-    return `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${normalized}&size=32`;
+    return `https://www.google.com/s2/favicons?sz=32&domain_url=http://${normalized}`;
   }
 
   private getPrimaryDomain(hostname: string): string {

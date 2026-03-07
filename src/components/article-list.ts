@@ -47,7 +47,7 @@ function extractDomain(url: string): string {
 
 function getFaviconUrl(domain: string): string {
   if (!domain) return "";
-  return `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=32`;
+  return `https://www.google.com/s2/favicons?sz=32&domain_url=http://${domain}`;
 }
 
 interface ArticleListCallbacks {

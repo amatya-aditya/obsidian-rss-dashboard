@@ -452,7 +452,9 @@ export class ReaderView extends ItemView {
       }
       await this.displayPodcast(item);
     } else {
-      const fetchedContent = await this.fetchFullArticleContent(item.link);
+      const fetchedContent = this.shouldSkipFullArticleFetch(item.link)
+        ? ""
+        : await this.fetchFullArticleContent(item.link);
       const fullContent = this.hasMeaningfulArticleContent(fetchedContent)
         ? fetchedContent
         : item.content || item.description || "";
@@ -592,10 +594,32 @@ export class ReaderView extends ItemView {
 
     try {
       const host = new URL(item.link).hostname.toLowerCase();
-      return host === "kite.kagi.com" || host === "news.kagi.com";
+      return this.isFeedContentPreferredHost(host);
     } catch {
       return false;
     }
+  }
+
+  private shouldSkipFullArticleFetch(url: string): boolean {
+    if (!url) {
+      return false;
+    }
+
+    try {
+      const host = new URL(url).hostname.toLowerCase();
+      return this.isFeedContentPreferredHost(host);
+    } catch {
+      return false;
+    }
+  }
+
+  private isFeedContentPreferredHost(host: string): boolean {
+    return (
+      host === "kite.kagi.com" ||
+      host === "news.kagi.com" ||
+      host === "aeon.co" ||
+      host.endsWith(".aeon.co")
+    );
   }
 
   private renderArticle(item: FeedItem, fullContent?: string): void {
@@ -846,18 +870,98 @@ export class ReaderView extends ItemView {
   }
 
   async fetchFullArticleContent(url: string): Promise<string> {
+    // Reuse the more robust fetch/extraction strategy used by article saving.
     try {
-      const response = await requestUrl({ url });
+      const saverContent = await this.articleSaver.fetchFullArticleContent(url);
+      if (
+        this.hasMeaningfulArticleContent(saverContent) &&
+        !this.isBlockedOrChallengeContent(saverContent)
+      ) {
+        return saverContent;
+      }
+    } catch {
+      // Fall through to local reader fetch path.
+    }
+
+    const headers: Record<string, string> = {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Upgrade-Insecure-Requests": "1",
+      DNT: "1",
+    };
+
+    try {
+      const response = await requestUrl({ url, method: "GET", headers });
+      if (!response.text) {
+        return "";
+      }
+      if (this.isBlockedOrChallengeContent(response.text)) {
+        return "";
+      }
+
       const parser = new DOMParser();
       const doc = parser.parseFromString(response.text, "text/html");
-      const reader = new Readability(doc);
-      const article = reader.parse();
-      const content = article?.content || "";
-
-      return this.convertRelativeUrlsInContent(content, url);
+      return this.extractReadableContentFromHtmlDocument(doc, url);
     } catch {
       return "";
     }
+  }
+
+  private extractReadableContentFromHtmlDocument(
+    doc: Document,
+    url: string,
+  ): string {
+    const reader = new Readability(doc);
+    const article = reader.parse();
+    const readableContent = article?.content || "";
+    if (
+      this.hasMeaningfulArticleContent(readableContent) &&
+      !this.isBlockedOrChallengeContent(readableContent)
+    ) {
+      return this.convertRelativeUrlsInContent(readableContent, url);
+    }
+
+    const mainContent = doc.querySelector(
+      "main, article, .content, .post-content, .entry-content, .article-content, .main-content, section[role='main']",
+    );
+    if (mainContent) {
+      return this.convertRelativeUrlsInContent(
+        ensureUtf8Meta(new XMLSerializer().serializeToString(mainContent)),
+        url,
+      );
+    }
+
+    return this.convertRelativeUrlsInContent(
+      ensureUtf8Meta(new XMLSerializer().serializeToString(doc.body)),
+      url,
+    );
+  }
+
+  private isBlockedOrChallengeContent(content: string): boolean {
+    const text = this.extractNormalizedTextFromHtml(content);
+    if (!text) {
+      return false;
+    }
+
+    const blockedMarkers = [
+      "vercel security checkpoint",
+      "too many requests",
+      "error 429",
+      "status code 429",
+      "rate limit",
+      "access denied",
+      "enable javascript and cookies",
+      "checking your browser",
+      "captcha",
+      "bot detection",
+      "request blocked",
+      "please verify you are human",
+    ];
+
+    return blockedMarkers.some((marker) => text.includes(marker));
   }
 
   private hasMeaningfulArticleContent(content: string): boolean {

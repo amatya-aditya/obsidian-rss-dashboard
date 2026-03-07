@@ -1,4 +1,4 @@
-﻿import {
+import {
   Menu,
   MenuItem,
   Notice,
@@ -6,6 +6,7 @@
   Modal,
   setIcon,
   Setting,
+  requestUrl,
 } from "obsidian";
 import {
   Feed,
@@ -231,6 +232,8 @@ export class Sidebar {
   private longPressTimer: number | null = null;
   private pendingImportFeedUrls = new Set<string>();
   private processingImportFeedUrls = new Set<string>();
+  private faviconAvailabilityCache = new Map<string, boolean>();
+  private faviconCheckPromises = new Map<string, Promise<boolean>>();
 
   /**
    * Extract main domain from a URL for favicon purposes (without subdomains)
@@ -280,12 +283,106 @@ export class Sidebar {
   }
 
   /**
-   * Get favicon URL for a domain using Google's faviconV2 service
-   * This API has better fallback handling than DuckDuckGo
+   * Get favicon URL for a domain using Google's S2 favicon service
    */
   private getFaviconUrl(domain: string): string {
     if (!domain) return "";
-    return `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=32`;
+    return `https://www.google.com/s2/favicons?sz=32&domain_url=http://${domain}`;
+  }
+
+  private async isFaviconUrlAvailable(faviconUrl: string): Promise<boolean> {
+    const cached = this.faviconAvailabilityCache.get(faviconUrl);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const inFlight = this.faviconCheckPromises.get(faviconUrl);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const checkPromise = (async () => {
+      let available = false;
+      try {
+        const headResponse = await requestUrl({
+          url: faviconUrl,
+          method: "HEAD",
+        });
+        available = headResponse.status >= 200 && headResponse.status < 300;
+
+        if (
+          !available &&
+          (headResponse.status === 405 || headResponse.status === 501)
+        ) {
+          const getResponse = await requestUrl({
+            url: faviconUrl,
+            method: "GET",
+          });
+          available = getResponse.status >= 200 && getResponse.status < 300;
+        }
+      } catch {
+        try {
+          const getResponse = await requestUrl({
+            url: faviconUrl,
+            method: "GET",
+          });
+          available = getResponse.status >= 200 && getResponse.status < 300;
+        } catch {
+          available = false;
+        }
+      } finally {
+        this.faviconCheckPromises.delete(faviconUrl);
+      }
+
+      this.faviconAvailabilityCache.set(faviconUrl, available);
+      return available;
+    })();
+
+    this.faviconCheckPromises.set(faviconUrl, checkPromise);
+    return checkPromise;
+  }
+
+  private renderFallbackFeedIcon(feedIcon: HTMLElement): void {
+    feedIcon.empty();
+    if (this.settings.display.hideDefaultRssIcon) {
+      feedIcon.addClass("rss-icon-hidden");
+      return;
+    }
+
+    feedIcon.removeClass("rss-icon-hidden");
+    setIcon(feedIcon, "rss");
+  }
+
+  private async renderDomainFavicon(
+    feedIcon: HTMLElement,
+    domain: string,
+  ): Promise<void> {
+    const faviconUrl = this.getFaviconUrl(domain);
+    if (!faviconUrl) {
+      this.renderFallbackFeedIcon(feedIcon);
+      return;
+    }
+
+    const available = await this.isFaviconUrlAvailable(faviconUrl);
+    if (!available || !feedIcon.isConnected) {
+      this.renderFallbackFeedIcon(feedIcon);
+      return;
+    }
+
+    feedIcon.empty();
+    feedIcon.removeClass("rss-icon-hidden");
+    const imgEl = feedIcon.createEl("img", {
+      attr: {
+        src: faviconUrl,
+        alt: domain,
+      },
+      cls: "rss-dashboard-feed-favicon",
+    });
+
+    imgEl.onerror = () => {
+      this.faviconAvailabilityCache.set(faviconUrl, false);
+      this.renderFallbackFeedIcon(feedIcon);
+    };
   }
 
   private getCachedFolderPaths(): string[] {
@@ -1118,30 +1215,10 @@ export class Sidebar {
       // Show domain favicon for regular feeds when setting is enabled
       const domain = this.extractDomain(feed.url);
       if (domain) {
-        const faviconUrl = this.getFaviconUrl(domain);
-        feedIcon.empty();
-        const imgEl = feedIcon.createEl("img", {
-          attr: {
-            src: faviconUrl,
-            alt: domain,
-          },
-          cls: "rss-dashboard-feed-favicon",
-        });
-
-        // Fallback to RSS icon if favicon fails to load
-        imgEl.onerror = () => {
-          feedIcon.empty();
-          if (this.settings.display.hideDefaultRssIcon) {
-            feedIcon.addClass("rss-icon-hidden");
-          } else {
-            setIcon(feedIcon, "rss");
-          }
-        };
-      } else if (!this.settings.display.hideDefaultRssIcon) {
-        // No domain available, use generic RSS icon
-        setIcon(feedIcon, "rss");
+        this.renderFallbackFeedIcon(feedIcon);
+        void this.renderDomainFavicon(feedIcon, domain);
       } else {
-        feedIcon.addClass("rss-icon-hidden");
+        this.renderFallbackFeedIcon(feedIcon);
       }
     } else if (!this.settings.display.hideDefaultRssIcon) {
       // Show generic RSS icon when favicon setting is disabled
