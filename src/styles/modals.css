@@ -2128,22 +2128,50 @@
     touch-action: pan-y;
     scrollbar-gutter: stable;
     scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb-bg, var(--background-modifier-border))
+      transparent;
   }
 
   .modal.rss-mobile-navigation-modal
     .rss-dashboard-feed-folders-section::-webkit-scrollbar {
-    width: 8px;
+    width: 10px;
+    height: 10px;
   }
 
   .modal.rss-mobile-navigation-modal
     .rss-dashboard-feed-folders-section::-webkit-scrollbar-track {
-    background: var(--background-secondary);
+    background: transparent;
+  }
+
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar-track-piece {
+    background: transparent;
+  }
+
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar-button {
+    width: 0;
+    height: 0;
+    display: none;
+    background: transparent;
   }
 
   .modal.rss-mobile-navigation-modal
     .rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb {
-    background: var(--background-modifier-border);
-    border-radius: 8px;
+    background-color: var(
+      --scrollbar-thumb-bg,
+      var(--background-modifier-border)
+    );
+    border-radius: 999px;
+    border: 2px solid var(--scrollbar-bg, transparent);
+  }
+
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb:hover {
+    background-color: var(
+      --scrollbar-active-thumb-bg,
+      var(--scrollbar-thumb-bg, var(--background-modifier-border))
+    );
   }
 
   .modal.rss-mobile-navigation-modal
@@ -2210,6 +2238,17 @@
       padding: 4px 12px;
       min-height: 32px;
       line-height: 1.1;
+    }
+
+    .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button--icon,
+    .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button--icon.active,
+    .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button--icon,
+    .modal.rss-mobile-discover-filters-modal
+      .rss-dashboard-nav-button--icon.active {
+      width: 32px;
+      min-width: 32px;
+      min-height: 32px;
+      padding: 0;
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-feed {

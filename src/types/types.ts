@@ -281,6 +281,8 @@ export interface RssDashboardSettings {
   filters: GlobalFilterSettings;
 }
 
+export type SettingsOnly = Omit<RssDashboardSettings, 'feeds' | 'folders' | 'availableTags'>;
+
 export const DEFAULT_SETTINGS: RssDashboardSettings = {
   feeds: [],
   folders: [

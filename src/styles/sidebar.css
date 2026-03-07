@@ -1,11 +1,12 @@
 .rss-dashboard-header {
   order: 1;
-  padding: 10px;
-  border-bottom: 1px solid
+  padding: 8px 10px;
+  /* border-bottom: 1px solid
     var(--rss-sidebar-controls-border, var(--background-modifier-border));
-  background: var(--rss-sidebar-controls-bg, var(--background-secondary));
+  background: var(--rss-sidebar-controls-bg, var(--background-secondary)); */
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 .rss-dashboard-title {
   font-weight: bold;
@@ -160,6 +161,8 @@
   -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-bg, var(--background-modifier-border))
+    transparent;
 }
 
 .rss-dashboard-feed-folder {
@@ -307,6 +310,23 @@
   box-sizing: border-box;
 }
 
+.rss-dashboard-sidebar-toolbar--inline {
+  order: 0;
+  z-index: auto;
+  background: transparent;
+  justify-content: flex-start;
+  gap: 2px;
+  padding: 0;
+  width: auto;
+  box-sizing: border-box;
+}
+
+.rss-dashboard-sidebar-toolbar--inline .rss-dashboard-toolbar-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+}
+
 .rss-dashboard-toolbar-button {
   width: 32px;
   height: 32px;
@@ -373,9 +393,9 @@
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  background: var(--rss-sidebar-controls-bg, var(--background-secondary));
+  /* background: var(--rss-sidebar-controls-bg, var(--background-secondary));
   border-bottom: 1px solid
-    var(--rss-sidebar-controls-border, var(--background-modifier-border));
+    var(--rss-sidebar-controls-border, var(--background-modifier-border)); */
   box-shadow: var(--rss-sidebar-controls-shadow, 0 2px 6px rgb(0 0 0 / 0.08));
   z-index: 3;
 }
@@ -493,16 +513,39 @@
 }
 
 .rss-dashboard-feed-folders-section::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 .rss-dashboard-feed-folders-section::-webkit-scrollbar-track {
-  background: var(--background-secondary);
+  background: transparent;
+}
+
+.rss-dashboard-feed-folders-section::-webkit-scrollbar-track-piece {
+  background: transparent;
+}
+
+.rss-dashboard-feed-folders-section::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+  display: none;
+  background: transparent;
 }
 
 .rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb {
-  background: var(--background-modifier-border);
-  border-radius: 8px;
+  background-color: var(
+    --scrollbar-thumb-bg,
+    var(--background-modifier-border)
+  );
+  border-radius: 999px;
+  border: 2px solid var(--scrollbar-bg, transparent);
+}
+
+.rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb:hover {
+  background-color: var(
+    --scrollbar-active-thumb-bg,
+    var(--scrollbar-thumb-bg, var(--background-modifier-border))
+  );
 }
 
 .rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden {
@@ -544,10 +587,10 @@
   align-items: center;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  padding-left: var(--sidebar-item-padding-left);
-  padding-right: var(--sidebar-item-padding-right);
+  padding: 6px 6px 6px 8px;
   margin-bottom: 4px;
   border-radius: 4px;
+  border: solid 1px var(--background-modifier-active-hover);
 }
 
 .rss-dashboard-all-feeds-button:hover {
@@ -596,12 +639,12 @@
 /* Purple divider beneath All Feeds button */
 .rss-dashboard-all-feeds-divider {
   height: 1px;
-  background-color: #8e44ad;
+  /* background-color: var(--background-modifier-border); */
   margin: 4px 10px 8px 10px;
 }
 
 .theme-dark .rss-dashboard-all-feeds-divider {
-  background-color: #9b59b6;
+  /* background-color: var(--background-modifier-border); */
 }
 
 .rss-folder-name-modal {
@@ -710,6 +753,8 @@
   background: var(--rss-sidebar-controls-bg, var(--background-secondary));
 }
 
+/* Legacy toggle-row styles (disabled after moving toolbar to header) */
+/*
 .rss-dashboard-toolbar-toggle-row {
   order: 2;
   position: relative;
@@ -772,6 +817,7 @@
   outline: 2px solid var(--interactive-accent-hover);
   outline-offset: 1px;
 }
+*/
 
 @media (max-width: 768px) {
   .rss-dashboard-search-dock {
@@ -827,13 +873,14 @@
 .rss-dashboard-header-toolbar {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   margin-left: auto;
+  flex-shrink: 0;
 }
 
 .rss-dashboard-header-icon-button {
-  width: 44px;
-  height: 44px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;

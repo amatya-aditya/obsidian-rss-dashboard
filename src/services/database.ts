@@ -1,9 +1,10 @@
 import type { DataAdapter } from "obsidian";
 import type { Feed, FeedItem, Folder, Tag } from "../types/types";
 import initSqlJs, { type Database, type SqlJsStatic, type SqlValue } from "sql.js";
+import sqlWasmBinary from "../../node_modules/sql.js/dist/sql-wasm.wasm";
 
 const DB_FILENAME = "rss-dashboard.sqlite";
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 export class DatabaseService {
     private db: Database | null = null;
@@ -16,18 +17,10 @@ export class DatabaseService {
         this.pluginDir = pluginDir;
         this.adapter = adapter;
 
-        // Load WASM binary from plugin directory
-        const wasmPath = `${pluginDir}/sql-wasm.wasm`;
-        let wasmBinary: ArrayBuffer | undefined;
-        try {
-            wasmBinary = await adapter.readBinary(wasmPath);
-        } catch {
-            // WASM file not found - will fall back to default loading
-        }
-
-        this.SQL = await initSqlJs(
-            wasmBinary ? { wasmBinary } : undefined
-        );
+        // WASM binary is inlined in the bundle by esbuild (binary loader)
+        // This ensures it works regardless of install method (BRAT, manual, etc.)
+        const wasmBuffer = sqlWasmBinary.buffer;
+        this.SQL = await initSqlJs({ wasmBinary: wasmBuffer as ArrayBuffer });
 
         // Try to load existing database
         const dbPath = `${pluginDir}/${DB_FILENAME}`;
@@ -79,7 +72,9 @@ export class DatabaseService {
                 custom_tags TEXT,
                 auto_delete_duration INTEGER DEFAULT 0,
                 max_items_limit INTEGER DEFAULT 25,
-                scan_interval INTEGER DEFAULT 0
+                scan_interval INTEGER DEFAULT 0,
+                icon_url TEXT,
+                filters TEXT
             )
         `);
 
@@ -149,11 +144,23 @@ export class DatabaseService {
         this.db.run("CREATE INDEX IF NOT EXISTS idx_articles_media_type ON articles(media_type)");
         this.db.run("CREATE INDEX IF NOT EXISTS idx_feeds_folder ON feeds(folder)");
 
-        // Set schema version if not already set
+        // Schema migrations
         const version = this.getSchemaVersion();
         if (version === 0) {
             this.setSchemaVersion(SCHEMA_VERSION);
+        } else if (version < SCHEMA_VERSION) {
+            this.migrateSchema(version);
         }
+    }
+
+    private migrateSchema(fromVersion: number): void {
+        if (!this.db) return;
+        if (fromVersion < 2) {
+            // Add columns introduced after schema v1
+            try { this.db.run("ALTER TABLE feeds ADD COLUMN icon_url TEXT"); } catch { /* already exists */ }
+            try { this.db.run("ALTER TABLE feeds ADD COLUMN filters TEXT"); } catch { /* already exists */ }
+        }
+        this.setSchemaVersion(SCHEMA_VERSION);
     }
 
     getSchemaVersion(): number {
@@ -217,8 +224,9 @@ export class DatabaseService {
             INSERT OR REPLACE INTO feeds (
                 url, title, folder, last_updated, author, media_type,
                 auto_detect, custom_template, custom_folder, custom_tags,
-                auto_delete_duration, max_items_limit, scan_interval
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                auto_delete_duration, max_items_limit, scan_interval,
+                icon_url, filters
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             feed.url,
             feed.title,
@@ -232,7 +240,9 @@ export class DatabaseService {
             feed.customTags ? JSON.stringify(feed.customTags) : null,
             feed.autoDeleteDuration || 0,
             feed.maxItemsLimit || 25,
-            feed.scanInterval || 0
+            feed.scanInterval || 0,
+            feed.iconUrl || null,
+            feed.filters ? JSON.stringify(feed.filters) : null
         ]);
     }
 
@@ -327,7 +337,8 @@ export class DatabaseService {
         const feedResult = this.db.exec(`
             SELECT url, title, folder, last_updated, author, media_type,
                    auto_detect, custom_template, custom_folder, custom_tags,
-                   auto_delete_duration, max_items_limit, scan_interval
+                   auto_delete_duration, max_items_limit, scan_interval,
+                   icon_url, filters
             FROM feeds
         `);
 
@@ -349,6 +360,8 @@ export class DatabaseService {
                 autoDeleteDuration: row[10] as number,
                 maxItemsLimit: row[11] as number,
                 scanInterval: row[12] as number,
+                iconUrl: row[13] as string | undefined,
+                filters: row[14] ? JSON.parse(row[14] as string) as Feed['filters'] : undefined,
                 items: this.loadArticlesForFeed(feedUrl)
             };
             feeds.push(feed);

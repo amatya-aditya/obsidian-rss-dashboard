@@ -1576,7 +1576,12 @@ export class RssDashboardView extends ItemView {
       article.tags = updates.tags;
     }
 
-    await this.plugin.saveSettings();
+    await this.plugin.updateArticle(
+      originalArticle.guid,
+      feed.url,
+      updates,
+      false,
+    );
 
     if (shouldRerender) {
       void this.render();

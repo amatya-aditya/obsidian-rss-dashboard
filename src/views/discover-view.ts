@@ -540,18 +540,42 @@ export class DiscoverView extends ItemView {
     });
 
     const dashboardBtn = navContainer.createDiv({
-      cls: "rss-dashboard-nav-button",
+      cls: "rss-dashboard-nav-button rss-dashboard-nav-button--icon",
+      attr: {
+        title: "Dashboard",
+        "aria-label": "Dashboard",
+        role: "button",
+        tabindex: "0",
+      },
     });
-    dashboardBtn.appendText("Dashboard");
+    setIcon(dashboardBtn, "home");
+    dashboardBtn.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        dashboardBtn.click();
+      }
+    });
     dashboardBtn.addEventListener(
       "click",
       () => void this.plugin.activateView(),
     );
 
     const discoverBtn = navContainer.createDiv({
-      cls: "rss-dashboard-nav-button active",
+      cls: "rss-dashboard-nav-button rss-dashboard-nav-button--icon active",
+      attr: {
+        title: "Discover",
+        "aria-label": "Discover",
+        role: "button",
+        tabindex: "0",
+      },
     });
-    discoverBtn.appendText("Discover");
+    setIcon(discoverBtn, "compass");
+    discoverBtn.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        discoverBtn.click();
+      }
+    });
     discoverBtn.addEventListener(
       "click",
       () => void this.plugin.activateDiscoverView(),

@@ -40,7 +40,8 @@ const context = await esbuild.context({
 	outfile: "main.js",
 	minify: prod,
 	loader: {
-		".json": "json"
+		".json": "json",
+		".wasm": "binary"
 	}
 });
 

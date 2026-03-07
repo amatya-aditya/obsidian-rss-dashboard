@@ -16,6 +16,8 @@ import {
   FeedMetadata,
   FeedFilterSettings,
 } from "./src/types/types";
+import { DatabaseService } from "./src/services/database";
+import { MigrationService } from "./src/services/migrator";
 
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
 import {
@@ -44,10 +46,15 @@ export interface FiltersUpdatedEventPayload {
   timestamp: number;
 }
 
+const SQLITE_DB_FILENAME = "rss-dashboard.sqlite";
+const USER_SETTINGS_FILENAME = "usersettings.json";
+
 export default class RssDashboardPlugin extends Plugin {
   settings!: RssDashboardSettings;
   feedParser!: FeedParser;
   articleSaver!: ArticleSaver;
+  db!: DatabaseService;
+  private dbSyncTimer: ReturnType<typeof setTimeout> | null = null;
   private importStatusBarItem: HTMLElement | null = null;
   public backgroundImportQueue: FeedMetadata[] = [];
   public settingTab: RssDashboardSettingTab | null = null;
@@ -251,6 +258,46 @@ export default class RssDashboardPlugin extends Plugin {
       });
 
       this.addCommand({
+        id: "import-usersettings-json",
+        name: "Import usersettings.json",
+        callback: () => {
+          this.importUserSettingsJson();
+        },
+      });
+
+      this.addCommand({
+        id: "export-usersettings-json",
+        name: "Export usersettings.json",
+        callback: () => {
+          void this.exportUserSettingsJson();
+        },
+      });
+
+      this.addCommand({
+        id: "import-sqlite-database",
+        name: "Import sqlite database",
+        callback: () => {
+          this.importSqliteDatabase();
+        },
+      });
+
+      this.addCommand({
+        id: "export-sqlite-database",
+        name: "Export sqlite database",
+        callback: () => {
+          void this.exportSqliteDatabase();
+        },
+      });
+
+      this.addCommand({
+        id: "restore-from-json-backup",
+        name: "Restore from JSON backup",
+        callback: () => {
+          void this.restoreFromJsonBackup();
+        },
+      });
+
+      this.addCommand({
         id: "apply-feed-limits",
         name: "Apply feed limits to all feeds",
         callback: () => {
@@ -446,7 +493,13 @@ export default class RssDashboardPlugin extends Plugin {
             }
           }
 
-          await this.saveSettings();
+          // Fast path: single article upsert
+          if (this.db?.isInitialized()) {
+            this.db.upsertArticle(originalItem);
+            this.db.scheduleSave();
+          }
+          await this.saveSettingsOnly();
+
           await this.syncDashboardArticleUpdate(
             item.guid,
             item.feedUrl,
@@ -468,20 +521,18 @@ export default class RssDashboardPlugin extends Plugin {
   ): Promise<void> {
     if (item.feedUrl) {
       const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
-      if (feed) {
-        const originalItem = feed.items.find((i) => i.guid === item.guid);
-        if (originalItem) {
-          Object.assign(originalItem, updates);
-          await this.saveSettings();
+      if (!feed) return;
 
-          await this.syncDashboardArticleUpdate(
-            item.guid,
-            item.feedUrl,
-            updates,
-            !!shouldRerender,
-          );
-        }
-      }
+      const originalItem = feed.items.find((i) => i.guid === item.guid);
+      if (!originalItem) return;
+
+      await this.updateArticle(item.guid, item.feedUrl, updates, false);
+      await this.syncDashboardArticleUpdate(
+        item.guid,
+        item.feedUrl,
+        updates,
+        !!shouldRerender,
+      );
     }
   }
 
@@ -639,6 +690,7 @@ export default class RssDashboardPlugin extends Plugin {
     articleGuid: string,
     feedUrl: string,
     updates: Partial<FeedItem>,
+    shouldRefreshView = true,
   ) {
     const feed = this.settings.feeds.find((f) => f.url === feedUrl);
     if (!feed) return;
@@ -648,11 +700,18 @@ export default class RssDashboardPlugin extends Plugin {
 
     Object.assign(article, updates);
 
-    await this.saveSettings();
+    // Fast path: single article upsert instead of full sync
+    if (this.db?.isInitialized()) {
+      this.db.upsertArticle(article);
+      this.db.scheduleSave();
+    }
+    await this.saveSettingsOnly();
 
-    const view = await this.getActiveDashboardView();
-    if (view) {
-      view.refresh();
+    if (shouldRefreshView) {
+      const view = await this.getActiveDashboardView();
+      if (view) {
+        view.refresh();
+      }
     }
   }
 
@@ -924,6 +983,202 @@ export default class RssDashboardPlugin extends Plugin {
       if (textSpan) {
         textSpan.textContent = `  Fetching articles: ${current}/${total} - ${currentFeedTitle}`;
       }
+    }
+  }
+
+  public importUserSettingsJson(): void {
+    const input = document.body.createEl("input", {
+      attr: {
+        type: "file",
+        accept: ".json,application/json",
+      },
+    });
+
+    input.onchange = () => {
+      void (async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+
+        try {
+          const text = await file.text();
+          const parsed = JSON.parse(text) as Partial<RssDashboardSettings>;
+          if (!parsed || typeof parsed !== "object") {
+            throw new Error("Invalid usersettings.json");
+          }
+
+          const {
+            feeds: _feeds,
+            folders: _folders,
+            availableTags: _availableTags,
+            ...settingsOnly
+          } = parsed as Partial<RssDashboardSettings> & {
+            feeds?: unknown;
+            folders?: unknown;
+            availableTags?: unknown;
+          };
+          void _feeds;
+          void _folders;
+          void _availableTags;
+
+          this.settings = Object.assign(
+            {},
+            DEFAULT_SETTINGS,
+            this.settings,
+            settingsOnly,
+          );
+
+          // Keep legacy keys and nested defaults normalized after import.
+          this.migrateLegacySettings();
+
+          await this.saveSettingsOnly();
+          await this.refreshDashboardViews();
+          const discoverView = await this.getActiveDiscoverView();
+          discoverView?.render();
+
+          new Notice("Imported usersettings.json");
+        } catch {
+          new Notice("Invalid usersettings.json file");
+        }
+      })();
+    };
+
+    input.click();
+  }
+
+  public async exportUserSettingsJson(): Promise<void> {
+    const settingsOnly = this.getSettingsOnlyData();
+    const blob = new Blob([JSON.stringify(settingsOnly, null, 2)], {
+      type: "application/json",
+    });
+    this.downloadBlob(blob, USER_SETTINGS_FILENAME);
+    new Notice("Exported usersettings.json");
+  }
+
+  public importSqliteDatabase(): void {
+    const input = document.body.createEl("input", {
+      attr: {
+        type: "file",
+        accept: ".sqlite,.db,application/x-sqlite3,application/octet-stream",
+      },
+    });
+
+    input.onchange = () => {
+      void (async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+
+        const pluginDir = this.manifest.dir ?? "";
+        if (!pluginDir) {
+          new Notice("Plugin directory not found");
+          return;
+        }
+
+        const dbPath = `${pluginDir}/${SQLITE_DB_FILENAME}`;
+        let previousDbBinary: ArrayBuffer | null = null;
+        try {
+          previousDbBinary = await this.app.vault.adapter.readBinary(dbPath);
+        } catch {
+          previousDbBinary = null;
+        }
+
+        try {
+          const importedDb = await file.arrayBuffer();
+          if (importedDb.byteLength === 0) {
+            throw new Error("Empty sqlite file");
+          }
+
+          this.db?.close();
+          await this.app.vault.adapter.writeBinary(dbPath, importedDb);
+
+          this.db = new DatabaseService();
+          await this.db.init(pluginDir, this.app.vault.adapter);
+
+          this.settings.feeds = this.db.loadAllFeeds();
+          this.settings.folders = this.db.loadAllFolders();
+          const tags = this.db.loadAllTags();
+          if (tags.length > 0) {
+            this.settings.availableTags = tags;
+          } else {
+            this.settings.availableTags = [];
+          }
+
+          // Ensure feed filters are complete after DB import.
+          this.settings.feeds.forEach((feed) => {
+            if (!feed.filters) {
+              feed.filters = {
+                overrideGlobalFilters: false,
+                includeLogic: "AND",
+                rules: [],
+              };
+              return;
+            }
+            if (feed.filters.overrideGlobalFilters === undefined) {
+              feed.filters.overrideGlobalFilters = false;
+            }
+            if (!feed.filters.includeLogic) {
+              feed.filters.includeLogic = "AND";
+            }
+            if (!feed.filters.rules) {
+              feed.filters.rules = [];
+            }
+          });
+
+          await this.saveSettingsOnly();
+          await this.refreshDashboardViews();
+          const discoverView = await this.getActiveDiscoverView();
+          discoverView?.render();
+
+          new Notice("Imported sqlite database");
+        } catch (error) {
+          // Best-effort rollback to previous database file if import fails.
+          if (previousDbBinary) {
+            try {
+              await this.app.vault.adapter.writeBinary(dbPath, previousDbBinary);
+            } catch {
+              // ignore rollback failure
+            }
+          }
+
+          try {
+            this.db = new DatabaseService();
+            await this.db.init(pluginDir, this.app.vault.adapter);
+          } catch {
+            // ignore recovery init failure
+          }
+
+          new Notice(
+            `Failed to import sqlite database: ${error instanceof Error ? error.message : "Unknown error"}`,
+          );
+        }
+      })();
+    };
+
+    input.click();
+  }
+
+  public async exportSqliteDatabase(): Promise<void> {
+    if (!this.db?.isInitialized()) {
+      new Notice("Database is not initialized yet");
+      return;
+    }
+
+    const pluginDir = this.manifest.dir ?? "";
+    if (!pluginDir) {
+      new Notice("Plugin directory not found");
+      return;
+    }
+
+    try {
+      await this.db.forceSave();
+      const dbPath = `${pluginDir}/${SQLITE_DB_FILENAME}`;
+      const data = await this.app.vault.adapter.readBinary(dbPath);
+      const blob = new Blob([data], { type: "application/x-sqlite3" });
+      this.downloadBlob(blob, SQLITE_DB_FILENAME);
+      new Notice("Exported sqlite database");
+    } catch (error) {
+      new Notice(
+        `Failed to export sqlite database: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 
@@ -1258,7 +1513,8 @@ export default class RssDashboardPlugin extends Plugin {
 
   async loadSettings() {
     try {
-      const data = (await this.loadData()) as RssDashboardSettings | null;
+      // Load settings from usersettings.json first, fall back to data.json
+      const data = await this.loadUserSettings();
 
       this.settings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
 
@@ -1324,12 +1580,63 @@ export default class RssDashboardPlugin extends Plugin {
         );
       }
 
+      // Initialize SQLite database
+      this.db = new DatabaseService();
+      const pluginDir = this.manifest.dir ?? "";
+      await this.db.init(pluginDir, this.app.vault.adapter);
+
+      // Check if migration from JSON to SQLite is needed
+      if (MigrationService.needsMigration(this.settings, this.db)) {
+        new Notice("Migrating feed data to database for better performance...");
+        await MigrationService.migrateFromJson(
+          this.settings,
+          this.db,
+          this.app.vault.adapter,
+          pluginDir,
+        );
+        new Notice("Migration complete");
+      }
+
+      // Load bulk data from SQLite (overrides any JSON data)
+      if (this.db.hasData()) {
+        this.settings.feeds = this.db.loadAllFeeds();
+        this.settings.folders = this.db.loadAllFolders();
+        const tags = this.db.loadAllTags();
+        if (tags.length > 0) {
+          this.settings.availableTags = tags;
+        }
+      }
+
+      // Ensure feed filters after loading from SQLite
+      for (const feed of this.settings.feeds) {
+        if (!feed.filters) {
+          feed.filters = {
+            overrideGlobalFilters: false,
+            includeLogic: "AND",
+            rules: [],
+          };
+        }
+      }
+
       await this.repairMissingFolderPathsForFeeds();
     } catch (error) {
       new Notice(
         `Error loading settings: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
       this.settings = DEFAULT_SETTINGS;
+    }
+  }
+
+  private async loadUserSettings(): Promise<RssDashboardSettings | null> {
+    const pluginDir = this.manifest.dir ?? "";
+    const settingsPath = `${pluginDir}/${USER_SETTINGS_FILENAME}`;
+
+    try {
+      const raw = await this.app.vault.adapter.read(settingsPath);
+      return JSON.parse(raw) as RssDashboardSettings;
+    } catch {
+      // usersettings.json doesn't exist yet, fall back to data.json
+      return (await this.loadData()) as RssDashboardSettings | null;
     }
   }
 
@@ -1478,10 +1785,76 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   async saveSettings() {
-    await this.saveData(this.settings);
+    // Save settings-only (without feeds/folders/tags) to usersettings.json
+    await this.saveSettingsOnly();
+
+    // Debounce full SQLite sync
+    this.scheduleDatabaseSync();
   }
 
-  onunload() {}
+  private async saveSettingsOnly(): Promise<void> {
+    const pluginDir = this.manifest.dir ?? "";
+    const settingsPath = `${pluginDir}/${USER_SETTINGS_FILENAME}`;
+    const settingsOnly = this.getSettingsOnlyData();
+
+    await this.app.vault.adapter.write(
+      settingsPath,
+      JSON.stringify(settingsOnly, null, 2),
+    );
+  }
+
+  private getSettingsOnlyData(): Omit<
+    RssDashboardSettings,
+    "feeds" | "folders" | "availableTags"
+  > {
+    const { feeds, folders, availableTags, ...settingsOnly } = this.settings;
+    void feeds;
+    void folders;
+    void availableTags;
+    return settingsOnly;
+  }
+
+  private downloadBlob(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = document.body.createEl("a", {
+      attr: { href: url, download: filename },
+    });
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private scheduleDatabaseSync(): void {
+    if (this.dbSyncTimer) {
+      clearTimeout(this.dbSyncTimer);
+    }
+    this.dbSyncTimer = setTimeout(() => {
+      void this.forceDatabaseSync();
+      this.dbSyncTimer = null;
+    }, 5000);
+  }
+
+  private async forceDatabaseSync(): Promise<void> {
+    if (this.dbSyncTimer) {
+      clearTimeout(this.dbSyncTimer);
+      this.dbSyncTimer = null;
+    }
+    if (this.db?.isInitialized()) {
+      this.db.saveAllFeeds(this.settings.feeds);
+      this.db.saveAllFolders(this.settings.folders);
+      this.db.saveAllTags(this.settings.availableTags);
+      await this.db.forceSave();
+    }
+  }
+
+  onunload() {
+    void (async () => {
+      try {
+        await this.forceDatabaseSync();
+      } finally {
+        this.db?.close();
+      }
+    })();
+  }
 
   private async validateSavedArticles(): Promise<void> {
     let updatedCount = 0;
@@ -1534,6 +1907,32 @@ export default class RssDashboardPlugin extends Plugin {
       .replace(/\s+/g, "_")
       .replace(/_+/g, "_")
       .substring(0, 100);
+  }
+
+  private async restoreFromJsonBackup(): Promise<void> {
+    const pluginDir = this.manifest.dir ?? "";
+    const hasBackup = await MigrationService.hasBackup(
+      this.app.vault.adapter,
+      pluginDir,
+    );
+    if (!hasBackup) {
+      new Notice("No backup found");
+      return;
+    }
+    const backupData = await MigrationService.restoreFromBackup(
+      this.app.vault.adapter,
+      pluginDir,
+    );
+    if (backupData) {
+      const restored = JSON.parse(backupData) as RssDashboardSettings;
+      this.settings = Object.assign({}, DEFAULT_SETTINGS, restored);
+      await this.forceDatabaseSync();
+      new Notice("Restored from backup successfully");
+      const view = await this.getActiveDashboardView();
+      if (view) {
+        view.render();
+      }
+    }
   }
 
   private getAllArticles(): FeedItem[] {

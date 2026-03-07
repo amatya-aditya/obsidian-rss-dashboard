@@ -2168,6 +2168,60 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
+    const userSettingsSection = containerEl.createDiv();
+    new Setting(userSettingsSection)
+      .setName("User preferences file")
+      .setDesc("Import or export plugin preferences.")
+      .setHeading();
+
+    const userSettingsActions = new Setting(userSettingsSection);
+    userSettingsActions.settingEl.addClass("rss-dashboard-import-export-actions");
+    userSettingsActions
+      .addButton((button) =>
+        button
+          .setIcon("upload")
+          .setButtonText("Import usersettings.json")
+          .onClick(() => {
+            this.plugin.importUserSettingsJson();
+          }),
+      )
+      .addButton((button) =>
+        button
+          .setIcon("download")
+          .setButtonText("Export usersettings.json")
+          .onClick(() => {
+            void this.plugin.exportUserSettingsJson();
+          }),
+      );
+
+    const sqliteSection = containerEl.createDiv();
+    new Setting(sqliteSection)
+      .setName("Database file")
+      .setDesc(
+        "Import or export the database file. Importing replaces current feeds, articles, folders, and tags.",
+      )
+      .setHeading();
+
+    const sqliteActions = new Setting(sqliteSection);
+    sqliteActions.settingEl.addClass("rss-dashboard-import-export-actions");
+    sqliteActions
+      .addButton((button) =>
+        button
+          .setIcon("upload")
+          .setButtonText("Import sqlite")
+          .onClick(() => {
+            this.plugin.importSqliteDatabase();
+          }),
+      )
+      .addButton((button) =>
+        button
+          .setIcon("download")
+          .setButtonText("Export sqlite")
+          .onClick(() => {
+            void this.plugin.exportSqliteDatabase();
+          }),
+      );
+
     const opmlSection = containerEl.createDiv();
     new Setting(opmlSection)
       .setName("OPML")

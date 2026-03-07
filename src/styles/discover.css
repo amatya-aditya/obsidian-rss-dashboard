@@ -252,9 +252,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--background-modifier-border);
+  /* margin-bottom: 12px;
+  padding-bottom: 14px; */
+  /* border-bottom: 1px solid var(--background-modifier-border); */
 }
 
 .rss-discover-filter-header {
@@ -407,7 +407,7 @@
 
 .rss-discover-card-type {
   background: var(--background-modifier-active-hover);
-  color: var(--text-muted);
+  /* color: var(--text-muted); */
   padding: 2px 8px;
   border-radius: 4px;
   font-size: var(--font-ui-smaller);
@@ -786,7 +786,7 @@
   margin-bottom: 8px;
   gap: 0.25rem;
   background: transparent;
-  padding: 0 0 4px;
+  padding: 6px 0 4px;
   border-bottom: 1px solid var(--background-modifier-border);
 }
 
@@ -1363,8 +1363,8 @@
 @media (max-width: 1200px) {
   .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-nav,
   .modal.rss-mobile-discover-filters-modal .rss-discover-header {
-    padding-left: 16px;
-    padding-right: 16px;
+    /* padding-left: 16px;
+    padding-right: 16px; */
   }
 
   .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-nav {
@@ -1400,7 +1400,7 @@
     border-radius: 8px;
     border: 1px solid var(--background-secondary);
     background: var(--background-secondary);
-    color: #fff;
+    /* color: #fff; */
     margin-right: 2px;
   }
 
@@ -1567,7 +1567,7 @@
     hsl(260, 60%, 65%),
     hsl(280, 60%, 65%)
   ) !important;
-  color: white !important;
+  /* color: white !important; */
   display: inline-flex;
   align-items: center;
   vertical-align: middle;

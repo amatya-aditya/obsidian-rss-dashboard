@@ -588,10 +588,52 @@ export class KagiSmallwebView extends ItemView {
     blogName: string,
     domain: string,
   ): void {
+    const faviconUrl = this.getSmallwebFaviconUrl(domain);
+    if (faviconUrl) {
+      const img = container.createEl("img", {
+        cls: "rss-discover-card-logo",
+        attr: {
+          src: faviconUrl,
+          alt: `${blogName} favicon`,
+        },
+      });
+      img.onerror = () => {
+        img.remove();
+        this.renderSmallwebInitialsAvatar(container, blogName, domain);
+      };
+      return;
+    }
+
+    this.renderSmallwebInitialsAvatar(container, blogName, domain);
+  }
+
+  private renderSmallwebInitialsAvatar(
+    container: HTMLElement,
+    blogName: string,
+    domain: string,
+  ): void {
     const letter = blogName.charAt(0).toUpperCase();
     const color = this.getSmallwebColorFromDomain(domain);
     container.style.backgroundColor = color;
     container.createDiv({ cls: "rss-discover-card-initials", text: letter });
+  }
+
+  private getSmallwebFaviconUrl(domain: string): string {
+    if (!domain) return "";
+    const normalized = this.getPrimaryDomain(domain);
+    return `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${normalized}&size=32`;
+  }
+
+  private getPrimaryDomain(hostname: string): string {
+    const parts = hostname.split(".");
+    if (parts.length <= 2) return hostname;
+
+    // Keep feed-hosted domains readable (feeds.example.com -> example.com)
+    if (parts.length === 3 && parts[0] === "feeds") {
+      return `${parts[1]}.${parts[2]}`;
+    }
+
+    return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
   }
 
   private getSmallwebColorFromDomain(domain: string): string {

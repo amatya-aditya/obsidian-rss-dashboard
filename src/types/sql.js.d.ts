@@ -24,3 +24,8 @@ declare module "sql.js" {
 
     export default function initSqlJs(options?: InitSqlJsOptions): Promise<SqlJsStatic>;
 }
+
+declare module "*.wasm" {
+    const content: Uint8Array;
+    export default content;
+}

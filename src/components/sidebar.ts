@@ -224,7 +224,8 @@ export class Sidebar {
   private plugin: RssDashboardPlugin;
   private cachedFolderPaths: string[] | null = null;
   private isSearchExpanded = false;
-  private isSidebarToolbarCollapsed = false;
+  // Legacy toggle-row state (disabled by design after header toolbar migration).
+  // private isSidebarToolbarCollapsed = false;
   private isTagsExpanded = false;
   private isRefreshing = false;
   private longPressTimer: number | null = null;
@@ -379,11 +380,12 @@ export class Sidebar {
     });
 
     this.renderHeader(controlsSurface);
-    this.renderToolbarToggle(controlsSurface);
-    if (!this.isSidebarToolbarCollapsed) {
-      this.renderToolbar(controlsSurface);
-      this.renderSearchDock(controlsSurface);
-    }
+    // Legacy toggle-row flow (disabled):
+    // this.renderToolbarToggle(controlsSurface);
+    // if (!this.isSidebarToolbarCollapsed) {
+    //   this.renderSearchDock(controlsSurface);
+    // }
+    this.renderSearchDock(controlsSurface);
     this.renderFeedFolders();
 
     requestAnimationFrame(() => {
@@ -1726,10 +1728,21 @@ export class Sidebar {
     });
 
     const dashboardBtn = navContainer.createDiv({
-      cls: "rss-dashboard-nav-button active",
+      cls: "rss-dashboard-nav-button rss-dashboard-nav-button--icon active",
+      attr: {
+        title: "Dashboard",
+        "aria-label": "Dashboard",
+        role: "button",
+        tabindex: "0",
+      },
     });
-
-    dashboardBtn.appendText(" Dashboard");
+    setIcon(dashboardBtn, "home");
+    dashboardBtn.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        dashboardBtn.click();
+      }
+    });
     dashboardBtn.addEventListener("click", () => {
       if (this.callbacks.onActivateDashboard) {
         this.callbacks.onActivateDashboard();
@@ -1739,10 +1752,21 @@ export class Sidebar {
     });
 
     const discoverBtn = navContainer.createDiv({
-      cls: "rss-dashboard-nav-button",
+      cls: "rss-dashboard-nav-button rss-dashboard-nav-button--icon",
+      attr: {
+        title: "Discover",
+        "aria-label": "Discover",
+        role: "button",
+        tabindex: "0",
+      },
     });
-
-    discoverBtn.appendText(" Discover");
+    setIcon(discoverBtn, "compass");
+    discoverBtn.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        discoverBtn.click();
+      }
+    });
     discoverBtn.addEventListener("click", () => {
       if (this.callbacks.onActivateDiscover) {
         this.callbacks.onActivateDiscover();
@@ -1755,6 +1779,8 @@ export class Sidebar {
     const headerToolbar = header.createDiv({
       cls: "rss-dashboard-header-toolbar",
     });
+
+    this.renderToolbar(headerToolbar, true);
 
     const addBtnContainer = headerToolbar.createDiv({
       cls: "rss-dashboard-header-manage-container",
@@ -1827,38 +1853,42 @@ export class Sidebar {
     // Deprecated: the filter actions are now in the header toolbar
   }
 
-  private renderToolbarToggle(parentEl: HTMLElement): void {
-    const toggleRow = parentEl.createDiv({
-      cls: "rss-dashboard-toolbar-toggle-row",
-    });
-    const toggleButton = toggleRow.createEl("button", {
-      cls: "rss-dashboard-toolbar-toggle-button",
-      attr: {
-        type: "button",
-        "aria-label": this.isSidebarToolbarCollapsed
-          ? "Show sidebar toolbar"
-          : "Hide sidebar toolbar",
-        "aria-expanded": this.isSidebarToolbarCollapsed ? "false" : "true",
-        title: this.isSidebarToolbarCollapsed ? "Show toolbar" : "Hide toolbar",
-      },
-    });
-    toggleButton.toggleClass("is-collapsed", this.isSidebarToolbarCollapsed);
-    setIcon(toggleButton, this.isSidebarToolbarCollapsed ? "chevron-down" : "chevron-up");
-    const toolbarToggleSvg = toggleButton.querySelector("svg");
-    const hasRenderableIcon = !!toolbarToggleSvg?.querySelector(
-      "path, line, polyline, polygon, circle, rect",
-    );
-    if (!hasRenderableIcon) {
-      toggleButton.setText(this.isSidebarToolbarCollapsed ? "▾" : "▴");
-    }
-    toggleButton.addEventListener("click", () => {
-      this.isSidebarToolbarCollapsed = !this.isSidebarToolbarCollapsed;
-      if (this.isSidebarToolbarCollapsed) {
-        this.isSearchExpanded = false;
-      }
-      this.render();
-    });
-  }
+  // Legacy toggle-row renderer (disabled after moving toolbar actions into header).
+  // private renderToolbarToggle(parentEl: HTMLElement): void {
+  //   const toggleRow = parentEl.createDiv({
+  //     cls: "rss-dashboard-toolbar-toggle-row",
+  //   });
+  //   const toggleButton = toggleRow.createEl("button", {
+  //     cls: "rss-dashboard-toolbar-toggle-button",
+  //     attr: {
+  //       type: "button",
+  //       "aria-label": this.isSidebarToolbarCollapsed
+  //         ? "Show sidebar toolbar"
+  //         : "Hide sidebar toolbar",
+  //       "aria-expanded": this.isSidebarToolbarCollapsed ? "false" : "true",
+  //       title: this.isSidebarToolbarCollapsed ? "Show toolbar" : "Hide toolbar",
+  //     },
+  //   });
+  //   toggleButton.toggleClass("is-collapsed", this.isSidebarToolbarCollapsed);
+  //   setIcon(
+  //     toggleButton,
+  //     this.isSidebarToolbarCollapsed ? "chevron-down" : "chevron-up",
+  //   );
+  //   const toolbarToggleSvg = toggleButton.querySelector("svg");
+  //   const hasRenderableIcon = !!toolbarToggleSvg?.querySelector(
+  //     "path, line, polyline, polygon, circle, rect",
+  //   );
+  //   if (!hasRenderableIcon) {
+  //     toggleButton.setText(this.isSidebarToolbarCollapsed ? "▾" : "▴");
+  //   }
+  //   toggleButton.addEventListener("click", () => {
+  //     this.isSidebarToolbarCollapsed = !this.isSidebarToolbarCollapsed;
+  //     if (this.isSidebarToolbarCollapsed) {
+  //       this.isSearchExpanded = false;
+  //     }
+  //     this.render();
+  //   });
+  // }
 
   private renderSearchDock(parentEl: HTMLElement): void {
     if (!this.isSearchExpanded) return;
@@ -1942,9 +1972,11 @@ export class Sidebar {
     });
   }
 
-  public renderToolbar(parentEl: HTMLElement): void {
+  public renderToolbar(parentEl: HTMLElement, inline = false): void {
     const sidebarToolbar = parentEl.createDiv({
-      cls: "rss-dashboard-sidebar-toolbar",
+      cls:
+        "rss-dashboard-sidebar-toolbar" +
+        (inline ? " rss-dashboard-sidebar-toolbar--inline" : ""),
     });
 
     const addFolderButton = sidebarToolbar.createDiv({

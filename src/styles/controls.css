@@ -1199,7 +1199,7 @@ body:not(.theme-dark)
   min-width: 0;
   height: 42px;
   min-height: 42px;
-  padding: 0 8px;
+  padding: 0 16px;
   border-radius: 10px;
   font-size: 13px;
   border: 1px solid var(--background-modifier-border);
@@ -1441,6 +1441,7 @@ body:not(.theme-dark)
   width: 16px;
   height: 16px;
   flex-shrink: 0;
+  display: flex;
 }
 
 /* Header feed icon styles */
