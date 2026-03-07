@@ -16,6 +16,7 @@ import {
   FeedFilterSettings,
 } from "../types/types";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
+import { SidebarSearchService } from "../services/sidebar-search-service";
 import type RssDashboardPlugin from "../../main";
 
 export interface SidebarOptions {
@@ -840,6 +841,9 @@ export class Sidebar {
 
     const folderEl = container.createDiv({
       cls: "rss-dashboard-feed-folder",
+      attr: {
+        "data-folder-path": fullPath,
+      },
     });
 
     const folderHeader = folderEl.createDiv({
@@ -847,6 +851,10 @@ export class Sidebar {
         "rss-dashboard-feed-folder-header" +
         (isCollapsed ? " collapsed" : "") +
         (shouldHighlight ? " active" : ""),
+      attr: {
+        "data-folder-name": folderName,
+        "data-folder-path": fullPath,
+      },
     });
 
     const toggleButton = folderHeader.createDiv({
@@ -1179,6 +1187,8 @@ export class Sidebar {
       attr: {
         draggable: "true",
         "data-feed-url": feed.url,
+        "data-feed-title": feed.title,
+        "data-feed-folder": feed.folder || "",
       },
     });
 
@@ -1998,7 +2008,7 @@ export class Sidebar {
       cls: "rss-dashboard-search-input",
       attr: {
         type: "text",
-        placeholder: "Search feeds...",
+        placeholder: "Search (feed:, folder:, tag:)",
         autocomplete: "off",
         spellcheck: "false",
         value: this.searchQuery,
@@ -2663,81 +2673,206 @@ export class Sidebar {
     }
   }
 
-  /**
-   * Filter feeds and folders in the sidebar based on search query
-   * Searches feed titles and folder names
-   */
-  private filterFeedsAndFolders(query: string): void {
-    // Get all feed elements
-    const feedElements = this.container.querySelectorAll(".rss-dashboard-feed");
+  private collectAncestorFolders(element: HTMLElement): HTMLElement[] {
+    const ancestors: HTMLElement[] = [];
+    let current = element.parentElement;
+    while (current) {
+      if (current.classList.contains("rss-dashboard-feed-folder")) {
+        ancestors.push(current);
+      }
+      current = current.parentElement;
+    }
+    return ancestors;
+  }
 
-    // Get all folder header elements (for folder names)
-    const folderHeaderElements = this.container.querySelectorAll(
+  private forceExpandFolderForSearch(folderEl: HTMLElement): void {
+    const folderHeader = folderEl.querySelector<HTMLElement>(
       ".rss-dashboard-feed-folder-header",
     );
+    const folderFeeds = folderEl.querySelector<HTMLElement>(
+      ".rss-dashboard-folder-feeds",
+    );
+    if (!folderHeader || !folderFeeds) return;
+    if (folderFeeds.getAttribute("data-search-expanded") === "true") return;
 
-    // Get the "All Feeds" button element
-    const allFeedsButton = this.container.querySelector(
+    const wasHeaderCollapsed = folderHeader.classList.contains("collapsed");
+    const wasListCollapsed = folderFeeds.classList.contains("collapsed");
+
+    folderHeader.setAttribute("data-search-expanded", "true");
+    folderFeeds.setAttribute("data-search-expanded", "true");
+    folderHeader.setAttribute(
+      "data-search-was-collapsed",
+      wasHeaderCollapsed ? "true" : "false",
+    );
+    folderFeeds.setAttribute(
+      "data-search-was-collapsed",
+      wasListCollapsed ? "true" : "false",
+    );
+
+    folderHeader.removeClass("collapsed");
+    folderFeeds.removeClass("collapsed");
+
+    const toggleButton = folderHeader.querySelector<HTMLElement>(
+      ".rss-dashboard-feed-folder-toggle",
+    );
+    if (toggleButton) {
+      setIcon(toggleButton, "chevron-down");
+    }
+  }
+
+  private resetSidebarSearchPresentation(): void {
+    this.container
+      .querySelectorAll<HTMLElement>(".rss-dashboard-search-hidden")
+      .forEach((el) => el.removeClass("rss-dashboard-search-hidden"));
+
+    this.container
+      .querySelectorAll<HTMLElement>(
+        '.rss-dashboard-feed-folder-header[data-search-expanded="true"]',
+      )
+      .forEach((header) => {
+        const wasCollapsed =
+          header.getAttribute("data-search-was-collapsed") === "true";
+        if (wasCollapsed) {
+          header.addClass("collapsed");
+        }
+        const toggleButton = header.querySelector<HTMLElement>(
+          ".rss-dashboard-feed-folder-toggle",
+        );
+        if (toggleButton) {
+          setIcon(toggleButton, wasCollapsed ? "chevron-right" : "chevron-down");
+        }
+        header.removeAttribute("data-search-expanded");
+        header.removeAttribute("data-search-was-collapsed");
+      });
+
+    this.container
+      .querySelectorAll<HTMLElement>(
+        '.rss-dashboard-folder-feeds[data-search-expanded="true"]',
+      )
+      .forEach((feedList) => {
+        const wasCollapsed =
+          feedList.getAttribute("data-search-was-collapsed") === "true";
+        if (wasCollapsed) {
+          feedList.addClass("collapsed");
+        }
+        feedList.removeAttribute("data-search-expanded");
+        feedList.removeAttribute("data-search-was-collapsed");
+      });
+  }
+
+  /**
+   * Filter sidebar entities by search query.
+   * Supports scoped queries: feed:, folder:/path:, tag:
+   */
+  private filterFeedsAndFolders(query: string): void {
+    this.resetSidebarSearchPresentation();
+
+    const parsedQuery = SidebarSearchService.parseQuery(query);
+
+    const feedElements = Array.from(
+      this.container.querySelectorAll<HTMLElement>(".rss-dashboard-feed"),
+    );
+    const folderElements = Array.from(
+      this.container.querySelectorAll<HTMLElement>(".rss-dashboard-feed-folder"),
+    );
+    const allFeedsButton = this.container.querySelector<HTMLElement>(
       ".rss-dashboard-all-feeds-button",
     );
 
-    // Filter feeds
-    feedElements.forEach((el) => {
-      const feedNameEl = el.querySelector(".rss-dashboard-feed-name");
-      const feedName = feedNameEl?.textContent?.toLowerCase() || "";
+    if (!parsedQuery.term) {
+      allFeedsButton?.removeClass("rss-dashboard-search-hidden");
+      return;
+    }
 
-      if (query && !feedName.includes(query)) {
-        (el as HTMLElement).addClass("rss-dashboard-search-hidden");
+    const folderDirectMatches = new Map<HTMLElement, boolean>();
+    folderElements.forEach((folderEl) => {
+      const header = folderEl.querySelector<HTMLElement>(
+        ".rss-dashboard-feed-folder-header",
+      );
+      const folderPath =
+        folderEl.dataset.folderPath || header?.dataset.folderPath || "";
+      const folderName =
+        header?.dataset.folderName ||
+        header
+          ?.querySelector(".rss-dashboard-feed-folder-name")
+          ?.textContent?.trim() ||
+        "";
+
+      folderDirectMatches.set(
+        folderEl,
+        SidebarSearchService.matchesFolder(parsedQuery, folderName, folderPath),
+      );
+    });
+
+    feedElements.forEach((feedEl) => {
+      const feedTitle =
+        feedEl.dataset.feedTitle ||
+        feedEl
+          .querySelector(".rss-dashboard-feed-name")
+          ?.textContent?.trim() ||
+        "";
+      const feedFolderPath = feedEl.dataset.feedFolder || "";
+
+      const feedMatch = SidebarSearchService.matchesFeed(
+        parsedQuery,
+        feedTitle,
+        feedFolderPath,
+      );
+
+      const hasMatchedFolderAncestor = this.collectAncestorFolders(feedEl).some(
+        (folderEl) => folderDirectMatches.get(folderEl) === true,
+      );
+
+      if (feedMatch || hasMatchedFolderAncestor) {
+        feedEl.removeClass("rss-dashboard-search-hidden");
       } else {
-        (el as HTMLElement).removeClass("rss-dashboard-search-hidden");
+        feedEl.addClass("rss-dashboard-search-hidden");
       }
     });
 
-    // Filter folders - hide/show folder headers based on whether they have visible feeds
-    folderHeaderElements.forEach((el) => {
-      const folderNameEl = el.querySelector(".rss-dashboard-feed-folder-name");
-      const folderName = folderNameEl?.textContent?.toLowerCase() || "";
-
-      if (query && !folderName.includes(query)) {
-        // Check if this folder has any visible feeds
-        const folderEl = el.closest(".rss-dashboard-feed-folder");
-        const visibleFeeds = folderEl?.querySelectorAll(
+    const folderVisible = new Map<HTMLElement, boolean>();
+    [...folderElements].reverse().forEach((folderEl) => {
+      const directMatch = folderDirectMatches.get(folderEl) === true;
+      const hasVisibleFeeds =
+        folderEl.querySelectorAll(
           ".rss-dashboard-feed:not(.rss-dashboard-search-hidden)",
-        );
+        ).length > 0;
 
-        if (!visibleFeeds || visibleFeeds.length === 0) {
-          (el as HTMLElement).addClass("rss-dashboard-search-hidden");
-        } else {
-          (el as HTMLElement).removeClass("rss-dashboard-search-hidden");
-        }
+      const folderFeedContainer = folderEl.querySelector<HTMLElement>(
+        ".rss-dashboard-folder-feeds",
+      );
+      const hasVisibleSubfolder = Array.from(
+        folderFeedContainer?.children ?? [],
+      ).some(
+        (child) =>
+          child instanceof HTMLElement &&
+          child.classList.contains("rss-dashboard-feed-folder") &&
+          folderVisible.get(child) === true,
+      );
+
+      const shouldShow = directMatch || hasVisibleFeeds || hasVisibleSubfolder;
+      folderVisible.set(folderEl, shouldShow);
+
+      const header = folderEl.querySelector<HTMLElement>(
+        ".rss-dashboard-feed-folder-header",
+      );
+      if (shouldShow) {
+        folderEl.removeClass("rss-dashboard-search-hidden");
+        header?.removeClass("rss-dashboard-search-hidden");
+        this.forceExpandFolderForSearch(folderEl);
       } else {
-        (el as HTMLElement).removeClass("rss-dashboard-search-hidden");
+        folderEl.addClass("rss-dashboard-search-hidden");
+        header?.addClass("rss-dashboard-search-hidden");
       }
     });
 
-    // Handle "All Feeds" button visibility
-    if (allFeedsButton) {
-      // Show All Feeds button if query is empty, or always show it
-      // since it serves as a "clear filter" option
-      if (query) {
-        // Check if there are any visible feeds
-        const visibleFeeds = this.container.querySelectorAll(
-          ".rss-dashboard-feed:not(.rss-dashboard-search-hidden)",
-        );
-        if (visibleFeeds.length === 0) {
-          (allFeedsButton as HTMLElement).addClass(
-            "rss-dashboard-search-hidden",
-          );
-        } else {
-          (allFeedsButton as HTMLElement).removeClass(
-            "rss-dashboard-search-hidden",
-          );
-        }
-      } else {
-        (allFeedsButton as HTMLElement).removeClass(
-          "rss-dashboard-search-hidden",
-        );
-      }
+    const visibleFeeds = this.container.querySelectorAll(
+      ".rss-dashboard-feed:not(.rss-dashboard-search-hidden)",
+    ).length;
+    if (visibleFeeds === 0) {
+      allFeedsButton?.addClass("rss-dashboard-search-hidden");
+    } else {
+      allFeedsButton?.removeClass("rss-dashboard-search-hidden");
     }
   }
 
