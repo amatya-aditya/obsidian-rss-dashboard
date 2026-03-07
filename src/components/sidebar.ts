@@ -223,6 +223,7 @@ export class Sidebar {
   private plugin: RssDashboardPlugin;
   private cachedFolderPaths: string[] | null = null;
   private isSearchExpanded = false;
+  private searchQuery = "";
   // Legacy toggle-row state (disabled by design after header toolbar migration).
   // private isSidebarToolbarCollapsed = false;
   private isTagsExpanded = false;
@@ -389,6 +390,7 @@ export class Sidebar {
     // }
     this.renderSearchDock(controlsSurface);
     this.renderFeedFolders();
+    this.applySearchFilterFromState();
 
     requestAnimationFrame(() => {
       this.container.scrollTop = scrollPosition;
@@ -1922,6 +1924,7 @@ export class Sidebar {
         placeholder: "Search feeds...",
         autocomplete: "off",
         spellcheck: "false",
+        value: this.searchQuery,
       },
     });
     const clearButton = searchContainer.createEl("button", {
@@ -1955,9 +1958,9 @@ export class Sidebar {
 
     let searchTimeout: number;
     searchInput.addEventListener("input", (e) => {
-      const query = ((e.target as HTMLInputElement)?.value || "")
-        .toLowerCase()
-        .trim();
+      const rawQuery = (e.target as HTMLInputElement)?.value || "";
+      this.searchQuery = rawQuery;
+      const query = rawQuery.toLowerCase().trim();
       updateClearButtonVisibility();
       if (searchTimeout) {
         window.clearTimeout(searchTimeout);
@@ -1970,6 +1973,7 @@ export class Sidebar {
     clearButton.addEventListener("click", (e) => {
       e.preventDefault();
       searchInput.value = "";
+      this.searchQuery = "";
       updateClearButtonVisibility();
       if (searchTimeout) {
         window.clearTimeout(searchTimeout);
@@ -1980,6 +1984,7 @@ export class Sidebar {
 
     requestAnimationFrame(() => {
       searchInput.focus();
+      updateClearButtonVisibility();
       if (window.innerWidth <= 768) {
         window.setTimeout(() => {
           searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -2657,6 +2662,13 @@ export class Sidebar {
         );
       }
     }
+  }
+
+  private applySearchFilterFromState(): void {
+    const query = this.isSearchExpanded
+      ? this.searchQuery.toLowerCase().trim()
+      : "";
+    this.filterFeedsAndFolders(query);
   }
 
   /**

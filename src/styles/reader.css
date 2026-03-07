@@ -118,6 +118,47 @@
   line-height: 1.6;
   color: var(--text-normal);
 }
+
+.rss-reader-description-callout {
+  margin: 0 0 16px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+  overflow: hidden;
+}
+
+.rss-reader-description-callout > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: var(--text-normal);
+  border-bottom: 1px solid transparent;
+}
+
+.rss-reader-description-callout > summary::-webkit-details-marker {
+  display: none;
+}
+
+.rss-reader-description-callout > summary::before {
+  content: "+";
+  display: inline-block;
+  width: 16px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.rss-reader-description-callout[open] > summary::before {
+  content: "-";
+}
+
+.rss-reader-description-callout[open] > summary {
+  border-bottom-color: var(--background-modifier-border);
+}
+
+.rss-reader-description-body {
+  padding: 12px;
+}
 .rss-reader-article-content img,
 .rss-reader-description img {
   max-width: 100%;

@@ -918,7 +918,7 @@ export default class RssDashboardPlugin extends Plugin {
       const iconSpan = this.importStatusBarItem.createSpan({
         cls: "import-statusbar-icon",
       });
-      setIcon(iconSpan, "wifi");
+      setIcon(iconSpan, "rss");
       this.importStatusBarItem.createSpan({
         cls: "import-statusbar-text",
       });

@@ -452,7 +452,10 @@ export class ReaderView extends ItemView {
       }
       await this.displayPodcast(item);
     } else {
-      const fullContent = await this.fetchFullArticleContent(item.link);
+      const fetchedContent = await this.fetchFullArticleContent(item.link);
+      const fullContent = this.hasMeaningfulArticleContent(fetchedContent)
+        ? fetchedContent
+        : item.content || item.description || "";
       this.currentFullContent = fullContent;
       await this.displayArticle(item, fullContent);
     }
@@ -550,7 +553,12 @@ export class ReaderView extends ItemView {
       this.videoPlayer = null;
     }
 
-    if (this.webViewerIntegration) {
+    const shouldUseWebViewer =
+      Boolean(this.settings.useWebViewer) &&
+      Boolean(this.webViewerIntegration) &&
+      !this.shouldBypassWebViewerForFeedContent(item, fullContent);
+
+    if (shouldUseWebViewer && this.webViewerIntegration) {
       try {
         const success = await this.webViewerIntegration.openInWebViewer(
           item.link,
@@ -567,6 +575,27 @@ export class ReaderView extends ItemView {
     }
 
     this.renderArticle(item, fullContent);
+  }
+
+  private shouldBypassWebViewerForFeedContent(
+    item: FeedItem,
+    fullContent?: string,
+  ): boolean {
+    if (!item.link) {
+      return false;
+    }
+
+    const feedHtml = (fullContent || item.content || item.description || "").trim();
+    if (!feedHtml) {
+      return false;
+    }
+
+    try {
+      const host = new URL(item.link).hostname.toLowerCase();
+      return host === "kite.kagi.com" || host === "news.kagi.com";
+    } catch {
+      return false;
+    }
   }
 
   private renderArticle(item: FeedItem, fullContent?: string): void {
@@ -615,42 +644,44 @@ export class ReaderView extends ItemView {
       }
     }
 
-    if (
-      this.settings.display.showCoverImage &&
-      (item.coverImage ||
-        (item.image &&
-          typeof item.image === "object" &&
-          (item.image as { url?: string }).url) ||
-        (typeof item.image === "string" ? item.image : ""))
-    ) {
-      const imageContainer = this.readingContainer.createDiv({
-        cls: "rss-reader-cover-image",
+    const descriptionHtml = (item.description || "").trim();
+    const mainHtml = (fullContent || item.content || "").trim();
+
+    if (descriptionHtml) {
+      const descriptionCallout = this.readingContainer.createEl("details", {
+        cls: "rss-reader-description-callout",
       });
-      const coverImg = imageContainer.createEl("img", {
-        attr: {
-          src:
-            (item.coverImage ||
-              (item.image &&
-                typeof item.image === "object" &&
-                (item.image as { url?: string }).url) ||
-              (typeof item.image === "string" ? item.image : "")) ??
-            "",
-          alt: item.title,
-        },
+      descriptionCallout.open = true;
+      descriptionCallout.createEl("summary", { text: "Feed description" });
+      const descriptionBody = descriptionCallout.createDiv({
+        cls: "rss-reader-description rss-reader-description-body",
       });
-      coverImg.addEventListener("error", function () {
-        this.remove();
-      });
+      this.populateArticleHtml(descriptionBody, descriptionHtml, item.link);
     }
 
-    const contentContainer = this.readingContainer.createDiv({
-      cls: "rss-reader-article-content",
-    });
+    const hasDistinctMainContent =
+      mainHtml && (!descriptionHtml || !this.isEquivalentHtml(mainHtml, descriptionHtml));
 
-    const htmlString = ensureUtf8Meta(fullContent || item.description || "");
+    if (hasDistinctMainContent || !descriptionHtml) {
+      const contentContainer = this.readingContainer.createDiv({
+        cls: "rss-reader-article-content",
+      });
+      const htmlToRender = hasDistinctMainContent
+        ? mainHtml
+        : descriptionHtml || mainHtml;
+      this.populateArticleHtml(contentContainer, htmlToRender, item.link);
+    }
+  }
+
+  private populateArticleHtml(
+    container: HTMLElement,
+    rawHtml: string,
+    baseUrl: string,
+  ): void {
+    const htmlString = ensureUtf8Meta(rawHtml || "");
     const processedHtmlString = this.convertRelativeUrlsInContent(
       htmlString,
-      item.link,
+      baseUrl,
     );
     const parser = new DOMParser();
     const doc = parser.parseFromString(processedHtmlString, "text/html");
@@ -661,7 +692,6 @@ export class ReaderView extends ItemView {
           parent.appendText(node.textContent || "");
         } else if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as HTMLElement;
-          // Skip icon elements that shouldn't be rendered
           const isIconElement =
             element.tagName === "I" && element.classList.contains("icon-class");
           if (!isIconElement) {
@@ -679,9 +709,9 @@ export class ReaderView extends ItemView {
       });
     }
 
-    appendNodes(contentContainer, doc.body.childNodes);
+    appendNodes(container, doc.body.childNodes);
 
-    contentContainer.querySelectorAll("img").forEach((img) => {
+    container.querySelectorAll("img").forEach((img) => {
       const src = img.getAttribute("src");
       if (src && src.startsWith("app://")) {
         img.setAttribute("src", src.replace("app://", "https://"));
@@ -693,7 +723,7 @@ export class ReaderView extends ItemView {
       });
     });
 
-    contentContainer.querySelectorAll("source").forEach((source) => {
+    container.querySelectorAll("source").forEach((source) => {
       const srcset = source.getAttribute("srcset");
       if (srcset) {
         const processedSrcset = srcset
@@ -721,28 +751,47 @@ export class ReaderView extends ItemView {
       }
     });
 
-    contentContainer.querySelectorAll("a").forEach((link) => {
+    container.querySelectorAll("a").forEach((link) => {
       const href = link.getAttribute("href");
       if (href && href.startsWith("app://")) {
         link.setAttribute("href", href.replace("app://", "https://"));
       }
-    });
-
-    this.app.workspace.trigger("parse-math", contentContainer);
-
-    const links = contentContainer.querySelectorAll("a");
-    links.forEach((link) => {
       link.setAttribute("target", "_blank");
       link.setAttribute("rel", "noopener noreferrer");
     });
 
-    // Apply word highlighting to content if enabled
+    this.app.workspace.trigger("parse-math", container);
+
     if (
       this.settings.highlights?.enabled &&
       this.settings.highlights.highlightInContent
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
-      highlightService.highlightElement(contentContainer);
+      highlightService.highlightElement(container);
+    }
+  }
+
+  private isEquivalentHtml(first: string, second: string): boolean {
+    if (!first || !second) {
+      return false;
+    }
+
+    try {
+      const parser = new DOMParser();
+      const firstDoc = parser.parseFromString(ensureUtf8Meta(first), "text/html");
+      const secondDoc = parser.parseFromString(
+        ensureUtf8Meta(second),
+        "text/html",
+      );
+      const firstText = (firstDoc.body.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim();
+      const secondText = (secondDoc.body.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim();
+      return firstText.length > 0 && firstText === secondText;
+    } catch {
+      return first.trim() === second.trim();
     }
   }
 
@@ -758,6 +807,36 @@ export class ReaderView extends ItemView {
       return this.convertRelativeUrlsInContent(content, url);
     } catch {
       return "";
+    }
+  }
+
+  private hasMeaningfulArticleContent(content: string): boolean {
+    if (!content || !content.trim()) {
+      return false;
+    }
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(content, "text/html");
+      const body = doc.body;
+      if (!body) {
+        return false;
+      }
+
+      body.querySelectorAll("script, style, noscript").forEach((node) => {
+        node.remove();
+      });
+
+      const text = (body.textContent || "").replace(/\s+/g, " ").trim();
+      if (text.length >= 80) {
+        return true;
+      }
+
+      return Boolean(
+        body.querySelector("p, article, li, blockquote, h1, h2, h3, h4"),
+      );
+    } catch {
+      return content.trim().length >= 80;
     }
   }
 
