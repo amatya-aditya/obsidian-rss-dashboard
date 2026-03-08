@@ -799,52 +799,59 @@ export class ReaderView extends ItemView {
     if (!first || !second) {
       return false;
     }
+    const firstSignature = this.buildDedupSignature(first);
+    const secondSignature = this.buildDedupSignature(second);
+    return Boolean(
+      firstSignature &&
+        secondSignature &&
+        firstSignature === secondSignature,
+    );
+  }
 
-    const firstText = this.extractNormalizedTextFromHtml(first);
-    const secondText = this.extractNormalizedTextFromHtml(second);
-
-    if (!firstText || !secondText) {
-      return false;
-    }
-    if (firstText === secondText) {
-      return true;
-    }
-
-    const [shorter, longer] =
-      firstText.length <= secondText.length
-        ? [firstText, secondText]
-        : [secondText, firstText];
-
-    // Treat large near-subset matches as equivalent (common in RSS summary/full duplication).
-    if (shorter.length >= 200 && longer.includes(shorter)) {
-      return true;
+  private buildDedupSignature(html: string): string {
+    if (!html || !html.trim()) {
+      return "";
     }
 
-    if (shorter.length >= 120) {
-      const shortPrefix = shorter.slice(0, Math.min(shorter.length, 400));
-      if (longer.includes(shortPrefix)) {
-        const lengthRatio = shorter.length / longer.length;
-        if (lengthRatio >= 0.7) {
-          return true;
-        }
-      }
+    const tokens = this.extractComparableTokens(html);
+    if (tokens.length === 0) {
+      return "";
     }
 
-    const shorterWords = this.getSignificantWordSet(shorter);
-    const longerWords = this.getSignificantWordSet(longer);
-    if (shorterWords.size === 0 || longerWords.size === 0) {
-      return false;
+    const tokenFrequency = new Map<string, number>();
+    for (const token of tokens) {
+      tokenFrequency.set(token, (tokenFrequency.get(token) || 0) + 1);
     }
 
-    let overlapCount = 0;
-    shorterWords.forEach((word) => {
-      if (longerWords.has(word)) {
-        overlapCount++;
-      }
-    });
+    return JSON.stringify(
+      Array.from(tokenFrequency.entries()).sort(([a], [b]) =>
+        a.localeCompare(b),
+      ),
+    );
+  }
 
-    const overlapRatio = overlapCount / shorterWords.size;
-    return overlapRatio >= 0.9;
+  private extractComparableTokens(html: string): string[] {
+    const parsedText = this.extractNormalizedTextFromHtml(html);
+    if (!parsedText) {
+      return [];
+    }
+
+    const normalized = parsedText
+      .normalize("NFKC")
+      .toLowerCase()
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, "'")
+      .replace(/[‐‑‒–—]/g, "-")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+
+    if (!normalized) {
+      return [];
+    }
+
+    return normalized
+      .split(/\s+/)
+      .filter((token) => token.length >= 2);
   }
 
   private extractNormalizedTextFromHtml(html: string): string {
@@ -862,11 +869,6 @@ export class ReaderView extends ItemView {
         .replace(/\s+/g, " ")
         .trim();
     }
-  }
-
-  private getSignificantWordSet(text: string): Set<string> {
-    const matches = text.match(/[a-z0-9]{4,}/g) || [];
-    return new Set(matches);
   }
 
   async fetchFullArticleContent(url: string): Promise<string> {
