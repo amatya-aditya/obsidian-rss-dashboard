@@ -1553,6 +1553,12 @@ export class CustomXMLParser {
       cleanedXml = cleanedXml.replace(/<\?php[\s\S]*?\?>/gi, "");
       cleanedXml = cleanedXml.replace(/<\?.*?\?>/gi, "");
 
+      // Unwrap CDATA sections so regex-based extraction can match content
+      cleanedXml = cleanedXml.replace(
+        /<!\[CDATA\[([\s\S]*?)\]\]>/g,
+        "$1",
+      );
+
       const rssStartMatch = cleanedXml.match(/<rss[^>]*>/i);
       if (rssStartMatch) {
         const rssStartIndex = cleanedXml.indexOf(rssStartMatch[0]);
@@ -1886,6 +1892,42 @@ export class CustomXMLParser {
 
     if (!processed.startsWith("<?xml")) {
       processed = '<?xml version="1.0" encoding="UTF-8"?>' + processed;
+    }
+
+    // Auto-declare undeclared namespace prefixes to prevent XML parse errors
+    const rootTagMatch = processed.match(/<(rss|feed|rdf:rdf)([^>]*)>/i);
+    if (rootTagMatch) {
+      const rootAttrs = rootTagMatch[2];
+      const declaredPrefixes = new Set<string>();
+      const nsRegex = /xmlns:(\w+)\s*=/g;
+      let nsMatch;
+      while ((nsMatch = nsRegex.exec(rootAttrs)) !== null) {
+        declaredPrefixes.add(nsMatch[1].toLowerCase());
+      }
+      // Always consider these as declared (built-in XML prefixes)
+      declaredPrefixes.add("xml");
+      declaredPrefixes.add("xmlns");
+
+      const usedPrefixes = new Set<string>();
+      const prefixRegex = /<(\w+):\w+[\s>/]/g;
+      let pfxMatch;
+      while ((pfxMatch = prefixRegex.exec(processed)) !== null) {
+        const prefix = pfxMatch[1].toLowerCase();
+        if (!declaredPrefixes.has(prefix)) {
+          usedPrefixes.add(pfxMatch[1]); // preserve original case
+        }
+      }
+
+      if (usedPrefixes.size > 0) {
+        const newAttrs = [...usedPrefixes]
+          .map((p) => `xmlns:${p}="urn:x-${p}:unknown"`)
+          .join(" ");
+        const rootTag = rootTagMatch[1];
+        processed = processed.replace(
+          new RegExp(`<${rootTag}([^>]*)>`, "i"),
+          `<${rootTag}$1 ${newAttrs}>`,
+        );
+      }
     }
 
     return processed;
