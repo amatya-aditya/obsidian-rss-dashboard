@@ -126,8 +126,8 @@
   padding: 7px 14px;
   min-height: 38px;
   border-radius: 8px;
-  color: var(--color-accent);
-  background: var(--background-modifier-active-hover);
+  color: var(--text-muted);
+  background: var(--background-primary-alt);
   font-size: 16px;
   font-weight: 600;
   line-height: 1.1;
