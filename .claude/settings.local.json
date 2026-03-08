@@ -7,7 +7,8 @@
       "Bash(npm run build:*)",
       "Bash(grep:*)",
       "Bash(sed:*)",
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "WebFetch(domain:marimo.io)"
     ]
   }
 }

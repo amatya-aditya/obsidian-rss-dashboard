@@ -2494,6 +2494,9 @@ export class FeedParser {
               item.itunes?.image?.href || item.image?.url || "",
               url,
             ) ||
+            (item.enclosure?.type?.startsWith("image/")
+              ? this.convertToAbsoluteUrl(item.enclosure.url, url)
+              : "") ||
             (parsed.image &&
             typeof parsed.image === "object" &&
             parsed.image.url
@@ -2527,7 +2530,11 @@ export class FeedParser {
                 parsed.image?.url ||
                 "",
               url,
-            ) || existingItem.image,
+            ) ||
+            (item.enclosure?.type?.startsWith("image/")
+              ? this.convertToAbsoluteUrl(item.enclosure.url, url)
+              : "") ||
+            existingItem.image,
           duration: item.itunes?.duration || existingItem.duration,
           explicit: item.itunes?.explicit === "yes" || existingItem.explicit,
           category: item.itunes?.category || existingItem.category,
@@ -2584,6 +2591,9 @@ export class FeedParser {
               item.itunes?.image?.href || item.image?.url || "",
               url,
             ) ||
+            (item.enclosure?.type?.startsWith("image/")
+              ? this.convertToAbsoluteUrl(item.enclosure.url, url)
+              : "") ||
             (parsed.image &&
             typeof parsed.image === "object" &&
             parsed.image.url
@@ -2602,6 +2612,9 @@ export class FeedParser {
             item.content || item.description || "",
             url,
           );
+        }
+        if (!image && item.enclosure?.type?.startsWith("image/")) {
+          image = this.convertToAbsoluteUrl(item.enclosure.url, url);
         }
         const summary = this.extractSummary(
           item.content || item.description || "",

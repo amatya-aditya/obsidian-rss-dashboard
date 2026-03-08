@@ -2352,6 +2352,13 @@ export class ArticleList {
         const extracted = extractFirstImageSrc(article.summary);
         if (extracted) coverImgSrc = extracted;
       }
+      if (
+        !coverImgSrc &&
+        article.enclosure?.type?.startsWith("image/") &&
+        article.enclosure?.url
+      ) {
+        coverImgSrc = article.enclosure.url;
+      }
 
       if (coverImgSrc) {
         const coverContainer = cardContent.createDiv({
