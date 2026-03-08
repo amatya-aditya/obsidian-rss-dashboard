@@ -33,7 +33,6 @@
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
-    "sql.js": "^1.14.1",
     "turndown": "^7.2.0"
   }
 }

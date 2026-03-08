@@ -1655,8 +1655,6 @@ export class FeedManagerModal extends Modal {
    * Reset to factory settings - delete all feeds and restore default folders
    */
   private async resetToFactorySettings(): Promise<void> {
-    const deletedFeedCount = this.plugin.settings.feeds.length;
-
     // Clear all feeds
     this.plugin.settings.feeds = [];
 
@@ -1669,7 +1667,6 @@ export class FeedManagerModal extends Modal {
 
     // Save settings
     await this.plugin.saveSettings();
-    void this.plugin.optimizeDatabaseAfterBulkDelete(deletedFeedCount);
 
     // Refresh the dashboard view if it exists
     const dashboardView = await this.plugin.getActiveDashboardView();
