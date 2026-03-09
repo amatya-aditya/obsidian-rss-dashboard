@@ -133,17 +133,15 @@
 
 @media (max-width:600px) {
 	.rss-dashboard-article-card {
-	 height: var(--card-height, 380px);
-	 min-height: 380px;
-	 max-height: 380px
+	 min-height: 0;
 	}
 }
 
-.rss-dashboard-cover-container:hover .rss-dashboard-cover-image {
+.rss-dashboard-cover-container.has-summary:hover .rss-dashboard-cover-image {
 	opacity: 0;
 }
 
-.rss-dashboard-cover-container:hover .rss-dashboard-summary-overlay {
+.rss-dashboard-cover-container.has-summary:hover .rss-dashboard-summary-overlay {
 	opacity: 1;
 }
 
@@ -217,7 +215,6 @@
 .rss-dashboard-card-view {
     display: grid;
     gap: 15px;
-    align-items: start;
     justify-items: stretch;
     padding: 15px;
 }
@@ -229,8 +226,7 @@
 .rss-dashboard-article-card {
 	display: flex;
 	flex-direction: column;
-	min-height: 360px;
-	max-height: 360px;
+	min-height: 0;
 	background-color: var(--background-secondary);
 	border-radius: 4px;
 	border: 1.5px solid var(--background-modifier-border);

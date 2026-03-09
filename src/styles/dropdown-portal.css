@@ -59,3 +59,440 @@
 	 background-position: 100% 50%
 	}
    }
+
+/* ==============================
+   Filter Trigger Button
+   ============================== */
+.rss-dashboard-filter-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-normal);
+    margin-right: 6px;
+}
+
+.rss-dashboard-filter-trigger:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+}
+
+/* Filter badge */
+.rss-dashboard-filter-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background: #9b59b6;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    line-height: 1;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* ==============================
+   Filter Panel Portal
+   ============================== */
+.rss-dashboard-filter-menu-portal {
+    position: fixed;
+    top: var(--filter-portal-top, 50px);
+    right: var(--filter-portal-right, 10px);
+    width: 260px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    z-index: 10000;
+    padding: 8px 0;
+    animation: rss-dashboard-dropdown-fade-in 0.2s ease-out;
+}
+
+.rss-filter-portal-row {
+    padding: 6px 16px;
+}
+
+.rss-filter-portal-separator {
+    height: 1px;
+    background: var(--background-modifier-border);
+    margin: 4px 12px;
+}
+
+/* AND / OR logic toggle */
+.rss-filter-logic-row {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+}
+
+.rss-filter-logic-btn {
+    flex: 1;
+    padding: 6px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.rss-filter-logic-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.rss-filter-logic-btn.active {
+    background: #9b59b6;
+    color: #fff;
+    border-color: #9b59b6;
+}
+
+/* Filter checkbox rows */
+.rss-filter-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.15s;
+}
+
+.rss-filter-checkbox-row:hover {
+    background: var(--background-modifier-hover);
+}
+
+.rss-filter-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.rss-filter-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.rss-filter-checkbox {
+    flex-shrink: 0;
+    cursor: pointer;
+    accent-color: #9b59b6;
+}
+
+.rss-filter-label {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-normal);
+    user-select: none;
+}
+
+/* Apply button */
+.rss-filter-apply-row {
+    display: flex;
+    justify-content: center;
+    padding: 8px 16px;
+}
+
+.rss-filter-apply-btn {
+    width: 100%;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #9b59b6;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.rss-filter-apply-btn:hover {
+    background: #8e44ad;
+    box-shadow: 0 2px 8px rgba(155, 89, 182, 0.3);
+}
+
+/* ==============================
+   Controls Dropdown Enhancements
+   ============================== */
+
+/* Search wrapper inside dropdown */
+.rss-dropdown-search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 4px;
+}
+
+.rss-dropdown-search-icon {
+    position: absolute;
+    left: 10px;
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.rss-dropdown-search-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.rss-dropdown-search-input {
+    width: 100%;
+    padding: 8px 32px 8px 34px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 13px;
+}
+
+.rss-dropdown-search-input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+}
+
+.rss-dropdown-search-clear {
+    position: absolute;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.15s;
+}
+
+.rss-dropdown-search-clear:hover {
+    color: var(--text-normal);
+}
+
+.rss-dropdown-search-clear svg {
+    width: 14px;
+    height: 14px;
+}
+
+.rss-dropdown-search-clear.is-hidden {
+    display: none;
+}
+
+/* Control rows with icon + select */
+.rss-dropdown-control-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.rss-dropdown-control-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.rss-dropdown-control-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.rss-dropdown-select {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 13px;
+    min-height: fit-content;
+}
+
+.rss-dropdown-select:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+}
+
+.rss-dropdown-control-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    white-space: nowrap;
+    min-width: 70px;
+}
+
+/* View toggle buttons with icons */
+.rss-dropdown-view-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.rss-dropdown-view-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.rss-dropdown-view-btn.active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.rss-dropdown-view-btn-icon {
+    display: flex;
+    align-items: center;
+}
+
+.rss-dropdown-view-btn-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Refresh button in dropdown */
+.rss-dropdown-refresh-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px 16px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.rss-dropdown-refresh-btn:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+}
+
+/* Cards per row button group */
+.rss-dropdown-cols-group {
+    display: flex;
+    gap: 3px;
+    flex: 1;
+}
+
+.rss-dropdown-col-btn {
+    flex: 1;
+    padding: 4px 6px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+}
+
+.rss-dropdown-col-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.rss-dropdown-col-btn.active {
+    background: #9b59b6;
+    color: #fff;
+    border-color: #9b59b6;
+}
+
+/* Spacing slider row */
+.rss-dropdown-spacing-row {
+    flex-wrap: wrap;
+}
+
+.rss-dropdown-spacing-value {
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 36px;
+    text-align: right;
+}
+
+.rss-dropdown-spacing-slider {
+    width: 100%;
+    margin-top: 4px;
+    accent-color: #9b59b6;
+}
+
+/* Mark all row */
+.rss-dropdown-mark-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: 12px;
+    margin-top: 4px;
+}
+
+.rss-dropdown-mark-btns {
+    display: flex;
+    gap: 6px;
+}
+
+.rss-dropdown-mark-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.rss-dropdown-mark-btn:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+}
+
+/* Make hamburger always visible now (no longer desktop-only) */
+.rss-dashboard-hamburger-menu {
+    display: block !important;
+}
+
+/* Hide old desktop controls since we use dropdown+filter now */
+.rss-dashboard-desktop-controls {
+    display: none !important;
+}

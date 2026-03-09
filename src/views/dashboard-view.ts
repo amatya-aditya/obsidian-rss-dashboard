@@ -212,6 +212,7 @@ export class RssDashboardView extends ItemView {
         const articlesForPage = allFilteredArticles.slice(startIdx, endIdx);
 
         this.articleList = new ArticleList(
+            this.app,
             articlesContainer,
             this.settings,
             this.getArticlesTitle(),
@@ -230,7 +231,16 @@ export class RssDashboardView extends ItemView {
                 onGroupChange: this.handleGroupChange.bind(this),
                 onFilterChange: this.handleFilterChange.bind(this),
                 onPageChange: this.handlePageChange.bind(this),
-                onPageSizeChange: this.handlePageSizeChange.bind(this)
+                onPageSizeChange: this.handlePageSizeChange.bind(this),
+                onSearchChange: this.handleSearchChange.bind(this),
+                onStatusFiltersChange: this.handleStatusFiltersChange.bind(this),
+                onShowFilterStatusBarChange: this.handleShowFilterStatusBarChange.bind(this),
+                onBypassAllFiltersChange: this.handleBypassAllFiltersChange.bind(this),
+                onHighlightsChange: this.handleHighlightsChange.bind(this),
+                onCardColumnsChange: this.handleCardColumnsChange.bind(this),
+                onCardSpacingChange: this.handleCardSpacingChange.bind(this),
+                onMarkAllRead: this.handleMarkAllRead.bind(this),
+                onMarkAllUnread: this.handleMarkAllUnread.bind(this),
             },
             currentPage,
             totalPages,
@@ -1004,6 +1014,76 @@ export class RssDashboardView extends ItemView {
 
     private handleGroupChange(value: 'none' | 'feed' | 'date' | 'folder'): void {
         this.settings.articleGroupBy = value;
+        void this.plugin.saveSettings();
+        void this.render();
+    }
+
+    private handleSearchChange(_query: string): void {
+        // Search filtering is handled at the UI level for now
+        // Future: implement full-text search across articles
+        void this.render();
+    }
+
+    private handleStatusFiltersChange(filters: import("../types/types").StatusFilters, logic: 'AND' | 'OR'): void {
+        this.settings.statusFilters = filters;
+        this.settings.filterLogic = logic;
+        void this.plugin.saveSettings();
+        void this.render();
+    }
+
+    private handleShowFilterStatusBarChange(show: boolean): void {
+        this.settings.showFilterStatusBar = show;
+        void this.plugin.saveSettings();
+        void this.render();
+    }
+
+    private handleBypassAllFiltersChange(bypass: boolean): void {
+        this.settings.bypassAllFilters = bypass;
+        void this.plugin.saveSettings();
+        void this.render();
+    }
+
+    private handleHighlightsChange(enabled: boolean): void {
+        if (!this.settings.highlights) {
+            this.settings.highlights = { enabled: false };
+        }
+        this.settings.highlights.enabled = enabled;
+        void this.plugin.saveSettings();
+        void this.render();
+    }
+
+    private handleCardColumnsChange(columns: number): void {
+        if (!this.settings.display) return;
+        this.settings.display.cardColumnsPerRow = columns;
+        void this.plugin.saveSettings();
+        void this.render();
+    }
+
+    private handleCardSpacingChange(spacing: number): void {
+        if (!this.settings.display) return;
+        this.settings.display.cardSpacing = spacing;
+        void this.plugin.saveSettings();
+        void this.render();
+    }
+
+    private handleMarkAllRead(): void {
+        const articles = this.getFilteredArticles();
+        for (const article of articles) {
+            if (!article.read) {
+                article.read = true;
+            }
+        }
+        void this.plugin.saveSettings();
+        void this.render();
+    }
+
+    private handleMarkAllUnread(): void {
+        const articles = this.getFilteredArticles();
+        for (const article of articles) {
+            if (article.read) {
+                article.read = false;
+            }
+        }
         void this.plugin.saveSettings();
         void this.render();
     }

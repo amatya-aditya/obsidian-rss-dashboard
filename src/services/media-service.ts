@@ -1,5 +1,5 @@
 import { requestUrl, Notice } from "obsidian";
-import { Feed, Tag } from "../types/types";
+import { Feed, FeedItem, Tag } from "../types/types";
 
 export class MediaService {
     private static readonly YOUTUBE_PATTERNS = [
@@ -64,12 +64,32 @@ export class MediaService {
                         }
 
                         
-                        const match = response.text.match(/channelId"?\s*:\s*"(UC[\w-]{22})"/);
-                        if (match?.[1]) {
-                            channelId = match[1];
+                        // Try multiple patterns to extract channel ID from YouTube page HTML
+                        // Canonical/meta patterns are most reliable — they identify the page owner
+                        const patterns = [
+                            /<meta[^>]*itemprop="channelId"[^>]*content="(UC[\w-]{22})"[^>]*>/,
+                            /<link[^>]*rel="canonical"[^>]*href="[^"]*youtube\.com\/channel\/(UC[\w-]{22})"[^>]*>/,
+                            /<meta[^>]*content="[^"]*youtube\.com\/channel\/(UC[\w-]{22})"[^>]*>/,
+                            /<link[^>]*href="[^"]*youtube\.com\/channel\/(UC[\w-]{22})"[^>]*>/,
+                            /"externalId"\s*:\s*"(UC[\w-]{22})"/,
+                            /data-channel-external-id="(UC[\w-]{22})"/,
+                            /channelId"?\s*:\s*"(UC[\w-]{22})"/,
+                            /channel_id=(UC[\w-]{22})/,
+                            /youtube\.com\/channel\/(UC[\w-]{22})/,
+                            /browseId"?\s*:\s*"(UC[\w-]{22})"/
+                        ];
+                        for (const pattern of patterns) {
+                            const match = response.text.match(pattern);
+                            if (match?.[1]) {
+                                channelId = match[1];
+                                break;
+                            }
+                        }
+                        if (!channelId) {
+                            console.warn('[RSS Dashboard] Could not extract channel ID from YouTube page for handle:', handle);
                         }
                     } catch (error) {
-                        
+                        console.error('[RSS Dashboard] Error fetching YouTube channel page:', error);
                         new Notice(`Error fetching YouTube channel: ${error instanceof Error ? error.message : 'Unknown error'}`);
                     }
                 }
@@ -99,9 +119,19 @@ export class MediaService {
                         }
 
                         
-                        const idMatch = response.text.match(/channelId"?\s*:\s*"(UC[\w-]{22})"/);
-                        if (idMatch?.[1]) {
-                            channelId = idMatch[1];
+                        const cPatterns = [
+                            /channelId"?\s*:\s*"(UC[\w-]{22})"/,
+                            /channel_id=(UC[\w-]{22})/,
+                            /"externalId"\s*:\s*"(UC[\w-]{22})"/,
+                            /youtube\.com\/channel\/(UC[\w-]{22})/,
+                            /browseId"?\s*:\s*"(UC[\w-]{22})"/
+                        ];
+                        for (const pattern of cPatterns) {
+                            const idMatch = response.text.match(pattern);
+                            if (idMatch?.[1]) {
+                                channelId = idMatch[1];
+                                break;
+                            }
                         }
                     } catch (error) {
                         
@@ -371,6 +401,112 @@ export class MediaService {
     }
     
     
+    /**
+     * Extract channel_id from a YouTube RSS feed URL.
+     * Returns null for user-based feed URLs.
+     */
+    static extractChannelIdFromFeedUrl(feedUrl: string): string | null {
+        const match = feedUrl.match(/[?&]channel_id=(UC[\w-]{22})/);
+        return match?.[1] ?? null;
+    }
+
+    /**
+     * Convert a YouTube channel ID (UC...) to its uploads playlist ID (UU...).
+     */
+    static channelIdToUploadsPlaylistId(channelId: string): string {
+        return 'UU' + channelId.substring(2);
+    }
+
+    /**
+     * Fetch videos from a YouTube channel using the Data API v3.
+     * Returns FeedItem[] with the same guid format as RSS (yt:video:{videoId}).
+     * Falls back to null if the API call fails so the caller can use RSS instead.
+     */
+    static async fetchYouTubeApiVideos(
+        feedUrl: string,
+        apiKey: string,
+        maxVideos: number,
+        feedTitle: string
+    ): Promise<FeedItem[] | null> {
+        const channelId = this.extractChannelIdFromFeedUrl(feedUrl);
+        if (!channelId) {
+            return null;
+        }
+
+        const playlistId = this.channelIdToUploadsPlaylistId(channelId);
+        const items: FeedItem[] = [];
+        let pageToken: string | undefined;
+
+        try {
+            while (items.length < maxVideos) {
+                const maxResults = Math.min(50, maxVideos - items.length);
+                let apiUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=${maxResults}&key=${apiKey}`;
+                if (pageToken) {
+                    apiUrl += `&pageToken=${pageToken}`;
+                }
+
+                const response = await requestUrl({ url: apiUrl });
+                const data = response.json as {
+                    items?: Array<{
+                        snippet: {
+                            title: string;
+                            description: string;
+                            publishedAt: string;
+                            resourceId: { videoId: string };
+                            thumbnails?: Record<string, { url: string }>;
+                            channelTitle?: string;
+                        };
+                    }>;
+                    nextPageToken?: string;
+                    error?: { message: string };
+                };
+
+                if (data.error) {
+                    console.error('[RSS Dashboard] YouTube API error:', data.error.message);
+                    return null;
+                }
+
+                if (!data.items?.length) break;
+
+                for (const apiItem of data.items) {
+                    const snippet = apiItem.snippet;
+                    const videoId = snippet.resourceId.videoId;
+                    const thumbnail =
+                        snippet.thumbnails?.maxres?.url ??
+                        snippet.thumbnails?.high?.url ??
+                        snippet.thumbnails?.medium?.url ??
+                        snippet.thumbnails?.default?.url ??
+                        `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+
+                    items.push({
+                        title: snippet.title,
+                        link: `https://www.youtube.com/watch?v=${videoId}`,
+                        description: snippet.description,
+                        pubDate: snippet.publishedAt,
+                        guid: `yt:video:${videoId}`,
+                        read: false,
+                        starred: false,
+                        tags: [],
+                        feedTitle: feedTitle,
+                        feedUrl: feedUrl,
+                        coverImage: thumbnail,
+                        mediaType: 'video',
+                        videoId: videoId,
+                        author: snippet.channelTitle ?? ''
+                    });
+                }
+
+                pageToken = data.nextPageToken;
+                if (!pageToken) break;
+            }
+
+            return items;
+        } catch (error) {
+            console.error('[RSS Dashboard] YouTube API request failed:', error);
+            return null;
+        }
+    }
+
     static applyMediaTags(feed: Feed, availableTags: Tag[]): Feed {
         if (!feed.mediaType || feed.mediaType === 'article') {
             return feed;

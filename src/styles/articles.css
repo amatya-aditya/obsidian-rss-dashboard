@@ -90,9 +90,7 @@
 	margin-bottom: 0;
 	transition: box-shadow 0.18s, background 0.18s, border 0.18s;
 	position: relative;
-    margin: auto;
-    width: -webkit-fill-available;
-    max-width: 800px;
+    width: 100%;
    }
    .rss-dashboard-article-item:hover,
   .rss-dashboard-article-item.active {
@@ -193,8 +191,8 @@
   .rss-dashboard-article-date {
 	font-size: 12px;
 	color: var(--text-muted);
-	overflow: hidden;
-	text-overflow: ellipsis
+	white-space: nowrap;
+	flex-shrink: 0;
   }
 
   

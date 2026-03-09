@@ -788,6 +788,17 @@ export default class RssDashboardPlugin extends Plugin {
     
     async addFeed(title: string, url: string, folder: string, autoDeleteDuration?: number, maxItemsLimit?: number, scanInterval?: number) {
         try {
+            // Auto-detect YouTube channel/handle URLs and convert to RSS feed URL
+            if (MediaService.isYouTubeFeed(url) && !url.includes('youtube.com/feeds/videos.xml')) {
+                const feedUrl = await MediaService.getYouTubeRssFeed(url);
+                if (feedUrl) {
+                    url = feedUrl;
+                } else {
+                    new Notice("Unable to determine YouTube feed URL. Please use a direct RSS feed URL.");
+                    return;
+                }
+            }
+
             if (this.settings.feeds.some((f) => f.url === url)) {
                 new Notice("This feed URL already exists");
                 return;
@@ -949,6 +960,23 @@ export default class RssDashboardPlugin extends Plugin {
                 this.settings.display = DEFAULT_SETTINGS.display;
             } else {
                 this.settings.display = Object.assign({}, DEFAULT_SETTINGS.display, this.settings.display);
+            }
+
+            // Ensure new filter/display settings are initialized
+            if (!this.settings.statusFilters) {
+                this.settings.statusFilters = DEFAULT_SETTINGS.statusFilters;
+            }
+            if (!this.settings.highlights) {
+                this.settings.highlights = DEFAULT_SETTINGS.highlights;
+            }
+            if (this.settings.filterLogic === undefined) {
+                this.settings.filterLogic = DEFAULT_SETTINGS.filterLogic;
+            }
+            if (this.settings.showFilterStatusBar === undefined) {
+                this.settings.showFilterStatusBar = DEFAULT_SETTINGS.showFilterStatusBar;
+            }
+            if (this.settings.bypassAllFilters === undefined) {
+                this.settings.bypassAllFilters = DEFAULT_SETTINGS.bypassAllFilters;
             }
         } catch (error) {
             

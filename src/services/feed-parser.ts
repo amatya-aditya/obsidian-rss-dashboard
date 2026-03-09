@@ -2132,7 +2132,30 @@ export class FeedParser {
         if (!url) {
             throw new Error("Feed url is required");
         }
-        
+
+        // Auto-convert YouTube channel/handle URLs to RSS feed URLs
+        if (MediaService.isYouTubeFeed(url) && !url.includes('youtube.com/feeds/videos.xml')) {
+            const feedUrl = await MediaService.getYouTubeRssFeed(url);
+            if (feedUrl) {
+                url = feedUrl;
+                // Update the existing feed's URL so it's stored correctly
+                if (existingFeed) {
+                    existingFeed.url = feedUrl;
+                }
+            } else {
+                throw new Error("Unable to determine YouTube RSS feed URL");
+            }
+        }
+
+        // If this is a YouTube feed and an API key is configured, try the Data API first
+        if (MediaService.isYouTubeFeed(url) && this.mediaSettings.youtubeApiKey) {
+            const apiResult = await this.parseYouTubeFeedViaApi(url, existingFeed);
+            if (apiResult) {
+                return apiResult;
+            }
+            // API failed — fall through to standard RSS parsing
+        }
+
         const responseText = await fetchFeedXml(url);
         const parsed = this.parser.parseString(responseText);
         const feedTitle = existingFeed?.title || parsed.title || "Unnamed feed";
@@ -2185,6 +2208,7 @@ export class FeedParser {
                     } else {
                         coverImage = this.extractCoverImage(item.content || item.description || '', url)
                             || this.convertToAbsoluteUrl(item.itunes?.image?.href || item.image?.url || '', url)
+                            || (enclosure?.type?.startsWith('image/') ? this.convertToAbsoluteUrl(enclosure.url, url) : '')
                             || (parsed.image && typeof parsed.image === 'object' && parsed.image.url ? this.convertToAbsoluteUrl(parsed.image.url, url) : '')
                             || existingItem.coverImage;
                     }
@@ -2236,6 +2260,7 @@ export class FeedParser {
                     } else {
                         coverImage = this.extractCoverImage(item.content || item.description || '', url)
                             || this.convertToAbsoluteUrl(item.itunes?.image?.href || item.image?.url || '', url)
+                            || (enclosure?.type?.startsWith('image/') ? this.convertToAbsoluteUrl(enclosure.url, url) : '')
                             || (parsed.image && typeof parsed.image === 'object' && parsed.image.url ? this.convertToAbsoluteUrl(parsed.image.url, url) : '');
                     }
                     let image = this.convertToAbsoluteUrl(item.itunes?.image?.href || item.image?.url || parsed.image?.url || '', url);
@@ -2305,33 +2330,38 @@ export class FeedParser {
             this.applyFeedLimits(newFeed);
 
             
-            const feedLogoCandidates = [
-                parsed.feedItunesImage,
-                parsed.feedImageUrl,
-                parsed.image && typeof parsed.image === 'object' ? parsed.image.url : '',
-                typeof parsed.image === 'string' ? parsed.image : ''
-            ].filter(Boolean);
-            const feedLogoUrl = feedLogoCandidates.length > 0 ? feedLogoCandidates[0] : '';
-            const coverImageCounts: Record<string, number> = {};
-            newFeed.items.forEach(item => {
-                if (item.coverImage) {
-                    coverImageCounts[item.coverImage] = (coverImageCounts[item.coverImage] || 0) + 1;
-                }
-            });
-            const totalItems = newFeed.items.length;
-            Object.entries(coverImageCounts).forEach(([imgUrl, count]) => {
-                if (
-                    imgUrl &&
-                    (imgUrl === feedLogoUrl || feedLogoCandidates.includes(imgUrl)) &&
-                    count >= Math.max(2, Math.floor(totalItems * 0.8))
-                ) {
-                    newFeed.items.forEach(item => {
-                        if (item.coverImage === imgUrl) {
-                            item.coverImage = '';
-                        }
-                    });
-                }
-            });
+            // Skip cover image dedup for podcast feeds — the show art is the correct
+            // image for episodes that don't have their own artwork.
+            const isPodcast = MediaService.isPodcastFeed(newFeed);
+            if (!isPodcast) {
+                const feedLogoCandidates = [
+                    parsed.feedItunesImage,
+                    parsed.feedImageUrl,
+                    parsed.image && typeof parsed.image === 'object' ? parsed.image.url : '',
+                    typeof parsed.image === 'string' ? parsed.image : ''
+                ].filter(Boolean);
+                const feedLogoUrl = feedLogoCandidates.length > 0 ? feedLogoCandidates[0] : '';
+                const coverImageCounts: Record<string, number> = {};
+                newFeed.items.forEach(item => {
+                    if (item.coverImage) {
+                        coverImageCounts[item.coverImage] = (coverImageCounts[item.coverImage] || 0) + 1;
+                    }
+                });
+                const totalItems = newFeed.items.length;
+                Object.entries(coverImageCounts).forEach(([imgUrl, count]) => {
+                    if (
+                        imgUrl &&
+                        (imgUrl === feedLogoUrl || feedLogoCandidates.includes(imgUrl)) &&
+                        count >= Math.max(2, Math.floor(totalItems * 0.8))
+                    ) {
+                        newFeed.items.forEach(item => {
+                            if (item.coverImage === imgUrl) {
+                                item.coverImage = '';
+                            }
+                        });
+                    }
+                });
+            }
             
 
             
@@ -2345,6 +2375,61 @@ export class FeedParser {
             return MediaService.applyMediaTags(processedFeed, this.availableTags);
     }
     
+    /**
+     * Fetch YouTube videos via Data API v3, merge with existing item state,
+     * and return a fully processed Feed. Returns null if the API call fails.
+     */
+    private async parseYouTubeFeedViaApi(url: string, existingFeed: Feed | null): Promise<Feed | null> {
+        const feedTitle = existingFeed?.title || 'YouTube Feed';
+        const apiItems = await MediaService.fetchYouTubeApiVideos(
+            url,
+            this.mediaSettings.youtubeApiKey,
+            this.mediaSettings.youtubeMaxVideos,
+            feedTitle
+        );
+
+        if (!apiItems) {
+            return null;
+        }
+
+        // Build a map of existing items to preserve read/starred/tags/saved state
+        const existingItemMap = new Map<string, FeedItem>();
+        if (existingFeed) {
+            for (const item of existingFeed.items) {
+                existingItemMap.set(item.guid, item);
+            }
+        }
+
+        // Merge API items with existing state
+        const mergedItems: FeedItem[] = apiItems.map(apiItem => {
+            const existing = existingItemMap.get(apiItem.guid);
+            if (existing) {
+                return {
+                    ...apiItem,
+                    read: existing.read,
+                    starred: existing.starred,
+                    tags: existing.tags,
+                    saved: existing.saved,
+                    savedFilePath: existing.savedFilePath,
+                    feedTitle: feedTitle,
+                };
+            }
+            return apiItem;
+        });
+
+        const feed: Feed = existingFeed
+            ? { ...existingFeed, title: feedTitle, items: mergedItems, lastUpdated: Date.now() }
+            : { title: feedTitle, url, folder: this.mediaSettings.defaultYouTubeFolder, items: mergedItems, lastUpdated: Date.now() };
+
+        this.applyFeedLimits(feed);
+
+        const processedFeed = MediaService.detectAndProcessFeed(feed);
+        if (!existingFeed?.folder) {
+            processedFeed.folder = this.mediaSettings.defaultYouTubeFolder;
+        }
+        return MediaService.applyMediaTags(processedFeed, this.availableTags);
+    }
+
     /**
      * Apply maxItemsLimit and autoDeleteDuration to a feed's items
      */

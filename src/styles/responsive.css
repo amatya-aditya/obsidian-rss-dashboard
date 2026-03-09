@@ -337,11 +337,6 @@
         gap: 20px;
     }
     
-    .rss-dashboard-article-card {
-        min-height: 400px;
-        max-height: 400px;
-    }
-    
     .rss-dashboard-card-content {
         padding: 20px 18px 14px 18px;
     }
@@ -359,11 +354,6 @@
         grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: 18px;
     }
-    
-    .rss-dashboard-article-card {
-        min-height: 380px;
-        max-height: 380px;
-    }
 }
 
 
@@ -371,11 +361,6 @@
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
         gap: 16px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 360px;
-        max-height: 360px;
     }
     
     .rss-dashboard-card-content {
@@ -390,11 +375,6 @@
         gap: 15px;
     }
     
-    .rss-dashboard-article-card {
-        min-height: 340px;
-        max-height: 340px;
-    }
-    
     .rss-dashboard-article-title {
         font-size: 1.05em;
         line-height: 1.35;
@@ -407,11 +387,6 @@
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
         gap: 14px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 320px;
-        max-height: 360px;
     }
     
     .rss-dashboard-card-content {
@@ -440,11 +415,6 @@
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
         gap: 12px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 300px;
-        max-height: 300px;
     }
     
     .rss-dashboard-card-content {
@@ -480,11 +450,6 @@
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 10px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 280px;
-        max-height: 280px;
     }
     
     .rss-dashboard-card-content {
@@ -526,11 +491,6 @@
         gap: 8px;
     }
     
-    .rss-dashboard-article-card {
-        min-height: 260px;
-        max-height: 260px;
-    }
-    
     .rss-dashboard-card-content {
         padding: 8px 6px 4px 6px;
     }
@@ -568,11 +528,6 @@
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
         gap: 6px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 240px;
-        max-height: 240px;
     }
     
     .rss-dashboard-card-content {
@@ -615,7 +570,6 @@
     }
     
     .rss-dashboard-article-card {
-        max-height: none;
         height: auto;
     }
     
@@ -654,9 +608,6 @@
 
 
 @media (hover: none) and (pointer: coarse) {
-    .rss-dashboard-article-card {
-        min-height: 44px; 
-    }
     
     .rss-dashboard-action-toolbar {
         min-height: 44px;
@@ -718,11 +669,6 @@
         gap: 12px;
     }
     
-    .rss-dashboard-article-card {
-        min-height: 280px;
-        max-height: 280px;
-    }
-    
     .rss-dashboard-card-content {
         padding: 10px 8px 6px 8px;
     }
@@ -751,22 +697,12 @@
         grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
         gap: 20px;
     }
-    
-    .rss-dashboard-article-card {
-        min-height: 420px;
-        max-height: 420px;
-    }
 }
 
 @media (min-width: 1400px) and (max-width: 1599px) {
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 20px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 400px;
-        max-height: 400px;
     }
 }
 
@@ -775,22 +711,12 @@
         grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: 18px;
     }
-    
-    .rss-dashboard-article-card {
-        min-height: 380px;
-        max-height: 380px;
-    }
 }
 
 @media (min-width: 1000px) and (max-width: 1199px) {
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
         gap: 16px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 360px;
-        max-height: 360px;
     }
 }
 
@@ -799,22 +725,12 @@
         grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: 15px;
     }
-    
-    .rss-dashboard-article-card {
-        min-height: 340px;
-        max-height: 380px;
-    }
 }
 
 @media (min-width: 768px) and (max-width: 899px) {
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
         gap: 14px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 320px;
-        max-height: 320px;
     }
 }
 
@@ -823,22 +739,12 @@
         grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
         gap: 12px;
     }
-    
-    .rss-dashboard-article-card {
-        min-height: 300px;
-        max-height: 300px;
-    }
 }
 
 @media (min-width: 480px) and (max-width: 599px) {
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 10px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 280px;
-        max-height: 280px;
     }
 }
 
@@ -847,22 +753,12 @@
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         gap: 8px;
     }
-    
-    .rss-dashboard-article-card {
-        min-height: 260px;
-        max-height: 260px;
-    }
 }
 
 @media (min-width: 320px) and (max-width: 399px) {
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
         gap: 6px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 240px;
-        max-height: 240px;
     }
 }
 
@@ -873,7 +769,6 @@
     }
     
     .rss-dashboard-article-card {
-        max-height: none;
         height: auto;
     }
 }
@@ -884,22 +779,12 @@
         grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
         gap: 20px;
     }
-    
-    .rss-dashboard-article-card {
-        min-height: 420px;
-        max-height: 420px;
-    }
 }
 
 @container (min-width: 1400px) and (max-width: 1599px) {
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 20px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 420px;
-        max-height: 420px;
     }
 }
 
@@ -908,22 +793,12 @@
         grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: 18px;
     }
-    
-    .rss-dashboard-article-card {
-        min-height: 420px;
-        max-height: 420px;
-    }
 }
 
 @container (min-width: 1000px) and (max-width: 1199px) {
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
         gap: 16px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 420px;
-        max-height: 420px;
     }
 }
 
@@ -932,22 +807,12 @@
         grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
         gap: 15px;
     }
-    
-    .rss-dashboard-article-card {
-        min-height: 420px;
-        max-height: 420px;
-    }
 }
 
 @container (min-width: 768px) and (max-width: 899px) {
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
         gap: 14px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 420px;
-        max-height: 420px;
     }
 }
 
@@ -956,22 +821,12 @@
         grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
         gap: 12px;
     }
-    
-    .rss-dashboard-article-card {
-        min-height: 400px;
-        max-height: 400px;
-    }
 }
 
 @container (min-width: 480px) and (max-width: 599px) {
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 10px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 380px;
-        max-height: 380px;
     }
 }
 
@@ -980,22 +835,12 @@
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         gap: 8px;
     }
-    
-    .rss-dashboard-article-card {
-        min-height: 360px;
-        max-height: 360px;
-    }
 }
 
 @container (min-width: 320px) and (max-width: 399px) {
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
         gap: 6px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 340px;
-        max-height: 340px;
     }
 }
 
@@ -1006,14 +851,12 @@
     }
     
     .rss-dashboard-article-card {
-        max-height: none;
         height: auto;
     }
 }
 
 @media (hover: none) and (pointer: coarse) {
     .rss-dashboard-article-card {
-        min-height: 44px;
         touch-action: manipulation;
     }
     
@@ -1070,11 +913,6 @@
     .rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
         gap: 12px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 280px;
-        max-height: 280px;
     }
     
     .rss-dashboard-card-content {
@@ -1136,8 +974,6 @@
     
     
     .rss-dashboard-article-card {
-        min-height: 280px;
-        max-height: 280px;
         border-radius: 8px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
@@ -1239,11 +1075,6 @@
         gap: 10px;
     }
     
-    .rss-dashboard-article-card {
-        min-height: 260px;
-        max-height: 280px;
-    }
-    
     .rss-dashboard-card-content {
         padding: 10px 8px 6px 8px;
     }
@@ -1271,11 +1102,6 @@
         gap: 8px;
     }
     
-    .rss-dashboard-article-card {
-        min-height: 240px;
-        max-height: 240px;
-    }
-    
     .rss-dashboard-card-content {
         padding: 8px 6px 4px 6px;
     }
@@ -1296,11 +1122,6 @@
     .rss-dashboard-articles-list.rss-dashboard-card-view {
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 10px;
-    }
-    
-    .rss-dashboard-article-card {
-        min-height: 240px;
-        max-height: 320px;
     }
     
     .rss-dashboard-cover-image {

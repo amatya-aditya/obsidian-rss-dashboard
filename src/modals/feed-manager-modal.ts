@@ -1,7 +1,8 @@
 import { Modal, App, Setting, Notice, requestUrl } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import type { Feed, Folder, SavedTemplate } from "../types/types";
-import { FolderSuggest } from "../components/folder-suggest";
+import { FolderSuggest, VaultImageSuggest } from "../components/folder-suggest";
+import { MediaService } from "../services/media-service";
 
 function collectAllFolders(folders: Folder[], base = ""): string[] {
     let paths: string[] = [];
@@ -63,7 +64,12 @@ export class EditFeedModal extends Modal {
                         status = "Loading...";
                             if (refs.statusDiv) refs.statusDiv.textContent = status;
                         try {
-                            const res = await requestUrl(url);
+                            let fetchUrl = url;
+                            if (MediaService.isYouTubeFeed(url)) {
+                                const rssUrl = await MediaService.getYouTubeRssFeed(url);
+                                if (rssUrl) fetchUrl = rssUrl;
+                            }
+                            const res = await requestUrl(fetchUrl);
                             const parser = new DOMParser();
                             const doc = parser.parseFromString(res.text, "text/xml");
                             const feedTitle = doc.querySelector("channel > title, feed > title");
@@ -124,13 +130,32 @@ export class EditFeedModal extends Modal {
                 folderInput = text.inputEl;
                 folderInput.autocomplete = "off";
                 folderInput.spellcheck = false;
+                folderInput.addEventListener("focus", () => folderInput.select());
 
-                new FolderSuggest(this.app, folderInput, this.plugin.settings.folders);
+                new FolderSuggest(this.app, folderInput, this.plugin.settings.folders, (name) => {
+                    if (!this.plugin.settings.folders.some(f => f.name === name)) {
+                        this.plugin.settings.folders.push({ name, subfolders: [], createdAt: Date.now(), modifiedAt: Date.now() });
+                        void this.plugin.saveSettings();
+                    }
+                });
             });
 
-        
+        let defaultCoverImage = this.feed.defaultCoverImage || "";
+        new Setting(contentEl)
+            .setName("Default cover image")
+            .setDesc("Vault path to fallback image for articles without a cover")
+            .addText(text => {
+                text.setValue(defaultCoverImage)
+                    .setPlaceholder("e.g. Images/default-cover.png")
+                    .onChange(v => defaultCoverImage = v);
+                text.inputEl.autocomplete = "off";
+                text.inputEl.spellcheck = false;
+                new VaultImageSuggest(this.app, text.inputEl);
+            });
+
+
         new Setting(contentEl).setName("Per feed control options").setHeading();
-        
+
         let autoDeleteDuration = this.feed.autoDeleteDuration || 0;
         let maxItemsLimit = this.feed.maxItemsLimit || this.plugin.settings.maxItems;
         let scanInterval = this.feed.scanInterval || 0;
@@ -332,6 +357,7 @@ export class EditFeedModal extends Modal {
             this.feed.maxItemsLimit = newMaxItemsLimit;
             this.feed.scanInterval = scanInterval;
             this.feed.customTemplate = customTemplate || undefined;
+            this.feed.defaultCoverImage = defaultCoverImage || undefined;
 
             if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
                 
@@ -412,7 +438,12 @@ export class AddFeedModal extends Modal {
                         status = "Loading...";
                             if (refs.statusDiv) refs.statusDiv.textContent = status;
                         try {
-                            const res = await requestUrl(url);
+                            let fetchUrl = url;
+                            if (MediaService.isYouTubeFeed(url)) {
+                                const rssUrl = await MediaService.getYouTubeRssFeed(url);
+                                if (rssUrl) fetchUrl = rssUrl;
+                            }
+                            const res = await requestUrl(fetchUrl);
                             const parser = new DOMParser();
                             const doc = parser.parseFromString(res.text, "text/xml");
                             const feedTitle = doc.querySelector("channel > title, feed > title");
@@ -473,8 +504,14 @@ export class AddFeedModal extends Modal {
                 folderInput = text.inputEl;
                 folderInput.autocomplete = "off";
                 folderInput.spellcheck = false;
+                folderInput.addEventListener("focus", () => folderInput.select());
 
-                new FolderSuggest(this.app, folderInput, this.folders);
+                new FolderSuggest(this.app, folderInput, this.folders, this.plugin ? (name) => {
+                    if (!this.plugin!.settings.folders.some(f => f.name === name)) {
+                        this.plugin!.settings.folders.push({ name, subfolders: [], createdAt: Date.now(), modifiedAt: Date.now() });
+                        void this.plugin!.saveSettings();
+                    }
+                } : undefined);
             });
 
         

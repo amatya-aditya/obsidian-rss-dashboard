@@ -70,9 +70,10 @@ export interface Feed {
     customTags?: string[];
     
     
-    autoDeleteDuration?: number; 
-    maxItemsLimit?: number; 
-    scanInterval?: number; 
+    autoDeleteDuration?: number;
+    maxItemsLimit?: number;
+    scanInterval?: number;
+    defaultCoverImage?: string;
 }
 
 
@@ -120,6 +121,8 @@ export interface MediaSettings {
     autoDetectMediaType: boolean;
     openInSplitView: boolean;
     podcastTheme: PodcastTheme;
+    youtubeApiKey: string;
+    youtubeMaxVideos: number;
 }
 
 export interface SavedTemplate {
@@ -147,6 +150,23 @@ export interface DisplaySettings {
     hiddenFilters: string[];
     useDomainFavicons: boolean;
     hideDefaultRssIcon: boolean;
+    globalFallbackCoverImage?: string;
+    cardColumnsPerRow: number;
+    cardSpacing: number;
+}
+
+export interface StatusFilters {
+    unread: boolean;
+    read: boolean;
+    saved: boolean;
+    starred: boolean;
+    podcast: boolean;
+    video: boolean;
+    tagged: boolean;
+}
+
+export interface HighlightsSettings {
+    enabled: boolean;
 }
 
 
@@ -194,6 +214,11 @@ export interface RssDashboardSettings {
     media: MediaSettings;
     articleSaving: ArticleSavingSettings;
     display: DisplaySettings;
+    filterLogic: 'AND' | 'OR';
+    statusFilters: StatusFilters;
+    showFilterStatusBar: boolean;
+    bypassAllFilters: boolean;
+    highlights: HighlightsSettings;
 }
 
 
@@ -241,7 +266,9 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
         defaultPodcastTag: "podcast",
         autoDetectMediaType: false,
         openInSplitView: true,
-        podcastTheme: 'obsidian'
+        podcastTheme: 'obsidian',
+        youtubeApiKey: '',
+        youtubeMaxVideos: 50
     },
     articleSaving: {
         addSavedTag: true,
@@ -284,6 +311,24 @@ guid: "{{guid}}"
         defaultFilter: "all",
         hiddenFilters: [],
         useDomainFavicons: true,
-        hideDefaultRssIcon: false
+        hideDefaultRssIcon: false,
+        globalFallbackCoverImage: "",
+        cardColumnsPerRow: 0,
+        cardSpacing: 16
+    },
+    filterLogic: 'OR',
+    statusFilters: {
+        unread: false,
+        read: false,
+        saved: false,
+        starred: false,
+        podcast: false,
+        video: false,
+        tagged: false
+    },
+    showFilterStatusBar: true,
+    bypassAllFilters: false,
+    highlights: {
+        enabled: false
     }
 };

@@ -1,7 +1,7 @@
 import { App, PluginSettingTab, Setting, Notice, normalizePath, Modal, TextComponent } from "obsidian";
 import RssDashboardPlugin from "./../../main";
 import { ViewLocation, RssDashboardSettings, SavedTemplate, DEFAULT_SETTINGS, PodcastTheme } from "../types/types";
-import { FolderSuggest, VaultFolderSuggest } from "../components/folder-suggest";
+import { FolderSuggest, VaultFolderSuggest, VaultImageSuggest } from "../components/folder-suggest";
 
 class TemplateNameModal extends Modal {
     private result: string | null = null;
@@ -369,6 +369,20 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             );
 
         new Setting(containerEl)
+            .setName("Global fallback cover image")
+            .setDesc("Vault path to a default image shown when articles have no cover image and no per-feed fallback is set")
+            .addText((text) => {
+                text
+                    .setPlaceholder("e.g. Images/default-cover.png")
+                    .setValue(this.plugin.settings.display.globalFallbackCoverImage || "")
+                    .onChange(async (value) => {
+                        this.plugin.settings.display.globalFallbackCoverImage = value;
+                        await this.plugin.saveSettings();
+                    });
+                new VaultImageSuggest(this.app, text.inputEl);
+            });
+
+        new Setting(containerEl)
             .setName("Filter display style")
             .setDesc("Choose how to display the filter buttons in the sidebar")
             .addDropdown((dropdown) =>
@@ -535,8 +549,39 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     })
             );
-            
-        
+
+        new Setting(containerEl)
+            .setName("YouTube API key")
+            .setDesc("Optional key to fetch more than 15 videos per channel via the YouTube data API")
+            .addText((text) =>
+                text
+                    .setPlaceholder("Enter API key")
+                    .setValue(this.plugin.settings.media.youtubeApiKey)
+                    .onChange(async (value) => {
+                        this.plugin.settings.media.youtubeApiKey = value.trim();
+                        await this.plugin.saveSettings();
+                    })
+            )
+            .then((setting) => {
+                const input = setting.controlEl.querySelector('input');
+                if (input) input.type = 'password';
+            });
+
+        new Setting(containerEl)
+            .setName("Max YouTube videos")
+            .setDesc("Maximum number of videos to fetch per channel when using the API (50–200)")
+            .addSlider((slider) =>
+                slider
+                    .setLimits(50, 200, 50)
+                    .setValue(this.plugin.settings.media.youtubeMaxVideos)
+                    .setDynamicTooltip()
+                    .onChange(async (value) => {
+                        this.plugin.settings.media.youtubeMaxVideos = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+
         new Setting(containerEl).setName("Podcast").setHeading();
         
         new Setting(containerEl)

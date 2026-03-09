@@ -1,6 +1,6 @@
-import { Notice, Menu, MenuItem, setIcon, Setting } from "obsidian";
-import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
-import { formatDateWithRelative, ensureUtf8Meta } from "../utils/platform-utils";
+import { App, Notice, Menu, MenuItem, setIcon, Setting } from "obsidian";
+import { FeedItem, RssDashboardSettings, StatusFilters, Tag } from "../types/types";
+import { formatDateWithRelative, ensureUtf8Meta, setCssProps } from "../utils/platform-utils";
 
 
 const MAX_VISIBLE_TAGS = 6;
@@ -19,9 +19,19 @@ interface ArticleListCallbacks {
     onFilterChange: (value: { type: 'age' | 'read' | 'unread' | 'starred' | 'saved' | 'none'; value: unknown; }) => void;
     onPageChange: (page: number) => void;
     onPageSizeChange: (pageSize: number) => void;
+    onSearchChange?: (query: string) => void;
+    onStatusFiltersChange?: (filters: StatusFilters, logic: 'AND' | 'OR') => void;
+    onShowFilterStatusBarChange?: (show: boolean) => void;
+    onBypassAllFiltersChange?: (bypass: boolean) => void;
+    onHighlightsChange?: (enabled: boolean) => void;
+    onCardColumnsChange?: (columns: number) => void;
+    onCardSpacingChange?: (spacing: number) => void;
+    onMarkAllRead?: () => void;
+    onMarkAllUnread?: () => void;
 }
 
 export class ArticleList {
+    private app: App;
     private container: HTMLElement;
     private settings: RssDashboardSettings;
     private title: string;
@@ -34,8 +44,14 @@ export class ArticleList {
     private totalPages: number;
     private pageSize: number;
     private totalArticles: number;
-    
+    private filterPortal: HTMLElement | null = null;
+    private filterTriggerButton: HTMLElement | null = null;
+    private outsideClickHandler: ((e: MouseEvent) => void) | null = null;
+    private dropdownMenu: HTMLElement | null = null;
+    private hamburgerButton: HTMLElement | null = null;
+
     constructor(
+        app: App,
         container: HTMLElement,
         settings: RssDashboardSettings,
         title: string,
@@ -47,6 +63,7 @@ export class ArticleList {
         pageSize: number,
         totalArticles: number
     ) {
+        this.app = app;
         this.container = container;
         this.settings = settings;
         this.title = title;
@@ -63,6 +80,12 @@ export class ArticleList {
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
             this.resizeObserver = null;
+        }
+        this.closeFilterPortal();
+        this.closeDropdownMenu();
+        if (this.outsideClickHandler) {
+            document.removeEventListener("mousedown", this.outsideClickHandler);
+            this.outsideClickHandler = null;
         }
     }
     
@@ -89,28 +112,11 @@ export class ArticleList {
             cls: "rss-dashboard-articles-header",
         });
 
-        if (this.resizeObserver) {
-            this.resizeObserver.disconnect();
-        }
-
-        this.resizeObserver = new ResizeObserver(entries => {
-            for (const entry of entries) {
-                const width = entry.contentRect.width;
-                if (width < 700) {
-                    articlesHeader.classList.add('is-narrow');
-                } else {
-                    articlesHeader.classList.remove('is-narrow');
-                }
-            }
-        });
-        this.resizeObserver.observe(articlesHeader);
-
-        
+        // Left section: sidebar toggle + title
         const leftSection = articlesHeader.createDiv({
             cls: "rss-dashboard-header-left",
         });
 
-        
         const sidebarToggleButton = leftSection.createDiv({
             cls: "rss-dashboard-sidebar-toggle",
             attr: { title: "Toggle sidebar" },
@@ -121,173 +127,500 @@ export class ArticleList {
             this.callbacks.onToggleSidebar();
         });
 
-        
         leftSection.createDiv({
             cls: "rss-dashboard-articles-title",
             text: this.title,
         });
 
-        
+        // Right section: filter trigger + hamburger menu
         const rightSection = articlesHeader.createDiv({
             cls: "rss-dashboard-header-right",
         });
 
-        
+        // Filter trigger button
+        const filterTrigger = rightSection.createDiv({
+            cls: "rss-dashboard-filter-trigger",
+            attr: { title: "Filters" },
+        });
+        setIcon(filterTrigger, "filter");
+        this.filterTriggerButton = filterTrigger;
+
+        // Active filter badge
+        const activeFilterCount = this.getActiveFilterCount();
+        if (activeFilterCount > 0) {
+            filterTrigger.createDiv({
+                cls: "rss-dashboard-filter-badge",
+                text: String(activeFilterCount),
+            });
+        }
+
+        filterTrigger.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (this.filterPortal) {
+                this.closeFilterPortal();
+            } else {
+                this.openFilterPortal();
+            }
+        });
+
+        // Hamburger menu container
         const hamburgerMenu = rightSection.createDiv({
             cls: "rss-dashboard-hamburger-menu",
         });
 
-        const hamburgerButton = hamburgerMenu.createDiv({
+        const hamburgerBtn = hamburgerMenu.createDiv({
             cls: "rss-dashboard-hamburger-button",
             attr: { title: "Menu" },
         });
-        setIcon(hamburgerButton, "menu");
+        setIcon(hamburgerBtn, "menu");
+        this.hamburgerButton = hamburgerBtn;
 
-        
         const dropdownMenu = hamburgerMenu.createDiv({
             cls: "rss-dashboard-dropdown-menu",
         });
+        this.dropdownMenu = dropdownMenu;
 
-        
         const dropdownControls = dropdownMenu.createDiv({
             cls: "rss-dashboard-dropdown-controls",
         });
 
-        
-        this.createControls(dropdownControls);
+        this.createControlsDropdown(dropdownControls);
 
-        
-        const desktopControls = rightSection.createDiv({
-            cls: "rss-dashboard-desktop-controls",
-        });
-
-        
-        this.createControls(desktopControls);
-
-        
-        hamburgerButton.addEventListener("click", (e) => {
+        hamburgerBtn.addEventListener("click", (e) => {
             e.stopPropagation();
+            this.closeFilterPortal();
             dropdownMenu.classList.toggle("active");
-            hamburgerButton.classList.toggle("active");
+            hamburgerBtn.classList.toggle("active");
         });
 
-        
-        document.addEventListener("click", (e) => {
-            if (!hamburgerMenu.contains(e.target as Node)) {
+        // Shared outside click handler
+        if (this.outsideClickHandler) {
+            document.removeEventListener("mousedown", this.outsideClickHandler);
+        }
+        this.outsideClickHandler = (e: MouseEvent) => {
+            const target = e.target as Node;
+            if (!hamburgerMenu.contains(target)) {
                 dropdownMenu.classList.remove("active");
-                hamburgerButton.classList.remove("active");
+                hamburgerBtn.classList.remove("active");
+            }
+            if (this.filterPortal && !this.filterPortal.contains(target) && !filterTrigger.contains(target)) {
+                this.closeFilterPortal();
+            }
+        };
+        document.addEventListener("mousedown", this.outsideClickHandler);
+    }
+
+    private getActiveFilterCount(): number {
+        let count = 0;
+        const sf = this.settings.statusFilters;
+        if (sf) {
+            if (sf.unread) count++;
+            if (sf.read) count++;
+            if (sf.saved) count++;
+            if (sf.starred) count++;
+            if (sf.podcast) count++;
+            if (sf.video) count++;
+            if (sf.tagged) count++;
+        }
+        if (this.settings.bypassAllFilters) count++;
+        if (this.settings.highlights?.enabled) count++;
+        if (!this.settings.showFilterStatusBar) count++;
+        return count;
+    }
+
+    private closeFilterPortal(): void {
+        if (this.filterPortal) {
+            this.filterPortal.remove();
+            this.filterPortal = null;
+        }
+    }
+
+    private closeDropdownMenu(): void {
+        if (this.dropdownMenu) {
+            this.dropdownMenu.classList.remove("active");
+        }
+        if (this.hamburgerButton) {
+            this.hamburgerButton.classList.remove("active");
+        }
+    }
+
+    private openFilterPortal(): void {
+        this.closeFilterPortal();
+        this.closeDropdownMenu();
+
+        const portal = document.body.createDiv({
+            cls: "rss-dashboard-filter-menu-portal",
+        });
+        this.filterPortal = portal;
+
+        // Position below the filter trigger button using CSS custom properties
+        if (this.filterTriggerButton) {
+            const rect = this.filterTriggerButton.getBoundingClientRect();
+            setCssProps(portal, {
+                '--filter-portal-top': `${rect.bottom + 8}px`,
+                '--filter-portal-right': `${window.innerWidth - rect.right}px`,
+            });
+        }
+
+        // Local state for pending changes (applied on Apply)
+        const pendingFilters: StatusFilters = {
+            unread: this.settings.statusFilters?.unread ?? false,
+            read: this.settings.statusFilters?.read ?? false,
+            saved: this.settings.statusFilters?.saved ?? false,
+            starred: this.settings.statusFilters?.starred ?? false,
+            podcast: this.settings.statusFilters?.podcast ?? false,
+            video: this.settings.statusFilters?.video ?? false,
+            tagged: this.settings.statusFilters?.tagged ?? false,
+        };
+        let pendingLogic: 'AND' | 'OR' = this.settings.filterLogic ?? 'OR';
+        let pendingShowStatusBar = this.settings.showFilterStatusBar ?? true;
+        let pendingBypass = this.settings.bypassAllFilters ?? false;
+        let pendingHighlights = this.settings.highlights?.enabled ?? false;
+
+        // --- AND/OR logic toggle ---
+        const logicRow = portal.createDiv({ cls: "rss-filter-portal-row rss-filter-logic-row" });
+        const andBtn = logicRow.createEl("button", {
+            cls: "rss-filter-logic-btn" + (pendingLogic === 'AND' ? " active" : ""),
+            text: "AND",
+        });
+        const orBtn = logicRow.createEl("button", {
+            cls: "rss-filter-logic-btn" + (pendingLogic === 'OR' ? " active" : ""),
+            text: "OR",
+        });
+        andBtn.addEventListener("click", () => {
+            pendingLogic = 'AND';
+            andBtn.classList.add("active");
+            orBtn.classList.remove("active");
+        });
+        orBtn.addEventListener("click", () => {
+            pendingLogic = 'OR';
+            orBtn.classList.add("active");
+            andBtn.classList.remove("active");
+        });
+
+        portal.createDiv({ cls: "rss-filter-portal-separator" });
+
+        // --- Status filter checkboxes ---
+        const filterItems: { key: keyof StatusFilters; label: string; icon: string }[] = [
+            { key: "unread", label: "Unread", icon: "circle" },
+            { key: "read", label: "Read", icon: "check-circle" },
+            { key: "saved", label: "Saved", icon: "save" },
+            { key: "starred", label: "Starred", icon: "star" },
+            { key: "podcast", label: "Podcast", icon: "mic" },
+            { key: "video", label: "Videos", icon: "play" },
+            { key: "tagged", label: "Tagged", icon: "tag" },
+        ];
+
+        for (const item of filterItems) {
+            const row = portal.createDiv({ cls: "rss-filter-portal-row rss-filter-checkbox-row" });
+            const iconEl = row.createDiv({ cls: "rss-filter-icon" });
+            setIcon(iconEl, item.icon);
+            const checkbox = row.createEl("input", {
+                attr: { type: "checkbox" },
+                cls: "rss-filter-checkbox",
+            });
+            checkbox.checked = pendingFilters[item.key];
+            row.createDiv({ cls: "rss-filter-label", text: item.label });
+            checkbox.addEventListener("change", () => {
+                pendingFilters[item.key] = checkbox.checked;
+            });
+            row.addEventListener("click", (e) => {
+                if (e.target !== checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    pendingFilters[item.key] = checkbox.checked;
+                }
+            });
+        }
+
+        portal.createDiv({ cls: "rss-filter-portal-separator" });
+
+        // --- Show Status Bar toggle ---
+        const statusBarRow = portal.createDiv({ cls: "rss-filter-portal-row rss-filter-checkbox-row" });
+        const statusBarIcon = statusBarRow.createDiv({ cls: "rss-filter-icon" });
+        setIcon(statusBarIcon, "info");
+        const statusBarCb = statusBarRow.createEl("input", {
+            attr: { type: "checkbox" },
+            cls: "rss-filter-checkbox",
+        });
+        statusBarCb.checked = pendingShowStatusBar;
+        statusBarRow.createDiv({ cls: "rss-filter-label", text: "Show Status Bar" });
+        statusBarCb.addEventListener("change", () => { pendingShowStatusBar = statusBarCb.checked; });
+        statusBarRow.addEventListener("click", (e) => {
+            if (e.target !== statusBarCb) {
+                statusBarCb.checked = !statusBarCb.checked;
+                pendingShowStatusBar = statusBarCb.checked;
             }
         });
+
+        portal.createDiv({ cls: "rss-filter-portal-separator" });
+
+        // --- Bypass All Filters toggle ---
+        const bypassRow = portal.createDiv({ cls: "rss-filter-portal-row rss-filter-checkbox-row" });
+        const bypassIcon = bypassRow.createDiv({ cls: "rss-filter-icon" });
+        setIcon(bypassIcon, "power");
+        const bypassCb = bypassRow.createEl("input", {
+            attr: { type: "checkbox" },
+            cls: "rss-filter-checkbox",
+        });
+        bypassCb.checked = pendingBypass;
+        bypassRow.createDiv({ cls: "rss-filter-label", text: "Bypass All Filters" });
+        bypassCb.addEventListener("change", () => { pendingBypass = bypassCb.checked; });
+        bypassRow.addEventListener("click", (e) => {
+            if (e.target !== bypassCb) {
+                bypassCb.checked = !bypassCb.checked;
+                pendingBypass = bypassCb.checked;
+            }
+        });
+
+        portal.createDiv({ cls: "rss-filter-portal-separator" });
+
+        // --- Show Highlights toggle ---
+        const highlightsRow = portal.createDiv({ cls: "rss-filter-portal-row rss-filter-checkbox-row" });
+        const highlightsIcon = highlightsRow.createDiv({ cls: "rss-filter-icon" });
+        setIcon(highlightsIcon, "highlighter");
+        const highlightsCb = highlightsRow.createEl("input", {
+            attr: { type: "checkbox" },
+            cls: "rss-filter-checkbox",
+        });
+        highlightsCb.checked = pendingHighlights;
+        highlightsRow.createDiv({ cls: "rss-filter-label", text: "Show Highlights" });
+        highlightsCb.addEventListener("change", () => { pendingHighlights = highlightsCb.checked; });
+        highlightsRow.addEventListener("click", (e) => {
+            if (e.target !== highlightsCb) {
+                highlightsCb.checked = !highlightsCb.checked;
+                pendingHighlights = highlightsCb.checked;
+            }
+        });
+
+        portal.createDiv({ cls: "rss-filter-portal-separator" });
+
+        // --- Apply button ---
+        const applyRow = portal.createDiv({ cls: "rss-filter-portal-row rss-filter-apply-row" });
+        const applyBtn = applyRow.createEl("button", {
+            cls: "rss-filter-apply-btn",
+            text: "Apply",
+        });
+        applyBtn.addEventListener("click", () => {
+            if (this.callbacks.onStatusFiltersChange) {
+                this.callbacks.onStatusFiltersChange(pendingFilters, pendingLogic);
+            }
+            if (this.callbacks.onShowFilterStatusBarChange) {
+                this.callbacks.onShowFilterStatusBarChange(pendingShowStatusBar);
+            }
+            if (this.callbacks.onBypassAllFiltersChange) {
+                this.callbacks.onBypassAllFiltersChange(pendingBypass);
+            }
+            if (this.callbacks.onHighlightsChange) {
+                this.callbacks.onHighlightsChange(pendingHighlights);
+            }
+            this.closeFilterPortal();
+        });
     }
-    
-    private createControls(container: HTMLElement): void {
-        const articleControls = container.createDiv({
+
+    private createControlsDropdown(container: HTMLElement): void {
+        const controls = container.createDiv({
             cls: "rss-dashboard-article-controls",
         });
 
-        const filterDropdown = articleControls.createEl('select');
-        filterDropdown.addClass('rss-dashboard-filter');
-        const ageOptions = {
-            "Article max age unlimited": 0,
-            "Article max age 1 hour": 3600 * 1000,
-            "Article max age 2 hours": 2 * 3600 * 1000,
-            "Article max age 4 hours": 4 * 3600 * 1000,
-            "Article max age 8 hours": 8 * 3600 * 1000,
-            "Article max age 24 hours": 24 * 3600 * 1000,
-            "Article max age 48 hours": 48 * 3600 * 1000,
-            "Article max age 3 days": 3 * 24 * 3600 * 1000,
-            "Article max age 1 week": 7 * 24 * 3600 * 1000,
-            "Article max age 2 weeks": 14 * 24 * 3600 * 1000,
-            "Article max age 1 month": 30 * 24 * 3600 * 1000,
-            "Article max age 2 months": 60 * 24 * 3600 * 1000,
-            "Article max age 6 months": 180 * 24 * 3600 * 1000,
-            "Article max age 1 year": 365 * 24 * 3600 * 1000
-        };
+        // --- Search input ---
+        const searchWrapper = controls.createDiv({ cls: "rss-dropdown-search-wrapper" });
+        const searchIconEl = searchWrapper.createDiv({ cls: "rss-dropdown-search-icon" });
+        setIcon(searchIconEl, "search");
+        const searchInput = searchWrapper.createEl("input", {
+            cls: "rss-dropdown-search-input",
+            attr: { type: "text", placeholder: "Search articles..." },
+        });
+        const clearBtn = searchWrapper.createDiv({ cls: "rss-dropdown-search-clear is-hidden" });
+        setIcon(clearBtn, "x");
+        searchInput.addEventListener("input", () => {
+            clearBtn.classList.toggle("is-hidden", !searchInput.value);
+            if (this.callbacks.onSearchChange) {
+                this.callbacks.onSearchChange(searchInput.value);
+            }
+        });
+        clearBtn.addEventListener("click", () => {
+            searchInput.value = "";
+            clearBtn.classList.add("is-hidden");
+            if (this.callbacks.onSearchChange) {
+                this.callbacks.onSearchChange("");
+            }
+        });
 
-        for (const [text, value] of Object.entries(ageOptions)) {
-            filterDropdown.createEl('option', { text: text, value: String(value) });
+        // --- Age select ---
+        const ageRow = controls.createDiv({ cls: "rss-dropdown-control-row" });
+        const ageIcon = ageRow.createDiv({ cls: "rss-dropdown-control-icon" });
+        setIcon(ageIcon, "history");
+        const ageSelect = ageRow.createEl("select", { cls: "rss-dropdown-select" });
+        const ageOptions: [string, number][] = [
+            ["All", 0],
+            ["1 hour", 3600000],
+            ["2 hours", 7200000],
+            ["4 hours", 14400000],
+            ["8 hours", 28800000],
+            ["24 hours", 86400000],
+            ["48 hours", 172800000],
+            ["3 days", 259200000],
+            ["1 week", 604800000],
+            ["2 weeks", 1209600000],
+            ["1 month", 2592000000],
+            ["2 months", 5184000000],
+            ["6 months", 15552000000],
+            ["1 year", 31536000000],
+        ];
+        for (const [text, value] of ageOptions) {
+            ageSelect.createEl("option", { text, value: String(value) });
         }
-
         const filterValue = typeof this.settings.articleFilter.value === 'number' ? this.settings.articleFilter.value : 0;
-        filterDropdown.value = String(filterValue);
-
-        filterDropdown.addEventListener('change', (e: Event) => {
-            const value = Number((e.target as HTMLSelectElement).value);
+        ageSelect.value = String(filterValue);
+        ageSelect.addEventListener("change", () => {
+            const value = Number(ageSelect.value);
             this.callbacks.onFilterChange({
                 type: value === 0 ? 'none' : 'age',
-                value: value
+                value: value,
             });
         });
 
-        const sortDropdown = articleControls.createEl('select');
-        sortDropdown.addClass('rss-dashboard-sort');
-        sortDropdown.createEl('option', { text: 'Sort by newest', value: 'newest' });
-        sortDropdown.createEl('option', { text: 'Sort by oldest', value: 'oldest' });
-        sortDropdown.value = this.settings.articleSort;
-        sortDropdown.addEventListener('change', (e: Event) => {
-            this.callbacks.onSortChange((e.target as HTMLSelectElement).value as 'newest' | 'oldest');
+        // --- Sort select ---
+        const sortRow = controls.createDiv({ cls: "rss-dropdown-control-row" });
+        const sortIcon = sortRow.createDiv({ cls: "rss-dropdown-control-icon" });
+        setIcon(sortIcon, "arrow-up-down");
+        const sortSelect = sortRow.createEl("select", { cls: "rss-dropdown-select" });
+        sortSelect.createEl("option", { text: "Newest", value: "newest" });
+        sortSelect.createEl("option", { text: "Oldest", value: "oldest" });
+        sortSelect.value = this.settings.articleSort;
+        sortSelect.addEventListener("change", () => {
+            this.callbacks.onSortChange(sortSelect.value as 'newest' | 'oldest');
         });
 
-        const groupDropdown = articleControls.createEl('select');
-        groupDropdown.addClass('rss-dashboard-group');
-        groupDropdown.createEl('option', { text: 'No grouping', value: 'none' });
-        groupDropdown.createEl('option', { text: 'Group by feed', value: 'feed' });
-        groupDropdown.createEl('option', { text: 'Group by date', value: 'date' });
-        groupDropdown.createEl('option', { text: 'Group by folder', value: 'folder' });
-        groupDropdown.value = this.settings.articleGroupBy;
-        groupDropdown.addEventListener('change', (e: Event) => {
-            this.callbacks.onGroupChange((e.target as HTMLSelectElement).value as 'none' | 'feed' | 'date' | 'folder');
+        // --- Grouping select ---
+        const groupRow = controls.createDiv({ cls: "rss-dropdown-control-row" });
+        const groupIcon = groupRow.createDiv({ cls: "rss-dropdown-control-icon" });
+        setIcon(groupIcon, "folders");
+        const groupSelect = groupRow.createEl("select", { cls: "rss-dropdown-select" });
+        groupSelect.createEl("option", { text: "None", value: "none" });
+        groupSelect.createEl("option", { text: "Feed", value: "feed" });
+        groupSelect.createEl("option", { text: "Date", value: "date" });
+        groupSelect.createEl("option", { text: "Folder", value: "folder" });
+        groupSelect.value = this.settings.articleGroupBy;
+        groupSelect.addEventListener("change", () => {
+            this.callbacks.onGroupChange(groupSelect.value as 'none' | 'feed' | 'date' | 'folder');
         });
 
-        const viewStyleToggle = articleControls.createDiv({
-            cls: "rss-dashboard-view-toggle",
+        // --- View toggle (List / Card) ---
+        const viewToggle = controls.createDiv({ cls: "rss-dashboard-view-toggle" });
+        const listBtn = viewToggle.createEl("button", {
+            cls: "rss-dropdown-view-btn" + (this.settings.viewStyle === "list" ? " active" : ""),
         });
+        const listBtnIcon = listBtn.createSpan({ cls: "rss-dropdown-view-btn-icon" });
+        setIcon(listBtnIcon, "list");
+        listBtn.createSpan({ text: "List" });
+        listBtn.addEventListener("click", () => this.callbacks.onToggleViewStyle("list"));
 
-        const listViewButton = viewStyleToggle.createEl("button", {
-            cls: "rss-dashboard-list-view-button" +
-                (this.settings.viewStyle === "list" ? " active" : ""),
-            text: "List",
+        const cardBtn = viewToggle.createEl("button", {
+            cls: "rss-dropdown-view-btn" + (this.settings.viewStyle === "card" ? " active" : ""),
         });
-        
-        listViewButton.addEventListener("click", () => {
-            this.callbacks.onToggleViewStyle("list");
-        });
+        const cardBtnIcon = cardBtn.createSpan({ cls: "rss-dropdown-view-btn-icon" });
+        setIcon(cardBtnIcon, "layout-grid");
+        cardBtn.createSpan({ text: "Card" });
+        cardBtn.addEventListener("click", () => this.callbacks.onToggleViewStyle("card"));
 
-        const cardViewButton = viewStyleToggle.createEl("button", {
-            cls: "rss-dashboard-card-view-button" +
-                (this.settings.viewStyle === "card" ? " active" : ""),
-            text: "Card",
+        // --- Refresh button ---
+        const refreshBtn = controls.createEl("button", {
+            cls: "rss-dashboard-refresh-button rss-dropdown-refresh-btn",
         });
-        
-        cardViewButton.addEventListener("click", () => {
-            this.callbacks.onToggleViewStyle("card");
-        });
+        const refreshIcon = refreshBtn.createSpan({ cls: "rss-dropdown-view-btn-icon" });
+        setIcon(refreshIcon, "refresh-cw");
+        refreshBtn.createSpan({ text: "Refresh" });
+        this.refreshButton = refreshBtn;
+        refreshBtn.addEventListener("click", () => this.callbacks.onRefreshFeeds());
 
-        const dashboardRefreshButton = articleControls.createEl("button", {
-            cls: "rss-dashboard-refresh-button",
-            text: "Refresh",
-            attr: {
-                title: "Refresh feeds"
+        // --- Cards per row (only in card view) ---
+        if (this.settings.viewStyle === "card") {
+            const colsRow = controls.createDiv({ cls: "rss-dropdown-control-row" });
+            colsRow.createDiv({ cls: "rss-dropdown-control-label", text: "Cards/row" });
+            const colsBtnGroup = colsRow.createDiv({ cls: "rss-dropdown-cols-group" });
+            const colOptions = [0, 1, 2, 3, 4, 5, 6];
+            const colLabels = ["Auto", "1", "2", "3", "4", "5", "6"];
+            const currentCols = this.settings.display?.cardColumnsPerRow ?? 0;
+            for (let i = 0; i < colOptions.length; i++) {
+                const btn = colsBtnGroup.createEl("button", {
+                    cls: "rss-dropdown-col-btn" + (colOptions[i] === currentCols ? " active" : ""),
+                    text: colLabels[i],
+                });
+                btn.addEventListener("click", () => {
+                    colsBtnGroup.querySelectorAll(".rss-dropdown-col-btn").forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    if (this.callbacks.onCardColumnsChange) {
+                        this.callbacks.onCardColumnsChange(colOptions[i]);
+                    }
+                });
             }
-        });
-        
-        
-        if (!container.classList.contains("rss-dashboard-dropdown-controls")) {
-            this.refreshButton = dashboardRefreshButton;
+
+            // --- Card spacing slider ---
+            const spacingRow = controls.createDiv({ cls: "rss-dropdown-control-row rss-dropdown-spacing-row" });
+            spacingRow.createDiv({ cls: "rss-dropdown-control-label", text: "Card spacing" });
+            const spacingValue = spacingRow.createDiv({
+                cls: "rss-dropdown-spacing-value",
+                text: `${this.settings.display?.cardSpacing ?? 16}px`,
+            });
+            const spacingSlider = spacingRow.createEl("input", {
+                cls: "rss-dropdown-spacing-slider",
+                attr: {
+                    type: "range",
+                    min: "0",
+                    max: "40",
+                    value: String(this.settings.display?.cardSpacing ?? 16),
+                },
+            });
+            spacingSlider.addEventListener("input", () => {
+                spacingValue.textContent = `${spacingSlider.value}px`;
+                if (this.callbacks.onCardSpacingChange) {
+                    this.callbacks.onCardSpacingChange(Number(spacingSlider.value));
+                }
+            });
         }
-        
-        dashboardRefreshButton.addEventListener("click", () => {
-            this.callbacks.onRefreshFeeds();
+
+        // --- Mark all section ---
+        const markRow = controls.createDiv({ cls: "rss-dropdown-mark-row" });
+        markRow.createDiv({ cls: "rss-dropdown-control-label", text: "Mark all:" });
+        const markBtns = markRow.createDiv({ cls: "rss-dropdown-mark-btns" });
+
+        const markReadBtn = markBtns.createEl("button", { cls: "rss-dropdown-mark-btn" });
+        const markReadIcon = markReadBtn.createSpan({ cls: "rss-dropdown-view-btn-icon" });
+        setIcon(markReadIcon, "check-circle");
+        markReadBtn.createSpan({ text: "Read" });
+        markReadBtn.addEventListener("click", () => {
+            if (this.callbacks.onMarkAllRead) this.callbacks.onMarkAllRead();
+        });
+
+        const markUnreadBtn = markBtns.createEl("button", { cls: "rss-dropdown-mark-btn" });
+        const markUnreadIcon = markUnreadBtn.createSpan({ cls: "rss-dropdown-view-btn-icon" });
+        setIcon(markUnreadIcon, "circle");
+        markUnreadBtn.createSpan({ text: "Unread" });
+        markUnreadBtn.addEventListener("click", () => {
+            if (this.callbacks.onMarkAllUnread) this.callbacks.onMarkAllUnread();
         });
     }
+    
+    /* old createControls removed - replaced by createControlsDropdown + openFilterPortal */
     
     private renderArticles(): void {
         const articlesList = this.container.createDiv({
             cls: `rss-dashboard-articles-list rss-dashboard-${this.settings.viewStyle}-view`,
         });
 
-        
-        
+        // Apply card view settings as inline styles
+        if (this.settings.viewStyle === "card") {
+            const spacing = this.settings.display?.cardSpacing ?? 16;
+            articlesList.style.gap = `${spacing}px`;
+            const cols = this.settings.display?.cardColumnsPerRow ?? 0;
+            if (cols > 0) {
+                articlesList.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            }
+        }
+
+
+
         if (this.articles.length === 0) {
             const emptyState = articlesList.createDiv({
                 cls: "rss-dashboard-empty-state",
@@ -675,6 +1008,20 @@ export class ArticleList {
             if (!coverImgSrc && article.summary) {
                 const extracted = extractFirstImageSrc(article.summary);
                 if (extracted) coverImgSrc = extracted;
+            }
+            // Fallback: per-feed default cover image, then global fallback
+            if (!coverImgSrc) {
+                const feed = this.settings.feeds.find(f => f.url === article.feedUrl);
+                let vaultPath = "";
+                if (feed?.defaultCoverImage) {
+                    vaultPath = feed.defaultCoverImage;
+                } else if (this.settings.display?.globalFallbackCoverImage) {
+                    vaultPath = this.settings.display.globalFallbackCoverImage;
+                }
+                if (vaultPath) {
+                    coverImgSrc = this.app.vault.adapter.getResourcePath(vaultPath);
+                    console.debug('[RSS] Default cover image fallback:', { vaultPath, coverImgSrc, feedUrl: article.feedUrl, defaultCoverImage: feed?.defaultCoverImage });
+                }
             }
 
             if (coverImgSrc) {
