@@ -852,22 +852,24 @@ export class RssDashboardView extends ItemView {
     
     
     private async handleArticleSave(article: FeedItem): Promise<void> {
-        // Find the feed to check for custom template
         const feed = this.settings.feeds.find((f: Feed) => f.url === article.feedUrl);
+        const savedPresets = this.settings.articleSaving.savedTemplates || [];
+        let customFolder: string | undefined;
         let customTemplate: string | undefined;
 
-        // If feed has a custom template ID, resolve it to the actual template content
-        if (feed?.customTemplate) {
-            const savedTemplates = this.settings.articleSaving.savedTemplates || [];
-            const templateObj = savedTemplates.find(t => t.id === feed.customTemplate);
-            if (templateObj) {
-                customTemplate = templateObj.template;
+        // Resolve preset: feed-level first, then default preset
+        const presetId = feed?.customTemplate || this.settings.articleSaving.defaultPresetId;
+        if (presetId) {
+            const preset = savedPresets.find(t => t.id === presetId);
+            if (preset) {
+                customFolder = preset.folder || undefined;
+                customTemplate = preset.template;
             }
         }
 
         const file = this.settings.articleSaving.saveFullContent
-            ? await this.saver.saveArticleWithFullContent(article, undefined, customTemplate)
-            : await this.saver.saveArticle(article, undefined, customTemplate);
+            ? await this.saver.saveArticleWithFullContent(article, customFolder, customTemplate)
+            : await this.saver.saveArticle(article, customFolder, customTemplate);
 
         if (file) {
             await this.updateArticleStatus(article, { saved: true }, false);
@@ -1056,14 +1058,26 @@ export class RssDashboardView extends ItemView {
         if (!this.settings.display) return;
         this.settings.display.cardColumnsPerRow = columns;
         void this.plugin.saveSettings();
-        void this.render();
+        // Update grid inline style without re-rendering (avoids closing the dropdown)
+        const grid = this.containerEl.querySelector<HTMLElement>(".rss-dashboard-articles-list.rss-dashboard-card-view");
+        if (grid) {
+            grid.style.gridTemplateColumns = columns > 0 ? `repeat(${columns}, 1fr)` : "";
+        } else {
+            void this.render();
+        }
     }
 
     private handleCardSpacingChange(spacing: number): void {
         if (!this.settings.display) return;
         this.settings.display.cardSpacing = spacing;
         void this.plugin.saveSettings();
-        void this.render();
+        // Update grid inline style without re-rendering (avoids closing the dropdown)
+        const grid = this.containerEl.querySelector<HTMLElement>(".rss-dashboard-articles-list.rss-dashboard-card-view");
+        if (grid) {
+            grid.style.gap = `${spacing}px`;
+        } else {
+            void this.render();
+        }
     }
 
     private handleMarkAllRead(): void {

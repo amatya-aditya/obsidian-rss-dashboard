@@ -128,6 +128,7 @@ export interface MediaSettings {
 export interface SavedTemplate {
     id: string;
     name: string;
+    folder: string;
     template: string;
 }
 
@@ -140,6 +141,7 @@ export interface ArticleSavingSettings {
     saveFullContent: boolean;
     fetchTimeout: number;
     savedTemplates: SavedTemplate[];
+    defaultPresetId?: string;
 }
 
 export interface DisplaySettings {

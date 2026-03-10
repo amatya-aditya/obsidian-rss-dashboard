@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf, Menu, MenuItem, App, Setting } from "obsidian";
 import { setIcon } from "obsidian";
-import { FeedItem, RssDashboardSettings, ArticleSavingSettings } from "../types/types";
+import { FeedItem, RssDashboardSettings } from "../types/types";
 import { MediaService } from "../services/media-service";
 import { ArticleSaver } from "../services/article-saver";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
@@ -148,15 +148,27 @@ export class ReaderView extends ItemView {
 
     
     private getCustomTemplateForArticle(item: FeedItem): string | undefined {
+        const preset = this.getPresetForArticle(item);
+        return preset?.template;
+    }
+
+    private getPresetForArticle(item: FeedItem): { folder: string; template: string } | undefined {
         const feed = this.settings.feeds.find(f => f.url === item.feedUrl);
+        const savedPresets = this.settings.articleSaving.savedTemplates ?? [];
+
+        // Check feed-level preset first
         if (feed?.customTemplate) {
-            const articleSaving: ArticleSavingSettings = this.settings.articleSaving;
-            const savedTemplates = articleSaving.savedTemplates ?? [];
-            const templateObj = savedTemplates.find(t => t.id === feed.customTemplate);
-            if (templateObj) {
-                return templateObj.template;
-            }
+            const preset = savedPresets.find(t => t.id === feed.customTemplate);
+            if (preset) return { folder: preset.folder, template: preset.template };
         }
+
+        // Then check default preset
+        const defaultPresetId = this.settings.articleSaving.defaultPresetId;
+        if (defaultPresetId) {
+            const preset = savedPresets.find(t => t.id === defaultPresetId);
+            if (preset) return { folder: preset.folder, template: preset.template };
+        }
+
         return undefined;
     }
 
@@ -169,16 +181,40 @@ export class ReaderView extends ItemView {
                 .setIcon("save")
                 .onClick(async () => {
                     const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
-                    const customTemplate = this.getCustomTemplateForArticle(item);
-                    const file = await this.articleSaver.saveArticle(item, undefined, customTemplate, markdownContent);
+                    const preset = this.getPresetForArticle(item);
+                    const folder = preset?.folder || undefined;
+                    const template = preset?.template;
+                    const file = await this.articleSaver.saveArticle(item, folder, template, markdownContent);
                     if (file) {
                         this.onArticleSave(item);
-
                         this.updateSavedLabel(true);
                     }
                 });
         });
-        
+
+        // Add menu items for each saved preset
+        const savedPresets = this.settings.articleSaving.savedTemplates ?? [];
+        if (savedPresets.length > 0) {
+            menu.addSeparator();
+            for (const preset of savedPresets) {
+                menu.addItem((menuItem: MenuItem) => {
+                    menuItem
+                        .setTitle(`Save with "${preset.name}"`)
+                        .setIcon("bookmark")
+                        .onClick(async () => {
+                            const markdownContent = this.turndownService.turndown(this.currentFullContent || item.description || "");
+                            const folder = preset.folder || undefined;
+                            const file = await this.articleSaver.saveArticle(item, folder, preset.template, markdownContent);
+                            if (file) {
+                                this.onArticleSave(item);
+                                this.updateSavedLabel(true);
+                            }
+                        });
+                });
+            }
+            menu.addSeparator();
+        }
+
         menu.addItem((menuItem: MenuItem) => {
             menuItem
                 .setTitle("Save to custom folder...")
@@ -187,7 +223,7 @@ export class ReaderView extends ItemView {
                     this.showCustomSaveModal(item);
                 });
         });
-        
+
         menu.showAtMouseEvent(event);
     }
     
@@ -196,17 +232,28 @@ export class ReaderView extends ItemView {
         const modal = document.body.createDiv({
             cls: "rss-dashboard-modal rss-dashboard-modal-container"
         });
-        
+
         const modalContent = modal.createDiv({
             cls: "rss-dashboard-modal-content"
         });
-        
+
         new Setting(modalContent).setName("Save article").setHeading();
-        
+
+        // Preset dropdown
+        const savedPresets = this.settings.articleSaving.savedTemplates ?? [];
+        const presetLabel = modalContent.createEl("label", {
+            text: "Use preset:"
+        });
+        const presetSelect = modalContent.createEl("select");
+        presetSelect.createEl("option", { text: "Custom", attr: { value: "" } });
+        for (const preset of savedPresets) {
+            presetSelect.createEl("option", { text: preset.name, attr: { value: preset.id } });
+        }
+
         const folderLabel = modalContent.createEl("label", {
             text: "Save to folder:"
         });
-        
+
         const folderInput = modalContent.createEl("input", {
             attr: {
                 type: "text",
@@ -214,20 +261,41 @@ export class ReaderView extends ItemView {
                 value: this.settings.articleSaving.defaultFolder || ""
             }
         });
-        
+
         const templateLabel = modalContent.createEl("label", {
             text: "Use template:"
         });
-        
+
         const templateInput = modalContent.createEl("textarea", {
             attr: {
                 placeholder: "Enter template",
                 rows: "6"
             }
         });
-        // Pre-populate with feed's custom template if available, otherwise use default
-        const feedTemplate = this.getCustomTemplateForArticle(item);
-        templateInput.value = feedTemplate || this.settings.articleSaving.defaultTemplate || "";
+
+        // Pre-populate with feed's preset or default
+        const feedPreset = this.getPresetForArticle(item);
+        if (feedPreset) {
+            folderInput.value = feedPreset.folder || this.settings.articleSaving.defaultFolder || "";
+            templateInput.value = feedPreset.template;
+        } else {
+            templateInput.value = this.settings.articleSaving.defaultTemplate || "";
+        }
+
+        // When preset changes, auto-fill folder and template
+        presetSelect.addEventListener("change", () => {
+            const selectedId = presetSelect.value;
+            if (selectedId) {
+                const preset = savedPresets.find(p => p.id === selectedId);
+                if (preset) {
+                    folderInput.value = preset.folder || this.settings.articleSaving.defaultFolder || "";
+                    templateInput.value = preset.template;
+                }
+            } else {
+                folderInput.value = this.settings.articleSaving.defaultFolder || "";
+                templateInput.value = this.settings.articleSaving.defaultTemplate || "";
+            }
+        });
 
         const buttonContainer = modalContent.createDiv({
             cls: "rss-dashboard-modal-buttons"
@@ -264,13 +332,17 @@ export class ReaderView extends ItemView {
         
         buttonContainer.appendChild(cancelButton);
         buttonContainer.appendChild(saveButton);
-        
+
+        if (savedPresets.length > 0) {
+            modalContent.appendChild(presetLabel);
+            modalContent.appendChild(presetSelect);
+        }
         modalContent.appendChild(folderLabel);
         modalContent.appendChild(folderInput);
         modalContent.appendChild(templateLabel);
         modalContent.appendChild(templateInput);
         modalContent.appendChild(buttonContainer);
-        
+
         modal.appendChild(modalContent);
         document.body.appendChild(modal);
     }

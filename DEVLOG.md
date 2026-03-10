@@ -1,5 +1,44 @@
 # Development Log
 
+## 2026-03-10 — Session 3: Save Presets, Templater, UI Fixes
+
+### Card Spacing Slider Crashes Menu
+- **Problem**: Adjusting the card spacing slider (or cards/row buttons) closed the controls dropdown.
+- **Root cause**: `handleCardSpacingChange()` and `handleCardColumnsChange()` in dashboard-view.ts called `this.render()`, which destroyed and rebuilt the entire view including the open dropdown.
+- **Fix (dashboard-view.ts)**: Both handlers now directly update the grid element's inline `gap` / `grid-template-columns` style via `querySelector()` instead of re-rendering.
+
+### Search Icon Overlaps Placeholder Text
+- **Problem**: The magnifying glass icon in the controls dropdown covered the "Search articles..." placeholder text.
+- **Fix (dropdown-portal.css)**: Increased search input left padding from 34px to 38px.
+
+### Sidebar Badge Bleed-Through When Collapsed
+- **Problem**: Unread count badges (circles with numbers) were visible when the sidebar was collapsed/hidden.
+- **Root cause**: Sidebar is 280px wide but was only translated -250px, leaving 30px visible where badges showed.
+- **Fix (layout.css, sidebar.css)**: Changed `translateX(-250px)` to `translateX(-100%)` so the sidebar fully slides off-screen regardless of width.
+
+### YouTube Video Description — Broken HTML
+- **Problem**: Opening a YouTube video showed raw `<body xmlns="http://www.w3.org/1999/xhtml">` text in the description.
+- **Root cause (video-player.ts)**: `XMLSerializer().serializeToString(doc.body)` wrapped output in `<body xmlns=...>`, then `.textContent =` displayed it as literal text.
+- **Fix (video-player.ts)**: Replaced with DOM node adoption (`document.adoptNode()`) — no serialization needed.
+
+### YouTube Description — Collapsible + Formatted
+- **Problem**: YouTube descriptions were a wall of unformatted text.
+- **Fix (video-player.ts, video.css)**: Description is now a collapsible `<details>` toggle. Plain-text URLs are auto-converted to clickable links. Line breaks preserved. Styled with border, background, and scroll overflow.
+
+### Save Presets Feature
+- **Problem**: Users could only save with one default folder/template, no way to define multiple folder+template combos.
+- **Implementation**:
+  - **types.ts**: Added `folder` field to `SavedTemplate`, added `defaultPresetId` to `ArticleSavingSettings`
+  - **main.ts**: Migration backfills `folder: ""` on existing saved templates
+  - **settings-tab.ts**: "Saved templates" → "Save presets" with folder per preset, default preset dropdown, Edit modal (name + folder + template body)
+  - **reader-view.ts**: Right-click save menu lists all presets ("Save with [Name]"), custom save modal has preset dropdown that auto-fills folder + template
+  - **dashboard-view.ts**: `handleArticleSave()` resolves preset folder+template (feed-level → default preset → global defaults)
+  - **feed-manager-modal.ts**: Template dropdown renamed to "Save preset" with folder shown in label
+
+### Templater Integration
+- **Problem**: Templater `<% ... %>` syntax in templates wasn't processed — files created via `vault.create()` don't trigger Templater automatically.
+- **Fix (article-saver.ts)**: After saving, calls Templater's `overwrite_file_commands()` API on the new file if the plugin is installed.
+
 ## 2026-03-08 — Session 1: YouTube Fixes, UI Enhancements, Dropdown Port
 
 ### YouTube Channel URL Handling

@@ -301,7 +301,7 @@
 	overflow-y: auto;
    }
    .sidebar-collapsed .rss-dashboard-sidebar-container {
-	transform: translateX(-250px);
+	transform: translateX(-100%);
    }
   .rss-dashboard-sidebar {
 	font-size: 13px;

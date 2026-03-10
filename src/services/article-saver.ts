@@ -543,9 +543,10 @@ guid: "{{guid}}"
             
             
             const file = await this.app.vault.create(filePath, content);
-           
-            
-            
+
+            // Trigger Templater processing if the plugin is available
+            await this.triggerTemplater(file);
+
             item.saved = true;
             item.savedFilePath = filePath;
             
@@ -568,6 +569,18 @@ guid: "{{guid}}"
         }
     }
 
+    private async triggerTemplater(file: TFile): Promise<void> {
+        try {
+            /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
+            const templater = (this.app as any).plugins?.plugins?.["templater-obsidian"];
+            if (templater?.templater?.overwrite_file_commands) {
+                await templater.templater.overwrite_file_commands(file);
+            }
+            /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
+        } catch {
+            // Templater not installed or failed
+        }
+    }
     
     async fixSavedFilePaths(articles: FeedItem[]): Promise<void> {
         for (const article of articles) {

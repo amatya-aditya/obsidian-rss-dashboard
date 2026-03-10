@@ -3,35 +3,68 @@ import RssDashboardPlugin from "./../../main";
 import { ViewLocation, RssDashboardSettings, SavedTemplate, DEFAULT_SETTINGS, PodcastTheme } from "../types/types";
 import { FolderSuggest, VaultFolderSuggest, VaultImageSuggest } from "../components/folder-suggest";
 
-class TemplateNameModal extends Modal {
-    private result: string | null = null;
-    private resolvePromise: ((value: string | null) => void) | null = null;
+interface PresetModalResult {
+    name: string;
+    folder: string;
+    template: string;
+}
 
-    constructor(app: App) {
+class PresetNameModal extends Modal {
+    private result: PresetModalResult | null = null;
+    private resolvePromise: ((value: PresetModalResult | null) => void) | null = null;
+    private defaultFolder: string;
+    private editName: string;
+    private editFolder: string;
+    private editTemplate: string;
+
+    constructor(app: App, defaultFolder: string, editName = "", editFolder = "", editTemplate = "") {
         super(app);
+        this.defaultFolder = defaultFolder;
+        this.editName = editName;
+        this.editFolder = editFolder;
+        this.editTemplate = editTemplate;
     }
 
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
 
-        contentEl.createEl("h2", { text: "Save template" });
-        contentEl.createEl("p", { text: "Enter a name for this template:" });
+        const isEdit = !!this.editName;
+        contentEl.createEl("h2", { text: isEdit ? "Edit preset" : "Save preset" });
 
-        let inputComponent: TextComponent;
+        let nameComponent: TextComponent;
         new Setting(contentEl)
-            .setName("Template name")
+            .setName("Preset name")
             .addText((text) => {
-                inputComponent = text;
-                text.setPlaceholder("My template");
-                text.inputEl.addEventListener("keydown", (e) => {
-                    if (e.key === "Enter") {
-                        e.preventDefault();
-                        this.result = text.getValue().trim() || null;
-                        this.close();
-                    }
-                });
+                nameComponent = text;
+                text.setPlaceholder("My preset");
+                text.setValue(this.editName);
             });
+
+        let folderComponent: TextComponent;
+        new Setting(contentEl)
+            .setName("Save folder")
+            .setDesc("Leave empty to use the default save path")
+            .addText((text) => {
+                folderComponent = text;
+                text.setPlaceholder(this.defaultFolder);
+                text.setValue(this.editFolder);
+                new VaultFolderSuggest(this.app, text.inputEl);
+            });
+
+        // Template textarea (only shown when editing an existing preset)
+        let templateTextarea: HTMLTextAreaElement | null = null;
+        if (isEdit) {
+            new Setting(contentEl)
+                .setName("Template")
+                .setDesc("Available variables: {{title}}, {{content}}, {{link}}, {{date}}, {{isoDate}}, {{source}}, {{author}}, {{summary}}, {{tags}}, {{feedTitle}}, {{guid}}");
+
+            templateTextarea = contentEl.createEl("textarea", {
+                attr: { rows: "8" },
+                cls: "rss-dashboard-template-input"
+            });
+            templateTextarea.value = this.editTemplate;
+        }
 
         new Setting(contentEl)
             .addButton((btn) =>
@@ -47,14 +80,20 @@ class TemplateNameModal extends Modal {
                     .setButtonText("Save")
                     .setCta()
                     .onClick(() => {
-                        this.result = inputComponent.getValue().trim() || null;
+                        const name = nameComponent.getValue().trim();
+                        if (name) {
+                            this.result = {
+                                name,
+                                folder: folderComponent.getValue().trim(),
+                                template: templateTextarea ? templateTextarea.value : this.editTemplate
+                            };
+                        }
                         this.close();
                     })
             );
 
-        // Focus the input after a short delay
         setTimeout(() => {
-            inputComponent.inputEl.focus();
+            nameComponent.inputEl.focus();
         }, 50);
     }
 
@@ -66,7 +105,7 @@ class TemplateNameModal extends Modal {
         }
     }
 
-    waitForClose(): Promise<string | null> {
+    waitForClose(): Promise<PresetModalResult | null> {
         return new Promise((resolve) => {
             this.resolvePromise = resolve;
         });
@@ -733,74 +772,117 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             new Notice("Template reset to default");
         };
 
-        const saveAsTemplateBtn = templateBtnRow.createEl("button", {
-            text: "Save as template",
+        const saveAsPresetBtn = templateBtnRow.createEl("button", {
+            text: "Save as preset",
             cls: "rss-dashboard-template-btn"
         });
-        saveAsTemplateBtn.onclick = async () => {
-            const name = await this.promptForTemplateName();
-            if (name) {
-                const newTemplate: SavedTemplate = {
+        saveAsPresetBtn.onclick = async () => {
+            const result = await this.promptForPresetDetails();
+            if (result) {
+                const newPreset: SavedTemplate = {
                     id: `template-${Date.now()}`,
-                    name: name,
+                    name: result.name,
+                    folder: result.folder ? normalizePath(result.folder) : "",
                     template: this.plugin.settings.articleSaving.defaultTemplate
                 };
                 if (!this.plugin.settings.articleSaving.savedTemplates) {
                     this.plugin.settings.articleSaving.savedTemplates = [];
                 }
-                this.plugin.settings.articleSaving.savedTemplates.push(newTemplate);
+                this.plugin.settings.articleSaving.savedTemplates.push(newPreset);
                 await this.plugin.saveSettings();
-                new Notice(`Template "${name}" saved`);
+                new Notice(`Preset "${result.name}" saved`);
                 this.display();
             }
         };
 
-        // Saved templates section
-        new Setting(containerEl).setName("Saved templates").setHeading();
+        // Save presets section
+        new Setting(containerEl).setName("Save presets").setHeading();
 
-        const savedTemplates = this.plugin.settings.articleSaving.savedTemplates || [];
+        const savedPresets = this.plugin.settings.articleSaving.savedTemplates || [];
 
-        if (savedTemplates.length === 0) {
+        if (savedPresets.length > 0) {
+            new Setting(containerEl)
+                .setName("Default preset")
+                .setDesc("Preset used when saving articles without choosing one")
+                .addDropdown(dropdown => {
+                    dropdown.addOption("", "None (use defaults above)");
+                    savedPresets.forEach((preset: SavedTemplate) => {
+                        dropdown.addOption(preset.id, preset.name);
+                    });
+                    dropdown.setValue(this.plugin.settings.articleSaving.defaultPresetId || "");
+                    dropdown.onChange(async (value) => {
+                        this.plugin.settings.articleSaving.defaultPresetId = value || undefined;
+                        await this.plugin.saveSettings();
+                    });
+                });
+        }
+
+        if (savedPresets.length === 0) {
             containerEl.createEl("p", {
-                text: "No saved templates yet. Save the current template using the button above.",
+                text: "No save presets yet. Save the current template as a preset using the button above.",
                 cls: "rss-dashboard-settings-note"
             });
         } else {
-            const templatesContainer = containerEl.createDiv({ cls: "rss-dashboard-saved-templates" });
+            const presetsContainer = containerEl.createDiv({ cls: "rss-dashboard-saved-templates" });
 
-            savedTemplates.forEach((template, index) => {
-                new Setting(templatesContainer)
-                    .setName(template.name)
+            savedPresets.forEach((preset, index) => {
+                const desc = preset.folder
+                    ? `Folder: ${preset.folder}`
+                    : "Folder: (default)";
+                new Setting(presetsContainer)
+                    .setName(preset.name)
+                    .setDesc(desc)
                     .addButton((button) =>
                         button
                             .setButtonText("Load")
-                            .setTooltip("Load this template into the editor")
+                            .setTooltip("Load this preset's template into the editor")
                             .onClick(async () => {
-                                templateInput.value = template.template;
-                                this.plugin.settings.articleSaving.defaultTemplate = template.template;
+                                templateInput.value = preset.template;
+                                this.plugin.settings.articleSaving.defaultTemplate = preset.template;
                                 await this.plugin.saveSettings();
-                                new Notice(`Template "${template.name}" loaded`);
+                                new Notice(`Preset "${preset.name}" loaded`);
+                            })
+                    )
+                    .addButton((button) =>
+                        button
+                            .setButtonText("Edit")
+                            .setTooltip("Edit preset name, folder, and template")
+                            .onClick(async () => {
+                                const result = await this.promptForPresetDetails(preset.name, preset.folder, preset.template);
+                                if (result) {
+                                    this.plugin.settings.articleSaving.savedTemplates[index].name = result.name;
+                                    this.plugin.settings.articleSaving.savedTemplates[index].folder =
+                                        result.folder ? normalizePath(result.folder) : "";
+                                    this.plugin.settings.articleSaving.savedTemplates[index].template = result.template;
+                                    await this.plugin.saveSettings();
+                                    new Notice(`Preset "${result.name}" updated`);
+                                    this.display();
+                                }
                             })
                     )
                     .addButton((button) =>
                         button
                             .setButtonText("Update")
-                            .setTooltip("Update this template with current editor content")
+                            .setTooltip("Update this preset's template with current editor content")
                             .onClick(async () => {
                                 this.plugin.settings.articleSaving.savedTemplates[index].template =
                                     this.plugin.settings.articleSaving.defaultTemplate;
                                 await this.plugin.saveSettings();
-                                new Notice(`Template "${template.name}" updated`);
+                                new Notice(`Preset "${preset.name}" template updated`);
                             })
                     )
                     .addButton((button) =>
                         button
                             .setIcon("trash")
-                            .setTooltip("Delete this template")
+                            .setTooltip("Delete this preset")
                             .onClick(async () => {
+                                // Clear default preset if deleting it
+                                if (this.plugin.settings.articleSaving.defaultPresetId === preset.id) {
+                                    this.plugin.settings.articleSaving.defaultPresetId = undefined;
+                                }
                                 this.plugin.settings.articleSaving.savedTemplates.splice(index, 1);
                                 await this.plugin.saveSettings();
-                                new Notice(`Template "${template.name}" deleted`);
+                                new Notice(`Preset "${preset.name}" deleted`);
                                 this.display();
                             })
                     );
@@ -808,8 +890,14 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         }
     }
 
-    private async promptForTemplateName(): Promise<string | null> {
-        const modal = new TemplateNameModal(this.app);
+    private async promptForPresetDetails(editName = "", editFolder = "", editTemplate = ""): Promise<PresetModalResult | null> {
+        const modal = new PresetNameModal(
+            this.app,
+            this.plugin.settings.articleSaving.defaultFolder,
+            editName,
+            editFolder,
+            editTemplate
+        );
         modal.open();
         return modal.waitForClose();
     }

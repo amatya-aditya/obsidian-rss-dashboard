@@ -60,7 +60,7 @@
   
    
   .sidebar-collapsed .rss-dashboard-sidebar {
-	transform: translateX(-250px);
+	transform: translateX(-100%);
 	z-index: 10;
 	position: absolute
    }

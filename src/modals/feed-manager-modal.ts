@@ -321,12 +321,15 @@ export class EditFeedModal extends Modal {
         const savedTemplates = this.plugin.settings.articleSaving.savedTemplates || [];
 
         new Setting(contentEl)
-            .setName("Article template")
-            .setDesc("Select a template to use when saving articles from this feed")
+            .setName("Save preset")
+            .setDesc("Select a preset (folder + template) to use when saving articles from this feed")
             .addDropdown(dropdown => {
-                dropdown.addOption("", "Use default template");
+                dropdown.addOption("", "Use default settings");
                 savedTemplates.forEach((template: SavedTemplate) => {
-                    dropdown.addOption(template.id, template.name);
+                    const label = template.folder
+                        ? `${template.name} (${template.folder})`
+                        : template.name;
+                    dropdown.addOption(template.id, label);
                 });
                 dropdown.setValue(customTemplate);
                 dropdown.onChange(value => {

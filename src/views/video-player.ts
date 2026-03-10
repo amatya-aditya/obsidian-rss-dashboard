@@ -87,29 +87,58 @@ export class VideoPlayer {
         
         
         if (this.currentItem.description) {
-            const descriptionContainer = details.createDiv({
+            const detailsEl = details.createEl("details", {
+                cls: "rss-video-description-toggle",
+            });
+            const summaryEl = detailsEl.createEl("summary", {
+                cls: "rss-video-description-summary",
+            });
+            summaryEl.createSpan({ text: "Description" });
+
+            const descriptionContainer = detailsEl.createDiv({
                 cls: "rss-video-description",
             });
-            
-            
-            const cleanHtml = (html: string): string => {
-                const htmlWithMeta = ensureUtf8Meta(html);
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(htmlWithMeta, "text/html");
-                
-                
-                doc.querySelectorAll("script").forEach(el => el.remove());
-                
-                
-                doc.querySelectorAll("a").forEach(link => {
-                    link.target = "_blank";
-                    link.rel = "noopener noreferrer";
-                });
-                
-                return new XMLSerializer().serializeToString(doc.body);
-            };
-            
-            descriptionContainer.textContent = cleanHtml(this.currentItem.description);
+
+            // Parse HTML, strip scripts, linkify plain-text URLs, preserve line breaks
+            const htmlWithMeta = ensureUtf8Meta(this.currentItem.description);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlWithMeta, "text/html");
+            doc.querySelectorAll("script").forEach(el => el.remove());
+
+            // Get plain text and format it
+            const rawText = doc.body.textContent || "";
+            const lines = rawText.split(/\n/);
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) {
+                    if (i > 0) descriptionContainer.createEl("br");
+                    continue;
+                }
+
+                const p = descriptionContainer.createEl("span", { cls: "rss-video-desc-line" });
+
+                // Split line into text and URL segments
+                const urlRegex = /(https?:\/\/[^\s,)]+)/g;
+                let lastIndex = 0;
+                let match: RegExpExecArray | null;
+                while ((match = urlRegex.exec(line)) !== null) {
+                    if (match.index > lastIndex) {
+                        p.appendText(line.slice(lastIndex, match.index));
+                    }
+                    const link = p.createEl("a", {
+                        text: match[1],
+                        href: match[1],
+                        attr: { target: "_blank", rel: "noopener noreferrer" },
+                    });
+                    link.addClass("rss-video-desc-link");
+                    lastIndex = urlRegex.lastIndex;
+                }
+                if (lastIndex < line.length) {
+                    p.appendText(line.slice(lastIndex));
+                }
+                descriptionContainer.createEl("br");
+            }
         }
         
         

@@ -1022,6 +1022,15 @@ export default class RssDashboardPlugin extends Plugin {
             delete articleSavingUnknown.template;
         }
 
+        // Migrate saved templates to presets (add folder field if missing)
+        if (this.settings.articleSaving?.savedTemplates) {
+            for (const t of this.settings.articleSaving.savedTemplates) {
+                if ((t as unknown as Record<string, unknown>).folder === undefined) {
+                    t.folder = "";
+                }
+            }
+        }
+
         // Migrate display settings
         if (!this.settings.display) {
             this.settings.display = DEFAULT_SETTINGS.display;
