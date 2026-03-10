@@ -2450,11 +2450,17 @@ export class FeedParser {
 
     const newItems: FeedItem[] = [];
     const updatedItems: FeedItem[] = [];
+    const shouldDetectYouTubeShorts = this.mediaSettings.detectYouTubeShorts;
 
     parsed.items.forEach((item: ParsedItem) => {
       const isAudioEnclosure = item.enclosure?.type?.startsWith("audio/");
       const isAudioLink = !!(item.link && item.link.includes(".mp3"));
       const isPodcast = isAudioEnclosure || isAudioLink;
+      const isYouTubeShort = MediaService.shouldDetectYouTubeShort(
+        url,
+        item.link || "",
+        shouldDetectYouTubeShorts,
+      );
 
       const audioUrl = isAudioEnclosure
         ? this.convertToAbsoluteUrl(item.enclosure?.url || "", url)
@@ -2516,7 +2522,11 @@ export class FeedParser {
           author: item.author || parsed.author || existingItem.author,
           read: existingItem.read,
           starred: existingItem.starred,
-          tags: existingItem.tags,
+          tags: MediaService.updateYouTubeShortTags(
+            existingItem.tags,
+            isYouTubeShort,
+            this.availableTags,
+          ),
           saved: existingItem.saved,
           feedTitle: newFeed.title, // Update feedTitle to match the new feed title
           coverImage,
@@ -2631,7 +2641,11 @@ export class FeedParser {
           guid: itemGuid,
           read: false,
           starred: false,
-          tags: [],
+          tags: MediaService.updateYouTubeShortTags(
+            [],
+            isYouTubeShort,
+            this.availableTags,
+          ),
           feedTitle: newFeed.title,
           feedUrl: newFeed.url,
           coverImage,
