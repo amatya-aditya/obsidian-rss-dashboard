@@ -13,6 +13,8 @@ import {
   RssDashboardSettings,
   ArticleSavingSettings,
   Tag,
+  DEFAULT_SETTINGS,
+  ReaderFormatSettings,
 } from "../types/types";
 import { MediaService } from "../services/media-service";
 import { ArticleSaver } from "../services/article-saver";
@@ -23,7 +25,7 @@ import { VideoPlayer } from "./video-player";
 import { requestUrl } from "obsidian";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
-import { ensureUtf8Meta } from "../utils/platform-utils";
+import { ensureUtf8Meta, setCssProps } from "../utils/platform-utils";
 import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
@@ -56,17 +58,26 @@ export class ReaderView extends ItemView {
   private tagsDropdownDocument: Document | null = null;
   private tagsDropdownViewportCleanup: (() => void) | null = null;
 
+  private readerFormatPortal: HTMLElement | null = null;
+  private readerFormatBackdrop: HTMLElement | null = null;
+  private readerFormatOutsideHandler: ((event: MouseEvent) => void) | null =
+    null;
+  private readerFormatDocument: Document | null = null;
+  private readerFormatViewportCleanup: (() => void) | null = null;
+  private readerFormatSaveTimeout: number | null = null;
+
   public setReturnLeaf(leaf: WorkspaceLeaf | null): void {
     this.returnLeaf = leaf;
   }
 
   private async navigateBackToDashboard(): Promise<void> {
-    const dashboardLeaves =
-      this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+    const dashboardLeaves = this.app.workspace.getLeavesOfType(
+      RSS_DASHBOARD_VIEW_TYPE,
+    );
     const targetLeaf =
       this.returnLeaf && dashboardLeaves.includes(this.returnLeaf)
         ? this.returnLeaf
-        : dashboardLeaves[0] ?? null;
+        : (dashboardLeaves[0] ?? null);
 
     if (targetLeaf) {
       this.app.workspace.setActiveLeaf(targetLeaf, { focus: true });
@@ -229,6 +240,16 @@ export class ReaderView extends ItemView {
       }
     });
 
+    // Reader formatting button
+    const readerFormatButton = actions.createDiv({
+      cls: "rss-reader-action-button rss-reader-format-button",
+      attr: { title: "Reader settings" },
+    });
+    setIcon(readerFormatButton, "type");
+    readerFormatButton.addEventListener("click", (e) => {
+      this.toggleReaderFormatDropdown(e as MouseEvent);
+    });
+
     // Open in browser button
     const browserButton = actions.createDiv({
       cls: "rss-reader-action-button",
@@ -244,6 +265,8 @@ export class ReaderView extends ItemView {
     this.readingContainer = this.contentEl.createDiv({
       cls: "rss-reader-content",
     });
+
+    this.applyReaderFormat();
     return Promise.resolve();
   }
 
@@ -587,7 +610,12 @@ export class ReaderView extends ItemView {
       return false;
     }
 
-    const feedHtml = (fullContent || item.content || item.description || "").trim();
+    const feedHtml = (
+      fullContent ||
+      item.content ||
+      item.description ||
+      ""
+    ).trim();
     if (!feedHtml) {
       return false;
     }
@@ -684,7 +712,8 @@ export class ReaderView extends ItemView {
     }
 
     const hasDistinctMainContent =
-      mainHtml && (!descriptionHtml || !this.isEquivalentHtml(mainHtml, descriptionHtml));
+      mainHtml &&
+      (!descriptionHtml || !this.isEquivalentHtml(mainHtml, descriptionHtml));
 
     if (hasDistinctMainContent || !descriptionHtml) {
       const contentContainer = this.readingContainer.createDiv({
@@ -802,9 +831,7 @@ export class ReaderView extends ItemView {
     const firstSignature = this.buildDedupSignature(first);
     const secondSignature = this.buildDedupSignature(second);
     return Boolean(
-      firstSignature &&
-        secondSignature &&
-        firstSignature === secondSignature,
+      firstSignature && secondSignature && firstSignature === secondSignature,
     );
   }
 
@@ -849,9 +876,7 @@ export class ReaderView extends ItemView {
       return [];
     }
 
-    return normalized
-      .split(/\s+/)
-      .filter((token) => token.length >= 2);
+    return normalized.split(/\s+/).filter((token) => token.length >= 2);
   }
 
   private extractNormalizedTextFromHtml(html: string): string {
@@ -888,8 +913,7 @@ export class ReaderView extends ItemView {
     const headers: Record<string, string> = {
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      Accept:
-        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "Accept-Language": "en-US,en;q=0.9",
       "Upgrade-Insecure-Requests": "1",
       DNT: "1",
@@ -1046,6 +1070,7 @@ export class ReaderView extends ItemView {
 
   onClose(): Promise<void> {
     this.closeTagsDropdownPortal();
+    this.closeReaderFormatPortal(true);
     this.contentEl.empty();
     return Promise.resolve();
   }
@@ -1243,7 +1268,9 @@ export class ReaderView extends ItemView {
         e.stopPropagation();
         this.closeTagsDropdownPortal();
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-        void (this.app as any).plugins.plugins["rss-dashboard"].openTagsSettings();
+        void (this.app as any).plugins.plugins[
+          "rss-dashboard"
+        ].openTagsSettings();
       });
       const doneBtn = sheetActions.createEl("button", {
         cls: "rss-dashboard-tags-sheet-btn rss-dashboard-tags-sheet-btn-done",
@@ -1350,78 +1377,78 @@ export class ReaderView extends ItemView {
     updateTagSeparatorVisibility();
 
     if (!isMobile) {
-    const inlineAddRow = portalDropdown.createDiv({
-      cls: "rss-dashboard-tag-inline-add-row",
-    });
+      const inlineAddRow = portalDropdown.createDiv({
+        cls: "rss-dashboard-tag-inline-add-row",
+      });
 
-    const colorInput = inlineAddRow.createEl("input", {
-      attr: {
-        type: "color",
-        value: "#3498db",
-      },
-      cls: "rss-dashboard-tag-inline-color",
-    });
+      const colorInput = inlineAddRow.createEl("input", {
+        attr: {
+          type: "color",
+          value: "#3498db",
+        },
+        cls: "rss-dashboard-tag-inline-color",
+      });
 
-    const nameInput = inlineAddRow.createEl("input", {
-      attr: {
-        type: "text",
-        placeholder: "Add new tag...",
-        autocomplete: "off",
-      },
-      cls: "rss-dashboard-tag-inline-input",
-    });
-    nameInput.spellcheck = false;
+      const nameInput = inlineAddRow.createEl("input", {
+        attr: {
+          type: "text",
+          placeholder: "Add new tag...",
+          autocomplete: "off",
+        },
+        cls: "rss-dashboard-tag-inline-input",
+      });
+      nameInput.spellcheck = false;
 
-    const addButton = inlineAddRow.createEl("button", {
-      cls: "rss-dashboard-tag-inline-button",
-      attr: { title: "Add tag" },
-    });
-    setIcon(addButton, "plus");
+      const addButton = inlineAddRow.createEl("button", {
+        cls: "rss-dashboard-tag-inline-button",
+        attr: { title: "Add tag" },
+      });
+      setIcon(addButton, "plus");
 
-    const submitInlineTag = () => {
-      const tagName = nameInput.value.trim();
-      const tagColor = colorInput.value;
+      const submitInlineTag = () => {
+        const tagName = nameInput.value.trim();
+        const tagColor = colorInput.value;
 
-      if (!tagName) {
-        new Notice("Please enter a tag name!");
-        return;
-      }
+        if (!tagName) {
+          new Notice("Please enter a tag name!");
+          return;
+        }
 
-      if (
-        this.settings.availableTags.some(
-          (tag) => tag.name.toLowerCase() === tagName.toLowerCase(),
-        )
-      ) {
-        new Notice("A tag with this name already exists!");
-        return;
-      }
+        if (
+          this.settings.availableTags.some(
+            (tag) => tag.name.toLowerCase() === tagName.toLowerCase(),
+          )
+        ) {
+          new Notice("A tag with this name already exists!");
+          return;
+        }
 
-      const newTag: Tag = {
-        name: tagName,
-        color: tagColor,
+        const newTag: Tag = {
+          name: tagName,
+          color: tagColor,
+        };
+
+        this.settings.availableTags.push(newTag);
+        this.toggleTag(item, newTag, true);
+        appendTagItem(newTag, true);
+
+        nameInput.value = "";
+        requestAnimationFrame(() => nameInput.focus());
+        new Notice(`Tag "${tagName}" added`);
       };
 
-      this.settings.availableTags.push(newTag);
-      this.toggleTag(item, newTag, true);
-      appendTagItem(newTag, true);
-
-      nameInput.value = "";
-      requestAnimationFrame(() => nameInput.focus());
-      new Notice(`Tag "${tagName}" added`);
-    };
-
-    addButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      submitInlineTag();
-    });
-
-    nameInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
+      addButton.addEventListener("click", (e) => {
         e.stopPropagation();
         submitInlineTag();
-      }
-    });
+      });
+
+      nameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          submitInlineTag();
+        }
+      });
     } // end !isMobile
 
     const rect = anchor.getBoundingClientRect();
@@ -1434,7 +1461,11 @@ export class ReaderView extends ItemView {
       const syncMobileViewportHeight = () => {
         const vvp = targetWindow.visualViewport;
         const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
-        portalDropdown.style.setProperty("max-height", `${viewportHeight - 16}px`, "important");
+        portalDropdown.style.setProperty(
+          "max-height",
+          `${viewportHeight - 16}px`,
+          "important",
+        );
       };
       syncMobileViewportHeight();
 
@@ -1443,8 +1474,14 @@ export class ReaderView extends ItemView {
         visualViewport.addEventListener("resize", syncMobileViewportHeight);
         visualViewport.addEventListener("scroll", syncMobileViewportHeight);
         this.tagsDropdownViewportCleanup = () => {
-          visualViewport.removeEventListener("resize", syncMobileViewportHeight);
-          visualViewport.removeEventListener("scroll", syncMobileViewportHeight);
+          visualViewport.removeEventListener(
+            "resize",
+            syncMobileViewportHeight,
+          );
+          visualViewport.removeEventListener(
+            "scroll",
+            syncMobileViewportHeight,
+          );
         };
       } else {
         targetWindow.addEventListener("resize", syncMobileViewportHeight);
@@ -1518,6 +1555,478 @@ export class ReaderView extends ItemView {
 
     this.tagsDropdownOutsideHandler = null;
     this.tagsDropdownDocument = null;
+  }
+
+  private getReaderFormat(): ReaderFormatSettings {
+    if (!this.settings.readerFormat) {
+      this.settings.readerFormat = { ...DEFAULT_SETTINGS.readerFormat };
+      return this.settings.readerFormat;
+    }
+
+    const format = this.settings.readerFormat as Partial<ReaderFormatSettings>;
+    const defaults = DEFAULT_SETTINGS.readerFormat;
+
+    if (format.textAlign === undefined) format.textAlign = defaults.textAlign;
+    if (format.wordsPerLine === undefined)
+      format.wordsPerLine = defaults.wordsPerLine;
+    if (format.fontScalePct === undefined)
+      format.fontScalePct = defaults.fontScalePct;
+    if (format.lineHeightPct === undefined)
+      format.lineHeightPct = defaults.lineHeightPct;
+    if (format.fontFamily === undefined)
+      format.fontFamily = defaults.fontFamily;
+    if (format.paragraphSpacing === undefined) {
+      format.paragraphSpacing = defaults.paragraphSpacing;
+    }
+
+    return format as ReaderFormatSettings;
+  }
+
+  private resolveReaderFontFamily(
+    fontFamily: ReaderFormatSettings["fontFamily"],
+  ): string {
+    switch (fontFamily) {
+      case "serif":
+        return 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif';
+      case "sans":
+        return 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+      case "mono":
+        return 'var(--font-monospace), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+      case "default":
+      default:
+        return "inherit";
+    }
+  }
+
+  private applyReaderFormat(): void {
+    const format = this.getReaderFormat();
+    const wordsPerLine = Number.isFinite(format.wordsPerLine)
+      ? Math.max(0, Math.round(format.wordsPerLine))
+      : 0;
+    const maxWidth = wordsPerLine > 0 ? `${wordsPerLine * 6}ch` : "none";
+
+    setCssProps(this.contentEl, {
+      "--rss-reader-font-scale": String(format.fontScalePct / 100),
+      "--rss-reader-line-height": String(format.lineHeightPct / 100),
+      "--rss-reader-max-width": maxWidth,
+      "--rss-reader-font-family": this.resolveReaderFontFamily(
+        format.fontFamily,
+      ),
+    });
+
+    this.contentEl.dataset.rssReaderAlign = format.textAlign;
+    this.contentEl.dataset.rssReaderFont = format.fontFamily;
+    this.contentEl.dataset.rssReaderParagraph = format.paragraphSpacing;
+  }
+
+  private toggleReaderFormatDropdown(event: MouseEvent): void {
+    event.stopPropagation();
+    const anchor = event.currentTarget;
+    if (!(anchor instanceof HTMLElement)) {
+      return;
+    }
+
+    if (this.readerFormatPortal) {
+      this.closeReaderFormatPortal(true);
+      return;
+    }
+
+    this.createReaderFormatDropdownPortal(anchor);
+  }
+
+  private createReaderFormatDropdownPortal(anchor: HTMLElement): void {
+    this.closeReaderFormatPortal(false);
+
+    const format = this.getReaderFormat();
+    const targetDocument = anchor.ownerDocument;
+    const targetBody = targetDocument.body;
+    const targetWindow = targetDocument.defaultView || window;
+    const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
+
+    if (isMobile) {
+      this.readerFormatBackdrop = targetBody.createDiv({
+        cls: "rss-reader-format-sheet-backdrop",
+      });
+    }
+
+    const portalDropdown = targetBody.createDiv({
+      cls: "rss-dashboard-tags-dropdown-content-portal rss-reader-format-dropdown-portal",
+    });
+
+    if (isMobile) {
+      portalDropdown.addClass("rss-reader-format-mobile-sheet");
+
+      const sheetHeader = portalDropdown.createDiv({
+        cls: "rss-reader-format-sheet-header",
+      });
+      sheetHeader.createDiv({
+        cls: "rss-reader-format-sheet-title",
+        text: "Reader settings",
+      });
+      const sheetActions = sheetHeader.createDiv({
+        cls: "rss-reader-format-sheet-actions",
+      });
+      const doneBtn = sheetActions.createEl("button", {
+        cls: "rss-reader-format-sheet-btn rss-reader-format-sheet-btn-done",
+        text: "Done",
+      });
+      doneBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeReaderFormatPortal(true);
+      });
+    }
+
+    const controlsContainer = portalDropdown.createDiv({
+      cls: "rss-reader-format-controls",
+    });
+
+    new Setting(controlsContainer).setName("Reader").setHeading();
+
+    let alignDropdown: { setValue: (value: string) => void } | null = null;
+    new Setting(controlsContainer)
+      .setName("Alignment")
+      .addDropdown((dropdown) => {
+        alignDropdown = dropdown;
+        dropdown
+          .addOption("justify", "Justify")
+          .addOption("left", "Left")
+          .setValue(format.textAlign)
+          .onChange((value) => {
+            format.textAlign = value as ReaderFormatSettings["textAlign"];
+            this.applyReaderFormat();
+            this.scheduleReaderFormatSave();
+          });
+      });
+
+    let wordsSlider: { setValue: (value: number) => void } | null = null;
+    let wordsInput: HTMLInputElement | null = null;
+    new Setting(controlsContainer)
+      .setName("Words per row")
+      .setDesc("Approximate measure (0 = full width)")
+      .addSlider((slider) => {
+        wordsSlider = slider;
+        slider
+          .setLimits(0, 30, 1)
+          .setValue(format.wordsPerLine)
+          .setDynamicTooltip()
+          .onChange((value) => {
+            format.wordsPerLine = value;
+            if (wordsInput) wordsInput.value = String(value);
+            this.applyReaderFormat();
+            this.scheduleReaderFormatSave();
+          });
+      })
+      .addText((text) => {
+        wordsInput = text.inputEl;
+        text.inputEl.addClass("rss-reader-slider-value-input");
+        text.setValue(String(format.wordsPerLine)).onChange((value) => {
+          const numValue = parseInt(value);
+          if (!isNaN(numValue)) {
+            const clamped = Math.max(0, Math.min(30, numValue));
+            format.wordsPerLine = clamped;
+            if (wordsSlider) wordsSlider.setValue(clamped);
+            this.applyReaderFormat();
+            this.scheduleReaderFormatSave();
+          }
+        });
+      });
+
+    let fontSizeSlider: { setValue: (value: number) => void } | null = null;
+    let fontSizeInput: HTMLInputElement | null = null;
+    new Setting(controlsContainer)
+      .setName("Font size")
+      .setDesc("Relative size (%)")
+      .addSlider((slider) => {
+        fontSizeSlider = slider;
+        slider
+          .setLimits(80, 200, 5)
+          .setValue(format.fontScalePct)
+          .setDynamicTooltip()
+          .onChange((value) => {
+            format.fontScalePct = value;
+            if (fontSizeInput) fontSizeInput.value = String(value);
+            this.applyReaderFormat();
+            this.scheduleReaderFormatSave();
+          });
+      })
+      .addText((text) => {
+        fontSizeInput = text.inputEl;
+        text.inputEl.addClass("rss-reader-slider-value-input");
+        text.setValue(String(format.fontScalePct)).onChange((value) => {
+          const numValue = parseInt(value);
+          if (!isNaN(numValue)) {
+            const clamped = Math.max(80, Math.min(200, numValue));
+            format.fontScalePct = clamped;
+            if (fontSizeSlider) fontSizeSlider.setValue(clamped);
+            this.applyReaderFormat();
+            this.scheduleReaderFormatSave();
+          }
+        });
+      });
+
+    let lineHeightSlider: { setValue: (value: number) => void } | null = null;
+    let lineHeightInput: HTMLInputElement | null = null;
+    new Setting(controlsContainer)
+      .setName("Line height")
+      .setDesc("Relative spacing (%)")
+      .addSlider((slider) => {
+        lineHeightSlider = slider;
+        slider
+          .setLimits(120, 220, 5)
+          .setValue(format.lineHeightPct)
+          .setDynamicTooltip()
+          .onChange((value) => {
+            format.lineHeightPct = value;
+            if (lineHeightInput) lineHeightInput.value = String(value);
+            this.applyReaderFormat();
+            this.scheduleReaderFormatSave();
+          });
+      })
+      .addText((text) => {
+        lineHeightInput = text.inputEl;
+        text.inputEl.addClass("rss-reader-slider-value-input");
+        text.setValue(String(format.lineHeightPct)).onChange((value) => {
+          const numValue = parseInt(value);
+          if (!isNaN(numValue)) {
+            const clamped = Math.max(120, Math.min(220, numValue));
+            format.lineHeightPct = clamped;
+            if (lineHeightSlider) lineHeightSlider.setValue(clamped);
+            this.applyReaderFormat();
+            this.scheduleReaderFormatSave();
+          }
+        });
+      });
+
+    let fontDropdown: { setValue: (value: string) => void } | null = null;
+    new Setting(controlsContainer).setName("Font").addDropdown((dropdown) => {
+      fontDropdown = dropdown;
+      dropdown
+        .addOption("default", "Theme default")
+        .addOption("serif", "Serif")
+        .addOption("sans", "Sans")
+        .addOption("mono", "Mono")
+        .setValue(format.fontFamily)
+        .onChange((value) => {
+          format.fontFamily = value as ReaderFormatSettings["fontFamily"];
+          this.applyReaderFormat();
+          this.scheduleReaderFormatSave();
+        });
+    });
+
+    let paragraphDropdown: { setValue: (value: string) => void } | null = null;
+    new Setting(controlsContainer)
+      .setName("Paragraph spacing")
+      .addDropdown((dropdown) => {
+        paragraphDropdown = dropdown;
+        dropdown
+          .addOption("default", "Theme default")
+          .addOption("tight", "Tight")
+          .addOption("normal", "Normal")
+          .addOption("loose", "Loose")
+          .setValue(format.paragraphSpacing)
+          .onChange((value) => {
+            format.paragraphSpacing =
+              value as ReaderFormatSettings["paragraphSpacing"];
+            this.applyReaderFormat();
+            this.scheduleReaderFormatSave();
+          });
+      });
+
+    new Setting(controlsContainer).addButton((btn) => {
+      btn.setButtonText("Reset").onClick(() => {
+        Object.assign(format, DEFAULT_SETTINGS.readerFormat);
+
+        alignDropdown?.setValue(format.textAlign);
+        wordsSlider?.setValue(format.wordsPerLine);
+        if (wordsInput) wordsInput.value = String(format.wordsPerLine);
+        fontSizeSlider?.setValue(format.fontScalePct);
+        if (fontSizeInput) fontSizeInput.value = String(format.fontScalePct);
+        lineHeightSlider?.setValue(format.lineHeightPct);
+        if (lineHeightInput)
+          lineHeightInput.value = String(format.lineHeightPct);
+        fontDropdown?.setValue(format.fontFamily);
+        paragraphDropdown?.setValue(format.paragraphSpacing);
+
+        this.applyReaderFormat();
+        this.scheduleReaderFormatSave();
+      });
+    });
+
+    this.readerFormatPortal = portalDropdown;
+    this.readerFormatDocument = targetDocument;
+
+    if (isMobile) {
+      const syncMobileViewportHeight = () => {
+        const vvp = targetWindow.visualViewport;
+        const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
+        portalDropdown.style.setProperty(
+          "max-height",
+          `${viewportHeight - 16}px`,
+          "important",
+        );
+      };
+      syncMobileViewportHeight();
+
+      const visualViewport = targetWindow.visualViewport;
+      if (visualViewport) {
+        visualViewport.addEventListener("resize", syncMobileViewportHeight);
+        visualViewport.addEventListener("scroll", syncMobileViewportHeight);
+        this.readerFormatViewportCleanup = () => {
+          visualViewport.removeEventListener(
+            "resize",
+            syncMobileViewportHeight,
+          );
+          visualViewport.removeEventListener(
+            "scroll",
+            syncMobileViewportHeight,
+          );
+        };
+      } else {
+        targetWindow.addEventListener("resize", syncMobileViewportHeight);
+        this.readerFormatViewportCleanup = () => {
+          targetWindow.removeEventListener("resize", syncMobileViewportHeight);
+        };
+      }
+
+      this.readerFormatBackdrop?.addEventListener("click", () => {
+        this.closeReaderFormatPortal(true);
+      });
+
+      return;
+    }
+
+    const rect = anchor.getBoundingClientRect();
+    const dropdownRect = portalDropdown.getBoundingClientRect();
+    const appContainer =
+      this.contentEl.closest(".workspace-leaf-content") || targetBody;
+    const appContainerRect = appContainer.getBoundingClientRect();
+
+    let left = rect.right;
+    let top = rect.top;
+
+    if (left + dropdownRect.width > appContainerRect.right) {
+      left = rect.left - dropdownRect.width;
+    }
+
+    if (left < appContainerRect.left) {
+      left = appContainerRect.left;
+    }
+
+    if (top + dropdownRect.height > targetWindow.innerHeight) {
+      top = targetWindow.innerHeight - dropdownRect.height - 5;
+    }
+
+    portalDropdown.style.left = `${left}px`;
+    portalDropdown.style.top = `${top}px`;
+
+    targetWindow.setTimeout(() => {
+      const outsideHandler = (ev: MouseEvent) => {
+        if (
+          this.readerFormatPortal &&
+          !this.readerFormatPortal.contains(ev.target as Node) &&
+          !anchor.contains(ev.target as Node)
+        ) {
+          this.closeReaderFormatPortal(true);
+        }
+      };
+      this.readerFormatOutsideHandler = outsideHandler;
+      targetDocument.addEventListener("mousedown", outsideHandler);
+    }, 0);
+  }
+
+  private closeReaderFormatPortal(flushSave: boolean): void {
+    if (this.readerFormatBackdrop) {
+      this.readerFormatBackdrop.remove();
+      this.readerFormatBackdrop = null;
+    }
+
+    if (this.readerFormatPortal) {
+      this.readerFormatPortal.remove();
+      this.readerFormatPortal = null;
+    }
+
+    if (this.readerFormatOutsideHandler && this.readerFormatDocument) {
+      this.readerFormatDocument.removeEventListener(
+        "mousedown",
+        this.readerFormatOutsideHandler,
+      );
+    }
+
+    if (this.readerFormatViewportCleanup) {
+      this.readerFormatViewportCleanup();
+      this.readerFormatViewportCleanup = null;
+    }
+
+    this.readerFormatOutsideHandler = null;
+    this.readerFormatDocument = null;
+
+    if (flushSave) {
+      void this.flushReaderFormatSave();
+    }
+  }
+
+  private scheduleReaderFormatSave(): void {
+    if (this.readerFormatSaveTimeout !== null) {
+      window.clearTimeout(this.readerFormatSaveTimeout);
+    }
+
+    this.readerFormatSaveTimeout = window.setTimeout(() => {
+      void this.flushReaderFormatSave();
+    }, 300);
+  }
+
+  private getRssDashboardPluginForSettingsSave(): {
+    saveSettings: () => Promise<void>;
+  } | null {
+    try {
+      const appWithPlugins = this.app as unknown as {
+        plugins?: {
+          getPlugin?: (id: string) => unknown;
+          plugins?: Record<string, unknown>;
+        };
+      };
+
+      const plugins = appWithPlugins.plugins;
+      if (!plugins) {
+        return null;
+      }
+
+      const pluginByGetter =
+        typeof plugins.getPlugin === "function"
+          ? plugins.getPlugin("rss-dashboard")
+          : null;
+      const pluginByRegistry = plugins.plugins?.["rss-dashboard"];
+
+      const plugin = (pluginByGetter || pluginByRegistry) as
+        | { saveSettings?: unknown }
+        | undefined;
+      if (plugin && typeof plugin.saveSettings === "function") {
+        return plugin as { saveSettings: () => Promise<void> };
+      }
+    } catch {
+      return null;
+    }
+
+    return null;
+  }
+
+  private async flushReaderFormatSave(): Promise<void> {
+    if (this.readerFormatSaveTimeout !== null) {
+      window.clearTimeout(this.readerFormatSaveTimeout);
+      this.readerFormatSaveTimeout = null;
+    }
+
+    const plugin = this.getRssDashboardPluginForSettingsSave();
+    if (!plugin) {
+      return;
+    }
+
+    try {
+      await plugin.saveSettings();
+    } catch {
+      // Ignore save errors; formatting still applies for this session.
+    }
   }
 
   private toggleTag(item: FeedItem, tag: Tag, add: boolean): void {
