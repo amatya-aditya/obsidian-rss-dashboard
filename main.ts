@@ -1458,6 +1458,16 @@ export default class RssDashboardPlugin extends Plugin {
         );
       }
 
+      if (!this.settings.readerFormat) {
+        this.settings.readerFormat = DEFAULT_SETTINGS.readerFormat;
+      } else {
+        this.settings.readerFormat = Object.assign(
+          {},
+          DEFAULT_SETTINGS.readerFormat,
+          this.settings.readerFormat,
+        );
+      }
+
       if (!this.settings.filters) {
         this.settings.filters = DEFAULT_SETTINGS.filters;
       } else {
