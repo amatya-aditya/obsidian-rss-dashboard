@@ -7,6 +7,10 @@
 - Added automatic YouTube Shorts detection and tagging from feed XML
 - Added a media setting to enable or disable YouTube Shorts detection
 
+### Development
+
+- Added CONTIRUBTING.MD to root directory for contribution guidelines
+
 ---
 
 ## [2.2.0-beta.4] - March 8, 2026
