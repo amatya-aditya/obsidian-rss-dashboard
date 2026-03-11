@@ -18,6 +18,9 @@ release/
 
 
 # testfiles
+test_files/rss/
+test_files/atom/
+test_files/json/
 test_files/*
 !test_files/
 !test_files/stubs/

@@ -1,11 +1,16 @@
-# RSS Dashboard - Changelog
-
-## [2.3.0-beta.1] - March 9, 2026
+## [2.3.0-beta.1] - March 11, 2026
 
 ### New Features
 
 - Added automatic YouTube Shorts detection and tagging from feed XML
 - Added a media setting to enable or disable YouTube Shorts detection
+
+### Improvements
+
+- Feed Validation:
+  - Allow adding valid feeds that currently have no items.
+  - Display a warning for valid but empty feeds in Add and Edit feed modals.
+  - Prevent Add Feed modal from closing if background validation fails.
 
 ### Development
 
