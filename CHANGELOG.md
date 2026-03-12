@@ -4,10 +4,12 @@
 
 - Added automatic YouTube Shorts detection and tagging from feed XML
 - Added a media setting to enable or disable YouTube Shorts detection
+- **Tag Management**: Recreated and enhanced tag editing functionality across Sidebar, Article List, and Reader View, allowing direct modification of tag names and colors.
 
 ### Improvements
 
-- Feed Validation:
+- **Tagging UX**: Expanded clickable area for tags in dropdowns; clicking the label text now toggles the tag checkbox.
+- **Feed Validation**:
   - Allow adding valid feeds that currently have no items.
   - Display a warning for valid but empty feeds in Add and Edit feed modals.
   - Prevent Add Feed modal from closing if background validation fails.

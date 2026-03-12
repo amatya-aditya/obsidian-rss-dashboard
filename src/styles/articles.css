@@ -434,14 +434,14 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 	flex-grow: 1;
 }
 
-.rss-dashboard-tag-delete-button {
+.rss-dashboard-tag-action-button {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	width: 20px;
 	height: 20px;
 	padding: 0;
-	margin-left: auto;
+	margin-left: 4px; /* Added spacing since there can be two buttons */
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
 	background: var(--background-secondary);
@@ -450,15 +450,28 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 	flex-shrink: 0;
 }
 
+/* Ensure the first action button gets the margin-auto spacing to push both to the right */
+.rss-dashboard-tag-label + .rss-dashboard-tag-action-button {
+  margin-left: auto;
+}
+
+.rss-dashboard-tag-action-button svg {
+	width: 13px;
+	height: 13px;
+}
+
+.rss-dashboard-tag-action-button:hover {
+  background: var(--background-modifier-hover);
+}
+
 .rss-dashboard-tag-delete-button:hover {
 	color: var(--text-error);
 	border-color: var(--text-error);
-	background: var(--background-modifier-hover);
 }
 
-.rss-dashboard-tag-delete-button svg {
-	width: 13px;
-	height: 13px;
+.rss-dashboard-tag-edit-button:hover {
+  color: var(--text-accent);
+  border-color: var(--text-accent);
 }
 
 .rss-dashboard-article-tag {

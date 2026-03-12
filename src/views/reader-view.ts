@@ -27,6 +27,7 @@ import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
 import { ensureUtf8Meta, setCssProps } from "../utils/platform-utils";
 import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
+import { showEditTagModal } from "../utils/tag-utils";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
@@ -1292,6 +1293,13 @@ export class ReaderView extends ItemView {
       const hasTags = this.settings.availableTags.length > 0;
       tagSeparator.style.display = hasTags ? "" : "none";
     };
+    const rerenderTagItems = (): void => {
+      tagsListContainer.empty();
+      for (const nextTag of this.settings.availableTags) {
+        appendTagItem(nextTag);
+      }
+      updateTagSeparatorVisibility();
+    };
     const deleteTagFromProfile = (tag: Tag): void => {
       const tagIndex = this.settings.availableTags.findIndex(
         (t) => t.name === tag.name,
@@ -1335,8 +1343,14 @@ export class ReaderView extends ItemView {
       });
       tagLabel.style.setProperty("--tag-color", tag.color);
 
+      const editButton = tagItem.createEl("button", {
+        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button",
+        attr: { title: `Edit "${tag.name}" tag`, "aria-label": "Edit tag" },
+      });
+      setIcon(editButton, "pencil");
+
       const deleteButton = tagItem.createEl("button", {
-        cls: "rss-dashboard-tag-delete-button",
+        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-delete-button",
         attr: { title: `Delete "${tag.name}" tag`, "aria-label": "Delete tag" },
       });
       setIcon(deleteButton, "trash");
@@ -1351,12 +1365,32 @@ export class ReaderView extends ItemView {
         if (
           e.target === tagCheckbox ||
           (e.target instanceof Element &&
-            e.target.closest(".rss-dashboard-tag-delete-button"))
+            (e.target.closest(".rss-dashboard-tag-delete-button") ||
+             e.target.closest(".rss-dashboard-tag-edit-button")))
         ) {
           return;
         }
-        tagCheckbox.checked = !tagCheckbox.checked;
-        this.toggleTag(item, tag, tagCheckbox.checked);
+        const isChecked = !tagCheckbox.checked;
+        tagCheckbox.checked = isChecked;
+        
+        tagItem.classList.add("rss-dashboard-tag-item-processing");
+        this.toggleTag(item, tag, isChecked);
+
+        window.setTimeout(() => {
+          tagItem.classList.remove("rss-dashboard-tag-item-processing");
+        }, 200);
+      });
+
+      editButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showEditTagModal({
+          settings: this.settings,
+          tag,
+          onSave: () => {
+            rerenderTagItems();
+          },
+        });
       });
 
       deleteButton.addEventListener("click", (e) => {
@@ -1368,6 +1402,7 @@ export class ReaderView extends ItemView {
 
       tagItem.appendChild(tagCheckbox);
       tagItem.appendChild(tagLabel);
+      tagItem.appendChild(editButton);
       tagItem.appendChild(deleteButton);
     };
 

@@ -16,6 +16,7 @@ import {
   FeedFilterSettings,
 } from "../types/types";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
+import { showEditTagModal } from "../utils/tag-utils";
 import { SidebarSearchService } from "../services/sidebar-search-service";
 import type RssDashboardPlugin from "../../main";
 
@@ -1629,104 +1630,13 @@ export class Sidebar {
   }
 
   private showEditTagModal(tag: Tag): void {
-    const modal = document.body.createDiv({
-      cls: "rss-dashboard-modal rss-dashboard-modal-container",
-    });
-
-    const modalContent = modal.createDiv({
-      cls: "rss-dashboard-modal-content",
-    });
-
-    new Setting(modalContent).setName("Edit tag").setHeading();
-
-    const formContainer = modalContent.createDiv({
-      cls: "rss-dashboard-tag-modal-form",
-    });
-
-    const colorInput = formContainer.createEl("input", {
-      attr: {
-        type: "color",
-        value: tag.color,
-      },
-      cls: "rss-dashboard-tag-modal-color-picker",
-    });
-
-    const nameInput = formContainer.createEl("input", {
-      attr: {
-        type: "text",
-        value: tag.name,
-        placeholder: "Enter tag name",
-        autocomplete: "off",
-      },
-      cls: "rss-dashboard-tag-modal-name-input",
-    });
-    nameInput.spellcheck = false;
-
-    const buttonContainer = modalContent.createDiv({
-      cls: "rss-dashboard-modal-buttons",
-    });
-
-    const cancelButton = buttonContainer.createEl("button", {
-      text: "Cancel",
-    });
-    cancelButton.addEventListener("click", () => {
-      document.body.removeChild(modal);
-    });
-
-    const saveButton = buttonContainer.createEl("button", {
-      text: "Save changes",
-      cls: "rss-dashboard-primary-button",
-    });
-    saveButton.addEventListener("click", () => {
-      const newTagName = nameInput.value.trim();
-      const newTagColor = colorInput.value;
-
-      if (newTagName) {
-        if (
-          this.settings.availableTags.some(
-            (t) =>
-              t.name.toLowerCase() === newTagName.toLowerCase() && t !== tag,
-          )
-        ) {
-          new Notice("A tag with this name already exists!");
-          return;
-        }
-
-        tag.name = newTagName;
-        tag.color = newTagColor;
-
-        this.settings.feeds.forEach((feed) => {
-          feed.items.forEach((item) => {
-            if (item.tags) {
-              const itemTag = item.tags.find((t) => t.name === tag.name);
-              if (itemTag) {
-                itemTag.name = newTagName;
-                itemTag.color = newTagColor;
-              }
-            }
-          });
-        });
-
-        void this.plugin.saveSettings();
-
+    showEditTagModal({
+      settings: this.settings,
+      tag,
+      onSave: async () => {
+        await this.plugin.saveSettings();
         this.render();
-
-        document.body.removeChild(modal);
-
-        new Notice(`Tag "${newTagName}" updated successfully!`);
-      } else {
-        new Notice("Please enter a tag name!");
-      }
-    });
-    buttonContainer.appendChild(saveButton);
-    formContainer.appendChild(buttonContainer);
-
-    modal.appendChild(modalContent);
-    document.body.appendChild(modal);
-
-    requestAnimationFrame(() => {
-      nameInput.focus();
-      nameInput.select();
+      },
     });
   }
 
