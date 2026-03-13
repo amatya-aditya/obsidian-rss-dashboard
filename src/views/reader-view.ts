@@ -22,10 +22,9 @@ import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { HighlightService } from "../services/highlight-service";
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
-import { requestUrl } from "obsidian";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
-import { ensureUtf8Meta, setCssProps } from "../utils/platform-utils";
+import { ensureUtf8Meta, robustFetch, setCssProps } from "../utils/platform-utils";
 import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
 import { showEditTagModal } from "../utils/tag-utils";
 
@@ -656,7 +655,9 @@ export class ReaderView extends ItemView {
       host === "kite.kagi.com" ||
       host === "news.kagi.com" ||
       host === "aeon.co" ||
-      host.endsWith(".aeon.co")
+      host.endsWith(".aeon.co") ||
+      host === "substack.com" ||
+      host.endsWith(".substack.com")
     );
   }
 
@@ -763,7 +764,10 @@ export class ReaderView extends ItemView {
             const el = parent.createEl(tag);
 
             Array.from(element.attributes).forEach((attr) => {
-              el.setAttr(attr.name, attr.value);
+              // Safety check: ensure attribute name is valid to avoid InvalidCharacterError
+              if (/^[a-z:_-][a-z0-9:._-]*$/i.test(attr.name)) {
+                el.setAttr(attr.name, attr.value);
+              }
             });
 
             appendNodes(el, node.childNodes);
@@ -930,16 +934,16 @@ export class ReaderView extends ItemView {
     };
 
     try {
-      const response = await requestUrl({ url, method: "GET", headers });
-      if (!response.text) {
+      const text = await robustFetch(url, { headers });
+      if (!text) {
         return "";
       }
-      if (this.isBlockedOrChallengeContent(response.text)) {
+      if (this.isBlockedOrChallengeContent(text)) {
         return "";
       }
 
       const parser = new DOMParser();
-      const doc = parser.parseFromString(response.text, "text/html");
+      const doc = parser.parseFromString(text, "text/html");
       return this.extractReadableContentFromHtmlDocument(doc, url);
     } catch {
       return "";
@@ -1091,95 +1095,76 @@ export class ReaderView extends ItemView {
   ): string {
     if (!content || !baseUrl) return content;
     try {
-      const baseHost = (() => {
-        try {
-          return new URL(baseUrl).host;
-        } catch {
-          return "";
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(content, "text/html");
+
+      // Update <img> tags
+      doc.querySelectorAll("img").forEach((img) => {
+        const src = img.getAttribute("src");
+        if (src) {
+          img.setAttribute("src", this.convertToAbsoluteUrl(src, baseUrl));
         }
-      })();
+      });
 
-      content = content.replace(/app:\/\//g, "https://");
-
-      content = content.replace(
-        /<img([^>]+)src=["']([^"']+)["']/gi,
-        (match: string, attributes: string, src: string) => {
-          try {
-            const srcUrl = new URL(src, baseUrl);
-            if (srcUrl.host !== baseHost) {
-              srcUrl.host = baseHost;
-              srcUrl.protocol = "https:";
-              return `<img${attributes}src="${srcUrl.toString()}"`;
-            }
-            return `<img${attributes}src="${srcUrl.toString()}"`;
-          } catch {
-            return `<img${attributes}src="${src}"`;
-          }
-        },
-      );
-
-      content = content.replace(
-        /<source([^>]+)srcset=["']([^"']+)["']/gi,
-        (match: string, attributes: string, srcset: string) => {
+      // Update <source> tags
+      doc.querySelectorAll("source").forEach((source) => {
+        const srcset = source.getAttribute("srcset");
+        if (srcset) {
           const processedSrcset = srcset
             .split(",")
-            .map((part: string) => {
+            .map((part) => {
               const trimmedPart = part.trim();
               const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
               if (urlMatch) {
                 const url = urlMatch[1];
                 const sizeDescriptor = urlMatch[2] || "";
-                const absoluteUrl = this.convertToAbsoluteUrl(url, baseUrl);
-                return absoluteUrl + sizeDescriptor;
+                return this.convertToAbsoluteUrl(url, baseUrl) + sizeDescriptor;
               }
               return trimmedPart;
             })
             .join(", ");
-          return `<source${attributes}srcset="${processedSrcset}"`;
-        },
-      );
+          source.setAttribute("srcset", processedSrcset);
+        }
+      });
 
-      content = content.replace(
-        /<a([^>]+)href=["']([^"']+)["']/gi,
-        (match: string, attributes: string, href: string) => {
-          const absoluteHref = this.convertToAbsoluteUrl(href, baseUrl);
-          return `<a${attributes}href="${absoluteHref}"`;
-        },
-      );
-      return content;
-    } catch {
+      // Update <a> tags
+      doc.querySelectorAll("a").forEach((a) => {
+        const href = a.getAttribute("href");
+        if (href) {
+          a.setAttribute("href", this.convertToAbsoluteUrl(href, baseUrl));
+        }
+      });
+
+      // Update <iframe> tags (often missed)
+      doc.querySelectorAll("iframe").forEach((iframe) => {
+        const src = iframe.getAttribute("src");
+        if (src) {
+          iframe.setAttribute("src", this.convertToAbsoluteUrl(src, baseUrl));
+        }
+      });
+
+      return doc.body.innerHTML;
+    } catch (e) {
+      console.error("[RSS Dashboard] Failed to convert relative URLs:", e);
       return content;
     }
   }
 
-  private convertToAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
-    if (!relativeUrl || !baseUrl) return relativeUrl;
-
-    if (relativeUrl.startsWith("app://")) {
-      return relativeUrl.replace("app://", "https://");
+  private convertToAbsoluteUrl(url: string, baseUrl: string): string {
+    if (!url || !baseUrl) return url;
+    if (url.startsWith("app://")) {
+      return url.replace("app://", "https://");
     }
-
-    if (relativeUrl.startsWith("//")) {
-      return "https:" + relativeUrl;
+    if (url.startsWith("//")) {
+      return "https:" + url;
     }
-
-    if (
-      relativeUrl.startsWith("http://") ||
-      relativeUrl.startsWith("https://")
-    ) {
-      return relativeUrl;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
     }
-
     try {
-      const base = new URL(baseUrl);
-
-      if (relativeUrl.startsWith("/")) {
-        return `${base.protocol}//${base.host}${relativeUrl}`;
-      }
-
-      return new URL(relativeUrl, base).href;
+      return new URL(url, baseUrl).href;
     } catch {
-      return relativeUrl;
+      return url;
     }
   }
 

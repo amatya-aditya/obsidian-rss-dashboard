@@ -1,8 +1,8 @@
-import { TFile, App, Notice, requestUrl } from "obsidian";
+import { TFile, App, Notice } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
 import TurndownService from "turndown";
 import { Readability } from "@mozilla/readability";
-import { ensureUtf8Meta } from '../utils/platform-utils';
+import { ensureUtf8Meta, robustFetch } from '../utils/platform-utils';
 
 export class ArticleSaver {
     private app: App;
@@ -228,32 +228,18 @@ guid: "{{guid}}"
                 "Upgrade-Insecure-Requests": "1"
             };
 
-            let response = await requestUrl({ 
-                url,
-                headers
-            });
+            const parser = new DOMParser();
+            const text = await robustFetch(url, { headers });
             
-            
-            if (!response.text) {
-                
-                
-                
+            if (!text) {
                 if (url.includes('journals.sagepub.com') && url.includes('/doi/full/')) {
                     const abstractUrl = url.replace('/doi/full/', '/doi/abs/');
-                    
-                    
                     try {
-                        response = await requestUrl({ 
-                            url: abstractUrl,
-                            headers
-                        });
-                        
-                        if (!response.text) {
-                            
-                            return "";
-                        }
+                        const fallbackText = await robustFetch(abstractUrl, { headers });
+                        if (!fallbackText) return "";
+                        const fallbackDoc = parser.parseFromString(fallbackText, "text/html");
+                        return this.extractContentFromDocument(fallbackDoc, abstractUrl);
                     } catch {
-                        
                         return "";
                     }
                 } else {
@@ -261,9 +247,7 @@ guid: "{{guid}}"
                 }
             }
             
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(response.text, "text/html");
-            
+            const doc = parser.parseFromString(text, "text/html");
             
             const errorIndicators = [
                 'access denied',
@@ -277,30 +261,20 @@ guid: "{{guid}}"
             
             const pageText = doc.body.textContent?.toLowerCase() || '';
             if (errorIndicators.some(indicator => pageText.includes(indicator))) {
-                
-                
-                
                 if (url.includes('journals.sagepub.com') && url.includes('/doi/full/')) {
                     const abstractUrl = url.replace('/doi/full/', '/doi/abs/');
-                    
-                    
                     try {
-                        const fallbackResponse = await requestUrl({ 
-                            url: abstractUrl,
-                            headers
-                        });
-                        
-                        if (fallbackResponse.text) {
-                            const fallbackDoc = parser.parseFromString(fallbackResponse.text, "text/html");
+                        const fallbackText = await robustFetch(abstractUrl, { headers });
+                        if (fallbackText) {
+                            const fallbackDoc = parser.parseFromString(fallbackText, "text/html");
                             const fallbackPageText = fallbackDoc.body.textContent?.toLowerCase() || '';
                             
                             if (!errorIndicators.some(indicator => fallbackPageText.includes(indicator))) {
-                                
                                 return this.extractContentFromDocument(fallbackDoc, abstractUrl);
                             }
                         }
                     } catch {
-                        // Fallback attempt failed, continue with empty content
+                        // Fallback attempt failed
                     }
                 }
                 
@@ -319,12 +293,12 @@ guid: "{{guid}}"
             const article = new Readability(doc).parse();
             const content = article?.content || "";
             
-            return this.convertRelativeUrlsInContent(ensureUtf8Meta(content), url);
+            return this.convertRelativeUrlsInContent(content, url);
         } else {
             
             const mainContent = doc.querySelector('main, article, .content, .post-content, .entry-content, .article-content, .full-text');
             if (mainContent) {
-                return this.convertRelativeUrlsInContent(ensureUtf8Meta(new XMLSerializer().serializeToString(mainContent)), url);
+                return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(mainContent), url);
             } else {
                 
                 const contentSelectors = [
@@ -341,12 +315,12 @@ guid: "{{guid}}"
                 for (const selector of contentSelectors) {
                     const element = doc.querySelector(selector);
                     if (element) {
-                        return this.convertRelativeUrlsInContent(ensureUtf8Meta(new XMLSerializer().serializeToString(element)), url);
+                        return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(element), url);
                     }
                 }
                 
                 
-                return this.convertRelativeUrlsInContent(ensureUtf8Meta(new XMLSerializer().serializeToString(doc.body)), url);
+                return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(doc.body), url);
             }
         }
     }
@@ -355,66 +329,57 @@ guid: "{{guid}}"
     private convertRelativeUrlsInContent(content: string, baseUrl: string): string {
         if (!content || !baseUrl) return content;
         try {
-            
-            const baseHost = (() => {
-                try {
-                    return new URL(baseUrl).host;
-                } catch {
-                    return "";
-                }
-            })();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(content, "text/html");
 
-            content = content.replace(
-                /app:\/\//g,
-                'https://'
-            );
-
-            
-            content = content.replace(
-                /<img([^>]+)src=["']([^"']+)["']/gi,
-                (match: string, attributes: string, src: string) => {
-                    try {
-                        const srcUrl = new URL(src, baseUrl);
-                        if (srcUrl.host !== baseHost) {
-                            srcUrl.host = baseHost;
-                            srcUrl.protocol = "https:";
-                            return `<img${attributes}src="${srcUrl.toString()}"`;
-                        }
-                        return `<img${attributes}src="${srcUrl.toString()}"`;
-                    } catch {
-                        return `<img${attributes}src="${src}"`;
-                    }
+            // Update <img> tags
+            doc.querySelectorAll("img").forEach((img) => {
+                const src = img.getAttribute("src");
+                if (src) {
+                    img.setAttribute("src", this.convertToAbsoluteUrl(src, baseUrl));
                 }
-            );
+            });
 
-            content = content.replace(
-                /<source([^>]+)srcset=["']([^"']+)["']/gi,
-                (match: string, attributes: string, srcset: string) => {
-                    const processedSrcset = srcset.split(',').map((part: string) => {
-                        const trimmedPart = part.trim();
-                        const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
-                        if (urlMatch) {
-                            const url = urlMatch[1];
-                            const sizeDescriptor = urlMatch[2] || '';
-                            const absoluteUrl = this.convertToAbsoluteUrl(url, baseUrl);
-                            return absoluteUrl + sizeDescriptor;
-                        }
-                        return trimmedPart;
-                    }).join(', ');
-                    return `<source${attributes}srcset="${processedSrcset}"`;
+            // Update <source> tags
+            doc.querySelectorAll("source").forEach((source) => {
+                const srcset = source.getAttribute("srcset");
+                if (srcset) {
+                    const processedSrcset = srcset
+                        .split(",")
+                        .map((part) => {
+                            const trimmedPart = part.trim();
+                            const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
+                            if (urlMatch) {
+                                const url = urlMatch[1];
+                                const sizeDescriptor = urlMatch[2] || "";
+                                return this.convertToAbsoluteUrl(url, baseUrl) + sizeDescriptor;
+                            }
+                            return trimmedPart;
+                        })
+                        .join(", ");
+                    source.setAttribute("srcset", processedSrcset);
                 }
-            );
+            });
 
-            content = content.replace(
-                /<a([^>]+)href=["']([^"']+)["']/gi,
-                (match: string, attributes: string, href: string) => {
-                    const absoluteHref = this.convertToAbsoluteUrl(href, baseUrl);
-                    return `<a${attributes}href="${absoluteHref}"`;
+            // Update <a> tags
+            doc.querySelectorAll("a").forEach((a) => {
+                const href = a.getAttribute("href");
+                if (href) {
+                    a.setAttribute("href", this.convertToAbsoluteUrl(href, baseUrl));
                 }
-            );
-            return content;
-        } catch {
-            
+            });
+
+            // Update <iframe> tags
+            doc.querySelectorAll("iframe").forEach((iframe) => {
+                const src = iframe.getAttribute("src");
+                if (src) {
+                    iframe.setAttribute("src", this.convertToAbsoluteUrl(src, baseUrl));
+                }
+            });
+
+            return doc.body.innerHTML;
+        } catch (e) {
+            console.error("[RSS Dashboard] Failed to convert relative URLs in ArticleSaver:", e);
             return content;
         }
     }
