@@ -1359,6 +1359,18 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
+    new Setting(containerEl)
+      .setName("Detect and auto-tag YouTube shorts")
+      .setDesc("Automatically tag detected YouTube shorts from feed XML.")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.media.detectYouTubeShorts || true)
+          .onChange(async (value) => {
+            this.plugin.settings.media.detectYouTubeShorts = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+
     new Setting(containerEl).setName("Podcast").setHeading();
 
     new Setting(containerEl)
@@ -1873,7 +1885,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
 
         const editWord = () => {
           void (async () => {
-            const nextTextRaw = await this.promptForHighlightWordEdit(word.text);
+            const nextTextRaw = await this.promptForHighlightWordEdit(
+              word.text,
+            );
             if (nextTextRaw === null) return;
             const nextText = nextTextRaw.trim();
             if (!nextText) {
@@ -1915,15 +1929,13 @@ export class RssDashboardSettingTab extends PluginSettingTab {
               }),
           )
           .addToggle((toggle) =>
-            toggle
-              .setValue(word.enabled)
-              .onChange(async (value) => {
-                if (!this.plugin.settings.highlights) return;
-                this.plugin.settings.highlights.words[index].enabled = value;
-                await this.plugin.saveSettings();
-                this.display();
-                await rerenderHighlightViews();
-              }),
+            toggle.setValue(word.enabled).onChange(async (value) => {
+              if (!this.plugin.settings.highlights) return;
+              this.plugin.settings.highlights.words[index].enabled = value;
+              await this.plugin.saveSettings();
+              this.display();
+              await rerenderHighlightViews();
+            }),
           )
           .addButton((button) =>
             button
@@ -2020,10 +2032,10 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         const wholeWordToggle = wholeWordSetting.components[0] as unknown as {
           getValue: () => boolean;
         };
-        const caseSensitiveToggle = caseSensitiveSetting.components[0] as
-          unknown as {
-            getValue: () => boolean;
-          };
+        const caseSensitiveToggle = caseSensitiveSetting
+          .components[0] as unknown as {
+          getValue: () => boolean;
+        };
 
         const text = textInput.inputEl.value.trim();
         const color = colorPicker.getValue();
@@ -2175,7 +2187,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       .setHeading();
 
     const userSettingsActions = new Setting(userSettingsSection);
-    userSettingsActions.settingEl.addClass("rss-dashboard-import-export-actions");
+    userSettingsActions.settingEl.addClass(
+      "rss-dashboard-import-export-actions",
+    );
     userSettingsActions
       .addButton((button) =>
         button

@@ -124,6 +124,7 @@ export type PodcastTheme =
 export interface MediaSettings {
   defaultYouTubeFolder: string;
   defaultYouTubeTag: string;
+  detectYouTubeShorts: boolean;
   defaultPodcastFolder: string;
   defaultPodcastTag: string;
   defaultRssFolder: string;
@@ -344,6 +345,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   media: {
     defaultYouTubeFolder: "Videos",
     defaultYouTubeTag: "youtube",
+    detectYouTubeShorts: false,
     defaultPodcastFolder: "Podcast",
     defaultPodcastTag: "podcast",
     defaultRssFolder: "RSS",

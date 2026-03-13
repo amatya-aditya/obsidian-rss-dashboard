@@ -2,6 +2,8 @@ import { requestUrl, Notice } from "obsidian";
 import { Feed, Tag } from "../types/types";
 
 export class MediaService {
+  static readonly YOUTUBE_SHORT_TAG_NAME = "Youtube short";
+  static readonly YOUTUBE_SHORT_TAG_COLOR = "#ff0000";
   private static readonly YOUTUBE_PATTERNS = [
     "youtube.com/feeds/videos.xml",
     "youtube.com/channel/",
@@ -15,6 +17,64 @@ export class MediaService {
   static isYouTubeFeed(url: string): boolean {
     if (!url) return false;
     return this.YOUTUBE_PATTERNS.some((pattern) => url.includes(pattern));
+  }
+
+  static isYouTubeShortLink(link: string): boolean {
+    if (!link) return false;
+
+    try {
+      const normalizedLink = link.toLowerCase();
+      return (
+        normalizedLink.includes("youtube.com/shorts/") ||
+        normalizedLink.includes("youtu.be/shorts/") ||
+        normalizedLink.includes("/shorts/")
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  static shouldDetectYouTubeShort(
+    feedUrl: string,
+    itemLink: string,
+    detectYouTubeShorts: boolean,
+  ): boolean {
+    return (
+      detectYouTubeShorts &&
+      this.isYouTubeFeed(feedUrl) &&
+      this.isYouTubeShortLink(itemLink)
+    );
+  }
+
+  static updateYouTubeShortTags(
+    tags: Tag[] | undefined,
+    isShort: boolean,
+    availableTags: Tag[],
+  ): Tag[] {
+    const existingTags = tags ? [...tags] : [];
+    const shortTagName = this.YOUTUBE_SHORT_TAG_NAME.toLowerCase();
+    const filteredTags = existingTags.filter(
+      (tag) => tag.name.toLowerCase() !== shortTagName,
+    );
+
+    if (!isShort) {
+      return filteredTags;
+    }
+
+    let shortTag = availableTags.find(
+      (tag) => tag.name.toLowerCase() === shortTagName,
+    );
+
+    if (!shortTag) {
+      shortTag = {
+        name: this.YOUTUBE_SHORT_TAG_NAME,
+        color: this.YOUTUBE_SHORT_TAG_COLOR,
+      };
+      availableTags.push(shortTag);
+    }
+
+    filteredTags.push({ ...shortTag });
+    return filteredTags;
   }
 
   static async getYouTubeRssFeed(input: string): Promise<string | null> {
