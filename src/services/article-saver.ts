@@ -334,30 +334,54 @@ guid: "{{guid}}"
 
             // Update <img> tags
             doc.querySelectorAll("img").forEach((img) => {
-                const src = img.getAttribute("src");
-                if (src) {
-                    img.setAttribute("src", this.convertToAbsoluteUrl(src, baseUrl));
+                let src = img.getAttribute("src");
+                
+                // Substack specific: extract original image from data-attrs JSON if present
+                const dataAttrs = img.getAttribute("data-attrs");
+                if (dataAttrs) {
+                    try {
+                        const attrs = JSON.parse(dataAttrs) as { src?: string };
+                        if (attrs.src && typeof attrs.src === "string") {
+                            src = attrs.src;
+                        }
+                    } catch (_) {
+                        // Not a Substack image or malformed JSON
+                    }
                 }
+
+                if (src) {
+                    img.setAttribute("src", this.convertToAbsoluteUrl(src.trim(), baseUrl));
+                }
+
+                // Handle srcset on <img>
+                const srcset = img.getAttribute("srcset");
+                if (srcset) {
+                    img.setAttribute("srcset", this.processSrcset(srcset, baseUrl));
+                }
+
+                // Handle common lazy loading attributes
+                ["data-src", "data-srcset", "data-original", "data-delayed-url"].forEach(attrName => {
+                    const val = img.getAttribute(attrName);
+                    if (val) {
+                        if (attrName.includes("srcset")) {
+                            img.setAttribute(attrName, this.processSrcset(val, baseUrl));
+                        } else {
+                            img.setAttribute(attrName, this.convertToAbsoluteUrl(val.trim(), baseUrl));
+                        }
+                    }
+                });
             });
 
             // Update <source> tags
             doc.querySelectorAll("source").forEach((source) => {
                 const srcset = source.getAttribute("srcset");
                 if (srcset) {
-                    const processedSrcset = srcset
-                        .split(",")
-                        .map((part) => {
-                            const trimmedPart = part.trim();
-                            const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
-                            if (urlMatch) {
-                                const url = urlMatch[1];
-                                const sizeDescriptor = urlMatch[2] || "";
-                                return this.convertToAbsoluteUrl(url, baseUrl) + sizeDescriptor;
-                            }
-                            return trimmedPart;
-                        })
-                        .join(", ");
-                    source.setAttribute("srcset", processedSrcset);
+                    source.setAttribute("srcset", this.processSrcset(srcset, baseUrl));
+                }
+
+                const dataSrcset = source.getAttribute("data-srcset");
+                if (dataSrcset) {
+                    source.setAttribute("data-srcset", this.processSrcset(dataSrcset, baseUrl));
                 }
             });
 
@@ -418,6 +442,31 @@ guid: "{{guid}}"
             
             return relativeUrl;
         }
+    }
+
+    private processSrcset(srcset: string, baseUrl: string): string {
+        if (!srcset) return "";
+        
+        // Substack and other CDNs use commas in URLs. 
+        // Standard srcset splits by comma followed by whitespace.
+        // However, some feeds have dense srcset without spaces.
+        // We split by commas that are:
+        // 1. Followed by whitespace OR
+        // 2. Followed by http/https/double-slash (start of next URL)
+        return srcset
+            .split(/,\s+|,(?=https?:|\/\/)/) 
+            .map((part) => {
+                const trimmedPart = part.trim();
+                // Match the URL and optional descriptor
+                const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w|\s+\d+x)?$/);
+                if (urlMatch) {
+                    const url = urlMatch[1];
+                    const sizeDescriptor = urlMatch[2] || "";
+                    return this.convertToAbsoluteUrl(url.trim(), baseUrl) + sizeDescriptor;
+                }
+                return trimmedPart;
+            })
+            .join(", ");
     }
     
     
