@@ -2,6 +2,7 @@
 	display: flex;
 	flex-direction: column;
 	width: 100%;
+	min-width: 200px;
 	margin-bottom: 30px;
 	border-radius: 10px;
 	overflow: hidden;
@@ -9,14 +10,13 @@
   .rss-video-container {
 	position: relative;
 	width: 100%;
-	padding-top: 56.25%;
+	min-width: 200px;
+	min-height: 200px;
+	aspect-ratio: 16 / 9;
 	overflow: hidden;
 	background-color: #000
   }
   .rss-video-container iframe {
-	position: absolute;
-	top: 0;
-	left: 0;
 	width: 100%;
 	height: 100%;
 	border: 0
@@ -48,14 +48,15 @@
   }
   .rss-video-links {
 	display: flex;
-	justify-content: space-between;
+	flex-wrap: wrap;
 	align-items: center;
+	gap: 12px;
 	padding: 10px 15px;
 	background-color: var(--background-secondary-alt);
 	border-radius: 5px;
   }
   .rss-video-youtube-button {
-	display: flex;
+	display: inline-flex;
 	align-items: center;
 	gap: 8px;
 	padding: 8px 12px;
@@ -64,35 +65,11 @@
 	border-radius: 4px;
 	cursor: pointer;
 	font-weight: 500;
+	text-decoration: none;
 	transition: background-color 0.2s
   }
   .rss-video-youtube-button:hover {
 	background-color: #c00
-  }
-  .rss-video-quality {
-	display: flex;
-	align-items: center;
-	gap: 8px
-  }
-  .rss-video-quality-options {
-	display: flex;
-	gap: 5px
-  }
-  .rss-video-quality-option {
-	padding: 4px 8px;
-	border-radius: 4px;
-	background-color: var(--background-primary);
-	color: var(--text-normal);
-	cursor: pointer;
-	font-size: 0.85em;
-	transition: background-color 0.2s
-  }
-  .rss-video-quality-option:hover {
-	background-color: var(--background-modifier-hover)
-  }
-  .rss-video-quality-option.active {
-	background-color: var(--interactive-accent);
-	color: var(--text-on-accent)
   }
   .rss-video-related {
 	padding: 15px;

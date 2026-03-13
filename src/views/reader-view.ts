@@ -504,10 +504,19 @@ export class ReaderView extends ItemView {
         this.videoPlayer.setRelatedVideos(this.relatedItems);
       }
     } else {
-      container.createDiv({
+      const errorContainer = container.createDiv({
         cls: "rss-reader-error",
         text: "Video id not found. Cannot play this video.",
       });
+      if (item.link) {
+        const watchLink = errorContainer.createEl("a", {
+          cls: "rss-reader-error-link",
+          text: "Watch on YouTube",
+          href: item.link,
+        });
+        watchLink.target = "_blank";
+        watchLink.rel = "noopener noreferrer";
+      }
       await this.displayArticle(item);
     }
   }

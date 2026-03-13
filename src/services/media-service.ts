@@ -1,9 +1,21 @@
 import { requestUrl, Notice } from "obsidian";
 import { Feed, Tag } from "../types/types";
 
+export interface YouTubeEmbedConfig {
+  videoId: string;
+  embedUrl: string;
+  watchUrl: string;
+  referrerPolicy: "strict-origin-when-cross-origin";
+  allow: string;
+}
+
 export class MediaService {
   static readonly YOUTUBE_SHORT_TAG_NAME = "Youtube short";
   static readonly YOUTUBE_SHORT_TAG_COLOR = "#ff0000";
+  static readonly YOUTUBE_EMBED_REFERRER_POLICY =
+    "strict-origin-when-cross-origin";
+  static readonly YOUTUBE_EMBED_ALLOW =
+    "accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
   private static readonly YOUTUBE_PATTERNS = [
     "youtube.com/feeds/videos.xml",
     "youtube.com/channel/",
@@ -447,19 +459,34 @@ export class MediaService {
     };
   }
 
+  static buildYouTubeEmbed(videoId: string): YouTubeEmbedConfig {
+    const normalizedVideoId = videoId.trim();
+
+    return {
+      videoId: normalizedVideoId,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${normalizedVideoId}?rel=0`,
+      watchUrl: `https://www.youtube.com/watch?v=${normalizedVideoId}`,
+      referrerPolicy: this.YOUTUBE_EMBED_REFERRER_POLICY,
+      allow: this.YOUTUBE_EMBED_ALLOW,
+    };
+  }
+
   static getYouTubePlayerHtml(
     videoId: string,
     width = 560,
     height = 315,
   ): string {
+    const embed = this.buildYouTubeEmbed(videoId);
+
     return `
             <div class="rss-dashboard-media-player youtube-player">
                 <iframe 
                     width="${width}" 
                     height="${height}" 
-                    src="https://www.youtube.com/embed/${videoId}" 
+                    src="${embed.embedUrl}" 
                     frameborder="0" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    referrerpolicy="${embed.referrerPolicy}"
+                    allow="${embed.allow}" 
                     allowfullscreen>
                 </iframe>
             </div>

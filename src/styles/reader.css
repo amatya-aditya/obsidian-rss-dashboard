@@ -234,6 +234,13 @@
   margin-bottom: 20px;
   border-left: 4px solid #f44336;
 }
+.rss-reader-error-link {
+  display: inline-flex;
+  margin-top: 10px;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
 
 .rss-reader-action-button {
   position: relative;

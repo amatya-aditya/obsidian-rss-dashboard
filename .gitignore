@@ -31,3 +31,4 @@ test_files/*
 docs/archive
 CLAUDE.md
 agent.md
+.agent/workflows/code-change.md
