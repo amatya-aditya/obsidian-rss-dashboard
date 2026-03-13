@@ -1,10 +1,11 @@
-## [2.3.0-beta.1] - March 11, 2026
+## [2.3.0-beta.1] - March 13, 2026
 
 ### New Features
 
 - Added automatic YouTube Shorts detection and tagging from feed XML
 - Added a media setting to enable or disable YouTube Shorts detection
 - **Tag Management**: Recreated and enhanced tag editing functionality across Sidebar, Article List, and Reader View, allowing direct modification of tag names and colors.
+- **X/Twitter to Nitter**: Added automatic redirection of X/Twitter feeds to Nitter RSS feeds.
 
 ### Improvements
 
