@@ -32,3 +32,9 @@ The Reader View provides a highly customizable environment for consuming your RS
 ### Management
 
 - **One-Click Reset**: Quickly revert all reading preferences to their default state.
+
+## Technical Stability & Compatibility
+
+- **Substack Optimization**: The reader now prioritizes full feed content for Substack, ensuring complete articles load even when the source webpage is behind a subscription or summary wall.
+- **Safe HTML Processing**: Uses robust DOM-based sanitization and URL conversion to prevent crashes on complex or malformed HTML content.
+- **Improved Character Encoding**: Automatically detects and handles various character encodings to ensure text displays correctly across different regions.
