@@ -122,7 +122,7 @@
 	flex-wrap: wrap
    }
    .rss-dashboard-article-summary {
-	color: var(--text-muted);
+	color: var(--text-normal);
 	font-size: 0.99em;
 	margin: 2px 0 0 0;
 	line-height: 1.5;
@@ -162,7 +162,7 @@
   }
   .rss-dashboard-article-item.read,
   .rss-dashboard-article-card.read {
-	opacity: 0.8
+	opacity: 0.9
   }
   .rss-dashboard-card-view {
 	display: grid;
@@ -309,7 +309,7 @@
   }
   .rss-dashboard-article-summary {
 	font-size: 0.9em;
-	color: var(--text-muted);
+	color: var(--text-normal);
 	margin: 5px 0;
 	overflow: hidden;
 	text-overflow: ellipsis;

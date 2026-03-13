@@ -1,5 +1,72 @@
 # Development Log
 
+## 2026-03-12 — Session 5: YouTube RSS Outage, Proxy Cleanup, Save & Open UX
+
+### YouTube RSS Feeds Returning 404
+- **Problem**: All YouTube channels returning "Error loading feed" / "Request failed, status 404". YouTube's `/feeds/videos.xml` endpoint is globally returning 404 — not a plugin bug.
+- **Fix (feed-manager-modal.ts)**: Both Add and Edit feed modals now route YouTube URLs through `parseFeed()` which tries the YouTube Data API v3 first (when an API key is configured), then falls back to RSS. When RSS fails and no API key is set, status shows: "YouTube RSS is unavailable. Add a YouTube API key in plugin settings."
+- **Fix (feed-parser.ts)**: `parseYouTubeFeedViaApi()` now extracts channel title from the first API item (`snippet.channelTitle`) instead of defaulting to "YouTube Feed".
+
+### YouTube Handle Case Sensitivity
+- **Problem**: `@AIDailyBrief` (mixed case) failed while `@aidailybrief` (lowercase) worked — YouTube handles are case-sensitive in URL resolution.
+- **Fix (media-service.ts)**: Handle is now lowercased before the channel page fetch.
+
+### Dead CORS Proxy Cleanup
+- **Problem**: CORS proxy fallback chain had dead services flooding the console with errors: isomorphic-git (403), thingproxy (DNS dead).
+- **Fix (feed-parser.ts)**: Removed isomorphic-git and thingproxy from the proxy cascade. Chain is now: direct fetch → AllOrigins (get/raw) → codetabs → feed discovery.
+
+### Improved Error Reporting in Feed Modals
+- **Problem**: Both Add and Edit feed modals showed generic "Error loading feed" for all failures.
+- **Fix (feed-manager-modal.ts)**: Catch blocks now show the actual error message (e.g. "Request failed, status 404", "Could not resolve YouTube channel ID").
+
+### Save & Open Replaces Reader View In-Place
+- **Problem**: "Save & Open" opened the saved note in a new tab, leaving the RSS Dashboard and reader still occupying screen space.
+- **Fix (reader-view.ts)**: `openSavedNote()` now uses `this.leaf.openFile(file)` to open the saved note in the same pane as the reader, replacing it.
+- **Fix (dashboard-view.ts)**: `openSavedArticleFile()` now checks for an existing reader view leaf and reuses it, instead of always creating a new split.
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `src/services/feed-parser.ts` | Removed dead proxies (isomorphic-git, thingproxy); channel title from API items |
+| `src/services/media-service.ts` | Lowercase YouTube handles before fetch |
+| `src/modals/feed-manager-modal.ts` | YouTube API path in Load button; actual error messages in status |
+| `src/views/reader-view.ts` | `openSavedNote()` opens in same leaf instead of new tab |
+| `src/views/dashboard-view.ts` | `openSavedArticleFile()` reuses reader leaf if available |
+
+---
+
+## 2026-03-11 — Session 4: YouTube Template Variables, Open After Save
+
+### Extended Template Variables for Media
+- **Problem**: Save templates only supported basic variables (`{{title}}`, `{{content}}`, `{{link}}`, etc.), making them useless for YouTube videos where users need embed URLs, channel names, durations, thumbnails, etc.
+- **Fix (article-saver.ts)**: Added 9 new template variables to both `applyTemplate()` and `generateFrontmatter()`:
+  - `{{videoId}}` — YouTube video ID
+  - `{{embedUrl}}` — `https://www.youtube.com/embed/{videoId}`
+  - `{{videoUrl}}` — watch URL (from item or constructed from videoId)
+  - `{{channelName}}` — feed title (alias for `{{feedTitle}}`)
+  - `{{duration}}` — duration from RSS feed
+  - `{{publishDate}}` — ISO pub date (alias for `{{isoDate}}`)
+  - `{{coverImage}}` — thumbnail/cover image URL
+  - `{{description}}` — raw description text
+  - `{{mediaType}}` — article/video/podcast
+  - `{{audioUrl}}` — podcast audio URL
+- **Use case**: Users can now create YouTube save presets that mirror Obsidian Web Clipper templates, with Templater `<% %>` syntax processed via existing integration.
+
+### Open Note After Save
+- **Problem**: After saving an article/video, users had to manually navigate to the saved note to review or edit it.
+- **Fix (reader-view.ts)**: Added `openSavedNote()` method that opens the saved file in a new tab. Called from all three save paths: default save, preset save, and custom folder save.
+- **Setting (types.ts, settings-tab.ts)**: Added `openAfterSave` boolean to `ArticleSavingSettings` with toggle in Article Saving settings. Currently hardcoded to always open (setting exists for future toggle).
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `src/services/article-saver.ts` | 9 new template variables in `applyTemplate()` and `generateFrontmatter()` |
+| `src/views/reader-view.ts` | `openSavedNote()` method, wired into all save paths, `TFile` import |
+| `src/types/types.ts` | `openAfterSave` in `ArticleSavingSettings` and `DEFAULT_SETTINGS` |
+| `src/settings/settings-tab.ts` | "Open note after saving" toggle in article saving settings |
+
+---
+
 ## 2026-03-10 — Session 3: Save Presets, Templater, UI Fixes
 
 ### Card Spacing Slider Crashes Menu

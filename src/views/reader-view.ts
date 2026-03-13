@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Menu, MenuItem, App, Setting } from "obsidian";
+import { ItemView, WorkspaceLeaf, Menu, MenuItem, App, Setting, TFile } from "obsidian";
 import { setIcon } from "obsidian";
 import { FeedItem, RssDashboardSettings } from "../types/types";
 import { MediaService } from "../services/media-service";
@@ -130,9 +130,9 @@ export class ReaderView extends ItemView {
         });
         
         
-        const browserButton = actions.createDiv({ 
-            cls: "rss-reader-action-button", 
-            attr: { title: "Open in Browser" } 
+        const browserButton = actions.createDiv({
+            cls: "rss-reader-action-button",
+            attr: { title: "Open in Browser" }
         });
         setIcon(browserButton, "globe-2");
         browserButton.addEventListener("click", () => {
@@ -172,6 +172,10 @@ export class ReaderView extends ItemView {
         return undefined;
     }
 
+    private openSavedNote(file: TFile): void {
+        void this.leaf.openFile(file);
+    }
+
     private showSaveOptions(event: MouseEvent, item: FeedItem): void {
         const menu = new Menu();
 
@@ -188,6 +192,7 @@ export class ReaderView extends ItemView {
                     if (file) {
                         this.onArticleSave(item);
                         this.updateSavedLabel(true);
+                        this.openSavedNote(file);
                     }
                 });
         });
@@ -208,6 +213,7 @@ export class ReaderView extends ItemView {
                             if (file) {
                                 this.onArticleSave(item);
                                 this.updateSavedLabel(true);
+                                this.openSavedNote(file);
                             }
                         });
                 });
@@ -321,8 +327,8 @@ export class ReaderView extends ItemView {
             const file = await this.articleSaver.saveArticle(item, folder, template, markdownContent);
             if (file) {
                 this.onArticleSave(item);
-
                 this.updateSavedLabel(true);
+                this.openSavedNote(file);
             }
 
             document.body.removeChild(modal);

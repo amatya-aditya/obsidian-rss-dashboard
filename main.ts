@@ -374,21 +374,25 @@ export default class RssDashboardPlugin extends Plugin {
             }
             
             new Notice(`Refreshing ${feedNoticeText}...`);
-            const updatedFeeds = await this.feedParser.refreshAllFeeds(feedsToRefresh);
-            
+            const { updated: updatedFeeds, failed: failedFeeds } = await this.feedParser.refreshAllFeeds(feedsToRefresh);
+
             updatedFeeds.forEach(updatedFeed => {
                 const index = this.settings.feeds.findIndex(f => f.url === updatedFeed.url);
                 if (index >= 0) {
                     this.settings.feeds[index] = updatedFeed;
                 }
             });
-            
+
             await this.validateSavedArticles();
             await this.saveSettings();
             const view = await this.getActiveDashboardView();
             if (view) {
                 view.refresh();
-                new Notice(`Feeds refreshed: ${feedNoticeText}`);
+                if (failedFeeds.length > 0) {
+                    new Notice(`Refreshed ${updatedFeeds.length - failedFeeds.length}/${updatedFeeds.length} feeds. Failed: ${failedFeeds.join(', ')}`, 8000);
+                } else {
+                    new Notice(`Feeds refreshed: ${feedNoticeText}`);
+                }
             }
         } catch (error) {
             console.error(`[RSS dashboard] Error refreshing feeds:`, error);
@@ -690,7 +694,7 @@ export default class RssDashboardPlugin extends Plugin {
                     this.settings.feeds[feedIndex] = {
                         ...this.settings.feeds[feedIndex],
                         title: parsedFeed.title || feedMetadata.title,
-                        items: parsedFeed.items.slice(0, 50),
+                        items: parsedFeed.items.slice(0, this.settings.media?.youtubeMaxVideos || 200),
                         lastUpdated: Date.now(),
                         mediaType: parsedFeed.mediaType
                     };

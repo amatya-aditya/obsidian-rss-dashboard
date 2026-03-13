@@ -116,12 +116,14 @@
   }
   .rss-reader-article-content a,
   .rss-reader-description a {
-	color: var(--interactive-accent);
-	text-decoration: none
+	color: var(--link-color, var(--interactive-accent));
+	text-decoration: none;
+	filter: brightness(1.3)
   }
   .rss-reader-article-content a:hover,
   .rss-reader-description a:hover {
-	text-decoration: underline
+	text-decoration: underline;
+	filter: brightness(1.5)
   }
   .rss-reader-responsive-img {
 	max-width: 100%;

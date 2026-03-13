@@ -65,10 +65,48 @@ export class EditFeedModal extends Modal {
                             if (refs.statusDiv) refs.statusDiv.textContent = status;
                         try {
                             let fetchUrl = url;
-                            if (MediaService.isYouTubeFeed(url)) {
+                            const isYouTube = MediaService.isYouTubeFeed(url);
+                            if (isYouTube) {
                                 const rssUrl = await MediaService.getYouTubeRssFeed(url);
-                                if (rssUrl) fetchUrl = rssUrl;
+                                if (rssUrl) {
+                                    fetchUrl = rssUrl;
+                                } else {
+                                    throw new Error("Could not resolve YouTube channel ID. Check the URL is correct.");
+                                }
                             }
+
+                            // For YouTube feeds, try the Data API first if an API key is configured
+                            if (isYouTube && this.plugin?.feedParser) {
+                                try {
+                                    const feed = await this.plugin.feedParser.parseFeed(fetchUrl);
+                                    title = feed.title || "";
+                                    if (titleInput) titleInput.value = title;
+                                    if (feed.items.length > 0) {
+                                        const latest = feed.items[0];
+                                        if (latest.pubDate) {
+                                            const date = new Date(latest.pubDate);
+                                            const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+                                            latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days ago`;
+                                        } else {
+                                            latestEntry = "N/A";
+                                        }
+                                    } else {
+                                        latestEntry = "N/A";
+                                    }
+                                    if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
+                                    status = "OK";
+                                    if (refs.statusDiv) refs.statusDiv.textContent = status;
+                                    return;
+                                } catch (ytErr) {
+                                    // API + RSS both failed — fall through to show a helpful message
+                                    const hasApiKey = !!this.plugin.settings.media?.youtubeApiKey;
+                                    if (!hasApiKey) {
+                                        throw new Error("YouTube RSS is unavailable. Add a YouTube API key in plugin settings.");
+                                    }
+                                    throw ytErr;
+                                }
+                            }
+
                             const res = await requestUrl(fetchUrl);
                             const parser = new DOMParser();
                             const doc = parser.parseFromString(res.text, "text/xml");
@@ -87,8 +125,8 @@ export class EditFeedModal extends Modal {
                             }
                                 if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
                             status = "OK";
-                            } catch {
-                            status = "Error loading feed";
+                            } catch (e) {
+                            status = e instanceof Error ? e.message : "Error loading feed";
                             latestEntry = "-";
                                 if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
                         }
@@ -442,10 +480,47 @@ export class AddFeedModal extends Modal {
                             if (refs.statusDiv) refs.statusDiv.textContent = status;
                         try {
                             let fetchUrl = url;
-                            if (MediaService.isYouTubeFeed(url)) {
+                            const isYouTube = MediaService.isYouTubeFeed(url);
+                            if (isYouTube) {
                                 const rssUrl = await MediaService.getYouTubeRssFeed(url);
-                                if (rssUrl) fetchUrl = rssUrl;
+                                if (rssUrl) {
+                                    fetchUrl = rssUrl;
+                                } else {
+                                    throw new Error("Could not resolve YouTube channel ID. Check the URL is correct.");
+                                }
                             }
+
+                            // For YouTube feeds, try the Data API first if an API key is configured
+                            if (isYouTube && this.plugin?.feedParser) {
+                                try {
+                                    const feed = await this.plugin.feedParser.parseFeed(fetchUrl);
+                                    title = feed.title || "";
+                                    if (titleInput) titleInput.value = title;
+                                    if (feed.items.length > 0) {
+                                        const latest = feed.items[0];
+                                        if (latest.pubDate) {
+                                            const date = new Date(latest.pubDate);
+                                            const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+                                            latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days`;
+                                        } else {
+                                            latestEntry = "N/A";
+                                        }
+                                    } else {
+                                        latestEntry = "N/A";
+                                    }
+                                    if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
+                                    status = "OK";
+                                    if (refs.statusDiv) refs.statusDiv.textContent = status;
+                                    return;
+                                } catch (ytErr) {
+                                    const hasApiKey = !!this.plugin.settings.media?.youtubeApiKey;
+                                    if (!hasApiKey) {
+                                        throw new Error("YouTube RSS is unavailable. Add a YouTube API key in plugin settings.");
+                                    }
+                                    throw ytErr;
+                                }
+                            }
+
                             const res = await requestUrl(fetchUrl);
                             const parser = new DOMParser();
                             const doc = parser.parseFromString(res.text, "text/xml");
@@ -462,8 +537,8 @@ export class AddFeedModal extends Modal {
 							}
                                 if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
                             status = "OK";
-                            } catch {
-                            status = "Error loading feed";
+                            } catch (e) {
+                            status = e instanceof Error ? e.message : "Error loading feed";
 							latestEntry = "-";
                                 if (refs.latestEntryDiv) refs.latestEntryDiv.textContent = latestEntry;
                         }

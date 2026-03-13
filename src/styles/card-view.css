@@ -63,7 +63,7 @@
 	padding: 12px;
 	font-size: 0.9em;
 	line-height: 1.5;
-	color: var(--text-muted);
+	color: var(--text-normal);
 }
 
 .rss-dashboard-article-tags {
@@ -149,7 +149,7 @@
 	padding: 12px;
 	font-size: 0.9em;
 	line-height: 1.5;
-	color: var(--text-muted);
+	color: var(--text-normal);
 }
 
 
@@ -201,7 +201,7 @@
     border-radius: 8px;
     margin: 8px 0;
     background: var(--background-modifier-border);
-    color: var(--text-muted);
+    color: var(--text-normal);
     font-size: 0.99em;
     line-height: 1.5;
     padding: 16px 12px;

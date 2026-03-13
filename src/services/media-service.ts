@@ -49,6 +49,7 @@ export class MediaService {
                     handle = input.substring(1);
                 }
                 
+                handle = handle.toLowerCase();
                 if (handle) {
                     try {
                         const response = await requestUrl({
@@ -284,7 +285,7 @@ export class MediaService {
                     `https://img.youtube.com/vi/${videoId}/default.jpg`        
                 ];
                 
-                thumbnail = thumbnailUrls[0] || item.coverImage;
+                thumbnail = thumbnailUrls[1] || item.coverImage; // Use hqdefault — maxresdefault often 404s for Shorts
             }
             
             return {

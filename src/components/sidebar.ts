@@ -322,9 +322,13 @@ export class Sidebar {
         folderEl.addClass(depthClass);
 
         const folderHeader = folderEl.createDiv({
-            cls: "rss-dashboard-feed-folder-header" + 
+            cls: "rss-dashboard-feed-folder-header" +
                 (isCollapsed ? " collapsed" : "") +
                 (shouldHighlight ? " active" : ""),
+            attr: {
+                draggable: "true",
+                "data-folder-path": fullPath,
+            },
         });
 
         const toggleButton = folderHeader.createDiv({
@@ -443,36 +447,65 @@ export class Sidebar {
         });
 
         
+        folderHeader.addEventListener("dragstart", (e) => {
+            if (e.dataTransfer) {
+                e.dataTransfer.setData("folder-path", fullPath);
+                e.dataTransfer.effectAllowed = "move";
+            }
+            folderHeader.classList.add("dragging");
+        });
+
+        folderHeader.addEventListener("dragend", () => {
+            folderHeader.classList.remove("dragging");
+        });
+
         folderHeader.addEventListener("dragover", (e) => {
             e.preventDefault();
-            e.stopPropagation(); // Prevent event from bubbling up to root section
-            folderHeader.classList.add("drag-over");
+            e.stopPropagation();
+            // Check if this is a folder being dragged
+            const rect = folderHeader.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            folderHeader.classList.remove("drag-over", "drop-above", "drop-below");
+            if (e.dataTransfer?.types.includes("folder-path")) {
+                folderHeader.classList.add(e.clientY < midY ? "drop-above" : "drop-below");
+            } else {
+                folderHeader.classList.add("drag-over");
+            }
         });
 
         folderHeader.addEventListener("dragleave", (e) => {
-            e.stopPropagation(); // Prevent event from bubbling up to root section
-            folderHeader.classList.remove("drag-over");
+            e.stopPropagation();
+            folderHeader.classList.remove("drag-over", "drop-above", "drop-below");
         });
 
         folderHeader.addEventListener("drop", (e) => {
             e.preventDefault();
-            e.stopPropagation(); // Prevent event from bubbling up to root section
-            folderHeader.classList.remove("drag-over");
-            if (e.dataTransfer) {
-                const feedUrl = e.dataTransfer.getData("feed-url");
-                if (feedUrl) {
-                    const feed = this.settings.feeds.find(f => f.url === feedUrl);
-                    if (feed && feed.folder !== fullPath) {
-                        if (feed.folder) {
-                            const oldFolder = this.findFolderByPath(feed.folder);
-                            if (oldFolder) oldFolder.modifiedAt = Date.now();
-                        }
-                        feed.folder = fullPath;
-                        const newFolder = this.findFolderByPath(fullPath);
-                        if (newFolder) newFolder.modifiedAt = Date.now();
-                        
-                        void this.plugin.saveSettings().then(() => this.render());
+            e.stopPropagation();
+            const dropAbove = folderHeader.classList.contains("drop-above");
+            folderHeader.classList.remove("drag-over", "drop-above", "drop-below");
+            if (!e.dataTransfer) return;
+
+            // Handle folder reordering
+            const draggedFolderPath = e.dataTransfer.getData("folder-path");
+            if (draggedFolderPath && draggedFolderPath !== fullPath) {
+                this.reorderFolder(draggedFolderPath, fullPath, dropAbove);
+                return;
+            }
+
+            // Handle feed drop onto folder
+            const feedUrl = e.dataTransfer.getData("feed-url");
+            if (feedUrl) {
+                const feed = this.settings.feeds.find(f => f.url === feedUrl);
+                if (feed && feed.folder !== fullPath) {
+                    if (feed.folder) {
+                        const oldFolder = this.findFolderByPath(feed.folder);
+                        if (oldFolder) oldFolder.modifiedAt = Date.now();
                     }
+                    feed.folder = fullPath;
+                    const newFolder = this.findFolderByPath(fullPath);
+                    if (newFolder) newFolder.modifiedAt = Date.now();
+
+                    void this.plugin.saveSettings().then(() => this.render());
                 }
             }
         });
@@ -618,6 +651,70 @@ export class Sidebar {
                 e.dataTransfer.setData("feed-url", feed.url);
                 e.dataTransfer.effectAllowed = "move";
             }
+            feedEl.classList.add("dragging");
+        });
+
+        feedEl.addEventListener("dragend", () => {
+            feedEl.classList.remove("dragging");
+        });
+
+        feedEl.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const rect = feedEl.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            feedEl.classList.remove("drop-above", "drop-below");
+            feedEl.classList.add(e.clientY < midY ? "drop-above" : "drop-below");
+        });
+
+        feedEl.addEventListener("dragleave", () => {
+            feedEl.classList.remove("drop-above", "drop-below");
+        });
+
+        feedEl.addEventListener("drop", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const dropAbove = feedEl.classList.contains("drop-above");
+            feedEl.classList.remove("drop-above", "drop-below");
+            if (!e.dataTransfer) return;
+
+            const draggedUrl = e.dataTransfer.getData("feed-url");
+            const draggedFolderPath = e.dataTransfer.getData("folder-path");
+            if (draggedFolderPath) return; // Folder drag, not feed drag
+
+            if (!draggedUrl || draggedUrl === feed.url) return;
+
+            const draggedFeed = this.settings.feeds.find(f => f.url === draggedUrl);
+            if (!draggedFeed) return;
+
+            const targetFolder = feed.folder || "";
+            const sourceFolder = draggedFeed.folder || "";
+
+            // Move feed to target folder if different
+            if (sourceFolder !== targetFolder) {
+                if (sourceFolder) {
+                    const oldFolder = this.findFolderByPath(sourceFolder);
+                    if (oldFolder) oldFolder.modifiedAt = Date.now();
+                }
+                draggedFeed.folder = targetFolder;
+                if (targetFolder) {
+                    const newFolder = this.findFolderByPath(targetFolder);
+                    if (newFolder) newFolder.modifiedAt = Date.now();
+                }
+            }
+
+            // Reorder within the feeds array
+            const draggedIdx = this.settings.feeds.indexOf(draggedFeed);
+            this.settings.feeds.splice(draggedIdx, 1);
+            const targetIdx = this.settings.feeds.indexOf(feed);
+            this.settings.feeds.splice(dropAbove ? targetIdx : targetIdx + 1, 0, draggedFeed);
+
+            // Clear sort order for this folder since user manually reordered
+            if (this.settings.folderFeedSortOrders) {
+                delete this.settings.folderFeedSortOrders[targetFolder];
+            }
+
+            void this.plugin.saveSettings().then(() => this.render());
         });
     }
 
@@ -782,6 +879,37 @@ export class Sidebar {
             // YouTube page fetch failed
         }
         return { channelId: null, channelName: null };
+    }
+
+    private reorderFolder(draggedPath: string, targetPath: string, dropAbove: boolean): void {
+        const draggedParts = draggedPath.split("/");
+        const targetParts = targetPath.split("/");
+
+        // Only reorder siblings (same parent)
+        const draggedParent = draggedParts.slice(0, -1).join("/");
+        const targetParent = targetParts.slice(0, -1).join("/");
+        if (draggedParent !== targetParent) return;
+
+        // Don't allow dropping a folder onto its own descendant
+        if (targetPath.startsWith(draggedPath + "/")) return;
+
+        const siblingList = draggedParent
+            ? this.findFolderByPath(draggedParent)?.subfolders
+            : this.settings.folders;
+        if (!siblingList) return;
+
+        const draggedName = draggedParts[draggedParts.length - 1];
+        const targetName = targetParts[targetParts.length - 1];
+
+        const draggedIdx = siblingList.findIndex(f => f.name === draggedName);
+        const targetIdx = siblingList.findIndex(f => f.name === targetName);
+        if (draggedIdx === -1 || targetIdx === -1) return;
+
+        const [dragged] = siblingList.splice(draggedIdx, 1);
+        const newTargetIdx = siblingList.findIndex(f => f.name === targetName);
+        siblingList.splice(dropAbove ? newTargetIdx : newTargetIdx + 1, 0, dragged);
+
+        void this.plugin.saveSettings().then(() => this.render());
     }
 
     private findFolderByPath(path: string): Folder | null {

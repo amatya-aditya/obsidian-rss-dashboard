@@ -44,12 +44,12 @@ jobs:
           tag="${GITHUB_REF#refs/tags/}"
 
           release_notes="Release $tag"
-          release_flags=(--title="$tag" --notes="$release_notes" --draft)
+          release_flags=(--title="$tag" --notes="$release_notes")
 
-          # Beta tags must be formatted without a leading "v", e.g. 2.1.0-beta.1
-          if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]]; then
-            release_notes="Beta release $tag"
-            release_flags=(--title="$tag" --notes="$release_notes" --draft --prerelease)
+          # Beta/motion tags are prereleases, e.g. 2.1.0-beta.1 or 2.2.0-motion.1
+          if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(beta|motion)\.[0-9]+$ ]]; then
+            release_notes="Prerelease $tag"
+            release_flags=(--title="$tag" --notes="$release_notes" --prerelease)
           fi
 
           # Create release with all assets

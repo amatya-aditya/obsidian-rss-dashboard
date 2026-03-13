@@ -110,16 +110,29 @@ guid: "{{guid}}"
             tagsString = tagsString ? `${tagsString}, saved` : "saved";
         }
         
-        
+        const embedUrl = item.videoId ? `https://www.youtube.com/embed/${item.videoId}` : '';
+        const videoUrl = item.videoUrl || (item.videoId ? `https://www.youtube.com/watch?v=${item.videoId}` : '');
+
         frontmatter = frontmatter
             .replace(/{{title}}/g, item.title.replace(/"/g, '\\"'))
             .replace(/{{date}}/g, new Date().toISOString())
+            .replace(/{{isoDate}}/g, new Date(item.pubDate).toISOString())
+            .replace(/{{publishDate}}/g, new Date(item.pubDate).toISOString())
             .replace(/{{tags}}/g, tagsString)
             .replace(/{{source}}/g, item.feedTitle.replace(/"/g, '\\"'))
             .replace(/{{link}}/g, item.link)
             .replace(/{{author}}/g, (item.author || '').replace(/"/g, '\\"'))
             .replace(/{{feedTitle}}/g, item.feedTitle.replace(/"/g, '\\"'))
-            .replace(/{{guid}}/g, item.guid.replace(/"/g, '\\"'));
+            .replace(/{{channelName}}/g, item.feedTitle.replace(/"/g, '\\"'))
+            .replace(/{{guid}}/g, item.guid.replace(/"/g, '\\"'))
+            .replace(/{{videoId}}/g, item.videoId || '')
+            .replace(/{{embedUrl}}/g, embedUrl)
+            .replace(/{{videoUrl}}/g, videoUrl)
+            .replace(/{{audioUrl}}/g, item.audioUrl || '')
+            .replace(/{{duration}}/g, item.duration || '')
+            .replace(/{{coverImage}}/g, item.coverImage || '')
+            .replace(/{{description}}/g, (item.description || '').replace(/"/g, '\\"'))
+            .replace(/{{mediaType}}/g, item.mediaType || 'article');
         
         
         if (item.mediaType === 'video' && item.videoId) {
@@ -169,19 +182,31 @@ guid: "{{guid}}"
             tagsString = tagsString ? `${tagsString}, saved` : "saved";
         }
         
-        
+        const embedUrl = item.videoId ? `https://www.youtube.com/embed/${item.videoId}` : '';
+        const videoUrl = item.videoUrl || (item.videoId ? `https://www.youtube.com/watch?v=${item.videoId}` : '');
+
         return template
             .replace(/{{title}}/g, item.title)
             .replace(/{{date}}/g, formattedDate)
             .replace(/{{isoDate}}/g, new Date(item.pubDate).toISOString())
+            .replace(/{{publishDate}}/g, new Date(item.pubDate).toISOString())
             .replace(/{{link}}/g, item.link)
             .replace(/{{author}}/g, item.author || '')
             .replace(/{{source}}/g, item.feedTitle)
             .replace(/{{feedTitle}}/g, item.feedTitle)
+            .replace(/{{channelName}}/g, item.feedTitle)
             .replace(/{{summary}}/g, item.summary || '')
+            .replace(/{{description}}/g, item.description || '')
             .replace(/{{content}}/g, content)
             .replace(/{{tags}}/g, tagsString)
-            .replace(/{{guid}}/g, item.guid);
+            .replace(/{{guid}}/g, item.guid)
+            .replace(/{{videoId}}/g, item.videoId || '')
+            .replace(/{{embedUrl}}/g, embedUrl)
+            .replace(/{{videoUrl}}/g, videoUrl)
+            .replace(/{{audioUrl}}/g, item.audioUrl || '')
+            .replace(/{{duration}}/g, item.duration || '')
+            .replace(/{{coverImage}}/g, item.coverImage || '')
+            .replace(/{{mediaType}}/g, item.mediaType || 'article');
     }
     
     

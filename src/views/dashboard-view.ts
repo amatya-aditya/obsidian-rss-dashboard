@@ -1244,8 +1244,8 @@ export class RssDashboardView extends ItemView {
     
     private async openSavedArticleFile(file: TFile): Promise<void> {
         try {
-            
-            const leaf = this.app.workspace.getLeaf("split");
+            const readerLeaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
+            const leaf = readerLeaves.length > 0 ? readerLeaves[0] : this.app.workspace.getLeaf("split");
             await leaf.openFile(file);
             void this.app.workspace.revealLeaf(leaf);
             

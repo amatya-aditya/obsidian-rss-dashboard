@@ -423,12 +423,12 @@ export async function fetchFeedXml(url: string): Promise<string> {
                 }
                 
                 if (!isAndroid) {
-                    
+
                     try {
                         const codetabsUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}`;
                         const codetabsResponse = await requestUrl({ url: codetabsUrl, method: "GET" });
                         if (codetabsResponse.text && isValidFeed(codetabsResponse.text)) {
-                            
+
                             return codetabsResponse.text;
                         } else {
                             throw new Error('Not a valid RSS/Atom feed');
@@ -436,33 +436,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
                     } catch (e) {
                         console.warn('[RSS dashboard] codetabs proxy failed', e);
                     }
-                    
-                    // isomorphic-git CORS proxy (raw)
-                    try {
-                        const isoUrl = `https://cors.isomorphic-git.org/${targetUrl}`;
-                        const isoResp = await requestUrl({ url: isoUrl, method: "GET" });
-                        if (isoResp.text && isValidFeed(isoResp.text)) {
-                            return isoResp.text;
-                        } else {
-                            throw new Error('Not a valid RSS/Atom feed');
-                        }
-                    } catch (e) {
-                        console.warn('[RSS dashboard] isomorphic-git proxy failed', e);
-                    }
 
-                    try {
-                        const thingproxyUrl = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(targetUrl)}`;
-                        const thingproxyResponse = await requestUrl({ url: thingproxyUrl, method: "GET" });
-                        if (thingproxyResponse.text && isValidFeed(thingproxyResponse.text)) {
-                            
-                            return thingproxyResponse.text;
-                        } else {
-                            throw new Error('Not a valid RSS/Atom feed');
-                        }
-                    } catch (e) {
-                        console.warn('[RSS dashboard] thingproxy failed', e);
-                    }
-                    
                     try {
                         const discoveredUrl = await discoverFeedUrl(targetUrl);
                         if (discoveredUrl && discoveredUrl !== targetUrl) {
@@ -2176,7 +2150,8 @@ export class FeedParser {
                 });
             }
 
-            
+            console.debug(`[RSS refresh] "${feedTitle}": ${parsed.items.length} items from feed, ${existingItems.size} existing items`);
+
             const newItems: FeedItem[] = [];
             const updatedItems: FeedItem[] = [];
 
@@ -2325,6 +2300,7 @@ export class FeedParser {
 
             newFeed.items = allItems;
             newFeed.lastUpdated = Date.now();
+            console.debug(`[RSS refresh] "${feedTitle}": ${updatedItems.length} updated, ${newItems.length} new, ${allItems.length} total`);
 
             
             this.applyFeedLimits(newFeed);
@@ -2380,17 +2356,20 @@ export class FeedParser {
      * and return a fully processed Feed. Returns null if the API call fails.
      */
     private async parseYouTubeFeedViaApi(url: string, existingFeed: Feed | null): Promise<Feed | null> {
-        const feedTitle = existingFeed?.title || 'YouTube Feed';
+        const initialTitle = existingFeed?.title || 'YouTube Feed';
         const apiItems = await MediaService.fetchYouTubeApiVideos(
             url,
             this.mediaSettings.youtubeApiKey,
             this.mediaSettings.youtubeMaxVideos,
-            feedTitle
+            initialTitle
         );
 
         if (!apiItems) {
             return null;
         }
+
+        // Use the channel title from the first API item if no existing title
+        const feedTitle = existingFeed?.title || apiItems[0]?.author || apiItems[0]?.feedTitle || initialTitle;
 
         // Build a map of existing items to preserve read/starred/tags/saved state
         const existingItemMap = new Map<string, FeedItem>();
@@ -2470,32 +2449,33 @@ export class FeedParser {
     async refreshFeed(feed: Feed): Promise<Feed> {
         try {
             const refreshedFeed = await this.parseFeed(feed.url, feed);
-            
-            
-            
+
+
+
             return refreshedFeed;
-        } catch {
-            
-            return feed;
+        } catch (error) {
+            console.error(`[RSS dashboard] Failed to refresh feed "${feed.title}" (${feed.url}):`, error);
+            throw error; // Propagate so caller can track failures
         }
     }
     
     
-    async refreshAllFeeds(feeds: Feed[]): Promise<Feed[]> {
+    async refreshAllFeeds(feeds: Feed[]): Promise<{ updated: Feed[]; failed: string[] }> {
         const updatedFeeds: Feed[] = [];
-        
+        const failedFeeds: string[] = [];
+
         for (const feed of feeds) {
             try {
-                
                 const refreshedFeed = await this.refreshFeed(feed);
                 updatedFeeds.push(refreshedFeed);
             } catch (error) {
                 console.error(`[RSS dashboard] Error refreshing feed ${feed.title}:`, error);
-                updatedFeeds.push(feed); 
+                failedFeeds.push(feed.title);
+                updatedFeeds.push(feed);
             }
         }
-        
-        return updatedFeeds;
+
+        return { updated: updatedFeeds, failed: failedFeeds };
     }
 }
 

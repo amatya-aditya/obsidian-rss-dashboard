@@ -705,6 +705,18 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             );
 
         new Setting(containerEl)
+            .setName("Open note after saving")
+            .setDesc("Automatically open the saved note in a new tab")
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.articleSaving.openAfterSave)
+                    .onChange(async (value) => {
+                        this.plugin.settings.articleSaving.openAfterSave = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(containerEl)
             .setName("Save full content")
             .setDesc("Fetch and save the full article content from the web (instead of just the RSS summary)")
             .addToggle((toggle) =>
@@ -729,7 +741,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     });
             });
-
 
         new Setting(containerEl).setName("Default template").setHeading();
 

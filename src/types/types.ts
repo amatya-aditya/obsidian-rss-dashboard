@@ -142,6 +142,7 @@ export interface ArticleSavingSettings {
     fetchTimeout: number;
     savedTemplates: SavedTemplate[];
     defaultPresetId?: string;
+    openAfterSave: boolean;
 }
 
 export interface DisplaySettings {
@@ -270,7 +271,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
         openInSplitView: true,
         podcastTheme: 'obsidian',
         youtubeApiKey: '',
-        youtubeMaxVideos: 50
+        youtubeMaxVideos: 200
     },
     articleSaving: {
         addSavedTag: true,
@@ -304,7 +305,8 @@ guid: "{{guid}}"
 ---`,
         saveFullContent: true,
         fetchTimeout: 10,
-        savedTemplates: []
+        savedTemplates: [],
+        openAfterSave: false
     },
     display: {
         showCoverImage: true,

@@ -1034,9 +1034,22 @@ export class ArticleList {
                     attr: {
                         src: coverImgSrc,
                         alt: article.title,
+                        loading: "lazy",
                     },
                 });
                 coverImg.onerror = () => {
+                    // For YouTube thumbnails, try fallback quality levels before giving up
+                    const ytMatch = coverImgSrc?.match(/img\.youtube\.com\/vi\/([^/]+)\/([^.]+)\.jpg/);
+                    if (ytMatch) {
+                        const videoId = ytMatch[1];
+                        const current = ytMatch[2];
+                        const fallbacks = ['hqdefault', 'mqdefault', 'sddefault', 'default'];
+                        const nextIdx = fallbacks.indexOf(current) + 1;
+                        if (nextIdx > 0 && nextIdx < fallbacks.length) {
+                            coverImg.src = `https://img.youtube.com/vi/${videoId}/${fallbacks[nextIdx]}.jpg`;
+                            return;
+                        }
+                    }
                     coverContainer.remove();
                 };
                 
