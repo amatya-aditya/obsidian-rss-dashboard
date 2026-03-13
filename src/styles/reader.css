@@ -212,6 +212,19 @@
   border-radius: 5px;
   margin: 10px 0;
 }
+
+.rss-reader-hero-slot:empty {
+  display: none;
+}
+
+.rss-reader-fallback-hero {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 8px;
+  margin: 12px 0 18px;
+}
 .rss-reader-article-content a,
 .rss-reader-description a {
   color: var(--interactive-accent);

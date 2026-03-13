@@ -32,6 +32,8 @@
 - Removed unsupported YouTube quality override URL rewriting from the player
 - Enforced a minimum 200x200 YouTube player surface to better match RMF requirements
 - Added regression tests for YouTube embed URL generation and feed video-id normalization
+- Fixed Substack inline reader images not loading by stripping broken `srcset` / `<picture><source>` entries and falling back to a hero cover image when inline images fail
+- Removed Substack image expand/view controls that rendered as blank bordered buttons in the reader
 
 ---
 
