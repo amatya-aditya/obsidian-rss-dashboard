@@ -31,6 +31,32 @@ export class MediaService {
     return this.YOUTUBE_PATTERNS.some((pattern) => url.includes(pattern));
   }
 
+  static isXUrl(url: string): boolean {
+    if (!url) return false;
+    return (
+      url.includes("x.com/") ||
+      url.includes("twitter.com/") ||
+      url.includes("t.co/")
+    );
+  }
+
+  static getNitterRssFeed(url: string): string | null {
+    if (!url) return null;
+
+    // Handle x.com and twitter.com
+    const xMatch = url.match(/(?:x|twitter)\.com\/([^/?#]+)/);
+    if (xMatch?.[1]) {
+      const username = xMatch[1];
+      // Skip if it's a common page like 'home', 'notifications', etc.
+      const commonPages = ["home", "notifications", "messages", "explore", "search", "i", "settings"];
+      if (commonPages.includes(username.toLowerCase())) return null;
+      
+      return `https://nitter.net/${username}/rss`;
+    }
+
+    return null;
+  }
+
   static isYouTubeShortLink(link: string): boolean {
     if (!link) return false;
 

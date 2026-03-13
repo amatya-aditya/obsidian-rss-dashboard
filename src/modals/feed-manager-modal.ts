@@ -141,6 +141,20 @@ export class EditFeedModal extends Modal {
             try {
               let feedUrl = url;
               let detectedType: "rss" | "podcast" | "youtube" = "rss";
+              let isXConversion = false;
+
+              // Check for X/Twitter URLs and convert to Nitter
+              if (MediaService.isXUrl(url)) {
+                const nitterUrl = MediaService.getNitterRssFeed(url);
+                if (nitterUrl) {
+                  url = nitterUrl;
+                  feedUrl = nitterUrl;
+                  if (urlInput) urlInput.value = nitterUrl;
+                  isXConversion = true;
+                  status = "⏳ Redirecting X to Nitter...";
+                  if (refs.statusDiv) refs.statusDiv.textContent = status;
+                }
+              }
 
               // Check for YouTube page URLs and convert to RSS feed
               if (isYouTubePageUrl(url)) {
@@ -203,11 +217,13 @@ export class EditFeedModal extends Modal {
 
                 if (feedData.hasEntries) {
                   status = "OK";
-                  refs.statusDiv.textContent = "✅ OK";
+                  const conversionNotice = isXConversion ? " (X > nitter conversion)" : "";
+                  refs.statusDiv.textContent = `✅ OK${conversionNotice}`;
                   refs.statusDiv.addClass("status-ok");
                 } else {
                   status = EMPTY_FEED_VALIDATION_WARNING;
-                  refs.statusDiv.textContent = `⚠ ${EMPTY_FEED_VALIDATION_WARNING}`;
+                  const conversionNotice = isXConversion ? " (X > nitter conversion)" : "";
+                  refs.statusDiv.textContent = `⚠ ${EMPTY_FEED_VALIDATION_WARNING}${conversionNotice}`;
                   refs.statusDiv.addClass("rss-dashboard-status-warning");
                 }
               }
@@ -814,6 +830,20 @@ export class AddFeedModal extends Modal {
             try {
               let feedUrl = url;
               let detectedType: "rss" | "podcast" | "youtube" = "rss";
+              let isXConversion = false;
+
+              // Check for X/Twitter URLs and convert to Nitter
+              if (MediaService.isXUrl(url)) {
+                const nitterUrl = MediaService.getNitterRssFeed(url);
+                if (nitterUrl) {
+                  url = nitterUrl;
+                  feedUrl = nitterUrl;
+                  if (urlInput) urlInput.value = nitterUrl;
+                  isXConversion = true;
+                  status = "⏳ Redirecting X to Nitter...";
+                  if (refs.statusDiv) refs.statusDiv.textContent = status;
+                }
+              }
 
               // Check for YouTube page URLs and convert to RSS feed
               if (isYouTubePageUrl(url)) {
@@ -936,11 +966,13 @@ export class AddFeedModal extends Modal {
 
                 if (feedData.hasEntries) {
                   status = "OK";
-                  refs.statusDiv.textContent = "✅ OK";
+                  const conversionNotice = isXConversion ? " (X > nitter conversion)" : "";
+                  refs.statusDiv.textContent = `✅ OK${conversionNotice}`;
                   refs.statusDiv.addClass("status-ok");
                 } else {
                   status = EMPTY_FEED_VALIDATION_WARNING;
-                  refs.statusDiv.textContent = `⚠ ${EMPTY_FEED_VALIDATION_WARNING}`;
+                  const conversionNotice = isXConversion ? " (X > nitter conversion)" : "";
+                  refs.statusDiv.textContent = `⚠ ${EMPTY_FEED_VALIDATION_WARNING}${conversionNotice}`;
                   refs.statusDiv.addClass("rss-dashboard-status-warning");
                 }
               }
