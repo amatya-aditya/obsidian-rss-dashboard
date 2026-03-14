@@ -9,6 +9,7 @@
 - Fixed Settings export buttons on Obsidian Mobile (iOS/Android) by using the native share/save sheet flow
 - Added toast notifications for export and copy actions so the outcome is always visible
 - Added unit tests covering mobile share, desktop download, and clipboard fallbacks
+- Reduced dead space in dashboard cards by letting cards auto-size while preserving equal-height grid rows
 - Article title in reader now hidden on mobile view
 - Reader settings sheet now notch-safe on iPhone, with improved touch layout, slider sizing, and a bottom “Done” CTA
 
