@@ -82,6 +82,36 @@ export interface FeedParseOptions {
   allowEmpty?: boolean;
 }
 
+/**
+ * Preprocess a feed XML string for preview parsing.
+ *
+ * The Add/Edit Feed modal uses DOMParser("text/xml") for a quick preview.
+ * Some feeds are "feed-shaped" but include minor XML invalidities (most commonly
+ * bare ampersands in text nodes), which causes DOMParser to emit a parsererror.
+ *
+ * We keep this intentionally minimal and safe: escape bare ampersands outside
+ * CDATA while preserving already-valid entities.
+ */
+export function preprocessXmlForPreviewParsing(xml: string): string {
+  if (!xml) return xml;
+
+  const cdataBlocks: string[] = [];
+  const withoutCdata = xml.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, (m) => {
+    const idx = cdataBlocks.push(m) - 1;
+    return `__RSS_DASHBOARD_CDATA_${idx}__`;
+  });
+
+  const escaped = withoutCdata.replace(
+    /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g,
+    "&amp;",
+  );
+
+  return escaped.replace(/__RSS_DASHBOARD_CDATA_(\d+)__/g, (m, n) => {
+    const idx = Number(n);
+    return Number.isFinite(idx) && cdataBlocks[idx] ? cdataBlocks[idx] : m;
+  });
+}
+
 export async function loadFeedForPreview(
   feedUrl: string,
 ): Promise<FeedPreviewData> {
@@ -99,9 +129,11 @@ export async function loadFeedForPreview(
     });
 
     if (text && isValidFeed(text)) {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(text, "text/xml");
-      return parseFeedDoc(doc, feedUrl);
+      const preview = parseFeedPreviewFromXmlText(text, feedUrl);
+      if (preview) {
+        return preview;
+      }
+      throw new Error("Feed XML preview parsing failed");
     }
   } catch {
     // Fall through to rss2json
@@ -160,6 +192,23 @@ function parseFeedDoc(doc: Document, feedUrl: string): FeedPreviewData {
     hasEntries: !!firstItem,
     feedUrl,
   };
+}
+
+export function parseFeedPreviewFromXmlText(
+  xmlText: string,
+  feedUrl: string,
+): FeedPreviewData | null {
+  if (!xmlText) return null;
+
+  const preprocessed = preprocessXmlForPreviewParsing(xmlText);
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(preprocessed, "text/xml");
+
+  if (doc.querySelector("parsererror")) {
+    return null;
+  }
+
+  return parseFeedDoc(doc, feedUrl);
 }
 
 // Type definitions for external API responses
