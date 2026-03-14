@@ -1,4 +1,4 @@
-﻿import { Modal, App, Setting, Notice, setIcon } from "obsidian";
+import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import type {
   Feed,
@@ -49,6 +49,9 @@ function isYouTubePageUrl(url: string): boolean {
   return true;
 }
 
+const EMPTY_FEED_VALIDATION_WARNING =
+  "Feed validation passed, however no content detected.";
+
 export class EditFeedModal extends Modal {
   feed: Feed;
   plugin: RssDashboardPlugin;
@@ -66,14 +69,17 @@ export class EditFeedModal extends Modal {
   }
   onOpen() {
     const { contentEl } = this;
-    this.modalEl.addClasses([
-      "rss-dashboard-modal",
-      "rss-dashboard-modal-container",
-    ]);
+    const isMobile = shouldUseMobileSidebarLayout();
+
+    this.modalEl.className +=
+      " rss-dashboard-modal rss-dashboard-modal-container";
     // Add mobile-specific class for proper styling on mobile/tablet
-    if (shouldUseMobileSidebarLayout()) {
+    if (isMobile) {
       this.modalEl.addClass("rss-mobile-feed-manager-modal");
+      // Hide default close button on mobile in favor of custom header button
+      this.modalEl.addClass("hide-default-close-button");
     }
+
     contentEl.empty();
     new Setting(contentEl).setName("Edit feed").setHeading();
 
@@ -81,9 +87,10 @@ export class EditFeedModal extends Modal {
     const subtitle = contentEl.createDiv({ cls: "add-feed-subtitle" });
     subtitle.textContent = "Modify feed settings and configuration";
 
-    let title = this.feed.title;
-    let url = this.feed.url;
-    let folder = this.feed.folder || "";
+    const { url: feedUrl, title: feedTitle, folder: feedFolder } = this.feed;
+    let url = feedUrl;
+    let title = feedTitle;
+    let folder = feedFolder;
     let status = "";
     let latestEntry = "-";
     let titleInput: HTMLInputElement;
@@ -120,10 +127,10 @@ export class EditFeedModal extends Modal {
         btn.onClick(() => {
           void (async () => {
             // Set loading state
+            status = "⏳ Loading...";
             loadBtn.addClass("loading");
             loadBtn.disabled = true;
-            clearBadgeActiveStates();
-            status = "⏳ Loading...";
+            clearBadgeActiveStates(); // Clear any previous active states
             if (refs.statusDiv) {
               refs.statusDiv.textContent = status;
               refs.statusDiv.removeClass("rss-dashboard-status-warning");
@@ -131,9 +138,23 @@ export class EditFeedModal extends Modal {
               refs.statusDiv.removeClass("status-error");
               refs.statusDiv.addClass("status-loading");
             }
-            let detectedType: "rss" | "podcast" | "youtube" = "rss";
             try {
               let feedUrl = url;
+              let detectedType: "rss" | "podcast" | "youtube" = "rss";
+              let isXConversion = false;
+
+              // Check for X/Twitter URLs and convert to Nitter
+              if (MediaService.isXUrl(url)) {
+                const nitterUrl = MediaService.getNitterRssFeed(url);
+                if (nitterUrl) {
+                  url = nitterUrl;
+                  feedUrl = nitterUrl;
+                  if (urlInput) urlInput.value = nitterUrl;
+                  isXConversion = true;
+                  status = "⏳ Redirecting X to Nitter...";
+                  if (refs.statusDiv) refs.statusDiv.textContent = status;
+                }
+              }
 
               // Check for YouTube page URLs and convert to RSS feed
               if (isYouTubePageUrl(url)) {
@@ -184,15 +205,29 @@ export class EditFeedModal extends Modal {
               } else {
                 latestEntry = "N/A";
               }
+              
               if (refs.latestEntryDiv)
                 refs.latestEntryDiv.textContent = latestEntry;
-              status = "OK";
-              // Success state
+              
               if (refs.statusDiv) {
-                refs.statusDiv.textContent = "✅ OK";
                 refs.statusDiv.removeClass("status-loading");
-                refs.statusDiv.addClass("status-ok");
+                refs.statusDiv.removeClass("status-error");
+                refs.statusDiv.removeClass("status-ok");
+                refs.statusDiv.removeClass("rss-dashboard-status-warning");
+
+                if (feedData.hasEntries) {
+                  status = "OK";
+                  const conversionNotice = isXConversion ? " (X > nitter conversion)" : "";
+                  refs.statusDiv.textContent = `✅ OK${conversionNotice}`;
+                  refs.statusDiv.addClass("status-ok");
+                } else {
+                  status = EMPTY_FEED_VALIDATION_WARNING;
+                  const conversionNotice = isXConversion ? " (X > nitter conversion)" : "";
+                  refs.statusDiv.textContent = `⚠ ${EMPTY_FEED_VALIDATION_WARNING}${conversionNotice}`;
+                  refs.statusDiv.addClass("rss-dashboard-status-warning");
+                }
               }
+
               if (urlInput) {
                 urlInput.addClass("loaded");
               }
@@ -208,6 +243,8 @@ export class EditFeedModal extends Modal {
               if (refs.statusDiv) {
                 refs.statusDiv.textContent = `❌ ${errorMsg}`;
                 refs.statusDiv.removeClass("status-loading");
+                refs.statusDiv.removeClass("status-ok");
+                refs.statusDiv.removeClass("rss-dashboard-status-warning");
                 refs.statusDiv.addClass("status-error");
               }
             } finally {
@@ -793,6 +830,20 @@ export class AddFeedModal extends Modal {
             try {
               let feedUrl = url;
               let detectedType: "rss" | "podcast" | "youtube" = "rss";
+              let isXConversion = false;
+
+              // Check for X/Twitter URLs and convert to Nitter
+              if (MediaService.isXUrl(url)) {
+                const nitterUrl = MediaService.getNitterRssFeed(url);
+                if (nitterUrl) {
+                  url = nitterUrl;
+                  feedUrl = nitterUrl;
+                  if (urlInput) urlInput.value = nitterUrl;
+                  isXConversion = true;
+                  status = "⏳ Redirecting X to Nitter...";
+                  if (refs.statusDiv) refs.statusDiv.textContent = status;
+                }
+              }
 
               // Check for YouTube page URLs and convert to RSS feed
               if (isYouTubePageUrl(url)) {
@@ -903,15 +954,29 @@ export class AddFeedModal extends Modal {
               } else {
                 latestEntry = "N/A";
               }
+              
               if (refs.latestEntryDiv)
                 refs.latestEntryDiv.textContent = latestEntry;
-              status = "OK";
-              // Success state
+              
               if (refs.statusDiv) {
-                refs.statusDiv.textContent = "✅ OK";
                 refs.statusDiv.removeClass("status-loading");
-                refs.statusDiv.addClass("status-ok");
+                refs.statusDiv.removeClass("status-error");
+                refs.statusDiv.removeClass("status-ok");
+                refs.statusDiv.removeClass("rss-dashboard-status-warning");
+
+                if (feedData.hasEntries) {
+                  status = "OK";
+                  const conversionNotice = isXConversion ? " (X > nitter conversion)" : "";
+                  refs.statusDiv.textContent = `✅ OK${conversionNotice}`;
+                  refs.statusDiv.addClass("status-ok");
+                } else {
+                  status = EMPTY_FEED_VALIDATION_WARNING;
+                  const conversionNotice = isXConversion ? " (X > nitter conversion)" : "";
+                  refs.statusDiv.textContent = `⚠ ${EMPTY_FEED_VALIDATION_WARNING}${conversionNotice}`;
+                  refs.statusDiv.addClass("rss-dashboard-status-warning");
+                }
               }
+
               if (urlInput) {
                 urlInput.addClass("loaded");
               }
@@ -960,6 +1025,8 @@ export class AddFeedModal extends Modal {
               if (refs.statusDiv) {
                 refs.statusDiv.textContent = `❌ ${errorMsg}`;
                 refs.statusDiv.removeClass("status-loading");
+                refs.statusDiv.removeClass("status-ok");
+                refs.statusDiv.removeClass("rss-dashboard-status-warning");
                 refs.statusDiv.addClass("status-error");
               }
             } finally {
@@ -1169,7 +1236,7 @@ export class AddFeedModal extends Modal {
         if (this.plugin && finalFolder) {
           await this.plugin.ensureFolderExists(finalFolder);
         }
-        await this.onAdd(
+        const added = await this.onAdd(
           title,
           url,
           finalFolder,
@@ -1178,10 +1245,13 @@ export class AddFeedModal extends Modal {
           scanInterval,
           feedFilters,
         ).catch(() => {
-          /* ignore */
+          return false;
         });
-        this.onSave();
-        this.close();
+        
+        if (added !== false) {
+          this.onSave();
+          this.close();
+        }
       })();
     };
     cancelBtn.onclick = () => this.close();

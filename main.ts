@@ -30,7 +30,11 @@ import {
   RSS_SMALLWEB_VIEW_TYPE,
 } from "./src/views/kagi-smallweb-view";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./src/views/reader-view";
-import { FeedParser } from "./src/services/feed-parser";
+import {
+  FeedParser,
+  formatFeedParseNoticeMessage,
+  getFeedErrorMessage,
+} from "./src/services/feed-parser";
 import { ArticleSaver } from "./src/services/article-saver";
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
@@ -901,8 +905,7 @@ export default class RssDashboardPlugin extends Plugin {
         feedMetadata.importStatus = "completed";
       } catch (error) {
         feedMetadata.importStatus = "failed";
-        feedMetadata.importError =
-          error instanceof Error ? error.message : "Unknown error";
+        feedMetadata.importError = getFeedErrorMessage(error);
       } finally {
         this.backgroundImportQueue.shift();
         processedCount++;
@@ -1290,7 +1293,9 @@ export default class RssDashboardPlugin extends Plugin {
 
       // Try to parse the feed BEFORE adding it to settings
       try {
-        const parsedFeed = await this.feedParser.parseFeed(url, newFeed);
+        const parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
+          allowEmpty: true,
+        });
         if (parsedFeed.folder) {
           await this.ensureFolderExists(parsedFeed.folder, {
             saveSettings: false,
@@ -1308,9 +1313,7 @@ export default class RssDashboardPlugin extends Plugin {
         new Notice(`Feed "${title}" added`);
         return true;
       } catch (error) {
-        new Notice(
-          `Error parsing feed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
+        new Notice(formatFeedParseNoticeMessage(error));
         return false;
       }
     } catch (error) {
@@ -1455,6 +1458,16 @@ export default class RssDashboardPlugin extends Plugin {
           {},
           DEFAULT_SETTINGS.display,
           this.settings.display,
+        );
+      }
+
+      if (!this.settings.readerFormat) {
+        this.settings.readerFormat = DEFAULT_SETTINGS.readerFormat;
+      } else {
+        this.settings.readerFormat = Object.assign(
+          {},
+          DEFAULT_SETTINGS.readerFormat,
+          this.settings.readerFormat,
         );
       }
 

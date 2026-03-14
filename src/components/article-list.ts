@@ -7,6 +7,7 @@ import {
   TABLET_LAYOUT_MAX_WIDTH,
 } from "../utils/platform-utils";
 import { HighlightService } from "../services/highlight-service";
+import { showEditTagModal } from "../utils/tag-utils";
 
 const MAX_VISIBLE_TAGS = 6;
 
@@ -223,6 +224,12 @@ export class ArticleList {
       return style;
     }
     return "minimal";
+  }
+
+  private refreshVisibleArticleTags(): void {
+    this.articles.forEach((article) => {
+      this.updateArticleInPlace(article);
+    });
   }
 
   private persistSettings(): void {
@@ -2934,6 +2941,14 @@ export class ArticleList {
       tagSeparator.style.display = hasTags ? "" : "none";
     };
 
+    const rerenderTagItems = () => {
+      tagsListContainer.empty();
+      for (const nextTag of this.settings.availableTags) {
+        appendTagItem(nextTag);
+      }
+      updateTagSeparatorVisibility();
+    };
+
     const deleteTagFromProfile = (tag: Tag) => {
       const tagIndex = this.settings.availableTags.findIndex(
         (t) => t.name === tag.name,
@@ -2956,6 +2971,7 @@ export class ArticleList {
       }
 
       this.persistSettings();
+      this.refreshVisibleArticleTags();
       new Notice(`Tag "${tag.name}" deleted successfully!`);
       updateTagSeparatorVisibility();
     };
@@ -2979,8 +2995,15 @@ export class ArticleList {
         text: tag.name,
       });
       tagLabel.style.setProperty("--tag-color", tag.color);
+      
+      const editButton = tagItem.createEl("button", {
+        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button",
+        attr: { title: `Edit "${tag.name}" tag`, "aria-label": "Edit tag" },
+      });
+      setIcon(editButton, "pencil");
+      
       const deleteButton = tagItem.createEl("button", {
-        cls: "rss-dashboard-tag-delete-button",
+        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-delete-button",
         attr: { title: `Delete "${tag.name}" tag`, "aria-label": "Delete tag" },
       });
       setIcon(deleteButton, "trash");
@@ -3000,6 +3023,42 @@ export class ArticleList {
         }, 200);
       });
 
+      tagItem.addEventListener("click", (e) => {
+        if (
+          e.target === tagCheckbox ||
+          (e.target instanceof Element &&
+            (e.target.closest(".rss-dashboard-tag-edit-button") ||
+             e.target.closest(".rss-dashboard-tag-delete-button")))
+        ) {
+          return;
+        }
+
+        const isChecked = !tagCheckbox.checked;
+        tagCheckbox.checked = isChecked;
+
+        tagItem.classList.add("rss-dashboard-tag-item-processing");
+
+        onTagChange(tag, isChecked);
+
+        window.setTimeout(() => {
+          tagItem.classList.remove("rss-dashboard-tag-item-processing");
+        }, 200);
+      });
+
+      editButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showEditTagModal({
+          settings: this.settings,
+          tag,
+          onSave: async () => {
+            this.persistSettings();
+            this.refreshVisibleArticleTags();
+            rerenderTagItems();
+          },
+        });
+      });
+
       deleteButton.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -3009,6 +3068,7 @@ export class ArticleList {
 
       tagItem.appendChild(tagCheckbox);
       tagItem.appendChild(tagLabel);
+      tagItem.appendChild(editButton);
       tagItem.appendChild(deleteButton);
     };
 

@@ -18,12 +18,14 @@ release/
 
 
 # testfiles
+test_files/rss/
+test_files/atom/
+test_files/json/
 test_files/*
 !test_files/
 !test_files/stubs/
 !test_files/stubs/obsidian.ts
-!test_files/unit/
-!test_files/unit/youtube-shorts-detection.test.ts
+!test_files/unit/*
 
 # agent
 docs/archive

@@ -1,4 +1,4 @@
-﻿import { requestUrl, Platform } from "obsidian";
+import { requestUrl, Platform } from "obsidian";
 import { Feed, FeedItem, MediaSettings, Tag } from "../types/types.js";
 import { MediaService } from "./media-service";
 import {
@@ -73,7 +73,12 @@ export interface FeedPreviewData {
   link: string;
   image: string;
   latestPubDate: string;
+  hasEntries: boolean;
   feedUrl: string;
+}
+
+export interface FeedParseOptions {
+  allowEmpty?: boolean;
 }
 
 export async function loadFeedForPreview(
@@ -122,6 +127,7 @@ export async function loadFeedForPreview(
       link: data.feed.link || "",
       image: data.feed.image || "",
       latestPubDate: data.items?.[0]?.pubDate || "",
+      hasEntries: (data.items?.length || 0) > 0,
       feedUrl,
     };
   } catch (e) {
@@ -152,6 +158,7 @@ function parseFeedDoc(doc: Document, feedUrl: string): FeedPreviewData {
     link,
     image: imageEl,
     latestPubDate,
+    hasEntries: !!firstItem,
     feedUrl,
   };
 }
@@ -209,6 +216,42 @@ interface JsonFeed {
   authors?: JsonFeedAuthor[];
   icon?: string;
   items?: JsonFeedItem[];
+}
+
+export const EMPTY_FEED_ERROR_MESSAGE =
+  "Feed is valid, but it currently has no items or entries to import.";
+
+export class EmptyFeedError extends Error {
+  constructor(message = EMPTY_FEED_ERROR_MESSAGE) {
+    super(message);
+    this.name = "EmptyFeedError";
+  }
+}
+
+export function isEmptyFeedError(error: unknown): error is EmptyFeedError {
+  return (
+    error instanceof EmptyFeedError ||
+    (error instanceof Error && error.name === "EmptyFeedError")
+  );
+}
+
+export function getFeedErrorMessage(error: unknown): string {
+  if (isEmptyFeedError(error)) {
+    return EMPTY_FEED_ERROR_MESSAGE;
+  }
+
+  return error instanceof Error ? error.message : "Unknown error";
+}
+
+export function formatFeedParseNoticeMessage(
+  error: unknown,
+  prefix = "Error parsing feed",
+): string {
+  if (isEmptyFeedError(error)) {
+    return EMPTY_FEED_ERROR_MESSAGE;
+  }
+
+  return `${prefix}: ${getFeedErrorMessage(error)}`;
 }
 
 function isValidFeed(text: string): boolean {
@@ -792,6 +835,15 @@ interface ParsedItem {
     fileSize?: string;
     authors?: string;
   };
+}
+
+function assertParsedFeedHasEntries(
+  parsed: ParsedFeed,
+  options?: FeedParseOptions,
+): void {
+  if (!options?.allowEmpty && parsed.items.length === 0) {
+    throw new EmptyFeedError();
+  }
 }
 
 export class CustomXMLParser {
@@ -2424,6 +2476,7 @@ export class FeedParser {
   async parseFeed(
     url: string,
     existingFeed: Feed | null = null,
+    options?: FeedParseOptions,
   ): Promise<Feed> {
     if (!url) {
       throw new Error("Feed url is required");
@@ -2431,6 +2484,9 @@ export class FeedParser {
 
     const responseText = await fetchFeedXml(url);
     const parsed = this.parser.parseString(responseText);
+
+    assertParsedFeedHasEntries(parsed, options);
+
     const feedTitle = existingFeed?.title || parsed.title || "Unnamed feed";
 
     const newFeed: Feed = existingFeed || {
@@ -2841,6 +2897,8 @@ export class FeedParserService {
   public async parseFeed(url: string, folder: string): Promise<Feed> {
     const xml = await this.fetchFeedXml(url);
     const parsed = this.parser.parseString(xml);
+
+    assertParsedFeedHasEntries(parsed);
 
     const isPodcast = parsed.items.some(
       (item) =>

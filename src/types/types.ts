@@ -190,6 +190,19 @@ export interface DisplaySettings {
   cardSpacing: number;
 }
 
+export type ReaderTextAlign = "justify" | "left";
+export type ReaderFontFamily = "default" | "serif" | "sans" | "mono";
+export type ReaderParagraphSpacing = "default" | "tight" | "normal" | "loose";
+
+export interface ReaderFormatSettings {
+  textAlign: ReaderTextAlign;
+  wordsPerLine: number;
+  fontScalePct: number;
+  lineHeightPct: number;
+  fontFamily: ReaderFontFamily;
+  paragraphSpacing: ReaderParagraphSpacing;
+}
+
 export interface HighlightWord {
   id: string;
   text: string;
@@ -275,6 +288,8 @@ export interface RssDashboardSettings {
   readerViewLocation: ViewLocation;
   useWebViewer: boolean;
 
+  readerFormat: ReaderFormatSettings;
+
   media: MediaSettings;
   articleSaving: ArticleSavingSettings;
   display: DisplaySettings;
@@ -342,6 +357,14 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   viewLocation: "main",
   readerViewLocation: "main",
   useWebViewer: true,
+  readerFormat: {
+    textAlign: "justify",
+    wordsPerLine: 0,
+    fontScalePct: 100,
+    lineHeightPct: 160,
+    fontFamily: "default",
+    paragraphSpacing: "default",
+  },
   media: {
     defaultYouTubeFolder: "Videos",
     defaultYouTubeTag: "youtube",
