@@ -1,3 +1,18 @@
+## [2.3.0-alpha.2] - March 14, 2026
+
+### New Features
+
+- Added copy-to-clipboard actions for Settings exports (data.json, usersettings.json, OPML)
+
+### Fixed
+
+- Fixed Settings export buttons on Obsidian Mobile (iOS/Android) by using the native share/save sheet flow
+- Added toast notifications for export and copy actions so the outcome is always visible
+- Added unit tests covering mobile share, desktop download, and clipboard fallbacks
+- Article title in reader now hidden on mobile view
+
+---
+
 ## [2.3.0-alpha.1] - March 13, 2026
 
 ### New Features
@@ -6,6 +21,7 @@
 - Added a media setting to enable or disable YouTube Shorts detection
 - **Tag Management**: Recreated and enhanced tag editing functionality across Sidebar, Article List, and Reader View, allowing direct modification of tag names and colors.
 - **X/Twitter to Nitter**: Added automatic redirection of X/Twitter feeds to Nitter RSS feeds.
+- New reader settings menu for adjusting font and paragraph settings
 
 ### Improvements
 

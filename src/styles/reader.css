@@ -40,6 +40,12 @@
   text-overflow: ellipsis;
   margin-right: 10px;
 }
+
+@media (max-width: 600px) {
+  .rss-reader-header .rss-reader-title {
+    display: none;
+  }
+}
 .rss-reader-actions {
   display: flex;
   gap: 5px;

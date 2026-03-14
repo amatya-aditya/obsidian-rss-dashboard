@@ -2164,19 +2164,15 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           .setIcon("download")
           .setButtonText("Export data.json")
           .onClick(() => {
-            const data = this.plugin.settings;
-            const blob = new Blob([JSON.stringify(data, null, 2)], {
-              type: "application/json",
-            });
-            const url = URL.createObjectURL(blob);
-            const a = document.body.createEl("a", {
-              attr: {
-                href: url,
-                download: "rss-dashboard-data.json",
-              },
-            });
-            a.click();
-            URL.revokeObjectURL(url);
+            void this.plugin.exportDataJson();
+          }),
+      )
+      .addButton((button) =>
+        button
+          .setIcon("copy")
+          .setTooltip("Copy data.json to clipboard")
+          .onClick(() => {
+            void this.plugin.copyDataJsonToClipboard();
           }),
       );
 
@@ -2206,6 +2202,14 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           .onClick(() => {
             void this.plugin.exportUserSettingsJson();
           }),
+      )
+      .addButton((button) =>
+        button
+          .setIcon("copy")
+          .setTooltip("Copy usersettings.json to clipboard")
+          .onClick(() => {
+            void this.plugin.copyUserSettingsJsonToClipboard();
+          }),
       );
 
     const opmlSection = containerEl.createDiv();
@@ -2234,6 +2238,14 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           .setIcon("download")
           .setButtonText("Export opml")
           .onClick(() => this.plugin.exportOpml()),
+      )
+      .addButton((button) =>
+        button
+          .setIcon("copy")
+          .setTooltip("Copy feeds.opml to clipboard")
+          .onClick(() => {
+            void this.plugin.copyOpmlToClipboard();
+          }),
       );
   }
 
