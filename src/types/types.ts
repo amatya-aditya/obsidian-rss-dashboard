@@ -246,6 +246,18 @@ export interface FeedFilterSettings {
   rules: KeywordFilterRule[];
 }
 
+export interface FreshRSSSettings {
+  enabled: boolean;
+  serverUrl: string;
+  username: string;
+  password: string;
+  syncInterval: number; // minutes — how often to sync with FreshRSS
+  syncReadState: boolean; // push read/unread to server
+  syncStarredState: boolean; // push starred to server
+  importFeeds: boolean; // import subscriptions from FreshRSS
+  lastSyncTime: number;
+}
+
 export interface RssDashboardSettings {
   feeds: Feed[];
   folders: Folder[];
@@ -295,6 +307,7 @@ export interface RssDashboardSettings {
   display: DisplaySettings;
   highlights: HighlightSettings;
   filters: GlobalFilterSettings;
+  freshRSS: FreshRSSSettings;
 }
 
 export type SettingsOnly = Omit<RssDashboardSettings, 'feeds' | 'folders' | 'availableTags'>;
@@ -454,5 +467,16 @@ guid: "{{guid}}"
     includeLogic: "AND",
     bypassAll: false,
     rules: [],
+  },
+  freshRSS: {
+    enabled: false,
+    serverUrl: "",
+    username: "",
+    password: "",
+    syncInterval: 30,
+    syncReadState: true,
+    syncStarredState: true,
+    importFeeds: true,
+    lastSyncTime: 0,
   },
 };
