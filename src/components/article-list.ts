@@ -5,6 +5,21 @@ import { formatDateWithRelative, ensureUtf8Meta, setCssProps } from "../utils/pl
 
 const MAX_VISIBLE_TAGS = 6;
 
+/** Strip HTML tags and collapse whitespace to produce a plain-text snippet. */
+function stripHtmlToText(html: string, maxLength = 220): string {
+    if (!html) return "";
+    try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+        let text = doc.body.textContent || "";
+        text = text.replace(/\s+/g, " ").trim();
+        if (text.length > maxLength) text = text.substring(0, maxLength) + "...";
+        return text;
+    } catch {
+        return "";
+    }
+}
+
 interface ArticleListCallbacks {
     onArticleClick: (article: FeedItem) => void;
     onToggleViewStyle: (style: "list" | "card") => void;
@@ -1050,21 +1065,33 @@ export class ArticleList {
                             return;
                         }
                     }
-                    coverContainer.remove();
+                    // Replace failed image with summary text if available
+                    const errSummary = article.summary || stripHtmlToText(article.description || article.content || "");
+                    if (errSummary) {
+                        coverContainer.empty();
+                        coverContainer.removeClass("rss-dashboard-cover-container");
+                        coverContainer.addClass("rss-dashboard-cover-summary-only");
+                        coverContainer.textContent = errSummary;
+                    } else {
+                        coverContainer.remove();
+                    }
                 };
-                
-                if (article.summary) {
+
+                const overlaySummary = article.summary || stripHtmlToText(article.description || article.content || "");
+                if (overlaySummary) {
                     const summaryOverlay = coverContainer.createDiv({
                         cls: "rss-dashboard-summary-overlay",
                     });
-                    summaryOverlay.textContent = article.summary;
+                    summaryOverlay.textContent = overlaySummary;
                 }
-            } else if (article.summary) {
-                
-                const summaryOnlyContainer = cardContent.createDiv({
-                    cls: "rss-dashboard-cover-summary-only",
-                });
-                summaryOnlyContainer.textContent = article.summary;
+            } else {
+                const fallbackSummary = article.summary || stripHtmlToText(article.description || article.content || "");
+                if (fallbackSummary) {
+                    const summaryOnlyContainer = cardContent.createDiv({
+                        cls: "rss-dashboard-cover-summary-only",
+                    });
+                    summaryOnlyContainer.textContent = fallbackSummary;
+                }
             }
 
             

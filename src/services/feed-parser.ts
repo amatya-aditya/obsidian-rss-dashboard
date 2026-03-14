@@ -2173,7 +2173,8 @@ export class FeedParser {
                     length: ''
                 } : undefined);
 
-                const itemGuid = this.convertToAbsoluteUrl(item.guid || item.link || '', url);
+                const rawGuid = item.guid || item.link || '';
+                const itemGuid = rawGuid.startsWith('http') ? this.convertToAbsoluteUrl(rawGuid, url) : rawGuid;
                 const existingItem = existingItems.get(itemGuid);
                 
                 if (existingItem) {
@@ -2283,8 +2284,9 @@ export class FeedParser {
             
             if (existingFeed) {
                 existingFeed.items.forEach(item => {
-                    const itemGuid = this.convertToAbsoluteUrl(item.guid || item.link || '', url);
-                    
+                    const rawGuid = item.guid || item.link || '';
+                    const itemGuid = rawGuid.startsWith('http') ? this.convertToAbsoluteUrl(rawGuid, url) : rawGuid;
+
                     if (!existingItems.has(itemGuid)) {
                         
                         allItems.push(item);

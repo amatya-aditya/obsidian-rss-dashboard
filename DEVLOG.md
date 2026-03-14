@@ -1,5 +1,31 @@
 # Development Log
 
+## 2026-03-14 — Session 7: YouTube GUID Fix, Reddit Card Summaries, BRAT Release
+
+### YouTube Feed Refresh GUID Mismatch (CRITICAL FIX)
+- **Problem**: YouTube feeds would stop updating after first import. Deleting and re-adding the feed was the only way to get new items. Root cause: `convertToAbsoluteUrl()` was applied to YouTube `yt:video:VIDEO_ID` guids during refresh, mangling them into malformed URLs like `https://youtube.com/feeds/...yt:video:xyz`. The mangled guid never matched the stored guid, so every item appeared "new" on every refresh — causing duplicates, lost read/starred state, and eventually stale feeds.
+- **Fix (feed-parser.ts)**: Skip `convertToAbsoluteUrl()` for guids that don't start with `http`. Applied in both the incoming-item lookup (line ~2176) and the existing-item retention loop (line ~2286).
+
+### Reddit/RSS Cards Showing Blank Space
+- **Problem**: Reddit feed cards showed title and feed name but large blank areas — no description preview. Two causes: (1) `article.summary` wasn't being used as fallback when no cover image existed; (2) Reddit RSS content contains `<img>` tags that extract as cover images, but the Reddit preview URLs fail to load — and the `onerror` handler removed the entire cover container including the summary overlay.
+- **Fix (article-list.ts)**: Added `stripHtmlToText()` helper that strips HTML and truncates to 220 chars. Card renderer now falls back to generating summary from `description`/`content` at render time. Image `onerror` handler now replaces the failed cover container with a summary-only block instead of removing it entirely.
+
+### Version Bump & BRAT Release
+- **Version**: `2.2.0-motion.1` — fork identifier for BRAT distribution
+- **Release workflow**: Removed `--draft` flag so GitHub releases are published automatically (BRAT requires non-draft releases). Added `motion` tag pattern to prerelease regex.
+- **Deploy**: Tag `2.2.0-motion.1` pushed to `motion2082/obsidian-rss-dashboard`
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `src/services/feed-parser.ts` | GUID mismatch fix: skip URL conversion for non-URL guids |
+| `src/components/article-list.ts` | `stripHtmlToText()` helper; render-time summary fallback; image error → summary replacement |
+| `.github/workflows/release.yml` | Remove `--draft`, add `motion` tag to prerelease regex |
+| `manifest.json` | Version bump to `2.2.0-motion.1` |
+| `versions.json` | Add `2.2.0-motion.1` entry |
+
+---
+
 ## 2026-03-12 — Session 5: YouTube RSS Outage, Proxy Cleanup, Save & Open UX
 
 ### YouTube RSS Feeds Returning 404
