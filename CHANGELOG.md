@@ -7,6 +7,20 @@
 - Added automatic YouTube Shorts detection and tagging from feed XML
 - Added a media setting to enable or disable YouTube Shorts detection
 
+### Improved
+
+- Standardized YouTube embed generation through a shared media-service helper
+- Routed embedded playback through Privacy Enhanced Mode using `youtube-nocookie.com`
+- Added a visible `Watch on YouTube` handoff from the in-app player
+- Documented YouTube embed behavior and legal links in the README
+
+### Fixed
+
+- Fixed YouTube embed Error 153 by setting iframe `referrerpolicy="strict-origin-when-cross-origin"`
+- Removed unsupported YouTube quality override URL rewriting from the player
+- Enforced a minimum 200x200 YouTube player surface to better match RMF requirements
+- Added regression tests for YouTube embed URL generation and feed video-id normalization
+
 ---
 
 ## [2.2.0-beta.4] - March 8, 2026
