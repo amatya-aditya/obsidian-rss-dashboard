@@ -1841,33 +1841,13 @@ export class ReaderView extends ItemView {
 
     if (isMobile) {
       portalDropdown.addClass("rss-reader-format-mobile-sheet");
-
-      const sheetHeader = portalDropdown.createDiv({
-        cls: "rss-reader-format-sheet-header",
-      });
-      sheetHeader.createDiv({
-        cls: "rss-reader-format-sheet-title",
-        text: "Reader settings",
-      });
-      const sheetActions = sheetHeader.createDiv({
-        cls: "rss-reader-format-sheet-actions",
-      });
-      const doneBtn = sheetActions.createEl("button", {
-        cls: "rss-reader-format-sheet-btn rss-reader-format-sheet-btn-done",
-        text: "Done",
-      });
-      doneBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.closeReaderFormatPortal(true);
-      });
     }
 
     const controlsContainer = portalDropdown.createDiv({
       cls: "rss-reader-format-controls",
     });
 
-    new Setting(controlsContainer).setName("Reader").setHeading();
+    new Setting(controlsContainer).setName("Reader settings").setHeading();
 
     let alignDropdown: { setValue: (value: string) => void } | null = null;
     new Setting(controlsContainer)
@@ -2039,6 +2019,22 @@ export class ReaderView extends ItemView {
       });
     });
 
+    if (isMobile) {
+      new Setting(controlsContainer).addButton((btn) => {
+        btn.setButtonText("Done");
+        // Prefer Obsidian CTA styling; fall back to class if older API.
+        const maybeCta = btn as unknown as { setCta?: () => void };
+        maybeCta.setCta?.();
+        btn.buttonEl.addClass("mod-cta");
+        btn.buttonEl.addClass("rss-reader-format-done-cta");
+        btn.onClick((e: MouseEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.closeReaderFormatPortal(true);
+        });
+      });
+    }
+
     this.readerFormatPortal = portalDropdown;
     this.readerFormatDocument = targetDocument;
 
@@ -2046,9 +2042,12 @@ export class ReaderView extends ItemView {
       const syncMobileViewportHeight = () => {
         const vvp = targetWindow.visualViewport;
         const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
+        const computed = targetWindow.getComputedStyle(portalDropdown);
+        const bottomOffset = Number.parseFloat(computed.bottom || "0") || 0;
+        const maxHeight = Math.max(220, Math.floor(viewportHeight - bottomOffset - 8));
         portalDropdown.style.setProperty(
           "max-height",
-          `${viewportHeight - 16}px`,
+          `${maxHeight}px`,
           "important",
         );
       };

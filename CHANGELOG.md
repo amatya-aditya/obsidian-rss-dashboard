@@ -10,6 +10,7 @@
 - Added toast notifications for export and copy actions so the outcome is always visible
 - Added unit tests covering mobile share, desktop download, and clipboard fallbacks
 - Article title in reader now hidden on mobile view
+- Reader settings sheet now notch-safe on iPhone, with improved touch layout, slider sizing, and a bottom “Done” CTA
 
 ---
 
