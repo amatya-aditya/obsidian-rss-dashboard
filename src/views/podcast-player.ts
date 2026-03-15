@@ -1,6 +1,7 @@
 import { FeedItem } from "../types/types";
 import { App, setIcon } from "obsidian";
 import { MediaService } from "../services/media-service";
+import { sanitizeAndAppendHtml } from "../utils/safe-html";
 
 export class PodcastPlayer {
     private container: HTMLElement;
@@ -398,6 +399,8 @@ export class PodcastPlayer {
         }
         
         this.updateProgressDisplay();
+
+        this.renderEpisodeDetailsUnderProgress();
          
         if (this.playlist && this.playlist.length > 1) {
             const playlistSection = this.container.createDiv({ cls: "podcast-playlist-section" });
@@ -488,6 +491,118 @@ export class PodcastPlayer {
             
             const emptyState = this.container.createDiv({ cls: "playlist-empty" });
             emptyState.textContent = "No other episodes available in this feed";
+        }
+    }
+
+    private stripWhitespace(input: string): string {
+        return (input || "").replace(/\s+/g, "");
+    }
+
+    private selectEpisodeNotesHtml(item: FeedItem): string {
+        const content = (item.content || "").trim();
+        const description = (item.description || "").trim();
+        const itunesSummary = (item.itunes?.summary || "").trim();
+        const summary = (item.summary || "").trim();
+
+        if (content) {
+            const meaningfullyDifferent =
+                content.length > 40 && this.stripWhitespace(content) !== this.stripWhitespace(description);
+            if (!description || meaningfullyDifferent) {
+                return content;
+            }
+        }
+
+        return description || itunesSummary || summary || "";
+    }
+
+    private formatBytes(bytes: number): string {
+        if (!Number.isFinite(bytes) || bytes <= 0) return "";
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let value = bytes;
+        let unitIndex = 0;
+        while (value >= 1024 && unitIndex < units.length - 1) {
+            value /= 1024;
+            unitIndex += 1;
+        }
+        const rounded = value >= 10 || unitIndex === 0 ? Math.round(value) : Math.round(value * 10) / 10;
+        return `${rounded} ${units[unitIndex]}`;
+    }
+
+    private renderEpisodeDetailsUnderProgress(): void {
+        if (!this.currentItem || !this.playerEl) return;
+
+        const item = this.currentItem;
+        const notesHtml = this.selectEpisodeNotesHtml(item);
+
+        const entries: Array<{ label: string; value: string; href?: string }> = [];
+
+        if (item.pubDate) {
+            const d = new Date(item.pubDate);
+            entries.push({
+                label: "Published",
+                value: Number.isNaN(d.getTime()) ? item.pubDate : d.toLocaleString(),
+            });
+        }
+
+        const duration = (item.duration || item.itunes?.duration || "").trim();
+        if (duration) entries.push({ label: "Duration", value: duration });
+
+        const author = (item.author || "").trim();
+        if (author) entries.push({ label: "Author", value: author });
+
+        if (typeof item.explicit === "boolean") {
+            entries.push({ label: "Explicit", value: item.explicit ? "Yes" : "No" });
+        }
+
+        if (typeof item.season === "number") entries.push({ label: "Season", value: String(item.season) });
+        if (typeof item.episode === "number") entries.push({ label: "Episode", value: String(item.episode) });
+
+        const episodeType = (item.episodeType || "").trim();
+        if (episodeType) entries.push({ label: "Type", value: episodeType });
+
+        const category = (item.category || "").trim();
+        if (category) entries.push({ label: "Category", value: category });
+
+        const link = (item.link || "").trim();
+        if (link) entries.push({ label: "Link", value: "Open episode", href: link });
+
+        const enclosureLen = (item.enclosure?.length || "").trim();
+        if (enclosureLen) {
+            const n = Number(enclosureLen);
+            const formatted = Number.isFinite(n) ? this.formatBytes(n) : "";
+            entries.push({ label: "Size", value: formatted || enclosureLen });
+        }
+
+        const hasNotes = Boolean(notesHtml && notesHtml.trim());
+        const hasMeta = entries.length > 0;
+        if (!hasNotes && !hasMeta) return;
+
+        const details = this.playerEl.createEl("details", { cls: "podcast-episode-details" });
+        details.setAttribute("data-podcast-theme", this.theme);
+
+        details.createEl("summary", { text: "Episode details" });
+        const body = details.createDiv({ cls: "podcast-episode-details-body" });
+
+        if (hasMeta) {
+            const grid = body.createDiv({ cls: "podcast-episode-meta-grid" });
+            entries.forEach((entry) => {
+                grid.createDiv({ cls: "podcast-episode-meta-label", text: entry.label });
+                const valueEl = grid.createDiv({ cls: "podcast-episode-meta-value" });
+                if (entry.href) {
+                    const a = valueEl.createEl("a", { text: entry.value, attr: { href: entry.href } });
+                    a.target = "_blank";
+                    a.rel = "noopener noreferrer";
+                } else {
+                    valueEl.textContent = entry.value;
+                }
+            });
+        }
+
+        if (hasNotes) {
+            const notes = body.createDiv({ cls: "podcast-episode-notes" });
+            notes.createDiv({ cls: "podcast-episode-notes-title", text: "Show notes" });
+            const notesBody = notes.createDiv({ cls: "podcast-episode-notes-body" });
+            sanitizeAndAppendHtml(notesBody, notesHtml);
         }
     }
 

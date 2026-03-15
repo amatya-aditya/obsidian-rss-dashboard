@@ -4,6 +4,7 @@
 
 - Added copy-to-clipboard actions for Settings exports (data.json, usersettings.json, OPML)
 - **Podcast Player UI**: Refreshed in-app podcast player layout and controls.
+- **Episode Details**: Added a collapsible "Episode details" section under the seek bar showing episode metadata and sanitized show notes (from parsed feed content).
 - **Podcast Tags**: Show episode tags in the player and in playlist rows (with overflow handling).
 - **Live Tag Sync**: Tag assignment changes now update in real time across dashboard cards, player tag strip, and playlist rows.
 
