@@ -1,8 +1,8 @@
-import { TFile, App, Notice, requestUrl } from "obsidian";
+import { TFile, App, Notice } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
 import TurndownService from "turndown";
 import { Readability } from "@mozilla/readability";
-import { ensureUtf8Meta } from '../utils/platform-utils';
+import { ensureUtf8Meta, robustFetch } from '../utils/platform-utils';
 
 export class ArticleSaver {
     private app: App;
@@ -222,38 +222,23 @@ guid: "{{guid}}"
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
                 "DNT": "1",
                 "Connection": "keep-alive",
                 "Upgrade-Insecure-Requests": "1"
             };
 
-            let response = await requestUrl({ 
-                url,
-                headers
-            });
+            const parser = new DOMParser();
+            const text = await robustFetch(url, { headers });
             
-            
-            if (!response.text) {
-                
-                
-                
+            if (!text) {
                 if (url.includes('journals.sagepub.com') && url.includes('/doi/full/')) {
                     const abstractUrl = url.replace('/doi/full/', '/doi/abs/');
-                    
-                    
                     try {
-                        response = await requestUrl({ 
-                            url: abstractUrl,
-                            headers
-                        });
-                        
-                        if (!response.text) {
-                            
-                            return "";
-                        }
+                        const fallbackText = await robustFetch(abstractUrl, { headers });
+                        if (!fallbackText) return "";
+                        const fallbackDoc = parser.parseFromString(fallbackText, "text/html");
+                        return this.extractContentFromDocument(fallbackDoc, abstractUrl);
                     } catch {
-                        
                         return "";
                     }
                 } else {
@@ -261,9 +246,7 @@ guid: "{{guid}}"
                 }
             }
             
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(response.text, "text/html");
-            
+            const doc = parser.parseFromString(text, "text/html");
             
             const errorIndicators = [
                 'access denied',
@@ -277,30 +260,20 @@ guid: "{{guid}}"
             
             const pageText = doc.body.textContent?.toLowerCase() || '';
             if (errorIndicators.some(indicator => pageText.includes(indicator))) {
-                
-                
-                
                 if (url.includes('journals.sagepub.com') && url.includes('/doi/full/')) {
                     const abstractUrl = url.replace('/doi/full/', '/doi/abs/');
-                    
-                    
                     try {
-                        const fallbackResponse = await requestUrl({ 
-                            url: abstractUrl,
-                            headers
-                        });
-                        
-                        if (fallbackResponse.text) {
-                            const fallbackDoc = parser.parseFromString(fallbackResponse.text, "text/html");
+                        const fallbackText = await robustFetch(abstractUrl, { headers });
+                        if (fallbackText) {
+                            const fallbackDoc = parser.parseFromString(fallbackText, "text/html");
                             const fallbackPageText = fallbackDoc.body.textContent?.toLowerCase() || '';
                             
                             if (!errorIndicators.some(indicator => fallbackPageText.includes(indicator))) {
-                                
                                 return this.extractContentFromDocument(fallbackDoc, abstractUrl);
                             }
                         }
                     } catch {
-                        // Fallback attempt failed, continue with empty content
+                        // Fallback attempt failed
                     }
                 }
                 
@@ -319,12 +292,12 @@ guid: "{{guid}}"
             const article = new Readability(doc).parse();
             const content = article?.content || "";
             
-            return this.convertRelativeUrlsInContent(ensureUtf8Meta(content), url);
+            return this.convertRelativeUrlsInContent(content, url);
         } else {
             
             const mainContent = doc.querySelector('main, article, .content, .post-content, .entry-content, .article-content, .full-text');
             if (mainContent) {
-                return this.convertRelativeUrlsInContent(ensureUtf8Meta(new XMLSerializer().serializeToString(mainContent)), url);
+                return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(mainContent), url);
             } else {
                 
                 const contentSelectors = [
@@ -341,12 +314,12 @@ guid: "{{guid}}"
                 for (const selector of contentSelectors) {
                     const element = doc.querySelector(selector);
                     if (element) {
-                        return this.convertRelativeUrlsInContent(ensureUtf8Meta(new XMLSerializer().serializeToString(element)), url);
+                        return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(element), url);
                     }
                 }
                 
                 
-                return this.convertRelativeUrlsInContent(ensureUtf8Meta(new XMLSerializer().serializeToString(doc.body)), url);
+                return this.convertRelativeUrlsInContent(new XMLSerializer().serializeToString(doc.body), url);
             }
         }
     }
@@ -355,66 +328,81 @@ guid: "{{guid}}"
     private convertRelativeUrlsInContent(content: string, baseUrl: string): string {
         if (!content || !baseUrl) return content;
         try {
-            
-            const baseHost = (() => {
-                try {
-                    return new URL(baseUrl).host;
-                } catch {
-                    return "";
-                }
-            })();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(content, "text/html");
 
-            content = content.replace(
-                /app:\/\//g,
-                'https://'
-            );
-
-            
-            content = content.replace(
-                /<img([^>]+)src=["']([^"']+)["']/gi,
-                (match: string, attributes: string, src: string) => {
+            // Update <img> tags
+            doc.querySelectorAll("img").forEach((img) => {
+                let src = img.getAttribute("src");
+                
+                // Substack specific: extract original image from data-attrs JSON if present
+                const dataAttrs = img.getAttribute("data-attrs");
+                if (dataAttrs) {
                     try {
-                        const srcUrl = new URL(src, baseUrl);
-                        if (srcUrl.host !== baseHost) {
-                            srcUrl.host = baseHost;
-                            srcUrl.protocol = "https:";
-                            return `<img${attributes}src="${srcUrl.toString()}"`;
+                        const attrs = JSON.parse(dataAttrs) as { src?: string };
+                        if (attrs.src && typeof attrs.src === "string") {
+                            src = attrs.src;
                         }
-                        return `<img${attributes}src="${srcUrl.toString()}"`;
                     } catch {
-                        return `<img${attributes}src="${src}"`;
+                        // Not a Substack image or malformed JSON
                     }
                 }
-            );
 
-            content = content.replace(
-                /<source([^>]+)srcset=["']([^"']+)["']/gi,
-                (match: string, attributes: string, srcset: string) => {
-                    const processedSrcset = srcset.split(',').map((part: string) => {
-                        const trimmedPart = part.trim();
-                        const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
-                        if (urlMatch) {
-                            const url = urlMatch[1];
-                            const sizeDescriptor = urlMatch[2] || '';
-                            const absoluteUrl = this.convertToAbsoluteUrl(url, baseUrl);
-                            return absoluteUrl + sizeDescriptor;
+                if (src) {
+                    img.setAttribute("src", this.convertToAbsoluteUrl(src.trim(), baseUrl));
+                }
+
+                // Handle srcset on <img>
+                const srcset = img.getAttribute("srcset");
+                if (srcset) {
+                    img.setAttribute("srcset", this.processSrcset(srcset, baseUrl));
+                }
+
+                // Handle common lazy loading attributes
+                ["data-src", "data-srcset", "data-original", "data-delayed-url"].forEach(attrName => {
+                    const val = img.getAttribute(attrName);
+                    if (val) {
+                        if (attrName.includes("srcset")) {
+                            img.setAttribute(attrName, this.processSrcset(val, baseUrl));
+                        } else {
+                            img.setAttribute(attrName, this.convertToAbsoluteUrl(val.trim(), baseUrl));
                         }
-                        return trimmedPart;
-                    }).join(', ');
-                    return `<source${attributes}srcset="${processedSrcset}"`;
-                }
-            );
+                    }
+                });
+            });
 
-            content = content.replace(
-                /<a([^>]+)href=["']([^"']+)["']/gi,
-                (match: string, attributes: string, href: string) => {
-                    const absoluteHref = this.convertToAbsoluteUrl(href, baseUrl);
-                    return `<a${attributes}href="${absoluteHref}"`;
+            // Update <source> tags
+            doc.querySelectorAll("source").forEach((source) => {
+                const srcset = source.getAttribute("srcset");
+                if (srcset) {
+                    source.setAttribute("srcset", this.processSrcset(srcset, baseUrl));
                 }
-            );
-            return content;
-        } catch {
-            
+
+                const dataSrcset = source.getAttribute("data-srcset");
+                if (dataSrcset) {
+                    source.setAttribute("data-srcset", this.processSrcset(dataSrcset, baseUrl));
+                }
+            });
+
+            // Update <a> tags
+            doc.querySelectorAll("a").forEach((a) => {
+                const href = a.getAttribute("href");
+                if (href) {
+                    a.setAttribute("href", this.convertToAbsoluteUrl(href, baseUrl));
+                }
+            });
+
+            // Update <iframe> tags
+            doc.querySelectorAll("iframe").forEach((iframe) => {
+                const src = iframe.getAttribute("src");
+                if (src) {
+                    iframe.setAttribute("src", this.convertToAbsoluteUrl(src, baseUrl));
+                }
+            });
+
+            return doc.body.innerHTML;
+        } catch (e) {
+            console.error("[RSS Dashboard] Failed to convert relative URLs in ArticleSaver:", e);
             return content;
         }
     }
@@ -453,6 +441,31 @@ guid: "{{guid}}"
             
             return relativeUrl;
         }
+    }
+
+    private processSrcset(srcset: string, baseUrl: string): string {
+        if (!srcset) return "";
+        
+        // Substack and other CDNs use commas in URLs. 
+        // Standard srcset splits by comma followed by whitespace.
+        // However, some feeds have dense srcset without spaces.
+        // We split by commas that are:
+        // 1. Followed by whitespace OR
+        // 2. Followed by http/https/double-slash (start of next URL)
+        return srcset
+            .split(/,\s+|,(?=https?:|\/\/)/) 
+            .map((part) => {
+                const trimmedPart = part.trim();
+                // Match the URL and optional descriptor
+                const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w|\s+\d+x)?$/);
+                if (urlMatch) {
+                    const url = urlMatch[1];
+                    const sizeDescriptor = urlMatch[2] || "";
+                    return this.convertToAbsoluteUrl(url.trim(), baseUrl) + sizeDescriptor;
+                }
+                return trimmedPart;
+            })
+            .join(", ");
     }
     
     

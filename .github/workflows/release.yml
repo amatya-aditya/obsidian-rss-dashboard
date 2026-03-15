@@ -46,10 +46,16 @@ jobs:
           release_notes="Release $tag"
           release_flags=(--title="$tag" --notes="$release_notes" --draft)
 
+          # Alpha tags are prereleases and should be published (not drafts) so BRAT can see them.
+          if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+$ ]]; then
+            release_notes="Alpha release $tag"
+            release_flags=(--title="$tag" --notes="$release_notes" --prerelease)
+          fi
+
           # Beta tags must be formatted without a leading "v", e.g. 2.1.0-beta.1
           if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]]; then
             release_notes="Beta release $tag"
-            release_flags=(--title="$tag" --notes="$release_notes" --draft --prerelease)
+            release_flags=(--title="$tag" --notes="$release_notes" --prerelease)
           fi
 
           # Create release with all assets

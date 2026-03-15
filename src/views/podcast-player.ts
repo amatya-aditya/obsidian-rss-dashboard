@@ -1,5 +1,7 @@
 import { FeedItem } from "../types/types";
 import { App, setIcon } from "obsidian";
+import { MediaService } from "../services/media-service";
+import { sanitizeAndAppendHtml } from "../utils/safe-html";
 
 export class PodcastPlayer {
     private container: HTMLElement;
@@ -7,15 +9,19 @@ export class PodcastPlayer {
     private theme: string;
     private audioElement: HTMLAudioElement | null = null;
     private currentItem: FeedItem | null = null;
+    private hasAudioForCurrentItem = true;
     private playlist: FeedItem[] = [];
     private progressInterval: number | null = null;
     private progressData: Map<string, { position: number, duration: number }> = new Map();
     private currentPlaylistIndex = 0;
     private isShuffled = false;
     private originalPlaylist: FeedItem[] = [];
+    private sortOrder: 'recent' | 'oldest' = 'recent';
+    private previousVolume = 1;
+    private onEpisodeSelected?: (item: FeedItem, source: 'playlist' | 'nav' | 'autoplay' | 'external') => void;
 
     private playerEl: HTMLElement | null = null;
-    private playButton: HTMLElement | null = null;
+    private playButton: HTMLButtonElement | null = null;
     private currentTimeEl: HTMLElement | null = null;
     private durationEl: HTMLElement | null = null;
     private progressBarEl: HTMLProgressElement | null = null;
@@ -26,7 +32,13 @@ export class PodcastPlayer {
     private volumeSlider: HTMLElement | null = null;
     private volumeContainer: HTMLElement | null = null;
 
-    constructor(container: HTMLElement, app: App, theme?: string, playlist?: FeedItem[]) {
+    constructor(
+        container: HTMLElement,
+        app: App,
+        theme?: string,
+        playlist?: FeedItem[],
+        onEpisodeSelected?: (item: FeedItem, source: 'playlist' | 'nav' | 'autoplay' | 'external') => void
+    ) {
         this.container = container;
         this.app = app;
         this.theme = theme || 'obsidian';
@@ -34,6 +46,7 @@ export class PodcastPlayer {
             this.playlist = playlist;
             this.originalPlaylist = [...playlist];
         }
+        this.onEpisodeSelected = onEpisodeSelected;
         this.loadProgressData();
     }
     
@@ -45,76 +58,273 @@ export class PodcastPlayer {
     }
     
     
-    loadEpisode(item: FeedItem, fullFeedEpisodes?: FeedItem[]): void {
+    loadEpisode(
+        item: FeedItem,
+        fullFeedEpisodes?: FeedItem[],
+        options?: {
+            notify?: boolean;
+            source?: 'playlist' | 'nav' | 'autoplay' | 'external';
+            autoplay?: boolean;
+        }
+    ): void {
+        const notify = options?.notify ?? false;
+        const source = options?.source ?? 'external';
+        const autoplay = options?.autoplay ?? false;
         
         if (fullFeedEpisodes && Array.isArray(fullFeedEpisodes)) {
             this.setPlaylist(fullFeedEpisodes);
         }
-        if (!item.audioUrl) {
-            
-            return;
+
+        const resolvedAudioUrl =
+            item.audioUrl ||
+            item.enclosure?.url ||
+            MediaService.extractPodcastAudio(item.description);
+        if (resolvedAudioUrl) {
+            item.audioUrl = resolvedAudioUrl;
         }
+
         this.currentItem = item;
+        this.hasAudioForCurrentItem = !!resolvedAudioUrl;
         this.currentPlaylistIndex = this.playlist.findIndex(ep => ep.guid === item.guid);
+
+        if (notify && this.onEpisodeSelected) {
+            this.onEpisodeSelected(item, source);
+        }
+
         this.render();
         if (this.audioElement) {
-            this.audioElement.src = item.audioUrl;
-            this.audioElement.load();
-            const savedProgress = this.progressData.get(item.guid);
-            if (savedProgress && savedProgress.position > 0) {
-                this.audioElement.currentTime = savedProgress.position;
-                this.updateProgressDisplay();
+            if (item.audioUrl) {
+                this.audioElement.src = item.audioUrl;
+                this.audioElement.load();
+                const savedProgress = this.progressData.get(item.guid);
+                if (savedProgress && savedProgress.position > 0) {
+                    this.audioElement.currentTime = savedProgress.position;
+                    this.updateProgressDisplay();
+                }
+
+                if (autoplay) {
+                    this.updatePlayButtonIcon(true);
+                    void this.audioElement.play().catch((error) => {
+                        this.updatePlayButtonIcon(false);
+                        console.error("Failed to play audio:", error);
+                    });
+                }
+            } else {
+                this.audioElement.pause();
+                this.audioElement.src = "";
+                this.audioElement.load();
             }
         }
     }
-    
-    
+     
+    refreshTags(): void {
+        if (!this.currentItem) return;
+        const infoSection = this.container.querySelector<HTMLElement>(".podcast-info-section");
+        if (!infoSection) return;
+
+        infoSection.querySelectorAll(".podcast-tag-strip").forEach((el) => el.remove());
+        this.renderTagStrip(infoSection, this.currentItem.tags);
+    }
+
+    private renderTagStrip(infoSection: HTMLElement, tags: Array<{ name: string; color?: string }> | undefined): void {
+        if (!tags || tags.length === 0) {
+            return;
+        }
+        const tagsStrip = infoSection.createDiv({ cls: "podcast-tag-strip" });
+        const maxVisibleTags = 3;
+        const tagsToShow = tags.slice(0, maxVisibleTags);
+        const remainingCount = tags.length - maxVisibleTags;
+        const remainingTags = remainingCount > 0 ? tags.slice(maxVisibleTags) : [];
+
+        tagsToShow.forEach(tag => {
+            const tagEl = tagsStrip.createDiv({ cls: "podcast-tag", text: tag.name });
+            if (tag.color) {
+                tagEl.style.backgroundColor = tag.color;
+            }
+        });
+
+        if (remainingCount > 0) {
+            const overflowTitle = remainingTags.map(t => t.name).join("\n");
+            tagsStrip.createDiv({
+                cls: "podcast-tag podcast-tag-more",
+                text: `+${remainingCount} more`,
+                attr: { title: overflowTitle, "aria-label": overflowTitle }
+            });
+        }
+    }
+     
     private render(): void {
         if (!this.currentItem) return;
         const playlistEl = this.container.querySelector('.playlist-list');
         const savedScrollTop = playlistEl ? playlistEl.scrollTop : 0;
         this.container.empty();
         
-        
-        
-        
         const podcastContainer = this.container.createDiv({ cls: "rss-reader-podcast-container" });
         podcastContainer.setAttribute("data-podcast-theme", this.theme);
         
+        // Initialize audio element early so UI components can reference its state
+        this.audioElement = podcastContainer.createEl("audio", { attr: { preload: "metadata" } });
+        if (this.currentItem.audioUrl) {
+            this.audioElement.src = this.currentItem.audioUrl;
+        }
+        this.audioElement.onplay = () => this.updatePlayButtonIcon(true);
+        this.audioElement.onpause = () => this.updatePlayButtonIcon(false);
+        this.audioElement.ontimeupdate = () => this.updateProgressDisplay();
+        this.audioElement.onloadedmetadata = () => this.updateProgressDisplay();
+        this.audioElement.onended = () => this.handleEpisodeEnd();
+        this.audioElement.volume = 1;
+        this.audioElement.playbackRate = 1;
+
+        // --- NEW TWO-ROW LAYOUT STRUCTURE ---
+        this.playerEl = podcastContainer.createDiv({ cls: "podcast-player-main-layout" });
         
-        const header = podcastContainer.createDiv({ cls: "podcast-player-header" });
-        header.createDiv({ cls: "podcast-player-title", text: this.currentItem.title });
-        header.createDiv({ cls: "podcast-player-meta", text: `${this.currentItem.feedTitle}${this.currentItem.author ? ' - ' + this.currentItem.author : ''}` });
+        // ROW 1: Info, Controls, and Tools
+        const mainControlsRow = this.playerEl.createDiv({ cls: "podcast-main-controls-row" });
         
-        
-        this.playerEl = podcastContainer.createDiv({ cls: "podcast-player-main" });
-        
-        
-        const left = this.playerEl.createDiv({ cls: "podcast-player-left" });
-        
+        // 1.1 Left: Thumbnail & Info
+        const infoSection = mainControlsRow.createDiv({ cls: "podcast-info-section" });
         
         const coverImageUrl = this.currentItem.coverImage || this.currentItem.image || this.currentItem.itunes?.image?.href || '';
-        
-        
+        const coverWrapper = infoSection.createDiv({ cls: "podcast-cover-wrapper" });
         
         if (coverImageUrl) {
-            const img = left.createEl("img", {
+            const img = coverWrapper.createEl("img", {
                 cls: "podcast-cover",
                 attr: { src: coverImageUrl, alt: this.currentItem.title },
             });
-            
-            
             img.onerror = () => {
                 img.addClass("hidden");
-                this.createCoverPlaceholder(left);
+                this.createCoverPlaceholder(coverWrapper);
             };
-        } 
+        } else {
+            this.createCoverPlaceholder(coverWrapper);
+        }
+
+        const textInfo = infoSection.createDiv({ cls: "podcast-text-info" });
+        textInfo.createDiv({ cls: "podcast-title-display", text: this.currentItem.title });
+        textInfo.createDiv({ cls: "podcast-meta-display", text: `${this.currentItem.feedTitle}${this.currentItem.author ? ' - ' + this.currentItem.author : ''}` });
         
+        // 1.1.5 Tags Section
+        this.renderTagStrip(infoSection, this.currentItem.tags);
+
+        // 1.2 Center: Transport Controls
+        const transportSection = mainControlsRow.createDiv({ cls: "podcast-transport-section" });
         
-        const center = this.playerEl.createDiv({ cls: "podcast-player-center" });
+        this.shuffleButton = transportSection.createEl("button", { cls: "rss-shuffle-btn" });
+        setIcon(this.shuffleButton, "shuffle");
+        this.shuffleButton.onclick = () => this.toggleShuffle();
+        this.updateShuffleButton();
+
+        const rewindBtn = transportSection.createEl("button", { cls: "rss-rewind" });
+        setIcon(rewindBtn, "rotate-ccw");
+        rewindBtn.createSpan({ cls: "seek-label", text: "30" });
+        rewindBtn.onclick = () => {
+            if (this.audioElement) {
+                this.audioElement.currentTime = Math.max(0, this.audioElement.currentTime - 30);
+                this.updateProgressDisplay();
+            }
+        };
         
+        this.playButton = transportSection.createEl("button", { cls: "rss-play-pause" });
+        setIcon(this.playButton, "play");
+        this.playButton.onclick = () => this.togglePlayback();
+        this.playButton.disabled = !this.hasAudioForCurrentItem;
+
+        if (!this.hasAudioForCurrentItem) {
+            const errorText = "Audio url not found. Cannot play this podcast.";
+            podcastContainer.createDiv({ cls: "podcast-player-error", text: errorText });
+        }
         
-        const seekbarRow = center.createDiv({ cls: "podcast-seekbar-row" });
+        const forwardBtn = transportSection.createEl("button", { cls: "rss-forward" });
+        setIcon(forwardBtn, "rotate-cw");
+        forwardBtn.createSpan({ cls: "seek-label", text: "30" });
+        forwardBtn.onclick = () => {
+            if (this.audioElement) {
+                this.audioElement.currentTime = Math.min(
+                    this.audioElement.duration || Infinity,
+                    this.audioElement.currentTime + 30
+                );
+                this.updateProgressDisplay();
+            }
+        };
+
+        this.repeatButton = transportSection.createEl("button", { cls: "rss-repeat-btn" });
+        setIcon(this.repeatButton, "repeat");
+        this.repeatButton.onclick = () => this.toggleRepeat();
+
+        // 1.3 Right: Tools (Speed & Volume)
+        const toolsSection = mainControlsRow.createDiv({ cls: "podcast-tools-section" });
+        
+        this.speedButtonEl = toolsSection.createEl("select", { cls: "rss-speed-control" });
+        [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3].forEach((v) => {
+            const option = this.speedButtonEl?.createEl("option", {
+                attr: { value: v.toString() },
+                text: `${v}\u00D7`
+            });
+            if (option && v === 1) option.selected = true;
+        });
+        this.speedButtonEl.onchange = () => {
+            if (this.audioElement && this.speedButtonEl) {
+                this.audioElement.playbackRate = Number((this.speedButtonEl as HTMLSelectElement).value);
+            }
+        };
+        
+        this.volumeContainer = toolsSection.createDiv({ cls: "rss-volume-control-container" });
+        const volumeBtn = this.volumeContainer.createEl("button", { cls: "rss-volume" });
+        const updateVolumeIcon = () => {
+            if (!this.audioElement) return;
+            if (this.audioElement.muted || this.audioElement.volume === 0) {
+                setIcon(volumeBtn, "volume-x");
+                volumeBtn.addClass("is-muted");
+                if (volumeBar) volumeBar.value = "0";
+            } else {
+                if (this.audioElement.volume < 0.5) {
+                    setIcon(volumeBtn, "volume-1");
+                } else {
+                    setIcon(volumeBtn, "volume-2");
+                }
+                volumeBtn.removeClass("is-muted");
+                if (volumeBar) volumeBar.value = (this.audioElement.volume * 100).toString();
+            }
+        };
+        
+        volumeBtn.onclick = () => {
+            if (this.audioElement) {
+                if (!this.audioElement.muted && this.audioElement.volume > 0) {
+                    this.previousVolume = this.audioElement.volume;
+                    this.audioElement.muted = true;
+                } else {
+                    this.audioElement.muted = false;
+                    if (this.audioElement.volume === 0) {
+                        this.audioElement.volume = this.previousVolume || 1;
+                    }
+                }
+                updateVolumeIcon();
+            }
+        };
+        
+        this.volumeSlider = this.volumeContainer.createDiv({ cls: "rss-volume-slider" });
+        const volumeBar = this.volumeSlider.createEl("input", { type: "range", cls: "rss-volume-bar" });
+        volumeBar.min = "0";
+        volumeBar.max = "100";
+        volumeBar.value = (this.audioElement ? this.audioElement.volume * 100 : 100).toString();
+        volumeBar.oninput = () => {
+            if (this.audioElement && volumeBar) {
+                this.audioElement.volume = Number(volumeBar.value) / 100;
+                if (this.audioElement.volume > 0) {
+                    this.audioElement.muted = false;
+                    this.previousVolume = this.audioElement.volume;
+                }
+                updateVolumeIcon();
+            }
+        };
+        
+        updateVolumeIcon();
+
+        // ROW 2: Progress Area
+        const progressArea = this.playerEl.createDiv({ cls: "podcast-progress-area" });
+        
+        const seekbarRow = progressArea.createDiv({ cls: "podcast-seekbar-row" });
         this.currentTimeEl = seekbarRow.createDiv({ cls: "rss-current-time", text: "0:00" });
         
         const progressBarWrapper = seekbarRow.createDiv({ cls: "podcast-progress-bar-wrapper" });
@@ -125,12 +335,10 @@ export class PodcastPlayer {
         this.progressFilledEl = progressBarWrapper.createDiv({ cls: "podcast-progress-bar-filled" });
         this.durationEl = seekbarRow.createDiv({ cls: "rss-duration", text: "-0:00" });
         
-        
         if (this.progressBarEl) {
             const progressBar = this.progressBarEl;
             let isDragging = false;
 
-            
             const getSeekTime = (e: MouseEvent | TouchEvent) => {
                 const rect = progressBar.getBoundingClientRect();
                 let clientX: number;
@@ -146,7 +354,6 @@ export class PodcastPlayer {
                 return 0;
             };
 
-            
             progressBar.addEventListener('click', (e) => {
                 if (!this.audioElement || !this.audioElement.duration) return;
                 const seekTime = getSeekTime(e);
@@ -154,7 +361,6 @@ export class PodcastPlayer {
                 this.updateProgressDisplay();
             });
 
-            
             progressBar.addEventListener('mousedown', (e) => {
                 if (!this.audioElement || !this.audioElement.duration) return;
                 isDragging = true;
@@ -173,7 +379,6 @@ export class PodcastPlayer {
                 window.addEventListener('mouseup', upHandler);
             });
 
-            
             progressBar.addEventListener('touchstart', (e) => {
                 if (!this.audioElement || !this.audioElement.duration) return;
                 isDragging = true;
@@ -193,108 +398,10 @@ export class PodcastPlayer {
             });
         }
         
-        
-        const controlsRow = center.createDiv({ cls: "podcast-controls-row" });
-        
-        
-        const leftTools = controlsRow.createDiv({ cls: "podcast-toolbar-left" });
-        
-        
-        this.shuffleButton = leftTools.createEl("button", { cls: "rss-shuffle-btn" });
-        setIcon(this.shuffleButton, "shuffle");
-        this.shuffleButton.onclick = () => this.toggleShuffle();
-        this.updateShuffleButton();
-        
-        this.speedButtonEl = leftTools.createEl("select", { cls: "rss-speed-control" });
-        [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3].forEach((v) => {
-            const option = this.speedButtonEl?.createEl("option", {
-                attr: {
-                    value: v.toString()
-                },
-                text: `${v}×`
-            });
-            if (option && v === 1) {
-                option.selected = true;
-            }
-        });
-        this.speedButtonEl.onchange = () => {
-            if (this.audioElement && this.speedButtonEl) {
-                this.audioElement.playbackRate = Number((this.speedButtonEl as HTMLSelectElement).value);
-            }
-        };
-        
-        if (this.audioElement) {
-            this.audioElement.playbackRate = 1;
-        }
-        
-        
-        const centerTools = controlsRow.createDiv({ cls: "podcast-toolbar-center" });
-        
-        const rewindBtn = centerTools.createEl("button", { cls: "rss-rewind" });
-        setIcon(rewindBtn, "skip-back");
-        rewindBtn.onclick = () => {
-            if (this.audioElement) {
-                this.audioElement.currentTime = Math.max(0, this.audioElement.currentTime - 10);
-                this.updateProgressDisplay();
-            }
-        };
-        
-        this.playButton = centerTools.createEl("button", { cls: "rss-play-pause" });
-        setIcon(this.playButton, "play");
-        this.playButton.onclick = () => this.togglePlayback();
-        
-        const forwardBtn = centerTools.createEl("button", { cls: "rss-forward" });
-        setIcon(forwardBtn, "skip-forward");
-        forwardBtn.onclick = () => {
-            if (this.audioElement) {
-                this.audioElement.currentTime = Math.min(
-                    this.audioElement.duration,
-                    this.audioElement.currentTime + 45
-                );
-                this.updateProgressDisplay();
-            }
-        };
-        
-        
-        const rightTools = controlsRow.createDiv({ cls: "podcast-toolbar-right" });
-        
-        
-        this.repeatButton = rightTools.createEl("button", { cls: "rss-repeat-btn" });
-        setIcon(this.repeatButton, "repeat");
-        this.repeatButton.onclick = () => this.toggleRepeat();
-        
-        
-        this.volumeContainer = rightTools.createDiv({ cls: "rss-volume-control-container" });
-        const volumeBtn = this.volumeContainer.createEl("button", { cls: "rss-volume" });
-        setIcon(volumeBtn, "volume-2");
-        
-        this.volumeSlider = this.volumeContainer.createEl("div", { cls: "rss-volume-slider" });
-        const volumeBar = this.volumeSlider.createEl("input", { type: "range", cls: "rss-volume-bar" });
-        volumeBar.min = "0";
-        volumeBar.max = "100";
-        volumeBar.value = "100";
-        volumeBar.oninput = () => {
-            if (this.audioElement && volumeBar) {
-                this.audioElement.volume = Number(volumeBar.value) / 100;
-            }
-        };
-        
-        
-        this.audioElement = podcastContainer.createEl("audio", { attr: { preload: "metadata" } });
-        if (this.currentItem.audioUrl) {
-            this.audioElement.src = this.currentItem.audioUrl;
-        }
-        this.audioElement.onplay = () => this.updatePlayButtonIcon(true);
-        this.audioElement.onpause = () => this.updatePlayButtonIcon(false);
-        this.audioElement.ontimeupdate = () => this.updateProgressDisplay();
-        this.audioElement.onloadedmetadata = () => this.updateProgressDisplay();
-        this.audioElement.onended = () => this.handleEpisodeEnd();
-        this.audioElement.volume = 1;
-        this.audioElement.playbackRate = 1;
-
         this.updateProgressDisplay();
-        
-        
+
+        this.renderEpisodeDetailsUnderProgress();
+         
         if (this.playlist && this.playlist.length > 1) {
             const playlistSection = this.container.createDiv({ cls: "podcast-playlist-section" });
             playlistSection.setAttribute("data-podcast-theme", this.theme);
@@ -303,22 +410,33 @@ export class PodcastPlayer {
             const playlistHeader = playlistSection.createDiv({ cls: "playlist-header" });
             playlistHeader.createDiv({ cls: "playlist-title", text: `Playlist (${this.playlist.length} episodes)` });
             
+            const sortControls = playlistHeader.createDiv({ cls: "playlist-sort-controls" });
             
-            const playlistControls = playlistHeader.createDiv({ cls: "playlist-controls" });
+            const recentBtn = sortControls.createEl("button", { 
+                cls: "playlist-sort-btn",
+                text: "Recent"
+            });
+            if (this.sortOrder === 'recent') recentBtn.addClass("active-sort");
+            recentBtn.onclick = () => this.sortPlaylist('recent');
             
-            const prevBtn = playlistControls.createEl("button", { cls: "playlist-nav-btn" });
-            setIcon(prevBtn, "chevron-left");
-            prevBtn.onclick = () => this.playPrevious();
-            
-            const nextBtn = playlistControls.createEl("button", { cls: "playlist-nav-btn" });
-            setIcon(nextBtn, "chevron-right");
-            nextBtn.onclick = () => this.playNext();
+            const oldestBtn = sortControls.createEl("button", { 
+                cls: "playlist-sort-btn",
+                text: "Oldest"
+            });
+            if (this.sortOrder === 'oldest') oldestBtn.addClass("active-sort");
+            oldestBtn.onclick = () => this.sortPlaylist('oldest');
             
             const playlistList = playlistSection.createDiv({ cls: "playlist-list" });
             
             this.playlist.forEach((ep, index) => {
                 const epRow = playlistList.createDiv({ cls: "playlist-episode-row" });
-                
+                epRow.setAttribute("data-episode-guid", ep.guid);
+                 
+                // Click to play the episode
+                epRow.onclick = () => {
+                    // Switching episodes via playlist should not auto-play; user must hit play.
+                    this.loadEpisode(ep, undefined, { notify: true, source: 'playlist' });
+                };
                 
                 const progress = this.progressData.get(ep.guid);
                 if (progress && progress.position > 0) {
@@ -326,20 +444,6 @@ export class PodcastPlayer {
                     const progressPercent = (progress.position / progress.duration) * 100;
                     epRow.style.setProperty('--progress-width', `${progressPercent}%`);
                 }
-                
-                const playEpBtn = epRow.createEl("button", { cls: "playlist-play-btn" });
-                setIcon(playEpBtn, "play");
-                playEpBtn.onclick = () => {
-                    this.loadEpisode(ep);
-                    
-                    window.setTimeout(() => {
-                        if (this.audioElement) {
-                            this.audioElement.play().catch(error => {
-                                console.error("Failed to play audio:", error);
-                            });
-                        }
-                    }, 100); 
-                };
                 
                 const playlistCoverImage = ep.coverImage || ep.image || ep.itunes?.image?.href || (this.currentItem?.coverImage || this.currentItem?.image || this.currentItem?.itunes?.image?.href) || '';
                 if (playlistCoverImage) {
@@ -358,14 +462,16 @@ export class PodcastPlayer {
                 epInfo.createDiv({ cls: "playlist-ep-title", text: ep.title });
                 
                 const epMeta = epInfo.createDiv({ cls: "playlist-ep-meta" });
-                epMeta.createDiv({ cls: "playlist-ep-date", text: ep.pubDate ? new Date(ep.pubDate).toLocaleDateString() : "" });
+                const epMetaLeft = epMeta.createDiv({ cls: "playlist-ep-meta-left" });
+                epMetaLeft.createDiv({ cls: "playlist-ep-date", text: ep.pubDate ? new Date(ep.pubDate).toLocaleDateString() : "" });
                 
                 if (ep.duration || ep.itunes?.duration) {
-                    const durationBadge = epMeta.createDiv({ cls: "episode-duration-badge" });
+                    const durationBadge = epMetaLeft.createDiv({ cls: "episode-duration-badge" });
                     durationBadge.textContent = ep.duration || ep.itunes?.duration || "";
                 }
-                
-                
+
+                this.renderPlaylistTags(epMeta, ep.tags);
+                 
                 if (progress && progress.position > 0) {
                     const progressIndicator = epRow.createDiv({ cls: "episode-progress-indicator" });
                     const progressPercent = (progress.position / progress.duration) * 100;
@@ -387,6 +493,267 @@ export class PodcastPlayer {
             emptyState.textContent = "No other episodes available in this feed";
         }
     }
+
+    private stripWhitespace(input: string): string {
+        return (input || "").replace(/\s+/g, "");
+    }
+
+    private selectEpisodeNotesHtml(item: FeedItem): string {
+        const content = (item.content || "").trim();
+        const description = (item.description || "").trim();
+        const itunesSummary = (item.itunes?.summary || "").trim();
+        const summary = (item.summary || "").trim();
+
+        if (content) {
+            const meaningfullyDifferent =
+                content.length > 40 && this.stripWhitespace(content) !== this.stripWhitespace(description);
+            if (!description || meaningfullyDifferent) {
+                return content;
+            }
+        }
+
+        return description || itunesSummary || summary || "";
+    }
+
+    private formatBytes(bytes: number): string {
+        if (!Number.isFinite(bytes) || bytes <= 0) return "";
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let value = bytes;
+        let unitIndex = 0;
+        while (value >= 1024 && unitIndex < units.length - 1) {
+            value /= 1024;
+            unitIndex += 1;
+        }
+        const rounded = value >= 10 || unitIndex === 0 ? Math.round(value) : Math.round(value * 10) / 10;
+        return `${rounded} ${units[unitIndex]}`;
+    }
+
+    private renderEpisodeDetailsUnderProgress(): void {
+        if (!this.currentItem || !this.playerEl) return;
+
+        const item = this.currentItem;
+        const notesHtml = this.selectEpisodeNotesHtml(item);
+
+        const entries: Array<{ label: string; value: string; href?: string }> = [];
+
+        if (item.pubDate) {
+            const d = new Date(item.pubDate);
+            entries.push({
+                label: "Published",
+                value: Number.isNaN(d.getTime()) ? item.pubDate : d.toLocaleString(),
+            });
+        }
+
+        const duration = (item.duration || item.itunes?.duration || "").trim();
+        if (duration) entries.push({ label: "Duration", value: duration });
+
+        const author = (item.author || "").trim();
+        if (author) entries.push({ label: "Author", value: author });
+
+        if (typeof item.explicit === "boolean") {
+            entries.push({ label: "Explicit", value: item.explicit ? "Yes" : "No" });
+        }
+
+        if (typeof item.season === "number") entries.push({ label: "Season", value: String(item.season) });
+        if (typeof item.episode === "number") entries.push({ label: "Episode", value: String(item.episode) });
+
+        const episodeType = (item.episodeType || "").trim();
+        if (episodeType) entries.push({ label: "Type", value: episodeType });
+
+        const category = (item.category || "").trim();
+        if (category) entries.push({ label: "Category", value: category });
+
+        const link = (item.link || "").trim();
+        if (link) entries.push({ label: "Link", value: "Open episode", href: link });
+
+        const enclosureLen = (item.enclosure?.length || "").trim();
+        if (enclosureLen) {
+            const n = Number(enclosureLen);
+            const formatted = Number.isFinite(n) ? this.formatBytes(n) : "";
+            entries.push({ label: "Size", value: formatted || enclosureLen });
+        }
+
+        const hasNotes = Boolean(notesHtml && notesHtml.trim());
+        const hasMeta = entries.length > 0;
+        if (!hasNotes && !hasMeta) return;
+
+        const details = this.playerEl.createEl("details", { cls: "podcast-episode-details" });
+        details.setAttribute("data-podcast-theme", this.theme);
+
+        details.createEl("summary", { text: "Episode details" });
+        const body = details.createDiv({ cls: "podcast-episode-details-body" });
+
+        if (hasMeta) {
+            const grid = body.createDiv({ cls: "podcast-episode-meta-grid" });
+            entries.forEach((entry) => {
+                grid.createDiv({ cls: "podcast-episode-meta-label", text: entry.label });
+                const valueEl = grid.createDiv({ cls: "podcast-episode-meta-value" });
+                if (entry.href) {
+                    const a = valueEl.createEl("a", { text: entry.value, attr: { href: entry.href } });
+                    a.target = "_blank";
+                    a.rel = "noopener noreferrer";
+                } else {
+                    valueEl.textContent = entry.value;
+                }
+            });
+        }
+
+        if (hasNotes) {
+            const notes = body.createDiv({ cls: "podcast-episode-notes" });
+            notes.createDiv({ cls: "podcast-episode-notes-title", text: "Show notes" });
+            const notesBody = notes.createDiv({ cls: "podcast-episode-notes-body" });
+            sanitizeAndAppendHtml(notesBody, notesHtml);
+        }
+    }
+
+    refreshPlaylistTags(episodeGuid?: string): void {
+        const playlistSection = this.container.querySelector<HTMLElement>(".podcast-playlist-section");
+        if (!playlistSection) return;
+
+        const rows = Array.from(
+            playlistSection.querySelectorAll<HTMLElement>(".playlist-episode-row[data-episode-guid]")
+        ).filter((row) => {
+            if (!episodeGuid) return true;
+            return row.getAttribute("data-episode-guid") === episodeGuid;
+        });
+
+        for (const row of rows) {
+            const guid = row.getAttribute("data-episode-guid");
+            if (!guid) continue;
+            const episode = this.playlist.find((ep) => ep.guid === guid);
+            if (!episode) continue;
+
+            const epMeta = row.querySelector<HTMLElement>(".playlist-ep-meta");
+            if (!epMeta) continue;
+
+            const existing = epMeta.querySelector<HTMLElement>(".playlist-ep-meta-tags");
+            if (existing) {
+                existing.remove();
+            }
+            this.renderPlaylistTags(epMeta, episode.tags);
+        }
+    }
+
+    private renderPlaylistTags(epMeta: HTMLElement, tags: Array<{ name: string; color?: string }> | undefined): void {
+        if (!tags || tags.length === 0) return;
+
+        const tagsWrap = epMeta.createDiv({ cls: "playlist-ep-meta-tags" });
+        const maxVisibleTags = 3;
+        const tagsToShow = tags.slice(0, maxVisibleTags);
+        const remainingCount = tags.length - maxVisibleTags;
+        const remainingTags = remainingCount > 0 ? tags.slice(maxVisibleTags) : [];
+
+        tagsToShow.forEach(tag => {
+            const tagEl = tagsWrap.createDiv({ cls: "playlist-ep-tag", text: tag.name });
+            if (tag.color) {
+                tagEl.style.backgroundColor = tag.color;
+            }
+        });
+
+        if (remainingCount > 0) {
+            const overflowTitle = remainingTags.map(t => t.name).join("\n");
+            tagsWrap.createDiv({
+                cls: "playlist-ep-tag playlist-ep-tag-more",
+                text: `+${remainingCount}`,
+                attr: { title: overflowTitle, "aria-label": overflowTitle }
+            });
+        }
+    }
+
+    private replacePlaylistSection(): void {
+        const playlistEl = this.container.querySelector<HTMLElement>(".playlist-list");
+        const savedScrollTop = playlistEl ? playlistEl.scrollTop : 0;
+
+        this.container.querySelectorAll(".podcast-playlist-section, .playlist-empty").forEach((el) => el.remove());
+
+        if (this.playlist && this.playlist.length > 1) {
+            const playlistSection = this.container.createDiv({ cls: "podcast-playlist-section" });
+            playlistSection.setAttribute("data-podcast-theme", this.theme);
+
+            const playlistHeader = playlistSection.createDiv({ cls: "playlist-header" });
+            playlistHeader.createDiv({ cls: "playlist-title", text: `Playlist (${this.playlist.length} episodes)` });
+
+            const sortControls = playlistHeader.createDiv({ cls: "playlist-sort-controls" });
+
+            const recentBtn = sortControls.createEl("button", {
+                cls: "playlist-sort-btn",
+                text: "Recent"
+            });
+            if (this.sortOrder === 'recent') recentBtn.addClass("active-sort");
+            recentBtn.onclick = () => this.sortPlaylist('recent');
+
+            const oldestBtn = sortControls.createEl("button", {
+                cls: "playlist-sort-btn",
+                text: "Oldest"
+            });
+            if (this.sortOrder === 'oldest') oldestBtn.addClass("active-sort");
+            oldestBtn.onclick = () => this.sortPlaylist('oldest');
+
+            const playlistList = playlistSection.createDiv({ cls: "playlist-list" });
+
+            this.playlist.forEach((ep) => {
+                const epRow = playlistList.createDiv({ cls: "playlist-episode-row" });
+                epRow.setAttribute("data-episode-guid", ep.guid);
+
+                epRow.onclick = () => {
+                    this.loadEpisode(ep, undefined, { notify: true, source: 'playlist', autoplay: true });
+                };
+
+                const progress = this.progressData.get(ep.guid);
+                if (progress && progress.position > 0) {
+                    epRow.addClass("has-progress");
+                    const progressPercent = (progress.position / progress.duration) * 100;
+                    epRow.style.setProperty('--progress-width', `${progressPercent}%`);
+                }
+
+                const playlistCoverImage = ep.coverImage || ep.image || ep.itunes?.image?.href || (this.currentItem?.coverImage || this.currentItem?.image || this.currentItem?.itunes?.image?.href) || '';
+                if (playlistCoverImage) {
+                    const img = epRow.createEl("img", { cls: "playlist-ep-cover", attr: { src: playlistCoverImage, alt: ep.title } });
+                    img.onerror = () => {
+                        img.addClass("hidden");
+                        const placeholder = epRow.createDiv({ cls: "playlist-ep-cover-placeholder" });
+                        placeholder.textContent = 'ðŸŽ§';
+                    };
+                } else {
+                    const placeholder = epRow.createDiv({ cls: "playlist-ep-cover-placeholder" });
+                    placeholder.textContent = 'ðŸŽ§';
+                }
+
+                const epInfo = epRow.createDiv({ cls: "playlist-ep-info" });
+                epInfo.createDiv({ cls: "playlist-ep-title", text: ep.title });
+
+                const epMeta = epInfo.createDiv({ cls: "playlist-ep-meta" });
+                const epMetaLeft = epMeta.createDiv({ cls: "playlist-ep-meta-left" });
+                epMetaLeft.createDiv({ cls: "playlist-ep-date", text: ep.pubDate ? new Date(ep.pubDate).toLocaleDateString() : "" });
+
+                if (ep.duration || ep.itunes?.duration) {
+                    const durationBadge = epMetaLeft.createDiv({ cls: "episode-duration-badge" });
+                    durationBadge.textContent = ep.duration || ep.itunes?.duration || "";
+                }
+
+                this.renderPlaylistTags(epMeta, ep.tags);
+
+                if (progress && progress.position > 0) {
+                    const progressIndicator = epRow.createDiv({ cls: "episode-progress-indicator" });
+                    const progressPercent = (progress.position / progress.duration) * 100;
+                    progressIndicator.style.setProperty('--progress-width', `${progressPercent}%`);
+                }
+
+                if (this.currentItem && ep.guid === this.currentItem.guid) {
+                    epRow.addClass("active");
+                }
+            });
+
+            if (savedScrollTop > 0) {
+                playlistList.scrollTop = savedScrollTop;
+            }
+
+            return;
+        }
+
+        const emptyState = this.container.createDiv({ cls: "playlist-empty" });
+        emptyState.textContent = "No other episodes available in this feed";
+    }
     
     
     private createCoverPlaceholder(container: HTMLElement): void {
@@ -402,8 +769,36 @@ export class PodcastPlayer {
         } else {
             this.playlist = [...this.originalPlaylist];
         }
+        if (this.currentItem) {
+            this.currentPlaylistIndex = this.playlist.findIndex(ep => ep.guid === this.currentItem?.guid);
+        }
         this.updateShuffleButton();
-        this.render();
+        this.replacePlaylistSection();
+    }
+    
+    private sortPlaylist(order: 'recent' | 'oldest'): void {
+        this.sortOrder = order;
+        
+        // Sorting logic: if recent, newest first. If oldest, oldest first.
+        this.playlist.sort((a, b) => {
+            const dateA = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+            const dateB = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+            
+            if (this.sortOrder === 'recent') {
+                return dateB - dateA; // Descending
+            } else {
+                return dateA - dateB; // Ascending
+            }
+        });
+        
+        // Also update the original playlist so shuffle uses the new base order if toggled off
+        this.originalPlaylist = [...this.playlist];
+
+        if (this.currentItem) {
+            this.currentPlaylistIndex = this.playlist.findIndex(ep => ep.guid === this.currentItem?.guid);
+        }
+
+        this.replacePlaylistSection();
     }
     
     
@@ -426,7 +821,7 @@ export class PodcastPlayer {
         
         this.currentPlaylistIndex = (this.currentPlaylistIndex + 1) % this.playlist.length;
         const nextEpisode = this.playlist[this.currentPlaylistIndex];
-        this.loadEpisode(nextEpisode);
+        this.loadEpisode(nextEpisode, undefined, { notify: true, source: 'nav' });
     }
     
     
@@ -437,28 +832,36 @@ export class PodcastPlayer {
             ? this.playlist.length - 1 
             : this.currentPlaylistIndex - 1;
         const prevEpisode = this.playlist[this.currentPlaylistIndex];
-        this.loadEpisode(prevEpisode);
+        this.loadEpisode(prevEpisode, undefined, { notify: true, source: 'nav' });
     }
     
     
     private handleEpisodeEnd(): void {
         this.updatePlayButtonIcon(false);
-        
-        
+         
+         
         if (this.repeatButton?.classList.contains("active")) {
             if (this.audioElement) {
                 this.audioElement.currentTime = 0;
-                void this.audioElement.play();
+                this.updatePlayButtonIcon(true);
+                void this.audioElement.play().catch((error) => {
+                    this.updatePlayButtonIcon(false);
+                    console.error("Failed to play audio:", error);
+                });
             }
         } else {
-            
-            this.playNext();
+              
+            if (this.playlist.length === 0) return;
+            this.currentPlaylistIndex = (this.currentPlaylistIndex + 1) % this.playlist.length;
+            const nextEpisode = this.playlist[this.currentPlaylistIndex];
+            this.loadEpisode(nextEpisode, undefined, { notify: true, source: 'autoplay', autoplay: true });
         }
     }
     
     
     private togglePlayback(): void {
         if (!this.audioElement) return;
+        if (!this.currentItem?.audioUrl) return;
         
         if (this.audioElement.paused) {
             void this.audioElement.play();
