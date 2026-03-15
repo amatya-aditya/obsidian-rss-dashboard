@@ -1,5 +1,4 @@
 import { requestUrl, Platform } from "obsidian";
-import { robustFetch } from "../utils/platform-utils.js";
 import { Feed, FeedItem, MediaSettings, Tag } from "../types/types.js";
 import { MediaService } from "./media-service";
 import {
@@ -82,34 +81,23 @@ export interface FeedParseOptions {
   allowEmpty?: boolean;
 }
 
-/**
- * Preprocess a feed XML string for preview parsing.
- *
- * The Add/Edit Feed modal uses DOMParser("text/xml") for a quick preview.
- * Some feeds are "feed-shaped" but include minor XML invalidities (most commonly
- * bare ampersands in text nodes), which causes DOMParser to emit a parsererror.
- *
- * We keep this intentionally minimal and safe: escape bare ampersands outside
- * CDATA while preserving already-valid entities.
- */
-export function preprocessXmlForPreviewParsing(xml: string): string {
-  if (!xml) return xml;
+const BARE_AMPERSAND_REGEX =
+  /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g;
 
-  const cdataBlocks: string[] = [];
-  const withoutCdata = xml.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, (m) => {
-    const idx = cdataBlocks.push(m) - 1;
-    return `__RSS_DASHBOARD_CDATA_${idx}__`;
-  });
+export function parseFeedPreviewFromXmlText(
+  xmlText: string,
+  feedUrl: string,
+): FeedPreviewData | null {
+  if (!xmlText) return null;
 
-  const escaped = withoutCdata.replace(
-    /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g,
-    "&amp;",
-  );
+  const sanitizedXmlText = xmlText.replace(BARE_AMPERSAND_REGEX, "&amp;");
+  const doc = new DOMParser().parseFromString(sanitizedXmlText, "text/xml");
 
-  return escaped.replace(/__RSS_DASHBOARD_CDATA_(\d+)__/g, (m, n) => {
-    const idx = Number(n);
-    return Number.isFinite(idx) && cdataBlocks[idx] ? cdataBlocks[idx] : m;
-  });
+  if (doc.querySelector("parsererror")) {
+    return null;
+  }
+
+  return parseFeedDoc(doc, feedUrl);
 }
 
 export async function loadFeedForPreview(
@@ -118,7 +106,8 @@ export async function loadFeedForPreview(
 
   // Try direct request first
   try {
-    const text = await robustFetch(feedUrl, {
+    const response = await requestUrl({
+      url: feedUrl,
       method: "GET",
       headers: {
         "User-Agent":
@@ -128,12 +117,10 @@ export async function loadFeedForPreview(
       },
     });
 
-    if (text && isValidFeed(text)) {
-      const preview = parseFeedPreviewFromXmlText(text, feedUrl);
-      if (preview) {
-        return preview;
-      }
-      throw new Error("Feed XML preview parsing failed");
+    if (response.text && isValidFeed(response.text)) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(response.text, "text/xml");
+      return parseFeedDoc(doc, feedUrl);
     }
   } catch {
     // Fall through to rss2json
@@ -143,11 +130,12 @@ export async function loadFeedForPreview(
   const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
 
   try {
-    const text = await robustFetch(rss2jsonUrl, {
+    const response = await requestUrl({
+      url: rss2jsonUrl,
       method: "GET",
     });
 
-    const data = JSON.parse(text) as Rss2JsonResponse;
+    const data = JSON.parse(response.text) as Rss2JsonResponse;
 
     if (data.status !== "ok" || !data.feed) {
       throw new Error(data.message || "Failed to load feed");
@@ -192,23 +180,6 @@ function parseFeedDoc(doc: Document, feedUrl: string): FeedPreviewData {
     hasEntries: !!firstItem,
     feedUrl,
   };
-}
-
-export function parseFeedPreviewFromXmlText(
-  xmlText: string,
-  feedUrl: string,
-): FeedPreviewData | null {
-  if (!xmlText) return null;
-
-  const preprocessed = preprocessXmlForPreviewParsing(xmlText);
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(preprocessed, "text/xml");
-
-  if (doc.querySelector("parsererror")) {
-    return null;
-  }
-
-  return parseFeedDoc(doc, feedUrl);
 }
 
 // Type definitions for external API responses
@@ -448,7 +419,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
         ];
         for (const fbUrl of feedBurnerUrls) {
           try {
-            const fbText = await robustFetch(fbUrl, {
+            const fbResponse = await requestUrl({
+              url: fbUrl,
               method: "GET",
               headers: {
                 "User-Agent":
@@ -457,8 +429,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
                   "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
               },
             });
-            if (fbText && isValidFeed(fbText)) {
-              return fbText;
+            if (fbResponse.text && isValidFeed(fbResponse.text)) {
+              return fbResponse.text;
             } else {
               throw new Error("Not a valid RSS/Atom feed");
             }
@@ -470,7 +442,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
     }
     try {
       const secureUrl = targetUrl; // try original URL as-is first (don't force https)
-      const text = await robustFetch(secureUrl, {
+      const response = await requestUrl({
+        url: secureUrl,
         method: "GET",
         headers: {
           "User-Agent":
@@ -480,25 +453,26 @@ export async function fetchFeedXml(url: string): Promise<string> {
         },
       });
 
-      if (!text) {
+      if (!response.text) {
         throw new Error("Empty response from feed");
       }
 
-      if (isValidFeed(text)) {
+      if (isValidFeed(response.text)) {
         // Handle arXiv stub feeds that point to rss.arxiv.org but contain no items
-        const hasItems = /<item\b[\s\S]*?<\/item>/i.test(text);
+        const hasItems = /<item\b[\s\S]*?<\/item>/i.test(response.text);
         if (!hasItems) {
-          const atomLinkMatch = text.match(
+          const atomLinkMatch = response.text.match(
             /<atom:link[^>]*href=["']([^"']+)["'][^>]*>/i,
           );
-          const channelLinkMatch = text.match(
+          const channelLinkMatch = response.text.match(
             /<channel[^>]*>[\s\S]*?<link[^>]*>([^<]+)<\/link>/i,
           );
           const candidateUrl =
             atomLinkMatch?.[1] || channelLinkMatch?.[1] || "";
           if (candidateUrl && /arxiv\.org\//i.test(candidateUrl)) {
             try {
-              const arxivText = await robustFetch(candidateUrl, {
+              const arxivResp = await requestUrl({
+                url: candidateUrl,
                 method: "GET",
                 headers: {
                   "User-Agent":
@@ -507,15 +481,15 @@ export async function fetchFeedXml(url: string): Promise<string> {
                     "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
                 },
               });
-              if (arxivText && isValidFeed(arxivText)) {
-                return arxivText;
+              if (arxivResp.text && isValidFeed(arxivResp.text)) {
+                return arxivResp.text;
               }
             } catch {
               // ArXiv feed fetch failed, continue
             }
           }
         }
-        return text;
+        return response.text;
       }
 
       // If initial scheme fails, try toggled scheme (http<->https) before other fallbacks
@@ -545,9 +519,9 @@ export async function fetchFeedXml(url: string): Promise<string> {
       }
 
       if (
-        text.includes("<?php") ||
-        text.includes("WordPress") ||
-        text.includes("wp-blog-header.php")
+        response.text.includes("<?php") ||
+        response.text.includes("WordPress") ||
+        response.text.includes("wp-blog-header.php")
       ) {
         console.warn(
           "Received php file instead of RSS feed, trying alternative URLs...",
@@ -586,7 +560,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
 
         for (const altUrl of alternativeUrls) {
           try {
-            const altText = await robustFetch(altUrl, {
+            const altResponse = await requestUrl({
+              url: altUrl,
               method: "GET",
               headers: {
                 "User-Agent":
@@ -596,8 +571,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
               },
             });
 
-            if (altText && isValidFeed(altText)) {
-              return altText;
+            if (altResponse.text && isValidFeed(altResponse.text)) {
+              return altResponse.text;
             } else {
               throw new Error("Not a valid RSS/Atom feed");
             }
@@ -613,7 +588,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
             : null);
         if (discoveredUrl) {
           try {
-            const discoveredText = await robustFetch(discoveredUrl, {
+            const discoveredResponse = await requestUrl({
+              url: discoveredUrl,
               method: "GET",
               headers: {
                 "User-Agent":
@@ -624,10 +600,10 @@ export async function fetchFeedXml(url: string): Promise<string> {
             });
 
             if (
-              discoveredText &&
-              isValidFeed(discoveredText)
+              discoveredResponse.text &&
+              isValidFeed(discoveredResponse.text)
             ) {
-              return discoveredText;
+              return discoveredResponse.text;
             } else {
               throw new Error("Not a valid RSS/Atom feed");
             }
@@ -650,10 +626,11 @@ export async function fetchFeedXml(url: string): Promise<string> {
 
       try {
         const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-        const proxyText = await robustFetch(allOriginsUrl, {
+        const proxyResponse = await requestUrl({
+          url: allOriginsUrl,
           method: "GET",
         });
-        const data = JSON.parse(proxyText) as AllOriginsResponse;
+        const data = JSON.parse(proxyResponse.text) as AllOriginsResponse;
         if (!data.contents) throw new Error("No contents from AllOrigins");
 
         if (isValidFeed(data.contents)) {
@@ -670,11 +647,12 @@ export async function fetchFeedXml(url: string): Promise<string> {
         // Try allOrigins raw endpoint
         try {
           const rawUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-          const rawText = await robustFetch(rawUrl, {
+          const rawResp = await requestUrl({
+            url: rawUrl,
             method: "GET",
           });
-          if (rawText && isValidFeed(rawText)) {
-            return rawText;
+          if (rawResp.text && isValidFeed(rawResp.text)) {
+            return rawResp.text;
           } else {
             throw new Error("AllOrigins raw returned non-feed");
           }
@@ -685,11 +663,12 @@ export async function fetchFeedXml(url: string): Promise<string> {
         if (!isAndroid) {
           try {
             const codetabsUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}`;
-            const codetabsText = await robustFetch(codetabsUrl, {
+            const codetabsResponse = await requestUrl({
+              url: codetabsUrl,
               method: "GET",
             });
-            if (codetabsText && isValidFeed(codetabsText)) {
-              return codetabsText;
+            if (codetabsResponse.text && isValidFeed(codetabsResponse.text)) {
+              return codetabsResponse.text;
             } else {
               throw new Error("Not a valid RSS/Atom feed");
             }
@@ -700,11 +679,12 @@ export async function fetchFeedXml(url: string): Promise<string> {
           // isomorphic-git CORS proxy (raw)
           try {
             const isoUrl = `https://cors.isomorphic-git.org/${targetUrl}`;
-            const isoText = await robustFetch(isoUrl, {
+            const isoResp = await requestUrl({
+              url: isoUrl,
               method: "GET",
             });
-            if (isoText && isValidFeed(isoText)) {
-              return isoText;
+            if (isoResp.text && isValidFeed(isoResp.text)) {
+              return isoResp.text;
             } else {
               throw new Error("Not a valid RSS/Atom feed");
             }
@@ -714,14 +694,15 @@ export async function fetchFeedXml(url: string): Promise<string> {
 
           try {
             const thingproxyUrl = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(targetUrl)}`;
-            const thingproxyText = await robustFetch(thingproxyUrl, {
+            const thingproxyResponse = await requestUrl({
+              url: thingproxyUrl,
               method: "GET",
             });
             if (
-              thingproxyText &&
-              isValidFeed(thingproxyText)
+              thingproxyResponse.text &&
+              isValidFeed(thingproxyResponse.text)
             ) {
-              return thingproxyText;
+              return thingproxyResponse.text;
             } else {
               throw new Error("Not a valid RSS/Atom feed");
             }
@@ -732,7 +713,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
           try {
             const discoveredUrl = await discoverFeedUrl(targetUrl);
             if (discoveredUrl && discoveredUrl !== targetUrl) {
-              const discoveredText = await robustFetch(discoveredUrl, {
+              const discoveredResponse = await requestUrl({
+                url: discoveredUrl,
                 method: "GET",
                 headers: {
                   "User-Agent":
@@ -742,10 +724,10 @@ export async function fetchFeedXml(url: string): Promise<string> {
                 },
               });
               if (
-                discoveredText &&
-                isValidFeed(discoveredText)
+                discoveredResponse.text &&
+                isValidFeed(discoveredResponse.text)
               ) {
-                return discoveredText;
+                return discoveredResponse.text;
               } else {
                 throw new Error("Not a valid RSS/Atom feed");
               }
@@ -773,7 +755,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
 
     try {
       const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`;
-      const proxyText = await robustFetch(proxyUrl, {
+      const proxyResponse = await requestUrl({
+        url: proxyUrl,
         method: "GET",
         headers: {
           Accept:
@@ -781,18 +764,19 @@ export async function fetchFeedXml(url: string): Promise<string> {
         },
       });
 
-      if (proxyText && isValidFeed(proxyText)) {
-        return proxyText;
+      if (proxyResponse.text && isValidFeed(proxyResponse.text)) {
+        return proxyResponse.text;
       } else {
         throw new Error("First proxy blocked by Cloudflare");
       }
     } catch {
       try {
         const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
-        const proxyText = await robustFetch(rss2jsonUrl, {
+        const proxyResponse = await requestUrl({
+          url: rss2jsonUrl,
           method: "GET",
         });
-        const data = JSON.parse(proxyText) as Rss2JsonResponse;
+        const data = JSON.parse(proxyResponse.text) as Rss2JsonResponse;
 
         if (data.status === "ok" && data.feed) {
           const feed = data.feed;
@@ -895,79 +879,57 @@ export class CustomXMLParser {
   private getTextContent(element: Element | null, tagName: string): string {
     if (!element) return "";
     let el: Element | null = null;
-
-    try {
-      if (tagName.includes("\\:")) {
-        el = element.querySelector(tagName);
-      } else if (tagName.includes(":")) {
-        const parts = tagName.split(":");
-        if (parts.length === 2) {
-          const [namespace, localName] = parts;
+    if (tagName.includes("\\:")) {
+      el = element.querySelector(tagName);
+    } else if (tagName.includes(":")) {
+      const parts = tagName.split(":");
+      if (parts.length === 2) {
+        const [namespace, localName] = parts;
+        try {
+          el = element.querySelector(`${namespace}\\:${localName}`);
+        } catch {
           try {
-            el = element.querySelector(`${namespace}\\:${localName}`);
+            const elements = element.getElementsByTagNameNS("*", localName);
+            if (elements.length > 0) {
+              el = elements[0];
+            }
           } catch {
             try {
-              const elements = element.getElementsByTagNameNS("*", localName);
-              if (elements.length > 0) {
-                el = elements[0];
-              }
+              el = element.querySelector(localName);
             } catch {
-              try {
-                el = element.querySelector(localName);
-              } catch {
-                try {
-                  el = element.querySelector(`*[local-name()="${localName}"]`);
-                } catch {
-                  // ignore
-                }
-              }
-            }
-          }
-
-          // Special handling for content:encoded if first attempts failed
-          if (!el && namespace === "content" && localName === "encoded") {
-            const contentSelectors = [
-              "content\\:encoded",
-              "content:encoded",
-              '*[local-name()="encoded"]',
-              "encoded",
-            ];
-            for (const selector of contentSelectors) {
-              try {
-                el = element.querySelector(selector);
-                if (el) break;
-              } catch {
-                continue;
-              }
+              el = element.querySelector(`*[local-name()="${localName}"]`);
             }
           }
         }
-      } else {
-        el = element.querySelector(tagName);
-        if (!el) {
-          const tagEls = element.getElementsByTagName(tagName);
-          if (tagEls.length > 0) {
-            el = tagEls[0];
-          } else if (element.getElementsByTagNameNS) {
-            const nsEls = element.getElementsByTagNameNS("*", tagName);
-            if (nsEls.length > 0) {
-              el = nsEls[0];
+        if (!el && namespace === "content" && localName === "encoded") {
+          const contentSelectors = [
+            "content\\:encoded",
+            "content:encoded",
+            '*[local-name()="encoded"]',
+            "encoded",
+          ];
+          for (const selector of contentSelectors) {
+            try {
+              el = element.querySelector(selector);
+              if (el) break;
+            } catch {
+              continue;
             }
           }
         }
       }
-    } catch {
-      // Final fallback: try search by local name if it was a namespaced tag
-      try {
-        const localName = tagName.includes(":")
-          ? tagName.split(":").pop()
-          : tagName;
-        if (localName) {
-          const els = element.getElementsByTagName(localName);
-          if (els.length > 0) el = els[0];
+    } else {
+      el = element.querySelector(tagName);
+      if (!el) {
+        const tagEls = element.getElementsByTagName(tagName);
+        if (tagEls.length > 0) {
+          el = tagEls[0];
+        } else if (element.getElementsByTagNameNS) {
+          const nsEls = element.getElementsByTagNameNS("*", tagName);
+          if (nsEls.length > 0) {
+            el = nsEls[0];
+          }
         }
-      } catch {
-        // give up
       }
     }
     if (!el) return "";
@@ -1149,12 +1111,8 @@ export class CustomXMLParser {
     tagName: string,
     attribute: string,
   ): string {
-    try {
-      const el = element?.querySelector(tagName);
-      return el?.getAttribute(attribute) || "";
-    } catch {
-      return "";
-    }
+    const el = element?.querySelector(tagName);
+    return el?.getAttribute(attribute) || "";
   }
 
   private getTextContentWithMultipleSelectors(
@@ -1164,8 +1122,14 @@ export class CustomXMLParser {
     if (!element) return "";
 
     for (const selector of selectors) {
-      const content = this.getTextContent(element, selector);
-      if (content) return content;
+      try {
+        const el = element.querySelector(selector);
+        if (el && el.textContent?.trim()) {
+          return this.sanitizeCDATA(el.textContent.trim());
+        }
+      } catch {
+        continue;
+      }
     }
 
     return "";
@@ -1176,22 +1140,8 @@ export class CustomXMLParser {
     namespace: string,
     tagName: string,
   ): string {
-    if (!element) return "";
-    try {
-      const el = element.querySelector(`${namespace}\\:${tagName}`);
-      if (el) return el.textContent?.trim() || "";
-    } catch {
-      // ignore
-    }
-
-    try {
-      const els = element.getElementsByTagNameNS("*", tagName);
-      if (els.length > 0) return els[0].textContent?.trim() || "";
-    } catch {
-      // ignore
-    }
-
-    return "";
+    const el = element?.querySelector(`${namespace}\\:${tagName}`);
+    return el?.textContent?.trim() || "";
   }
 
   private validateFeedStructure(doc: Document): boolean {
@@ -1351,10 +1301,9 @@ export class CustomXMLParser {
 
       const content =
         this.getTextContentWithMultipleSelectors(item, [
-          "content:encoded",
           "content\\:encoded",
-          "body",
-          "fulltext",
+          "content:encoded",
+          '*[local-name()="encoded"]',
           "encoded",
         ]) || description;
 
@@ -1502,10 +1451,9 @@ export class CustomXMLParser {
 
       const contentValue =
         this.getTextContentWithMultipleSelectors(item, [
-          "content:encoded",
           "content\\:encoded",
-          "body",
-          "fulltext",
+          "content:encoded",
+          '*[local-name()="encoded"]',
           "encoded",
         ]) || description;
 
@@ -1879,22 +1827,6 @@ export class CustomXMLParser {
         if (authors && !itemAuthor) {
           itemAuthor = authors;
         }
-        const itemContentMatch = [
-          itemXml.match(
-            /<(?:content:encoded|content\\:encoded|encoded)[^>]*>([\s\S]*?)<\/(?:content:encoded|content\\:encoded|encoded)>/i,
-          ),
-          itemXml.match(/<body[^>]*>([\s\S]*?)<\/body>/i),
-          itemXml.match(/<fulltext[^>]*>([\s\S]*?)<\/fulltext>/i),
-        ];
-
-        let itemContent = "";
-        for (const match of itemContentMatch) {
-          if (match) {
-            itemContent = this.sanitizeCDATA(match[1].trim());
-            break;
-          }
-        }
-
         items.push({
           title: itemTitle,
           link: itemLink,
@@ -1902,7 +1834,7 @@ export class CustomXMLParser {
           pubDate: itemPubDate,
           guid: itemGuid,
           author: itemAuthor || undefined,
-          content: itemContent || itemDescription,
+          content: itemDescription,
           category: itemCategory,
           ieee,
         });
@@ -2538,7 +2470,7 @@ export class FeedParser {
     return "";
   }
 
-  private extractSummary(description: string, maxLength?: number): string {
+  private extractSummary(description: string, maxLength = 220): string {
     if (!description) return "";
 
     try {
@@ -2550,10 +2482,8 @@ export class FeedParser {
 
       text = text.replace(/\s+/g, " ").trim();
 
-      if (typeof maxLength === "number" && Number.isFinite(maxLength) && maxLength > 0) {
-        if (text.length > maxLength) {
-          text = text.substring(0, maxLength) + "...";
-        }
+      if (text.length > maxLength) {
+        text = text.substring(0, maxLength) + "...";
       }
 
       return text;

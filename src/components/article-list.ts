@@ -2590,7 +2590,6 @@ export class ArticleList {
           const summaryOverlay = coverContainer.createDiv({
             cls: "rss-dashboard-summary-overlay",
           });
-          const summaryText = getCardSummaryText(article);
           if (
             this.settings.highlights?.enabled &&
             this.settings.highlights.highlightInSummaries
@@ -2600,10 +2599,10 @@ export class ArticleList {
             );
             highlightService.setHighlightedText(
               summaryOverlay,
-              summaryText,
+              article.summary,
             );
           } else {
-            summaryOverlay.textContent = summaryText;
+            summaryOverlay.textContent = article.summary;
           }
         }
       } else if (article.summary) {
@@ -2613,7 +2612,6 @@ export class ArticleList {
         const summaryOnlyContainer = previewRegion.createDiv({
           cls: "rss-dashboard-cover-summary-only",
         });
-        const summaryText = getCardSummaryText(article);
         if (
           this.settings.highlights?.enabled &&
           this.settings.highlights.highlightInSummaries
@@ -2623,10 +2621,10 @@ export class ArticleList {
           );
           highlightService.setHighlightedText(
             summaryOnlyContainer,
-            summaryText,
+            article.summary,
           );
         } else {
-          summaryOnlyContainer.textContent = summaryText;
+          summaryOnlyContainer.textContent = article.summary;
         }
       }
 
@@ -3289,27 +3287,4 @@ function extractFirstImageSrc(html: string): string | null {
   const doc = parser.parseFromString(htmlWithMeta, "text/html");
   const img = doc.querySelector("img");
   return img ? img.getAttribute("src") : null;
-}
-
-function extractPlainTextFromHtml(html: string): string {
-  if (!html) return "";
-  const htmlWithMeta = ensureUtf8Meta(html);
-  const doc = new DOMParser().parseFromString(htmlWithMeta, "text/html");
-  return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
-}
-
-function getCardSummaryText(article: FeedItem): string {
-  const summary = (article.summary || "").trim();
-
-  if (summary) {
-    const looksLikeLegacyTruncation =
-      summary.endsWith("...") && summary.length >= 200 && summary.length <= 223;
-
-    if (!looksLikeLegacyTruncation) return summary;
-  }
-
-  return (
-    extractPlainTextFromHtml(article.content || article.description || "") ||
-    summary
-  );
 }
