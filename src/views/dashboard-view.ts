@@ -1624,6 +1624,11 @@ export class RssDashboardView extends ItemView {
     this.syncArticleListAfterUpdate(originalArticle);
   }
 
+  public setSelectedArticleFromExternal(article: FeedItem): void {
+    this.selectedArticle = article;
+    this.articleList?.setSelectedArticle(article);
+  }
+
   private syncArticleListAfterUpdate(article: FeedItem): void {
     if (!this.articleList) {
       return;

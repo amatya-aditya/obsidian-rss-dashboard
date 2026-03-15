@@ -3,12 +3,19 @@
 ### New Features
 
 - Added copy-to-clipboard actions for Settings exports (data.json, usersettings.json, OPML)
+- **Podcast Player UI**: Refreshed in-app podcast player layout and controls.
+- **Podcast Tags**: Show episode tags in the player and in playlist rows (with overflow handling).
+- **Live Tag Sync**: Tag assignment changes now update in real time across dashboard cards, player tag strip, and playlist rows.
 
 ### Fixed
 
 - Fixed Settings export buttons on Obsidian Mobile (iOS/Android) by using the native share/save sheet flow
 - Added toast notifications for export and copy actions so the outcome is always visible
 - Added unit tests covering mobile share, desktop download, and clipboard fallbacks
+- Podcast player now keeps play/pause button state in sync during autoplay
+- Sorting/shuffling the podcast playlist no longer interrupts playback
+- Switching episodes via the playlist no longer auto-plays unexpectedly
+- Added unit tests covering podcast player autoplay, live tag refresh, and sorting playback stability
 - Reduced dead space in dashboard cards by letting cards auto-size while preserving equal-height grid rows
 - Article title in reader now hidden on mobile view
 - Reader settings sheet now notch-safe on iPhone, with improved touch layout, slider sizing, and a bottom “Done” CTA

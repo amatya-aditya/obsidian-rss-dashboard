@@ -6,6 +6,7 @@ import {
   App,
   Setting,
   Notice,
+  requireApiVersion,
 } from "obsidian";
 import { setIcon } from "obsidian";
 import {
@@ -525,6 +526,10 @@ export class ReaderView extends ItemView {
       this.videoPlayer.destroy();
       this.videoPlayer = null;
     }
+    if (this.podcastPlayer) {
+      this.podcastPlayer.destroy();
+      this.podcastPlayer = null;
+    }
 
     const container = this.readingContainer.createDiv({
       cls: "rss-reader-podcast-container enhanced",
@@ -538,11 +543,23 @@ export class ReaderView extends ItemView {
       }
     }
 
+    const onEpisodeSelected = (selectedEpisode: FeedItem) => {
+      this.currentItem = selectedEpisode;
+      if (this.titleElement) {
+        this.titleElement.setText(selectedEpisode.title);
+      }
+      this.updateToggleButtons();
+      this.closeTagsDropdownPortal();
+      void this.syncDashboardSelectionFromPlayer(selectedEpisode);
+    };
+
     if (item.audioUrl) {
       this.podcastPlayer = new PodcastPlayer(
         container,
         this.app,
         this.settings.media.podcastTheme,
+        undefined,
+        onEpisodeSelected,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -556,6 +573,8 @@ export class ReaderView extends ItemView {
           container,
           this.app,
           this.settings.media.podcastTheme,
+          undefined,
+          onEpisodeSelected,
         );
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
       } else {
@@ -571,6 +590,21 @@ export class ReaderView extends ItemView {
   updatePodcastTheme(theme: string): void {
     if (this.podcastPlayer) {
       this.podcastPlayer.updateTheme(theme);
+    }
+  }
+
+  private async syncDashboardSelectionFromPlayer(article: FeedItem): Promise<void> {
+    const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+    for (const leaf of leaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view as unknown as {
+        setSelectedArticleFromExternal?: (next: FeedItem) => void;
+      };
+      if (typeof view.setSelectedArticleFromExternal === "function") {
+        view.setSelectedArticleFromExternal(article);
+      }
     }
   }
 
@@ -2229,6 +2263,15 @@ export class ReaderView extends ItemView {
 
     // Notify parent to persist the change
     this.onArticleUpdate(item, { tags: [...item.tags] }, false);
+
+    if (
+      this.podcastPlayer &&
+      this.currentItem?.guid === item.guid &&
+      this.currentItem.mediaType === "podcast"
+    ) {
+      this.podcastPlayer.refreshTags();
+      this.podcastPlayer.refreshPlaylistTags(item.guid);
+    }
   }
 
   private updateToggleButtons(): void {
