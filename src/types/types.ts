@@ -246,6 +246,17 @@ export interface FeedFilterSettings {
   rules: KeywordFilterRule[];
 }
 
+export interface FreshRSSSettings {
+  enabled: boolean;
+  serverUrl: string;
+  // username & password stored in Obsidian SecretStorage (not in data.json)
+  syncInterval: number; // minutes — how often to sync with FreshRSS
+  syncReadState: boolean; // push read/unread to server
+  syncStarredState: boolean; // push starred to server
+  importFeeds: boolean; // import subscriptions from FreshRSS
+  lastSyncTime: number;
+}
+
 export interface RssDashboardSettings {
   feeds: Feed[];
   folders: Folder[];
@@ -295,6 +306,7 @@ export interface RssDashboardSettings {
   display: DisplaySettings;
   highlights: HighlightSettings;
   filters: GlobalFilterSettings;
+  freshRSS: FreshRSSSettings;
 }
 
 export type SettingsOnly = Omit<RssDashboardSettings, 'feeds' | 'folders' | 'availableTags'>;
@@ -346,7 +358,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   starredArticlesPageSize: 50,
   availableTags: [
     { name: "Important", color: "#e74c3c" },
-    { name: "Read later", color: "#3498db" },
+    { name: "Read-later", color: "#3498db" },
     { name: "Favorite", color: "#f1c40f" },
     { name: "YouTube", color: "#ff0000" },
     { name: "Podcast", color: "#8e44ad" },
@@ -454,5 +466,14 @@ guid: "{{guid}}"
     includeLogic: "AND",
     bypassAll: false,
     rules: [],
+  },
+  freshRSS: {
+    enabled: false,
+    serverUrl: "",
+    syncInterval: 30,
+    syncReadState: true,
+    syncStarredState: true,
+    importFeeds: true,
+    lastSyncTime: 0,
   },
 };

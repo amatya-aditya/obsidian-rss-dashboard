@@ -1,5 +1,6 @@
 # vscode
 .vscode 
+.claude
 
 # npm
 node_modules
@@ -11,6 +12,7 @@ data.json.backup
 usersettings.json
 main.js
 rss-dashboard.sqlite
+styles.css
 
 # build artifacts
 release/

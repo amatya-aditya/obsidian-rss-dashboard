@@ -219,6 +219,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     "Highlights",
     "Import/Export",
     "Tags",
+    "FreshRSS",
     "About",
   ];
 
@@ -279,6 +280,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         break;
       case "Tags":
         this.createTagsSettings(tabContent);
+        break;
+      case "FreshRSS":
+        this.createFreshRSSSettings(tabContent);
         break;
       case "About":
         this.createAboutTab(tabContent);
@@ -2307,6 +2311,196 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       }),
     );
   }
+
+  /* eslint-disable obsidianmd/ui/sentence-case -- FreshRSS is a proper noun */
+  private createFreshRSSSettings(containerEl: HTMLElement): void {
+    const freshRSS = this.plugin.settings.freshRSS;
+
+    new Setting(containerEl)
+      .setName("Connect to a FreshRSS instance to sync feeds, read state, and starred articles")
+      .setHeading();
+
+    new Setting(containerEl)
+      .setName("Enable FreshRSS sync")
+      .setDesc("Turn on two-way sync with your FreshRSS server")
+      .addToggle((toggle) =>
+        toggle.setValue(freshRSS.enabled).onChange(async (value) => {
+          freshRSS.enabled = value;
+          await this.plugin.saveSettings();
+          this.display();
+        }),
+      );
+
+    if (!freshRSS.enabled) return;
+
+    new Setting(containerEl)
+      .setName("Server URL")
+      .setDesc("Full URL of your FreshRSS instance (e.g. https://rss.example.com)")
+      .addText((text) =>
+        text
+          .setPlaceholder("https://rss.example.com")
+          .setValue(freshRSS.serverUrl)
+          .onChange(async (value) => {
+            freshRSS.serverUrl = value.trim();
+            await this.plugin.saveSettings();
+          }),
+      );
+
+    const savedUser = this.app.secretStorage?.getSecret("freshrss-username") ?? "";
+    const savedPass = this.app.secretStorage?.getSecret("freshrss-password") ?? "";
+
+    let currentUser = savedUser;
+    let currentPass = savedPass;
+
+    new Setting(containerEl)
+      .setName("Username")
+      .addText((text) =>
+        text
+          .setPlaceholder("your-username")
+          .setValue(savedUser)
+          .onChange(async (value) => {
+            currentUser = value.trim();
+            await this.plugin.saveFreshRSSCredentials(currentUser, currentPass);
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Password")
+      .setDesc("API password (set in FreshRSS → Settings → Profile)")
+      .addText((text) => {
+        text
+          .setPlaceholder("API password")
+          .setValue(savedPass)
+          .onChange(async (value) => {
+            currentPass = value;
+            await this.plugin.saveFreshRSSCredentials(currentUser, currentPass);
+          });
+        text.inputEl.type = "password";
+      });
+
+    const testSetting = new Setting(containerEl)
+      .setName("Test connection")
+      .setDesc("Verify that your credentials work")
+      .addButton((btn) =>
+        btn.setButtonText("Test").setCta().onClick(async () => {
+          const creds = await this.plugin.getFreshRSSCredentials();
+          if (!freshRSS.serverUrl || !creds.username || !creds.password) {
+            new Notice("Please fill in server URL, username, and password first.");
+            return;
+          }
+          // Remove any previous status indicator
+          const prevStatus = testSetting.settingEl.querySelector(".freshrss-conn-status");
+          if (prevStatus) prevStatus.remove();
+
+          btn.setButtonText("Testing...");
+          btn.setDisabled(true);
+          try {
+            const { FreshRSSClient } = await import("../api/freshrss");
+            const client = new FreshRSSClient({
+              serverUrl: freshRSS.serverUrl,
+              username: creds.username,
+              password: creds.password,
+            });
+            const ok = await client.testConnection();
+
+            const statusEl = testSetting.settingEl.createSpan({
+              cls: ok
+                ? "freshrss-conn-status freshrss-conn-success"
+                : "freshrss-conn-status freshrss-conn-fail",
+            });
+            statusEl.setText(ok ? "\u2714 Connected" : "\u2718 Failed");
+            new Notice(ok ? "Connected to FreshRSS successfully!" : "Connection failed \u2014 check credentials.");
+          } catch (e) {
+            const statusEl = testSetting.settingEl.createSpan({
+              cls: "freshrss-conn-status freshrss-conn-fail",
+            });
+            statusEl.setText("\u2718 Error");
+            new Notice(`Connection error: ${(e as Error).message}`);
+          } finally {
+            btn.setButtonText("Test");
+            btn.setDisabled(false);
+          }
+        }),
+      );
+
+    new Setting(containerEl)
+      .setName("Sync")
+      .setHeading();
+
+    new Setting(containerEl)
+      .setName("Sync interval")
+      .setDesc("How often to sync with FreshRSS (in minutes)")
+      .addSlider((slider) =>
+        slider
+          .setLimits(5, 120, 5)
+          .setValue(freshRSS.syncInterval)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            freshRSS.syncInterval = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Sync read/unread state")
+      .setDesc("Push read/unread changes to your FreshRSS server")
+      .addToggle((toggle) =>
+        toggle.setValue(freshRSS.syncReadState).onChange(async (value) => {
+          freshRSS.syncReadState = value;
+          await this.plugin.saveSettings();
+        }),
+      );
+
+    new Setting(containerEl)
+      .setName("Sync starred state")
+      .setDesc("Push starred/unstarred changes to your FreshRSS server")
+      .addToggle((toggle) =>
+        toggle.setValue(freshRSS.syncStarredState).onChange(async (value) => {
+          freshRSS.syncStarredState = value;
+          await this.plugin.saveSettings();
+        }),
+      );
+
+    new Setting(containerEl)
+      .setName("Import feeds from FreshRSS")
+      .setDesc("Automatically add FreshRSS subscriptions to the dashboard")
+      .addToggle((toggle) =>
+        toggle.setValue(freshRSS.importFeeds).onChange(async (value) => {
+          freshRSS.importFeeds = value;
+          await this.plugin.saveSettings();
+        }),
+      );
+
+    new Setting(containerEl)
+      .setName("Sync now")
+      .setDesc(
+        freshRSS.lastSyncTime
+          ? `Last synced: ${new Date(freshRSS.lastSyncTime).toLocaleString()}`
+          : "Never synced",
+      )
+      .addButton((btn) =>
+        btn.setButtonText("Sync now").onClick(async () => {
+          const creds = await this.plugin.getFreshRSSCredentials();
+          if (!freshRSS.serverUrl || !creds.username || !creds.password) {
+            new Notice("Please configure FreshRSS connection first.");
+            return;
+          }
+          btn.setButtonText("Syncing...");
+          btn.setDisabled(true);
+          try {
+            await this.plugin.syncFreshRSS();
+            new Notice("FreshRSS sync complete!");
+            this.display();
+          } catch (e) {
+            new Notice(`Sync failed: ${(e as Error).message}`);
+          } finally {
+            btn.setButtonText("Sync now");
+            btn.setDisabled(false);
+          }
+        }),
+      );
+  }
+  /* eslint-enable obsidianmd/ui/sentence-case */
 
   private createAboutTab(containerEl: HTMLElement): void {
     const aboutContainer = containerEl.createDiv({

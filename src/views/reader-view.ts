@@ -763,7 +763,10 @@ export class ReaderView extends ItemView {
             const el = parent.createEl(tag);
 
             Array.from(element.attributes).forEach((attr) => {
-              el.setAttr(attr.name, attr.value);
+              // Skip invalid attribute names (e.g. from malformed HTML/JSON-LD)
+              if (/^[a-zA-Z_][\w\-.:]*$/.test(attr.name)) {
+                el.setAttr(attr.name, attr.value);
+              }
             });
 
             appendNodes(el, node.childNodes);

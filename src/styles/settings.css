@@ -968,3 +968,17 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* FreshRSS connection status */
+.freshrss-conn-status {
+  margin-left: 8px;
+  font-size: 1.2em;
+}
+
+.freshrss-conn-success {
+  color: var(--text-success, #28a745);
+}
+
+.freshrss-conn-fail {
+  color: var(--text-error, #dc3545);
+}

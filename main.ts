@@ -57,6 +57,32 @@ export default class RssDashboardPlugin extends Plugin {
   public settingTab: RssDashboardSettingTab | null = null;
   private isBackgroundImporting = false;
 
+  private static readonly SECRET_FRESHRSS_USER = "freshrss-username";
+  private static readonly SECRET_FRESHRSS_PASS = "freshrss-password";
+
+  /** Check whether SecretStorage API is available (Obsidian ≥ 1.11.4). */
+  get hasSecretStorage(): boolean {
+    return requireApiVersion("1.11.4");
+  }
+
+  /** Get FreshRSS credentials from SecretStorage. */
+  async getFreshRSSCredentials(): Promise<{ username: string; password: string }> {
+    if (this.hasSecretStorage) {
+      const username = this.app.secretStorage.getSecret(RssDashboardPlugin.SECRET_FRESHRSS_USER) ?? "";
+      const password = this.app.secretStorage.getSecret(RssDashboardPlugin.SECRET_FRESHRSS_PASS) ?? "";
+      return { username, password };
+    }
+    return { username: "", password: "" };
+  }
+
+  /** Save FreshRSS credentials to SecretStorage. */
+  async saveFreshRSSCredentials(username: string, password: string): Promise<void> {
+    if (this.hasSecretStorage) {
+      this.app.secretStorage.setSecret(RssDashboardPlugin.SECRET_FRESHRSS_USER, username);
+      this.app.secretStorage.setSecret(RssDashboardPlugin.SECRET_FRESHRSS_PASS, password);
+    }
+  }
+
   public async getActiveDashboardView(): Promise<RssDashboardView | null> {
     const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
     for (const leaf of leaves) {
@@ -311,6 +337,28 @@ export default class RssDashboardPlugin extends Plugin {
           this.settings.refreshInterval * 60 * 1000,
         ),
       );
+
+      // FreshRSS periodic sync
+      if (this.settings.freshRSS?.enabled) {
+        this.registerInterval(
+          window.setInterval(
+            () => {
+              void this.syncFreshRSS();
+            },
+            (this.settings.freshRSS.syncInterval || 30) * 60 * 1000,
+          ),
+        );
+        // Initial sync on load
+        void this.syncFreshRSS();
+      }
+
+      this.addCommand({
+        id: "sync-freshrss",
+        name: "Sync with FreshRSS", // eslint-disable-line obsidianmd/ui/sentence-case -- proper noun
+        callback: () => {
+          void this.syncFreshRSS();
+        },
+      });
     } catch {
       new Notice("Error initializing RSS dashboard plugin.");
     }
@@ -903,7 +951,7 @@ export default class RssDashboardPlugin extends Plugin {
         }
 
         feedMetadata.importStatus = "completed";
-      } catch (error) {
+      } catch (error: unknown) {
         feedMetadata.importStatus = "failed";
         feedMetadata.importError = getFeedErrorMessage(error);
       } finally {
@@ -1312,7 +1360,7 @@ export default class RssDashboardPlugin extends Plugin {
         }
         new Notice(`Feed "${title}" added`);
         return true;
-      } catch (error) {
+      } catch (error: unknown) {
         new Notice(formatFeedParseNoticeMessage(error));
         return false;
       }
@@ -1478,6 +1526,16 @@ export default class RssDashboardPlugin extends Plugin {
           {},
           DEFAULT_SETTINGS.filters,
           this.settings.filters,
+        );
+      }
+
+      if (!this.settings.freshRSS) {
+        this.settings.freshRSS = DEFAULT_SETTINGS.freshRSS;
+      } else {
+        this.settings.freshRSS = Object.assign(
+          {},
+          DEFAULT_SETTINGS.freshRSS,
+          this.settings.freshRSS,
         );
       }
 
@@ -1666,6 +1724,149 @@ export default class RssDashboardPlugin extends Plugin {
     });
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async syncFreshRSS(): Promise<void> {
+    const cfg = this.settings.freshRSS;
+    const { username, password } = await this.getFreshRSSCredentials();
+    if (!cfg.enabled || !cfg.serverUrl || !username || !password) {
+      return;
+    }
+
+    const { FreshRSSClient } = await import("./src/api/freshrss");
+    const client = new FreshRSSClient({
+      serverUrl: cfg.serverUrl,
+      username,
+      password,
+    });
+
+    await client.login();
+
+    // Fetch subscription list once — used by both import and sync steps
+    const subs = await client.getSubscriptions();
+    const freshRSSFeedUrls = new Set(
+      subs.map((s) => s.url || s.id.replace(/^feed\//, "")),
+    );
+
+    // 1. Import subscriptions as feeds
+    if (cfg.importFeeds) {
+      const newFeeds = client.subscriptionsToFeeds(subs, this.settings.feeds);
+
+      // Merge: add new feeds, update existing ones
+      for (const newFeed of newFeeds) {
+        const existingIndex = this.settings.feeds.findIndex(
+          (f) => f.url === newFeed.url,
+        );
+        if (existingIndex === -1) {
+          // Ensure folder exists
+          const folderExists = this.settings.folders.some(
+            (f) => f.name === newFeed.folder,
+          );
+          if (!folderExists) {
+            this.settings.folders.push({
+              name: newFeed.folder,
+              subfolders: [],
+              createdAt: Date.now(),
+              modifiedAt: Date.now(),
+            });
+          }
+          this.settings.feeds.push(newFeed);
+        } else {
+          // Update title/folder/icon from server but keep local items
+          const existing = this.settings.feeds[existingIndex];
+          existing.title = newFeed.title;
+          existing.folder = newFeed.folder;
+          existing.iconUrl = newFeed.iconUrl || existing.iconUrl;
+        }
+      }
+    }
+
+    // 2. Sync items only for feeds that exist on the FreshRSS server
+    const newlyAddedFeeds: Feed[] = [];
+    for (const feed of this.settings.feeds) {
+      // Skip feeds that are not on the FreshRSS server
+      if (!freshRSSFeedUrls.has(feed.url)) continue;
+
+      try {
+        const existingItems = new Map(
+          feed.items.map((item) => [item.guid, item]),
+        );
+
+        const stream = await client.getFeedItems(feed.url, feed.maxItemsLimit ?? 50);
+        const serverItems = stream.items.map((item) =>
+          client.streamItemToFeedItem(item, existingItems),
+        );
+
+        // Merge server items with existing local items
+        for (const serverItem of serverItems) {
+          const localItem = existingItems.get(serverItem.guid);
+          if (localItem) {
+            // Sync read/starred state from server
+            localItem.read = serverItem.read;
+            localItem.starred = serverItem.starred;
+            // Update content if server has newer version
+            if (serverItem.content) localItem.content = serverItem.content;
+          } else {
+            feed.items.push(serverItem);
+          }
+        }
+
+        // If feed still has no items after FreshRSS sync, queue for direct RSS fetch
+        if (feed.items.length === 0) {
+          newlyAddedFeeds.push(feed);
+        }
+
+        feed.lastUpdated = Date.now();
+      } catch (e) {
+        console.error(`[RSS dashboard] FreshRSS sync error for ${feed.url}:`, e);
+        // Feed might not be in FreshRSS stream yet — queue for direct fetch
+        if (feed.items.length === 0) {
+          newlyAddedFeeds.push(feed);
+        }
+      }
+    }
+
+    // 2b. Fetch articles directly for feeds that had no items from FreshRSS
+    if (newlyAddedFeeds.length > 0) {
+      try {
+        const fetched = await this.feedParser.refreshAllFeeds(newlyAddedFeeds);
+        for (const fetchedFeed of fetched) {
+          const idx = this.settings.feeds.findIndex((f) => f.url === fetchedFeed.url);
+          if (idx >= 0) {
+            this.settings.feeds[idx] = fetchedFeed;
+          }
+        }
+      } catch {
+        // Non-critical — feeds will be fetched on next regular refresh
+      }
+    }
+
+    // 3. Push local read/starred state back to server
+    if (cfg.syncReadState || cfg.syncStarredState) {
+      for (const feed of this.settings.feeds) {
+        for (const item of feed.items) {
+          if (!item.guid) continue;
+          try {
+            if (cfg.syncReadState && item.read) {
+              await client.markAsRead([item.guid]);
+            }
+            if (cfg.syncStarredState && item.starred) {
+              await client.starItem(item.guid);
+            }
+          } catch {
+            // Non-critical — continue syncing other items
+          }
+        }
+      }
+    }
+
+    cfg.lastSyncTime = Date.now();
+    await this.saveSettings();
+
+    const view = await this.getActiveDashboardView();
+    if (view) {
+      view.refresh();
+    }
   }
 
   onunload() {

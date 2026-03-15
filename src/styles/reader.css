@@ -214,7 +214,7 @@
 }
 .rss-reader-article-content a,
 .rss-reader-description a {
-  color: var(--interactive-accent);
+  color: var(--link-color);
   text-decoration: none;
 }
 .rss-reader-article-content a:hover,
