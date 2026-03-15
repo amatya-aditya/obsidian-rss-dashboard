@@ -32,7 +32,6 @@ The Reader View provides a highly customizable environment for consuming your RS
 ### Management
 
 - **One-Click Reset**: Quickly revert all reading preferences to their default state.
-
 ## Technical Stability & Compatibility
 
 - **Substack Optimization**: The reader now prioritizes full feed content for Substack, ensuring complete articles load even when the source webpage is behind a subscription or summary wall.
