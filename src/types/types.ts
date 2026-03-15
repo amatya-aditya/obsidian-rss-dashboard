@@ -249,8 +249,7 @@ export interface FeedFilterSettings {
 export interface FreshRSSSettings {
   enabled: boolean;
   serverUrl: string;
-  username: string;
-  password: string;
+  // username & password stored in Obsidian SecretStorage (not in data.json)
   syncInterval: number; // minutes — how often to sync with FreshRSS
   syncReadState: boolean; // push read/unread to server
   syncStarredState: boolean; // push starred to server
@@ -471,8 +470,6 @@ guid: "{{guid}}"
   freshRSS: {
     enabled: false,
     serverUrl: "",
-    username: "",
-    password: "",
     syncInterval: 30,
     syncReadState: true,
     syncStarredState: true,

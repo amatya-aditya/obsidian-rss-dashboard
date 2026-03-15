@@ -57,6 +57,32 @@ export default class RssDashboardPlugin extends Plugin {
   public settingTab: RssDashboardSettingTab | null = null;
   private isBackgroundImporting = false;
 
+  private static readonly SECRET_FRESHRSS_USER = "freshrss-username";
+  private static readonly SECRET_FRESHRSS_PASS = "freshrss-password";
+
+  /** Check whether SecretStorage API is available (Obsidian ≥ 1.11.4). */
+  get hasSecretStorage(): boolean {
+    return requireApiVersion("1.11.4");
+  }
+
+  /** Get FreshRSS credentials from SecretStorage. */
+  async getFreshRSSCredentials(): Promise<{ username: string; password: string }> {
+    if (this.hasSecretStorage) {
+      const username = this.app.secretStorage.getSecret(RssDashboardPlugin.SECRET_FRESHRSS_USER) ?? "";
+      const password = this.app.secretStorage.getSecret(RssDashboardPlugin.SECRET_FRESHRSS_PASS) ?? "";
+      return { username, password };
+    }
+    return { username: "", password: "" };
+  }
+
+  /** Save FreshRSS credentials to SecretStorage. */
+  async saveFreshRSSCredentials(username: string, password: string): Promise<void> {
+    if (this.hasSecretStorage) {
+      this.app.secretStorage.setSecret(RssDashboardPlugin.SECRET_FRESHRSS_USER, username);
+      this.app.secretStorage.setSecret(RssDashboardPlugin.SECRET_FRESHRSS_PASS, password);
+    }
+  }
+
   public async getActiveDashboardView(): Promise<RssDashboardView | null> {
     const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
     for (const leaf of leaves) {
@@ -1702,15 +1728,16 @@ export default class RssDashboardPlugin extends Plugin {
 
   async syncFreshRSS(): Promise<void> {
     const cfg = this.settings.freshRSS;
-    if (!cfg.enabled || !cfg.serverUrl || !cfg.username || !cfg.password) {
+    const { username, password } = await this.getFreshRSSCredentials();
+    if (!cfg.enabled || !cfg.serverUrl || !username || !password) {
       return;
     }
 
     const { FreshRSSClient } = await import("./src/api/freshrss");
     const client = new FreshRSSClient({
       serverUrl: cfg.serverUrl,
-      username: cfg.username,
-      password: cfg.password,
+      username,
+      password,
     });
 
     await client.login();

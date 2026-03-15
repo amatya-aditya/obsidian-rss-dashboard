@@ -2346,15 +2346,21 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
+    const savedUser = this.app.secretStorage?.getSecret("freshrss-username") ?? "";
+    const savedPass = this.app.secretStorage?.getSecret("freshrss-password") ?? "";
+
+    let currentUser = savedUser;
+    let currentPass = savedPass;
+
     new Setting(containerEl)
       .setName("Username")
       .addText((text) =>
         text
           .setPlaceholder("your-username")
-          .setValue(freshRSS.username)
+          .setValue(savedUser)
           .onChange(async (value) => {
-            freshRSS.username = value.trim();
-            await this.plugin.saveSettings();
+            currentUser = value.trim();
+            await this.plugin.saveFreshRSSCredentials(currentUser, currentPass);
           }),
       );
 
@@ -2364,10 +2370,10 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       .addText((text) => {
         text
           .setPlaceholder("API password")
-          .setValue(freshRSS.password)
+          .setValue(savedPass)
           .onChange(async (value) => {
-            freshRSS.password = value;
-            await this.plugin.saveSettings();
+            currentPass = value;
+            await this.plugin.saveFreshRSSCredentials(currentUser, currentPass);
           });
         text.inputEl.type = "password";
       });
@@ -2377,7 +2383,8 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       .setDesc("Verify that your credentials work")
       .addButton((btn) =>
         btn.setButtonText("Test").setCta().onClick(async () => {
-          if (!freshRSS.serverUrl || !freshRSS.username || !freshRSS.password) {
+          const creds = await this.plugin.getFreshRSSCredentials();
+          if (!freshRSS.serverUrl || !creds.username || !creds.password) {
             new Notice("Please fill in server URL, username, and password first.");
             return;
           }
@@ -2391,8 +2398,8 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             const { FreshRSSClient } = await import("../api/freshrss");
             const client = new FreshRSSClient({
               serverUrl: freshRSS.serverUrl,
-              username: freshRSS.username,
-              password: freshRSS.password,
+              username: creds.username,
+              password: creds.password,
             });
             const ok = await client.testConnection();
 
@@ -2473,7 +2480,8 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       )
       .addButton((btn) =>
         btn.setButtonText("Sync now").onClick(async () => {
-          if (!freshRSS.serverUrl || !freshRSS.username || !freshRSS.password) {
+          const creds = await this.plugin.getFreshRSSCredentials();
+          if (!freshRSS.serverUrl || !creds.username || !creds.password) {
             new Notice("Please configure FreshRSS connection first.");
             return;
           }
