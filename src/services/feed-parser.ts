@@ -2538,7 +2538,7 @@ export class FeedParser {
     return "";
   }
 
-  private extractSummary(description: string, maxLength = 220): string {
+  private extractSummary(description: string, maxLength?: number): string {
     if (!description) return "";
 
     try {
@@ -2550,8 +2550,10 @@ export class FeedParser {
 
       text = text.replace(/\s+/g, " ").trim();
 
-      if (text.length > maxLength) {
-        text = text.substring(0, maxLength) + "...";
+      if (typeof maxLength === "number" && Number.isFinite(maxLength) && maxLength > 0) {
+        if (text.length > maxLength) {
+          text = text.substring(0, maxLength) + "...";
+        }
       }
 
       return text;
