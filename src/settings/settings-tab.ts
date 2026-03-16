@@ -21,6 +21,7 @@ import {
 } from "../components/folder-suggest";
 import { ImportOpmlModal } from "../modals/import-opml-modal";
 import { renderKeywordFilterEditor } from "../components/keyword-filter-editor";
+import { setCssProps, shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 
 class TemplateNameModal extends Modal {
   private result: string | null = null;
@@ -225,6 +226,13 @@ class ApplyMaxItemsToExistingFeedsModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
 
+    const isMobile = shouldUseMobileSidebarLayout();
+    this.modalEl.addClass("rss-dashboard-modal");
+    this.modalEl.addClass("rss-dashboard-modal-container");
+    if (isMobile) {
+      this.modalEl.addClass("rss-mobile-apply-max-items-modal");
+    }
+
     contentEl.createEl("h2", { text: "Apply max item limit to all feeds?" });
     contentEl.createEl("p", {
       text: `You changed the default max item limit to ${this.newLimit}. Do you want to apply this to ALL existing feeds? This will overwrite any custom per-feed max item settings.`,
@@ -235,31 +243,40 @@ class ApplyMaxItemsToExistingFeedsModal extends Modal {
       });
     }
 
-    new Setting(contentEl)
-      .addButton((btn) =>
-        btn.setButtonText("Cancel").onClick(() => {
+    const buttonsSetting = new Setting(contentEl);
+    buttonsSetting.controlEl.addClass("rss-max-items-apply-buttons");
+    if (isMobile) {
+      setCssProps(buttonsSetting.controlEl, {
+        "flex-direction": "column",
+        "align-items": "stretch",
+        gap: "8px",
+      });
+    }
+    buttonsSetting
+      .addButton((btn) => {
+        btn.setButtonText("Cancel");
+        if (isMobile) setCssProps(btn.buttonEl, { width: "100%" });
+        btn.onClick(() => {
           this.action = "cancel";
           this.close();
-        }),
-      )
-      .addButton((btn) =>
-        btn
-          .setButtonText("Apply to all feeds")
-          .setWarning()
-          .onClick(() => {
-            this.action = "apply";
-            this.close();
-          }),
-      )
-      .addButton((btn) =>
-        btn
-          .setButtonText("Apply & refresh all")
-          .setWarning()
-          .onClick(() => {
-            this.action = "apply-refresh";
-            this.close();
-          }),
-      );
+        });
+      })
+      .addButton((btn) => {
+        btn.setButtonText("Apply to all feeds").setWarning();
+        if (isMobile) setCssProps(btn.buttonEl, { width: "100%" });
+        btn.onClick(() => {
+          this.action = "apply";
+          this.close();
+        });
+      })
+      .addButton((btn) => {
+        btn.setButtonText("Apply & refresh all").setWarning();
+        if (isMobile) setCssProps(btn.buttonEl, { width: "100%" });
+        btn.onClick(() => {
+          this.action = "apply-refresh";
+          this.close();
+        });
+      });
   }
 
   onClose() {
