@@ -93,6 +93,10 @@
 		);
 }
 
+.rss-dashboard-tags-mobile-sheet .rss-dashboard-tag-edit-button {
+	display: none;
+}
+
 .rss-dashboard-tags-sheet-header {
 	display: flex;
 	align-items: center;

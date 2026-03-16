@@ -1448,7 +1448,7 @@ export class ReaderView extends ItemView {
         cls: "rss-dashboard-tags-sheet-btn",
         text: "Add tag",
       });
-      setIcon(addTagBtn, "plus");
+      setIcon(addTagBtn, "pencil");
       addTagBtn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -2078,7 +2078,10 @@ export class ReaderView extends ItemView {
         const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
         const computed = targetWindow.getComputedStyle(portalDropdown);
         const bottomOffset = Number.parseFloat(computed.bottom || "0") || 0;
-        const maxHeight = Math.max(220, Math.floor(viewportHeight - bottomOffset - 8));
+        const maxHeight = Math.min(
+          Math.floor(viewportHeight * 0.8),
+          Math.max(220, Math.floor(viewportHeight - bottomOffset - 8))
+        );
         portalDropdown.style.setProperty(
           "max-height",
           `${maxHeight}px`,
