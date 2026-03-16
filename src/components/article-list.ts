@@ -20,6 +20,12 @@ function stripHtmlToText(html: string, maxLength = 220): string {
     }
 }
 
+function formatCompactNumber(n: number): string {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return n.toString();
+}
+
 interface ArticleListCallbacks {
     onArticleClick: (article: FeedItem) => void;
     onToggleViewStyle: (style: "list" | "card") => void;
@@ -1014,7 +1020,23 @@ export class ArticleList {
                 text: article.feedTitle,
             });
 
-            
+            if (article.mediaType === 'video' && (article.viewCount || article.likeCount)) {
+                const statsContainer = articleMeta.createDiv({
+                    cls: "rss-dashboard-video-stats",
+                });
+                if (article.viewCount) {
+                    const viewEl = statsContainer.createSpan({ cls: "rss-dashboard-video-stat" });
+                    setIcon(viewEl, "eye");
+                    viewEl.createSpan({ text: formatCompactNumber(article.viewCount) });
+                }
+                if (article.likeCount) {
+                    const likeEl = statsContainer.createSpan({ cls: "rss-dashboard-video-stat" });
+                    setIcon(likeEl, "thumbs-up");
+                    likeEl.createSpan({ text: formatCompactNumber(article.likeCount) });
+                }
+            }
+
+
             let coverImgSrc = article.coverImage;
             if (!coverImgSrc && article.content) {
                 const extracted = extractFirstImageSrc(article.content);
@@ -1050,6 +1072,8 @@ export class ArticleList {
                         src: coverImgSrc,
                         alt: article.title,
                         loading: "lazy",
+                        decoding: "async",
+                        sizes: "(max-width: 600px) 100vw, 400px",
                     },
                 });
                 coverImg.onerror = () => {

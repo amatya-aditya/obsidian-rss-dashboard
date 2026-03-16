@@ -608,7 +608,12 @@ export class ReaderView extends ItemView {
                 img.setAttribute("src", src.replace("app://", "https://"));
             }
             img.classList.add("rss-reader-responsive-img");
-            
+            img.setAttribute("loading", "lazy");
+            img.setAttribute("decoding", "async");
+            img.classList.add("rss-reader-img-loading");
+            img.addEventListener('load', function() {
+                this.classList.remove("rss-reader-img-loading");
+            });
             img.addEventListener('error', function() {
                 this.remove();
             });

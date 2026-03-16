@@ -501,6 +501,37 @@ export class MediaService {
                 if (!pageToken) break;
             }
 
+            // Fetch video statistics (views, likes) in batches of 50
+            const videoIds = items.map(item => item.videoId).filter(Boolean) as string[];
+            for (let i = 0; i < videoIds.length; i += 50) {
+                const batch = videoIds.slice(i, i + 50);
+                try {
+                    const statsUrl = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${batch.join(',')}&key=${apiKey}`;
+                    const statsResponse = await requestUrl({ url: statsUrl });
+                    const statsData = statsResponse.json as {
+                        items?: Array<{
+                            id: string;
+                            statistics?: {
+                                viewCount?: string;
+                                likeCount?: string;
+                            };
+                        }>;
+                    };
+                    if (statsData.items) {
+                        const statsMap = new Map(statsData.items.map(s => [s.id, s.statistics]));
+                        for (const item of items) {
+                            const stats = item.videoId ? statsMap.get(item.videoId) : undefined;
+                            if (stats) {
+                                item.viewCount = stats.viewCount ? parseInt(stats.viewCount, 10) : undefined;
+                                item.likeCount = stats.likeCount ? parseInt(stats.likeCount, 10) : undefined;
+                            }
+                        }
+                    }
+                } catch (statsError) {
+                    console.warn('[RSS Dashboard] Failed to fetch video statistics:', statsError);
+                }
+            }
+
             return items;
         } catch (error) {
             console.error('[RSS Dashboard] YouTube API request failed:', error);

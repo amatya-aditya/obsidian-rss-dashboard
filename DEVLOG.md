@@ -1,5 +1,30 @@
 # Development Log
 
+## 2026-03-16 — Session 8: YouTube Stats, Reader Image Fixes, Discover Cleanup
+
+### YouTube View & Like Counts on Cards
+- **Problem**: YouTube cards showed no engagement metrics — just title, feed name, and thumbnail.
+- **Fix (media-service.ts)**: After fetching playlist items via YouTube Data API v3, added a batch `videos?part=statistics` call (up to 50 video IDs per request) to retrieve `viewCount` and `likeCount`. Stats are stored on each `FeedItem` and updated on every feed refresh.
+- **Fix (types.ts)**: Added `viewCount?: number` and `likeCount?: number` to `FeedItem` interface.
+- **Fix (article-list.ts)**: Added `formatCompactNumber()` helper (e.g. 1.2M, 45K). YouTube cards now display eye icon + view count and thumbs-up icon + like count in the meta row.
+- **Fix (card-view.css)**: Added `.rss-dashboard-video-stats` and `.rss-dashboard-video-stat` styles.
+- **Note**: Only works when a YouTube API key is configured. RSS-only feeds don't include stats.
+
+### Reader View Image Optimization
+- **Problem**: XDA and other image-heavy feeds loaded full-resolution images in the reader, causing slow rendering and oversized images filling the viewport (e.g. hero images and author headshots).
+- **Fix (reader.css)**: Added `max-height: 400px` and `object-fit: contain` to `.rss-reader-article-content img` to cap inline images.
+- **Fix (reader-view.ts)**: Added `loading="lazy"` and `decoding="async"` attributes to all content images for deferred loading. Added fade-in transition: images start with `opacity: 0` (class `rss-reader-img-loading`) and transition to `opacity: 1` on load.
+- **Fix (reader.css)**: Added `.rss-reader-img-loading` class with `opacity: 0` and `transition: opacity 0.3s ease-in`.
+
+### Discover Feed Cleanup
+- **Problem**: Discover tab had 207 curated feeds across many unrelated categories — too much noise.
+- **Fix (discover-feeds.json)**: Trimmed to 36 focused feeds covering tech news, AI, dev tools, Linux/open source, PKM, cybersecurity, tech podcasts, and xkcd.
+
+### BRAT Release (2.2.0-motion.2)
+- Bumped version, tagged, and pushed to fork (`motion2082/obsidian-rss-dashboard`).
+- Release workflow updated: removed `--draft` flag, added `motion` tag pattern to prerelease regex.
+- Install via BRAT: `motion2082/obsidian-rss-dashboard`.
+
 ## 2026-03-14 — Session 7: YouTube GUID Fix, Reddit Card Summaries, BRAT Release
 
 ### YouTube Feed Refresh GUID Mismatch (CRITICAL FIX)

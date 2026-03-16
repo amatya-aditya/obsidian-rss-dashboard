@@ -110,9 +110,16 @@
   .rss-reader-article-content img,
   .rss-reader-description img {
 	max-width: 100%;
+	max-height: 400px;
 	height: auto;
+	object-fit: contain;
 	border-radius: 5px;
-	margin: 10px 0
+	margin: 10px 0;
+	opacity: 1;
+	transition: opacity 0.3s ease-in
+  }
+  .rss-reader-img-loading {
+	opacity: 0
   }
   .rss-reader-article-content a,
   .rss-reader-description a {

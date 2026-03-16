@@ -16,10 +16,27 @@
 	font-size: 0.9em;
 	color: var(--text-muted);
    }
+   .rss-dashboard-video-stats {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 0.85em;
+	color: var(--text-muted);
+   }
+   .rss-dashboard-video-stat {
+	display: flex;
+	align-items: center;
+	gap: 3px;
+   }
+   .rss-dashboard-video-stat .svg-icon {
+	width: 14px;
+	height: 14px;
+   }
    .rss-dashboard-cover-container {
 	position: relative;
 	width: 100%;
 	padding-top: 56.25%;
+	max-height: 200px;
 	overflow: hidden;
 	border-radius: 8px;
 	margin: 8px 0;

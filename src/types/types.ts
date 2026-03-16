@@ -16,6 +16,8 @@ export interface FeedItem {
     videoUrl?: string;
     audioUrl?: string;
     duration?: string;
+    viewCount?: number;
+    likeCount?: number;
     author?: string;
     summary?: string;
     content?: string;
