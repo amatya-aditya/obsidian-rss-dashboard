@@ -387,14 +387,23 @@ export class EditFeedModal extends Modal {
       new FolderSuggest(this.app, folderInput, this.plugin.settings.folders);
     });
 
-    new Setting(contentEl).setName("Per feed control options").setHeading();
+    const perFeedControlsDetails = contentEl.createEl("details", {
+      cls: "rss-keyword-filter-details rss-per-feed-controls-details",
+    });
+    perFeedControlsDetails.createEl("summary", {
+      cls: "rss-keyword-filter-summary",
+      text: "Per feed control options",
+    });
+    const perFeedControlsBody = perFeedControlsDetails.createDiv({
+      cls: "rss-keyword-filter-details-body",
+    });
 
     let autoDeleteDuration = this.feed.autoDeleteDuration || 0;
     let maxItemsLimit =
-      this.feed.maxItemsLimit || this.plugin.settings.maxItems;
+      this.feed.maxItemsLimit ?? this.plugin.settings.maxItems;
     let scanInterval = this.feed.scanInterval || 0;
 
-    const autoDeleteSetting = new Setting(contentEl)
+    const autoDeleteSetting = new Setting(perFeedControlsBody)
       .setName("Auto delete articles duration")
       .setDesc("Days to keep articles before auto-delete");
 
@@ -452,7 +461,7 @@ export class EditFeedModal extends Modal {
         });
     });
 
-    const maxItemsSetting = new Setting(contentEl)
+    const maxItemsSetting = new Setting(perFeedControlsBody)
       .setName("Max items limit")
       .setDesc("Maximum number of items to keep per feed");
 
@@ -506,7 +515,7 @@ export class EditFeedModal extends Modal {
         });
     });
 
-    const scanIntervalSetting = new Setting(contentEl)
+    const scanIntervalSetting = new Setting(perFeedControlsBody)
       .setName("Scan interval")
       .setDesc("Custom scan interval in minutes");
 
@@ -584,7 +593,7 @@ export class EditFeedModal extends Modal {
           rules: [],
         };
 
-    new Setting(contentEl)
+    new Setting(perFeedControlsBody)
       .setName("Article template")
       .setDesc("Select a template to use when saving articles from this feed")
       .addDropdown((dropdown) => {
@@ -661,7 +670,9 @@ export class EditFeedModal extends Modal {
           }
         }
 
-        const newMaxItemsLimit = maxItemsLimit || this.plugin.settings.maxItems;
+        const newMaxItemsLimit = Number.isFinite(maxItemsLimit)
+          ? maxItemsLimit
+          : this.plugin.settings.maxItems;
 
         this.feed.maxItemsLimit = newMaxItemsLimit;
         this.feed.scanInterval = scanInterval;
@@ -716,6 +727,7 @@ export class AddFeedModal extends Modal {
     maxItemsLimit?: number,
     scanInterval?: number,
     feedFilters?: FeedFilterSettings,
+    customTemplate?: string,
   ) => Promise<boolean | void>;
   onSave: () => void;
   defaultFolder: string;
@@ -732,6 +744,7 @@ export class AddFeedModal extends Modal {
       maxItemsLimit?: number,
       scanInterval?: number,
       feedFilters?: FeedFilterSettings,
+      customTemplate?: string,
     ) => Promise<boolean | void>,
     onSave: () => void,
     defaultFolder = "",
@@ -1169,10 +1182,214 @@ export class AddFeedModal extends Modal {
       new FolderSuggest(this.app, folderInput, this.folders);
     });
 
-    // Default values for the removed advanced options
-    const autoDeleteDuration = 0;
-    const maxItemsLimit = this.plugin?.settings?.maxItems || 25;
-    const scanInterval = 0;
+    const perFeedControlsDetails = contentEl.createEl("details", {
+      cls: "rss-keyword-filter-details rss-per-feed-controls-details",
+    });
+    perFeedControlsDetails.createEl("summary", {
+      cls: "rss-keyword-filter-summary",
+      text: "Per feed control options",
+    });
+    const perFeedControlsBody = perFeedControlsDetails.createDiv({
+      cls: "rss-keyword-filter-details-body",
+    });
+
+    let autoDeleteDuration = this.plugin?.settings?.defaultAutoDeleteDuration ?? 30;
+    let maxItemsLimit = this.plugin?.settings?.maxItems ?? 50;
+    let scanInterval = 0;
+
+    const autoDeleteSetting = new Setting(perFeedControlsBody)
+      .setName("Auto delete articles duration")
+      .setDesc("Days to keep articles before auto-delete");
+
+    let autoDeleteCustomInput: HTMLInputElement | null = null;
+
+    autoDeleteSetting.addDropdown((dropdown) => {
+      dropdown
+        .addOption("0", "Disabled")
+        .addOption("1", "1 day")
+        .addOption("3", "3 days")
+        .addOption("7", "1 week")
+        .addOption("14", "2 weeks")
+        .addOption("30", "1 month")
+        .addOption("60", "2 months")
+        .addOption("90", "3 months")
+        .addOption("180", "6 months")
+        .addOption("365", "1 year")
+        .addOption("custom", "Custom...")
+        .setValue(
+          autoDeleteDuration === 0
+            ? "0"
+            : [1, 3, 7, 14, 30, 60, 90, 180, 365].includes(autoDeleteDuration)
+              ? autoDeleteDuration.toString()
+              : "custom",
+        )
+        .onChange((value) => {
+          if (value === "custom") {
+            if (!autoDeleteCustomInput) {
+              autoDeleteCustomInput = autoDeleteSetting.controlEl.createEl(
+                "input",
+                {
+                  type: "number",
+                  placeholder: "Enter days",
+                  cls: "rss-custom-input",
+                },
+              );
+              autoDeleteCustomInput.min = "1";
+              autoDeleteCustomInput.value =
+                autoDeleteDuration > 0 ? autoDeleteDuration.toString() : "";
+              autoDeleteCustomInput.addEventListener("change", (evt: Event) => {
+                const target = evt.target as HTMLInputElement;
+                autoDeleteDuration = parseInt(target.value) || 0;
+              });
+            }
+            if (autoDeleteCustomInput) {
+              autoDeleteCustomInput.removeClass("hidden");
+              autoDeleteCustomInput.addClass("visible");
+            }
+          } else {
+            if (autoDeleteCustomInput) {
+              autoDeleteCustomInput.addClass("hidden");
+            }
+            autoDeleteDuration = parseInt(value) || 0;
+          }
+        });
+    });
+
+    const maxItemsSetting = new Setting(perFeedControlsBody)
+      .setName("Max items limit")
+      .setDesc("Maximum number of items to keep per feed");
+
+    let maxItemsCustomInput: HTMLInputElement | null = null;
+
+    maxItemsSetting.addDropdown((dropdown) => {
+      dropdown
+        .addOption("0", "Unlimited")
+        .addOption("10", "10 items")
+        .addOption("25", "25 items")
+        .addOption("50", "50 items")
+        .addOption("100", "100 items")
+        .addOption("200", "200 items")
+        .addOption("500", "500 items")
+        .addOption("1000", "1000 items")
+        .addOption("custom", "Custom...")
+        .setValue(
+          maxItemsLimit === 0
+            ? "0"
+            : [10, 25, 50, 100, 200, 500, 1000].includes(maxItemsLimit)
+              ? maxItemsLimit.toString()
+              : "custom",
+        )
+        .onChange((value) => {
+          if (value === "custom") {
+            if (!maxItemsCustomInput) {
+              maxItemsCustomInput = maxItemsSetting.controlEl.createEl(
+                "input",
+                {
+                  type: "number",
+                  placeholder: "Enter number",
+                  cls: "rss-custom-input",
+                },
+              );
+              maxItemsCustomInput.min = "1";
+              maxItemsCustomInput.addEventListener("change", (evt: Event) => {
+                const target = evt.target as HTMLInputElement;
+                maxItemsLimit = parseInt(target.value) || 0;
+              });
+            }
+            if (maxItemsCustomInput) {
+              maxItemsCustomInput.removeClass("hidden");
+              maxItemsCustomInput.addClass("visible");
+            }
+          } else {
+            if (maxItemsCustomInput) {
+              maxItemsCustomInput.addClass("hidden");
+            }
+            maxItemsLimit = parseInt(value) || 0;
+          }
+        });
+    });
+
+    const scanIntervalSetting = new Setting(perFeedControlsBody)
+      .setName("Scan interval")
+      .setDesc("Custom scan interval in minutes");
+
+    let scanIntervalCustomInput: HTMLInputElement | null = null;
+
+    scanIntervalSetting.addDropdown((dropdown) => {
+      dropdown
+        .addOption("0", "Use global setting")
+        .addOption("5", "5 minutes")
+        .addOption("10", "10 minutes")
+        .addOption("15", "15 minutes")
+        .addOption("30", "30 minutes")
+        .addOption("60", "1 hour")
+        .addOption("120", "2 hours")
+        .addOption("240", "4 hours")
+        .addOption("480", "8 hours")
+        .addOption("720", "12 hours")
+        .addOption("1440", "24 hours")
+        .addOption("custom", "Custom...")
+        .setValue(
+          scanInterval === 0
+            ? "0"
+            : [5, 10, 15, 30, 60, 120, 240, 480, 720, 1440].includes(
+                  scanInterval,
+                )
+              ? scanInterval.toString()
+              : "custom",
+        )
+        .onChange((value) => {
+          if (value === "custom") {
+            if (!scanIntervalCustomInput) {
+              scanIntervalCustomInput = scanIntervalSetting.controlEl.createEl(
+                "input",
+                {
+                  type: "number",
+                  placeholder: "Enter minutes",
+                  cls: "rss-custom-input",
+                },
+              );
+              scanIntervalCustomInput.min = "1";
+              scanIntervalCustomInput.addEventListener(
+                "change",
+                (evt: Event) => {
+                  const target = evt.target as HTMLInputElement;
+                  scanInterval = parseInt(target.value) || 0;
+                },
+              );
+            }
+            if (scanIntervalCustomInput) {
+              scanIntervalCustomInput.removeClass("hidden");
+              scanIntervalCustomInput.addClass("visible");
+            }
+          } else {
+            if (scanIntervalCustomInput) {
+              scanIntervalCustomInput.addClass("hidden");
+            }
+            scanInterval = parseInt(value) || 0;
+          }
+        });
+    });
+
+    // Template selection
+    let customTemplate = "";
+    const savedTemplates =
+      this.plugin?.settings?.articleSaving?.savedTemplates || [];
+
+    new Setting(perFeedControlsBody)
+      .setName("Article template")
+      .setDesc("Select a template to use when saving articles from this feed")
+      .addDropdown((dropdown) => {
+        dropdown.addOption("", "Use default template");
+        savedTemplates.forEach((template: SavedTemplate) => {
+          dropdown.addOption(template.id, template.name);
+        });
+        dropdown.setValue(customTemplate);
+        dropdown.onChange((value) => {
+          customTemplate = value;
+        });
+      });
+
     let feedFilters: FeedFilterSettings = {
       overrideGlobalFilters: false,
       includeLogic: "AND",
@@ -1244,6 +1461,7 @@ export class AddFeedModal extends Modal {
           maxItemsLimit,
           scanInterval,
           feedFilters,
+          customTemplate,
         ).catch(() => {
           return false;
         });
@@ -1382,6 +1600,7 @@ export class FeedManagerModal extends Modal {
           maxItemsLimit,
           scanInterval,
           feedFilters,
+          customTemplate,
         ) =>
           this.plugin.addFeed(
             title,
@@ -1391,6 +1610,7 @@ export class FeedManagerModal extends Modal {
             maxItemsLimit,
             scanInterval,
             feedFilters,
+            customTemplate,
           ),
         () => this.onOpen(),
         "",

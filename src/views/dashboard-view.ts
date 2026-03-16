@@ -1187,6 +1187,7 @@ export class RssDashboardView extends ItemView {
     maxItemsLimit?: number,
     scanInterval?: number,
     feedFilters?: FeedFilterSettings,
+    customTemplate?: string,
   ): Promise<void> {
     await this.plugin.addFeed(
       title,
@@ -1196,6 +1197,7 @@ export class RssDashboardView extends ItemView {
       maxItemsLimit,
       scanInterval,
       feedFilters,
+      customTemplate,
     );
     void this.render();
   }

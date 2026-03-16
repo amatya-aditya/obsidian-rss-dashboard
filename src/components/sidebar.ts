@@ -48,6 +48,7 @@ export interface SidebarCallbacks {
     maxItemsLimit?: number,
     scanInterval?: number,
     feedFilters?: FeedFilterSettings,
+    customTemplate?: string,
   ) => Promise<void>;
   onEditFeed: (feed: Feed, title: string, url: string, folder: string) => void;
   onDeleteFeed: (feed: Feed) => void;
@@ -2146,6 +2147,7 @@ export class Sidebar {
         maxItemsLimit,
         scanInterval,
         feedFilters,
+        customTemplate,
       ) =>
         await this.callbacks.onAddFeed(
           title,
@@ -2155,6 +2157,7 @@ export class Sidebar {
           maxItemsLimit,
           scanInterval,
           feedFilters,
+          customTemplate,
         ),
       () => this.render(),
       defaultFolder,

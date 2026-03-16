@@ -207,6 +207,74 @@ class ConfirmDeleteModal extends Modal {
   }
 }
 
+type ApplyMaxItemsAction = "cancel" | "apply" | "apply-refresh";
+
+class ApplyMaxItemsToExistingFeedsModal extends Modal {
+  private readonly newLimit: number;
+  private readonly increased: boolean;
+  private action: ApplyMaxItemsAction = "cancel";
+  private resolvePromise: ((value: ApplyMaxItemsAction) => void) | null = null;
+
+  constructor(app: App, options: { newLimit: number; increased: boolean }) {
+    super(app);
+    this.newLimit = options.newLimit;
+    this.increased = options.increased;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    contentEl.createEl("h2", { text: "Apply max item limit to all feeds?" });
+    contentEl.createEl("p", {
+      text: `You changed the default max item limit to ${this.newLimit}. Do you want to apply this to ALL existing feeds? This will overwrite any custom per-feed max item settings.`,
+    });
+    if (this.increased) {
+      contentEl.createEl("p", {
+        text: "After applying a higher limit, you must refresh all feeds to fetch additional items.",
+      });
+    }
+
+    new Setting(contentEl)
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => {
+          this.action = "cancel";
+          this.close();
+        }),
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Apply to all feeds")
+          .setWarning()
+          .onClick(() => {
+            this.action = "apply";
+            this.close();
+          }),
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Apply & refresh all")
+          .setWarning()
+          .onClick(() => {
+            this.action = "apply-refresh";
+            this.close();
+          }),
+      );
+  }
+
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+    this.resolvePromise?.(this.action);
+  }
+
+  waitForClose(): Promise<ApplyMaxItemsAction> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}
+
 export class RssDashboardSettingTab extends PluginSettingTab {
   plugin: RssDashboardPlugin;
   private currentTab = "General";
@@ -349,39 +417,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Refresh interval")
-      .setDesc("How often to refresh feeds (in minutes)")
-      .addSlider((slider) =>
-        slider
-          .setLimits(5, 120, 5)
-          .setValue(this.plugin.settings.refreshInterval)
-          .setDynamicTooltip()
-          .onChange(async (value) => {
-            this.plugin.settings.refreshInterval = value;
-            await this.plugin.saveSettings();
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName("Maximum items")
-      .setDesc("Maximum number of items to display per feed")
-      .addSlider((slider) =>
-        slider
-          .setLimits(10, 500, 10)
-          .setValue(this.plugin.settings.maxItems)
-          .setDynamicTooltip()
-          .onChange(async (value) => {
-            this.plugin.settings.maxItems = value;
-            await this.plugin.saveSettings();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              view.render();
-            }
-          }),
-      );
-
-    new Setting(containerEl)
       .setName("Page size for 'all articles'")
       .setDesc(
         "Number of articles to load at a time in the 'all articles' view.",
@@ -452,6 +487,264 @@ export class RssDashboardSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    new Setting(containerEl).setName("Global feeds").setHeading();
+
+    const refreshIntervalSetting = new Setting(containerEl)
+      .setName("Refresh interval")
+      .setDesc("How often to refresh feeds (in minutes)");
+
+    let refreshInterval = this.plugin.settings.refreshInterval;
+    let refreshIntervalCustomInput: HTMLInputElement | null = null;
+
+    refreshIntervalSetting.addDropdown((dropdown) => {
+      const presetIntervals = [5, 10, 15, 30, 60, 120, 240, 480, 720, 1440];
+
+      dropdown
+        .addOption("5", "5 minutes")
+        .addOption("10", "10 minutes")
+        .addOption("15", "15 minutes")
+        .addOption("30", "30 minutes")
+        .addOption("60", "1 hour")
+        .addOption("120", "2 hours")
+        .addOption("240", "4 hours")
+        .addOption("480", "8 hours")
+        .addOption("720", "12 hours")
+        .addOption("1440", "24 hours")
+        .addOption("custom", "Custom...")
+        .setValue(
+          presetIntervals.includes(refreshInterval)
+            ? refreshInterval.toString()
+            : "custom",
+        )
+        .onChange((value) => {
+          if (value === "custom") {
+            if (!refreshIntervalCustomInput) {
+              refreshIntervalCustomInput =
+                refreshIntervalSetting.controlEl.createEl("input", {
+                  type: "number",
+                  placeholder: "Enter minutes",
+                  cls: "rss-custom-input",
+                });
+              refreshIntervalCustomInput.min = "1";
+              refreshIntervalCustomInput.value =
+                refreshInterval > 0 ? refreshInterval.toString() : "";
+              refreshIntervalCustomInput.addEventListener("change", () => {
+                void (async () => {
+                  const parsed = parseInt(
+                    refreshIntervalCustomInput?.value || "",
+                    10,
+                  );
+                  refreshInterval = Number.isFinite(parsed) ? parsed : 0;
+                  this.plugin.settings.refreshInterval = refreshInterval;
+                  await this.plugin.saveSettings();
+                })();
+              });
+            }
+            refreshIntervalCustomInput.removeClass("hidden");
+            refreshIntervalCustomInput.addClass("visible");
+            return;
+          }
+
+          refreshIntervalCustomInput?.addClass("hidden");
+          refreshInterval = parseInt(value, 10) || 0;
+          void (async () => {
+            this.plugin.settings.refreshInterval = refreshInterval;
+            await this.plugin.saveSettings();
+          })();
+        });
+    });
+
+    let maxItemsPromptTimer: number | null = null;
+    let maxItemsPromptOpen = false;
+    let pendingMaxItemsChange: { oldValue: number; newValue: number } | null =
+      null;
+
+    const queueMaxItemsApplyPrompt = (oldValue: number, newValue: number) => {
+      pendingMaxItemsChange = { oldValue, newValue };
+      if (maxItemsPromptOpen) return;
+      if (maxItemsPromptTimer) {
+        window.clearTimeout(maxItemsPromptTimer);
+      }
+      maxItemsPromptTimer = window.setTimeout(() => {
+        maxItemsPromptTimer = null;
+        if (maxItemsPromptOpen) return;
+        const change = pendingMaxItemsChange;
+        pendingMaxItemsChange = null;
+        if (!change || change.newValue === change.oldValue) return;
+
+        maxItemsPromptOpen = true;
+        void (async () => {
+          const modal = new ApplyMaxItemsToExistingFeedsModal(this.app, {
+            newLimit: change.newValue,
+            increased: change.newValue > change.oldValue,
+          });
+          modal.open();
+          const action = await modal.waitForClose();
+          maxItemsPromptOpen = false;
+
+          if (action === "cancel") return;
+
+          for (const feed of this.plugin.settings.feeds) {
+            feed.maxItemsLimit = change.newValue;
+          }
+
+          await this.plugin.applyFeedLimitsToAllFeeds();
+
+          if (action === "apply-refresh") {
+            await this.plugin.refreshFeeds();
+          } else if (change.newValue > change.oldValue) {
+            new Notice(
+              "Max item limit applied to all feeds. Refresh all feeds to fetch additional items.",
+            );
+          }
+        })();
+      }, 700);
+    };
+
+    const applyMaxItemsValue = (nextValue: number) => {
+      void (async () => {
+        const oldValue = this.plugin.settings.maxItems;
+        if (oldValue === nextValue) return;
+
+        this.plugin.settings.maxItems = nextValue;
+        await this.plugin.saveSettings();
+        const view = await this.plugin.getActiveDashboardView();
+        if (view) {
+          await this.app.workspace.revealLeaf(view.leaf);
+          view.render();
+        }
+
+        queueMaxItemsApplyPrompt(oldValue, nextValue);
+      })();
+    };
+
+    const maxItemsSetting = new Setting(containerEl)
+      .setName("Max item limit")
+      .setDesc(
+        "Default max item limit for new feeds (and fallback when a feed has no override).",
+      );
+
+    let maxItemsLimit = this.plugin.settings.maxItems;
+    let maxItemsCustomInput: HTMLInputElement | null = null;
+
+    maxItemsSetting.addDropdown((dropdown) => {
+      dropdown
+        .addOption("0", "Unlimited")
+        .addOption("10", "10 items")
+        .addOption("25", "25 items")
+        .addOption("50", "50 items")
+        .addOption("100", "100 items")
+        .addOption("200", "200 items")
+        .addOption("500", "500 items")
+        .addOption("1000", "1000 items")
+        .addOption("custom", "Custom...")
+        .setValue(
+          maxItemsLimit === 0
+            ? "0"
+            : [10, 25, 50, 100, 200, 500, 1000].includes(maxItemsLimit)
+              ? maxItemsLimit.toString()
+              : "custom",
+        )
+        .onChange((value) => {
+          if (value === "custom") {
+            if (!maxItemsCustomInput) {
+              maxItemsCustomInput = maxItemsSetting.controlEl.createEl(
+                "input",
+                {
+                  type: "number",
+                  placeholder: "Enter number",
+                  cls: "rss-custom-input",
+                },
+              );
+              maxItemsCustomInput.min = "1";
+              maxItemsCustomInput.value =
+                maxItemsLimit > 0 ? maxItemsLimit.toString() : "";
+              maxItemsCustomInput.addEventListener("change", () => {
+                const parsed = parseInt(maxItemsCustomInput?.value || "", 10);
+                maxItemsLimit = Number.isFinite(parsed) ? parsed : 0;
+                applyMaxItemsValue(maxItemsLimit);
+              });
+            }
+            maxItemsCustomInput.removeClass("hidden");
+            maxItemsCustomInput.addClass("visible");
+            return;
+          }
+
+          maxItemsCustomInput?.addClass("hidden");
+          maxItemsLimit = parseInt(value, 10) || 0;
+          applyMaxItemsValue(maxItemsLimit);
+        });
+    });
+
+    const defaultAutoDeleteSetting = new Setting(containerEl)
+      .setName("Default auto delete duration (new feeds)")
+      .setDesc(
+        "Default days to keep read articles before auto-delete for new feeds (per-feed override available).",
+      );
+
+    let defaultDuration = this.plugin.settings.defaultAutoDeleteDuration;
+    let autoDeleteCustomInput: HTMLInputElement | null = null;
+
+    defaultAutoDeleteSetting.addDropdown((dropdown) => {
+      dropdown
+        .addOption("0", "Disabled")
+        .addOption("1", "1 day")
+        .addOption("3", "3 days")
+        .addOption("7", "1 week")
+        .addOption("14", "2 weeks")
+        .addOption("30", "1 month")
+        .addOption("60", "2 months")
+        .addOption("90", "3 months")
+        .addOption("180", "6 months")
+        .addOption("365", "1 year")
+        .addOption("custom", "Custom...")
+        .setValue(
+          defaultDuration === 0
+            ? "0"
+            : [1, 3, 7, 14, 30, 60, 90, 180, 365].includes(defaultDuration)
+              ? defaultDuration.toString()
+              : "custom",
+        )
+        .onChange((value) => {
+          if (value === "custom") {
+            if (!autoDeleteCustomInput) {
+              autoDeleteCustomInput =
+                defaultAutoDeleteSetting.controlEl.createEl("input", {
+                  type: "number",
+                  placeholder: "Enter days",
+                  cls: "rss-custom-input",
+                });
+              autoDeleteCustomInput.min = "1";
+              autoDeleteCustomInput.value =
+                defaultDuration > 0 ? defaultDuration.toString() : "";
+              autoDeleteCustomInput.addEventListener("change", () => {
+                void (async () => {
+                  const parsed = parseInt(
+                    autoDeleteCustomInput?.value || "",
+                    10,
+                  );
+                  defaultDuration = Number.isFinite(parsed) ? parsed : 0;
+                  this.plugin.settings.defaultAutoDeleteDuration =
+                    defaultDuration;
+                  await this.plugin.saveSettings();
+                })();
+              });
+            }
+
+            autoDeleteCustomInput.removeClass("hidden");
+            autoDeleteCustomInput.addClass("visible");
+            return;
+          }
+
+          autoDeleteCustomInput?.addClass("hidden");
+          defaultDuration = parseInt(value, 10) || 0;
+          void (async () => {
+            this.plugin.settings.defaultAutoDeleteDuration = defaultDuration;
+            await this.plugin.saveSettings();
+          })();
+        });
+    });
   }
 
   private createDisplaySettings(containerEl: HTMLElement): void {

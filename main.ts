@@ -1270,6 +1270,7 @@ export default class RssDashboardPlugin extends Plugin {
     maxItemsLimit?: number,
     scanInterval?: number,
       feedFilters?: FeedFilterSettings,
+    customTemplate?: string,
   ) {
     try {
       if (this.settings.feeds.some((f) => f.url === url)) {
@@ -1290,11 +1291,17 @@ export default class RssDashboardPlugin extends Plugin {
         folder,
         items: [],
         lastUpdated: Date.now(),
-        autoDeleteDuration: autoDeleteDuration || 0,
+        autoDeleteDuration:
+          typeof autoDeleteDuration === "number"
+            ? autoDeleteDuration
+            : this.settings.defaultAutoDeleteDuration,
         maxItemsLimit:
-          typeof maxItemsLimit === "number" ? maxItemsLimit : this.settings.maxItems,
+          typeof maxItemsLimit === "number"
+            ? maxItemsLimit
+            : this.settings.maxItems,
         scanInterval: scanInterval || 0,
         mediaType: mediaType,
+        customTemplate: customTemplate || undefined,
         filters: feedFilters || {
           overrideGlobalFilters: false,
           includeLogic: "AND",
@@ -1432,6 +1439,11 @@ export default class RssDashboardPlugin extends Plugin {
       this.settings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
 
       this.migrateLegacySettings();
+
+      if (typeof this.settings.defaultAutoDeleteDuration !== "number") {
+        this.settings.defaultAutoDeleteDuration =
+          DEFAULT_SETTINGS.defaultAutoDeleteDuration;
+      }
 
       if (!this.settings.readerViewLocation) {
         this.settings.readerViewLocation = "right-sidebar";
