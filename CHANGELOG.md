@@ -1,9 +1,3 @@
-## [Unreleased]
-
-### Fixed
-
-- Card/List view: Article titles no longer reserve an empty second line for short titles; titles now clamp to 2 lines with truncation.
-
 ## [2.3.0-alpha.2] - March 16, 2026
 
 ### New Features
@@ -24,6 +18,7 @@
 - Switching episodes via the playlist no longer auto-plays unexpectedly
 - Article title in reader now hidden on mobile view
 - Reader settings sheet now notch-safe on iPhone, with improved touch layout, slider sizing, and a bottom “Done” CTA
+- Card/List view: Article titles no longer reserve an empty second line for short titles; titles now clamp to 2 lines with truncation.
 
 ---
 
