@@ -13,6 +13,7 @@
 - Fixed Settings export buttons on Obsidian Mobile (iOS/Android) by using the native share/save sheet flow
 - Added toast notifications for export and copy actions so the outcome is always visible
 - Added unit tests covering mobile share, desktop download, and clipboard fallbacks
+- Fixed some feeds losing older history (often collapsing to ~25 items) after refresh; refresh now preserves previously cached items outside the server “latest N” window and applies per-feed retention deterministically.
 - Podcast player now keeps play/pause button state in sync during autoplay
 - Sorting/shuffling the podcast playlist no longer interrupts playback
 - Switching episodes via the playlist no longer auto-plays unexpectedly

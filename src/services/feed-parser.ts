@@ -2097,6 +2097,98 @@ export class CustomXMLParser {
   }
 }
 
+function getPubDateMs(pubDate: string | undefined | null): number {
+  if (!pubDate) return 0;
+  const ms = Date.parse(pubDate);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function isProtectedItem(item: FeedItem): boolean {
+  return !!item.saved || !!item.starred;
+}
+
+/**
+ * Merge refreshed items with any previously cached items that fell out of the
+ * server's latest-N window, keyed by item guid.
+ *
+ * Assumes `guid` values are stable identifiers (as produced by our parser).
+ */
+export function mergeFeedHistoryItems(
+  existingItems: FeedItem[] | null | undefined,
+  refreshedItems: FeedItem[],
+): FeedItem[] {
+  const seen = new Set<string>();
+  const uniqueRefreshed: FeedItem[] = [];
+
+  for (const item of refreshedItems) {
+    const key = item.guid || item.link || "";
+    if (!key) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    uniqueRefreshed.push(item);
+  }
+
+  const carriedForward: FeedItem[] = [];
+  for (const item of existingItems || []) {
+    const key = item.guid || item.link || "";
+    if (!key) continue;
+    if (!seen.has(key)) {
+      carriedForward.push(item);
+    }
+  }
+
+  return [...carriedForward, ...uniqueRefreshed];
+}
+
+export function applyFeedRetentionLimits(
+  feed: Feed,
+  options?: { nowMs?: number },
+): Feed {
+  const nowMs = options?.nowMs ?? Date.now();
+  const maxItemsLimit =
+    typeof feed.maxItemsLimit === "number" ? feed.maxItemsLimit : undefined;
+  const autoDeleteDuration =
+    typeof feed.autoDeleteDuration === "number"
+      ? feed.autoDeleteDuration
+      : undefined;
+
+  const byNewest = (a: FeedItem, b: FeedItem): number => {
+    const aMs = getPubDateMs(a.pubDate);
+    const bMs = getPubDateMs(b.pubDate);
+    if (aMs !== bMs) return bMs - aMs;
+    return (a.guid || "").localeCompare(b.guid || "");
+  };
+
+  let items = [...(feed.items || [])];
+
+  // Auto-delete: remove read-only items older than cutoff (never remove protected).
+  if (autoDeleteDuration && autoDeleteDuration > 0) {
+    const cutoffMs = nowMs - autoDeleteDuration * 24 * 60 * 60 * 1000;
+    items = items.filter((item) => {
+      if (isProtectedItem(item)) return true;
+      if (!item.read) return true;
+      return getPubDateMs(item.pubDate) > cutoffMs;
+    });
+  }
+
+  // Max-items: keep newest non-protected items up to the limit; protected items don't count.
+  if (maxItemsLimit && maxItemsLimit > 0) {
+    const protectedItems = items.filter(isProtectedItem);
+    const nonProtected = items.filter((item) => !isProtectedItem(item));
+    nonProtected.sort(byNewest);
+    const limitedNonProtected = nonProtected.slice(0, maxItemsLimit);
+    items = [...protectedItems, ...limitedNonProtected];
+  }
+
+  // Always sort newest-first for predictable slicing in views and for stable persistence.
+  items.sort(byNewest);
+
+  return {
+    ...feed,
+    items,
+  };
+}
+
 export class FeedParser {
   private mediaSettings: MediaSettings;
   private availableTags: Tag[];
@@ -2519,12 +2611,16 @@ export class FeedParser {
     const existingItems = new Map<string, FeedItem>();
     if (existingFeed) {
       existingFeed.items.forEach((item) => {
-        existingItems.set(item.guid, item);
+        const key = this.convertToAbsoluteUrl(item.guid || item.link || "", url);
+        if (key) {
+          existingItems.set(key, item);
+        }
       });
     }
 
     const newItems: FeedItem[] = [];
     const updatedItems: FeedItem[] = [];
+    const seenGuids = new Set<string>();
     const shouldDetectYouTubeShorts = this.mediaSettings.detectYouTubeShorts;
 
     parsed.items.forEach((item: ParsedItem) => {
@@ -2558,6 +2654,9 @@ export class FeedParser {
         url,
       );
       const existingItem = existingItems.get(itemGuid);
+      if (itemGuid) {
+        seenGuids.add(itemGuid);
+      }
 
       if (existingItem) {
         let coverImage = existingItem.coverImage;
@@ -2745,26 +2844,18 @@ export class FeedParser {
       }
     });
 
-    const allItems: FeedItem[] = [];
-
+    const refreshedItems = [...updatedItems, ...newItems];
+    const carriedForward: FeedItem[] = [];
     if (existingFeed) {
-      existingFeed.items.forEach((item) => {
-        const itemGuid = this.convertToAbsoluteUrl(
-          item.guid || item.link || "",
-          url,
-        );
-
-        if (!existingItems.has(itemGuid)) {
-          allItems.push(item);
+      for (const item of existingFeed.items) {
+        const key = this.convertToAbsoluteUrl(item.guid || item.link || "", url);
+        if (key && !seenGuids.has(key)) {
+          carriedForward.push(item);
         }
-      });
+      }
     }
 
-    allItems.push(...updatedItems);
-
-    allItems.push(...newItems);
-
-    newFeed.items = allItems;
+    newFeed.items = mergeFeedHistoryItems(carriedForward, refreshedItems);
     newFeed.lastUpdated = Date.now();
 
     this.applyFeedLimits(newFeed);
@@ -2817,36 +2908,8 @@ export class FeedParser {
    * Apply maxItemsLimit and autoDeleteDuration to a feed's items
    */
   private applyFeedLimits(feed: Feed): void {
-    if (
-      feed.maxItemsLimit &&
-      feed.maxItemsLimit > 0 &&
-      feed.items.length > feed.maxItemsLimit
-    ) {
-      const readItems = feed.items.filter((item) => item.read);
-      const unreadItems = feed.items.filter((item) => !item.read);
-
-      unreadItems.sort(
-        (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
-      );
-
-      const maxUnreadItems = Math.max(0, feed.maxItemsLimit - readItems.length);
-      const limitedUnreadItems = unreadItems.slice(0, maxUnreadItems);
-
-      feed.items = [...readItems, ...limitedUnreadItems];
-    }
-
-    if (feed.autoDeleteDuration && feed.autoDeleteDuration > 0) {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - feed.autoDeleteDuration);
-
-      const readItems = feed.items.filter((item) => item.read);
-      const unreadItems = feed.items.filter(
-        (item) =>
-          !item.read && new Date(item.pubDate).getTime() > cutoffDate.getTime(),
-      );
-
-      feed.items = [...readItems, ...unreadItems];
-    }
+    const updated = applyFeedRetentionLimits(feed);
+    feed.items = updated.items;
   }
 
   async refreshFeed(feed: Feed): Promise<Feed> {

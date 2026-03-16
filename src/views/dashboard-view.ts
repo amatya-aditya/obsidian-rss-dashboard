@@ -661,10 +661,16 @@ export class RssDashboardView extends ItemView {
   private getFilteredArticles(): FeedItem[] {
     this.syncCurrentFeedReference();
     let articles: FeedItem[] = [];
+    let currentFeedLimit: number | null = null;
 
     if (this.currentFeed) {
-      const limit = this.currentFeed.maxItemsLimit || this.settings.maxItems;
-      articles = this.currentFeed.items.slice(0, limit);
+      currentFeedLimit =
+        typeof this.currentFeed.maxItemsLimit === "number"
+          ? this.currentFeed.maxItemsLimit
+          : this.settings.maxItems;
+      // Don't slice before filtering/sorting. Refresh merge + retention sorts newest-first,
+      // but slicing early can still hide newly fetched items when ordering changes.
+      articles = [...this.currentFeed.items];
     } else if (this.currentTag) {
       for (const feed of this.settings.feeds) {
         articles = articles.concat(
@@ -752,6 +758,11 @@ export class RssDashboardView extends ItemView {
       articles.sort(
         (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
       );
+    }
+
+    // Apply per-feed display limit after sorting/filtering.
+    if (currentFeedLimit !== null && currentFeedLimit > 0) {
+      articles = articles.slice(0, currentFeedLimit);
     }
 
     // Apply pagination limits for special views (legacy/fallback)
