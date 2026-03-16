@@ -115,10 +115,11 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 	white-space: normal;
 	text-overflow: ellipsis;
 	display: -webkit-box;
+	-webkit-line-clamp: 2;
 	line-clamp: 2;
 	-webkit-box-orient: vertical;
-	height: 2.8em;
 	line-height: 1.4;
+	overflow: hidden;
 }
 
 .rss-dashboard-article-meta {

@@ -1,3 +1,9 @@
+## [Unreleased]
+
+### Fixed
+
+- Card/List view: Article titles no longer reserve an empty second line for short titles; titles now clamp to 2 lines with truncation.
+
 ## [2.3.0-alpha.2] - March 16, 2026
 
 ### New Features
