@@ -390,8 +390,8 @@
   }
 
   .rss-dashboard-article-card {
-    min-height: 420px;
-    max-height: 420px;
+    min-height: 360px;
+    max-height: 360px;
   }
 }
 
@@ -401,8 +401,8 @@
   }
 
   .rss-dashboard-article-card {
-    min-height: 400px;
-    max-height: 400px;
+    min-height: 360px;
+    max-height: 360px;
   }
 
   .rss-dashboard-card-content {
@@ -421,8 +421,8 @@
   }
 
   .rss-dashboard-article-card {
-    min-height: 380px;
-    max-height: 380px;
+    min-height: 360px;
+    max-height: 360px;
   }
 }
 
@@ -447,8 +447,8 @@
   }
 
   .rss-dashboard-article-card {
-    min-height: 340px;
-    max-height: 380px;
+    min-height: 360px;
+    max-height: 360px;
   }
 
   .rss-dashboard-article-title {
