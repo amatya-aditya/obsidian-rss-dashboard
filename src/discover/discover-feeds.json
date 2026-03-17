@@ -4,22 +4,11 @@
     "title": "Obsidian Changelog",
     "url": "https://obsidian.md/changelog.xml",
     "imageUrl": "https://obsidian.md/images/obsidian-logo-gradient.svg",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Productivity"
-    ],
-    "area": [
-      "PKM"
-    ],
-    "topic": [
-      "Updates"
-    ],
-    "tags": [
-      "obsidian",
-      "changelog"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Productivity"],
+    "area": ["PKM"],
+    "topic": ["Updates"],
+    "tags": ["productivity"],
     "type": "Release Notes",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Follow Obsidian updates and improvements.",
@@ -30,22 +19,11 @@
     "title": "Hacker News (Y Combinator)",
     "url": "https://news.ycombinator.com/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=ycombinator.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Software Development"
-    ],
-    "area": [
-      "DevOps"
-    ],
-    "topic": [
-      "Startups"
-    ],
-    "tags": [
-      "programming",
-      "entrepreneurship"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Software Development"],
+    "area": ["DevOps"],
+    "topic": ["Startups"],
+    "tags": ["tech news", "dev"],
     "type": "Forum",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Front-page stories from Hacker News, a popular tech forum for startups and programming.",
@@ -56,22 +34,11 @@
     "title": "TechCrunch",
     "url": "http://feeds.feedburner.com/TechCrunch/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=techcrunch.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Startup News"
-    ],
-    "area": [
-      "Technology Business"
-    ],
-    "topic": [
-      "Startups"
-    ],
-    "tags": [
-      "tech",
-      "startups"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Startup News"],
+    "area": ["Technology Business"],
+    "topic": ["Startups"],
+    "tags": ["tech news"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Technology and startup news updates from TechCrunch.",
@@ -82,22 +49,11 @@
     "title": "WIRED",
     "url": "https://www.wired.com/feed/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=wired.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Consumer Tech"
-    ],
-    "area": [
-      "Innovation"
-    ],
-    "topic": [
-      "Gadgets"
-    ],
-    "tags": [
-      "tech",
-      "innovation"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Consumer Tech"],
+    "area": ["Innovation"],
+    "topic": ["Gadgets"],
+    "tags": ["tech news"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Magazine featuring technology, science, and culture news (WIRED).",
@@ -108,23 +64,11 @@
     "title": "Ars Technica",
     "url": "http://feeds.arstechnica.com/arstechnica/index",
     "imageUrl": "https://www.google.com/s2/favicons?domain=arstechnica.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "IT & Science"
-    ],
-    "area": [
-      "Computing"
-    ],
-    "topic": [
-      "Tech Policy"
-    ],
-    "tags": [
-      "tech",
-      "software",
-      "hardware"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["IT & Science"],
+    "area": ["Computing"],
+    "topic": ["Tech Policy"],
+    "tags": ["tech news"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "In-depth technology, science, and IT news from Ars Technica.",
@@ -135,22 +79,11 @@
     "title": "MIT Technology Review",
     "url": "https://www.technologyreview.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=technologyreview.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Emerging Tech"
-    ],
-    "area": [
-      "Innovation"
-    ],
-    "topic": [
-      "Future Tech"
-    ],
-    "tags": [
-      "technology",
-      "innovation"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Emerging Tech"],
+    "area": ["Innovation"],
+    "topic": ["Future Tech"],
+    "tags": ["tech news"],
     "type": "Magazine",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Insights and analyses of emerging technologies from MIT Technology Review.",
@@ -161,22 +94,11 @@
     "title": "Slashdot",
     "url": "https://rss.slashdot.org/Slashdot/slashdotMain",
     "imageUrl": "https://www.google.com/s2/favicons?domain=slashdot.org&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "IT"
-    ],
-    "area": [
-      "Software"
-    ],
-    "topic": [
-      "Open Source"
-    ],
-    "tags": [
-      "tech",
-      "news"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["IT"],
+    "area": ["Software"],
+    "topic": ["Open Source"],
+    "tags": ["tech news", "linux"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "User-submitted technology news and discussion from Slashdot.",
@@ -187,22 +109,11 @@
     "title": "Engadget",
     "url": "https://www.engadget.com/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=engadget.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Consumer Electronics"
-    ],
-    "area": [
-      "Gadgets"
-    ],
-    "topic": [
-      "Electronics"
-    ],
-    "tags": [
-      "gadgets",
-      "tech"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Consumer Electronics"],
+    "area": ["Gadgets"],
+    "topic": ["Electronics"],
+    "tags": ["tech news"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Consumer technology news and reviews from Engadget.",
@@ -213,22 +124,11 @@
     "title": "The Verge",
     "url": "https://feeds.megaphone.fm/vergecast",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f8e08d3b0f126c847db80f0a6",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Tech Culture"
-    ],
-    "area": [
-      "Consumer Tech"
-    ],
-    "topic": [
-      "Devices"
-    ],
-    "tags": [
-      "tech",
-      "culture"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Tech Culture"],
+    "area": ["Consumer Tech"],
+    "topic": ["Devices"],
+    "tags": ["tech news"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Technology, science, and culture news from The Verge.",
@@ -239,22 +139,11 @@
     "title": "Stack Overflow Blog",
     "url": "https://stackoverflow.blog/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=stackoverflow.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Software Development"
-    ],
-    "area": [
-      "Programming"
-    ],
-    "topic": [
-      "Development"
-    ],
-    "tags": [
-      "programming",
-      "community"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Software Development"],
+    "area": ["Programming"],
+    "topic": ["Development"],
+    "tags": ["dev"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Articles on software development and the Stack Overflow developer community.",
@@ -265,22 +154,11 @@
     "title": "Singularity Hub",
     "url": "https://singularityhub.com/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=singularityhub.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Futurism"
-    ],
-    "area": [
-      "Innovation"
-    ],
-    "topic": [
-      "Future"
-    ],
-    "tags": [
-      "future",
-      "science"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Futurism"],
+    "area": ["Innovation"],
+    "topic": ["Future"],
+    "tags": ["tech news"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "News and insights on future technologies and trends from Singularity Hub.",
@@ -291,22 +169,11 @@
     "title": "OpenAI News",
     "url": "https://openai.com/news/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=openai.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "Machine Learning"
-    ],
-    "topic": [
-      "AI Research"
-    ],
-    "tags": [
-      "AI",
-      "ML"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["Machine Learning"],
+    "topic": ["AI Research"],
+    "tags": ["AI"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Updates on artificial intelligence research and projects from OpenAI.",
@@ -317,22 +184,11 @@
     "title": "Two Minute Papers (YouTube)",
     "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg",
     "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "Machine Learning"
-    ],
-    "topic": [
-      "Research Highlights"
-    ],
-    "tags": [
-      "AI",
-      "videos"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["Machine Learning"],
+    "topic": ["Research Highlights"],
+    "tags": ["AI"],
     "type": "YouTube",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Short video summaries of the latest AI research from the Two Minute Papers YouTube channel.",
@@ -343,22 +199,11 @@
     "title": "Last Week in AI",
     "url": "https://lastweekin.ai/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=lastweekin.ai&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "News"
-    ],
-    "topic": [
-      "AI News"
-    ],
-    "tags": [
-      "AI",
-      "newsletter"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["News"],
+    "topic": ["AI News"],
+    "tags": ["AI"],
     "type": "Newsletter",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Weekly digest of the most interesting AI news and developments.",
@@ -369,22 +214,11 @@
     "title": "Interesting Engineering",
     "url": "https://interestingengineering.com/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=interestingengineering.com&sz=128",
-    "domain": [
-      "Engineering"
-    ],
-    "subdomain": [
-      "Technology"
-    ],
-    "area": [
-      "Innovation"
-    ],
-    "topic": [
-      "Engineering"
-    ],
-    "tags": [
-      "engineering",
-      "tech"
-    ],
+    "domain": ["Engineering"],
+    "subdomain": ["Technology"],
+    "area": ["Innovation"],
+    "topic": ["Engineering"],
+    "tags": ["tech news"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Engineering breakthroughs, tech innovations, and scientific curiosities from Interesting Engineering.",
@@ -395,22 +229,11 @@
     "title": "ZDNet",
     "url": "https://www.zdnet.com/news/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=zdnet.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "IT"
-    ],
-    "area": [
-      "Business Tech"
-    ],
-    "topic": [
-      "Tech Industry"
-    ],
-    "tags": [
-      "technology",
-      "IT"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["IT"],
+    "area": ["Business Tech"],
+    "topic": ["Tech Industry"],
+    "tags": ["tech news"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Technology industry news, analysis, and product coverage from ZDNet.",
@@ -421,22 +244,11 @@
     "title": "Mozilla Hacks (MDN Web Docs)",
     "url": "https://hacks.mozilla.org/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=mozilla.org&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Web Development"
-    ],
-    "area": [
-      "Front-end"
-    ],
-    "topic": [
-      "Web Technology"
-    ],
-    "tags": [
-      "development",
-      "web"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Web Development"],
+    "area": ["Front-end"],
+    "topic": ["Web Technology"],
+    "tags": ["dev"],
     "type": "Documentation",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Web development tips, browser technology updates, and tutorials from Mozilla Hacks (MDN).",
@@ -447,22 +259,11 @@
     "title": "GitHub Blog",
     "url": "https://github.blog/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=github.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Software Development"
-    ],
-    "area": [
-      "Version Control"
-    ],
-    "topic": [
-      "Dev Tools"
-    ],
-    "tags": [
-      "development",
-      "tools"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Software Development"],
+    "area": ["Version Control"],
+    "topic": ["Dev Tools"],
+    "tags": ["dev"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Product updates, engineering posts, and community news from the official GitHub Blog.",
@@ -473,22 +274,11 @@
     "title": "Techmeme",
     "url": "https://www.techmeme.com/feed.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=techmeme.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Tech News"
-    ],
-    "area": [
-      "Aggregators"
-    ],
-    "topic": [
-      "Technology"
-    ],
-    "tags": [
-      "news",
-      "tech"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Tech News"],
+    "area": ["Aggregators"],
+    "topic": ["Technology"],
+    "tags": ["tech news"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Real-time aggregator of trending technology news headlines (Techmeme).",
@@ -499,22 +289,11 @@
     "title": "LWN.net (Linux News)",
     "url": "https://lwn.net/headlines/newrss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=lwn.net&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Software"
-    ],
-    "area": [
-      "Open Source"
-    ],
-    "topic": [
-      "Linux"
-    ],
-    "tags": [
-      "linux",
-      "software"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Software"],
+    "area": ["Open Source"],
+    "topic": ["Linux"],
+    "tags": ["linux"],
     "type": "News",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Linux and open-source industry news and analysis from LWN.net.",
@@ -525,22 +304,11 @@
     "title": "freeCodeCamp News",
     "url": "https://www.freecodecamp.org/news/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=freecodecamp.org&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Programming"
-    ],
-    "area": [
-      "Education"
-    ],
-    "topic": [
-      "Tutorials"
-    ],
-    "tags": [
-      "coding",
-      "tutorials"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Programming"],
+    "area": ["Education"],
+    "topic": ["Tutorials"],
+    "tags": ["dev"],
     "type": "Tutorial Series",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Coding tutorials, how-to guides, and developer articles from freeCodeCamp News.",
@@ -551,22 +319,11 @@
     "title": "Reddit r/technology",
     "url": "https://www.reddit.com/r/technology/.rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "General Tech"
-    ],
-    "area": [
-      "Community"
-    ],
-    "topic": [
-      "Tech News"
-    ],
-    "tags": [
-      "technology",
-      "community"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["General Tech"],
+    "area": ["Community"],
+    "topic": ["Tech News"],
+    "tags": ["tech news"],
     "type": "Forum",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "User-submitted technology news and discussions from Reddit's r/technology community.",
@@ -577,22 +334,11 @@
     "title": "NVIDIA Technical Blog",
     "url": "https://developer.nvidia.com/blog/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nvidia.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Computing"
-    ],
-    "area": [
-      "AI & Graphics"
-    ],
-    "topic": [
-      "Developer Updates"
-    ],
-    "tags": [
-      "GPU",
-      "AI"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Computing"],
+    "area": ["AI & Graphics"],
+    "topic": ["Developer Updates"],
+    "tags": ["AI", "dev"],
     "type": "Blog",
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "News and tutorials for developers, data scientists, and researchers from NVIDIA's technical blog.",
@@ -603,22 +349,11 @@
     "title": "DeepMind Blog",
     "url": "https://deepmind.com/blog/feed/basic/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=deepmind.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "Research Updates"
-    ],
-    "topic": [
-      "ML Innovations"
-    ],
-    "tags": [
-      "AI",
-      "deep-learning"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["Research Updates"],
+    "topic": ["ML Innovations"],
+    "tags": ["AI"],
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "DeepMind research advances and insights.",
@@ -629,25 +364,14 @@
     "title": "xkcd",
     "url": "https://xkcd.com/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=xkcd.com&sz=128",
-    "domain": [
-      "Humor"
-    ],
-    "subdomain": [
-      "Webcomic"
-    ],
-    "area": [
-      "Science Jokes"
-    ],
-    "topic": [
-      "Comics"
-    ],
-    "tags": [
-      "science",
-      "math"
-    ],
+    "domain": ["Humor"],
+    "subdomain": ["Webcomic"],
+    "area": ["Science Jokes"],
+    "topic": ["Comics"],
+    "tags": ["fun"],
     "type": "Webcomic",
     "createdAt": "2025-06-26T09:01:29Z",
-    "summary": "Stick‑figure comics about science, technology, math, and life.",
+    "summary": "Stick-figure comics about science, technology, math, and life.",
     "rating": 4
   },
   {
@@ -655,22 +379,11 @@
     "title": "Product Hunt",
     "url": "https://www.producthunt.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=producthunt.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Startups"
-    ],
-    "area": [
-      "Product Launches"
-    ],
-    "topic": [
-      "New Products"
-    ],
-    "tags": [
-      "startups",
-      "apps"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Startups"],
+    "area": ["Product Launches"],
+    "topic": ["New Products"],
+    "tags": ["tech news"],
     "type": "Alert Feed",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Daily listing of new products and startup launches.",
@@ -681,22 +394,11 @@
     "title": "Fast.ai",
     "url": "https://www.fast.ai/index.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=fast.ai&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Machine Learning"
-    ],
-    "area": [
-      "Education"
-    ],
-    "topic": [
-      "Tutorials"
-    ],
-    "tags": [
-      "deep-learning",
-      "course"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Machine Learning"],
+    "area": ["Education"],
+    "topic": ["Tutorials"],
+    "tags": ["AI"],
     "type": "Tutorial Series",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Practical machine learning lessons and updates.",
@@ -707,24 +409,11 @@
     "title": "Lex Fridman Podcast",
     "url": "https://lexfridman.com/feed/podcast/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=lexfridman.com&sz=128",
-    "domain": [
-      "Technology",
-      "Science"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "Interviews"
-    ],
-    "topic": [
-      "Machine Learning"
-    ],
-    "tags": [
-      "AI",
-      "robotics",
-      "ethics"
-    ],
+    "domain": ["Technology", "Science"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["Interviews"],
+    "topic": ["Machine Learning"],
+    "tags": ["AI", "podcasts"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Long-form conversations on AI, science, history and philosophy with world-class thinkers.",
@@ -735,23 +424,11 @@
     "title": "Darknet Diaries",
     "url": "https://podcast.darknetdiaries.com/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=darknetdiaries.com&sz=128",
-    "domain": [
-      "Technology",
-      "History"
-    ],
-    "subdomain": [
-      "Cybersecurity"
-    ],
-    "area": [
-      "Storytelling"
-    ],
-    "topic": [
-      "Hacking"
-    ],
-    "tags": [
-      "security",
-      "true crime"
-    ],
+    "domain": ["Technology", "History"],
+    "subdomain": ["Cybersecurity"],
+    "area": ["Storytelling"],
+    "topic": ["Hacking"],
+    "tags": ["security", "podcasts"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "True tales from the dark side of the internet.",
@@ -762,22 +439,11 @@
     "title": "The Vergecast",
     "url": "https://feeds.megaphone.fm/vergecast",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f8e08d3b0f126c847db80f0a6",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Consumer Tech"
-    ],
-    "area": [
-      "News"
-    ],
-    "topic": [
-      "Gadgets"
-    ],
-    "tags": [
-      "big tech",
-      "devices"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Consumer Tech"],
+    "area": ["News"],
+    "topic": ["Gadgets"],
+    "tags": ["tech news", "podcasts"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "The Verge editors break down the week in tech and gadgets.",
@@ -788,22 +454,11 @@
     "title": "Accidental Tech Podcast",
     "url": "https://anchor.fm/s/f0658d80/podcast/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=atp.fm&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Software Development"
-    ],
-    "area": [
-      "Apple & Dev"
-    ],
-    "topic": [
-      "Tech News"
-    ],
-    "tags": [
-      "programming",
-      "hardware"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Software Development"],
+    "area": ["Apple & Dev"],
+    "topic": ["Tech News"],
+    "tags": ["dev", "podcasts"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Three developers chat weekly about Apple, code, and gadgets.",
@@ -814,22 +469,11 @@
     "title": "Software Engineering Daily",
     "url": "https://softwareengineeringdaily.com/feed/podcast/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=softwareengineeringdaily.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Software Engineering"
-    ],
-    "area": [
-      "Interviews"
-    ],
-    "topic": [
-      "Infrastructure"
-    ],
-    "tags": [
-      "cloud",
-      "devops"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Software Engineering"],
+    "area": ["Interviews"],
+    "topic": ["Infrastructure"],
+    "tags": ["dev", "podcasts"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Daily interviews with engineers on modern software topics.",
@@ -840,22 +484,11 @@
     "title": "Command Line Heroes",
     "url": "https://feeds.simplecast.com/vUHP7wpf",
     "imageUrl": "https://www.google.com/s2/favicons?domain=redhat.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Open Source"
-    ],
-    "area": [
-      "Tech History"
-    ],
-    "topic": [
-      "Developer Culture"
-    ],
-    "tags": [
-      "linux",
-      "history"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Open Source"],
+    "area": ["Tech History"],
+    "topic": ["Developer Culture"],
+    "tags": ["linux", "podcasts"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Red Hat's documentary-style series on open-source pioneers.",
@@ -866,22 +499,11 @@
     "title": "AI Today Podcast",
     "url": "https://anchor.fm/s/f0214058/podcast/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=cognilytica.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Artificial Intelligence"
-    ],
-    "area": [
-      "Industry"
-    ],
-    "topic": [
-      "Use Cases"
-    ],
-    "tags": [
-      "enterprise",
-      "ML"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["Industry"],
+    "topic": ["Use Cases"],
+    "tags": ["AI", "podcasts"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Cognilytica hosts discuss real-world AI implementations.",
@@ -892,22 +514,11 @@
     "title": "Malicious Life",
     "url": "https://maliciouslife.libsyn.com/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=cybereason.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Cybersecurity"
-    ],
-    "area": [
-      "History"
-    ],
-    "topic": [
-      "Hacks"
-    ],
-    "tags": [
-      "infosec",
-      "crime"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Cybersecurity"],
+    "area": ["History"],
+    "topic": ["Hacks"],
+    "tags": ["security", "podcasts"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "The history of cyber-attacks and the people behind them.",
@@ -918,22 +529,11 @@
     "title": "Data Skeptic",
     "url": "https://anchor.fm/s/f06031a0/podcast/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=dataskeptic.com&sz=128",
-    "domain": [
-      "Technology"
-    ],
-    "subdomain": [
-      "Data Science"
-    ],
-    "area": [
-      "Interviews"
-    ],
-    "topic": [
-      "ML & Stats"
-    ],
-    "tags": [
-      "AI",
-      "analytics"
-    ],
+    "domain": ["Technology"],
+    "subdomain": ["Data Science"],
+    "area": ["Interviews"],
+    "topic": ["ML & Stats"],
+    "tags": ["AI", "podcasts"],
     "type": "Podcast",
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Short explanatory segments and interviews on data science topics.",
