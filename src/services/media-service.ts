@@ -115,6 +115,59 @@ export class MediaService {
     return filteredTags;
   }
 
+  private static extractChannelIdFromHtml(html: string): string | null {
+    if (!html) return null;
+
+    // 1. Try RSS feed link
+    const rssMatch = html.match(
+      /href="https:\/\/www\.youtube\.com\/feeds\/videos\.xml\?channel_id=(UC[\w-]{22})"/,
+    );
+    if (rssMatch?.[1]) return rssMatch[1];
+
+    // 2. Try canonical link
+    const canonicalMatch = html.match(
+      /<link rel="canonical" href="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
+    );
+    if (canonicalMatch?.[1]) return canonicalMatch[1];
+
+    // 3. Try meta itemprop
+    const metaMatch = html.match(
+      /<meta itemprop="channelId" content="(UC[\w-]{22})"/,
+    );
+    if (metaMatch?.[1]) return metaMatch[1];
+
+    // 4. Try other common metadata
+    const ogMatch = html.match(
+      /<meta property="og:url" content="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
+    );
+    if (ogMatch?.[1]) return ogMatch[1];
+
+    const twitterMatch = html.match(
+      /<meta name="twitter:app:url:googleplay" content="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
+    );
+    if (twitterMatch?.[1]) return twitterMatch[1];
+
+    // 5. Fallback to existing broad patterns
+    const patterns = [
+      /channelId"?\s*:\s*"(UC[\w-]{22})"/,
+      /"externalId"\s*:\s*"(UC[\w-]{22})"/,
+      /"id"\s*:\s*"(UC[\w-]{22})"/,
+      /data-channel-external-id="(UC[\w-]{22})"/,
+      /"channelId"\s*:\s*"(UC[\w-]{22})"/,
+      /channelId=(UC[\w-]{22})/,
+      /"ucid"\s*:\s*"(UC[\w-]{22})"/,
+    ];
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) {
+        return match[1];
+      }
+    }
+
+    return null;
+  }
+
   static async getYouTubeRssFeed(input: string): Promise<string | null> {
     if (!input) {
       return null;
@@ -154,23 +207,13 @@ export class MediaService {
               throw new Error("Empty response from YouTube");
             }
 
-            // Try multiple regex patterns to find channel ID
-            const patterns = [
-              /channelId"?\s*:\s*"(UC[\w-]{22})"/,
-              /"externalId"\s*:\s*"(UC[\w-]{22})"/,
-              /"id"\s*:\s*"(UC[\w-]{22})"/,
-              /data-channel-external-id="(UC[\w-]{22})"/,
-              /"channelId"\s*:\s*"(UC[\w-]{22})"/,
-              /channelId=(UC[\w-]{22})/,
-              /"ucid"\s*:\s*"(UC[\w-]{22})"/,
-            ];
+            if (!response.text) {
+              throw new Error("Empty response from YouTube");
+            }
 
-            for (const pattern of patterns) {
-              const match = response.text.match(pattern);
-              if (match?.[1]) {
-                channelId = match[1];
-                break;
-              }
+            const extractedId = this.extractChannelIdFromHtml(response.text);
+            if (extractedId) {
+              channelId = extractedId;
             }
           } catch (error) {
             console.error(`[YouTube] Error fetching channel:`, error);
@@ -201,23 +244,13 @@ export class MediaService {
               throw new Error("Empty response from YouTube");
             }
 
-            // Try multiple regex patterns to find channel ID
-            const patterns = [
-              /channelId"?\s*:\s*"(UC[\w-]{22})"/,
-              /"externalId"\s*:\s*"(UC[\w-]{22})"/,
-              /"id"\s*:\s*"(UC[\w-]{22})"/,
-              /data-channel-external-id="(UC[\w-]{22})"/,
-              /"channelId"\s*:\s*"(UC[\w-]{22})"/,
-              /channelId=(UC[\w-]{22})/,
-              /"ucid"\s*:\s*"(UC[\w-]{22})"/,
-            ];
+            if (!response.text) {
+              throw new Error("Empty response from YouTube");
+            }
 
-            for (const pattern of patterns) {
-              const idMatch = response.text.match(pattern);
-              if (idMatch?.[1]) {
-                channelId = idMatch[1];
-                break;
-              }
+            const extractedId = this.extractChannelIdFromHtml(response.text);
+            if (extractedId) {
+              channelId = extractedId;
             }
           } catch (error) {
             console.error(`[YouTube] Error fetching channel:`, error);
