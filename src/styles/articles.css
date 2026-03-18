@@ -246,6 +246,7 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 .rss-dashboard-read-toggle,
 .rss-dashboard-star-toggle,
 .rss-dashboard-tags-toggle {
+	--icon-size: 16px;
 	cursor: pointer;
 	color: var(--text-muted);
 	display: flex;
@@ -257,6 +258,17 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 	padding: 2px;
 	background-color: var(--background-primary-alt);
 	position: relative;
+}
+
+.rss-dashboard-save-toggle svg,
+.rss-dashboard-read-toggle svg,
+.rss-dashboard-star-toggle svg,
+.rss-dashboard-tags-toggle svg {
+	width: var(--icon-size) !important;
+	height: var(--icon-size) !important;
+	display: block !important;
+	visibility: visible !important;
+	stroke-width: 2 !important;
 }
 
 .rss-dashboard-save-toggle:hover,
@@ -397,6 +409,7 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 }
 
 .rss-dashboard-tag-inline-button {
+	--icon-size: 14px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -417,8 +430,11 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 }
 
 .rss-dashboard-tag-inline-button svg {
-	width: 14px;
-	height: 14px;
+	width: var(--icon-size) !important;
+	height: var(--icon-size) !important;
+	display: block !important;
+	visibility: visible !important;
+	stroke-width: 2 !important;
 }
 
 .rss-dashboard-tag-checkbox {
@@ -436,6 +452,7 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 }
 
 .rss-dashboard-tag-action-button {
+	--icon-size: 13px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -451,14 +468,17 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 	flex-shrink: 0;
 }
 
+.rss-dashboard-tag-action-button svg {
+	width: var(--icon-size) !important;
+	height: var(--icon-size) !important;
+	display: block !important;
+	visibility: visible !important;
+	stroke-width: 2 !important;
+}
+
 /* Ensure the first action button gets the margin-auto spacing to push both to the right */
 .rss-dashboard-tag-label + .rss-dashboard-tag-action-button {
   margin-left: auto;
-}
-
-.rss-dashboard-tag-action-button svg {
-	width: 13px;
-	height: 13px;
 }
 
 .rss-dashboard-tag-action-button:hover {

@@ -1,3 +1,20 @@
+## [2.3.0-alpha.3] - March 17, 2026
+
+### New Features
+
+- **Standardized Icon Rendering**:
+    - Refactored all interactive icons to use the Obsidian-recommended `clickable-icon` pattern.
+    - Replaced standard HTML `<button>` elements with accessible `div` structures for better cross-platform (Android) compatibility.
+    - Added full keyboard support (Enter/Space) to all interactive icons.
+    - Centralized icon sizing via the `--icon-size` CSS variable.
+
+### Fixed
+
+- **Android Rendering**: Fixed multiple instances where icons failed to render or appeared broken on Android devices.
+- **ESLint/Build Integrity**: Cleaned up legacy `any` types and unsafe `window` accesses in `PodcastPlayer` and `ReaderView`, ensuring a clean `npm run build` pass.
+
+---
+
 ## [2.3.0-alpha.2] - March 16, 2026
 
 ### New Features

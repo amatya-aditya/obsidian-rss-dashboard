@@ -1474,10 +1474,12 @@ export class ReaderView extends ItemView {
     const tagSeparator = portalDropdown.createDiv({
       cls: "rss-dashboard-tag-item-separator",
     });
+
     const updateTagSeparatorVisibility = (): void => {
       const hasTags = this.settings.availableTags.length > 0;
       tagSeparator.style.display = hasTags ? "" : "none";
     };
+
     const rerenderTagItems = (): void => {
       tagsListContainer.empty();
       for (const nextTag of this.settings.availableTags) {
@@ -1485,6 +1487,7 @@ export class ReaderView extends ItemView {
       }
       updateTagSeparatorVisibility();
     };
+
     const deleteTagFromProfile = (tag: Tag): void => {
       const tagIndex = this.settings.availableTags.findIndex(
         (t) => t.name === tag.name,
@@ -1505,6 +1508,7 @@ export class ReaderView extends ItemView {
       new Notice(`Tag "${tag.name}" deleted successfully!`);
       updateTagSeparatorVisibility();
     };
+
     this.tagsDropdownPortal = portalDropdown;
     this.tagsDropdownDocument = targetDocument;
 
@@ -1528,15 +1532,25 @@ export class ReaderView extends ItemView {
       });
       tagLabel.style.setProperty("--tag-color", tag.color);
 
-      const editButton = tagItem.createEl("button", {
-        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button",
-        attr: { title: `Edit "${tag.name}" tag`, "aria-label": "Edit tag" },
+      const editButton = tagItem.createDiv({
+        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button clickable-icon",
+        attr: {
+          title: `Edit "${tag.name}" tag`,
+          "aria-label": "Edit tag",
+          role: "button",
+          tabindex: "0",
+        },
       });
       setIcon(editButton, "pencil");
 
-      const deleteButton = tagItem.createEl("button", {
-        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-delete-button",
-        attr: { title: `Delete "${tag.name}" tag`, "aria-label": "Delete tag" },
+      const deleteButton = tagItem.createDiv({
+        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-delete-button clickable-icon",
+        attr: {
+          title: `Delete "${tag.name}" tag`,
+          "aria-label": "Delete tag",
+          role: "button",
+          tabindex: "0",
+        },
       });
       setIcon(deleteButton, "trash");
 
@@ -1551,16 +1565,14 @@ export class ReaderView extends ItemView {
           e.target === tagCheckbox ||
           (e.target instanceof Element &&
             (e.target.closest(".rss-dashboard-tag-delete-button") ||
-             e.target.closest(".rss-dashboard-tag-edit-button")))
+              e.target.closest(".rss-dashboard-tag-edit-button")))
         ) {
           return;
         }
         const isChecked = !tagCheckbox.checked;
         tagCheckbox.checked = isChecked;
-        
         tagItem.classList.add("rss-dashboard-tag-item-processing");
         this.toggleTag(item, tag, isChecked);
-
         window.setTimeout(() => {
           tagItem.classList.remove("rss-dashboard-tag-item-processing");
         }, 200);
@@ -1578,6 +1590,13 @@ export class ReaderView extends ItemView {
         });
       });
 
+      editButton.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          editButton.click();
+        }
+      });
+
       deleteButton.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1585,10 +1604,12 @@ export class ReaderView extends ItemView {
         tagItem.remove();
       });
 
-      tagItem.appendChild(tagCheckbox);
-      tagItem.appendChild(tagLabel);
-      tagItem.appendChild(editButton);
-      tagItem.appendChild(deleteButton);
+      deleteButton.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          deleteButton.click();
+        }
+      });
     };
 
     for (const tag of this.settings.availableTags) {
@@ -1598,42 +1619,30 @@ export class ReaderView extends ItemView {
 
     if (!isMobile) {
       const inlineAddRow = portalDropdown.createDiv({
-        cls: "rss-dashboard-tag-inline-add-row",
+        cls: "rss-dashboard-tag-inline-add",
       });
-
       const colorInput = inlineAddRow.createEl("input", {
-        attr: {
-          type: "color",
-          value: "#3498db",
-        },
+        attr: { type: "color", value: "#3498db" },
         cls: "rss-dashboard-tag-inline-color",
       });
-
       const nameInput = inlineAddRow.createEl("input", {
-        attr: {
-          type: "text",
-          placeholder: "Add new tag...",
-          autocomplete: "off",
-        },
+        attr: { type: "text", placeholder: "Add new tag...", autocomplete: "off" },
         cls: "rss-dashboard-tag-inline-input",
       });
       nameInput.spellcheck = false;
-
-      const addButton = inlineAddRow.createEl("button", {
-        cls: "rss-dashboard-tag-inline-button",
-        attr: { title: "Add tag" },
+      const addButton = inlineAddRow.createDiv({
+        cls: "rss-dashboard-tag-inline-button clickable-icon",
+        attr: { title: "Add tag", role: "button", tabindex: "0" },
       });
       setIcon(addButton, "plus");
 
       const submitInlineTag = () => {
         const tagName = nameInput.value.trim();
         const tagColor = colorInput.value;
-
         if (!tagName) {
           new Notice("Please enter a tag name!");
           return;
         }
-
         if (
           this.settings.availableTags.some(
             (tag) => tag.name.toLowerCase() === tagName.toLowerCase(),
@@ -1642,16 +1651,10 @@ export class ReaderView extends ItemView {
           new Notice("A tag with this name already exists!");
           return;
         }
-
-        const newTag: Tag = {
-          name: tagName,
-          color: tagColor,
-        };
-
+        const newTag: Tag = { name: tagName, color: tagColor };
         this.settings.availableTags.push(newTag);
         this.toggleTag(item, newTag, true);
         appendTagItem(newTag, true);
-
         nameInput.value = "";
         requestAnimationFrame(() => nameInput.focus());
         new Notice(`Tag "${tagName}" added`);
@@ -1662,6 +1665,13 @@ export class ReaderView extends ItemView {
         submitInlineTag();
       });
 
+      addButton.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          submitInlineTag();
+        }
+      });
+
       nameInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -1669,7 +1679,7 @@ export class ReaderView extends ItemView {
           submitInlineTag();
         }
       });
-    } // end !isMobile
+    }
 
     const rect = anchor.getBoundingClientRect();
     const dropdownRect = portalDropdown.getBoundingClientRect();
@@ -1688,20 +1698,13 @@ export class ReaderView extends ItemView {
         );
       };
       syncMobileViewportHeight();
-
       const visualViewport = targetWindow.visualViewport;
       if (visualViewport) {
         visualViewport.addEventListener("resize", syncMobileViewportHeight);
         visualViewport.addEventListener("scroll", syncMobileViewportHeight);
         this.tagsDropdownViewportCleanup = () => {
-          visualViewport.removeEventListener(
-            "resize",
-            syncMobileViewportHeight,
-          );
-          visualViewport.removeEventListener(
-            "scroll",
-            syncMobileViewportHeight,
-          );
+          visualViewport.removeEventListener("resize", syncMobileViewportHeight);
+          visualViewport.removeEventListener("scroll", syncMobileViewportHeight);
         };
       } else {
         targetWindow.addEventListener("resize", syncMobileViewportHeight);
@@ -1709,29 +1712,23 @@ export class ReaderView extends ItemView {
           targetWindow.removeEventListener("resize", syncMobileViewportHeight);
         };
       }
-
       this.tagsDropdownBackdrop?.addEventListener("click", () => {
         this.closeTagsDropdownPortal();
       });
-
       return;
     }
 
     let left = rect.right;
     let top = rect.top;
-
     if (left + dropdownRect.width > appContainerRect.right) {
       left = rect.left - dropdownRect.width;
     }
-
     if (left < appContainerRect.left) {
       left = appContainerRect.left;
     }
-
     if (top + dropdownRect.height > targetWindow.innerHeight) {
       top = targetWindow.innerHeight - dropdownRect.height - 5;
     }
-
     portalDropdown.style.left = `${left}px`;
     portalDropdown.style.top = `${top}px`;
 
@@ -1755,24 +1752,20 @@ export class ReaderView extends ItemView {
       this.tagsDropdownBackdrop.remove();
       this.tagsDropdownBackdrop = null;
     }
-
     if (this.tagsDropdownPortal) {
       this.tagsDropdownPortal.remove();
       this.tagsDropdownPortal = null;
     }
-
     if (this.tagsDropdownOutsideHandler && this.tagsDropdownDocument) {
       this.tagsDropdownDocument.removeEventListener(
         "mousedown",
         this.tagsDropdownOutsideHandler,
       );
     }
-
     if (this.tagsDropdownViewportCleanup) {
       this.tagsDropdownViewportCleanup();
       this.tagsDropdownViewportCleanup = null;
     }
-
     this.tagsDropdownOutsideHandler = null;
     this.tagsDropdownDocument = null;
   }

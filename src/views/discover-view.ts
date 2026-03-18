@@ -1050,14 +1050,22 @@ export class DiscoverView extends ItemView {
     const mobileFiltersMenu = rightSection.createDiv({
       cls: "rss-discover-mobile-filters-menu",
     });
-    const mobileFiltersButton = mobileFiltersMenu.createEl("button", {
-      cls: "rss-discover-mobile-filters-button",
+    const mobileFiltersButton = mobileFiltersMenu.createDiv({
+      cls: "rss-discover-mobile-filters-button clickable-icon",
       attr: {
-        type: "button",
         "aria-label": "Toggle discover filters menu",
+        role: "button",
+        tabindex: "0",
       },
     });
     setIcon(mobileFiltersButton, "menu");
+
+    mobileFiltersButton.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        mobileFiltersButton.click();
+      }
+    });
 
     const mobileFiltersDropdown = mobileFiltersMenu.createDiv({
       cls: "rss-discover-mobile-filters-dropdown",

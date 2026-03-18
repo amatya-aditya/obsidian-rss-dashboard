@@ -164,6 +164,63 @@ Minimum expectations:
 5. Are focus-visible and contrast preserved?
 6. Is the change reflected in this spec if behavior or styling conventions changed?
 
+## Icon Rendering Standards
+
+To ensure cross-platform compatibility (especially Android WebView) and accessibility, all interactive icons must follow the `clickable-icon` pattern.
+
+### Implementation Structure
+
+Always use a `div` (or `span` if inline) with the following attributes:
+
+- **Class**: `clickable-icon`
+- **Role**: `button`
+- **Tabindex**: `0`
+- **Accessibility**: Provide an `aria-label` or `title`.
+
+```typescript
+const iconButton = container.createDiv({
+  cls: "clickable-icon",
+  attr: {
+    "aria-label": "Desired Action",
+    role: "button",
+    tabindex: "0"
+  }
+});
+setIcon(iconButton, "lucide-icon-name");
+```
+
+### Keyboard Interactivity
+
+Interactive icons MUST handle keyboard events to maintain 1:1 parity with standard buttons:
+
+```typescript
+iconButton.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    // execute action
+  }
+});
+```
+
+### Styling Guidelines
+
+- **Sizing**: Use the `--icon-size` CSS variable to control the SVG dimensions.
+- **Stroke Weights**: Preserve Lucide's default `stroke-width: 2` unless a specific variation is required.
+- **Android Visibility**: Use `!important` on `width`, `height`, and `visibility: visible` within the component-specific SVG rules to prevent rendering drops.
+
+```css
+.your-icon-class {
+  --icon-size: 24px;
+}
+
+.your-icon-class svg {
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
+}
+```
+
 ## Change Management
 
 When a visual pattern changes:

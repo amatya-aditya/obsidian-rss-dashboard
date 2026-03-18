@@ -2167,13 +2167,17 @@ export class ArticleList {
     article: FeedItem,
   ): void {
     const readToggle = actionToolbar.createDiv({
-      cls: `rss-dashboard-read-toggle ${article.read ? "read" : "unread"}`,
+      cls: `rss-dashboard-read-toggle clickable-icon ${article.read ? "read" : "unread"}`,
       attr: {
         title: article.read ? "Mark as unread" : "Mark as read",
+        role: "button",
+        tabindex: "0",
+        "aria-label": article.read ? "Mark as unread" : "Mark as read",
       },
     });
     setIcon(readToggle, article.read ? "check-circle" : "circle");
-    readToggle.addEventListener("click", (e) => {
+
+    const toggleRead = (e: Event) => {
       e.stopPropagation();
       const newReadState = !article.read;
       article.read = newReadState;
@@ -2181,6 +2185,14 @@ export class ArticleList {
       readToggle.classList.toggle("read", newReadState);
       readToggle.classList.toggle("unread", !newReadState);
       setIcon(readToggle, newReadState ? "check-circle" : "circle");
+    };
+
+    readToggle.addEventListener("click", toggleRead);
+    readToggle.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleRead(e);
+      }
     });
   }
 
@@ -2189,20 +2201,24 @@ export class ArticleList {
     article: FeedItem,
   ): void {
     const saveButton = actionToolbar.createDiv({
-      cls: `rss-dashboard-save-toggle ${article.saved ? "saved" : ""}`,
+      cls: `rss-dashboard-save-toggle clickable-icon ${article.saved ? "saved" : ""}`,
       attr: {
         title: article.saved
           ? "Click to open saved article"
           : this.settings.articleSaving.saveFullContent
             ? "Save full article content to notes"
             : "Save article summary to notes",
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Save article",
       },
     });
     setIcon(saveButton, "save");
     if (!saveButton.querySelector("svg")) {
       saveButton.textContent = "S";
     }
-    saveButton.addEventListener("click", (e) => {
+
+    const toggleSave = (e: Event) => {
       e.stopPropagation();
       if (article.saved) {
         if (this.callbacks.onOpenSavedArticle) {
@@ -2226,6 +2242,14 @@ export class ArticleList {
         saveButton.classList.remove("saving");
         saveButton.setAttribute("title", "Click to open saved article");
       }
+    };
+
+    saveButton.addEventListener("click", toggleSave);
+    saveButton.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleSave(e);
+      }
     });
   }
 
@@ -2234,11 +2258,14 @@ export class ArticleList {
     article: FeedItem,
   ): void {
     const starToggle = actionToolbar.createDiv({
-      cls: `rss-dashboard-star-toggle ${article.starred ? "starred" : "unstarred"}`,
+      cls: `rss-dashboard-star-toggle clickable-icon ${article.starred ? "starred" : "unstarred"}`,
       attr: {
         title: article.starred
           ? "Remove from starred items"
           : "Add to starred items",
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Toggle star",
       },
     });
     const starIcon = starToggle.createSpan({
@@ -2249,7 +2276,8 @@ export class ArticleList {
     if (!starIcon.querySelector("svg")) {
       starIcon.textContent = article.starred ? "*" : "o";
     }
-    starToggle.addEventListener("click", (e) => {
+
+    const toggleStar = (e: Event) => {
       e.stopPropagation();
       const newStarState = !article.starred;
       article.starred = newStarState;
@@ -2263,6 +2291,14 @@ export class ArticleList {
           iconEl.textContent = newStarState ? "*" : "o";
         }
       }
+    };
+
+    starToggle.addEventListener("click", toggleStar);
+    starToggle.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleStar(e);
+      }
     });
   }
 
@@ -2274,13 +2310,29 @@ export class ArticleList {
       cls: "rss-dashboard-tags-dropdown",
     });
     const tagsToggle = tagsDropdown.createDiv({
-      cls: "rss-dashboard-tags-toggle",
-      attr: { title: "Manage tags" },
+      cls: "rss-dashboard-tags-toggle clickable-icon",
+      attr: {
+        title: "Manage tags",
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Manage tags",
+      },
     });
     setIcon(tagsToggle, "tag");
     tagsToggle.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.createPortalDropdown(tagsToggle, article, (tag, checked) => {
+      this.showTagsDropdownPortal(tagsToggle, article);
+    });
+    tagsToggle.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        this.showTagsDropdownPortal(tagsToggle, article);
+      }
+    });
+  }
+
+  private showTagsDropdownPortal(anchor: HTMLElement, article: FeedItem): void {
+    this.createPortalDropdown(anchor, article, (tag, checked) => {
         if (!article.tags) article.tags = [];
         if (checked) {
           if (!article.tags.some((t) => t.name === tag.name)) {
@@ -2333,7 +2385,6 @@ export class ArticleList {
           }, 1500);
         }
       });
-    });
   }
 
   private createArticleActionButtons(
@@ -2996,15 +3047,25 @@ export class ArticleList {
       });
       tagLabel.style.setProperty("--tag-color", tag.color);
       
-      const editButton = tagItem.createEl("button", {
-        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button",
-        attr: { title: `Edit "${tag.name}" tag`, "aria-label": "Edit tag" },
+      const editButton = tagItem.createDiv({
+        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button clickable-icon",
+        attr: {
+          title: `Edit "${tag.name}" tag`,
+          "aria-label": "Edit tag",
+          role: "button",
+          tabindex: "0",
+        },
       });
       setIcon(editButton, "pencil");
       
-      const deleteButton = tagItem.createEl("button", {
-        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-delete-button",
-        attr: { title: `Delete "${tag.name}" tag`, "aria-label": "Delete tag" },
+      const deleteButton = tagItem.createDiv({
+        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-delete-button clickable-icon",
+        attr: {
+          title: `Delete "${tag.name}" tag`,
+          "aria-label": "Delete tag",
+          role: "button",
+          tabindex: "0",
+        },
       });
       setIcon(deleteButton, "trash");
 
@@ -3100,9 +3161,9 @@ export class ArticleList {
       });
       nameInput.spellcheck = false;
 
-      const addButton = inlineAddRow.createEl("button", {
-        cls: "rss-dashboard-tag-inline-button",
-        attr: { title: "Add tag" },
+      const addButton = inlineAddRow.createDiv({
+        cls: "rss-dashboard-tag-inline-button clickable-icon",
+        attr: { title: "Add tag", role: "button", tabindex: "0" },
       });
       setIcon(addButton, "plus");
 
@@ -3142,6 +3203,13 @@ export class ArticleList {
       addButton.addEventListener("click", (e) => {
         e.stopPropagation();
         submitInlineTag();
+      });
+
+      addButton.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          submitInlineTag();
+        }
       });
 
       nameInput.addEventListener("keydown", (e) => {

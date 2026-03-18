@@ -305,6 +305,7 @@
 }
 
 .rss-discover-mobile-filters-button {
+  --icon-size: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -319,14 +320,14 @@
 }
 
 .rss-discover-mobile-filters-button svg {
-  width: 24px;
-  height: 24px;
-  display: block;
-  visibility: visible;
-  opacity: 1;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  stroke-width: 2 !important;
 }
 
 .rss-discover-mobile-filters-button:hover {
