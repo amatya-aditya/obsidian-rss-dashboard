@@ -5,25 +5,27 @@
 - **Sidebar Feed Filtering**: Added a new setting "Hide empty feeds/no unread articles" to automatically hide feeds with zero articles or only read articles from the sidebar.
 
 - **Standardized Icon Rendering**:
-    - Refactored all interactive icons to use the Obsidian-recommended `clickable-icon` pattern.
-    - Replaced standard HTML `<button>` elements with accessible `div` structures for better cross-platform (Android) compatibility.
-    - Added full keyboard support (Enter/Space) to all interactive icons.
-    - Centralized icon sizing via the `--icon-size` CSS variable.
+  - Refactored all interactive icons to use the Obsidian-recommended `clickable-icon` pattern.
+  - Replaced standard HTML `<button>` elements with accessible `div` structures for better cross-platform (Android) compatibility.
+  - Added full keyboard support (Enter/Space) to all interactive icons.
+  - Centralized icon sizing via the `--icon-size` CSS variable.
 - **Reader Settings Refactor**:
-    - Replaced "Words per row" slider with a percentage-based "Paragraph width" dropdown (25%, 50%, 75%, 100%).
-    - Replaced "Font size" slider with a discrete dropdown (80% to 200%).
-    - Replaced "Line height" slider with a discrete dropdown (100% to 200%).
-    - Added 2px horizontal padding for 100% paragraph width to improve readability.
+  - Replaced "Words per row" slider with a percentage-based "Paragraph width" dropdown (25%, 50%, 75%, 100%).
+  - Replaced "Font size" slider with a discrete dropdown (80% to 200%).
+  - Replaced "Line height" slider with a discrete dropdown (100% to 200%).
+  - Added 2px horizontal padding for 100% paragraph width to improve readability.
 
 ### Fixed
 
 - **Android/iOS Rendering**: Fixed multiple instances where icons failed to render or appeared broken on mobile devices.
-- **iOS Feed Content**: Fixed an issue where Substack and Psychology Today articles appeared empty on iPhone by implementing robust XML namespace extraction using `getElementsByTagNameNS` instead of `querySelector`.
+- **iOS Feed Content**: 
+    - Fixed an issue where Substack and Psychology Today articles appeared empty on iPhone by implementing robust XML namespace extraction using `getElementsByTagNameNS` instead of `querySelector`.
+    - Fixed an issue where full article content fetching (via Readability) failed on iOS for sites with strict WAFs (like Psychology Today) by passing a standard desktop User-Agent to the native iOS fetch request.
 - **Reader Rendering**: Improved article display logic to ensure content is always rendered as the primary body, even if it matches the feed description.
 - **ESLint/Build Integrity**:
     - Cleaned up multiple ESLint & TypeScript compilation errors in `ReaderView`.
-    - Implemented strictly-typed Obsidian app and plugin interfaces for safer API access.
-    - Standardized `HighlightService` and `robustFetch` usage to match modern patterns.
+  - Implemented strictly-typed Obsidian app and plugin interfaces for safer API access.
+  - Standardized `HighlightService` and `robustFetch` usage to match modern patterns.
 
 ### Development
 
