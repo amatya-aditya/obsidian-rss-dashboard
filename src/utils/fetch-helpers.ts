@@ -82,18 +82,20 @@ export async function fetchWithProxyFallback(
 
     const logMsg = `[RSS Dashboard] Direct fetch returned blocked/empty response for ${url} (${directHtml?.length ?? 0} chars). Attempting proxy...`;
     console.warn(logMsg);
-    new Notice(`Fetch blocked (${directHtml?.length ?? 0} chars). Retrying via proxy...`, 5000);
+    new Notice(`Fetch blocked (${directHtml?.length ?? 0} chars), retrying via proxy`, 5000);
 
     // 2. Proxy fallback
     if (!proxyUrl || proxyUrl.trim() === "") {
-      const msg = "[RSS Dashboard] No CORS proxy configured. Cannot retry blocked fetch.";
+      const msg =
+        "[RSS Dashboard] No CORS proxy configured. Cannot retry blocked fetch.";
       console.warn(msg);
-      new Notice("Error: No CORS proxy configured in settings.", 5000);
+      new Notice("No proxy configured in settings", 5000);
       return "";
     }
 
-    const proxyTarget = proxyUrl.trim().replace(/\/$/, "") + encodeURIComponent(url);
-    new Notice(`Calling proxy: ${proxyTarget.substring(0, 50)}...`, 3000);
+    const proxyTarget =
+      proxyUrl.trim().replace(/\/$/, "") + encodeURIComponent(url);
+    new Notice(`Calling proxy: ${proxyTarget.substring(0, 50)}`, 3000);
 
     const proxyHtml = await robustFetch(proxyTarget, {
       headers: DEFAULT_HEADERS,
@@ -102,24 +104,25 @@ export async function fetchWithProxyFallback(
     if (!proxyHtml || isBlockedResponse(proxyHtml)) {
       const msg = `[RSS Dashboard] Proxy fetch also returned blocked/empty response for ${url}.`;
       console.warn(msg);
-      new Notice(`Proxy fetch failed or was also blocked (${proxyHtml?.length ?? 0} chars).`, 5000);
+      new Notice(`Proxy fetch failed or was also blocked (${proxyHtml?.length ?? 0} chars)`, 5000);
       return "";
     }
 
     console.debug(
       `[RSS Dashboard] Proxy fetch succeeded for ${url} (${proxyHtml.length} chars).`,
     );
-    new Notice(`Proxy fetch succeeded! (${proxyHtml.length} chars)`, 3000);
+    new Notice(`Proxy fetch succeeded (${proxyHtml.length} chars)`, 3000);
 
     const withMeta = ensureUtf8Meta(proxyHtml);
     const doc = new DOMParser().parseFromString(withMeta, "text/html");
     const article = new Readability(doc).parse();
     return article?.content ?? "";
-  } catch (e: any) {
-    const errorMsg = `[RSS Dashboard] fetchWithProxyFallback error: ${e.message || e}`;
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const errorMsg = `[RSS Dashboard] fetchWithProxyFallback error: ${msg}`;
 
     console.error(errorMsg);
-    new Notice(`Network Error: ${e.message || "Unknown error"}`, 5000);
+    new Notice(`Network error: ${msg}`, 5000);
     return "";
   }
 }
