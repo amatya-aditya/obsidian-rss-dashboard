@@ -879,65 +879,52 @@ export class CustomXMLParser {
   private getTextContent(element: Element | null, tagName: string): string {
     if (!element) return "";
     let el: Element | null = null;
+
     if (tagName.includes("\\:")) {
       el = element.querySelector(tagName);
     } else if (tagName.includes(":")) {
-      const parts = tagName.split(":");
-      if (parts.length === 2) {
-        const [namespace, localName] = parts;
+      const [namespace, localName] = tagName.split(":");
+      
+      // 1. Try namespaced selector with backslash
+      try {
+        el = element.querySelector(`${namespace}\\:${localName}`);
+      } catch { /* ignore */ }
+
+      // 2. Try getElementsByTagNameNS if not found
+      if (!el) {
         try {
-          el = element.querySelector(`${namespace}\\:${localName}`);
-        } catch {
-          try {
-            const elements = element.getElementsByTagNameNS("*", localName);
-            if (elements.length > 0) {
-              el = elements[0];
-            }
-          } catch {
-            try {
-              el = element.querySelector(localName);
-            } catch {
-              el = element.querySelector(`*[local-name()="${localName}"]`);
-            }
-          }
-        }
-        if (!el && namespace === "content" && localName === "encoded") {
-          const contentSelectors = [
-            "content\\:encoded",
-            "content:encoded",
-            '*[local-name()="encoded"]',
-            "encoded",
-          ];
-          for (const selector of contentSelectors) {
-            try {
-              el = element.querySelector(selector);
-              if (el) break;
-            } catch {
-              continue;
-            }
-          }
-        }
+          const elements = element.getElementsByTagNameNS("*", localName);
+          if (elements.length > 0) el = elements[0];
+        } catch { /* ignore */ }
+      }
+
+      // 3. Try local name only if still not found
+      if (!el) {
+        try {
+          el = element.querySelector(localName);
+        } catch { /* ignore */ }
+      }
+
+      // 4. Try local-name() selector if still not found
+      if (!el) {
+        try {
+          el = element.querySelector(`*[local-name()="${localName}"]`);
+        } catch { /* ignore */ }
       }
     } else {
+      // Basic tag
       el = element.querySelector(tagName);
       if (!el) {
-        const tagEls = element.getElementsByTagName(tagName);
-        if (tagEls.length > 0) {
-          el = tagEls[0];
-        } else if (element.getElementsByTagNameNS) {
-          const nsEls = element.getElementsByTagNameNS("*", tagName);
-          if (nsEls.length > 0) {
-            el = nsEls[0];
-          }
-        }
+        try {
+          const tagEls = element.getElementsByTagName(tagName);
+          if (tagEls.length > 0) el = tagEls[0];
+        } catch { /* ignore */ }
       }
     }
+
     if (!el) return "";
     const textContent = el.textContent?.trim() || "";
-    if (textContent) {
-      return this.sanitizeCDATA(textContent);
-    }
-    return "";
+    return textContent ? this.sanitizeCDATA(textContent) : "";
   }
 
   private sanitizeCDATA(text: string): string {
@@ -1222,12 +1209,9 @@ export class CustomXMLParser {
     const description = this.getTextContent(channel, "description");
     const link = this.getTextContent(channel, "link");
 
-    const author = this.getTextContentWithMultipleSelectors(channel, [
-      "author",
-      "dc\\:creator",
-      "dc:creator",
-      '*[local-name()="creator"]',
-    ]);
+    const author = 
+      this.getTextContent(channel, "author") || 
+      this.getTextContent(channel, "dc:creator");
 
     const imageElement = channel.querySelector("image");
     const image = imageElement
@@ -1292,20 +1276,13 @@ export class CustomXMLParser {
 
       const author =
         authors ||
-        this.getTextContentWithMultipleSelectors(item, [
-          "author",
-          "dc\\:creator",
-          "dc:creator",
-          '*[local-name()="creator"]',
-        ]);
+        this.getTextContent(item, "author") || 
+        this.getTextContent(item, "dc:creator");
 
       const content =
-        this.getTextContentWithMultipleSelectors(item, [
-          "content\\:encoded",
-          "content:encoded",
-          '*[local-name()="encoded"]',
-          "encoded",
-        ]) || description;
+        this.getTextContent(item, "content:encoded") || 
+        this.getTextContent(item, "encoded") ||
+        description;
 
       const enclosureElement = item.querySelector("enclosure");
       const enclosure = enclosureElement
@@ -1450,12 +1427,9 @@ export class CustomXMLParser {
       }
 
       const contentValue =
-        this.getTextContentWithMultipleSelectors(item, [
-          "content\\:encoded",
-          "content:encoded",
-          '*[local-name()="encoded"]',
-          "encoded",
-        ]) || description;
+        this.getTextContent(item, "content:encoded") || 
+        this.getTextContent(item, "encoded") ||
+        description;
 
       items.push({
         title: title || "Untitled",

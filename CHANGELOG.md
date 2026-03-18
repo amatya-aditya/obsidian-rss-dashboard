@@ -17,11 +17,18 @@
 
 ### Fixed
 
-- **Android Rendering**: Fixed multiple instances where icons failed to render or appeared broken on Android devices.
+- **Android/iOS Rendering**: Fixed multiple instances where icons failed to render or appeared broken on mobile devices.
+- **iOS Feed Content**: Fixed an issue where Substack and Psychology Today articles appeared empty on iPhone by implementing robust XML namespace extraction using `getElementsByTagNameNS` instead of `querySelector`.
+- **Reader Rendering**: Improved article display logic to ensure content is always rendered as the primary body, even if it matches the feed description.
 - **ESLint/Build Integrity**:
     - Cleaned up multiple ESLint & TypeScript compilation errors in `ReaderView`.
     - Implemented strictly-typed Obsidian app and plugin interfaces for safer API access.
     - Standardized `HighlightService` and `robustFetch` usage to match modern patterns.
+
+### Development
+
+- **Testing**: Added unit tests for namespaced XML extraction and reader logic in `test_files/unit/ios-namespace-fix.test.ts`.
+- **Build Logging**: Added explicit confirmation messages to `esbuild.config.mjs` to verify successful JS and CSS bundling.
 
 ---
 

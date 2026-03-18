@@ -766,7 +766,11 @@ export class ReaderView extends ItemView {
       (item.itunes?.image?.href || "").trim() ||
       undefined;
 
-    if (descriptionHtml) {
+    const hasDistinctMainContent =
+      mainHtml !== "" &&
+      (!descriptionHtml || !this.isEquivalentHtml(mainHtml, descriptionHtml));
+
+    if (descriptionHtml && hasDistinctMainContent) {
       const descriptionCallout = this.readingContainer.createEl("details", {
         cls: "rss-reader-description-callout",
       });
@@ -785,20 +789,17 @@ export class ReaderView extends ItemView {
       );
     }
 
-    const hasDistinctMainContent =
-      mainHtml &&
-      (!descriptionHtml || !this.isEquivalentHtml(mainHtml, descriptionHtml));
+    const contentToRender = hasDistinctMainContent 
+      ? mainHtml 
+      : (mainHtml || descriptionHtml);
 
-    if (hasDistinctMainContent || !descriptionHtml) {
+    if (contentToRender) {
       const contentContainer = this.readingContainer.createDiv({
         cls: "rss-reader-article-content",
       });
-      const htmlToRender = hasDistinctMainContent
-        ? mainHtml
-        : descriptionHtml || mainHtml;
       this.populateArticleHtml(
         contentContainer,
-        htmlToRender,
+        contentToRender,
         item.link,
         fallbackHeroUrl,
         item.title,
