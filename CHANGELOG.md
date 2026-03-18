@@ -26,6 +26,10 @@
     - Cleaned up multiple ESLint & TypeScript compilation errors in `ReaderView`.
   - Implemented strictly-typed Obsidian app and plugin interfaces for safer API access.
   - Standardized `HighlightService` and `robustFetch` usage to match modern patterns.
+- **Feed and Folder Validation**:
+    - Added strict validation for forbidden characters (`[ ] # ^ | / \ : * " < > ?`) and leading dots in feed titles and folder names.
+    - Integrated validation into Add Feed, Edit Feed, and Folder Rename modals to prevent data corruption and filesystem issues.
+    - Improved `sanitizeName` logic to provide better defaults during automated imports (e.g., OPML).
 
 ### Development
 

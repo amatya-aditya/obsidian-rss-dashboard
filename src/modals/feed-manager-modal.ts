@@ -17,6 +17,7 @@ import { MediaService } from "../services/media-service";
 import { ImportOpmlModal } from "./import-opml-modal";
 import { renderKeywordFilterEditor } from "../components/keyword-filter-editor";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
+import { isValidFeedTitle, isValidFolderName } from "../utils/validation";
 
 /**
  * Helper function to collect all folder paths from a folder hierarchy
@@ -651,6 +652,12 @@ export class EditFeedModal extends Modal {
       cls: "rss-dashboard-danger-button rss-dashboard-cancel-button",
     });
     saveBtn.onclick = () => {
+      const validation = isValidFeedTitle(title);
+      if (!validation.valid) {
+        new Notice(validation.error || "Invalid feed title");
+        return;
+      }
+
       void (async () => {
         const oldTitle = this.feed.title;
         this.feed.title = title;
@@ -1444,10 +1451,12 @@ export class AddFeedModal extends Modal {
         new Notice("Feed URL cannot be empty");
         return;
       }
-      if (!title) {
-        new Notice("Title cannot be empty");
+      const validation = isValidFeedTitle(title);
+      if (!validation.valid) {
+        new Notice(validation.error || "Invalid feed title");
         return;
       }
+
       const finalFolder = folderInput?.value || folder;
       void (async () => {
         if (this.plugin && finalFolder) {
@@ -2075,13 +2084,9 @@ export class FeedManagerModal extends Modal {
       this.onOpen();
       return;
     }
-    if (!newName) {
-      new Notice("Folder name cannot be empty.");
-      this.onOpen();
-      return;
-    }
-    if (newName.includes("/")) {
-      new Notice("Folder name cannot contain '/'.");
+    const validation = isValidFolderName(newName);
+    if (!validation.valid) {
+      new Notice(validation.error || "Invalid folder name.");
       this.onOpen();
       return;
     }

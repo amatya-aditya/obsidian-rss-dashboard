@@ -18,6 +18,7 @@ import {
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import { showEditTagModal } from "../utils/tag-utils";
 import { SidebarSearchService } from "../services/sidebar-search-service";
+import { isValidFolderName } from "../utils/validation";
 import type RssDashboardPlugin from "../../main";
 
 export interface SidebarOptions {
@@ -150,8 +151,9 @@ class FolderNameModal extends Modal {
 
     const submit = () => {
       const name = nameInput.value.trim();
-      if (!name) {
-        showError("Please enter a folder name.");
+      const validation = isValidFolderName(name);
+      if (!validation.valid) {
+        showError(validation.error || "Please enter a folder name.");
         nameInput.focus();
         return;
       }
@@ -228,8 +230,6 @@ export class Sidebar {
   private cachedFolderPaths: string[] | null = null;
   private isSearchExpanded = false;
   private searchQuery = "";
-  // Legacy toggle-row state (disabled by design after header toolbar migration).
-  // private isSidebarToolbarCollapsed = false;
   private isTagsExpanded = false;
   private isRefreshing = false;
   private longPressTimer: number | null = null;

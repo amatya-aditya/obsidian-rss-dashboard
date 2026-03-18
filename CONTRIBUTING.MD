@@ -179,6 +179,21 @@ We follow [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`
 | `2.3.0-rc.1`   | Feature complete, testing for release confidence  |
 | `2.3.0`        | Stable release                                    |
 
+## Naming Conventions and Validation
+
+To ensure compatibility across different operating systems and Obsidian's internal linking system, all folder and feed titles must adhere to the following rules:
+
+1.  **Forbidden Characters**: The following characters are strictly prohibited in folder names and feed titles:
+    `[ ] # ^ | / \ : * " < > ?`
+2.  **Leading Dots**: Names cannot start with a dot (`.`).
+3.  **Empty Names**: Names cannot be empty or consist only of whitespace.
+
+### Implementation Guidelines
+
+- **User Input**: Always validate user-provided folder names and feed titles using `isValidFolderName(name)` or `isValidFeedTitle(title)` from `src/utils/validation.ts`. Provide immediate feedback via `Notice`.
+- **Automated Imports**: When importing data (e.g., OPML), use `sanitizeName(name)` to automatically replace forbidden characters with underscores and strip leading dots.
+- **Testing**: Any changes to validation logic must be accompanied by updates to `test_files/unit/validation.test.ts`.
+
 ---
 
 ## Key Rules
