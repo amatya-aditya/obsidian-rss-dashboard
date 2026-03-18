@@ -196,7 +196,7 @@ export type ReaderParagraphSpacing = "default" | "tight" | "normal" | "loose";
 
 export interface ReaderFormatSettings {
   textAlign: ReaderTextAlign;
-  wordsPerLine: number;
+  paragraphWidth: number;
   fontScalePct: number;
   lineHeightPct: number;
   fontFamily: ReaderFontFamily;
@@ -361,7 +361,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   useWebViewer: true,
   readerFormat: {
     textAlign: "justify",
-    wordsPerLine: 0,
+    paragraphWidth: 100,
     fontScalePct: 100,
     lineHeightPct: 160,
     fontFamily: "default",

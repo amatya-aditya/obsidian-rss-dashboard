@@ -5,29 +5,42 @@ import {
   MenuItem,
   App,
   Setting,
-  Notice,
   requireApiVersion,
 } from "obsidian";
 import { setIcon } from "obsidian";
 import {
-  FeedItem,
   RssDashboardSettings,
+  FeedItem,
+  ReaderFormatSettings,
+  DEFAULT_SETTINGS,
   ArticleSavingSettings,
   Tag,
-  DEFAULT_SETTINGS,
-  ReaderFormatSettings,
 } from "../types/types";
-import { MediaService } from "../services/media-service";
-import { ArticleSaver } from "../services/article-saver";
-import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { HighlightService } from "../services/highlight-service";
-import { PodcastPlayer } from "./podcast-player";
-import { VideoPlayer } from "./video-player";
+import { ArticleSaver } from "../services/article-saver";
+import { robustFetch, ensureUtf8Meta, setCssProps } from "../utils/platform-utils";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
-import { ensureUtf8Meta, robustFetch, setCssProps } from "../utils/platform-utils";
+import { WebViewerIntegration } from "../services/web-viewer-integration";
+import { MediaService } from "../services/media-service";
+
+interface RssDashboardPluginInterface {
+  openTagsSettings(): void;
+  manifest: { id: string };
+}
+
+interface ExtendedApp extends App {
+  plugins: {
+    getPlugin(id: string): RssDashboardPluginInterface | null;
+  };
+  setting: {
+    open(): void;
+    openTabById(id: string): void;
+  };
+}
+import { PodcastPlayer } from "./podcast-player";
+import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
-import { showEditTagModal } from "../utils/tag-utils";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
@@ -799,123 +812,64 @@ export class ReaderView extends ItemView {
     rawHtml: string,
     baseUrl: string,
     fallbackHeroUrl?: string,
-    fallbackHeroAlt?: string,
+    title?: string,
     heroSlot?: HTMLElement,
   ): void {
-    const htmlString = ensureUtf8Meta(rawHtml || "");
-    const processedHtmlString = this.convertRelativeUrlsInContent(
-      htmlString,
-      baseUrl,
-    );
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(processedHtmlString, "text/html");
+    if (!rawHtml) return;
 
-    function appendNodes(parent: HTMLElement, nodes: NodeListOf<ChildNode>) {
-      nodes.forEach((node) => {
-        if (node.nodeType === Node.TEXT_NODE) {
-          parent.appendText(node.textContent || "");
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          const element = node as HTMLElement;
-          const isIconElement =
-            element.tagName === "I" && element.classList.contains("icon-class");
-          if (!isIconElement) {
-            const tag =
-              element.tagName.toLowerCase() as keyof HTMLElementTagNameMap;
-            const el = parent.createEl(tag);
+    let html = rawHtml;
+    // Basic sanitization/cleanup if needed (the app seems to trust feed HTML)
+    
+    // Resolve relative URLs
+    if (baseUrl) {
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const base = new URL(baseUrl);
 
-            Array.from(element.attributes).forEach((attr) => {
-              // Safety check: ensure attribute name is valid to avoid InvalidCharacterError
-              if (/^[a-z:_-][a-z0-9:._-]*$/i.test(attr.name)) {
-                el.setAttr(attr.name, attr.value);
-              }
-            });
-
-            appendNodes(el, node.childNodes);
+        doc.querySelectorAll('a').forEach(el => {
+          const href = el.getAttribute('href');
+          if (href) {
+            try { el.href = new URL(href, base).toString(); } catch { /* ignore */ }
           }
-        }
-      });
+        });
+
+        doc.querySelectorAll('img').forEach(el => {
+          const src = el.getAttribute('src');
+          if (src) {
+            try { el.src = new URL(src, base).toString(); } catch { /* ignore */ }
+          }
+        });
+
+        html = doc.body.innerHTML;
+      } catch {
+        console.error("Failed to resolve relative URLs");
+      }
     }
 
-    appendNodes(container, doc.body.childNodes);
-
-    container.querySelectorAll("img").forEach((img) => {
-      const src = img.getAttribute("src");
-      if (src && src.startsWith("app://")) {
-        img.setAttribute("src", src.replace("app://", "https://"));
+    // Attempt to extract and place hero image
+    if (heroSlot && heroSlot.childElementCount === 0) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
+      const firstImg = tempDiv.querySelector('img');
+      
+      let heroUrl = fallbackHeroUrl;
+      if (firstImg && firstImg.src) {
+        // If the first image looks like a hero image (e.g. large)
+        // For now just take the first meaningful image or fallback
+        heroUrl = firstImg.src;
+        // Optional: remove it from the body to avoid duplication
+        // firstImg.remove();
+        // html = tempDiv.innerHTML;
       }
-      img.classList.add("rss-reader-responsive-img");
 
-      img.addEventListener("error", () => {
-        // Substack frequently includes broken <source srcset> or mangled srcset values in feed HTML.
-        // If an inline image fails anyway, show a single hero fallback (card image) rather than
-        // leaving the reader with no imagery at all.
-        if (
-          heroSlot &&
-          fallbackHeroUrl &&
-          this.isSubstackUrl(baseUrl) &&
-          !heroSlot.querySelector("img")
-        ) {
-          heroSlot.createEl("img", {
-            cls: "rss-reader-fallback-hero",
-            attr: {
-              src: fallbackHeroUrl,
-              alt: fallbackHeroAlt || "",
-              loading: "lazy",
-              referrerpolicy: "no-referrer",
-            },
-          });
-        }
-
-        img.remove();
-      });
-    });
-
-    // Substack renders interactive "expand" UI controls inside feed HTML (buttons under images).
-    // They don't function in the Obsidian reader and end up as empty bordered buttons.
-    container
-      .querySelectorAll(
-        ".image-link-expand, button.restack-image, button.view-image",
-      )
-      .forEach((el) => el.remove());
-
-    container.querySelectorAll("source").forEach((source) => {
-      const srcset = source.getAttribute("srcset");
-      if (srcset) {
-        const processedSrcset = srcset
-          .split(",")
-          .map((part: string) => {
-            const trimmedPart = part.trim();
-
-            const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
-            if (urlMatch) {
-              const url = urlMatch[1];
-              const sizeDescriptor = urlMatch[2] || "";
-
-              let absoluteUrl = url;
-              if (url.startsWith("app://")) {
-                absoluteUrl = url.replace("app://", "https://");
-              } else if (url.startsWith("//")) {
-                absoluteUrl = "https:" + url;
-              }
-              return absoluteUrl + sizeDescriptor;
-            }
-            return trimmedPart;
-          })
-          .join(", ");
-        source.setAttribute("srcset", processedSrcset);
+      if (heroUrl) {
+        heroSlot.createEl("img", {
+          cls: "rss-reader-fallback-hero",
+          attr: { src: heroUrl, alt: title || "Hero image" }
+        });
       }
-    });
-
-    container.querySelectorAll("a").forEach((link) => {
-      const href = link.getAttribute("href");
-      if (href && href.startsWith("app://")) {
-        link.setAttribute("href", href.replace("app://", "https://"));
-      }
-      link.setAttribute("target", "_blank");
-      link.setAttribute("rel", "noopener noreferrer");
-    });
-
-    this.app.workspace.trigger("parse-math", container);
+    }
 
     if (
       this.settings.highlights?.enabled &&
@@ -923,876 +877,110 @@ export class ReaderView extends ItemView {
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
       highlightService.highlightElement(container);
+    } else {
+      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
     }
+
+    // Add classes to images for styling
+    container.querySelectorAll('img').forEach(img => {
+      img.addClass('rss-reader-responsive-img');
+    });
   }
 
-  private isEquivalentHtml(first: string, second: string): boolean {
-    if (!first || !second) {
-      return false;
-    }
-    const firstSignature = this.buildDedupSignature(first);
-    const secondSignature = this.buildDedupSignature(second);
-    return Boolean(
-      firstSignature && secondSignature && firstSignature === secondSignature,
-    );
+  private isEquivalentHtml(html1: string, html2: string): boolean {
+    const clean = (h: string) => h.replace(/\s+/g, ' ').toLowerCase().trim();
+    return clean(html1) === clean(html2);
   }
 
-  private buildDedupSignature(html: string): string {
-    if (!html || !html.trim()) {
-      return "";
-    }
-
-    const tokens = this.extractComparableTokens(html);
-    if (tokens.length === 0) {
-      return "";
-    }
-
-    const tokenFrequency = new Map<string, number>();
-    for (const token of tokens) {
-      tokenFrequency.set(token, (tokenFrequency.get(token) || 0) + 1);
-    }
-
-    return JSON.stringify(
-      Array.from(tokenFrequency.entries()).sort(([a], [b]) =>
-        a.localeCompare(b),
-      ),
-    );
+  private hasMeaningfulArticleContent(html: string | null): boolean {
+    if (!html) return false;
+    const text = new DOMParser().parseFromString(html, 'text/html').body.textContent || "";
+    return text.trim().length > 200;
   }
 
-  private extractComparableTokens(html: string): string[] {
-    const parsedText = this.extractNormalizedTextFromHtml(html);
-    if (!parsedText) {
-      return [];
-    }
-
-    const normalized = parsedText
-      .normalize("NFKC")
-      .toLowerCase()
-      .replace(/[“”]/g, '"')
-      .replace(/[‘’]/g, "'")
-      .replace(/[‐‑‒–—]/g, "-")
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim();
-
-    if (!normalized) {
-      return [];
-    }
-
-    return normalized.split(/\s+/).filter((token) => token.length >= 2);
-  }
-
-  private extractNormalizedTextFromHtml(html: string): string {
+  private async fetchFullArticleContent(url: string): Promise<string> {
     try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(ensureUtf8Meta(html), "text/html");
-      return (doc.body.textContent || "")
-        .toLowerCase()
-        .replace(/\s+/g, " ")
-        .trim();
-    } catch {
-      return html
-        .toLowerCase()
-        .replace(/<[^>]*>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-    }
-  }
-
-  async fetchFullArticleContent(url: string): Promise<string> {
-    // Reuse the more robust fetch/extraction strategy used by article saving.
-    try {
-      const saverContent = await this.articleSaver.fetchFullArticleContent(url);
-      if (
-        this.hasMeaningfulArticleContent(saverContent) &&
-        !this.isBlockedOrChallengeContent(saverContent)
-      ) {
-        return saverContent;
-      }
-    } catch {
-      // Fall through to local reader fetch path.
-    }
-
-    const headers: Record<string, string> = {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Upgrade-Insecure-Requests": "1",
-      DNT: "1",
-    };
-
-    try {
-      const text = await robustFetch(url, { headers });
-      if (!text) {
-        return "";
-      }
-      if (this.isBlockedOrChallengeContent(text)) {
-        return "";
-      }
-
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(text, "text/html");
-      return this.extractReadableContentFromHtmlDocument(doc, url);
-    } catch {
-      return "";
-    }
-  }
-
-  private extractReadableContentFromHtmlDocument(
-    doc: Document,
-    url: string,
-  ): string {
-    const reader = new Readability(doc);
-    const article = reader.parse();
-    const readableContent = article?.content || "";
-    if (
-      this.hasMeaningfulArticleContent(readableContent) &&
-      !this.isBlockedOrChallengeContent(readableContent)
-    ) {
-      return this.convertRelativeUrlsInContent(readableContent, url);
-    }
-
-    const mainContent = doc.querySelector(
-      "main, article, .content, .post-content, .entry-content, .article-content, .main-content, section[role='main']",
-    );
-    if (mainContent) {
-      return this.convertRelativeUrlsInContent(
-        ensureUtf8Meta(new XMLSerializer().serializeToString(mainContent)),
-        url,
-      );
-    }
-
-    return this.convertRelativeUrlsInContent(
-      ensureUtf8Meta(new XMLSerializer().serializeToString(doc.body)),
-      url,
-    );
-  }
-
-  private isBlockedOrChallengeContent(content: string): boolean {
-    const text = this.extractNormalizedTextFromHtml(content);
-    if (!text) {
-      return false;
-    }
-
-    const blockedMarkers = [
-      "vercel security checkpoint",
-      "too many requests",
-      "error 429",
-      "status code 429",
-      "rate limit",
-      "access denied",
-      "enable javascript and cookies",
-      "checking your browser",
-      "captcha",
-      "bot detection",
-      "request blocked",
-      "please verify you are human",
-    ];
-
-    return blockedMarkers.some((marker) => text.includes(marker));
-  }
-
-  private hasMeaningfulArticleContent(content: string): boolean {
-    if (!content || !content.trim()) {
-      return false;
-    }
-
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(content, "text/html");
-      const body = doc.body;
-      if (!body) {
-        return false;
-      }
-
-      body.querySelectorAll("script, style, noscript").forEach((node) => {
-        node.remove();
-      });
-
-      const text = (body.textContent || "").replace(/\s+/g, " ").trim();
-      if (text.length >= 80) {
-        return true;
-      }
-
-      return Boolean(
-        body.querySelector("p, article, li, blockquote, h1, h2, h3, h4"),
-      );
-    } catch {
-      return content.trim().length >= 80;
-    }
-  }
-
-  private convertHtmlToMarkdown(html: string): string {
-    return this.turndownService.turndown(html);
-  }
-
-  private showMarkdownView(markdownContent: string, item: FeedItem): void {
-    const modal = document.body.createDiv({
-      cls: "rss-reader-markdown-modal",
-    });
-
-    const modalContent = modal.createDiv({
-      cls: "rss-reader-markdown-content",
-    });
-
-    modalContent.createDiv({
-      text: markdownContent,
-    });
-
-    const saveButton = modalContent.createEl("button", {
-      text: "Save to vault",
-    });
-    saveButton.addEventListener("click", () => {
-      void (async () => {
-        const markdownContent = this.turndownService.turndown(
-          this.currentFullContent || item.description || "",
-        );
-        const customTemplate = this.getCustomTemplateForArticle(item);
-        const file = await this.articleSaver.saveArticle(
-          item,
-          undefined,
-          customTemplate,
-          markdownContent,
-        );
-        if (file) {
-          this.onArticleSave(item);
-        }
-        document.body.removeChild(modal);
-      })();
-    });
-
-    const closeButton = modalContent.createEl("button", {
-      text: "Close",
-    });
-    closeButton.addEventListener("click", () => {
-      document.body.removeChild(modal);
-    });
-    document.body.appendChild(modal);
-  }
-
-  onClose(): Promise<void> {
-    this.closeTagsDropdownPortal();
-    this.closeReaderFormatPortal(true);
-    this.contentEl.empty();
-    return Promise.resolve();
-  }
-
-  private convertRelativeUrlsInContent(
-    content: string,
-    baseUrl: string,
-  ): string {
-    if (!content || !baseUrl) return content;
-    try {
-      const isSubstack = this.isSubstackUrl(baseUrl);
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(content, "text/html");
-
-      // Update <img> tags
-      doc.querySelectorAll("img").forEach((img) => {
-        let src = img.getAttribute("src");
-        
-        // Substack specific: extract original image from data-attrs JSON if present
-        const dataAttrs = img.getAttribute("data-attrs");
-        if (dataAttrs) {
-          try {
-            const attrs = JSON.parse(dataAttrs) as { src?: string };
-            if (attrs.src && typeof attrs.src === "string") {
-              src = attrs.src;
-            }
-          } catch {
-            // Not a Substack image or malformed JSON
-          }
-        }
-
-        if (src) {
-          img.setAttribute("src", this.convertToAbsoluteUrl(src.trim(), baseUrl));
-        }
-        
-        // Handle srcset on <img>
-        const srcset = img.getAttribute("srcset");
-        if (srcset) {
-          if (isSubstack && this.isLikelyBrokenSubstackSrcset(srcset)) {
-            img.removeAttribute("srcset");
-            img.removeAttribute("sizes");
-          } else {
-            img.setAttribute("srcset", this.processSrcset(srcset, baseUrl));
-          }
-        }
-
-        // Handle common lazy loading attributes
-        ["data-src", "data-srcset", "data-original", "data-delayed-url"].forEach(attrName => {
-          const val = img.getAttribute(attrName);
-          if (val) {
-            if (attrName.includes("srcset")) {
-              if (isSubstack && this.isLikelyBrokenSubstackSrcset(val)) {
-                img.removeAttribute(attrName);
-              } else {
-                img.setAttribute(attrName, this.processSrcset(val, baseUrl));
-              }
-            } else {
-              img.setAttribute(attrName, this.convertToAbsoluteUrl(val.trim(), baseUrl));
-            }
-          }
-        });
-      });
-
-      // Update <source> tags
-      doc.querySelectorAll("source").forEach((source) => {
-        const srcset = source.getAttribute("srcset");
-        if (srcset) {
-          if (isSubstack && this.isLikelyBrokenSubstackSrcset(srcset)) {
-            source.remove();
-            return;
-          }
-          source.setAttribute("srcset", this.processSrcset(srcset, baseUrl));
-        }
-        
-        const dataSrcset = source.getAttribute("data-srcset");
-        if (dataSrcset) {
-          if (isSubstack && this.isLikelyBrokenSubstackSrcset(dataSrcset)) {
-            source.remove();
-            return;
-          }
-          source.setAttribute("data-srcset", this.processSrcset(dataSrcset, baseUrl));
-        }
-      });
-
-      // Update <a> tags
-      doc.querySelectorAll("a").forEach((a) => {
-        const href = a.getAttribute("href");
-        if (href) {
-          a.setAttribute("href", this.convertToAbsoluteUrl(href, baseUrl));
-        }
-      });
-
-      // Update <iframe> tags (often missed)
-      doc.querySelectorAll("iframe").forEach((iframe) => {
-        const src = iframe.getAttribute("src");
-        if (src) {
-          iframe.setAttribute("src", this.convertToAbsoluteUrl(src, baseUrl));
-        }
-      });
-
-      return doc.body.innerHTML;
+      const html = await robustFetch(url);
+      if (!html) return "";
+      
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      ensureUtf8Meta(html);
+      
+      const reader = new Readability(doc);
+      const article = reader.parse();
+      
+      return article?.content || "";
     } catch (e) {
-      console.error("[RSS Dashboard] Failed to convert relative URLs:", e);
-      return content;
+      console.error("Failed to fetch full article", e);
+      return "";
     }
-  }
-
-  private convertToAbsoluteUrl(url: string, baseUrl: string): string {
-    if (!url || !baseUrl) return url;
-    if (url.startsWith("app://")) {
-      return url.replace("app://", "https://");
-    }
-    if (url.startsWith("//")) {
-      return "https:" + url;
-    }
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      return url;
-    }
-    try {
-      return new URL(url, baseUrl).href;
-    } catch {
-      return url;
-    }
-  }
-
-  private processSrcset(srcset: string, baseUrl: string): string {
-    if (!srcset) return "";
-    
-    // Substack and other CDNs use commas in URLs. 
-    // Standard srcset splits by comma followed by whitespace.
-    // However, some feeds have dense srcset without spaces.
-    // We split by commas that are:
-    // 1. Followed by whitespace OR
-    // 2. Followed by http/https/double-slash (start of next URL)
-    return srcset
-      .split(/,\s+|,(?=https?:|\/\/)/) 
-      .map((part) => {
-        const trimmedPart = part.trim();
-        // Match the URL and optional descriptor
-        const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w|\s+\d+x)?$/);
-        if (urlMatch) {
-          const url = urlMatch[1];
-          const sizeDescriptor = urlMatch[2] || "";
-          return this.convertToAbsoluteUrl(url.trim(), baseUrl) + sizeDescriptor;
-        }
-        return trimmedPart;
-      })
-      .join(", ");
-  }
-
-  private isSubstackUrl(url: string): boolean {
-    try {
-      const host = new URL(url).hostname.toLowerCase();
-      return host === "substack.com" || host.endsWith(".substack.com");
-    } catch {
-      return false;
-    }
-  }
-
-  private isLikelyBrokenSubstackSrcset(srcset: string): boolean {
-    const s = (srcset || "").trim();
-    if (!s) return false;
-
-    // Heuristic: this is the broken pattern seen in some Substack feed HTML where a single
-    // URL gets exploded into comma-separated fragments, which makes the browser attempt
-    // nonsense URLs like `.../image/fetch/$s_!MM86!` or `<site>.substack.com/fl_progressive...`.
-    if (
-      s.includes("$s_!") &&
-      /substackcdn\.com\/image\/fetch\/\$s_![^,]*,\s+https?:\/\//i.test(s)
-    ) {
-      return true;
-    }
-
-    if (
-      /\bsubstack\.com\/w_\d+/i.test(s) ||
-      /\bsubstack\.com\/c_limit\b/i.test(s) ||
-      /\bsubstack\.com\/f_webp\b/i.test(s) ||
-      /\bsubstack\.com\/q_auto\b/i.test(s) ||
-      /\bsubstack\.com\/fl_progressive:/i.test(s)
-    ) {
-      return true;
-    }
-
-    return false;
-  }
-
-  private updateSavedLabel(saved: boolean): void {
-    // This method is kept for compatibility but no longer displays a label
-    // The save button icon state is now managed elsewhere
-    void saved;
   }
 
   private toggleReadStatus(): void {
     if (!this.currentItem) return;
-
-    const newReadState = !this.currentItem.read;
-    this.currentItem.read = newReadState;
-
-    // Update the icon
-    if (this.readToggleButton) {
-      setIcon(this.readToggleButton, newReadState ? "check-circle" : "circle");
-      this.readToggleButton.classList.toggle("read", newReadState);
-      this.readToggleButton.classList.toggle("unread", !newReadState);
-      this.readToggleButton.setAttr(
-        "title",
-        newReadState ? "Mark as unread" : "Mark as read",
-      );
-    }
-
-    // Notify parent to persist the change
-    this.onArticleUpdate(this.currentItem, { read: newReadState }, false);
+    const nextRead = !this.currentItem.read;
+    this.onArticleUpdate(this.currentItem, { read: nextRead });
+    this.updateToggleButtons();
   }
 
   private toggleStarStatus(): void {
     if (!this.currentItem) return;
-
-    const newStarState = !this.currentItem.starred;
-    this.currentItem.starred = newStarState;
-
-    // Update the icon
-    if (this.starToggleButton) {
-      setIcon(this.starToggleButton, newStarState ? "star" : "star-off");
-      this.starToggleButton.classList.toggle("starred", newStarState);
-      this.starToggleButton.classList.toggle("unstarred", !newStarState);
-      this.starToggleButton.setAttr(
-        "title",
-        newStarState ? "Remove from starred" : "Add to starred",
-      );
-    }
-
-    // Notify parent to persist the change
-    this.onArticleUpdate(this.currentItem, { starred: newStarState }, false);
+    const nextStarred = !this.currentItem.starred;
+    this.onArticleUpdate(this.currentItem, { starred: nextStarred });
+    this.updateToggleButtons();
   }
 
-  private showTagsDropdown(event: MouseEvent, item: FeedItem): void {
-    event.stopPropagation();
-    const anchor = event.currentTarget;
-    if (!(anchor instanceof HTMLElement)) {
-      return;
-    }
-    this.createTagsDropdownPortal(anchor, item);
+  private updateSavedLabel(saved: boolean): void {
+    if (!this.currentItem) return;
+    this.onArticleUpdate(this.currentItem, { saved });
   }
 
-  private createTagsDropdownPortal(anchor: HTMLElement, item: FeedItem): void {
-    this.closeTagsDropdownPortal();
+  private showTagsDropdown(evt: MouseEvent, item: FeedItem): void {
+    const menu = new Menu();
+    
+    const availableTags = this.settings.availableTags || [];
+    const itemTags = item.tags || [];
 
-    const targetDocument = anchor.ownerDocument;
-    const targetBody = targetDocument.body;
-    const targetWindow = targetDocument.defaultView || window;
-    const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
-    if (isMobile) {
-      this.tagsDropdownBackdrop = targetBody.createDiv({
-        cls: "rss-dashboard-tags-sheet-backdrop",
+    availableTags.forEach(tag => {
+      const isSelected = itemTags.some(t => t.name === tag.name);
+      menu.addItem((menuItem: MenuItem) => {
+        menuItem
+          .setTitle(tag.name)
+          .setIcon(isSelected ? "check" : "tag")
+          .onClick(() => {
+            this.toggleTag(item, tag, !isSelected);
+          });
       });
-    }
-
-    const portalDropdown = targetBody.createDiv({
-      cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal rss-reader-tags-dropdown-portal",
-    });
-    if (isMobile) {
-      portalDropdown.addClass("rss-dashboard-tags-mobile-sheet");
-      const sheetHeader = portalDropdown.createDiv({
-        cls: "rss-dashboard-tags-sheet-header",
-      });
-      sheetHeader.createDiv({
-        cls: "rss-dashboard-tags-sheet-title",
-        text: "Manage tags",
-      });
-      const sheetActions = sheetHeader.createDiv({
-        cls: "rss-dashboard-tags-sheet-actions",
-      });
-      const addTagBtn = sheetActions.createEl("button", {
-        cls: "rss-dashboard-tags-sheet-btn",
-        text: "Add tag",
-      });
-      setIcon(addTagBtn, "pencil");
-      addTagBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.closeTagsDropdownPortal();
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-        void (this.app as any).plugins.plugins[
-          "rss-dashboard"
-        ].openTagsSettings();
-      });
-      const doneBtn = sheetActions.createEl("button", {
-        cls: "rss-dashboard-tags-sheet-btn rss-dashboard-tags-sheet-btn-done",
-        text: "Done",
-      });
-      doneBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.closeTagsDropdownPortal();
-      });
-    }
-    const tagsListContainer = portalDropdown.createDiv({
-      cls: "rss-dashboard-tag-list",
-    });
-    const tagSeparator = portalDropdown.createDiv({
-      cls: "rss-dashboard-tag-item-separator",
     });
 
-    const updateTagSeparatorVisibility = (): void => {
-      const hasTags = this.settings.availableTags.length > 0;
-      tagSeparator.style.display = hasTags ? "" : "none";
-    };
-
-    const rerenderTagItems = (): void => {
-      tagsListContainer.empty();
-      for (const nextTag of this.settings.availableTags) {
-        appendTagItem(nextTag);
-      }
-      updateTagSeparatorVisibility();
-    };
-
-    const deleteTagFromProfile = (tag: Tag): void => {
-      const tagIndex = this.settings.availableTags.findIndex(
-        (t) => t.name === tag.name,
-      );
-      if (tagIndex === -1) return;
-      this.settings.availableTags.splice(tagIndex, 1);
-      this.settings.feeds.forEach((feed) => {
-        feed.items.forEach((feedItem) => {
-          if (feedItem.tags) {
-            feedItem.tags = feedItem.tags.filter((t) => t.name !== tag.name);
+    menu.addSeparator();
+    menu.addItem((menuItem: MenuItem) => {
+      menuItem
+        .setTitle("Manage tags...")
+        .setIcon("settings")
+        .onClick(() => {
+          // Open settings to the Tags tab
+          const extendedApp = this.app as ExtendedApp;
+          const plugin = extendedApp.plugins.getPlugin("obsidian-rss-dashboard");
+          if (plugin && typeof plugin.openTagsSettings === "function") {
+            plugin.openTagsSettings();
+          } else {
+            // Fallback for older versions or if method is missing
+            extendedApp.setting?.open();
+            extendedApp.setting?.openTabById("obsidian-rss-dashboard");
           }
         });
-      });
-      if (item.tags?.some((t) => t.name === tag.name)) {
-        item.tags = item.tags.filter((t) => t.name !== tag.name);
-      }
-      this.onArticleUpdate(item, {}, false);
-      new Notice(`Tag "${tag.name}" deleted successfully!`);
-      updateTagSeparatorVisibility();
-    };
+    });
 
-    this.tagsDropdownPortal = portalDropdown;
-    this.tagsDropdownDocument = targetDocument;
-
-    const appendTagItem = (tag: Tag, checkedOverride?: boolean) => {
-      const tagItem = tagsListContainer.createDiv({
-        cls: "rss-dashboard-tag-item",
-      });
-      const hasTag =
-        checkedOverride ??
-        (item.tags?.some((existing) => existing.name === tag.name) || false);
-
-      const tagCheckbox = tagItem.createEl("input", {
-        attr: { type: "checkbox" },
-        cls: "rss-dashboard-tag-checkbox",
-      });
-      tagCheckbox.checked = hasTag;
-
-      const tagLabel = tagItem.createDiv({
-        cls: "rss-dashboard-tag-label",
-        text: tag.name,
-      });
-      tagLabel.style.setProperty("--tag-color", tag.color);
-
-      const editButton = tagItem.createDiv({
-        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button clickable-icon",
-        attr: {
-          title: `Edit "${tag.name}" tag`,
-          "aria-label": "Edit tag",
-          role: "button",
-          tabindex: "0",
-        },
-      });
-      setIcon(editButton, "pencil");
-
-      const deleteButton = tagItem.createDiv({
-        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-delete-button clickable-icon",
-        attr: {
-          title: `Delete "${tag.name}" tag`,
-          "aria-label": "Delete tag",
-          role: "button",
-          tabindex: "0",
-        },
-      });
-      setIcon(deleteButton, "trash");
-
-      tagCheckbox.addEventListener("change", (e) => {
-        e.stopPropagation();
-        const isChecked = (e.target as HTMLInputElement).checked;
-        this.toggleTag(item, tag, isChecked);
-      });
-
-      tagItem.addEventListener("click", (e) => {
-        if (
-          e.target === tagCheckbox ||
-          (e.target instanceof Element &&
-            (e.target.closest(".rss-dashboard-tag-delete-button") ||
-              e.target.closest(".rss-dashboard-tag-edit-button")))
-        ) {
-          return;
-        }
-        const isChecked = !tagCheckbox.checked;
-        tagCheckbox.checked = isChecked;
-        tagItem.classList.add("rss-dashboard-tag-item-processing");
-        this.toggleTag(item, tag, isChecked);
-        window.setTimeout(() => {
-          tagItem.classList.remove("rss-dashboard-tag-item-processing");
-        }, 200);
-      });
-
-      editButton.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        showEditTagModal({
-          settings: this.settings,
-          tag,
-          onSave: () => {
-            rerenderTagItems();
-          },
-        });
-      });
-
-      editButton.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          editButton.click();
-        }
-      });
-
-      deleteButton.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        deleteTagFromProfile(tag);
-        tagItem.remove();
-      });
-
-      deleteButton.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          deleteButton.click();
-        }
-      });
-    };
-
-    for (const tag of this.settings.availableTags) {
-      appendTagItem(tag);
-    }
-    updateTagSeparatorVisibility();
-
-    if (!isMobile) {
-      const inlineAddRow = portalDropdown.createDiv({
-        cls: "rss-dashboard-tag-inline-add",
-      });
-      const colorInput = inlineAddRow.createEl("input", {
-        attr: { type: "color", value: "#3498db" },
-        cls: "rss-dashboard-tag-inline-color",
-      });
-      const nameInput = inlineAddRow.createEl("input", {
-        attr: { type: "text", placeholder: "Add new tag...", autocomplete: "off" },
-        cls: "rss-dashboard-tag-inline-input",
-      });
-      nameInput.spellcheck = false;
-      const addButton = inlineAddRow.createDiv({
-        cls: "rss-dashboard-tag-inline-button clickable-icon",
-        attr: { title: "Add tag", role: "button", tabindex: "0" },
-      });
-      setIcon(addButton, "plus");
-
-      const submitInlineTag = () => {
-        const tagName = nameInput.value.trim();
-        const tagColor = colorInput.value;
-        if (!tagName) {
-          new Notice("Please enter a tag name!");
-          return;
-        }
-        if (
-          this.settings.availableTags.some(
-            (tag) => tag.name.toLowerCase() === tagName.toLowerCase(),
-          )
-        ) {
-          new Notice("A tag with this name already exists!");
-          return;
-        }
-        const newTag: Tag = { name: tagName, color: tagColor };
-        this.settings.availableTags.push(newTag);
-        this.toggleTag(item, newTag, true);
-        appendTagItem(newTag, true);
-        nameInput.value = "";
-        requestAnimationFrame(() => nameInput.focus());
-        new Notice(`Tag "${tagName}" added`);
-      };
-
-      addButton.addEventListener("click", (e) => {
-        e.stopPropagation();
-        submitInlineTag();
-      });
-
-      addButton.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          submitInlineTag();
-        }
-      });
-
-      nameInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          e.stopPropagation();
-          submitInlineTag();
-        }
-      });
-    }
-
-    const rect = anchor.getBoundingClientRect();
-    const dropdownRect = portalDropdown.getBoundingClientRect();
-    const appContainer =
-      this.contentEl.closest(".workspace-leaf-content") || targetBody;
-    const appContainerRect = appContainer.getBoundingClientRect();
-
-    if (isMobile) {
-      const syncMobileViewportHeight = () => {
-        const vvp = targetWindow.visualViewport;
-        const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
-        portalDropdown.style.setProperty(
-          "max-height",
-          `${viewportHeight - 16}px`,
-          "important",
-        );
-      };
-      syncMobileViewportHeight();
-      const visualViewport = targetWindow.visualViewport;
-      if (visualViewport) {
-        visualViewport.addEventListener("resize", syncMobileViewportHeight);
-        visualViewport.addEventListener("scroll", syncMobileViewportHeight);
-        this.tagsDropdownViewportCleanup = () => {
-          visualViewport.removeEventListener("resize", syncMobileViewportHeight);
-          visualViewport.removeEventListener("scroll", syncMobileViewportHeight);
-        };
-      } else {
-        targetWindow.addEventListener("resize", syncMobileViewportHeight);
-        this.tagsDropdownViewportCleanup = () => {
-          targetWindow.removeEventListener("resize", syncMobileViewportHeight);
-        };
-      }
-      this.tagsDropdownBackdrop?.addEventListener("click", () => {
-        this.closeTagsDropdownPortal();
-      });
-      return;
-    }
-
-    let left = rect.right;
-    let top = rect.top;
-    if (left + dropdownRect.width > appContainerRect.right) {
-      left = rect.left - dropdownRect.width;
-    }
-    if (left < appContainerRect.left) {
-      left = appContainerRect.left;
-    }
-    if (top + dropdownRect.height > targetWindow.innerHeight) {
-      top = targetWindow.innerHeight - dropdownRect.height - 5;
-    }
-    portalDropdown.style.left = `${left}px`;
-    portalDropdown.style.top = `${top}px`;
-
-    targetWindow.setTimeout(() => {
-      const outsideHandler = (ev: MouseEvent) => {
-        if (
-          this.tagsDropdownPortal &&
-          !this.tagsDropdownPortal.contains(ev.target as Node) &&
-          !anchor.contains(ev.target as Node)
-        ) {
-          this.closeTagsDropdownPortal();
-        }
-      };
-      this.tagsDropdownOutsideHandler = outsideHandler;
-      targetDocument.addEventListener("mousedown", outsideHandler);
-    }, 0);
+    menu.showAtMouseEvent(evt);
   }
 
   private closeTagsDropdownPortal(): void {
-    if (this.tagsDropdownBackdrop) {
-      this.tagsDropdownBackdrop.remove();
-      this.tagsDropdownBackdrop = null;
-    }
+    // This seems to be for a custom dropdown UI that might be partially implemented or legacy
     if (this.tagsDropdownPortal) {
       this.tagsDropdownPortal.remove();
       this.tagsDropdownPortal = null;
     }
-    if (this.tagsDropdownOutsideHandler && this.tagsDropdownDocument) {
-      this.tagsDropdownDocument.removeEventListener(
-        "mousedown",
-        this.tagsDropdownOutsideHandler,
-      );
-    }
-    if (this.tagsDropdownViewportCleanup) {
-      this.tagsDropdownViewportCleanup();
-      this.tagsDropdownViewportCleanup = null;
-    }
-    this.tagsDropdownOutsideHandler = null;
-    this.tagsDropdownDocument = null;
-  }
-
-  private getReaderFormat(): ReaderFormatSettings {
-    if (!this.settings.readerFormat) {
-      this.settings.readerFormat = { ...DEFAULT_SETTINGS.readerFormat };
-      return this.settings.readerFormat;
-    }
-
-    const format = this.settings.readerFormat as Partial<ReaderFormatSettings>;
-    const defaults = DEFAULT_SETTINGS.readerFormat;
-
-    if (format.textAlign === undefined) format.textAlign = defaults.textAlign;
-    if (format.wordsPerLine === undefined)
-      format.wordsPerLine = defaults.wordsPerLine;
-    if (format.fontScalePct === undefined)
-      format.fontScalePct = defaults.fontScalePct;
-    if (format.lineHeightPct === undefined)
-      format.lineHeightPct = defaults.lineHeightPct;
-    if (format.fontFamily === undefined)
-      format.fontFamily = defaults.fontFamily;
-    if (format.paragraphSpacing === undefined) {
-      format.paragraphSpacing = defaults.paragraphSpacing;
-    }
-
-    return format as ReaderFormatSettings;
   }
 
   private resolveReaderFontFamily(
@@ -1811,12 +999,49 @@ export class ReaderView extends ItemView {
     }
   }
 
+  private getReaderFormat(): ReaderFormatSettings {
+    if (!this.settings.readerFormat) {
+      this.settings.readerFormat = { ...DEFAULT_SETTINGS.readerFormat };
+      return this.settings.readerFormat;
+    }
+
+    const format = this.settings.readerFormat as Partial<ReaderFormatSettings> & { wordsPerLine?: number };
+    const defaults = DEFAULT_SETTINGS.readerFormat;
+
+    // Migrate wordsPerLine to paragraphWidth if it exists
+    if (format.paragraphWidth === undefined) {
+      if (format.wordsPerLine !== undefined) {
+        format.paragraphWidth = format.wordsPerLine > 0 ? 75 : 100;
+        delete format.wordsPerLine;
+      } else {
+        format.paragraphWidth = defaults.paragraphWidth;
+      }
+    }
+
+    if (format.textAlign === undefined) format.textAlign = defaults.textAlign;
+    if (format.fontScalePct === undefined)
+      format.fontScalePct = defaults.fontScalePct;
+    if (format.lineHeightPct === undefined)
+      format.lineHeightPct = defaults.lineHeightPct;
+    if (format.fontFamily === undefined)
+      format.fontFamily = defaults.fontFamily;
+    if (format.paragraphSpacing === undefined) {
+      format.paragraphSpacing = defaults.paragraphSpacing;
+    }
+
+    return format as ReaderFormatSettings;
+  }
+
   private applyReaderFormat(): void {
     const format = this.getReaderFormat();
-    const wordsPerLine = Number.isFinite(format.wordsPerLine)
-      ? Math.max(0, Math.round(format.wordsPerLine))
-      : 0;
-    const maxWidth = wordsPerLine > 0 ? `${wordsPerLine * 6}ch` : "none";
+    const paragraphWidth = format.paragraphWidth || 100;
+    
+    let maxWidth = "none";
+    if (paragraphWidth === 100) {
+      maxWidth = "calc(100% - 4px)";
+    } else {
+      maxWidth = `${paragraphWidth}%`;
+    }
 
     setCssProps(this.contentEl, {
       "--rss-reader-font-scale": String(format.fontScalePct / 100),
@@ -1892,103 +1117,66 @@ export class ReaderView extends ItemView {
           });
       });
 
-    let wordsSlider: { setValue: (value: number) => void } | null = null;
-    let wordsInput: HTMLInputElement | null = null;
     new Setting(controlsContainer)
-      .setName("Words per row")
-      .setDesc("Approximate measure (0 = full width)")
-      .addSlider((slider) => {
-        wordsSlider = slider;
-        slider
-          .setLimits(0, 30, 1)
-          .setValue(format.wordsPerLine)
-          .setDynamicTooltip()
+      .setName("Paragraph width")
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("100", "100%")
+          .addOption("75", "75%")
+          .addOption("50", "50%")
+          .addOption("25", "25%")
+          .setValue(String(format.paragraphWidth))
           .onChange((value) => {
-            format.wordsPerLine = value;
-            if (wordsInput) wordsInput.value = String(value);
+            format.paragraphWidth = parseInt(value);
             this.applyReaderFormat();
             this.scheduleReaderFormatSave();
           });
-      })
-      .addText((text) => {
-        wordsInput = text.inputEl;
-        text.inputEl.addClass("rss-reader-slider-value-input");
-        text.setValue(String(format.wordsPerLine)).onChange((value) => {
-          const numValue = parseInt(value);
-          if (!isNaN(numValue)) {
-            const clamped = Math.max(0, Math.min(30, numValue));
-            format.wordsPerLine = clamped;
-            if (wordsSlider) wordsSlider.setValue(clamped);
-            this.applyReaderFormat();
-            this.scheduleReaderFormatSave();
-          }
-        });
       });
 
-    let fontSizeSlider: { setValue: (value: number) => void } | null = null;
-    let fontSizeInput: HTMLInputElement | null = null;
+    let fontSizeDropdown: { setValue: (value: string) => void } | null = null;
     new Setting(controlsContainer)
       .setName("Font size")
-      .setDesc("Relative size (%)")
-      .addSlider((slider) => {
-        fontSizeSlider = slider;
-        slider
-          .setLimits(80, 200, 5)
-          .setValue(format.fontScalePct)
-          .setDynamicTooltip()
+      .addDropdown((dropdown) => {
+        fontSizeDropdown = dropdown;
+        dropdown
+          .addOption("80", "80%")
+          .addOption("90", "90%")
+          .addOption("100", "100%")
+          .addOption("110", "110%")
+          .addOption("120", "120%")
+          .addOption("130", "130%")
+          .addOption("150", "150%")
+          .addOption("175", "175%")
+          .addOption("200", "200%")
+          .setValue(String(format.fontScalePct))
           .onChange((value) => {
-            format.fontScalePct = value;
-            if (fontSizeInput) fontSizeInput.value = String(value);
+            format.fontScalePct = parseInt(value);
             this.applyReaderFormat();
             this.scheduleReaderFormatSave();
           });
-      })
-      .addText((text) => {
-        fontSizeInput = text.inputEl;
-        text.inputEl.addClass("rss-reader-slider-value-input");
-        text.setValue(String(format.fontScalePct)).onChange((value) => {
-          const numValue = parseInt(value);
-          if (!isNaN(numValue)) {
-            const clamped = Math.max(80, Math.min(200, numValue));
-            format.fontScalePct = clamped;
-            if (fontSizeSlider) fontSizeSlider.setValue(clamped);
-            this.applyReaderFormat();
-            this.scheduleReaderFormatSave();
-          }
-        });
       });
 
-    let lineHeightSlider: { setValue: (value: number) => void } | null = null;
-    let lineHeightInput: HTMLInputElement | null = null;
+    let lineHeightDropdown: { setValue: (value: string) => void } | null = null;
     new Setting(controlsContainer)
       .setName("Line height")
-      .setDesc("Relative spacing (%)")
-      .addSlider((slider) => {
-        lineHeightSlider = slider;
-        slider
-          .setLimits(120, 220, 5)
-          .setValue(format.lineHeightPct)
-          .setDynamicTooltip()
+      .addDropdown((dropdown) => {
+        lineHeightDropdown = dropdown;
+        dropdown
+          .addOption("100", "100%")
+          .addOption("110", "110%")
+          .addOption("120", "120%")
+          .addOption("130", "130%")
+          .addOption("140", "140%")
+          .addOption("150", "150%")
+          .addOption("160", "160%")
+          .addOption("180", "180%")
+          .addOption("200", "200%")
+          .setValue(String(format.lineHeightPct))
           .onChange((value) => {
-            format.lineHeightPct = value;
-            if (lineHeightInput) lineHeightInput.value = String(value);
+            format.lineHeightPct = parseInt(value);
             this.applyReaderFormat();
             this.scheduleReaderFormatSave();
           });
-      })
-      .addText((text) => {
-        lineHeightInput = text.inputEl;
-        text.inputEl.addClass("rss-reader-slider-value-input");
-        text.setValue(String(format.lineHeightPct)).onChange((value) => {
-          const numValue = parseInt(value);
-          if (!isNaN(numValue)) {
-            const clamped = Math.max(120, Math.min(220, numValue));
-            format.lineHeightPct = clamped;
-            if (lineHeightSlider) lineHeightSlider.setValue(clamped);
-            this.applyReaderFormat();
-            this.scheduleReaderFormatSave();
-          }
-        });
       });
 
     let fontDropdown: { setValue: (value: string) => void } | null = null;
@@ -2027,22 +1215,20 @@ export class ReaderView extends ItemView {
       });
 
     new Setting(controlsContainer).addButton((btn) => {
-      btn.setButtonText("Reset").onClick(() => {
+      btn.setButtonText("Reset").onClick((evt: MouseEvent) => {
         Object.assign(format, DEFAULT_SETTINGS.readerFormat);
 
         alignDropdown?.setValue(format.textAlign);
-        wordsSlider?.setValue(format.wordsPerLine);
-        if (wordsInput) wordsInput.value = String(format.wordsPerLine);
-        fontSizeSlider?.setValue(format.fontScalePct);
-        if (fontSizeInput) fontSizeInput.value = String(format.fontScalePct);
-        lineHeightSlider?.setValue(format.lineHeightPct);
-        if (lineHeightInput)
-          lineHeightInput.value = String(format.lineHeightPct);
+        // Paragraph width dropdown reset if we kept its reference, but here we'll just re-render or hope it updates
+        fontSizeDropdown?.setValue(String(format.fontScalePct));
+        lineHeightDropdown?.setValue(String(format.lineHeightPct));
         fontDropdown?.setValue(format.fontFamily);
         paragraphDropdown?.setValue(format.paragraphSpacing);
 
         this.applyReaderFormat();
         this.scheduleReaderFormatSave();
+        this.closeReaderFormatPortal(true);
+        this.toggleReaderFormatDropdown(evt); // Re-open to refresh
       });
     });
 

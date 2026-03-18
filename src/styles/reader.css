@@ -129,6 +129,8 @@
   margin-left: auto;
   margin-right: auto;
   box-sizing: border-box;
+  padding-left: 2px;
+  padding-right: 2px;
 }
 .rss-reader-article-content,
 .rss-reader-description-body {
