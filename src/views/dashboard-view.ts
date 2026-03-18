@@ -88,7 +88,11 @@ export class RssDashboardView extends ItemView {
     super(leaf);
     this.settings = this.plugin.settings;
     this.collapsedFolders = this.settings.collapsedFolders || [];
-    this.saver = new ArticleSaver(this.app, this.settings.articleSaving);
+    this.saver = new ArticleSaver(
+      this.app,
+      this.settings.articleSaving,
+      this.settings.corsProxyEnabled ? this.settings.corsProxyUrl : undefined,
+    );
 
     // Set default filter based on settings
     const defaultFilter = this.settings.display?.defaultFilter || "all";

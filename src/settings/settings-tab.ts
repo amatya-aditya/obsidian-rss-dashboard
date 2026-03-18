@@ -762,7 +762,48 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           })();
         });
     });
+
+    // ── Proxy ────────────────────────────────────────────────────────────────
+    new Setting(containerEl).setName("Proxy").setHeading();
+
+    new Setting(containerEl)
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
+      .setName("Enable CORS proxy")
+      .setDesc(
+        // eslint-disable-next-line obsidianmd/ui/sentence-case
+        "When enabled, article fetches that are blocked by a firewall (e.g. on iOS) will be retried through the proxy URL below",
+      )
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.corsProxyEnabled ?? false)
+          .onChange(async (value) => {
+            this.plugin.settings.corsProxyEnabled = value;
+            await this.plugin.saveSettings();
+            // Re-render to show/hide the URL input
+            this.display();
+          });
+      });
+
+    if (this.plugin.settings.corsProxyEnabled) {
+      new Setting(containerEl)
+        .setName("Proxy URL")
+        .setDesc(
+          "Base URL of the CORS proxy. The article URL will be appended after encoding. " +
+          "Example: https://api.allorigins.win/raw?url=",
+        )
+        .addText((text) => {
+          text
+            .setPlaceholder("https://api.allorigins.win/raw?url=")
+            .setValue(this.plugin.settings.corsProxyUrl ?? "")
+            .onChange(async (value) => {
+              this.plugin.settings.corsProxyUrl = value.trim();
+              await this.plugin.saveSettings();
+            });
+          text.inputEl.setCssProps({ width: "100%" });
+        });
+    }
   }
+
 
   private createDisplaySettings(containerEl: HTMLElement): void {
     const normalizeHexColor = (value: string): string | null => {

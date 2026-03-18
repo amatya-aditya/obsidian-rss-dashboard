@@ -2,16 +2,19 @@ import { TFile, App, Notice } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
 import TurndownService from "turndown";
 import { Readability } from "@mozilla/readability";
-import { ensureUtf8Meta, robustFetch } from '../utils/platform-utils';
+import { ensureUtf8Meta } from '../utils/platform-utils';
+import { fetchWithProxyFallback } from '../utils/fetch-helpers';
 
 export class ArticleSaver {
     private app: App;
     private settings: ArticleSavingSettings;
     private turndownService: TurndownService;
+    private corsProxyUrl: string | undefined;
     
-    constructor(app: App, settings: ArticleSavingSettings) {
+    constructor(app: App, settings: ArticleSavingSettings, corsProxyUrl?: string) {
         this.app = app;
         this.settings = settings;
+        this.corsProxyUrl = corsProxyUrl;
         this.turndownService = new TurndownService();
 
         this.turndownService.addRule('math', {
@@ -216,75 +219,19 @@ guid: "{{guid}}"
     
     
     async fetchFullArticleContent(url: string): Promise<string> {
-        try {
-            
-            const headers: Record<string, string> = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-                "DNT": "1",
-                "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1"
-            };
+        // SAGEPUB-specific fallback: if the URL is a full-text journal article,
+        // attempt the abstract URL when the full-text fails.
+        const isSagepubFull =
+            url.includes('journals.sagepub.com') && url.includes('/doi/full/');
 
-            const parser = new DOMParser();
-            const text = await robustFetch(url, { headers });
-            
-            if (!text) {
-                if (url.includes('journals.sagepub.com') && url.includes('/doi/full/')) {
-                    const abstractUrl = url.replace('/doi/full/', '/doi/abs/');
-                    try {
-                        const fallbackText = await robustFetch(abstractUrl, { headers });
-                        if (!fallbackText) return "";
-                        const fallbackDoc = parser.parseFromString(fallbackText, "text/html");
-                        return this.extractContentFromDocument(fallbackDoc, abstractUrl);
-                    } catch {
-                        return "";
-                    }
-                } else {
-                    return "";
-                }
-            }
-            
-            const doc = parser.parseFromString(text, "text/html");
-            
-            const errorIndicators = [
-                'access denied',
-                'forbidden',
-                'not found',
-                'page not found',
-                '404',
-                '403',
-                '401'
-            ];
-            
-            const pageText = doc.body.textContent?.toLowerCase() || '';
-            if (errorIndicators.some(indicator => pageText.includes(indicator))) {
-                if (url.includes('journals.sagepub.com') && url.includes('/doi/full/')) {
-                    const abstractUrl = url.replace('/doi/full/', '/doi/abs/');
-                    try {
-                        const fallbackText = await robustFetch(abstractUrl, { headers });
-                        if (fallbackText) {
-                            const fallbackDoc = parser.parseFromString(fallbackText, "text/html");
-                            const fallbackPageText = fallbackDoc.body.textContent?.toLowerCase() || '';
-                            
-                            if (!errorIndicators.some(indicator => fallbackPageText.includes(indicator))) {
-                                return this.extractContentFromDocument(fallbackDoc, abstractUrl);
-                            }
-                        }
-                    } catch {
-                        // Fallback attempt failed
-                    }
-                }
-                
-                return "";
-            }
-            
-            return this.extractContentFromDocument(doc, url);
-        } catch {
-            
-            return "";
+        const result = await fetchWithProxyFallback(url, this.corsProxyUrl);
+
+        if (!result && isSagepubFull) {
+            const abstractUrl = url.replace('/doi/full/', '/doi/abs/');
+            return fetchWithProxyFallback(abstractUrl, this.corsProxyUrl);
         }
+
+        return result;
     }
     
     private extractContentFromDocument(doc: Document, url: string): string {

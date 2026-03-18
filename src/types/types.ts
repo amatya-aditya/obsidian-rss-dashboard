@@ -290,6 +290,9 @@ export interface RssDashboardSettings {
   readerViewLocation: ViewLocation;
   useWebViewer: boolean;
 
+  corsProxyEnabled: boolean;
+  corsProxyUrl: string;
+
   readerFormat: ReaderFormatSettings;
 
   media: MediaSettings;
@@ -360,6 +363,8 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   viewLocation: "main",
   readerViewLocation: "main",
   useWebViewer: true,
+  corsProxyEnabled: false,
+  corsProxyUrl: "",
   readerFormat: {
     textAlign: "justify",
     paragraphWidth: 100,

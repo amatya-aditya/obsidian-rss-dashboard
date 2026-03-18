@@ -18,8 +18,8 @@ import {
 } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
 import { ArticleSaver } from "../services/article-saver";
-import { robustFetch, ensureUtf8Meta, setCssProps } from "../utils/platform-utils";
-import { Readability } from "@mozilla/readability";
+import { setCssProps } from "../utils/platform-utils";
+import { fetchWithProxyFallback } from "../utils/fetch-helpers";
 import TurndownService from "turndown";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
@@ -900,29 +900,13 @@ export class ReaderView extends ItemView {
   }
 
   private async fetchFullArticleContent(url: string): Promise<string> {
-    try {
-      const html = await robustFetch(url, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.5",
-        },
-      });
-      if (!html) return "";
-      
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      ensureUtf8Meta(html);
-      
-      const reader = new Readability(doc);
-      const article = reader.parse();
-      
-      return article?.content || "";
-    } catch (e) {
-      console.error("Failed to fetch full article", e);
-      return "";
-    }
+    const proxyUrl =
+      this.settings.corsProxyEnabled && this.settings.corsProxyUrl
+        ? this.settings.corsProxyUrl
+        : undefined;
+    return fetchWithProxyFallback(url, proxyUrl);
   }
+
 
   private toggleReadStatus(): void {
     if (!this.currentItem) return;

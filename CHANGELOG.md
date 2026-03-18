@@ -20,7 +20,7 @@
 - **Android/iOS Rendering**: Fixed multiple instances where icons failed to render or appeared broken on mobile devices.
 - **iOS Feed Content**: 
     - Fixed an issue where Substack and Psychology Today articles appeared empty on iPhone by implementing robust XML namespace extraction using `getElementsByTagNameNS` instead of `querySelector`.
-    - Fixed an issue where full article content fetching (via Readability) failed on iOS for sites with strict WAFs (like Psychology Today) by passing a standard desktop User-Agent to the native iOS fetch request.
+    - Fixed full article content fetching (via Readability) failing on iOS for sites with strict WAFs (like Psychology Today) by introducing a tiered fetch mechanism with a configurable CORS Proxy fallback. You can now enable and configure a CORS proxy in the settings (see reference `docs/bugs/ios-full-article-fetch-failure.md`).
 - **Reader Rendering**: Improved article display logic to ensure content is always rendered as the primary body, even if it matches the feed description.
 - **ESLint/Build Integrity**:
     - Cleaned up multiple ESLint & TypeScript compilation errors in `ReaderView`.
