@@ -2,6 +2,8 @@
 
 ### New Features
 
+- **Sidebar Feed Filtering**: Added a new setting "Hide empty feeds/no unread articles" to automatically hide feeds with zero articles or only read articles from the sidebar.
+
 - **Standardized Icon Rendering**:
     - Refactored all interactive icons to use the Obsidian-recommended `clickable-icon` pattern.
     - Replaced standard HTML `<button>` elements with accessible `div` structures for better cross-platform (Android) compatibility.

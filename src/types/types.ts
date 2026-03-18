@@ -188,6 +188,7 @@ export interface DisplaySettings {
   sidebarItemPaddingRight: number;
   cardColumnsPerRow: number;
   cardSpacing: number;
+  hideEmptyFeeds: boolean;
 }
 
 export type ReaderTextAlign = "justify" | "left";
@@ -443,6 +444,7 @@ guid: "{{guid}}"
     sidebarItemPaddingRight: 2,
     cardColumnsPerRow: 0,
     cardSpacing: 15,
+    hideEmptyFeeds: false,
   },
   highlights: {
     enabled: false,

@@ -573,7 +573,15 @@ export class Sidebar {
       const rootFeedsContainer = feedFoldersSection.createDiv({
         cls: "rss-dashboard-folder-feeds",
       });
-      rootFeeds.forEach((feed) => {
+
+      const filteredRootFeeds = this.settings.display.hideEmptyFeeds
+        ? rootFeeds.filter(
+            (feed) =>
+              feed.items.length > 0 && feed.items.some((item) => !item.read),
+          )
+        : rootFeeds;
+
+      filteredRootFeeds.forEach((feed) => {
         this.renderFeed(feed, rootFeedsContainer);
       });
     }
@@ -671,7 +679,12 @@ export class Sidebar {
   }
 
   private renderAllFeedsButton(container: HTMLElement): void {
-    const totalFeeds = this.settings.feeds.length;
+    const totalFeeds = this.settings.display.hideEmptyFeeds
+      ? this.settings.feeds.filter(
+          (f) => f.items.length > 0 && f.items.some((i) => !i.read),
+        ).length
+      : this.settings.feeds.length;
+
     const totalUnread = this.settings.feeds.reduce(
       (sum, feed) => sum + feed.items.filter((item) => !item.read).length,
       0,
@@ -1145,9 +1158,16 @@ export class Sidebar {
     }
 
     const folderSortOrder = this.settings.folderFeedSortOrders?.[fullPath];
-    const sortedFeedsInFolder = folderSortOrder
+    let sortedFeedsInFolder = folderSortOrder
       ? this.applyFeedSortOrder([...folderFeeds], folderSortOrder)
       : folderFeeds;
+
+    if (this.settings.display.hideEmptyFeeds) {
+      sortedFeedsInFolder = sortedFeedsInFolder.filter(
+        (feed) =>
+          feed.items.length > 0 && feed.items.some((item) => !item.read),
+      );
+    }
 
     sortedFeedsInFolder.forEach((feed) => {
       this.renderFeed(feed, folderFeedsList);

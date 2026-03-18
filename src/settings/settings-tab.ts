@@ -1216,6 +1216,25 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         text.inputEl.addClass("rss-dashboard-color-hex-input");
       });
 
+    new Setting(containerEl)
+      .setName("Hide empty feeds/no unread articles")
+      .setDesc(
+        "Hide feeds in the sidebar if they have zero articles or zero unread articles",
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.display.hideEmptyFeeds ?? false)
+          .onChange(async (value) => {
+            this.plugin.settings.display.hideEmptyFeeds = value;
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      );
+
     new Setting(containerEl).setName("Sidebar padding").setHeading();
 
     const sidebarLeftPaddingSetting = new Setting(containerEl)
