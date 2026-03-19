@@ -271,7 +271,10 @@ export class ArticleList {
     const gridTemplateColumns = this.getCardGridTemplateColumns(cardColumns);
 
     if (gridTemplateColumns) {
-      articlesList.style.setProperty("grid-template-columns", gridTemplateColumns);
+      articlesList.style.setProperty(
+        "grid-template-columns",
+        gridTemplateColumns,
+      );
       return;
     }
 
@@ -367,7 +370,10 @@ export class ArticleList {
     return tagEl;
   }
 
-  private createTagOverflowChip(container: HTMLElement, hiddenTags: Tag[]): HTMLElement {
+  private createTagOverflowChip(
+    container: HTMLElement,
+    hiddenTags: Tag[],
+  ): HTMLElement {
     const overflow = container.createDiv({
       cls: "rss-dashboard-tag-overflow",
       text: `+${hiddenTags.length}`,
@@ -376,7 +382,10 @@ export class ArticleList {
     return overflow;
   }
 
-  private renderSingleRowCardTagChips(container: HTMLElement, tags: Tag[]): void {
+  private renderSingleRowCardTagChips(
+    container: HTMLElement,
+    tags: Tag[],
+  ): void {
     container.empty();
 
     if (tags.length === 0) {
@@ -757,7 +766,10 @@ export class ArticleList {
 
     const hasTags = tags.length > 0;
     if (articleEl.classList.contains("rss-dashboard-article-card")) {
-      articleEl.classList.toggle("rss-dashboard-article-card--has-tags", hasTags);
+      articleEl.classList.toggle(
+        "rss-dashboard-article-card--has-tags",
+        hasTags,
+      );
     }
     if (!hasTags && existingContainers.length > 0) {
       existingContainers.forEach((container) => container.remove());
@@ -804,8 +816,13 @@ export class ArticleList {
     }
 
     existingContainers.forEach((container) => {
-      const isCardTagStrip = !!container.closest(".rss-dashboard-card-tags-region");
-      if (articleEl.classList.contains("rss-dashboard-article-card") && isCardTagStrip) {
+      const isCardTagStrip = !!container.closest(
+        ".rss-dashboard-card-tags-region",
+      );
+      if (
+        articleEl.classList.contains("rss-dashboard-article-card") &&
+        isCardTagStrip
+      ) {
         this.renderSingleRowCardTagChips(container, tags);
         return;
       }
@@ -1515,6 +1532,8 @@ export class ArticleList {
     toggleBtn.addClass("active");
     const pendingStatusFilters = new Set(this.statusFilters);
     const pendingTagFilters = new Set(this.tagFilters);
+    let pendingAllChecked =
+      pendingStatusFilters.size === 0 && pendingTagFilters.size === 0;
     let pendingFilterLogic: "AND" | "OR" = this.filterLogic;
     const currentBypassAll = this.settings.filters?.bypassAll ?? false;
     let pendingBypassAll = currentBypassAll;
@@ -1561,6 +1580,62 @@ export class ArticleList {
 
     menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
 
+    // "All" Checkbox - shows all items when no filters selected
+    const allItem = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-item rss-dashboard-filter-all-item",
+    });
+
+    const allCheckbox = allItem.createEl("input", {
+      attr: { type: "checkbox" },
+      cls: "rss-dashboard-filter-checkbox",
+    });
+    allCheckbox.checked = pendingAllChecked;
+
+    const allIconDiv = allItem.createDiv({
+      cls: "rss-dashboard-filter-menu-icon",
+    });
+    setIcon(allIconDiv, "fullscreen");
+
+    allItem.createDiv({
+      cls: "rss-dashboard-filter-menu-text",
+      text: "All",
+    });
+
+    const uncheckAllFilterCheckboxes = () => {
+      pendingStatusFilters.clear();
+      pendingTagFilters.clear();
+      pendingAllChecked = true;
+      filterCheckboxes.forEach((cb) => {
+        cb.checked = false;
+      });
+    };
+
+    allCheckbox.addEventListener("change", (e) => {
+      e.stopPropagation();
+      if (allCheckbox.checked) {
+        uncheckAllFilterCheckboxes();
+      } else {
+        pendingAllChecked = false;
+      }
+    });
+
+    allItem.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (e.target !== allCheckbox) {
+        allCheckbox.checked = !allCheckbox.checked;
+        if (allCheckbox.checked) {
+          uncheckAllFilterCheckboxes();
+        } else {
+          pendingAllChecked = false;
+        }
+      }
+    });
+
+    allItem.addEventListener("mouseenter", removeTagSubmenus);
+
+    // Collect checkbox refs so "All" can visually uncheck them
+    const filterCheckboxes: Map<string, HTMLInputElement> = new Map();
+
     const filterOptions = [
       { id: "unread", name: "Unread", icon: "circle" },
       { id: "read", name: "Read", icon: "check-circle" },
@@ -1569,6 +1644,7 @@ export class ArticleList {
       { id: "podcasts", name: "Podcast", icon: "mic" },
       { id: "videos", name: "Videos", icon: "play" },
       { id: "tagged", name: "Tagged", icon: "tag" },
+      { id: "untagged", name: "Untagged", icon: "ban" },
     ];
 
     filterOptions.forEach((opt) => {
@@ -1581,6 +1657,7 @@ export class ArticleList {
         cls: "rss-dashboard-filter-checkbox",
       });
       checkbox.checked = this.statusFilters.has(opt.id);
+      filterCheckboxes.set(opt.id, checkbox);
 
       const iconDiv = item.createDiv({
         cls: "rss-dashboard-filter-menu-icon",
@@ -1600,7 +1677,13 @@ export class ArticleList {
 
         // Submenu logic
         item.addEventListener("mouseenter", () => {
-          this.showTagsSubMenu(item, menuPortal, pendingTagFilters);
+          this.showTagsSubMenu(
+            item,
+            menuPortal,
+            pendingTagFilters,
+            allCheckbox,
+            pendingStatusFilters,
+          );
         });
       } else {
         item.addEventListener("mouseenter", () => {
@@ -1608,24 +1691,35 @@ export class ArticleList {
         });
       }
 
-      checkbox.addEventListener("change", (e) => {
-        e.stopPropagation();
-        if (checkbox.checked) {
+      const handleFilterCheck = (checked: boolean) => {
+        if (checked) {
           pendingStatusFilters.add(opt.id);
+          allCheckbox.checked = false;
+          pendingAllChecked = false;
         } else {
           pendingStatusFilters.delete(opt.id);
+          // When "Tagged" is unchecked, also clear any selected tag sub-filters
+          if (opt.id === "tagged") {
+            pendingTagFilters.clear();
+          }
+          // Auto-check "All" if no filters remain
+          if (pendingStatusFilters.size === 0 && pendingTagFilters.size === 0) {
+            allCheckbox.checked = true;
+            pendingAllChecked = true;
+          }
         }
+      };
+
+      checkbox.addEventListener("change", (e) => {
+        e.stopPropagation();
+        handleFilterCheck(checkbox.checked);
       });
 
       item.addEventListener("click", (e) => {
         e.stopPropagation();
         if (e.target !== checkbox) {
           checkbox.checked = !checkbox.checked;
-          if (checkbox.checked) {
-            pendingStatusFilters.add(opt.id);
-          } else {
-            pendingStatusFilters.delete(opt.id);
-          }
+          handleFilterCheck(checkbox.checked);
         }
       });
     });
@@ -1873,6 +1967,8 @@ export class ArticleList {
     parentItem: HTMLElement,
     parentMenu: HTMLElement,
     pendingTagFilters: Set<string>,
+    allCheckbox: HTMLInputElement,
+    pendingStatusFilters: Set<string>,
   ): void {
     // Remove existing submenus
     parentMenu
@@ -1915,8 +2011,13 @@ export class ArticleList {
         e.stopPropagation();
         if (checkbox.checked) {
           pendingTagFilters.add(tag.name);
+          allCheckbox.checked = false;
         } else {
           pendingTagFilters.delete(tag.name);
+          // Auto-check "All" if no filters remain (status + tag)
+          if (pendingStatusFilters.size === 0 && pendingTagFilters.size === 0) {
+            allCheckbox.checked = true;
+          }
         }
       });
 
@@ -1925,8 +2026,15 @@ export class ArticleList {
           checkbox.checked = !checkbox.checked;
           if (checkbox.checked) {
             pendingTagFilters.add(tag.name);
+            allCheckbox.checked = false;
           } else {
             pendingTagFilters.delete(tag.name);
+            if (
+              pendingStatusFilters.size === 0 &&
+              pendingTagFilters.size === 0
+            ) {
+              allCheckbox.checked = true;
+            }
           }
         }
       });
@@ -2333,58 +2441,58 @@ export class ArticleList {
 
   private showTagsDropdownPortal(anchor: HTMLElement, article: FeedItem): void {
     this.createPortalDropdown(anchor, article, (tag, checked) => {
-        if (!article.tags) article.tags = [];
-        if (checked) {
-          if (!article.tags.some((t) => t.name === tag.name)) {
-            article.tags.push({ ...tag });
-          }
-        } else {
-          article.tags = article.tags.filter((t) => t.name !== tag.name);
+      if (!article.tags) article.tags = [];
+      if (checked) {
+        if (!article.tags.some((t) => t.name === tag.name)) {
+          article.tags.push({ ...tag });
         }
+      } else {
+        article.tags = article.tags.filter((t) => t.name !== tag.name);
+      }
 
-        const index = this.articles.findIndex((a) => a.guid === article.guid);
-        if (index !== -1) {
-          this.articles[index] = { ...article };
-        }
+      const index = this.articles.findIndex((a) => a.guid === article.guid);
+      if (index !== -1) {
+        this.articles[index] = { ...article };
+      }
 
-        this.callbacks.onArticleUpdate(
-          article,
-          { tags: [...article.tags] },
-          false,
-        );
+      this.callbacks.onArticleUpdate(
+        article,
+        { tags: [...article.tags] },
+        false,
+      );
 
-        let articleEl = this.container.querySelector(
-          `[id="article-${article.guid}"]`,
+      let articleEl = this.container.querySelector(
+        `[id="article-${article.guid}"]`,
+      ) as HTMLElement;
+      if (!articleEl) {
+        articleEl = this.container
+          .closest(".rss-dashboard-container")
+          ?.querySelector(`[id="article-${article.guid}"]`) as HTMLElement;
+      }
+      if (!articleEl) {
+        articleEl = document.getElementById(
+          `article-${article.guid}`,
         ) as HTMLElement;
-        if (!articleEl) {
-          articleEl = this.container
-            .closest(".rss-dashboard-container")
-            ?.querySelector(`[id="article-${article.guid}"]`) as HTMLElement;
-        }
-        if (!articleEl) {
-          articleEl = document.getElementById(
-            `article-${article.guid}`,
-          ) as HTMLElement;
-        }
-        if (articleEl) {
-          articleEl.classList.add("rss-dashboard-tag-change-feedback");
-          window.setTimeout(() => {
-            articleEl.classList.remove("rss-dashboard-tag-change-feedback");
-          }, 200);
-          this.syncArticleTags(articleEl, article);
-          void articleEl.offsetHeight;
-        } else {
-          const tempIndicator = document.body.createDiv({
-            cls: "rss-dashboard-tag-change-notification",
-            text: `Tag "${tag.name}" ${checked ? "added" : "removed"}`,
-          });
-          window.setTimeout(() => {
-            if (tempIndicator.parentNode) {
-              tempIndicator.parentNode.removeChild(tempIndicator);
-            }
-          }, 1500);
-        }
-      });
+      }
+      if (articleEl) {
+        articleEl.classList.add("rss-dashboard-tag-change-feedback");
+        window.setTimeout(() => {
+          articleEl.classList.remove("rss-dashboard-tag-change-feedback");
+        }, 200);
+        this.syncArticleTags(articleEl, article);
+        void articleEl.offsetHeight;
+      } else {
+        const tempIndicator = document.body.createDiv({
+          cls: "rss-dashboard-tag-change-notification",
+          text: `Tag "${tag.name}" ${checked ? "added" : "removed"}`,
+        });
+        window.setTimeout(() => {
+          if (tempIndicator.parentNode) {
+            tempIndicator.parentNode.removeChild(tempIndicator);
+          }
+        }, 1500);
+      }
+    });
   }
 
   private createArticleActionButtons(
@@ -3046,7 +3154,7 @@ export class ArticleList {
         text: tag.name,
       });
       tagLabel.style.setProperty("--tag-color", tag.color);
-      
+
       const editButton = tagItem.createDiv({
         cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button clickable-icon",
         attr: {
@@ -3057,7 +3165,7 @@ export class ArticleList {
         },
       });
       setIcon(editButton, "pencil");
-      
+
       const deleteButton = tagItem.createDiv({
         cls: "rss-dashboard-tag-action-button rss-dashboard-tag-delete-button clickable-icon",
         attr: {
@@ -3089,7 +3197,7 @@ export class ArticleList {
           e.target === tagCheckbox ||
           (e.target instanceof Element &&
             (e.target.closest(".rss-dashboard-tag-edit-button") ||
-             e.target.closest(".rss-dashboard-tag-delete-button")))
+              e.target.closest(".rss-dashboard-tag-delete-button")))
         ) {
           return;
         }

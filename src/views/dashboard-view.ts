@@ -1111,6 +1111,9 @@ export class RssDashboardView extends ItemView {
     this.currentFolder = null;
     this.currentTag = null;
     this.selectedArticle = null;
+    this.activeStatusFilters = new Set();
+    this.activeTagFilters.clear();
+    this.filterLogic = "OR";
 
     if (feed && feed.url) {
       this.feedPages[feed.url] = 1;
@@ -1132,6 +1135,9 @@ export class RssDashboardView extends ItemView {
     this.currentFolder = null;
     this.currentFeed = null;
     this.selectedArticle = null;
+    this.activeStatusFilters = new Set();
+    this.activeTagFilters.clear();
+    this.filterLogic = "OR";
     void this.render();
   }
 
@@ -1740,6 +1746,12 @@ export class RssDashboardView extends ItemView {
           (!item.tags || item.tags.length === 0)
         )
           return false;
+        if (
+          this.activeStatusFilters.has("untagged") &&
+          item.tags &&
+          item.tags.length > 0
+        )
+          return false;
 
         // Specific tag checks (AND mode: match ANY of the selected tags)
         if (this.activeTagFilters.size > 0) {
@@ -1772,6 +1784,11 @@ export class RssDashboardView extends ItemView {
           this.activeStatusFilters.has("tagged") &&
           item.tags &&
           item.tags.length > 0
+        )
+          match = true;
+        else if (
+          this.activeStatusFilters.has("untagged") &&
+          (!item.tags || item.tags.length === 0)
         )
           match = true;
         else if (
