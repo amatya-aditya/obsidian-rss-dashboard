@@ -103,7 +103,6 @@ export function parseFeedPreviewFromXmlText(
 export async function loadFeedForPreview(
   feedUrl: string,
 ): Promise<FeedPreviewData> {
-
   // Try direct request first
   try {
     const response = await requestUrl({
@@ -884,32 +883,40 @@ export class CustomXMLParser {
       el = element.querySelector(tagName);
     } else if (tagName.includes(":")) {
       const [namespace, localName] = tagName.split(":");
-      
+
       // 1. Try namespaced selector with backslash
       try {
         el = element.querySelector(`${namespace}\\:${localName}`);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       // 2. Try getElementsByTagNameNS if not found
       if (!el) {
         try {
           const elements = element.getElementsByTagNameNS("*", localName);
           if (elements.length > 0) el = elements[0];
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       // 3. Try local name only if still not found
       if (!el) {
         try {
           el = element.querySelector(localName);
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       // 4. Try local-name() selector if still not found
       if (!el) {
         try {
           el = element.querySelector(`*[local-name()="${localName}"]`);
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     } else {
       // Basic tag
@@ -918,7 +925,9 @@ export class CustomXMLParser {
         try {
           const tagEls = element.getElementsByTagName(tagName);
           if (tagEls.length > 0) el = tagEls[0];
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     }
 
@@ -1209,8 +1218,8 @@ export class CustomXMLParser {
     const description = this.getTextContent(channel, "description");
     const link = this.getTextContent(channel, "link");
 
-    const author = 
-      this.getTextContent(channel, "author") || 
+    const author =
+      this.getTextContent(channel, "author") ||
       this.getTextContent(channel, "dc:creator");
 
     const imageElement = channel.querySelector("image");
@@ -1276,11 +1285,11 @@ export class CustomXMLParser {
 
       const author =
         authors ||
-        this.getTextContent(item, "author") || 
+        this.getTextContent(item, "author") ||
         this.getTextContent(item, "dc:creator");
 
       const content =
-        this.getTextContent(item, "content:encoded") || 
+        this.getTextContent(item, "content:encoded") ||
         this.getTextContent(item, "encoded") ||
         description;
 
@@ -1427,7 +1436,7 @@ export class CustomXMLParser {
       }
 
       const contentValue =
-        this.getTextContent(item, "content:encoded") || 
+        this.getTextContent(item, "content:encoded") ||
         this.getTextContent(item, "encoded") ||
         description;
 
@@ -1523,6 +1532,15 @@ export class CustomXMLParser {
       const author = this.getTextContent(entry, "author > name");
       const content = this.getTextContent(entry, "content") || description;
 
+      // Extract duration from media:content or itunes:duration
+      let duration = this.getTextContent(entry, "itunes\\:duration");
+      if (!duration) {
+        const mediaContent = entry.querySelector("media\\:content");
+        if (mediaContent) {
+          duration = mediaContent.getAttribute("duration") || "";
+        }
+      }
+
       items.push({
         title,
         link,
@@ -1532,6 +1550,9 @@ export class CustomXMLParser {
         author,
         content,
         category: this.getTextContent(entry, "category"),
+        itunes: {
+          duration: duration || undefined,
+        },
       });
     });
 
@@ -1599,10 +1620,7 @@ export class CustomXMLParser {
       cleanedXml = cleanedXml.replace(/<\?.*?\?>/gi, "");
 
       // Unwrap CDATA sections so regex-based extraction can match content
-      cleanedXml = cleanedXml.replace(
-        /<!\[CDATA\[([\s\S]*?)\]\]>/g,
-        "$1",
-      );
+      cleanedXml = cleanedXml.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1");
 
       const rssStartMatch = cleanedXml.match(/<rss[^>]*>/i);
       if (rssStartMatch) {
@@ -2585,7 +2603,10 @@ export class FeedParser {
     const existingItems = new Map<string, FeedItem>();
     if (existingFeed) {
       existingFeed.items.forEach((item) => {
-        const key = this.convertToAbsoluteUrl(item.guid || item.link || "", url);
+        const key = this.convertToAbsoluteUrl(
+          item.guid || item.link || "",
+          url,
+        );
         if (key) {
           existingItems.set(key, item);
         }
@@ -2595,17 +2616,11 @@ export class FeedParser {
     const newItems: FeedItem[] = [];
     const updatedItems: FeedItem[] = [];
     const seenGuids = new Set<string>();
-    const shouldDetectYouTubeShorts = this.mediaSettings.detectYouTubeShorts;
 
-    parsed.items.forEach((item: ParsedItem) => {
+    for (const item of parsed.items) {
       const isAudioEnclosure = item.enclosure?.type?.startsWith("audio/");
       const isAudioLink = !!(item.link && item.link.includes(".mp3"));
       const isPodcast = isAudioEnclosure || isAudioLink;
-      const isYouTubeShort = MediaService.shouldDetectYouTubeShort(
-        url,
-        item.link || "",
-        shouldDetectYouTubeShorts,
-      );
 
       const audioUrl = isAudioEnclosure
         ? this.convertToAbsoluteUrl(item.enclosure?.url || "", url)
@@ -2670,11 +2685,6 @@ export class FeedParser {
           author: item.author || parsed.author || existingItem.author,
           read: existingItem.read,
           starred: existingItem.starred,
-          tags: MediaService.updateYouTubeShortTags(
-            existingItem.tags,
-            isYouTubeShort,
-            this.availableTags,
-          ),
           saved: existingItem.saved,
           feedTitle: newFeed.title, // Update feedTitle to match the new feed title
           coverImage,
@@ -2706,9 +2716,7 @@ export class FeedParser {
           enclosure: enclosure ? enclosure : existingItem.enclosure,
           ieee: item.ieee || existingItem.ieee,
           audioUrl: audioUrl ? audioUrl : existingItem.audioUrl,
-          mediaType: isPodcast
-            ? "podcast"
-            : existingItem.mediaType || "article",
+          mediaType: isPodcast ? "podcast" : existingItem.mediaType || "article",
         };
         updatedItems.push(updatedItem);
       } else {
@@ -2789,11 +2797,7 @@ export class FeedParser {
           guid: itemGuid,
           read: false,
           starred: false,
-          tags: MediaService.updateYouTubeShortTags(
-            [],
-            isYouTubeShort,
-            this.availableTags,
-          ),
+          tags: [],
           feedTitle: newFeed.title,
           feedUrl: newFeed.url,
           coverImage,
@@ -2816,13 +2820,16 @@ export class FeedParser {
         };
         newItems.push(newItem);
       }
-    });
+    }
 
     const refreshedItems = [...updatedItems, ...newItems];
     const carriedForward: FeedItem[] = [];
     if (existingFeed) {
       for (const item of existingFeed.items) {
-        const key = this.convertToAbsoluteUrl(item.guid || item.link || "", url);
+        const key = this.convertToAbsoluteUrl(
+          item.guid || item.link || "",
+          url,
+        );
         if (key && !seenGuids.has(key)) {
           carriedForward.push(item);
         }
@@ -2998,7 +3005,7 @@ export class FeedParserService {
       ieee: item.ieee,
     }));
 
-    return {
+    const tempFeed: Feed = {
       title: parsed.title || "",
       url: url,
       items: items,
@@ -3013,6 +3020,10 @@ export class FeedParserService {
           : "") ||
         (typeof parsed.image === "string" ? parsed.image : ""),
     };
+
+    // Correctly detect and process media types (YouTube, etc.)
+    const processedFeed = MediaService.detectAndProcessFeed(tempFeed);
+
+    return processedFeed;
   }
 }
-

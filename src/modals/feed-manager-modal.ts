@@ -912,6 +912,8 @@ export class AddFeedModal extends Modal {
                   folder = defaultYouTubeFolder;
                   folderInput.value = defaultYouTubeFolder;
                 }
+              } else if (MediaService.isYouTubeFeed(url)) {
+                detectedType = "youtube";
               } else {
                 // Check for podcast platform URLs
                 const platform = detectPodcastPlatform(url);

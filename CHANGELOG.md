@@ -1,4 +1,4 @@
-## [2.3.0-alpha.3] - March 17, 2026
+## [2.3.0-alpha.3] - March 118, 2026
 
 ### New Features
 
@@ -37,6 +37,8 @@
 
 - **Testing**: Added unit tests for namespaced XML extraction and reader logic in `test_files/unit/ios-namespace-fix.test.ts`.
 - **Build Logging**: Added explicit confirmation messages to `esbuild.config.mjs` to verify successful JS and CSS bundling.
+- **Removed**
+  - **YouTube Short Detection**: removed feature introduced in 2.3.0-alpha.1 due to inconsistent tagging. Added a comprehensive bug report in `docs/bugs/youtube-shorts-tagging-failure.md` for future reference.
 
 ---
 

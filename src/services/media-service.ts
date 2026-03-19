@@ -10,8 +10,6 @@ export interface YouTubeEmbedConfig {
 }
 
 export class MediaService {
-  static readonly YOUTUBE_SHORT_TAG_NAME = "Youtube short";
-  static readonly YOUTUBE_SHORT_TAG_COLOR = "#ff0000";
   static readonly YOUTUBE_EMBED_REFERRER_POLICY =
     "strict-origin-when-cross-origin";
   static readonly YOUTUBE_EMBED_ALLOW =
@@ -22,13 +20,18 @@ export class MediaService {
     "youtube.com/user/",
     "youtube.com/c/",
     "youtube.com/@",
+    "youtube.com/playlist?list=",
+    "youtube.com/results?search_query=",
     "youtube.com/watch",
     "youtu.be/",
   ];
 
   static isYouTubeFeed(url: string): boolean {
     if (!url) return false;
-    return this.YOUTUBE_PATTERNS.some((pattern) => url.includes(pattern));
+    const normalizedUrl = url.toLowerCase();
+    return this.YOUTUBE_PATTERNS.some((pattern) =>
+      normalizedUrl.includes(pattern),
+    );
   }
 
   static isXUrl(url: string): boolean {
@@ -48,71 +51,21 @@ export class MediaService {
     if (xMatch?.[1]) {
       const username = xMatch[1];
       // Skip if it's a common page like 'home', 'notifications', etc.
-      const commonPages = ["home", "notifications", "messages", "explore", "search", "i", "settings"];
+      const commonPages = [
+        "home",
+        "notifications",
+        "messages",
+        "explore",
+        "search",
+        "i",
+        "settings",
+      ];
       if (commonPages.includes(username.toLowerCase())) return null;
-      
+
       return `https://nitter.net/${username}/rss`;
     }
 
     return null;
-  }
-
-  static isYouTubeShortLink(link: string): boolean {
-    if (!link) return false;
-
-    try {
-      const normalizedLink = link.toLowerCase();
-      return (
-        normalizedLink.includes("youtube.com/shorts/") ||
-        normalizedLink.includes("youtu.be/shorts/") ||
-        normalizedLink.includes("/shorts/")
-      );
-    } catch {
-      return false;
-    }
-  }
-
-  static shouldDetectYouTubeShort(
-    feedUrl: string,
-    itemLink: string,
-    detectYouTubeShorts: boolean,
-  ): boolean {
-    return (
-      detectYouTubeShorts &&
-      this.isYouTubeFeed(feedUrl) &&
-      this.isYouTubeShortLink(itemLink)
-    );
-  }
-
-  static updateYouTubeShortTags(
-    tags: Tag[] | undefined,
-    isShort: boolean,
-    availableTags: Tag[],
-  ): Tag[] {
-    const existingTags = tags ? [...tags] : [];
-    const shortTagName = this.YOUTUBE_SHORT_TAG_NAME.toLowerCase();
-    const filteredTags = existingTags.filter(
-      (tag) => tag.name.toLowerCase() !== shortTagName,
-    );
-
-    if (!isShort) {
-      return filteredTags;
-    }
-
-    let shortTag = availableTags.find(
-      (tag) => tag.name.toLowerCase() === shortTagName,
-    );
-
-    if (!shortTag) {
-      shortTag = {
-        name: this.YOUTUBE_SHORT_TAG_NAME,
-        color: this.YOUTUBE_SHORT_TAG_COLOR,
-      };
-      availableTags.push(shortTag);
-    }
-
-    filteredTags.push({ ...shortTag });
-    return filteredTags;
   }
 
   private static extractChannelIdFromHtml(html: string): string | null {

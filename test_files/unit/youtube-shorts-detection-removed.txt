@@ -1,0 +1,19 @@
+NOTE: The youtube-shorts-detection.test.ts file has been deprecated.
+
+The entire YouTube shorts auto-detection feature has been completely removed from the codebase.
+
+Removed components:
+- MediaService.isYouTubeShortLink()
+- MediaService.shouldDetectYouTubeShort()
+- MediaService.parseDurationToSeconds()
+- MediaService.updateYouTubeShortTags()
+- All references to YOUTUBE_SHORT_TAG_NAME and YOUTUBE_SHORT_TAG_COLOR
+- All feed parser logic for detecting and tagging shorts
+- All settings UI toggles for shorts detection
+
+The feature was deemed unreliable due to YouTube's:
+- Bot detection and rate limiting
+- Dynamic HTML structure and frequent changes
+- Client-side rendering of key metadata
+
+Users must manually tag shorts if needed.

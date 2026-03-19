@@ -21,7 +21,10 @@ import {
 } from "../components/folder-suggest";
 import { ImportOpmlModal } from "../modals/import-opml-modal";
 import { renderKeywordFilterEditor } from "../components/keyword-filter-editor";
-import { setCssProps, shouldUseMobileSidebarLayout } from "../utils/platform-utils";
+import {
+  setCssProps,
+  shouldUseMobileSidebarLayout,
+} from "../utils/platform-utils";
 
 class TemplateNameModal extends Modal {
   private result: string | null = null;
@@ -789,7 +792,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         .setName("Proxy URL")
         .setDesc(
           "Base URL of the CORS proxy. The article URL will be appended after encoding. " +
-          "Example: https://api.allorigins.win/raw?url=",
+            "Example: https://api.allorigins.win/raw?url=",
         )
         .addText((text) => {
           text
@@ -803,7 +806,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         });
     }
   }
-
 
   private createDisplaySettings(containerEl: HTMLElement): void {
     const normalizeHexColor = (value: string): string | null => {
@@ -1725,18 +1727,6 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.media.defaultYouTubeTag || "youtube")
           .onChange(async (value) => {
             this.plugin.settings.media.defaultYouTubeTag = value;
-            await this.plugin.saveSettings();
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName("Detect and auto-tag YouTube shorts")
-      .setDesc("Automatically tag detected YouTube shorts from feed XML.")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.media.detectYouTubeShorts || true)
-          .onChange(async (value) => {
-            this.plugin.settings.media.detectYouTubeShorts = value;
             await this.plugin.saveSettings();
           }),
       );
