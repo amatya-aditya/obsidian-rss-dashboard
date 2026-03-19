@@ -13,6 +13,7 @@ import type RssDashboardPlugin from "../../main";
 import {
   TABLET_LAYOUT_MAX_WIDTH,
   shouldUseMobileSidebarLayout,
+  attachInputClearButton,
 } from "../utils/platform-utils";
 
 import feedsData from "../discover/discover-feeds.json";
@@ -622,27 +623,11 @@ export class DiscoverView extends ItemView {
     });
     searchInput.addClass("rss-discover-search-input");
 
-    // Clear button
-    const clearButton = searchInputWrapper.createDiv({
-      cls: "clickable-icon rss-discover-search-clear",
-      attr: {
-        "aria-label": "Clear search",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(clearButton, "x");
-    if (!this.filters.query) {
-      clearButton.addClass("rss-discover-search-clear-hidden");
-    }
-
-    clearButton.addEventListener("click", () => {
+    attachInputClearButton(searchInputWrapper, searchInput, () => {
       this.filters.query = "";
-      searchInput.value = "";
       this.currentPage = 1;
       this.filterFeeds();
       this.saveFilterState();
-      clearButton.addClass("rss-discover-search-clear-hidden");
       const contentEl = this.containerEl.querySelector(
         ".rss-discover-content",
       ) as HTMLElement;
@@ -651,23 +636,11 @@ export class DiscoverView extends ItemView {
       }
     });
 
-    clearButton.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        clearButton.click();
-      }
-    });
-
     searchInput.addEventListener("input", (e) => {
       this.filters.query = (e.target as HTMLInputElement).value;
       this.currentPage = 1;
       this.filterFeeds();
       this.saveFilterState();
-      if (this.filters.query) {
-        clearButton.removeClass("rss-discover-search-clear-hidden");
-      } else {
-        clearButton.addClass("rss-discover-search-clear-hidden");
-      }
       const contentEl = this.containerEl.querySelector(
         ".rss-discover-content",
       ) as HTMLElement;

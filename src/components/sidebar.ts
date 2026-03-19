@@ -17,6 +17,7 @@ import {
 } from "../types/types";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import { showEditTagModal } from "../utils/tag-utils";
+import { attachInputClearButton } from "../utils/platform-utils";
 import { SidebarSearchService } from "../services/sidebar-search-service";
 import { isValidFolderName } from "../utils/validation";
 import type RssDashboardPlugin from "../../main";
@@ -1945,23 +1946,21 @@ export class Sidebar {
         value: this.searchQuery,
       },
     });
-    const clearButton = searchContainer.createEl("button", {
-      cls: "rss-dashboard-search-clear is-hidden",
-      attr: {
-        type: "button",
-        "aria-label": "Clear search",
-        title: "Clear search",
-      },
-    });
-    setIcon(clearButton, "x");
 
-    const updateClearButtonVisibility = () => {
-      if (searchInput.value.trim()) {
-        clearButton.removeClass("is-hidden");
-      } else {
-        clearButton.addClass("is-hidden");
+    let searchTimeout: number;
+
+    attachInputClearButton(searchContainer, searchInput, () => {
+      this.searchQuery = "";
+      if (searchTimeout) {
+        window.clearTimeout(searchTimeout);
       }
-    };
+      this.filterFeedsAndFolders("");
+      searchInput.focus();
+    }, {
+      buttonClass: "rss-dashboard-search-clear",
+      hiddenClass: "is-hidden",
+      useButtonElement: true,
+    });
 
     searchInput.addEventListener("focus", () => {
       searchInput.select();
@@ -1974,12 +1973,10 @@ export class Sidebar {
       }
     });
 
-    let searchTimeout: number;
     searchInput.addEventListener("input", (e) => {
       const rawQuery = (e.target as HTMLInputElement)?.value || "";
       this.searchQuery = rawQuery;
       const query = rawQuery.toLowerCase().trim();
-      updateClearButtonVisibility();
       if (searchTimeout) {
         window.clearTimeout(searchTimeout);
       }
@@ -1988,21 +1985,8 @@ export class Sidebar {
       }, 150);
     });
 
-    clearButton.addEventListener("click", (e) => {
-      e.preventDefault();
-      searchInput.value = "";
-      this.searchQuery = "";
-      updateClearButtonVisibility();
-      if (searchTimeout) {
-        window.clearTimeout(searchTimeout);
-      }
-      this.filterFeedsAndFolders("");
-      searchInput.focus();
-    });
-
     requestAnimationFrame(() => {
       searchInput.focus();
-      updateClearButtonVisibility();
       if (window.innerWidth <= 768) {
         window.setTimeout(() => {
           searchInput.scrollIntoView({ behavior: "smooth", block: "center" });

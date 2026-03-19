@@ -1,7 +1,7 @@
 ﻿import { ItemView, WorkspaceLeaf, Notice, setIcon, requestUrl } from "obsidian";
 import { Feed } from "../types/types";
 import type RssDashboardPlugin from "../../main";
-import { setCssProps } from "../utils/platform-utils";
+import { setCssProps, attachInputClearButton } from "../utils/platform-utils";
 import { FolderSelectorPopup } from "../components/folder-selector-popup";
 
 export const RSS_SMALLWEB_VIEW_TYPE = "rss-smallweb-view";
@@ -389,42 +389,14 @@ export class KagiSmallwebView extends ItemView {
     });
     searchInput.addClass("rss-discover-search-input");
 
-    // Clear button
-    const clearButton = searchWrapper.createDiv({
-      cls: "clickable-icon rss-discover-search-clear",
-      attr: {
-        "aria-label": "Clear search",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(clearButton, "x");
-    if (!this.smallwebSearchQuery) {
-      clearButton.addClass("rss-discover-search-clear-hidden");
-    }
-
-    clearButton.addEventListener("click", () => {
+    attachInputClearButton(searchWrapper, searchInput, () => {
       this.smallwebSearchQuery = "";
-      searchInput.value = "";
-      clearButton.addClass("rss-discover-search-clear-hidden");
       this.filterSmallwebEntries();
       this.render();
     });
 
-    clearButton.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        clearButton.click();
-      }
-    });
-
     searchInput.addEventListener("input", (e) => {
       const value = (e.target as HTMLInputElement).value;
-      if (value) {
-        clearButton.removeClass("rss-discover-search-clear-hidden");
-      } else {
-        clearButton.addClass("rss-discover-search-clear-hidden");
-      }
       this.debouncedSmallwebSearch(value);
     });
 

@@ -5,6 +5,7 @@ import {
   FeedMetadata,
   CategoryPath,
 } from "../types/discover-types";
+import { attachInputClearButton } from "../utils/platform-utils";
 
 interface DiscoverSidebarCallbacks {
   onFilterChange: () => void;
@@ -192,41 +193,13 @@ export class DiscoverSidebar {
     });
     searchInput.addClass("rss-discover-search-input");
 
-    // Clear button
-    const clearButton = searchInputWrapper.createDiv({
-      cls: "clickable-icon rss-discover-search-clear",
-      attr: {
-        "aria-label": "Clear search",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(clearButton, "x");
-    if (!this.filters.query) {
-      clearButton.addClass("rss-discover-search-clear-hidden");
-    }
-
-    clearButton.addEventListener("click", () => {
+    attachInputClearButton(searchInputWrapper, searchInput, () => {
       this.filters.query = "";
-      searchInput.value = "";
-      clearButton.addClass("rss-discover-search-clear-hidden");
       this.callbacks.onFilterChange();
-    });
-
-    clearButton.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        clearButton.click();
-      }
     });
 
     searchInput.addEventListener("input", (e) => {
       this.filters.query = (e.target as HTMLInputElement).value;
-      if (this.filters.query) {
-        clearButton.removeClass("rss-discover-search-clear-hidden");
-      } else {
-        clearButton.addClass("rss-discover-search-clear-hidden");
-      }
       this.callbacks.onFilterChange();
     });
   }

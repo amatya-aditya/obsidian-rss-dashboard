@@ -1,4 +1,4 @@
-import { requestUrl, RequestUrlParam } from "obsidian";
+import { requestUrl, RequestUrlParam, setIcon } from "obsidian";
 
 export function sleep(ms: number): Promise<void> {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
@@ -182,6 +182,71 @@ export function setCssProps(
 
 export const PHONE_MAX_WIDTH = 768;
 export const TABLET_LAYOUT_MAX_WIDTH = 1200;
+
+/**
+ * Attaches a clear (X) button inside a search input wrapper.
+ * Handles creation, visibility toggling, click, and keyboard events.
+ * The `onClear` callback is called when the input is cleared.
+ * @param wrapper The container element for the input and clear button
+ * @param input The input element to attach the clear button to
+ * @param onClear Callback invoked after input is cleared
+ * @param options Optional configuration (CSS classes, button element type)
+ */
+export function attachInputClearButton(
+  wrapper: HTMLElement,
+  input: HTMLInputElement,
+  onClear: () => void,
+  options?: {
+    buttonClass?: string;
+    hiddenClass?: string;
+    useButtonElement?: boolean;
+  },
+): HTMLElement {
+  const buttonClass = options?.buttonClass || "rss-discover-search-clear";
+  const hiddenClass = options?.hiddenClass || "rss-discover-search-clear-hidden";
+  const useButton = options?.useButtonElement ?? false;
+
+  const clearButton = useButton
+    ? wrapper.createEl("button", { cls: `${buttonClass} ${hiddenClass}`, attr: { type: "button", "aria-label": "Clear search", title: "Clear search" } })
+    : wrapper.createDiv({
+        cls: `clickable-icon ${buttonClass}`,
+        attr: {
+          "aria-label": "Clear search",
+          role: "button",
+          tabindex: "0",
+        },
+      });
+
+  setIcon(clearButton, "x");
+
+  if (!input.value) {
+    clearButton.addClass(hiddenClass);
+  }
+
+  clearButton.addEventListener("click", () => {
+    input.value = "";
+    clearButton.addClass(hiddenClass);
+    onClear();
+  });
+
+  clearButton.addEventListener("keydown", (e) => {
+    const keyEvent = e as KeyboardEvent;
+    if (keyEvent.key === "Enter" || keyEvent.key === " ") {
+      keyEvent.preventDefault();
+      clearButton.click();
+    }
+  });
+
+  input.addEventListener("input", () => {
+    if (input.value) {
+      clearButton.removeClass(hiddenClass);
+    } else {
+      clearButton.addClass(hiddenClass);
+    }
+  });
+
+  return clearButton;
+}
 
 export type ViewportTier = "phone" | "tablet" | "desktop";
 
