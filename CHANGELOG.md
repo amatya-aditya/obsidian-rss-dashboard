@@ -1,4 +1,4 @@
-## [2.3.0-alpha.3] - March 118, 2026
+## [2.3.0-alpha.3] - March 18, 2026
 
 ### New Features
 

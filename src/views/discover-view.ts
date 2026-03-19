@@ -611,18 +611,63 @@ export class DiscoverView extends ItemView {
       cls: "rss-discover-section",
     });
 
-    const searchInput = searchSection.createEl("input", {
+    const searchInputWrapper = searchSection.createDiv({
+      cls: "rss-discover-search-input-wrapper",
+    });
+
+    const searchInput = searchInputWrapper.createEl("input", {
       type: "text",
       placeholder: "Search feeds...",
       value: this.filters.query,
     });
     searchInput.addClass("rss-discover-search-input");
 
+    // Clear button
+    const clearButton = searchInputWrapper.createDiv({
+      cls: "clickable-icon rss-discover-search-clear",
+      attr: {
+        "aria-label": "Clear search",
+        role: "button",
+        tabindex: "0",
+      },
+    });
+    setIcon(clearButton, "x");
+    if (!this.filters.query) {
+      clearButton.addClass("rss-discover-search-clear-hidden");
+    }
+
+    clearButton.addEventListener("click", () => {
+      this.filters.query = "";
+      searchInput.value = "";
+      this.currentPage = 1;
+      this.filterFeeds();
+      this.saveFilterState();
+      clearButton.addClass("rss-discover-search-clear-hidden");
+      const contentEl = this.containerEl.querySelector(
+        ".rss-discover-content",
+      ) as HTMLElement;
+      if (contentEl) {
+        this.renderContent(contentEl);
+      }
+    });
+
+    clearButton.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        clearButton.click();
+      }
+    });
+
     searchInput.addEventListener("input", (e) => {
       this.filters.query = (e.target as HTMLInputElement).value;
       this.currentPage = 1;
       this.filterFeeds();
       this.saveFilterState();
+      if (this.filters.query) {
+        clearButton.removeClass("rss-discover-search-clear-hidden");
+      } else {
+        clearButton.addClass("rss-discover-search-clear-hidden");
+      }
       const contentEl = this.containerEl.querySelector(
         ".rss-discover-content",
       ) as HTMLElement;
@@ -1715,6 +1760,29 @@ export class DiscoverView extends ItemView {
       });
       setIcon(searchFilter, "search");
       searchFilter.appendText(` "${this.filters.query}"`);
+      
+      const removeBtn = searchFilter.createDiv({
+        cls: "rss-discover-selected-filter-remove",
+        attr: {
+          "aria-label": "Remove search filter",
+          role: "button",
+          tabindex: "0",
+        },
+      });
+      setIcon(removeBtn, "x");
+      removeBtn.addEventListener("click", () => {
+        this.filters.query = "";
+        this.currentPage = 1;
+        this.filterFeeds();
+        this.saveFilterState();
+        void this.render();
+      });
+      removeBtn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          removeBtn.click();
+        }
+      });
     }
 
     this.filters.selectedTypes.forEach((type) => {
@@ -1723,6 +1791,31 @@ export class DiscoverView extends ItemView {
       });
       setIcon(typeFilter, "tag");
       typeFilter.appendText(` ${type}`);
+      
+      const removeBtn = typeFilter.createDiv({
+        cls: "rss-discover-selected-filter-remove",
+        attr: {
+          "aria-label": `Remove type filter: ${type}`,
+          role: "button",
+          tabindex: "0",
+        },
+      });
+      setIcon(removeBtn, "x");
+      removeBtn.addEventListener("click", () => {
+        this.filters.selectedTypes = this.filters.selectedTypes.filter(
+          (t) => t !== type,
+        );
+        this.currentPage = 1;
+        this.filterFeeds();
+        this.saveFilterState();
+        void this.render();
+      });
+      removeBtn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          removeBtn.click();
+        }
+      });
     });
 
     this.filters.selectedPaths.forEach((path) => {
@@ -1734,6 +1827,37 @@ export class DiscoverView extends ItemView {
         .filter(Boolean)
         .join(" > ");
       pathFilter.appendText(` ${pathText}`);
+      
+      const removeBtn = pathFilter.createDiv({
+        cls: "rss-discover-selected-filter-remove",
+        attr: {
+          "aria-label": `Remove category filter: ${pathText}`,
+          role: "button",
+          tabindex: "0",
+        },
+      });
+      setIcon(removeBtn, "x");
+      removeBtn.addEventListener("click", () => {
+        this.filters.selectedPaths = this.filters.selectedPaths.filter(
+          (p) =>
+            !(
+              p.domain === path.domain &&
+              p.subdomain === path.subdomain &&
+              p.area === path.area &&
+              p.topic === path.topic
+            ),
+        );
+        this.currentPage = 1;
+        this.filterFeeds();
+        this.saveFilterState();
+        void this.render();
+      });
+      removeBtn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          removeBtn.click();
+        }
+      });
     });
 
     this.filters.selectedTags.forEach((tag) => {
@@ -1743,6 +1867,31 @@ export class DiscoverView extends ItemView {
       setIcon(tagFilter, "hash");
       tagFilter.appendText(` ${tag}`);
       tagFilter.style.setProperty("--tag-color", this.getTagColor(tag));
+      
+      const removeBtn = tagFilter.createDiv({
+        cls: "rss-discover-selected-filter-remove",
+        attr: {
+          "aria-label": `Remove tag filter: ${tag}`,
+          role: "button",
+          tabindex: "0",
+        },
+      });
+      setIcon(removeBtn, "x");
+      removeBtn.addEventListener("click", () => {
+        this.filters.selectedTags = this.filters.selectedTags.filter(
+          (t) => t !== tag,
+        );
+        this.currentPage = 1;
+        this.filterFeeds();
+        this.saveFilterState();
+        void this.render();
+      });
+      removeBtn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          removeBtn.click();
+        }
+      });
     });
   }
 

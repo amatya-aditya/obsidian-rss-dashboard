@@ -380,7 +380,7 @@ export class KagiSmallwebView extends ItemView {
 
     // Search input
     const searchWrapper = controlsRow.createDiv({
-      cls: "rss-smallweb-search-wrapper",
+      cls: "rss-smallweb-search-wrapper rss-discover-search-input-wrapper",
     });
     const searchInput = searchWrapper.createEl("input", {
       type: "text",
@@ -388,8 +388,43 @@ export class KagiSmallwebView extends ItemView {
       value: this.smallwebSearchQuery,
     });
     searchInput.addClass("rss-discover-search-input");
+
+    // Clear button
+    const clearButton = searchWrapper.createDiv({
+      cls: "clickable-icon rss-discover-search-clear",
+      attr: {
+        "aria-label": "Clear search",
+        role: "button",
+        tabindex: "0",
+      },
+    });
+    setIcon(clearButton, "x");
+    if (!this.smallwebSearchQuery) {
+      clearButton.addClass("rss-discover-search-clear-hidden");
+    }
+
+    clearButton.addEventListener("click", () => {
+      this.smallwebSearchQuery = "";
+      searchInput.value = "";
+      clearButton.addClass("rss-discover-search-clear-hidden");
+      this.filterSmallwebEntries();
+      this.render();
+    });
+
+    clearButton.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        clearButton.click();
+      }
+    });
+
     searchInput.addEventListener("input", (e) => {
       const value = (e.target as HTMLInputElement).value;
+      if (value) {
+        clearButton.removeClass("rss-discover-search-clear-hidden");
+      } else {
+        clearButton.addClass("rss-discover-search-clear-hidden");
+      }
       this.debouncedSmallwebSearch(value);
     });
 
