@@ -173,6 +173,12 @@
   margin-block: 1.15em;
 }
 
+/* Ensure all child elements inherit the line-height setting */
+.rss-reader-article-content *,
+.rss-reader-description-body * {
+  line-height: inherit;
+}
+
 .rss-reader-description-callout {
   margin: 0 auto 16px;
   border: 1px solid var(--background-modifier-border);
@@ -499,7 +505,7 @@ mark.rss-highlight {
 
   .rss-reader-article-content {
     font-size: 16px;
-    line-height: 1.6;
+    line-height: var(--rss-reader-line-height);
   }
 
   .rss-reader-responsive-img {
