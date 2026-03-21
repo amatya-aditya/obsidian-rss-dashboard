@@ -761,11 +761,6 @@ export class Sidebar {
       });
     }
 
-    // Purple divider line beneath
-    container.createDiv({
-      cls: "rss-dashboard-all-feeds-divider",
-    });
-
     // Click handler
     allFeedsButton.addEventListener("click", () => {
       this.callbacks.onFolderClick(null);
@@ -1785,10 +1780,13 @@ export class Sidebar {
     if (this.settings.display.hideToolbarEntirely) return;
 
     const iconRowWrapper = header.createDiv({ cls: "rss-icon-row-wrapper" });
-    const iconRow = iconRowWrapper.createDiv({ cls: "rss-dashboard-header-icon-row" });
+    const iconRow = iconRowWrapper.createDiv({
+      cls: "rss-dashboard-header-icon-row",
+    });
     const display = this.settings.display;
-    const iconOrder: string[] =
-      display.iconOrder?.length ? display.iconOrder : [...SIDEBAR_ICON_IDS];
+    const iconOrder: string[] = display.iconOrder?.length
+      ? display.iconOrder
+      : [...SIDEBAR_ICON_IDS];
 
     // collapseAll needs a ref to its own button to update the icon dynamically
     let collapseAllBtnRef: HTMLElement | null = null;
@@ -1840,7 +1838,11 @@ export class Sidebar {
           };
           this.iconActions.set("dashboard", action);
           btn = createToolbarButton(iconConfig, action);
-          btn.addClass("rss-dashboard-nav-button", "rss-dashboard-nav-button--icon", "active");
+          btn.addClass(
+            "rss-dashboard-nav-button",
+            "rss-dashboard-nav-button--icon",
+            "active",
+          );
           break;
         }
 
@@ -1854,7 +1856,10 @@ export class Sidebar {
           };
           this.iconActions.set("discover", action);
           btn = createToolbarButton(iconConfig, action);
-          btn.addClass("rss-dashboard-nav-button", "rss-dashboard-nav-button--icon");
+          btn.addClass(
+            "rss-dashboard-nav-button",
+            "rss-dashboard-nav-button--icon",
+          );
           break;
         }
 
@@ -1910,10 +1915,7 @@ export class Sidebar {
           this.iconActions.set("search", action);
           btn = createToolbarButton(iconConfig, action);
           btn.toggleClass("is-active", this.isSearchExpanded);
-          btn.setAttr(
-            "aria-pressed",
-            this.isSearchExpanded ? "true" : "false",
-          );
+          btn.setAttr("aria-pressed", this.isSearchExpanded ? "true" : "false");
           break;
         }
 
@@ -1936,7 +1938,9 @@ export class Sidebar {
 
         case "sort":
           // sort requires the MouseEvent for menu positioning; action stored in fireIconAction
-          btn = createToolbarButton(iconConfig, () => {/* keyboard: no-op */});
+          btn = createToolbarButton(iconConfig, () => {
+            /* keyboard: no-op */
+          });
           btn.addEventListener("click", (e: MouseEvent) =>
             this.fireIconAction("sort", e),
           );
@@ -1999,8 +2003,12 @@ export class Sidebar {
   }
 
   private updateIconRowFades(): void {
-    const iconRow = this.container.querySelector<HTMLElement>(".rss-dashboard-header-icon-row");
-    const wrapper = this.container.querySelector<HTMLElement>(".rss-icon-row-wrapper");
+    const iconRow = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-header-icon-row",
+    );
+    const wrapper = this.container.querySelector<HTMLElement>(
+      ".rss-icon-row-wrapper",
+    );
     if (!iconRow || !wrapper) return;
     wrapper.toggleClass("has-overflow-left", iconRow.scrollLeft > 0);
     wrapper.toggleClass(

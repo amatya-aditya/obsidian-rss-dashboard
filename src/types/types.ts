@@ -321,6 +321,16 @@ export interface RssDashboardSettings {
   display: DisplaySettings;
   highlights: HighlightSettings;
   filters: GlobalFilterSettings;
+
+  /**
+   * Dashboard multi-filters state (status/tag filters + AND/OR) that should persist
+   * across navigation and restarts.
+   */
+  dashboardMultiFilters: {
+    statusFilters: string[];
+    tagFilters: string[];
+    logic: "AND" | "OR";
+  };
 }
 
 export type SettingsOnly = Omit<
@@ -507,5 +517,10 @@ guid: "{{guid}}"
     includeLogic: "AND",
     bypassAll: false,
     rules: [],
+  },
+  dashboardMultiFilters: {
+    statusFilters: [],
+    tagFilters: [],
+    logic: "OR",
   },
 };

@@ -156,7 +156,7 @@
   margin-top: 0;
   display: block;
   position: relative;
-  padding: 6px !important;
+  padding: 0px 6px !important;
   background: var(--background-primary);
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -588,10 +588,9 @@
   align-items: center;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  padding: 6px 6px 6px 8px;
-  margin-bottom: 4px;
-  border-radius: 4px;
-  border: solid 1px var(--background-modifier-active-hover);
+  padding: 4px 4px 8px;
+  border-bottom: solid 1px hsl(0deg 0% 80% / 25%);
+  border-top: solid 1px hsl(0deg 0% 80% / 25%);
 }
 
 .rss-dashboard-all-feeds-button:hover {
@@ -633,19 +632,6 @@
 .rss-dashboard-all-feeds-button.active .rss-dashboard-all-feeds-label {
   font-weight: 600;
   color: var(--text-accent);
-}
-
-/* Merged into .rss-dashboard-feed-unread-count above for exact alignment matching */
-
-/* Purple divider beneath All Feeds button */
-.rss-dashboard-all-feeds-divider {
-  height: 1px;
-  /* background-color: var(--background-modifier-border); */
-  margin: 4px 10px 8px 10px;
-}
-
-.theme-dark .rss-dashboard-all-feeds-divider {
-  /* background-color: var(--background-modifier-border); */
 }
 
 .rss-folder-name-modal {
@@ -922,13 +908,13 @@
   gap: 2px;
   flex-wrap: nowrap;
   overflow-x: auto;
-  scrollbar-width: none;       /* Firefox */
-  -ms-overflow-style: none;    /* IE/Edge */
-  padding: 1px 0;              /* keep focus rings from clipping */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  padding: 1px 0; /* keep focus rings from clipping */
 }
 
 .rss-dashboard-header-icon-row::-webkit-scrollbar {
-  display: none;               /* Chrome/Safari/WebKit */
+  display: none; /* Chrome/Safari/WebKit */
 }
 
 .rss-dashboard-header-icon-row .clickable-icon {

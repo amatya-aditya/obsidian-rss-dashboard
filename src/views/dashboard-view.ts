@@ -45,17 +45,19 @@ export class RssDashboardView extends ItemView {
   private readArticlesPage = 1;
   private savedArticlesPage = 1;
   private starredArticlesPage = 1;
-  private activeStatusFilters = new Set<string>();
-  private activeTagFilters = new Set<string>();
-  private filterLogic: "AND" | "OR" = "OR";
-  public sidebar!: Sidebar;
-  private articleList!: ArticleList;
-  private sidebarContainer: HTMLElement | null = null;
-  private verificationTimeout: number | null = null;
-  private folderPages: Record<string, number> = {};
-  private folderPageSizes: Record<string, number> = {};
-  private feedPages: Record<string, number> = {};
-  private feedPageSizes: Record<string, number> = {};
+	  private activeStatusFilters = new Set<string>();
+	  private activeTagFilters = new Set<string>();
+	  private filterLogic: "AND" | "OR" = "OR";
+	  public sidebar!: Sidebar;
+	  private articleList!: ArticleList;
+	  private sidebarContainer: HTMLElement | null = null;
+	  private verificationTimeout: number | null = null;
+	  private dashboardMultiFiltersDirty = false;
+	  private dashboardMultiFiltersSaveTimeout: number | null = null;
+	  private folderPages: Record<string, number> = {};
+	  private folderPageSizes: Record<string, number> = {};
+	  private feedPages: Record<string, number> = {};
+	  private feedPageSizes: Record<string, number> = {};
   private articleReaderLeafWhilePodcast: WorkspaceLeaf | null = null;
   private isResizing: boolean = false;
   private resizeHandle: HTMLElement | null = null;
@@ -81,22 +83,34 @@ export class RssDashboardView extends ItemView {
   private highlightMatchCounts: Array<{ word: HighlightWord; count: number }> =
     [];
 
-  constructor(
-    leaf: WorkspaceLeaf,
-    private plugin: RssDashboardPlugin,
-  ) {
-    super(leaf);
-    this.settings = this.plugin.settings;
-    this.collapsedFolders = this.settings.collapsedFolders || [];
-    this.saver = new ArticleSaver(
-      this.app,
-      this.settings.articleSaving,
-      this.settings.corsProxyEnabled ? this.settings.corsProxyUrl : undefined,
-    );
+	  constructor(
+	    leaf: WorkspaceLeaf,
+	    private plugin: RssDashboardPlugin,
+	  ) {
+	    super(leaf);
+	    this.settings = this.plugin.settings;
+	    this.collapsedFolders = this.settings.collapsedFolders || [];
 
-    // Set default filter based on settings
-    const defaultFilter = this.settings.display?.defaultFilter || "all";
-    const hiddenFilters = this.settings.display?.hiddenFilters || [];
+	    // Restore dashboard multi-filter state (status/tag + AND/OR) from settings
+	    if (this.settings.dashboardMultiFilters) {
+	      this.activeStatusFilters = new Set(
+	        this.settings.dashboardMultiFilters.statusFilters || [],
+	      );
+	      this.activeTagFilters = new Set(
+	        this.settings.dashboardMultiFilters.tagFilters || [],
+	      );
+	      this.filterLogic =
+	        this.settings.dashboardMultiFilters.logic === "AND" ? "AND" : "OR";
+	    }
+	    this.saver = new ArticleSaver(
+	      this.app,
+	      this.settings.articleSaving,
+	      this.settings.corsProxyEnabled ? this.settings.corsProxyUrl : undefined,
+	    );
+
+	    // Set default filter based on settings
+	    const defaultFilter = this.settings.display?.defaultFilter || "all";
+	    const hiddenFilters = this.settings.display?.hiddenFilters || [];
 
     // Only set the default filter if it's not hidden
     if (defaultFilter !== "all" && !hiddenFilters.includes(defaultFilter)) {
@@ -391,16 +405,16 @@ export class RssDashboardView extends ItemView {
           }
         },
       },
-      currentPage,
-      totalPages,
-      pageSize,
-      totalArticles,
-      this.activeStatusFilters,
-      this.activeTagFilters,
-      this.filterLogic,
-      this.currentFeed?.url,
-      this.currentFeed === null,
-    );
+	      currentPage,
+	      totalPages,
+	      pageSize,
+	      totalArticles,
+	      new Set(this.activeStatusFilters),
+	      new Set(this.activeTagFilters),
+	      this.filterLogic,
+	      this.currentFeed?.url,
+	      this.currentFeed === null,
+	    );
     this.articleList.render();
 
     this.updateRefreshButtonText();
@@ -1063,13 +1077,10 @@ export class RssDashboardView extends ItemView {
         scrollPosition = (foldersSection as HTMLElement).scrollTop;
     }
 
-    this.currentFeed = null;
-    this.currentTag = null;
-    this.activeStatusFilters = new Set();
-    this.activeTagFilters.clear();
-    this.filterLogic = "OR";
+	    this.currentFeed = null;
+	    this.currentTag = null;
 
-    if (this.currentFolder !== folder) {
+	    if (this.currentFolder !== folder) {
       if (folder === "unread") {
         this.unreadArticlesPage = 1;
       } else if (folder === "read") {
@@ -1107,15 +1118,12 @@ export class RssDashboardView extends ItemView {
       if (foldersSection)
         scrollPosition = (foldersSection as HTMLElement).scrollTop;
     }
-    this.currentFeed = feed;
-    this.currentFolder = null;
-    this.currentTag = null;
-    this.selectedArticle = null;
-    this.activeStatusFilters = new Set();
-    this.activeTagFilters.clear();
-    this.filterLogic = "OR";
+	    this.currentFeed = feed;
+	    this.currentFolder = null;
+	    this.currentTag = null;
+	    this.selectedArticle = null;
 
-    if (feed && feed.url) {
+	    if (feed && feed.url) {
       this.feedPages[feed.url] = 1;
     }
     void this.render();
@@ -1131,15 +1139,12 @@ export class RssDashboardView extends ItemView {
   }
 
   private handleTagClick(tag: string | null): void {
-    this.currentTag = tag;
-    this.currentFolder = null;
-    this.currentFeed = null;
-    this.selectedArticle = null;
-    this.activeStatusFilters = new Set();
-    this.activeTagFilters.clear();
-    this.filterLogic = "OR";
-    void this.render();
-  }
+	    this.currentTag = tag;
+	    this.currentFolder = null;
+	    this.currentFeed = null;
+	    this.selectedArticle = null;
+	    void this.render();
+	  }
 
   private handleToggleTagsCollapse(): void {
     this.tagsCollapsed = !this.tagsCollapsed;
@@ -1871,21 +1876,28 @@ export class RssDashboardView extends ItemView {
     this.render();
   }
 
-  onClose(): Promise<void> {
-    this.closeMobileSidebarModal();
-    this.lastViewportMobileSidebarMode = null;
+	  async onClose(): Promise<void> {
+	    this.closeMobileSidebarModal();
+	    this.lastViewportMobileSidebarMode = null;
 
-    if (this.verificationTimeout) {
-      window.clearTimeout(this.verificationTimeout);
-    }
-    if (this.articleList) {
-      this.articleList.destroy();
-    }
-    this.sidebar?.destroy();
-    this.resizeHandle = null;
-    this.dashboardContainer = null;
-    return Promise.resolve();
-  }
+	    if (this.verificationTimeout) {
+	      window.clearTimeout(this.verificationTimeout);
+	    }
+	    if (this.dashboardMultiFiltersSaveTimeout !== null) {
+	      window.clearTimeout(this.dashboardMultiFiltersSaveTimeout);
+	      this.dashboardMultiFiltersSaveTimeout = null;
+	    }
+	    if (this.dashboardMultiFiltersDirty) {
+	      this.dashboardMultiFiltersDirty = false;
+	      await this.plugin.saveSettings();
+	    }
+	    if (this.articleList) {
+	      this.articleList.destroy();
+	    }
+	    this.sidebar?.destroy();
+	    this.resizeHandle = null;
+	    this.dashboardContainer = null;
+	  }
 
   private setupSidebarResize(): void {
     // Don't setup resize on mobile/tablet
@@ -2092,48 +2104,72 @@ export class RssDashboardView extends ItemView {
       } else {
         this.activeTagFilters.delete(filter.type);
       }
-    } else if (filter.checked !== undefined) {
-      const filterType = filter.type.toLowerCase();
-      if (filter.checked) {
-        this.activeStatusFilters.add(filterType);
-      } else {
-        this.activeStatusFilters.delete(filterType);
-      }
-    } else {
-      // Age filter - requires saving settings and full re-render
-      this.settings.articleFilter = {
-        type: filter.type as
-          | "age"
-          | "read"
-          | "unread"
-          | "starred"
-          | "saved"
-          | "none",
-        value: filter.value,
-      };
-      void this.plugin.saveSettings();
-      void this.render();
-      return;
-    }
+	    } else if (filter.checked !== undefined) {
+	      const filterType = filter.type.toLowerCase();
+	      if (filter.checked) {
+	        this.activeStatusFilters.add(filterType);
+	      } else {
+	        this.activeStatusFilters.delete(filterType);
+	      }
+	    } else {
+	      // Age filter - requires saving settings and full re-render
+	      this.settings.articleFilter = {
+	        type: filter.type as
+	          | "age"
+	          | "read"
+	          | "unread"
+	          | "starred"
+	          | "saved"
+	          | "none",
+	        value: filter.value,
+	      };
+	      void this.plugin.saveSettings();
+	      void this.render();
+	      return;
+	    }
 
-    // For status/tag/logic changes, do a partial re-render
-    // so the filter menu stays open
-    if (this.articleList) {
-      const filtered = this.getFilteredArticles();
-      this.articleList.refilter(
-        new Set(this.activeStatusFilters),
-        new Set(this.activeTagFilters),
-        this.filterLogic,
-        filtered,
-      );
-    }
-  }
+	    this.schedulePersistDashboardMultiFilters();
 
-  private handleGroupChange(value: "none" | "feed" | "date" | "folder"): void {
-    this.settings.articleGroupBy = value;
-    void this.plugin.saveSettings();
-    void this.render();
-  }
+	    // For status/tag/logic changes, do a partial re-render
+	    // so the filter menu stays open
+	    if (this.articleList) {
+	      const filtered = this.getFilteredArticles();
+	      this.articleList.refilter(
+	        new Set(this.activeStatusFilters),
+	        new Set(this.activeTagFilters),
+	        this.filterLogic,
+	        filtered,
+	      );
+	    }
+	  }
+
+	  private schedulePersistDashboardMultiFilters(): void {
+	    this.settings.dashboardMultiFilters = {
+	      statusFilters: Array.from(this.activeStatusFilters),
+	      tagFilters: Array.from(this.activeTagFilters),
+	      logic: this.filterLogic,
+	    };
+
+	    this.dashboardMultiFiltersDirty = true;
+	    if (this.dashboardMultiFiltersSaveTimeout !== null) {
+	      window.clearTimeout(this.dashboardMultiFiltersSaveTimeout);
+	    }
+
+	    this.dashboardMultiFiltersSaveTimeout = window.setTimeout(() => {
+	      this.dashboardMultiFiltersSaveTimeout = null;
+	      if (!this.dashboardMultiFiltersDirty) {
+	        return;
+	      }
+	      this.dashboardMultiFiltersDirty = false;
+	      void this.plugin.saveSettings();
+	    }, 150);
+	  }
+
+	  private handleGroupChange(value: "none" | "feed" | "date" | "folder"): void {
+	    this.settings.articleGroupBy = value;
+	    void this.plugin.saveSettings();
+	    void this.render();
+	  }
 
   private getTotalArticlesCountForCurrentView(): number {
     let articles: FeedItem[] = [];

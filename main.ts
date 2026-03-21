@@ -1661,6 +1661,27 @@ export default class RssDashboardPlugin extends Plugin {
       }
     }
 
+    if (!this.settings.dashboardMultiFilters) {
+      this.settings.dashboardMultiFilters = DEFAULT_SETTINGS.dashboardMultiFilters;
+    } else {
+      const mfUnknown =
+        this.settings.dashboardMultiFilters as unknown as Record<string, unknown>;
+      const statusFiltersRaw = mfUnknown.statusFilters;
+      const tagFiltersRaw = mfUnknown.tagFilters;
+      const logicRaw = mfUnknown.logic;
+
+      this.settings.dashboardMultiFilters.statusFilters = Array.isArray(
+        statusFiltersRaw,
+      )
+        ? statusFiltersRaw.filter((v): v is string => typeof v === "string")
+        : [];
+      this.settings.dashboardMultiFilters.tagFilters = Array.isArray(tagFiltersRaw)
+        ? tagFiltersRaw.filter((v): v is string => typeof v === "string")
+        : [];
+      this.settings.dashboardMultiFilters.logic =
+        logicRaw === "AND" || logicRaw === "OR" ? logicRaw : "OR";
+    }
+
     this.settings.feeds.forEach((feed) => {
       if (!feed.filters) {
         feed.filters = {

@@ -14,6 +14,8 @@
   - Hide/show entire toolbar.
   - New settings button (opens RSS-Dashboard settings)
 
+- **Dashboard multi-filters persist across navigation**: Status/tag filters (and AND/OR logic) no longer reset when switching between feeds, folders, or sidebar tag views (state is saved and restored on reopen/restart).
+
 ### Fixed
 
 - **Reader tags menu**: Reader toolbar now uses the same tag management portal UI as dashboard cards (edit/delete/add tags, mobile sheet support).
