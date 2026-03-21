@@ -6,6 +6,7 @@ import {
   normalizePath,
   Modal,
   TextComponent,
+  setIcon,
 } from "obsidian";
 import RssDashboardPlugin from "./../../main";
 import {
@@ -17,7 +18,6 @@ import {
   DisplaySettings,
 } from "../types/types";
 import {
-  SIDEBAR_ICONS,
   SIDEBAR_ICON_IDS,
   getIconById,
 } from "../utils/sidebar-icon-registry";
@@ -1284,7 +1284,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
-    // ── Icon Visibility ──────────────────────────────────────────────────────
+    // ── Icon Visibility & Order ───────────────────────────────────────────────
     new Setting(containerEl).setName("Icon visibility").setHeading();
 
     // Store Setting instances so master toggle can disable them
@@ -1310,106 +1310,106 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
-    for (const icon of SIDEBAR_ICONS) {
-      const hideKey =
-        `hideIcon${icon.id.charAt(0).toUpperCase() + icon.id.slice(1)}` as keyof DisplaySettings;
-      const iconSetting = new Setting(containerEl)
-        .setName(`Show ${icon.label}`)
-        .setDesc(`Toggle visibility of the ${icon.label} icon`)
-        .setDisabled(
-          this.plugin.settings.display.hideToolbarEntirely ?? false,
-        )
-        .addToggle((toggle) =>
-          toggle
-            .setValue(!(this.plugin.settings.display[hideKey] as boolean))
-            .onChange((value) => {
-              void (async () => {
-                (this.plugin.settings.display[hideKey] as boolean) = !value;
-                await this.plugin.saveSettings();
-                const view = await this.plugin.getActiveDashboardView();
-                if (view?.sidebar) {
-                  await this.app.workspace.revealLeaf(view.leaf);
-                  view.sidebar.render();
-                }
-              })();
-            }),
-        );
-      iconToggleSettings.push(iconSetting);
-    }
+    const iconRowsContainer = containerEl.createDiv();
 
-    // ── Icon Order ───────────────────────────────────────────────────────────
-    new Setting(containerEl).setName("Icon order").setHeading();
-
-    const iconOrderContainer = containerEl.createDiv({
-      cls: "rss-dashboard-icon-order-list",
-    });
-
-    const renderOrderList = () => {
-      iconOrderContainer.empty();
+    const renderIconRows = () => {
+      iconRowsContainer.empty();
+      iconToggleSettings.length = 0;
       const order: string[] =
         this.plugin.settings.display.iconOrder?.length
           ? this.plugin.settings.display.iconOrder
           : [...SIDEBAR_ICON_IDS];
+      const hideToolbar = this.plugin.settings.display.hideToolbarEntirely ?? false;
 
       order.forEach((id, i) => {
-        const iconConfig = getIconById(id);
-        const label = iconConfig?.label ?? id;
+        const icon = getIconById(id);
+        if (!icon) return;
+        const hideKey =
+          `hideIcon${icon.id.charAt(0).toUpperCase() + icon.id.slice(1)}` as keyof DisplaySettings;
 
-        const row = iconOrderContainer.createDiv({
-          cls: "rss-dashboard-icon-order-row",
-        });
-        row.createSpan({ text: label, cls: "rss-dashboard-icon-order-label" });
+        const nameFrag = document.createDocumentFragment();
+        const iconSpan = document.createElement("span");
+        iconSpan.addClass("rss-settings-icon-preview");
+        setIcon(iconSpan, icon.lucideIcon);
+        nameFrag.append(iconSpan);
+        nameFrag.append(` ${icon.label}`);
 
-        const btnGroup = row.createDiv({
-          cls: "rss-dashboard-icon-order-buttons",
-        });
+        const iconSetting = new Setting(iconRowsContainer)
+          .setName(nameFrag)
+          .setDisabled(hideToolbar)
+          .addToggle((toggle) =>
+            toggle
+              .setValue(!(this.plugin.settings.display[hideKey] as boolean))
+              .onChange((value) => {
+                void (async () => {
+                  (this.plugin.settings.display[hideKey] as boolean) = !value;
+                  await this.plugin.saveSettings();
+                  const view = await this.plugin.getActiveDashboardView();
+                  if (view?.sidebar) {
+                    await this.app.workspace.revealLeaf(view.leaf);
+                    view.sidebar.render();
+                  }
+                })();
+              }),
+          );
 
-        const upBtn = btnGroup.createEl("button", {
-          text: "↑",
-          attr: { "aria-label": `Move ${label} up` },
-        });
-        if (i === 0) upBtn.disabled = true;
+        const upBtn = document.createElement("button");
+        upBtn.addClass("rss-dashboard-icon-order-btn");
+        upBtn.setAttribute("aria-label", `Move ${icon.label} up`);
+        upBtn.textContent = "↑";
+        upBtn.disabled = i === 0;
         upBtn.addEventListener("click", () => {
-          void (async () => {
-            const newOrder = [...order];
-            [newOrder[i - 1], newOrder[i]] = [newOrder[i], newOrder[i - 1]];
+          const currentOrder = this.plugin.settings.display.iconOrder || [...SIDEBAR_ICON_IDS];
+          const idx = currentOrder.indexOf(id);
+          if (idx > 0) {
+            const newOrder = [...currentOrder];
+            [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
             this.plugin.settings.display.iconOrder = newOrder;
-            await this.plugin.saveSettings();
-            renderOrderList();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) view.sidebar.render();
-          })();
+            renderIconRows();
+            void (async () => {
+              await this.plugin.saveSettings();
+              const view = await this.plugin.getActiveDashboardView();
+              if (view?.sidebar) view.sidebar.render();
+            })();
+          }
         });
 
-        const downBtn = btnGroup.createEl("button", {
-          text: "↓",
-          attr: { "aria-label": `Move ${label} down` },
-        });
-        if (i === order.length - 1) downBtn.disabled = true;
+        const downBtn = document.createElement("button");
+        downBtn.addClass("rss-dashboard-icon-order-btn");
+        downBtn.setAttribute("aria-label", `Move ${icon.label} down`);
+        downBtn.textContent = "↓";
+        downBtn.disabled = i === order.length - 1;
         downBtn.addEventListener("click", () => {
-          void (async () => {
-            const newOrder = [...order];
-            [newOrder[i], newOrder[i + 1]] = [newOrder[i + 1], newOrder[i]];
+          const currentOrder = this.plugin.settings.display.iconOrder || [...SIDEBAR_ICON_IDS];
+          const idx = currentOrder.indexOf(id);
+          if (idx >= 0 && idx < currentOrder.length - 1) {
+            const newOrder = [...currentOrder];
+            [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
             this.plugin.settings.display.iconOrder = newOrder;
-            await this.plugin.saveSettings();
-            renderOrderList();
-            const view = await this.plugin.getActiveDashboardView();
-            if (view?.sidebar) view.sidebar.render();
-          })();
+            renderIconRows();
+            void (async () => {
+              await this.plugin.saveSettings();
+              const view = await this.plugin.getActiveDashboardView();
+              if (view?.sidebar) view.sidebar.render();
+            })();
+          }
         });
+
+        iconSetting.controlEl.prepend(downBtn);
+        iconSetting.controlEl.prepend(upBtn);
+        iconToggleSettings.push(iconSetting);
       });
     };
-    renderOrderList();
+    renderIconRows();
 
     new Setting(containerEl)
       .setName("Reset icon order")
-      .setDesc("Restore the default icon order")
       .addButton((btn) =>
         btn.setButtonText("Reset").onClick(() => {
           void (async () => {
             this.plugin.settings.display.iconOrder = [...SIDEBAR_ICON_IDS];
             await this.plugin.saveSettings();
-            renderOrderList();
+            renderIconRows();
             const view = await this.plugin.getActiveDashboardView();
             if (view?.sidebar) view.sidebar.render();
           })();
