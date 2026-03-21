@@ -1310,7 +1310,47 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           }),
       );
 
-    const iconRowsContainer = containerEl.createDiv();
+    const iconRowsContainer = containerEl.createDiv({
+      cls: "rss-dashboard-icon-visibility-rows",
+    });
+
+    let draggedIconId: string | null = null;
+
+    const clearIconRowDragState = (): void => {
+      draggedIconId = null;
+      iconRowsContainer
+        .querySelectorAll(
+          ".rss-dashboard-icon-row-dragging, .rss-dashboard-icon-drop-before, .rss-dashboard-icon-drop-after",
+        )
+        .forEach((el) => {
+          el.classList.remove(
+            "rss-dashboard-icon-row-dragging",
+            "rss-dashboard-icon-drop-before",
+            "rss-dashboard-icon-drop-after",
+          );
+        });
+    };
+
+    const moveIconOrder = (
+      currentOrder: string[],
+      fromId: string,
+      toId: string,
+      insertAfter: boolean,
+    ): string[] => {
+      const fromIndex = currentOrder.indexOf(fromId);
+      const toIndex = currentOrder.indexOf(toId);
+      if (fromIndex === -1 || toIndex === -1) return currentOrder;
+
+      const nextOrder = [...currentOrder];
+      nextOrder.splice(fromIndex, 1);
+
+      let insertIndex = toIndex;
+      if (fromIndex < toIndex) insertIndex -= 1;
+      if (insertAfter) insertIndex += 1;
+
+      nextOrder.splice(insertIndex, 0, fromId);
+      return nextOrder;
+    };
 
     const renderIconRows = () => {
       iconRowsContainer.empty();
@@ -1328,11 +1368,14 @@ export class RssDashboardSettingTab extends PluginSettingTab {
           `hideIcon${icon.id.charAt(0).toUpperCase() + icon.id.slice(1)}` as keyof DisplaySettings;
 
         const nameFrag = document.createDocumentFragment();
+        const labelWrap = document.createElement("span");
+        labelWrap.addClass("rss-settings-icon-label");
         const iconSpan = document.createElement("span");
         iconSpan.addClass("rss-settings-icon-preview");
         setIcon(iconSpan, icon.lucideIcon);
-        nameFrag.append(iconSpan);
-        nameFrag.append(` ${icon.label}`);
+        labelWrap.append(iconSpan);
+        labelWrap.append(` ${icon.label}`);
+        nameFrag.append(labelWrap);
 
         const iconSetting = new Setting(iconRowsContainer)
           .setName(nameFrag)
@@ -1352,6 +1395,17 @@ export class RssDashboardSettingTab extends PluginSettingTab {
                 })();
               }),
           );
+
+        iconSetting.settingEl.addClass("rss-dashboard-icon-visibility-row");
+        iconSetting.settingEl.setAttribute("data-icon-id", id);
+
+        const dragHandle = document.createElement("button");
+        dragHandle.type = "button";
+        dragHandle.addClass("rss-dashboard-icon-drag-handle");
+        dragHandle.setAttribute("draggable", "true");
+        dragHandle.setAttribute("aria-label", `Drag to reorder ${icon.label}`);
+        setIcon(dragHandle, "grip-vertical");
+        iconSetting.nameEl.prepend(dragHandle);
 
         const upBtn = document.createElement("button");
         upBtn.addClass("rss-dashboard-icon-order-btn");
@@ -1398,6 +1452,84 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         iconSetting.controlEl.prepend(downBtn);
         iconSetting.controlEl.prepend(upBtn);
         iconToggleSettings.push(iconSetting);
+
+        dragHandle.addEventListener("dragstart", (e: DragEvent) => {
+          clearIconRowDragState();
+          draggedIconId = id;
+          iconSetting.settingEl.classList.add("rss-dashboard-icon-row-dragging");
+          if (e.dataTransfer) {
+            e.dataTransfer.setData("rss-dashboard-icon-id", id);
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setDragImage(iconSetting.settingEl, 0, 0);
+          }
+        });
+
+        iconSetting.settingEl.addEventListener("dragover", (e: DragEvent) => {
+          if (!draggedIconId || draggedIconId === id) return;
+          e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+
+          iconRowsContainer
+            .querySelectorAll(
+              ".rss-dashboard-icon-drop-before, .rss-dashboard-icon-drop-after",
+            )
+            .forEach((el) => {
+              el.classList.remove(
+                "rss-dashboard-icon-drop-before",
+                "rss-dashboard-icon-drop-after",
+              );
+            });
+
+          const rect = iconSetting.settingEl.getBoundingClientRect();
+          const insertAfter = e.clientY > rect.top + rect.height / 2;
+          iconSetting.settingEl.classList.toggle(
+            "rss-dashboard-icon-drop-after",
+            insertAfter,
+          );
+          iconSetting.settingEl.classList.toggle(
+            "rss-dashboard-icon-drop-before",
+            !insertAfter,
+          );
+        });
+
+        iconSetting.settingEl.addEventListener("dragleave", (e: DragEvent) => {
+          const related =
+            e.relatedTarget instanceof HTMLElement ? e.relatedTarget : null;
+          if (related && iconSetting.settingEl.contains(related)) return;
+          iconSetting.settingEl.classList.remove(
+            "rss-dashboard-icon-drop-before",
+            "rss-dashboard-icon-drop-after",
+          );
+        });
+
+        iconSetting.settingEl.addEventListener("drop", (e: DragEvent) => {
+          e.preventDefault();
+          const fromId =
+            draggedIconId ?? e.dataTransfer?.getData("rss-dashboard-icon-id");
+          clearIconRowDragState();
+          if (!fromId || fromId === id) return;
+
+          const rect = iconSetting.settingEl.getBoundingClientRect();
+          const insertAfter = e.clientY > rect.top + rect.height / 2;
+
+          const currentOrder =
+            this.plugin.settings.display.iconOrder?.length
+              ? this.plugin.settings.display.iconOrder
+              : [...SIDEBAR_ICON_IDS];
+
+          const newOrder = moveIconOrder(currentOrder, fromId, id, insertAfter);
+          this.plugin.settings.display.iconOrder = newOrder;
+          renderIconRows();
+          void (async () => {
+            await this.plugin.saveSettings();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) view.sidebar.render();
+          })();
+        });
+
+        dragHandle.addEventListener("dragend", () => {
+          clearIconRowDragState();
+        });
       });
     };
     renderIconRows();
