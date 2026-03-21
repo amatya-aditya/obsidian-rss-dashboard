@@ -52,6 +52,10 @@
   justify-content: flex-end;
   flex-shrink: 0;
 }
+.rss-reader-actions .rss-dashboard-tags-dropdown {
+  display: flex;
+  align-items: center;
+}
 .rss-reader-action-button {
   cursor: pointer;
   padding: 4px;

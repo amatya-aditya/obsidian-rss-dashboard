@@ -23,21 +23,7 @@ import { fetchWithProxyFallback } from "../utils/fetch-helpers";
 import TurndownService from "turndown";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
-
-interface RssDashboardPluginInterface {
-  openTagsSettings(): void;
-  manifest: { id: string };
-}
-
-interface ExtendedApp extends App {
-  plugins: {
-    getPlugin(id: string): RssDashboardPluginInterface | null;
-  };
-  setting: {
-    open(): void;
-    openTabById(id: string): void;
-  };
-}
+import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
@@ -65,12 +51,7 @@ export class ReaderView extends ItemView {
   private readToggleButton: HTMLElement | null = null;
   private starToggleButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
-  private tagsDropdownPortal: HTMLElement | null = null;
-  private tagsDropdownBackdrop: HTMLElement | null = null;
-  private tagsDropdownOutsideHandler: ((event: MouseEvent) => void) | null =
-    null;
-  private tagsDropdownDocument: Document | null = null;
-  private tagsDropdownViewportCleanup: (() => void) | null = null;
+  private tagsDropdownCleanup: (() => void) | null = null;
 
   private readerFormatPortal: HTMLElement | null = null;
   private readerFormatBackdrop: HTMLElement | null = null;
@@ -98,6 +79,7 @@ export class ReaderView extends ItemView {
       await this.app.workspace.revealLeaf(targetLeaf);
     }
 
+    this.closeTagsDropdown();
     this.leaf.detach();
   }
 
@@ -242,15 +224,32 @@ export class ReaderView extends ItemView {
       }
     });
 
-    // Tags button
-    const tagsButton = actions.createDiv({
-      cls: "rss-reader-action-button rss-reader-tags-button",
-      attr: { title: "Manage tags" },
+    // Tags button (same portal menu as dashboard cards)
+    const tagsDropdown = actions.createDiv({
+      cls: "rss-dashboard-tags-dropdown",
+    });
+    const tagsButton = tagsDropdown.createDiv({
+      cls: "rss-dashboard-tags-toggle clickable-icon",
+      attr: {
+        title: "Manage tags",
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Manage tags",
+      },
     });
     setIcon(tagsButton, "tag");
-    tagsButton.addEventListener("click", (e) => {
-      if (this.currentItem) {
-        this.showTagsDropdown(e, this.currentItem);
+    const toggleTagsMenu = (e: Event) => {
+      e.stopPropagation();
+      if (!this.currentItem) {
+        return;
+      }
+      this.toggleTagsDropdown(tagsButton);
+    };
+    tagsButton.addEventListener("click", toggleTagsMenu);
+    tagsButton.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleTagsMenu(e);
       }
     });
 
@@ -431,6 +430,7 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
+    this.closeTagsDropdown();
     if (this.readingContainer) {
       this.readingContainer.empty();
     }
@@ -562,7 +562,7 @@ export class ReaderView extends ItemView {
         this.titleElement.setText(selectedEpisode.title);
       }
       this.updateToggleButtons();
-      this.closeTagsDropdownPortal();
+      this.closeTagsDropdown();
       void this.syncDashboardSelectionFromPlayer(selectedEpisode);
     };
 
@@ -927,51 +927,129 @@ export class ReaderView extends ItemView {
     this.onArticleUpdate(this.currentItem, { saved });
   }
 
-  private showTagsDropdown(evt: MouseEvent, item: FeedItem): void {
-    const menu = new Menu();
-    
-    const availableTags = this.settings.availableTags || [];
-    const itemTags = item.tags || [];
+  private toggleTagsDropdown(anchor: HTMLElement): void {
+    if (!this.currentItem) {
+      return;
+    }
 
-    availableTags.forEach(tag => {
-      const isSelected = itemTags.some(t => t.name === tag.name);
-      menu.addItem((menuItem: MenuItem) => {
-        menuItem
-          .setTitle(tag.name)
-          .setIcon(isSelected ? "check" : "tag")
-          .onClick(() => {
-            this.toggleTag(item, tag, !isSelected);
-          });
-      });
+    if (this.tagsDropdownCleanup) {
+      this.tagsDropdownCleanup();
+      this.tagsDropdownCleanup = null;
+      return;
+    }
+
+    const item = this.currentItem;
+    const cleanup = createTagsDropdownPortal({
+      anchor,
+      settings: this.settings,
+      item,
+      onTagAssignmentChange: (tag, checked) => {
+        this.toggleTag(item, tag, checked);
+      },
+      onPersistSettings: async () => {
+        const plugin = this.getRssDashboardPluginForSettingsSave();
+        if (!plugin) {
+          return;
+        }
+        try {
+          await plugin.saveSettings();
+        } catch {
+          // ignore
+        }
+      },
+      onAfterSettingsTagsMutated: () => {
+        this.refreshReaderHeaderTags();
+        if (this.podcastPlayer) {
+          this.podcastPlayer.refreshTags();
+          this.podcastPlayer.refreshPlaylistTags();
+        }
+      },
+      onOpenTagsSettings: () => {
+        this.openTagsSettings();
+      },
+      appContainer: this.contentEl,
+      onClosed: () => {
+        if (this.tagsDropdownCleanup === cleanup) {
+          this.tagsDropdownCleanup = null;
+        }
+      },
     });
 
-    menu.addSeparator();
-    menu.addItem((menuItem: MenuItem) => {
-      menuItem
-        .setTitle("Manage tags...")
-        .setIcon("settings")
-        .onClick(() => {
-          // Open settings to the Tags tab
-          const extendedApp = this.app as ExtendedApp;
-          const plugin = extendedApp.plugins.getPlugin("obsidian-rss-dashboard");
-          if (plugin && typeof plugin.openTagsSettings === "function") {
-            plugin.openTagsSettings();
-          } else {
-            // Fallback for older versions or if method is missing
-            extendedApp.setting?.open();
-            extendedApp.setting?.openTabById("obsidian-rss-dashboard");
-          }
-        });
-    });
-
-    menu.showAtMouseEvent(evt);
+    this.tagsDropdownCleanup = cleanup;
   }
 
-  private closeTagsDropdownPortal(): void {
-    // This seems to be for a custom dropdown UI that might be partially implemented or legacy
-    if (this.tagsDropdownPortal) {
-      this.tagsDropdownPortal.remove();
-      this.tagsDropdownPortal = null;
+  private closeTagsDropdown(): void {
+    if (this.tagsDropdownCleanup) {
+      this.tagsDropdownCleanup();
+      this.tagsDropdownCleanup = null;
+    }
+  }
+
+  private openTagsSettings(): void {
+    const appWithPlugins = this.app as unknown as {
+      plugins?: {
+        getPlugin?: (id: string) => unknown;
+        plugins?: Record<string, unknown>;
+      };
+      setting?: {
+        open?: () => void;
+        openTabById?: (id: string) => void;
+      };
+    };
+
+    type TagsPlugin = { openTagsSettings?: () => void };
+    const plugins = appWithPlugins.plugins;
+    const pluginByGetter =
+      typeof plugins?.getPlugin === "function"
+        ? (plugins.getPlugin("rss-dashboard") as TagsPlugin | null)
+        : null;
+    const pluginByRegistry = plugins?.plugins?.["rss-dashboard"] as
+      | TagsPlugin
+      | undefined;
+
+    const plugin = pluginByGetter || pluginByRegistry;
+    if (typeof plugin?.openTagsSettings === "function") {
+      plugin.openTagsSettings();
+      return;
+    }
+
+    appWithPlugins.setting?.open?.();
+    appWithPlugins.setting?.openTabById?.("rss-dashboard");
+  }
+
+  private refreshReaderHeaderTags(): void {
+    if (!this.currentItem) {
+      return;
+    }
+
+    const headerContainer = this.readingContainer?.querySelector<HTMLElement>(
+      ".rss-reader-article-header",
+    );
+    if (!headerContainer) {
+      return;
+    }
+
+    const tags = this.currentItem.tags || [];
+    const existing = headerContainer.querySelector<HTMLElement>(".rss-reader-tags");
+
+    if (tags.length === 0) {
+      existing?.remove();
+      return;
+    }
+
+    const tagsContainer =
+      existing ??
+      headerContainer.createDiv({
+        cls: "rss-reader-tags",
+      });
+
+    tagsContainer.empty();
+    for (const tag of tags) {
+      const tagElement = tagsContainer.createDiv({
+        cls: "rss-reader-tag",
+      });
+      tagElement.textContent = tag.name;
+      tagElement.style.setProperty("--tag-color", tag.color);
     }
   }
 
@@ -1437,6 +1515,10 @@ export class ReaderView extends ItemView {
 
     // Notify parent to persist the change
     this.onArticleUpdate(item, { tags: [...item.tags] }, false);
+
+    if (this.currentItem?.guid === item.guid) {
+      this.refreshReaderHeaderTags();
+    }
 
     if (
       this.podcastPlayer &&

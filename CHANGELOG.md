@@ -1,19 +1,22 @@
-## [2.2.0-beta.8] - March 20, 2026
+## [Unreleased]
 
 ### New Features
 
-- **Sidebar Icon Layout Improvements**:
-  - Secondary icons (Add Feed, Manage Feeds, Search, Sort, Collapse All) are now right-aligned in the sidebar header.
-  - Visual separator (divider) added between navigation icons (Dashboard/Discover) and secondary action icons.
-  - Dashboard and Discover navigation icons now match the styling of the Discover tab with consistent sizing and Obsidian theme colors.
-  - Dashboard icon changed from `layout-dashboard` to `house` icon for clarity.
-  - Manage Feeds icon changed from `settings-2` to `pencil` (edit icon) to better represent the editing action.
+## [2.2.0-beta.8] - March 20, 2026
+
+- **IMPORTANT**: Earlier limited releases intended for users experiencing specific issues were tagged as 2.3.0-alpha.1, 2.3.0-alpha.2, and 2.3.0-alpha.3. These were incorrectly versioned. They have been retroactively designated as 2.2.0-beta.5, 2.2.0-beta.6, and 2.2.0-beta.7 in our internal documentation. The original GitHub release tags have been left intact to avoid breaking any shared links. Development continues from 2.2.0-beta.8 forward.
+
+### New Features
+
+- **Customizable sidebar icon settings**:
+  - Custom re-ordering via drag-and-drop or up/down buttons (mobile friendly).
+  - Hide/show individual icons.
+  - Hide/show entire toolbar.
+  - New settings button (opens RSS-Dashboard settings)
 
 ### Fixed
 
-- **Settings Icon**: Fixed Settings icon incorrectly opening Obsidian's core settings instead of the RSS Dashboard General tab.
-- **Hamburger Menu Tooltip**: Added "More actions" tooltip to the hamburger/overflow menu button for better UX when icons collapse on narrower sidebars.
-- **Icon Styling**: Nav icons (Dashboard/Discover) now properly display with active/hover states matching the Discover tab appearance.
+- **Reader tags menu**: Reader toolbar now uses the same tag management portal UI as dashboard cards (edit/delete/add tags, mobile sheet support).
 
 ## [2.3.0-alpha.3 / 2.2.0-beta.7] - March 18, 2026
 

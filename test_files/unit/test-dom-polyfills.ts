@@ -1,6 +1,29 @@
 export function installObsidianDomPolyfills(): void {
   const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
 
+  if (typeof window.matchMedia !== "function") {
+    window.matchMedia = ((query: string) => {
+      return {
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {
+          // deprecated
+        },
+        removeListener: () => {
+          // deprecated
+        },
+        addEventListener: () => {
+          // no-op
+        },
+        removeEventListener: () => {
+          // no-op
+        },
+        dispatchEvent: () => false,
+      } as MediaQueryList;
+    }) as typeof window.matchMedia;
+  }
+
   if (typeof proto.empty !== "function") {
     proto.empty = function empty(this: HTMLElement): void {
       this.textContent = "";
