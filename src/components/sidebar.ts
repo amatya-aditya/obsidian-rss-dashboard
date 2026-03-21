@@ -5,6 +5,7 @@ import {
   App,
   Modal,
   setIcon,
+  setTooltip,
   Setting,
   requestUrl,
 } from "obsidian";
@@ -15,6 +16,13 @@ import {
   RssDashboardSettings,
   FeedFilterSettings,
 } from "../types/types";
+import {
+  SIDEBAR_ICONS,
+  SIDEBAR_ICON_IDS,
+  getIconById,
+  createToolbarButton,
+  computeCollapsedIds,
+} from "../utils/sidebar-icon-registry";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import { showEditTagModal } from "../utils/tag-utils";
 import { attachInputClearButton } from "../utils/platform-utils";
@@ -238,6 +246,11 @@ export class Sidebar {
   private processingImportFeedUrls = new Set<string>();
   private faviconAvailabilityCache = new Map<string, boolean>();
   private faviconCheckPromises = new Map<string, Promise<boolean>>();
+  private iconBtnEls = new Map<string, HTMLElement>();
+  private iconActions = new Map<string, (e?: MouseEvent) => void>();
+  private hamburgerBtnEl: HTMLElement | null = null;
+  private collapsedIconsSet: Set<string> = new Set();
+  private resizeObserver: ResizeObserver | null = null;
 
   /**
    * Extract main domain from a URL for favicon purposes (without subdomains)
@@ -428,7 +441,10 @@ export class Sidebar {
   }
 
   public destroy(): void {
-    // No-op for now; kept for call-site compatibility.
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
   }
 
   public render(): void {
@@ -459,8 +475,7 @@ export class Sidebar {
       "--sidebar-item-padding-left",
       `${itemPaddingLeft}px`,
     );
-    const itemPaddingRight =
-      this.settings.display.sidebarItemPaddingRight ?? 2;
+    const itemPaddingRight = this.settings.display.sidebarItemPaddingRight ?? 2;
     this.container.style.setProperty(
       "--sidebar-item-padding-right",
       `${itemPaddingRight}px`,
@@ -492,6 +507,22 @@ export class Sidebar {
     this.renderSearchDock(controlsSurface);
     this.renderFeedFolders();
     this.applySearchFilterFromState();
+
+    // Attach ResizeObserver once; keep it across re-renders
+    if (!this.resizeObserver) {
+      this.resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          this.applyResponsiveCollapse(entry.contentRect.width);
+        }
+      });
+      this.resizeObserver.observe(this.container);
+    }
+    // Apply initial collapse state after the DOM settles
+    requestAnimationFrame(() => {
+      this.applyResponsiveCollapse(
+        this.container.offsetWidth || this.settings.sidebarWidth || 280,
+      );
+    });
 
     requestAnimationFrame(() => {
       this.container.scrollTop = scrollPosition;
@@ -1756,108 +1787,229 @@ export class Sidebar {
   }
 
   public renderHeader(parentEl: HTMLElement = this.container): void {
-    const header = parentEl.createDiv({
-      cls: "rss-dashboard-header",
-    });
+    const header = parentEl.createDiv({ cls: "rss-dashboard-header" });
+    this.iconBtnEls.clear();
+    this.iconActions.clear();
 
-    const navContainer = header.createDiv({
-      cls: "rss-dashboard-nav-container",
-    });
+    if (this.settings.display.hideToolbarEntirely) return;
 
-    const dashboardBtn = navContainer.createDiv({
-      cls: "rss-dashboard-nav-button rss-dashboard-nav-button--icon active",
-      attr: {
-        title: "Dashboard",
-        "aria-label": "Dashboard",
-        role: "button",
-        tabindex: "0",
+    const iconRow = header.createDiv({ cls: "rss-dashboard-header-icon-row" });
+    const display = this.settings.display;
+    const iconOrder: string[] =
+      display.iconOrder?.length ? display.iconOrder : [...SIDEBAR_ICON_IDS];
+
+    // collapseAll needs a ref to its own button to update the icon dynamically
+    let collapseAllBtnRef: HTMLElement | null = null;
+    let cachedCollapseAllPaths: string[] | null = null;
+    const updateCollapseAllIcon = () => {
+      if (!collapseAllBtnRef) return;
+      if (!cachedCollapseAllPaths) {
+        cachedCollapseAllPaths = this.getCachedFolderPaths();
+      }
+      const collapsedFolders = this.settings.collapsedFolders || [];
+      const allCollapsed =
+        cachedCollapseAllPaths.length > 0 &&
+        cachedCollapseAllPaths.every((path) => collapsedFolders.includes(path));
+      setIcon(
+        collapseAllBtnRef,
+        allCollapsed ? "chevrons-down-up" : "chevrons-up-down",
+      );
+    };
+
+    // Track whether we've passed the last nav icon so we can add a divider
+    let seenNavIcon = false;
+    let navDividerAdded = false;
+
+    for (const id of iconOrder) {
+      const iconConfig = getIconById(id);
+      if (!iconConfig) continue;
+
+      const hideKey = iconConfig.settingKey;
+      if (display[hideKey]) continue;
+
+      // Inject a visual divider between nav icons and action icons, plus a spacer to right-align secondary icons
+      if (!navDividerAdded && seenNavIcon && !iconConfig.isNav) {
+        const divider = iconRow.createDiv({ cls: "rss-nav-divider" });
+        iconRow.appendChild(divider);
+        // Add spacer to push secondary icons to the right
+        const spacer = iconRow.createDiv({ cls: "rss-icon-spacer" });
+        iconRow.appendChild(spacer);
+        navDividerAdded = true;
+      }
+      if (iconConfig.isNav) seenNavIcon = true;
+
+      let btn: HTMLElement;
+
+      switch (id) {
+        case "dashboard": {
+          const action = () => {
+            if (this.callbacks.onActivateDashboard) {
+              this.callbacks.onActivateDashboard();
+            } else {
+              void this.plugin.activateView();
+            }
+          };
+          this.iconActions.set("dashboard", action);
+          btn = createToolbarButton(iconConfig, action);
+          btn.addClass("rss-dashboard-nav-button", "rss-dashboard-nav-button--icon", "active");
+          break;
+        }
+
+        case "discover": {
+          const action = () => {
+            if (this.callbacks.onActivateDiscover) {
+              this.callbacks.onActivateDiscover();
+            } else {
+              void this.plugin.activateDiscoverView();
+            }
+          };
+          this.iconActions.set("discover", action);
+          btn = createToolbarButton(iconConfig, action);
+          btn.addClass("rss-dashboard-nav-button", "rss-dashboard-nav-button--icon");
+          break;
+        }
+
+        case "addFeed": {
+          const action = () => {
+            this.showAddFeedModal();
+            if (
+              !this.app.loadLocalStorage("rss-first-launch-coachmark-shown")
+            ) {
+              this.app.saveLocalStorage(
+                "rss-first-launch-coachmark-shown",
+                "true",
+              );
+              const coachmark = this.iconBtnEls
+                .get("addFeed")
+                ?.querySelector(".rss-dashboard-coachmark");
+              if (coachmark) coachmark.remove();
+            }
+          };
+          this.iconActions.set("addFeed", action);
+          btn = createToolbarButton(iconConfig, action);
+          break;
+        }
+
+        case "manageFeeds": {
+          const action = () => {
+            if (this.callbacks.onManageFeeds) {
+              this.callbacks.onManageFeeds();
+            }
+          };
+          this.iconActions.set("manageFeeds", action);
+          btn = createToolbarButton(iconConfig, action);
+          break;
+        }
+
+        case "search": {
+          const action = () => {
+            this.isSearchExpanded = !this.isSearchExpanded;
+            this.render();
+            if (this.isSearchExpanded) {
+              requestAnimationFrame(() => {
+                const searchInput =
+                  this.container.querySelector<HTMLInputElement>(
+                    ".rss-dashboard-search-input",
+                  );
+                if (!searchInput) return;
+                searchInput.focus();
+                searchInput.select();
+                searchInput.scrollIntoView({ block: "nearest" });
+              });
+            }
+          };
+          this.iconActions.set("search", action);
+          btn = createToolbarButton(iconConfig, action);
+          btn.toggleClass("is-active", this.isSearchExpanded);
+          btn.setAttr(
+            "aria-pressed",
+            this.isSearchExpanded ? "true" : "false",
+          );
+          break;
+        }
+
+        case "addFolder": {
+          const action = () => {
+            this.showFolderNameModal({
+              title: "Add folder",
+              existingNames: this.settings.folders.map((f) => f.name),
+              onSubmit: (folderName) => {
+                void this.addTopLevelFolder(folderName).then(() =>
+                  this.render(),
+                );
+              },
+            });
+          };
+          this.iconActions.set("addFolder", action);
+          btn = createToolbarButton(iconConfig, action);
+          break;
+        }
+
+        case "sort":
+          // sort requires the MouseEvent for menu positioning; action stored in fireIconAction
+          btn = createToolbarButton(iconConfig, () => {/* keyboard: no-op */});
+          btn.addEventListener("click", (e: MouseEvent) =>
+            this.fireIconAction("sort", e),
+          );
+          break;
+
+        case "collapseAll": {
+          const action = () => {
+            cachedCollapseAllPaths = null;
+            this.toggleAllFolders();
+            window.setTimeout(updateCollapseAllIcon, 0);
+          };
+          this.iconActions.set("collapseAll", action);
+          btn = createToolbarButton(iconConfig, action);
+          collapseAllBtnRef = btn;
+          updateCollapseAllIcon();
+          break;
+        }
+
+        case "settings": {
+          const action = () => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            (this.app as any).setting?.open?.();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            (this.app as any).setting?.openTabById?.(this.plugin.manifest.id);
+          };
+          this.iconActions.set("settings", action);
+          btn = createToolbarButton(iconConfig, action);
+          break;
+        }
+
+        default:
+          continue;
+      }
+
+      iconRow.appendChild(btn);
+      this.iconBtnEls.set(id, btn);
+    }
+
+    // Hamburger button — always last; hidden until responsive collapse needs it
+    const hamburgerBtn = createToolbarButton(
+      {
+        id: "_hamburger",
+        label: "More actions",
+        lucideIcon: "more-horizontal",
+        settingKey: "hideToolbarEntirely",
+        neverCollapses: true,
       },
-    });
-    setIcon(dashboardBtn, "home");
-    dashboardBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        dashboardBtn.click();
-      }
-    });
-    dashboardBtn.addEventListener("click", () => {
-      if (this.callbacks.onActivateDashboard) {
-        this.callbacks.onActivateDashboard();
-      } else {
-        void this.plugin.activateView();
-      }
-    });
+      () => this.toggleHamburgerPopover(),
+    );
+    hamburgerBtn.setAttribute("data-hamburger", "true");
+    hamburgerBtn.addClass("rss-hamburger-btn--hidden");
+    setTooltip(hamburgerBtn, "More actions");
+    this.hamburgerBtnEl = hamburgerBtn;
+    iconRow.appendChild(hamburgerBtn);
 
-    const discoverBtn = navContainer.createDiv({
-      cls: "rss-dashboard-nav-button rss-dashboard-nav-button--icon",
-      attr: {
-        title: "Discover",
-        "aria-label": "Discover",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(discoverBtn, "compass");
-    discoverBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        discoverBtn.click();
-      }
-    });
-    discoverBtn.addEventListener("click", () => {
-      if (this.callbacks.onActivateDiscover) {
-        this.callbacks.onActivateDiscover();
-      } else {
-        void this.plugin.activateDiscoverView();
-      }
-    });
-
-    // Add Toolbar right behind the nav tabs
-    const headerToolbar = header.createDiv({
-      cls: "rss-dashboard-header-toolbar",
-    });
-
-    this.renderToolbar(headerToolbar, true);
-
-    const addBtnContainer = headerToolbar.createDiv({
-      cls: "rss-dashboard-header-manage-container",
-    });
-
-    const addBtn = addBtnContainer.createDiv({
-      cls: "rss-dashboard-header-icon-button",
-      attr: {
-        title: "Add feed",
-        "aria-label": "Add feed",
-      },
-    });
-    setIcon(addBtn, "plus");
-    addBtn.addEventListener("click", () => {
-      this.showAddFeedModal();
-      if (!this.app.loadLocalStorage("rss-first-launch-coachmark-shown")) {
-        this.app.saveLocalStorage("rss-first-launch-coachmark-shown", "true");
-        const coachmark = addBtnContainer.querySelector(
-          ".rss-dashboard-coachmark",
-        );
-        if (coachmark) coachmark.remove();
-      }
-    });
-
-    const manageBtn = headerToolbar.createDiv({
-      cls: "rss-dashboard-header-icon-button",
-      attr: {
-        title: "Manage feeds",
-        "aria-label": "Manage feeds",
-      },
-    });
-    setIcon(manageBtn, "edit");
-    manageBtn.addEventListener("click", () => {
-      if (this.callbacks.onManageFeeds) {
-        this.callbacks.onManageFeeds();
-      }
-    });
-
-    if (!this.app.loadLocalStorage("rss-first-launch-coachmark-shown")) {
-      const coachmark = addBtnContainer.createDiv({
+    // First-launch coachmark for the Add Feed button
+    const addFeedBtn = this.iconBtnEls.get("addFeed");
+    if (
+      addFeedBtn &&
+      !this.app.loadLocalStorage("rss-first-launch-coachmark-shown")
+    ) {
+      const coachmark = addFeedBtn.createDiv({
         cls: "rss-dashboard-coachmark",
         text: "Add your first feed here",
       });
@@ -1868,22 +2020,154 @@ export class Sidebar {
         }
       }, 5000);
     }
+  }
 
-    //   const collapseBtn = headerToolbar.createDiv({
-    //     cls: "rss-dashboard-header-icon-button rss-dashboard-mobile-only",
-    //     attr: {
-    //       title: "Collapse sidebar",
-    //       "aria-label": "Collapse sidebar",
-    //     },
-    //   });
-    //   setIcon(collapseBtn, "panel-left-close");
-    //   collapseBtn.addEventListener("click", () => {
-    //     if (this.callbacks.onCloseMobileSidebar) {
-    //       this.callbacks.onCloseMobileSidebar();
-    //     } else if (this.callbacks.onToggleSidebar) {
-    //       this.callbacks.onToggleSidebar();
-    //     }
-    //   });
+  private applyResponsiveCollapse(width: number): void {
+    const display = this.settings.display;
+    const iconOrder: string[] = display.iconOrder?.length
+      ? display.iconOrder
+      : [...SIDEBAR_ICON_IDS];
+
+    const hiddenSettings: Partial<Record<string, boolean>> = {};
+    for (const icon of SIDEBAR_ICONS) {
+      if (display[icon.settingKey]) {
+        hiddenSettings[icon.settingKey] = true;
+      }
+    }
+
+    const collapsed = computeCollapsedIds(
+      width,
+      iconOrder,
+      hiddenSettings,
+      display.hideToolbarEntirely ?? false,
+    );
+    this.collapsedIconsSet = collapsed;
+
+    for (const [id, btn] of this.iconBtnEls) {
+      if (collapsed.has(id)) {
+        btn.addClass("rss-icon-btn--hidden");
+      } else {
+        btn.removeClass("rss-icon-btn--hidden");
+      }
+    }
+
+    if (this.hamburgerBtnEl) {
+      if (collapsed.size > 0) {
+        this.hamburgerBtnEl.removeClass("rss-hamburger-btn--hidden");
+      } else {
+        this.hamburgerBtnEl.addClass("rss-hamburger-btn--hidden");
+      }
+    }
+  }
+
+  private toggleHamburgerPopover(): void {
+    // Remove any existing popover first
+    this.container.querySelector(".rss-hamburger-popover")?.remove();
+
+    if (this.collapsedIconsSet.size === 0) return;
+
+    const display = this.settings.display;
+    const iconOrder: string[] = display.iconOrder?.length
+      ? display.iconOrder
+      : [...SIDEBAR_ICON_IDS];
+
+    const popover = this.container.createDiv({ cls: "rss-hamburger-popover" });
+
+    for (const id of iconOrder) {
+      if (!this.collapsedIconsSet.has(id)) continue;
+      const icon = getIconById(id);
+      if (!icon) continue;
+
+      const row = popover.createDiv({ cls: "rss-hamburger-popover-row" });
+      const iconEl = row.createDiv({
+        cls: "clickable-icon",
+        attr: {
+          role: "button",
+          tabindex: "0",
+          "aria-label": icon.label,
+        },
+      });
+      setIcon(iconEl, icon.lucideIcon);
+      row.createSpan({
+        cls: "rss-hamburger-popover-label",
+        text: icon.label,
+      });
+
+      const onRowClick = (e: MouseEvent) => {
+        popover.remove();
+        this.fireIconAction(id, e);
+      };
+      row.addEventListener("click", onRowClick);
+      iconEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          popover.remove();
+          this.fireIconAction(id);
+        }
+      });
+    }
+
+    // Click-outside to dismiss
+    const onOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        !target.closest(".rss-hamburger-popover") &&
+        !target.closest("[data-hamburger]")
+      ) {
+        popover.remove();
+        document.removeEventListener("click", onOutsideClick, true);
+      }
+    };
+    // Delay so this click doesn't immediately close the popover
+    window.setTimeout(
+      () => document.addEventListener("click", onOutsideClick, true),
+      0,
+    );
+  }
+
+  private fireIconAction(id: string, e?: MouseEvent): void {
+    if (id === "sort") {
+      const menu = new Menu();
+      menu.addItem((item) =>
+        item
+          .setTitle("Folder name (a to z)")
+          .onClick(() => void this.sortFolders("name", true)),
+      );
+      menu.addItem((item) =>
+        item
+          .setTitle("Folder name (z to a)")
+          .onClick(() => void this.sortFolders("name", false)),
+      );
+      menu.addItem((item) =>
+        item
+          .setTitle("Modified time (new to old)")
+          .onClick(() => void this.sortFolders("modified", false)),
+      );
+      menu.addItem((item) =>
+        item
+          .setTitle("Modified time (old to new)")
+          .onClick(() => void this.sortFolders("modified", true)),
+      );
+      menu.addItem((item) =>
+        item
+          .setTitle("Created time (new to old)")
+          .onClick(() => void this.sortFolders("created", false)),
+      );
+      menu.addItem((item) =>
+        item
+          .setTitle("Created time (old to new)")
+          .onClick(() => void this.sortFolders("created", true)),
+      );
+      if (e) {
+        menu.showAtMouseEvent(e);
+      } else if (this.hamburgerBtnEl) {
+        const rect = this.hamburgerBtnEl.getBoundingClientRect();
+        menu.showAtPosition({ x: rect.left, y: rect.bottom });
+      }
+      return;
+    }
+    const action = this.iconActions.get(id);
+    if (action) action(e);
   }
 
   public renderFilters(parentEl: HTMLElement): void {
@@ -1949,18 +2233,23 @@ export class Sidebar {
 
     let searchTimeout: number;
 
-    attachInputClearButton(searchContainer, searchInput, () => {
-      this.searchQuery = "";
-      if (searchTimeout) {
-        window.clearTimeout(searchTimeout);
-      }
-      this.filterFeedsAndFolders("");
-      searchInput.focus();
-    }, {
-      buttonClass: "rss-dashboard-search-clear",
-      hiddenClass: "is-hidden",
-      useButtonElement: true,
-    });
+    attachInputClearButton(
+      searchContainer,
+      searchInput,
+      () => {
+        this.searchQuery = "";
+        if (searchTimeout) {
+          window.clearTimeout(searchTimeout);
+        }
+        this.filterFeedsAndFolders("");
+        searchInput.focus();
+      },
+      {
+        buttonClass: "rss-dashboard-search-clear",
+        hiddenClass: "is-hidden",
+        useButtonElement: true,
+      },
+    );
 
     searchInput.addEventListener("focus", () => {
       searchInput.select();
@@ -2656,7 +2945,10 @@ export class Sidebar {
           ".rss-dashboard-feed-folder-toggle",
         );
         if (toggleButton) {
-          setIcon(toggleButton, wasCollapsed ? "chevron-right" : "chevron-down");
+          setIcon(
+            toggleButton,
+            wasCollapsed ? "chevron-right" : "chevron-down",
+          );
         }
         header.removeAttribute("data-search-expanded");
         header.removeAttribute("data-search-was-collapsed");
@@ -2690,7 +2982,9 @@ export class Sidebar {
       this.container.querySelectorAll<HTMLElement>(".rss-dashboard-feed"),
     );
     const folderElements = Array.from(
-      this.container.querySelectorAll<HTMLElement>(".rss-dashboard-feed-folder"),
+      this.container.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-feed-folder",
+      ),
     );
     const allFeedsButton = this.container.querySelector<HTMLElement>(
       ".rss-dashboard-all-feeds-button",
@@ -2724,9 +3018,7 @@ export class Sidebar {
     feedElements.forEach((feedEl) => {
       const feedTitle =
         feedEl.dataset.feedTitle ||
-        feedEl
-          .querySelector(".rss-dashboard-feed-name")
-          ?.textContent?.trim() ||
+        feedEl.querySelector(".rss-dashboard-feed-name")?.textContent?.trim() ||
         "";
       const feedFolderPath = feedEl.dataset.feedFolder || "";
 

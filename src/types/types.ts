@@ -188,6 +188,29 @@ export interface DisplaySettings {
   cardColumnsPerRow: number;
   cardSpacing: number;
   hideEmptyFeeds: boolean;
+
+  // Icon visibility (all default false = visible)
+  hideIconDashboard: boolean;
+  hideIconDiscover: boolean;
+  hideIconAddFeed: boolean;
+  hideIconManageFeeds: boolean;
+  hideIconSearch: boolean;
+  hideIconAddFolder: boolean;
+  hideIconSort: boolean;
+  hideIconCollapseAll: boolean;
+  hideIconSettings: boolean;
+  hideToolbarEntirely: boolean;
+  iconOrder: string[];
+}
+
+export interface SidebarIconConfig {
+  id: string;
+  label: string;
+  lucideIcon: string;
+  settingKey: keyof DisplaySettings;
+  collapseThreshold?: number;
+  neverCollapses?: boolean;
+  isNav?: boolean;
 }
 
 export type ReaderTextAlign = "justify" | "left";
@@ -451,6 +474,27 @@ guid: "{{guid}}"
     cardColumnsPerRow: 0,
     cardSpacing: 15,
     hideEmptyFeeds: false,
+    hideIconDashboard: false,
+    hideIconDiscover: false,
+    hideIconAddFeed: false,
+    hideIconManageFeeds: false,
+    hideIconSearch: false,
+    hideIconAddFolder: false,
+    hideIconSort: false,
+    hideIconCollapseAll: false,
+    hideIconSettings: false,
+    hideToolbarEntirely: false,
+    iconOrder: [
+      "dashboard",
+      "discover",
+      "addFeed",
+      "manageFeeds",
+      "search",
+      "addFolder",
+      "sort",
+      "collapseAll",
+      "settings",
+    ],
   },
   highlights: {
     enabled: false,

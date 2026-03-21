@@ -2,6 +2,9 @@
 
 ## Update History
 
+- 2026-03-17: Standardize icon rendering using clickable-icon pattern for Android compatibility
+- 2026-03-04: Update iPhone modal headroom fix and sync docs
+- 2026-03-04: Fix mobile sidebar header top insets for iOS and Android
 - 2026-03-04: Initial draft
 
 ## Purpose
@@ -183,8 +186,8 @@ const iconButton = container.createDiv({
   attr: {
     "aria-label": "Desired Action",
     role: "button",
-    tabindex: "0"
-  }
+    tabindex: "0",
+  },
 });
 setIcon(iconButton, "lucide-icon-name");
 ```

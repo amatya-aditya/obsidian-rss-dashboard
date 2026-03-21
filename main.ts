@@ -17,6 +17,7 @@ import {
   FeedFilterSettings,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
+import { migrateDisplaySettings } from "./src/utils/settings-migration";
 import {
   RssDashboardView,
   RSS_DASHBOARD_VIEW_TYPE,
@@ -1640,6 +1641,10 @@ export default class RssDashboardPlugin extends Plugin {
         this.settings.display.feedUnreadBadgeDefaultColor =
           DEFAULT_SETTINGS.display.feedUnreadBadgeDefaultColor;
       }
+      // Migrate icon visibility and order fields
+      migrateDisplaySettings(
+        this.settings.display as unknown as Record<string, unknown>
+      );
     }
 
     if (!this.settings.filters) {

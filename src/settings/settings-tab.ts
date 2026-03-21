@@ -14,7 +14,13 @@ import {
   SavedTemplate,
   DEFAULT_SETTINGS,
   PodcastTheme,
+  DisplaySettings,
 } from "../types/types";
+import {
+  SIDEBAR_ICONS,
+  SIDEBAR_ICON_IDS,
+  getIconById,
+} from "../utils/sidebar-icon-registry";
 import {
   FolderSuggest,
   VaultFolderSuggest,
@@ -1276,6 +1282,138 @@ export class RssDashboardSettingTab extends PluginSettingTab {
               view.sidebar.render();
             }
           }),
+      );
+
+    // ── Icon Visibility ──────────────────────────────────────────────────────
+    new Setting(containerEl).setName("Icon visibility").setHeading();
+
+    // Store Setting instances so master toggle can disable them
+    const iconToggleSettings: Setting[] = [];
+
+    new Setting(containerEl)
+      .setName("Hide toolbar entirely")
+      .setDesc("Hide all icons in the sidebar header")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(
+            this.plugin.settings.display.hideToolbarEntirely ?? false,
+          )
+          .onChange(async (value) => {
+            this.plugin.settings.display.hideToolbarEntirely = value;
+            await this.plugin.saveSettings();
+            iconToggleSettings.forEach((s) => { s.setDisabled(value); });
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) {
+              await this.app.workspace.revealLeaf(view.leaf);
+              view.sidebar.render();
+            }
+          }),
+      );
+
+    for (const icon of SIDEBAR_ICONS) {
+      const hideKey =
+        `hideIcon${icon.id.charAt(0).toUpperCase() + icon.id.slice(1)}` as keyof DisplaySettings;
+      const iconSetting = new Setting(containerEl)
+        .setName(`Show ${icon.label}`)
+        .setDesc(`Toggle visibility of the ${icon.label} icon`)
+        .setDisabled(
+          this.plugin.settings.display.hideToolbarEntirely ?? false,
+        )
+        .addToggle((toggle) =>
+          toggle
+            .setValue(!(this.plugin.settings.display[hideKey] as boolean))
+            .onChange((value) => {
+              void (async () => {
+                (this.plugin.settings.display[hideKey] as boolean) = !value;
+                await this.plugin.saveSettings();
+                const view = await this.plugin.getActiveDashboardView();
+                if (view?.sidebar) {
+                  await this.app.workspace.revealLeaf(view.leaf);
+                  view.sidebar.render();
+                }
+              })();
+            }),
+        );
+      iconToggleSettings.push(iconSetting);
+    }
+
+    // ── Icon Order ───────────────────────────────────────────────────────────
+    new Setting(containerEl).setName("Icon order").setHeading();
+
+    const iconOrderContainer = containerEl.createDiv({
+      cls: "rss-dashboard-icon-order-list",
+    });
+
+    const renderOrderList = () => {
+      iconOrderContainer.empty();
+      const order: string[] =
+        this.plugin.settings.display.iconOrder?.length
+          ? this.plugin.settings.display.iconOrder
+          : [...SIDEBAR_ICON_IDS];
+
+      order.forEach((id, i) => {
+        const iconConfig = getIconById(id);
+        const label = iconConfig?.label ?? id;
+
+        const row = iconOrderContainer.createDiv({
+          cls: "rss-dashboard-icon-order-row",
+        });
+        row.createSpan({ text: label, cls: "rss-dashboard-icon-order-label" });
+
+        const btnGroup = row.createDiv({
+          cls: "rss-dashboard-icon-order-buttons",
+        });
+
+        const upBtn = btnGroup.createEl("button", {
+          text: "↑",
+          attr: { "aria-label": `Move ${label} up` },
+        });
+        if (i === 0) upBtn.disabled = true;
+        upBtn.addEventListener("click", () => {
+          void (async () => {
+            const newOrder = [...order];
+            [newOrder[i - 1], newOrder[i]] = [newOrder[i], newOrder[i - 1]];
+            this.plugin.settings.display.iconOrder = newOrder;
+            await this.plugin.saveSettings();
+            renderOrderList();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) view.sidebar.render();
+          })();
+        });
+
+        const downBtn = btnGroup.createEl("button", {
+          text: "↓",
+          attr: { "aria-label": `Move ${label} down` },
+        });
+        if (i === order.length - 1) downBtn.disabled = true;
+        downBtn.addEventListener("click", () => {
+          void (async () => {
+            const newOrder = [...order];
+            [newOrder[i], newOrder[i + 1]] = [newOrder[i + 1], newOrder[i]];
+            this.plugin.settings.display.iconOrder = newOrder;
+            await this.plugin.saveSettings();
+            renderOrderList();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) view.sidebar.render();
+          })();
+        });
+      });
+    };
+    renderOrderList();
+
+    new Setting(containerEl)
+      .setName("Reset icon order")
+      .setDesc("Restore the default icon order")
+      .addButton((btn) =>
+        btn.setButtonText("Reset").onClick(() => {
+          void (async () => {
+            this.plugin.settings.display.iconOrder = [...SIDEBAR_ICON_IDS];
+            await this.plugin.saveSettings();
+            renderOrderList();
+            const view = await this.plugin.getActiveDashboardView();
+            if (view?.sidebar) view.sidebar.render();
+          })();
+        }),
       );
 
     new Setting(containerEl).setName("Sidebar padding").setHeading();

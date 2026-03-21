@@ -7,6 +7,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative; /* anchor for hamburger popover */
 }
 .rss-dashboard-title {
   font-weight: bold;
@@ -869,6 +870,123 @@
 }
 
 /* --- REDESIGN LAYOUT --- */
+/* Unified icon row (Phase 2+) */
+.rss-dashboard-header-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.rss-dashboard-header-icon-row .clickable-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.rss-dashboard-header-icon-row .clickable-icon:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.rss-dashboard-header-icon-row .clickable-icon.is-active {
+  color: var(--text-accent);
+  background-color: var(--background-modifier-hover);
+}
+
+/* Nav icons (Dashboard / Discover) — visual separator and active state */
+.rss-nav-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--background-modifier-border);
+  margin: 0 4px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* Spacer to right-align secondary icons */
+.rss-icon-spacer {
+  flex: 1;
+}
+
+/* SVG visibility fix for Android WebView */
+.rss-dashboard-header-icon-row .clickable-icon svg {
+  width: 16px !important;
+  height: 16px !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* Hamburger popover */
+.rss-hamburger-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: var(--layer-menu, 200);
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-s);
+  padding: 4px 0;
+  min-width: 160px;
+  max-width: 240px;
+}
+
+.rss-hamburger-popover-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: var(--text-normal);
+  border-radius: 0;
+  transition: background-color 0.1s ease;
+}
+
+.rss-hamburger-popover-row:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.rss-hamburger-popover-row .clickable-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.rss-hamburger-popover-row .clickable-icon svg {
+  width: 14px !important;
+  height: 14px !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+.rss-hamburger-popover-label {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rss-hamburger-btn--hidden,
+.rss-icon-btn--hidden {
+  display: none;
+}
+
 /* Base Toolbar */
 .rss-dashboard-header-toolbar {
   display: flex;
