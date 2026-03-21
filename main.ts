@@ -1058,7 +1058,10 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async exportUserSettingsJson(): Promise<void> {
     const filename = "usersettings.json";
-    const blob = new Blob([JSON.stringify(this.settings, null, 2)], {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { feeds, folders, availableTags, collapsedFolders, ...settingsOnly } =
+      this.settings;
+    const blob = new Blob([JSON.stringify(settingsOnly, null, 2)], {
       type: "application/json",
     });
 
@@ -1069,6 +1072,7 @@ export default class RssDashboardPlugin extends Plugin {
     });
     this.showExportNotice(result, filename);
   }
+
 
   public async exportDataJson(): Promise<void> {
     const filename = "data.json";
@@ -1136,11 +1140,15 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async copyUserSettingsJsonToClipboard(): Promise<void> {
     const filename = "usersettings.json";
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { feeds, folders, availableTags, collapsedFolders, ...settingsOnly } =
+      this.settings;
     const result = await copyTextToClipboard(
-      JSON.stringify(this.settings, null, 2),
+      JSON.stringify(settingsOnly, null, 2),
     );
     this.showCopyNotice(result, filename);
   }
+
 
   public async copyOpmlToClipboard(): Promise<void> {
     const filename = "feeds.opml";
