@@ -71,9 +71,15 @@ export class MobileNavigationModal extends Modal {
         this.callbacks.onFeedClick(feed);
         this.close();
       },
-      onTagClick: (tag: string | null) => {
-        this.callbacks.onTagClick(tag);
-        this.close();
+      onTagToggle: (tag: string) => {
+        this.callbacks.onTagToggle(tag);
+        // We don't close the modal on toggle so users can select multiple tags
+      },
+      onClearTags: () => {
+        this.callbacks.onClearTags();
+      },
+      onTagFilterModeChange: (mode) => {
+        this.callbacks.onTagFilterModeChange(mode);
       },
       onActivateDashboard: () => {
         if (this.callbacks.onActivateDashboard) {

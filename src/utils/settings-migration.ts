@@ -15,6 +15,7 @@ export function migrateDisplaySettings(display: Record<string, unknown>): void {
     "hideIconAddFeed",
     "hideIconManageFeeds",
     "hideIconSearch",
+    "hideIconTags",
     "hideIconAddFolder",
     "hideIconSort",
     "hideIconCollapseAll",
@@ -30,5 +31,12 @@ export function migrateDisplaySettings(display: Record<string, unknown>): void {
 
   if (display.iconOrder === undefined) {
     display.iconOrder = [...CANONICAL_ICON_ORDER];
+  } else if (Array.isArray(display.iconOrder)) {
+    // Ensure all current canonical icons exist in the order
+    for (const id of CANONICAL_ICON_ORDER) {
+      if (!display.iconOrder.includes(id)) {
+        display.iconOrder.push(id);
+      }
+    }
   }
 }

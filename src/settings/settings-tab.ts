@@ -15,7 +15,6 @@ import {
   SavedTemplate,
   DEFAULT_SETTINGS,
   PodcastTheme,
-  DisplaySettings,
 } from "../types/types";
 import {
   SIDEBAR_ICON_IDS,
@@ -1364,8 +1363,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       order.forEach((id, i) => {
         const icon = getIconById(id);
         if (!icon) return;
-        const hideKey =
-          `hideIcon${icon.id.charAt(0).toUpperCase() + icon.id.slice(1)}` as keyof DisplaySettings;
+        const hideKey = icon.settingKey;
 
         const nameFrag = document.createDocumentFragment();
         const labelWrap = document.createElement("span");

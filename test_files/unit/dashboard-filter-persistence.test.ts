@@ -101,7 +101,7 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
 
     expect(view.currentFolder).toBe("unread");
     expect((view as unknown as { currentFeed: unknown }).currentFeed).toBe(null);
-    expect((view as unknown as { currentTag: unknown }).currentTag).toBe(null);
+    expect((view as any).selectedTags).toEqual([]);
   });
 
   it("folder navigation does not reset multi-filters (regression)", async () => {

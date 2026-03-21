@@ -37,6 +37,12 @@ export const SIDEBAR_ICONS: SidebarIconConfig[] = [
     settingKey: "hideIconSearch",
   },
   {
+    id: "tags",
+    label: "Tags",
+    lucideIcon: "tags",
+    settingKey: "hideIconTags",
+  },
+  {
     id: "addFolder",
     label: "Add Folder",
     lucideIcon: "folder-plus",

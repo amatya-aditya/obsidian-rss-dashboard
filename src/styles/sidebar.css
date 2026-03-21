@@ -99,54 +99,142 @@
   border-bottom: 1px solid var(--background-modifier-border);
   overflow: hidden;
 }
-.rss-dashboard-tags-list {
-  max-height: fit-content;
+
+.rss-dashboard-tag-filter-mode-group {
+  display: flex;
+  margin: 8px 10px;
+  background: var(--background-secondary-alt);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.rss-dashboard-tag-filter-mode-btn {
+  flex: 1;
+  padding: 2px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 3px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.rss-dashboard-tag-filter-mode-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.rss-dashboard-tag-filter-mode-btn.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.rss-dashboard-tags-clear-button {
+  margin: 4px 10px 8px;
+  font-size: 11px;
+  color: var(--text-accent);
+  cursor: pointer;
+  text-align: right;
+  transition: opacity 0.2s ease;
+}
+
+.rss-dashboard-tags-clear-button:hover {
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+.rss-dashboard-sidebar-tags-list {
+  max-height: 300px;
   overflow-y: auto;
   transition: max-height 0.3s ease;
 }
-.rss-dashboard-sidebar-tag {
-  padding: 4px 10px 4px 30px;
-  cursor: pointer;
+
+.rss-dashboard-sidebar-tag-row {
   display: flex;
   align-items: center;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-left: 3px solid transparent;
 }
-.rss-dashboard-sidebar-tag:hover {
+
+.rss-dashboard-sidebar-tag-row:hover {
   background-color: var(--background-modifier-hover);
 }
-.rss-dashboard-sidebar-tag.active {
+
+.rss-dashboard-sidebar-tag-row.is-selected {
   background-color: var(--background-modifier-active);
-  font-weight: bold;
+  border-left-color: var(--interactive-accent);
 }
+
 .rss-dashboard-tag-color-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   margin-right: 8px;
+  flex-shrink: 0;
 }
-.rss-dashboard-tag-name {
+
+.rss-dashboard-sidebar-tag-label {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   flex-grow: 1;
 }
-.rss-dashboard-tag-count {
-  background-color: var(--background-modifier-border);
-  color: var(--text-muted);
-  border-radius: 10px;
-  padding: 1px 6px;
-  font-size: 10px;
-}
-.rss-dashboard-add-tag-button {
+
+.rss-dashboard-sidebar-add-tag-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 10px 5px 30px;
+  gap: 4px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.rss-dashboard-tag-color-picker {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.rss-dashboard-sidebar-add-tag-input {
+  flex-grow: 1;
+  height: 24px;
+  font-size: 11px;
+  padding: 0 6px;
+  background: var(--background-modifier-form-field);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  color: var(--text-normal);
+}
+
+.rss-dashboard-sidebar-add-tag-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   color: var(--text-muted);
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+  border-radius: 4px;
+  transition: all 0.2s ease;
 }
-.rss-dashboard-add-tag-button:hover {
-  background-color: var(--background-modifier-hover);
-  color: var(--text-normal);
+
+.rss-dashboard-sidebar-add-tag-btn:hover {
+  color: var(--text-accent);
+  background: var(--background-modifier-hover);
+}
+
+.rss-dashboard-sidebar-add-tag-btn svg {
+  width: 14px;
+  height: 14px;
 }
 .rss-dashboard-feed-folders-section {
   order: 5;

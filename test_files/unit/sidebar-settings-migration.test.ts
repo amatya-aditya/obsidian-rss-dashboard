@@ -7,6 +7,7 @@ const CANONICAL_ICON_ORDER = [
   "addFeed",
   "manageFeeds",
   "search",
+  "tags",
   "addFolder",
   "sort",
   "collapseAll",
@@ -19,6 +20,7 @@ const ICON_HIDE_FIELDS = [
   "hideIconAddFeed",
   "hideIconManageFeeds",
   "hideIconSearch",
+  "hideIconTags",
   "hideIconAddFolder",
   "hideIconSort",
   "hideIconCollapseAll",
@@ -27,7 +29,7 @@ const ICON_HIDE_FIELDS = [
 
 describe("migrateDisplaySettings()", () => {
   describe("new boolean hide-flag fields", () => {
-    it("all 9 hide-flag fields missing → all initialized to false", () => {
+    it("all 10 hide-flag fields missing → all initialized to false", () => {
       const display: Record<string, unknown> = {};
       migrateDisplaySettings(display);
       for (const field of ICON_HIDE_FIELDS) {
@@ -109,10 +111,10 @@ describe("migrateDisplaySettings()", () => {
       expect(display.iconOrder).toEqual(customOrder);
     });
 
-    it("default iconOrder has exactly 9 entries", () => {
+    it("default iconOrder has exactly 10 entries", () => {
       const display: Record<string, unknown> = {};
       migrateDisplaySettings(display);
-      expect((display.iconOrder as string[]).length).toBe(9);
+      expect((display.iconOrder as string[]).length).toBe(10);
     });
 
     it("default iconOrder contains all canonical IDs", () => {

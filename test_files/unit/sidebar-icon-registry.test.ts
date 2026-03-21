@@ -26,7 +26,7 @@ describe("SIDEBAR_ICONS registry", () => {
   });
 
   it("has exactly 9 entries", () => {
-    expect(SIDEBAR_ICONS).toHaveLength(9);
+    expect(SIDEBAR_ICONS).toHaveLength(10);
   });
 
   it("has no duplicate IDs", () => {
@@ -64,7 +64,7 @@ describe("SIDEBAR_ICONS registry", () => {
 
 describe("SIDEBAR_ICON_IDS", () => {
   it("contains exactly 9 IDs", () => {
-    expect(SIDEBAR_ICON_IDS).toHaveLength(9);
+    expect(SIDEBAR_ICON_IDS).toHaveLength(10);
   });
 
   it("has no duplicates", () => {

@@ -2,6 +2,31 @@
 
 ### New Features
 
+## [2.2.0-beta.9] - March 21, 2026
+
+### New Features
+
+- **Multi-Tag Filtering**:
+  - Refactored dashboard to support selecting multiple tags simultaneously.
+  - Added configurable filter logic: **AND** (match all), **OR** (match any), and **NOT** (match none).
+  - New **Tags** section in the sidebar for easy management and filtering.
+  - Inline **Add Tag** row with color picker integrated directly into the sidebar.
+
+- **UI & UX Improvements**:
+  - Redesigned sidebar toolbar with a dedicated "Tags" icon for quick access.
+  - Enhanced mobile tag selection: the sidebar/modal now stays open during multi-select toggles.
+  - Premium styling for the new tag filtering controls and mode switches.
+
+### Fixed
+
+- **Settings Migration**: Improved migration logic to automatically add the "Tags" icon to existing user toolbar orders.
+- **Article Counts**: Fixed article count and pagination logic to correctly reflect multi-tag filter states.
+- **Code Quality**: Resolved all legacy `currentTag` references and achieved a clean build (zero errors/warnings).
+
+### Development
+
+- **Testing**: Added and updated unit tests for tag filtering logic, settings migration, and icon registry (189 tests passing).
+
 ## [2.2.0-beta.8] - March 20, 2026
 
 - **IMPORTANT**: Earlier limited releases intended for users experiencing specific issues were tagged as 2.3.0-alpha.1, 2.3.0-alpha.2, and 2.3.0-alpha.3. These were incorrectly versioned. They have been retroactively designated as 2.2.0-beta.5, 2.2.0-beta.6, and 2.2.0-beta.7 in our internal documentation. The original GitHub release tags have been left intact to avoid breaking any shared links. Development continues from 2.2.0-beta.8 forward.

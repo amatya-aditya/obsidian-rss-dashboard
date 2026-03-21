@@ -30,7 +30,7 @@ import type RssDashboardPlugin from "../../main";
 export interface SidebarOptions {
   currentFolder: string | null;
   currentFeed: Feed | null;
-  currentTag: string | null;
+  selectedTags: string[];
   tagsCollapsed: boolean;
   collapsedFolders: string[];
 }
@@ -38,7 +38,9 @@ export interface SidebarOptions {
 export interface SidebarCallbacks {
   onFolderClick: (folder: string | null) => void;
   onFeedClick: (feed: Feed) => void;
-  onTagClick: (tag: string | null) => void;
+  onTagToggle: (tag: string) => void;
+  onClearTags: () => void;
+  onTagFilterModeChange: (mode: "and" | "or" | "not") => void;
   onToggleTagsCollapse: () => void;
   onToggleFolderCollapse: (folder: string, shouldRerender?: boolean) => void;
   onBatchToggleFolders?: (
@@ -557,6 +559,7 @@ export class Sidebar {
 
     // Render "All Feeds" button at the top
     this.renderAllFeedsButton(feedFoldersSection);
+    this.renderTagsSection(feedFoldersSection);
 
     if (this.settings.feeds.length === 0) {
       feedFoldersSection.createDiv({
@@ -701,6 +704,103 @@ export class Sidebar {
     });
   }
 
+  private renderTagsSection(container: HTMLElement): void {
+    if (!this.isTagsExpanded) return;
+
+    const tagsSection = container.createDiv({
+      cls: "rss-dashboard-sidebar-tags-section",
+    });
+
+    // Filter Mode Segmented Control
+    const modeGroup = tagsSection.createDiv({
+      cls: "rss-dashboard-tag-filter-mode-group",
+    });
+
+    const modes: ("and" | "or" | "not")[] = ["and", "or", "not"];
+    modes.forEach((m) => {
+      const active = this.settings.sidebarTagFilterMode === m;
+      const btn = modeGroup.createEl("button", {
+        cls: "rss-dashboard-tag-filter-mode-btn" + (active ? " is-active" : ""),
+        text: m.toUpperCase(),
+      });
+      btn.addEventListener("click", () => {
+        this.callbacks.onTagFilterModeChange(m);
+        this.render();
+      });
+    });
+
+    // Clear Tags Button
+    if (this.options.selectedTags.length > 0) {
+      const clearBtn = tagsSection.createDiv({
+        cls: "rss-dashboard-tags-clear-button",
+        text: "× Clear all filters",
+      });
+      clearBtn.addEventListener("click", () => {
+        this.callbacks.onClearTags();
+        this.render();
+      });
+    }
+
+    // Tag list
+    const tagsList = tagsSection.createDiv({
+      cls: "rss-dashboard-sidebar-tags-list",
+    });
+
+    this.settings.availableTags.forEach((tag) => {
+      const selected = this.options.selectedTags.includes(tag.name);
+      const row = tagsList.createDiv({
+        cls: "rss-dashboard-sidebar-tag-row" + (selected ? " is-selected" : ""),
+      });
+
+      const dot = row.createDiv({ cls: "rss-dashboard-tag-color-dot" });
+      dot.style.backgroundColor = tag.color;
+
+      row.createSpan({ text: tag.name, cls: "rss-dashboard-sidebar-tag-label" });
+
+      row.addEventListener("click", () => {
+        this.callbacks.onTagToggle(tag.name);
+        this.render();
+      });
+    });
+
+    // Inline add-tag row
+    const addRow = tagsSection.createDiv({
+      cls: "rss-dashboard-sidebar-add-tag-row",
+    });
+    const cp = addRow.createEl("input", {
+      attr: { type: "color", value: "#3498db" },
+      cls: "rss-dashboard-tag-color-picker",
+    });
+    const input = addRow.createEl("input", {
+      attr: { type: "text", placeholder: "New tag..." },
+      cls: "rss-dashboard-sidebar-add-tag-input",
+    });
+    const addBtn = addRow.createDiv({ cls: "rss-dashboard-sidebar-add-tag-btn" });
+    setIcon(addBtn, "plus");
+
+    const submit = () => {
+      const val = input.value.trim();
+      if (!val) return;
+      if (
+        this.settings.availableTags.some(
+          (t) => t.name.toLowerCase() === val.toLowerCase(),
+        )
+      ) {
+        new Notice("Tag already exists");
+        return;
+      }
+      this.settings.availableTags.push({ name: val, color: cp.value });
+      void this.plugin.saveSettings();
+      input.value = "";
+      this.render();
+    };
+
+    addBtn.addEventListener("click", submit);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submit();
+    });
+  }
+
   private renderAllFeedsButton(container: HTMLElement): void {
     const totalFeeds = this.settings.display.hideEmptyFeeds
       ? this.settings.feeds.filter(
@@ -716,7 +816,7 @@ export class Sidebar {
     const isAllActive =
       this.options.currentFolder === null &&
       this.options.currentFeed === null &&
-      this.options.currentTag === null;
+      this.options.selectedTags.length === 0;
 
     const allFeedsButton = container.createDiv({
       cls: "rss-dashboard-all-feeds-button" + (isAllActive ? " active" : ""),
@@ -1916,6 +2016,18 @@ export class Sidebar {
           btn = createToolbarButton(iconConfig, action);
           btn.toggleClass("is-active", this.isSearchExpanded);
           btn.setAttr("aria-pressed", this.isSearchExpanded ? "true" : "false");
+          break;
+        }
+
+        case "tags": {
+          const action = () => {
+            this.isTagsExpanded = !this.isTagsExpanded;
+            this.render();
+          };
+          this.iconActions.set("tags", action);
+          btn = createToolbarButton(iconConfig, action);
+          btn.toggleClass("is-active", this.isTagsExpanded);
+          btn.setAttr("aria-pressed", this.isTagsExpanded ? "true" : "false");
           break;
         }
 

@@ -36,7 +36,7 @@ export class RssDashboardView extends ItemView {
   private saver: ArticleSaver;
   public currentFolder: string | null = null;
   private currentFeed: Feed | null = null;
-  private currentTag: string | null = null;
+  private selectedTags: string[] = [];
   private selectedArticle: FeedItem | null = null;
   private tagsCollapsed = true;
   private collapsedFolders: string[] = [];
@@ -212,14 +212,16 @@ export class RssDashboardView extends ItemView {
         {
           currentFolder: this.currentFolder,
           currentFeed: this.currentFeed,
-          currentTag: this.currentTag,
+          selectedTags: this.selectedTags,
           tagsCollapsed: this.tagsCollapsed,
           collapsedFolders: this.collapsedFolders,
         },
         {
           onFolderClick: this.handleFolderClick.bind(this),
           onFeedClick: this.handleFeedClick.bind(this),
-          onTagClick: this.handleTagClick.bind(this),
+          onTagToggle: this.handleTagToggle.bind(this),
+          onClearTags: this.handleClearTags.bind(this),
+          onTagFilterModeChange: this.handleTagFilterModeChange.bind(this),
           onToggleTagsCollapse: this.handleToggleTagsCollapse.bind(this),
           onToggleFolderCollapse: this.handleToggleFolderCollapse.bind(this),
           onBatchToggleFolders: this.handleBatchToggleFolders.bind(this),
@@ -276,7 +278,7 @@ export class RssDashboardView extends ItemView {
       this.sidebar["options"] = {
         currentFolder: this.currentFolder,
         currentFeed: this.currentFeed,
-        currentTag: this.currentTag,
+        selectedTags: this.selectedTags,
         tagsCollapsed: this.tagsCollapsed,
         collapsedFolders: this.collapsedFolders,
       };
@@ -667,8 +669,9 @@ export class RssDashboardView extends ItemView {
       return "Videos";
     } else if (this.currentFolder === "podcasts") {
       return "Podcasts";
-    } else if (this.currentTag) {
-      return `Tag: ${this.currentTag}`;
+    } else if (this.selectedTags.length > 0) {
+      const mode = (this.settings.sidebarTagFilterMode || "or").toUpperCase();
+      return `Tags (${mode}): ${this.selectedTags.join(", ")}`;
     } else if (this.currentFolder) {
       return this.currentFolder;
     } else {
@@ -689,14 +692,28 @@ export class RssDashboardView extends ItemView {
       // Don't slice before filtering/sorting. Refresh merge + retention sorts newest-first,
       // but slicing early can still hide newly fetched items when ordering changes.
       articles = [...this.currentFeed.items];
-    } else if (this.currentTag) {
+    } else if (this.selectedTags.length > 0) {
+      const mode = this.settings.sidebarTagFilterMode || "or";
       for (const feed of this.settings.feeds) {
         articles = articles.concat(
           feed.items
-            .filter(
-              (item) =>
-                item.tags && item.tags.some((t) => t.name === this.currentTag),
-            )
+            .filter((item) => {
+              const itemTags = (item.tags ?? []).map((t) => t.name);
+              if (mode === "or") {
+                return this.selectedTags.some((tag) =>
+                  itemTags.includes(tag),
+                );
+              } else if (mode === "and") {
+                return this.selectedTags.every((tag) =>
+                  itemTags.includes(tag),
+                );
+              } else if (mode === "not") {
+                return !this.selectedTags.some((tag) =>
+                  itemTags.includes(tag),
+                );
+              }
+              return false;
+            })
             .map((item) => ({
               ...item,
               feedTitle: feed.title,
@@ -783,11 +800,10 @@ export class RssDashboardView extends ItemView {
       articles = articles.slice(0, currentFeedLimit);
     }
 
-    // Apply pagination limits for special views (legacy/fallback)
     if (
       this.currentFolder === null &&
       this.currentFeed === null &&
-      this.currentTag === null
+      this.selectedTags.length === 0
     ) {
       const pageSize = this.settings.allArticlesPageSize;
       const start = 0;
@@ -1078,7 +1094,7 @@ export class RssDashboardView extends ItemView {
     }
 
 	    this.currentFeed = null;
-	    this.currentTag = null;
+	    this.selectedTags = [];
 
 	    if (this.currentFolder !== folder) {
       if (folder === "unread") {
@@ -1120,7 +1136,7 @@ export class RssDashboardView extends ItemView {
     }
 	    this.currentFeed = feed;
 	    this.currentFolder = null;
-	    this.currentTag = null;
+	    this.selectedTags = [];
 	    this.selectedArticle = null;
 
 	    if (feed && feed.url) {
@@ -1138,13 +1154,31 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private handleTagClick(tag: string | null): void {
-	    this.currentTag = tag;
-	    this.currentFolder = null;
-	    this.currentFeed = null;
-	    this.selectedArticle = null;
-	    void this.render();
-	  }
+  private handleTagToggle(tag: string): void {
+    if (this.selectedTags.includes(tag)) {
+      this.selectedTags = this.selectedTags.filter((t) => t !== tag);
+    } else {
+      this.selectedTags.push(tag);
+    }
+
+    if (this.selectedTags.length > 0) {
+      this.currentFolder = null;
+      this.currentFeed = null;
+    }
+    this.selectedArticle = null;
+    void this.render();
+  }
+
+  private handleClearTags(): void {
+    this.selectedTags = [];
+    void this.render();
+  }
+
+  private handleTagFilterModeChange(mode: "and" | "or" | "not"): void {
+    this.settings.sidebarTagFilterMode = mode;
+    void this.plugin.saveSettings();
+    void this.render();
+  }
 
   private handleToggleTagsCollapse(): void {
     this.tagsCollapsed = !this.tagsCollapsed;
@@ -1268,17 +1302,17 @@ export class RssDashboardView extends ItemView {
       )
     ) {
       await this.plugin.refreshFeedsInFolder(this.currentFolder);
-    } else if (this.currentTag) {
-      const feedsWithTag = this.settings.feeds.filter((feed) =>
-        feed.items.some(
-          (item) =>
-            item.tags && item.tags.some((tag) => tag.name === this.currentTag),
-        ),
+    } else if (this.selectedTags.length > 0) {
+      const feedsWithTags = this.settings.feeds.filter((feed) =>
+        feed.items.some((item) => {
+          const itemTags = (item.tags ?? []).map((t) => t.name);
+          return this.selectedTags.some((tag) => itemTags.includes(tag));
+        }),
       );
-      if (feedsWithTag.length > 0) {
-        await this.plugin.refreshFeeds(feedsWithTag);
+      if (feedsWithTags.length > 0) {
+        await this.plugin.refreshFeeds(feedsWithTags);
       } else {
-        new Notice("No feeds found with the selected tag");
+        new Notice("No feeds found with the selected tags");
       }
     } else {
       await this.plugin.refreshFeeds();
@@ -1311,14 +1345,16 @@ export class RssDashboardView extends ItemView {
       {
         currentFolder: this.currentFolder,
         currentFeed: this.currentFeed,
-        currentTag: this.currentTag,
+        selectedTags: this.selectedTags,
         tagsCollapsed: this.tagsCollapsed,
         collapsedFolders: this.collapsedFolders,
       },
       {
         onFolderClick: this.handleFolderClick.bind(this),
         onFeedClick: this.handleFeedClick.bind(this),
-        onTagClick: this.handleTagClick.bind(this),
+        onTagToggle: this.handleTagToggle.bind(this),
+        onClearTags: this.handleClearTags.bind(this),
+        onTagFilterModeChange: this.handleTagFilterModeChange.bind(this),
         onToggleTagsCollapse: this.handleToggleTagsCollapse.bind(this),
         onToggleFolderCollapse: this.handleToggleFolderCollapse.bind(this),
         onBatchToggleFolders: this.handleBatchToggleFolders.bind(this),
@@ -1698,10 +1734,20 @@ export class RssDashboardView extends ItemView {
    * Checks if an item matches all active filters (sidebar tag/folder, header multi-filters, age filter).
    */
   private matchesFilters(item: FeedItem): boolean {
-    // 1. Check current tag (if selected in sidebar)
-    if (this.currentTag) {
-      if (!item.tags || !item.tags.some((t) => t.name === this.currentTag))
-        return false;
+    // 1. Check selected tags (if any)
+    if (this.selectedTags.length > 0) {
+      const mode = this.settings.sidebarTagFilterMode || "or";
+      const itemTags = (item.tags ?? []).map((t) => t.name);
+      if (mode === "or") {
+        if (!this.selectedTags.some((tag) => itemTags.includes(tag)))
+          return false;
+      } else if (mode === "and") {
+        if (!this.selectedTags.every((tag) => itemTags.includes(tag)))
+          return false;
+      } else if (mode === "not") {
+        if (this.selectedTags.some((tag) => itemTags.includes(tag)))
+          return false;
+      }
     }
 
     // 2. Check special folder status (if selected in sidebar)
@@ -2035,14 +2081,15 @@ export class RssDashboardView extends ItemView {
         );
       });
       refreshText = `Refresh ${feedsInFolder.length} feed${feedsInFolder.length !== 1 ? "s" : ""} in folder: "${this.currentFolder}"`;
-    } else if (this.currentTag) {
-      const feedsWithTag = this.settings.feeds.filter((feed) =>
-        feed.items.some(
-          (item) =>
-            item.tags && item.tags.some((tag) => tag.name === this.currentTag),
-        ),
+    } else if (this.selectedTags.length > 0) {
+      const mode = (this.settings.sidebarTagFilterMode || "or").toUpperCase();
+      const feedsWithTags = this.settings.feeds.filter((feed) =>
+        feed.items.some((item) => {
+          const itemTags = (item.tags ?? []).map((t) => t.name);
+          return this.selectedTags.some((tag) => itemTags.includes(tag));
+        }),
       );
-      refreshText = `Refresh ${feedsWithTag.length} feed${feedsWithTag.length !== 1 ? "s" : ""} with tag: "${this.currentTag}"`;
+      refreshText = `Refresh ${feedsWithTags.length} feed${feedsWithTags.length !== 1 ? "s" : ""} with tags (${mode}): "${this.selectedTags.join(", ")}"`;
     } else {
       refreshText = `Refresh all ${this.settings.feeds.length} feeds`;
     }
@@ -2206,13 +2253,21 @@ export class RssDashboardView extends ItemView {
           feed.items.filter((item) => item.mediaType === "podcast"),
         );
       }
-    } else if (this.currentTag) {
+    } else if (this.selectedTags.length > 0) {
+      const mode = this.settings.sidebarTagFilterMode || "or";
       for (const feed of this.settings.feeds) {
         articles = articles.concat(
-          feed.items.filter(
-            (item) =>
-              item.tags && item.tags.some((t) => t.name === this.currentTag),
-          ),
+          feed.items.filter((item) => {
+            const itemTags = (item.tags ?? []).map((t) => t.name);
+            if (mode === "or") {
+              return this.selectedTags.some((tag) => itemTags.includes(tag));
+            } else if (mode === "and") {
+              return this.selectedTags.every((tag) => itemTags.includes(tag));
+            } else if (mode === "not") {
+              return !this.selectedTags.some((tag) => itemTags.includes(tag));
+            }
+            return false;
+          }),
         );
       }
     } else if (this.currentFolder) {
@@ -2253,7 +2308,7 @@ export class RssDashboardView extends ItemView {
     } else if (
       this.currentFolder === null &&
       this.currentFeed === null &&
-      this.currentTag === null
+      this.selectedTags.length === 0
     ) {
       return this.allArticlesPage;
     } else if (this.currentFolder === "unread") {
@@ -2503,7 +2558,7 @@ export class RssDashboardView extends ItemView {
     } else if (
       this.currentFolder === null &&
       this.currentFeed === null &&
-      this.currentTag === null
+      this.selectedTags.length === 0
     ) {
       this.allArticlesPage = page;
     } else if (this.currentFolder === "unread") {
@@ -2531,7 +2586,7 @@ export class RssDashboardView extends ItemView {
     } else if (
       this.currentFolder === null &&
       this.currentFeed === null &&
-      this.currentTag === null
+      this.selectedTags.length === 0
     ) {
       this.settings.allArticlesPageSize = pageSize;
     } else if (this.currentFolder === "unread") {
@@ -2565,7 +2620,7 @@ export class RssDashboardView extends ItemView {
     } else if (
       this.currentFolder === null &&
       this.currentFeed === null &&
-      this.currentTag === null
+      this.selectedTags.length === 0
     ) {
       return this.settings.allArticlesPageSize;
     } else if (this.currentFolder === "unread") {

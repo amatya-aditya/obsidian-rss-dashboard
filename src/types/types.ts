@@ -195,6 +195,7 @@ export interface DisplaySettings {
   hideIconAddFeed: boolean;
   hideIconManageFeeds: boolean;
   hideIconSearch: boolean;
+  hideIconTags: boolean;
   hideIconAddFolder: boolean;
   hideIconSort: boolean;
   hideIconCollapseAll: boolean;
@@ -331,6 +332,14 @@ export interface RssDashboardSettings {
     tagFilters: string[];
     logic: "AND" | "OR";
   };
+
+  /**
+   * Tag filter mode for the sidebar tags section.
+   * or  = articles matching at least one selected tag (default)
+   * and = articles matching all selected tags
+   * not = articles matching none of the selected tags
+   */
+  sidebarTagFilterMode: "or" | "and" | "not";
 }
 
 export type SettingsOnly = Omit<
@@ -488,6 +497,7 @@ guid: "{{guid}}"
     hideIconAddFeed: false,
     hideIconManageFeeds: false,
     hideIconSearch: false,
+    hideIconTags: false,
     hideIconAddFolder: false,
     hideIconSort: false,
     hideIconCollapseAll: false,
@@ -499,6 +509,7 @@ guid: "{{guid}}"
       "addFeed",
       "manageFeeds",
       "search",
+      "tags",
       "addFolder",
       "sort",
       "collapseAll",
@@ -523,4 +534,5 @@ guid: "{{guid}}"
     tagFilters: [],
     logic: "OR",
   },
+  sidebarTagFilterMode: "or",
 };
