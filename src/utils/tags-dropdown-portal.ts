@@ -288,6 +288,17 @@ export function createTagsDropdownPortal(
     });
     setIcon(addButton, "plus");
 
+    const settingsButton = inlineAddRow.createDiv({
+      cls: "rss-dashboard-tag-inline-settings rss-dashboard-tag-inline-button clickable-icon",
+      attr: {
+        title: "Tag settings",
+        "aria-label": "Open tag settings",
+        role: "button",
+        tabindex: "0",
+      },
+    });
+    setIcon(settingsButton, "settings");
+
     const submitInlineTag = () => {
       const tagName = nameInput.value.trim();
       const tagColor = colorInput.value;
@@ -340,6 +351,24 @@ export function createTagsDropdownPortal(
         e.preventDefault();
         e.stopPropagation();
         submitInlineTag();
+      }
+    });
+
+    const openTagsSettingsFromInlineRow = (e: Event) => {
+      e.stopPropagation();
+      closeDropdown();
+      openTagsSettings();
+    };
+
+    settingsButton.addEventListener("click", (e) => {
+      e.preventDefault();
+      openTagsSettingsFromInlineRow(e);
+    });
+
+    settingsButton.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openTagsSettingsFromInlineRow(e);
       }
     });
   }
@@ -443,4 +472,3 @@ export function createTagsDropdownPortal(
 
   return closeDropdown;
 }
-
