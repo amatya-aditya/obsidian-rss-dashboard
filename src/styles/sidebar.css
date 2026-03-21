@@ -105,7 +105,6 @@
   margin: 8px 10px;
   background: var(--background-secondary-alt);
   border-radius: 4px;
-  padding: 2px;
 }
 
 .rss-dashboard-tag-filter-mode-btn {
@@ -158,7 +157,6 @@
   padding: 4px 10px;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  border-left: 3px solid transparent;
 }
 
 .rss-dashboard-sidebar-tag-row:hover {
@@ -167,7 +165,6 @@
 
 .rss-dashboard-sidebar-tag-row.is-selected {
   background-color: var(--background-modifier-active);
-  border-left-color: var(--interactive-accent);
 }
 
 .rss-dashboard-tag-color-dot {
@@ -186,22 +183,60 @@
   flex-grow: 1;
 }
 
+.rss-dashboard-sidebar-tag-row .rss-dashboard-tag-checkbox {
+  accent-color: #9b59b6;
+  margin-right: 8px;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.rss-dashboard-sidebar-tag-count {
+  background-color: var(--background-modifier-border);
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  min-width: 20px;
+  text-align: center;
+  margin-left: auto;
+  opacity: 0.8;
+}
+
 .rss-dashboard-sidebar-add-tag-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 8px 10px;
-  border-top: 1px solid var(--background-modifier-border);
+  gap: 6px;
+  padding: 4px 10px 8px;
 }
 
 .rss-dashboard-tag-color-picker {
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: none;
-  background: none;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+  padding: 0 !important;
+  border: none !important;
+  background: none !important;
   cursor: pointer;
   flex-shrink: 0;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box !important;
+}
+
+.rss-dashboard-tag-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0 !important;
+  border-radius: 50% !important;
+}
+
+.rss-dashboard-tag-color-picker::-webkit-color-swatch {
+  border: none !important;
+  border-radius: 50% !important;
 }
 
 .rss-dashboard-sidebar-add-tag-input {
@@ -216,25 +251,75 @@
 }
 
 .rss-dashboard-sidebar-add-tag-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  height: 24px;
+  transition: background-color 0.2s ease;
+}
+
+.rss-dashboard-sidebar-add-tag-btn:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+.rss-dashboard-sidebar-add-tag-cancel-btn {
   width: 24px;
   height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--text-muted);
+  color: white;
+  background-color: #ef4444;
   border-radius: 4px;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
-.rss-dashboard-sidebar-add-tag-btn:hover {
-  color: var(--text-accent);
-  background: var(--background-modifier-hover);
+.rss-dashboard-sidebar-add-tag-cancel-btn:hover {
+  background-color: #dc2626;
 }
 
 .rss-dashboard-sidebar-add-tag-btn svg {
   width: 14px;
   height: 14px;
+}
+
+.rss-dashboard-sidebar-tags-section {
+  border-bottom: 1px solid;
+  border-color: #8e44ad;
+}
+
+.rss-dashboard-sidebar-add-tag-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 8px 32px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.rss-dashboard-sidebar-add-tag-toggle:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-accent);
+}
+
+.rss-dashboard-sidebar-add-tag-toggle svg {
+  width: 14px;
+  height: 14px;
+}
+
+.rss-dashboard-sidebar-add-tag-toggle-label {
+  font-size: 12px;
 }
 .rss-dashboard-feed-folders-section {
   order: 5;
@@ -676,9 +761,9 @@
   align-items: center;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  padding: 4px 4px 8px;
-  border-bottom: solid 1px hsl(0deg 0% 80% / 25%);
-  border-top: solid 1px hsl(0deg 0% 80% / 25%);
+  padding: 4px;
+  border-bottom: solid 1px #333;
+  border-top: solid 1px #333;
 }
 
 .rss-dashboard-all-feeds-button:hover {
@@ -1032,7 +1117,7 @@
 
 /* Nav divider between navigation and action icons */
 .rss-nav-divider {
-  width: 1px;
+  width: 2px;
   height: 18px;
   background: var(--background-modifier-border);
   margin: 0 4px;

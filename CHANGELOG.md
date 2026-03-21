@@ -6,6 +6,12 @@
 
 ### New Features
 
+- **Sidebar Refresh & Tag Management:**
+  - Implemented an event-driven mechanism using `rss-dashboard:tags-mutated` to instantly synchronize tag changes (add/edit/delete/assign) across all views (Sidebar, Dashboard, Reader).
+  - Enhanced Sidebar "Add Tag" UI with a plus-button toggle, "Add" button, and circular 20px x 20px color picker.
+  - Sidebar now instantly reflects tag count updates when articles are saved, read, or modified anywhere in the dashboard.
+  - Automatically clears active sidebar filters if the corresponding tag is deleted globally.
+
 - **Multi-Tag Filtering**:
   - Refactored dashboard to support selecting multiple tags simultaneously.
   - Added configurable filter logic: **AND** (match all), **OR** (match any), and **NOT** (match none).

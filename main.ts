@@ -634,7 +634,6 @@ export default class RssDashboardPlugin extends Plugin {
 
     const article = feed.items.find((item) => item.guid === articleGuid);
     if (!article) return;
-
     Object.assign(article, updates);
 
     await this.saveSettings();
@@ -645,6 +644,14 @@ export default class RssDashboardPlugin extends Plugin {
         view.refresh();
       }
     }
+  }
+
+  /**
+   * Triggers a workspace-wide event when tags are added, removed, or settings are mutated.
+   * This allows the Sidebar and other components to sync their tag data.
+   */
+  triggerTagsMutated(): void {
+    this.app.workspace.trigger("rss-dashboard:tags-mutated");
   }
 
   private showImportProgressModal(

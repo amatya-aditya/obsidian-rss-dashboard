@@ -177,6 +177,43 @@ export class RssDashboardView extends ItemView {
       ) as never,
     );
 
+    this.registerEvent(
+      (
+        this.app.workspace as unknown as {
+          on: (name: string, callback: () => void) => unknown;
+        }
+      ).on("rss-dashboard:tags-mutated", () => {
+        const availableTagNames = new Set(
+          this.settings.availableTags.map((t) => t.name),
+        );
+
+        let changed = false;
+
+        // 1. Sidebar selected tags
+        const filteredSelectedTags = this.selectedTags.filter((tag) =>
+          availableTagNames.has(tag),
+        );
+        if (filteredSelectedTags.length !== this.selectedTags.length) {
+          this.selectedTags = filteredSelectedTags;
+          changed = true;
+        }
+
+        // 2. Header multi-filter tags
+        for (const tag of Array.from(this.activeTagFilters)) {
+          if (!availableTagNames.has(tag)) {
+            this.activeTagFilters.delete(tag);
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          void this.render();
+        } else if (this.sidebar) {
+          this.sidebar.render();
+        }
+      }) as never,
+    );
+
     this.lastViewportMobileSidebarMode = this.shouldUseMobileSidebarMode(
       window.innerWidth,
     );
@@ -362,10 +399,10 @@ export class RssDashboardView extends ItemView {
         onPageChange: this.handlePageChange.bind(this),
         onPageSizeChange: this.handlePageSizeChange.bind(this),
         onOpenTagsSettings: () => {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-          void (this.app as any).plugins.plugins[
-            "rss-dashboard"
-          ].openTagsSettings();
+          void this.plugin.openTagsSettings();
+        },
+        onTagsMutated: () => {
+          this.app.workspace.trigger("rss-dashboard:tags-mutated");
         },
         onPersistSettings: async () => {
           await this.plugin.saveSettings();
@@ -1650,6 +1687,9 @@ export class RssDashboardView extends ItemView {
     if (shouldRerender) {
       void this.render();
     } else {
+      if (updates.tags && this.sidebar) {
+        this.sidebar.render();
+      }
       this.syncArticleListAfterUpdate(article);
     }
   }
@@ -1683,6 +1723,10 @@ export class RssDashboardView extends ItemView {
     if (shouldRerender) {
       void this.render();
       return;
+    }
+
+    if (updates.tags && this.sidebar) {
+      this.sidebar.render();
     }
 
     this.syncArticleListAfterUpdate(originalArticle);

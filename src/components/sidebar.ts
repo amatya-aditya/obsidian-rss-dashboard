@@ -239,6 +239,7 @@ export class Sidebar {
   private isSearchExpanded = false;
   private searchQuery = "";
   private isTagsExpanded = false;
+  private isAddTagExpanded = false;
   private isRefreshing = false;
   private longPressTimer: number | null = null;
   private pendingImportFeedUrls = new Set<string>();
@@ -729,21 +730,20 @@ export class Sidebar {
       });
     });
 
-    // Clear Tags Button
-    if (this.options.selectedTags.length > 0) {
-      const clearBtn = tagsSection.createDiv({
-        cls: "rss-dashboard-tags-clear-button",
-        text: "× Clear all filters",
-      });
-      clearBtn.addEventListener("click", () => {
-        this.callbacks.onClearTags();
-        this.render();
-      });
-    }
-
     // Tag list
     const tagsList = tagsSection.createDiv({
       cls: "rss-dashboard-sidebar-tags-list",
+    });
+
+    const tagCountMap = new Map<string, number>();
+    this.settings.feeds.forEach((feed) => {
+      feed.items.forEach((item) => {
+        if (item.tags) {
+          item.tags.forEach((t) => {
+            tagCountMap.set(t.name, (tagCountMap.get(t.name) || 0) + 1);
+          });
+        }
+      });
     });
 
     this.settings.availableTags.forEach((tag) => {
@@ -752,53 +752,105 @@ export class Sidebar {
         cls: "rss-dashboard-sidebar-tag-row" + (selected ? " is-selected" : ""),
       });
 
+      const tagCheckbox = row.createEl("input", {
+        attr: { type: "checkbox" },
+        cls: "rss-dashboard-tag-checkbox",
+      });
+      tagCheckbox.checked = selected;
+
       const dot = row.createDiv({ cls: "rss-dashboard-tag-color-dot" });
       dot.style.backgroundColor = tag.color;
 
       row.createSpan({ text: tag.name, cls: "rss-dashboard-sidebar-tag-label" });
+
+      const count = tagCountMap.get(tag.name) || 0;
+      row.createSpan({
+        text: count.toString(),
+        cls: "rss-dashboard-sidebar-tag-count",
+      });
 
       row.addEventListener("click", () => {
         this.callbacks.onTagToggle(tag.name);
         this.render();
       });
     });
-
     // Inline add-tag row
-    const addRow = tagsSection.createDiv({
-      cls: "rss-dashboard-sidebar-add-tag-row",
-    });
-    const cp = addRow.createEl("input", {
-      attr: { type: "color", value: "#3498db" },
-      cls: "rss-dashboard-tag-color-picker",
-    });
-    const input = addRow.createEl("input", {
-      attr: { type: "text", placeholder: "New tag..." },
-      cls: "rss-dashboard-sidebar-add-tag-input",
-    });
-    const addBtn = addRow.createDiv({ cls: "rss-dashboard-sidebar-add-tag-btn" });
-    setIcon(addBtn, "plus");
+    if (this.isAddTagExpanded) {
+      const addRow = tagsSection.createDiv({
+        cls: "rss-dashboard-sidebar-add-tag-row",
+      });
+      const cp = addRow.createEl("input", {
+        attr: { type: "color", value: "#3498db" },
+        cls: "rss-dashboard-tag-color-picker",
+      });
+      const input = addRow.createEl("input", {
+        attr: { type: "text", placeholder: "New tag..." },
+        cls: "rss-dashboard-sidebar-add-tag-input",
+      });
+      const addBtn = addRow.createEl("button", {
+        cls: "rss-dashboard-sidebar-add-tag-btn",
+        text: "Add",
+      });
+      const cancelBtn = addRow.createDiv({
+        cls: "rss-dashboard-sidebar-add-tag-cancel-btn",
+      });
+      setIcon(cancelBtn, "x");
 
-    const submit = () => {
-      const val = input.value.trim();
-      if (!val) return;
-      if (
-        this.settings.availableTags.some(
-          (t) => t.name.toLowerCase() === val.toLowerCase(),
-        )
-      ) {
-        new Notice("Tag already exists");
-        return;
-      }
-      this.settings.availableTags.push({ name: val, color: cp.value });
-      void this.plugin.saveSettings();
-      input.value = "";
-      this.render();
-    };
+      cancelBtn.addEventListener("click", () => {
+        this.isAddTagExpanded = false;
+        this.render();
+      });
 
-    addBtn.addEventListener("click", submit);
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") submit();
-    });
+      const submit = () => {
+        const val = input.value.trim();
+        if (!val) {
+          this.isAddTagExpanded = false;
+          this.render();
+          return;
+        }
+        if (
+          this.settings.availableTags.some(
+            (t) => t.name.toLowerCase() === val.toLowerCase(),
+          )
+        ) {
+          new Notice("Tag already exists");
+          return;
+        }
+        this.settings.availableTags.push({ name: val, color: cp.value });
+        void this.plugin.saveSettings();
+        this.app.workspace.trigger("rss-dashboard:tags-mutated");
+        input.value = "";
+        this.isAddTagExpanded = false;
+        this.render();
+      };
+
+      addBtn.addEventListener("click", submit);
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") submit();
+        if (e.key === "Escape") {
+          this.isAddTagExpanded = false;
+          this.render();
+        }
+      });
+
+      // Auto-focus the input
+      requestAnimationFrame(() => {
+        input.focus();
+      });
+    } else {
+      const addToggle = tagsSection.createDiv({
+        cls: "rss-dashboard-sidebar-add-tag-toggle",
+      });
+      setIcon(addToggle, "plus");
+      addToggle.createSpan({
+        text: "Add new tag...",
+        cls: "rss-dashboard-sidebar-add-tag-toggle-label",
+      });
+      addToggle.addEventListener("click", () => {
+        this.isAddTagExpanded = true;
+        this.render();
+      });
+    }
   }
 
   private renderAllFeedsButton(container: HTMLElement): void {
@@ -1774,6 +1826,7 @@ export class Sidebar {
       tag,
       onSave: async () => {
         await this.plugin.saveSettings();
+        this.app.workspace.trigger("rss-dashboard:tags-mutated");
         this.render();
       },
     });
@@ -1796,6 +1849,7 @@ export class Sidebar {
     });
 
     void this.plugin.saveSettings();
+    this.app.workspace.trigger("rss-dashboard:tags-mutated");
 
     this.render();
 

@@ -40,6 +40,7 @@ function extractDomain(url: string): string {
           return hostname;
         }
       }
+
       return hostname;
     }
     return "";
@@ -79,6 +80,7 @@ interface ArticleListCallbacks {
   onMarkAllAsUnread?: () => void;
   onPersistSettings?: () => Promise<void> | void;
   onOpenTagsSettings?: () => Promise<void> | void;
+  onTagsMutated?: () => void;
 }
 
 export class ArticleList {
@@ -3032,7 +3034,10 @@ export class ArticleList {
       item: article,
       onTagAssignmentChange: onTagChange,
       onPersistSettings: () => this.persistSettings(),
-      onAfterSettingsTagsMutated: () => this.refreshVisibleArticleTags(),
+      onAfterSettingsTagsMutated: () => {
+        this.refreshVisibleArticleTags();
+        this.callbacks.onTagsMutated?.();
+      },
       onOpenTagsSettings: this.callbacks.onOpenTagsSettings,
       appContainer: this.container,
       onClosed: () => {

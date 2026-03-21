@@ -963,6 +963,7 @@ export class ReaderView extends ItemView {
           this.podcastPlayer.refreshTags();
           this.podcastPlayer.refreshPlaylistTags();
         }
+        this.app.workspace.trigger("rss-dashboard:tags-mutated");
       },
       onOpenTagsSettings: () => {
         this.openTagsSettings();
