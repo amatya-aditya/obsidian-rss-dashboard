@@ -27,6 +27,7 @@
 
 - **Settings Migration**: Improved migration logic to automatically add the "Tags" icon to existing user toolbar orders.
 - **Article Counts**: Fixed article count and pagination logic to correctly reflect multi-tag filter states.
+- **Sidebar Icon Visibility**: The "Reset" button in the sidebar icon visibility settings now also resets the visibility of all icons (re-enabling them) and the master toggle.
 - **Code Quality**: Resolved all legacy `currentTag` references and achieved a clean build (zero errors/warnings).
 
 ### Development

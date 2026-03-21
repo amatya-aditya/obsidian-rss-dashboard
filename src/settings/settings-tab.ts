@@ -19,6 +19,7 @@ import {
 import {
   SIDEBAR_ICON_IDS,
   getIconById,
+  SIDEBAR_ICONS,
 } from "../utils/sidebar-icon-registry";
 import {
   FolderSuggest,
@@ -1533,13 +1534,26 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     renderIconRows();
 
     new Setting(containerEl)
-      .setName("Reset icon order")
+      .setName("Reset icon order & visibility")
       .addButton((btn) =>
         btn.setButtonText("Reset").onClick(() => {
           void (async () => {
+            // Reset order
             this.plugin.settings.display.iconOrder = [...SIDEBAR_ICON_IDS];
+            // Reset master toggle
+            this.plugin.settings.display.hideToolbarEntirely = false;
+            // Reset individual toggles
+            SIDEBAR_ICONS.forEach((icon) => {
+              (this.plugin.settings.display[icon.settingKey] as boolean) =
+                false;
+            });
+
             await this.plugin.saveSettings();
-            renderIconRows();
+            
+            // Refresh the entire settings tab to update all toggles and rows
+            this.display();
+
+            // Refresh the sidebar in the dashboard if it exists
             const view = await this.plugin.getActiveDashboardView();
             if (view?.sidebar) view.sidebar.render();
           })();
