@@ -1,4 +1,21 @@
-## [2.3.0-alpha.3] - March 18, 2026
+## [2.2.0-beta.8] - March 20, 2026
+
+### New Features
+
+- **Sidebar Icon Layout Improvements**:
+  - Secondary icons (Add Feed, Manage Feeds, Search, Sort, Collapse All) are now right-aligned in the sidebar header.
+  - Visual separator (divider) added between navigation icons (Dashboard/Discover) and secondary action icons.
+  - Dashboard and Discover navigation icons now match the styling of the Discover tab with consistent sizing and Obsidian theme colors.
+  - Dashboard icon changed from `layout-dashboard` to `house` icon for clarity.
+  - Manage Feeds icon changed from `settings-2` to `pencil` (edit icon) to better represent the editing action.
+
+### Fixed
+
+- **Settings Icon**: Fixed Settings icon incorrectly opening Obsidian's core settings instead of the RSS Dashboard General tab.
+- **Hamburger Menu Tooltip**: Added "More actions" tooltip to the hamburger/overflow menu button for better UX when icons collapse on narrower sidebars.
+- **Icon Styling**: Nav icons (Dashboard/Discover) now properly display with active/hover states matching the Discover tab appearance.
+
+## [2.3.0-alpha.3 / 2.2.0-beta.7] - March 18, 2026
 
 ### New Features
 
@@ -42,7 +59,7 @@
 
 ---
 
-## [2.3.0-alpha.2] - March 16, 2026
+## [2.3.0-alpha.2 / 2.2.0-beta.6] - March 16, 2026
 
 ### New Features
 
@@ -66,7 +83,7 @@
 
 ---
 
-## [2.3.0-alpha.1] - March 13, 2026
+## [2.3.0-alpha.1 / 2.2.0-beta.5] - March 13, 2026
 
 ### New Features
 
