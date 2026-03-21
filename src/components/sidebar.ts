@@ -5,7 +5,6 @@ import {
   App,
   Modal,
   setIcon,
-  setTooltip,
   Setting,
   requestUrl,
 } from "obsidian";
@@ -17,11 +16,9 @@ import {
   FeedFilterSettings,
 } from "../types/types";
 import {
-  SIDEBAR_ICONS,
   SIDEBAR_ICON_IDS,
   getIconById,
   createToolbarButton,
-  computeCollapsedIds,
 } from "../utils/sidebar-icon-registry";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import { showEditTagModal } from "../utils/tag-utils";
@@ -248,8 +245,6 @@ export class Sidebar {
   private faviconCheckPromises = new Map<string, Promise<boolean>>();
   private iconBtnEls = new Map<string, HTMLElement>();
   private iconActions = new Map<string, (e?: MouseEvent) => void>();
-  private hamburgerBtnEl: HTMLElement | null = null;
-  private collapsedIconsSet: Set<string> = new Set();
   private resizeObserver: ResizeObserver | null = null;
 
   /**
@@ -510,18 +505,14 @@ export class Sidebar {
 
     // Attach ResizeObserver once; keep it across re-renders
     if (!this.resizeObserver) {
-      this.resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          this.applyResponsiveCollapse(entry.contentRect.width);
-        }
+      this.resizeObserver = new ResizeObserver(() => {
+        this.updateIconRowFades();
       });
       this.resizeObserver.observe(this.container);
     }
-    // Apply initial collapse state after the DOM settles
+    // Update scroll fade indicators after layout settles
     requestAnimationFrame(() => {
-      this.applyResponsiveCollapse(
-        this.container.offsetWidth || this.settings.sidebarWidth || 280,
-      );
+      this.updateIconRowFades();
     });
 
     requestAnimationFrame(() => {
@@ -1793,7 +1784,8 @@ export class Sidebar {
 
     if (this.settings.display.hideToolbarEntirely) return;
 
-    const iconRow = header.createDiv({ cls: "rss-dashboard-header-icon-row" });
+    const iconRowWrapper = header.createDiv({ cls: "rss-icon-row-wrapper" });
+    const iconRow = iconRowWrapper.createDiv({ cls: "rss-dashboard-header-icon-row" });
     const display = this.settings.display;
     const iconOrder: string[] =
       display.iconOrder?.length ? display.iconOrder : [...SIDEBAR_ICON_IDS];
@@ -1816,7 +1808,7 @@ export class Sidebar {
       );
     };
 
-    // Track whether we've passed the last nav icon so we can add a divider
+    // Track whether we've passed the last nav icon so we can inject a divider
     let seenNavIcon = false;
     let navDividerAdded = false;
 
@@ -1827,13 +1819,10 @@ export class Sidebar {
       const hideKey = iconConfig.settingKey;
       if (display[hideKey]) continue;
 
-      // Inject a visual divider between nav icons and action icons, plus a spacer to right-align secondary icons
+      // Inject a visual divider once, between nav icons and action icons
       if (!navDividerAdded && seenNavIcon && !iconConfig.isNav) {
         const divider = iconRow.createDiv({ cls: "rss-nav-divider" });
         iconRow.appendChild(divider);
-        // Add spacer to push secondary icons to the right
-        const spacer = iconRow.createDiv({ cls: "rss-icon-spacer" });
-        iconRow.appendChild(spacer);
         navDividerAdded = true;
       }
       if (iconConfig.isNav) seenNavIcon = true;
@@ -1987,21 +1976,8 @@ export class Sidebar {
     }
 
     // Hamburger button — always last; hidden until responsive collapse needs it
-    const hamburgerBtn = createToolbarButton(
-      {
-        id: "_hamburger",
-        label: "More actions",
-        lucideIcon: "more-horizontal",
-        settingKey: "hideToolbarEntirely",
-        neverCollapses: true,
-      },
-      () => this.toggleHamburgerPopover(),
-    );
-    hamburgerBtn.setAttribute("data-hamburger", "true");
-    hamburgerBtn.addClass("rss-hamburger-btn--hidden");
-    setTooltip(hamburgerBtn, "More actions");
-    this.hamburgerBtnEl = hamburgerBtn;
-    iconRow.appendChild(hamburgerBtn);
+    // Set up scroll-fade indicators on the icon row wrapper
+    iconRow.addEventListener("scroll", () => this.updateIconRowFades());
 
     // First-launch coachmark for the Add Feed button
     const addFeedBtn = this.iconBtnEls.get("addFeed");
@@ -2022,106 +1998,14 @@ export class Sidebar {
     }
   }
 
-  private applyResponsiveCollapse(width: number): void {
-    const display = this.settings.display;
-    const iconOrder: string[] = display.iconOrder?.length
-      ? display.iconOrder
-      : [...SIDEBAR_ICON_IDS];
-
-    const hiddenSettings: Partial<Record<string, boolean>> = {};
-    for (const icon of SIDEBAR_ICONS) {
-      if (display[icon.settingKey]) {
-        hiddenSettings[icon.settingKey] = true;
-      }
-    }
-
-    const collapsed = computeCollapsedIds(
-      width,
-      iconOrder,
-      hiddenSettings,
-      display.hideToolbarEntirely ?? false,
-    );
-    this.collapsedIconsSet = collapsed;
-
-    for (const [id, btn] of this.iconBtnEls) {
-      if (collapsed.has(id)) {
-        btn.addClass("rss-icon-btn--hidden");
-      } else {
-        btn.removeClass("rss-icon-btn--hidden");
-      }
-    }
-
-    if (this.hamburgerBtnEl) {
-      if (collapsed.size > 0) {
-        this.hamburgerBtnEl.removeClass("rss-hamburger-btn--hidden");
-      } else {
-        this.hamburgerBtnEl.addClass("rss-hamburger-btn--hidden");
-      }
-    }
-  }
-
-  private toggleHamburgerPopover(): void {
-    // Remove any existing popover first
-    this.container.querySelector(".rss-hamburger-popover")?.remove();
-
-    if (this.collapsedIconsSet.size === 0) return;
-
-    const display = this.settings.display;
-    const iconOrder: string[] = display.iconOrder?.length
-      ? display.iconOrder
-      : [...SIDEBAR_ICON_IDS];
-
-    const popover = this.container.createDiv({ cls: "rss-hamburger-popover" });
-
-    for (const id of iconOrder) {
-      if (!this.collapsedIconsSet.has(id)) continue;
-      const icon = getIconById(id);
-      if (!icon) continue;
-
-      const row = popover.createDiv({ cls: "rss-hamburger-popover-row" });
-      const iconEl = row.createDiv({
-        cls: "clickable-icon",
-        attr: {
-          role: "button",
-          tabindex: "0",
-          "aria-label": icon.label,
-        },
-      });
-      setIcon(iconEl, icon.lucideIcon);
-      row.createSpan({
-        cls: "rss-hamburger-popover-label",
-        text: icon.label,
-      });
-
-      const onRowClick = (e: MouseEvent) => {
-        popover.remove();
-        this.fireIconAction(id, e);
-      };
-      row.addEventListener("click", onRowClick);
-      iconEl.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          popover.remove();
-          this.fireIconAction(id);
-        }
-      });
-    }
-
-    // Click-outside to dismiss
-    const onOutsideClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        !target.closest(".rss-hamburger-popover") &&
-        !target.closest("[data-hamburger]")
-      ) {
-        popover.remove();
-        document.removeEventListener("click", onOutsideClick, true);
-      }
-    };
-    // Delay so this click doesn't immediately close the popover
-    window.setTimeout(
-      () => document.addEventListener("click", onOutsideClick, true),
-      0,
+  private updateIconRowFades(): void {
+    const iconRow = this.container.querySelector<HTMLElement>(".rss-dashboard-header-icon-row");
+    const wrapper = this.container.querySelector<HTMLElement>(".rss-icon-row-wrapper");
+    if (!iconRow || !wrapper) return;
+    wrapper.toggleClass("has-overflow-left", iconRow.scrollLeft > 0);
+    wrapper.toggleClass(
+      "has-overflow-right",
+      iconRow.scrollLeft + iconRow.clientWidth < iconRow.scrollWidth - 1,
     );
   }
 
@@ -2160,9 +2044,12 @@ export class Sidebar {
       );
       if (e) {
         menu.showAtMouseEvent(e);
-      } else if (this.hamburgerBtnEl) {
-        const rect = this.hamburgerBtnEl.getBoundingClientRect();
-        menu.showAtPosition({ x: rect.left, y: rect.bottom });
+      } else {
+        const sortBtn = this.iconBtnEls.get("sort");
+        if (sortBtn) {
+          const rect = sortBtn.getBoundingClientRect();
+          menu.showAtPosition({ x: rect.left, y: rect.bottom });
+        }
       }
       return;
     }

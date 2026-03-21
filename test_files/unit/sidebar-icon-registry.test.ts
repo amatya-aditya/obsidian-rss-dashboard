@@ -47,47 +47,11 @@ describe("SIDEBAR_ICONS registry", () => {
     }
   });
 
-  it("every entry has either collapseThreshold or neverCollapses: true", () => {
-    for (const icon of SIDEBAR_ICONS) {
-      const hasThreshold = icon.collapseThreshold !== undefined;
-      const neverCollapses = icon.neverCollapses === true;
-      expect(hasThreshold || neverCollapses).toBe(true);
-    }
-  });
-
   it("dashboard and discover have neverCollapses: true", () => {
     const dashboard = SIDEBAR_ICONS.find((i) => i.id === "dashboard");
     const discover = SIDEBAR_ICONS.find((i) => i.id === "discover");
     expect(dashboard?.neverCollapses).toBe(true);
     expect(discover?.neverCollapses).toBe(true);
-  });
-
-  it("collapse thresholds match expected values", () => {
-    const thresholds: Record<string, number> = {
-      settings: 360,
-      collapseAll: 320,
-      sort: 300,
-      addFolder: 280,
-      search: 260,
-      manageFeeds: 240,
-      addFeed: 220,
-    };
-    for (const [id, expected] of Object.entries(thresholds)) {
-      const icon = SIDEBAR_ICONS.find((i) => i.id === id);
-      expect(icon?.collapseThreshold, `threshold for ${id}`).toBe(expected);
-    }
-  });
-
-  it("no threshold inversions (thresholds strictly descend right-to-left)", () => {
-    const collapsible = SIDEBAR_ICONS.filter(
-      (i) => i.collapseThreshold !== undefined
-    ).sort((a, b) => (b.collapseThreshold ?? 0) - (a.collapseThreshold ?? 0));
-
-    for (let i = 1; i < collapsible.length; i++) {
-      expect(collapsible[i].collapseThreshold).toBeLessThan(
-        collapsible[i - 1].collapseThreshold!
-      );
-    }
   });
 
   it("each icon's settingKey matches hideIcon{PascalId}", () => {

@@ -870,14 +870,65 @@
 }
 
 /* --- REDESIGN LAYOUT --- */
-/* Unified icon row (Phase 2+) */
+
+/* Wrapper clips the scroll area and hosts the fade-mask pseudo-elements */
+.rss-icon-row-wrapper {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Fade indicator — right edge (shown when more icons are scrolled offscreen) */
+.rss-icon-row-wrapper::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 24px;
+  height: 100%;
+  background: linear-gradient(to right, transparent, var(--background-primary));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+/* Fade indicator — left edge */
+.rss-icon-row-wrapper::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 24px;
+  height: 100%;
+  background: linear-gradient(to left, transparent, var(--background-primary));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1;
+}
+
+.rss-icon-row-wrapper.has-overflow-right::after {
+  opacity: 1;
+}
+.rss-icon-row-wrapper.has-overflow-left::before {
+  opacity: 1;
+}
+
+/* Scrollable icon row */
 .rss-dashboard-header-icon-row {
   display: flex;
   align-items: center;
   gap: 2px;
-  flex: 1;
   flex-wrap: nowrap;
-  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* IE/Edge */
+  padding: 1px 0;              /* keep focus rings from clipping */
+}
+
+.rss-dashboard-header-icon-row::-webkit-scrollbar {
+  display: none;               /* Chrome/Safari/WebKit */
 }
 
 .rss-dashboard-header-icon-row .clickable-icon {
@@ -905,7 +956,7 @@
   background-color: var(--background-modifier-hover);
 }
 
-/* Nav icons (Dashboard / Discover) — visual separator and active state */
+/* Nav divider between navigation and action icons */
 .rss-nav-divider {
   width: 1px;
   height: 18px;
@@ -915,76 +966,12 @@
   align-self: center;
 }
 
-/* Spacer to right-align secondary icons */
-.rss-icon-spacer {
-  flex: 1;
-}
-
 /* SVG visibility fix for Android WebView */
 .rss-dashboard-header-icon-row .clickable-icon svg {
   width: 16px !important;
   height: 16px !important;
   display: block !important;
   visibility: visible !important;
-}
-
-/* Hamburger popover */
-.rss-hamburger-popover {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: var(--layer-menu, 200);
-  background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  box-shadow: var(--shadow-s);
-  padding: 4px 0;
-  min-width: 160px;
-  max-width: 240px;
-}
-
-.rss-hamburger-popover-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  cursor: pointer;
-  color: var(--text-normal);
-  border-radius: 0;
-  transition: background-color 0.1s ease;
-}
-
-.rss-hamburger-popover-row:hover {
-  background-color: var(--background-modifier-hover);
-}
-
-.rss-hamburger-popover-row .clickable-icon {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.rss-hamburger-popover-row .clickable-icon svg {
-  width: 14px !important;
-  height: 14px !important;
-  display: block !important;
-  visibility: visible !important;
-}
-
-.rss-hamburger-popover-label {
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.rss-hamburger-btn--hidden,
-.rss-icon-btn--hidden {
-  display: none;
 }
 
 /* Base Toolbar */

@@ -208,7 +208,6 @@ export interface SidebarIconConfig {
   label: string;
   lucideIcon: string;
   settingKey: keyof DisplaySettings;
-  collapseThreshold?: number;
   neverCollapses?: boolean;
   isNav?: boolean;
 }
