@@ -26,6 +26,7 @@ import { attachInputClearButton } from "../utils/platform-utils";
 import { SidebarSearchService } from "../services/sidebar-search-service";
 import { isValidFolderName } from "../utils/validation";
 import type RssDashboardPlugin from "../../main";
+import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 
 export interface SidebarOptions {
   currentFolder: string | null;
@@ -1169,6 +1170,22 @@ export class Sidebar {
       });
       menu.addItem((item: MenuItem) => {
         item
+          .setTitle("Sort feeds (a to z)")
+          .setIcon("sort-asc")
+          .onClick(() => {
+            void this.sortFeedsInFolder(fullPath, "name", true);
+          });
+      });
+      menu.addItem((item: MenuItem) => {
+        item
+          .setTitle("Sort feeds (z to a)")
+          .setIcon("sort-desc")
+          .onClick(() => {
+            void this.sortFeedsInFolder(fullPath, "name", false);
+          });
+      });
+      menu.addItem((item: MenuItem) => {
+        item
           .setTitle("Mark all as read")
           .setIcon("check-circle")
           .onClick(() => {
@@ -2188,6 +2205,16 @@ export class Sidebar {
       const menu = new Menu();
       menu.addItem((item) =>
         item
+          .setTitle("Feed name (a to z)")
+          .onClick(() => void this.sortAllFeeds("name", true)),
+      );
+      menu.addItem((item) =>
+        item
+          .setTitle("Feed name (z to a)")
+          .onClick(() => void this.sortAllFeeds("name", false)),
+      );
+      menu.addItem((item) =>
+        item
           .setTitle("Folder name (a to z)")
           .onClick(() => void this.sortFolders("name", true)),
       );
@@ -2379,6 +2406,16 @@ export class Sidebar {
     sortButton.addEventListener("click", (e) => {
       const menu = new Menu();
 
+      menu.addItem((item) =>
+        item.setTitle("Feed name (a to z)").onClick(() => {
+          void this.sortAllFeeds("name", true);
+        }),
+      );
+      menu.addItem((item) =>
+        item.setTitle("Feed name (z to a)").onClick(() => {
+          void this.sortAllFeeds("name", false);
+        }),
+      );
       menu.addItem((item) =>
         item.setTitle("Folder name (a to z)").onClick(() => {
           void this.sortFolders("name", true);
@@ -2866,35 +2903,56 @@ export class Sidebar {
     feeds: Feed[],
     sortOrder: { by: "name" | "created" | "itemCount"; ascending: boolean },
   ): Feed[] {
-    const sorter = (a: Feed, b: Feed): number => {
-      let valA: string | number, valB: string | number;
+    return applyFeedSortOrder(feeds, sortOrder);
+  }
 
-      switch (sortOrder.by) {
-        case "name":
-          valA = a.title;
-          valB = b.title;
-          return (
-            valA.localeCompare(valB, undefined, { numeric: true }) *
-            (sortOrder.ascending ? 1 : -1)
-          );
-        case "created":
-          valA = a.lastUpdated || 0;
-          valB = b.lastUpdated || 0;
-          break;
-        case "itemCount":
-          valA = a.items.length;
-          valB = b.items.length;
-          break;
-        default:
-          return 0;
+  private async sortAllFeeds(
+    by: "name" | "created" | "itemCount",
+    ascending: boolean,
+  ) {
+    if (!this.settings.folderFeedSortOrders) {
+      this.settings.folderFeedSortOrders = {};
+    }
+
+    const allFolderPaths = this.getCachedFolderPaths();
+    const pathsToSort = ["", ...allFolderPaths];
+
+    for (const folderPath of pathsToSort) {
+      let feedsInFolder: Feed[];
+      if (folderPath) {
+        feedsInFolder = this.settings.feeds.filter(
+          (feed) => feed.folder === folderPath,
+        );
+      } else {
+        const pathsSet = new Set(allFolderPaths);
+        feedsInFolder = this.settings.feeds.filter(
+          (feed) => !feed.folder || !pathsSet.has(feed.folder),
+        );
       }
 
-      if (valA < valB) return sortOrder.ascending ? -1 : 1;
-      if (valA > valB) return sortOrder.ascending ? 1 : -1;
-      return 0;
-    };
+      if (feedsInFolder.length > 0) {
+        const sortedFeeds = this.applyFeedSortOrder([...feedsInFolder], {
+          by,
+          ascending,
+        });
 
-    return [...feeds].sort(sorter);
+        if (folderPath) {
+          this.settings.feeds = this.settings.feeds.filter(
+            (feed) => feed.folder !== folderPath,
+          );
+        } else {
+          const pathsSet = new Set(allFolderPaths);
+          this.settings.feeds = this.settings.feeds.filter(
+            (feed) => feed.folder && pathsSet.has(feed.folder),
+          );
+        }
+        this.settings.feeds.push(...sortedFeeds);
+      }
+      this.settings.folderFeedSortOrders[folderPath] = { by, ascending };
+    }
+
+    await this.plugin.saveSettings();
+    this.render();
   }
 
   private toggleAllFolders(): void {
