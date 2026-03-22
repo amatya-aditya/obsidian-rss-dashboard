@@ -6,6 +6,7 @@ import {
   APPLE_PODCASTS,
   POCKET_CASTS,
 } from "../utils/podcast-platforms.js";
+import { resolveAbsoluteHttpUrl } from "../utils/url-utils.js";
 
 interface ItunesLookupResponse {
   resultCount: number;
@@ -2696,13 +2697,18 @@ export class FeedParser {
 
     const feedTitle = existingFeed?.title || parsed.title || "Unnamed feed";
 
-    const newFeed: Feed = existingFeed || {
-      title: feedTitle,
-      url: url,
-      folder: "Uncategorized",
-      items: [],
-      lastUpdated: Date.now(),
-    };
+	    const newFeed: Feed = existingFeed || {
+	      title: feedTitle,
+	      url: url,
+	      folder: "Uncategorized",
+	      items: [],
+	      lastUpdated: Date.now(),
+	    };
+
+	    const resolvedSiteUrl = resolveAbsoluteHttpUrl(parsed.link, url);
+	    if (resolvedSiteUrl) {
+	      newFeed.siteUrl = resolvedSiteUrl;
+	    }
 
     const existingItems = new Map<string, FeedItem>();
     if (existingFeed) {
@@ -3109,13 +3115,14 @@ export class FeedParserService {
       ieee: item.ieee,
     }));
 
-    const tempFeed: Feed = {
-      title: parsed.title || "",
-      url: url,
-      items: items,
-      folder: folder,
-      lastUpdated: Date.now(),
-      mediaType: isPodcast ? "podcast" : "article",
+	    const tempFeed: Feed = {
+	      title: parsed.title || "",
+	      url: url,
+	      siteUrl: resolveAbsoluteHttpUrl(parsed.link, url) || undefined,
+	      items: items,
+	      folder: folder,
+	      lastUpdated: Date.now(),
+	      mediaType: isPodcast ? "podcast" : "article",
       iconUrl:
         parsed.feedItunesImage ||
         parsed.feedImageUrl ||

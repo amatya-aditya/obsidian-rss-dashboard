@@ -6,6 +6,7 @@ import {
   normalizePath,
   Modal,
   TextComponent,
+  ButtonComponent,
   setIcon,
 } from "obsidian";
 import RssDashboardPlugin from "./../../main";
@@ -31,6 +32,7 @@ import {
   setCssProps,
   shouldUseMobileSidebarLayout,
 } from "../utils/platform-utils";
+import { isValidUrl } from "../utils/validation";
 
 class TemplateNameModal extends Modal {
   private result: string | null = null;
@@ -794,21 +796,124 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       });
 
     if (this.plugin.settings.corsProxyEnabled) {
-      new Setting(containerEl)
+      const predefinedProxies = [
+        {
+          label: "AllOrigins (Raw)",
+          url: "https://api.allorigins.win/raw?url=",
+        },
+        {
+          label: "AllOrigins (Get)",
+          url: "https://api.allorigins.win/get?url=",
+        },
+        { label: "CodeTabs", url: "https://api.codetabs.com/v1/proxy/?quest=" },
+        { label: "Isomorphic-Git", url: "https://cors.isomorphic-git.org/" },
+        { label: "ThingProxy", url: "https://thingproxy.freeboard.io/fetch/" },
+        {
+          label: "RSS2JSON",
+          url: "https://api.rss2json.com/v1/api.json?rss_url=",
+        },
+      ];
+
+      const proxySetting = new Setting(containerEl)
         .setName("Proxy URL")
-        .setDesc(
-          "Base URL of the CORS proxy. The article URL will be appended after encoding. " +
-            "Example: https://api.allorigins.win/raw?url=",
-        )
+        // eslint-disable-next-line obsidianmd/ui/sentence-case
+        .setDesc("Base URL of the CORS proxy.");
+      proxySetting.settingEl.addClass("rss-proxy-setting-item");
+
+      let textComponent: TextComponent;
+      let saveButton: ButtonComponent | null = null;
+
+      proxySetting
+        .addDropdown((dropdown) => {
+          dropdown.addOption("", "Select a proxy...");
+          predefinedProxies.forEach((proxy) => {
+            dropdown.addOption(proxy.url, proxy.label);
+          });
+          dropdown.addOption("custom", "Add new proxy URL...");
+
+          // Set initial value based on current setting
+          const currentUrl = this.plugin.settings.corsProxyUrl || "";
+          const isPredefined = predefinedProxies.some(
+            (p) => p.url === currentUrl,
+          );
+          if (isPredefined) {
+            dropdown.setValue(currentUrl);
+          } else if (currentUrl) {
+            dropdown.setValue("custom");
+          } else {
+            dropdown.setValue("");
+          }
+
+          dropdown.onChange((value: string) => {
+            if (value === "custom") {
+              // Show save button only for new custom URLs
+              if (saveButton) setCssProps(saveButton.buttonEl, { display: "" });
+            } else {
+              if (saveButton)
+                setCssProps(saveButton.buttonEl, { display: "none" });
+              if (value !== "") {
+                textComponent.setValue(value);
+                void (async () => {
+                  this.plugin.settings.corsProxyUrl = value;
+                  await this.plugin.saveSettings();
+                })();
+              }
+            }
+          });
+        })
         .addText((text) => {
+          textComponent = text;
           text
-            .setPlaceholder("https://api.allorigins.win/raw?url=")
-            .setValue(this.plugin.settings.corsProxyUrl ?? "")
+            .setPlaceholder("https://proxy.com/?url=")
+            .setValue(this.plugin.settings.corsProxyUrl || "")
             .onChange(async (value) => {
-              this.plugin.settings.corsProxyUrl = value.trim();
+              this.plugin.settings.corsProxyUrl = value;
               await this.plugin.saveSettings();
             });
-          text.inputEl.setCssProps({ width: "100%" });
+
+          // Style the input to take full width on mobile/tablet
+          text.inputEl.setCssProps({
+            flex: "1 1 auto",
+            minWidth: "150px",
+          });
+
+          // Add clear button icon
+          proxySetting.addExtraButton((cb) => {
+            cb.setIcon("x")
+              .setTooltip("Clear")
+              .onClick(async () => {
+                text.setValue("");
+                this.plugin.settings.corsProxyUrl = "";
+                await this.plugin.saveSettings();
+              });
+          });
+        })
+        .addButton((btn) => {
+          saveButton = btn;
+          btn
+            .setIcon("save")
+            .setTooltip("Save to list")
+            .onClick(async () => {
+              const customUrl = textComponent.getValue();
+              const validation = isValidUrl(customUrl);
+              if (validation.valid) {
+                this.plugin.settings.corsProxyUrl = customUrl;
+                await this.plugin.saveSettings();
+                new Notice("Proxy URL saved");
+                this.display(); // Refresh to update dropdown
+              } else {
+                new Notice(validation.error || "Invalid URL");
+              }
+            });
+
+          // Initially hide if not custom
+          const currentUrl = this.plugin.settings.corsProxyUrl || "";
+          const isPredefined = predefinedProxies.some(
+            (p) => p.url === currentUrl,
+          );
+          if (isPredefined || !currentUrl) {
+            setCssProps(btn.buttonEl, { display: "none" });
+          }
         });
     }
   }

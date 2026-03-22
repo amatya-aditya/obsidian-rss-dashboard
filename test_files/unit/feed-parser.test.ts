@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Feed, FeedItem } from "../../src/types/types";
+import { resolveAbsoluteHttpUrl } from "../../src/utils/url-utils";
 import {
   CustomXMLParser,
   isValidFeed,
@@ -271,6 +272,13 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
     expect(result.link).toBe("https://example.com");
   });
 
+  it("can derive a canonical siteUrl from RSS channel <link>", () => {
+    const result = parser.parseString(RSS2_BASIC);
+    expect(
+      resolveAbsoluteHttpUrl(result.link, "https://example.com/feed.xml"),
+    ).toBe("https://example.com");
+  });
+
   it("parses multiple items from RSS 2.0 feed", () => {
     const result = parser.parseString(RSS2_BASIC);
     expect(result.items).toHaveLength(2);
@@ -530,6 +538,13 @@ describe("CustomXMLParser - Atom Parsing", () => {
     const result = parser.parseString(ATOM_BASIC);
     expect(result.link).toBe("https://example.com");
   });
+
+  it("can derive a canonical siteUrl from Atom alternate link", () => {
+    const result = parser.parseString(ATOM_BASIC);
+    expect(
+      resolveAbsoluteHttpUrl(result.link, "https://example.com/atom.xml"),
+    ).toBe("https://example.com");
+  });
 });
 
 describe("CustomXMLParser - JSON Feed Parsing", () => {
@@ -543,6 +558,13 @@ describe("CustomXMLParser - JSON Feed Parsing", () => {
     const result = parser.parseString(JSON_FEED_BASIC);
     expect(result.type).toBe("json");
     expect(result.title).toBe("JSON Feed");
+  });
+
+  it("can derive a canonical siteUrl from JSON Feed home_page_url", () => {
+    const result = parser.parseString(JSON_FEED_BASIC);
+    expect(
+      resolveAbsoluteHttpUrl(result.link, "https://example.com/feed.json"),
+    ).toBe("https://example.com");
   });
 
   it("parses JSON Feed items", () => {

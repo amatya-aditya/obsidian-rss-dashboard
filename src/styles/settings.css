@@ -1074,3 +1074,38 @@
   display: block !important;
   visibility: visible !important;
 }
+
+/* Proxy Setting UI Refinements */
+.rss-proxy-setting-item .setting-item-control {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.rss-proxy-setting-item .dropdown {
+  min-width: 180px;
+}
+
+.rss-proxy-setting-item .setting-item-control button {
+  padding: 4px 8px;
+}
+
+@media (max-width: 768px) {
+  .rss-proxy-setting-item.setting-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .rss-proxy-setting-item .setting-item-control {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .rss-proxy-setting-item .dropdown,
+  .rss-proxy-setting-item input[type="text"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 100%;
+  }
+}

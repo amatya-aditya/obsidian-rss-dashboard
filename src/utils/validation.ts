@@ -90,3 +90,27 @@ export function sanitizeName(name: string): string {
 
   return sanitized || "Unnamed";
 }
+
+/**
+ * Validates a URL ensuring it has a valid format and protocol (http or https).
+ * @param url The URL string to validate
+ * @returns ValidationResult with status and optional error message
+ */
+export function isValidUrl(url: string): ValidationResult {
+  if (!url || url.trim() === "") {
+    return { valid: false, error: "URL cannot be empty." };
+  }
+
+  const trimmedUrl = url.trim();
+
+  try {
+    const parsedUrl = new URL(trimmedUrl);
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      return { valid: false, error: "URL must start with http:// or https://" };
+    }
+  } catch {
+    return { valid: false, error: "Invalid URL format." };
+  }
+
+  return { valid: true };
+}

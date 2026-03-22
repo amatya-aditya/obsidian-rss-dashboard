@@ -58,6 +58,10 @@ export interface FeedItem {
 export interface Feed {
   title: string;
   url: string;
+  /**
+   * Canonical website/homepage URL for the feed (not the RSS URL).
+   */
+  siteUrl?: string;
   folder: string;
   items: FeedItem[];
   lastUpdated: number;
@@ -132,6 +136,7 @@ export interface MediaSettings {
   defaultSmallwebTag: string;
   openInSplitView: boolean;
   podcastTheme: PodcastTheme;
+  enableApplePodcastsOpen?: boolean;
 }
 
 export interface SavedTemplate {
@@ -314,6 +319,7 @@ export interface RssDashboardSettings {
 
   corsProxyEnabled: boolean;
   corsProxyUrl: string;
+  customProxyUrls: string[];
 
   readerFormat: ReaderFormatSettings;
 
@@ -408,6 +414,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   useWebViewer: true,
   corsProxyEnabled: false,
   corsProxyUrl: "",
+  customProxyUrls: [],
   readerFormat: {
     textAlign: "justify",
     paragraphWidth: 100,
@@ -416,18 +423,19 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     fontFamily: "default",
     paragraphSpacing: "default",
   },
-  media: {
-    defaultYouTubeFolder: "Videos",
-    defaultYouTubeTag: "youtube",
-    defaultPodcastFolder: "Podcast",
-    defaultPodcastTag: "podcast",
-    defaultRssFolder: "RSS",
-    defaultRssTag: "RSS",
-    defaultSmallwebFolder: "Smallweb",
-    defaultSmallwebTag: "smallweb",
-    openInSplitView: true,
-    podcastTheme: "obsidian",
-  },
+	  media: {
+	    defaultYouTubeFolder: "Videos",
+	    defaultYouTubeTag: "youtube",
+	    defaultPodcastFolder: "Podcast",
+	    defaultPodcastTag: "podcast",
+	    defaultRssFolder: "RSS",
+	    defaultRssTag: "RSS",
+	    defaultSmallwebFolder: "Smallweb",
+	    defaultSmallwebTag: "smallweb",
+	    openInSplitView: true,
+	    podcastTheme: "obsidian",
+	    enableApplePodcastsOpen: false,
+	  },
   articleSaving: {
     addSavedTag: true,
     defaultFolder: "RSS articles/",
