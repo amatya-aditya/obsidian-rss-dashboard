@@ -45,6 +45,12 @@ export function installObsidianDomPolyfills(): void {
     };
   }
 
+  if (typeof (proto as any).hasClass !== "function") {
+    (proto as any).hasClass = function (this: HTMLElement, cls: string): boolean {
+      return this.classList.contains(cls);
+    };
+  }
+
   if (typeof proto.toggleClass !== "function") {
     proto.toggleClass = function toggleClass(this: HTMLElement, cls: string, force?: boolean): void {
       this.classList.toggle(cls, force);
@@ -54,6 +60,12 @@ export function installObsidianDomPolyfills(): void {
   if (typeof proto.setAttr !== "function") {
     proto.setAttr = function setAttr(this: HTMLElement, key: string, value: string): void {
       this.setAttribute(key, value);
+    };
+  }
+
+  if (typeof (proto as any).getAttr !== "function") {
+    (proto as any).getAttr = function (this: HTMLElement, key: string): string | null {
+      return this.getAttribute(key);
     };
   }
 

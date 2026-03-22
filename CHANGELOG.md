@@ -1,6 +1,7 @@
 ## [2.2.0-beta.8] - March 22, 2026
 
 - **IMPORTANT**: Earlier limited releases intended for users experiencing specific issues were tagged as 2.3.0-alpha.1, 2.3.0-alpha.2, and 2.3.0-alpha.3. These were incorrectly versioned. They have been retroactively designated as 2.2.0-beta.5, 2.2.0-beta.6, and 2.2.0-beta.7 in our internal documentation. The original GitHub release tags have been left intact to avoid breaking any shared links. Development continues from 2.2.0-beta.8 forward.
+- **Major Settings Tab Refactor**: The monolithic `settings-tab.ts` has been refactored into a modular architecture for better maintainability and performance. Each settings tab now resides in its own dedicated file.
 
 ### New Features
 
@@ -36,6 +37,13 @@
 ### Development
 
 - **Developer Documentation**: Added a new "Advanced Podcast Platform Resolution" section to `docs/development/feed-validation.md` documenting proxy rotation and semantic search patterns.
+- **Settings Architecture Refactor**:
+  - Extracted 9 dedicated tab renderer files into `src/settings/tabs/`.
+  - Centralized shared modal classes in `src/settings/modals/settings-modals.ts`.
+  - Isolated pure tab-name helpers in `src/settings/tab-names.ts` for zero-dependency testing.
+  - Implemented TDD-driven logic for color normalization, icon reordering, and preset detection.
+  - Added **74 new unit tests** covering settings-related logic across 4 new test files.
+  - Slimmed down the main `RssDashboardSettingTab` orchestrator to ~119 lines.
 - **Unit Tests**: Added `test_files/unit/pocketcasts-url-resolution.test.ts` for Pocket Casts URL detection and UUID extraction logic.
 
 ## [2.3.0-alpha.3 / 2.2.0-beta.7] - March 18, 2026
