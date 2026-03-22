@@ -1,5 +1,5 @@
 import { FeedItem } from "../types/types";
-import { App, setIcon } from "obsidian";
+import { App, setIcon, Menu } from "obsidian";
 import { MediaService } from "../services/media-service";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 
@@ -31,6 +31,15 @@ export class PodcastPlayer {
     private repeatButton: HTMLElement | null = null;
     private volumeSlider: HTMLElement | null = null;
     private volumeContainer: HTMLElement | null = null;
+
+    private sleepTimerId: number | null = null;
+    private sleepTimerEndTime: number | null = null;
+    private stopAtEndOfEpisode = false;
+    private sleepTimerButton: HTMLElement | null = null;
+    private sleepTimerDisplayEl: HTMLElement | null = null;
+    private sleepTimerTextEl: HTMLElement | null = null;
+    private sleepTimerRestartBtn: HTMLElement | null = null;
+    private lastSleepTimerDuration: number | 'end' | null = null;
 
     constructor(
         container: HTMLElement,
@@ -353,7 +362,21 @@ export class PodcastPlayer {
                 this.audioElement.playbackRate = Number((this.speedButtonEl as HTMLSelectElement).value);
             }
         };
-        
+
+        // Sleep Timer Button
+        this.sleepTimerButton = toolsSection.createDiv({
+            cls: "rss-sleep-timer-btn clickable-icon",
+            attr: {
+                title: "Sleep Timer",
+                role: "button",
+                tabindex: "0",
+                "aria-label": "Sleep Timer"
+            }
+        });
+        setIcon(this.sleepTimerButton, "moon");
+        this.sleepTimerButton.onclick = (e) => this.showSleepTimerMenu(e);
+        this.updateSleepTimerButtonState();
+
         this.volumeContainer = toolsSection.createDiv({ cls: "rss-volume-control-container" });
         const volumeBtn = this.volumeContainer.createDiv({
             cls: "rss-volume clickable-icon",
@@ -439,6 +462,26 @@ export class PodcastPlayer {
         };
         
         updateVolumeIcon();
+
+        // Sleep Timer Display
+        this.sleepTimerDisplayEl = toolsSection.createDiv({ cls: "rss-sleep-timer-display" });
+        setIcon(this.sleepTimerDisplayEl.createSpan(), 'hourglass');
+        this.sleepTimerTextEl = this.sleepTimerDisplayEl.createSpan({ cls: 'rss-sleep-timer-text' });
+
+        // Quick Restart Button
+        this.sleepTimerRestartBtn = this.sleepTimerDisplayEl.createDiv({ cls: 'rss-sleep-timer-restart-btn', attr: { 'title': 'Restart sleep timer' } });
+        setIcon(this.sleepTimerRestartBtn, 'rotate-ccw');
+        this.sleepTimerRestartBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (this.lastSleepTimerDuration) {
+                this.setSleepTimer(this.lastSleepTimerDuration);
+                if (this.audioElement && this.audioElement.paused) {
+                    void this.audioElement.play();
+                }
+            }
+        };
+
+        this.updateSleepTimerDisplay();
 
         // ROW 2: Progress Area
         const progressArea = this.playerEl.createDiv({ cls: "podcast-progress-area" });
@@ -969,11 +1012,130 @@ export class PodcastPlayer {
                 });
             }
         } else {
-              
             if (this.playlist.length === 0) return;
             this.currentPlaylistIndex = (this.currentPlaylistIndex + 1) % this.playlist.length;
             const nextEpisode = this.playlist[this.currentPlaylistIndex];
             this.loadEpisode(nextEpisode, undefined, { notify: true, source: 'autoplay', autoplay: true });
+        }
+
+        if (this.stopAtEndOfEpisode) {
+            this.audioElement?.pause();
+            this.clearSleepTimer();
+        }
+    }
+    
+    private showSleepTimerMenu(event: MouseEvent): void {
+        const menu = new Menu();
+        
+        const options = [
+            { label: 'Off', action: () => this.clearSleepTimer() },
+            { label: '5 minutes', minutes: 5 },
+            { label: '10 minutes', minutes: 10 },
+            { label: '15 minutes', minutes: 15 },
+            { label: '30 minutes', minutes: 30 },
+            { label: '45 minutes', minutes: 45 },
+            { label: '60 minutes', minutes: 60 },
+            { label: '90 minutes', minutes: 90 },
+            { label: '120 minutes', minutes: 120 },
+            { label: 'End of episode', action: () => this.setSleepTimer('end') }
+        ];
+
+        options.forEach(opt => {
+            menu.addItem(item => {
+                item.setTitle(opt.label);
+                item.onClick(() => {
+                    if (opt.action) opt.action();
+                    else if (opt.minutes) this.setSleepTimer(opt.minutes);
+                });
+                
+                // Active state check
+                if (opt.label === 'Off' && !this.sleepTimerEndTime && !this.stopAtEndOfEpisode) {
+                    item.setChecked(true);
+                } else if (opt.label === 'End of episode' && this.stopAtEndOfEpisode) {
+                    item.setChecked(true);
+                }
+            });
+        });
+
+        menu.showAtMouseEvent(event);
+    }
+
+    private setSleepTimer(minutes: number | 'end'): void {
+        this.lastSleepTimerDuration = minutes;
+        this.clearSleepTimer();
+
+        if (minutes === 'end') {
+            this.stopAtEndOfEpisode = true;
+        } else {
+            const durationMs = minutes * 60 * 1000;
+            this.sleepTimerEndTime = Date.now() + durationMs;
+            
+            this.sleepTimerId = window.setInterval(() => {
+                const remaining = (this.sleepTimerEndTime || 0) - Date.now();
+                if (remaining <= 0) {
+                    this.audioElement?.pause();
+                    if (this.sleepTimerId) {
+                        window.clearInterval(this.sleepTimerId);
+                        this.sleepTimerId = null;
+                    }
+                    this.updateSleepTimerDisplay();
+                    this.updateSleepTimerButtonState();
+                } else {
+                    this.updateSleepTimerDisplay();
+                }
+            }, 1000);
+        }
+
+        this.updateSleepTimerButtonState();
+        this.updateSleepTimerDisplay();
+    }
+
+    private clearSleepTimer(): void {
+        if (this.sleepTimerId) {
+            window.clearInterval(this.sleepTimerId);
+            this.sleepTimerId = null;
+        }
+        this.sleepTimerEndTime = null;
+        this.stopAtEndOfEpisode = false;
+        if (this.sleepTimerDisplayEl) {
+            this.sleepTimerDisplayEl.removeClass("is-expired");
+        }
+        this.updateSleepTimerButtonState();
+        this.updateSleepTimerDisplay();
+    }
+
+    private updateSleepTimerButtonState(): void {
+        if (this.sleepTimerButton) {
+            this.sleepTimerButton.classList.toggle("is-active", !!this.sleepTimerEndTime || this.stopAtEndOfEpisode);
+        }
+    }
+
+    private updateSleepTimerDisplay(): void {
+        if (!this.sleepTimerDisplayEl || !this.sleepTimerTextEl || !this.sleepTimerRestartBtn) return;
+
+        if (this.stopAtEndOfEpisode) {
+            this.sleepTimerTextEl.textContent = "End of ep";
+            this.sleepTimerDisplayEl.addClass("is-visible");
+            this.sleepTimerDisplayEl.removeClass("is-expired");
+            this.sleepTimerRestartBtn.addClass("hidden");
+        } else if (this.sleepTimerEndTime) {
+            const remainingSecs = Math.max(0, Math.floor((this.sleepTimerEndTime - Date.now()) / 1000));
+            if (remainingSecs === 0) {
+                this.sleepTimerTextEl.textContent = "Times up!";
+                this.sleepTimerDisplayEl.addClass("is-expired");
+                this.sleepTimerDisplayEl.addClass("is-visible");
+                this.sleepTimerRestartBtn.removeClass("hidden");
+            } else {
+                this.sleepTimerTextEl.textContent = this.formatTime(remainingSecs);
+                this.sleepTimerDisplayEl.addClass("is-visible");
+                this.sleepTimerDisplayEl.removeClass("is-expired");
+                this.sleepTimerRestartBtn.addClass("hidden");
+            }
+        } else {
+            if (!this.sleepTimerDisplayEl.hasClass("is-expired")) {
+                this.sleepTimerDisplayEl.removeClass("is-visible");
+                this.sleepTimerRestartBtn.addClass("hidden");
+            }
         }
     }
     

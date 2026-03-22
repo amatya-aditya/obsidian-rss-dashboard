@@ -1,38 +1,4 @@
-## [Unreleased]
-
 ### New Features
-
-## [2.2.0-beta.9] - March 21, 2026
-
-### New Features
-
-- **Sidebar Refresh & Tag Management:**
-  - Implemented an event-driven mechanism using `rss-dashboard:tags-mutated` to instantly synchronize tag changes (add/edit/delete/assign) across all views (Sidebar, Dashboard, Reader).
-  - Enhanced Sidebar "Add Tag" UI with a plus-button toggle, "Add" button, and circular 20px x 20px color picker.
-  - Sidebar now instantly reflects tag count updates when articles are saved, read, or modified anywhere in the dashboard.
-  - Automatically clears active sidebar filters if the corresponding tag is deleted globally.
-
-- **Multi-Tag Filtering**:
-  - Refactored dashboard to support selecting multiple tags simultaneously.
-  - Added configurable filter logic: **AND** (match all), **OR** (match any), and **NOT** (match none).
-  - New **Tags** section in the sidebar for easy management and filtering.
-  - Inline **Add Tag** row with color picker integrated directly into the sidebar.
-
-- **UI & UX Improvements**:
-  - Redesigned sidebar toolbar with a dedicated "Tags" icon for quick access.
-  - Enhanced mobile tag selection: the sidebar/modal now stays open during multi-select toggles.
-  - Premium styling for the new tag filtering controls and mode switches.
-
-### Fixed
-
-- **Settings Migration**: Improved migration logic to automatically add the "Tags" icon to existing user toolbar orders.
-- **Article Counts**: Fixed article count and pagination logic to correctly reflect multi-tag filter states.
-- **Sidebar Icon Visibility**: The "Reset" button in the sidebar icon visibility settings now also resets the visibility of all icons (re-enabling them) and the master toggle.
-- **Code Quality**: Resolved all legacy `currentTag` references and achieved a clean build (zero errors/warnings).
-
-### Development
-
-- **Testing**: Added and updated unit tests for tag filtering logic, settings migration, and icon registry (189 tests passing).
 
 ## [2.2.0-beta.8] - March 20, 2026
 
@@ -46,7 +12,13 @@
   - Hide/show entire toolbar.
   - New settings button (opens RSS-Dashboard settings)
 
+- **Sidebar Tag Filtering**:
+  - Revamped **Tags** section in the sidebar for easy management and improved filtering logic: **AND** (match all), **OR** (match any), and **NOT** (match none).
+  - Inline **Add Tag** row with color picker integrated directly into the sidebar.
+
 - **Dashboard multi-filters persist across navigation**: Status/tag filters (and AND/OR logic) no longer reset when switching between feeds, folders, or sidebar tag views (state is saved and restored on reopen/restart).
+
+- **Podcast Player Sleep Timer**: Added a sleep timer to the podcast player to automatically stop playback after a specified duration (5, 10, 15, 30, 45, or 60, 90, 120 minutes) (Github Issue #75).
 
 ### Fixed
 

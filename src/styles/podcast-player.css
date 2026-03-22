@@ -283,6 +283,99 @@
   gap: 8px;
 }
 
+/* Sleep Timer */
+.rss-sleep-timer-btn {
+  --icon-size: 20px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+}
+
+.rss-sleep-timer-btn svg {
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
+  stroke-width: 2 !important;
+}
+
+.rss-sleep-timer-btn:hover {
+  background: var(--background-modifier-hover);
+  opacity: 1;
+}
+
+.rss-sleep-timer-btn.is-active {
+  opacity: 1;
+  color: var(--interactive-accent);
+}
+
+.rss-sleep-timer-display {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 45px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 10px;
+  background: var(--background-secondary-alt);
+  border-radius: 6px;
+  gap: 6px;
+}
+
+.rss-sleep-timer-display span:first-child svg {
+  width: 14px !important;
+  height: 14px !important;
+  display: block;
+  opacity: 0.8;
+}
+
+.rss-sleep-timer-display.is-visible {
+  display: flex;
+}
+
+.rss-sleep-timer-display.is-expired {
+  background: var(--background-modifier-error);
+  color: var(--text-on-accent);
+}
+
+.rss-sleep-timer-display.is-expired span:first-child svg {
+  color: var(--text-on-accent);
+  opacity: 1;
+}
+
+.rss-sleep-timer-restart-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+  margin-left: 4px;
+}
+
+.rss-sleep-timer-restart-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.rss-sleep-timer-restart-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+  color: var(--text-on-accent);
+}
+
+.hidden {
+  display: none !important;
+}
+
 .rss-volume-slider {
   width: 96px;
   display: flex;
