@@ -528,3 +528,6 @@ mark.rss-highlight {
     justify-content: center;
   }
 }
+
+.rss-reader-action-button.saved { color: var(--interactive-accent); }
+

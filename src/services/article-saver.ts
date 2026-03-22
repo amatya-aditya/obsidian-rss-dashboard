@@ -519,7 +519,7 @@ guid: "{{guid}}"
                 }
             }
             
-            new Notice(`Article saved: ${filename}`);
+            new Notice(`Article saved. Click/tap the icon again to open the article in your vault.`);
             return file;
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);

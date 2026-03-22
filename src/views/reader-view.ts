@@ -6,6 +6,7 @@ import {
   App,
   Setting,
   requireApiVersion,
+  TFile,
 } from "obsidian";
 import { setIcon } from "obsidian";
 import {
@@ -50,6 +51,7 @@ export class ReaderView extends ItemView {
   private turndownService = new TurndownService();
   private readToggleButton: HTMLElement | null = null;
   private starToggleButton: HTMLElement | null = null;
+  private saveButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
 
@@ -188,13 +190,22 @@ export class ReaderView extends ItemView {
     const actions = header.createDiv({ cls: "rss-reader-actions" });
 
     // Save button
-    const saveButton = actions.createDiv({
+    this.saveButton = actions.createDiv({
       cls: "rss-reader-action-button",
       attr: { title: "Save article" },
     });
 
-    setIcon(saveButton, "save");
-    saveButton.addEventListener("click", (e) => {
+    setIcon(this.saveButton, "save");
+    this.saveButton.addEventListener("click", (e) => {
+      if (this.currentItem && this.currentItem.saved) {
+        const file = this.app.vault.getAbstractFileByPath(
+          this.currentItem.savedFilePath || "",
+        );
+        if (file instanceof TFile) {
+          void this.leaf.openFile(file);
+          return;
+        }
+      }
       if (this.currentItem) {
         this.showSaveOptions(e, this.currentItem);
       }
@@ -925,6 +936,14 @@ export class ReaderView extends ItemView {
   private updateSavedLabel(saved: boolean): void {
     if (!this.currentItem) return;
     this.onArticleUpdate(this.currentItem, { saved });
+    
+    if (this.saveButton) {
+      this.saveButton.toggleClass("saved", saved);
+      this.saveButton.setAttr(
+        "title",
+        saved ? "Click to open saved article" : "Save article",
+      );
+    }
   }
 
   private toggleTagsDropdown(anchor: HTMLElement): void {
@@ -1565,6 +1584,16 @@ export class ReaderView extends ItemView {
       this.starToggleButton.setAttr(
         "title",
         this.currentItem.starred ? "Remove from starred" : "Add to starred",
+      );
+    }
+
+    // Update save button state
+    if (this.saveButton) {
+      const isSaved = Boolean(this.currentItem.saved);
+      this.saveButton.toggleClass("saved", isSaved);
+      this.saveButton.setAttr(
+        "title",
+        isSaved ? "Click to open saved article" : "Save article",
       );
     }
   }

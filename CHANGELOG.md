@@ -22,7 +22,11 @@
 
 ### Fixed
 
+- **Dashboard card click**: Fixed a bug where clicking a saved article's card on the dashboard incorrectly opened the saved markdown file instead of opening the standard reader or media player. 
+
 - **Reader tags menu**: Reader toolbar now uses the same tag management portal UI as dashboard cards (edit/delete/add tags, mobile sheet support).
+
+- **Reader save button**: The save button icon in the reader now appropriately turns purple when saved and changes its tooltip to "Click to open saved article". Clicking it in this state will directly open the saved markdown file in your vault, mirroring the dashboard functionality.
 
 ## [2.3.0-alpha.3 / 2.2.0-beta.7] - March 18, 2026
 

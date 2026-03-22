@@ -1477,33 +1477,6 @@ export class RssDashboardView extends ItemView {
       await this.updateArticleStatus(article, { read: true }, false);
     }
 
-    if (article.saved) {
-      const loadingNotice = new Notice("Opening saved article...", 0);
-      try {
-        const savedFile = await this.findSavedArticleFile(article);
-        if (savedFile) {
-          await this.openSavedArticleFile(savedFile);
-          loadingNotice.hide();
-          return;
-        } else {
-          await this.updateArticleStatus(article, { saved: false }, false);
-          if (article.tags) {
-            article.tags = article.tags.filter(
-              (tag) => tag.name.toLowerCase() !== "saved",
-            );
-          }
-          loadingNotice.hide();
-          new Notice(
-            "Saved article file not found. Opening original source instead.",
-          );
-        }
-      } catch (error) {
-        loadingNotice.hide();
-        const message = error instanceof Error ? error.message : String(error);
-        new Notice(`Error opening saved article: ${message}`);
-      }
-    }
-
     const readerLeaves =
       this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
     const results = await Promise.all(
