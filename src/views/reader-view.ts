@@ -7,6 +7,7 @@ import {
   Setting,
   requireApiVersion,
   TFile,
+  Notice,
 } from "obsidian";
 import { setIcon } from "obsidian";
 import {
@@ -25,6 +26,9 @@ import TurndownService from "turndown";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import { resolveItemExternalUrl } from "../utils/item-url-utils";
+import { resolvePodcastOpenDestinations } from "../utils/podcast-open-destinations";
+import { resolveApplePodcastsShowUrl } from "../services/apple-podcasts-service";
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
@@ -275,16 +279,83 @@ export class ReaderView extends ItemView {
     });
 
     // Open in browser button
-    const browserButton = actions.createDiv({
-      cls: "rss-reader-action-button",
-      attr: { title: "Open in Browser" },
-    });
-    setIcon(browserButton, "external-link");
-    browserButton.addEventListener("click", () => {
-      if (this.currentItem) {
-        window.open(this.currentItem.link, "_blank");
-      }
-    });
+	    const browserButton = actions.createDiv({
+	      cls: "rss-reader-action-button",
+	      attr: { title: "Open in Browser" },
+	    });
+	    setIcon(browserButton, "external-link");
+	    browserButton.addEventListener("click", (e) => {
+	      const item = this.currentItem;
+	      if (!item) return;
+
+	      if (item.mediaType === "podcast") {
+	        const feedMatch =
+	          this.settings.feeds.find((f) => f.url === item.feedUrl) || null;
+	        const feed = feedMatch || { url: item.feedUrl, siteUrl: undefined };
+	        const destinations = resolvePodcastOpenDestinations(item, feed, {
+	          includeApplePodcasts: Boolean(
+	            this.settings.media.enableApplePodcastsOpen,
+	          ),
+	        });
+
+	        if (destinations.length === 0) {
+	          new Notice("No link available for this podcast.");
+	          return;
+	        }
+
+	        const menu = new Menu();
+		        for (const destination of destinations) {
+		          menu.addItem((menuItem: MenuItem) => {
+		            menuItem.setTitle(destination.title);
+		            menuItem.setIcon("external-link");
+
+		            if (destination.url) {
+		              const dom = (menuItem as unknown as { dom?: HTMLElement }).dom;
+		              dom?.setAttribute("title", destination.url);
+		            }
+
+		            if (destination.id === "apple_podcasts") {
+		              menuItem.onClick(() => {
+		                void (async () => {
+	                  if (!feedMatch?.url || !feedMatch.title) {
+	                    new Notice(
+	                      "Could not find this show in apple podcasts.",
+	                    );
+	                    return;
+	                  }
+	                  const appleUrl = await resolveApplePodcastsShowUrl(
+	                    feedMatch.url,
+	                    feedMatch.title,
+	                  );
+	                  if (!appleUrl) {
+	                    new Notice(
+	                      "Could not find this show in apple podcasts.",
+	                    );
+	                    return;
+	                  }
+	                  window.open(appleUrl, "_blank");
+	                })();
+	              });
+	              return;
+	            }
+
+	            const url = destination.url;
+	            if (url) {
+	              menuItem.onClick(() => window.open(url, "_blank"));
+	            } else {
+	              menuItem.setDisabled(true);
+	            }
+	          });
+	        }
+
+	        menu.showAtMouseEvent(e as MouseEvent);
+	        return;
+	      }
+
+	      const url = resolveItemExternalUrl(item);
+	      if (!url) return;
+	      window.open(url, "_blank");
+	    });
 
     this.readingContainer = this.contentEl.createDiv({
       cls: "rss-reader-content",
