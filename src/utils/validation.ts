@@ -2,7 +2,7 @@
  * Forbidden characters in Obsidian filenames (most restrictive set across all OS)
  * [ ] # ^ | / \ : * " < > ?
  */
-const FORBIDDEN_CHARS_REGEX = /[\\/:*?"<>|#^[\]]/g;
+const FORBIDDEN_FILENAME_CHARS_REGEX = /[\\/:*?"<>|#^[\]]/g;
 
 export interface ValidationResult {
   valid: boolean;
@@ -25,7 +25,7 @@ export function isValidFolderName(name: string): ValidationResult {
     return { valid: false, error: "Folder name cannot start with a dot." };
   }
 
-  const match = trimmedName.match(FORBIDDEN_CHARS_REGEX);
+  const match = trimmedName.match(FORBIDDEN_FILENAME_CHARS_REGEX);
   if (match) {
     // Unique list of forbidden characters found
     const uniqueChars = Array.from(new Set(match)).join(" ");
@@ -54,15 +54,8 @@ export function isValidFeedTitle(title: string): ValidationResult {
     return { valid: false, error: "Feed title cannot start with a dot." };
   }
 
-  const match = trimmedTitle.match(FORBIDDEN_CHARS_REGEX);
-  if (match) {
-    const uniqueChars = Array.from(new Set(match)).join(" ");
-    return {
-      valid: false,
-      error: `Feed title contains forbidden characters: ${uniqueChars}`,
-    };
-  }
-
+  // Relaxed: No character restrictions for titles.
+  // Filename safety is handled by the sanitization logic during file creation (ArticleSaver).
   return { valid: true };
 }
 
@@ -75,7 +68,7 @@ export function isValidFeedTitle(title: string): ValidationResult {
 export function sanitizeName(name: string): string {
   if (!name) return "Unnamed";
 
-  let sanitized = name.replace(FORBIDDEN_CHARS_REGEX, "_").trim();
+  let sanitized = name.replace(FORBIDDEN_FILENAME_CHARS_REGEX, "_").trim();
 
   // Strip leading dots
   while (sanitized.startsWith(".")) {
