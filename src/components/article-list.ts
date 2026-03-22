@@ -2956,7 +2956,7 @@ export class ArticleList {
     menu.addItem((item: MenuItem) => {
       item
         .setTitle("Open in browser")
-        .setIcon("globe-2")
+        .setIcon("external-link")
         .onClick(() => {
           window.open(article.link, "_blank");
         });

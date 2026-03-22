@@ -41,10 +41,23 @@ export const GOOGLE_PODCASTS: PodcastPlatform = {
     }
 };
 
+export const POCKET_CASTS: PodcastPlatform = {
+    name: "Pocket Casts",
+    id: "pocketcasts",
+    detect(url: string): boolean {
+        return url.includes("pocketcasts.com/podcast/");
+    },
+    extractId(url: string): string | null {
+        const match = url.match(/pocketcasts\.com\/podcast\/[^/]+\/([0-9a-f-]{36})/i);
+        return match ? match[1] : null;
+    }
+};
+
 const PLATFORMS: PodcastPlatform[] = [
     APPLE_PODCASTS,
     SPOTIFY,
-    GOOGLE_PODCASTS
+    GOOGLE_PODCASTS,
+    POCKET_CASTS
 ];
 
 export function detectPodcastPlatform(url: string): PodcastPlatform | null {

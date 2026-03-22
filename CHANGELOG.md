@@ -1,6 +1,4 @@
-### New Features
-
-## [2.2.0-beta.8] - March 20, 2026
+## [2.2.0-beta.8] - March 22, 2026
 
 - **IMPORTANT**: Earlier limited releases intended for users experiencing specific issues were tagged as 2.3.0-alpha.1, 2.3.0-alpha.2, and 2.3.0-alpha.3. These were incorrectly versioned. They have been retroactively designated as 2.2.0-beta.5, 2.2.0-beta.6, and 2.2.0-beta.7 in our internal documentation. The original GitHub release tags have been left intact to avoid breaking any shared links. Development continues from 2.2.0-beta.8 forward.
 
@@ -20,13 +18,25 @@
 
 - **Podcast Player Sleep Timer**: Added a sleep timer to the podcast player to automatically stop playback after a specified duration (5, 10, 15, 30, 45, or 60, 90, 120 minutes) (Github Issue #75).
 
+- **Pocket Casts Support**: Added support for importing podcasts directly from Pocket Casts URLs (e.g., `https://pocketcasts.com/podcast/...`).
+- **Robust Podcast Resolution**:
+  - Implemented a multi-proxy fallback system (AllOrigins, CodeTabs) to handle network timeouts and CORS restrictions when resolving podcast feeds.
+  - Added a "Semantic Discovery" fallback using the **iTunes Search API** to resolve feeds when Pocket Casts hides the RSS link from their web player source.
+  - Added flexible metadata scraping to handle varied HTML attribute ordering in modern web layouts.
+- **Proactive Proxy Validation**: The Add Feed and Edit Feed modals now check if the CORS proxy is enabled before attempting to resolve Pocket Casts URLs, providing a clear warning and guidance if it's missing.
+
 ### Fixed
 
-- **Dashboard card click**: Fixed a bug where clicking a saved article's card on the dashboard incorrectly opened the saved markdown file instead of opening the standard reader or media player. 
+- **Dashboard card click**: Fixed a bug where clicking a saved article's card on the dashboard incorrectly opened the saved markdown file instead of opening the standard reader or media player.
 
 - **Reader tags menu**: Reader toolbar now uses the same tag management portal UI as dashboard cards (edit/delete/add tags, mobile sheet support).
 
 - **Reader save button**: The save button icon in the reader now appropriately turns purple when saved and changes its tooltip to "Click to open saved article". Clicking it in this state will directly open the saved markdown file in your vault, mirroring the dashboard functionality.
+
+### Development
+
+- **Developer Documentation**: Added a new "Advanced Podcast Platform Resolution" section to `docs/development/feed-validation.md` documenting proxy rotation and semantic search patterns.
+- **Unit Tests**: Added `test_files/unit/pocketcasts-url-resolution.test.ts` for Pocket Casts URL detection and UUID extraction logic.
 
 ## [2.3.0-alpha.3 / 2.2.0-beta.7] - March 18, 2026
 

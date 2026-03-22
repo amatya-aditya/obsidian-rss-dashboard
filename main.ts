@@ -50,7 +50,6 @@ export interface FiltersUpdatedEventPayload {
   timestamp: number;
 }
 
-
 export default class RssDashboardPlugin extends Plugin {
   settings!: RssDashboardSettings;
   feedParser!: FeedParser;
@@ -119,7 +118,7 @@ export default class RssDashboardPlugin extends Plugin {
     return null;
   }
 
-    public async openTagsSettings(): Promise<void> {
+  public async openTagsSettings(): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
     const setting = (this.app as any).setting;
     if (setting) {
@@ -128,7 +127,7 @@ export default class RssDashboardPlugin extends Plugin {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       setting.openTabById(this.manifest.id);
       if (this.settingTab) {
-        this.settingTab.activateTab('Tags');
+        this.settingTab.activateTab("Tags");
       }
     }
   }
@@ -146,7 +145,6 @@ export default class RssDashboardPlugin extends Plugin {
       }
     }
   }
-
 
   async onload() {
     await this.loadSettings();
@@ -634,6 +632,7 @@ export default class RssDashboardPlugin extends Plugin {
 
     const article = feed.items.find((item) => item.guid === articleGuid);
     if (!article) return;
+
     Object.assign(article, updates);
 
     await this.saveSettings();
@@ -644,14 +643,6 @@ export default class RssDashboardPlugin extends Plugin {
         view.refresh();
       }
     }
-  }
-
-  /**
-   * Triggers a workspace-wide event when tags are added, removed, or settings are mutated.
-   * This allows the Sidebar and other components to sync their tag data.
-   */
-  triggerTagsMutated(): void {
-    this.app.workspace.trigger("rss-dashboard:tags-mutated");
   }
 
   private showImportProgressModal(
@@ -848,9 +839,21 @@ export default class RssDashboardPlugin extends Plugin {
     const totalFeeds = this.backgroundImportQueue.length;
     let processedCount = 0;
     const saveEvery =
-      totalFeeds >= 20000 ? 200 : totalFeeds >= 5000 ? 100 : totalFeeds >= 1000 ? 25 : 5;
+      totalFeeds >= 20000
+        ? 200
+        : totalFeeds >= 5000
+          ? 100
+          : totalFeeds >= 1000
+            ? 25
+            : 5;
     const renderEvery =
-      totalFeeds >= 20000 ? 500 : totalFeeds >= 5000 ? 150 : totalFeeds >= 1000 ? 40 : 3;
+      totalFeeds >= 20000
+        ? 500
+        : totalFeeds >= 5000
+          ? 150
+          : totalFeeds >= 1000
+            ? 40
+            : 3;
     const interFeedDelayMs = totalFeeds >= 5000 ? 10 : 100;
     const shouldRenderDuringImport = totalFeeds < 5000;
 
@@ -956,11 +959,12 @@ export default class RssDashboardPlugin extends Plugin {
             throw new Error("Invalid usersettings.json");
           }
 
-          const parsedWithCollections = parsed as Partial<RssDashboardSettings> & {
-            feeds?: unknown;
-            folders?: unknown;
-            availableTags?: unknown;
-          };
+          const parsedWithCollections =
+            parsed as Partial<RssDashboardSettings> & {
+              feeds?: unknown;
+              folders?: unknown;
+              availableTags?: unknown;
+            };
           const hasFeedCollections =
             Array.isArray(parsedWithCollections.feeds) ||
             Array.isArray(parsedWithCollections.folders) ||
@@ -1058,10 +1062,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async exportUserSettingsJson(): Promise<void> {
     const filename = "usersettings.json";
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { feeds, folders, availableTags, collapsedFolders, ...settingsOnly } =
-      this.settings;
-    const blob = new Blob([JSON.stringify(settingsOnly, null, 2)], {
+    const blob = new Blob([JSON.stringify(this.settings, null, 2)], {
       type: "application/json",
     });
 
@@ -1072,7 +1073,6 @@ export default class RssDashboardPlugin extends Plugin {
     });
     this.showExportNotice(result, filename);
   }
-
 
   public async exportDataJson(): Promise<void> {
     const filename = "data.json";
@@ -1107,12 +1107,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private showExportNotice(
-    result:
-      | "shared"
-      | "downloaded"
-      | "opened"
-      | "canceled"
-      | "failed",
+    result: "shared" | "downloaded" | "opened" | "canceled" | "failed",
     filename: string,
   ): void {
     if (result === "downloaded") {
@@ -1140,15 +1135,11 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async copyUserSettingsJsonToClipboard(): Promise<void> {
     const filename = "usersettings.json";
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { feeds, folders, availableTags, collapsedFolders, ...settingsOnly } =
-      this.settings;
     const result = await copyTextToClipboard(
-      JSON.stringify(settingsOnly, null, 2),
+      JSON.stringify(this.settings, null, 2),
     );
     this.showCopyNotice(result, filename);
   }
-
 
   public async copyOpmlToClipboard(): Promise<void> {
     const filename = "feeds.opml";
@@ -1285,7 +1276,7 @@ export default class RssDashboardPlugin extends Plugin {
     autoDeleteDuration?: number,
     maxItemsLimit?: number,
     scanInterval?: number,
-      feedFilters?: FeedFilterSettings,
+    feedFilters?: FeedFilterSettings,
     customTemplate?: string,
   ) {
     try {
@@ -1658,7 +1649,7 @@ export default class RssDashboardPlugin extends Plugin {
       }
       // Migrate icon visibility and order fields
       migrateDisplaySettings(
-        this.settings.display as unknown as Record<string, unknown>
+        this.settings.display as unknown as Record<string, unknown>,
       );
     }
 
@@ -1677,10 +1668,11 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     if (!this.settings.dashboardMultiFilters) {
-      this.settings.dashboardMultiFilters = DEFAULT_SETTINGS.dashboardMultiFilters;
+      this.settings.dashboardMultiFilters =
+        DEFAULT_SETTINGS.dashboardMultiFilters;
     } else {
-      const mfUnknown =
-        this.settings.dashboardMultiFilters as unknown as Record<string, unknown>;
+      const mfUnknown = this.settings
+        .dashboardMultiFilters as unknown as Record<string, unknown>;
       const statusFiltersRaw = mfUnknown.statusFilters;
       const tagFiltersRaw = mfUnknown.tagFilters;
       const logicRaw = mfUnknown.logic;
@@ -1690,7 +1682,9 @@ export default class RssDashboardPlugin extends Plugin {
       )
         ? statusFiltersRaw.filter((v): v is string => typeof v === "string")
         : [];
-      this.settings.dashboardMultiFilters.tagFilters = Array.isArray(tagFiltersRaw)
+      this.settings.dashboardMultiFilters.tagFilters = Array.isArray(
+        tagFiltersRaw,
+      )
         ? tagFiltersRaw.filter((v): v is string => typeof v === "string")
         : [];
       this.settings.dashboardMultiFilters.logic =
@@ -1723,8 +1717,7 @@ export default class RssDashboardPlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
-  onunload() {
-  }
+  onunload() {}
 
   private async validateSavedArticles(): Promise<void> {
     let updatedCount = 0;
@@ -1787,4 +1780,3 @@ export default class RssDashboardPlugin extends Plugin {
     return allArticles;
   }
 }
-

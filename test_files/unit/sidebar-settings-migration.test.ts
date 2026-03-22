@@ -75,7 +75,9 @@ describe("migrateDisplaySettings()", () => {
       // All others should now be false
       for (const field of ICON_HIDE_FIELDS) {
         if (field !== "hideIconDashboard" && field !== "hideIconDiscover") {
-          expect(display[field], `${field} should default to false`).toBe(false);
+          expect(display[field], `${field} should default to false`).toBe(
+            false,
+          );
         }
       }
     });
@@ -94,7 +96,7 @@ describe("migrateDisplaySettings()", () => {
       expect(display.iconOrder).toEqual(CANONICAL_ICON_ORDER);
     });
 
-    it("iconOrder present with custom order → unchanged", () => {
+    it("iconOrder present with custom order → missing icons appended", () => {
       const customOrder = [
         "discover",
         "dashboard",
@@ -108,7 +110,8 @@ describe("migrateDisplaySettings()", () => {
       ];
       const display: Record<string, unknown> = { iconOrder: [...customOrder] };
       migrateDisplaySettings(display);
-      expect(display.iconOrder).toEqual(customOrder);
+      // "tags" should be appended
+      expect(display.iconOrder).toEqual([...customOrder, "tags"]);
     });
 
     it("default iconOrder has exactly 10 entries", () => {
@@ -121,7 +124,7 @@ describe("migrateDisplaySettings()", () => {
       const display: Record<string, unknown> = {};
       migrateDisplaySettings(display);
       for (const id of CANONICAL_ICON_ORDER) {
-        expect((display.iconOrder as string[])).toContain(id);
+        expect(display.iconOrder as string[]).toContain(id);
       }
     });
   });
@@ -148,7 +151,7 @@ describe("migrateDisplaySettings()", () => {
       expect(display.sidebarRowSpacing).toBe(12);
     });
 
-    it("iconOrder present but missing 'settings' ID → preserved as-is", () => {
+    it("iconOrder present but missing 'settings' ID → appended", () => {
       const orderWithoutSettings = [
         "dashboard",
         "discover",
@@ -158,13 +161,14 @@ describe("migrateDisplaySettings()", () => {
         "addFolder",
         "sort",
         "collapseAll",
+        "tags",
       ];
       const display: Record<string, unknown> = {
         iconOrder: [...orderWithoutSettings],
       };
       migrateDisplaySettings(display);
-      // Preserved as-is — registry handles unknown IDs gracefully at render time
-      expect(display.iconOrder).toEqual(orderWithoutSettings);
+      // "settings" should be appended
+      expect(display.iconOrder).toEqual([...orderWithoutSettings, "settings"]);
     });
   });
 });

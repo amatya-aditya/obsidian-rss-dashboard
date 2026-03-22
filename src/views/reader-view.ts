@@ -279,7 +279,7 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-action-button",
       attr: { title: "Open in Browser" },
     });
-    setIcon(browserButton, "globe-2");
+    setIcon(browserButton, "external-link");
     browserButton.addEventListener("click", () => {
       if (this.currentItem) {
         window.open(this.currentItem.link, "_blank");
@@ -617,7 +617,9 @@ export class ReaderView extends ItemView {
     }
   }
 
-  private async syncDashboardSelectionFromPlayer(article: FeedItem): Promise<void> {
+  private async syncDashboardSelectionFromPlayer(
+    article: FeedItem,
+  ): Promise<void> {
     const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
     for (const leaf of leaves) {
       if (requireApiVersion("1.7.2")) {
@@ -800,9 +802,9 @@ export class ReaderView extends ItemView {
       );
     }
 
-    const contentToRender = hasDistinctMainContent 
-      ? mainHtml 
-      : (mainHtml || descriptionHtml);
+    const contentToRender = hasDistinctMainContent
+      ? mainHtml
+      : mainHtml || descriptionHtml;
 
     if (contentToRender) {
       const contentContainer = this.readingContainer.createDiv({
@@ -831,25 +833,33 @@ export class ReaderView extends ItemView {
 
     let html = rawHtml;
     // Basic sanitization/cleanup if needed (the app seems to trust feed HTML)
-    
+
     // Resolve relative URLs
     if (baseUrl) {
       try {
         const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
+        const doc = parser.parseFromString(html, "text/html");
         const base = new URL(baseUrl);
 
-        doc.querySelectorAll('a').forEach(el => {
-          const href = el.getAttribute('href');
+        doc.querySelectorAll("a").forEach((el) => {
+          const href = el.getAttribute("href");
           if (href) {
-            try { el.href = new URL(href, base).toString(); } catch { /* ignore */ }
+            try {
+              el.href = new URL(href, base).toString();
+            } catch {
+              /* ignore */
+            }
           }
         });
 
-        doc.querySelectorAll('img').forEach(el => {
-          const src = el.getAttribute('src');
+        doc.querySelectorAll("img").forEach((el) => {
+          const src = el.getAttribute("src");
           if (src) {
-            try { el.src = new URL(src, base).toString(); } catch { /* ignore */ }
+            try {
+              el.src = new URL(src, base).toString();
+            } catch {
+              /* ignore */
+            }
           }
         });
 
@@ -861,10 +871,10 @@ export class ReaderView extends ItemView {
 
     // Attempt to extract and place hero image
     if (heroSlot && heroSlot.childElementCount === 0) {
-      const tempDiv = document.createElement('div');
+      const tempDiv = document.createElement("div");
       tempDiv.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
-      const firstImg = tempDiv.querySelector('img');
-      
+      const firstImg = tempDiv.querySelector("img");
+
       let heroUrl = fallbackHeroUrl;
       if (firstImg && firstImg.src) {
         // If the first image looks like a hero image (e.g. large)
@@ -878,7 +888,7 @@ export class ReaderView extends ItemView {
       if (heroUrl) {
         heroSlot.createEl("img", {
           cls: "rss-reader-fallback-hero",
-          attr: { src: heroUrl, alt: title || "Hero image" }
+          attr: { src: heroUrl, alt: title || "Hero image" },
         });
       }
     }
@@ -894,19 +904,20 @@ export class ReaderView extends ItemView {
     }
 
     // Add classes to images for styling
-    container.querySelectorAll('img').forEach(img => {
-      img.addClass('rss-reader-responsive-img');
+    container.querySelectorAll("img").forEach((img) => {
+      img.addClass("rss-reader-responsive-img");
     });
   }
 
   private isEquivalentHtml(html1: string, html2: string): boolean {
-    const clean = (h: string) => h.replace(/\s+/g, ' ').toLowerCase().trim();
+    const clean = (h: string) => h.replace(/\s+/g, " ").toLowerCase().trim();
     return clean(html1) === clean(html2);
   }
 
   private hasMeaningfulArticleContent(html: string | null): boolean {
     if (!html) return false;
-    const text = new DOMParser().parseFromString(html, 'text/html').body.textContent || "";
+    const text =
+      new DOMParser().parseFromString(html, "text/html").body.textContent || "";
     return text.trim().length > 200;
   }
 
@@ -917,7 +928,6 @@ export class ReaderView extends ItemView {
         : undefined;
     return fetchWithProxyFallback(url, proxyUrl);
   }
-
 
   private toggleReadStatus(): void {
     if (!this.currentItem) return;
@@ -936,7 +946,7 @@ export class ReaderView extends ItemView {
   private updateSavedLabel(saved: boolean): void {
     if (!this.currentItem) return;
     this.onArticleUpdate(this.currentItem, { saved });
-    
+
     if (this.saveButton) {
       this.saveButton.toggleClass("saved", saved);
       this.saveButton.setAttr(
@@ -1050,7 +1060,8 @@ export class ReaderView extends ItemView {
     }
 
     const tags = this.currentItem.tags || [];
-    const existing = headerContainer.querySelector<HTMLElement>(".rss-reader-tags");
+    const existing =
+      headerContainer.querySelector<HTMLElement>(".rss-reader-tags");
 
     if (tags.length === 0) {
       existing?.remove();
@@ -1095,7 +1106,10 @@ export class ReaderView extends ItemView {
       return this.settings.readerFormat;
     }
 
-    const format = this.settings.readerFormat as Partial<ReaderFormatSettings> & { wordsPerLine?: number };
+    const format = this.settings
+      .readerFormat as Partial<ReaderFormatSettings> & {
+      wordsPerLine?: number;
+    };
     const defaults = DEFAULT_SETTINGS.readerFormat;
 
     // Migrate wordsPerLine to paragraphWidth if it exists
@@ -1125,7 +1139,7 @@ export class ReaderView extends ItemView {
   private applyReaderFormat(): void {
     const format = this.getReaderFormat();
     const paragraphWidth = format.paragraphWidth || 100;
-    
+
     let maxWidth = "none";
     if (paragraphWidth === 100) {
       maxWidth = "calc(100% - 4px)";
@@ -1349,7 +1363,7 @@ export class ReaderView extends ItemView {
         const bottomOffset = Number.parseFloat(computed.bottom || "0") || 0;
         const maxHeight = Math.min(
           Math.floor(viewportHeight * 0.8),
-          Math.max(220, Math.floor(viewportHeight - bottomOffset - 8))
+          Math.max(220, Math.floor(viewportHeight - bottomOffset - 8)),
         );
         portalDropdown.style.setProperty(
           "max-height",

@@ -71,7 +71,7 @@ export const SIDEBAR_ICONS: SidebarIconConfig[] = [
 export const SIDEBAR_ICON_IDS: string[] = SIDEBAR_ICONS.map((icon) => icon.id);
 
 const _iconById = new Map<string, SidebarIconConfig>(
-  SIDEBAR_ICONS.map((icon) => [icon.id, icon])
+  SIDEBAR_ICONS.map((icon) => [icon.id, icon]),
 );
 
 export function getIconById(id: string): SidebarIconConfig | undefined {
@@ -84,7 +84,7 @@ export function getIconById(id: string): SidebarIconConfig | undefined {
  */
 export function createToolbarButton(
   icon: SidebarIconConfig,
-  onClick: () => void
+  onClick: () => void,
 ): HTMLElement {
   const btn = document.createElement("div");
   btn.className = "clickable-icon";

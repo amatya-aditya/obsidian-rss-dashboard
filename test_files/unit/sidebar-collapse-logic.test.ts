@@ -9,4 +9,3 @@ describe("sidebar collapse (DOM-based)", () => {
     // not testable as a pure function. See registry tests for structural guarantees.
   });
 });
-

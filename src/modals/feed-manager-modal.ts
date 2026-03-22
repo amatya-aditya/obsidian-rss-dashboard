@@ -178,10 +178,19 @@ export class EditFeedModal extends Modal {
                 // Check for podcast platform URLs
                 const platform = detectPodcastPlatform(url);
                 if (platform) {
+                  if (platform.id === "pocketcasts") {
+                    if (!this.plugin?.settings.corsProxyEnabled) {
+                      throw new Error("Pocket Casts resolution requires the CORS Proxy to be enabled in Settings (due to Pocket Casts API limitations). Please enable it, or try another feed source.");
+                    }
+                  }
+                  
                   detectedType = "podcast";
                   status = `⏳ Resolving ${platform.name} URL...`;
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
-                  const resolvedUrl = await resolvePodcastPlatformUrl(url);
+                  const resolvedUrl = await resolvePodcastPlatformUrl(
+                    url,
+                    this.plugin?.settings?.corsProxyUrl
+                  );
                   if (!resolvedUrl) {
                     throw new Error("Could not resolve podcast feed URL");
                   }
@@ -918,10 +927,19 @@ export class AddFeedModal extends Modal {
                 // Check for podcast platform URLs
                 const platform = detectPodcastPlatform(url);
                 if (platform) {
+                  if (platform.id === "pocketcasts") {
+                    if (!this.plugin?.settings.corsProxyEnabled) {
+                      throw new Error("Pocket Casts resolution requires the CORS Proxy to be enabled in Settings (due to Pocket Casts API limitations). Please enable it, or try another feed source.");
+                    }
+                  }
+
                   detectedType = "podcast";
                   status = `⏳ Resolving ${platform.name} URL...`;
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
-                  const resolvedUrl = await resolvePodcastPlatformUrl(url);
+                  const resolvedUrl = await resolvePodcastPlatformUrl(
+                    url,
+                    this.plugin?.settings?.corsProxyUrl
+                  );
                   if (!resolvedUrl) {
                     throw new Error("Could not resolve podcast feed URL");
                   }
