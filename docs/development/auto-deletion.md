@@ -1,6 +1,6 @@
 # Auto-Deletion Mechanism
 
-This document describes how the RSS Dashboard plugin handles automatic article deletion and data persistence as of 2.2.0-beta.6, March 16, 2026 (note: 2.2.0-beta.6 wasmistagged as 2.3.0-alpha.2).
+This document describes how the RSS Dashboard plugin handles automatic article deletion and data persistence as of 2.2.0-beta.6, March 16, 2026 (note: 2.2.0-beta.6 was mistagged as 2.3.0-alpha.2).
 
 ## 1. Data Persistence (`data.json`)
 
