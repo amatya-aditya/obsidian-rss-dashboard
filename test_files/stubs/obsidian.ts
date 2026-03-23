@@ -111,39 +111,201 @@ export class MenuItem {
 }
 
 export class Setting {
-  constructor(_containerEl: HTMLElement) {}
-  setName(): this {
+  settingEl: HTMLDivElement;
+  nameEl: HTMLDivElement;
+  descEl: HTMLDivElement;
+  controlEl: HTMLDivElement;
+
+  constructor(containerEl: HTMLElement) {
+    this.settingEl = document.createElement("div");
+    this.settingEl.className = "setting-item";
+    containerEl.appendChild(this.settingEl);
+
+    const infoEl = document.createElement("div");
+    infoEl.className = "setting-item-info";
+    this.settingEl.appendChild(infoEl);
+
+    this.nameEl = document.createElement("div");
+    this.nameEl.className = "setting-item-name";
+    infoEl.appendChild(this.nameEl);
+
+    this.descEl = document.createElement("div");
+    this.descEl.className = "setting-item-description";
+    infoEl.appendChild(this.descEl);
+
+    this.controlEl = document.createElement("div");
+    this.controlEl.className = "setting-item-control";
+    this.settingEl.appendChild(this.controlEl);
+  }
+
+  setName(_name?: string): this {
     return this;
   }
-  setDesc(): this {
+  setDesc(_desc?: string): this {
     return this;
   }
   setHeading(): this {
     return this;
   }
-  setClass(): this {
+  setClass(_cls?: string): this {
     return this;
   }
-  setTooltip(): this {
+  setTooltip(_tooltip?: string): this {
     return this;
   }
-  setDisabled(): this {
-    return this;
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addButton(_cb: (component: any) => any): this {
+  setDisabled(_disabled?: boolean): this {
     return this;
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addToggle(_cb: (component: any) => any): this {
+  addButton(cb: (component: any) => any): this {
+    class ButtonComponent {
+      buttonEl: HTMLButtonElement;
+      private clickHandler: ((evt: MouseEvent) => void) | null = null;
+
+      constructor(container: HTMLElement) {
+        this.buttonEl = document.createElement("button");
+        container.appendChild(this.buttonEl);
+      }
+
+      setButtonText(text: string): this {
+        this.buttonEl.textContent = text;
+        return this;
+      }
+
+      onClick(handler: (evt: MouseEvent) => void): this {
+        this.clickHandler = handler;
+        this.buttonEl.addEventListener("click", handler);
+        return this;
+      }
+
+      setCta(): this {
+        this.buttonEl.classList.add("mod-cta");
+        return this;
+      }
+
+      _triggerClick(evt?: MouseEvent): void {
+        if (this.clickHandler) {
+          this.clickHandler(evt ?? (new MouseEvent("click") as MouseEvent));
+        } else {
+          this.buttonEl.click();
+        }
+      }
+    }
+
+    const component = new ButtonComponent(this.controlEl);
+    cb(component);
     return this;
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addText(_cb: (component: any) => any): this {
+  addToggle(cb: (component: any) => any): this {
+    class ToggleComponent {
+      toggleEl: HTMLInputElement;
+      private changeHandler: ((value: boolean) => void) | null = null;
+
+      constructor(container: HTMLElement) {
+        this.toggleEl = document.createElement("input");
+        this.toggleEl.type = "checkbox";
+        container.appendChild(this.toggleEl);
+        this.toggleEl.addEventListener("change", () => {
+          this.changeHandler?.(this.toggleEl.checked);
+        });
+      }
+
+      setValue(value: boolean): this {
+        this.toggleEl.checked = value;
+        return this;
+      }
+
+      onChange(handler: (value: boolean) => void): this {
+        this.changeHandler = handler;
+        return this;
+      }
+
+      _triggerChange(value: boolean): void {
+        this.toggleEl.checked = value;
+        this.toggleEl.dispatchEvent(new Event("change"));
+      }
+    }
+
+    const component = new ToggleComponent(this.controlEl);
+    cb(component);
     return this;
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addDropdown(_cb: (component: any) => any): this {
+  addText(cb: (component: any) => any): this {
+    class TextComponent {
+      inputEl: HTMLInputElement;
+      private changeHandler: ((value: string) => void) | null = null;
+
+      constructor(container: HTMLElement) {
+        this.inputEl = document.createElement("input");
+        this.inputEl.type = "text";
+        container.appendChild(this.inputEl);
+        this.inputEl.addEventListener("input", () => {
+          this.changeHandler?.(this.inputEl.value);
+        });
+      }
+
+      setValue(value: string): this {
+        this.inputEl.value = value;
+        return this;
+      }
+
+      onChange(handler: (value: string) => void): this {
+        this.changeHandler = handler;
+        return this;
+      }
+
+      _triggerChange(value: string): void {
+        this.inputEl.value = value;
+        this.inputEl.dispatchEvent(new Event("input"));
+      }
+    }
+
+    const component = new TextComponent(this.controlEl);
+    cb(component);
+    return this;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addDropdown(cb: (component: any) => any): this {
+    class DropdownComponent {
+      selectEl: HTMLSelectElement;
+      private changeHandler: ((value: string) => void) | null = null;
+
+      constructor(container: HTMLElement) {
+        this.selectEl = document.createElement("select");
+        container.appendChild(this.selectEl);
+        this.selectEl.addEventListener("change", () => {
+          this.changeHandler?.(this.selectEl.value);
+        });
+      }
+
+      addOption(value: string, label: string): this {
+        const opt = document.createElement("option");
+        opt.value = value;
+        opt.textContent = label;
+        this.selectEl.appendChild(opt);
+        return this;
+      }
+
+      setValue(value: string): this {
+        this.selectEl.value = value;
+        return this;
+      }
+
+      onChange(handler: (value: string) => void): this {
+        this.changeHandler = handler;
+        return this;
+      }
+
+      _triggerChange(value: string): void {
+        this.selectEl.value = value;
+        this.selectEl.dispatchEvent(new Event("change"));
+      }
+    }
+
+    const component = new DropdownComponent(this.controlEl);
+    cb(component);
     return this;
   }
 }

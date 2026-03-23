@@ -52,6 +52,7 @@
     Fix: correct nested folder deletion using removeFolderByPath (src/utils/folder-tree.ts).
     Tests: add unit coverage for barrel exports, sidebar “Add Feed” opening, folder paths, supported format badges, preview loader, and folder-tree removal.
     Single-line commit message
+- Refactor ReaderView: extract reader format settings portal to createReaderFormatPortal(), add ReaderView.onClose() cleanup, and add unit coverage.
 
 ## [2.3.0-alpha.3 / 2.2.0-beta.7] - March 18, 2026
 

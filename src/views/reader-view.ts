@@ -29,6 +29,7 @@ import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { resolvePodcastOpenDestinations } from "../utils/podcast-open-destinations";
 import { resolveApplePodcastsShowUrl } from "../services/apple-podcasts-service";
+import { createReaderFormatPortal } from "../utils/reader-format-portal";
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
@@ -60,12 +61,8 @@ export class ReaderView extends ItemView {
   private returnLeaf: WorkspaceLeaf | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
 
-  private readerFormatPortal: HTMLElement | null = null;
-  private readerFormatBackdrop: HTMLElement | null = null;
-  private readerFormatOutsideHandler: ((event: MouseEvent) => void) | null =
+  private readerFormatPortal: { close: (flushSave: boolean) => void } | null =
     null;
-  private readerFormatDocument: Document | null = null;
-  private readerFormatViewportCleanup: (() => void) | null = null;
   private readerFormatSaveTimeout: number | null = null;
 
   public setReturnLeaf(leaf: WorkspaceLeaf | null): void {
@@ -363,6 +360,32 @@ export class ReaderView extends ItemView {
     });
 
     this.applyReaderFormat();
+    return Promise.resolve();
+  }
+
+  async onClose(): Promise<void> {
+    this.closeTagsDropdown();
+
+    if (this.readerFormatPortal) {
+      this.readerFormatPortal.close(true);
+      this.readerFormatPortal = null;
+    }
+
+    if (this.readerFormatSaveTimeout !== null) {
+      window.clearTimeout(this.readerFormatSaveTimeout);
+      this.readerFormatSaveTimeout = null;
+    }
+
+    if (this.podcastPlayer) {
+      this.podcastPlayer.destroy();
+      this.podcastPlayer = null;
+    }
+
+    if (this.videoPlayer) {
+      this.videoPlayer.destroy();
+      this.videoPlayer = null;
+    }
+
     return Promise.resolve();
   }
 
@@ -1281,306 +1304,27 @@ export class ReaderView extends ItemView {
     }
 
     if (this.readerFormatPortal) {
-      this.closeReaderFormatPortal(true);
+      this.readerFormatPortal.close(true);
+      this.readerFormatPortal = null;
       return;
     }
-
-    this.createReaderFormatDropdownPortal(anchor);
-  }
-
-  private createReaderFormatDropdownPortal(anchor: HTMLElement): void {
-    this.closeReaderFormatPortal(false);
 
     const format = this.getReaderFormat();
-    const targetDocument = anchor.ownerDocument;
-    const targetBody = targetDocument.body;
-    const targetWindow = targetDocument.defaultView || window;
-    const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
-
-    if (isMobile) {
-      this.readerFormatBackdrop = targetBody.createDiv({
-        cls: "rss-reader-format-sheet-backdrop",
-      });
-    }
-
-    const portalDropdown = targetBody.createDiv({
-      cls: "rss-dashboard-tags-dropdown-content-portal rss-reader-format-dropdown-portal",
-    });
-
-    if (isMobile) {
-      portalDropdown.addClass("rss-reader-format-mobile-sheet");
-    }
-
-    const controlsContainer = portalDropdown.createDiv({
-      cls: "rss-reader-format-controls",
-    });
-
-    new Setting(controlsContainer).setName("Reader settings").setHeading();
-
-    let alignDropdown: { setValue: (value: string) => void } | null = null;
-    new Setting(controlsContainer)
-      .setName("Alignment")
-      .addDropdown((dropdown) => {
-        alignDropdown = dropdown;
-        dropdown
-          .addOption("justify", "Justify")
-          .addOption("left", "Left")
-          .setValue(format.textAlign)
-          .onChange((value) => {
-            format.textAlign = value as ReaderFormatSettings["textAlign"];
-            this.applyReaderFormat();
-            this.scheduleReaderFormatSave();
-          });
-      });
-
-    new Setting(controlsContainer)
-      .setName("Paragraph width")
-      .addDropdown((dropdown) => {
-        dropdown
-          .addOption("100", "100%")
-          .addOption("75", "75%")
-          .addOption("50", "50%")
-          .addOption("25", "25%")
-          .setValue(String(format.paragraphWidth))
-          .onChange((value) => {
-            format.paragraphWidth = parseInt(value);
-            this.applyReaderFormat();
-            this.scheduleReaderFormatSave();
-          });
-      });
-
-    let fontSizeDropdown: { setValue: (value: string) => void } | null = null;
-    new Setting(controlsContainer)
-      .setName("Font size")
-      .addDropdown((dropdown) => {
-        fontSizeDropdown = dropdown;
-        dropdown
-          .addOption("80", "80%")
-          .addOption("90", "90%")
-          .addOption("100", "100%")
-          .addOption("110", "110%")
-          .addOption("120", "120%")
-          .addOption("130", "130%")
-          .addOption("150", "150%")
-          .addOption("175", "175%")
-          .addOption("200", "200%")
-          .setValue(String(format.fontScalePct))
-          .onChange((value) => {
-            format.fontScalePct = parseInt(value);
-            this.applyReaderFormat();
-            this.scheduleReaderFormatSave();
-          });
-      });
-
-    let lineHeightDropdown: { setValue: (value: string) => void } | null = null;
-    new Setting(controlsContainer)
-      .setName("Line height")
-      .addDropdown((dropdown) => {
-        lineHeightDropdown = dropdown;
-        dropdown
-          .addOption("100", "100%")
-          .addOption("110", "110%")
-          .addOption("120", "120%")
-          .addOption("130", "130%")
-          .addOption("140", "140%")
-          .addOption("150", "150%")
-          .addOption("160", "160%")
-          .addOption("180", "180%")
-          .addOption("200", "200%")
-          .setValue(String(format.lineHeightPct))
-          .onChange((value) => {
-            format.lineHeightPct = parseInt(value);
-            this.applyReaderFormat();
-            this.scheduleReaderFormatSave();
-          });
-      });
-
-    let fontDropdown: { setValue: (value: string) => void } | null = null;
-    new Setting(controlsContainer).setName("Font").addDropdown((dropdown) => {
-      fontDropdown = dropdown;
-      dropdown
-        .addOption("default", "Theme default")
-        .addOption("serif", "Serif")
-        .addOption("sans", "Sans")
-        .addOption("mono", "Mono")
-        .setValue(format.fontFamily)
-        .onChange((value) => {
-          format.fontFamily = value as ReaderFormatSettings["fontFamily"];
-          this.applyReaderFormat();
-          this.scheduleReaderFormatSave();
-        });
-    });
-
-    let paragraphDropdown: { setValue: (value: string) => void } | null = null;
-    new Setting(controlsContainer)
-      .setName("Paragraph spacing")
-      .addDropdown((dropdown) => {
-        paragraphDropdown = dropdown;
-        dropdown
-          .addOption("default", "Theme default")
-          .addOption("tight", "Tight")
-          .addOption("normal", "Normal")
-          .addOption("loose", "Loose")
-          .setValue(format.paragraphSpacing)
-          .onChange((value) => {
-            format.paragraphSpacing =
-              value as ReaderFormatSettings["paragraphSpacing"];
-            this.applyReaderFormat();
-            this.scheduleReaderFormatSave();
-          });
-      });
-
-    new Setting(controlsContainer).addButton((btn) => {
-      btn.setButtonText("Reset").onClick((evt: MouseEvent) => {
-        Object.assign(format, DEFAULT_SETTINGS.readerFormat);
-
-        alignDropdown?.setValue(format.textAlign);
-        // Paragraph width dropdown reset if we kept its reference, but here we'll just re-render or hope it updates
-        fontSizeDropdown?.setValue(String(format.fontScalePct));
-        lineHeightDropdown?.setValue(String(format.lineHeightPct));
-        fontDropdown?.setValue(format.fontFamily);
-        paragraphDropdown?.setValue(format.paragraphSpacing);
-
-        this.applyReaderFormat();
-        this.scheduleReaderFormatSave();
-        this.closeReaderFormatPortal(true);
-        this.toggleReaderFormatDropdown(evt); // Re-open to refresh
-      });
-    });
-
-    if (isMobile) {
-      new Setting(controlsContainer).addButton((btn) => {
-        btn.setButtonText("Done");
-        // Prefer Obsidian CTA styling; fall back to class if older API.
-        const maybeCta = btn as unknown as { setCta?: () => void };
-        maybeCta.setCta?.();
-        btn.buttonEl.addClass("mod-cta");
-        btn.buttonEl.addClass("rss-reader-format-done-cta");
-        btn.onClick((e: MouseEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-          this.closeReaderFormatPortal(true);
-        });
-      });
-    }
-
-    this.readerFormatPortal = portalDropdown;
-    this.readerFormatDocument = targetDocument;
-
-    if (isMobile) {
-      const syncMobileViewportHeight = () => {
-        const vvp = targetWindow.visualViewport;
-        const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
-        const computed = targetWindow.getComputedStyle(portalDropdown);
-        const bottomOffset = Number.parseFloat(computed.bottom || "0") || 0;
-        const maxHeight = Math.min(
-          Math.floor(viewportHeight * 0.8),
-          Math.max(220, Math.floor(viewportHeight - bottomOffset - 8)),
-        );
-        portalDropdown.style.setProperty(
-          "max-height",
-          `${maxHeight}px`,
-          "important",
-        );
-      };
-      syncMobileViewportHeight();
-
-      const visualViewport = targetWindow.visualViewport;
-      if (visualViewport) {
-        visualViewport.addEventListener("resize", syncMobileViewportHeight);
-        visualViewport.addEventListener("scroll", syncMobileViewportHeight);
-        this.readerFormatViewportCleanup = () => {
-          visualViewport.removeEventListener(
-            "resize",
-            syncMobileViewportHeight,
-          );
-          visualViewport.removeEventListener(
-            "scroll",
-            syncMobileViewportHeight,
-          );
-        };
-      } else {
-        targetWindow.addEventListener("resize", syncMobileViewportHeight);
-        this.readerFormatViewportCleanup = () => {
-          targetWindow.removeEventListener("resize", syncMobileViewportHeight);
-        };
-      }
-
-      this.readerFormatBackdrop?.addEventListener("click", () => {
-        this.closeReaderFormatPortal(true);
-      });
-
-      return;
-    }
-
-    const rect = anchor.getBoundingClientRect();
-    const dropdownRect = portalDropdown.getBoundingClientRect();
-    const appContainer =
-      this.contentEl.closest(".workspace-leaf-content") || targetBody;
-    const appContainerRect = appContainer.getBoundingClientRect();
-
-    let left = rect.right;
-    let top = rect.top;
-
-    if (left + dropdownRect.width > appContainerRect.right) {
-      left = rect.left - dropdownRect.width;
-    }
-
-    if (left < appContainerRect.left) {
-      left = appContainerRect.left;
-    }
-
-    if (top + dropdownRect.height > targetWindow.innerHeight) {
-      top = targetWindow.innerHeight - dropdownRect.height - 5;
-    }
-
-    portalDropdown.style.left = `${left}px`;
-    portalDropdown.style.top = `${top}px`;
-
-    targetWindow.setTimeout(() => {
-      const outsideHandler = (ev: MouseEvent) => {
-        if (
-          this.readerFormatPortal &&
-          !this.readerFormatPortal.contains(ev.target as Node) &&
-          !anchor.contains(ev.target as Node)
-        ) {
-          this.closeReaderFormatPortal(true);
+    const portal = createReaderFormatPortal({
+      anchor,
+      format,
+      defaults: DEFAULT_SETTINGS.readerFormat,
+      applyFormat: () => this.applyReaderFormat(),
+      scheduleSave: () => this.scheduleReaderFormatSave(),
+      flushSave: () => this.flushReaderFormatSave(),
+      onClosed: () => {
+        if (this.readerFormatPortal === portal) {
+          this.readerFormatPortal = null;
         }
-      };
-      this.readerFormatOutsideHandler = outsideHandler;
-      targetDocument.addEventListener("mousedown", outsideHandler);
-    }, 0);
-  }
+      },
+    });
 
-  private closeReaderFormatPortal(flushSave: boolean): void {
-    if (this.readerFormatBackdrop) {
-      this.readerFormatBackdrop.remove();
-      this.readerFormatBackdrop = null;
-    }
-
-    if (this.readerFormatPortal) {
-      this.readerFormatPortal.remove();
-      this.readerFormatPortal = null;
-    }
-
-    if (this.readerFormatOutsideHandler && this.readerFormatDocument) {
-      this.readerFormatDocument.removeEventListener(
-        "mousedown",
-        this.readerFormatOutsideHandler,
-      );
-    }
-
-    if (this.readerFormatViewportCleanup) {
-      this.readerFormatViewportCleanup();
-      this.readerFormatViewportCleanup = null;
-    }
-
-    this.readerFormatOutsideHandler = null;
-    this.readerFormatDocument = null;
-
-    if (flushSave) {
-      void this.flushReaderFormatSave();
-    }
+    this.readerFormatPortal = portal;
   }
 
   private scheduleReaderFormatSave(): void {
