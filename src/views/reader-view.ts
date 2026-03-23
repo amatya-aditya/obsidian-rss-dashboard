@@ -55,6 +55,7 @@ export class ReaderView extends ItemView {
   private relatedItems: FeedItem[] = [];
   private currentFullContent?: string;
   private currentDisplayTitle?: string;
+  private currentReaderTitle?: string;
   private currentContentIsFullArticle = false;
   private turndownService = new TurndownService();
   private readToggleButton: HTMLElement | null = null;
@@ -156,7 +157,9 @@ export class ReaderView extends ItemView {
 
   getDisplayText(): string {
     return this.currentItem
-      ? this.currentDisplayTitle || this.currentItem.title
+      ? this.currentReaderTitle ||
+          this.currentDisplayTitle ||
+          this.currentItem.title
       : "RSS reader";
   }
 
@@ -586,10 +589,13 @@ export class ReaderView extends ItemView {
     this.currentItem = item;
     this.relatedItems = relatedItems;
     this.currentDisplayTitle = undefined;
+    this.currentReaderTitle = this.isTweetLikeItem(item)
+      ? this.formatNitterReaderTitle(item)
+      : undefined;
     this.currentContentIsFullArticle = false;
 
     if (this.titleElement) {
-      this.titleElement.setText(item.title);
+      this.titleElement.setText(this.currentReaderTitle || item.title);
     }
 
     // Update toggle button states
@@ -640,7 +646,7 @@ export class ReaderView extends ItemView {
       }
       await this.displayPodcast(item);
     } else {
-      const fetchedContent = this.shouldSkipFullArticleFetch(item.link)
+      const fetchedContent = this.shouldSkipFullArticleFetch(item)
         ? ""
         : await this.fetchFullArticleContent(item.link);
       const hasFullArticleContent =
@@ -656,7 +662,9 @@ export class ReaderView extends ItemView {
       this.currentContentIsFullArticle = hasFullArticleContent;
 
       if (this.titleElement) {
-        this.titleElement.setText(this.currentDisplayTitle || item.title);
+        this.titleElement.setText(
+          this.currentReaderTitle || this.currentDisplayTitle || item.title,
+        );
       }
       await this.displayArticle(item, fullContent);
     }
@@ -840,6 +848,10 @@ export class ReaderView extends ItemView {
       return false;
     }
 
+    if (this.isTweetLikeItem(item)) {
+      return true;
+    }
+
     try {
       const host = new URL(item.link).hostname.toLowerCase();
       return this.isFeedContentPreferredHost(host);
@@ -848,13 +860,17 @@ export class ReaderView extends ItemView {
     }
   }
 
-  private shouldSkipFullArticleFetch(url: string): boolean {
-    if (!url) {
+  private shouldSkipFullArticleFetch(item: FeedItem): boolean {
+    if (this.isTweetLikeItem(item)) {
+      return true;
+    }
+
+    if (!item.link) {
       return false;
     }
 
     try {
-      const host = new URL(url).hostname.toLowerCase();
+      const host = new URL(item.link).hostname.toLowerCase();
       return this.isFeedContentPreferredHost(host);
     } catch {
       return false;
@@ -868,7 +884,8 @@ export class ReaderView extends ItemView {
       host === "aeon.co" ||
       host.endsWith(".aeon.co") ||
       host === "substack.com" ||
-      host.endsWith(".substack.com")
+      host.endsWith(".substack.com") ||
+      this.isNitterHost(host)
     );
   }
 
@@ -877,7 +894,9 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-article-header",
     });
 
-    const displayTitle = this.currentDisplayTitle || item.title;
+    const isNitter = this.isTweetLikeItem(item);
+    const displayTitle =
+      this.currentReaderTitle || this.currentDisplayTitle || item.title;
     const articleTitleEl = headerContainer.createEl("h1", {
       cls: "rss-reader-item-title",
     });
@@ -945,7 +964,7 @@ export class ReaderView extends ItemView {
       mainHtml !== "" &&
       (!descriptionHtml || !this.isEquivalentHtml(mainHtml, descriptionHtml));
 
-    if (descriptionHtml && hasDistinctMainContent) {
+    if (!isNitter && descriptionHtml && hasDistinctMainContent) {
       const descriptionCallout = this.readingContainer.createEl("details", {
         cls: "rss-reader-description-callout",
       });
@@ -962,12 +981,15 @@ export class ReaderView extends ItemView {
         displayTitle,
         heroSlot,
         false,
+        false,
       );
     }
 
-    const contentToRender = hasDistinctMainContent
-      ? mainHtml
-      : mainHtml || descriptionHtml;
+    const contentToRender = isNitter
+      ? this.pickBestNitterTweetHtml(item, fullContent)
+      : hasDistinctMainContent
+        ? mainHtml
+        : mainHtml || descriptionHtml;
 
     if (contentToRender) {
       const contentContainer = this.readingContainer.createDiv({
@@ -983,6 +1005,7 @@ export class ReaderView extends ItemView {
         displayTitle,
         heroSlot,
         shouldStripHeadline,
+        isNitter,
       );
     }
   }
@@ -995,6 +1018,7 @@ export class ReaderView extends ItemView {
     title?: string,
     heroSlot?: HTMLElement,
     stripTopHeadline = false,
+    isNitter = false,
   ): void {
     if (!rawHtml) return;
 
@@ -1090,6 +1114,10 @@ export class ReaderView extends ItemView {
           el.removeAttribute("data-tooltip-delay");
         });
 
+      if (isNitter) {
+        this.transformNitterStatsMarkup(doc);
+      }
+
       html = doc.body.innerHTML;
     } catch {
       // Fall back to raw HTML if parsing fails
@@ -1109,6 +1137,223 @@ export class ReaderView extends ItemView {
     // Add classes to images for styling
     container.querySelectorAll("img").forEach((img) => {
       img.addClass("rss-reader-responsive-img");
+    });
+
+    if (isNitter) {
+      this.hydrateNitterStatsIcons(container);
+    }
+  }
+
+  private isNitterHost(host: string): boolean {
+    return host.toLowerCase().includes("nitter");
+  }
+
+  private isTweetLikeItem(item: FeedItem): boolean {
+    if (this.isNitterItem(item)) {
+      return true;
+    }
+
+    return MediaService.isXUrl(item.link) || MediaService.isXUrl(item.feedUrl);
+  }
+
+  private isNitterItem(item: FeedItem): boolean {
+    const candidates = [item.feedUrl, item.link].filter(
+      (u): u is string => typeof u === "string" && u.trim().length > 0,
+    );
+
+    for (const url of candidates) {
+      try {
+        const host = new URL(url).hostname.toLowerCase();
+        if (this.isNitterHost(host)) {
+          return true;
+        }
+      } catch {
+        // ignore invalid urls
+      }
+    }
+
+    return false;
+  }
+
+  private formatNitterReaderTitle(item: FeedItem): string {
+    const { name, handle } = this.extractNitterNameAndHandle(item);
+    const date = this.formatIsoDate(item.pubDate);
+
+    if (name && handle && date) return `${name} (${handle}) · ${date}`;
+    if (name && handle) return `${name} (${handle})`;
+    if (name && date) return `${name} · ${date}`;
+    if (handle && date) return `${handle} · ${date}`;
+    return item.title;
+  }
+
+  private extractNitterNameAndHandle(item: FeedItem): { name: string; handle: string } {
+    const tryExtract = (source: string): { name: string; handle: string } => {
+      const handleMatch = source.match(/@[\w.]+/i);
+      const handle = handleMatch ? handleMatch[0] : "";
+      let name = source;
+
+      if (handle) {
+        name = name.replace(handle, "");
+      }
+
+      name = name
+        .replace(/[()]/g, " ")
+        .replace(/[|/]/g, " ")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+
+      return { name, handle };
+    };
+
+    const author = (item.author || "").trim();
+    const feedTitle = (item.feedTitle || "").trim();
+
+    const authorParsed = author ? tryExtract(author) : { name: "", handle: "" };
+    const feedParsed = feedTitle ? tryExtract(feedTitle) : { name: "", handle: "" };
+
+    const urlHandle = this.extractHandleFromUrl(item.link) || this.extractHandleFromUrl(item.feedUrl);
+
+    const handle =
+      (/^@[\w.]+$/i.test(author) ? author : authorParsed.handle) ||
+      feedParsed.handle ||
+      urlHandle;
+    const name = authorParsed.name || feedParsed.name;
+
+    return { name, handle };
+  }
+
+  private extractHandleFromUrl(url: string): string {
+    const trimmed = (url || "").trim();
+    if (!trimmed) return "";
+
+    try {
+      const u = new URL(trimmed);
+      const host = u.hostname.toLowerCase();
+      if (
+        !this.isNitterHost(host) &&
+        !host.includes("twitter.com") &&
+        !host.includes("x.com")
+      ) {
+        return "";
+      }
+      const parts = u.pathname.split("/").filter(Boolean);
+      const username = parts[0] || "";
+      if (!username) return "";
+      if (/^(home|explore|messages|notifications|settings|search|i)$/i.test(username)) {
+        return "";
+      }
+      return username.startsWith("@") ? username : `@${username}`;
+    } catch {
+      return "";
+    }
+  }
+
+  private formatIsoDate(dateInput: string): string {
+    const trimmed = (dateInput || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      return trimmed.slice(0, 10);
+    }
+
+    const parsed = new Date(trimmed);
+    if (Number.isFinite(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 10);
+    }
+
+    return "";
+  }
+
+  private pickBestNitterTweetHtml(item: FeedItem, fullContent?: string): string {
+    const description = (item.description || "").trim();
+    const content = (item.content || "").trim();
+    const full = (fullContent || "").trim();
+
+    const hasRichFormatting = (html: string): boolean =>
+      /<(br|p|blockquote|img)\b/i.test(html);
+
+    if (
+      description &&
+      (hasRichFormatting(description) ||
+        description.length > (content ? content.length : 0))
+    ) {
+      return description;
+    }
+
+    return content || full || description;
+  }
+
+  private transformNitterStatsMarkup(doc: Document): void {
+    let target =
+      doc.body.querySelector<HTMLElement>(".tweet-stats") ||
+      doc.body.querySelector<HTMLElement>(".tweet-stats-container");
+
+    if (!target) {
+      const iconEl = doc.body.querySelector<HTMLElement>(
+        ".icon-comment, .icon-retweet, .icon-heart, .icon-views",
+      );
+      let cursor: HTMLElement | null = iconEl;
+      for (let i = 0; i < 6 && cursor; i++) {
+        const count = cursor.querySelectorAll(
+          ".icon-comment, .icon-retweet, .icon-heart, .icon-views",
+        ).length;
+        if (count >= 2) {
+          target = cursor;
+          break;
+        }
+        cursor = cursor.parentElement;
+      }
+    }
+
+    if (!target) return;
+
+    const extractCount = (markerClass: string): string => {
+      const marker = target.querySelector<HTMLElement>(`.${markerClass}`);
+      if (!marker) return "";
+      const text = (marker.parentElement?.textContent || "").replace(/\s+/g, " ").trim();
+      const match = text.match(/(\d[\d.,]*\s*[kKmMbB]?)/);
+      return (match ? match[1] : "").trim();
+    };
+
+    const statsEl = doc.createElement("div");
+    statsEl.className = "rss-nitter-stats";
+
+    const pills: Array<{ key: string; icon: string; count: string }> = [
+      { key: "comment", icon: "message-circle", count: extractCount("icon-comment") },
+      { key: "retweet", icon: "repeat-2", count: extractCount("icon-retweet") },
+      { key: "heart", icon: "heart", count: extractCount("icon-heart") },
+      { key: "views", icon: "bar-chart-2", count: extractCount("icon-views") },
+    ];
+
+    for (const pill of pills) {
+      const pillEl = doc.createElement("span");
+      pillEl.className = "rss-nitter-stat";
+      pillEl.setAttribute("data-stat", pill.key);
+
+      const iconEl = doc.createElement("span");
+      iconEl.className = "rss-nitter-stat-icon";
+      iconEl.setAttribute("data-rss-icon", pill.icon);
+
+      const countEl = doc.createElement("span");
+      countEl.className = "rss-nitter-stat-count";
+      countEl.textContent = pill.count;
+
+      pillEl.appendChild(iconEl);
+      pillEl.appendChild(countEl);
+      statsEl.appendChild(pillEl);
+    }
+
+    target.parentElement?.insertBefore(statsEl, target);
+    target.remove();
+  }
+
+  private hydrateNitterStatsIcons(container: HTMLElement): void {
+    container.querySelectorAll<HTMLElement>(".rss-nitter-stat-icon").forEach((el) => {
+      const iconName = el.dataset.rssIcon;
+      if (!iconName) return;
+      try {
+        setIcon(el, iconName);
+      } catch {
+        // ignore icon failures
+      }
     });
   }
 

@@ -34,6 +34,8 @@
 
 - **Reader save button**: The save button icon in the reader now appropriately turns purple when saved and changes its tooltip to "Click to open saved article". Clicking it in this state will directly open the saved markdown file in your vault, mirroring the dashboard functionality.
 
+- **Reader Nitter rendering**: Improved X/Twitter (Nitter) feed items in Reader view with a compact author/handle/date title, a single formatted tweet body (no "Feed description" callout), and a compact stats icon row when present.
+
 - **Obsidian Properties UI compatibility**: Fixed a critical issue where enabling the plugin could cause vault-wide Properties \"type mismatch\" error indicators due to unscoped global CSS overrides.
 
 ### Development

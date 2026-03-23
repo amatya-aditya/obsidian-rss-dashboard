@@ -95,6 +95,15 @@ export class AddFeedModal extends Modal {
       latestEntryDiv?: HTMLDivElement;
     } = {};
 
+    const normalizeNitterUrl = (): void => {
+      const candidate = (urlInput?.value || url || "").trim();
+      const normalized = MediaService.normalizeNitterUrlToRss(candidate);
+      if (!normalized) return;
+
+      url = normalized;
+      if (urlInput) urlInput.value = normalized;
+    };
+
     const urlSetting = new Setting(contentEl)
       .setName("Feed URL")
       .addText((text) => {
@@ -111,6 +120,10 @@ export class AddFeedModal extends Modal {
           } else if (e.key === "Escape") {
             this.close();
           }
+        });
+        urlInput.addEventListener("blur", normalizeNitterUrl);
+        urlInput.addEventListener("paste", () => {
+          window.setTimeout(normalizeNitterUrl, 0);
         });
       })
       .addButton((btn) => {
@@ -131,6 +144,8 @@ export class AddFeedModal extends Modal {
               return;
             }
 
+            normalizeNitterUrl();
+
             // Set loading state
             status = "\u23F3 Loading...";
             loadBtn.addClass("loading");
@@ -147,6 +162,14 @@ export class AddFeedModal extends Modal {
               let feedUrl = url;
               let detectedType: "rss" | "podcast" | "youtube" = "rss";
               let isXConversion = false;
+
+              // Normalize Nitter profile URLs to their RSS endpoint
+              const normalizedNitterUrl = MediaService.normalizeNitterUrlToRss(url);
+              if (normalizedNitterUrl) {
+                url = normalizedNitterUrl;
+                feedUrl = normalizedNitterUrl;
+                if (urlInput) urlInput.value = normalizedNitterUrl;
+              }
 
               // Check for X/Twitter URLs and convert to Nitter
               if (MediaService.isXUrl(url)) {
@@ -664,6 +687,7 @@ export class AddFeedModal extends Modal {
       cls: "rss-dashboard-danger-button rss-dashboard-cancel-button",
     });
     saveBtn.onclick = () => {
+      normalizeNitterUrl();
       if (!url) {
         new Notice("Feed URL cannot be empty");
         return;

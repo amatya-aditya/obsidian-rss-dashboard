@@ -68,6 +68,52 @@ export class MediaService {
     return null;
   }
 
+  /**
+   * Normalize a Nitter profile URL to its RSS endpoint.
+   *
+   * Examples:
+   * - https://nitter.net/alliekmiller -> https://nitter.net/alliekmiller/rss
+   * - https://nitter.net/alliekmiller/ -> https://nitter.net/alliekmiller/rss
+   * - https://nitter.net/alliekmiller/rss -> https://nitter.net/alliekmiller/rss
+   */
+  static normalizeNitterUrlToRss(inputUrl: string): string | null {
+    if (!inputUrl) return null;
+
+    let parsed: URL;
+    try {
+      parsed = new URL(inputUrl);
+    } catch {
+      return null;
+    }
+
+    if (!/nitter\.net$/i.test(parsed.hostname)) return null;
+
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    if (parts.length === 0) return null;
+
+    const username = parts[0];
+    const commonPages = [
+      "home",
+      "notifications",
+      "messages",
+      "explore",
+      "search",
+      "i",
+      "settings",
+    ];
+    if (commonPages.includes(username.toLowerCase())) return null;
+
+    if (parts.length === 1) {
+      return `${parsed.origin}/${username}/rss`;
+    }
+
+    if (parts.length === 2 && parts[1].toLowerCase() === "rss") {
+      return `${parsed.origin}/${username}/rss`;
+    }
+
+    return null;
+  }
+
   private static extractChannelIdFromHtml(html: string): string | null {
     if (!html) return null;
 

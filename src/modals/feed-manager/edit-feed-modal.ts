@@ -7,6 +7,7 @@ import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
 import { isValidFeedTitle } from "../../utils/validation";
 import { renderSupportedFormatBadges } from "./supported-format-badges";
 import { formatLatestEntryLabel, resolveAndLoadPreview } from "./feed-preview-loader";
+import { MediaService } from "../../services/media-service";
 
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
@@ -61,6 +62,15 @@ export class EditFeedModal extends Modal {
       latestEntryDiv?: HTMLDivElement;
     } = {};
 
+    const normalizeNitterUrl = (): void => {
+      const candidate = (urlInput?.value || url || "").trim();
+      const normalized = MediaService.normalizeNitterUrlToRss(candidate);
+      if (!normalized) return;
+
+      url = normalized;
+      if (urlInput) urlInput.value = normalized;
+    };
+
     const urlSetting = new Setting(contentEl)
       .setName("Feed URL")
       .addText((text) => {
@@ -78,6 +88,10 @@ export class EditFeedModal extends Modal {
             this.close();
           }
         });
+        urlInput.addEventListener("blur", normalizeNitterUrl);
+        urlInput.addEventListener("paste", () => {
+          window.setTimeout(normalizeNitterUrl, 0);
+        });
       })
       .addButton((btn) => {
         btn.setButtonText("Load");
@@ -85,6 +99,8 @@ export class EditFeedModal extends Modal {
         loadBtn = btn.buttonEl;
         btn.onClick(() => {
           void (async () => {
+            normalizeNitterUrl();
+
             // Set loading state
             status = "\u23F3 Loading...";
             loadBtn.addClass("loading");
@@ -467,6 +483,7 @@ export class EditFeedModal extends Modal {
       cls: "rss-dashboard-danger-button rss-dashboard-cancel-button",
     });
     saveBtn.onclick = () => {
+      normalizeNitterUrl();
       const validation = isValidFeedTitle(title);
       if (!validation.valid) {
         new Notice(validation.error || "Invalid feed title");

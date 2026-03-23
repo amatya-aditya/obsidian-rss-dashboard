@@ -51,6 +51,12 @@ export async function resolveAndLoadPreview(
   let detectedType: FeedPreviewType = "rss";
   let isXConversion = false;
 
+  const normalizedNitterUrl = MediaService.normalizeNitterUrlToRss(url);
+  if (normalizedNitterUrl) {
+    url = normalizedNitterUrl;
+    finalUrl = normalizedNitterUrl;
+  }
+
   if (MediaService.isXUrl(url)) {
     const nitterUrl = MediaService.getNitterRssFeed(url);
     if (nitterUrl) {
