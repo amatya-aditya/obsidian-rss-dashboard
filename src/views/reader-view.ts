@@ -941,26 +941,39 @@ export class ReaderView extends ItemView {
     }
 
     // Attempt to extract and place hero image
-    if (heroSlot && heroSlot.childElementCount === 0) {
+    if (heroSlot) {
       const tempDiv = document.createElement("div");
       tempDiv.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
       const firstImg = tempDiv.querySelector("img");
 
-      let heroUrl = fallbackHeroUrl;
-      if (firstImg && firstImg.src) {
-        // If the first image looks like a hero image (e.g. large)
-        // For now just take the first meaningful image or fallback
-        heroUrl = firstImg.src;
-        // Optional: remove it from the body to avoid duplication
-        // firstImg.remove();
-        // html = tempDiv.innerHTML;
-      }
+      if (heroSlot.childElementCount === 0) {
+        let heroUrl = fallbackHeroUrl;
+        if (firstImg && firstImg.src) {
+          // If the first image looks like a hero image (e.g. large)
+          // For now just take the first meaningful image or fallback
+          heroUrl = firstImg.src;
+        }
 
-      if (heroUrl) {
-        heroSlot.createEl("img", {
-          cls: "rss-reader-fallback-hero",
-          attr: { src: heroUrl, alt: title || "Hero image" },
-        });
+        if (heroUrl) {
+          heroSlot.createEl("img", {
+            cls: "rss-reader-fallback-hero",
+            attr: { src: heroUrl, alt: title || "Hero image" },
+          });
+
+          // Remove the first image from the body if it's the hero image to avoid duplication
+          if (firstImg && firstImg.src === heroUrl) {
+            firstImg.remove();
+            html = tempDiv.innerHTML;
+          }
+        }
+      } else {
+        // Hero slot already filled by a previous section (e.g. description)
+        // If the current section starts with the same image as the hero image, remove it to avoid duplication
+        const existingHero = heroSlot.querySelector("img");
+        if (existingHero && firstImg && firstImg.src === existingHero.src) {
+          firstImg.remove();
+          html = tempDiv.innerHTML;
+        }
       }
     }
 

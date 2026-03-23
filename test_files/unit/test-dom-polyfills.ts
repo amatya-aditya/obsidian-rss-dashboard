@@ -33,6 +33,12 @@ export function installObsidianDomPolyfills(): void {
     };
   }
 
+  if (typeof (proto as any).setText !== "function") {
+    (proto as any).setText = function (this: HTMLElement, text: string): void {
+      this.textContent = text;
+    };
+  }
+
   if (typeof proto.addClass !== "function") {
     proto.addClass = function addClass(this: HTMLElement, ...classes: string[]): void {
       this.classList.add(...classes);
