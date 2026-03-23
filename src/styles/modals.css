@@ -20,6 +20,55 @@
 .feed-manager-modal-content {
   padding: 2rem 1.5rem 1.5rem 1.5rem;
 }
+
+/* Suggestion container z-index fix */
+.suggestion-container {
+  z-index: 10001 !important;
+}
+
+/* Global clickable-icon patterns from design-spec.md */
+.clickable-icon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  visibility: visible !important;
+}
+
+.clickable-icon svg {
+  width: var(--icon-size, 20px) !important;
+  height: var(--icon-size, 20px) !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+.rss-dashboard-folder-input-container {
+  position: relative;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.rss-dashboard-clear-icon {
+  --icon-size: 18px;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 4px;
+  z-index: 5;
+}
+
+.rss-dashboard-clear-icon:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.rss-dashboard-folder-input-container input {
+  padding-right: 34px !important;
+}
+
 .rss-dashboard-modal h2,
 .feed-manager-modal h2 {
   margin: 0 0 1.2rem 0;

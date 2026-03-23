@@ -1,4 +1,4 @@
-﻿import { Modal, App, Setting, Notice, setIcon } from "obsidian";
+import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
 import type { Feed, Folder } from "../../types/types";
 import { DEFAULT_SETTINGS } from "../../types/types";
@@ -45,15 +45,23 @@ export class FeedManagerModal extends Modal {
         cls: "feed-manager-header-title",
       });
 
-      const closeBtn = headerContainer.createEl("button", {
-        cls: "feed-manager-header-close-button",
+      const closeBtn = headerContainer.createDiv({
+        cls: "clickable-icon feed-manager-header-close-button",
         attr: {
           "aria-label": "Close",
-          type: "button",
+          role: "button",
+          tabindex: "0",
         },
       });
       setIcon(closeBtn, "x");
-      closeBtn.onclick = () => this.close();
+      const closeAction = () => this.close();
+      closeBtn.onclick = closeAction;
+      closeBtn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          closeAction();
+        }
+      });
     } else {
       new Setting(contentEl).setName("Manage feeds").setHeading();
     }
@@ -72,12 +80,12 @@ export class FeedManagerModal extends Modal {
       placeholder: "Search feeds...",
       cls: "feed-manager-search-input",
     });
-    const searchClearBtn = searchContainer.createEl("button", {
-      cls: "feed-manager-search-clear is-hidden",
+    const searchClearBtn = searchContainer.createDiv({
+      cls: "clickable-icon feed-manager-search-clear is-hidden",
       attr: {
-        title: "Clear search",
         "aria-label": "Clear search",
-        type: "button",
+        role: "button",
+        tabindex: "0",
       },
     });
     setIcon(searchClearBtn, "x");
@@ -93,7 +101,7 @@ export class FeedManagerModal extends Modal {
       this.renderFeeds(contentEl);
       updateSearchClearVisibility();
     });
-    searchClearBtn.addEventListener("click", (event) => {
+    const clearSearchAction = (event: Event) => {
       event.preventDefault();
       event.stopPropagation();
       searchInput.value = "";
@@ -101,6 +109,14 @@ export class FeedManagerModal extends Modal {
       this.renderFeeds(contentEl);
       updateSearchClearVisibility();
       searchInput.focus();
+    };
+
+    searchClearBtn.addEventListener("click", clearSearchAction);
+    searchClearBtn.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        clearSearchAction(e);
+      }
     });
     updateSearchClearVisibility();
 
@@ -239,18 +255,29 @@ export class FeedManagerModal extends Modal {
         });
 
         // Add delete folder button (X icon) on the left
-        const deleteFolderBtn = folderHeader.createEl("button", {
-          cls: "feed-manager-delete-folder-button",
+        const deleteFolderBtn = folderHeader.createDiv({
+          cls: "clickable-icon feed-manager-delete-folder-button",
+          attr: {
+            "aria-label": "Delete folder",
+            role: "button",
+            tabindex: "0",
+          },
         });
         setIcon(deleteFolderBtn, "trash-2");
-        deleteFolderBtn.setAttribute("aria-label", "Delete folder");
-        deleteFolderBtn.onclick = () => {
+        const deleteFolderAction = () => {
           this.showDeleteConfirmModal({
             type: "folder",
             folderPath,
             feedCount: feeds.length,
           });
         };
+        deleteFolderBtn.onclick = deleteFolderAction;
+        deleteFolderBtn.addEventListener("keydown", (e: KeyboardEvent) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            deleteFolderAction();
+          }
+        });
 
         // Add folder name
         const folderName = folderHeader.createDiv({
@@ -284,18 +311,29 @@ export class FeedManagerModal extends Modal {
       });
 
       // Add delete folder button (X icon) on the left
-      const deleteFolderBtn = folderHeader.createEl("button", {
-        cls: "feed-manager-delete-folder-button",
+      const deleteFolderBtn = folderHeader.createDiv({
+        cls: "clickable-icon feed-manager-delete-folder-button",
+        attr: {
+          "aria-label": "Delete folder",
+          role: "button",
+          tabindex: "0",
+        },
       });
       setIcon(deleteFolderBtn, "trash-2");
-      deleteFolderBtn.setAttribute("aria-label", "Delete folder");
-      deleteFolderBtn.onclick = () => {
+      const deleteUncategorizedAction = () => {
         this.showDeleteConfirmModal({
           type: "folder",
           folderPath: "Uncategorized",
           feedCount: uncategorized.length,
         });
       };
+      deleteFolderBtn.onclick = deleteUncategorizedAction;
+      deleteFolderBtn.addEventListener("keydown", (e: KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          deleteUncategorizedAction();
+        }
+      });
 
       // Add folder name
       const folderName = folderHeader.createDiv({

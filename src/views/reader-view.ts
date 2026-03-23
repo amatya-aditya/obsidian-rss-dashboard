@@ -32,6 +32,7 @@ import { resolveApplePodcastsShowUrl } from "../services/apple-podcasts-service"
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
+import { VaultFolderSuggest } from "../components/folder-suggest";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
@@ -433,13 +434,40 @@ export class ReaderView extends ItemView {
       text: "Save to folder:",
     });
 
-    const folderInput = modalContent.createEl("input", {
+    const folderInputContainer = modalContent.createDiv({
+      cls: "rss-dashboard-folder-input-container",
+    });
+
+    const folderInput = folderInputContainer.createEl("input", {
       attr: {
         type: "text",
         placeholder: "Enter folder path",
         value: this.settings.articleSaving.defaultFolder || "",
       },
     });
+
+    const clearIcon = folderInputContainer.createDiv({
+      cls: "clickable-icon rss-dashboard-clear-icon",
+      attr: {
+        "aria-label": "Clear input",
+        role: "button",
+        tabindex: "0",
+      },
+    });
+    setIcon(clearIcon, "x");
+    const clearAction = () => {
+      folderInput.value = "";
+      folderInput.focus();
+    };
+    clearIcon.addEventListener("click", clearAction);
+    clearIcon.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        clearAction();
+      }
+    });
+
+    new VaultFolderSuggest(this.app, folderInput);
 
     const templateLabel = modalContent.createEl("label", {
       text: "Use template:",
@@ -499,7 +527,7 @@ export class ReaderView extends ItemView {
     buttonContainer.appendChild(saveButton);
 
     modalContent.appendChild(folderLabel);
-    modalContent.appendChild(folderInput);
+    modalContent.appendChild(folderInputContainer);
     modalContent.appendChild(templateLabel);
     modalContent.appendChild(templateInput);
     modalContent.appendChild(buttonContainer);
