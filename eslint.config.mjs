@@ -6,7 +6,14 @@ import globals from "globals";
 
 export default defineConfig([
   {
-    ignores: ["node_modules/**", "main.js", "*.mjs", "test_files/**", "update_reader_view.js"],
+    ignores: [
+      "node_modules/**",
+      "main.js",
+      "*.mjs",
+      "scripts/**/*.js",
+      "test_files/**",
+      "update_reader_view.js",
+    ],
   },
   ...obsidianmd.configs.recommended,
   {

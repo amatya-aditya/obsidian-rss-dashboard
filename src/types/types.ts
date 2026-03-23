@@ -440,12 +440,12 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     addSavedTag: true,
     defaultFolder: "RSS articles/",
     defaultTemplate: `---
-title: "{{title}}"
-date: {{date}}
-tags: [{{tags}}]
-source: "{{source}}"
-link: {{link}}
-author: "{{author}}"
+ title: "{{title}}"
+ date: "{{date}}"
+ tags: [{{tags}}]
+ source: "{{source}}"
+ link: "{{link}}"
+ author: "{{author}}"
 feedTitle: "{{feedTitle}}"
 guid: "{{guid}}"
 ---
@@ -454,15 +454,15 @@ guid: "{{guid}}"
 
 {{content}}
 
-[Source]({{link}})`,
+  [Source]({{link}})`,
     includeFrontmatter: true,
     frontmatterTemplate: `---
-title: "{{title}}"
-date: {{date}}
-tags: [{{tags}}]
-source: "{{source}}"
-link: {{link}}
-author: "{{author}}"
+ title: "{{title}}"
+ date: "{{date}}"
+ tags: [{{tags}}]
+ source: "{{source}}"
+ link: "{{link}}"
+ author: "{{author}}"
 feedTitle: "{{feedTitle}}"
 guid: "{{guid}}"
 ---`,

@@ -22,12 +22,12 @@
 }
 
 /* Suggestion container z-index fix */
-.suggestion-container {
+.rss-dashboard-suggestion-container {
   z-index: 10001 !important;
 }
 
-/* Global clickable-icon patterns from design-spec.md */
-.clickable-icon {
+/* Clickable icon patterns (scoped to our modals to avoid Obsidian core collisions) */
+.rss-dashboard-modal .clickable-icon {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -35,7 +35,7 @@
   visibility: visible !important;
 }
 
-.clickable-icon svg {
+.rss-dashboard-modal .clickable-icon svg {
   width: var(--icon-size, 20px) !important;
   height: var(--icon-size, 20px) !important;
   display: block !important;
@@ -897,8 +897,7 @@
   }
 
   /* Setting items with better spacing */
-  .rss-dashboard-modal .setting-item,
-  .feed-manager-modal .setting-item {
+  .rss-dashboard-modal .setting-item {
     padding: 12px 0;
     gap: 12px;
   }

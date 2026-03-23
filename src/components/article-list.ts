@@ -856,9 +856,9 @@ export class ArticleList {
       const title = titleEl?.textContent?.toLowerCase() || "";
 
       if (query && !title.includes(query)) {
-        (el as HTMLElement).classList.add("search-hidden");
+        (el as HTMLElement).classList.add("rss-dashboard-search-hidden");
       } else {
-        (el as HTMLElement).classList.remove("search-hidden");
+        (el as HTMLElement).classList.remove("rss-dashboard-search-hidden");
       }
     });
   }

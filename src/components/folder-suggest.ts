@@ -11,6 +11,9 @@ export class VaultFolderSuggest extends AbstractInputSuggest<TFolder> {
     constructor(app: App, inputEl: HTMLInputElement) {
         super(app, inputEl);
         this.inputEl = inputEl;
+
+        const suggestEl = (this as unknown as { suggestEl?: HTMLElement }).suggestEl;
+        suggestEl?.addClass("rss-dashboard-suggestion-container");
     }
 
     protected getSuggestions(query: string): TFolder[] {
@@ -57,6 +60,9 @@ export class FolderSuggest extends AbstractInputSuggest<string> {
         super(app, inputEl);
         this.inputEl = inputEl;
         this.folders = collectFolderPaths(folders, { sort: true });
+
+        const suggestEl = (this as unknown as { suggestEl?: HTMLElement }).suggestEl;
+        suggestEl?.addClass("rss-dashboard-suggestion-container");
 
         // Naming restrictions validation
         this.inputEl.addEventListener("input", () => {

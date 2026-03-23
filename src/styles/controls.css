@@ -1524,15 +1524,11 @@ body:not(.theme-dark)
 }
 
 /* Search hidden class for articles */
-.search-hidden {
+.rss-dashboard-search-hidden {
   display: none !important;
 }
 
-.import-statusbar-icon{
-	width: 12px;
-}
-
-
-.status-bar-item .svg-icon {
-	--icon-size: 10px !important ;
+.rss-dashboard-import-statusbar-icon {
+  width: 12px;
+  --icon-size: 10px;
 }

@@ -1810,7 +1810,7 @@
   color: #8e44ad;
 }
 
-.edit-feed-folder-dropdown {
+.rss-dashboard-modal .edit-feed-folder-dropdown {
   position: absolute;
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border, #ccc);
@@ -1820,11 +1820,11 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.edit-feed-folder-dropdown.hidden {
+.rss-dashboard-modal .edit-feed-folder-dropdown.hidden {
   display: none;
 }
 
-.edit-feed-folder-dropdown.visible {
+.rss-dashboard-modal .edit-feed-folder-dropdown.visible {
   display: block;
 }
 
@@ -1936,13 +1936,13 @@
   margin-bottom: 1.5rem;
 }
 
-.feed-manager-folder .setting-item {
+.rss-dashboard-modal .feed-manager-folder .setting-item {
   padding: 8px 12px;
   border-radius: 4px;
   border-bottom: 2px solid var(--background-modifier-border);
 }
 
-.feed-manager-folder .setting-item-name {
+.rss-dashboard-modal .feed-manager-folder .setting-item-name {
   font-weight: 600;
   font-size: 1.05em;
   color: var(--text-normal);

@@ -34,15 +34,18 @@
 
 - **Reader save button**: The save button icon in the reader now appropriately turns purple when saved and changes its tooltip to "Click to open saved article". Clicking it in this state will directly open the saved markdown file in your vault, mirroring the dashboard functionality.
 
+- **Obsidian Properties UI compatibility**: Fixed a critical issue where enabling the plugin could cause vault-wide Properties \"type mismatch\" error indicators due to unscoped global CSS overrides.
+
 ### Development
 
 - **Developer Documentation**: Added a new "Advanced Podcast Platform Resolution" section to `docs/development/feed-validation.md` documenting proxy rotation and semantic search patterns.
+- **CSS Guardrail**: Added `npm run check:css-scope` (runs during `npm run build`) to prevent unscoped rules from targeting Obsidian core selectors like `.clickable-icon`, `.suggestion-container`, and `.hidden`.
 - **Settings Architecture Refactor**:
   - Extracted 9 dedicated tab renderer files into `src/settings/tabs/`.
   - Centralized shared modal classes in `src/settings/modals/settings-modals.ts`.
   - Isolated pure tab-name helpers in `src/settings/tab-names.ts` for zero-dependency testing.
   - Implemented TDD-driven logic for color normalization, icon reordering, and preset detection.
-  - Added **74 new unit tests** covering settings-related logic across 4 new test files.
+  - Added many new unit tests covering settings-related logic.
   - Slimmed down the main `RssDashboardSettingTab` orchestrator to ~119 lines.
 - **Unit Tests**: Added `test_files/unit/pocketcasts-url-resolution.test.ts` for Pocket Casts URL detection and UUID extraction logic.
 - **Feed manager refactor**:

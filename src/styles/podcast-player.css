@@ -372,7 +372,7 @@
   color: var(--text-on-accent);
 }
 
-.hidden {
+.rss-reader-podcast-container .hidden {
   display: none !important;
 }
 

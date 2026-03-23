@@ -296,10 +296,10 @@ export class WebViewerIntegration {
         if (!frontmatter) {
             frontmatter = `---
 title: "{{title}}"
-date: {{date}}
+date: "{{date}}"
 tags: [{{tags}}]
 source: "{{source}}"
-link: {{link}}
+link: "{{link}}"
 author: "{{author}}"
 feedTitle: "{{feedTitle}}"
 guid: "{{guid}}"
@@ -307,28 +307,46 @@ guid: "{{guid}}"
 `;
         }
         
-        let tagsString = "";
-        if (item.tags && item.tags.length > 0) {
-            tagsString = item.tags.map(tag => tag.name).join(", ");
+        const tagNames = (item.tags ?? [])
+            .map((tag) => tag.name)
+            .filter((name): name is string => typeof name === "string" && name.trim() !== "");
+        
+        
+        if (this.settings.addSavedTag && !tagNames.some((t) => t.toLowerCase() === "saved")) {
+            tagNames.push("saved");
         }
         
-        
-        if (this.settings.addSavedTag && !tagsString.toLowerCase().includes("saved")) {
-            tagsString = tagsString ? `${tagsString}, saved` : "saved";
-        }
-        
+        const tagsString = tagNames.join(", ");
+
+        const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+        const isoDateTime = Number.isNaN(pubDate.getTime())
+            ? new Date().toISOString()
+            : pubDate.toISOString();
+        const dateString = Number.isNaN(pubDate.getTime())
+            ? new Date().toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            })
+            : pubDate.toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
         
         frontmatter = frontmatter
-            .replace(/{{title}}/g, item.title.replace(/"/g, '\\"'))
-            .replace(/{{date}}/g, new Date().toISOString())
+            .replace(/{{title}}/g, item.title)
+            .replace(/{{date}}/g, dateString)
+            .replace(/{{isoDate}}/g, isoDateTime)
+            .replace(/{{isoDateTime}}/g, isoDateTime)
             .replace(/{{tags}}/g, tagsString)
-            .replace(/{{source}}/g, (item.feedTitle || "Web viewer").replace(/"/g, '\\"'))
+            .replace(/{{source}}/g, item.feedTitle || "Web viewer")
             .replace(/{{link}}/g, item.link)
-            .replace(/{{author}}/g, (item.author || '').replace(/"/g, '\\"'))
-            .replace(/{{feedTitle}}/g, (item.feedTitle || "Web viewer").replace(/"/g, '\\"'))
-            .replace(/{{guid}}/g, item.guid.replace(/"/g, '\\"'));
+            .replace(/{{author}}/g, item.author || '')
+            .replace(/{{feedTitle}}/g, item.feedTitle || "Web viewer")
+            .replace(/{{guid}}/g, item.guid);
             
-        return frontmatter;
+        return frontmatter.endsWith("\n") ? frontmatter : `${frontmatter}\n`;
     }
     
     
@@ -343,6 +361,11 @@ guid: "{{guid}}"
     
     private applyTemplate(item: FeedItem, template: string): string {
         
+        const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+        const isoDateTime = Number.isNaN(pubDate.getTime())
+            ? new Date().toISOString()
+            : pubDate.toISOString();
+        
         const formattedDate = new Date().toLocaleDateString(undefined, {
             year: 'numeric',
             month: 'long', 
@@ -353,7 +376,8 @@ guid: "{{guid}}"
         return template
             .replace(/{{title}}/g, item.title)
             .replace(/{{date}}/g, formattedDate)
-            .replace(/{{isoDate}}/g, new Date().toISOString())
+            .replace(/{{isoDate}}/g, isoDateTime)
+            .replace(/{{isoDateTime}}/g, isoDateTime)
             .replace(/{{link}}/g, item.link)
             .replace(/{{author}}/g, item.author || '')
             .replace(/{{source}}/g, item.feedTitle || 'Web viewer')

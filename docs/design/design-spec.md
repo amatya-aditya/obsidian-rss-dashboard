@@ -171,6 +171,17 @@ Minimum expectations:
 
 To ensure cross-platform compatibility (especially Android WebView) and accessibility, all interactive icons must follow the `clickable-icon` pattern.
 
+### Critical: CSS Scoping (Do Not Break Obsidian Core) @design-spec
+
+Obsidian loads plugin styles globally. Any unscoped rule that targets Obsidian core classes can create vault-wide UI failures (ex: Properties showing type-mismatch errors everywhere).
+
+Rules:
+
+- Never ship global selectors like `.clickable-icon`, `.suggestion-container`, `.hidden`, `.status-bar-item`, or `.setting-item` without an `rss-` scope.
+- All icon visibility / sizing fixes must be component-scoped, e.g. `.rss-dashboard-modal .clickable-icon svg`, not `.clickable-icon svg`.
+- For Obsidian `AbstractInputSuggest` dropdowns, add a plugin-specific class to the suggest container and style that class (do not style `.suggestion-container` globally).
+- Keep the CSS collision guardrail passing: `npm run check:css-scope` (runs in `npm run build`).
+
 ### Implementation Structure
 
 Always use a `div` (or `span` if inline) with the following attributes:

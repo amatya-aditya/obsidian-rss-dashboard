@@ -828,7 +828,7 @@ export default class RssDashboardPlugin extends Plugin {
       this.importStatusBarItem = this.addStatusBarItem();
       this.importStatusBarItem.textContent = "";
       const iconSpan = this.importStatusBarItem.createSpan({
-        cls: "import-statusbar-icon",
+        cls: "rss-dashboard-import-statusbar-icon",
       });
       setIcon(iconSpan, "rss");
       this.importStatusBarItem.createSpan({
@@ -1469,6 +1469,7 @@ export default class RssDashboardPlugin extends Plugin {
           this.settings.articleSaving,
         );
       }
+
 
       if (!this.settings.media) {
         this.settings.media = DEFAULT_SETTINGS.media;
