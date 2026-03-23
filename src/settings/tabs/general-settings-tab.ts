@@ -469,6 +469,35 @@ export function renderGeneralSettingsTab(
 
     let textComponent: import("obsidian").TextComponent;
     let saveButton: import("obsidian").ButtonComponent | null = null;
+    let lastSavedProxyUrl = (plugin.settings.corsProxyUrl || "").trim();
+    let pendingProxyUrl = lastSavedProxyUrl;
+
+    const commitProxyUrl = async (rawValue: string): Promise<void> => {
+      const value = rawValue.trim();
+      if (value === lastSavedProxyUrl) return;
+
+      if (value === "") {
+        plugin.settings.corsProxyUrl = "";
+        lastSavedProxyUrl = "";
+        pendingProxyUrl = "";
+        await plugin.saveSettings();
+        return;
+      }
+
+      const { isValidUrl } = await import("../../utils/validation");
+      const validation = isValidUrl(value);
+      if (!validation.valid) {
+        pendingProxyUrl = lastSavedProxyUrl;
+        textComponent.setValue(lastSavedProxyUrl);
+        new Notice(validation.error || "Invalid URL");
+        return;
+      }
+
+      plugin.settings.corsProxyUrl = value;
+      lastSavedProxyUrl = value;
+      pendingProxyUrl = value;
+      await plugin.saveSettings();
+    };
 
     proxySetting
       .addDropdown((dropdown) => {
@@ -505,6 +534,8 @@ export function renderGeneralSettingsTab(
               textComponent.setValue(value);
               void (async () => {
                 plugin.settings.corsProxyUrl = value;
+                lastSavedProxyUrl = value;
+                pendingProxyUrl = value;
                 await plugin.saveSettings();
               })();
             }
@@ -516,10 +547,18 @@ export function renderGeneralSettingsTab(
         text
           .setPlaceholder("https://proxy.com/?url=")
           .setValue(plugin.settings.corsProxyUrl || "")
-          .onChange(async (value) => {
-            plugin.settings.corsProxyUrl = value;
-            await plugin.saveSettings();
+          .onChange((value) => {
+            pendingProxyUrl = value;
           });
+
+        text.inputEl.addEventListener("blur", () => {
+          void commitProxyUrl(pendingProxyUrl);
+        });
+        text.inputEl.addEventListener("keydown", (evt: KeyboardEvent) => {
+          if (evt.key !== "Enter") return;
+          void commitProxyUrl(text.getValue());
+          text.inputEl.blur();
+        });
 
         setCssProps(text.inputEl, {
           flex: "1 1 auto",
@@ -532,6 +571,8 @@ export function renderGeneralSettingsTab(
             .onClick(async () => {
               text.setValue("");
               plugin.settings.corsProxyUrl = "";
+              lastSavedProxyUrl = "";
+              pendingProxyUrl = "";
               await plugin.saveSettings();
             });
         });
@@ -542,11 +583,13 @@ export function renderGeneralSettingsTab(
           .setIcon("save")
           .setTooltip("Save to list")
           .onClick(async () => {
-            const customUrl = textComponent.getValue();
+            const customUrl = textComponent.getValue().trim();
             const { isValidUrl } = await import("../../utils/validation");
             const validation = isValidUrl(customUrl);
             if (validation.valid) {
               plugin.settings.corsProxyUrl = customUrl;
+              lastSavedProxyUrl = customUrl;
+              pendingProxyUrl = customUrl;
               await plugin.saveSettings();
               new Notice("Proxy URL saved");
               containerEl.dispatchEvent(

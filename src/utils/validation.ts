@@ -96,10 +96,19 @@ export function isValidUrl(url: string): ValidationResult {
 
   const trimmedUrl = url.trim();
 
+  // Fast pre-check: require an explicit http(s) scheme with `//`.
+  // This prevents inputs like `http:/example.com` from being normalized by `new URL(...)`.
+  if (!/^https?:\/\//i.test(trimmedUrl)) {
+    return { valid: false, error: "URL must start with http:// or https://" };
+  }
+
   try {
     const parsedUrl = new URL(trimmedUrl);
     if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
       return { valid: false, error: "URL must start with http:// or https://" };
+    }
+    if (!parsedUrl.hostname) {
+      return { valid: false, error: "Invalid URL format." };
     }
   } catch {
     return { valid: false, error: "Invalid URL format." };
