@@ -419,7 +419,9 @@ export class ReaderView extends ItemView {
         .onClick(async () => {
           const htmlToSave =
             this.currentFullContent && this.currentContentIsFullArticle
-              ? this.stripTopHeadlineFromHtml(this.currentFullContent)
+              ? this.stripNavigationChromeFromHtml(
+                  this.stripTopHeadlineFromHtml(this.currentFullContent),
+                )
               : this.currentFullContent || item.description || "";
           const markdownContent = this.turndownService.turndown(htmlToSave);
           const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
@@ -538,7 +540,9 @@ export class ReaderView extends ItemView {
 
         const htmlToSave =
           this.currentFullContent && this.currentContentIsFullArticle
-            ? this.stripTopHeadlineFromHtml(this.currentFullContent)
+            ? this.stripNavigationChromeFromHtml(
+                this.stripTopHeadlineFromHtml(this.currentFullContent),
+              )
             : this.currentFullContent || item.description || "";
         const markdownContent = this.turndownService.turndown(htmlToSave);
         const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
@@ -1014,7 +1018,7 @@ export class ReaderView extends ItemView {
           }
         });
 
-        doc.querySelectorAll("img").forEach((el) => {
+      doc.querySelectorAll("img").forEach((el) => {
           const src = el.getAttribute("src");
           if (!src) return;
           try {
@@ -1023,6 +1027,13 @@ export class ReaderView extends ItemView {
             /* ignore */
           }
         });
+      }
+
+      // Clean up fetched full-article HTML before hero extraction so we don't pick
+      // navigation icons / breadcrumbs as the hero image.
+      if (stripTopHeadline) {
+        this.stripNavigationChromeFromDocument(doc);
+        this.stripTopHeadlineFromDocument(doc);
       }
 
       // Attempt to extract and place hero image
@@ -1057,10 +1068,6 @@ export class ReaderView extends ItemView {
             firstImg.remove();
           }
         }
-      }
-
-      if (stripTopHeadline) {
-        this.stripTopHeadlineFromDocument(doc);
       }
 
       // Obsidian shows tooltips for many elements with `aria-label` / `data-tooltip*`.
@@ -1117,6 +1124,18 @@ export class ReaderView extends ItemView {
     }
   }
 
+  private stripNavigationChromeFromHtml(html: string): string {
+    if (!html) return html;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      this.stripNavigationChromeFromDocument(doc);
+      return doc.body.innerHTML;
+    } catch {
+      return html;
+    }
+  }
+
   private stripTopHeadlineFromDocument(doc: Document): void {
     const h1 = doc.body?.querySelector("h1");
     if (!h1) return;
@@ -1126,6 +1145,128 @@ export class ReaderView extends ItemView {
     if (idx === -1 || idx > 9) return;
 
     h1.remove();
+  }
+
+  private stripNavigationChromeFromDocument(doc: Document): void {
+    const body = doc.body;
+    if (!body) return;
+
+    const elements = Array.from(body.querySelectorAll<HTMLElement>("*"));
+    if (elements.length === 0) return;
+
+    const indexByEl = new Map<HTMLElement, number>();
+    elements.forEach((el, idx) => indexByEl.set(el, idx));
+
+    const substantialParagraphIndex = elements.findIndex((el) => {
+      if (el.tagName.toLowerCase() !== "p") return false;
+      const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+      return text.length >= 120;
+    });
+
+    const cutoffIndex = Math.max(
+      29,
+      substantialParagraphIndex >= 0 ? substantialParagraphIndex - 1 : 29,
+    );
+
+    const hasBreadcrumbSignal = (el: HTMLElement): boolean => {
+      const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+      const testId = (el.getAttribute("data-testid") || "").toLowerCase();
+      const cls = (el.getAttribute("class") || "").toLowerCase();
+      const id = (el.getAttribute("id") || "").toLowerCase();
+      return (
+        aria.includes("breadcrumb") ||
+        testId.includes("breadcrumb") ||
+        cls.includes("breadcrumb") ||
+        cls.includes("breadcrumbs") ||
+        id.includes("breadcrumb") ||
+        id.includes("breadcrumbs")
+      );
+    };
+
+    const looksLikeBreadcrumbList = (el: HTMLElement): boolean => {
+      const tag = el.tagName.toLowerCase();
+      if (tag !== "ol" && tag !== "ul") return false;
+
+      const liEls = Array.from(el.children).filter(
+        (c) => (c as HTMLElement).tagName?.toLowerCase() === "li",
+      ) as HTMLElement[];
+      if (liEls.length < 2 || liEls.length > 10) return false;
+
+      const totalText = (el.textContent || "").replace(/\s+/g, " ").trim();
+      if (totalText.length > 140) return false;
+
+      let linkish = 0;
+      for (const li of liEls) {
+        const kids = Array.from(li.children) as HTMLElement[];
+        if (kids.length !== 1) continue;
+        const only = kids[0];
+        if (only.tagName.toLowerCase() !== "a") continue;
+        const t = (only.textContent || "").replace(/\s+/g, " ").trim();
+        if (t.length < 1 || t.length > 40) continue;
+        linkish++;
+      }
+
+      return linkish / liEls.length >= 0.7;
+    };
+
+    const looksLikeChromeContainer = (el: HTMLElement): boolean => {
+      if (hasBreadcrumbSignal(el)) return true;
+
+      const role = (el.getAttribute("role") || "").toLowerCase();
+      if (role === "navigation") return true;
+
+      if (
+        el.querySelector(
+          "nav, [role='navigation'], [aria-label*='breadcrumb' i], [data-testid*='breadcrumb' i]",
+        )
+      ) {
+        return true;
+      }
+
+      const linkCount = el.querySelectorAll("a").length;
+      const paragraphCount = el.querySelectorAll("p").length;
+      const textLen = (el.textContent || "").replace(/\s+/g, " ").trim().length;
+      return linkCount >= 3 && paragraphCount === 0 && textLen < 200;
+    };
+
+    const shouldRemove = (el: HTMLElement): boolean => {
+      const tag = el.tagName.toLowerCase();
+
+      if (tag === "nav") return true;
+
+      const role = (el.getAttribute("role") || "").toLowerCase();
+      if (role === "navigation") return true;
+
+      if (hasBreadcrumbSignal(el)) return true;
+
+      if (tag === "header" || tag === "footer" || tag === "aside") {
+        return looksLikeChromeContainer(el);
+      }
+
+      if (looksLikeBreadcrumbList(el)) return true;
+
+      return false;
+    };
+
+    const candidates = elements.filter((el) => {
+      const idx = indexByEl.get(el);
+      if (idx === undefined || idx > cutoffIndex) return false;
+      return shouldRemove(el);
+    });
+
+    if (candidates.length === 0) return;
+
+    const removeSet = new Set(candidates);
+    const topLevel = candidates.filter((el) => {
+      let p = el.parentElement;
+      while (p) {
+        if (removeSet.has(p)) return false;
+        p = p.parentElement;
+      }
+      return true;
+    });
+
+    topLevel.forEach((el) => el.remove());
   }
 
   private extractDisplayTitleFromHtml(html: string): string | null {
