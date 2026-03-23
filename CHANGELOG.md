@@ -45,6 +45,13 @@
   - Added **74 new unit tests** covering settings-related logic across 4 new test files.
   - Slimmed down the main `RssDashboardSettingTab` orchestrator to ~119 lines.
 - **Unit Tests**: Added `test_files/unit/pocketcasts-url-resolution.test.ts` for Pocket Casts URL detection and UUID extraction logic.
+- **Feed manager refactor**:
+  - Refactor: split feed-manager-modal.ts into a barrel re-export and per-modal modules under src/modals/feed-manager/.
+    UI: replace 6 inline SVG “supported formats” badges with Lucide setIcon() via supported-format-badges.
+    Utils: add collectFolderPaths (src/utils/folder-paths.ts) and dedupe folder-path traversal in folder suggest/selector/sidebar.
+    Fix: correct nested folder deletion using removeFolderByPath (src/utils/folder-tree.ts).
+    Tests: add unit coverage for barrel exports, sidebar “Add Feed” opening, folder paths, supported format badges, preview loader, and folder-tree removal.
+    Single-line commit message
 
 ## [2.3.0-alpha.3 / 2.2.0-beta.7] - March 18, 2026
 

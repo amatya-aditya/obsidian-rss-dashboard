@@ -1,5 +1,6 @@
 import { AbstractInputSuggest, App, TFolder } from "obsidian";
 import type { Folder } from "../types/types";
+import { collectFolderPaths } from "../utils/folder-paths";
 
 /**
  * Provides type-ahead folder suggestions from the vault
@@ -52,25 +53,10 @@ export class FolderSuggest extends AbstractInputSuggest<string> {
     private folders: string[];
     private inputEl: HTMLInputElement;
 
-    /**
-     * Collects all folder paths from the folder tree
-     */
-    private collectAllFolders(folders: Folder[], base = ""): string[] {
-        let paths: string[] = [];
-        for (const f of folders) {
-            const path = base ? `${base}/${f.name}` : f.name;
-            paths.push(path);
-            if (f.subfolders && f.subfolders.length > 0) {
-                paths = paths.concat(this.collectAllFolders(f.subfolders, path));
-            }
-        }
-        return paths.sort((a, b) => a.localeCompare(b));
-    }
-
     constructor(app: App, inputEl: HTMLInputElement, folders: Folder[]) {
         super(app, inputEl);
         this.inputEl = inputEl;
-        this.folders = this.collectAllFolders(folders);
+        this.folders = collectFolderPaths(folders, { sort: true });
 
         // Naming restrictions validation
         this.inputEl.addEventListener("input", () => {
@@ -92,7 +78,7 @@ export class FolderSuggest extends AbstractInputSuggest<string> {
      * Updates the available folders
      */
     public updateFolders(folders: Folder[]): void {
-        this.folders = this.collectAllFolders(folders);
+        this.folders = collectFolderPaths(folders, { sort: true });
     }
 
     /**

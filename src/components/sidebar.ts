@@ -20,6 +20,7 @@ import {
   getIconById,
   createToolbarButton,
 } from "../utils/sidebar-icon-registry";
+import { collectFolderPaths } from "../utils/folder-paths";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import { showEditTagModal } from "../utils/tag-utils";
 import { attachInputClearButton } from "../utils/platform-utils";
@@ -403,18 +404,9 @@ export class Sidebar {
 
   private getCachedFolderPaths(): string[] {
     if (!this.cachedFolderPaths) {
-      this.cachedFolderPaths = [];
-      const paths = this.cachedFolderPaths;
-      const collectPaths = (folders: Folder[], base = "") => {
-        for (const f of folders) {
-          const path = base ? `${base}/${f.name}` : f.name;
-          paths.push(path);
-          if (f.subfolders && f.subfolders.length > 0) {
-            collectPaths(f.subfolders, path);
-          }
-        }
-      };
-      collectPaths(this.settings.folders ?? []);
+      this.cachedFolderPaths = collectFolderPaths(this.settings.folders ?? [], {
+        sort: false,
+      });
     }
     return this.cachedFolderPaths;
   }
