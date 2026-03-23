@@ -116,6 +116,28 @@ const RSS2_WITH_IMAGE = `<?xml version="1.0" encoding="UTF-8"?>
   </channel>
 </rss>`;
 
+const RSS2_WITH_MEDIA_CONTENT_IMAGE = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Media Image Feed</title>
+    <link>https://example.com</link>
+    <image>
+      <url>https://www.marketwatch.com/rss/marketwatch.gif</url>
+      <title>MarketWatch.com - Top Stories</title>
+    </image>
+    <item>
+      <title>Has Media Image</title>
+      <link>https://example.com/1</link>
+      <description>Desc</description>
+      <media:content url="https://images.mktw.net/im-24303993" medium="image" type="image/jpeg">
+        <media:credit>Roberto Schmidt/Getty Images</media:credit>
+      </media:content>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>media-1</guid>
+    </item>
+  </channel>
+</rss>`;
+
 const RSS2_EMPTY = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
@@ -304,6 +326,40 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
     expect(result.items[0].description).toContain("HTML");
   });
 
+  it("does not split items on <item> markup inside CDATA during fallback parsing", () => {
+    // Force the parser down the regex-based fallback path by including a malformed channel description.
+    const brokenButRecoverable = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Broken Feed</title>
+    <description>Broken <b>description</description>
+    <link>https://example.com</link>
+    <item>
+      <title>Outer 1</title>
+      <link>https://example.com/outer-1</link>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>outer-1</guid>
+      <description><![CDATA[<p>Before</p><item><title>Inner Item</title></item><p>After</p>]]></description>
+    </item>
+    <item>
+      <title>Outer 2</title>
+      <link>https://example.com/outer-2</link>
+      <pubDate>Tue, 02 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>outer-2</guid>
+      <description>Second</description>
+    </item>
+  </channel>
+</rss>`;
+
+    const result = parser.parseString(brokenButRecoverable);
+    expect(result.type).toBe("rss");
+    expect(result.items).toHaveLength(2);
+    expect(result.items[0].title).toBe("Outer 1");
+    expect(result.items[0].link).toBe("https://example.com/outer-1");
+    expect(result.items[1].title).toBe("Outer 2");
+    expect(result.items[1].link).toBe("https://example.com/outer-2");
+  });
+
   it("prefers content:encoded over description", () => {
     const result = parser.parseString(RSS2_WITH_CONTENT_ENCODED);
     expect(result.items[0].content).toContain("Long full article");
@@ -325,6 +381,11 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
   it("parses channel image", () => {
     const result = parser.parseString(RSS2_WITH_IMAGE);
     expect(result.image?.url).toBe("https://example.com/logo.png");
+  });
+
+  it("parses media:content url as item image", () => {
+    const result = parser.parseString(RSS2_WITH_MEDIA_CONTENT_IMAGE);
+    expect(result.items[0].image?.url).toBe("https://images.mktw.net/im-24303993");
   });
 
   it("returns type 'rss' for RSS 2.0", () => {

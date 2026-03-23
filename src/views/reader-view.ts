@@ -54,6 +54,8 @@ export class ReaderView extends ItemView {
   private videoPlayer: VideoPlayer | null = null;
   private relatedItems: FeedItem[] = [];
   private currentFullContent?: string;
+  private currentDisplayTitle?: string;
+  private currentContentIsFullArticle = false;
   private turndownService = new TurndownService();
   private readToggleButton: HTMLElement | null = null;
   private starToggleButton: HTMLElement | null = null;
@@ -153,7 +155,9 @@ export class ReaderView extends ItemView {
   }
 
   getDisplayText(): string {
-    return this.currentItem ? this.currentItem.title : "RSS reader";
+    return this.currentItem
+      ? this.currentDisplayTitle || this.currentItem.title
+      : "RSS reader";
   }
 
   getIcon(): string {
@@ -406,18 +410,22 @@ export class ReaderView extends ItemView {
 
   private showSaveOptions(event: MouseEvent, item: FeedItem): void {
     const menu = new Menu();
+    const displayTitle = this.currentDisplayTitle;
 
     menu.addItem((menuItem: MenuItem) => {
       menuItem
         .setTitle("Save with default settings")
         .setIcon("save")
         .onClick(async () => {
-          const markdownContent = this.turndownService.turndown(
-            this.currentFullContent || item.description || "",
-          );
+          const htmlToSave =
+            this.currentFullContent && this.currentContentIsFullArticle
+              ? this.stripTopHeadlineFromHtml(this.currentFullContent)
+              : this.currentFullContent || item.description || "";
+          const markdownContent = this.turndownService.turndown(htmlToSave);
+          const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
           const customTemplate = this.getCustomTemplateForArticle(item);
           const file = await this.articleSaver.saveArticle(
-            item,
+            saveItem,
             undefined,
             customTemplate,
             markdownContent,
@@ -443,6 +451,7 @@ export class ReaderView extends ItemView {
   }
 
   private showCustomSaveModal(item: FeedItem): void {
+    const displayTitle = this.currentDisplayTitle;
     const modal = document.body.createDiv({
       cls: "rss-dashboard-modal rss-dashboard-modal-container",
     });
@@ -527,11 +536,14 @@ export class ReaderView extends ItemView {
         const folder = folderInput.value.trim();
         const template = templateInput.value.trim() || undefined;
 
-        const markdownContent = this.turndownService.turndown(
-          this.currentFullContent || item.description || "",
-        );
+        const htmlToSave =
+          this.currentFullContent && this.currentContentIsFullArticle
+            ? this.stripTopHeadlineFromHtml(this.currentFullContent)
+            : this.currentFullContent || item.description || "";
+        const markdownContent = this.turndownService.turndown(htmlToSave);
+        const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
         const file = await this.articleSaver.saveArticle(
-          item,
+          saveItem,
           folder,
           template,
           markdownContent,
@@ -569,6 +581,8 @@ export class ReaderView extends ItemView {
     }
     this.currentItem = item;
     this.relatedItems = relatedItems;
+    this.currentDisplayTitle = undefined;
+    this.currentContentIsFullArticle = false;
 
     if (this.titleElement) {
       this.titleElement.setText(item.title);
@@ -625,10 +639,21 @@ export class ReaderView extends ItemView {
       const fetchedContent = this.shouldSkipFullArticleFetch(item.link)
         ? ""
         : await this.fetchFullArticleContent(item.link);
-      const fullContent = this.hasMeaningfulArticleContent(fetchedContent)
+      const hasFullArticleContent =
+        this.hasMeaningfulArticleContent(fetchedContent);
+      const displayTitle = hasFullArticleContent
+        ? this.extractDisplayTitleFromHtml(fetchedContent)
+        : null;
+      const fullContent = hasFullArticleContent
         ? fetchedContent
         : item.content || item.description || "";
       this.currentFullContent = fullContent;
+      this.currentDisplayTitle = displayTitle || undefined;
+      this.currentContentIsFullArticle = hasFullArticleContent;
+
+      if (this.titleElement) {
+        this.titleElement.setText(this.currentDisplayTitle || item.title);
+      }
       await this.displayArticle(item, fullContent);
     }
   }
@@ -778,7 +803,7 @@ export class ReaderView extends ItemView {
       try {
         const success = await this.webViewerIntegration.openInWebViewer(
           item.link,
-          item.title,
+          this.currentDisplayTitle || item.title,
         );
         if (!success) {
           this.renderArticle(item, fullContent);
@@ -848,6 +873,7 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-article-header",
     });
 
+    const displayTitle = this.currentDisplayTitle || item.title;
     const articleTitleEl = headerContainer.createEl("h1", {
       cls: "rss-reader-item-title",
     });
@@ -856,9 +882,9 @@ export class ReaderView extends ItemView {
       this.settings.highlights.highlightInTitles
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
-      highlightService.setHighlightedText(articleTitleEl, item.title);
+      highlightService.setHighlightedText(articleTitleEl, displayTitle);
     } else {
-      articleTitleEl.setText(item.title);
+      articleTitleEl.setText(displayTitle);
     }
 
     const metaContainer = headerContainer.createDiv({
@@ -895,11 +921,21 @@ export class ReaderView extends ItemView {
 
     const descriptionHtml = (item.description || "").trim();
     const mainHtml = (fullContent || item.content || "").trim();
-    const fallbackHeroUrl =
+    let fallbackHeroUrl =
       (item.coverImage || "").trim() ||
       (item.image || "").trim() ||
       (item.itunes?.image?.href || "").trim() ||
       undefined;
+
+    // Avoid using the feed icon (logo) as the article hero image.
+    if (fallbackHeroUrl && item.feedUrl) {
+      const feedIconUrl =
+        this.settings.feeds.find((f) => f.url === item.feedUrl)?.iconUrl || "";
+      const normalize = (u: string) => u.trim().replace(/\/$/, "");
+      if (feedIconUrl && normalize(fallbackHeroUrl) === normalize(feedIconUrl)) {
+        fallbackHeroUrl = undefined;
+      }
+    }
 
     const hasDistinctMainContent =
       mainHtml !== "" &&
@@ -919,8 +955,9 @@ export class ReaderView extends ItemView {
         descriptionHtml,
         item.link,
         fallbackHeroUrl,
-        item.title,
+        displayTitle,
         heroSlot,
+        false,
       );
     }
 
@@ -932,13 +969,16 @@ export class ReaderView extends ItemView {
       const contentContainer = this.readingContainer.createDiv({
         cls: "rss-reader-article-content",
       });
+      const shouldStripHeadline =
+        this.currentContentIsFullArticle && contentToRender === mainHtml;
       this.populateArticleHtml(
         contentContainer,
         contentToRender,
         item.link,
         fallbackHeroUrl,
-        item.title,
+        displayTitle,
         heroSlot,
+        shouldStripHeadline,
       );
     }
   }
@@ -950,82 +990,102 @@ export class ReaderView extends ItemView {
     fallbackHeroUrl?: string,
     title?: string,
     heroSlot?: HTMLElement,
+    stripTopHeadline = false,
   ): void {
     if (!rawHtml) return;
 
     let html = rawHtml;
-    // Basic sanitization/cleanup if needed (the app seems to trust feed HTML)
 
-    // Resolve relative URLs
-    if (baseUrl) {
-      try {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      // Resolve relative URLs (for correct link/image navigation in Obsidian)
+      if (baseUrl) {
         const base = new URL(baseUrl);
 
         doc.querySelectorAll("a").forEach((el) => {
           const href = el.getAttribute("href");
-          if (href) {
-            try {
-              el.href = new URL(href, base).toString();
-            } catch {
-              /* ignore */
-            }
+          if (!href) return;
+          try {
+            el.setAttribute("href", new URL(href, base).toString());
+          } catch {
+            /* ignore */
           }
         });
 
         doc.querySelectorAll("img").forEach((el) => {
           const src = el.getAttribute("src");
-          if (src) {
-            try {
-              el.src = new URL(src, base).toString();
-            } catch {
-              /* ignore */
-            }
+          if (!src) return;
+          try {
+            el.setAttribute("src", new URL(src, base).toString());
+          } catch {
+            /* ignore */
           }
         });
-
-        html = doc.body.innerHTML;
-      } catch {
-        console.error("Failed to resolve relative URLs");
       }
-    }
 
-    // Attempt to extract and place hero image
-    if (heroSlot) {
-      const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
-      const firstImg = tempDiv.querySelector("img");
+      // Attempt to extract and place hero image
+      if (heroSlot) {
+        const firstImg = doc.body.querySelector("img");
 
-      if (heroSlot.childElementCount === 0) {
-        let heroUrl = fallbackHeroUrl;
-        if (firstImg && firstImg.src) {
-          // If the first image looks like a hero image (e.g. large)
-          // For now just take the first meaningful image or fallback
-          heroUrl = firstImg.src;
-        }
+        if (heroSlot.childElementCount === 0) {
+          let heroUrl = fallbackHeroUrl;
+          const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
+          if (firstImgSrc) {
+            heroUrl = firstImgSrc;
+          }
 
-        if (heroUrl) {
-          heroSlot.createEl("img", {
-            cls: "rss-reader-fallback-hero",
-            attr: { src: heroUrl, alt: title || "Hero image" },
-          });
+          if (heroUrl) {
+            heroSlot.createEl("img", {
+              cls: "rss-reader-fallback-hero",
+              attr: { src: heroUrl, alt: title || "Hero image" },
+            });
 
-          // Remove the first image from the body if it's the hero image to avoid duplication
-          if (firstImg && firstImg.src === heroUrl) {
+            // Remove the first image from the body if it's the hero image to avoid duplication
+            if (firstImg && firstImgSrc && firstImgSrc === heroUrl) {
+              firstImg.remove();
+            }
+          }
+        } else {
+          // Hero slot already filled by a previous section (e.g. description)
+          // If the current section starts with the same image as the hero image, remove it to avoid duplication
+          const existingHeroSrc =
+            heroSlot.querySelector("img")?.getAttribute("src")?.trim() || "";
+          const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
+          if (existingHeroSrc && firstImg && firstImgSrc === existingHeroSrc) {
             firstImg.remove();
-            html = tempDiv.innerHTML;
           }
         }
-      } else {
-        // Hero slot already filled by a previous section (e.g. description)
-        // If the current section starts with the same image as the hero image, remove it to avoid duplication
-        const existingHero = heroSlot.querySelector("img");
-        if (existingHero && firstImg && firstImg.src === existingHero.src) {
-          firstImg.remove();
-          html = tempDiv.innerHTML;
-        }
       }
+
+      if (stripTopHeadline) {
+        this.stripTopHeadlineFromDocument(doc);
+      }
+
+      // Obsidian shows tooltips for many elements with `aria-label` / `data-tooltip*`.
+      // Embedded article HTML frequently includes accessibility labels like "Breadcrumbs" and "Article body",
+      // which then appear as noisy tooltips on hover throughout the reader view.
+      doc.body.querySelectorAll<HTMLElement>("[aria-label]").forEach((el) => {
+        el.removeAttribute("aria-label");
+      });
+      doc.body.querySelectorAll<HTMLElement>("[data-tooltip]").forEach((el) => {
+        el.removeAttribute("data-tooltip");
+      });
+      doc.body
+        .querySelectorAll<HTMLElement>("[data-tooltip-position]")
+        .forEach((el) => {
+          el.removeAttribute("data-tooltip-position");
+        });
+      doc.body
+        .querySelectorAll<HTMLElement>("[data-tooltip-delay]")
+        .forEach((el) => {
+          el.removeAttribute("data-tooltip-delay");
+        });
+
+      html = doc.body.innerHTML;
+    } catch {
+      // Fall back to raw HTML if parsing fails
     }
 
     if (
@@ -1033,6 +1093,7 @@ export class ReaderView extends ItemView {
       this.settings.highlights.highlightInContent
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
+      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
       highlightService.highlightElement(container);
     } else {
       container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
@@ -1042,6 +1103,72 @@ export class ReaderView extends ItemView {
     container.querySelectorAll("img").forEach((img) => {
       img.addClass("rss-reader-responsive-img");
     });
+  }
+
+  private stripTopHeadlineFromHtml(html: string): string {
+    if (!html) return html;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      this.stripTopHeadlineFromDocument(doc);
+      return doc.body.innerHTML;
+    } catch {
+      return html;
+    }
+  }
+
+  private stripTopHeadlineFromDocument(doc: Document): void {
+    const h1 = doc.body?.querySelector("h1");
+    if (!h1) return;
+
+    const elements = Array.from(doc.body.querySelectorAll("*"));
+    const idx = elements.indexOf(h1);
+    if (idx === -1 || idx > 9) return;
+
+    h1.remove();
+  }
+
+  private extractDisplayTitleFromHtml(html: string): string | null {
+    if (!html) return null;
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const h1 = doc.body?.querySelector("h1");
+      if (!h1) return null;
+
+      const elements = Array.from(doc.body.querySelectorAll("*"));
+      const idx = elements.indexOf(h1);
+      if (idx === -1 || idx > 9) return null;
+
+      const raw = (h1.textContent || "").replace(/\s+/g, " ").trim();
+      if (!this.isAcceptableDisplayTitle(raw)) return null;
+      return raw;
+    } catch {
+      return null;
+    }
+  }
+
+  private isAcceptableDisplayTitle(text: string): boolean {
+    const t = (text || "").replace(/\s+/g, " ").trim();
+    if (!t) return false;
+    if (t.length < 10 || t.length > 200) return false;
+
+    const words = t.split(" ").filter(Boolean);
+    if (words.length < 3) return false;
+
+    const lower = t.toLowerCase();
+    const boilerplate = [
+      "sign in",
+      "log in",
+      "login",
+      "subscribe",
+      "advertisement",
+      "sponsored",
+    ];
+    if (boilerplate.some((b) => lower.includes(b))) return false;
+
+    return true;
   }
 
   private isEquivalentHtml(html1: string, html2: string): boolean {
