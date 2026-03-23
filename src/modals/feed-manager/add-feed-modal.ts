@@ -121,7 +121,7 @@ export class AddFeedModal extends Modal {
           void (async () => {
             // Validate that URL is not empty
             if (!url || url.trim() === "") {
-              status = "âŒ Please enter a feed URL";
+              status = "\u274C Please enter a feed URL";
               if (refs.statusDiv) {
                 refs.statusDiv.textContent = status;
                 refs.statusDiv.removeClass("status-loading");
@@ -132,7 +132,7 @@ export class AddFeedModal extends Modal {
             }
 
             // Set loading state
-            status = "â³ Loading...";
+            status = "\u23F3 Loading...";
             loadBtn.addClass("loading");
             loadBtn.disabled = true;
             clearActiveBadge(); // Clear any previous active states
@@ -156,7 +156,7 @@ export class AddFeedModal extends Modal {
                   feedUrl = nitterUrl;
                   if (urlInput) urlInput.value = nitterUrl;
                   isXConversion = true;
-                  status = "â³ Redirecting X to Nitter...";
+                  status = "\u23F3 Redirecting X to Nitter...";
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
                 }
               }
@@ -164,7 +164,7 @@ export class AddFeedModal extends Modal {
               // Check for YouTube page URLs and convert to RSS feed
               if (isYouTubePageUrl(url)) {
                 detectedType = "youtube";
-                status = "â³ Resolving YouTube channel...";
+                status = "\u23F3 Resolving YouTube channel...";
                 if (refs.statusDiv) refs.statusDiv.textContent = status;
 
                 const rssUrl = await MediaService.getYouTubeRssFeed(url);
@@ -176,7 +176,7 @@ export class AddFeedModal extends Modal {
                 feedUrl = rssUrl;
                 url = rssUrl;
                 if (urlInput) urlInput.value = rssUrl;
-                status = "â³ Loading YouTube feed...";
+                status = "\u23F3 Loading YouTube feed...";
                 if (refs.statusDiv) refs.statusDiv.textContent = status;
 
                 // Auto-set folder to default YouTube folder
@@ -221,7 +221,7 @@ export class AddFeedModal extends Modal {
                   }
 
                   detectedType = "podcast";
-                  status = `â³ Resolving ${platform.name} URL...`;
+                  status = `\u23F3 Resolving ${platform.name} URL...`;
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
                   const resolvedUrl = await resolvePodcastPlatformUrl(
                     url,
@@ -233,7 +233,7 @@ export class AddFeedModal extends Modal {
                   feedUrl = resolvedUrl;
                   url = resolvedUrl;
                   if (urlInput) urlInput.value = feedUrl;
-                  status = "â³ Loading feed...";
+                  status = "\u23F3 Loading feed...";
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
 
                   // Auto-set folder to default podcast folder
@@ -294,7 +294,7 @@ export class AddFeedModal extends Modal {
                 if (feedData.hasEntries) {
                   status = "OK";
                   const conversionNotice = isXConversion ? " (X > nitter conversion)" : "";
-                  refs.statusDiv.textContent = `âœ… OK${conversionNotice}`;
+                  refs.statusDiv.textContent = `\u2705 OK${conversionNotice}`;
                   refs.statusDiv.addClass("status-ok");
                 } else {
                   status = EMPTY_FEED_VALIDATION_WARNING;
@@ -350,7 +350,7 @@ export class AddFeedModal extends Modal {
               console.error("Feed load error:", e);
               // Error state
               if (refs.statusDiv) {
-                refs.statusDiv.textContent = `âŒ ${errorMsg}`;
+                refs.statusDiv.textContent = `\u274C ${errorMsg}`;
                 refs.statusDiv.removeClass("status-loading");
                 refs.statusDiv.removeClass("status-ok");
                 refs.statusDiv.removeClass("rss-dashboard-status-warning");

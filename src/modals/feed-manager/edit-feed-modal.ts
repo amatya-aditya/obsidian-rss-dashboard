@@ -86,7 +86,7 @@ export class EditFeedModal extends Modal {
         btn.onClick(() => {
           void (async () => {
             // Set loading state
-            status = "â³ Loading...";
+            status = "\u23F3 Loading...";
             loadBtn.addClass("loading");
             loadBtn.disabled = true;
             clearActiveBadge(); // Clear any previous active states
@@ -125,7 +125,7 @@ export class EditFeedModal extends Modal {
 
                 if (preview.hasEntries) {
                   status = "OK";
-                  refs.statusDiv.textContent = `âœ… OK${conversionNotice}`;
+                  refs.statusDiv.textContent = `\u2705 OK${conversionNotice}`;
                   refs.statusDiv.addClass("status-ok");
                 } else {
                   status = EMPTY_FEED_VALIDATION_WARNING;
@@ -147,7 +147,7 @@ export class EditFeedModal extends Modal {
               console.error("Feed load error:", e);
               // Error state
               if (refs.statusDiv) {
-                refs.statusDiv.textContent = `âŒ ${errorMsg}`;
+                refs.statusDiv.textContent = `\u274C ${errorMsg}`;
                 refs.statusDiv.removeClass("status-loading");
                 refs.statusDiv.removeClass("status-ok");
                 refs.statusDiv.removeClass("rss-dashboard-status-warning");
