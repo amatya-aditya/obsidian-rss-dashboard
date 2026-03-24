@@ -23,7 +23,7 @@ import { renderGeneralSettingsTab } from "./tabs/general-settings-tab";
 import { renderDisplaySettingsTab } from "./tabs/display-settings-tab";
 import { renderMediaSettingsTab } from "./tabs/media-settings-tab";
 import { renderArticleSavingSettingsTab } from "./tabs/article-saving-settings-tab";
-import { renderFiltersSettingsTab } from "./tabs/filters-settings-tab";
+import { renderRulesSettingsTab } from "./tabs/rules-settings-tab";
 import { renderHighlightsSettingsTab } from "./tabs/highlights-settings-tab";
 import { renderImportExportSettingsTab } from "./tabs/import-export-settings-tab";
 import { renderTagsSettingsTab } from "./tabs/tags-settings-tab";
@@ -98,8 +98,8 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       case "Article saving":
         renderArticleSavingSettingsTab(tabContent, this.plugin, onRefresh);
         break;
-      case "Filters":
-        renderFiltersSettingsTab(tabContent, this.plugin, onRefresh);
+      case "Rules":
+        renderRulesSettingsTab(tabContent, this.plugin, onRefresh);
         break;
       case "Highlights":
         renderHighlightsSettingsTab(tabContent, this.plugin, onRefresh);

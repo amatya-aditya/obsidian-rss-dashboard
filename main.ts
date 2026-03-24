@@ -14,12 +14,13 @@ import {
   Feed,
   FeedItem,
   FeedMetadata,
-  FeedFilterSettings,
+  FeedKeywordRulesSettings,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
 import {
   migrateDisplaySettings,
   migrateDefaultFilterToDashboardMultiFilters,
+  migrateKeywordRulesSettings,
 } from "./src/utils/settings-migration";
 import {
   RssDashboardView,
@@ -742,17 +743,17 @@ export default class RssDashboardPlugin extends Plugin {
               lastUpdated: Date.now(),
               mediaType: feedMetadata.mediaType || "article",
               autoDeleteDuration: feedMetadata.autoDeleteDuration,
-              maxItemsLimit:
-                typeof feedMetadata.maxItemsLimit === "number"
-                  ? feedMetadata.maxItemsLimit
-                  : 50,
-              scanInterval: feedMetadata.scanInterval,
-              filters: {
-                overrideGlobalFilters: false,
-                includeLogic: "AND",
-                rules: [],
-              },
-            };
+               maxItemsLimit:
+                 typeof feedMetadata.maxItemsLimit === "number"
+                   ? feedMetadata.maxItemsLimit
+                   : 50,
+               scanInterval: feedMetadata.scanInterval,
+               keywordRules: {
+                 overrideGlobalRules: false,
+                 includeLogic: "AND",
+                 rules: [],
+               },
+             };
 
             if (
               feedToAdd.mediaType === "video" &&
@@ -994,22 +995,22 @@ export default class RssDashboardPlugin extends Plugin {
 
             this.migrateLegacySettings();
             for (const feed of this.settings.feeds) {
-              if (!feed.filters) {
-                feed.filters = {
-                  overrideGlobalFilters: false,
+              if (!feed.keywordRules) {
+                feed.keywordRules = {
+                  overrideGlobalRules: false,
                   includeLogic: "AND",
                   rules: [],
                 };
                 continue;
               }
-              feed.filters = Object.assign(
+              feed.keywordRules = Object.assign(
                 {},
                 {
-                  overrideGlobalFilters: false,
+                  overrideGlobalRules: false,
                   includeLogic: "AND",
                   rules: [],
                 },
-                feed.filters,
+                feed.keywordRules,
               );
             }
 
@@ -1279,7 +1280,7 @@ export default class RssDashboardPlugin extends Plugin {
     autoDeleteDuration?: number,
     maxItemsLimit?: number,
     scanInterval?: number,
-    feedFilters?: FeedFilterSettings,
+    feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
   ) {
     try {
@@ -1312,8 +1313,8 @@ export default class RssDashboardPlugin extends Plugin {
         scanInterval: scanInterval || 0,
         mediaType: mediaType,
         customTemplate: customTemplate || undefined,
-        filters: feedFilters || {
-          overrideGlobalFilters: false,
+        keywordRules: feedKeywordRules || {
+          overrideGlobalRules: false,
           includeLogic: "AND",
           rules: [],
         },
@@ -1448,7 +1449,7 @@ export default class RssDashboardPlugin extends Plugin {
 
       this.settings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
 
-      this.migrateLegacySettings();
+      const didMigrateKeywordRules = this.migrateLegacySettings();
 
       if (typeof this.settings.defaultAutoDeleteDuration !== "number") {
         this.settings.defaultAutoDeleteDuration =
@@ -1505,38 +1506,42 @@ export default class RssDashboardPlugin extends Plugin {
         );
       }
 
-      if (!this.settings.filters) {
-        this.settings.filters = DEFAULT_SETTINGS.filters;
+      if (!this.settings.keywordRules) {
+        this.settings.keywordRules = DEFAULT_SETTINGS.keywordRules;
       } else {
-        this.settings.filters = Object.assign(
+        this.settings.keywordRules = Object.assign(
           {},
-          DEFAULT_SETTINGS.filters,
-          this.settings.filters,
+          DEFAULT_SETTINGS.keywordRules,
+          this.settings.keywordRules,
         );
       }
 
       for (const feed of this.settings.feeds) {
-        if (!feed.filters) {
-          feed.filters = {
-            overrideGlobalFilters: false,
+        if (!feed.keywordRules) {
+          feed.keywordRules = {
+            overrideGlobalRules: false,
             includeLogic: "AND",
             rules: [],
           };
           continue;
         }
 
-        feed.filters = Object.assign(
+        feed.keywordRules = Object.assign(
           {},
           {
-            overrideGlobalFilters: false,
+            overrideGlobalRules: false,
             includeLogic: "AND",
             rules: [],
           },
-          feed.filters,
+          feed.keywordRules,
         );
       }
 
       await this.repairMissingFolderPathsForFeeds();
+
+      if (didMigrateKeywordRules) {
+        await this.saveSettings();
+      }
     } catch (error) {
       new Notice(
         `Error loading settings: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -1545,8 +1550,9 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  private migrateLegacySettings(): void {
+  private migrateLegacySettings(): boolean {
     const settingsUnknown = this.settings as unknown as Record<string, unknown>;
+    const didMigrateKeywordRules = migrateKeywordRulesSettings(settingsUnknown);
     if (
       settingsUnknown.savePath &&
       !this.settings.articleSaving?.defaultFolder
@@ -1657,17 +1663,17 @@ export default class RssDashboardPlugin extends Plugin {
       );
     }
 
-    if (!this.settings.filters) {
-      this.settings.filters = DEFAULT_SETTINGS.filters;
+    if (!this.settings.keywordRules) {
+      this.settings.keywordRules = DEFAULT_SETTINGS.keywordRules;
     } else {
-      if (!this.settings.filters.includeLogic) {
-        this.settings.filters.includeLogic = "AND";
+      if (!this.settings.keywordRules.includeLogic) {
+        this.settings.keywordRules.includeLogic = "AND";
       }
-      if (this.settings.filters.bypassAll === undefined) {
-        this.settings.filters.bypassAll = false;
+      if (this.settings.keywordRules.bypassAll === undefined) {
+        this.settings.keywordRules.bypassAll = false;
       }
-      if (!this.settings.filters.rules) {
-        this.settings.filters.rules = [];
+      if (!this.settings.keywordRules.rules) {
+        this.settings.keywordRules.rules = [];
       }
     }
 
@@ -1701,25 +1707,27 @@ export default class RssDashboardPlugin extends Plugin {
     );
 
     this.settings.feeds.forEach((feed) => {
-      if (!feed.filters) {
-        feed.filters = {
-          overrideGlobalFilters: false,
+      if (!feed.keywordRules) {
+        feed.keywordRules = {
+          overrideGlobalRules: false,
           includeLogic: "AND",
           rules: [],
         };
         return;
       }
 
-      if (feed.filters.overrideGlobalFilters === undefined) {
-        feed.filters.overrideGlobalFilters = false;
+      if (feed.keywordRules.overrideGlobalRules === undefined) {
+        feed.keywordRules.overrideGlobalRules = false;
       }
-      if (!feed.filters.includeLogic) {
-        feed.filters.includeLogic = "AND";
+      if (!feed.keywordRules.includeLogic) {
+        feed.keywordRules.includeLogic = "AND";
       }
-      if (!feed.filters.rules) {
-        feed.filters.rules = [];
+      if (!feed.keywordRules.rules) {
+        feed.keywordRules.rules = [];
       }
     });
+
+    return didMigrateKeywordRules;
   }
 
   async saveSettings() {

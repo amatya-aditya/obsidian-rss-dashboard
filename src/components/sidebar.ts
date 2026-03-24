@@ -13,7 +13,7 @@ import {
   Folder,
   Tag,
   RssDashboardSettings,
-  FeedFilterSettings,
+  FeedKeywordRulesSettings,
 } from "../types/types";
 import {
   SIDEBAR_ICON_IDS,
@@ -66,7 +66,7 @@ export interface SidebarCallbacks {
     autoDeleteDuration?: number,
     maxItemsLimit?: number,
     scanInterval?: number,
-    feedFilters?: FeedFilterSettings,
+    feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
   ) => Promise<void>;
   onEditFeed: (feed: Feed, title: string, url: string, folder: string) => void;

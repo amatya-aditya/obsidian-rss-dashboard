@@ -1,6 +1,10 @@
 ﻿import { Modal, App, Setting, Notice } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
-import type { FeedFilterSettings, Folder, SavedTemplate } from "../../types/types";
+import type {
+  FeedKeywordRulesSettings,
+  Folder,
+  SavedTemplate,
+} from "../../types/types";
 import { FolderSuggest } from "../../components/folder-suggest";
 import { resolvePodcastPlatformUrl, loadFeedForPreview } from "../../services/feed-parser";
 import { detectPodcastPlatform } from "../../utils/podcast-platforms";
@@ -29,7 +33,7 @@ export class AddFeedModal extends Modal {
     autoDeleteDuration?: number,
     maxItemsLimit?: number,
     scanInterval?: number,
-    feedFilters?: FeedFilterSettings,
+    feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
   ) => Promise<boolean | void>;
   onSave: () => void;
@@ -46,7 +50,7 @@ export class AddFeedModal extends Modal {
       autoDeleteDuration?: number,
       maxItemsLimit?: number,
       scanInterval?: number,
-      feedFilters?: FeedFilterSettings,
+      feedKeywordRules?: FeedKeywordRulesSettings,
       customTemplate?: string,
     ) => Promise<boolean | void>,
     onSave: () => void,
@@ -637,37 +641,37 @@ export class AddFeedModal extends Modal {
         });
       });
 
-    let feedFilters: FeedFilterSettings = {
-      overrideGlobalFilters: false,
+    let feedKeywordRules: FeedKeywordRulesSettings = {
+      overrideGlobalRules: false,
       includeLogic: "AND",
       rules: [],
     };
 
-    const feedFiltersDetails = contentEl.createEl("details", {
+    const feedRulesDetails = contentEl.createEl("details", {
       cls: "rss-keyword-filter-details",
     });
-    feedFiltersDetails.createEl("summary", {
+    feedRulesDetails.createEl("summary", {
       cls: "rss-keyword-filter-summary",
-      text: "Filters",
+      text: "Rules",
     });
-    const feedFiltersBody = feedFiltersDetails.createDiv({
+    const feedRulesBody = feedRulesDetails.createDiv({
       cls: "rss-keyword-filter-details-body",
     });
 
     const renderFeedFilterEditor = () => {
       renderKeywordFilterEditor({
-        containerEl: feedFiltersBody,
+        containerEl: feedRulesBody,
         state: {
-          includeLogic: feedFilters.includeLogic,
-          rules: feedFilters.rules,
-          overrideGlobalFilters: feedFilters.overrideGlobalFilters,
+          includeLogic: feedKeywordRules.includeLogic,
+          rules: feedKeywordRules.rules,
+          overrideGlobalRules: feedKeywordRules.overrideGlobalRules,
         },
         showOverrideToggle: true,
         onChange: (nextState) => {
-          feedFilters = {
+          feedKeywordRules = {
             includeLogic: nextState.includeLogic,
             rules: nextState.rules,
-            overrideGlobalFilters: !!nextState.overrideGlobalFilters,
+            overrideGlobalRules: !!nextState.overrideGlobalRules,
           };
           renderFeedFilterEditor();
         },
@@ -710,7 +714,7 @@ export class AddFeedModal extends Modal {
           autoDeleteDuration,
           maxItemsLimit,
           scanInterval,
-          feedFilters,
+          feedKeywordRules,
           customTemplate,
         ).catch(() => {
           return false;

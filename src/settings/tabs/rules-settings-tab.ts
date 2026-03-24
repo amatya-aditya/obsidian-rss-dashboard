@@ -1,27 +1,27 @@
 /**
- * Filters Settings Tab renderer.
+ * Rules Settings Tab renderer.
  *
  * Extracted from the monolithic settings-tab.ts.
  * Exports:
- *   - renderFiltersSettingsTab(containerEl, plugin, onRefresh)
+ *   - renderRulesSettingsTab(containerEl, plugin, onRefresh)
  */
 import { Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { renderKeywordFilterEditor } from "../../components/keyword-filter-editor";
 
-export function renderFiltersSettingsTab(
+export function renderRulesSettingsTab(
   containerEl: HTMLElement,
   plugin: RssDashboardPlugin,
   onRefresh: () => void,
 ): void {
-  new Setting(containerEl).setName("Keyword filters").setHeading();
+  new Setting(containerEl).setName("Keyword rules").setHeading();
   containerEl.createEl("p", {
     cls: "rss-dashboard-settings-description",
     text: "Create global include/exclude keyword rules. Rules are case-insensitive, and per-feed settings can optionally override these global rules.",
   });
 
-  if (!plugin.settings.filters) {
-    plugin.settings.filters = {
+  if (!plugin.settings.keywordRules) {
+    plugin.settings.keywordRules = {
       includeLogic: "AND",
       bypassAll: false,
       rules: [],
@@ -35,16 +35,16 @@ export function renderFiltersSettingsTab(
   renderKeywordFilterEditor({
     containerEl: editorContainer,
     state: {
-      includeLogic: plugin.settings.filters.includeLogic,
-      rules: plugin.settings.filters.rules,
+      includeLogic: plugin.settings.keywordRules.includeLogic,
+      rules: plugin.settings.keywordRules.rules,
     },
     onChange: (nextState) => {
-      plugin.settings.filters.includeLogic = nextState.includeLogic;
-      plugin.settings.filters.rules = nextState.rules;
+      plugin.settings.keywordRules.includeLogic = nextState.includeLogic;
+      plugin.settings.keywordRules.rules = nextState.rules;
       void (async () => {
         await plugin.saveSettings();
         plugin.notifyFiltersUpdated({
-          source: "settings-filters-tab",
+          source: "settings-rules-tab",
           timestamp: Date.now(),
         });
       })();

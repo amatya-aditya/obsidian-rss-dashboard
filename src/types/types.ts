@@ -77,7 +77,7 @@ export interface Feed {
   maxItemsLimit?: number;
   scanInterval?: number;
   iconUrl?: string;
-  filters?: FeedFilterSettings;
+  keywordRules?: FeedKeywordRulesSettings;
 }
 
 export interface FeedMetadata {
@@ -262,14 +262,14 @@ export interface KeywordFilterRule {
   createdAt: number;
 }
 
-export interface GlobalFilterSettings {
+export interface GlobalKeywordRulesSettings {
   includeLogic: "AND" | "OR";
   bypassAll: boolean;
   rules: KeywordFilterRule[];
 }
 
-export interface FeedFilterSettings {
-  overrideGlobalFilters: boolean;
+export interface FeedKeywordRulesSettings {
+  overrideGlobalRules: boolean;
   includeLogic: "AND" | "OR";
   rules: KeywordFilterRule[];
 }
@@ -327,7 +327,7 @@ export interface RssDashboardSettings {
   articleSaving: ArticleSavingSettings;
   display: DisplaySettings;
   highlights: HighlightSettings;
-  filters: GlobalFilterSettings;
+  keywordRules: GlobalKeywordRulesSettings;
 
   /**
    * Dashboard multi-filters state (status/tag filters + AND/OR) that should persist
@@ -532,7 +532,7 @@ guid: "{{guid}}"
     highlightInSummaries: true,
     words: [],
   },
-  filters: {
+  keywordRules: {
     includeLogic: "AND",
     bypassAll: false,
     rules: [],

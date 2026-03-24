@@ -70,6 +70,7 @@
     Single-line commit message
 - Refactor ReaderView: extract reader format settings portal to createReaderFormatPortal(), add ReaderView.onClose() cleanup, and add unit coverage.
 - **Major Settings Tab Refactor**: The monolithic `settings-tab.ts` has been refactored into a modular architecture for better maintainability and performance. Each settings tab now resides in its own dedicated file.
+- **Filters setting renamed globally to Rules**: The global `filters` setting has been renamed to `rules` to avoid confusion with the viewing filters. The new implementation is backwards compatible with existing beta users' settings by providing a one time migration for existing users.
 
 ## [2.3.0-alpha.3 / 2.2.0-beta.7] - March 18, 2026
 
@@ -221,8 +222,8 @@
 - Include/exclude rules with exact or partial matching
 - Selectable rule targets: title, summary, or content
 - Rule logic: AND or OR per rule set
-- Per-feed "Override global filters" support
-- Dashboard-level "Bypass All Filters" toggle
+- Per-feed "Override global rules" support
+- Dashboard-level "Bypass Keyword Rules" toggle
 - Clear-search button and filter status area with optional match statistics
 
 #### Word Highlighting
@@ -263,7 +264,7 @@
 #### Settings
 
 - New **Highlights** settings tab
-- New **Filters** settings tab
+- New **Rules** settings tab
 - Updated **Display** settings tab with new sidebar row controls and list/card toolbar options
 
 ---

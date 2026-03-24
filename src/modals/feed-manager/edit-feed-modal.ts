@@ -1,6 +1,10 @@
 ﻿import { Modal, App, Setting, Notice } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
-import type { Feed, FeedFilterSettings, SavedTemplate } from "../../types/types";
+import type {
+  Feed,
+  FeedKeywordRulesSettings,
+  SavedTemplate,
+} from "../../types/types";
 import { FolderSuggest } from "../../components/folder-suggest";
 import { renderKeywordFilterEditor } from "../../components/keyword-filter-editor";
 import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
@@ -413,14 +417,14 @@ export class EditFeedModal extends Modal {
     let customTemplate = this.feed.customTemplate || "";
     const savedTemplates =
       this.plugin.settings.articleSaving.savedTemplates || [];
-    let feedFilters: FeedFilterSettings = this.feed.filters
+    let feedKeywordRules: FeedKeywordRulesSettings = this.feed.keywordRules
       ? {
-          overrideGlobalFilters: this.feed.filters.overrideGlobalFilters,
-          includeLogic: this.feed.filters.includeLogic,
-          rules: [...this.feed.filters.rules],
+          overrideGlobalRules: this.feed.keywordRules.overrideGlobalRules,
+          includeLogic: this.feed.keywordRules.includeLogic,
+          rules: [...this.feed.keywordRules.rules],
         }
       : {
-          overrideGlobalFilters: false,
+          overrideGlobalRules: false,
           includeLogic: "AND",
           rules: [],
         };
@@ -444,7 +448,7 @@ export class EditFeedModal extends Modal {
     });
     feedFiltersDetails.createEl("summary", {
       cls: "rss-keyword-filter-summary",
-      text: "Filters",
+      text: "Rules",
     });
     const feedFiltersBody = feedFiltersDetails.createDiv({
       cls: "rss-keyword-filter-details-body",
@@ -454,16 +458,16 @@ export class EditFeedModal extends Modal {
       renderKeywordFilterEditor({
         containerEl: feedFiltersBody,
         state: {
-          includeLogic: feedFilters.includeLogic,
-          rules: feedFilters.rules,
-          overrideGlobalFilters: feedFilters.overrideGlobalFilters,
+          includeLogic: feedKeywordRules.includeLogic,
+          rules: feedKeywordRules.rules,
+          overrideGlobalRules: feedKeywordRules.overrideGlobalRules,
         },
         showOverrideToggle: true,
         onChange: (nextState) => {
-          feedFilters = {
+          feedKeywordRules = {
             includeLogic: nextState.includeLogic,
             rules: nextState.rules,
-            overrideGlobalFilters: !!nextState.overrideGlobalFilters,
+            overrideGlobalRules: !!nextState.overrideGlobalRules,
           };
           renderFeedFilterEditor();
         },
@@ -516,10 +520,10 @@ export class EditFeedModal extends Modal {
         this.feed.maxItemsLimit = newMaxItemsLimit;
         this.feed.scanInterval = scanInterval;
         this.feed.customTemplate = customTemplate || undefined;
-        this.feed.filters = {
-          overrideGlobalFilters: feedFilters.overrideGlobalFilters,
-          includeLogic: feedFilters.includeLogic,
-          rules: feedFilters.rules,
+        this.feed.keywordRules = {
+          overrideGlobalRules: feedKeywordRules.overrideGlobalRules,
+          includeLogic: feedKeywordRules.includeLogic,
+          rules: feedKeywordRules.rules,
         };
 
         if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {

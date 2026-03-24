@@ -9,7 +9,7 @@ import {
 } from "obsidian";
 import {
   Feed,
-  FeedFilterSettings,
+  FeedKeywordRulesSettings,
   FeedItem,
   HighlightWord,
   KeywordFilterRule,
@@ -477,10 +477,10 @@ export class RssDashboardView extends ItemView {
    * Renders a collapsible info strip directly below the toolbar. It contains
    * up to two rows:
    *
-   *   Row 1 – Keyword filter stats:
-   *     "Articles retrieved: N | Global filters excluded: X | Feed filters excluded: Y"
-   *     or "Filters bypassed - showing all N articles" when bypass mode is on.
-   *     Only rendered when keyword filters are active or bypassed.
+   *   Row 1 – Keyword rules stats:
+   *     "Articles retrieved: N | Excluded by global keyword rules: X | Excluded by per-feed keyword rules: Y"
+   *     or "Keyword rules bypassed - showing all N articles" when bypass mode is on.
+   *     Only rendered when keyword rules are active or bypassed.
    *     (Data written by applyKeywordFiltersWithStats() → this.keywordFilterStats)
    *
    *   Row 2 – Highlight match stats:
@@ -527,31 +527,31 @@ export class RssDashboardView extends ItemView {
       subheaderContent.setAttribute("title", this.keywordFilterTooltip);
     }
 
-    // ── Row 1: Keyword filter stats ──────────────────────────────────────────
+    // ── Row 1: Keyword rules stats ──────────────────────────────────────────
     if (hasKeywordStats) {
       const filterStatsRow = subheaderContent.createDiv({
         cls: "rss-dashboard-filter-stats-row",
       });
 
-      // Edit button for filters settings
+      // Edit button for keyword rules settings
       const filterEditBtn = filterStatsRow.createEl("button", {
         cls: "rss-dashboard-filter-edit-btn clickable-icon",
         attr: {
           type: "button",
-          title: "Edit filters",
-          "aria-label": "Edit filters",
+          title: "Edit keyword rules",
+          "aria-label": "Edit keyword rules",
         },
       });
       setIcon(filterEditBtn, "cog");
       filterEditBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        void this.plugin.openSettingsToTab("Filters");
+        void this.plugin.openSettingsToTab("Rules");
       });
 
-      // Filter stats text
+      // Keyword rules stats text
       const statusText = keywordFilterStats.bypassActive
-        ? `Filters bypassed - showing all ${keywordFilterStats.articlesRetrieved} articles`
-        : `Articles retrieved: ${keywordFilterStats.articlesRetrieved} | Global filters excluded: ${keywordFilterStats.globalExcluded} | Per-Feed filters excluded: ${keywordFilterStats.feedExcluded}`;
+        ? `Keyword rules bypassed - showing all ${keywordFilterStats.articlesRetrieved} articles`
+        : `Articles retrieved: ${keywordFilterStats.articlesRetrieved} | Excluded by global keyword rules: ${keywordFilterStats.globalExcluded} | Excluded by per-feed keyword rules: ${keywordFilterStats.feedExcluded}`;
       filterStatsRow.createSpan({
         cls: "rss-dashboard-filter-stats-text",
         text: statusText,
@@ -878,7 +878,7 @@ export class RssDashboardView extends ItemView {
       }
     }
 
-    // Apply keyword filters (global/per-feed) before status/tag/age filters.
+    // Apply keyword rules (global/per-feed) before status/tag/age filters.
     articles = this.applyKeywordFiltersWithStats(articles);
 
     // Capture dashboard multi-filter counts using the post-keyword-filter pool.
@@ -971,29 +971,29 @@ export class RssDashboardView extends ItemView {
   }
 
   private applyKeywordFiltersWithStats(articles: FeedItem[]): FeedItem[] {
-    const globalFilters = this.settings.filters || {
+    const globalRules = this.settings.keywordRules || {
       includeLogic: "AND" as const,
       bypassAll: false,
       rules: [],
     };
 
     const hasGlobalRules = KeywordFilterService.hasActiveRules(
-      globalFilters.rules,
+      globalRules.rules,
     );
     const hasFeedRules = this.hasActiveFeedRulesInScope(articles);
     const filtersActive = hasGlobalRules || hasFeedRules;
     const activeGlobalRules = KeywordFilterService.getActiveRules(
-      globalFilters.rules,
+      globalRules.rules,
     );
     const activeFeedRules = this.getActiveFeedRulesForScope(articles);
     this.keywordFilterTooltip = this.buildKeywordFilterTooltip(
-      globalFilters.includeLogic,
+      globalRules.includeLogic,
       activeGlobalRules,
       activeFeedRules,
-      globalFilters.bypassAll,
+      globalRules.bypassAll,
     );
 
-    if (globalFilters.bypassAll) {
+    if (globalRules.bypassAll) {
       this.keywordFilterStats = {
         articlesRetrieved: articles.length,
         globalExcluded: 0,
@@ -1014,7 +1014,7 @@ export class RssDashboardView extends ItemView {
       const decision = KeywordFilterService.evaluateForArticle(
         article,
         feed,
-        globalFilters,
+        globalRules,
       );
       if (decision.included) {
         filtered.push(article);
@@ -1045,7 +1045,7 @@ export class RssDashboardView extends ItemView {
         continue;
       }
       seenFeeds.add(feed.url);
-      if (KeywordFilterService.hasActiveRules(feed.filters?.rules || [])) {
+      if (KeywordFilterService.hasActiveRules(feed.keywordRules?.rules || [])) {
         return true;
       }
     }
@@ -1072,7 +1072,7 @@ export class RssDashboardView extends ItemView {
       seenFeeds.add(feed.url);
 
       const rules = KeywordFilterService.getActiveRules(
-        feed.filters?.rules || [],
+        feed.keywordRules?.rules || [],
       );
       if (rules.length === 0) {
         continue;
@@ -1080,7 +1080,7 @@ export class RssDashboardView extends ItemView {
 
       result.push({
         feedTitle: feed.title || "Untitled feed",
-        includeLogic: feed.filters?.includeLogic || "AND",
+        includeLogic: feed.keywordRules?.includeLogic || "AND",
         rules,
       });
     }
@@ -1105,7 +1105,7 @@ export class RssDashboardView extends ItemView {
     const lines: string[] = [];
 
     if (bypassAll) {
-      lines.push("Bypass all filters is enabled.");
+      lines.push("Bypass keyword rules is enabled.");
       lines.push("");
     }
 
@@ -1348,7 +1348,7 @@ export class RssDashboardView extends ItemView {
     autoDeleteDuration?: number,
     maxItemsLimit?: number,
     scanInterval?: number,
-    feedFilters?: FeedFilterSettings,
+    feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
   ): Promise<void> {
     await this.plugin.addFeed(
@@ -1358,7 +1358,7 @@ export class RssDashboardView extends ItemView {
       autoDeleteDuration,
       maxItemsLimit,
       scanInterval,
-      feedFilters,
+      feedKeywordRules,
       customTemplate,
     );
     void this.render();
@@ -2268,14 +2268,14 @@ export class RssDashboardView extends ItemView {
       void this.render();
       return;
     } else if (filter.type === "bypass-filters") {
-      if (!this.settings.filters) {
-        this.settings.filters = {
+      if (!this.settings.keywordRules) {
+        this.settings.keywordRules = {
           includeLogic: "AND",
           bypassAll: false,
           rules: [],
         };
       }
-      this.settings.filters.bypassAll = filter.checked ?? false;
+      this.settings.keywordRules.bypassAll = filter.checked ?? false;
       void this.plugin.saveSettings();
       void this.render();
       return;

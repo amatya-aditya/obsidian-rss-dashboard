@@ -11,7 +11,7 @@ export const SETTINGS_TAB_NAMES = [
   "Display",
   "Media",
   "Article saving",
-  "Filters",
+  "Rules",
   "Highlights",
   "Import/Export",
   "Tags",

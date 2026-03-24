@@ -1560,7 +1560,7 @@ export class ArticleList {
     let pendingAllChecked =
       pendingStatusFilters.size === 0 && pendingTagFilters.size === 0;
     let pendingFilterLogic: "AND" | "OR" = this.filterLogic;
-    const currentBypassAll = this.settings.filters?.bypassAll ?? false;
+    const currentBypassAll = this.settings.keywordRules?.bypassAll ?? false;
     let pendingBypassAll = currentBypassAll;
     const currentHighlightsEnabled = this.settings.highlights?.enabled ?? false;
     let pendingHighlightsEnabled = currentHighlightsEnabled;
@@ -1803,7 +1803,7 @@ export class ArticleList {
     setIcon(bypassIconDiv, "power");
     bypassItem.createDiv({
       cls: "rss-dashboard-filter-menu-text",
-      text: "Bypass All Filters",
+      text: "Bypass Keyword Rules",
     });
     bypassCheckbox.addEventListener("change", (e) => {
       e.stopPropagation();
