@@ -1,7 +1,6 @@
-## [2.2.0-beta.8] - March 22, 2026
+## [2.2.0-beta.8] - March 24, 2026
 
 - **IMPORTANT**: Earlier limited releases intended for users experiencing specific issues were tagged as 2.3.0-alpha.1, 2.3.0-alpha.2, and 2.3.0-alpha.3. These were incorrectly versioned. They have been retroactively designated as 2.2.0-beta.5, 2.2.0-beta.6, and 2.2.0-beta.7 in our internal documentation. The original GitHub release tags have been left intact to avoid breaking any shared links. Development continues from 2.2.0-beta.8 forward.
-- **Major Settings Tab Refactor**: The monolithic `settings-tab.ts` has been refactored into a modular architecture for better maintainability and performance. Each settings tab now resides in its own dedicated file.
 
 ### New Features
 
@@ -25,6 +24,13 @@
   - Added a "Semantic Discovery" fallback using the **iTunes Search API** to resolve feeds when Pocket Casts hides the RSS link from their web player source.
   - Added flexible metadata scraping to handle varied HTML attribute ordering in modern web layouts.
 - **Proactive Proxy Validation**: The Add Feed and Edit Feed modals now check if the CORS proxy is enabled before attempting to resolve Pocket Casts URLs, providing a clear warning and guidance if it's missing.
+
+- **OPML Import Menu Overhaul**: The OPML import menu has been completely rewritten to improve usability, reliability, and user experience.
+
+- **View Filter Setting Improvements**:
+  - All applied view filters will now persist across navigation (state is saved and restored on reopen/restart).
+  - All applied view filters will explicitly state which ones are applied in the dashboard header.
+  - Updated the Settings>Display>Startup filters to mirror the dashboard filter UI, allowing for multiple viewing filters to be applied at startup.
 
 ### Fixed
 
@@ -58,6 +64,7 @@
     Tests: add unit coverage for barrel exports, sidebar “Add Feed” opening, folder paths, supported format badges, preview loader, and folder-tree removal.
     Single-line commit message
 - Refactor ReaderView: extract reader format settings portal to createReaderFormatPortal(), add ReaderView.onClose() cleanup, and add unit coverage.
+- **Major Settings Tab Refactor**: The monolithic `settings-tab.ts` has been refactored into a modular architecture for better maintainability and performance. Each settings tab now resides in its own dedicated file.
 
 ## [2.3.0-alpha.3 / 2.2.0-beta.7] - March 18, 2026
 

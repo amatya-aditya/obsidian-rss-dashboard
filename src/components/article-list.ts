@@ -87,6 +87,8 @@ export class ArticleList {
   private container: HTMLElement;
   private settings: RssDashboardSettings;
   private title: string;
+  private titleTooltip: string | null;
+  private headerTitleEl: HTMLElement | null = null;
   private articles: FeedItem[];
   private selectedArticle: FeedItem | null;
   private callbacks: ArticleListCallbacks;
@@ -119,6 +121,7 @@ export class ArticleList {
     container: HTMLElement,
     settings: RssDashboardSettings,
     title: string,
+    titleTooltip: string | null,
     articles: FeedItem[],
     selectedArticle: FeedItem | null,
     callbacks: ArticleListCallbacks,
@@ -135,6 +138,7 @@ export class ArticleList {
     this.container = container;
     this.settings = settings;
     this.title = title;
+    this.titleTooltip = titleTooltip;
     this.articles = articles;
     this.selectedArticle = selectedArticle;
     this.callbacks = callbacks;
@@ -483,6 +487,7 @@ export class ArticleList {
     const scrollPosition = articlesList?.scrollTop;
 
     this.container.empty();
+    this.headerTitleEl = null;
 
     this.renderHeader();
     this.renderArticles();
@@ -522,6 +527,22 @@ export class ArticleList {
       )
       .forEach((el) => el.remove());
     this.renderArticles();
+  }
+
+  public updateHeaderTitle(title: string, tooltip: string | null): void {
+    this.title = title;
+    this.titleTooltip = tooltip;
+
+    if (!this.headerTitleEl) {
+      return;
+    }
+
+    this.headerTitleEl.textContent = title;
+    if (tooltip) {
+      this.headerTitleEl.setAttribute("title", tooltip);
+    } else {
+      this.headerTitleEl.removeAttribute("title");
+    }
   }
 
   public removeArticleInPlace(guid: string): void {
@@ -918,10 +939,12 @@ export class ArticleList {
       this.renderHeaderFeedIcon(feedIconContainer, this.currentFeedUrl);
     }
 
-    leftSection.createDiv({
+    const titleEl = leftSection.createDiv({
       cls: "rss-dashboard-articles-title",
       text: this.title,
+      attr: this.titleTooltip ? { title: this.titleTooltip } : undefined,
     });
+    this.headerTitleEl = titleEl;
 
     const rightSection = articlesHeader.createDiv({
       cls: "rss-dashboard-header-right",

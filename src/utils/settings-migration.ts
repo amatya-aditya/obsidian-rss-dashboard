@@ -40,3 +40,53 @@ export function migrateDisplaySettings(display: Record<string, unknown>): void {
     }
   }
 }
+
+/**
+ * Migrates the legacy `display.defaultFilter` setting into the newer
+ * `dashboardMultiFilters` setting, but only when dashboard multi-filters are
+ * currently empty.
+ *
+ * This supports the refactor where the dashboard always opens in All Feeds
+ * view (`currentFolder = null`) while multi-filters are applied immediately.
+ */
+export function migrateDefaultFilterToDashboardMultiFilters(
+  display: Record<string, unknown>,
+  dashboardMultiFilters: Record<string, unknown>,
+): void {
+  const statusFiltersRaw = dashboardMultiFilters.statusFilters;
+  const tagFiltersRaw = dashboardMultiFilters.tagFilters;
+
+  const statusFilters = Array.isArray(statusFiltersRaw)
+    ? statusFiltersRaw.filter((v): v is string => typeof v === "string")
+    : [];
+  const tagFilters = Array.isArray(tagFiltersRaw)
+    ? tagFiltersRaw.filter((v): v is string => typeof v === "string")
+    : [];
+
+  const hasAnyFilters = statusFilters.length > 0 || tagFilters.length > 0;
+  if (hasAnyFilters) {
+    return;
+  }
+
+  const defaultFilter = display.defaultFilter;
+  if (typeof defaultFilter !== "string") {
+    return;
+  }
+
+  const eligible = new Set([
+    "unread",
+    "read",
+    "starred",
+    "saved",
+    "videos",
+    "podcasts",
+  ]);
+
+  if (!eligible.has(defaultFilter)) {
+    return;
+  }
+
+  dashboardMultiFilters.statusFilters = [defaultFilter];
+  dashboardMultiFilters.tagFilters = [];
+  dashboardMultiFilters.logic = "OR";
+}

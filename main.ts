@@ -17,7 +17,10 @@ import {
   FeedFilterSettings,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
-import { migrateDisplaySettings } from "./src/utils/settings-migration";
+import {
+  migrateDisplaySettings,
+  migrateDefaultFilterToDashboardMultiFilters,
+} from "./src/utils/settings-migration";
 import {
   RssDashboardView,
   RSS_DASHBOARD_VIEW_TYPE,
@@ -1691,6 +1694,11 @@ export default class RssDashboardPlugin extends Plugin {
       this.settings.dashboardMultiFilters.logic =
         logicRaw === "AND" || logicRaw === "OR" ? logicRaw : "OR";
     }
+
+    migrateDefaultFilterToDashboardMultiFilters(
+      this.settings.display as unknown as Record<string, unknown>,
+      this.settings.dashboardMultiFilters as unknown as Record<string, unknown>,
+    );
 
     this.settings.feeds.forEach((feed) => {
       if (!feed.filters) {

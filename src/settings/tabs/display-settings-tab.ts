@@ -7,13 +7,14 @@
  *   - moveIconOrder(order, fromId, toId, insertAfter)  — testable pure helper
  *   - normalizeHexColor(value)                         — testable pure helper
  */
-import { Notice, Setting, setIcon } from "obsidian";
+import { Setting, setIcon } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import {
   SIDEBAR_ICON_IDS,
   getIconById,
   SIDEBAR_ICONS,
 } from "../../utils/sidebar-icon-registry";
+import { formatDashboardMultiFiltersSummary } from "../../utils/filter-title-format";
 
 // ── Pure helpers (exported for unit tests) ────────────────────────────────────
 
@@ -254,46 +255,391 @@ export function renderDisplaySettingsTab(
         }),
     );
 
+  const formatStartupFiltersButton = (): { text: string; tooltip: string | null } => {
+    const mf = plugin.settings.dashboardMultiFilters;
+    return formatDashboardMultiFiltersSummary({
+      statusFilters: mf?.statusFilters ?? [],
+      tagFilters: mf?.tagFilters ?? [],
+      logic: mf?.logic ?? "OR",
+    });
+  };
+
   new Setting(containerEl)
-    .setName("Default filter")
+    .setName("Startup filters")
     .setDesc(
-      "Choose which filter to show by default when opening the dashboard",
+      "Choose which filters to apply when opening the dashboard.",
     )
-    .addDropdown((dropdown) =>
-      dropdown
-        .addOption("all", "All items")
-        .addOption("starred", "Starred items")
-        .addOption("unread", "Unread items")
-        .addOption("read", "Read items")
-        .addOption("saved", "Saved items")
-        .addOption("videos", "Videos")
-        .addOption("podcasts", "Podcasts")
-        .setValue(plugin.settings.display.defaultFilter)
-        .onChange(async (value: string) => {
-          plugin.settings.display.defaultFilter = value as
-            | "all"
-            | "starred"
-            | "unread"
-            | "read"
-            | "saved"
-            | "videos"
-            | "podcasts";
+    .addButton((btn) => {
+      const initial = formatStartupFiltersButton();
+      btn.setButtonText(initial.text);
+      if (initial.tooltip) {
+        btn.buttonEl.setAttribute("title", initial.tooltip);
+      }
 
-          const hiddenFilters = plugin.settings.display.hiddenFilters || [];
-          if (hiddenFilters.includes(value)) {
-            new Notice(
-              `Warning: "${value}" filter is currently hidden. Consider showing it first.`,
-            );
+      const openMenu = () => {
+        const targetDocument = btn.buttonEl.ownerDocument;
+        const targetBody = targetDocument.body;
+        const targetWindow = targetDocument.defaultView || window;
+
+        // Remove any existing menus from stale state.
+        targetDocument
+          .querySelectorAll(".rss-dashboard-startup-filters-menu-portal")
+          .forEach((el) => el.remove());
+
+        const menuPortal = targetBody.createDiv({
+          cls: "rss-dashboard-filter-menu rss-dashboard-filter-menu-portal rss-dashboard-startup-filters-menu-portal",
+        });
+
+        const currentMf = plugin.settings.dashboardMultiFilters;
+        const pendingStatusFilters = new Set(currentMf?.statusFilters ?? []);
+        const pendingTagFilters = new Set(currentMf?.tagFilters ?? []);
+        let pendingAllChecked =
+          pendingStatusFilters.size === 0 && pendingTagFilters.size === 0;
+        let pendingFilterLogic: "AND" | "OR" = currentMf?.logic ?? "OR";
+
+        const removeTagSubmenus = () => {
+          menuPortal
+            .querySelectorAll(".rss-dashboard-tag-submenu")
+            .forEach((el) => el.remove());
+        };
+
+        // Logic Toggles: And / Or
+        const logicToggles = menuPortal.createDiv({
+          cls: "rss-dashboard-filter-logic-toggles",
+        });
+
+        const andBtn = logicToggles.createEl("button", {
+          cls:
+            "rss-dashboard-filter-logic-btn" +
+            (pendingFilterLogic === "AND" ? " active" : ""),
+          text: "And",
+        });
+        const orBtn = logicToggles.createEl("button", {
+          cls:
+            "rss-dashboard-filter-logic-btn" +
+            (pendingFilterLogic === "OR" ? " active" : ""),
+          text: "Or",
+        });
+
+        andBtn.addEventListener("click", () => {
+          pendingFilterLogic = "AND";
+          andBtn.addClass("active");
+          orBtn.removeClass("active");
+        });
+
+        orBtn.addEventListener("click", () => {
+          pendingFilterLogic = "OR";
+          orBtn.addClass("active");
+          andBtn.removeClass("active");
+        });
+
+        menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
+
+        // "All" Checkbox - shows all items when no filters selected
+        const allItem = menuPortal.createDiv({
+          cls: "rss-dashboard-filter-menu-item rss-dashboard-filter-all-item",
+        });
+
+        const allCheckbox = allItem.createEl("input", {
+          attr: { type: "checkbox" },
+          cls: "rss-dashboard-filter-checkbox",
+        });
+        allCheckbox.checked = pendingAllChecked;
+
+        const allIconDiv = allItem.createDiv({
+          cls: "rss-dashboard-filter-menu-icon",
+        });
+        setIcon(allIconDiv, "fullscreen");
+
+        allItem.createDiv({
+          cls: "rss-dashboard-filter-menu-text",
+          text: "All",
+        });
+
+        const filterCheckboxes: Map<string, HTMLInputElement> = new Map();
+
+        const uncheckAllFilterCheckboxes = () => {
+          pendingStatusFilters.clear();
+          pendingTagFilters.clear();
+          pendingAllChecked = true;
+          filterCheckboxes.forEach((cb) => {
+            cb.checked = false;
+          });
+        };
+
+        allCheckbox.addEventListener("change", (e) => {
+          e.stopPropagation();
+          if (allCheckbox.checked) {
+            uncheckAllFilterCheckboxes();
+          } else {
+            pendingAllChecked = false;
+          }
+        });
+
+        allItem.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (e.target !== allCheckbox) {
+            allCheckbox.checked = !allCheckbox.checked;
+            if (allCheckbox.checked) {
+              uncheckAllFilterCheckboxes();
+            } else {
+              pendingAllChecked = false;
+            }
+          }
+        });
+
+        allItem.addEventListener("mouseenter", removeTagSubmenus);
+
+        const showTagsSubMenu = (parentItem: HTMLElement) => {
+          // Remove existing submenus
+          menuPortal
+            .querySelectorAll(".rss-dashboard-tag-submenu")
+            .forEach((el) => el.remove());
+
+          const subMenu = menuPortal.createDiv({
+            cls: "rss-dashboard-filter-menu rss-dashboard-tag-submenu",
+          });
+
+          if (plugin.settings.availableTags.length === 0) {
+            subMenu.createDiv({
+              cls: "rss-dashboard-filter-menu-item empty",
+              text: "No tags available",
+            });
           }
 
-          await plugin.saveSettings();
-          const view = await plugin.getActiveDashboardView();
-          if (view?.sidebar) {
-            await plugin.app.workspace.revealLeaf(view.leaf);
-            view.sidebar.render();
+          plugin.settings.availableTags.forEach((tag) => {
+            const item = subMenu.createDiv({
+              cls: "rss-dashboard-filter-menu-item",
+            });
+
+            const checkbox = item.createEl("input", {
+              attr: { type: "checkbox" },
+              cls: "rss-dashboard-filter-checkbox",
+            });
+            checkbox.checked = pendingTagFilters.has(tag.name);
+
+            const colorDot = item.createDiv({
+              cls: "rss-dashboard-tag-color-dot",
+            });
+            colorDot.style.setProperty("--tag-color", tag.color);
+
+            item.createDiv({
+              cls: "rss-dashboard-filter-menu-text",
+              text: tag.name,
+            });
+
+            checkbox.addEventListener("change", (e) => {
+              e.stopPropagation();
+              if (checkbox.checked) {
+                pendingTagFilters.add(tag.name);
+                allCheckbox.checked = false;
+                pendingAllChecked = false;
+              } else {
+                pendingTagFilters.delete(tag.name);
+                if (
+                  pendingStatusFilters.size === 0 &&
+                  pendingTagFilters.size === 0
+                ) {
+                  allCheckbox.checked = true;
+                  pendingAllChecked = true;
+                }
+              }
+            });
+
+            item.addEventListener("click", (e) => {
+              if (e.target !== checkbox) {
+                checkbox.checked = !checkbox.checked;
+                if (checkbox.checked) {
+                  pendingTagFilters.add(tag.name);
+                  allCheckbox.checked = false;
+                  pendingAllChecked = false;
+                } else {
+                  pendingTagFilters.delete(tag.name);
+                  if (
+                    pendingStatusFilters.size === 0 &&
+                    pendingTagFilters.size === 0
+                  ) {
+                    allCheckbox.checked = true;
+                    pendingAllChecked = true;
+                  }
+                }
+              }
+            });
+          });
+
+          const rect = parentItem.getBoundingClientRect();
+          const parentMenuRect = menuPortal.getBoundingClientRect();
+
+          let subLeft = parentMenuRect.right + 4;
+          let subTop = rect.top;
+
+          subMenu.addClass("rss-dashboard-submenu-fixed");
+          subMenu.style.setProperty("--submenu-top", `${subTop}px`);
+          subMenu.style.setProperty("--submenu-left", `${subLeft}px`);
+        };
+
+        const filterOptions = [
+          { id: "unread", name: "Unread", icon: "circle" },
+          { id: "read", name: "Read", icon: "check-circle" },
+          { id: "saved", name: "Saved", icon: "save" },
+          { id: "starred", name: "Starred", icon: "star" },
+          { id: "podcasts", name: "Podcast", icon: "mic" },
+          { id: "videos", name: "Videos", icon: "play" },
+          { id: "tagged", name: "Tagged", icon: "tag" },
+          { id: "untagged", name: "Untagged", icon: "ban" },
+        ];
+
+        filterOptions.forEach((opt) => {
+          const item = menuPortal.createDiv({
+            cls: "rss-dashboard-filter-menu-item",
+          });
+
+          const checkbox = item.createEl("input", {
+            attr: { type: "checkbox" },
+            cls: "rss-dashboard-filter-checkbox",
+          });
+          checkbox.checked = pendingStatusFilters.has(opt.id);
+          filterCheckboxes.set(opt.id, checkbox);
+
+          const iconDiv = item.createDiv({
+            cls: "rss-dashboard-filter-menu-icon",
+          });
+          setIcon(iconDiv, opt.icon);
+
+          item.createDiv({
+            cls: "rss-dashboard-filter-menu-text",
+            text: opt.name,
+          });
+
+          if (opt.id === "tagged") {
+            const arrow = item.createDiv({
+              cls: "rss-dashboard-filter-menu-arrow",
+            });
+            setIcon(arrow, "chevron-right");
+
+            item.addEventListener("mouseenter", () => {
+              showTagsSubMenu(item);
+            });
+          } else {
+            item.addEventListener("mouseenter", () => {
+              removeTagSubmenus();
+            });
           }
-        }),
-    );
+
+          const handleFilterCheck = (checked: boolean) => {
+            if (checked) {
+              pendingStatusFilters.add(opt.id);
+              allCheckbox.checked = false;
+              pendingAllChecked = false;
+            } else {
+              pendingStatusFilters.delete(opt.id);
+              if (opt.id === "tagged") {
+                pendingTagFilters.clear();
+              }
+              if (pendingStatusFilters.size === 0 && pendingTagFilters.size === 0) {
+                allCheckbox.checked = true;
+                pendingAllChecked = true;
+              }
+            }
+          };
+
+          checkbox.addEventListener("change", (e) => {
+            e.stopPropagation();
+            handleFilterCheck(checkbox.checked);
+          });
+
+          item.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (e.target !== checkbox) {
+              checkbox.checked = !checkbox.checked;
+              handleFilterCheck(checkbox.checked);
+            }
+          });
+        });
+
+        const preApplySeparator = menuPortal.createDiv({
+          cls: "rss-dashboard-filter-menu-separator",
+        });
+        preApplySeparator.addEventListener("mouseenter", removeTagSubmenus);
+
+        const applyBtn = menuPortal.createEl("button", {
+          cls: "rss-dashboard-filter-apply-btn",
+          text: "Apply",
+        });
+        applyBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          void (async () => {
+            const nextStatusFilters = pendingAllChecked
+              ? []
+              : Array.from(pendingStatusFilters);
+            const nextTagFilters = pendingAllChecked
+              ? []
+              : Array.from(pendingTagFilters);
+
+            plugin.settings.dashboardMultiFilters = {
+              statusFilters: nextStatusFilters,
+              tagFilters: nextTagFilters,
+              logic: pendingFilterLogic,
+            };
+
+            // De-emphasize legacy single-filter behavior now that startup filtering
+            // is configured via dashboard multi-filters.
+            plugin.settings.display.defaultFilter = "all";
+
+            await plugin.saveSettings();
+            plugin.notifyFiltersUpdated({
+              source: "settings-startup-filters",
+              timestamp: Date.now(),
+            });
+
+            const updated = formatStartupFiltersButton();
+            btn.setButtonText(updated.text);
+            if (updated.tooltip) {
+              btn.buttonEl.setAttribute("title", updated.tooltip);
+            } else {
+              btn.buttonEl.removeAttribute("title");
+            }
+
+            const view = await plugin.getActiveDashboardView();
+            if (view) {
+              await plugin.app.workspace.revealLeaf(view.leaf);
+              view.render();
+            }
+
+            menuPortal.remove();
+          })();
+        });
+
+        // Position the menu
+        const rect = btn.buttonEl.getBoundingClientRect();
+        menuPortal.style.top = `${rect.bottom + 5}px`;
+        menuPortal.style.left = `${rect.left}px`;
+        targetWindow.requestAnimationFrame(() => {
+          const menuRect = menuPortal.getBoundingClientRect();
+          const margin = 8;
+          const maxLeft = targetWindow.innerWidth - menuRect.width - margin;
+          const nextLeft = Math.max(margin, Math.min(rect.left, maxLeft));
+          menuPortal.style.left = `${nextLeft}px`;
+        });
+
+        // Close menu on click outside
+        const handleClickOutside = (ev: Event) => {
+          if (
+            !menuPortal.contains(ev.target as Node) &&
+            !btn.buttonEl.contains(ev.target as Node)
+          ) {
+            menuPortal.remove();
+            targetDocument.removeEventListener("mousedown", handleClickOutside);
+          }
+        };
+
+        targetWindow.setTimeout(() => {
+          targetDocument.addEventListener("mousedown", handleClickOutside);
+        }, 0);
+      };
+
+      btn.onClick(openMenu);
+    });
 
   // ── Sidebar ───────────────────────────────────────────────────────────────
   new Setting(containerEl).setName("Sidebar").setHeading();

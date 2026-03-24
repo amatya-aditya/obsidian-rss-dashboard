@@ -42,6 +42,7 @@ describe("Tags dropdown portal (regression)", () => {
       container,
       settings,
       "Title",
+      null,
       [article],
       null,
       {
@@ -94,6 +95,7 @@ describe("Tags dropdown portal (regression)", () => {
       container,
       settings,
       "Title",
+      null,
       [article],
       null,
       {

@@ -28,6 +28,7 @@ import { FeedManagerModal } from "../modals/feed-manager-modal";
 import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
 import { KeywordFilterService } from "../services/keyword-filter-service";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
+import { formatDashboardMultiFiltersTitle } from "../utils/filter-title-format";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -54,6 +55,7 @@ export class RssDashboardView extends ItemView {
   private verificationTimeout: number | null = null;
   private dashboardMultiFiltersDirty = false;
   private dashboardMultiFiltersSaveTimeout: number | null = null;
+  private headerTitleRefreshTimeout: number | null = null;
   private folderPages: Record<string, number> = {};
   private folderPageSizes: Record<string, number> = {};
   private feedPages: Record<string, number> = {};
@@ -113,16 +115,9 @@ export class RssDashboardView extends ItemView {
       this.settings.corsProxyEnabled ? this.settings.corsProxyUrl : undefined,
     );
 
-    // Set default filter based on settings
-    const defaultFilter = this.settings.display?.defaultFilter || "all";
-    const hiddenFilters = this.settings.display?.hiddenFilters || [];
-
-    // Only set the default filter if it's not hidden
-    if (defaultFilter !== "all" && !hiddenFilters.includes(defaultFilter)) {
-      this.currentFolder = defaultFilter;
-    } else {
-      this.currentFolder = null;
-    }
+    // Always open the dashboard in All Feeds view. Any startup filtering is
+    // applied via dashboard multi-filters instead of hard switching views.
+    this.currentFolder = null;
   }
 
   getViewType(): string {
@@ -177,6 +172,7 @@ export class RssDashboardView extends ItemView {
         "rss-dashboard:filters-updated",
         (payload: FiltersUpdatedEventPayload) => {
           this.syncCurrentFeedReference();
+          this.syncDashboardMultiFiltersFromSettings();
           this.render();
         },
       ) as never,
@@ -296,6 +292,7 @@ export class RssDashboardView extends ItemView {
 
   render(): void {
     this.syncCurrentFeedReference();
+    this.syncDashboardMultiFiltersFromSettings();
     this.verifySavedArticles();
 
     if (!this.shouldUseMobileSidebarMode(window.innerWidth)) {
@@ -366,10 +363,12 @@ export class RssDashboardView extends ItemView {
     const endIdx = startIdx + pageSize;
     const articlesForPage = allFilteredArticles.slice(startIdx, endIdx);
 
+    const titleInfo = this.getArticlesTitleInfo();
     this.articleList = new ArticleList(
       articlesContainer,
       this.settings,
-      this.getArticlesTitle(),
+      titleInfo.title,
+      titleInfo.tooltip,
       articlesForPage,
       this.selectedArticle,
       {
@@ -763,6 +762,28 @@ export class RssDashboardView extends ItemView {
     }
   }
 
+  private getArticlesTitleInfo(): { title: string; tooltip: string | null } {
+    const baseTitle = this.getArticlesTitle();
+
+    // Only augment the title when we're in the All Feeds / All articles view.
+    const isAllFeedsView =
+      this.currentFolder === null &&
+      this.currentFeed === null &&
+      this.selectedTags.length === 0 &&
+      baseTitle === "All articles";
+
+    if (!isAllFeedsView) {
+      return { title: baseTitle, tooltip: null };
+    }
+
+    return formatDashboardMultiFiltersTitle({
+      baseTitle,
+      statusFilters: this.activeStatusFilters,
+      tagFilters: this.activeTagFilters,
+      logic: this.filterLogic,
+    });
+  }
+
   private getFilteredArticles(): FeedItem[] {
     this.syncCurrentFeedReference();
     let articles: FeedItem[] = [];
@@ -936,6 +957,17 @@ export class RssDashboardView extends ItemView {
     if (fallbackFeed) {
       this.currentFeed = fallbackFeed;
     }
+  }
+
+  private syncDashboardMultiFiltersFromSettings(): void {
+    const mf = this.settings.dashboardMultiFilters;
+    if (!mf) {
+      return;
+    }
+
+    this.activeStatusFilters = new Set(mf.statusFilters || []);
+    this.activeTagFilters = new Set(mf.tagFilters || []);
+    this.filterLogic = mf.logic === "AND" ? "AND" : "OR";
   }
 
   private applyKeywordFiltersWithStats(articles: FeedItem[]): FeedItem[] {
@@ -2306,7 +2338,32 @@ export class RssDashboardView extends ItemView {
         filtered,
       );
       this.refreshFilterStatusBarOnly();
+      this.scheduleHeaderTitleRefresh();
     }
+  }
+
+  private scheduleHeaderTitleRefresh(): void {
+    if (!this.articleList) {
+      return;
+    }
+
+    if (this.headerTitleRefreshTimeout !== null) {
+      window.clearTimeout(this.headerTitleRefreshTimeout);
+    }
+
+    // Apply triggers multiple handleFilterChange() calls back-to-back. Coalesce
+    // them into a single header title update after the batch completes.
+    this.headerTitleRefreshTimeout = window.setTimeout(() => {
+      this.headerTitleRefreshTimeout = null;
+      if (!this.articleList) {
+        return;
+      }
+      if (typeof this.articleList.updateHeaderTitle !== "function") {
+        return;
+      }
+      const titleInfo = this.getArticlesTitleInfo();
+      this.articleList.updateHeaderTitle(titleInfo.title, titleInfo.tooltip);
+    }, 0);
   }
 
   private schedulePersistDashboardMultiFilters(): void {
