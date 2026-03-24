@@ -6,3 +6,23 @@ export async function requestUrl(): Promise<{ status: number; text: string }> {
 export const Platform = {
   isAndroidApp: false,
 };
+
+export function setIcon(el: HTMLElement, iconName: string): void {
+  el.dataset.icon = iconName;
+}
+
+export function requireApiVersion(): boolean {
+  return false;
+}
+
+export class App {
+  private localStorage = new Map<string, unknown>();
+
+  saveLocalStorage(key: string, value: unknown): void {
+    this.localStorage.set(key, value);
+  }
+
+  loadLocalStorage(key: string): unknown {
+    return this.localStorage.get(key);
+  }
+}

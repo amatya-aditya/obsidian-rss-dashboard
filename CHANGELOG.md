@@ -1,11 +1,49 @@
-# RSS Dashboard - Changelog
+## [2.3.0-alpha.2] - March 14, 2026
 
-## [2.3.0-beta.1] - March 9, 2026
+### New Features
+
+- Added copy-to-clipboard actions for Settings exports (data.json, usersettings.json, OPML)
+- **Podcast Player UI**: Refreshed in-app podcast player layout and controls.
+- **Episode Details**: Added a collapsible "Episode details" section under the seek bar showing episode metadata and sanitized show notes (from parsed feed content).
+- **Podcast Tags**: Show episode tags in the player and in playlist rows (with overflow handling).
+- **Live Tag Sync**: Tag assignment changes now update in real time across dashboard cards, player tag strip, and playlist rows.
+
+### Fixed
+
+- Fixed Settings export buttons on Obsidian Mobile (iOS/Android) by using the native share/save sheet flow
+- Added toast notifications for export and copy actions so the outcome is always visible
+- Added unit tests covering mobile share, desktop download, and clipboard fallbacks
+- Podcast player now keeps play/pause button state in sync during autoplay
+- Sorting/shuffling the podcast playlist no longer interrupts playback
+- Switching episodes via the playlist no longer auto-plays unexpectedly
+- Added unit tests covering podcast player autoplay, live tag refresh, and sorting playback stability
+- Reduced dead space in dashboard cards by letting cards auto-size while preserving equal-height grid rows
+- Article title in reader now hidden on mobile view
+- Reader settings sheet now notch-safe on iPhone, with improved touch layout, slider sizing, and a bottom “Done” CTA
+
+---
+
+## [2.3.0-alpha.1] - March 13, 2026
 
 ### New Features
 
 - Added automatic YouTube Shorts detection and tagging from feed XML
 - Added a media setting to enable or disable YouTube Shorts detection
+- **Tag Management**: Recreated and enhanced tag editing functionality across Sidebar, Article List, and Reader View, allowing direct modification of tag names and colors.
+- **X/Twitter to Nitter**: Added automatic redirection of X/Twitter feeds to Nitter RSS feeds.
+- New reader settings menu for adjusting font and paragraph settings
+
+### Improvements
+
+- **Tagging UX**: Expanded clickable area for tags in dropdowns; clicking the label text now toggles the tag checkbox.
+- **Feed Validation**:
+  - Allow adding valid feeds that currently have no items.
+  - Display a warning for valid but empty feeds in Add and Edit feed modals.
+  - Prevent Add Feed modal from closing if background validation fails.
+
+### Development
+
+- Added CONTIRUBTING.MD to root directory for contribution guidelines
 
 ### Improved
 
@@ -20,6 +58,8 @@
 - Removed unsupported YouTube quality override URL rewriting from the player
 - Enforced a minimum 200x200 YouTube player surface to better match RMF requirements
 - Added regression tests for YouTube embed URL generation and feed video-id normalization
+- Fixed Substack inline reader images not loading by stripping broken `srcset` / `<picture><source>` entries and falling back to a hero cover image when inline images fail
+- Removed Substack image expand/view controls that rendered as blank bordered buttons in the reader
 
 ---
 

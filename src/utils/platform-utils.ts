@@ -1,3 +1,5 @@
+import { requestUrl, RequestUrlParam } from "obsidian";
+
 export function sleep(ms: number): Promise<void> {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
@@ -99,6 +101,69 @@ export function ensureUtf8Meta(html: string): string {
     return '<meta charset="UTF-8">' + html;
   }
   return html;
+}
+
+/**
+ * Robust fetch that handles encoding detection and manual decoding.
+ * Useful for Android where requestUrl might mis-detect encoding.
+ */
+export async function robustFetch(
+  url: string,
+  options: Partial<RequestUrlParam> = {},
+): Promise<string> {
+  const response = await requestUrl({
+    ...options,
+    url,
+    method: options.method || "GET",
+  });
+
+  if (!response.arrayBuffer) {
+    return response.text || "";
+  }
+
+  const contentType = response.headers["content-type"] || "";
+  let charset = detectCharsetFromHeader(contentType);
+
+  if (!charset) {
+    // Try to detect from body if not in header
+    charset = detectCharsetFromBody(response.arrayBuffer);
+  }
+
+  // Default to utf-8 if still not found
+  charset = charset || "utf-8";
+
+  try {
+    const decoder = new TextDecoder(charset);
+    return decoder.decode(response.arrayBuffer);
+  } catch (e) {
+    console.warn(`[RSS Dashboard] Failed to decode with charset ${charset}:`, e);
+    // Fallback to utf-8 if specified charset fails
+    const decoder = new TextDecoder("utf-8");
+    return decoder.decode(response.arrayBuffer);
+  }
+}
+
+function detectCharsetFromHeader(contentType: string): string | null {
+  const match = contentType.match(/charset=([^;]+)/i);
+  return match ? match[1].trim() : null;
+}
+
+function detectCharsetFromBody(buffer: ArrayBuffer): string | null {
+  // We only look at the first 2048 bytes for speed
+  const view = new Uint8Array(buffer.slice(0, 2048));
+  const text = new TextDecoder("ascii").decode(view);
+
+  // Look for <meta charset="...">
+  const charsetMatch = text.match(/<meta[^>]+charset=["']?([^"' >]+)/i);
+  if (charsetMatch) return charsetMatch[1];
+
+  // Look for <meta http-equiv="Content-Type" content="...charset=...">
+  const equivMatch = text.match(
+    /<meta[^>]+http-equiv=["']?Content-Type["']?[^>]+content=["']?[^"'>]+charset=([^"' >]+)/i,
+  );
+  if (equivMatch) return equivMatch[1];
+
+  return null;
 }
 
 /**

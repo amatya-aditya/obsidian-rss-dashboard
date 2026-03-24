@@ -81,6 +81,25 @@ export interface FeedParseOptions {
   allowEmpty?: boolean;
 }
 
+const BARE_AMPERSAND_REGEX =
+  /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g;
+
+export function parseFeedPreviewFromXmlText(
+  xmlText: string,
+  feedUrl: string,
+): FeedPreviewData | null {
+  if (!xmlText) return null;
+
+  const sanitizedXmlText = xmlText.replace(BARE_AMPERSAND_REGEX, "&amp;");
+  const doc = new DOMParser().parseFromString(sanitizedXmlText, "text/xml");
+
+  if (doc.querySelector("parsererror")) {
+    return null;
+  }
+
+  return parseFeedDoc(doc, feedUrl);
+}
+
 export async function loadFeedForPreview(
   feedUrl: string,
 ): Promise<FeedPreviewData> {
@@ -254,7 +273,7 @@ export function formatFeedParseNoticeMessage(
   return `${prefix}: ${getFeedErrorMessage(error)}`;
 }
 
-function isValidFeed(text: string): boolean {
+export function isValidFeed(text: string): boolean {
   if (!text) return false;
   const sample = text.slice(0, 2048).toLowerCase();
   return (

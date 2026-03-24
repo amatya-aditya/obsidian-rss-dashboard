@@ -792,6 +792,6 @@
   align-items: center;
   justify-content: space-between;
   margin-top: auto;
-  padding: 4px 16px 12px;
+  padding: 8px 16px 8px;
   flex-shrink: 0;
 }

@@ -40,6 +40,7 @@ import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
 import { sleep, setCssProps } from "./src/utils/platform-utils";
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
+import { copyTextToClipboard, exportBlob } from "./src/utils/export-utils";
 
 export interface FiltersUpdatedEventPayload {
   source: string;
@@ -1078,11 +1079,31 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async exportUserSettingsJson(): Promise<void> {
+    const filename = "usersettings.json";
     const blob = new Blob([JSON.stringify(this.settings, null, 2)], {
       type: "application/json",
     });
-    this.downloadBlob(blob, "usersettings.json");
-    new Notice("Exported usersettings.json");
+
+    const result = await exportBlob({
+      blob,
+      filename,
+      isMobile: Platform.isMobileApp,
+    });
+    this.showExportNotice(result, filename);
+  }
+
+  public async exportDataJson(): Promise<void> {
+    const filename = "data.json";
+    const blob = new Blob([JSON.stringify(this.settings, null, 2)], {
+      type: "application/json",
+    });
+
+    const result = await exportBlob({
+      blob,
+      filename,
+      isMobile: Platform.isMobileApp,
+    });
+    this.showExportNotice(result, filename);
   }
 
   exportOpml(): void {
@@ -1091,55 +1112,74 @@ export default class RssDashboardPlugin extends Plugin {
       this.settings.folders,
     );
 
-    // Detect iOS: it's neither Android app nor Desktop app
-    const isIOS = !Platform.isAndroidApp && !Platform.isDesktopApp;
-
-    if (isIOS) {
-      // iOS fallback: copy to clipboard
-      void this.exportOpmlToClipboardIos(opmlContent);
-    } else {
-      // Desktop and Android: use traditional blob download
-      void this.exportOpmlAsFile(opmlContent);
-    }
-  }
-
-  private exportOpmlAsFile(opmlContent: string): void {
-    const blob = new Blob([opmlContent], { type: "text/xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.body.createEl("a", {
-      attr: { href: url },
-    });
-    a.download = "obsidian-rss-feeds.opml";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  private async exportOpmlToClipboardIos(opmlContent: string): Promise<void> {
-    try {
-      // Try to use navigator.clipboard API (available on iOS 13.2+)
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(opmlContent);
-        new Notice(
-          "Feed list copied to clipboard. Paste into your reader to import"
-        );
-        return;
-      }
-    } catch (error) {
-      console.warn("[RSS Dashboard] Clipboard copy failed:", error);
-    }
-
-    // Fallback: open OPML content in a new window for user to save manually
-    try {
+    void (async () => {
+      const filename = "feeds.opml";
       const blob = new Blob([opmlContent], { type: "text/xml" });
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      new Notice("Feed list opened in a new window. Save to download and import");
-      // Note: Don't revoke the URL immediately - the new window needs it
-      // It will be revoked when the window closes or navigates away
-    } catch (error) {
-      console.error("[RSS Dashboard] Failed to export OPML:", error);
-      new Notice("Unable to export feed list. Please try again.");
+      const result = await exportBlob({
+        blob,
+        filename,
+        isMobile: Platform.isMobileApp,
+      });
+      this.showExportNotice(result, filename);
+    })();
+  }
+
+  private showExportNotice(
+    result:
+      | "shared"
+      | "downloaded"
+      | "opened"
+      | "canceled"
+      | "failed",
+    filename: string,
+  ): void {
+    if (result === "downloaded") {
+      new Notice(`Downloading ${filename}`);
+      return;
     }
+    if (result === "shared" || result === "opened") {
+      new Notice(`Opened save menu for ${filename}`);
+      return;
+    }
+    if (result === "canceled") {
+      new Notice("Export canceled");
+      return;
+    }
+    new Notice(`Unable to export ${filename}`);
+  }
+
+  public async copyDataJsonToClipboard(): Promise<void> {
+    const filename = "data.json";
+    const result = await copyTextToClipboard(
+      JSON.stringify(this.settings, null, 2),
+    );
+    this.showCopyNotice(result, filename);
+  }
+
+  public async copyUserSettingsJsonToClipboard(): Promise<void> {
+    const filename = "usersettings.json";
+    const result = await copyTextToClipboard(
+      JSON.stringify(this.settings, null, 2),
+    );
+    this.showCopyNotice(result, filename);
+  }
+
+  public async copyOpmlToClipboard(): Promise<void> {
+    const filename = "feeds.opml";
+    const opmlContent = OpmlManager.generateOpml(
+      this.settings.feeds,
+      this.settings.folders,
+    );
+    const result = await copyTextToClipboard(opmlContent);
+    this.showCopyNotice(result, filename);
+  }
+
+  private showCopyNotice(result: "copied" | "failed", filename: string): void {
+    if (result === "copied") {
+      new Notice(`Copied ${filename} to clipboard`);
+      return;
+    }
+    new Notice(`Unable to copy ${filename}`);
   }
 
   private folderPathExists(folderPath: string): boolean {
@@ -1657,15 +1697,6 @@ export default class RssDashboardPlugin extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
-  }
-
-  private downloadBlob(blob: Blob, filename: string): void {
-    const url = URL.createObjectURL(blob);
-    const a = document.body.createEl("a", {
-      attr: { href: url, download: filename },
-    });
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
   onunload() {
