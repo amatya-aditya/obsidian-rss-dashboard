@@ -643,6 +643,11 @@
 .rss-custom-save-button:hover {
   background-color: var(--interactive-accent-hover);
 }
+
+.rss-custom-save-button-icon {
+  width: 18px;
+  height: 18px;
+}
 .rss-dashboard-checkbox {
   display: flex;
   align-items: center;

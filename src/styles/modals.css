@@ -280,6 +280,14 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+.rss-dashboard-modal .edit-feed-folder-dropdown.hidden {
+  display: none;
+}
+
+.rss-dashboard-modal .edit-feed-folder-dropdown.visible {
+  display: block;
+}
+
 .edit-feed-folder-option {
   padding: 8px 16px;
   cursor: pointer;
@@ -1419,6 +1427,142 @@
    Feed Manager Button Rows
    ============================================ */
 
+.rss-dashboard-modal .feed-manager-top-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+/* Desktop: two-row layout for longer button labels */
+@media (min-width: 769px) {
+  .rss-dashboard-modal .feed-manager-top-controls {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap: 12px;
+    row-gap: 10px;
+    align-items: center;
+  }
+
+  .rss-dashboard-modal .feed-manager-top-controls .feed-manager-search-container {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .rss-dashboard-modal .feed-manager-top-controls .feed-manager-button-row-primary {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: flex-end;
+  }
+
+  .rss-dashboard-modal .feed-manager-top-controls .feed-manager-button-row-secondary {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: flex-end;
+    width: 100%;
+  }
+
+  .rss-dashboard-modal .feed-manager-top-controls .rss-dashboard-primary-button,
+  .rss-dashboard-modal .feed-manager-top-controls .rss-dashboard-danger-button,
+  .rss-dashboard-modal .feed-manager-top-controls .feed-manager-opml-button {
+    margin: 0 !important;
+  }
+
+  .rss-dashboard-modal .feed-manager-top-controls .feed-manager-add-button {
+    margin: 0 !important;
+  }
+}
+
+.rss-dashboard-modal .feed-manager-search-container {
+  flex-grow: 1;
+  position: relative;
+}
+
+.rss-dashboard-modal .feed-manager-search-input {
+  width: 100%;
+  padding: 6px 34px 6px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 14px;
+}
+
+.rss-dashboard-modal .feed-manager-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rss-dashboard-modal .feed-manager-search-clear:hover {
+  color: var(--text-normal);
+}
+
+.rss-dashboard-modal .feed-manager-search-clear.is-hidden {
+  display: none;
+}
+
+.rss-dashboard-modal .feed-manager-search-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.rss-dashboard-modal .feed-manager-add-button {
+  flex-shrink: 0;
+}
+
+.rss-dashboard-modal .feed-manager-list {
+  max-height: 60vh;
+}
+
+.rss-dashboard-modal .feed-manager-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.rss-dashboard-modal .feed-manager-folder {
+  margin-bottom: 1.5rem;
+}
+
+.rss-dashboard-modal .feed-manager-folder .setting-item {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border-bottom: 2px solid var(--background-modifier-border);
+}
+
+.rss-dashboard-modal .feed-manager-folder .setting-item-name {
+  font-weight: 600;
+  font-size: 1.05em;
+  color: var(--text-normal);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rss-dashboard-modal .feed-manager-row {
+  padding-left: 12px;
+  margin-left: 8px;
+}
+
+.rss-dashboard-modal .feed-manager-title {
+  font-weight: 400;
+  font-size: 0.95em;
+}
+
 .feed-manager-search-container {
   position: relative;
 }
@@ -1589,6 +1733,37 @@
    Import OPML Modal Styles
    ============================================ */
 
+/* Action buttons: align + consistent rounded corners (avoid pill look) */
+.rss-import-opml-modal .rss-dashboard-modal-buttons {
+  align-items: center;
+}
+
+.rss-import-opml-modal .rss-dashboard-modal-buttons button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px !important;
+  min-height: 38px;
+  padding: 0.4rem 1rem;
+  margin: 0 !important;
+}
+
+/* Secondary-style "Cancel" button in Import OPML modal */
+.rss-import-opml-modal
+  .rss-dashboard-modal-buttons
+  button:not(.rss-dashboard-primary-button):not(.rss-dashboard-danger-button) {
+  background: var(--interactive-normal);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+}
+
+.rss-import-opml-modal
+  .rss-dashboard-modal-buttons
+  button:not(.rss-dashboard-primary-button):not(.rss-dashboard-danger-button):hover {
+  background: var(--interactive-hover);
+  border-color: var(--interactive-accent);
+}
+
 /* File selector row */
 .import-file-selector {
   display: flex;
@@ -1623,6 +1798,16 @@
 
 .import-file-button:hover {
   background: var(--interactive-accent-hover, #217dbb);
+}
+
+@media (max-width: 768px) {
+  .rss-import-opml-modal .rss-dashboard-modal-buttons {
+    flex-direction: column;
+  }
+
+  .rss-import-opml-modal .rss-dashboard-modal-buttons button {
+    width: 100%;
+  }
 }
 
 .import-file-button svg {

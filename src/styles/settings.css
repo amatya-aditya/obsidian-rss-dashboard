@@ -236,6 +236,10 @@
   pointer-events: none;
 }
 
+.rss-dashboard-template-input {
+  width: 100%;
+}
+
 /* Template Button Styling */
 .rss-dashboard-template-btn-row {
   display: flex;

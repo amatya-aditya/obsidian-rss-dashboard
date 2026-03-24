@@ -55,6 +55,8 @@
 
 - **Settings migration (Filters → Rules)**: The global `filters` setting has been renamed to `rules` to avoid confusion with viewing filters. The new implementation is backwards compatible with existing beta users’ settings via a one-time migration.
 
+- **Article dedupe bug** Fixed duplicate articles for feeds (e.g. BBC) where item GUIDs can change between refreshes via numeric URL fragments (`#0`, `#1`, ...); existing stored duplicates are auto-deduped on load.
+
 ### Development
 
 - **Developer Documentation**: Added a new "Advanced Podcast Platform Resolution" section to the developer docs describing proxy rotation and semantic search patterns.

@@ -255,6 +255,13 @@
     opacity 120ms ease;
 }
 
+/* Row separators: only add a top divider when there is a previous row */
+.rss-dashboard-filter-subheader-content > * + * {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
 /* Collapsed state: hide content and prevent pointer events */
 .rss-dashboard-filter-subheader.is-collapsed
   .rss-dashboard-filter-subheader-content {
@@ -342,17 +349,11 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 6px;
-  margin-top: 5px;
-  padding-top: 5px;
-  border-top: 1px solid var(--background-modifier-border);
   font-size: 12px;
 }
 
 /* Row 3: Viewing filter stats (dashboard multi-filters) */
 .rss-dashboard-viewing-filter-stats-row {
-  margin-top: 5px;
-  padding-top: 5px;
-  border-top: 1px solid var(--background-modifier-border);
 }
 
 .rss-dashboard-viewing-filter-open-btn {
@@ -501,6 +502,22 @@
   margin-top: 8px;
   width: 100%;
   max-width: 120px;
+}
+
+.rss-dashboard-modal .rss-custom-input.hidden {
+  display: none;
+}
+
+.rss-dashboard-modal .rss-custom-input.visible {
+  display: block;
+}
+
+.rss-dashboard-settings-tab-content .rss-custom-input.hidden {
+  display: none;
+}
+
+.rss-dashboard-settings-tab-content .rss-custom-input.visible {
+  display: block;
 }
 
 .rss-dashboard-modal .rss-custom-input:focus {
