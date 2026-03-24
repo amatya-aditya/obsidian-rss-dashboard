@@ -47,6 +47,7 @@ import { MediaService } from "./src/services/media-service";
 import { sleep, setCssProps } from "./src/utils/platform-utils";
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { copyTextToClipboard, exportBlob } from "./src/utils/export-utils";
+import { canonicalizeItemIdentityUrl } from "./src/utils/url-utils";
 
 export interface FiltersUpdatedEventPayload {
   source: string;
@@ -1539,7 +1540,10 @@ export default class RssDashboardPlugin extends Plugin {
 
       await this.repairMissingFolderPathsForFeeds();
 
-      if (didMigrateKeywordRules) {
+      const didNormalizeAndDedupeItems =
+        this.normalizeAndDedupeStoredFeedItems();
+
+      if (didMigrateKeywordRules || didNormalizeAndDedupeItems) {
         await this.saveSettings();
       }
     } catch (error) {
@@ -1548,6 +1552,112 @@ export default class RssDashboardPlugin extends Plugin {
       );
       this.settings = DEFAULT_SETTINGS;
     }
+  }
+
+  private normalizeAndDedupeStoredFeedItems(): boolean {
+    let didChange = false;
+
+    const getPubDateMs = (pubDate: string | undefined | null): number => {
+      if (!pubDate) return 0;
+      const ms = Date.parse(pubDate);
+      return Number.isFinite(ms) ? ms : 0;
+    };
+
+    const byNewest = (a: FeedItem, b: FeedItem): number => {
+      const aMs = getPubDateMs(a.pubDate);
+      const bMs = getPubDateMs(b.pubDate);
+      if (aMs !== bMs) return bMs - aMs;
+      return (a.guid || "").localeCompare(b.guid || "");
+    };
+
+    const pickLonger = (a: string, b: string): string => {
+      const aTrim = (a ?? "").trim();
+      const bTrim = (b ?? "").trim();
+      if (!aTrim) return bTrim ? b : a;
+      if (!bTrim) return a;
+      return bTrim.length > aTrim.length ? b : a;
+    };
+
+    const pickLongerOptional = (
+      a?: string,
+      b?: string,
+    ): string | undefined => {
+      const aTrim = (a ?? "").trim();
+      const bTrim = (b ?? "").trim();
+      if (!aTrim && !bTrim) return a ?? b;
+      if (!aTrim) return b;
+      if (!bTrim) return a;
+      return bTrim.length > aTrim.length ? b : a;
+    };
+
+    const mergeTags = (a: FeedItem["tags"], b: FeedItem["tags"]): FeedItem["tags"] => {
+      const out: FeedItem["tags"] = [];
+      const seen = new Set<string>();
+      for (const tag of [...(a || []), ...(b || [])]) {
+        const key = (tag?.name || "").trim().toLowerCase();
+        if (!key) continue;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(tag);
+      }
+      return out;
+    };
+
+    for (const feed of this.settings.feeds || []) {
+      const items = Array.isArray(feed.items) ? feed.items : [];
+      if (items.length === 0) continue;
+
+      const mergedByKey = new Map<string, FeedItem>();
+
+      for (let idx = 0; idx < items.length; idx++) {
+        const item = items[idx];
+        const canonicalKey = canonicalizeItemIdentityUrl(
+          item.guid || item.link || "",
+        );
+        const key = canonicalKey || item.guid || item.link || `__item_${idx}`;
+
+        const existing = mergedByKey.get(key);
+        if (!existing) {
+          if (canonicalKey && canonicalKey !== item.guid) {
+            didChange = true;
+          }
+          mergedByKey.set(key, {
+            ...item,
+            guid: canonicalKey || item.guid,
+          });
+          continue;
+        }
+
+        didChange = true;
+
+        mergedByKey.set(key, {
+          ...existing,
+          guid: canonicalKey || existing.guid,
+          read: existing.read || item.read,
+          starred: existing.starred || item.starred,
+          saved: !!existing.saved || !!item.saved,
+          tags: mergeTags(existing.tags, item.tags),
+          savedFilePath: existing.savedFilePath || item.savedFilePath,
+          title: pickLonger(existing.title, item.title),
+          link: existing.link || item.link,
+          description: pickLonger(existing.description, item.description),
+          content: pickLongerOptional(existing.content, item.content),
+          summary: pickLongerOptional(existing.summary, item.summary),
+          coverImage: existing.coverImage || item.coverImage,
+          image: existing.image || item.image,
+        });
+      }
+
+      const deduped = Array.from(mergedByKey.values());
+      if (deduped.length !== items.length) {
+        didChange = true;
+      }
+
+      deduped.sort(byNewest);
+      feed.items = deduped;
+    }
+
+    return didChange;
   }
 
   private migrateLegacySettings(): boolean {

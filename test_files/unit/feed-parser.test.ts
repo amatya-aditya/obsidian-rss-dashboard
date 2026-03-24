@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { Feed, FeedItem } from "../../src/types/types";
 import { resolveAbsoluteHttpUrl } from "../../src/utils/url-utils";
+import * as obsidian from "obsidian";
 import {
   CustomXMLParser,
+  FeedParser,
   isValidFeed,
   EmptyFeedError,
   isEmptyFeedError,
@@ -444,6 +446,74 @@ describe("mergeFeedHistoryItems", () => {
     expect(new Set(merged.map((i) => i.guid)).size).toBe(60);
     expect(merged.some((i) => i.guid === "id-1")).toBe(true);
     expect(merged.some((i) => i.guid === "id-60")).toBe(true);
+  });
+});
+
+describe("FeedParser.parseFeed", () => {
+  const mediaSettings = {
+    defaultYouTubeFolder: "Videos",
+    defaultYouTubeTag: "youtube",
+    defaultPodcastFolder: "Podcast",
+    defaultPodcastTag: "podcast",
+    defaultRssFolder: "RSS",
+    defaultRssTag: "rss",
+    defaultSmallwebFolder: "Smallweb",
+    defaultSmallwebTag: "smallweb",
+    openInSplitView: true,
+    podcastTheme: "solarized" as const,
+  };
+
+  it("dedupes numeric URL-fragment GUIDs across refreshes while preserving read state", async () => {
+    const feedUrl = "https://example.com/feed.xml";
+
+    const xml0 = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Article A</title>
+      <link>https://example.com/a</link>
+      <description>desc</description>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>https://example.com/a#0</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const xml1 = xml0.replace("#0</guid>", "#1</guid>");
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+        text: xml0,
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+        text: xml1,
+      });
+
+    const parser = new FeedParser(mediaSettings, []);
+    const first = await parser.parseFeed(feedUrl, null);
+    expect(first.items).toHaveLength(1);
+
+    // Simulate a previously persisted item from older versions that kept `#0` in the guid.
+    first.items[0].read = true;
+    first.items[0].guid = "https://example.com/a#0";
+
+    const second = await parser.parseFeed(feedUrl, first);
+    expect(second.items).toHaveLength(1);
+    expect(second.items[0].read).toBe(true);
+    expect(second.items[0].guid).toBe("https://example.com/a");
+
+    requestUrlSpy.mockRestore();
   });
 });
 

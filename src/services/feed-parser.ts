@@ -6,7 +6,10 @@ import {
   APPLE_PODCASTS,
   POCKET_CASTS,
 } from "../utils/podcast-platforms.js";
-import { resolveAbsoluteHttpUrl } from "../utils/url-utils.js";
+import {
+  canonicalizeItemIdentityUrl,
+  resolveAbsoluteHttpUrl,
+} from "../utils/url-utils.js";
 
 interface ItunesLookupResponse {
   resultCount: number;
@@ -2327,7 +2330,7 @@ export function mergeFeedHistoryItems(
   const uniqueRefreshed: FeedItem[] = [];
 
   for (const item of refreshedItems) {
-    const key = item.guid || item.link || "";
+    const key = canonicalizeItemIdentityUrl(item.guid || item.link || "");
     if (!key) continue;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -2336,10 +2339,11 @@ export function mergeFeedHistoryItems(
 
   const carriedForward: FeedItem[] = [];
   for (const item of existingItems || []) {
-    const key = item.guid || item.link || "";
+    const key = canonicalizeItemIdentityUrl(item.guid || item.link || "");
     if (!key) continue;
     if (!seen.has(key)) {
       carriedForward.push(item);
+      seen.add(key);
     }
   }
 
@@ -2822,10 +2826,11 @@ export class FeedParser {
     const existingItems = new Map<string, FeedItem>();
     if (existingFeed) {
       existingFeed.items.forEach((item) => {
-        const key = this.convertToAbsoluteUrl(
+        const rawKey = this.convertToAbsoluteUrl(
           item.guid || item.link || "",
           url,
         );
+        const key = canonicalizeItemIdentityUrl(rawKey);
         if (key) {
           existingItems.set(key, item);
         }
@@ -2857,14 +2862,16 @@ export class FeedParser {
             }
           : undefined);
 
-      const itemGuid = this.convertToAbsoluteUrl(
+      const rawItemGuid = this.convertToAbsoluteUrl(
         item.guid || item.link || "",
         url,
       );
+      const itemGuid = canonicalizeItemIdentityUrl(rawItemGuid);
+      if (!itemGuid) continue;
+      if (seenGuids.has(itemGuid)) continue;
+      seenGuids.add(itemGuid);
+
       const existingItem = existingItems.get(itemGuid);
-      if (itemGuid) {
-        seenGuids.add(itemGuid);
-      }
 
         if (existingItem) {
           let coverImage = existingItem.coverImage;
@@ -2889,6 +2896,10 @@ export class FeedParser {
           }
           const updatedItem: FeedItem = {
           ...existingItem,
+          guid: itemGuid,
+          link:
+            this.convertToAbsoluteUrl(item.link || "", url) ||
+            existingItem.link,
           title: item.title || existingItem.title,
           description: this.convertRelativeUrlsInContent(
             item.description || "",
@@ -3033,10 +3044,11 @@ export class FeedParser {
     const carriedForward: FeedItem[] = [];
     if (existingFeed) {
       for (const item of existingFeed.items) {
-        const key = this.convertToAbsoluteUrl(
+        const rawKey = this.convertToAbsoluteUrl(
           item.guid || item.link || "",
           url,
         );
+        const key = canonicalizeItemIdentityUrl(rawKey);
         if (key && !seenGuids.has(key)) {
           carriedForward.push(item);
         }
@@ -3182,7 +3194,7 @@ export class FeedParserService {
       link: item.link || "",
       description: item.description || "",
       pubDate: item.pubDate || new Date().toISOString(),
-      guid: item.guid || item.link || "",
+      guid: canonicalizeItemIdentityUrl(item.guid || item.link || ""),
       read: false,
       starred: false,
       tags: [],
