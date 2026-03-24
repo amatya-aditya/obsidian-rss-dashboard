@@ -57,6 +57,8 @@
 
 - **Article dedupe bug** Fixed duplicate articles for feeds (e.g. BBC) where item GUIDs can change between refreshes via numeric URL fragments (`#0`, `#1`, ...); existing stored duplicates are auto-deduped on load.
 
+- **Pagination**: Fixed pagination controls not updating when switching between views. Added new 'All' option to page size dropdowns. Adjusting the pagination at the bottom of the page now sychronizes with the pagination controls in settings (General > Results shown per page).
+
 ### Development
 
 - **Developer Documentation**: Added a new "Advanced Podcast Platform Resolution" section to the developer docs describing proxy rotation and semantic search patterns.

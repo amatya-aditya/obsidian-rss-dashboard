@@ -8,7 +8,8 @@ import {
 } from "../utils/platform-utils";
 import { HighlightService } from "../services/highlight-service";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
-import { getPageSizeOptions } from "../utils/page-size-options";
+import { getPageSizeOptions, PAGE_SIZE_OPTIONS } from "../utils/page-size-options";
+import { computeResultsRange } from "../utils/pagination-utils";
 
 const MAX_VISIBLE_TAGS = 6;
 
@@ -2913,8 +2914,13 @@ export class ArticleList {
       cls: "rss-dashboard-page-size-dropdown",
     });
     for (const size of getPageSizeOptions(pageSize)) {
+      const isStandardOption = PAGE_SIZE_OPTIONS.includes(
+        size as (typeof PAGE_SIZE_OPTIONS)[number],
+      );
+      const label =
+        size === 0 ? "All" : isStandardOption ? String(size) : `Current (${size})`;
       const opt = pageSizeDropdown.createEl("option", {
-        text: String(size),
+        text: label,
         value: String(size),
       });
       if (size === pageSize) opt.selected = true;
@@ -2924,8 +2930,11 @@ export class ArticleList {
       this.callbacks.onPageSizeChange(size);
     };
 
-    const startIdx = (currentPage - 1) * pageSize + 1;
-    const endIdx = Math.min(currentPage * pageSize, totalArticles);
+    const { start: startIdx, end: endIdx } = computeResultsRange({
+      totalItems: totalArticles,
+      pageSize,
+      currentPage,
+    });
     paginationContainer.createEl("span", {
       cls: "rss-dashboard-pagination-results",
       text: `Results: ${startIdx} - ${endIdx} of ${totalArticles}`,

@@ -1542,7 +1542,7 @@ export default class RssDashboardPlugin extends Plugin {
       // Older versions allowed per-view sizes; the UI now exposes one value.
       const canonicalPageSizeRaw = this.settings.allArticlesPageSize;
       const canonicalPageSize =
-        Number.isFinite(canonicalPageSizeRaw) && canonicalPageSizeRaw > 0
+        Number.isFinite(canonicalPageSizeRaw) && canonicalPageSizeRaw >= 0
           ? canonicalPageSizeRaw
           : DEFAULT_SETTINGS.allArticlesPageSize;
       let didNormalizePageSizes = false;

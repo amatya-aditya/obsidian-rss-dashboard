@@ -121,11 +121,12 @@ export function renderGeneralSettingsTab(
 
       const options = getPageSizeOptions(plugin.settings.allArticlesPageSize);
       for (const size of options) {
-        const label = PAGE_SIZE_OPTIONS.includes(
-          size as (typeof PAGE_SIZE_OPTIONS)[number],
-        )
-          ? String(size)
-          : `Current (${size})`;
+        const label =
+          size === 0
+            ? "All"
+            : PAGE_SIZE_OPTIONS.includes(size as (typeof PAGE_SIZE_OPTIONS)[number])
+              ? String(size)
+              : `Current (${size})`;
         dropdown.addOption(String(size), label);
       }
 
@@ -136,7 +137,7 @@ export function renderGeneralSettingsTab(
           return;
         }
         const size = Number(value);
-        if (!Number.isFinite(size) || size <= 0) {
+        if (!Number.isFinite(size) || size < 0) {
           return;
         }
 

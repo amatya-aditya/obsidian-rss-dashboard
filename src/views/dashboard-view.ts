@@ -29,6 +29,7 @@ import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
 import { KeywordFilterService } from "../services/keyword-filter-service";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 import { formatDashboardMultiFiltersTitle } from "../utils/filter-title-format";
+import { computePagination } from "../utils/pagination-utils";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -355,17 +356,20 @@ export class RssDashboardView extends ItemView {
     });
     const pageSize = this.getCurrentPageSize();
     const totalArticles = allFilteredArticles.length;
-    const totalPages = Math.max(1, Math.ceil(totalArticles / pageSize));
     let currentPage = this.getCurrentPage();
-    const clampedPage = Math.max(1, Math.min(currentPage, totalPages));
-    if (clampedPage !== currentPage) {
-      this.setCurrentPageState(clampedPage);
-      currentPage = clampedPage;
+    const pagination = computePagination({
+      totalItems: totalArticles,
+      pageSize,
+      requestedPage: currentPage,
+    });
+    if (pagination.currentPage !== currentPage) {
+      this.setCurrentPageState(pagination.currentPage);
+      currentPage = pagination.currentPage;
     }
-
-    const startIdx = (currentPage - 1) * pageSize;
-    const endIdx = startIdx + pageSize;
-    const articlesForPage = allFilteredArticles.slice(startIdx, endIdx);
+    const articlesForPage = allFilteredArticles.slice(
+      pagination.startIdx,
+      pagination.endIdx,
+    );
 
     const titleInfo = this.getArticlesTitleInfo();
     this.articleList = new ArticleList(
@@ -453,7 +457,7 @@ export class RssDashboardView extends ItemView {
         },
       },
       currentPage,
-      totalPages,
+      pagination.totalPages,
       pageSize,
       totalArticles,
       new Set(this.activeStatusFilters),
@@ -1799,9 +1803,15 @@ export class RssDashboardView extends ItemView {
         const filtered = this.getFilteredArticles();
         const pageSize = this.getCurrentPageSize();
         const currentPage = this.getCurrentPage();
-        const startIdx = (currentPage - 1) * pageSize;
-        const endIdx = startIdx + pageSize;
-        const articlesForPage = filtered.slice(startIdx, endIdx);
+        const pagePagination = computePagination({
+          totalItems: filtered.length,
+          pageSize,
+          requestedPage: currentPage,
+        });
+        const articlesForPage = filtered.slice(
+          pagePagination.startIdx,
+          pagePagination.endIdx,
+        );
         this.articleList.refilter(
           new Set(this.activeStatusFilters),
           new Set(this.activeTagFilters),
