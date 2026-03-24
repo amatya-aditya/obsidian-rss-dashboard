@@ -4,73 +4,80 @@
 
 ### New Features
 
-- **Custom sidebar ordering (drag-and-drop)**:
+- **Customizable sidebar ordering (drag-and-drop)**:
   - Drag feeds to reorder within a folder (or move + insert between feeds).
   - Drag folders to reorder, and drag onto another folder to nest/un-nest (supports hierarchical organization).
   - Any manual reorder automatically switches the sidebar sort mode to a new **Custom** row to preserve your ordering.
 
-- **Customizable sidebar icon settings**:
-  - Custom re-ordering via drag-and-drop or up/down buttons (mobile friendly).
+- **Customizable sidebar toolbar icons**:
+  - New setting: `Settings > Display > Icon visibility`.
+  - Drag-and-drop or up/down buttons (mobile friendly).
   - Hide/show individual icons.
   - Hide/show entire toolbar.
-  - New settings button (opens RSS-Dashboard settings)
+  - New sidebar toolbar "settings" button (opens RSS-Dashboard settings).
 
 - **Sidebar Tag Filtering**:
   - Revamped **Tags** section in the sidebar for easy management and improved filtering logic: **AND** (match all), **OR** (match any), and **NOT** (match none).
   - Inline **Add Tag** row with color picker integrated directly into the sidebar.
 
-- **Dashboard multi-filters persist across navigation**: Status/tag filters (and AND/OR logic) no longer reset when switching between feeds, folders, or sidebar tag views (state is saved and restored on reopen/restart).
+- **Podcast Player Sleep Timer**: Added a sleep timer to the podcast player to automatically stop playback after a specified duration (5, 10, 15, 30, 45, 60, 90, or 120 minutes) (GitHub issue #75).
 
-- **Podcast Player Sleep Timer**: Added a sleep timer to the podcast player to automatically stop playback after a specified duration (5, 10, 15, 30, 45, or 60, 90, 120 minutes) (Github Issue #75).
+- **Podcast "Open in Browser" improvements**:
+  - Fixed the toolbar button, which was previously non-functioning.
+  - The button now attempts to resolve the podcast’s website URL from feed metadata, falling back to the podcast’s RSS feed URL if no website URL is found.
+  - The dropdown now includes URLs found in the "Episode details" section of the podcast page, plus a link to the direct audio file.
 
 - **Pocket Casts Support**: Added support for importing podcasts directly from Pocket Casts URLs (e.g., `https://pocketcasts.com/podcast/...`).
+
 - **Robust Podcast Resolution**:
   - Implemented a multi-proxy fallback system (AllOrigins, CodeTabs) to handle network timeouts and CORS restrictions when resolving podcast feeds.
   - Added a "Semantic Discovery" fallback using the **iTunes Search API** to resolve feeds when Pocket Casts hides the RSS link from their web player source.
   - Added flexible metadata scraping to handle varied HTML attribute ordering in modern web layouts.
-- **Proactive Proxy Validation**: The Add Feed and Edit Feed modals now check if the CORS proxy is enabled before attempting to resolve Pocket Casts URLs, providing a clear warning and guidance if it's missing.
 
-- **OPML Import Menu Overhaul**: The OPML import menu has been completely rewritten to improve usability, reliability, and user experience.
+- **Proactive Proxy Validation**: The Add Feed and Edit Feed modals now check whether the CORS proxy is enabled before attempting to resolve Pocket Casts URLs, providing a clear warning and guidance if it’s disabled.
+
+- **OPML Import Menu Overhaul**: The OPML import menu has been completely overhauled to improve reliability and user experience.
 
 - **View Filter Setting Improvements**:
-  - All applied view filters will now persist across navigation (state is saved and restored on reopen/restart).
-  - All applied view filters will explicitly state which ones are applied in the dashboard header.
-  - Updated the Settings>Display>Startup filters to mirror the dashboard filter UI, allowing for multiple viewing filters to be applied at startup.
+  - All applied view filters now persist across navigation (state is saved and restored on reopen/restart).
+  - All applied view filters now explicitly state which ones are currently applied in the dashboard header.
+  - Updated `Settings > Display > Startup filters` to mirror the dashboard filter UI, allowing multiple viewing filters to be applied at startup.
 
 ### Fixed
 
-- **Dashboard card click**: Fixed a bug where clicking a saved article's card on the dashboard incorrectly opened the saved markdown file instead of opening the standard reader or media player.
-
 - **Reader tags menu**: Reader toolbar now uses the same tag management portal UI as dashboard cards (edit/delete/add tags, mobile sheet support).
 
-- **Reader save button**: The save button icon in the reader now appropriately turns purple when saved and changes its tooltip to "Click to open saved article". Clicking it in this state will directly open the saved markdown file in your vault, mirroring the dashboard functionality.
+- **Reader save button**: The save button icon in the reader now appropriately turns purple when saved and changes its tooltip to "Click to open saved article". Clicking it in this state will directly open the saved markdown file in your vault, mirroring the dashboard functionality. Also updated the "custom folder location" option to suggest folders based on your vault structure, with proper text validation that adheres to Obsidian’s folder naming conventions.
 
-- **Reader Nitter rendering**: Improved X/Twitter (Nitter) feed items in Reader view with a compact author/handle/date title, a single formatted tweet body (no "Feed description" callout), and a compact stats icon row when present.
+- **Reader Nitter rendering**: Improved X/Twitter (Nitter) feed items in Reader view with a compact author/handle/date title, a single formatted tweet body (no "Feed description" callout), and a compact stats icon row when present. Article titles no longer show the entire tweet and instead show the author, handle, and date.
 
-- **Obsidian Properties UI compatibility**: Fixed a critical issue where enabling the plugin could cause vault-wide Properties \"type mismatch\" error indicators due to unscoped global CSS overrides.
+- **Obsidian Properties UI compatibility**: Fixed a critical issue where enabling the plugin could cause vault-wide Properties "type mismatch" error indicators due to unscoped global CSS overrides.
+
+- **Settings migration (Filters → Rules)**: The global `filters` setting has been renamed to `rules` to avoid confusion with viewing filters. The new implementation is backwards compatible with existing beta users’ settings via a one-time migration.
 
 ### Development
 
-- **Developer Documentation**: Added a new "Advanced Podcast Platform Resolution" section to `docs/development/feed-validation.md` documenting proxy rotation and semantic search patterns.
-- **CSS Guardrail**: Added `npm run check:css-scope` (runs during `npm run build`) to prevent unscoped rules from targeting Obsidian core selectors like `.clickable-icon`, `.suggestion-container`, and `.hidden`.
+- **Developer Documentation**: Added a new "Advanced Podcast Platform Resolution" section to the developer docs describing proxy rotation and semantic search patterns.
+
+- **CSS Guardrail**: Added `npm run check:css-scope` (runs during `npm run build`) to prevent unscoped CSS rules from targeting Obsidian core selectors (e.g., `.clickable-icon`, `.suggestion-container`, `.hidden`).
+
 - **Settings Architecture Refactor**:
-  - Extracted 9 dedicated tab renderer files into `src/settings/tabs/`.
-  - Centralized shared modal classes in `src/settings/modals/settings-modals.ts`.
-  - Isolated pure tab-name helpers in `src/settings/tab-names.ts` for zero-dependency testing.
-  - Implemented TDD-driven logic for color normalization, icon reordering, and preset detection.
+  - Refactored the monolithic settings tab into a modular architecture for maintainability and performance.
+  - Split settings rendering into 9 dedicated tab renderer modules.
+  - Centralized shared settings modal classes.
+  - Isolated pure tab-name helpers to enable zero-dependency unit testing.
+  - Used TDD-driven logic for color normalization, icon reordering, and preset detection.
   - Added many new unit tests covering settings-related logic.
-  - Slimmed down the main `RssDashboardSettingTab` orchestrator to ~119 lines.
-- **Unit Tests**: Added `test_files/unit/pocketcasts-url-resolution.test.ts` for Pocket Casts URL detection and UUID extraction logic.
+  - Reduced the main settings tab orchestrator to ~119 lines.
+
 - **Feed manager refactor**:
-  - Refactor: split feed-manager-modal.ts into a barrel re-export and per-modal modules under src/modals/feed-manager/.
-    UI: replace 6 inline SVG “supported formats” badges with Lucide setIcon() via supported-format-badges.
-    Utils: add collectFolderPaths (src/utils/folder-paths.ts) and dedupe folder-path traversal in folder suggest/selector/sidebar.
-    Fix: correct nested folder deletion using removeFolderByPath (src/utils/folder-tree.ts).
-    Tests: add unit coverage for barrel exports, sidebar “Add Feed” opening, folder paths, supported format badges, preview loader, and folder-tree removal.
-    Single-line commit message
-- Refactor ReaderView: extract reader format settings portal to createReaderFormatPortal(), add ReaderView.onClose() cleanup, and add unit coverage.
-- **Major Settings Tab Refactor**: The monolithic `settings-tab.ts` has been refactored into a modular architecture for better maintainability and performance. Each settings tab now resides in its own dedicated file.
-- **Filters setting renamed globally to Rules**: The global `filters` setting has been renamed to `rules` to avoid confusion with the viewing filters. The new implementation is backwards compatible with existing beta users' settings by providing a one time migration for existing users.
+  - Reorganized the feed manager modal code to be more modular and maintainable (kept backwards compatibility for now; planned for deprecation in the next major release).
+  - UI: standardized “supported formats” badges using Lucide icons.
+  - Folder handling: improved folder-path collection and removed duplicate folder traversal across folder pickers and the sidebar.
+  - Fix: corrected nested folder deletion behavior.
+  - Tests: expanded unit coverage across feed manager behavior, sidebar “Add Feed” opening, folder-path utilities, preview loading, and nested folder removal.
+
+- **ReaderView Refactor**: Extracted the reader format settings portal into a helper, added ReaderView cleanup on close, and added unit coverage.
 
 ## [2.3.0-alpha.3 / 2.2.0-beta.7] - March 18, 2026
 
