@@ -170,7 +170,7 @@ export class FeedManagerModal extends Modal {
       cls: "feed-manager-opml-button feed-manager-import-button",
     });
     setIcon(importOpmlBtn, "upload");
-    importOpmlBtn.createSpan({ text: " Import" });
+    importOpmlBtn.createSpan({ text: " Import OPML" });
     importOpmlBtn.onclick = () => {
       new ImportOpmlModal(this.app, this.plugin).open();
     };
@@ -180,7 +180,7 @@ export class FeedManagerModal extends Modal {
       cls: "feed-manager-opml-button feed-manager-export-button",
     });
     setIcon(exportOpmlBtn, "download");
-    exportOpmlBtn.createSpan({ text: " Export" });
+    exportOpmlBtn.createSpan({ text: " Export OPML" });
     exportOpmlBtn.onclick = () => {
       this.plugin.exportOpml();
     };

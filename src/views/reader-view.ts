@@ -910,19 +910,21 @@ export class ReaderView extends ItemView {
       articleTitleEl.setText(displayTitle);
     }
 
-    const metaContainer = headerContainer.createDiv({
-      cls: "rss-reader-meta",
-    });
+    if (!isNitter) {
+      const metaContainer = headerContainer.createDiv({
+        cls: "rss-reader-meta",
+      });
 
-    metaContainer.createDiv({
-      cls: "rss-reader-feed-title",
-      text: item.feedTitle,
-    });
+      metaContainer.createDiv({
+        cls: "rss-reader-feed-title",
+        text: item.feedTitle,
+      });
 
-    metaContainer.createDiv({
-      cls: "rss-reader-pub-date",
-      text: new Date(item.pubDate).toLocaleString(),
-    });
+      metaContainer.createDiv({
+        cls: "rss-reader-pub-date",
+        text: new Date(item.pubDate).toLocaleString(),
+      });
+    }
 
     if (item.tags && item.tags.length > 0) {
       const tagsContainer = headerContainer.createDiv({
@@ -1178,11 +1180,13 @@ export class ReaderView extends ItemView {
   private formatNitterReaderTitle(item: FeedItem): string {
     const { name, handle } = this.extractNitterNameAndHandle(item);
     const date = this.formatIsoDate(item.pubDate);
+    const time = this.formatTimeOfDay(item.pubDate);
+    const dateTime = [date, time].filter(Boolean).join(" ");
 
-    if (name && handle && date) return `${name} (${handle}) · ${date}`;
+    if (name && handle && dateTime) return `${name} (${handle}) · ${dateTime}`;
     if (name && handle) return `${name} (${handle})`;
-    if (name && date) return `${name} · ${date}`;
-    if (handle && date) return `${handle} · ${date}`;
+    if (name && dateTime) return `${name} · ${dateTime}`;
+    if (handle && dateTime) return `${handle} · ${dateTime}`;
     return item.title;
   }
 
@@ -1260,6 +1264,16 @@ export class ReaderView extends ItemView {
     }
 
     return "";
+  }
+
+  private formatTimeOfDay(dateInput: string): string {
+    const trimmed = (dateInput || "").trim();
+    const parsed = new Date(trimmed);
+    if (!Number.isFinite(parsed.getTime())) {
+      return "";
+    }
+
+    return parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
   private pickBestNitterTweetHtml(item: FeedItem, fullContent?: string): string {
