@@ -196,6 +196,85 @@ export class Setting {
     cb(component);
     return this;
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addSlider(cb: (component: any) => any): this {
+    class SliderComponent {
+      sliderEl: HTMLInputElement;
+      private changeHandler: ((value: number) => void) | null = null;
+
+      constructor(container: HTMLElement) {
+        this.sliderEl = document.createElement("input");
+        this.sliderEl.type = "range";
+        container.appendChild(this.sliderEl);
+        this.sliderEl.addEventListener("input", () => {
+          const value = Number(this.sliderEl.value);
+          this.changeHandler?.(value);
+        });
+      }
+
+      setLimits(min: number, max: number, step: number): this {
+        this.sliderEl.min = String(min);
+        this.sliderEl.max = String(max);
+        this.sliderEl.step = String(step);
+        return this;
+      }
+
+      setValue(value: number): this {
+        this.sliderEl.value = String(value);
+        return this;
+      }
+
+      setDynamicTooltip(): this {
+        return this;
+      }
+
+      onChange(handler: (value: number) => void): this {
+        this.changeHandler = handler;
+        return this;
+      }
+    }
+
+    const component = new SliderComponent(this.controlEl);
+    cb(component);
+    return this;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addColorPicker(cb: (component: any) => any): this {
+    class ColorComponent {
+      inputEl: HTMLInputElement;
+      private changeHandler: ((value: string) => void) | null = null;
+
+      constructor(container: HTMLElement) {
+        this.inputEl = document.createElement("input");
+        this.inputEl.type = "color";
+        container.appendChild(this.inputEl);
+        this.inputEl.addEventListener("input", () => {
+          this.changeHandler?.(this.inputEl.value);
+        });
+      }
+
+      setValue(value: string): this {
+        this.inputEl.value = value;
+        return this;
+      }
+
+      setPlaceholder(value: string): this {
+        this.inputEl.placeholder = value;
+        return this;
+      }
+
+      onChange(handler: (value: string) => void): this {
+        this.changeHandler = handler;
+        return this;
+      }
+    }
+
+    const component = new ColorComponent(this.controlEl);
+    cb(component);
+    return this;
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addToggle(cb: (component: any) => any): this {
     class ToggleComponent {
@@ -248,6 +327,11 @@ export class Setting {
 
       setValue(value: string): this {
         this.inputEl.value = value;
+        return this;
+      }
+
+      setPlaceholder(value: string): this {
+        this.inputEl.placeholder = value;
         return this;
       }
 
@@ -306,6 +390,35 @@ export class Setting {
 
     const component = new DropdownComponent(this.controlEl);
     cb(component);
+    return this;
+  }
+}
+
+export class TextComponent {
+  inputEl: HTMLInputElement;
+  private changeHandler: ((value: string) => void) | null = null;
+
+  constructor(container: HTMLElement) {
+    this.inputEl = document.createElement("input");
+    this.inputEl.type = "text";
+    container.appendChild(this.inputEl);
+    this.inputEl.addEventListener("input", () => {
+      this.changeHandler?.(this.inputEl.value);
+    });
+  }
+
+  setValue(value: string): this {
+    this.inputEl.value = value;
+    return this;
+  }
+
+  setPlaceholder(value: string): this {
+    this.inputEl.placeholder = value;
+    return this;
+  }
+
+  onChange(handler: (value: string) => void): this {
+    this.changeHandler = handler;
     return this;
   }
 }

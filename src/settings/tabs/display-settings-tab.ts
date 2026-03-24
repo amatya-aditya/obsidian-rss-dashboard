@@ -14,7 +14,12 @@ import {
   getIconById,
   SIDEBAR_ICONS,
 } from "../../utils/sidebar-icon-registry";
-import { formatDashboardMultiFiltersSummary } from "../../utils/filter-title-format";
+import { formatDashboardMultiFiltersSummaryCompact } from "../../utils/filter-title-format";
+import {
+  computePopoverPosition,
+  computeSubmenuPosition,
+} from "../../utils/popover-position";
+import { setCssProps } from "../../utils/platform-utils";
 
 // ── Pure helpers (exported for unit tests) ────────────────────────────────────
 
@@ -257,10 +262,11 @@ export function renderDisplaySettingsTab(
 
   const formatStartupFiltersButton = (): { text: string; tooltip: string | null } => {
     const mf = plugin.settings.dashboardMultiFilters;
-    return formatDashboardMultiFiltersSummary({
+    return formatDashboardMultiFiltersSummaryCompact({
       statusFilters: mf?.statusFilters ?? [],
       tagFilters: mf?.tagFilters ?? [],
       logic: mf?.logic ?? "OR",
+      maxItems: 2,
     });
   };
 
@@ -270,6 +276,7 @@ export function renderDisplaySettingsTab(
       "Choose which filters to apply when opening the dashboard.",
     )
     .addButton((btn) => {
+      btn.buttonEl.addClass("rss-dashboard-startup-filters-button");
       const initial = formatStartupFiltersButton();
       btn.setButtonText(initial.text);
       if (initial.tooltip) {
@@ -280,6 +287,7 @@ export function renderDisplaySettingsTab(
         const targetDocument = btn.buttonEl.ownerDocument;
         const targetBody = targetDocument.body;
         const targetWindow = targetDocument.defaultView || window;
+        const margin = 8;
 
         // Remove any existing menus from stale state.
         targetDocument
@@ -289,6 +297,84 @@ export function renderDisplaySettingsTab(
         const menuPortal = targetBody.createDiv({
           cls: "rss-dashboard-filter-menu rss-dashboard-filter-menu-portal rss-dashboard-startup-filters-menu-portal",
         });
+
+        let repositionFrame: number | null = null;
+        let activeTagSubmenu: HTMLElement | null = null;
+        let activeTagSubmenuParentItem: HTMLElement | null = null;
+
+        const repositionSubmenu = () => {
+          if (!activeTagSubmenu || !activeTagSubmenuParentItem) {
+            return;
+          }
+
+          const parentItemRect =
+            activeTagSubmenuParentItem.getBoundingClientRect();
+          const parentMenuRect = menuPortal.getBoundingClientRect();
+          const submenuRect = activeTagSubmenu.getBoundingClientRect();
+
+          const pos = computeSubmenuPosition({
+            parentItemRect: parentItemRect as never,
+            parentMenuRect: parentMenuRect as never,
+            submenuRect: submenuRect as never,
+            viewport: {
+              width: targetWindow.innerWidth,
+              height: targetWindow.innerHeight,
+            },
+            margin,
+          });
+
+          activeTagSubmenu.addClass("rss-dashboard-submenu-fixed");
+          activeTagSubmenu.style.setProperty("--submenu-top", `${pos.top}px`);
+          activeTagSubmenu.style.setProperty("--submenu-left", `${pos.left}px`);
+          if (typeof pos.maxHeight === "number") {
+            activeTagSubmenu.style.maxHeight = `${pos.maxHeight}px`;
+            setCssProps(activeTagSubmenu, { "overflow-y": "auto" });
+          } else {
+            activeTagSubmenu.style.removeProperty("max-height");
+          }
+        };
+
+        const repositionMenu = () => {
+          if (!menuPortal.isConnected) {
+            return;
+          }
+
+          const anchorRect = btn.buttonEl.getBoundingClientRect();
+          const popoverRect = menuPortal.getBoundingClientRect();
+
+          const pos = computePopoverPosition({
+            anchorRect: anchorRect as never,
+            popoverRect: popoverRect as never,
+            viewport: {
+              width: targetWindow.innerWidth,
+              height: targetWindow.innerHeight,
+            },
+            margin,
+          });
+
+          menuPortal.style.top = `${pos.top}px`;
+          menuPortal.style.left = `${pos.left}px`;
+
+          if (typeof pos.maxHeight === "number") {
+            menuPortal.style.maxHeight = `${pos.maxHeight}px`;
+            setCssProps(menuPortal, { "overflow-y": "auto" });
+          } else {
+            menuPortal.style.removeProperty("max-height");
+            menuPortal.style.removeProperty("overflow-y");
+          }
+
+          repositionSubmenu();
+        };
+
+        const scheduleReposition = () => {
+          if (repositionFrame !== null) {
+            return;
+          }
+          repositionFrame = targetWindow.requestAnimationFrame(() => {
+            repositionFrame = null;
+            repositionMenu();
+          });
+        };
 
         const currentMf = plugin.settings.dashboardMultiFilters;
         const pendingStatusFilters = new Set(currentMf?.statusFilters ?? []);
@@ -301,6 +387,8 @@ export function renderDisplaySettingsTab(
           menuPortal
             .querySelectorAll(".rss-dashboard-tag-submenu")
             .forEach((el) => el.remove());
+          activeTagSubmenu = null;
+          activeTagSubmenuParentItem = null;
         };
 
         // Logic Toggles: And / Or
@@ -399,6 +487,8 @@ export function renderDisplaySettingsTab(
           const subMenu = menuPortal.createDiv({
             cls: "rss-dashboard-filter-menu rss-dashboard-tag-submenu",
           });
+          activeTagSubmenu = subMenu;
+          activeTagSubmenuParentItem = parentItem;
 
           if (plugin.settings.availableTags.length === 0) {
             subMenu.createDiv({
@@ -467,15 +557,9 @@ export function renderDisplaySettingsTab(
             });
           });
 
-          const rect = parentItem.getBoundingClientRect();
-          const parentMenuRect = menuPortal.getBoundingClientRect();
-
-          let subLeft = parentMenuRect.right + 4;
-          let subTop = rect.top;
-
-          subMenu.addClass("rss-dashboard-submenu-fixed");
-          subMenu.style.setProperty("--submenu-top", `${subTop}px`);
-          subMenu.style.setProperty("--submenu-left", `${subLeft}px`);
+          targetWindow.requestAnimationFrame(() => {
+            repositionSubmenu();
+          });
         };
 
         const filterOptions = [
@@ -606,30 +690,38 @@ export function renderDisplaySettingsTab(
               view.render();
             }
 
-            menuPortal.remove();
+            cleanup();
           })();
         });
 
-        // Position the menu
-        const rect = btn.buttonEl.getBoundingClientRect();
-        menuPortal.style.top = `${rect.bottom + 5}px`;
-        menuPortal.style.left = `${rect.left}px`;
-        targetWindow.requestAnimationFrame(() => {
-          const menuRect = menuPortal.getBoundingClientRect();
-          const margin = 8;
-          const maxLeft = targetWindow.innerWidth - menuRect.width - margin;
-          const nextLeft = Math.max(margin, Math.min(rect.left, maxLeft));
-          menuPortal.style.left = `${nextLeft}px`;
-        });
+        const cleanup = () => {
+          removeTagSubmenus();
+          if (repositionFrame !== null) {
+            targetWindow.cancelAnimationFrame(repositionFrame);
+            repositionFrame = null;
+          }
+          targetDocument.removeEventListener("scroll", scheduleReposition, true);
+          targetWindow.removeEventListener("resize", scheduleReposition);
+          targetDocument.removeEventListener("mousedown", handleClickOutside);
+          menuPortal.remove();
+        };
+
+        // Position the menu (flip/clamp) and keep it attached on scroll/resize.
+        scheduleReposition();
+        targetDocument.addEventListener("scroll", scheduleReposition, true);
+        targetWindow.addEventListener("resize", scheduleReposition);
 
         // Close menu on click outside
         const handleClickOutside = (ev: Event) => {
+          if (!menuPortal.isConnected) {
+            return;
+          }
+
           if (
             !menuPortal.contains(ev.target as Node) &&
             !btn.buttonEl.contains(ev.target as Node)
           ) {
-            menuPortal.remove();
-            targetDocument.removeEventListener("mousedown", handleClickOutside);
+            cleanup();
           }
         };
 

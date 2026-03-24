@@ -119,3 +119,68 @@ export function formatDashboardMultiFiltersSummary(options: {
   return { text: text.trim(), tooltip };
 }
 
+export function formatDashboardMultiFiltersSummaryCompact(options: {
+  statusFilters: Iterable<string>;
+  tagFilters: Iterable<string>;
+  logic: DashboardFilterLogic;
+  maxItems?: number;
+}): { text: string; tooltip: string | null } {
+  const status = normalizeStringSet(options.statusFilters);
+  const tags = normalizeStringSet(options.tagFilters);
+  const logicWord = getLogicWord(options.logic);
+  const maxItems = Math.max(1, options.maxItems ?? 2);
+
+  const { tooltip } = formatDashboardMultiFiltersTitle({
+    baseTitle: "All articles",
+    statusFilters: status,
+    tagFilters: tags,
+    logic: options.logic,
+  });
+
+  if (tooltip === null) {
+    return { text: "All", tooltip: null };
+  }
+
+  const hasTagNames = tags.size > 0;
+  if (hasTagNames) {
+    // Keep compact summaries readable by collapsing tag names into a single
+    // short token, and avoid redundant tagged/untagged statuses.
+    status.delete("tagged");
+    status.delete("untagged");
+  }
+
+  const parts: Array<{ label: string; isTags: boolean }> = [];
+  for (const id of STATUS_ORDER) {
+    if (!status.has(id)) continue;
+    const label = STATUS_LABELS[id];
+    if (label) parts.push({ label, isTags: false });
+  }
+
+  if (hasTagNames) {
+    const tagCount = tags.size;
+    parts.push({ label: tagCount === 1 ? "Tags (1)" : `Tags (${tagCount})`, isTags: true });
+  }
+
+  if (parts.length === 0) {
+    return { text: "All", tooltip };
+  }
+
+  let displayed: Array<{ label: string; isTags: boolean }> = [];
+  if (parts.length <= maxItems) {
+    displayed = parts;
+  } else {
+    const tagPart = parts.find((p) => p.isTags);
+    if (tagPart && maxItems >= 2) {
+      const firstNonTag = parts.find((p) => !p.isTags);
+      displayed = firstNonTag ? [firstNonTag, tagPart] : [tagPart];
+    } else {
+      displayed = parts.slice(0, maxItems);
+    }
+  }
+
+  const remaining = Math.max(0, parts.length - displayed.length);
+  const baseText = displayed.map((p) => p.label).join(` ${logicWord} `);
+  const text = remaining > 0 ? `${baseText} +${remaining}` : baseText;
+
+  return { text: text.trim(), tooltip };
+}

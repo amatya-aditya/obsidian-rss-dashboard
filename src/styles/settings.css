@@ -1109,3 +1109,11 @@
     flex: 1 1 100%;
   }
 }
+
+.rss-dashboard-startup-filters-button {
+  max-width: 220px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

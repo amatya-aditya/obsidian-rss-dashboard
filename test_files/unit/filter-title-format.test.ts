@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { formatDashboardMultiFiltersTitle } from "../../src/utils/filter-title-format";
+import {
+  formatDashboardMultiFiltersTitle,
+  formatDashboardMultiFiltersSummaryCompact,
+} from "../../src/utils/filter-title-format";
 
 describe("formatDashboardMultiFiltersTitle()", () => {
   it("formats OR logic with status filters", () => {
@@ -59,3 +62,41 @@ describe("formatDashboardMultiFiltersTitle()", () => {
   });
 });
 
+describe("formatDashboardMultiFiltersSummaryCompact()", () => {
+  it("returns All when there are no filters", () => {
+    const result = formatDashboardMultiFiltersSummaryCompact({
+      statusFilters: new Set(),
+      tagFilters: new Set(),
+      logic: "OR",
+      maxItems: 2,
+    });
+
+    expect(result).toEqual({ text: "All", tooltip: null });
+  });
+
+  it("shows max 2 items with +n for the remainder", () => {
+    const result = formatDashboardMultiFiltersSummaryCompact({
+      statusFilters: new Set(["unread", "starred", "podcasts"]),
+      tagFilters: new Set(),
+      logic: "OR",
+      maxItems: 2,
+    });
+
+    expect(result.text).toBe("Unread or Starred +1");
+    expect(result.tooltip).toBe("Active filters (OR): Unread, Starred, Podcasts");
+  });
+
+  it("always includes Tags in the summary when tag names are active", () => {
+    const result = formatDashboardMultiFiltersSummaryCompact({
+      statusFilters: new Set(["unread", "podcasts", "videos"]),
+      tagFilters: new Set(["Home", "Work"]),
+      logic: "OR",
+      maxItems: 2,
+    });
+
+    expect(result.text).toBe("Unread or Tags (2) +2");
+    expect(result.tooltip).toBe(
+      "Active filters (OR): Unread, Podcasts, Videos, Tags: Home, Work",
+    );
+  });
+});
