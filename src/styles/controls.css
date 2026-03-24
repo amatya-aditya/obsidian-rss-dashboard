@@ -348,6 +348,46 @@
   font-size: 12px;
 }
 
+/* Row 3: Viewing filter stats (dashboard multi-filters) */
+.rss-dashboard-viewing-filter-stats-row {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.rss-dashboard-viewing-filter-open-btn {
+  --icon-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  min-height: 15px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.rss-dashboard-viewing-filter-open-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+  border-radius: 4px;
+}
+
+.rss-dashboard-viewing-filter-open-btn svg {
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
 /* "Highlights:" label prefix */
 .rss-highlight-stats-label {
   margin-right: 2px;
