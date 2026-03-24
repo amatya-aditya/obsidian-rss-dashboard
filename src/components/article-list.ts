@@ -8,6 +8,7 @@ import {
 } from "../utils/platform-utils";
 import { HighlightService } from "../services/highlight-service";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import { getPageSizeOptions } from "../utils/page-size-options";
 
 const MAX_VISIBLE_TAGS = 6;
 
@@ -2911,8 +2912,7 @@ export class ArticleList {
     const pageSizeDropdown = paginationContainer.createEl("select", {
       cls: "rss-dashboard-page-size-dropdown",
     });
-    const pageSizeOptions = [10, 20, 40, 50, 60, 80, 100];
-    for (const size of pageSizeOptions) {
+    for (const size of getPageSizeOptions(pageSize)) {
       const opt = pageSizeDropdown.createEl("option", {
         text: String(size),
         value: String(size),

@@ -57,9 +57,7 @@ export class RssDashboardView extends ItemView {
   private dashboardMultiFiltersSaveTimeout: number | null = null;
   private headerTitleRefreshTimeout: number | null = null;
   private folderPages: Record<string, number> = {};
-  private folderPageSizes: Record<string, number> = {};
   private feedPages: Record<string, number> = {};
-  private feedPageSizes: Record<string, number> = {};
   private articleReaderLeafWhilePodcast: WorkspaceLeaf | null = null;
   private isResizing: boolean = false;
   private resizeHandle: HTMLElement | null = null;
@@ -356,9 +354,15 @@ export class RssDashboardView extends ItemView {
       cls: "rss-dashboard-articles",
     });
     const pageSize = this.getCurrentPageSize();
-    const currentPage = this.getCurrentPage();
     const totalArticles = allFilteredArticles.length;
     const totalPages = Math.max(1, Math.ceil(totalArticles / pageSize));
+    let currentPage = this.getCurrentPage();
+    const clampedPage = Math.max(1, Math.min(currentPage, totalPages));
+    if (clampedPage !== currentPage) {
+      this.setCurrentPageState(clampedPage);
+      currentPage = clampedPage;
+    }
+
     const startIdx = (currentPage - 1) * pageSize;
     const endIdx = startIdx + pageSize;
     const articlesForPage = allFilteredArticles.slice(startIdx, endIdx);
@@ -787,13 +791,8 @@ export class RssDashboardView extends ItemView {
   private getFilteredArticles(): FeedItem[] {
     this.syncCurrentFeedReference();
     let articles: FeedItem[] = [];
-    let currentFeedLimit: number | null = null;
 
     if (this.currentFeed) {
-      currentFeedLimit =
-        typeof this.currentFeed.maxItemsLimit === "number"
-          ? this.currentFeed.maxItemsLimit
-          : this.settings.maxItems;
       // Don't slice before filtering/sorting. Refresh merge + retention sorts newest-first,
       // but slicing early can still hide newly fetched items when ordering changes.
       articles = [...this.currentFeed.items];
@@ -897,43 +896,36 @@ export class RssDashboardView extends ItemView {
       );
     }
 
-    // Apply per-feed display limit after sorting/filtering.
-    if (currentFeedLimit !== null && currentFeedLimit > 0) {
-      articles = articles.slice(0, currentFeedLimit);
-    }
+    return articles;
+  }
 
-    if (
+  private setCurrentPageState(page: number): void {
+    if (this.currentFeed && this.currentFeed.url) {
+      this.feedPages[this.currentFeed.url] = page;
+    } else if (
+      this.currentFolder &&
+      !["unread", "read", "saved", "starred", "videos", "podcasts"].includes(
+        this.currentFolder,
+      )
+    ) {
+      this.folderPages[this.currentFolder] = page;
+    } else if (
       this.currentFolder === null &&
       this.currentFeed === null &&
       this.selectedTags.length === 0
     ) {
-      const pageSize = this.settings.allArticlesPageSize;
-      const start = 0;
-      const end = this.allArticlesPage * pageSize;
-      return articles.slice(start, end);
+      this.allArticlesPage = page;
     } else if (this.currentFolder === "unread") {
-      const pageSize = this.settings.unreadArticlesPageSize;
-      const start = 0;
-      const end = this.unreadArticlesPage * pageSize;
-      return articles.slice(start, end);
+      this.unreadArticlesPage = page;
     } else if (this.currentFolder === "read") {
-      const pageSize = this.settings.readArticlesPageSize;
-      const start = 0;
-      const end = this.readArticlesPage * pageSize;
-      return articles.slice(start, end);
+      this.readArticlesPage = page;
     } else if (this.currentFolder === "saved") {
-      const pageSize = this.settings.savedArticlesPageSize;
-      const start = 0;
-      const end = this.savedArticlesPage * pageSize;
-      return articles.slice(start, end);
+      this.savedArticlesPage = page;
     } else if (this.currentFolder === "starred") {
-      const pageSize = this.settings.starredArticlesPageSize;
-      const start = 0;
-      const end = this.starredArticlesPage * pageSize;
-      return articles.slice(start, end);
+      this.starredArticlesPage = page;
+    } else {
+      this.allArticlesPage = page;
     }
-
-    return articles;
   }
 
   private syncCurrentFeedReference(): void {
@@ -2722,92 +2714,26 @@ export class RssDashboardView extends ItemView {
   }
 
   private handlePageChange(page: number): void {
-    if (this.currentFeed && this.currentFeed.url) {
-      this.feedPages[this.currentFeed.url] = page;
-    } else if (
-      this.currentFolder &&
-      !["unread", "read", "saved", "starred", "videos", "podcasts"].includes(
-        this.currentFolder,
-      )
-    ) {
-      this.folderPages[this.currentFolder] = page;
-    } else if (
-      this.currentFolder === null &&
-      this.currentFeed === null &&
-      this.selectedTags.length === 0
-    ) {
-      this.allArticlesPage = page;
-    } else if (this.currentFolder === "unread") {
-      this.unreadArticlesPage = page;
-    } else if (this.currentFolder === "read") {
-      this.readArticlesPage = page;
-    } else if (this.currentFolder === "saved") {
-      this.savedArticlesPage = page;
-    } else if (this.currentFolder === "starred") {
-      this.starredArticlesPage = page;
-    }
+    this.setCurrentPageState(page);
     void this.render();
   }
 
   private handlePageSizeChange(pageSize: number): void {
-    if (this.currentFeed && this.currentFeed.url) {
-      this.feedPageSizes[this.currentFeed.url] = pageSize;
-    } else if (
-      this.currentFolder &&
-      !["unread", "read", "saved", "starred", "videos", "podcasts"].includes(
-        this.currentFolder,
-      )
-    ) {
-      this.folderPageSizes[this.currentFolder] = pageSize;
-    } else if (
-      this.currentFolder === null &&
-      this.currentFeed === null &&
-      this.selectedTags.length === 0
-    ) {
-      this.settings.allArticlesPageSize = pageSize;
-    } else if (this.currentFolder === "unread") {
-      this.settings.unreadArticlesPageSize = pageSize;
-    } else if (this.currentFolder === "read") {
-      this.settings.readArticlesPageSize = pageSize;
-    } else if (this.currentFolder === "saved") {
-      this.settings.savedArticlesPageSize = pageSize;
-    } else if (this.currentFolder === "starred") {
-      this.settings.starredArticlesPageSize = pageSize;
-    }
+    this.settings.allArticlesPageSize = pageSize;
+    this.settings.unreadArticlesPageSize = pageSize;
+    this.settings.readArticlesPageSize = pageSize;
+    this.settings.savedArticlesPageSize = pageSize;
+    this.settings.starredArticlesPageSize = pageSize;
+    this.setCurrentPageState(1);
+    void this.plugin.saveSettings();
     void this.render();
   }
 
   private getCurrentPageSize(): number {
-    if (this.currentFeed && this.currentFeed.url) {
-      return (
-        this.feedPageSizes[this.currentFeed.url] ||
-        this.settings.allArticlesPageSize
-      );
-    } else if (
-      this.currentFolder &&
-      !["unread", "read", "saved", "starred", "videos", "podcasts"].includes(
-        this.currentFolder,
-      )
-    ) {
-      return (
-        this.folderPageSizes[this.currentFolder] ||
-        this.settings.allArticlesPageSize
-      );
-    } else if (
-      this.currentFolder === null &&
-      this.currentFeed === null &&
-      this.selectedTags.length === 0
-    ) {
-      return this.settings.allArticlesPageSize;
-    } else if (this.currentFolder === "unread") {
-      return this.settings.unreadArticlesPageSize;
-    } else if (this.currentFolder === "read") {
-      return this.settings.readArticlesPageSize;
-    } else if (this.currentFolder === "saved") {
-      return this.settings.savedArticlesPageSize;
-    } else if (this.currentFolder === "starred") {
-      return this.settings.starredArticlesPageSize;
-    }
+    if (this.currentFolder === "unread") return this.settings.unreadArticlesPageSize;
+    if (this.currentFolder === "read") return this.settings.readArticlesPageSize;
+    if (this.currentFolder === "saved") return this.settings.savedArticlesPageSize;
+    if (this.currentFolder === "starred") return this.settings.starredArticlesPageSize;
     return this.settings.allArticlesPageSize;
   }
 }

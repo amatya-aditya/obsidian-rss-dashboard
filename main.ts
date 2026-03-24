@@ -1538,12 +1538,40 @@ export default class RssDashboardPlugin extends Plugin {
         );
       }
 
+      // Normalize dashboard page-size settings to a single global value.
+      // Older versions allowed per-view sizes; the UI now exposes one value.
+      const canonicalPageSizeRaw = this.settings.allArticlesPageSize;
+      const canonicalPageSize =
+        Number.isFinite(canonicalPageSizeRaw) && canonicalPageSizeRaw > 0
+          ? canonicalPageSizeRaw
+          : DEFAULT_SETTINGS.allArticlesPageSize;
+      let didNormalizePageSizes = false;
+      const pageSizeFields: Array<
+        | "allArticlesPageSize"
+        | "unreadArticlesPageSize"
+        | "readArticlesPageSize"
+        | "savedArticlesPageSize"
+        | "starredArticlesPageSize"
+      > = [
+        "allArticlesPageSize",
+        "unreadArticlesPageSize",
+        "readArticlesPageSize",
+        "savedArticlesPageSize",
+        "starredArticlesPageSize",
+      ];
+      for (const field of pageSizeFields) {
+        if (this.settings[field] !== canonicalPageSize) {
+          this.settings[field] = canonicalPageSize;
+          didNormalizePageSizes = true;
+        }
+      }
+
       await this.repairMissingFolderPathsForFeeds();
 
       const didNormalizeAndDedupeItems =
         this.normalizeAndDedupeStoredFeedItems();
 
-      if (didMigrateKeywordRules || didNormalizeAndDedupeItems) {
+      if (didMigrateKeywordRules || didNormalizeAndDedupeItems || didNormalizePageSizes) {
         await this.saveSettings();
       }
     } catch (error) {

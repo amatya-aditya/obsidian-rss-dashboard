@@ -11,6 +11,7 @@
 import { Notice, Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { setCssProps } from "../../utils/platform-utils";
+import { getPageSizeOptions, PAGE_SIZE_OPTIONS } from "../../utils/page-size-options";
 import {
   ApplyMaxItemsToExistingFeedsModal,
 } from "../modals/settings-modals";
@@ -101,75 +102,57 @@ export function renderGeneralSettingsTab(
     );
 
   new Setting(containerEl)
-    .setName("Page size for 'all articles'")
-    .setDesc(
-      "Number of articles to load at a time in the 'all articles' view.",
-    )
-    .addSlider((slider) => {
-      slider
-        .setLimits(20, 200, 10)
-        .setValue(plugin.settings.allArticlesPageSize)
-        .setDynamicTooltip()
-        .onChange(async (value) => {
-          plugin.settings.allArticlesPageSize = value;
-          await plugin.saveSettings();
-        });
-    });
+    .setName("Results shown per page")
+    .setDesc("Controls pagination page size across all dashboard views.")
+    .addDropdown((dropdown) => {
+      const pageSizes = [
+        plugin.settings.allArticlesPageSize,
+        plugin.settings.unreadArticlesPageSize,
+        plugin.settings.readArticlesPageSize,
+        plugin.settings.savedArticlesPageSize,
+        plugin.settings.starredArticlesPageSize,
+      ];
+      const uniqueSizes = new Set(pageSizes);
+      const isMixed = uniqueSizes.size > 1;
 
-  new Setting(containerEl)
-    .setName("Page size for 'unread items'")
-    .setDesc("Number of unread articles to load at a time.")
-    .addSlider((slider) => {
-      slider
-        .setLimits(20, 200, 10)
-        .setValue(plugin.settings.unreadArticlesPageSize)
-        .setDynamicTooltip()
-        .onChange(async (value) => {
-          plugin.settings.unreadArticlesPageSize = value;
-          await plugin.saveSettings();
-        });
-    });
+      if (isMixed) {
+        dropdown.addOption("mixed", "Mixed (previous per-view values)");
+      }
 
-  new Setting(containerEl)
-    .setName("Page size for 'read items'")
-    .setDesc("Number of read articles to load at a time.")
-    .addSlider((slider) => {
-      slider
-        .setLimits(20, 200, 10)
-        .setValue(plugin.settings.readArticlesPageSize)
-        .setDynamicTooltip()
-        .onChange(async (value) => {
-          plugin.settings.readArticlesPageSize = value;
-          await plugin.saveSettings();
-        });
-    });
+      const options = getPageSizeOptions(plugin.settings.allArticlesPageSize);
+      for (const size of options) {
+        const label = PAGE_SIZE_OPTIONS.includes(
+          size as (typeof PAGE_SIZE_OPTIONS)[number],
+        )
+          ? String(size)
+          : `Current (${size})`;
+        dropdown.addOption(String(size), label);
+      }
 
-  new Setting(containerEl)
-    .setName("Page size for 'saved items'")
-    .setDesc("Number of saved articles to load at a time.")
-    .addSlider((slider) => {
-      slider
-        .setLimits(20, 200, 10)
-        .setValue(plugin.settings.savedArticlesPageSize)
-        .setDynamicTooltip()
-        .onChange(async (value) => {
-          plugin.settings.savedArticlesPageSize = value;
-          await plugin.saveSettings();
-        });
-    });
+      dropdown.setValue(isMixed ? "mixed" : String(plugin.settings.allArticlesPageSize));
 
-  new Setting(containerEl)
-    .setName("Page size for 'starred items'")
-    .setDesc("Number of starred articles to load at a time.")
-    .addSlider((slider) => {
-      slider
-        .setLimits(20, 200, 10)
-        .setValue(plugin.settings.starredArticlesPageSize)
-        .setDynamicTooltip()
-        .onChange(async (value) => {
-          plugin.settings.starredArticlesPageSize = value;
-          await plugin.saveSettings();
-        });
+      dropdown.onChange(async (value) => {
+        if (value === "mixed") {
+          return;
+        }
+        const size = Number(value);
+        if (!Number.isFinite(size) || size <= 0) {
+          return;
+        }
+
+        plugin.settings.allArticlesPageSize = size;
+        plugin.settings.unreadArticlesPageSize = size;
+        plugin.settings.readArticlesPageSize = size;
+        plugin.settings.savedArticlesPageSize = size;
+        plugin.settings.starredArticlesPageSize = size;
+
+        await plugin.saveSettings();
+        const view = await plugin.getActiveDashboardView();
+        if (view) {
+          await plugin.app.workspace.revealLeaf(view.leaf);
+          view.render();
+        }
+      });
     });
 
   new Setting(containerEl).setName("Global feeds").setHeading();
