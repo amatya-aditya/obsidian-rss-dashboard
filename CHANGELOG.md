@@ -4,6 +4,11 @@
 
 ### New Features
 
+- **Custom sidebar ordering (drag-and-drop)**:
+  - Drag feeds to reorder within a folder (or move + insert between feeds).
+  - Drag folders to reorder, and drag onto another folder to nest/un-nest (supports hierarchical organization).
+  - Any manual reorder automatically switches the sidebar sort mode to a new **Custom** row to preserve your ordering.
+
 - **Customizable sidebar icon settings**:
   - Custom re-ordering via drag-and-drop or up/down buttons (mobile friendly).
   - Hide/show individual icons.

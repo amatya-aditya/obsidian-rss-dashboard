@@ -1,6 +1,6 @@
 import type { Feed } from "../types/types";
 
-export type FeedSortBy = "name" | "created" | "itemCount";
+export type FeedSortBy = "name" | "created" | "itemCount" | "custom";
 
 export interface FeedSortOrder {
   by: FeedSortBy;
@@ -14,6 +14,10 @@ export function applyFeedSortOrder(
   feeds: Feed[],
   sortOrder: FeedSortOrder,
 ): Feed[] {
+  if (sortOrder.by === "custom") {
+    return [...feeds];
+  }
+
   const sorter = (a: Feed, b: Feed): number => {
     let valA: string | number, valB: string | number;
 

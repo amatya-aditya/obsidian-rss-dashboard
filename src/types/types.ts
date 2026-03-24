@@ -300,16 +300,16 @@ export interface RssDashboardSettings {
   starredArticlesPageSize: number;
   availableTags: Tag[];
   folderSortOrder?: {
-    by: "name" | "created" | "modified";
+    by: "name" | "created" | "modified" | "custom";
     ascending: boolean;
   };
   feedSortOrder?: {
-    by: "name" | "created" | "itemCount";
+    by: "name" | "created" | "itemCount" | "custom";
     ascending: boolean;
   };
   folderFeedSortOrders?: {
     [folderPath: string]: {
-      by: "name" | "created" | "itemCount";
+      by: "name" | "created" | "itemCount" | "custom";
       ascending: boolean;
     };
   };
