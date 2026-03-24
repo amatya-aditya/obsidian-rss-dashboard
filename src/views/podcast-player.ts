@@ -21,7 +21,7 @@ export class PodcastPlayer {
     private onEpisodeSelected?: (item: FeedItem, source: 'playlist' | 'nav' | 'autoplay' | 'external') => void;
 
     private playerEl: HTMLElement | null = null;
-    private playButton: HTMLButtonElement | null = null;
+    private playButton: HTMLElement | null = null;
     private currentTimeEl: HTMLElement | null = null;
     private durationEl: HTMLElement | null = null;
     private progressBarEl: HTMLProgressElement | null = null;
@@ -210,12 +210,34 @@ export class PodcastPlayer {
         // 1.2 Center: Transport Controls
         const transportSection = mainControlsRow.createDiv({ cls: "podcast-transport-section" });
         
-        this.shuffleButton = transportSection.createEl("button", { cls: "rss-shuffle-btn" });
+        this.shuffleButton = transportSection.createDiv({
+            cls: "rss-shuffle-btn clickable-icon",
+            attr: {
+                title: "Shuffle",
+                role: "button",
+                tabindex: "0",
+                "aria-label": "Shuffle"
+            }
+        });
         setIcon(this.shuffleButton, "shuffle");
         this.shuffleButton.onclick = () => this.toggleShuffle();
+        this.shuffleButton.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                this.toggleShuffle();
+            }
+        });
         this.updateShuffleButton();
 
-        const rewindBtn = transportSection.createEl("button", { cls: "rss-rewind" });
+        const rewindBtn = transportSection.createDiv({
+            cls: "rss-rewind clickable-icon",
+            attr: {
+                title: "Rewind 30s",
+                role: "button",
+                tabindex: "0",
+                "aria-label": "Rewind 30 seconds"
+            }
+        });
         setIcon(rewindBtn, "rotate-ccw");
         rewindBtn.createSpan({ cls: "seek-label", text: "30" });
         rewindBtn.onclick = () => {
@@ -224,18 +246,55 @@ export class PodcastPlayer {
                 this.updateProgressDisplay();
             }
         };
+        rewindBtn.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (this.audioElement) {
+                    this.audioElement.currentTime = Math.max(0, this.audioElement.currentTime - 30);
+                    this.updateProgressDisplay();
+                }
+            }
+        });
         
-        this.playButton = transportSection.createEl("button", { cls: "rss-play-pause" });
+        this.playButton = transportSection.createDiv({
+            cls: "rss-play-pause clickable-icon",
+            attr: {
+                title: "Play/Pause",
+                role: "button",
+                tabindex: "0",
+                "aria-label": "Play/Pause"
+            }
+        });
         setIcon(this.playButton, "play");
-        this.playButton.onclick = () => this.togglePlayback();
-        this.playButton.disabled = !this.hasAudioForCurrentItem;
+        this.playButton.onclick = () => {
+            if (this.playButton?.classList.contains("is-disabled")) return;
+            this.togglePlayback();
+        };
+        this.playButton.addEventListener("keydown", (e: KeyboardEvent) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (this.playButton?.classList.contains("is-disabled")) return;
+                this.togglePlayback();
+            }
+        });
+        if (!this.hasAudioForCurrentItem) {
+            this.playButton.addClass("is-disabled");
+        }
 
         if (!this.hasAudioForCurrentItem) {
             const errorText = "Audio url not found. Cannot play this podcast.";
             podcastContainer.createDiv({ cls: "podcast-player-error", text: errorText });
         }
         
-        const forwardBtn = transportSection.createEl("button", { cls: "rss-forward" });
+        const forwardBtn = transportSection.createDiv({
+            cls: "rss-forward clickable-icon",
+            attr: {
+                title: "Forward 30s",
+                role: "button",
+                tabindex: "0",
+                "aria-label": "Forward 30 seconds"
+            }
+        });
         setIcon(forwardBtn, "rotate-cw");
         forwardBtn.createSpan({ cls: "seek-label", text: "30" });
         forwardBtn.onclick = () => {
@@ -247,10 +306,36 @@ export class PodcastPlayer {
                 this.updateProgressDisplay();
             }
         };
+        forwardBtn.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (this.audioElement) {
+                    this.audioElement.currentTime = Math.min(
+                        this.audioElement.duration || Infinity,
+                        this.audioElement.currentTime + 30
+                    );
+                    this.updateProgressDisplay();
+                }
+            }
+        });
 
-        this.repeatButton = transportSection.createEl("button", { cls: "rss-repeat-btn" });
+        this.repeatButton = transportSection.createDiv({
+            cls: "rss-repeat-btn clickable-icon",
+            attr: {
+                title: "Repeat",
+                role: "button",
+                tabindex: "0",
+                "aria-label": "Repeat"
+            }
+        });
         setIcon(this.repeatButton, "repeat");
         this.repeatButton.onclick = () => this.toggleRepeat();
+        this.repeatButton.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                this.toggleRepeat();
+            }
+        });
 
         // 1.3 Right: Tools (Speed & Volume)
         const toolsSection = mainControlsRow.createDiv({ cls: "podcast-tools-section" });
@@ -270,7 +355,15 @@ export class PodcastPlayer {
         };
         
         this.volumeContainer = toolsSection.createDiv({ cls: "rss-volume-control-container" });
-        const volumeBtn = this.volumeContainer.createEl("button", { cls: "rss-volume" });
+        const volumeBtn = this.volumeContainer.createDiv({
+            cls: "rss-volume clickable-icon",
+            attr: {
+                title: "Volume",
+                role: "button",
+                tabindex: "0",
+                "aria-label": "Adjust volume"
+            }
+        });
         const updateVolumeIcon = () => {
             if (!this.audioElement) return;
             if (this.audioElement.muted || this.audioElement.volume === 0) {
@@ -302,6 +395,32 @@ export class PodcastPlayer {
                 updateVolumeIcon();
             }
         };
+
+        const toggleMute = () => {
+            if (this.audioElement) {
+                if (!this.audioElement.muted && this.audioElement.volume > 0) {
+                    this.previousVolume = this.audioElement.volume;
+                    this.audioElement.muted = true;
+                } else {
+                    this.audioElement.muted = false;
+                    if (this.audioElement.volume === 0) {
+                        this.audioElement.volume = this.previousVolume || 1;
+                    }
+                }
+                updateVolumeIcon();
+            }
+        };
+
+        volumeBtn.onclick = (e) => {
+            e.stopPropagation();
+            toggleMute();
+        };
+        volumeBtn.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                toggleMute();
+            }
+        });
         
         this.volumeSlider = this.volumeContainer.createDiv({ cls: "rss-volume-slider" });
         const volumeBar = this.volumeSlider.createEl("input", { type: "range", cls: "rss-volume-bar" });

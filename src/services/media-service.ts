@@ -10,8 +10,6 @@ export interface YouTubeEmbedConfig {
 }
 
 export class MediaService {
-  static readonly YOUTUBE_SHORT_TAG_NAME = "Youtube short";
-  static readonly YOUTUBE_SHORT_TAG_COLOR = "#ff0000";
   static readonly YOUTUBE_EMBED_REFERRER_POLICY =
     "strict-origin-when-cross-origin";
   static readonly YOUTUBE_EMBED_ALLOW =
@@ -22,13 +20,18 @@ export class MediaService {
     "youtube.com/user/",
     "youtube.com/c/",
     "youtube.com/@",
+    "youtube.com/playlist?list=",
+    "youtube.com/results?search_query=",
     "youtube.com/watch",
     "youtu.be/",
   ];
 
   static isYouTubeFeed(url: string): boolean {
     if (!url) return false;
-    return this.YOUTUBE_PATTERNS.some((pattern) => url.includes(pattern));
+    const normalizedUrl = url.toLowerCase();
+    return this.YOUTUBE_PATTERNS.some((pattern) =>
+      normalizedUrl.includes(pattern),
+    );
   }
 
   static isXUrl(url: string): boolean {
@@ -48,71 +51,74 @@ export class MediaService {
     if (xMatch?.[1]) {
       const username = xMatch[1];
       // Skip if it's a common page like 'home', 'notifications', etc.
-      const commonPages = ["home", "notifications", "messages", "explore", "search", "i", "settings"];
+      const commonPages = [
+        "home",
+        "notifications",
+        "messages",
+        "explore",
+        "search",
+        "i",
+        "settings",
+      ];
       if (commonPages.includes(username.toLowerCase())) return null;
-      
+
       return `https://nitter.net/${username}/rss`;
     }
 
     return null;
   }
 
-  static isYouTubeShortLink(link: string): boolean {
-    if (!link) return false;
+  private static extractChannelIdFromHtml(html: string): string | null {
+    if (!html) return null;
 
-    try {
-      const normalizedLink = link.toLowerCase();
-      return (
-        normalizedLink.includes("youtube.com/shorts/") ||
-        normalizedLink.includes("youtu.be/shorts/") ||
-        normalizedLink.includes("/shorts/")
-      );
-    } catch {
-      return false;
-    }
-  }
-
-  static shouldDetectYouTubeShort(
-    feedUrl: string,
-    itemLink: string,
-    detectYouTubeShorts: boolean,
-  ): boolean {
-    return (
-      detectYouTubeShorts &&
-      this.isYouTubeFeed(feedUrl) &&
-      this.isYouTubeShortLink(itemLink)
+    // 1. Try RSS feed link
+    const rssMatch = html.match(
+      /href="https:\/\/www\.youtube\.com\/feeds\/videos\.xml\?channel_id=(UC[\w-]{22})"/,
     );
-  }
+    if (rssMatch?.[1]) return rssMatch[1];
 
-  static updateYouTubeShortTags(
-    tags: Tag[] | undefined,
-    isShort: boolean,
-    availableTags: Tag[],
-  ): Tag[] {
-    const existingTags = tags ? [...tags] : [];
-    const shortTagName = this.YOUTUBE_SHORT_TAG_NAME.toLowerCase();
-    const filteredTags = existingTags.filter(
-      (tag) => tag.name.toLowerCase() !== shortTagName,
+    // 2. Try canonical link
+    const canonicalMatch = html.match(
+      /<link rel="canonical" href="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
     );
+    if (canonicalMatch?.[1]) return canonicalMatch[1];
 
-    if (!isShort) {
-      return filteredTags;
-    }
-
-    let shortTag = availableTags.find(
-      (tag) => tag.name.toLowerCase() === shortTagName,
+    // 3. Try meta itemprop
+    const metaMatch = html.match(
+      /<meta itemprop="channelId" content="(UC[\w-]{22})"/,
     );
+    if (metaMatch?.[1]) return metaMatch[1];
 
-    if (!shortTag) {
-      shortTag = {
-        name: this.YOUTUBE_SHORT_TAG_NAME,
-        color: this.YOUTUBE_SHORT_TAG_COLOR,
-      };
-      availableTags.push(shortTag);
+    // 4. Try other common metadata
+    const ogMatch = html.match(
+      /<meta property="og:url" content="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
+    );
+    if (ogMatch?.[1]) return ogMatch[1];
+
+    const twitterMatch = html.match(
+      /<meta name="twitter:app:url:googleplay" content="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
+    );
+    if (twitterMatch?.[1]) return twitterMatch[1];
+
+    // 5. Fallback to existing broad patterns
+    const patterns = [
+      /channelId"?\s*:\s*"(UC[\w-]{22})"/,
+      /"externalId"\s*:\s*"(UC[\w-]{22})"/,
+      /"id"\s*:\s*"(UC[\w-]{22})"/,
+      /data-channel-external-id="(UC[\w-]{22})"/,
+      /"channelId"\s*:\s*"(UC[\w-]{22})"/,
+      /channelId=(UC[\w-]{22})/,
+      /"ucid"\s*:\s*"(UC[\w-]{22})"/,
+    ];
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) {
+        return match[1];
+      }
     }
 
-    filteredTags.push({ ...shortTag });
-    return filteredTags;
+    return null;
   }
 
   static async getYouTubeRssFeed(input: string): Promise<string | null> {
@@ -154,23 +160,13 @@ export class MediaService {
               throw new Error("Empty response from YouTube");
             }
 
-            // Try multiple regex patterns to find channel ID
-            const patterns = [
-              /channelId"?\s*:\s*"(UC[\w-]{22})"/,
-              /"externalId"\s*:\s*"(UC[\w-]{22})"/,
-              /"id"\s*:\s*"(UC[\w-]{22})"/,
-              /data-channel-external-id="(UC[\w-]{22})"/,
-              /"channelId"\s*:\s*"(UC[\w-]{22})"/,
-              /channelId=(UC[\w-]{22})/,
-              /"ucid"\s*:\s*"(UC[\w-]{22})"/,
-            ];
+            if (!response.text) {
+              throw new Error("Empty response from YouTube");
+            }
 
-            for (const pattern of patterns) {
-              const match = response.text.match(pattern);
-              if (match?.[1]) {
-                channelId = match[1];
-                break;
-              }
+            const extractedId = this.extractChannelIdFromHtml(response.text);
+            if (extractedId) {
+              channelId = extractedId;
             }
           } catch (error) {
             console.error(`[YouTube] Error fetching channel:`, error);
@@ -201,23 +197,13 @@ export class MediaService {
               throw new Error("Empty response from YouTube");
             }
 
-            // Try multiple regex patterns to find channel ID
-            const patterns = [
-              /channelId"?\s*:\s*"(UC[\w-]{22})"/,
-              /"externalId"\s*:\s*"(UC[\w-]{22})"/,
-              /"id"\s*:\s*"(UC[\w-]{22})"/,
-              /data-channel-external-id="(UC[\w-]{22})"/,
-              /"channelId"\s*:\s*"(UC[\w-]{22})"/,
-              /channelId=(UC[\w-]{22})/,
-              /"ucid"\s*:\s*"(UC[\w-]{22})"/,
-            ];
+            if (!response.text) {
+              throw new Error("Empty response from YouTube");
+            }
 
-            for (const pattern of patterns) {
-              const idMatch = response.text.match(pattern);
-              if (idMatch?.[1]) {
-                channelId = idMatch[1];
-                break;
-              }
+            const extractedId = this.extractChannelIdFromHtml(response.text);
+            if (extractedId) {
+              channelId = extractedId;
             }
           } catch (error) {
             console.error(`[YouTube] Error fetching channel:`, error);

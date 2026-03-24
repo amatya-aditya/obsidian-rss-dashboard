@@ -103,7 +103,6 @@ export function parseFeedPreviewFromXmlText(
 export async function loadFeedForPreview(
   feedUrl: string,
 ): Promise<FeedPreviewData> {
-
   // Try direct request first
   try {
     const response = await requestUrl({
@@ -879,65 +878,62 @@ export class CustomXMLParser {
   private getTextContent(element: Element | null, tagName: string): string {
     if (!element) return "";
     let el: Element | null = null;
+
     if (tagName.includes("\\:")) {
       el = element.querySelector(tagName);
     } else if (tagName.includes(":")) {
-      const parts = tagName.split(":");
-      if (parts.length === 2) {
-        const [namespace, localName] = parts;
+      const [namespace, localName] = tagName.split(":");
+
+      // 1. Try namespaced selector with backslash
+      try {
+        el = element.querySelector(`${namespace}\\:${localName}`);
+      } catch {
+        /* ignore */
+      }
+
+      // 2. Try getElementsByTagNameNS if not found
+      if (!el) {
         try {
-          el = element.querySelector(`${namespace}\\:${localName}`);
+          const elements = element.getElementsByTagNameNS("*", localName);
+          if (elements.length > 0) el = elements[0];
         } catch {
-          try {
-            const elements = element.getElementsByTagNameNS("*", localName);
-            if (elements.length > 0) {
-              el = elements[0];
-            }
-          } catch {
-            try {
-              el = element.querySelector(localName);
-            } catch {
-              el = element.querySelector(`*[local-name()="${localName}"]`);
-            }
-          }
+          /* ignore */
         }
-        if (!el && namespace === "content" && localName === "encoded") {
-          const contentSelectors = [
-            "content\\:encoded",
-            "content:encoded",
-            '*[local-name()="encoded"]',
-            "encoded",
-          ];
-          for (const selector of contentSelectors) {
-            try {
-              el = element.querySelector(selector);
-              if (el) break;
-            } catch {
-              continue;
-            }
-          }
+      }
+
+      // 3. Try local name only if still not found
+      if (!el) {
+        try {
+          el = element.querySelector(localName);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      // 4. Try local-name() selector if still not found
+      if (!el) {
+        try {
+          el = element.querySelector(`*[local-name()="${localName}"]`);
+        } catch {
+          /* ignore */
         }
       }
     } else {
+      // Basic tag
       el = element.querySelector(tagName);
       if (!el) {
-        const tagEls = element.getElementsByTagName(tagName);
-        if (tagEls.length > 0) {
-          el = tagEls[0];
-        } else if (element.getElementsByTagNameNS) {
-          const nsEls = element.getElementsByTagNameNS("*", tagName);
-          if (nsEls.length > 0) {
-            el = nsEls[0];
-          }
+        try {
+          const tagEls = element.getElementsByTagName(tagName);
+          if (tagEls.length > 0) el = tagEls[0];
+        } catch {
+          /* ignore */
         }
       }
     }
+
     if (!el) return "";
     const textContent = el.textContent?.trim() || "";
-    if (textContent) {
-      return this.sanitizeCDATA(textContent);
-    }
-    return "";
+    return textContent ? this.sanitizeCDATA(textContent) : "";
   }
 
   private sanitizeCDATA(text: string): string {
@@ -1222,12 +1218,9 @@ export class CustomXMLParser {
     const description = this.getTextContent(channel, "description");
     const link = this.getTextContent(channel, "link");
 
-    const author = this.getTextContentWithMultipleSelectors(channel, [
-      "author",
-      "dc\\:creator",
-      "dc:creator",
-      '*[local-name()="creator"]',
-    ]);
+    const author =
+      this.getTextContent(channel, "author") ||
+      this.getTextContent(channel, "dc:creator");
 
     const imageElement = channel.querySelector("image");
     const image = imageElement
@@ -1292,20 +1285,13 @@ export class CustomXMLParser {
 
       const author =
         authors ||
-        this.getTextContentWithMultipleSelectors(item, [
-          "author",
-          "dc\\:creator",
-          "dc:creator",
-          '*[local-name()="creator"]',
-        ]);
+        this.getTextContent(item, "author") ||
+        this.getTextContent(item, "dc:creator");
 
       const content =
-        this.getTextContentWithMultipleSelectors(item, [
-          "content\\:encoded",
-          "content:encoded",
-          '*[local-name()="encoded"]',
-          "encoded",
-        ]) || description;
+        this.getTextContent(item, "content:encoded") ||
+        this.getTextContent(item, "encoded") ||
+        description;
 
       const enclosureElement = item.querySelector("enclosure");
       const enclosure = enclosureElement
@@ -1450,12 +1436,9 @@ export class CustomXMLParser {
       }
 
       const contentValue =
-        this.getTextContentWithMultipleSelectors(item, [
-          "content\\:encoded",
-          "content:encoded",
-          '*[local-name()="encoded"]',
-          "encoded",
-        ]) || description;
+        this.getTextContent(item, "content:encoded") ||
+        this.getTextContent(item, "encoded") ||
+        description;
 
       items.push({
         title: title || "Untitled",
@@ -1549,6 +1532,15 @@ export class CustomXMLParser {
       const author = this.getTextContent(entry, "author > name");
       const content = this.getTextContent(entry, "content") || description;
 
+      // Extract duration from media:content or itunes:duration
+      let duration = this.getTextContent(entry, "itunes\\:duration");
+      if (!duration) {
+        const mediaContent = entry.querySelector("media\\:content");
+        if (mediaContent) {
+          duration = mediaContent.getAttribute("duration") || "";
+        }
+      }
+
       items.push({
         title,
         link,
@@ -1558,6 +1550,9 @@ export class CustomXMLParser {
         author,
         content,
         category: this.getTextContent(entry, "category"),
+        itunes: {
+          duration: duration || undefined,
+        },
       });
     });
 
@@ -1625,10 +1620,7 @@ export class CustomXMLParser {
       cleanedXml = cleanedXml.replace(/<\?.*?\?>/gi, "");
 
       // Unwrap CDATA sections so regex-based extraction can match content
-      cleanedXml = cleanedXml.replace(
-        /<!\[CDATA\[([\s\S]*?)\]\]>/g,
-        "$1",
-      );
+      cleanedXml = cleanedXml.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1");
 
       const rssStartMatch = cleanedXml.match(/<rss[^>]*>/i);
       if (rssStartMatch) {
@@ -2097,6 +2089,98 @@ export class CustomXMLParser {
   }
 }
 
+function getPubDateMs(pubDate: string | undefined | null): number {
+  if (!pubDate) return 0;
+  const ms = Date.parse(pubDate);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function isProtectedItem(item: FeedItem): boolean {
+  return !!item.saved || !!item.starred;
+}
+
+/**
+ * Merge refreshed items with any previously cached items that fell out of the
+ * server's latest-N window, keyed by item guid.
+ *
+ * Assumes `guid` values are stable identifiers (as produced by our parser).
+ */
+export function mergeFeedHistoryItems(
+  existingItems: FeedItem[] | null | undefined,
+  refreshedItems: FeedItem[],
+): FeedItem[] {
+  const seen = new Set<string>();
+  const uniqueRefreshed: FeedItem[] = [];
+
+  for (const item of refreshedItems) {
+    const key = item.guid || item.link || "";
+    if (!key) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    uniqueRefreshed.push(item);
+  }
+
+  const carriedForward: FeedItem[] = [];
+  for (const item of existingItems || []) {
+    const key = item.guid || item.link || "";
+    if (!key) continue;
+    if (!seen.has(key)) {
+      carriedForward.push(item);
+    }
+  }
+
+  return [...carriedForward, ...uniqueRefreshed];
+}
+
+export function applyFeedRetentionLimits(
+  feed: Feed,
+  options?: { nowMs?: number },
+): Feed {
+  const nowMs = options?.nowMs ?? Date.now();
+  const maxItemsLimit =
+    typeof feed.maxItemsLimit === "number" ? feed.maxItemsLimit : undefined;
+  const autoDeleteDuration =
+    typeof feed.autoDeleteDuration === "number"
+      ? feed.autoDeleteDuration
+      : undefined;
+
+  const byNewest = (a: FeedItem, b: FeedItem): number => {
+    const aMs = getPubDateMs(a.pubDate);
+    const bMs = getPubDateMs(b.pubDate);
+    if (aMs !== bMs) return bMs - aMs;
+    return (a.guid || "").localeCompare(b.guid || "");
+  };
+
+  let items = [...(feed.items || [])];
+
+  // Auto-delete: remove read-only items older than cutoff (never remove protected).
+  if (autoDeleteDuration && autoDeleteDuration > 0) {
+    const cutoffMs = nowMs - autoDeleteDuration * 24 * 60 * 60 * 1000;
+    items = items.filter((item) => {
+      if (isProtectedItem(item)) return true;
+      if (!item.read) return true;
+      return getPubDateMs(item.pubDate) > cutoffMs;
+    });
+  }
+
+  // Max-items: keep newest non-protected items up to the limit; protected items don't count.
+  if (maxItemsLimit && maxItemsLimit > 0) {
+    const protectedItems = items.filter(isProtectedItem);
+    const nonProtected = items.filter((item) => !isProtectedItem(item));
+    nonProtected.sort(byNewest);
+    const limitedNonProtected = nonProtected.slice(0, maxItemsLimit);
+    items = [...protectedItems, ...limitedNonProtected];
+  }
+
+  // Always sort newest-first for predictable slicing in views and for stable persistence.
+  items.sort(byNewest);
+
+  return {
+    ...feed,
+    items,
+  };
+}
+
 export class FeedParser {
   private mediaSettings: MediaSettings;
   private availableTags: Tag[];
@@ -2519,23 +2603,24 @@ export class FeedParser {
     const existingItems = new Map<string, FeedItem>();
     if (existingFeed) {
       existingFeed.items.forEach((item) => {
-        existingItems.set(item.guid, item);
+        const key = this.convertToAbsoluteUrl(
+          item.guid || item.link || "",
+          url,
+        );
+        if (key) {
+          existingItems.set(key, item);
+        }
       });
     }
 
     const newItems: FeedItem[] = [];
     const updatedItems: FeedItem[] = [];
-    const shouldDetectYouTubeShorts = this.mediaSettings.detectYouTubeShorts;
+    const seenGuids = new Set<string>();
 
-    parsed.items.forEach((item: ParsedItem) => {
+    for (const item of parsed.items) {
       const isAudioEnclosure = item.enclosure?.type?.startsWith("audio/");
       const isAudioLink = !!(item.link && item.link.includes(".mp3"));
       const isPodcast = isAudioEnclosure || isAudioLink;
-      const isYouTubeShort = MediaService.shouldDetectYouTubeShort(
-        url,
-        item.link || "",
-        shouldDetectYouTubeShorts,
-      );
 
       const audioUrl = isAudioEnclosure
         ? this.convertToAbsoluteUrl(item.enclosure?.url || "", url)
@@ -2558,6 +2643,9 @@ export class FeedParser {
         url,
       );
       const existingItem = existingItems.get(itemGuid);
+      if (itemGuid) {
+        seenGuids.add(itemGuid);
+      }
 
       if (existingItem) {
         let coverImage = existingItem.coverImage;
@@ -2597,11 +2685,6 @@ export class FeedParser {
           author: item.author || parsed.author || existingItem.author,
           read: existingItem.read,
           starred: existingItem.starred,
-          tags: MediaService.updateYouTubeShortTags(
-            existingItem.tags,
-            isYouTubeShort,
-            this.availableTags,
-          ),
           saved: existingItem.saved,
           feedTitle: newFeed.title, // Update feedTitle to match the new feed title
           coverImage,
@@ -2633,9 +2716,7 @@ export class FeedParser {
           enclosure: enclosure ? enclosure : existingItem.enclosure,
           ieee: item.ieee || existingItem.ieee,
           audioUrl: audioUrl ? audioUrl : existingItem.audioUrl,
-          mediaType: isPodcast
-            ? "podcast"
-            : existingItem.mediaType || "article",
+          mediaType: isPodcast ? "podcast" : existingItem.mediaType || "article",
         };
         updatedItems.push(updatedItem);
       } else {
@@ -2716,11 +2797,7 @@ export class FeedParser {
           guid: itemGuid,
           read: false,
           starred: false,
-          tags: MediaService.updateYouTubeShortTags(
-            [],
-            isYouTubeShort,
-            this.availableTags,
-          ),
+          tags: [],
           feedTitle: newFeed.title,
           feedUrl: newFeed.url,
           coverImage,
@@ -2743,28 +2820,23 @@ export class FeedParser {
         };
         newItems.push(newItem);
       }
-    });
+    }
 
-    const allItems: FeedItem[] = [];
-
+    const refreshedItems = [...updatedItems, ...newItems];
+    const carriedForward: FeedItem[] = [];
     if (existingFeed) {
-      existingFeed.items.forEach((item) => {
-        const itemGuid = this.convertToAbsoluteUrl(
+      for (const item of existingFeed.items) {
+        const key = this.convertToAbsoluteUrl(
           item.guid || item.link || "",
           url,
         );
-
-        if (!existingItems.has(itemGuid)) {
-          allItems.push(item);
+        if (key && !seenGuids.has(key)) {
+          carriedForward.push(item);
         }
-      });
+      }
     }
 
-    allItems.push(...updatedItems);
-
-    allItems.push(...newItems);
-
-    newFeed.items = allItems;
+    newFeed.items = mergeFeedHistoryItems(carriedForward, refreshedItems);
     newFeed.lastUpdated = Date.now();
 
     this.applyFeedLimits(newFeed);
@@ -2817,36 +2889,8 @@ export class FeedParser {
    * Apply maxItemsLimit and autoDeleteDuration to a feed's items
    */
   private applyFeedLimits(feed: Feed): void {
-    if (
-      feed.maxItemsLimit &&
-      feed.maxItemsLimit > 0 &&
-      feed.items.length > feed.maxItemsLimit
-    ) {
-      const readItems = feed.items.filter((item) => item.read);
-      const unreadItems = feed.items.filter((item) => !item.read);
-
-      unreadItems.sort(
-        (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
-      );
-
-      const maxUnreadItems = Math.max(0, feed.maxItemsLimit - readItems.length);
-      const limitedUnreadItems = unreadItems.slice(0, maxUnreadItems);
-
-      feed.items = [...readItems, ...limitedUnreadItems];
-    }
-
-    if (feed.autoDeleteDuration && feed.autoDeleteDuration > 0) {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - feed.autoDeleteDuration);
-
-      const readItems = feed.items.filter((item) => item.read);
-      const unreadItems = feed.items.filter(
-        (item) =>
-          !item.read && new Date(item.pubDate).getTime() > cutoffDate.getTime(),
-      );
-
-      feed.items = [...readItems, ...unreadItems];
-    }
+    const updated = applyFeedRetentionLimits(feed);
+    feed.items = updated.items;
   }
 
   async refreshFeed(feed: Feed): Promise<Feed> {
@@ -2961,7 +3005,7 @@ export class FeedParserService {
       ieee: item.ieee,
     }));
 
-    return {
+    const tempFeed: Feed = {
       title: parsed.title || "",
       url: url,
       items: items,
@@ -2976,6 +3020,10 @@ export class FeedParserService {
           : "") ||
         (typeof parsed.image === "string" ? parsed.image : ""),
     };
+
+    // Correctly detect and process media types (YouTube, etc.)
+    const processedFeed = MediaService.detectAndProcessFeed(tempFeed);
+
+    return processedFeed;
   }
 }
-

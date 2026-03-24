@@ -32,6 +32,7 @@ import {
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./src/views/reader-view";
 import {
   FeedParser,
+  applyFeedRetentionLimits,
   formatFeedParseNoticeMessage,
   getFeedErrorMessage,
 } from "./src/services/feed-parser";
@@ -576,42 +577,8 @@ export default class RssDashboardPlugin extends Plugin {
 
       for (const feed of this.settings.feeds) {
         const originalCount = feed.items.length;
-
-        if (
-          feed.maxItemsLimit &&
-          feed.maxItemsLimit > 0 &&
-          feed.items.length > feed.maxItemsLimit
-        ) {
-          const readItems = feed.items.filter((item) => item.read);
-          const unreadItems = feed.items.filter((item) => !item.read);
-
-          unreadItems.sort(
-            (a, b) =>
-              new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
-          );
-
-          const maxUnreadItems = Math.max(
-            0,
-            feed.maxItemsLimit - readItems.length,
-          );
-          const limitedUnreadItems = unreadItems.slice(0, maxUnreadItems);
-
-          feed.items = [...readItems, ...limitedUnreadItems];
-        }
-
-        if (feed.autoDeleteDuration && feed.autoDeleteDuration > 0) {
-          const cutoffDate = new Date();
-          cutoffDate.setDate(cutoffDate.getDate() - feed.autoDeleteDuration);
-
-          const readItems = feed.items.filter((item) => item.read);
-          const unreadItems = feed.items.filter(
-            (item) =>
-              !item.read &&
-              new Date(item.pubDate).getTime() > cutoffDate.getTime(),
-          );
-
-          feed.items = [...readItems, ...unreadItems];
-        }
+        const updated = applyFeedRetentionLimits(feed);
+        feed.items = updated.items;
 
         if (feed.items.length !== originalCount) {
           updatedCount++;
@@ -773,7 +740,10 @@ export default class RssDashboardPlugin extends Plugin {
               lastUpdated: Date.now(),
               mediaType: feedMetadata.mediaType || "article",
               autoDeleteDuration: feedMetadata.autoDeleteDuration,
-              maxItemsLimit: feedMetadata.maxItemsLimit || 50,
+              maxItemsLimit:
+                typeof feedMetadata.maxItemsLimit === "number"
+                  ? feedMetadata.maxItemsLimit
+                  : 50,
               scanInterval: feedMetadata.scanInterval,
               filters: {
                 overrideGlobalFilters: false,
@@ -1299,7 +1269,8 @@ export default class RssDashboardPlugin extends Plugin {
     autoDeleteDuration?: number,
     maxItemsLimit?: number,
     scanInterval?: number,
-    feedFilters?: FeedFilterSettings,
+      feedFilters?: FeedFilterSettings,
+    customTemplate?: string,
   ) {
     try {
       if (this.settings.feeds.some((f) => f.url === url)) {
@@ -1320,10 +1291,17 @@ export default class RssDashboardPlugin extends Plugin {
         folder,
         items: [],
         lastUpdated: Date.now(),
-        autoDeleteDuration: autoDeleteDuration || 0,
-        maxItemsLimit: maxItemsLimit || this.settings.maxItems,
+        autoDeleteDuration:
+          typeof autoDeleteDuration === "number"
+            ? autoDeleteDuration
+            : this.settings.defaultAutoDeleteDuration,
+        maxItemsLimit:
+          typeof maxItemsLimit === "number"
+            ? maxItemsLimit
+            : this.settings.maxItems,
         scanInterval: scanInterval || 0,
         mediaType: mediaType,
+        customTemplate: customTemplate || undefined,
         filters: feedFilters || {
           overrideGlobalFilters: false,
           includeLogic: "AND",
@@ -1461,6 +1439,11 @@ export default class RssDashboardPlugin extends Plugin {
       this.settings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
 
       this.migrateLegacySettings();
+
+      if (typeof this.settings.defaultAutoDeleteDuration !== "number") {
+        this.settings.defaultAutoDeleteDuration =
+          DEFAULT_SETTINGS.defaultAutoDeleteDuration;
+      }
 
       if (!this.settings.readerViewLocation) {
         this.settings.readerViewLocation = "right-sidebar";

@@ -1,6 +1,6 @@
 {
   "name": "rss-dashboard",
-  "version": "2.3.0-alpha.2",
+  "version": "2.3.0-alpha.3",
   "description": "RSS dashboard for Obsidian",
   "main": "main.js",
   "type": "commonjs",

@@ -88,7 +88,11 @@ export class RssDashboardView extends ItemView {
     super(leaf);
     this.settings = this.plugin.settings;
     this.collapsedFolders = this.settings.collapsedFolders || [];
-    this.saver = new ArticleSaver(this.app, this.settings.articleSaving);
+    this.saver = new ArticleSaver(
+      this.app,
+      this.settings.articleSaving,
+      this.settings.corsProxyEnabled ? this.settings.corsProxyUrl : undefined,
+    );
 
     // Set default filter based on settings
     const defaultFilter = this.settings.display?.defaultFilter || "all";
@@ -661,10 +665,16 @@ export class RssDashboardView extends ItemView {
   private getFilteredArticles(): FeedItem[] {
     this.syncCurrentFeedReference();
     let articles: FeedItem[] = [];
+    let currentFeedLimit: number | null = null;
 
     if (this.currentFeed) {
-      const limit = this.currentFeed.maxItemsLimit || this.settings.maxItems;
-      articles = this.currentFeed.items.slice(0, limit);
+      currentFeedLimit =
+        typeof this.currentFeed.maxItemsLimit === "number"
+          ? this.currentFeed.maxItemsLimit
+          : this.settings.maxItems;
+      // Don't slice before filtering/sorting. Refresh merge + retention sorts newest-first,
+      // but slicing early can still hide newly fetched items when ordering changes.
+      articles = [...this.currentFeed.items];
     } else if (this.currentTag) {
       for (const feed of this.settings.feeds) {
         articles = articles.concat(
@@ -752,6 +762,11 @@ export class RssDashboardView extends ItemView {
       articles.sort(
         (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
       );
+    }
+
+    // Apply per-feed display limit after sorting/filtering.
+    if (currentFeedLimit !== null && currentFeedLimit > 0) {
+      articles = articles.slice(0, currentFeedLimit);
     }
 
     // Apply pagination limits for special views (legacy/fallback)
@@ -1096,6 +1111,9 @@ export class RssDashboardView extends ItemView {
     this.currentFolder = null;
     this.currentTag = null;
     this.selectedArticle = null;
+    this.activeStatusFilters = new Set();
+    this.activeTagFilters.clear();
+    this.filterLogic = "OR";
 
     if (feed && feed.url) {
       this.feedPages[feed.url] = 1;
@@ -1117,6 +1135,9 @@ export class RssDashboardView extends ItemView {
     this.currentFolder = null;
     this.currentFeed = null;
     this.selectedArticle = null;
+    this.activeStatusFilters = new Set();
+    this.activeTagFilters.clear();
+    this.filterLogic = "OR";
     void this.render();
   }
 
@@ -1176,6 +1197,7 @@ export class RssDashboardView extends ItemView {
     maxItemsLimit?: number,
     scanInterval?: number,
     feedFilters?: FeedFilterSettings,
+    customTemplate?: string,
   ): Promise<void> {
     await this.plugin.addFeed(
       title,
@@ -1185,6 +1207,7 @@ export class RssDashboardView extends ItemView {
       maxItemsLimit,
       scanInterval,
       feedFilters,
+      customTemplate,
     );
     void this.render();
   }
@@ -1723,6 +1746,12 @@ export class RssDashboardView extends ItemView {
           (!item.tags || item.tags.length === 0)
         )
           return false;
+        if (
+          this.activeStatusFilters.has("untagged") &&
+          item.tags &&
+          item.tags.length > 0
+        )
+          return false;
 
         // Specific tag checks (AND mode: match ANY of the selected tags)
         if (this.activeTagFilters.size > 0) {
@@ -1755,6 +1784,11 @@ export class RssDashboardView extends ItemView {
           this.activeStatusFilters.has("tagged") &&
           item.tags &&
           item.tags.length > 0
+        )
+          match = true;
+        else if (
+          this.activeStatusFilters.has("untagged") &&
+          (!item.tags || item.tags.length === 0)
         )
           match = true;
         else if (

@@ -1,25 +1,68 @@
-## [2.3.0-alpha.2] - March 14, 2026
+## [2.3.0-alpha.3] - March 18, 2026
 
 ### New Features
 
-- Added copy-to-clipboard actions for Settings exports (data.json, usersettings.json, OPML)
-- **Podcast Player UI**: Refreshed in-app podcast player layout and controls.
-- **Episode Details**: Added a collapsible "Episode details" section under the seek bar showing episode metadata and sanitized show notes (from parsed feed content).
-- **Podcast Tags**: Show episode tags in the player and in playlist rows (with overflow handling).
-- **Live Tag Sync**: Tag assignment changes now update in real time across dashboard cards, player tag strip, and playlist rows.
+- **Sidebar Feed Filtering** (github issue #74): Added a new setting "Hide empty feeds/no unread articles" to automatically hide feeds with zero articles or only read articles from the sidebar.
+
+- **Standardized Icon Rendering**:
+  - Refactored all interactive icons to use the Obsidian-recommended `clickable-icon` pattern.
+  - Replaced standard HTML `<button>` elements with accessible `div` structures for better cross-platform (Android) compatibility.
+  - Added full keyboard support (Enter/Space) to all interactive icons.
+  - Centralized icon sizing via the `--icon-size` CSS variable.
+- **Reader Settings Refactor**:
+  - Touch sliders not ideal for mobile devices due to base Obsidian touch behavior, replaced with dropdowns to ensure consistent behavior across platforms.
+    - Replaced "Words per row" slider with a percentage-based "Paragraph width" dropdown (25%, 50%, 75%, 100%).
+    - Replaced "Font size" slider with a discrete dropdown (80% to 200%).
+    - Replaced "Line height" slider with a discrete dropdown (100% to 200%).
+  - Added 2px horizontal padding for 100% paragraph width to improve readability.
 
 ### Fixed
 
-- Fixed Settings export buttons on Obsidian Mobile (iOS/Android) by using the native share/save sheet flow
-- Added toast notifications for export and copy actions so the outcome is always visible
-- Added unit tests covering mobile share, desktop download, and clipboard fallbacks
+- **YouTube Feed Discovery** (github issue #77): Fixed an issue where adding certain YouTube channels would return the wrong RSS feed by prioritizing metadata tags (`rel="canonical"` and `itemprop="channelId"`) over generic page content.
+- **Android/iOS Rendering**: Fixed multiple instances where icons failed to render or appeared broken on mobile devices.
+- **iOS Feed Content**:
+  - Fixed an issue where Substack and Psychology Today articles appeared empty on iPhone by implementing robust XML namespace extraction using `getElementsByTagNameNS` instead of `querySelector`.
+  - Fixed full article content fetching (via Readability) failing on iOS for sites with strict WAFs (like Psychology Today) by introducing a tiered fetch mechanism with a configurable CORS Proxy fallback. You can now enable and configure a CORS proxy in the settings (see reference `docs/bugs/ios-full-article-fetch-failure.md`).
+- **Reader Rendering** (discord issue): Improved article display logic to ensure content is always rendered as the primary body, even if it matches the feed description.
+- **ESLint/Build Integrity**:
+  - Cleaned up multiple ESLint & TypeScript compilation errors in `ReaderView`.
+  - Implemented strictly-typed Obsidian app and plugin interfaces for safer API access.
+  - Standardized `HighlightService` and `robustFetch` usage to match modern patterns.
+- **Feed and Folder Validation** (github issue #67):
+  - Added strict validation for forbidden characters (`[ ] # ^ | / \ : * " < > ?`) and leading dots in feed titles and folder names.
+  - Integrated validation into Add Feed, Edit Feed, and Folder Rename modals to prevent data corruption and filesystem issues.
+  - Improved `sanitizeName` logic to provide better defaults during automated imports (e.g., OPML).
+
+### Development
+
+- **Testing**: Added unit tests for namespaced XML extraction and reader logic in `test_files/unit/ios-namespace-fix.test.ts`.
+- **Build Logging**: Added explicit confirmation messages to `esbuild.config.mjs` to verify successful JS and CSS bundling.
+- **Removed**
+  - **YouTube Short Detection**: removed feature introduced in 2.3.0-alpha.1 due to inconsistent tagging. Added a comprehensive bug report in `docs/bugs/youtube-shorts-tagging-failure.md` for future reference.
+
+---
+
+## [2.3.0-alpha.2] - March 16, 2026
+
+### New Features
+
+- **Podcast Player Improvements**:
+  - **UI** - Refreshed in-app podcast player layout and controls.
+  - **Episode Details**: Added a collapsible "Episode details" section under the seek bar showing episode metadata and sanitized show notes (from parsed feed content).
+  - **Podcast Tags**: Show episode tags in the player and in playlist rows (with overflow handling).
+- **Export Settings**: Added copy-to-clipboard actions for Settings exports (data.json, usersettings.json, OPML)
+- **Global Feed Settings**: Added a global feed settings in General tab to set default values for new feeds
+
+### Fixed
+
+- Fixed some feeds losing older history (often collapsing to ~25 items) after refresh; refresh now preserves previously cached items outside the server “latest N” window and applies per-feed retention deterministically.
+- Per-feed options now always show when adding a new feed (collapsed by default, follows default global feed settings)
 - Podcast player now keeps play/pause button state in sync during autoplay
 - Sorting/shuffling the podcast playlist no longer interrupts playback
 - Switching episodes via the playlist no longer auto-plays unexpectedly
-- Added unit tests covering podcast player autoplay, live tag refresh, and sorting playback stability
-- Reduced dead space in dashboard cards by letting cards auto-size while preserving equal-height grid rows
 - Article title in reader now hidden on mobile view
 - Reader settings sheet now notch-safe on iPhone, with improved touch layout, slider sizing, and a bottom “Done” CTA
+- Card/List view: Article titles no longer reserve an empty second line for short titles; titles now clamp to 2 lines with truncation.
 
 ---
 

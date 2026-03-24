@@ -26,3 +26,10 @@ export class App {
     return this.localStorage.get(key);
   }
 }
+
+export class Notice {
+  constructor(message: string, timeout?: number) {
+    console.log("[Stub Notice]", message);
+  }
+}
+

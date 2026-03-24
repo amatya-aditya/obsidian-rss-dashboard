@@ -17,7 +17,9 @@ import {
 } from "../types/types";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import { showEditTagModal } from "../utils/tag-utils";
+import { attachInputClearButton } from "../utils/platform-utils";
 import { SidebarSearchService } from "../services/sidebar-search-service";
+import { isValidFolderName } from "../utils/validation";
 import type RssDashboardPlugin from "../../main";
 
 export interface SidebarOptions {
@@ -48,6 +50,7 @@ export interface SidebarCallbacks {
     maxItemsLimit?: number,
     scanInterval?: number,
     feedFilters?: FeedFilterSettings,
+    customTemplate?: string,
   ) => Promise<void>;
   onEditFeed: (feed: Feed, title: string, url: string, folder: string) => void;
   onDeleteFeed: (feed: Feed) => void;
@@ -149,8 +152,9 @@ class FolderNameModal extends Modal {
 
     const submit = () => {
       const name = nameInput.value.trim();
-      if (!name) {
-        showError("Please enter a folder name.");
+      const validation = isValidFolderName(name);
+      if (!validation.valid) {
+        showError(validation.error || "Please enter a folder name.");
         nameInput.focus();
         return;
       }
@@ -227,8 +231,6 @@ export class Sidebar {
   private cachedFolderPaths: string[] | null = null;
   private isSearchExpanded = false;
   private searchQuery = "";
-  // Legacy toggle-row state (disabled by design after header toolbar migration).
-  // private isSidebarToolbarCollapsed = false;
   private isTagsExpanded = false;
   private isRefreshing = false;
   private longPressTimer: number | null = null;
@@ -572,7 +574,15 @@ export class Sidebar {
       const rootFeedsContainer = feedFoldersSection.createDiv({
         cls: "rss-dashboard-folder-feeds",
       });
-      rootFeeds.forEach((feed) => {
+
+      const filteredRootFeeds = this.settings.display.hideEmptyFeeds
+        ? rootFeeds.filter(
+            (feed) =>
+              feed.items.length > 0 && feed.items.some((item) => !item.read),
+          )
+        : rootFeeds;
+
+      filteredRootFeeds.forEach((feed) => {
         this.renderFeed(feed, rootFeedsContainer);
       });
     }
@@ -670,7 +680,12 @@ export class Sidebar {
   }
 
   private renderAllFeedsButton(container: HTMLElement): void {
-    const totalFeeds = this.settings.feeds.length;
+    const totalFeeds = this.settings.display.hideEmptyFeeds
+      ? this.settings.feeds.filter(
+          (f) => f.items.length > 0 && f.items.some((i) => !i.read),
+        ).length
+      : this.settings.feeds.length;
+
     const totalUnread = this.settings.feeds.reduce(
       (sum, feed) => sum + feed.items.filter((item) => !item.read).length,
       0,
@@ -1144,9 +1159,16 @@ export class Sidebar {
     }
 
     const folderSortOrder = this.settings.folderFeedSortOrders?.[fullPath];
-    const sortedFeedsInFolder = folderSortOrder
+    let sortedFeedsInFolder = folderSortOrder
       ? this.applyFeedSortOrder([...folderFeeds], folderSortOrder)
       : folderFeeds;
+
+    if (this.settings.display.hideEmptyFeeds) {
+      sortedFeedsInFolder = sortedFeedsInFolder.filter(
+        (feed) =>
+          feed.items.length > 0 && feed.items.some((item) => !item.read),
+      );
+    }
 
     sortedFeedsInFolder.forEach((feed) => {
       this.renderFeed(feed, folderFeedsList);
@@ -1924,23 +1946,21 @@ export class Sidebar {
         value: this.searchQuery,
       },
     });
-    const clearButton = searchContainer.createEl("button", {
-      cls: "rss-dashboard-search-clear is-hidden",
-      attr: {
-        type: "button",
-        "aria-label": "Clear search",
-        title: "Clear search",
-      },
-    });
-    setIcon(clearButton, "x");
 
-    const updateClearButtonVisibility = () => {
-      if (searchInput.value.trim()) {
-        clearButton.removeClass("is-hidden");
-      } else {
-        clearButton.addClass("is-hidden");
+    let searchTimeout: number;
+
+    attachInputClearButton(searchContainer, searchInput, () => {
+      this.searchQuery = "";
+      if (searchTimeout) {
+        window.clearTimeout(searchTimeout);
       }
-    };
+      this.filterFeedsAndFolders("");
+      searchInput.focus();
+    }, {
+      buttonClass: "rss-dashboard-search-clear",
+      hiddenClass: "is-hidden",
+      useButtonElement: true,
+    });
 
     searchInput.addEventListener("focus", () => {
       searchInput.select();
@@ -1953,12 +1973,10 @@ export class Sidebar {
       }
     });
 
-    let searchTimeout: number;
     searchInput.addEventListener("input", (e) => {
       const rawQuery = (e.target as HTMLInputElement)?.value || "";
       this.searchQuery = rawQuery;
       const query = rawQuery.toLowerCase().trim();
-      updateClearButtonVisibility();
       if (searchTimeout) {
         window.clearTimeout(searchTimeout);
       }
@@ -1967,21 +1985,8 @@ export class Sidebar {
       }, 150);
     });
 
-    clearButton.addEventListener("click", (e) => {
-      e.preventDefault();
-      searchInput.value = "";
-      this.searchQuery = "";
-      updateClearButtonVisibility();
-      if (searchTimeout) {
-        window.clearTimeout(searchTimeout);
-      }
-      this.filterFeedsAndFolders("");
-      searchInput.focus();
-    });
-
     requestAnimationFrame(() => {
       searchInput.focus();
-      updateClearButtonVisibility();
       if (window.innerWidth <= 768) {
         window.setTimeout(() => {
           searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -2146,6 +2151,7 @@ export class Sidebar {
         maxItemsLimit,
         scanInterval,
         feedFilters,
+        customTemplate,
       ) =>
         await this.callbacks.onAddFeed(
           title,
@@ -2155,6 +2161,7 @@ export class Sidebar {
           maxItemsLimit,
           scanInterval,
           feedFilters,
+          customTemplate,
         ),
       () => this.render(),
       defaultFolder,

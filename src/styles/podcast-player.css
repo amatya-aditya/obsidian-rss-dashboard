@@ -136,14 +136,15 @@
 
 .rss-rewind svg,
 .rss-forward svg {
-  width: 24px;
-  height: 24px;
-  display: block;
-  fill: none;
-  stroke: currentColor;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
+  stroke: currentColor !important;
+  fill: none !important;
   /* Lucide icons are 24x24 with stroke-width=2; at 32px they visually thicken.
      1.5 roughly compensates for 32/24 scaling. */
-  /* stroke-width: 1.5; */
+  stroke-width: 2 !important;
   stroke-linecap: round;
   stroke-linejoin: round;
   grid-area: 1 / 1;
@@ -182,22 +183,42 @@
 }
 
 .rss-play-pause {
+  --icon-size: 32px;
   width: 64px;
   height: 64px;
   border-radius: 50% !important;
 }
 
+.rss-play-pause svg {
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
+  stroke-width: 2 !important;
+}
+
 .rss-rewind,
 .rss-forward {
+  --icon-size: 24px;
   width: 44px;
   height: 44px;
 }
 
 .rss-shuffle-btn,
 .rss-repeat-btn {
+  --icon-size: 20px;
   width: 36px;
   height: 36px;
   opacity: 0.6;
+}
+
+.rss-shuffle-btn svg,
+.rss-repeat-btn svg {
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
+  stroke-width: 2 !important;
 }
 
 .rss-shuffle-btn.active,
@@ -206,6 +227,7 @@
 }
 
 .rss-volume {
+  --icon-size: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -215,6 +237,14 @@
   padding: 4px;
   border-radius: 50%;
   transition: all 0.2s ease;
+}
+
+.rss-volume svg {
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
+  stroke-width: 2 !important;
 }
 
 .rss-volume:hover {

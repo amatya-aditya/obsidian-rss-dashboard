@@ -6,7 +6,7 @@ import globals from "globals";
 
 export default defineConfig([
   {
-    ignores: ["node_modules/**", "main.js", "*.mjs"],
+    ignores: ["node_modules/**", "main.js", "*.mjs", "test_files/**"],
   },
   ...obsidianmd.configs.recommended,
   {

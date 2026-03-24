@@ -124,7 +124,6 @@ export type PodcastTheme =
 export interface MediaSettings {
   defaultYouTubeFolder: string;
   defaultYouTubeTag: string;
-  detectYouTubeShorts: boolean;
   defaultPodcastFolder: string;
   defaultPodcastTag: string;
   defaultRssFolder: string;
@@ -188,6 +187,7 @@ export interface DisplaySettings {
   sidebarItemPaddingRight: number;
   cardColumnsPerRow: number;
   cardSpacing: number;
+  hideEmptyFeeds: boolean;
 }
 
 export type ReaderTextAlign = "justify" | "left";
@@ -196,7 +196,7 @@ export type ReaderParagraphSpacing = "default" | "tight" | "normal" | "loose";
 
 export interface ReaderFormatSettings {
   textAlign: ReaderTextAlign;
-  wordsPerLine: number;
+  paragraphWidth: number;
   fontScalePct: number;
   lineHeightPct: number;
   fontFamily: ReaderFontFamily;
@@ -251,6 +251,7 @@ export interface RssDashboardSettings {
   folders: Folder[];
   refreshInterval: number;
   maxItems: number;
+  defaultAutoDeleteDuration: number;
   viewStyle: "list" | "card";
   showFeedArt: boolean;
   showThumbnails: boolean;
@@ -288,6 +289,9 @@ export interface RssDashboardSettings {
   readerViewLocation: ViewLocation;
   useWebViewer: boolean;
 
+  corsProxyEnabled: boolean;
+  corsProxyUrl: string;
+
   readerFormat: ReaderFormatSettings;
 
   media: MediaSettings;
@@ -297,7 +301,10 @@ export interface RssDashboardSettings {
   filters: GlobalFilterSettings;
 }
 
-export type SettingsOnly = Omit<RssDashboardSettings, 'feeds' | 'folders' | 'availableTags'>;
+export type SettingsOnly = Omit<
+  RssDashboardSettings,
+  "feeds" | "folders" | "availableTags"
+>;
 
 export const DEFAULT_SETTINGS: RssDashboardSettings = {
   feeds: [],
@@ -328,7 +335,8 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     },
   ],
   refreshInterval: 60,
-  maxItems: 25,
+  maxItems: 50,
+  defaultAutoDeleteDuration: 30,
   viewStyle: "card",
   showFeedArt: true,
   showThumbnails: true,
@@ -357,9 +365,11 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   viewLocation: "main",
   readerViewLocation: "main",
   useWebViewer: true,
+  corsProxyEnabled: false,
+  corsProxyUrl: "",
   readerFormat: {
     textAlign: "justify",
-    wordsPerLine: 0,
+    paragraphWidth: 100,
     fontScalePct: 100,
     lineHeightPct: 160,
     fontFamily: "default",
@@ -368,7 +378,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   media: {
     defaultYouTubeFolder: "Videos",
     defaultYouTubeTag: "youtube",
-    detectYouTubeShorts: false,
     defaultPodcastFolder: "Podcast",
     defaultPodcastTag: "podcast",
     defaultRssFolder: "RSS",
@@ -441,6 +450,7 @@ guid: "{{guid}}"
     sidebarItemPaddingRight: 2,
     cardColumnsPerRow: 0,
     cardSpacing: 15,
+    hideEmptyFeeds: false,
   },
   highlights: {
     enabled: false,

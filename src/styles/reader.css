@@ -129,6 +129,8 @@
   margin-left: auto;
   margin-right: auto;
   box-sizing: border-box;
+  padding-left: 2px;
+  padding-right: 2px;
 }
 .rss-reader-article-content,
 .rss-reader-description-body {
@@ -169,6 +171,12 @@
   .rss-reader-description-body
   p {
   margin-block: 1.15em;
+}
+
+/* Ensure all child elements inherit the line-height setting */
+.rss-reader-article-content *,
+.rss-reader-description-body * {
+  line-height: inherit;
 }
 
 .rss-reader-description-callout {
@@ -313,7 +321,8 @@
   width: auto !important;
   max-width: none !important;
   min-width: 0 !important;
-  max-height: calc(100svh - 16px);
+  max-height: 80svh;
+  max-height: 80vh;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.28);
   padding: 8px 0
@@ -348,16 +357,25 @@
 
 .rss-reader-format-controls .setting-item-control {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 12px;
   width: 100%;
+}
+
+@media (max-width: 768px) {
+  .rss-reader-format-controls .setting-item-control {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .rss-reader-format-controls
   .setting-item-control
   > :not(.rss-reader-slider-value-input) {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-width: 0;
+  width: 100%;
 }
 
 .rss-reader-format-controls .setting-item-control select {
@@ -366,9 +384,18 @@
 
 .rss-reader-format-controls .rss-reader-slider-value-input {
   flex: 0 0 auto;
-  width: 5ch;
-  min-width: 5ch;
+  width: 100%;
+  max-width: 120px;
   text-align: center;
+  align-self: flex-start;
+}
+
+@media (max-width: 768px) {
+  .rss-reader-format-controls .rss-reader-slider-value-input {
+    max-width: none;
+    width: 100%;
+    margin-top: 4px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -478,7 +505,7 @@ mark.rss-highlight {
 
   .rss-reader-article-content {
     font-size: 16px;
-    line-height: 1.6;
+    line-height: var(--rss-reader-line-height);
   }
 
   .rss-reader-responsive-img {
