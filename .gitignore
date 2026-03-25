@@ -4,7 +4,6 @@
 # npm
 node_modules
 
-
 # obsidian
 data.json
 data.json.backup
@@ -12,6 +11,8 @@ usersettings.json
 main.js
 rss-dashboard.sqlite
 styles.css
+userdata.json.backup
+feeds.opml.backup
 
 # build artifacts
 release/
@@ -21,3 +22,4 @@ release/
 docs/archive
 CLAUDE.md
 .agent/*
+starred.json

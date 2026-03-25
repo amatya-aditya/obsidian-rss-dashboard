@@ -2385,6 +2385,77 @@ export class Sidebar {
         }
       }, 5000);
     }
+
+    this.addHorizontalScrollBehavior(iconRow);
+  }
+
+  private addHorizontalScrollBehavior(iconRow: HTMLElement): void {
+    // 1. Mouse wheel horizontal scrolling
+    iconRow.addEventListener(
+      "wheel",
+      (e: WheelEvent) => {
+        if (e.deltaY !== 0) {
+          e.preventDefault();
+          iconRow.scrollLeft += e.deltaY;
+        }
+      },
+      { passive: false },
+    );
+
+    // 2. Touch/Mouse drag scrolling
+    let isDown = false;
+    let startX: number;
+    let scrollLeft: number;
+    let isDragging = false;
+
+    const startDrag = (e: MouseEvent | TouchEvent) => {
+      isDown = true;
+      isDragging = false;
+      iconRow.classList.add("dragging");
+      const clientX =
+        e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+      startX = clientX - iconRow.offsetLeft;
+      scrollLeft = iconRow.scrollLeft;
+    };
+
+    const stopDrag = () => {
+      isDown = false;
+      iconRow.classList.remove("dragging");
+    };
+
+    const drag = (e: MouseEvent | TouchEvent) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const clientX =
+        e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+      const x = clientX - iconRow.offsetLeft;
+      const walk = (x - startX) * 2; // Scroll speed multiplier
+      if (Math.abs(walk) > 5) isDragging = true;
+      iconRow.scrollLeft = scrollLeft - walk;
+    };
+
+    iconRow.addEventListener("mousedown", startDrag);
+    iconRow.addEventListener("mouseleave", stopDrag);
+    iconRow.addEventListener("mouseup", stopDrag);
+    iconRow.addEventListener("mousemove", drag);
+
+    iconRow.addEventListener("touchstart", startDrag, { passive: true });
+    iconRow.addEventListener("touchend", stopDrag);
+    iconRow.addEventListener("touchcancel", stopDrag);
+    iconRow.addEventListener("touchmove", drag, { passive: false });
+
+    // Prevent clicks if we were dragging
+    iconRow.addEventListener(
+      "click",
+      (e) => {
+        if (isDragging) {
+          e.preventDefault();
+          e.stopPropagation();
+          isDragging = false;
+        }
+      },
+      { capture: true },
+    );
   }
 
   private updateIconRowFades(): void {

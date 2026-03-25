@@ -1114,6 +1114,16 @@
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
   padding: 1px 0; /* keep focus rings from clipping */
+  cursor: grab;
+}
+
+.rss-dashboard-header-icon-row.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.rss-dashboard-header-icon-row.dragging .clickable-icon {
+  pointer-events: none;
 }
 
 .rss-dashboard-header-icon-row::-webkit-scrollbar {
