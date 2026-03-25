@@ -1817,6 +1817,10 @@ export class RssDashboardView extends ItemView {
           new Set(this.activeTagFilters),
           this.filterLogic,
           articlesForPage,
+          pagePagination.currentPage,
+          pagePagination.totalPages,
+          pageSize,
+          filtered.length,
         );
       }
 
@@ -2332,12 +2336,32 @@ export class RssDashboardView extends ItemView {
     // For status/tag/logic changes, do a partial re-render
     // so the filter menu stays open
     if (this.articleList) {
+      // Typically we want to reset to page 1 when filters change
+      this.setCurrentPageState(1);
+
       const filtered = this.getFilteredArticles();
+      const pageSize = this.getCurrentPageSize();
+      const currentPage = this.getCurrentPage();
+      const pagePagination = computePagination({
+        totalItems: filtered.length,
+        pageSize,
+        requestedPage: currentPage,
+      });
+
+      const articlesForPage = filtered.slice(
+        pagePagination.startIdx,
+        pagePagination.endIdx,
+      );
+
       this.articleList.refilter(
         new Set(this.activeStatusFilters),
         new Set(this.activeTagFilters),
         this.filterLogic,
-        filtered,
+        articlesForPage,
+        pagePagination.currentPage,
+        pagePagination.totalPages,
+        pageSize,
+        filtered.length,
       );
       this.refreshFilterStatusBarOnly();
       this.scheduleHeaderTitleRefresh();

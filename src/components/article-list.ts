@@ -510,11 +510,19 @@ export class ArticleList {
     tagFilters: Set<string>,
     filterLogic: "AND" | "OR",
     articles: FeedItem[],
+    currentPage: number,
+    totalPages: number,
+    pageSize: number,
+    totalArticles: number,
   ): void {
     this.statusFilters = statusFilters;
     this.tagFilters = tagFilters;
     this.filterLogic = filterLogic;
     this.articles = articles;
+    this.currentPage = currentPage;
+    this.totalPages = totalPages;
+    this.pageSize = pageSize;
+    this.totalArticles = totalArticles;
 
     // Update all filter trigger badges (desktop + mobile)
     this.container
