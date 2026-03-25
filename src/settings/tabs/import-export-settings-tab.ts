@@ -8,7 +8,26 @@
 import { Notice, Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { ImportOpmlModal } from "../../modals/import-opml-modal";
-import { RssDashboardSettings } from "../../types/types";
+import { ImportSuccessModal } from "../../modals/import-success-modal";
+import { AutoBackupSettings, RssDashboardSettings } from "../../types/types";
+
+/**
+ * Returns a fresh copy of the default auto-backup settings.
+ */
+export function buildDefaultAutoBackupSettings(): AutoBackupSettings {
+  return {
+    backupDataJson: false,
+    backupOpml: true,
+    backupUserdata: true,
+  };
+}
+
+/**
+ * Appends .backup to the provided filename.
+ */
+export function getBackupFilename(filename: string): string {
+  return `${filename}.backup`;
+}
 
 export function renderImportExportSettingsTab(
   containerEl: HTMLElement,
@@ -32,7 +51,7 @@ export function renderImportExportSettingsTab(
         .setButtonText("Import data.json")
         .onClick(() => {
           const input = document.body.createEl("input", {
-            attr: { type: "file", accept: ".json,application/json" },
+            attr: { type: "file", accept: ".json,.backup,application/json" },
           });
           input.onchange = () => {
             void (async () => {
@@ -48,9 +67,12 @@ export function renderImportExportSettingsTab(
                   await plugin.app.workspace.revealLeaf(view.leaf);
                   view.render();
                 }
-                new Notice("Data imported successfully!");
+                new ImportSuccessModal(
+                  plugin.app,
+                  "Data imported successfully! Your dashboard has been updated.",
+                ).open();
               } catch {
-                new Notice("Invalid data.json file");
+                new Notice("Import failed: invalid or corrupted data file.");
               }
             })();
           };
@@ -91,7 +113,27 @@ export function renderImportExportSettingsTab(
         .setIcon("upload")
         .setButtonText("Import usersettings.json")
         .onClick(() => {
-          plugin.importUserSettingsJson();
+          const input = document.body.createEl("input", {
+            attr: { type: "file", accept: ".json,.backup,application/json" },
+          });
+          input.onchange = () => {
+            void (async () => {
+              const file = input.files?.[0];
+              if (!file) return;
+              try {
+                await plugin.importUserSettingsJsonFromFile(file);
+                new ImportSuccessModal(
+                  plugin.app,
+                  "User preferences imported successfully!",
+                ).open();
+              } catch (e) {
+                new Notice(
+                  `Import failed: ${e instanceof Error ? e.message : "invalid file"}`,
+                );
+              }
+            })();
+          };
+          input.click();
         }),
     )
     .addButton((button) =>
@@ -143,6 +185,51 @@ export function renderImportExportSettingsTab(
         .setTooltip("Copy feeds.opml to clipboard")
         .onClick(() => {
           void plugin.copyOpmlToClipboard();
+        }),
+    );
+
+  // ── Auto Backups ──────────────────────────────────────────────────────────
+  const backupSection = containerEl.createDiv();
+  new Setting(backupSection)
+    .setName("Auto backups")
+    .setDesc(
+      "Automatically create backup copies of your data files when the plugin closes.",
+    )
+    .setHeading();
+
+  new Setting(backupSection)
+    .setName("Back up data.json")
+    .setDesc("Saves a copy to data.json.backup in the plugin folder.")
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.autoBackup.backupDataJson)
+        .onChange(async (value) => {
+          plugin.settings.autoBackup.backupDataJson = value;
+          await plugin.saveSettings();
+        }),
+    );
+
+  new Setting(backupSection)
+    .setName("Back up feeds")
+    .setDesc("Saves a copy to feeds.opml.backup in the plugin folder.")
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.autoBackup.backupOpml)
+        .onChange(async (value) => {
+          plugin.settings.autoBackup.backupOpml = value;
+          await plugin.saveSettings();
+        }),
+    );
+
+  new Setting(backupSection)
+    .setName("Back up user preferences (userdata.json)")
+    .setDesc("Saves a copy to userdata.json.backup in the plugin folder.")
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.autoBackup.backupUserdata)
+        .onChange(async (value) => {
+          plugin.settings.autoBackup.backupUserdata = value;
+          await plugin.saveSettings();
         }),
     );
 }

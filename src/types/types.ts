@@ -274,6 +274,12 @@ export interface FeedKeywordRulesSettings {
   rules: KeywordFilterRule[];
 }
 
+export interface AutoBackupSettings {
+  backupDataJson: boolean; // copies data.json → data.json.backup
+  backupOpml: boolean; // copies feeds.opml → feeds.opml.backup
+  backupUserdata: boolean; // copies userdata.json → userdata.json.backup
+}
+
 export interface RssDashboardSettings {
   feeds: Feed[];
   folders: Folder[];
@@ -346,6 +352,8 @@ export interface RssDashboardSettings {
    * not = articles matching none of the selected tags
    */
   sidebarTagFilterMode: "or" | "and" | "not";
+
+  autoBackup: AutoBackupSettings;
 }
 
 export type SettingsOnly = Omit<
@@ -543,4 +551,9 @@ guid: "{{guid}}"
     logic: "OR",
   },
   sidebarTagFilterMode: "or",
+  autoBackup: {
+    backupDataJson: false,
+    backupOpml: true,
+    backupUserdata: true,
+  },
 };
