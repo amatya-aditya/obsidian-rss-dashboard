@@ -1,20 +1,3 @@
-## [2.2.0-beta.10] - March 26, 2026
-
-### New Features
-
-- **Bidirectional Tag Synchronization**:
-  - Implemented real-time, targeted tag refreshes between Dashboard cards and the Reader view header.
-  - Changes made in one view are immediately reflected in the other without a full page refresh.
-
-- **Feed View Tag UI**:
-  - Standardized tag placement in "Feed" view to match "Card" view, with tags in a dedicated row above the footer.
-  - Added support for tag truncation with `+n` indicator when list exceeds card width.
-
-### Fixes
-
-- **Dynamic Tag Colors**: Restored dynamic background colors for tags in all views using the `--tag-color` CSS variable.
-- **Default Tag Color**: Updated new tag color to Obsidian purple (`#8b5cf6`).
-
 ## [2.2.0-beta.9] - March 25, 2026
 
 ### New Features
@@ -33,14 +16,20 @@
   - Added "Feed" view as a preference in General settings.
   - Improved Feed View image quality by prioritizing high-resolution images and implementing a "hero blur" background layout to handle varying aspect ratios gracefully.
   - Refactored the hamburger menu view toggle from individual buttons into a single consolidated dropdown menu with dynamic icons and enhanced theme compatibility for both dark and light modes.
-  - Positioned the "Refresh All" button to the immediate right of the new dropdown for a more compact and balanced header layout.
 
 - **Auto-backup**: Added auto-backup for data.json, OPML, and userdata on plugin unload. By default, OPML and userdata are backed up to the plugin's data directory. These can be changed in the import/export settings.
 
 ### Fixes
 
 - **Pagination**: Fixed a bug where the Dashboard would bypass pagination limits and display all articles when toggling view filters or switching to the "Unread" sidebar view.
+
 - **Scroll Restoration**: Fixed a bug where the Dashboard would reset to the top when opening the Reader panel or resizing the window; implemented a focus-locking mechanism to keep the selected article in view.
+
+- **Auto-delete bug**: Fixed a bug where imported feeds were not respecting the global default auto-delete duration.
+
+### Development
+
+- **Refactor article-list.ts**: Refactored article-list.ts monolith - extracted the filter menu and hamburger menu into separate components.
 
 ## [2.2.0-beta.8] - March 24, 2026
 

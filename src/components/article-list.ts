@@ -1,10 +1,11 @@
 import { Notice, Menu, MenuItem, setIcon, Setting } from "obsidian";
 import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
+import { ArticleHeader } from "./article-header";
+import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
 import {
   formatDateWithRelative,
   ensureUtf8Meta,
   setCssProps,
-  TABLET_LAYOUT_MAX_WIDTH,
 } from "../utils/platform-utils";
 import { HighlightService } from "../services/highlight-service";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
@@ -13,51 +14,14 @@ import { computeResultsRange } from "../utils/pagination-utils";
 
 const MAX_VISIBLE_TAGS = 6;
 
-function extractDomain(url: string): string {
-  try {
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname;
-    const parts = hostname.split(".");
-    if (parts.length >= 2) {
-      if (parts.length === 3 && parts[0] === "feeds") {
-        return `${parts[1]}.${parts[2]}`;
-      } else if (parts.length >= 3) {
-        return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
-      } else {
-        return hostname;
-      }
-    }
-    return hostname;
-  } catch {
-    const match = url.match(/https?:\/\/([^/?]+)/);
-    if (match) {
-      const hostname = match[1];
-      const parts = hostname.split(".");
-      if (parts.length >= 2) {
-        if (parts.length === 3 && parts[0] === "feeds") {
-          return `${parts[1]}.${parts[2]}`;
-        } else if (parts.length >= 3) {
-          return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
-        } else {
-          return hostname;
-        }
-      }
 
-      return hostname;
-    }
-    return "";
-  }
-}
-
-function getFaviconUrl(domain: string): string {
-  if (!domain) return "";
-  return `https://www.google.com/s2/favicons?sz=32&domain_url=http://${domain}`;
-}
 
 interface ArticleListCallbacks {
   onArticleClick: (article: FeedItem) => void;
   onToggleViewStyle: (style: "list" | "card" | "feed") => void;
-  onRefreshFeeds: () => Promise<void> | void;
+  onRefreshFeeds: () => Promise<void>;
+  onSearch: (query: string) => void;
+
   onArticleUpdate: (
     article: FeedItem,
     updates: Partial<FeedItem>,
@@ -102,13 +66,15 @@ export class ArticleList {
   private pageSize: number;
   private totalArticles: number;
   private currentFeedUrl: string | null = null;
+  private header: ArticleHeader | null = null;
+
   private showFeedSource: boolean = true;
   private statusFilters: Set<string>;
   private tagFilters: Set<string>;
   private filterLogic: "AND" | "OR";
   private articleSearchQuery: string = "";
-  private articleSearchDesktopInput: HTMLInputElement | null = null;
-  private articleSearchDropdownInput: HTMLInputElement | null = null;
+  private tagsDropdownCleanup: (() => void) | null = null;
+
   private documentListeners: Array<{
     target: Document;
     type: string;
@@ -117,7 +83,6 @@ export class ArticleList {
   private activePortal: HTMLElement | null = null;
   private activeFilterToggleBtn: HTMLElement | null = null;
   private activeFilterOutsideListenerCleanup: (() => void) | null = null;
-  private tagsDropdownCleanup: (() => void) | null = null;
 
   constructor(
     container: HTMLElement,
@@ -153,6 +118,56 @@ export class ArticleList {
     this.filterLogic = filterLogic;
     this.currentFeedUrl = currentFeedUrl || null;
     this.showFeedSource = showFeedSource;
+
+    // Header and filter logic were extracted to ArticleHeader and ArticleFilterMenu 
+    // to reduce this file's length and complexity. Legacy methods like renderHeader(), 
+    // createControls(), and showFiltersMenu() now live in those respective classes.
+    this.header = new ArticleHeader(
+      this.container,
+      this.settings,
+      this.title,
+      this.titleTooltip,
+      this.currentFeedUrl,
+      this.statusFilters,
+      this.tagFilters,
+      this.filterLogic,
+      {
+        onToggleSidebar: () => this.callbacks.onToggleSidebar(),
+        onSearch: (q) => {
+            this.articleSearchQuery = q;
+            this.filterArticlesBySearch(q);
+            this.callbacks.onSearch(q);
+        },
+        onSortChange: (s) => this.callbacks.onSortChange(s),
+        onGroupChange: (g) => this.callbacks.onGroupChange(g),
+        onFilterChange: (f) => this.callbacks.onFilterChange(f),
+        onToggleViewStyle: (v) => this.callbacks.onToggleViewStyle(v),
+        onPersistSettings: () => {
+             if (this.callbacks.onPersistSettings) {
+                 void this.callbacks.onPersistSettings();
+             }
+        },
+        onRefreshFeeds: () => this.callbacks.onRefreshFeeds(),
+        onMarkAllAsRead: () => {
+             if (this.callbacks.onMarkAllAsRead) {
+                this.callbacks.onMarkAllAsRead();
+             } else {
+                this.articles.forEach(a => a.read = true);
+                if (this.callbacks.onPersistSettings) void this.callbacks.onPersistSettings();
+                this.render();
+             }
+        },
+        onMarkAllAsUnread: () => {
+             if (this.callbacks.onMarkAllAsUnread) {
+                this.callbacks.onMarkAllAsUnread();
+             } else {
+                this.articles.forEach(a => a.read = false);
+                if (this.callbacks.onPersistSettings) void this.callbacks.onPersistSettings();
+                this.render();
+             }
+        }
+      }
+    );
   }
 
   public destroy(): void {
@@ -164,7 +179,9 @@ export class ArticleList {
       cancelAnimationFrame(this.cardLayoutFrame);
       this.cardLayoutFrame = null;
     }
-    this.closeActiveFilterMenu();
+    if (this.header) {
+      this.header.destroy();
+    }
     this.documentListeners.forEach(({ target, type, listener }) => {
       target.removeEventListener(type, listener);
     });
@@ -175,36 +192,6 @@ export class ArticleList {
     }
   }
 
-  private closeActiveFilterMenu(): void {
-    if (this.activeFilterOutsideListenerCleanup) {
-      this.activeFilterOutsideListenerCleanup();
-      this.activeFilterOutsideListenerCleanup = null;
-    }
-    if (this.activePortal) {
-      this.activePortal.remove();
-      this.activePortal = null;
-    }
-    if (this.activeFilterToggleBtn) {
-      this.activeFilterToggleBtn.removeClass("active");
-      this.activeFilterToggleBtn = null;
-    }
-  }
-
-  private updateFilterTriggerBadge(button: HTMLElement): void {
-    button.classList.remove("has-active-filters");
-    button
-      .querySelectorAll(".rss-dashboard-filter-badge")
-      .forEach((el) => el.remove());
-
-    const count = this.statusFilters.size + this.tagFilters.size;
-    if (count > 0) {
-      button.classList.add("has-active-filters");
-      button.createDiv({
-        cls: "rss-dashboard-filter-badge",
-        text: String(count),
-      });
-    }
-  }
 
   private isMobileViewport(): boolean {
     return window.matchMedia("(max-width: 768px)").matches;
@@ -528,8 +515,13 @@ export class ArticleList {
     this.container.empty();
     this.headerTitleEl = null;
 
-    this.renderHeader();
+    if (this.header) {
+      this.header.render();
+    }
     this.renderArticles();
+    if (this.articleSearchQuery) {
+      this.filterArticlesBySearch(this.articleSearchQuery);
+    }
 
     requestAnimationFrame(() => {
       if (scrollPosition !== undefined) {
@@ -574,9 +566,11 @@ export class ArticleList {
     this.totalArticles = totalArticles;
 
     // Update all filter trigger badges (desktop + mobile)
-    this.container
-      .querySelectorAll(".rss-dashboard-filter-trigger")
-      .forEach((el) => this.updateFilterTriggerBadge(el as HTMLElement));
+    if (this.header) {
+        this.header.updateFilters(this.statusFilters, this.tagFilters, this.filterLogic);
+        this.header.updateFilterBadge();
+    }
+
 
     // Remove both the articles list and the pagination wrapper
     // (pagination is rendered as a sibling to the articles list)
@@ -586,21 +580,19 @@ export class ArticleList {
       )
       .forEach((el) => el.remove());
     this.renderArticles();
+
+    // Ensure local search filter is reapplied after articles list is recreated
+    if (this.articleSearchQuery) {
+        this.filterArticlesBySearch(this.articleSearchQuery);
+    }
   }
 
   public updateHeaderTitle(title: string, tooltip: string | null): void {
     this.title = title;
     this.titleTooltip = tooltip;
 
-    if (!this.headerTitleEl) {
-      return;
-    }
-
-    this.headerTitleEl.textContent = title;
-    if (tooltip) {
-      this.headerTitleEl.setAttribute("title", tooltip);
-    } else {
-      this.headerTitleEl.removeAttribute("title");
+    if (this.header) {
+        this.header.updateTitle(title, tooltip);
     }
   }
 
@@ -959,1368 +951,8 @@ export class ArticleList {
     });
   }
 
-  private renderHeader(): void {
-    const articlesHeader = this.container.createDiv({
-      cls: "rss-dashboard-articles-header",
-    });
 
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-    }
 
-    this.resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const width = entry.contentRect.width;
-        // Keep header actions compact on narrow panes.
-        if (width <= TABLET_LAYOUT_MAX_WIDTH) {
-          articlesHeader.classList.add("is-narrow");
-        } else {
-          articlesHeader.classList.remove("is-narrow");
-        }
-
-        const articlesList = this.container.querySelector<HTMLElement>(
-          ".rss-dashboard-articles-list",
-        );
-        if (articlesList && this.settings.viewStyle === "card") {
-          this.applyCardGridLayout(articlesList, width);
-          this.scheduleCardTagLayout(articlesList);
-        }
-      }
-    });
-    this.resizeObserver.observe(articlesHeader);
-
-    const leftSection = articlesHeader.createDiv({
-      cls: "rss-dashboard-header-left",
-    });
-
-    const sidebarToggleButton = leftSection.createDiv({
-      cls: "rss-dashboard-sidebar-toggle",
-      attr: { title: "Toggle sidebar" },
-    });
-    setIcon(
-      sidebarToggleButton,
-      this.settings.sidebarCollapsed ? "panel-left-open" : "panel-left-close",
-    );
-    sidebarToggleButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this.callbacks.onToggleSidebar();
-    });
-
-    // Add feed logo if viewing a specific feed
-    if (this.currentFeedUrl) {
-      const feedIconContainer = leftSection.createDiv({
-        cls: "rss-dashboard-header-feed-icon",
-      });
-      this.renderHeaderFeedIcon(feedIconContainer, this.currentFeedUrl);
-    }
-
-    const titleEl = leftSection.createDiv({
-      cls: "rss-dashboard-articles-title",
-      text: this.title,
-      attr: this.titleTooltip ? { title: this.titleTooltip } : undefined,
-    });
-    this.headerTitleEl = titleEl;
-
-    const rightSection = articlesHeader.createDiv({
-      cls: "rss-dashboard-header-right",
-    });
-
-    const mobileFilterButton = rightSection.createEl("button", {
-      cls: "rss-dashboard-mobile-filter-button rss-dashboard-filter-trigger",
-      attr: { title: "Filters" },
-    });
-    const mobileFilterIcon = mobileFilterButton.createDiv({
-      cls: "rss-dashboard-mobile-filter-icon",
-    });
-    setIcon(mobileFilterIcon, "filter");
-    this.updateFilterTriggerBadge(mobileFilterButton);
-    mobileFilterButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this.showFiltersMenu(mobileFilterButton);
-    });
-
-    const hamburgerMenu = rightSection.createDiv({
-      cls: "rss-dashboard-hamburger-menu",
-    });
-
-    const hamburgerButton = hamburgerMenu.createDiv({
-      cls: "rss-dashboard-hamburger-button",
-      attr: { title: "Menu" },
-    });
-    setIcon(hamburgerButton, "menu");
-    const hamburgerSvg = hamburgerButton.querySelector("svg");
-    const hasRenderableIcon = !!hamburgerSvg?.querySelector(
-      "path, line, polyline, polygon, circle, rect",
-    );
-    if (!hasRenderableIcon) {
-      hamburgerButton.addClass("rss-dashboard-icon-fallback");
-      hamburgerButton.setText("☰");
-    }
-
-    const dropdownMenu = hamburgerMenu.createDiv({
-      cls: "rss-dashboard-dropdown-menu",
-    });
-
-    const dropdownControls = dropdownMenu.createDiv({
-      cls: "rss-dashboard-dropdown-controls",
-    });
-
-    this.createControls(dropdownControls, { includeFilter: false });
-
-    const desktopControls = rightSection.createDiv({
-      cls: "rss-dashboard-desktop-controls",
-    });
-
-    this.createControls(desktopControls);
-
-    hamburgerButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      dropdownMenu.classList.toggle("active");
-      hamburgerButton.classList.toggle("active");
-    });
-
-    const handleDocumentClick = (e: Event) => {
-      const clickTarget = e.target as Node;
-      const isInsideHamburgerMenu = hamburgerMenu.contains(clickTarget);
-      const isInsideActiveFilterMenu =
-        this.activePortal?.contains(clickTarget) ?? false;
-
-      if (!isInsideHamburgerMenu && !isInsideActiveFilterMenu) {
-        dropdownMenu.classList.remove("active");
-        hamburgerButton.classList.remove("active");
-      }
-    };
-
-    this.addDocumentListener(
-      this.container.ownerDocument || document,
-      "click",
-      handleDocumentClick,
-    );
-  }
-
-  private createControls(
-    container: HTMLElement,
-    options?: { includeFilter?: boolean },
-  ): void {
-    const articleControls = container.createDiv({
-      cls: "rss-dashboard-article-controls",
-    });
-    const includeFilter = options?.includeFilter ?? true;
-
-    const isDropdown = container.classList.contains(
-      "rss-dashboard-dropdown-controls",
-    );
-
-    const createSelectControl = (
-      iconName: string,
-      classNames: string[],
-      labelText?: string,
-      parentEl: HTMLElement = articleControls,
-    ): HTMLSelectElement => {
-      const selectWrapper = parentEl.createDiv({
-        cls:
-          "rss-dashboard-select-with-icon" +
-          (!isDropdown && labelText ? " rss-dashboard-select-with-label" : ""),
-      });
-      const selectIcon = selectWrapper.createDiv({
-        cls: "rss-dashboard-select-icon",
-      });
-      setIcon(selectIcon, iconName);
-
-      if (!isDropdown && labelText) {
-        selectWrapper.createSpan({
-          cls: "rss-dashboard-select-label",
-          text: labelText,
-        });
-      }
-
-      const select = selectWrapper.createEl("select");
-      select.addClass(...classNames);
-      return select;
-    };
-
-    if (includeFilter) {
-      const multiFilterBtn = articleControls.createEl("button", {
-        cls: "rss-dashboard-multi-filter-btn rss-dashboard-filter-trigger",
-      });
-      const filterIcon = multiFilterBtn.createDiv();
-      setIcon(filterIcon, "filter");
-      multiFilterBtn.createSpan({ text: "Filter" });
-      this.updateFilterTriggerBadge(multiFilterBtn);
-
-      multiFilterBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.showFiltersMenu(multiFilterBtn);
-      });
-    }
-
-    // Article search input
-    const searchContainer = articleControls.createDiv({
-      cls: "rss-dashboard-article-search-container",
-    });
-
-    // Create search icon first (so it's absolutely positioned correctly)
-    const searchIcon = searchContainer.createDiv({
-      cls: "rss-dashboard-article-search-icon",
-    });
-    setIcon(searchIcon, "search");
-
-    const searchInput = searchContainer.createEl("input", {
-      cls: "rss-dashboard-article-search-input",
-      attr: {
-        type: "text",
-        placeholder: "Search articles...",
-        autocomplete: "off",
-        spellcheck: "false",
-      },
-    });
-
-    let clearSearchButton: HTMLButtonElement | null = null;
-    if (isDropdown) {
-      clearSearchButton = searchContainer.createEl("button", {
-        cls: "rss-dashboard-article-search-clear-button is-hidden",
-        attr: {
-          type: "button",
-          title: "Clear search",
-          "aria-label": "Clear search",
-        },
-      });
-      setIcon(clearSearchButton, "x");
-    }
-
-    // Store reference to sync between dropdown and desktop
-    if (isDropdown) {
-      this.articleSearchDropdownInput = searchInput;
-    } else {
-      this.articleSearchDesktopInput = searchInput;
-    }
-
-    let searchTimeout: number;
-    const applySearchQuery = (rawValue: string, debounce = true): void => {
-      const query = rawValue.toLowerCase().trim();
-      this.articleSearchQuery = query;
-
-      if (clearSearchButton) {
-        const hasValue = rawValue.trim().length > 0;
-        clearSearchButton.toggleClass("is-hidden", !hasValue);
-      }
-
-      // Sync the other search input if it exists
-      if (isDropdown && this.articleSearchDesktopInput) {
-        this.articleSearchDesktopInput.value = rawValue;
-      } else if (!isDropdown && this.articleSearchDropdownInput) {
-        this.articleSearchDropdownInput.value = rawValue;
-      }
-
-      if (searchTimeout) {
-        window.clearTimeout(searchTimeout);
-      }
-
-      if (!debounce) {
-        this.filterArticlesBySearch(query);
-        return;
-      }
-
-      searchTimeout = window.setTimeout(() => {
-        this.filterArticlesBySearch(query);
-      }, 150);
-    };
-
-    // Search input event handler with debouncing
-    searchInput.addEventListener("input", (e) => {
-      applySearchQuery((e.target as HTMLInputElement)?.value || "", true);
-    });
-
-    if (clearSearchButton) {
-      clearSearchButton.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        searchInput.value = "";
-        applySearchQuery("", false);
-        searchInput.focus();
-      });
-    }
-
-    // Move age filter into its own space or keep as is?
-    // For now, let's keep it but make it smaller or label it better.
-    const ageDropdown = createSelectControl(
-      "history",
-      ["rss-dashboard-filter", "rss-dashboard-age-filter"],
-      "Age:",
-    );
-    const ageOptions = {
-      All: 0,
-      "1 hour": 3600 * 1000,
-      "2 hours": 2 * 3600 * 1000,
-      "4 hours": 4 * 3600 * 1000,
-      "8 hours": 8 * 3600 * 1000,
-      "24 hours": 24 * 3600 * 1000,
-      "48 hours": 48 * 3600 * 1000,
-      "3 days": 3 * 24 * 3600 * 1000,
-      "1 week": 7 * 24 * 3600 * 1000,
-      "2 weeks": 14 * 24 * 3600 * 1000,
-      "1 month": 30 * 24 * 3600 * 1000,
-      "2 months": 60 * 24 * 3600 * 1000,
-      "6 months": 180 * 24 * 3600 * 1000,
-      "1 year": 365 * 24 * 3600 * 1000,
-    };
-
-    for (const [text, value] of Object.entries(ageOptions)) {
-      ageDropdown.createEl("option", {
-        text: text,
-        value: String(value),
-      });
-    }
-
-    const filterValue =
-      typeof this.settings.articleFilter.value === "number"
-        ? this.settings.articleFilter.value
-        : 0;
-    ageDropdown.value = String(filterValue);
-
-    ageDropdown.addEventListener("change", (e: Event) => {
-      const value = Number((e.target as HTMLSelectElement).value);
-      this.callbacks.onFilterChange({
-        type: value === 0 ? "none" : "age",
-        value: value,
-      });
-    });
-
-    const sortDropdown = createSelectControl(
-      "arrow-up-down",
-      ["rss-dashboard-sort"],
-      "Sort:",
-    );
-    sortDropdown.createEl("option", {
-      text: "Newest",
-      value: "newest",
-    });
-    sortDropdown.createEl("option", {
-      text: "Oldest",
-      value: "oldest",
-    });
-    sortDropdown.value = this.settings.articleSort;
-    sortDropdown.addEventListener("change", (e: Event) => {
-      this.callbacks.onSortChange(
-        (e.target as HTMLSelectElement).value as "newest" | "oldest",
-      );
-    });
-
-    const groupDropdown = createSelectControl(
-      "folders",
-      ["rss-dashboard-group"],
-      "Grouping:",
-    );
-    groupDropdown.createEl("option", {
-      text: "None",
-      value: "none",
-    });
-    groupDropdown.createEl("option", {
-      text: "Feed",
-      value: "feed",
-    });
-    groupDropdown.createEl("option", {
-      text: "Date",
-      value: "date",
-    });
-    groupDropdown.createEl("option", {
-      text: "Folder",
-      value: "folder",
-    });
-    groupDropdown.value = this.settings.articleGroupBy;
-    groupDropdown.addEventListener("change", (e: Event) => {
-      this.callbacks.onGroupChange(
-        (e.target as HTMLSelectElement).value as
-          | "none"
-          | "feed"
-          | "date"
-          | "folder",
-      );
-    });
-
-    const viewStyleRow = articleControls.createDiv({
-      cls: "rss-dashboard-view-style-row",
-    });
-
-    const getViewStyleIcon = (style: string): string => {
-      switch (style) {
-        case "feed":
-          return "newspaper";
-        case "card":
-          return "layout-grid";
-        default:
-          return "list";
-      }
-    };
-
-    const getViewStyleLabel = (style: string): string => {
-      return style.charAt(0).toUpperCase() + style.slice(1) + " View";
-    };
-
-    const viewStyleSelector = viewStyleRow.createDiv({
-      cls: "rss-dashboard-view-style-selector",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Change view style",
-      },
-    });
-
-    const selectorIcon = viewStyleSelector.createDiv({
-      cls: "rss-dashboard-selector-icon",
-    });
-    setIcon(selectorIcon, getViewStyleIcon(this.settings.viewStyle));
-
-    const selectorText = viewStyleSelector.createSpan({
-      cls: "rss-dashboard-selector-text",
-      text: getViewStyleLabel(this.settings.viewStyle),
-    });
-
-    const selectorArrow = viewStyleSelector.createDiv({
-      cls: "rss-dashboard-selector-arrow",
-    });
-    setIcon(selectorArrow, "chevron-down");
-
-    viewStyleSelector.addEventListener("click", () => {
-      this.showViewStyleMenu(viewStyleSelector);
-    });
-
-    viewStyleSelector.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        this.showViewStyleMenu(viewStyleSelector);
-      }
-    });
-
-    const createRefreshButton = (
-      parentEl: HTMLElement,
-      extraClass = "",
-      storeReference = false,
-    ): void => {
-      const dashboardRefreshButton = parentEl.createEl("button", {
-        cls:
-          "rss-dashboard-refresh-button" + (extraClass ? ` ${extraClass}` : ""),
-      });
-      const refreshIcon = dashboardRefreshButton.createDiv({
-        cls: "rss-dashboard-refresh-icon",
-      });
-      setIcon(refreshIcon, "refresh-cw");
-      dashboardRefreshButton.setAttr("title", "Refresh feeds");
-
-      if (storeReference) {
-        this.refreshButton = dashboardRefreshButton;
-      }
-
-      dashboardRefreshButton.addEventListener("click", () => {
-        if (dashboardRefreshButton.classList.contains("refreshing")) return;
-        void this.handleRefreshButtonClick();
-      });
-    };
-
-    if (isDropdown) {
-      createRefreshButton(viewStyleRow, "rss-dashboard-view-refresh-button");
-    }
-
-    if (
-      isDropdown &&
-      (this.settings.viewStyle === "list" || this.isMobileViewport())
-    ) {
-      const toolbarModeRow = articleControls.createDiv({
-        cls: "rss-dashboard-toolbar-mode-row",
-      });
-      toolbarModeRow.createSpan({
-        cls: "rss-dashboard-toolbar-mode-label",
-        text: "Toolbar:",
-      });
-
-      const toolbarModeSelect = toolbarModeRow.createEl("select", {
-        cls: "rss-dashboard-toolbar-mode-select",
-        attr: { "aria-label": "Mobile toolbar mode" },
-      });
-
-      if (this.settings.viewStyle === "list") {
-        toolbarModeSelect.createEl("option", {
-          text: "2x2",
-          value: "left-grid",
-        });
-        toolbarModeSelect.createEl("option", {
-          text: "Bottom row",
-          value: "bottom-row",
-        });
-        toolbarModeSelect.createEl("option", {
-          text: "Single read/unread",
-          value: "minimal",
-        });
-        toolbarModeSelect.createEl("option", {
-          text: "None",
-          value: "none",
-        });
-        toolbarModeSelect.value = this.settings.display.mobileShowListToolbar
-          ? this.getMobileListToolbarStyle()
-          : "none";
-      } else {
-        toolbarModeSelect.createEl("option", {
-          text: "Bottom",
-          value: "bottom",
-        });
-        toolbarModeSelect.createEl("option", {
-          text: "None",
-          value: "none",
-        });
-        toolbarModeSelect.value = this.settings.display.mobileShowCardToolbar
-          ? "bottom"
-          : "none";
-      }
-
-      toolbarModeSelect.addEventListener("change", (e: Event) => {
-        const value = (e.target as HTMLSelectElement).value;
-
-        if (this.settings.viewStyle === "list") {
-          if (value === "none") {
-            this.settings.display.mobileShowListToolbar = false;
-          } else if (
-            value === "left-grid" ||
-            value === "bottom-row" ||
-            value === "minimal"
-          ) {
-            this.settings.display.mobileShowListToolbar = true;
-            this.settings.display.mobileListToolbarStyle = value;
-          }
-        } else {
-          this.settings.display.mobileShowCardToolbar = value !== "none";
-        }
-
-        this.persistSettings();
-        this.render();
-      });
-    }
-
-    if (isDropdown && this.settings.viewStyle === "card") {
-      const cardsPerRowRow = articleControls.createDiv({
-        cls: "rss-dashboard-toolbar-mode-row",
-      });
-      cardsPerRowRow.createSpan({
-        cls: "rss-dashboard-toolbar-mode-label",
-        text: "Cards / row:",
-      });
-
-      const cardsPerRowSelect = cardsPerRowRow.createEl("select", {
-        cls: "rss-dashboard-toolbar-mode-select",
-        attr: { "aria-label": "Cards per row" },
-      });
-
-      cardsPerRowSelect.createEl("option", {
-        text: "Auto",
-        value: "0",
-      });
-
-      for (const count of [1, 2, 3, 4, 5, 6]) {
-        cardsPerRowSelect.createEl("option", {
-          text: `${count}`,
-          value: String(count),
-        });
-      }
-
-      cardsPerRowSelect.value = String(this.getCardColumnsPerRow());
-
-      cardsPerRowSelect.addEventListener("change", (e: Event) => {
-        const value = Number((e.target as HTMLSelectElement).value);
-        // Shared with Display settings tab: keep this value normalized in the
-        // same range so either surface can update the same persisted field.
-        this.settings.display.cardColumnsPerRow = Number.isFinite(value)
-          ? Math.max(0, Math.min(6, Math.round(value)))
-          : 0;
-        this.persistSettings();
-        this.render();
-      });
-
-      const cardSpacingRow = articleControls.createDiv({
-        cls: "rss-dashboard-toolbar-mode-row",
-      });
-      const cardSpacingLabel = cardSpacingRow.createSpan({
-        cls: "rss-dashboard-toolbar-mode-label",
-        text: "Card spacing: 15px",
-      });
-
-      const cardSpacingSlider = cardSpacingRow.createEl("input", {
-        cls: "rss-dashboard-toolbar-mode-slider",
-        attr: {
-          type: "range",
-          min: "0",
-          max: "40",
-          step: "1",
-          "aria-label": "Card spacing",
-        },
-      });
-
-      cardSpacingSlider.value = String(this.getCardSpacing());
-      cardSpacingLabel.setText(`Card spacing: ${cardSpacingSlider.value}px`);
-
-      cardSpacingSlider.addEventListener("input", (e: Event) => {
-        const value = Number((e.target as HTMLInputElement).value);
-        const cardSpacing = Number.isFinite(value)
-          ? Math.max(0, Math.min(40, Math.round(value)))
-          : 15;
-        // Shared with Display settings tab; this drives the runtime CSS gap.
-        this.settings.display.cardSpacing = cardSpacing;
-        cardSpacingSlider.value = String(cardSpacing);
-        cardSpacingLabel.setText(`Card spacing: ${cardSpacing}px`);
-        this.persistSettings();
-        const currentArticlesList = this.container.querySelector<HTMLElement>(
-          ".rss-dashboard-articles-list.rss-dashboard-card-view",
-        );
-        currentArticlesList?.style.setProperty(
-          "--rss-dashboard-card-gap",
-          `${cardSpacing}px`,
-        );
-      });
-    }
-
-    if (!isDropdown) {
-      createRefreshButton(articleControls, "", true);
-    }
-
-    const markAllRow = articleControls.createDiv({
-      cls: "rss-dashboard-mark-all-row",
-    });
-
-    markAllRow.createSpan({
-      cls: "rss-dashboard-mark-all-label",
-      text: "Mark all:",
-    });
-
-    const markAllButtonsContainer = markAllRow.createDiv({
-      cls: "rss-dashboard-mark-all-buttons-row",
-    });
-
-    const markAllReadButton = markAllButtonsContainer.createEl("button", {
-      cls: "rss-dashboard-mark-all-read-button rss-dashboard-mark-all-button",
-    });
-    const markReadIcon = markAllReadButton.createDiv({
-      cls: "rss-dashboard-mark-all-read-icon",
-    });
-    setIcon(markReadIcon, "check-circle");
-    markAllReadButton.createSpan({
-      cls: "rss-dashboard-mark-all-read-text",
-      text: "Read",
-    });
-    markAllReadButton.setAttr(
-      "title",
-      "Mark all articles in current view as read",
-    );
-
-    markAllReadButton.addEventListener("click", () => {
-      this.callbacks.onMarkAllAsRead?.();
-    });
-
-    const markAllUnreadButton = markAllButtonsContainer.createEl("button", {
-      cls: "rss-dashboard-mark-all-unread-button rss-dashboard-mark-all-button",
-    });
-    const markUnreadIcon = markAllUnreadButton.createDiv({
-      cls: "rss-dashboard-mark-all-unread-icon",
-    });
-    setIcon(markUnreadIcon, "circle");
-    markAllUnreadButton.createSpan({
-      cls: "rss-dashboard-mark-all-unread-text",
-      text: "Unread",
-    });
-    markAllUnreadButton.setAttr(
-      "title",
-      "Mark all articles in current view as unread",
-    );
-
-    markAllUnreadButton.addEventListener("click", () => {
-      this.callbacks.onMarkAllAsUnread?.();
-    });
-  }
-
-  private showFiltersMenu(toggleBtn: HTMLElement): void {
-    const targetDocument = toggleBtn.ownerDocument;
-    const targetBody = targetDocument.body;
-    const targetWindow = targetDocument.defaultView || window;
-
-    // Toggle close when clicking the same trigger.
-    if (this.activePortal && this.activeFilterToggleBtn === toggleBtn) {
-      this.closeActiveFilterMenu();
-      return;
-    }
-    this.closeActiveFilterMenu();
-
-    // Remove any existing menus from stale state.
-    targetDocument
-      .querySelectorAll(".rss-dashboard-filter-menu-portal")
-      .forEach((el) => el.remove());
-
-    const menuPortal = targetBody.createDiv({
-      cls: "rss-dashboard-filter-menu rss-dashboard-filter-menu-portal",
-    });
-    this.activePortal = menuPortal;
-    this.activeFilterToggleBtn = toggleBtn;
-    toggleBtn.addClass("active");
-    const pendingStatusFilters = new Set(this.statusFilters);
-    const pendingTagFilters = new Set(this.tagFilters);
-    let pendingAllChecked =
-      pendingStatusFilters.size === 0 && pendingTagFilters.size === 0;
-    let pendingFilterLogic: "AND" | "OR" = this.filterLogic;
-    const currentBypassAll = this.settings.keywordRules?.bypassAll ?? false;
-    let pendingBypassAll = currentBypassAll;
-    const currentHighlightsEnabled = this.settings.highlights?.enabled ?? false;
-    let pendingHighlightsEnabled = currentHighlightsEnabled;
-    const currentStatusBarVisible =
-      this.settings.display.showFilterStatusBar ?? true;
-    let pendingStatusBarVisible = currentStatusBarVisible;
-    const removeTagSubmenus = () => {
-      menuPortal
-        .querySelectorAll(".rss-dashboard-tag-submenu")
-        .forEach((el) => el.remove());
-    };
-
-    // Logic Toggles: And / Or
-    const logicToggles = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-logic-toggles",
-    });
-
-    const andBtn = logicToggles.createEl("button", {
-      cls:
-        "rss-dashboard-filter-logic-btn" +
-        (pendingFilterLogic === "AND" ? " active" : ""),
-      text: "And",
-    });
-    const orBtn = logicToggles.createEl("button", {
-      cls:
-        "rss-dashboard-filter-logic-btn" +
-        (pendingFilterLogic === "OR" ? " active" : ""),
-      text: "Or",
-    });
-
-    andBtn.addEventListener("click", () => {
-      pendingFilterLogic = "AND";
-      andBtn.addClass("active");
-      orBtn.removeClass("active");
-    });
-
-    orBtn.addEventListener("click", () => {
-      pendingFilterLogic = "OR";
-      orBtn.addClass("active");
-      andBtn.removeClass("active");
-    });
-
-    menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
-
-    // "All" Checkbox - shows all items when no filters selected
-    const allItem = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-item rss-dashboard-filter-all-item",
-    });
-
-    const allCheckbox = allItem.createEl("input", {
-      attr: { type: "checkbox" },
-      cls: "rss-dashboard-filter-checkbox",
-    });
-    allCheckbox.checked = pendingAllChecked;
-
-    const allIconDiv = allItem.createDiv({
-      cls: "rss-dashboard-filter-menu-icon",
-    });
-    setIcon(allIconDiv, "fullscreen");
-
-    allItem.createDiv({
-      cls: "rss-dashboard-filter-menu-text",
-      text: "All",
-    });
-
-    const uncheckAllFilterCheckboxes = () => {
-      pendingStatusFilters.clear();
-      pendingTagFilters.clear();
-      pendingAllChecked = true;
-      filterCheckboxes.forEach((cb) => {
-        cb.checked = false;
-      });
-    };
-
-    allCheckbox.addEventListener("change", (e) => {
-      e.stopPropagation();
-      if (allCheckbox.checked) {
-        uncheckAllFilterCheckboxes();
-      } else {
-        pendingAllChecked = false;
-      }
-    });
-
-    allItem.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (e.target !== allCheckbox) {
-        allCheckbox.checked = !allCheckbox.checked;
-        if (allCheckbox.checked) {
-          uncheckAllFilterCheckboxes();
-        } else {
-          pendingAllChecked = false;
-        }
-      }
-    });
-
-    allItem.addEventListener("mouseenter", removeTagSubmenus);
-
-    // Collect checkbox refs so "All" can visually uncheck them
-    const filterCheckboxes: Map<string, HTMLInputElement> = new Map();
-
-    const filterOptions = [
-      { id: "unread", name: "Unread", icon: "circle" },
-      { id: "read", name: "Read", icon: "check-circle" },
-      { id: "saved", name: "Saved", icon: "save" },
-      { id: "starred", name: "Starred", icon: "star" },
-      { id: "podcasts", name: "Podcast", icon: "mic" },
-      { id: "videos", name: "Videos", icon: "play" },
-      { id: "tagged", name: "Tagged", icon: "tag" },
-      { id: "untagged", name: "Untagged", icon: "ban" },
-    ];
-
-    filterOptions.forEach((opt) => {
-      const item = menuPortal.createDiv({
-        cls: "rss-dashboard-filter-menu-item",
-      });
-
-      const checkbox = item.createEl("input", {
-        attr: { type: "checkbox" },
-        cls: "rss-dashboard-filter-checkbox",
-      });
-      checkbox.checked = this.statusFilters.has(opt.id);
-      filterCheckboxes.set(opt.id, checkbox);
-
-      const iconDiv = item.createDiv({
-        cls: "rss-dashboard-filter-menu-icon",
-      });
-      setIcon(iconDiv, opt.icon);
-
-      item.createDiv({
-        cls: "rss-dashboard-filter-menu-text",
-        text: opt.name,
-      });
-
-      if (opt.id === "tagged") {
-        const arrow = item.createDiv({
-          cls: "rss-dashboard-filter-menu-arrow",
-        });
-        setIcon(arrow, "chevron-right");
-
-        // Submenu logic
-        item.addEventListener("mouseenter", () => {
-          this.showTagsSubMenu(
-            item,
-            menuPortal,
-            pendingTagFilters,
-            allCheckbox,
-            pendingStatusFilters,
-          );
-        });
-      } else {
-        item.addEventListener("mouseenter", () => {
-          removeTagSubmenus();
-        });
-      }
-
-      const handleFilterCheck = (checked: boolean) => {
-        if (checked) {
-          pendingStatusFilters.add(opt.id);
-          allCheckbox.checked = false;
-          pendingAllChecked = false;
-        } else {
-          pendingStatusFilters.delete(opt.id);
-          // When "Tagged" is unchecked, also clear any selected tag sub-filters
-          if (opt.id === "tagged") {
-            pendingTagFilters.clear();
-          }
-          // Auto-check "All" if no filters remain
-          if (pendingStatusFilters.size === 0 && pendingTagFilters.size === 0) {
-            allCheckbox.checked = true;
-            pendingAllChecked = true;
-          }
-        }
-      };
-
-      checkbox.addEventListener("change", (e) => {
-        e.stopPropagation();
-        handleFilterCheck(checkbox.checked);
-      });
-
-      item.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (e.target !== checkbox) {
-          checkbox.checked = !checkbox.checked;
-          handleFilterCheck(checkbox.checked);
-        }
-      });
-    });
-
-    // Add separator after filter options
-    const postFilterSeparator = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-separator",
-    });
-    postFilterSeparator.addEventListener("mouseenter", removeTagSubmenus);
-
-    const statusBarItem = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-item rss-dashboard-status-bar-toggle",
-    });
-    const statusBarCheckbox = statusBarItem.createEl("input", {
-      attr: { type: "checkbox" },
-      cls: "rss-dashboard-filter-checkbox",
-    });
-    statusBarCheckbox.checked = pendingStatusBarVisible;
-    const statusBarIconDiv = statusBarItem.createDiv({
-      cls: "rss-dashboard-filter-menu-icon",
-    });
-    setIcon(statusBarIconDiv, "info");
-    statusBarItem.createDiv({
-      cls: "rss-dashboard-filter-menu-text",
-      text: "Show Status Bar",
-    });
-    statusBarCheckbox.addEventListener("change", (e) => {
-      e.stopPropagation();
-      pendingStatusBarVisible = statusBarCheckbox.checked;
-    });
-    statusBarItem.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (e.target !== statusBarCheckbox) {
-        statusBarCheckbox.checked = !statusBarCheckbox.checked;
-        pendingStatusBarVisible = statusBarCheckbox.checked;
-      }
-    });
-    statusBarItem.addEventListener("mouseenter", removeTagSubmenus);
-
-    const postStatusBarSeparator = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-separator",
-    });
-    postStatusBarSeparator.addEventListener("mouseenter", removeTagSubmenus);
-
-    const bypassItem = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-item rss-dashboard-bypass-filters-toggle",
-    });
-    const bypassCheckbox = bypassItem.createEl("input", {
-      attr: { type: "checkbox" },
-      cls: "rss-dashboard-filter-checkbox",
-    });
-    bypassCheckbox.checked = pendingBypassAll;
-    const bypassIconDiv = bypassItem.createDiv({
-      cls: "rss-dashboard-filter-menu-icon",
-    });
-    setIcon(bypassIconDiv, "power");
-    bypassItem.createDiv({
-      cls: "rss-dashboard-filter-menu-text",
-      text: "Bypass Keyword Rules",
-    });
-    bypassCheckbox.addEventListener("change", (e) => {
-      e.stopPropagation();
-      pendingBypassAll = bypassCheckbox.checked;
-    });
-    bypassItem.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (e.target !== bypassCheckbox) {
-        bypassCheckbox.checked = !bypassCheckbox.checked;
-        pendingBypassAll = bypassCheckbox.checked;
-      }
-    });
-    bypassItem.addEventListener("mouseenter", removeTagSubmenus);
-
-    const postBypassSeparator = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-separator",
-    });
-    postBypassSeparator.addEventListener("mouseenter", removeTagSubmenus);
-
-    // Add "Show Highlights" toggle
-    const highlightsItem = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-item rss-dashboard-highlights-toggle",
-    });
-
-    const highlightsCheckbox = highlightsItem.createEl("input", {
-      attr: { type: "checkbox" },
-      cls: "rss-dashboard-filter-checkbox",
-    });
-    highlightsCheckbox.checked = pendingHighlightsEnabled;
-
-    const highlightsIconDiv = highlightsItem.createDiv({
-      cls: "rss-dashboard-filter-menu-icon",
-    });
-    setIcon(highlightsIconDiv, "highlighter");
-
-    highlightsItem.createDiv({
-      cls: "rss-dashboard-filter-menu-text",
-      text: "Show Highlights",
-    });
-
-    highlightsCheckbox.addEventListener("change", (e) => {
-      e.stopPropagation();
-      pendingHighlightsEnabled = highlightsCheckbox.checked;
-    });
-
-    highlightsItem.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (e.target !== highlightsCheckbox) {
-        highlightsCheckbox.checked = !highlightsCheckbox.checked;
-        pendingHighlightsEnabled = highlightsCheckbox.checked;
-      }
-    });
-    highlightsItem.addEventListener("mouseenter", removeTagSubmenus);
-
-    const preApplySeparator = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-separator",
-    });
-    preApplySeparator.addEventListener("mouseenter", removeTagSubmenus);
-
-    const applyBtn = menuPortal.createEl("button", {
-      cls: "rss-dashboard-filter-apply-btn",
-      text: "Apply",
-    });
-    applyBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-
-      if (pendingFilterLogic !== this.filterLogic) {
-        this.callbacks.onFilterChange({
-          type: "logic",
-          value: null,
-          logic: pendingFilterLogic,
-        });
-      }
-
-      const statusKeys = new Set([
-        ...Array.from(this.statusFilters),
-        ...Array.from(pendingStatusFilters),
-      ]);
-      statusKeys.forEach((id) => {
-        const wasChecked = this.statusFilters.has(id);
-        const isChecked = pendingStatusFilters.has(id);
-        if (wasChecked !== isChecked) {
-          this.callbacks.onFilterChange({
-            type: id,
-            value: null,
-            checked: isChecked,
-          });
-        }
-      });
-
-      const tagKeys = new Set([
-        ...Array.from(this.tagFilters),
-        ...Array.from(pendingTagFilters),
-      ]);
-      tagKeys.forEach((tagName) => {
-        const wasChecked = this.tagFilters.has(tagName);
-        const isChecked = pendingTagFilters.has(tagName);
-        if (wasChecked !== isChecked) {
-          this.callbacks.onFilterChange({
-            type: tagName,
-            value: null,
-            checked: isChecked,
-            isTag: true,
-          });
-        }
-      });
-
-      if (pendingBypassAll !== currentBypassAll) {
-        void this.callbacks.onFilterChange({
-          type: "bypass-filters",
-          value: pendingBypassAll,
-          checked: pendingBypassAll,
-        });
-      }
-
-      if (pendingHighlightsEnabled !== currentHighlightsEnabled) {
-        if (!this.settings.highlights) {
-          this.settings.highlights = {
-            enabled: false,
-            defaultColor: "#ffd700",
-            highlightInContent: true,
-            highlightInTitles: true,
-            highlightInSummaries: true,
-            words: [],
-          };
-        }
-        this.settings.highlights.enabled = pendingHighlightsEnabled;
-        void this.callbacks.onFilterChange({
-          type: "highlights",
-          value: pendingHighlightsEnabled,
-          checked: pendingHighlightsEnabled,
-        });
-      }
-
-      if (pendingStatusBarVisible !== currentStatusBarVisible) {
-        void this.callbacks.onFilterChange({
-          type: "status-bar-visibility",
-          value: pendingStatusBarVisible,
-          checked: pendingStatusBarVisible,
-        });
-      }
-
-      this.closeActiveFilterMenu();
-    });
-
-    // Position the menu
-    const rect = toggleBtn.getBoundingClientRect();
-    menuPortal.style.top = `${rect.bottom + 5}px`;
-    menuPortal.style.left = `${rect.left}px`;
-    targetWindow.requestAnimationFrame(() => {
-      const menuRect = menuPortal.getBoundingClientRect();
-      const margin = 8;
-      const maxLeft = targetWindow.innerWidth - menuRect.width - margin;
-      const nextLeft = Math.max(margin, Math.min(rect.left, maxLeft));
-      menuPortal.style.left = `${nextLeft}px`;
-    });
-
-    // Close menu on click outside
-    targetWindow.setTimeout(() => {
-      if (this.activePortal !== menuPortal) {
-        return;
-      }
-
-      const handleClickOutside = (e: Event) => {
-        if (this.activePortal !== menuPortal) {
-          return;
-        }
-
-        if (
-          !menuPortal.contains(e.target as Node) &&
-          !toggleBtn.contains(e.target as Node)
-        ) {
-          this.closeActiveFilterMenu();
-        }
-      };
-
-      this.activeFilterOutsideListenerCleanup = this.addDocumentListener(
-        targetDocument,
-        "mousedown",
-        handleClickOutside,
-      );
-    }, 0);
-  }
-
-  private showViewStyleMenu(toggleBtn: HTMLElement) {
-    const targetDocument = toggleBtn.doc;
-    const targetBody = targetDocument.body;
-    const targetWindow = targetDocument.defaultView || window;
-
-    if (this.activePortal && this.activeFilterToggleBtn === toggleBtn) {
-      this.closeActiveFilterMenu();
-      return;
-    }
-    this.closeActiveFilterMenu();
-
-    // Remove any existing menus from stale state.
-    targetDocument
-      .querySelectorAll(".rss-dashboard-filter-menu-portal")
-      .forEach((el) => el.remove());
-
-    const menuPortal = targetBody.createDiv({
-      cls: "rss-dashboard-filter-menu rss-dashboard-view-style-menu-portal",
-    });
-    this.activePortal = menuPortal;
-    this.activeFilterToggleBtn = toggleBtn;
-    toggleBtn.addClass("active");
-
-    const getViewStyleIcon = (style: string): string => {
-      switch (style) {
-        case "feed":
-          return "newspaper";
-        case "card":
-          return "layout-grid";
-        default:
-          return "list";
-      }
-    };
-
-    const getViewStyleLabel = (style: string): string => {
-      return style.charAt(0).toUpperCase() + style.slice(1) + " View";
-    };
-
-    const styles: Array<"list" | "card" | "feed"> = ["list", "card", "feed"];
-
-    styles.forEach((style) => {
-      const item = menuPortal.createDiv({
-        cls: "rss-dashboard-filter-menu-item",
-      });
-
-      // Checkmark on the LEFT
-      const checkDiv = item.createDiv({
-        cls: "rss-dashboard-filter-menu-check",
-      });
-      if (this.settings.viewStyle === style) {
-        setIcon(checkDiv, "check");
-        item.addClass("is-active");
-      }
-
-      const iconDiv = item.createDiv({
-        cls: "rss-dashboard-filter-menu-icon",
-      });
-      setIcon(iconDiv, getViewStyleIcon(style));
-
-      item.createDiv({
-        cls: "rss-dashboard-filter-menu-text",
-        text: getViewStyleLabel(style),
-      });
-
-      item.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.callbacks.onToggleViewStyle(style);
-        this.closeActiveFilterMenu();
-
-        // Update the selector button UI immediately
-        const selectorIcon = toggleBtn.querySelector(
-          ".rss-dashboard-selector-icon",
-        );
-        const selectorText = toggleBtn.querySelector(
-          ".rss-dashboard-selector-text",
-        );
-        if (selectorIcon) {
-          (selectorIcon as HTMLElement).empty();
-          setIcon(selectorIcon as HTMLElement, getViewStyleIcon(style));
-        }
-        if (selectorText) {
-          selectorText.textContent = getViewStyleLabel(style);
-        }
-      });
-    });
-
-    // Position the menu
-    const rect = toggleBtn.getBoundingClientRect();
-    menuPortal.style.top = `${rect.bottom + 5}px`;
-    menuPortal.style.left = `${rect.left}px`;
-    targetWindow.requestAnimationFrame(() => {
-      const menuRect = menuPortal.getBoundingClientRect();
-      const margin = 8;
-      const maxLeft = targetWindow.innerWidth - menuRect.width - margin;
-      const nextLeft = Math.max(margin, Math.min(rect.left, maxLeft));
-      menuPortal.style.left = `${nextLeft}px`;
-    });
-
-    // Close menu on click outside
-    targetWindow.setTimeout(() => {
-      if (this.activePortal !== menuPortal) {
-        return;
-      }
-
-      const handleClickOutside = (e: Event) => {
-        if (this.activePortal !== menuPortal) {
-          return;
-        }
-
-        if (
-          !menuPortal.contains(e.target as Node) &&
-          !toggleBtn.contains(e.target as Node)
-        ) {
-          this.closeActiveFilterMenu();
-        }
-      };
-
-      this.activeFilterOutsideListenerCleanup = this.addDocumentListener(
-        targetDocument,
-        "mousedown",
-        handleClickOutside,
-      );
-    }, 0);
-  }
-
-  private showTagsSubMenu(
-    parentItem: HTMLElement,
-    parentMenu: HTMLElement,
-    pendingTagFilters: Set<string>,
-    allCheckbox: HTMLInputElement,
-    pendingStatusFilters: Set<string>,
-  ): void {
-    // Remove existing submenus
-    parentMenu
-      .querySelectorAll(".rss-dashboard-tag-submenu")
-      .forEach((el) => el.remove());
-
-    const subMenu = parentMenu.createDiv({
-      cls: "rss-dashboard-filter-menu rss-dashboard-tag-submenu",
-    });
-
-    if (this.settings.availableTags.length === 0) {
-      subMenu.createDiv({
-        cls: "rss-dashboard-filter-menu-item empty",
-        text: "No tags available",
-      });
-    }
-
-    this.settings.availableTags.forEach((tag) => {
-      const item = subMenu.createDiv({
-        cls: "rss-dashboard-filter-menu-item",
-      });
-
-      const checkbox = item.createEl("input", {
-        attr: { type: "checkbox" },
-        cls: "rss-dashboard-filter-checkbox",
-      });
-      checkbox.checked = pendingTagFilters.has(tag.name);
-
-      const colorDot = item.createDiv({
-        cls: "rss-dashboard-tag-color-dot",
-      });
-      colorDot.style.setProperty("--tag-color", tag.color);
-
-      item.createDiv({
-        cls: "rss-dashboard-filter-menu-text",
-        text: tag.name,
-      });
-
-      checkbox.addEventListener("change", (e) => {
-        e.stopPropagation();
-        if (checkbox.checked) {
-          pendingTagFilters.add(tag.name);
-          allCheckbox.checked = false;
-        } else {
-          pendingTagFilters.delete(tag.name);
-          // Auto-check "All" if no filters remain (status + tag)
-          if (pendingStatusFilters.size === 0 && pendingTagFilters.size === 0) {
-            allCheckbox.checked = true;
-          }
-        }
-      });
-
-      item.addEventListener("click", (e) => {
-        if (e.target !== checkbox) {
-          checkbox.checked = !checkbox.checked;
-          if (checkbox.checked) {
-            pendingTagFilters.add(tag.name);
-            allCheckbox.checked = false;
-          } else {
-            pendingTagFilters.delete(tag.name);
-            if (
-              pendingStatusFilters.size === 0 &&
-              pendingTagFilters.size === 0
-            ) {
-              allCheckbox.checked = true;
-            }
-          }
-        }
-      });
-    });
-
-    // Position the submenu using fixed viewport coordinates
-    const rect = parentItem.getBoundingClientRect();
-    const parentMenuRect = parentMenu.getBoundingClientRect();
-
-    // Start: position fixed, to the right of the parent menu
-    let subLeft = parentMenuRect.right + 4;
-    let subTop = rect.top;
-
-    subMenu.addClass("rss-dashboard-submenu-fixed");
-    subMenu.style.setProperty("--submenu-top", `${subTop}px`);
-    subMenu.style.setProperty("--submenu-left", `${subLeft}px`);
-
-    // After the browser renders it, flip left if it goes off-screen
-    requestAnimationFrame(() => {
-      const subRect = subMenu.getBoundingClientRect();
-      if (subRect.right > window.innerWidth) {
-        subMenu.style.setProperty(
-          "--submenu-left",
-          `${parentMenuRect.left - subRect.width - 4}px`,
-        );
-      }
-      if (subRect.bottom > window.innerHeight) {
-        subMenu.style.setProperty(
-          "--submenu-top",
-          `${window.innerHeight - subRect.height - 8}px`,
-        );
-      }
-    });
-  }
 
   private renderArticles(): void {
     const articlesList = this.container.createDiv({

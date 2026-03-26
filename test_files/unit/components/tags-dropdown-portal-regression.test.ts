@@ -48,7 +48,8 @@ describe("Tags dropdown portal (regression)", () => {
       {
         onArticleClick: () => {},
         onToggleViewStyle: () => {},
-        onRefreshFeeds: () => {},
+        onRefreshFeeds: async () => {},
+        onSearch: () => {},
         onArticleUpdate: () => {},
         onArticleSave: () => {},
         onToggleSidebar: () => {},
@@ -101,7 +102,8 @@ describe("Tags dropdown portal (regression)", () => {
       {
         onArticleClick: () => {},
         onToggleViewStyle: () => {},
-        onRefreshFeeds: () => {},
+        onRefreshFeeds: async () => {},
+        onSearch: () => {},
         onArticleUpdate: () => {},
         onArticleSave: () => {},
         onToggleSidebar: () => {},

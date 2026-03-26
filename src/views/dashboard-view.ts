@@ -385,6 +385,9 @@ export class RssDashboardView extends ItemView {
         },
         onToggleViewStyle: this.handleToggleViewStyle.bind(this),
         onRefreshFeeds: this.handleRefreshFeeds.bind(this),
+        onSearch: (q: string) => {
+            // State is handled by ArticleList locally, but we could sync it here if needed
+        },
         onArticleUpdate: (article, updates, shouldRerender) => {
           void this.handleArticleUpdate(article, updates, shouldRerender);
         },
@@ -2265,8 +2268,53 @@ export class RssDashboardView extends ItemView {
     checked?: boolean;
     isTag?: boolean;
     logic?: "AND" | "OR";
+    batch?: {
+        statusFilters?: Set<string>;
+        tagFilters?: Set<string>;
+        logic?: "AND" | "OR";
+        bypassAll?: boolean;
+        highlightsEnabled?: boolean;
+        statusBarVisible?: boolean;
+    };
   }): void {
-    if (filter.type === "logic" && filter.logic) {
+    if (filter.type === "batch" && filter.batch) {
+        const b = filter.batch;
+        if (b.logic) this.filterLogic = b.logic;
+        if (b.statusFilters) this.activeStatusFilters = new Set(b.statusFilters);
+        if (b.tagFilters) this.activeTagFilters = new Set(b.tagFilters);
+        
+        let needsFullRender = false;
+        if (b.bypassAll !== undefined) {
+            if (!this.settings.keywordRules) {
+                this.settings.keywordRules = { includeLogic: "AND", bypassAll: false, rules: [] };
+            }
+            if (this.settings.keywordRules.bypassAll !== b.bypassAll) {
+                this.settings.keywordRules.bypassAll = b.bypassAll;
+                needsFullRender = true;
+            }
+        }
+        if (b.highlightsEnabled !== undefined) {
+            if (!this.settings.highlights) {
+                this.settings.highlights = { enabled: false, defaultColor: "#ffd700", highlightInContent: true, highlightInTitles: true, highlightInSummaries: true, words: [] };
+            }
+            if (this.settings.highlights.enabled !== b.highlightsEnabled) {
+                this.settings.highlights.enabled = b.highlightsEnabled;
+                needsFullRender = true;
+            }
+        }
+        if (b.statusBarVisible !== undefined) {
+            if (this.settings.display.showFilterStatusBar !== b.statusBarVisible) {
+                this.settings.display.showFilterStatusBar = b.statusBarVisible;
+                needsFullRender = true;
+            }
+        }
+
+        if (needsFullRender) {
+            void this.plugin.saveSettings();
+            void this.render();
+            return;
+        }
+    } else if (filter.type === "logic" && filter.logic) {
       this.filterLogic = filter.logic;
     } else if (filter.type === "status-bar-visibility") {
       this.settings.display.showFilterStatusBar = filter.checked ?? true;

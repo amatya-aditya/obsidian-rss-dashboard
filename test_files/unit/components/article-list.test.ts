@@ -81,6 +81,7 @@ describe("ArticleList Component", () => {
       onPageChange: vi.fn(),
       onPageSizeChange: vi.fn(),
       onPersistSettings: vi.fn(),
+      onSearch: vi.fn(),
     };
   });
 
