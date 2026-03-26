@@ -9,6 +9,12 @@
 
 - **XML support**: Import OPML window now allows XML filenames in addition to OPML filenames.
 
+- **Feed View**:
+  - Added a new "Feed" view mode for a social-media-style, single-column layout.
+  - Features hero images, clamped text summaries, and integrated action toolbars.
+  - Added a 3-button view toggle (List, Card, Feed) to the hamburger menu using the accessible `clickable-icon` pattern.
+  - Added "Feed" view as a preference in General settings.
+
 - **Auto-backup**: Added auto-backup for data.json, OPML, and userdata on plugin unload. By default, OPML and userdata are backed up to the plugin's data directory. These can be changed in the import/export settings.
 
 ### Fixes

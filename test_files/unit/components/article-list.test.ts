@@ -257,4 +257,165 @@ describe("ArticleList Component", () => {
       expect(secondArticleEl.scrollIntoView).toHaveBeenCalledWith({ block: "nearest", behavior: "auto" });
     });
   });
+
+  describe("View Style Toggles", () => {
+    it("should render list, card, and feed view buttons in the hamburger menu", () => {
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR"
+      );
+
+      articleList.render();
+
+      const listViewBtn = container.querySelector(".rss-dashboard-list-view-button");
+      const cardViewBtn = container.querySelector(".rss-dashboard-card-view-button");
+      const feedViewBtn = container.querySelector(".rss-dashboard-feed-view-button");
+
+      expect(listViewBtn).not.toBeNull();
+      expect(cardViewBtn).not.toBeNull();
+      expect(feedViewBtn).not.toBeNull();
+    });
+
+    it("should call onToggleViewStyle('feed') when feed view button is clicked", () => {
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR"
+      );
+
+      articleList.render();
+
+      const feedViewBtn = container.querySelector(".rss-dashboard-feed-view-button") as HTMLElement;
+      feedViewBtn.click();
+
+      expect(mockCallbacks.onToggleViewStyle).toHaveBeenCalledWith("feed");
+    });
+
+    it("should call onToggleViewStyle('list') when list view button is clicked", () => {
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR"
+      );
+
+      articleList.render();
+
+      const listViewBtn = container.querySelector(".rss-dashboard-list-view-button") as HTMLElement;
+      listViewBtn.click();
+
+      expect(mockCallbacks.onToggleViewStyle).toHaveBeenCalledWith("list");
+    });
+
+    it("should call onToggleViewStyle('card') when card view button is clicked", () => {
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR"
+      );
+
+      articleList.render();
+
+      const cardViewBtn = container.querySelector(".rss-dashboard-card-view-button") as HTMLElement;
+      cardViewBtn.click();
+
+      expect(mockCallbacks.onToggleViewStyle).toHaveBeenCalledWith("card");
+    });
+  });
+
+  describe("Feed View Rendering", () => {
+    it("should render with rss-dashboard-feed-view class when viewStyle is feed", () => {
+      settings.viewStyle = "feed";
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR"
+      );
+
+      articleList.render();
+
+      const listEl = container.querySelector(".rss-dashboard-articles-list");
+      expect(listEl?.classList.contains("rss-dashboard-feed-view")).toBe(true);
+    });
+
+    it("should render articles as feed items in feed view", () => {
+      settings.viewStyle = "feed";
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR"
+      );
+
+      articleList.render();
+
+      const feedArticles = container.querySelectorAll(".rss-dashboard-feed-item");
+      expect(feedArticles.length).toBe(articles.length);
+    });
+  });
 });

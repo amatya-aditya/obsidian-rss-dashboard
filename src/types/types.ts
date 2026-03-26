@@ -286,7 +286,7 @@ export interface RssDashboardSettings {
   refreshInterval: number;
   maxItems: number;
   defaultAutoDeleteDuration: number;
-  viewStyle: "list" | "card";
+  viewStyle: "list" | "card" | "feed";
   showFeedArt: boolean;
   showThumbnails: boolean;
   sidebarCollapsed: boolean;

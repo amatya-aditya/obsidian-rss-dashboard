@@ -1063,11 +1063,14 @@
 
 .rss-dashboard-dropdown-controls .rss-dashboard-view-toggle {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-view-toggle button {
-  flex: 1;
+.rss-dashboard-dropdown-controls .rss-dashboard-view-toggle button,
+.rss-dashboard-dropdown-controls .rss-dashboard-view-toggle .rss-dashboard-view-style-button {
+  flex: 1 1 80px;
+  min-width: 80px;
   padding: 0 12px;
   border: 1px solid var(--background-modifier-border);
   background: var(--background-secondary);

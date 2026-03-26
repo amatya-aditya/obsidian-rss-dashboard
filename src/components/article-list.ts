@@ -56,7 +56,7 @@ function getFaviconUrl(domain: string): string {
 
 interface ArticleListCallbacks {
   onArticleClick: (article: FeedItem) => void;
-  onToggleViewStyle: (style: "list" | "card") => void;
+  onToggleViewStyle: (style: "list" | "card" | "feed") => void;
   onRefreshFeeds: () => Promise<void> | void;
   onArticleUpdate: (
     article: FeedItem,
@@ -210,9 +210,13 @@ export class ArticleList {
     return window.matchMedia("(max-width: 768px)").matches;
   }
 
-  private shouldShowToolbarForView(view: "list" | "card"): boolean {
+  private shouldShowToolbarForView(view: "list" | "card" | "feed"): boolean {
     if (view === "list") {
       return this.settings.display.mobileShowListToolbar;
+    }
+
+    if (view === "feed") {
+      return true; // Feed view always shows toolbar as per requirements
     }
 
     if (!this.isMobileViewport()) {
@@ -645,6 +649,8 @@ export class ArticleList {
 
     if (this.settings.viewStyle === "list") {
       this.renderListView(temp, [article]);
+    } else if (this.settings.viewStyle === "feed") {
+      this.renderFeedView(temp, [article]);
     } else {
       this.renderCardView(temp, [article]);
     }
@@ -1289,31 +1295,43 @@ export class ArticleList {
       cls: "rss-dashboard-view-toggle",
     });
 
-    const listViewButton = viewStyleToggle.createEl("button", {
-      cls:
-        "rss-dashboard-list-view-button" +
-        (this.settings.viewStyle === "list" ? " active" : ""),
-    });
-    const listIcon = listViewButton.createDiv();
-    setIcon(listIcon, "list");
-    listViewButton.createSpan({ text: "List" });
+    const createViewStyleButton = (
+      style: "list" | "card" | "feed",
+      iconName: string,
+      label: string,
+      className: string,
+    ): HTMLElement => {
+      const btn = viewStyleToggle.createDiv({
+        cls: `clickable-icon rss-dashboard-view-style-button ${className}${this.settings.viewStyle === style ? " active" : ""}`,
+        attr: {
+          role: "button",
+          tabindex: "0",
+          "aria-label": `${label} view`,
+          title: `${label} view`,
+        },
+      });
+      const icon = btn.createDiv();
+      setIcon(icon, iconName);
+      btn.createSpan({ text: label });
 
-    listViewButton.addEventListener("click", () => {
-      this.callbacks.onToggleViewStyle("list");
-    });
+      const handleClick = () => {
+        this.callbacks.onToggleViewStyle(style);
+      };
 
-    const cardViewButton = viewStyleToggle.createEl("button", {
-      cls:
-        "rss-dashboard-card-view-button" +
-        (this.settings.viewStyle === "card" ? " active" : ""),
-    });
-    const cardIcon = cardViewButton.createDiv();
-    setIcon(cardIcon, "layout-grid");
-    cardViewButton.createSpan({ text: "Card" });
+      btn.addEventListener("click", handleClick);
+      btn.addEventListener("keydown", (e: KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleClick();
+        }
+      });
 
-    cardViewButton.addEventListener("click", () => {
-      this.callbacks.onToggleViewStyle("card");
-    });
+      return btn;
+    };
+
+    createViewStyleButton("list", "list", "List", "rss-dashboard-list-view-button");
+    createViewStyleButton("card", "layout-grid", "Card", "rss-dashboard-card-view-button");
+    createViewStyleButton("feed", "newspaper", "Feed", "rss-dashboard-feed-view-button");
 
     if (
       isDropdown &&
@@ -2165,6 +2183,8 @@ export class ArticleList {
     if (this.settings.articleGroupBy === "none") {
       if (this.settings.viewStyle === "list") {
         this.renderListView(articlesList, this.articles);
+      } else if (this.settings.viewStyle === "feed") {
+        this.renderFeedView(articlesList, this.articles);
       } else {
         this.renderCardView(articlesList, this.articles);
         this.scheduleCardTagLayout(articlesList);
@@ -2182,6 +2202,8 @@ export class ArticleList {
         const groupArticles = groupedArticles[groupName];
         if (this.settings.viewStyle === "list") {
           this.renderListView(groupContainer, groupArticles);
+        } else if (this.settings.viewStyle === "feed") {
+          this.renderFeedView(groupContainer, groupArticles);
         } else {
           this.renderCardView(groupContainer, groupArticles);
           this.scheduleCardTagLayout(groupContainer);
@@ -2555,6 +2577,158 @@ export class ArticleList {
     this.createSaveButton(actionToolbar, article);
     this.createStarToggle(actionToolbar, article);
     this.createTagsToggle(actionToolbar, article);
+  }
+
+  private renderFeedView(container: HTMLElement, articles: FeedItem[]): void {
+    for (const article of articles) {
+      const hasTags = !!article.tags?.length;
+      const feedItem = container.createDiv({
+        cls:
+          "rss-dashboard-feed-item" +
+          (this.selectedArticle && article.guid === this.selectedArticle.guid
+            ? " active"
+            : "") +
+          (article.read ? " read" : " unread") +
+          (article.saved ? " saved" : "") +
+          (article.mediaType === "video"
+            ? " rss-dashboard-youtube-article"
+            : "") +
+          (article.mediaType === "podcast"
+            ? " rss-dashboard-podcast-article"
+            : ""),
+        attr: {
+          id: `article-${article.guid}`,
+          "data-article-guid": article.guid,
+        },
+      });
+
+      const feedContent = feedItem.createDiv({
+        cls: "rss-dashboard-feed-content",
+      });
+
+      // 1. Preview Image (Hero)
+      let coverImgSrc = article.coverImage;
+      if (!coverImgSrc && article.content) {
+        const extracted = extractFirstImageSrc(article.content);
+        if (extracted) coverImgSrc = extracted;
+      }
+      if (!coverImgSrc && article.summary) {
+        const extracted = extractFirstImageSrc(article.summary);
+        if (extracted) coverImgSrc = extracted;
+      }
+      if (
+        !coverImgSrc &&
+        article.enclosure?.type?.startsWith("image/") &&
+        article.enclosure?.url
+      ) {
+        coverImgSrc = article.enclosure.url;
+      }
+
+      if (coverImgSrc) {
+        const previewRegion = feedContent.createDiv({
+          cls: "rss-dashboard-feed-preview-region",
+        });
+        previewRegion.createEl("img", {
+          cls: "rss-dashboard-feed-hero-image",
+          attr: {
+            src: coverImgSrc,
+            alt: article.title,
+          },
+        });
+      }
+
+      const textRegion = feedContent.createDiv({
+        cls: "rss-dashboard-feed-text-region",
+      });
+
+      // 2. Title and Source
+      const header = textRegion.createDiv({
+        cls: "rss-dashboard-feed-header",
+      });
+
+      const titleEl = header.createDiv({
+        cls: "rss-dashboard-article-title",
+      });
+
+      if (
+        this.settings.highlights?.enabled &&
+        this.settings.highlights.highlightInTitles
+      ) {
+        const highlightService = new HighlightService(this.settings.highlights);
+        highlightService.setHighlightedText(titleEl, article.title);
+      } else {
+        titleEl.textContent = article.title;
+      }
+
+      if (this.showFeedSource) {
+        const articleMeta = header.createDiv({
+          cls: "rss-dashboard-article-meta",
+        });
+        const feedContainer = articleMeta.createDiv({
+          cls: "rss-dashboard-article-feed-container",
+        });
+        this.renderFeedIcon(feedContainer, article.feedUrl, article.mediaType);
+        feedContainer.createDiv({
+          cls: "rss-dashboard-article-feed",
+          text: article.feedTitle,
+          attr: { title: article.feedTitle },
+        });
+      }
+
+      // 3. Clamped Summary/Content
+      if (article.summary || article.content) {
+        const summaryEl = textRegion.createDiv({
+          cls: "rss-dashboard-feed-summary",
+        });
+        const textToDisplay = article.summary || article.content || "";
+        
+        if (
+          this.settings.highlights?.enabled &&
+          this.settings.highlights.highlightInSummaries
+        ) {
+          const highlightService = new HighlightService(this.settings.highlights);
+          highlightService.setHighlightedText(summaryEl, textToDisplay);
+        } else {
+          summaryEl.textContent = textToDisplay;
+        }
+      }
+
+      // 4. Tags
+      if (hasTags) {
+        const tagsRegion = feedItem.createDiv({
+          cls: "rss-dashboard-feed-tags-region",
+        });
+        const tagsContainer = tagsRegion.createDiv({
+          cls: "rss-dashboard-article-tags",
+        });
+        this.renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
+      }
+
+      // 5. Toolbar
+      const feedFooter = feedItem.createEl("footer", {
+        cls: "rss-dashboard-feed-footer",
+      });
+      const actionToolbar = feedFooter.createDiv({
+        cls: "rss-dashboard-action-toolbar rss-dashboard-feed-toolbar",
+      });
+      this.createArticleActionButtons(actionToolbar, article, "full");
+
+      const dateEl = actionToolbar.createDiv({
+        cls: "rss-dashboard-article-date",
+      });
+      const dateInfo = formatDateWithRelative(article.pubDate);
+      dateEl.textContent = dateInfo.text;
+      dateEl.setAttribute("title", dateInfo.title);
+
+      feedItem.addEventListener("click", () => {
+        this.callbacks.onArticleClick(article);
+      });
+
+      feedItem.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        this.showArticleContextMenu(e, article);
+      });
+    }
   }
 
   private renderListView(container: HTMLElement, articles: FeedItem[]): void {

@@ -1651,7 +1651,7 @@ export class RssDashboardView extends ItemView {
       .slice(0, 5);
   }
 
-  private handleToggleViewStyle(style: "list" | "card"): void {
+  private handleToggleViewStyle(style: "list" | "card" | "feed"): void {
     this.settings.viewStyle = style;
     void this.plugin.saveSettings();
     void this.render();
