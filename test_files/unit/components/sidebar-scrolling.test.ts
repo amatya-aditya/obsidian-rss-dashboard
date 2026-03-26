@@ -47,25 +47,27 @@ describe("Sidebar Horizontal Scrolling", () => {
   });
 
   it("should support mouse drag scrolling", () => {
-    // 1. Mouse down
+    // 1. Mouse down - should NOT have dragging class yet
     const mouseDown = new MouseEvent("mousedown", { clientX: 100 });
     iconRow.dispatchEvent(mouseDown);
-    expect(iconRow.classList.contains("dragging")).toBe(true);
+    expect(iconRow.classList.contains("dragging")).toBe(false);
 
-    // 2. Mouse move (walk = (50 - 10) - (100 - 10) * 2 = 40 - 90 = -50 * 2 = -100)
-    // Wait, let's trace: startX = clientX - offsetLeft = 100 - 10 = 90
-    // newX = clientX - offsetLeft = 50 - 10 = 40
-    // x - startX = 40 - 90 = -50
-    // walk = -50 * 2 = -100
-    // scrollLeft = 0 - (-100) = 100
-    const mouseMove = new MouseEvent("mousemove", { clientX: 50 });
-    Object.defineProperty(mouseMove, 'preventDefault', { value: vi.fn() });
-    iconRow.dispatchEvent(mouseMove);
+    // 2. Mouse move tiny bit - should still not have dragging class
+    const mouseMoveSmall = new MouseEvent("mousemove", { clientX: 99 });
+    iconRow.dispatchEvent(mouseMoveSmall);
+    expect(iconRow.classList.contains("dragging")).toBe(false);
+
+    // 3. Mouse move enough to cross threshold (5px)
+    // walk = (90 - 100) * 2 = -20. abs(-20) > 5
+    const mouseMoveLarge = new MouseEvent("mousemove", { clientX: 90 });
+    Object.defineProperty(mouseMoveLarge, 'preventDefault', { value: vi.fn() });
+    iconRow.dispatchEvent(mouseMoveLarge);
     
-    expect(mouseMove.preventDefault).toHaveBeenCalled();
-    expect(iconRow.scrollLeft).toBe(100);
+    expect(mouseMoveLarge.preventDefault).toHaveBeenCalled();
+    expect(iconRow.classList.contains("dragging")).toBe(true);
+    expect(iconRow.scrollLeft).toBe(20); // scrollLeft = 0 - (-20) = 20
 
-    // 3. Mouse up
+    // 4. Mouse up
     const mouseUp = new MouseEvent("mouseup");
     iconRow.dispatchEvent(mouseUp);
     expect(iconRow.classList.contains("dragging")).toBe(false);

@@ -2411,7 +2411,6 @@ export class Sidebar {
     const startDrag = (e: MouseEvent | TouchEvent) => {
       isDown = true;
       isDragging = false;
-      iconRow.classList.add("dragging");
       const clientX =
         e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
       startX = clientX - iconRow.offsetLeft;
@@ -2430,7 +2429,10 @@ export class Sidebar {
         e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
       const x = clientX - iconRow.offsetLeft;
       const walk = (x - startX) * 2; // Scroll speed multiplier
-      if (Math.abs(walk) > 5) isDragging = true;
+      if (Math.abs(walk) > 5) {
+        isDragging = true;
+        iconRow.classList.add("dragging");
+      }
       iconRow.scrollLeft = scrollLeft - walk;
     };
 
