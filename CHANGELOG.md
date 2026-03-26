@@ -13,7 +13,8 @@
 
 ### Fixes
 
-- **Pagination**- Fixed a bug where the Dashboard would bypass pagination limits and display all articles when toggling view filters or switching to the "Unread" sidebar view.
+- **Pagination**: Fixed a bug where the Dashboard would bypass pagination limits and display all articles when toggling view filters or switching to the "Unread" sidebar view.
+- **Scroll Restoration**: Fixed a bug where the Dashboard would reset to the top when opening the Reader panel or resizing the window; implemented a focus-locking mechanism to keep the selected article in view.
 
 ## [2.2.0-beta.8] - March 24, 2026
 

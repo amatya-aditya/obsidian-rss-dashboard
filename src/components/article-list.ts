@@ -494,11 +494,23 @@ export class ArticleList {
     this.renderHeader();
     this.renderArticles();
 
-    if (articlesList && scrollPosition !== undefined) {
-      requestAnimationFrame(() => {
-        articlesList.scrollTop = scrollPosition;
-      });
-    }
+    requestAnimationFrame(() => {
+      if (scrollPosition !== undefined) {
+        const newArticlesList = this.container.querySelector(
+          ".rss-dashboard-articles-list",
+        );
+        if (newArticlesList) {
+          newArticlesList.scrollTop = scrollPosition;
+        }
+      }
+
+      if (this.selectedArticle) {
+        const selectedEl = this.container.querySelector(
+          `#article-${CSS.escape(this.selectedArticle.guid)}`,
+        );
+        selectedEl?.scrollIntoView({ block: "nearest", behavior: "auto" });
+      }
+    });
   }
 
   /**
@@ -710,6 +722,7 @@ export class ArticleList {
     );
     if (targetEl) {
       targetEl.classList.add("active");
+      targetEl.scrollIntoView({ block: "nearest", behavior: "auto" });
     }
   }
 
