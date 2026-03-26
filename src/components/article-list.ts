@@ -470,6 +470,39 @@ export class ArticleList {
     return tagsContainer;
   }
 
+  private ensureFeedTagsContainer(articleEl: HTMLElement): HTMLElement | null {
+    if (!articleEl.classList.contains("rss-dashboard-feed-item")) {
+      return null;
+    }
+
+    let tagsRegion = articleEl.querySelector<HTMLElement>(
+      ".rss-dashboard-feed-tags-region",
+    );
+    if (!tagsRegion) {
+      tagsRegion = document.createElement("div");
+      tagsRegion.className = "rss-dashboard-feed-tags-region";
+      const feedFooter = articleEl.querySelector<HTMLElement>(
+        ".rss-dashboard-feed-footer",
+      );
+      if (feedFooter) {
+        articleEl.insertBefore(tagsRegion, feedFooter);
+      } else {
+        articleEl.appendChild(tagsRegion);
+      }
+    }
+
+    let tagsContainer = tagsRegion.querySelector<HTMLElement>(
+      ".rss-dashboard-article-tags",
+    );
+    if (!tagsContainer) {
+      tagsContainer = tagsRegion.createDiv({
+        cls: "rss-dashboard-article-tags",
+      });
+    }
+
+    return tagsContainer;
+  }
+
   private addDocumentListener(
     target: Document,
     type: string,
@@ -741,7 +774,7 @@ export class ArticleList {
     const targetId = `article-${article.guid}`;
     const articleEls = Array.from(
       this.container.querySelectorAll<HTMLElement>(
-        ".rss-dashboard-article-item, .rss-dashboard-article-card",
+        ".rss-dashboard-article-item, .rss-dashboard-article-card, .rss-dashboard-feed-item",
       ),
     ).filter((el) => el.id === targetId);
 
@@ -830,6 +863,11 @@ export class ArticleList {
           .querySelectorAll(".rss-dashboard-card-tags-region")
           .forEach((el) => el.remove());
       }
+      if (articleEl.classList.contains("rss-dashboard-feed-item")) {
+        articleEl
+          .querySelectorAll(".rss-dashboard-feed-tags-region")
+          .forEach((el) => el.remove());
+      }
       return;
     }
 
@@ -855,6 +893,9 @@ export class ArticleList {
           }
           existingContainers.push(tagContainer);
         }
+      } else if (articleEl.classList.contains("rss-dashboard-feed-item")) {
+        const tagsContainer = this.ensureFeedTagsContainer(articleEl);
+        if (tagsContainer) existingContainers.push(tagsContainer);
       } else {
         const toolbar = articleEl.querySelector<HTMLElement>(
           ".rss-dashboard-action-toolbar",
@@ -871,9 +912,14 @@ export class ArticleList {
       const isCardTagStrip = !!container.closest(
         ".rss-dashboard-card-tags-region",
       );
+      const isFeedTagStrip = !!container.closest(
+        ".rss-dashboard-feed-tags-region",
+      );
       if (
-        articleEl.classList.contains("rss-dashboard-article-card") &&
-        isCardTagStrip
+        (articleEl.classList.contains("rss-dashboard-article-card") &&
+          isCardTagStrip) ||
+        (articleEl.classList.contains("rss-dashboard-feed-item") &&
+          isFeedTagStrip)
       ) {
         this.renderSingleRowCardTagChips(container, tags);
         return;
@@ -1069,8 +1115,9 @@ export class ArticleList {
       iconName: string,
       classNames: string[],
       labelText?: string,
+      parentEl: HTMLElement = articleControls,
     ): HTMLSelectElement => {
-      const selectWrapper = articleControls.createDiv({
+      const selectWrapper = parentEl.createDiv({
         cls:
           "rss-dashboard-select-with-icon" +
           (!isDropdown && labelText ? " rss-dashboard-select-with-label" : ""),
@@ -1295,30 +1342,54 @@ export class ArticleList {
       cls: "rss-dashboard-view-style-row",
     });
 
-    const viewStyleSelect = viewStyleRow.createEl("select", {
-      cls: "rss-dashboard-view-style-select",
-      attr: { "aria-label": "View style" },
-    });
-    viewStyleSelect.createEl("option", {
-      text: "List View",
-      attr: { value: "list" },
-    });
-    viewStyleSelect.createEl("option", {
-      text: "Card View",
-      attr: { value: "card" },
-    });
-    viewStyleSelect.createEl("option", {
-      text: "Feed View",
-      attr: { value: "feed" },
-    });
-    viewStyleSelect.value = this.settings.viewStyle;
+    const getViewStyleIcon = (style: string): string => {
+      switch (style) {
+        case "feed":
+          return "newspaper";
+        case "card":
+          return "layout-grid";
+        default:
+          return "list";
+      }
+    };
 
-    viewStyleSelect.addEventListener("change", (e: Event) => {
-      const value = (e.target as HTMLSelectElement).value as
-        | "list"
-        | "card"
-        | "feed";
-      this.callbacks.onToggleViewStyle(value);
+    const getViewStyleLabel = (style: string): string => {
+      return style.charAt(0).toUpperCase() + style.slice(1) + " View";
+    };
+
+    const viewStyleSelector = viewStyleRow.createDiv({
+      cls: "rss-dashboard-view-style-selector",
+      attr: {
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Change view style",
+      },
+    });
+
+    const selectorIcon = viewStyleSelector.createDiv({
+      cls: "rss-dashboard-selector-icon",
+    });
+    setIcon(selectorIcon, getViewStyleIcon(this.settings.viewStyle));
+
+    const selectorText = viewStyleSelector.createSpan({
+      cls: "rss-dashboard-selector-text",
+      text: getViewStyleLabel(this.settings.viewStyle),
+    });
+
+    const selectorArrow = viewStyleSelector.createDiv({
+      cls: "rss-dashboard-selector-arrow",
+    });
+    setIcon(selectorArrow, "chevron-down");
+
+    viewStyleSelector.addEventListener("click", () => {
+      this.showViewStyleMenu(viewStyleSelector);
+    });
+
+    viewStyleSelector.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        this.showViewStyleMenu(viewStyleSelector);
+      }
     });
 
     const createRefreshButton = (
@@ -1978,6 +2049,131 @@ export class ArticleList {
       }
 
       this.closeActiveFilterMenu();
+    });
+
+    // Position the menu
+    const rect = toggleBtn.getBoundingClientRect();
+    menuPortal.style.top = `${rect.bottom + 5}px`;
+    menuPortal.style.left = `${rect.left}px`;
+    targetWindow.requestAnimationFrame(() => {
+      const menuRect = menuPortal.getBoundingClientRect();
+      const margin = 8;
+      const maxLeft = targetWindow.innerWidth - menuRect.width - margin;
+      const nextLeft = Math.max(margin, Math.min(rect.left, maxLeft));
+      menuPortal.style.left = `${nextLeft}px`;
+    });
+
+    // Close menu on click outside
+    targetWindow.setTimeout(() => {
+      if (this.activePortal !== menuPortal) {
+        return;
+      }
+
+      const handleClickOutside = (e: Event) => {
+        if (this.activePortal !== menuPortal) {
+          return;
+        }
+
+        if (
+          !menuPortal.contains(e.target as Node) &&
+          !toggleBtn.contains(e.target as Node)
+        ) {
+          this.closeActiveFilterMenu();
+        }
+      };
+
+      this.activeFilterOutsideListenerCleanup = this.addDocumentListener(
+        targetDocument,
+        "mousedown",
+        handleClickOutside,
+      );
+    }, 0);
+  }
+
+  private showViewStyleMenu(toggleBtn: HTMLElement) {
+    const targetDocument = toggleBtn.doc;
+    const targetBody = targetDocument.body;
+    const targetWindow = targetDocument.defaultView || window;
+
+    if (this.activePortal && this.activeFilterToggleBtn === toggleBtn) {
+      this.closeActiveFilterMenu();
+      return;
+    }
+    this.closeActiveFilterMenu();
+
+    // Remove any existing menus from stale state.
+    targetDocument
+      .querySelectorAll(".rss-dashboard-filter-menu-portal")
+      .forEach((el) => el.remove());
+
+    const menuPortal = targetBody.createDiv({
+      cls: "rss-dashboard-filter-menu rss-dashboard-view-style-menu-portal",
+    });
+    this.activePortal = menuPortal;
+    this.activeFilterToggleBtn = toggleBtn;
+    toggleBtn.addClass("active");
+
+    const getViewStyleIcon = (style: string): string => {
+      switch (style) {
+        case "feed":
+          return "newspaper";
+        case "card":
+          return "layout-grid";
+        default:
+          return "list";
+      }
+    };
+
+    const getViewStyleLabel = (style: string): string => {
+      return style.charAt(0).toUpperCase() + style.slice(1) + " View";
+    };
+
+    const styles: Array<"list" | "card" | "feed"> = ["list", "card", "feed"];
+
+    styles.forEach((style) => {
+      const item = menuPortal.createDiv({
+        cls: "rss-dashboard-filter-menu-item",
+      });
+
+      // Checkmark on the LEFT
+      const checkDiv = item.createDiv({
+        cls: "rss-dashboard-filter-menu-check",
+      });
+      if (this.settings.viewStyle === style) {
+        setIcon(checkDiv, "check");
+        item.addClass("is-active");
+      }
+
+      const iconDiv = item.createDiv({
+        cls: "rss-dashboard-filter-menu-icon",
+      });
+      setIcon(iconDiv, getViewStyleIcon(style));
+
+      item.createDiv({
+        cls: "rss-dashboard-filter-menu-text",
+        text: getViewStyleLabel(style),
+      });
+
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.callbacks.onToggleViewStyle(style);
+        this.closeActiveFilterMenu();
+
+        // Update the selector button UI immediately
+        const selectorIcon = toggleBtn.querySelector(
+          ".rss-dashboard-selector-icon",
+        );
+        const selectorText = toggleBtn.querySelector(
+          ".rss-dashboard-selector-text",
+        );
+        if (selectorIcon) {
+          (selectorIcon as HTMLElement).empty();
+          setIcon(selectorIcon as HTMLElement, getViewStyleIcon(style));
+        }
+        if (selectorText) {
+          selectorText.textContent = getViewStyleLabel(style);
+        }
+      });
     });
 
     // Position the menu

@@ -498,6 +498,10 @@ export default class RssDashboardPlugin extends Plugin {
             },
             false,
           );
+          await this.syncReaderArticleUpdate(item.guid, {
+            saved: true,
+            tags: originalItem.tags ? [...originalItem.tags] : [],
+          });
         }
       }
     }
@@ -522,6 +526,23 @@ export default class RssDashboardPlugin extends Plugin {
         updates,
         !!shouldRerender,
       );
+      await this.syncReaderArticleUpdate(item.guid, updates);
+    }
+  }
+
+  private async syncReaderArticleUpdate(
+    articleGuid: string,
+    updates: Partial<FeedItem>,
+  ): Promise<void> {
+    const leaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
+    for (const leaf of leaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      if (view instanceof ReaderView) {
+        view.applyExternalUpdate(articleGuid, updates);
+      }
     }
   }
 
@@ -663,6 +684,8 @@ export default class RssDashboardPlugin extends Plugin {
         view.refresh();
       }
     }
+
+    await this.syncReaderArticleUpdate(articleGuid, updates);
   }
 
   private showImportProgressModal(

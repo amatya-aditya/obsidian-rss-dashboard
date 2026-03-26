@@ -279,14 +279,19 @@ describe("ArticleList Component", () => {
 
       articleList.render();
 
-      const viewSelect = container.querySelector(".rss-dashboard-view-style-select");
-      const refreshBtn = container.querySelector(".rss-dashboard-view-refresh-button");
+      const viewSelector = container.querySelector(
+        ".rss-dashboard-view-style-selector",
+      );
+      const refreshBtn = container.querySelector(
+        ".rss-dashboard-view-refresh-button",
+      );
 
-      expect(viewSelect).not.toBeNull();
+      expect(viewSelector).not.toBeNull();
       expect(refreshBtn).not.toBeNull();
     });
 
-    it("should call onToggleViewStyle when view style dropdown is changed", () => {
+    it("should render correctly with the initial view style", () => {
+      settings.viewStyle = "feed";
       const articleList = new ArticleList(
         container,
         settings,
@@ -301,30 +306,15 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
       articleList.render();
 
-      const viewSelect = container.querySelector(
-        ".rss-dashboard-view-style-select",
-      ) as HTMLSelectElement;
-      expect(viewSelect).not.toBeNull();
-
-      // Test Feed selection
-      viewSelect.value = "feed";
-      viewSelect.dispatchEvent(new Event("change"));
-      expect(mockCallbacks.onToggleViewStyle).toHaveBeenCalledWith("feed");
-
-      // Test Card selection
-      viewSelect.value = "card";
-      viewSelect.dispatchEvent(new Event("change"));
-      expect(mockCallbacks.onToggleViewStyle).toHaveBeenCalledWith("card");
-
-      // Test List selection
-      viewSelect.value = "list";
-      viewSelect.dispatchEvent(new Event("change"));
-      expect(mockCallbacks.onToggleViewStyle).toHaveBeenCalledWith("list");
+      const selectorText = container.querySelector(
+        ".rss-dashboard-selector-text",
+      );
+      expect(selectorText?.textContent).toBe("Feed View");
     });
   });
 
@@ -412,6 +402,150 @@ describe("ArticleList Component", () => {
       expect(img).not.toBeNull();
       expect(img.src).toBe("https://example.com/test.jpg");
       expect(img.getAttribute("loading")).toBe("lazy");
+    });
+
+    it("should render tags in a dedicated region above the footer, not in the toolbar", () => {
+      settings.viewStyle = "feed";
+      articles[0].tags = [{ name: "Tag1", color: "#8b5cf6" }];
+      
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR"
+      );
+
+      articleList.render();
+
+      const item = container.querySelector(".rss-dashboard-feed-item") as HTMLElement;
+      const tagsRegion = item.querySelector(".rss-dashboard-feed-tags-region");
+      const toolbar = item.querySelector(".rss-dashboard-feed-toolbar");
+      const toolbarTags = toolbar?.querySelector(".rss-dashboard-article-tags");
+
+      expect(tagsRegion).not.toBeNull();
+      expect(toolbarTags).toBeNull();
+      
+      // Verify ordering: tagsRegion should be before footer
+      const footer = item.querySelector(".rss-dashboard-feed-footer");
+      const children = Array.from(item.children);
+      const tagsIndex = children.indexOf(tagsRegion as Element);
+      const footerIndex = children.indexOf(footer as Element);
+      expect(tagsIndex).toBeLessThan(footerIndex);
+    });
+
+    it("should use renderSingleRowCardTagChips for feed view tags to support truncation", () => {
+      settings.viewStyle = "feed";
+      articles[0].tags = [{ name: "Tag1", color: "#8b5cf6" }];
+      
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR"
+      );
+
+      const renderSpy = vi.spyOn(ArticleList.prototype as any, "renderSingleRowCardTagChips");
+      
+      articleList.render();
+
+      expect(renderSpy).toHaveBeenCalled();
+    });
+
+    it("should keep tags in the dedicated region after syncArticleTags is called", () => {
+      settings.viewStyle = "feed";
+      articles[0].tags = []; // Start with no tags
+      
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR"
+      );
+
+      articleList.render();
+
+      // Initially no tags region because hasTags was false
+      let tagsRegion = container.querySelector(".rss-dashboard-feed-tags-region");
+      expect(tagsRegion).toBeNull();
+
+      // Now add a tag and sync
+      articles[0].tags = [{ name: "NewTag", color: "#8b5cf6" }];
+      const item = container.querySelector(".rss-dashboard-feed-item") as HTMLElement;
+      (articleList as any).syncArticleTags(item, articles[0]);
+
+      // Check if it's in the toolbar (incorrect) or tags region (correct)
+      const toolbarTags = item.querySelector(".rss-dashboard-feed-toolbar .rss-dashboard-article-tags");
+      
+      // If the bug exists, toolbarTags will NOT be null
+      expect(toolbarTags).toBeNull();
+      
+      tagsRegion = item.querySelector(".rss-dashboard-feed-tags-region");
+      expect(tagsRegion).not.toBeNull();
+    });
+
+    it("should update tags for feed items in-place via updateArticleInPlace", () => {
+      settings.viewStyle = "feed";
+      articles[0].tags = [{ name: "OldTag", color: "#3498db" }];
+      
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR"
+      );
+
+      articleList.render();
+
+      const item = container.querySelector(".rss-dashboard-feed-item") as HTMLElement;
+      const initialTag = item.querySelector(".rss-dashboard-article-tag");
+      expect(initialTag?.textContent).toBe("OldTag");
+
+      // Update the article in-place
+      const updatedArticle = { ...articles[0], tags: [{ name: "NewTag", color: "#8b5cf6" }] };
+      articleList.updateArticleInPlace(updatedArticle);
+
+      const updatedTag = item.querySelector(".rss-dashboard-article-tag");
+      expect(updatedTag?.textContent).toBe("NewTag");
     });
   });
 });

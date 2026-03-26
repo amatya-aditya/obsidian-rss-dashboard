@@ -149,7 +149,7 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 	border-radius: 4px;
 	font-size: 0.95em;
 	color: #fff;
-	background: var(--interactive-accent);
+	background: var(--tag-color, var(--interactive-accent));
 	font-weight: 500;
 }
 
@@ -254,7 +254,7 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 	justify-content: center;
 	width: 24px;
 	height: 24px;
-	border-radius: 50%;
+	border-radius: 12px;
 	padding: 2px;
 	background-color: var(--background-primary-alt);
 	position: relative;
@@ -307,7 +307,7 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 		width: auto;
 		min-width: 40px;
 		height: 36px;
-		border-radius: 10px;
+		border-radius: 12px;
 		padding: 0 10px;
 		border: 1px solid var(--background-modifier-border);
 		background-color: var(--background-primary);
@@ -332,7 +332,7 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 		width: 40px;
 		height: 40px;
 		padding: 0;
-		border-radius: 10px;
+		border-radius: 12px;
 	}
 }
 
@@ -449,6 +449,7 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 	color: #fff;
 	cursor: pointer;
 	flex-grow: 1;
+	background-color: var(--tag-color, var(--interactive-accent));
 }
 
 .rss-dashboard-tag-action-button {
@@ -500,6 +501,7 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 	border-radius: 3px;
 	font-size: 11px;
 	color: #fff;
+	background-color: var(--tag-color, var(--interactive-accent));
 }
 
 .rss-dashboard-article-summary {

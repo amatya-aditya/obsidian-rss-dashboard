@@ -1594,8 +1594,31 @@ export class ReaderView extends ItemView {
   private toggleReadStatus(): void {
     if (!this.currentItem) return;
     const nextRead = !this.currentItem.read;
-    this.onArticleUpdate(this.currentItem, { read: nextRead });
+    this.onArticleUpdate(this.currentItem, { read: nextRead }, false);
     this.updateToggleButtons();
+  }
+
+  public applyExternalUpdate(
+    articleGuid: string,
+    updates: Partial<FeedItem>,
+  ): void {
+    if (!this.currentItem || this.currentItem.guid !== articleGuid) {
+      return;
+    }
+
+    Object.assign(this.currentItem, updates);
+    if (updates.tags) {
+      this.currentItem.tags = updates.tags;
+      this.refreshReaderHeaderTags();
+    }
+
+    if (
+      updates.read !== undefined ||
+      updates.starred !== undefined ||
+      updates.saved !== undefined
+    ) {
+      this.updateToggleButtons();
+    }
   }
 
   private toggleStarStatus(): void {
