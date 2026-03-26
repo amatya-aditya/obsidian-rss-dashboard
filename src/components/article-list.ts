@@ -1291,47 +1291,64 @@ export class ArticleList {
       );
     });
 
-    const viewStyleToggle = articleControls.createDiv({
-      cls: "rss-dashboard-view-toggle",
+    const viewStyleRow = articleControls.createDiv({
+      cls: "rss-dashboard-view-style-row",
     });
 
-    const createViewStyleButton = (
-      style: "list" | "card" | "feed",
-      iconName: string,
-      label: string,
-      className: string,
-    ): HTMLElement => {
-      const btn = viewStyleToggle.createDiv({
-        cls: `clickable-icon rss-dashboard-view-style-button ${className}${this.settings.viewStyle === style ? " active" : ""}`,
-        attr: {
-          role: "button",
-          tabindex: "0",
-          "aria-label": `${label} view`,
-          title: `${label} view`,
-        },
+    const viewStyleSelect = viewStyleRow.createEl("select", {
+      cls: "rss-dashboard-view-style-select",
+      attr: { "aria-label": "View style" },
+    });
+    viewStyleSelect.createEl("option", {
+      text: "List View",
+      attr: { value: "list" },
+    });
+    viewStyleSelect.createEl("option", {
+      text: "Card View",
+      attr: { value: "card" },
+    });
+    viewStyleSelect.createEl("option", {
+      text: "Feed View",
+      attr: { value: "feed" },
+    });
+    viewStyleSelect.value = this.settings.viewStyle;
+
+    viewStyleSelect.addEventListener("change", (e: Event) => {
+      const value = (e.target as HTMLSelectElement).value as
+        | "list"
+        | "card"
+        | "feed";
+      this.callbacks.onToggleViewStyle(value);
+    });
+
+    const createRefreshButton = (
+      parentEl: HTMLElement,
+      extraClass = "",
+      storeReference = false,
+    ): void => {
+      const dashboardRefreshButton = parentEl.createEl("button", {
+        cls:
+          "rss-dashboard-refresh-button" + (extraClass ? ` ${extraClass}` : ""),
       });
-      const icon = btn.createDiv();
-      setIcon(icon, iconName);
-      btn.createSpan({ text: label });
-
-      const handleClick = () => {
-        this.callbacks.onToggleViewStyle(style);
-      };
-
-      btn.addEventListener("click", handleClick);
-      btn.addEventListener("keydown", (e: KeyboardEvent) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          handleClick();
-        }
+      const refreshIcon = dashboardRefreshButton.createDiv({
+        cls: "rss-dashboard-refresh-icon",
       });
+      setIcon(refreshIcon, "refresh-cw");
+      dashboardRefreshButton.setAttr("title", "Refresh feeds");
 
-      return btn;
+      if (storeReference) {
+        this.refreshButton = dashboardRefreshButton;
+      }
+
+      dashboardRefreshButton.addEventListener("click", () => {
+        if (dashboardRefreshButton.classList.contains("refreshing")) return;
+        void this.handleRefreshButtonClick();
+      });
     };
 
-    createViewStyleButton("list", "list", "List", "rss-dashboard-list-view-button");
-    createViewStyleButton("card", "layout-grid", "Card", "rss-dashboard-card-view-button");
-    createViewStyleButton("feed", "newspaper", "Feed", "rss-dashboard-feed-view-button");
+    if (isDropdown) {
+      createRefreshButton(viewStyleRow, "rss-dashboard-view-refresh-button");
+    }
 
     if (
       isDropdown &&
@@ -1488,34 +1505,7 @@ export class ArticleList {
       });
     }
 
-    const createRefreshButton = (
-      parentEl: HTMLElement,
-      extraClass = "",
-      storeReference = false,
-    ): void => {
-      const dashboardRefreshButton = parentEl.createEl("button", {
-        cls:
-          "rss-dashboard-refresh-button" + (extraClass ? ` ${extraClass}` : ""),
-      });
-      const refreshIcon = dashboardRefreshButton.createDiv({
-        cls: "rss-dashboard-refresh-icon",
-      });
-      setIcon(refreshIcon, "refresh-cw");
-      dashboardRefreshButton.setAttr("title", "Refresh feeds");
-
-      if (storeReference) {
-        this.refreshButton = dashboardRefreshButton;
-      }
-
-      dashboardRefreshButton.addEventListener("click", () => {
-        if (dashboardRefreshButton.classList.contains("refreshing")) return;
-        void this.handleRefreshButtonClick();
-      });
-    };
-
-    if (isDropdown) {
-      createRefreshButton(viewStyleToggle, "rss-dashboard-view-refresh-button");
-    } else {
+    if (!isDropdown) {
       createRefreshButton(articleControls, "", true);
     }
 
@@ -2607,7 +2597,7 @@ export class ArticleList {
       });
 
       // 1. Preview Image (Hero)
-      let coverImgSrc = article.coverImage;
+      let coverImgSrc = article.image || article.coverImage;
       if (!coverImgSrc && article.content) {
         const extracted = extractFirstImageSrc(article.content);
         if (extracted) coverImgSrc = extracted;
@@ -2628,11 +2618,19 @@ export class ArticleList {
         const previewRegion = feedContent.createDiv({
           cls: "rss-dashboard-feed-preview-region",
         });
+        // Blurred background for premium look and to handle small/varying aspect ratio images
+        previewRegion.createDiv({
+          cls: "rss-dashboard-feed-hero-blur",
+          attr: {
+            style: `background-image: url('${coverImgSrc}')`,
+          },
+        });
         previewRegion.createEl("img", {
           cls: "rss-dashboard-feed-hero-image",
           attr: {
             src: coverImgSrc,
             alt: article.title,
+            loading: "lazy",
           },
         });
       }

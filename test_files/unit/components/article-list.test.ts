@@ -259,7 +259,7 @@ describe("ArticleList Component", () => {
   });
 
   describe("View Style Toggles", () => {
-    it("should render list, card, and feed view buttons in the hamburger menu", () => {
+    it("should render view style dropdown and refresh button in the hamburger menu", () => {
       const articleList = new ArticleList(
         container,
         settings,
@@ -279,16 +279,14 @@ describe("ArticleList Component", () => {
 
       articleList.render();
 
-      const listViewBtn = container.querySelector(".rss-dashboard-list-view-button");
-      const cardViewBtn = container.querySelector(".rss-dashboard-card-view-button");
-      const feedViewBtn = container.querySelector(".rss-dashboard-feed-view-button");
+      const viewSelect = container.querySelector(".rss-dashboard-view-style-select");
+      const refreshBtn = container.querySelector(".rss-dashboard-view-refresh-button");
 
-      expect(listViewBtn).not.toBeNull();
-      expect(cardViewBtn).not.toBeNull();
-      expect(feedViewBtn).not.toBeNull();
+      expect(viewSelect).not.toBeNull();
+      expect(refreshBtn).not.toBeNull();
     });
 
-    it("should call onToggleViewStyle('feed') when feed view button is clicked", () => {
+    it("should call onToggleViewStyle when view style dropdown is changed", () => {
       const articleList = new ArticleList(
         container,
         settings,
@@ -308,62 +306,25 @@ describe("ArticleList Component", () => {
 
       articleList.render();
 
-      const feedViewBtn = container.querySelector(".rss-dashboard-feed-view-button") as HTMLElement;
-      feedViewBtn.click();
+      const viewSelect = container.querySelector(
+        ".rss-dashboard-view-style-select",
+      ) as HTMLSelectElement;
+      expect(viewSelect).not.toBeNull();
 
+      // Test Feed selection
+      viewSelect.value = "feed";
+      viewSelect.dispatchEvent(new Event("change"));
       expect(mockCallbacks.onToggleViewStyle).toHaveBeenCalledWith("feed");
-    });
 
-    it("should call onToggleViewStyle('list') when list view button is clicked", () => {
-      const articleList = new ArticleList(
-        container,
-        settings,
-        "All articles",
-        null,
-        articles,
-        null,
-        mockCallbacks,
-        1,
-        1,
-        10,
-        2,
-        new Set(),
-        new Set(),
-        "OR"
-      );
-
-      articleList.render();
-
-      const listViewBtn = container.querySelector(".rss-dashboard-list-view-button") as HTMLElement;
-      listViewBtn.click();
-
-      expect(mockCallbacks.onToggleViewStyle).toHaveBeenCalledWith("list");
-    });
-
-    it("should call onToggleViewStyle('card') when card view button is clicked", () => {
-      const articleList = new ArticleList(
-        container,
-        settings,
-        "All articles",
-        null,
-        articles,
-        null,
-        mockCallbacks,
-        1,
-        1,
-        10,
-        2,
-        new Set(),
-        new Set(),
-        "OR"
-      );
-
-      articleList.render();
-
-      const cardViewBtn = container.querySelector(".rss-dashboard-card-view-button") as HTMLElement;
-      cardViewBtn.click();
-
+      // Test Card selection
+      viewSelect.value = "card";
+      viewSelect.dispatchEvent(new Event("change"));
       expect(mockCallbacks.onToggleViewStyle).toHaveBeenCalledWith("card");
+
+      // Test List selection
+      viewSelect.value = "list";
+      viewSelect.dispatchEvent(new Event("change"));
+      expect(mockCallbacks.onToggleViewStyle).toHaveBeenCalledWith("list");
     });
   });
 
@@ -416,6 +377,41 @@ describe("ArticleList Component", () => {
 
       const feedArticles = container.querySelectorAll(".rss-dashboard-feed-item");
       expect(feedArticles.length).toBe(articles.length);
+    });
+
+    it("should render hero region with blur background and image", () => {
+      settings.viewStyle = "feed";
+      // Ensure first article has an image
+      articles[0].image = "https://example.com/test.jpg";
+      
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR"
+      );
+
+      articleList.render();
+
+      const item = container.querySelector(".rss-dashboard-feed-item");
+      const blur = item?.querySelector(".rss-dashboard-feed-hero-blur") as HTMLElement;
+      const img = item?.querySelector(".rss-dashboard-feed-hero-image") as HTMLImageElement;
+
+      expect(blur).not.toBeNull();
+      expect(blur.style.backgroundImage).toContain("https://example.com/test.jpg");
+      expect(img).not.toBeNull();
+      expect(img.src).toBe("https://example.com/test.jpg");
+      expect(img.getAttribute("loading")).toBe("lazy");
     });
   });
 });

@@ -1234,9 +1234,15 @@ export class CustomXMLParser {
     const score = (el: Element): number => {
       const type = (el.getAttribute("type") || "").toLowerCase();
       const medium = (el.getAttribute("medium") || "").toLowerCase();
+      const width = parseInt(el.getAttribute("width") || "0", 10);
+      const height = parseInt(el.getAttribute("height") || "0", 10);
       const isImage = type.startsWith("image/") || medium === "image";
-      // Prefer image-typed media:content over unknown types.
-      return isImage ? 2 : 1;
+
+      // Base score: 1000 for images, 1 otherwise
+      let s = isImage ? 1000 : 1;
+      // Add dimensions to prioritize larger images
+      s += Math.max(width, height);
+      return s;
     };
 
     const pickBest = (candidates: Element[]): string => {
