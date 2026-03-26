@@ -866,20 +866,26 @@
   gap: 12px;
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-button.rss-dashboard-mark-read {
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-mark-all-button.rss-dashboard-mark-read {
   border-color: rgba(46, 204, 113, 0.3);
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-button.rss-dashboard-mark-read span.rss-dashboard-mark-all-text {
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-mark-all-button.rss-dashboard-mark-read
+  span.rss-dashboard-mark-all-text {
   color: var(--text-normal);
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-button.rss-dashboard-mark-read:hover {
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-mark-all-button.rss-dashboard-mark-read:hover {
   background-color: rgba(46, 204, 113, 0.1);
   border-color: #2ecc71;
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-button.rss-dashboard-mark-read svg {
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-mark-all-button.rss-dashboard-mark-read
+  svg {
   color: #2ecc71;
 }
 
@@ -1099,8 +1105,7 @@
 .rss-dashboard-dropdown-controls
   .rss-dashboard-select-with-icon
   .rss-dashboard-view-style-select,
-.rss-dashboard-dropdown-controls
-  .rss-dashboard-themed-select-trigger {
+.rss-dashboard-dropdown-controls .rss-dashboard-themed-select-trigger {
   width: 100%;
   height: 42px;
   min-height: 42px;
@@ -1145,8 +1150,7 @@
 .rss-dashboard-dropdown-controls
   .rss-dashboard-select-with-icon
   .rss-dashboard-view-style-select:focus,
-.rss-dashboard-dropdown-controls
-  .rss-dashboard-themed-select-trigger.active {
+.rss-dashboard-dropdown-controls .rss-dashboard-themed-select-trigger.active {
   border-color: var(--rss-dashboard-dropdown-accent);
   outline: none;
 }
@@ -1234,29 +1238,38 @@
   border-color: var(--rss-dashboard-dropdown-accent);
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-view-refresh-button .rss-dashboard-refresh-icon {
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-view-refresh-button
+  .rss-dashboard-refresh-icon {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-view-refresh-button .rss-dashboard-refresh-icon svg {
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-view-refresh-button
+  .rss-dashboard-refresh-icon
+  svg {
   width: 18px;
   height: 18px;
-  color: var(--text-muted);
+  color: inherit;
 }
 
 .rss-dashboard-dropdown-controls .rss-dashboard-view-refresh-button:hover svg {
-  color: var(--rss-dashboard-dropdown-accent);
+  color: inherit;
+  animation: rss-dashboard-refresh-spin 0.6s ease-out;
 }
 
-body:not(.theme-dark)
-  .rss-dashboard-dropdown-controls
-  .rss-dashboard-view-toggle
-  button.active
-  svg {
-  color: #000 !important;
+@keyframes rss-dashboard-refresh-hover-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
+
+/* Light mode override - REMOVED: causing black icons on active buttons */
 
 .rss-dashboard-dropdown-controls
   .rss-dashboard-view-toggle
