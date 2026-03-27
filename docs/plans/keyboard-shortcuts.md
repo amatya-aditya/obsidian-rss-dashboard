@@ -1,3 +1,5 @@
+# This is a working document for future implementation of keyboard shortcuts. It's based off Inoreader's list of shortcuts which can be found [here](https://www.inoreader.com/blog/2015/05/inoreader-how-to-save-time-with.html).
+
 # Global hotkeys
 
 - Settings/Preferences — `Alt + p`
