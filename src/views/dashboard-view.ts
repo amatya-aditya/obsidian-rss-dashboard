@@ -386,7 +386,7 @@ export class RssDashboardView extends ItemView {
         onToggleViewStyle: this.handleToggleViewStyle.bind(this),
         onRefreshFeeds: this.handleRefreshFeeds.bind(this),
         onSearch: (q: string) => {
-            // State is handled by ArticleList locally, but we could sync it here if needed
+          // State is handled by ArticleList locally, but we could sync it here if needed
         },
         onArticleUpdate: (article, updates, shouldRerender) => {
           void this.handleArticleUpdate(article, updates, shouldRerender);
@@ -776,19 +776,25 @@ export class RssDashboardView extends ItemView {
   private getArticlesTitleInfo(): { title: string; tooltip: string | null } {
     const baseTitle = this.getArticlesTitle();
 
-    // Only augment the title when we're in the All Feeds / All articles view.
-    const isAllFeedsView =
-      this.currentFolder === null &&
-      this.currentFeed === null &&
-      this.selectedTags.length === 0 &&
-      baseTitle === "All articles";
+    // Check if there are any active filters
+    const hasActiveFilters =
+      this.activeStatusFilters.size > 0 || this.activeTagFilters.size > 0;
 
-    if (!isAllFeedsView) {
+    // If no active filters, return basic title
+    if (!hasActiveFilters) {
       return { title: baseTitle, tooltip: null };
     }
 
+    // For individual feed pages, include feed name in the base title
+    let effectiveBaseTitle = baseTitle;
+    if (this.currentFeed !== null) {
+      // When viewing a single feed, use "Latest from [Feed Name]" as the base
+      effectiveBaseTitle = `Latest from ${this.currentFeed.title}`;
+    }
+
+    // Format the filter text (works for both All Feeds and individual feeds)
     return formatDashboardMultiFiltersTitle({
-      baseTitle,
+      baseTitle: effectiveBaseTitle,
       statusFilters: this.activeStatusFilters,
       tagFilters: this.activeTagFilters,
       logic: this.filterLogic,
@@ -2269,51 +2275,62 @@ export class RssDashboardView extends ItemView {
     isTag?: boolean;
     logic?: "AND" | "OR";
     batch?: {
-        statusFilters?: Set<string>;
-        tagFilters?: Set<string>;
-        logic?: "AND" | "OR";
-        bypassAll?: boolean;
-        highlightsEnabled?: boolean;
-        statusBarVisible?: boolean;
+      statusFilters?: Set<string>;
+      tagFilters?: Set<string>;
+      logic?: "AND" | "OR";
+      bypassAll?: boolean;
+      highlightsEnabled?: boolean;
+      statusBarVisible?: boolean;
     };
   }): void {
     if (filter.type === "batch" && filter.batch) {
-        const b = filter.batch;
-        if (b.logic) this.filterLogic = b.logic;
-        if (b.statusFilters) this.activeStatusFilters = new Set(b.statusFilters);
-        if (b.tagFilters) this.activeTagFilters = new Set(b.tagFilters);
-        
-        let needsFullRender = false;
-        if (b.bypassAll !== undefined) {
-            if (!this.settings.keywordRules) {
-                this.settings.keywordRules = { includeLogic: "AND", bypassAll: false, rules: [] };
-            }
-            if (this.settings.keywordRules.bypassAll !== b.bypassAll) {
-                this.settings.keywordRules.bypassAll = b.bypassAll;
-                needsFullRender = true;
-            }
-        }
-        if (b.highlightsEnabled !== undefined) {
-            if (!this.settings.highlights) {
-                this.settings.highlights = { enabled: false, defaultColor: "#ffd700", highlightInContent: true, highlightInTitles: true, highlightInSummaries: true, words: [] };
-            }
-            if (this.settings.highlights.enabled !== b.highlightsEnabled) {
-                this.settings.highlights.enabled = b.highlightsEnabled;
-                needsFullRender = true;
-            }
-        }
-        if (b.statusBarVisible !== undefined) {
-            if (this.settings.display.showFilterStatusBar !== b.statusBarVisible) {
-                this.settings.display.showFilterStatusBar = b.statusBarVisible;
-                needsFullRender = true;
-            }
-        }
+      const b = filter.batch;
+      if (b.logic) this.filterLogic = b.logic;
+      if (b.statusFilters) this.activeStatusFilters = new Set(b.statusFilters);
+      if (b.tagFilters) this.activeTagFilters = new Set(b.tagFilters);
 
-        if (needsFullRender) {
-            void this.plugin.saveSettings();
-            void this.render();
-            return;
+      let needsFullRender = false;
+      if (b.bypassAll !== undefined) {
+        if (!this.settings.keywordRules) {
+          this.settings.keywordRules = {
+            includeLogic: "AND",
+            bypassAll: false,
+            rules: [],
+          };
         }
+        if (this.settings.keywordRules.bypassAll !== b.bypassAll) {
+          this.settings.keywordRules.bypassAll = b.bypassAll;
+          needsFullRender = true;
+        }
+      }
+      if (b.highlightsEnabled !== undefined) {
+        if (!this.settings.highlights) {
+          this.settings.highlights = {
+            enabled: false,
+            defaultColor: "#ffd700",
+            highlightInContent: true,
+            highlightInTitles: true,
+            highlightInSummaries: true,
+            words: [],
+          };
+        }
+        if (this.settings.highlights.enabled !== b.highlightsEnabled) {
+          this.settings.highlights.enabled = b.highlightsEnabled;
+          needsFullRender = true;
+        }
+      }
+      if (b.statusBarVisible !== undefined) {
+        if (this.settings.display.showFilterStatusBar !== b.statusBarVisible) {
+          this.settings.display.showFilterStatusBar = b.statusBarVisible;
+          needsFullRender = true;
+        }
+      }
+
+      if (needsFullRender) {
+        void this.plugin.saveSettings();
+        void this.render();
+        return;
+      }
     } else if (filter.type === "logic" && filter.logic) {
       this.filterLogic = filter.logic;
     } else if (filter.type === "status-bar-visibility") {
@@ -2812,10 +2829,14 @@ export class RssDashboardView extends ItemView {
   }
 
   private getCurrentPageSize(): number {
-    if (this.currentFolder === "unread") return this.settings.unreadArticlesPageSize;
-    if (this.currentFolder === "read") return this.settings.readArticlesPageSize;
-    if (this.currentFolder === "saved") return this.settings.savedArticlesPageSize;
-    if (this.currentFolder === "starred") return this.settings.starredArticlesPageSize;
+    if (this.currentFolder === "unread")
+      return this.settings.unreadArticlesPageSize;
+    if (this.currentFolder === "read")
+      return this.settings.readArticlesPageSize;
+    if (this.currentFolder === "saved")
+      return this.settings.savedArticlesPageSize;
+    if (this.currentFolder === "starred")
+      return this.settings.starredArticlesPageSize;
     return this.settings.allArticlesPageSize;
   }
 }
