@@ -139,9 +139,7 @@ async function resolvePocketCastsUrl(
 
         if (decodedTitle.toLowerCase() === "pocket casts plus") {
           // Generic title found, search would be too ambiguous
-          console.warn(
-            `[RSS Dashboard] Extracted generic title "Pocket Casts Plus", skipping search to avoid incorrect resolution.`,
-          );
+          // [RSS Dashboard] Extracted generic title "Pocket Casts Plus", skipping search to avoid incorrect resolution.
         } else {
           try {
             // iTunes Search API is public, free, and returns canonical RSS feedUrls
@@ -168,10 +166,7 @@ async function resolvePocketCastsUrl(
               `[RSS Dashboard] iTunes API returned no feedUrl for title: ${decodedTitle}`,
             );
           } catch (itunesErr) {
-            console.warn(
-              `[RSS Dashboard] iTunes Search API fallback failed:`,
-              itunesErr,
-            );
+            // [RSS Dashboard] iTunes Search API fallback failed (expected during proxy fallback chain)
           }
         }
       }
@@ -180,10 +175,7 @@ async function resolvePocketCastsUrl(
         `Could not find RSS feed link or valid title in HTML from Pocket Casts layout`,
       );
     } catch (e) {
-      console.warn(
-        `[RSS Dashboard] Proxy ${proxyUrl} failed to resolve Pocket Casts URL:`,
-        e,
-      );
+      // [RSS Dashboard] Proxy ${proxyUrl} failed to resolve Pocket Casts URL (expected - trying next proxy)
       lastError = e instanceof Error ? e : new Error(String(e));
       // Continue to next proxy
     }
@@ -684,9 +676,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
         response.text.includes("WordPress") ||
         response.text.includes("wp-blog-header.php")
       ) {
-        console.warn(
-          "Received php file instead of RSS feed, trying alternative URLs...",
-        );
+        // [RSS Dashboard] Received php file instead of RSS feed, trying alternative URLs...
 
         const baseUrl = secureUrl.replace(/\/feed\/?$/, "");
         const alternativeUrls = [
@@ -780,10 +770,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
 
       throw new Error("Not a valid RSS/Atom feed");
     } catch (error) {
-      console.warn(
-        `[RSS dashboard] direct fetch failed for ${targetUrl}, trying AllOrigins proxy...`,
-        error,
-      );
+      // [RSS Dashboard] direct fetch failed for ${targetUrl}, trying AllOrigins proxy...
 
       try {
         const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
@@ -834,7 +821,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
               throw new Error("Not a valid RSS/Atom feed");
             }
           } catch (e) {
-            console.warn("[RSS dashboard] codetabs proxy failed", e);
+            // [RSS dashboard] codetabs proxy failed (expected - falls through to next proxy)
           }
 
           // isomorphic-git CORS proxy (raw)
@@ -850,7 +837,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
               throw new Error("Not a valid RSS/Atom feed");
             }
           } catch (e) {
-            console.warn("[RSS dashboard] isomorphic-git proxy failed", e);
+            // [RSS dashboard] isomorphic-git proxy failed (expected - falls through to next proxy)
           }
 
           try {
@@ -868,7 +855,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
               throw new Error("Not a valid RSS/Atom feed");
             }
           } catch (e) {
-            console.warn("[RSS dashboard] thingproxy failed", e);
+            // [RSS dashboard] thingproxy failed (expected - falls through to next proxy)
           }
 
           try {
@@ -894,10 +881,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
               }
             }
           } catch (e) {
-            console.warn(
-              "[RSS dashboard] discoverFeedUrl proxy fetch failed",
-              e,
-            );
+            // [RSS dashboard] discoverFeedUrl proxy fetch failed (expected - falls through to next proxy)
           }
         }
         throw new Error(

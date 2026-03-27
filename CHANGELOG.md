@@ -1,4 +1,4 @@
-## [2.2.0-beta.9] - March 25, 2026
+## [2.2.0-beta.9] - March 27, 2026
 
 ### New Features
 
