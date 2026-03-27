@@ -4,8 +4,21 @@
  * Unit tests:   isBlockedResponse — pure logic, no mocks required
  * Integration:  fetchWithProxyFallback — mocks robustFetch via vi.mock
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { isBlockedResponse, fetchWithProxyFallback } from "../../src/utils/fetch-helpers";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  SpyInstance,
+} from "vitest";
+import * as platformUtils from "../../src/utils/platform-utils";
+import { robustFetch } from "../../src/utils/platform-utils";
+import {
+  isBlockedResponse,
+  fetchWithProxyFallback,
+} from "../../src/utils/fetch-helpers";
 
 // ── isBlockedResponse — unit tests ──────────────────────────────────────────
 
@@ -31,32 +44,44 @@ ${"<p>placeholder content to make this long enough to pass length check</p>".rep
   });
 
   it("returns true for cf-browser-verification marker", () => {
-    const html = "<html><body>cf-browser-verification content" + " x".repeat(200) + "</body></html>";
+    const html =
+      "<html><body>cf-browser-verification content" +
+      " x".repeat(200) +
+      "</body></html>";
     expect(isBlockedResponse(html)).toBe(true);
   });
 
   it("returns true for cf-challenge marker", () => {
-    const html = "<html><body><div class='cf-challenge'>verify</div>" + " x".repeat(200) + "</body></html>";
+    const html =
+      "<html><body><div class='cf-challenge'>verify</div>" +
+      " x".repeat(200) +
+      "</body></html>";
     expect(isBlockedResponse(html)).toBe(true);
   });
 
   it("returns true for Access Denied page", () => {
-    const html = "<html><body>Access Denied" + " x".repeat(200) + "</body></html>";
+    const html =
+      "<html><body>Access Denied" + " x".repeat(200) + "</body></html>";
     expect(isBlockedResponse(html)).toBe(true);
   });
 
   it("returns true for 403 Forbidden page", () => {
-    const html = "<html><body>403 Forbidden" + " x".repeat(200) + "</body></html>";
+    const html =
+      "<html><body>403 Forbidden" + " x".repeat(200) + "</body></html>";
     expect(isBlockedResponse(html)).toBe(true);
   });
 
   it("returns true for DDoS-Guard page", () => {
-    const html = "<html><body>ddos-guard protection" + " x".repeat(200) + "</body></html>";
+    const html =
+      "<html><body>ddos-guard protection" + " x".repeat(200) + "</body></html>";
     expect(isBlockedResponse(html)).toBe(true);
   });
 
   it("returns true for WAF trigger: enable javascript and cookies", () => {
-    const html = "<html><body>Please enable javascript and cookies" + " x".repeat(200) + "</body></html>";
+    const html =
+      "<html><body>Please enable javascript and cookies" +
+      " x".repeat(200) +
+      "</body></html>";
     expect(isBlockedResponse(html)).toBe(true);
   });
 
@@ -79,11 +104,7 @@ ${"<p>placeholder content to make this long enough to pass length check</p>".rep
 
 // ── fetchWithProxyFallback — integration tests ───────────────────────────────
 
-// We mock the platform-utils module so robustFetch never makes real network calls
-vi.mock("../../src/utils/platform-utils", () => ({
-  robustFetch: vi.fn(),
-  ensureUtf8Meta: (html: string) => html,
-}));
+// We spy on platformUtils.robustFetch so tests never make real network calls.
 
 // Readability needs a real DOM — jsdom provides that.
 // We also need to provide minimal HTML that Readability will successfully parse.
@@ -107,12 +128,14 @@ const CLOUDFLARE_HTML = `<!DOCTYPE html><html><head><title>Just a moment...</tit
 </body></html>`;
 
 describe("fetchWithProxyFallback", () => {
-  let robustFetchMock: ReturnType<typeof vi.fn>;
+  let robustFetchMock: SpyInstance<
+    Parameters<typeof robustFetch>,
+    ReturnType<typeof robustFetch>
+  >;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
-    const mod = await import("../../src/utils/platform-utils");
-    robustFetchMock = mod.robustFetch as ReturnType<typeof vi.fn>;
+    robustFetchMock = vi.spyOn(platformUtils, "robustFetch");
   });
 
   afterEach(() => {
@@ -125,7 +148,9 @@ describe("fetchWithProxyFallback", () => {
     const result = await fetchWithProxyFallback("https://example.com/article");
 
     expect(robustFetchMock).toHaveBeenCalledTimes(1);
-    expect(robustFetchMock.mock.calls[0][0]).toBe("https://example.com/article");
+    expect(robustFetchMock.mock.calls[0][0]).toBe(
+      "https://example.com/article",
+    );
     // Readability will return some HTML content extracted from the article body
     expect(result.length).toBeGreaterThan(0);
     expect(result).toContain("Test Headline");
@@ -134,7 +159,10 @@ describe("fetchWithProxyFallback", () => {
   it("does not use proxy when direct fetch succeeds", async () => {
     robustFetchMock.mockResolvedValueOnce(ARTICLE_HTML);
 
-    await fetchWithProxyFallback("https://example.com/article", "https://proxy.example.com/?url=");
+    await fetchWithProxyFallback(
+      "https://example.com/article",
+      "https://proxy.example.com/?url=",
+    );
 
     // Only one call — no proxy attempt
     expect(robustFetchMock).toHaveBeenCalledTimes(1);
@@ -155,7 +183,9 @@ describe("fetchWithProxyFallback", () => {
     // Verify the second call used the proxy URL
     const proxyCall = robustFetchMock.mock.calls[1][0] as string;
     expect(proxyCall).toContain("https://proxy.example.com/?url=");
-    expect(proxyCall).toContain(encodeURIComponent("https://psychologytoday.com/article"));
+    expect(proxyCall).toContain(
+      encodeURIComponent("https://psychologytoday.com/article"),
+    );
     // Content from the proxied page should be returned
     expect(result).toContain("Test Headline");
   });
@@ -172,7 +202,10 @@ describe("fetchWithProxyFallback", () => {
   it("returns empty string when direct fetch returns empty and corsProxyUrl is empty string", async () => {
     robustFetchMock.mockResolvedValueOnce("");
 
-    const result = await fetchWithProxyFallback("https://example.com/article", "");
+    const result = await fetchWithProxyFallback(
+      "https://example.com/article",
+      "",
+    );
 
     expect(robustFetchMock).toHaveBeenCalledTimes(1);
     expect(result).toBe("");
@@ -201,7 +234,7 @@ describe("fetchWithProxyFallback", () => {
 
   it("correctly encodes the article URL when appending to proxy base URL", async () => {
     robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_HTML); // direct blocked
-    robustFetchMock.mockResolvedValueOnce(ARTICLE_HTML);   // proxy succeeds
+    robustFetchMock.mockResolvedValueOnce(ARTICLE_HTML); // proxy succeeds
 
     const articleUrl = "https://example.com/article?id=123&ref=rss";
     const proxyBase = "https://api.allorigins.win/raw?url=";

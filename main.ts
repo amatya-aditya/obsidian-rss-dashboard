@@ -14,9 +14,14 @@ import {
   Feed,
   FeedItem,
   FeedMetadata,
-  FeedFilterSettings,
+  FeedKeywordRulesSettings,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
+import {
+  migrateDisplaySettings,
+  migrateDefaultFilterToDashboardMultiFilters,
+  migrateKeywordRulesSettings,
+} from "./src/utils/settings-migration";
 import {
   RssDashboardView,
   RSS_DASHBOARD_VIEW_TYPE,
@@ -42,13 +47,13 @@ import { MediaService } from "./src/services/media-service";
 import { sleep, setCssProps } from "./src/utils/platform-utils";
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { copyTextToClipboard, exportBlob } from "./src/utils/export-utils";
+import { canonicalizeItemIdentityUrl } from "./src/utils/url-utils";
 
 export interface FiltersUpdatedEventPayload {
   source: string;
   feedUrl?: string;
   timestamp: number;
 }
-
 
 export default class RssDashboardPlugin extends Plugin {
   settings!: RssDashboardSettings;
@@ -118,7 +123,7 @@ export default class RssDashboardPlugin extends Plugin {
     return null;
   }
 
-    public async openTagsSettings(): Promise<void> {
+  public async openTagsSettings(): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
     const setting = (this.app as any).setting;
     if (setting) {
@@ -127,7 +132,7 @@ export default class RssDashboardPlugin extends Plugin {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       setting.openTabById(this.manifest.id);
       if (this.settingTab) {
-        this.settingTab.activateTab('Tags');
+        this.settingTab.activateTab("Tags");
       }
     }
   }
@@ -145,7 +150,6 @@ export default class RssDashboardPlugin extends Plugin {
       }
     }
   }
-
 
   async onload() {
     await this.loadSettings();
@@ -740,17 +744,17 @@ export default class RssDashboardPlugin extends Plugin {
               lastUpdated: Date.now(),
               mediaType: feedMetadata.mediaType || "article",
               autoDeleteDuration: feedMetadata.autoDeleteDuration,
-              maxItemsLimit:
-                typeof feedMetadata.maxItemsLimit === "number"
-                  ? feedMetadata.maxItemsLimit
-                  : 50,
-              scanInterval: feedMetadata.scanInterval,
-              filters: {
-                overrideGlobalFilters: false,
-                includeLogic: "AND",
-                rules: [],
-              },
-            };
+               maxItemsLimit:
+                 typeof feedMetadata.maxItemsLimit === "number"
+                   ? feedMetadata.maxItemsLimit
+                   : 50,
+               scanInterval: feedMetadata.scanInterval,
+               keywordRules: {
+                 overrideGlobalRules: false,
+                 includeLogic: "AND",
+                 rules: [],
+               },
+             };
 
             if (
               feedToAdd.mediaType === "video" &&
@@ -829,7 +833,7 @@ export default class RssDashboardPlugin extends Plugin {
       this.importStatusBarItem = this.addStatusBarItem();
       this.importStatusBarItem.textContent = "";
       const iconSpan = this.importStatusBarItem.createSpan({
-        cls: "import-statusbar-icon",
+        cls: "rss-dashboard-import-statusbar-icon",
       });
       setIcon(iconSpan, "rss");
       this.importStatusBarItem.createSpan({
@@ -840,9 +844,21 @@ export default class RssDashboardPlugin extends Plugin {
     const totalFeeds = this.backgroundImportQueue.length;
     let processedCount = 0;
     const saveEvery =
-      totalFeeds >= 20000 ? 200 : totalFeeds >= 5000 ? 100 : totalFeeds >= 1000 ? 25 : 5;
+      totalFeeds >= 20000
+        ? 200
+        : totalFeeds >= 5000
+          ? 100
+          : totalFeeds >= 1000
+            ? 25
+            : 5;
     const renderEvery =
-      totalFeeds >= 20000 ? 500 : totalFeeds >= 5000 ? 150 : totalFeeds >= 1000 ? 40 : 3;
+      totalFeeds >= 20000
+        ? 500
+        : totalFeeds >= 5000
+          ? 150
+          : totalFeeds >= 1000
+            ? 40
+            : 3;
     const interFeedDelayMs = totalFeeds >= 5000 ? 10 : 100;
     const shouldRenderDuringImport = totalFeeds < 5000;
 
@@ -948,11 +964,12 @@ export default class RssDashboardPlugin extends Plugin {
             throw new Error("Invalid usersettings.json");
           }
 
-          const parsedWithCollections = parsed as Partial<RssDashboardSettings> & {
-            feeds?: unknown;
-            folders?: unknown;
-            availableTags?: unknown;
-          };
+          const parsedWithCollections =
+            parsed as Partial<RssDashboardSettings> & {
+              feeds?: unknown;
+              folders?: unknown;
+              availableTags?: unknown;
+            };
           const hasFeedCollections =
             Array.isArray(parsedWithCollections.feeds) ||
             Array.isArray(parsedWithCollections.folders) ||
@@ -979,22 +996,22 @@ export default class RssDashboardPlugin extends Plugin {
 
             this.migrateLegacySettings();
             for (const feed of this.settings.feeds) {
-              if (!feed.filters) {
-                feed.filters = {
-                  overrideGlobalFilters: false,
+              if (!feed.keywordRules) {
+                feed.keywordRules = {
+                  overrideGlobalRules: false,
                   includeLogic: "AND",
                   rules: [],
                 };
                 continue;
               }
-              feed.filters = Object.assign(
+              feed.keywordRules = Object.assign(
                 {},
                 {
-                  overrideGlobalFilters: false,
+                  overrideGlobalRules: false,
                   includeLogic: "AND",
                   rules: [],
                 },
-                feed.filters,
+                feed.keywordRules,
               );
             }
 
@@ -1095,12 +1112,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private showExportNotice(
-    result:
-      | "shared"
-      | "downloaded"
-      | "opened"
-      | "canceled"
-      | "failed",
+    result: "shared" | "downloaded" | "opened" | "canceled" | "failed",
     filename: string,
   ): void {
     if (result === "downloaded") {
@@ -1269,7 +1281,7 @@ export default class RssDashboardPlugin extends Plugin {
     autoDeleteDuration?: number,
     maxItemsLimit?: number,
     scanInterval?: number,
-      feedFilters?: FeedFilterSettings,
+    feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
   ) {
     try {
@@ -1302,8 +1314,8 @@ export default class RssDashboardPlugin extends Plugin {
         scanInterval: scanInterval || 0,
         mediaType: mediaType,
         customTemplate: customTemplate || undefined,
-        filters: feedFilters || {
-          overrideGlobalFilters: false,
+        keywordRules: feedKeywordRules || {
+          overrideGlobalRules: false,
           includeLogic: "AND",
           rules: [],
         },
@@ -1438,7 +1450,7 @@ export default class RssDashboardPlugin extends Plugin {
 
       this.settings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
 
-      this.migrateLegacySettings();
+      const didMigrateKeywordRules = this.migrateLegacySettings();
 
       if (typeof this.settings.defaultAutoDeleteDuration !== "number") {
         this.settings.defaultAutoDeleteDuration =
@@ -1462,6 +1474,7 @@ export default class RssDashboardPlugin extends Plugin {
           this.settings.articleSaving,
         );
       }
+
 
       if (!this.settings.media) {
         this.settings.media = DEFAULT_SETTINGS.media;
@@ -1494,38 +1507,73 @@ export default class RssDashboardPlugin extends Plugin {
         );
       }
 
-      if (!this.settings.filters) {
-        this.settings.filters = DEFAULT_SETTINGS.filters;
+      if (!this.settings.keywordRules) {
+        this.settings.keywordRules = DEFAULT_SETTINGS.keywordRules;
       } else {
-        this.settings.filters = Object.assign(
+        this.settings.keywordRules = Object.assign(
           {},
-          DEFAULT_SETTINGS.filters,
-          this.settings.filters,
+          DEFAULT_SETTINGS.keywordRules,
+          this.settings.keywordRules,
         );
       }
 
       for (const feed of this.settings.feeds) {
-        if (!feed.filters) {
-          feed.filters = {
-            overrideGlobalFilters: false,
+        if (!feed.keywordRules) {
+          feed.keywordRules = {
+            overrideGlobalRules: false,
             includeLogic: "AND",
             rules: [],
           };
           continue;
         }
 
-        feed.filters = Object.assign(
+        feed.keywordRules = Object.assign(
           {},
           {
-            overrideGlobalFilters: false,
+            overrideGlobalRules: false,
             includeLogic: "AND",
             rules: [],
           },
-          feed.filters,
+          feed.keywordRules,
         );
       }
 
+      // Normalize dashboard page-size settings to a single global value.
+      // Older versions allowed per-view sizes; the UI now exposes one value.
+      const canonicalPageSizeRaw = this.settings.allArticlesPageSize;
+      const canonicalPageSize =
+        Number.isFinite(canonicalPageSizeRaw) && canonicalPageSizeRaw >= 0
+          ? canonicalPageSizeRaw
+          : DEFAULT_SETTINGS.allArticlesPageSize;
+      let didNormalizePageSizes = false;
+      const pageSizeFields: Array<
+        | "allArticlesPageSize"
+        | "unreadArticlesPageSize"
+        | "readArticlesPageSize"
+        | "savedArticlesPageSize"
+        | "starredArticlesPageSize"
+      > = [
+        "allArticlesPageSize",
+        "unreadArticlesPageSize",
+        "readArticlesPageSize",
+        "savedArticlesPageSize",
+        "starredArticlesPageSize",
+      ];
+      for (const field of pageSizeFields) {
+        if (this.settings[field] !== canonicalPageSize) {
+          this.settings[field] = canonicalPageSize;
+          didNormalizePageSizes = true;
+        }
+      }
+
       await this.repairMissingFolderPathsForFeeds();
+
+      const didNormalizeAndDedupeItems =
+        this.normalizeAndDedupeStoredFeedItems();
+
+      if (didMigrateKeywordRules || didNormalizeAndDedupeItems || didNormalizePageSizes) {
+        await this.saveSettings();
+      }
     } catch (error) {
       new Notice(
         `Error loading settings: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -1534,8 +1582,115 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  private migrateLegacySettings(): void {
+  private normalizeAndDedupeStoredFeedItems(): boolean {
+    let didChange = false;
+
+    const getPubDateMs = (pubDate: string | undefined | null): number => {
+      if (!pubDate) return 0;
+      const ms = Date.parse(pubDate);
+      return Number.isFinite(ms) ? ms : 0;
+    };
+
+    const byNewest = (a: FeedItem, b: FeedItem): number => {
+      const aMs = getPubDateMs(a.pubDate);
+      const bMs = getPubDateMs(b.pubDate);
+      if (aMs !== bMs) return bMs - aMs;
+      return (a.guid || "").localeCompare(b.guid || "");
+    };
+
+    const pickLonger = (a: string, b: string): string => {
+      const aTrim = (a ?? "").trim();
+      const bTrim = (b ?? "").trim();
+      if (!aTrim) return bTrim ? b : a;
+      if (!bTrim) return a;
+      return bTrim.length > aTrim.length ? b : a;
+    };
+
+    const pickLongerOptional = (
+      a?: string,
+      b?: string,
+    ): string | undefined => {
+      const aTrim = (a ?? "").trim();
+      const bTrim = (b ?? "").trim();
+      if (!aTrim && !bTrim) return a ?? b;
+      if (!aTrim) return b;
+      if (!bTrim) return a;
+      return bTrim.length > aTrim.length ? b : a;
+    };
+
+    const mergeTags = (a: FeedItem["tags"], b: FeedItem["tags"]): FeedItem["tags"] => {
+      const out: FeedItem["tags"] = [];
+      const seen = new Set<string>();
+      for (const tag of [...(a || []), ...(b || [])]) {
+        const key = (tag?.name || "").trim().toLowerCase();
+        if (!key) continue;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(tag);
+      }
+      return out;
+    };
+
+    for (const feed of this.settings.feeds || []) {
+      const items = Array.isArray(feed.items) ? feed.items : [];
+      if (items.length === 0) continue;
+
+      const mergedByKey = new Map<string, FeedItem>();
+
+      for (let idx = 0; idx < items.length; idx++) {
+        const item = items[idx];
+        const canonicalKey = canonicalizeItemIdentityUrl(
+          item.guid || item.link || "",
+        );
+        const key = canonicalKey || item.guid || item.link || `__item_${idx}`;
+
+        const existing = mergedByKey.get(key);
+        if (!existing) {
+          if (canonicalKey && canonicalKey !== item.guid) {
+            didChange = true;
+          }
+          mergedByKey.set(key, {
+            ...item,
+            guid: canonicalKey || item.guid,
+          });
+          continue;
+        }
+
+        didChange = true;
+
+        mergedByKey.set(key, {
+          ...existing,
+          guid: canonicalKey || existing.guid,
+          read: existing.read || item.read,
+          starred: existing.starred || item.starred,
+          saved: !!existing.saved || !!item.saved,
+          tags: mergeTags(existing.tags, item.tags),
+          savedFilePath: existing.savedFilePath || item.savedFilePath,
+          title: pickLonger(existing.title, item.title),
+          link: existing.link || item.link,
+          description: pickLonger(existing.description, item.description),
+          content: pickLongerOptional(existing.content, item.content),
+          summary: pickLongerOptional(existing.summary, item.summary),
+          coverImage: existing.coverImage || item.coverImage,
+          image: existing.image || item.image,
+        });
+      }
+
+      const deduped = Array.from(mergedByKey.values());
+      if (deduped.length !== items.length) {
+        didChange = true;
+      }
+
+      deduped.sort(byNewest);
+      feed.items = deduped;
+    }
+
+    return didChange;
+  }
+
+  private migrateLegacySettings(): boolean {
     const settingsUnknown = this.settings as unknown as Record<string, unknown>;
+    const didMigrateKeywordRules = migrateKeywordRulesSettings(settingsUnknown);
     if (
       settingsUnknown.savePath &&
       !this.settings.articleSaving?.defaultFolder
@@ -1640,50 +1795,84 @@ export default class RssDashboardPlugin extends Plugin {
         this.settings.display.feedUnreadBadgeDefaultColor =
           DEFAULT_SETTINGS.display.feedUnreadBadgeDefaultColor;
       }
+      // Migrate icon visibility and order fields
+      migrateDisplaySettings(
+        this.settings.display as unknown as Record<string, unknown>,
+      );
     }
 
-    if (!this.settings.filters) {
-      this.settings.filters = DEFAULT_SETTINGS.filters;
+    if (!this.settings.keywordRules) {
+      this.settings.keywordRules = DEFAULT_SETTINGS.keywordRules;
     } else {
-      if (!this.settings.filters.includeLogic) {
-        this.settings.filters.includeLogic = "AND";
+      if (!this.settings.keywordRules.includeLogic) {
+        this.settings.keywordRules.includeLogic = "AND";
       }
-      if (this.settings.filters.bypassAll === undefined) {
-        this.settings.filters.bypassAll = false;
+      if (this.settings.keywordRules.bypassAll === undefined) {
+        this.settings.keywordRules.bypassAll = false;
       }
-      if (!this.settings.filters.rules) {
-        this.settings.filters.rules = [];
+      if (!this.settings.keywordRules.rules) {
+        this.settings.keywordRules.rules = [];
       }
     }
+
+    if (!this.settings.dashboardMultiFilters) {
+      this.settings.dashboardMultiFilters =
+        DEFAULT_SETTINGS.dashboardMultiFilters;
+    } else {
+      const mfUnknown = this.settings
+        .dashboardMultiFilters as unknown as Record<string, unknown>;
+      const statusFiltersRaw = mfUnknown.statusFilters;
+      const tagFiltersRaw = mfUnknown.tagFilters;
+      const logicRaw = mfUnknown.logic;
+
+      this.settings.dashboardMultiFilters.statusFilters = Array.isArray(
+        statusFiltersRaw,
+      )
+        ? statusFiltersRaw.filter((v): v is string => typeof v === "string")
+        : [];
+      this.settings.dashboardMultiFilters.tagFilters = Array.isArray(
+        tagFiltersRaw,
+      )
+        ? tagFiltersRaw.filter((v): v is string => typeof v === "string")
+        : [];
+      this.settings.dashboardMultiFilters.logic =
+        logicRaw === "AND" || logicRaw === "OR" ? logicRaw : "OR";
+    }
+
+    migrateDefaultFilterToDashboardMultiFilters(
+      this.settings.display as unknown as Record<string, unknown>,
+      this.settings.dashboardMultiFilters as unknown as Record<string, unknown>,
+    );
 
     this.settings.feeds.forEach((feed) => {
-      if (!feed.filters) {
-        feed.filters = {
-          overrideGlobalFilters: false,
+      if (!feed.keywordRules) {
+        feed.keywordRules = {
+          overrideGlobalRules: false,
           includeLogic: "AND",
           rules: [],
         };
         return;
       }
 
-      if (feed.filters.overrideGlobalFilters === undefined) {
-        feed.filters.overrideGlobalFilters = false;
+      if (feed.keywordRules.overrideGlobalRules === undefined) {
+        feed.keywordRules.overrideGlobalRules = false;
       }
-      if (!feed.filters.includeLogic) {
-        feed.filters.includeLogic = "AND";
+      if (!feed.keywordRules.includeLogic) {
+        feed.keywordRules.includeLogic = "AND";
       }
-      if (!feed.filters.rules) {
-        feed.filters.rules = [];
+      if (!feed.keywordRules.rules) {
+        feed.keywordRules.rules = [];
       }
     });
+
+    return didMigrateKeywordRules;
   }
 
   async saveSettings() {
     await this.saveData(this.settings);
   }
 
-  onunload() {
-  }
+  onunload() {}
 
   private async validateSavedArticles(): Promise<void> {
     let updatedCount = 0;
@@ -1746,4 +1935,3 @@ export default class RssDashboardPlugin extends Plugin {
     return allArticles;
   }
 }
-

@@ -39,9 +39,12 @@ describe("Validation Utility", () => {
       expect(isValidFeedTitle(".feed").valid).toBe(false);
     });
 
-    it("returns false for forbidden characters", () => {
-      expect(isValidFeedTitle("Feed/Title").valid).toBe(false);
-      expect(isValidFeedTitle("Feed: Title").valid).toBe(false);
+    it("returns true for titles with characters that are forbidden in filenames", () => {
+      // These should now be valid because we sanitize filenames separately
+      expect(isValidFeedTitle("r/technology").valid).toBe(true);
+      expect(isValidFeedTitle("Feed: Title").valid).toBe(true);
+      expect(isValidFeedTitle("Feed? Name").valid).toBe(true);
+      expect(isValidFeedTitle("Feed [Tag]").valid).toBe(true);
     });
 
     it("returns true for valid titles", () => {

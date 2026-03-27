@@ -15,6 +15,8 @@ import {
   shouldUseMobileSidebarLayout,
   attachInputClearButton,
 } from "../utils/platform-utils";
+import { getPageSizeOptions, PAGE_SIZE_OPTIONS } from "../utils/page-size-options";
+import { computePagination, computeResultsRange } from "../utils/pagination-utils";
 
 import feedsData from "../discover/discover-feeds.json";
 
@@ -155,11 +157,12 @@ export class DiscoverView extends ItemView {
       return;
     }
 
-    const totalPages = Math.max(
-      1,
-      Math.ceil(this.filteredFeeds.length / this.pageSize),
-    );
-    this.currentPage = Math.min(this.currentPage, totalPages);
+    const pagination = computePagination({
+      totalItems: this.filteredFeeds.length,
+      pageSize: this.pageSize,
+      requestedPage: this.currentPage,
+    });
+    this.currentPage = pagination.currentPage;
   }
 
   private refreshViewAfterFollowStateChange(feedUrl?: string): void {
@@ -1181,16 +1184,16 @@ export class DiscoverView extends ItemView {
       return;
     }
 
-    const totalPages = Math.max(
-      1,
-      Math.ceil(this.filteredFeeds.length / this.pageSize),
+    const pagination = computePagination({
+      totalItems: this.filteredFeeds.length,
+      pageSize: this.pageSize,
+      requestedPage: this.currentPage,
+    });
+    this.currentPage = pagination.currentPage;
+    const feedsForPage = this.filteredFeeds.slice(
+      pagination.startIdx,
+      pagination.endIdx,
     );
-    const startIdx = (this.currentPage - 1) * this.pageSize;
-    const endIdx = Math.min(
-      startIdx + this.pageSize,
-      this.filteredFeeds.length,
-    );
-    const feedsForPage = this.filteredFeeds.slice(startIdx, endIdx);
 
     feedsForPage.forEach((feed) => {
       this.renderFeedCard(grid, feed);
@@ -1202,7 +1205,7 @@ export class DiscoverView extends ItemView {
     this.renderPagination(
       paginationWrapper,
       this.currentPage,
-      totalPages,
+      pagination.totalPages,
       this.pageSize,
       this.filteredFeeds.length,
     );
@@ -1928,10 +1931,14 @@ export class DiscoverView extends ItemView {
     const pageSizeDropdown = paginationContainer.createEl("select", {
       cls: "rss-dashboard-page-size-dropdown",
     });
-    const pageSizeOptions = [10, 20, 40, 50, 60, 80, 100];
-    for (const size of pageSizeOptions) {
+    for (const size of getPageSizeOptions(pageSize)) {
+      const isStandardOption = PAGE_SIZE_OPTIONS.includes(
+        size as (typeof PAGE_SIZE_OPTIONS)[number],
+      );
+      const label =
+        size === 0 ? "All" : isStandardOption ? String(size) : `Current (${size})`;
       const opt = pageSizeDropdown.createEl("option", {
-        text: String(size),
+        text: label,
         value: String(size),
       });
       if (size === pageSize) opt.selected = true;
@@ -1941,8 +1948,11 @@ export class DiscoverView extends ItemView {
       this.handlePageSizeChange(size);
     };
 
-    const startIdx = (currentPage - 1) * pageSize + 1;
-    const endIdx = Math.min(currentPage * pageSize, totalFeeds);
+    const { start: startIdx, end: endIdx } = computeResultsRange({
+      totalItems: totalFeeds,
+      pageSize,
+      currentPage,
+    });
     paginationContainer.createEl("span", {
       cls: "rss-dashboard-pagination-results",
       text: `Results: ${startIdx} - ${endIdx} of ${totalFeeds}`,

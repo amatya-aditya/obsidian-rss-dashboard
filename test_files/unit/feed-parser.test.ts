@@ -1,7 +1,10 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { Feed, FeedItem } from "../../src/types/types";
+import { resolveAbsoluteHttpUrl } from "../../src/utils/url-utils";
+import * as obsidian from "obsidian";
 import {
   CustomXMLParser,
+  FeedParser,
   isValidFeed,
   EmptyFeedError,
   isEmptyFeedError,
@@ -111,6 +114,28 @@ const RSS2_WITH_IMAGE = `<?xml version="1.0" encoding="UTF-8"?>
       <link>https://example.com/img</link>
       <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
       <guid>img-1</guid>
+    </item>
+  </channel>
+</rss>`;
+
+const RSS2_WITH_MEDIA_CONTENT_IMAGE = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Media Image Feed</title>
+    <link>https://example.com</link>
+    <image>
+      <url>https://www.marketwatch.com/rss/marketwatch.gif</url>
+      <title>MarketWatch.com - Top Stories</title>
+    </image>
+    <item>
+      <title>Has Media Image</title>
+      <link>https://example.com/1</link>
+      <description>Desc</description>
+      <media:content url="https://images.mktw.net/im-24303993" medium="image" type="image/jpeg">
+        <media:credit>Roberto Schmidt/Getty Images</media:credit>
+      </media:content>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>media-1</guid>
     </item>
   </channel>
 </rss>`;
@@ -271,6 +296,13 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
     expect(result.link).toBe("https://example.com");
   });
 
+  it("can derive a canonical siteUrl from RSS channel <link>", () => {
+    const result = parser.parseString(RSS2_BASIC);
+    expect(
+      resolveAbsoluteHttpUrl(result.link, "https://example.com/feed.xml"),
+    ).toBe("https://example.com");
+  });
+
   it("parses multiple items from RSS 2.0 feed", () => {
     const result = parser.parseString(RSS2_BASIC);
     expect(result.items).toHaveLength(2);
@@ -296,6 +328,40 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
     expect(result.items[0].description).toContain("HTML");
   });
 
+  it("does not split items on <item> markup inside CDATA during fallback parsing", () => {
+    // Force the parser down the regex-based fallback path by including a malformed channel description.
+    const brokenButRecoverable = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Broken Feed</title>
+    <description>Broken <b>description</description>
+    <link>https://example.com</link>
+    <item>
+      <title>Outer 1</title>
+      <link>https://example.com/outer-1</link>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>outer-1</guid>
+      <description><![CDATA[<p>Before</p><item><title>Inner Item</title></item><p>After</p>]]></description>
+    </item>
+    <item>
+      <title>Outer 2</title>
+      <link>https://example.com/outer-2</link>
+      <pubDate>Tue, 02 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>outer-2</guid>
+      <description>Second</description>
+    </item>
+  </channel>
+</rss>`;
+
+    const result = parser.parseString(brokenButRecoverable);
+    expect(result.type).toBe("rss");
+    expect(result.items).toHaveLength(2);
+    expect(result.items[0].title).toBe("Outer 1");
+    expect(result.items[0].link).toBe("https://example.com/outer-1");
+    expect(result.items[1].title).toBe("Outer 2");
+    expect(result.items[1].link).toBe("https://example.com/outer-2");
+  });
+
   it("prefers content:encoded over description", () => {
     const result = parser.parseString(RSS2_WITH_CONTENT_ENCODED);
     expect(result.items[0].content).toContain("Long full article");
@@ -317,6 +383,11 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
   it("parses channel image", () => {
     const result = parser.parseString(RSS2_WITH_IMAGE);
     expect(result.image?.url).toBe("https://example.com/logo.png");
+  });
+
+  it("parses media:content url as item image", () => {
+    const result = parser.parseString(RSS2_WITH_MEDIA_CONTENT_IMAGE);
+    expect(result.items[0].image?.url).toBe("https://images.mktw.net/im-24303993");
   });
 
   it("returns type 'rss' for RSS 2.0", () => {
@@ -375,6 +446,74 @@ describe("mergeFeedHistoryItems", () => {
     expect(new Set(merged.map((i) => i.guid)).size).toBe(60);
     expect(merged.some((i) => i.guid === "id-1")).toBe(true);
     expect(merged.some((i) => i.guid === "id-60")).toBe(true);
+  });
+});
+
+describe("FeedParser.parseFeed", () => {
+  const mediaSettings = {
+    defaultYouTubeFolder: "Videos",
+    defaultYouTubeTag: "youtube",
+    defaultPodcastFolder: "Podcast",
+    defaultPodcastTag: "podcast",
+    defaultRssFolder: "RSS",
+    defaultRssTag: "rss",
+    defaultSmallwebFolder: "Smallweb",
+    defaultSmallwebTag: "smallweb",
+    openInSplitView: true,
+    podcastTheme: "solarized" as const,
+  };
+
+  it("dedupes numeric URL-fragment GUIDs across refreshes while preserving read state", async () => {
+    const feedUrl = "https://example.com/feed.xml";
+
+    const xml0 = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Article A</title>
+      <link>https://example.com/a</link>
+      <description>desc</description>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>https://example.com/a#0</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const xml1 = xml0.replace("#0</guid>", "#1</guid>");
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+        text: xml0,
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+        text: xml1,
+      });
+
+    const parser = new FeedParser(mediaSettings, []);
+    const first = await parser.parseFeed(feedUrl, null);
+    expect(first.items).toHaveLength(1);
+
+    // Simulate a previously persisted item from older versions that kept `#0` in the guid.
+    first.items[0].read = true;
+    first.items[0].guid = "https://example.com/a#0";
+
+    const second = await parser.parseFeed(feedUrl, first);
+    expect(second.items).toHaveLength(1);
+    expect(second.items[0].read).toBe(true);
+    expect(second.items[0].guid).toBe("https://example.com/a");
+
+    requestUrlSpy.mockRestore();
   });
 });
 
@@ -530,6 +669,13 @@ describe("CustomXMLParser - Atom Parsing", () => {
     const result = parser.parseString(ATOM_BASIC);
     expect(result.link).toBe("https://example.com");
   });
+
+  it("can derive a canonical siteUrl from Atom alternate link", () => {
+    const result = parser.parseString(ATOM_BASIC);
+    expect(
+      resolveAbsoluteHttpUrl(result.link, "https://example.com/atom.xml"),
+    ).toBe("https://example.com");
+  });
 });
 
 describe("CustomXMLParser - JSON Feed Parsing", () => {
@@ -543,6 +689,13 @@ describe("CustomXMLParser - JSON Feed Parsing", () => {
     const result = parser.parseString(JSON_FEED_BASIC);
     expect(result.type).toBe("json");
     expect(result.title).toBe("JSON Feed");
+  });
+
+  it("can derive a canonical siteUrl from JSON Feed home_page_url", () => {
+    const result = parser.parseString(JSON_FEED_BASIC);
+    expect(
+      resolveAbsoluteHttpUrl(result.link, "https://example.com/feed.json"),
+    ).toBe("https://example.com");
   });
 
   it("parses JSON Feed items", () => {

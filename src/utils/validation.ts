@@ -2,7 +2,7 @@
  * Forbidden characters in Obsidian filenames (most restrictive set across all OS)
  * [ ] # ^ | / \ : * " < > ?
  */
-const FORBIDDEN_CHARS_REGEX = /[\\/:*?"<>|#^[\]]/g;
+const FORBIDDEN_FILENAME_CHARS_REGEX = /[\\/:*?"<>|#^[\]]/g;
 
 export interface ValidationResult {
   valid: boolean;
@@ -25,7 +25,7 @@ export function isValidFolderName(name: string): ValidationResult {
     return { valid: false, error: "Folder name cannot start with a dot." };
   }
 
-  const match = trimmedName.match(FORBIDDEN_CHARS_REGEX);
+  const match = trimmedName.match(FORBIDDEN_FILENAME_CHARS_REGEX);
   if (match) {
     // Unique list of forbidden characters found
     const uniqueChars = Array.from(new Set(match)).join(" ");
@@ -54,15 +54,8 @@ export function isValidFeedTitle(title: string): ValidationResult {
     return { valid: false, error: "Feed title cannot start with a dot." };
   }
 
-  const match = trimmedTitle.match(FORBIDDEN_CHARS_REGEX);
-  if (match) {
-    const uniqueChars = Array.from(new Set(match)).join(" ");
-    return {
-      valid: false,
-      error: `Feed title contains forbidden characters: ${uniqueChars}`,
-    };
-  }
-
+  // Relaxed: No character restrictions for titles.
+  // Filename safety is handled by the sanitization logic during file creation (ArticleSaver).
   return { valid: true };
 }
 
@@ -75,7 +68,7 @@ export function isValidFeedTitle(title: string): ValidationResult {
 export function sanitizeName(name: string): string {
   if (!name) return "Unnamed";
 
-  let sanitized = name.replace(FORBIDDEN_CHARS_REGEX, "_").trim();
+  let sanitized = name.replace(FORBIDDEN_FILENAME_CHARS_REGEX, "_").trim();
 
   // Strip leading dots
   while (sanitized.startsWith(".")) {
@@ -89,4 +82,37 @@ export function sanitizeName(name: string): string {
   }
 
   return sanitized || "Unnamed";
+}
+
+/**
+ * Validates a URL ensuring it has a valid format and protocol (http or https).
+ * @param url The URL string to validate
+ * @returns ValidationResult with status and optional error message
+ */
+export function isValidUrl(url: string): ValidationResult {
+  if (!url || url.trim() === "") {
+    return { valid: false, error: "URL cannot be empty." };
+  }
+
+  const trimmedUrl = url.trim();
+
+  // Fast pre-check: require an explicit http(s) scheme with `//`.
+  // This prevents inputs like `http:/example.com` from being normalized by `new URL(...)`.
+  if (!/^https?:\/\//i.test(trimmedUrl)) {
+    return { valid: false, error: "URL must start with http:// or https://" };
+  }
+
+  try {
+    const parsedUrl = new URL(trimmedUrl);
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      return { valid: false, error: "URL must start with http:// or https://" };
+    }
+    if (!parsedUrl.hostname) {
+      return { valid: false, error: "Invalid URL format." };
+    }
+  } catch {
+    return { valid: false, error: "Invalid URL format." };
+  }
+
+  return { valid: true };
 }

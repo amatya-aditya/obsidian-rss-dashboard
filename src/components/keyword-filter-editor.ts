@@ -3,7 +3,7 @@ import type { KeywordFilterRule } from "../types/types";
 export interface KeywordFilterEditorState {
   includeLogic: "AND" | "OR";
   rules: KeywordFilterRule[];
-  overrideGlobalFilters?: boolean;
+  overrideGlobalRules?: boolean;
 }
 
 interface KeywordFilterEditorOptions {
@@ -45,22 +45,22 @@ export function renderKeywordFilterEditor(
       cls: "rss-keyword-filter-checkbox",
       attr: { type: "checkbox" },
     });
-    overrideCheckbox.checked = !!state.overrideGlobalFilters;
+    overrideCheckbox.checked = !!state.overrideGlobalRules;
     const overrideLabel = overrideWrapper.createEl("label", {
-      text: "Override global filters",
+      text: "Override global rules",
     });
     overrideLabel.addClass("rss-keyword-filter-label");
     overrideLabel.addEventListener("click", () => {
       overrideCheckbox.checked = !overrideCheckbox.checked;
       onChange({
         ...state,
-        overrideGlobalFilters: overrideCheckbox.checked,
+        overrideGlobalRules: overrideCheckbox.checked,
       });
     });
     overrideCheckbox.addEventListener("change", () => {
       onChange({
         ...state,
-        overrideGlobalFilters: overrideCheckbox.checked,
+        overrideGlobalRules: overrideCheckbox.checked,
       });
     });
   }
@@ -104,7 +104,7 @@ export function renderKeywordFilterEditor(
 
   controlsRow.createDiv({
     cls: "rss-keyword-filter-logic-help",
-    text: "AND logic combines all rules and filters only when all enabled rules match applicable content. OR logic filters content that matches any enabled rule.",
+    text: "AND logic: include rules pass only when all enabled include rules match. OR logic: include rules pass when any enabled include rule matches. Exclude rules always remove matches.",
   });
 
   const rulesContainer = containerEl.createDiv({
@@ -114,7 +114,7 @@ export function renderKeywordFilterEditor(
   if (state.rules.length === 0) {
     rulesContainer.createDiv({
       cls: "rss-keyword-filter-empty",
-      text: "No filter rules configured.",
+      text: "No keyword rules configured.",
     });
   } else {
     state.rules.forEach((rule, index) => {

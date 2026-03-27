@@ -9,6 +9,10 @@ When you add a feed URL manually in the **Add Feed** modal:
 *   **Platform Resolution**: The plugin first checks if the URL is from a supported platform that isn't a direct RSS feed:
     *   **YouTube**: Automatically converts channel or video URLs to their respective RSS feed URLs.
     *   **Apple Podcasts**: Resolves podcast page URLs to their backend RSS feeds via the iTunes lookup API.
+    *   **Pocket Casts**: Resolves Pocket Casts web player URLs (which contain the `podcast:guid`) using a multi-layered fallback strategy:
+        1.  **CORS Proxy Chain**: Fetches the page through a sequence of proxies (User-configured → AllOrigins → CodeTabs) to bypass 522 timeouts or CORS blocks.
+        2.  **Meta Tag Scraping**: Attempts to find the RSS link in the HTML.
+        3.  **iTunes Fallback**: If the RSS link is hidden, it extracts the podcast title from `og:title` or `twitter:title` and queries the **iTunes Search API** to find the canonical feed.
     *   **X (Twitter)**: Automatically redirects `x.com` and `twitter.com` user profile URLs to `nitter.net/username/rss` feeds.
 *   **Content Validation**: The system fetches the URL content and performs a "smoke test":
     *   It checks the first 2048 characters for common feed signatures: `<rss`, `<feed`, `<rdf:rdf`, or specific XML namespaces (`http://purl.org/rss/1.0/`).
@@ -59,3 +63,20 @@ Failure to reassign the `url` variable will cause the "Save" button to use the o
 
 ### Nitter Format
 We use the `https://nitter.net/username/rss` format for redirection. While some instances may vary, this is the standard for RSS-compatible Nitter instances.
+
+## 6. Advanced Podcast Platform Resolution Patterns
+
+When a podcast platform (like Pocket Casts) hides its RSS feeds or uses private APIs, we use the following "Semantic Discovery" pattern:
+
+### Proxy Rotation
+Many CORS proxies (like AllOrigins) are unreliable. The `resolvePocketCastsUrl` function implements a fallback chain:
+- **Prioritize User Settings**: If the user has a custom proxy, try it first.
+- **Failover to CodeTabs**: If the primary proxy returns a timeout (522) or error, immediately retry with a secondary service.
+
+### Metadata-to-Search Fallback
+If direct scraping fails because the platform has removed the RSS `<link>` tag:
+1.  **Extract Identifying Metadata**: Use flexible regex (accounting for varied attribute order) to pull the `og:title` or `twitter:title`.
+2.  **Safeguard against Generic Titles**: Ignore placeholder titles like "Pocket Casts Plus" to prevent incorrect search matches.
+3.  **Cross-Platform Search**: Query a stable, public directory (like the **iTunes Search API**) using the extracted title to find the canonical RSS feed.
+
+This "Scrape → Search" pattern is highly resilient to front-end changes on the source platform.

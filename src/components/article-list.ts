@@ -7,7 +7,9 @@ import {
   TABLET_LAYOUT_MAX_WIDTH,
 } from "../utils/platform-utils";
 import { HighlightService } from "../services/highlight-service";
-import { showEditTagModal } from "../utils/tag-utils";
+import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import { getPageSizeOptions, PAGE_SIZE_OPTIONS } from "../utils/page-size-options";
+import { computeResultsRange } from "../utils/pagination-utils";
 
 const MAX_VISIBLE_TAGS = 6;
 
@@ -40,6 +42,7 @@ function extractDomain(url: string): string {
           return hostname;
         }
       }
+
       return hostname;
     }
     return "";
@@ -79,12 +82,15 @@ interface ArticleListCallbacks {
   onMarkAllAsUnread?: () => void;
   onPersistSettings?: () => Promise<void> | void;
   onOpenTagsSettings?: () => Promise<void> | void;
+  onTagsMutated?: () => void;
 }
 
 export class ArticleList {
   private container: HTMLElement;
   private settings: RssDashboardSettings;
   private title: string;
+  private titleTooltip: string | null;
+  private headerTitleEl: HTMLElement | null = null;
   private articles: FeedItem[];
   private selectedArticle: FeedItem | null;
   private callbacks: ArticleListCallbacks;
@@ -117,6 +123,7 @@ export class ArticleList {
     container: HTMLElement,
     settings: RssDashboardSettings,
     title: string,
+    titleTooltip: string | null,
     articles: FeedItem[],
     selectedArticle: FeedItem | null,
     callbacks: ArticleListCallbacks,
@@ -133,6 +140,7 @@ export class ArticleList {
     this.container = container;
     this.settings = settings;
     this.title = title;
+    this.titleTooltip = titleTooltip;
     this.articles = articles;
     this.selectedArticle = selectedArticle;
     this.callbacks = callbacks;
@@ -481,6 +489,7 @@ export class ArticleList {
     const scrollPosition = articlesList?.scrollTop;
 
     this.container.empty();
+    this.headerTitleEl = null;
 
     this.renderHeader();
     this.renderArticles();
@@ -520,6 +529,22 @@ export class ArticleList {
       )
       .forEach((el) => el.remove());
     this.renderArticles();
+  }
+
+  public updateHeaderTitle(title: string, tooltip: string | null): void {
+    this.title = title;
+    this.titleTooltip = tooltip;
+
+    if (!this.headerTitleEl) {
+      return;
+    }
+
+    this.headerTitleEl.textContent = title;
+    if (tooltip) {
+      this.headerTitleEl.setAttribute("title", tooltip);
+    } else {
+      this.headerTitleEl.removeAttribute("title");
+    }
   }
 
   public removeArticleInPlace(guid: string): void {
@@ -854,9 +879,9 @@ export class ArticleList {
       const title = titleEl?.textContent?.toLowerCase() || "";
 
       if (query && !title.includes(query)) {
-        (el as HTMLElement).classList.add("search-hidden");
+        (el as HTMLElement).classList.add("rss-dashboard-search-hidden");
       } else {
-        (el as HTMLElement).classList.remove("search-hidden");
+        (el as HTMLElement).classList.remove("rss-dashboard-search-hidden");
       }
     });
   }
@@ -916,10 +941,12 @@ export class ArticleList {
       this.renderHeaderFeedIcon(feedIconContainer, this.currentFeedUrl);
     }
 
-    leftSection.createDiv({
+    const titleEl = leftSection.createDiv({
       cls: "rss-dashboard-articles-title",
       text: this.title,
+      attr: this.titleTooltip ? { title: this.titleTooltip } : undefined,
     });
+    this.headerTitleEl = titleEl;
 
     const rightSection = articlesHeader.createDiv({
       cls: "rss-dashboard-header-right",
@@ -1535,7 +1562,7 @@ export class ArticleList {
     let pendingAllChecked =
       pendingStatusFilters.size === 0 && pendingTagFilters.size === 0;
     let pendingFilterLogic: "AND" | "OR" = this.filterLogic;
-    const currentBypassAll = this.settings.filters?.bypassAll ?? false;
+    const currentBypassAll = this.settings.keywordRules?.bypassAll ?? false;
     let pendingBypassAll = currentBypassAll;
     const currentHighlightsEnabled = this.settings.highlights?.enabled ?? false;
     let pendingHighlightsEnabled = currentHighlightsEnabled;
@@ -1778,7 +1805,7 @@ export class ArticleList {
     setIcon(bypassIconDiv, "power");
     bypassItem.createDiv({
       cls: "rss-dashboard-filter-menu-text",
-      text: "Bypass All Filters",
+      text: "Bypass Keyword Rules",
     });
     bypassCheckbox.addEventListener("change", (e) => {
       e.stopPropagation();
@@ -2886,10 +2913,14 @@ export class ArticleList {
     const pageSizeDropdown = paginationContainer.createEl("select", {
       cls: "rss-dashboard-page-size-dropdown",
     });
-    const pageSizeOptions = [10, 20, 40, 50, 60, 80, 100];
-    for (const size of pageSizeOptions) {
+    for (const size of getPageSizeOptions(pageSize)) {
+      const isStandardOption = PAGE_SIZE_OPTIONS.includes(
+        size as (typeof PAGE_SIZE_OPTIONS)[number],
+      );
+      const label =
+        size === 0 ? "All" : isStandardOption ? String(size) : `Current (${size})`;
       const opt = pageSizeDropdown.createEl("option", {
-        text: String(size),
+        text: label,
         value: String(size),
       });
       if (size === pageSize) opt.selected = true;
@@ -2899,8 +2930,11 @@ export class ArticleList {
       this.callbacks.onPageSizeChange(size);
     };
 
-    const startIdx = (currentPage - 1) * pageSize + 1;
-    const endIdx = Math.min(currentPage * pageSize, totalArticles);
+    const { start: startIdx, end: endIdx } = computeResultsRange({
+      totalItems: totalArticles,
+      pageSize,
+      currentPage,
+    });
     paginationContainer.createEl("span", {
       cls: "rss-dashboard-pagination-results",
       text: `Results: ${startIdx} - ${endIdx} of ${totalArticles}`,
@@ -2954,7 +2988,7 @@ export class ArticleList {
     menu.addItem((item: MenuItem) => {
       item
         .setTitle("Open in browser")
-        .setIcon("globe-2")
+        .setIcon("external-link")
         .onClick(() => {
           window.open(article.link, "_blank");
         });
@@ -3026,413 +3060,25 @@ export class ArticleList {
       this.tagsDropdownCleanup = null;
     }
 
-    const targetDocument = toggleElement.ownerDocument;
-    const targetBody = targetDocument.body;
-    const targetWindow = targetDocument.defaultView || window;
-    const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
-
-    targetDocument
-      .querySelectorAll(
-        ".rss-dashboard-tags-dropdown-content-portal, .rss-dashboard-tags-sheet-backdrop",
-      )
-      .forEach((el) => {
-        (el as HTMLElement).parentNode?.removeChild(el);
-      });
-
-    const sheetBackdrop = isMobile
-      ? targetBody.createDiv({
-          cls: "rss-dashboard-tags-sheet-backdrop",
-        })
-      : null;
-
-    const portalDropdown = targetBody.createDiv({
-      cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal",
+    const cleanup = createTagsDropdownPortal({
+      anchor: toggleElement,
+      settings: this.settings,
+      item: article,
+      onTagAssignmentChange: onTagChange,
+      onPersistSettings: () => this.persistSettings(),
+      onAfterSettingsTagsMutated: () => {
+        this.refreshVisibleArticleTags();
+        this.callbacks.onTagsMutated?.();
+      },
+      onOpenTagsSettings: this.callbacks.onOpenTagsSettings,
+      appContainer: this.container,
+      onClosed: () => {
+        if (this.tagsDropdownCleanup === cleanup) {
+          this.tagsDropdownCleanup = null;
+        }
+      },
     });
-    if (isMobile) {
-      portalDropdown.addClass("rss-dashboard-tags-mobile-sheet");
-      const sheetHeader = portalDropdown.createDiv({
-        cls: "rss-dashboard-tags-sheet-header",
-      });
-      sheetHeader.createDiv({
-        cls: "rss-dashboard-tags-sheet-title",
-        text: "Manage tags",
-      });
-      const sheetActions = sheetHeader.createDiv({
-        cls: "rss-dashboard-tags-sheet-actions",
-      });
-      const addTagBtn = sheetActions.createEl("button", {
-        cls: "rss-dashboard-tags-sheet-btn",
-        text: "Add tag",
-      });
-      setIcon(addTagBtn, "plus");
-      addTagBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (this.tagsDropdownCleanup) {
-          this.tagsDropdownCleanup();
-        }
-        const result = this.callbacks.onOpenTagsSettings?.();
-        if (result instanceof Promise) {
-          void result;
-        }
-      });
-      const doneBtn = sheetActions.createEl("button", {
-        cls: "rss-dashboard-tags-sheet-btn rss-dashboard-tags-sheet-btn-done",
-        text: "Done",
-      });
-      doneBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (this.tagsDropdownCleanup) {
-          this.tagsDropdownCleanup();
-        }
-      });
-    }
-    const tagsListContainer = portalDropdown.createDiv({
-      cls: "rss-dashboard-tag-list",
-    });
-    const tagSeparator = portalDropdown.createDiv({
-      cls: "rss-dashboard-tag-item-separator",
-    });
-
-    const updateTagSeparatorVisibility = () => {
-      const hasTags = this.settings.availableTags.length > 0;
-      tagSeparator.style.display = hasTags ? "" : "none";
-    };
-
-    const rerenderTagItems = () => {
-      tagsListContainer.empty();
-      for (const nextTag of this.settings.availableTags) {
-        appendTagItem(nextTag);
-      }
-      updateTagSeparatorVisibility();
-    };
-
-    const deleteTagFromProfile = (tag: Tag) => {
-      const tagIndex = this.settings.availableTags.findIndex(
-        (t) => t.name === tag.name,
-      );
-      if (tagIndex === -1) {
-        return;
-      }
-
-      this.settings.availableTags.splice(tagIndex, 1);
-      this.settings.feeds.forEach((feed) => {
-        feed.items.forEach((item) => {
-          if (item.tags) {
-            item.tags = item.tags.filter((t) => t.name !== tag.name);
-          }
-        });
-      });
-
-      if (article.tags?.some((t) => t.name === tag.name)) {
-        onTagChange(tag, false);
-      }
-
-      this.persistSettings();
-      this.refreshVisibleArticleTags();
-      new Notice(`Tag "${tag.name}" deleted successfully!`);
-      updateTagSeparatorVisibility();
-    };
-
-    const appendTagItem = (tag: Tag, checkedOverride?: boolean) => {
-      const tagItem = tagsListContainer.createDiv({
-        cls: "rss-dashboard-tag-item",
-      });
-      const hasTag =
-        checkedOverride ??
-        (article.tags?.some((t) => t.name === tag.name) || false);
-
-      const tagCheckbox = tagItem.createEl("input", {
-        attr: { type: "checkbox" },
-        cls: "rss-dashboard-tag-checkbox",
-      });
-      tagCheckbox.checked = hasTag;
-
-      const tagLabel = tagItem.createDiv({
-        cls: "rss-dashboard-tag-label",
-        text: tag.name,
-      });
-      tagLabel.style.setProperty("--tag-color", tag.color);
-
-      const editButton = tagItem.createDiv({
-        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button clickable-icon",
-        attr: {
-          title: `Edit "${tag.name}" tag`,
-          "aria-label": "Edit tag",
-          role: "button",
-          tabindex: "0",
-        },
-      });
-      setIcon(editButton, "pencil");
-
-      const deleteButton = tagItem.createDiv({
-        cls: "rss-dashboard-tag-action-button rss-dashboard-tag-delete-button clickable-icon",
-        attr: {
-          title: `Delete "${tag.name}" tag`,
-          "aria-label": "Delete tag",
-          role: "button",
-          tabindex: "0",
-        },
-      });
-      setIcon(deleteButton, "trash");
-
-      tagCheckbox.addEventListener("change", (e) => {
-        e.stopPropagation();
-        const isChecked = (e.target as HTMLInputElement).checked;
-
-        tagCheckbox.checked = isChecked;
-
-        tagItem.classList.add("rss-dashboard-tag-item-processing");
-
-        onTagChange(tag, isChecked);
-
-        window.setTimeout(() => {
-          tagItem.classList.remove("rss-dashboard-tag-item-processing");
-        }, 200);
-      });
-
-      tagItem.addEventListener("click", (e) => {
-        if (
-          e.target === tagCheckbox ||
-          (e.target instanceof Element &&
-            (e.target.closest(".rss-dashboard-tag-edit-button") ||
-              e.target.closest(".rss-dashboard-tag-delete-button")))
-        ) {
-          return;
-        }
-
-        const isChecked = !tagCheckbox.checked;
-        tagCheckbox.checked = isChecked;
-
-        tagItem.classList.add("rss-dashboard-tag-item-processing");
-
-        onTagChange(tag, isChecked);
-
-        window.setTimeout(() => {
-          tagItem.classList.remove("rss-dashboard-tag-item-processing");
-        }, 200);
-      });
-
-      editButton.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        showEditTagModal({
-          settings: this.settings,
-          tag,
-          onSave: async () => {
-            this.persistSettings();
-            this.refreshVisibleArticleTags();
-            rerenderTagItems();
-          },
-        });
-      });
-
-      deleteButton.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        deleteTagFromProfile(tag);
-        tagItem.remove();
-      });
-
-      tagItem.appendChild(tagCheckbox);
-      tagItem.appendChild(tagLabel);
-      tagItem.appendChild(editButton);
-      tagItem.appendChild(deleteButton);
-    };
-
-    for (const tag of this.settings.availableTags) {
-      appendTagItem(tag);
-    }
-    updateTagSeparatorVisibility();
-
-    if (!isMobile) {
-      const inlineAddRow = portalDropdown.createDiv({
-        cls: "rss-dashboard-tag-inline-add-row",
-      });
-
-      const colorInput = inlineAddRow.createEl("input", {
-        attr: {
-          type: "color",
-          value: "#3498db",
-        },
-        cls: "rss-dashboard-tag-inline-color",
-      });
-
-      const nameInput = inlineAddRow.createEl("input", {
-        attr: {
-          type: "text",
-          placeholder: "Add new tag...",
-          autocomplete: "off",
-        },
-        cls: "rss-dashboard-tag-inline-input",
-      });
-      nameInput.spellcheck = false;
-
-      const addButton = inlineAddRow.createDiv({
-        cls: "rss-dashboard-tag-inline-button clickable-icon",
-        attr: { title: "Add tag", role: "button", tabindex: "0" },
-      });
-      setIcon(addButton, "plus");
-
-      const submitInlineTag = () => {
-        const tagName = nameInput.value.trim();
-        const tagColor = colorInput.value;
-
-        if (!tagName) {
-          new Notice("Please enter a tag name!");
-          return;
-        }
-
-        if (
-          this.settings.availableTags.some(
-            (tag) => tag.name.toLowerCase() === tagName.toLowerCase(),
-          )
-        ) {
-          new Notice("A tag with this name already exists!");
-          return;
-        }
-
-        const newTag: Tag = {
-          name: tagName,
-          color: tagColor,
-        };
-
-        this.settings.availableTags.push(newTag);
-        this.persistSettings();
-        onTagChange(newTag, true);
-        appendTagItem(newTag, true);
-
-        nameInput.value = "";
-        requestAnimationFrame(() => nameInput.focus());
-        new Notice(`Tag "${tagName}" added`);
-      };
-
-      addButton.addEventListener("click", (e) => {
-        e.stopPropagation();
-        submitInlineTag();
-      });
-
-      addButton.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          submitInlineTag();
-        }
-      });
-
-      nameInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          e.stopPropagation();
-          submitInlineTag();
-        }
-      });
-    } // end !isMobile
-
-    targetBody.appendChild(portalDropdown);
-    portalDropdown.addClass("rss-dashboard-tags-dropdown-content-portal");
-
-    let removeDesktopListener: (() => void) | null = null;
-    let removeViewportListener: (() => void) | null = null;
-    let isClosed = false;
-
-    const closeDropdown = () => {
-      if (isClosed) {
-        return;
-      }
-      isClosed = true;
-      portalDropdown.remove();
-      sheetBackdrop?.remove();
-      removeDesktopListener?.();
-      removeDesktopListener = null;
-      removeViewportListener?.();
-      removeViewportListener = null;
-      if (this.tagsDropdownCleanup === closeDropdown) {
-        this.tagsDropdownCleanup = null;
-      }
-    };
-    this.tagsDropdownCleanup = closeDropdown;
-
-    if (isMobile) {
-      const syncMobileViewportHeight = () => {
-        const vvp = targetWindow.visualViewport;
-        const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
-        portalDropdown.style.setProperty(
-          "max-height",
-          `${viewportHeight - 16}px`,
-          "important",
-        );
-      };
-      syncMobileViewportHeight();
-
-      const visualViewport = targetWindow.visualViewport;
-      if (visualViewport) {
-        visualViewport.addEventListener("resize", syncMobileViewportHeight);
-        visualViewport.addEventListener("scroll", syncMobileViewportHeight);
-        removeViewportListener = () => {
-          visualViewport.removeEventListener(
-            "resize",
-            syncMobileViewportHeight,
-          );
-          visualViewport.removeEventListener(
-            "scroll",
-            syncMobileViewportHeight,
-          );
-        };
-      } else {
-        targetWindow.addEventListener("resize", syncMobileViewportHeight);
-        removeViewportListener = () => {
-          targetWindow.removeEventListener("resize", syncMobileViewportHeight);
-        };
-      }
-
-      if (sheetBackdrop) {
-        sheetBackdrop.addEventListener("click", () => {
-          closeDropdown();
-        });
-      }
-
-      return;
-    }
-
-    const rect = toggleElement.getBoundingClientRect();
-    const dropdownRect = portalDropdown.getBoundingClientRect();
-    const appContainer =
-      this.container.closest(".workspace-leaf-content") || targetBody;
-    const appContainerRect = appContainer.getBoundingClientRect();
-
-    let left = rect.right;
-    let top = rect.top;
-
-    if (left + dropdownRect.width > appContainerRect.right) {
-      left = rect.left - dropdownRect.width;
-    }
-
-    if (left < appContainerRect.left) {
-      left = appContainerRect.left;
-    }
-
-    if (top + dropdownRect.height > targetWindow.innerHeight) {
-      top = targetWindow.innerHeight - dropdownRect.height - 5;
-    }
-
-    portalDropdown.style.left = `${left}px`;
-    portalDropdown.style.top = `${top}px`;
-
-    targetWindow.setTimeout(() => {
-      if (isClosed) {
-        return;
-      }
-      const handleClickOutside = (ev: MouseEvent) => {
-        if (portalDropdown && !portalDropdown.contains(ev.target as Node)) {
-          closeDropdown();
-        }
-      };
-      targetDocument.addEventListener("mousedown", handleClickOutside);
-      removeDesktopListener = () => {
-        targetDocument.removeEventListener("mousedown", handleClickOutside);
-      };
-    }, 0);
+    this.tagsDropdownCleanup = cleanup;
   }
 
   updateRefreshButtonText(text: string): void {

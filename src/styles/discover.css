@@ -34,7 +34,7 @@
   width: 250px;
   min-width: 200px;
   border-right: 1px solid var(--background-modifier-border);
-  padding: 0 6px;
+  padding: 0px;
   overflow-y: auto;
   position: relative;
   flex-shrink: 0;
@@ -752,7 +752,9 @@
   font-weight: 500;
   border: 1px solid var(--background-modifier-border);
   cursor: default;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .rss-discover-selected-filter:hover {
@@ -993,8 +995,7 @@
   display: none !important;
 }
 
-.rss-discover-controls-container.is-narrow
-  .rss-discover-mobile-filters-menu {
+.rss-discover-controls-container.is-narrow .rss-discover-mobile-filters-menu {
   display: block;
 }
 
@@ -1963,4 +1964,34 @@
     min-width: auto;
   }
 }
-.rss-folder-selector-input-wrapper { position: relative !important; } .rss-folder-selector-input { padding-right: 32px !important; } .rss-folder-selector-clear { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; display: flex !important; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); border-radius: 4px; transition: background-color 0.15s ease, color 0.15s ease; z-index: 10; } .rss-folder-selector-clear:hover { background-color: var(--background-modifier-hover); color: var(--text-normal); } .rss-folder-selector-clear.is-hidden { display: none !important; }
+.rss-folder-selector-input-wrapper {
+  position: relative !important;
+}
+.rss-folder-selector-input {
+  padding-right: 32px !important;
+}
+.rss-folder-selector-clear {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 4px;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+  z-index: 10;
+}
+.rss-folder-selector-clear:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.rss-folder-selector-clear.is-hidden {
+  display: none !important;
+}

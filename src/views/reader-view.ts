@@ -6,6 +6,8 @@ import {
   App,
   Setting,
   requireApiVersion,
+  TFile,
+  Notice,
 } from "obsidian";
 import { setIcon } from "obsidian";
 import {
@@ -23,24 +25,15 @@ import { fetchWithProxyFallback } from "../utils/fetch-helpers";
 import TurndownService from "turndown";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
-
-interface RssDashboardPluginInterface {
-  openTagsSettings(): void;
-  manifest: { id: string };
-}
-
-interface ExtendedApp extends App {
-  plugins: {
-    getPlugin(id: string): RssDashboardPluginInterface | null;
-  };
-  setting: {
-    open(): void;
-    openTabById(id: string): void;
-  };
-}
+import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import { resolveItemExternalUrl } from "../utils/item-url-utils";
+import { resolvePodcastOpenDestinations } from "../utils/podcast-open-destinations";
+import { resolveApplePodcastsShowUrl } from "../services/apple-podcasts-service";
+import { createReaderFormatPortal } from "../utils/reader-format-portal";
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
+import { VaultFolderSuggest } from "../components/folder-suggest";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
@@ -61,23 +54,18 @@ export class ReaderView extends ItemView {
   private videoPlayer: VideoPlayer | null = null;
   private relatedItems: FeedItem[] = [];
   private currentFullContent?: string;
+  private currentDisplayTitle?: string;
+  private currentReaderTitle?: string;
+  private currentContentIsFullArticle = false;
   private turndownService = new TurndownService();
   private readToggleButton: HTMLElement | null = null;
   private starToggleButton: HTMLElement | null = null;
+  private saveButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
-  private tagsDropdownPortal: HTMLElement | null = null;
-  private tagsDropdownBackdrop: HTMLElement | null = null;
-  private tagsDropdownOutsideHandler: ((event: MouseEvent) => void) | null =
-    null;
-  private tagsDropdownDocument: Document | null = null;
-  private tagsDropdownViewportCleanup: (() => void) | null = null;
+  private tagsDropdownCleanup: (() => void) | null = null;
 
-  private readerFormatPortal: HTMLElement | null = null;
-  private readerFormatBackdrop: HTMLElement | null = null;
-  private readerFormatOutsideHandler: ((event: MouseEvent) => void) | null =
+  private readerFormatPortal: { close: (flushSave: boolean) => void } | null =
     null;
-  private readerFormatDocument: Document | null = null;
-  private readerFormatViewportCleanup: (() => void) | null = null;
   private readerFormatSaveTimeout: number | null = null;
 
   public setReturnLeaf(leaf: WorkspaceLeaf | null): void {
@@ -98,6 +86,7 @@ export class ReaderView extends ItemView {
       await this.app.workspace.revealLeaf(targetLeaf);
     }
 
+    this.closeTagsDropdown();
     this.leaf.detach();
   }
 
@@ -167,7 +156,11 @@ export class ReaderView extends ItemView {
   }
 
   getDisplayText(): string {
-    return this.currentItem ? this.currentItem.title : "RSS reader";
+    return this.currentItem
+      ? this.currentReaderTitle ||
+          this.currentDisplayTitle ||
+          this.currentItem.title
+      : "RSS reader";
   }
 
   getIcon(): string {
@@ -206,13 +199,22 @@ export class ReaderView extends ItemView {
     const actions = header.createDiv({ cls: "rss-reader-actions" });
 
     // Save button
-    const saveButton = actions.createDiv({
+    this.saveButton = actions.createDiv({
       cls: "rss-reader-action-button",
       attr: { title: "Save article" },
     });
 
-    setIcon(saveButton, "save");
-    saveButton.addEventListener("click", (e) => {
+    setIcon(this.saveButton, "save");
+    this.saveButton.addEventListener("click", (e) => {
+      if (this.currentItem && this.currentItem.saved) {
+        const file = this.app.vault.getAbstractFileByPath(
+          this.currentItem.savedFilePath || "",
+        );
+        if (file instanceof TFile) {
+          void this.leaf.openFile(file);
+          return;
+        }
+      }
       if (this.currentItem) {
         this.showSaveOptions(e, this.currentItem);
       }
@@ -242,15 +244,32 @@ export class ReaderView extends ItemView {
       }
     });
 
-    // Tags button
-    const tagsButton = actions.createDiv({
-      cls: "rss-reader-action-button rss-reader-tags-button",
-      attr: { title: "Manage tags" },
+    // Tags button (same portal menu as dashboard cards)
+    const tagsDropdown = actions.createDiv({
+      cls: "rss-dashboard-tags-dropdown",
+    });
+    const tagsButton = tagsDropdown.createDiv({
+      cls: "rss-dashboard-tags-toggle clickable-icon",
+      attr: {
+        title: "Manage tags",
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Manage tags",
+      },
     });
     setIcon(tagsButton, "tag");
-    tagsButton.addEventListener("click", (e) => {
-      if (this.currentItem) {
-        this.showTagsDropdown(e, this.currentItem);
+    const toggleTagsMenu = (e: Event) => {
+      e.stopPropagation();
+      if (!this.currentItem) {
+        return;
+      }
+      this.toggleTagsDropdown(tagsButton);
+    };
+    tagsButton.addEventListener("click", toggleTagsMenu);
+    tagsButton.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleTagsMenu(e);
       }
     });
 
@@ -265,22 +284,115 @@ export class ReaderView extends ItemView {
     });
 
     // Open in browser button
-    const browserButton = actions.createDiv({
-      cls: "rss-reader-action-button",
-      attr: { title: "Open in Browser" },
-    });
-    setIcon(browserButton, "globe-2");
-    browserButton.addEventListener("click", () => {
-      if (this.currentItem) {
-        window.open(this.currentItem.link, "_blank");
-      }
-    });
+	    const browserButton = actions.createDiv({
+	      cls: "rss-reader-action-button",
+	      attr: { title: "Open in Browser" },
+	    });
+	    setIcon(browserButton, "external-link");
+	    browserButton.addEventListener("click", (e) => {
+	      const item = this.currentItem;
+	      if (!item) return;
+
+	      if (item.mediaType === "podcast") {
+	        const feedMatch =
+	          this.settings.feeds.find((f) => f.url === item.feedUrl) || null;
+	        const feed = feedMatch || { url: item.feedUrl, siteUrl: undefined };
+	        const destinations = resolvePodcastOpenDestinations(item, feed, {
+	          includeApplePodcasts: Boolean(
+	            this.settings.media.enableApplePodcastsOpen,
+	          ),
+	        });
+
+	        if (destinations.length === 0) {
+	          new Notice("No link available for this podcast.");
+	          return;
+	        }
+
+	        const menu = new Menu();
+		        for (const destination of destinations) {
+		          menu.addItem((menuItem: MenuItem) => {
+		            menuItem.setTitle(destination.title);
+		            menuItem.setIcon("external-link");
+
+		            if (destination.url) {
+		              const dom = (menuItem as unknown as { dom?: HTMLElement }).dom;
+		              dom?.setAttribute("title", destination.url);
+		            }
+
+		            if (destination.id === "apple_podcasts") {
+		              menuItem.onClick(() => {
+		                void (async () => {
+	                  if (!feedMatch?.url || !feedMatch.title) {
+	                    new Notice(
+	                      "Could not find this show in apple podcasts.",
+	                    );
+	                    return;
+	                  }
+	                  const appleUrl = await resolveApplePodcastsShowUrl(
+	                    feedMatch.url,
+	                    feedMatch.title,
+	                  );
+	                  if (!appleUrl) {
+	                    new Notice(
+	                      "Could not find this show in apple podcasts.",
+	                    );
+	                    return;
+	                  }
+	                  window.open(appleUrl, "_blank");
+	                })();
+	              });
+	              return;
+	            }
+
+	            const url = destination.url;
+	            if (url) {
+	              menuItem.onClick(() => window.open(url, "_blank"));
+	            } else {
+	              menuItem.setDisabled(true);
+	            }
+	          });
+	        }
+
+	        menu.showAtMouseEvent(e as MouseEvent);
+	        return;
+	      }
+
+	      const url = resolveItemExternalUrl(item);
+	      if (!url) return;
+	      window.open(url, "_blank");
+	    });
 
     this.readingContainer = this.contentEl.createDiv({
       cls: "rss-reader-content",
     });
 
     this.applyReaderFormat();
+    return Promise.resolve();
+  }
+
+  async onClose(): Promise<void> {
+    this.closeTagsDropdown();
+
+    if (this.readerFormatPortal) {
+      this.readerFormatPortal.close(true);
+      this.readerFormatPortal = null;
+    }
+
+    if (this.readerFormatSaveTimeout !== null) {
+      window.clearTimeout(this.readerFormatSaveTimeout);
+      this.readerFormatSaveTimeout = null;
+    }
+
+    if (this.podcastPlayer) {
+      this.podcastPlayer.destroy();
+      this.podcastPlayer = null;
+    }
+
+    if (this.videoPlayer) {
+      this.videoPlayer.destroy();
+      this.videoPlayer = null;
+    }
+
     return Promise.resolve();
   }
 
@@ -301,18 +413,24 @@ export class ReaderView extends ItemView {
 
   private showSaveOptions(event: MouseEvent, item: FeedItem): void {
     const menu = new Menu();
+    const displayTitle = this.currentDisplayTitle;
 
     menu.addItem((menuItem: MenuItem) => {
       menuItem
         .setTitle("Save with default settings")
         .setIcon("save")
         .onClick(async () => {
-          const markdownContent = this.turndownService.turndown(
-            this.currentFullContent || item.description || "",
-          );
+          const htmlToSave =
+            this.currentFullContent && this.currentContentIsFullArticle
+              ? this.stripNavigationChromeFromHtml(
+                  this.stripTopHeadlineFromHtml(this.currentFullContent),
+                )
+              : this.currentFullContent || item.description || "";
+          const markdownContent = this.turndownService.turndown(htmlToSave);
+          const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
           const customTemplate = this.getCustomTemplateForArticle(item);
           const file = await this.articleSaver.saveArticle(
-            item,
+            saveItem,
             undefined,
             customTemplate,
             markdownContent,
@@ -338,6 +456,7 @@ export class ReaderView extends ItemView {
   }
 
   private showCustomSaveModal(item: FeedItem): void {
+    const displayTitle = this.currentDisplayTitle;
     const modal = document.body.createDiv({
       cls: "rss-dashboard-modal rss-dashboard-modal-container",
     });
@@ -352,13 +471,40 @@ export class ReaderView extends ItemView {
       text: "Save to folder:",
     });
 
-    const folderInput = modalContent.createEl("input", {
+    const folderInputContainer = modalContent.createDiv({
+      cls: "rss-dashboard-folder-input-container",
+    });
+
+    const folderInput = folderInputContainer.createEl("input", {
       attr: {
         type: "text",
         placeholder: "Enter folder path",
         value: this.settings.articleSaving.defaultFolder || "",
       },
     });
+
+    const clearIcon = folderInputContainer.createDiv({
+      cls: "clickable-icon rss-dashboard-clear-icon",
+      attr: {
+        "aria-label": "Clear input",
+        role: "button",
+        tabindex: "0",
+      },
+    });
+    setIcon(clearIcon, "x");
+    const clearAction = () => {
+      folderInput.value = "";
+      folderInput.focus();
+    };
+    clearIcon.addEventListener("click", clearAction);
+    clearIcon.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        clearAction();
+      }
+    });
+
+    new VaultFolderSuggest(this.app, folderInput);
 
     const templateLabel = modalContent.createEl("label", {
       text: "Use template:",
@@ -395,11 +541,16 @@ export class ReaderView extends ItemView {
         const folder = folderInput.value.trim();
         const template = templateInput.value.trim() || undefined;
 
-        const markdownContent = this.turndownService.turndown(
-          this.currentFullContent || item.description || "",
-        );
+        const htmlToSave =
+          this.currentFullContent && this.currentContentIsFullArticle
+            ? this.stripNavigationChromeFromHtml(
+                this.stripTopHeadlineFromHtml(this.currentFullContent),
+              )
+            : this.currentFullContent || item.description || "";
+        const markdownContent = this.turndownService.turndown(htmlToSave);
+        const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
         const file = await this.articleSaver.saveArticle(
-          item,
+          saveItem,
           folder,
           template,
           markdownContent,
@@ -418,7 +569,7 @@ export class ReaderView extends ItemView {
     buttonContainer.appendChild(saveButton);
 
     modalContent.appendChild(folderLabel);
-    modalContent.appendChild(folderInput);
+    modalContent.appendChild(folderInputContainer);
     modalContent.appendChild(templateLabel);
     modalContent.appendChild(templateInput);
     modalContent.appendChild(buttonContainer);
@@ -431,14 +582,20 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
+    this.closeTagsDropdown();
     if (this.readingContainer) {
       this.readingContainer.empty();
     }
     this.currentItem = item;
     this.relatedItems = relatedItems;
+    this.currentDisplayTitle = undefined;
+    this.currentReaderTitle = this.isTweetLikeItem(item)
+      ? this.formatNitterReaderTitle(item)
+      : undefined;
+    this.currentContentIsFullArticle = false;
 
     if (this.titleElement) {
-      this.titleElement.setText(item.title);
+      this.titleElement.setText(this.currentReaderTitle || item.title);
     }
 
     // Update toggle button states
@@ -489,13 +646,26 @@ export class ReaderView extends ItemView {
       }
       await this.displayPodcast(item);
     } else {
-      const fetchedContent = this.shouldSkipFullArticleFetch(item.link)
+      const fetchedContent = this.shouldSkipFullArticleFetch(item)
         ? ""
         : await this.fetchFullArticleContent(item.link);
-      const fullContent = this.hasMeaningfulArticleContent(fetchedContent)
+      const hasFullArticleContent =
+        this.hasMeaningfulArticleContent(fetchedContent);
+      const displayTitle = hasFullArticleContent
+        ? this.extractDisplayTitleFromHtml(fetchedContent)
+        : null;
+      const fullContent = hasFullArticleContent
         ? fetchedContent
         : item.content || item.description || "";
       this.currentFullContent = fullContent;
+      this.currentDisplayTitle = displayTitle || undefined;
+      this.currentContentIsFullArticle = hasFullArticleContent;
+
+      if (this.titleElement) {
+        this.titleElement.setText(
+          this.currentReaderTitle || this.currentDisplayTitle || item.title,
+        );
+      }
       await this.displayArticle(item, fullContent);
     }
   }
@@ -562,7 +732,7 @@ export class ReaderView extends ItemView {
         this.titleElement.setText(selectedEpisode.title);
       }
       this.updateToggleButtons();
-      this.closeTagsDropdownPortal();
+      this.closeTagsDropdown();
       void this.syncDashboardSelectionFromPlayer(selectedEpisode);
     };
 
@@ -606,7 +776,9 @@ export class ReaderView extends ItemView {
     }
   }
 
-  private async syncDashboardSelectionFromPlayer(article: FeedItem): Promise<void> {
+  private async syncDashboardSelectionFromPlayer(
+    article: FeedItem,
+  ): Promise<void> {
     const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
     for (const leaf of leaves) {
       if (requireApiVersion("1.7.2")) {
@@ -643,7 +815,7 @@ export class ReaderView extends ItemView {
       try {
         const success = await this.webViewerIntegration.openInWebViewer(
           item.link,
-          item.title,
+          this.currentDisplayTitle || item.title,
         );
         if (!success) {
           this.renderArticle(item, fullContent);
@@ -676,6 +848,10 @@ export class ReaderView extends ItemView {
       return false;
     }
 
+    if (this.isTweetLikeItem(item)) {
+      return true;
+    }
+
     try {
       const host = new URL(item.link).hostname.toLowerCase();
       return this.isFeedContentPreferredHost(host);
@@ -684,13 +860,17 @@ export class ReaderView extends ItemView {
     }
   }
 
-  private shouldSkipFullArticleFetch(url: string): boolean {
-    if (!url) {
+  private shouldSkipFullArticleFetch(item: FeedItem): boolean {
+    if (this.isTweetLikeItem(item)) {
+      return true;
+    }
+
+    if (!item.link) {
       return false;
     }
 
     try {
-      const host = new URL(url).hostname.toLowerCase();
+      const host = new URL(item.link).hostname.toLowerCase();
       return this.isFeedContentPreferredHost(host);
     } catch {
       return false;
@@ -704,7 +884,8 @@ export class ReaderView extends ItemView {
       host === "aeon.co" ||
       host.endsWith(".aeon.co") ||
       host === "substack.com" ||
-      host.endsWith(".substack.com")
+      host.endsWith(".substack.com") ||
+      this.isNitterHost(host)
     );
   }
 
@@ -713,6 +894,9 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-article-header",
     });
 
+    const isNitter = this.isTweetLikeItem(item);
+    const displayTitle =
+      this.currentReaderTitle || this.currentDisplayTitle || item.title;
     const articleTitleEl = headerContainer.createEl("h1", {
       cls: "rss-reader-item-title",
     });
@@ -721,24 +905,26 @@ export class ReaderView extends ItemView {
       this.settings.highlights.highlightInTitles
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
-      highlightService.setHighlightedText(articleTitleEl, item.title);
+      highlightService.setHighlightedText(articleTitleEl, displayTitle);
     } else {
-      articleTitleEl.setText(item.title);
+      articleTitleEl.setText(displayTitle);
     }
 
-    const metaContainer = headerContainer.createDiv({
-      cls: "rss-reader-meta",
-    });
+    if (!isNitter) {
+      const metaContainer = headerContainer.createDiv({
+        cls: "rss-reader-meta",
+      });
 
-    metaContainer.createDiv({
-      cls: "rss-reader-feed-title",
-      text: item.feedTitle,
-    });
+      metaContainer.createDiv({
+        cls: "rss-reader-feed-title",
+        text: item.feedTitle,
+      });
 
-    metaContainer.createDiv({
-      cls: "rss-reader-pub-date",
-      text: new Date(item.pubDate).toLocaleString(),
-    });
+      metaContainer.createDiv({
+        cls: "rss-reader-pub-date",
+        text: new Date(item.pubDate).toLocaleString(),
+      });
+    }
 
     if (item.tags && item.tags.length > 0) {
       const tagsContainer = headerContainer.createDiv({
@@ -760,17 +946,27 @@ export class ReaderView extends ItemView {
 
     const descriptionHtml = (item.description || "").trim();
     const mainHtml = (fullContent || item.content || "").trim();
-    const fallbackHeroUrl =
+    let fallbackHeroUrl =
       (item.coverImage || "").trim() ||
       (item.image || "").trim() ||
       (item.itunes?.image?.href || "").trim() ||
       undefined;
 
+    // Avoid using the feed icon (logo) as the article hero image.
+    if (fallbackHeroUrl && item.feedUrl) {
+      const feedIconUrl =
+        this.settings.feeds.find((f) => f.url === item.feedUrl)?.iconUrl || "";
+      const normalize = (u: string) => u.trim().replace(/\/$/, "");
+      if (feedIconUrl && normalize(fallbackHeroUrl) === normalize(feedIconUrl)) {
+        fallbackHeroUrl = undefined;
+      }
+    }
+
     const hasDistinctMainContent =
       mainHtml !== "" &&
       (!descriptionHtml || !this.isEquivalentHtml(mainHtml, descriptionHtml));
 
-    if (descriptionHtml && hasDistinctMainContent) {
+    if (!isNitter && descriptionHtml && hasDistinctMainContent) {
       const descriptionCallout = this.readingContainer.createEl("details", {
         cls: "rss-reader-description-callout",
       });
@@ -784,26 +980,34 @@ export class ReaderView extends ItemView {
         descriptionHtml,
         item.link,
         fallbackHeroUrl,
-        item.title,
+        displayTitle,
         heroSlot,
+        false,
+        false,
       );
     }
 
-    const contentToRender = hasDistinctMainContent 
-      ? mainHtml 
-      : (mainHtml || descriptionHtml);
+    const contentToRender = isNitter
+      ? this.pickBestNitterTweetHtml(item, fullContent)
+      : hasDistinctMainContent
+        ? mainHtml
+        : mainHtml || descriptionHtml;
 
     if (contentToRender) {
       const contentContainer = this.readingContainer.createDiv({
         cls: "rss-reader-article-content",
       });
+      const shouldStripHeadline =
+        this.currentContentIsFullArticle && contentToRender === mainHtml;
       this.populateArticleHtml(
         contentContainer,
         contentToRender,
         item.link,
         fallbackHeroUrl,
-        item.title,
+        displayTitle,
         heroSlot,
+        shouldStripHeadline,
+        isNitter,
       );
     }
   }
@@ -815,61 +1019,110 @@ export class ReaderView extends ItemView {
     fallbackHeroUrl?: string,
     title?: string,
     heroSlot?: HTMLElement,
+    stripTopHeadline = false,
+    isNitter = false,
   ): void {
     if (!rawHtml) return;
 
     let html = rawHtml;
-    // Basic sanitization/cleanup if needed (the app seems to trust feed HTML)
-    
-    // Resolve relative URLs
-    if (baseUrl) {
-      try {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      // Resolve relative URLs (for correct link/image navigation in Obsidian)
+      if (baseUrl) {
         const base = new URL(baseUrl);
 
-        doc.querySelectorAll('a').forEach(el => {
-          const href = el.getAttribute('href');
-          if (href) {
-            try { el.href = new URL(href, base).toString(); } catch { /* ignore */ }
+        doc.querySelectorAll("a").forEach((el) => {
+          const href = el.getAttribute("href");
+          if (!href) return;
+          try {
+            el.setAttribute("href", new URL(href, base).toString());
+          } catch {
+            /* ignore */
           }
         });
 
-        doc.querySelectorAll('img').forEach(el => {
-          const src = el.getAttribute('src');
-          if (src) {
-            try { el.src = new URL(src, base).toString(); } catch { /* ignore */ }
+      doc.querySelectorAll("img").forEach((el) => {
+          const src = el.getAttribute("src");
+          if (!src) return;
+          try {
+            el.setAttribute("src", new URL(src, base).toString());
+          } catch {
+            /* ignore */
           }
         });
-
-        html = doc.body.innerHTML;
-      } catch {
-        console.error("Failed to resolve relative URLs");
-      }
-    }
-
-    // Attempt to extract and place hero image
-    if (heroSlot && heroSlot.childElementCount === 0) {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
-      const firstImg = tempDiv.querySelector('img');
-      
-      let heroUrl = fallbackHeroUrl;
-      if (firstImg && firstImg.src) {
-        // If the first image looks like a hero image (e.g. large)
-        // For now just take the first meaningful image or fallback
-        heroUrl = firstImg.src;
-        // Optional: remove it from the body to avoid duplication
-        // firstImg.remove();
-        // html = tempDiv.innerHTML;
       }
 
-      if (heroUrl) {
-        heroSlot.createEl("img", {
-          cls: "rss-reader-fallback-hero",
-          attr: { src: heroUrl, alt: title || "Hero image" }
+      // Clean up fetched full-article HTML before hero extraction so we don't pick
+      // navigation icons / breadcrumbs as the hero image.
+      if (stripTopHeadline) {
+        this.stripNavigationChromeFromDocument(doc);
+        this.stripTopHeadlineFromDocument(doc);
+      }
+
+      // Attempt to extract and place hero image
+      if (heroSlot) {
+        const firstImg = doc.body.querySelector("img");
+
+        if (heroSlot.childElementCount === 0) {
+          let heroUrl = fallbackHeroUrl;
+          const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
+          if (firstImgSrc) {
+            heroUrl = firstImgSrc;
+          }
+
+          if (heroUrl) {
+            heroSlot.createEl("img", {
+              cls: "rss-reader-fallback-hero",
+              attr: { src: heroUrl, alt: title || "Hero image" },
+            });
+
+            // Remove the first image from the body if it's the hero image to avoid duplication
+            if (firstImg && firstImgSrc && firstImgSrc === heroUrl) {
+              firstImg.remove();
+            }
+          }
+        } else {
+          // Hero slot already filled by a previous section (e.g. description)
+          // If the current section starts with the same image as the hero image, remove it to avoid duplication
+          const existingHeroSrc =
+            heroSlot.querySelector("img")?.getAttribute("src")?.trim() || "";
+          const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
+          if (existingHeroSrc && firstImg && firstImgSrc === existingHeroSrc) {
+            firstImg.remove();
+          }
+        }
+      }
+
+      // Obsidian shows tooltips for many elements with `aria-label` / `data-tooltip*`.
+      // Embedded article HTML frequently includes accessibility labels like "Breadcrumbs" and "Article body",
+      // which then appear as noisy tooltips on hover throughout the reader view.
+      doc.body.querySelectorAll<HTMLElement>("[aria-label]").forEach((el) => {
+        el.removeAttribute("aria-label");
+      });
+      doc.body.querySelectorAll<HTMLElement>("[data-tooltip]").forEach((el) => {
+        el.removeAttribute("data-tooltip");
+      });
+      doc.body
+        .querySelectorAll<HTMLElement>("[data-tooltip-position]")
+        .forEach((el) => {
+          el.removeAttribute("data-tooltip-position");
         });
+      doc.body
+        .querySelectorAll<HTMLElement>("[data-tooltip-delay]")
+        .forEach((el) => {
+          el.removeAttribute("data-tooltip-delay");
+        });
+
+      if (isNitter) {
+        this.transformNitterStatsMarkup(doc);
       }
+
+      html = doc.body.innerHTML;
+    } catch {
+      // Fall back to raw HTML if parsing fails
     }
 
     if (
@@ -877,25 +1130,456 @@ export class ReaderView extends ItemView {
       this.settings.highlights.highlightInContent
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
+      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
       highlightService.highlightElement(container);
     } else {
       container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
     }
 
     // Add classes to images for styling
-    container.querySelectorAll('img').forEach(img => {
-      img.addClass('rss-reader-responsive-img');
+    container.querySelectorAll("img").forEach((img) => {
+      img.addClass("rss-reader-responsive-img");
+    });
+
+    if (isNitter) {
+      this.hydrateNitterStatsIcons(container);
+    }
+  }
+
+  private isNitterHost(host: string): boolean {
+    return host.toLowerCase().includes("nitter");
+  }
+
+  private isTweetLikeItem(item: FeedItem): boolean {
+    if (this.isNitterItem(item)) {
+      return true;
+    }
+
+    return MediaService.isXUrl(item.link) || MediaService.isXUrl(item.feedUrl);
+  }
+
+  private isNitterItem(item: FeedItem): boolean {
+    const candidates = [item.feedUrl, item.link].filter(
+      (u): u is string => typeof u === "string" && u.trim().length > 0,
+    );
+
+    for (const url of candidates) {
+      try {
+        const host = new URL(url).hostname.toLowerCase();
+        if (this.isNitterHost(host)) {
+          return true;
+        }
+      } catch {
+        // ignore invalid urls
+      }
+    }
+
+    return false;
+  }
+
+  private formatNitterReaderTitle(item: FeedItem): string {
+    const { name, handle } = this.extractNitterNameAndHandle(item);
+    const date = this.formatIsoDate(item.pubDate);
+    const time = this.formatTimeOfDay(item.pubDate);
+    const dateTime = [date, time].filter(Boolean).join(" ");
+
+    if (name && handle && dateTime) return `${name} (${handle}) · ${dateTime}`;
+    if (name && handle) return `${name} (${handle})`;
+    if (name && dateTime) return `${name} · ${dateTime}`;
+    if (handle && dateTime) return `${handle} · ${dateTime}`;
+    return item.title;
+  }
+
+  private extractNitterNameAndHandle(item: FeedItem): { name: string; handle: string } {
+    const tryExtract = (source: string): { name: string; handle: string } => {
+      const handleMatch = source.match(/@[\w.]+/i);
+      const handle = handleMatch ? handleMatch[0] : "";
+      let name = source;
+
+      if (handle) {
+        name = name.replace(handle, "");
+      }
+
+      name = name
+        .replace(/[()]/g, " ")
+        .replace(/[|/]/g, " ")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+
+      return { name, handle };
+    };
+
+    const author = (item.author || "").trim();
+    const feedTitle = (item.feedTitle || "").trim();
+
+    const authorParsed = author ? tryExtract(author) : { name: "", handle: "" };
+    const feedParsed = feedTitle ? tryExtract(feedTitle) : { name: "", handle: "" };
+
+    const urlHandle = this.extractHandleFromUrl(item.link) || this.extractHandleFromUrl(item.feedUrl);
+
+    const handle =
+      (/^@[\w.]+$/i.test(author) ? author : authorParsed.handle) ||
+      feedParsed.handle ||
+      urlHandle;
+    const name = authorParsed.name || feedParsed.name;
+
+    return { name, handle };
+  }
+
+  private extractHandleFromUrl(url: string): string {
+    const trimmed = (url || "").trim();
+    if (!trimmed) return "";
+
+    try {
+      const u = new URL(trimmed);
+      const host = u.hostname.toLowerCase();
+      if (
+        !this.isNitterHost(host) &&
+        !host.includes("twitter.com") &&
+        !host.includes("x.com")
+      ) {
+        return "";
+      }
+      const parts = u.pathname.split("/").filter(Boolean);
+      const username = parts[0] || "";
+      if (!username) return "";
+      if (/^(home|explore|messages|notifications|settings|search|i)$/i.test(username)) {
+        return "";
+      }
+      return username.startsWith("@") ? username : `@${username}`;
+    } catch {
+      return "";
+    }
+  }
+
+  private formatIsoDate(dateInput: string): string {
+    const trimmed = (dateInput || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      return trimmed.slice(0, 10);
+    }
+
+    const parsed = new Date(trimmed);
+    if (Number.isFinite(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 10);
+    }
+
+    return "";
+  }
+
+  private formatTimeOfDay(dateInput: string): string {
+    const trimmed = (dateInput || "").trim();
+    const parsed = new Date(trimmed);
+    if (!Number.isFinite(parsed.getTime())) {
+      return "";
+    }
+
+    return parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  private pickBestNitterTweetHtml(item: FeedItem, fullContent?: string): string {
+    const description = (item.description || "").trim();
+    const content = (item.content || "").trim();
+    const full = (fullContent || "").trim();
+
+    const hasRichFormatting = (html: string): boolean =>
+      /<(br|p|blockquote|img)\b/i.test(html);
+
+    if (
+      description &&
+      (hasRichFormatting(description) ||
+        description.length > (content ? content.length : 0))
+    ) {
+      return description;
+    }
+
+    return content || full || description;
+  }
+
+  private transformNitterStatsMarkup(doc: Document): void {
+    let target =
+      doc.body.querySelector<HTMLElement>(".tweet-stats") ||
+      doc.body.querySelector<HTMLElement>(".tweet-stats-container");
+
+    if (!target) {
+      const iconEl = doc.body.querySelector<HTMLElement>(
+        ".icon-comment, .icon-retweet, .icon-heart, .icon-views",
+      );
+      let cursor: HTMLElement | null = iconEl;
+      for (let i = 0; i < 6 && cursor; i++) {
+        const count = cursor.querySelectorAll(
+          ".icon-comment, .icon-retweet, .icon-heart, .icon-views",
+        ).length;
+        if (count >= 2) {
+          target = cursor;
+          break;
+        }
+        cursor = cursor.parentElement;
+      }
+    }
+
+    if (!target) return;
+
+    const extractCount = (markerClass: string): string => {
+      const marker = target.querySelector<HTMLElement>(`.${markerClass}`);
+      if (!marker) return "";
+      const text = (marker.parentElement?.textContent || "").replace(/\s+/g, " ").trim();
+      const match = text.match(/(\d[\d.,]*\s*[kKmMbB]?)/);
+      return (match ? match[1] : "").trim();
+    };
+
+    const statsEl = doc.createElement("div");
+    statsEl.className = "rss-nitter-stats";
+
+    const pills: Array<{ key: string; icon: string; count: string }> = [
+      { key: "comment", icon: "message-circle", count: extractCount("icon-comment") },
+      { key: "retweet", icon: "repeat-2", count: extractCount("icon-retweet") },
+      { key: "heart", icon: "heart", count: extractCount("icon-heart") },
+      { key: "views", icon: "bar-chart-2", count: extractCount("icon-views") },
+    ];
+
+    for (const pill of pills) {
+      const pillEl = doc.createElement("span");
+      pillEl.className = "rss-nitter-stat";
+      pillEl.setAttribute("data-stat", pill.key);
+
+      const iconEl = doc.createElement("span");
+      iconEl.className = "rss-nitter-stat-icon";
+      iconEl.setAttribute("data-rss-icon", pill.icon);
+
+      const countEl = doc.createElement("span");
+      countEl.className = "rss-nitter-stat-count";
+      countEl.textContent = pill.count;
+
+      pillEl.appendChild(iconEl);
+      pillEl.appendChild(countEl);
+      statsEl.appendChild(pillEl);
+    }
+
+    target.parentElement?.insertBefore(statsEl, target);
+    target.remove();
+  }
+
+  private hydrateNitterStatsIcons(container: HTMLElement): void {
+    container.querySelectorAll<HTMLElement>(".rss-nitter-stat-icon").forEach((el) => {
+      const iconName = el.dataset.rssIcon;
+      if (!iconName) return;
+      try {
+        setIcon(el, iconName);
+      } catch {
+        // ignore icon failures
+      }
     });
   }
 
+  private stripTopHeadlineFromHtml(html: string): string {
+    if (!html) return html;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      this.stripTopHeadlineFromDocument(doc);
+      return doc.body.innerHTML;
+    } catch {
+      return html;
+    }
+  }
+
+  private stripNavigationChromeFromHtml(html: string): string {
+    if (!html) return html;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      this.stripNavigationChromeFromDocument(doc);
+      return doc.body.innerHTML;
+    } catch {
+      return html;
+    }
+  }
+
+  private stripTopHeadlineFromDocument(doc: Document): void {
+    const h1 = doc.body?.querySelector("h1");
+    if (!h1) return;
+
+    const elements = Array.from(doc.body.querySelectorAll("*"));
+    const idx = elements.indexOf(h1);
+    if (idx === -1 || idx > 9) return;
+
+    h1.remove();
+  }
+
+  private stripNavigationChromeFromDocument(doc: Document): void {
+    const body = doc.body;
+    if (!body) return;
+
+    const elements = Array.from(body.querySelectorAll<HTMLElement>("*"));
+    if (elements.length === 0) return;
+
+    const indexByEl = new Map<HTMLElement, number>();
+    elements.forEach((el, idx) => indexByEl.set(el, idx));
+
+    const substantialParagraphIndex = elements.findIndex((el) => {
+      if (el.tagName.toLowerCase() !== "p") return false;
+      const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+      return text.length >= 120;
+    });
+
+    const cutoffIndex = Math.max(
+      29,
+      substantialParagraphIndex >= 0 ? substantialParagraphIndex - 1 : 29,
+    );
+
+    const hasBreadcrumbSignal = (el: HTMLElement): boolean => {
+      const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+      const testId = (el.getAttribute("data-testid") || "").toLowerCase();
+      const cls = (el.getAttribute("class") || "").toLowerCase();
+      const id = (el.getAttribute("id") || "").toLowerCase();
+      return (
+        aria.includes("breadcrumb") ||
+        testId.includes("breadcrumb") ||
+        cls.includes("breadcrumb") ||
+        cls.includes("breadcrumbs") ||
+        id.includes("breadcrumb") ||
+        id.includes("breadcrumbs")
+      );
+    };
+
+    const looksLikeBreadcrumbList = (el: HTMLElement): boolean => {
+      const tag = el.tagName.toLowerCase();
+      if (tag !== "ol" && tag !== "ul") return false;
+
+      const liEls = Array.from(el.children).filter(
+        (c) => (c as HTMLElement).tagName?.toLowerCase() === "li",
+      ) as HTMLElement[];
+      if (liEls.length < 2 || liEls.length > 10) return false;
+
+      const totalText = (el.textContent || "").replace(/\s+/g, " ").trim();
+      if (totalText.length > 140) return false;
+
+      let linkish = 0;
+      for (const li of liEls) {
+        const kids = Array.from(li.children) as HTMLElement[];
+        if (kids.length !== 1) continue;
+        const only = kids[0];
+        if (only.tagName.toLowerCase() !== "a") continue;
+        const t = (only.textContent || "").replace(/\s+/g, " ").trim();
+        if (t.length < 1 || t.length > 40) continue;
+        linkish++;
+      }
+
+      return linkish / liEls.length >= 0.7;
+    };
+
+    const looksLikeChromeContainer = (el: HTMLElement): boolean => {
+      if (hasBreadcrumbSignal(el)) return true;
+
+      const role = (el.getAttribute("role") || "").toLowerCase();
+      if (role === "navigation") return true;
+
+      if (
+        el.querySelector(
+          "nav, [role='navigation'], [aria-label*='breadcrumb' i], [data-testid*='breadcrumb' i]",
+        )
+      ) {
+        return true;
+      }
+
+      const linkCount = el.querySelectorAll("a").length;
+      const paragraphCount = el.querySelectorAll("p").length;
+      const textLen = (el.textContent || "").replace(/\s+/g, " ").trim().length;
+      return linkCount >= 3 && paragraphCount === 0 && textLen < 200;
+    };
+
+    const shouldRemove = (el: HTMLElement): boolean => {
+      const tag = el.tagName.toLowerCase();
+
+      if (tag === "nav") return true;
+
+      const role = (el.getAttribute("role") || "").toLowerCase();
+      if (role === "navigation") return true;
+
+      if (hasBreadcrumbSignal(el)) return true;
+
+      if (tag === "header" || tag === "footer" || tag === "aside") {
+        return looksLikeChromeContainer(el);
+      }
+
+      if (looksLikeBreadcrumbList(el)) return true;
+
+      return false;
+    };
+
+    const candidates = elements.filter((el) => {
+      const idx = indexByEl.get(el);
+      if (idx === undefined || idx > cutoffIndex) return false;
+      return shouldRemove(el);
+    });
+
+    if (candidates.length === 0) return;
+
+    const removeSet = new Set(candidates);
+    const topLevel = candidates.filter((el) => {
+      let p = el.parentElement;
+      while (p) {
+        if (removeSet.has(p)) return false;
+        p = p.parentElement;
+      }
+      return true;
+    });
+
+    topLevel.forEach((el) => el.remove());
+  }
+
+  private extractDisplayTitleFromHtml(html: string): string | null {
+    if (!html) return null;
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const h1 = doc.body?.querySelector("h1");
+      if (!h1) return null;
+
+      const elements = Array.from(doc.body.querySelectorAll("*"));
+      const idx = elements.indexOf(h1);
+      if (idx === -1 || idx > 9) return null;
+
+      const raw = (h1.textContent || "").replace(/\s+/g, " ").trim();
+      if (!this.isAcceptableDisplayTitle(raw)) return null;
+      return raw;
+    } catch {
+      return null;
+    }
+  }
+
+  private isAcceptableDisplayTitle(text: string): boolean {
+    const t = (text || "").replace(/\s+/g, " ").trim();
+    if (!t) return false;
+    if (t.length < 10 || t.length > 200) return false;
+
+    const words = t.split(" ").filter(Boolean);
+    if (words.length < 3) return false;
+
+    const lower = t.toLowerCase();
+    const boilerplate = [
+      "sign in",
+      "log in",
+      "login",
+      "subscribe",
+      "advertisement",
+      "sponsored",
+    ];
+    if (boilerplate.some((b) => lower.includes(b))) return false;
+
+    return true;
+  }
+
   private isEquivalentHtml(html1: string, html2: string): boolean {
-    const clean = (h: string) => h.replace(/\s+/g, ' ').toLowerCase().trim();
+    const clean = (h: string) => h.replace(/\s+/g, " ").toLowerCase().trim();
     return clean(html1) === clean(html2);
   }
 
   private hasMeaningfulArticleContent(html: string | null): boolean {
     if (!html) return false;
-    const text = new DOMParser().parseFromString(html, 'text/html').body.textContent || "";
+    const text =
+      new DOMParser().parseFromString(html, "text/html").body.textContent || "";
     return text.trim().length > 200;
   }
 
@@ -906,7 +1590,6 @@ export class ReaderView extends ItemView {
         : undefined;
     return fetchWithProxyFallback(url, proxyUrl);
   }
-
 
   private toggleReadStatus(): void {
     if (!this.currentItem) return;
@@ -925,53 +1608,141 @@ export class ReaderView extends ItemView {
   private updateSavedLabel(saved: boolean): void {
     if (!this.currentItem) return;
     this.onArticleUpdate(this.currentItem, { saved });
+
+    if (this.saveButton) {
+      this.saveButton.toggleClass("saved", saved);
+      this.saveButton.setAttr(
+        "title",
+        saved ? "Click to open saved article" : "Save article",
+      );
+    }
   }
 
-  private showTagsDropdown(evt: MouseEvent, item: FeedItem): void {
-    const menu = new Menu();
-    
-    const availableTags = this.settings.availableTags || [];
-    const itemTags = item.tags || [];
+  private toggleTagsDropdown(anchor: HTMLElement): void {
+    if (!this.currentItem) {
+      return;
+    }
 
-    availableTags.forEach(tag => {
-      const isSelected = itemTags.some(t => t.name === tag.name);
-      menu.addItem((menuItem: MenuItem) => {
-        menuItem
-          .setTitle(tag.name)
-          .setIcon(isSelected ? "check" : "tag")
-          .onClick(() => {
-            this.toggleTag(item, tag, !isSelected);
-          });
+    if (this.tagsDropdownCleanup) {
+      this.tagsDropdownCleanup();
+      this.tagsDropdownCleanup = null;
+      return;
+    }
+
+    const item = this.currentItem;
+    const cleanup = createTagsDropdownPortal({
+      anchor,
+      settings: this.settings,
+      item,
+      onTagAssignmentChange: (tag, checked) => {
+        this.toggleTag(item, tag, checked);
+      },
+      onPersistSettings: async () => {
+        const plugin = this.getRssDashboardPluginForSettingsSave();
+        if (!plugin) {
+          return;
+        }
+        try {
+          await plugin.saveSettings();
+        } catch {
+          // ignore
+        }
+      },
+      onAfterSettingsTagsMutated: () => {
+        this.refreshReaderHeaderTags();
+        if (this.podcastPlayer) {
+          this.podcastPlayer.refreshTags();
+          this.podcastPlayer.refreshPlaylistTags();
+        }
+        this.app.workspace.trigger("rss-dashboard:tags-mutated");
+      },
+      onOpenTagsSettings: () => {
+        this.openTagsSettings();
+      },
+      appContainer: this.contentEl,
+      onClosed: () => {
+        if (this.tagsDropdownCleanup === cleanup) {
+          this.tagsDropdownCleanup = null;
+        }
+      },
+    });
+
+    this.tagsDropdownCleanup = cleanup;
+  }
+
+  private closeTagsDropdown(): void {
+    if (this.tagsDropdownCleanup) {
+      this.tagsDropdownCleanup();
+      this.tagsDropdownCleanup = null;
+    }
+  }
+
+  private openTagsSettings(): void {
+    const appWithPlugins = this.app as unknown as {
+      plugins?: {
+        getPlugin?: (id: string) => unknown;
+        plugins?: Record<string, unknown>;
+      };
+      setting?: {
+        open?: () => void;
+        openTabById?: (id: string) => void;
+      };
+    };
+
+    type TagsPlugin = { openTagsSettings?: () => void };
+    const plugins = appWithPlugins.plugins;
+    const pluginByGetter =
+      typeof plugins?.getPlugin === "function"
+        ? (plugins.getPlugin("rss-dashboard") as TagsPlugin | null)
+        : null;
+    const pluginByRegistry = plugins?.plugins?.["rss-dashboard"] as
+      | TagsPlugin
+      | undefined;
+
+    const plugin = pluginByGetter || pluginByRegistry;
+    if (typeof plugin?.openTagsSettings === "function") {
+      plugin.openTagsSettings();
+      return;
+    }
+
+    appWithPlugins.setting?.open?.();
+    appWithPlugins.setting?.openTabById?.("rss-dashboard");
+  }
+
+  private refreshReaderHeaderTags(): void {
+    if (!this.currentItem) {
+      return;
+    }
+
+    const headerContainer = this.readingContainer?.querySelector<HTMLElement>(
+      ".rss-reader-article-header",
+    );
+    if (!headerContainer) {
+      return;
+    }
+
+    const tags = this.currentItem.tags || [];
+    const existing =
+      headerContainer.querySelector<HTMLElement>(".rss-reader-tags");
+
+    if (tags.length === 0) {
+      existing?.remove();
+      return;
+    }
+
+    const tagsContainer =
+      existing ??
+      headerContainer.createDiv({
+        cls: "rss-reader-tags",
       });
-    });
 
-    menu.addSeparator();
-    menu.addItem((menuItem: MenuItem) => {
-      menuItem
-        .setTitle("Manage tags...")
-        .setIcon("settings")
-        .onClick(() => {
-          // Open settings to the Tags tab
-          const extendedApp = this.app as ExtendedApp;
-          const plugin = extendedApp.plugins.getPlugin("obsidian-rss-dashboard");
-          if (plugin && typeof plugin.openTagsSettings === "function") {
-            plugin.openTagsSettings();
-          } else {
-            // Fallback for older versions or if method is missing
-            extendedApp.setting?.open();
-            extendedApp.setting?.openTabById("obsidian-rss-dashboard");
-          }
-        });
-    });
-
-    menu.showAtMouseEvent(evt);
-  }
-
-  private closeTagsDropdownPortal(): void {
-    // This seems to be for a custom dropdown UI that might be partially implemented or legacy
-    if (this.tagsDropdownPortal) {
-      this.tagsDropdownPortal.remove();
-      this.tagsDropdownPortal = null;
+    tagsContainer.empty();
+    for (const tag of tags) {
+      const tagElement = tagsContainer.createDiv({
+        cls: "rss-reader-tag",
+      });
+      tagElement.textContent = tag.name;
+      tagElement.style.setProperty("--tag-color", tag.color);
     }
   }
 
@@ -997,7 +1768,10 @@ export class ReaderView extends ItemView {
       return this.settings.readerFormat;
     }
 
-    const format = this.settings.readerFormat as Partial<ReaderFormatSettings> & { wordsPerLine?: number };
+    const format = this.settings
+      .readerFormat as Partial<ReaderFormatSettings> & {
+      wordsPerLine?: number;
+    };
     const defaults = DEFAULT_SETTINGS.readerFormat;
 
     // Migrate wordsPerLine to paragraphWidth if it exists
@@ -1027,7 +1801,7 @@ export class ReaderView extends ItemView {
   private applyReaderFormat(): void {
     const format = this.getReaderFormat();
     const paragraphWidth = format.paragraphWidth || 100;
-    
+
     let maxWidth = "none";
     if (paragraphWidth === 100) {
       maxWidth = "calc(100% - 4px)";
@@ -1057,306 +1831,27 @@ export class ReaderView extends ItemView {
     }
 
     if (this.readerFormatPortal) {
-      this.closeReaderFormatPortal(true);
+      this.readerFormatPortal.close(true);
+      this.readerFormatPortal = null;
       return;
     }
-
-    this.createReaderFormatDropdownPortal(anchor);
-  }
-
-  private createReaderFormatDropdownPortal(anchor: HTMLElement): void {
-    this.closeReaderFormatPortal(false);
 
     const format = this.getReaderFormat();
-    const targetDocument = anchor.ownerDocument;
-    const targetBody = targetDocument.body;
-    const targetWindow = targetDocument.defaultView || window;
-    const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
-
-    if (isMobile) {
-      this.readerFormatBackdrop = targetBody.createDiv({
-        cls: "rss-reader-format-sheet-backdrop",
-      });
-    }
-
-    const portalDropdown = targetBody.createDiv({
-      cls: "rss-dashboard-tags-dropdown-content-portal rss-reader-format-dropdown-portal",
-    });
-
-    if (isMobile) {
-      portalDropdown.addClass("rss-reader-format-mobile-sheet");
-    }
-
-    const controlsContainer = portalDropdown.createDiv({
-      cls: "rss-reader-format-controls",
-    });
-
-    new Setting(controlsContainer).setName("Reader settings").setHeading();
-
-    let alignDropdown: { setValue: (value: string) => void } | null = null;
-    new Setting(controlsContainer)
-      .setName("Alignment")
-      .addDropdown((dropdown) => {
-        alignDropdown = dropdown;
-        dropdown
-          .addOption("justify", "Justify")
-          .addOption("left", "Left")
-          .setValue(format.textAlign)
-          .onChange((value) => {
-            format.textAlign = value as ReaderFormatSettings["textAlign"];
-            this.applyReaderFormat();
-            this.scheduleReaderFormatSave();
-          });
-      });
-
-    new Setting(controlsContainer)
-      .setName("Paragraph width")
-      .addDropdown((dropdown) => {
-        dropdown
-          .addOption("100", "100%")
-          .addOption("75", "75%")
-          .addOption("50", "50%")
-          .addOption("25", "25%")
-          .setValue(String(format.paragraphWidth))
-          .onChange((value) => {
-            format.paragraphWidth = parseInt(value);
-            this.applyReaderFormat();
-            this.scheduleReaderFormatSave();
-          });
-      });
-
-    let fontSizeDropdown: { setValue: (value: string) => void } | null = null;
-    new Setting(controlsContainer)
-      .setName("Font size")
-      .addDropdown((dropdown) => {
-        fontSizeDropdown = dropdown;
-        dropdown
-          .addOption("80", "80%")
-          .addOption("90", "90%")
-          .addOption("100", "100%")
-          .addOption("110", "110%")
-          .addOption("120", "120%")
-          .addOption("130", "130%")
-          .addOption("150", "150%")
-          .addOption("175", "175%")
-          .addOption("200", "200%")
-          .setValue(String(format.fontScalePct))
-          .onChange((value) => {
-            format.fontScalePct = parseInt(value);
-            this.applyReaderFormat();
-            this.scheduleReaderFormatSave();
-          });
-      });
-
-    let lineHeightDropdown: { setValue: (value: string) => void } | null = null;
-    new Setting(controlsContainer)
-      .setName("Line height")
-      .addDropdown((dropdown) => {
-        lineHeightDropdown = dropdown;
-        dropdown
-          .addOption("100", "100%")
-          .addOption("110", "110%")
-          .addOption("120", "120%")
-          .addOption("130", "130%")
-          .addOption("140", "140%")
-          .addOption("150", "150%")
-          .addOption("160", "160%")
-          .addOption("180", "180%")
-          .addOption("200", "200%")
-          .setValue(String(format.lineHeightPct))
-          .onChange((value) => {
-            format.lineHeightPct = parseInt(value);
-            this.applyReaderFormat();
-            this.scheduleReaderFormatSave();
-          });
-      });
-
-    let fontDropdown: { setValue: (value: string) => void } | null = null;
-    new Setting(controlsContainer).setName("Font").addDropdown((dropdown) => {
-      fontDropdown = dropdown;
-      dropdown
-        .addOption("default", "Theme default")
-        .addOption("serif", "Serif")
-        .addOption("sans", "Sans")
-        .addOption("mono", "Mono")
-        .setValue(format.fontFamily)
-        .onChange((value) => {
-          format.fontFamily = value as ReaderFormatSettings["fontFamily"];
-          this.applyReaderFormat();
-          this.scheduleReaderFormatSave();
-        });
-    });
-
-    let paragraphDropdown: { setValue: (value: string) => void } | null = null;
-    new Setting(controlsContainer)
-      .setName("Paragraph spacing")
-      .addDropdown((dropdown) => {
-        paragraphDropdown = dropdown;
-        dropdown
-          .addOption("default", "Theme default")
-          .addOption("tight", "Tight")
-          .addOption("normal", "Normal")
-          .addOption("loose", "Loose")
-          .setValue(format.paragraphSpacing)
-          .onChange((value) => {
-            format.paragraphSpacing =
-              value as ReaderFormatSettings["paragraphSpacing"];
-            this.applyReaderFormat();
-            this.scheduleReaderFormatSave();
-          });
-      });
-
-    new Setting(controlsContainer).addButton((btn) => {
-      btn.setButtonText("Reset").onClick((evt: MouseEvent) => {
-        Object.assign(format, DEFAULT_SETTINGS.readerFormat);
-
-        alignDropdown?.setValue(format.textAlign);
-        // Paragraph width dropdown reset if we kept its reference, but here we'll just re-render or hope it updates
-        fontSizeDropdown?.setValue(String(format.fontScalePct));
-        lineHeightDropdown?.setValue(String(format.lineHeightPct));
-        fontDropdown?.setValue(format.fontFamily);
-        paragraphDropdown?.setValue(format.paragraphSpacing);
-
-        this.applyReaderFormat();
-        this.scheduleReaderFormatSave();
-        this.closeReaderFormatPortal(true);
-        this.toggleReaderFormatDropdown(evt); // Re-open to refresh
-      });
-    });
-
-    if (isMobile) {
-      new Setting(controlsContainer).addButton((btn) => {
-        btn.setButtonText("Done");
-        // Prefer Obsidian CTA styling; fall back to class if older API.
-        const maybeCta = btn as unknown as { setCta?: () => void };
-        maybeCta.setCta?.();
-        btn.buttonEl.addClass("mod-cta");
-        btn.buttonEl.addClass("rss-reader-format-done-cta");
-        btn.onClick((e: MouseEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-          this.closeReaderFormatPortal(true);
-        });
-      });
-    }
-
-    this.readerFormatPortal = portalDropdown;
-    this.readerFormatDocument = targetDocument;
-
-    if (isMobile) {
-      const syncMobileViewportHeight = () => {
-        const vvp = targetWindow.visualViewport;
-        const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
-        const computed = targetWindow.getComputedStyle(portalDropdown);
-        const bottomOffset = Number.parseFloat(computed.bottom || "0") || 0;
-        const maxHeight = Math.min(
-          Math.floor(viewportHeight * 0.8),
-          Math.max(220, Math.floor(viewportHeight - bottomOffset - 8))
-        );
-        portalDropdown.style.setProperty(
-          "max-height",
-          `${maxHeight}px`,
-          "important",
-        );
-      };
-      syncMobileViewportHeight();
-
-      const visualViewport = targetWindow.visualViewport;
-      if (visualViewport) {
-        visualViewport.addEventListener("resize", syncMobileViewportHeight);
-        visualViewport.addEventListener("scroll", syncMobileViewportHeight);
-        this.readerFormatViewportCleanup = () => {
-          visualViewport.removeEventListener(
-            "resize",
-            syncMobileViewportHeight,
-          );
-          visualViewport.removeEventListener(
-            "scroll",
-            syncMobileViewportHeight,
-          );
-        };
-      } else {
-        targetWindow.addEventListener("resize", syncMobileViewportHeight);
-        this.readerFormatViewportCleanup = () => {
-          targetWindow.removeEventListener("resize", syncMobileViewportHeight);
-        };
-      }
-
-      this.readerFormatBackdrop?.addEventListener("click", () => {
-        this.closeReaderFormatPortal(true);
-      });
-
-      return;
-    }
-
-    const rect = anchor.getBoundingClientRect();
-    const dropdownRect = portalDropdown.getBoundingClientRect();
-    const appContainer =
-      this.contentEl.closest(".workspace-leaf-content") || targetBody;
-    const appContainerRect = appContainer.getBoundingClientRect();
-
-    let left = rect.right;
-    let top = rect.top;
-
-    if (left + dropdownRect.width > appContainerRect.right) {
-      left = rect.left - dropdownRect.width;
-    }
-
-    if (left < appContainerRect.left) {
-      left = appContainerRect.left;
-    }
-
-    if (top + dropdownRect.height > targetWindow.innerHeight) {
-      top = targetWindow.innerHeight - dropdownRect.height - 5;
-    }
-
-    portalDropdown.style.left = `${left}px`;
-    portalDropdown.style.top = `${top}px`;
-
-    targetWindow.setTimeout(() => {
-      const outsideHandler = (ev: MouseEvent) => {
-        if (
-          this.readerFormatPortal &&
-          !this.readerFormatPortal.contains(ev.target as Node) &&
-          !anchor.contains(ev.target as Node)
-        ) {
-          this.closeReaderFormatPortal(true);
+    const portal = createReaderFormatPortal({
+      anchor,
+      format,
+      defaults: DEFAULT_SETTINGS.readerFormat,
+      applyFormat: () => this.applyReaderFormat(),
+      scheduleSave: () => this.scheduleReaderFormatSave(),
+      flushSave: () => this.flushReaderFormatSave(),
+      onClosed: () => {
+        if (this.readerFormatPortal === portal) {
+          this.readerFormatPortal = null;
         }
-      };
-      this.readerFormatOutsideHandler = outsideHandler;
-      targetDocument.addEventListener("mousedown", outsideHandler);
-    }, 0);
-  }
+      },
+    });
 
-  private closeReaderFormatPortal(flushSave: boolean): void {
-    if (this.readerFormatBackdrop) {
-      this.readerFormatBackdrop.remove();
-      this.readerFormatBackdrop = null;
-    }
-
-    if (this.readerFormatPortal) {
-      this.readerFormatPortal.remove();
-      this.readerFormatPortal = null;
-    }
-
-    if (this.readerFormatOutsideHandler && this.readerFormatDocument) {
-      this.readerFormatDocument.removeEventListener(
-        "mousedown",
-        this.readerFormatOutsideHandler,
-      );
-    }
-
-    if (this.readerFormatViewportCleanup) {
-      this.readerFormatViewportCleanup();
-      this.readerFormatViewportCleanup = null;
-    }
-
-    this.readerFormatOutsideHandler = null;
-    this.readerFormatDocument = null;
-
-    if (flushSave) {
-      void this.flushReaderFormatSave();
-    }
+    this.readerFormatPortal = portal;
   }
 
   private scheduleReaderFormatSave(): void {
@@ -1438,6 +1933,10 @@ export class ReaderView extends ItemView {
     // Notify parent to persist the change
     this.onArticleUpdate(item, { tags: [...item.tags] }, false);
 
+    if (this.currentItem?.guid === item.guid) {
+      this.refreshReaderHeaderTags();
+    }
+
     if (
       this.podcastPlayer &&
       this.currentItem?.guid === item.guid &&
@@ -1482,6 +1981,16 @@ export class ReaderView extends ItemView {
       this.starToggleButton.setAttr(
         "title",
         this.currentItem.starred ? "Remove from starred" : "Add to starred",
+      );
+    }
+
+    // Update save button state
+    if (this.saveButton) {
+      const isSaved = Boolean(this.currentItem.saved);
+      this.saveButton.toggleClass("saved", isSaved);
+      this.saveButton.setAttr(
+        "title",
+        isSaved ? "Click to open saved article" : "Save article",
       );
     }
   }

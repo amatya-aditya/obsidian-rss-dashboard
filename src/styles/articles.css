@@ -596,12 +596,17 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 }
 
 .rss-dashboard-empty-state svg {
-	margin-bottom: 15px;
+ 	margin-bottom: 15px;
+}
+
+.rss-dashboard-empty-state-icon {
+  width: 48px;
+  height: 48px;
 }
 
 .rss-dashboard-empty-state h3 {
-	margin: 0 0 10px 0;
-	font-size: 18px;
+ 	margin: 0 0 10px 0;
+ 	font-size: 18px;
 	color: var(--text-normal);
 }
 

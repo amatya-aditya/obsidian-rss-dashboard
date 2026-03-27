@@ -4,7 +4,12 @@ import { MediaService } from "./media-service";
 import {
   detectPodcastPlatform,
   APPLE_PODCASTS,
+  POCKET_CASTS,
 } from "../utils/podcast-platforms.js";
+import {
+  canonicalizeItemIdentityUrl,
+  resolveAbsoluteHttpUrl,
+} from "../utils/url-utils.js";
 
 interface ItunesLookupResponse {
   resultCount: number;
@@ -21,6 +26,7 @@ interface ItunesLookupResponse {
 
 export async function resolvePodcastPlatformUrl(
   url: string,
+  corsProxyUrl?: string
 ): Promise<string | null> {
   const platform = detectPodcastPlatform(url);
   if (!platform) return null;
@@ -29,7 +35,109 @@ export async function resolvePodcastPlatformUrl(
     return resolveApplePodcastUrl(url);
   }
 
+  if (platform.id === POCKET_CASTS.id) {
+    return resolvePocketCastsUrl(url, corsProxyUrl);
+  }
+
   return null;
+}
+
+async function resolvePocketCastsUrl(url: string, corsProxyUrl?: string): Promise<string | null> {
+  const proxyUrls: string[] = [];
+
+  // 1. User's proxy if available
+  if (corsProxyUrl) {
+    const isEncoded = corsProxyUrl.includes("allorigins") || corsProxyUrl.includes("codetabs");
+    const targetUrl = isEncoded ? encodeURIComponent(url) : url;
+    proxyUrls.push(`${corsProxyUrl}${targetUrl}`);
+  }
+
+  // 2. Default AllOrigins proxy
+  proxyUrls.push(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+
+  // 3. Fallback CodeTabs proxy
+  proxyUrls.push(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`);
+
+  let lastError: Error | null = null;
+
+  for (const proxyUrl of proxyUrls) {
+    try {
+      console.debug(`[RSS Dashboard] Attempting to resolve Pocket Casts URL using proxy: ${proxyUrl}`);
+      const response = await requestUrl({ url: proxyUrl, method: "GET" });
+      
+      let contents = "";
+      if (proxyUrl.includes("allorigins.win/get")) {
+        const data = JSON.parse(response.text) as { contents: string };
+        if (!data.contents) throw new Error("AllOrigins returned empty contents");
+        contents = data.contents;
+      } else {
+        contents = response.text;
+      }
+      
+      const match = contents.match(
+        /<link[^>]+type=["']application\/rss\+xml["'][^>]+href=["']([^"']+)["']/i
+      ) || contents.match(
+        /<link[^>]+href=["']([^"']+)["'][^>]+type=["']application\/rss\+xml["']/i
+      );
+      
+      if (match?.[1]) {
+        console.debug(`[RSS Dashboard] Successfully resolved Pocket Casts URL via meta tag: ${match[1]}`);
+        return match[1];
+      }
+      
+      // FALLBACK STRATEGY: Semantic Discovery via iTunes Search
+      // Pocket Casts often hides the direct RSS link in their web player.
+      // We extract the podcast title and use the public iTunes Search API to find the feed.
+      
+      // Flexible regex: Handles attributes in any order (e.g., meta data-rh="true" property="og:title" content="...")
+      let titleMatch = contents.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) || 
+                       contents.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i) ||
+                       contents.match(/<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']/i) ||
+                       contents.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:title["']/i);
+      
+      if (!titleMatch) {
+         // Fallback to <title> tag, but be careful of generic site titles
+         const docTitle = contents.match(/<title>([^<]+)<\/title>/i);
+         if (docTitle?.[1] && !docTitle[1].includes("Pocket Casts")) {
+             titleMatch = docTitle;
+         }
+      }
+      
+      if (titleMatch?.[1]) {
+          const rawTitle = titleMatch[1];
+          const decodedTitle = rawTitle.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+          console.debug(`[RSS Dashboard] Extracted title for iTunes search: "${decodedTitle}"`);
+          
+          if (decodedTitle.toLowerCase() === "pocket casts plus") {
+              // Generic title found, search would be too ambiguous
+              console.warn(`[RSS Dashboard] Extracted generic title "Pocket Casts Plus", skipping search to avoid incorrect resolution.`);
+          } else {
+              try {
+                  // iTunes Search API is public, free, and returns canonical RSS feedUrls
+                  const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(decodedTitle)}&entity=podcast&limit=3`;
+                  const itunesResponse = await requestUrl({ url: searchUrl, method: "GET" });
+                  const itunesData = JSON.parse(itunesResponse.text) as { results?: Array<{ feedUrl?: string, collectionName?: string }> };
+                  if (itunesData.results && itunesData.results.length > 0 && itunesData.results[0].feedUrl) {
+                      const feedUrl = itunesData.results[0].feedUrl;
+                      console.debug(`[RSS Dashboard] Successfully resolved Pocket Casts URL via iTunes API: ${feedUrl} (matched "${itunesData.results[0].collectionName}")`);
+                      return feedUrl;
+                  }
+                  console.debug(`[RSS Dashboard] iTunes API returned no feedUrl for title: ${decodedTitle}`);
+              } catch (itunesErr) {
+                  console.warn(`[RSS Dashboard] iTunes Search API fallback failed:`, itunesErr);
+              }
+          }
+      }
+      
+      throw new Error(`Could not find RSS feed link or valid title in HTML from Pocket Casts layout`);
+    } catch (e) {
+      console.warn(`[RSS Dashboard] Proxy ${proxyUrl} failed to resolve Pocket Casts URL:`, e);
+      lastError = e instanceof Error ? e : new Error(String(e));
+      // Continue to next proxy
+    }
+  }
+
+  throw new Error(`Failed to resolve Pocket Casts URL after trying multiple proxies. Last error: ${lastError?.message}`);
 }
 
 async function resolveApplePodcastUrl(
@@ -1111,6 +1219,73 @@ export class CustomXMLParser {
     return el?.getAttribute(attribute) || "";
   }
 
+  private getMediaImageUrl(item: Element): string {
+    const MRSS_NS = "search.yahoo.com/mrss";
+
+    const isMrss = (el: Element): boolean => {
+      const ns = (el.namespaceURI || "").toLowerCase();
+      if (ns.includes(MRSS_NS)) return true;
+
+      // Fallback for DOM implementations that don't expose namespaceURI reliably.
+      const tag = (el.tagName || "").toLowerCase();
+      return tag.startsWith("media:") || tag.includes(":media:");
+    };
+
+    const score = (el: Element): number => {
+      const type = (el.getAttribute("type") || "").toLowerCase();
+      const medium = (el.getAttribute("medium") || "").toLowerCase();
+      const isImage = type.startsWith("image/") || medium === "image";
+      // Prefer image-typed media:content over unknown types.
+      return isImage ? 2 : 1;
+    };
+
+    const pickBest = (candidates: Element[]): string => {
+      const withUrl = candidates
+        .map((el) => ({ el, url: (el.getAttribute("url") || "").trim() }))
+        .filter((x) => !!x.url);
+      if (withUrl.length === 0) return "";
+      withUrl.sort((a, b) => score(b.el) - score(a.el));
+      return withUrl[0].url;
+    };
+
+    // 1) Standard selectors (works in many environments)
+    try {
+      const url = pickBest(Array.from(item.querySelectorAll("media\\:content")));
+      if (url) return url;
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      const url = pickBest(
+        Array.from(item.querySelectorAll("media\\:thumbnail")),
+      );
+      if (url) return url;
+    } catch {
+      /* ignore */
+    }
+
+    // 2) Namespace-robust fallback using localName + namespaceURI
+    try {
+      const all = Array.from(item.getElementsByTagNameNS("*", "*"));
+      const mediaContent = all.filter(
+        (el) => el.localName === "content" && isMrss(el),
+      );
+      const contentUrl = pickBest(mediaContent);
+      if (contentUrl) return contentUrl;
+
+      const mediaThumb = all.filter(
+        (el) => el.localName === "thumbnail" && isMrss(el),
+      );
+      const thumbUrl = pickBest(mediaThumb);
+      if (thumbUrl) return thumbUrl;
+    } catch {
+      /* ignore */
+    }
+
+    return "";
+  }
+
   private getTextContentWithMultipleSelectors(
     element: Element | null,
     selectors: string[],
@@ -1240,7 +1415,11 @@ export class CustomXMLParser {
       : "";
 
     const items: ParsedItem[] = [];
-    const itemElements = channel.querySelectorAll("item");
+    // Use only direct child <item> nodes to avoid accidentally parsing nested
+    // <item> tags that may appear in malformed feeds (e.g., inside description HTML).
+    const itemElements = Array.from(channel.children).filter(
+      (el) => el.tagName.toLowerCase() === "item",
+    );
 
     itemElements.forEach((item) => {
       const title = this.getTextContent(item, "title");
@@ -1321,13 +1500,7 @@ export class CustomXMLParser {
         : undefined;
 
       let mediaImage = "";
-      const mediaContentElement = item.querySelector("media\\:content");
-      if (mediaContentElement) {
-        const mediaUrl = mediaContentElement.getAttribute("url");
-        if (mediaUrl) {
-          mediaImage = mediaUrl;
-        }
-      }
+      mediaImage = this.getMediaImageUrl(item);
 
       let fallbackImage = "";
       if (!itemImage && !mediaImage) {
@@ -1619,8 +1792,10 @@ export class CustomXMLParser {
       cleanedXml = cleanedXml.replace(/<\?php[\s\S]*?\?>/gi, "");
       cleanedXml = cleanedXml.replace(/<\?.*?\?>/gi, "");
 
-      // Unwrap CDATA sections so regex-based extraction can match content
-      cleanedXml = cleanedXml.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1");
+      // IMPORTANT: Do not unwrap CDATA globally here.
+      // The fallback parser uses regexes to split `<item>...</item>` blocks, and unwrapping CDATA
+      // can introduce literal `<item>` / `</item>` sequences from HTML content that cause item
+      // boundaries to be detected incorrectly (leading to "two articles merged into one").
 
       const rssStartMatch = cleanedXml.match(/<rss[^>]*>/i);
       if (rssStartMatch) {
@@ -1656,24 +1831,40 @@ export class CustomXMLParser {
 
       const items: ParsedItem[] = [];
 
-      const itemMatches: RegExpMatchArray[] = [];
+      const itemMatches: Array<{ full: string; inner: string }> = [];
 
-      const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
-      let itemMatch;
-      while ((itemMatch = itemRegex.exec(cleanedXml)) !== null) {
-        itemMatches.push(itemMatch);
+      // When splitting items with regex, ignore any `<item>` strings inside CDATA sections by
+      // masking `<`/`>` within CDATA with same-length control characters. This keeps indices stable
+      // so we can slice from the unmodified `cleanedXml`.
+      const xmlForItemSplit = cleanedXml.replace(
+        /<!\[CDATA\[[\s\S]*?\]\]>/g,
+        (cdata: string) =>
+          cdata.replace(/</g, "\u0001").replace(/>/g, "\u0002"),
+      );
+
+      const itemRegex = /<item[^>]*>[\s\S]*?<\/item>/gi;
+      let itemMatch: RegExpExecArray | null;
+      while ((itemMatch = itemRegex.exec(xmlForItemSplit)) !== null) {
+        const full = cleanedXml.substring(
+          itemMatch.index,
+          itemMatch.index + itemMatch[0].length,
+        );
+        const inner = full
+          .replace(/^<item[^>]*>/i, "")
+          .replace(/<\/item>\s*$/i, "");
+        itemMatches.push({ full, inner });
       }
 
       if (itemMatches.length === 0) {
         // Replace lookahead with compatible pattern: find items by matching content until next item/channel/rss tag
         const itemStartRegex = /<item[^>]*>/gi;
-        while ((itemMatch = itemStartRegex.exec(cleanedXml)) !== null) {
+        while ((itemMatch = itemStartRegex.exec(xmlForItemSplit)) !== null) {
           const itemStartIndex = itemMatch.index;
           const itemStartTag = itemMatch[0];
           const contentStartIndex = itemStartIndex + itemStartTag.length;
 
           // Find where this item ends by looking for next item, channel close, or rss close
-          const remainingText = cleanedXml.substring(contentStartIndex);
+          const remainingText = xmlForItemSplit.substring(contentStartIndex);
           const nextItemMatch = remainingText.match(/<item[^>]*>/i);
           const channelCloseMatch = remainingText.match(/<\/channel>/i);
           const rssCloseMatch = remainingText.match(/<\/rss>/i);
@@ -1689,21 +1880,39 @@ export class CustomXMLParser {
             endIndex = Math.min(endIndex, rssCloseMatch.index);
           }
 
-          const itemContent = remainingText.substring(0, endIndex);
-          const fullMatch = itemStartTag + itemContent;
-          itemMatches.push([fullMatch, itemContent]);
+          const full = cleanedXml.substring(
+            itemStartIndex,
+            contentStartIndex + endIndex,
+          );
+          const inner = cleanedXml.substring(
+            contentStartIndex,
+            contentStartIndex + endIndex,
+          );
+          itemMatches.push({ full, inner });
         }
       }
 
       if (itemMatches.length === 0) {
-        const aggressiveItemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
-        while ((itemMatch = aggressiveItemRegex.exec(xmlString)) !== null) {
-          itemMatches.push(itemMatch);
+        const xmlForAggressiveSplit = xmlString.replace(
+          /<!\[CDATA\[[\s\S]*?\]\]>/g,
+          (cdata: string) =>
+            cdata.replace(/</g, "\u0001").replace(/>/g, "\u0002"),
+        );
+        const aggressiveItemRegex = /<item[^>]*>[\s\S]*?<\/item>/gi;
+        while ((itemMatch = aggressiveItemRegex.exec(xmlForAggressiveSplit)) !== null) {
+          const full = xmlString.substring(
+            itemMatch.index,
+            itemMatch.index + itemMatch[0].length,
+          );
+          const inner = full
+            .replace(/^<item[^>]*>/i, "")
+            .replace(/<\/item>\s*$/i, "");
+          itemMatches.push({ full, inner });
         }
       }
 
-      itemMatches.forEach((itemMatch, index) => {
-        const itemXml = itemMatch[1];
+      itemMatches.forEach((match) => {
+        const itemXml = match.inner;
 
         let itemAuthor = "";
         let itemPubDate = "";
@@ -1766,6 +1975,13 @@ export class CustomXMLParser {
           ? this.sanitizeCDATA(itemCategoryMatch[1].trim())
           : "";
 
+        const mediaUrlMatch =
+          itemXml.match(/<media:content[^>]*url=["']([^"']+)["']/i) ||
+          itemXml.match(/<media\\:content[^>]*url=["']([^"']+)["']/i) ||
+          itemXml.match(/<media:thumbnail[^>]*url=["']([^"']+)["']/i) ||
+          itemXml.match(/<media\\:thumbnail[^>]*url=["']([^"']+)["']/i);
+        const mediaUrl = mediaUrlMatch?.[1]?.trim() || "";
+
         const pubYearMatch = itemXml.match(/<pubYear[^>]*>([^<]+)<\/pubYear>/i);
         const pubYear = pubYearMatch
           ? this.sanitizeCDATA(pubYearMatch[1].trim())
@@ -1827,6 +2043,7 @@ export class CustomXMLParser {
           guid: itemGuid,
           author: itemAuthor || undefined,
           content: itemDescription,
+          image: mediaUrl ? { url: this.convertAppUrls(mediaUrl) } : undefined,
           category: itemCategory,
           ieee,
         });
@@ -2113,7 +2330,7 @@ export function mergeFeedHistoryItems(
   const uniqueRefreshed: FeedItem[] = [];
 
   for (const item of refreshedItems) {
-    const key = item.guid || item.link || "";
+    const key = canonicalizeItemIdentityUrl(item.guid || item.link || "");
     if (!key) continue;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -2122,10 +2339,11 @@ export function mergeFeedHistoryItems(
 
   const carriedForward: FeedItem[] = [];
   for (const item of existingItems || []) {
-    const key = item.guid || item.link || "";
+    const key = canonicalizeItemIdentityUrl(item.guid || item.link || "");
     if (!key) continue;
     if (!seen.has(key)) {
       carriedForward.push(item);
+      seen.add(key);
     }
   }
 
@@ -2592,21 +2810,27 @@ export class FeedParser {
 
     const feedTitle = existingFeed?.title || parsed.title || "Unnamed feed";
 
-    const newFeed: Feed = existingFeed || {
-      title: feedTitle,
-      url: url,
-      folder: "Uncategorized",
-      items: [],
-      lastUpdated: Date.now(),
-    };
+	    const newFeed: Feed = existingFeed || {
+	      title: feedTitle,
+	      url: url,
+	      folder: "Uncategorized",
+	      items: [],
+	      lastUpdated: Date.now(),
+	    };
+
+	    const resolvedSiteUrl = resolveAbsoluteHttpUrl(parsed.link, url);
+	    if (resolvedSiteUrl) {
+	      newFeed.siteUrl = resolvedSiteUrl;
+	    }
 
     const existingItems = new Map<string, FeedItem>();
     if (existingFeed) {
       existingFeed.items.forEach((item) => {
-        const key = this.convertToAbsoluteUrl(
+        const rawKey = this.convertToAbsoluteUrl(
           item.guid || item.link || "",
           url,
         );
+        const key = canonicalizeItemIdentityUrl(rawKey);
         if (key) {
           existingItems.set(key, item);
         }
@@ -2638,43 +2862,44 @@ export class FeedParser {
             }
           : undefined);
 
-      const itemGuid = this.convertToAbsoluteUrl(
+      const rawItemGuid = this.convertToAbsoluteUrl(
         item.guid || item.link || "",
         url,
       );
-      const existingItem = existingItems.get(itemGuid);
-      if (itemGuid) {
-        seenGuids.add(itemGuid);
-      }
+      const itemGuid = canonicalizeItemIdentityUrl(rawItemGuid);
+      if (!itemGuid) continue;
+      if (seenGuids.has(itemGuid)) continue;
+      seenGuids.add(itemGuid);
 
-      if (existingItem) {
-        let coverImage = existingItem.coverImage;
-        if (isPodcast) {
-          coverImage =
-            this.extractPodcastCoverImage(item, parsed.image, url) ||
-            existingItem.coverImage;
-        } else {
-          coverImage =
-            this.extractCoverImage(
-              item.content || item.description || "",
-              url,
-            ) ||
-            this.convertToAbsoluteUrl(
-              item.itunes?.image?.href || item.image?.url || "",
-              url,
-            ) ||
-            (item.enclosure?.type?.startsWith("image/")
-              ? this.convertToAbsoluteUrl(item.enclosure.url, url)
-              : "") ||
-            (parsed.image &&
-            typeof parsed.image === "object" &&
-            parsed.image.url
-              ? this.convertToAbsoluteUrl(parsed.image.url, url)
-              : "") ||
-            existingItem.coverImage;
-        }
-        const updatedItem: FeedItem = {
+      const existingItem = existingItems.get(itemGuid);
+
+        if (existingItem) {
+          let coverImage = existingItem.coverImage;
+          if (isPodcast) {
+            coverImage =
+              this.extractPodcastCoverImage(item, parsed.image, url) ||
+              existingItem.coverImage;
+          } else {
+            coverImage =
+              this.extractCoverImage(
+                item.content || item.description || "",
+                url,
+              ) ||
+              this.convertToAbsoluteUrl(
+                item.itunes?.image?.href || item.image?.url || "",
+                url,
+              ) ||
+              (item.enclosure?.type?.startsWith("image/")
+                ? this.convertToAbsoluteUrl(item.enclosure.url, url)
+                : "") ||
+              existingItem.coverImage;
+          }
+          const updatedItem: FeedItem = {
           ...existingItem,
+          guid: itemGuid,
+          link:
+            this.convertToAbsoluteUrl(item.link || "", url) ||
+            existingItem.link,
           title: item.title || existingItem.title,
           description: this.convertRelativeUrlsInContent(
             item.description || "",
@@ -2691,16 +2916,15 @@ export class FeedParser {
           summary:
             this.extractSummary(item.content || item.description || "") ||
             existingItem.summary,
-          image:
-            this.convertToAbsoluteUrl(
-              item.itunes?.image?.href ||
-                item.image?.url ||
-                parsed.image?.url ||
-                "",
-              url,
-            ) ||
-            (item.enclosure?.type?.startsWith("image/")
-              ? this.convertToAbsoluteUrl(item.enclosure.url, url)
+            image:
+              this.convertToAbsoluteUrl(
+                item.itunes?.image?.href ||
+                  item.image?.url ||
+                  "",
+                url,
+              ) ||
+              (item.enclosure?.type?.startsWith("image/")
+                ? this.convertToAbsoluteUrl(item.enclosure.url, url)
               : "") ||
             existingItem.image,
           duration: item.itunes?.duration || existingItem.duration,
@@ -2719,9 +2943,9 @@ export class FeedParser {
           mediaType: isPodcast ? "podcast" : existingItem.mediaType || "article",
         };
         updatedItems.push(updatedItem);
-      } else {
-        let coverImage = "";
-        if (isPodcast) {
+        } else {
+          let coverImage = "";
+          if (isPodcast) {
           coverImage = this.extractPodcastCoverImage(item, parsed.image, url);
           if (!coverImage) {
             if (parsed.feedItunesImage) {
@@ -2747,32 +2971,26 @@ export class FeedParser {
               url,
             );
           }
-        } else {
-          coverImage =
-            this.extractCoverImage(
-              item.content || item.description || "",
-              url,
-            ) ||
-            this.convertToAbsoluteUrl(
-              item.itunes?.image?.href || item.image?.url || "",
-              url,
-            ) ||
-            (item.enclosure?.type?.startsWith("image/")
-              ? this.convertToAbsoluteUrl(item.enclosure.url, url)
-              : "") ||
-            (parsed.image &&
-            typeof parsed.image === "object" &&
-            parsed.image.url
-              ? this.convertToAbsoluteUrl(parsed.image.url, url)
-              : "");
-        }
-        let image = this.convertToAbsoluteUrl(
-          item.itunes?.image?.href ||
-            item.image?.url ||
-            parsed.image?.url ||
-            "",
-          url,
-        );
+          } else {
+            coverImage =
+              this.extractCoverImage(
+                item.content || item.description || "",
+                url,
+              ) ||
+              this.convertToAbsoluteUrl(
+                item.itunes?.image?.href || item.image?.url || "",
+                url,
+              ) ||
+              (item.enclosure?.type?.startsWith("image/")
+                ? this.convertToAbsoluteUrl(item.enclosure.url, url)
+                : "");
+          }
+          let image = this.convertToAbsoluteUrl(
+            item.itunes?.image?.href ||
+              item.image?.url ||
+              "",
+            url,
+          );
         if (!image) {
           image = this.extractCoverImage(
             item.content || item.description || "",
@@ -2826,10 +3044,11 @@ export class FeedParser {
     const carriedForward: FeedItem[] = [];
     if (existingFeed) {
       for (const item of existingFeed.items) {
-        const key = this.convertToAbsoluteUrl(
+        const rawKey = this.convertToAbsoluteUrl(
           item.guid || item.link || "",
           url,
         );
+        const key = canonicalizeItemIdentityUrl(rawKey);
         if (key && !seenGuids.has(key)) {
           carriedForward.push(item);
         }
@@ -2975,7 +3194,7 @@ export class FeedParserService {
       link: item.link || "",
       description: item.description || "",
       pubDate: item.pubDate || new Date().toISOString(),
-      guid: item.guid || item.link || "",
+      guid: canonicalizeItemIdentityUrl(item.guid || item.link || ""),
       read: false,
       starred: false,
       tags: [],
@@ -3005,13 +3224,14 @@ export class FeedParserService {
       ieee: item.ieee,
     }));
 
-    const tempFeed: Feed = {
-      title: parsed.title || "",
-      url: url,
-      items: items,
-      folder: folder,
-      lastUpdated: Date.now(),
-      mediaType: isPodcast ? "podcast" : "article",
+	    const tempFeed: Feed = {
+	      title: parsed.title || "",
+	      url: url,
+	      siteUrl: resolveAbsoluteHttpUrl(parsed.link, url) || undefined,
+	      items: items,
+	      folder: folder,
+	      lastUpdated: Date.now(),
+	      mediaType: isPodcast ? "podcast" : "article",
       iconUrl:
         parsed.feedItunesImage ||
         parsed.feedImageUrl ||

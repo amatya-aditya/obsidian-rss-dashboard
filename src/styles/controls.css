@@ -255,6 +255,13 @@
     opacity 120ms ease;
 }
 
+/* Row separators: only add a top divider when there is a previous row */
+.rss-dashboard-filter-subheader-content > * + * {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
 /* Collapsed state: hide content and prevent pointer events */
 .rss-dashboard-filter-subheader.is-collapsed
   .rss-dashboard-filter-subheader-content {
@@ -342,10 +349,44 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 6px;
-  margin-top: 5px;
-  padding-top: 5px;
-  border-top: 1px solid var(--background-modifier-border);
   font-size: 12px;
+}
+
+/* Row 3: Viewing filter stats (dashboard multi-filters) */
+.rss-dashboard-viewing-filter-stats-row {
+}
+
+.rss-dashboard-viewing-filter-open-btn {
+  --icon-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  min-height: 15px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.rss-dashboard-viewing-filter-open-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+  border-radius: 4px;
+}
+
+.rss-dashboard-viewing-filter-open-btn svg {
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
 }
 
 /* "Highlights:" label prefix */
@@ -461,6 +502,22 @@
   margin-top: 8px;
   width: 100%;
   max-width: 120px;
+}
+
+.rss-dashboard-modal .rss-custom-input.hidden {
+  display: none;
+}
+
+.rss-dashboard-modal .rss-custom-input.visible {
+  display: block;
+}
+
+.rss-dashboard-settings-tab-content .rss-custom-input.hidden {
+  display: none;
+}
+
+.rss-dashboard-settings-tab-content .rss-custom-input.visible {
+  display: block;
 }
 
 .rss-dashboard-modal .rss-custom-input:focus {
@@ -1524,15 +1581,11 @@ body:not(.theme-dark)
 }
 
 /* Search hidden class for articles */
-.search-hidden {
+.rss-dashboard-search-hidden {
   display: none !important;
 }
 
-.import-statusbar-icon{
-	width: 12px;
-}
-
-
-.status-bar-item .svg-icon {
-	--icon-size: 10px !important ;
+.rss-dashboard-import-statusbar-icon {
+  width: 12px;
+  --icon-size: 10px;
 }

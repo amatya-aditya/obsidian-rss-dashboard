@@ -2,6 +2,9 @@
 
 ## Update History
 
+- 2026-03-17: Standardize icon rendering using clickable-icon pattern for Android compatibility
+- 2026-03-04: Update iPhone modal headroom fix and sync docs
+- 2026-03-04: Fix mobile sidebar header top insets for iOS and Android
 - 2026-03-04: Initial draft
 
 ## Purpose
@@ -168,6 +171,17 @@ Minimum expectations:
 
 To ensure cross-platform compatibility (especially Android WebView) and accessibility, all interactive icons must follow the `clickable-icon` pattern.
 
+### Critical: CSS Scoping (Do Not Break Obsidian Core) @design-spec
+
+Obsidian loads plugin styles globally. Any unscoped rule that targets Obsidian core classes can create vault-wide UI failures (ex: Properties showing type-mismatch errors everywhere).
+
+Rules:
+
+- Never ship global selectors like `.clickable-icon`, `.suggestion-container`, `.hidden`, `.status-bar-item`, or `.setting-item` without an `rss-` scope.
+- All icon visibility / sizing fixes must be component-scoped, e.g. `.rss-dashboard-modal .clickable-icon svg`, not `.clickable-icon svg`.
+- For Obsidian `AbstractInputSuggest` dropdowns, add a plugin-specific class to the suggest container and style that class (do not style `.suggestion-container` globally).
+- Keep the CSS collision guardrail passing: `npm run check:css-scope` (runs in `npm run build`).
+
 ### Implementation Structure
 
 Always use a `div` (or `span` if inline) with the following attributes:
@@ -183,8 +197,8 @@ const iconButton = container.createDiv({
   attr: {
     "aria-label": "Desired Action",
     role: "button",
-    tabindex: "0"
-  }
+    tabindex: "0",
+  },
 });
 setIcon(iconButton, "lucide-icon-name");
 ```

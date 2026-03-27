@@ -1,4 +1,89 @@
-## [2.3.0-alpha.3] - March 18, 2026
+## [2.2.0-beta.8] - March 24, 2026
+
+- **IMPORTANT**: Earlier limited releases intended for users experiencing specific issues were tagged as 2.3.0-alpha.1, 2.3.0-alpha.2, and 2.3.0-alpha.3. These were incorrectly versioned. They have been retroactively designated as 2.2.0-beta.5, 2.2.0-beta.6, and 2.2.0-beta.7 in our internal documentation. The original GitHub release tags have been left intact to avoid breaking any shared links. Development continues from 2.2.0-beta.8 forward.
+
+### New Features
+
+- **Customizable sidebar ordering (drag-and-drop)**:
+  - Drag feeds to reorder within a folder (or move + insert between feeds).
+  - Drag folders to reorder, and drag onto another folder to nest/un-nest (supports hierarchical organization).
+  - Any manual reorder automatically switches the sidebar sort mode to a new **Custom** row to preserve your ordering.
+
+- **Customizable sidebar toolbar icons**:
+  - New setting: `Settings > Display > Icon visibility`.
+  - Drag-and-drop or up/down buttons (mobile friendly).
+  - Hide/show individual icons.
+  - Hide/show entire toolbar.
+  - New sidebar toolbar "settings" button (opens RSS-Dashboard settings).
+
+- **Sidebar Tag Filtering**:
+  - Revamped **Tags** section in the sidebar for easy management and improved filtering logic: **AND** (match all), **OR** (match any), and **NOT** (match none).
+  - Inline **Add Tag** row with color picker integrated directly into the sidebar.
+
+- **Podcast Player Sleep Timer**: Added a sleep timer to the podcast player to automatically stop playback after a specified duration (5, 10, 15, 30, 45, 60, 90, or 120 minutes) (GitHub issue #75).
+
+- **Podcast "Open in Browser" improvements**:
+  - Fixed the toolbar button, which was previously non-functioning.
+  - The button now attempts to resolve the podcast’s website URL from feed metadata, falling back to the podcast’s RSS feed URL if no website URL is found.
+  - The dropdown now includes URLs found in the "Episode details" section of the podcast page, plus a link to the direct audio file.
+
+- **Pocket Casts Support**: Added support for importing podcasts directly from Pocket Casts URLs (e.g., `https://pocketcasts.com/podcast/...`).
+
+- **Robust Podcast Resolution**:
+  - Implemented a multi-proxy fallback system (AllOrigins, CodeTabs) to handle network timeouts and CORS restrictions when resolving podcast feeds.
+  - Added a "Semantic Discovery" fallback using the **iTunes Search API** to resolve feeds when Pocket Casts hides the RSS link from their web player source.
+  - Added flexible metadata scraping to handle varied HTML attribute ordering in modern web layouts.
+
+- **Proactive Proxy Validation**: The Add Feed and Edit Feed modals now check whether the CORS proxy is enabled before attempting to resolve Pocket Casts URLs, providing a clear warning and guidance if it’s disabled.
+
+- **OPML Import Menu Overhaul**: The OPML import menu has been completely overhauled to improve reliability and user experience.
+
+- **View Filter Setting Improvements**:
+  - All applied view filters now persist across navigation (state is saved and restored on reopen/restart).
+  - All applied view filters now explicitly state which ones are currently applied in the dashboard header.
+  - Updated `Settings > Display > Startup filters` to mirror the dashboard filter UI, allowing multiple viewing filters to be applied at startup.
+
+### Fixed
+
+- **Reader tags menu**: Reader toolbar now uses the same tag management portal UI as dashboard cards (edit/delete/add tags, mobile sheet support).
+
+- **Reader save button**: The save button icon in the reader now appropriately turns purple when saved and changes its tooltip to "Click to open saved article". Clicking it in this state will directly open the saved markdown file in your vault, mirroring the dashboard functionality. Also updated the "custom folder location" option to suggest folders based on your vault structure, with proper text validation that adheres to Obsidian’s folder naming conventions.
+
+- **Reader Nitter rendering**: Improved X/Twitter (Nitter) feed items in Reader view with a compact author/handle/date title, a single formatted tweet body (no "Feed description" callout), and a compact stats icon row when present. Article titles no longer show the entire tweet and instead show the author, handle, and date.
+
+- **Obsidian Properties UI compatibility**: Fixed a critical issue where enabling the plugin could cause vault-wide Properties "type mismatch" error indicators due to unscoped global CSS overrides.
+
+- **Settings migration (Filters → Rules)**: The global `filters` setting has been renamed to `rules` to avoid confusion with viewing filters. The new implementation is backwards compatible with existing beta users’ settings via a one-time migration.
+
+- **Article dedupe bug** Fixed duplicate articles for feeds (e.g. BBC) where item GUIDs can change between refreshes via numeric URL fragments (`#0`, `#1`, ...); existing stored duplicates are auto-deduped on load.
+
+- **Pagination**: Fixed pagination controls not updating when switching between views. Added new 'All' option to page size dropdowns. Adjusting the pagination at the bottom of the page now sychronizes with the pagination controls in settings (General > Results shown per page).
+
+### Development
+
+- **Developer Documentation**: Added a new "Advanced Podcast Platform Resolution" section to the developer docs describing proxy rotation and semantic search patterns.
+
+- **CSS Guardrail**: Added `npm run check:css-scope` (runs during `npm run build`) to prevent unscoped CSS rules from targeting Obsidian core selectors (e.g., `.clickable-icon`, `.suggestion-container`, `.hidden`).
+
+- **Settings Architecture Refactor**:
+  - Refactored the monolithic settings tab into a modular architecture for maintainability and performance.
+  - Split settings rendering into 9 dedicated tab renderer modules.
+  - Centralized shared settings modal classes.
+  - Isolated pure tab-name helpers to enable zero-dependency unit testing.
+  - Used TDD-driven logic for color normalization, icon reordering, and preset detection.
+  - Added many new unit tests covering settings-related logic.
+  - Reduced the main settings tab orchestrator to ~119 lines.
+
+- **Feed manager refactor**:
+  - Reorganized the feed manager modal code to be more modular and maintainable (kept backwards compatibility for now; planned for deprecation in the next major release).
+  - UI: standardized “supported formats” badges using Lucide icons.
+  - Folder handling: improved folder-path collection and removed duplicate folder traversal across folder pickers and the sidebar.
+  - Fix: corrected nested folder deletion behavior.
+  - Tests: expanded unit coverage across feed manager behavior, sidebar “Add Feed” opening, folder-path utilities, preview loading, and nested folder removal.
+
+- **ReaderView Refactor**: Extracted the reader format settings portal into a helper, added ReaderView cleanup on close, and added unit coverage.
+
+## [2.3.0-alpha.3 / 2.2.0-beta.7] - March 18, 2026
 
 ### New Features
 
@@ -42,7 +127,7 @@
 
 ---
 
-## [2.3.0-alpha.2] - March 16, 2026
+## [2.3.0-alpha.2 / 2.2.0-beta.6] - March 16, 2026
 
 ### New Features
 
@@ -66,7 +151,7 @@
 
 ---
 
-## [2.3.0-alpha.1] - March 13, 2026
+## [2.3.0-alpha.1 / 2.2.0-beta.5] - March 13, 2026
 
 ### New Features
 
@@ -148,8 +233,8 @@
 - Include/exclude rules with exact or partial matching
 - Selectable rule targets: title, summary, or content
 - Rule logic: AND or OR per rule set
-- Per-feed "Override global filters" support
-- Dashboard-level "Bypass All Filters" toggle
+- Per-feed "Override global rules" support
+- Dashboard-level "Bypass Keyword Rules" toggle
 - Clear-search button and filter status area with optional match statistics
 
 #### Word Highlighting
@@ -190,7 +275,7 @@
 #### Settings
 
 - New **Highlights** settings tab
-- New **Filters** settings tab
+- New **Rules** settings tab
 - Updated **Display** settings tab with new sidebar row controls and list/card toolbar options
 
 ---

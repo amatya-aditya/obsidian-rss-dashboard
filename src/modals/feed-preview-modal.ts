@@ -104,34 +104,46 @@ export class FeedPreviewModal extends Modal {
             const articles: PreviewArticle[] = [];
             
             
-            const items = doc.querySelectorAll('item');
-            if (items.length > 0) {
-                items.forEach((item, index) => {
-                    if (index >= 10) return; 
-                    
-                    const title = item.querySelector('title')?.textContent?.trim() || '';
-                    const link = item.querySelector('link')?.textContent?.trim() || '';
-                    const description = item.querySelector('description')?.textContent?.trim() || '';
-                    const pubDate = item.querySelector('pubDate')?.textContent?.trim() || '';
-                    const author = item.querySelector('author')?.textContent?.trim() || 
-                                 item.querySelector('dc\\:creator')?.textContent?.trim() || '';
+            const channel = doc.querySelector("channel");
+            const rssItems =
+                channel
+                    ? Array.from(channel.children).filter(
+                          (el) => el.tagName.toLowerCase() === "item",
+                      )
+                    : [];
+
+            if (rssItems.length > 0) {
+                rssItems.forEach((item, index) => {
+                    if (index >= 10) return;
+
+                    // Use direct children to avoid bleeding text from nested/malformed item markup.
+                    const title = item.querySelector(":scope > title")?.textContent?.trim() || "";
+                    const link = item.querySelector(":scope > link")?.textContent?.trim() || "";
+                    const description =
+                        item.querySelector(":scope > description")?.textContent?.trim() || "";
+                    const pubDate = item.querySelector(":scope > pubDate")?.textContent?.trim() || "";
+                    const author =
+                        item.querySelector(":scope > author")?.textContent?.trim() ||
+                        item.querySelector(":scope > dc\\:creator")?.textContent?.trim() ||
+                        "";
                     
                     
                     let image = '';
-                    const content = item.querySelector('content\\:encoded')?.textContent || description;
+                    const content =
+                        item.querySelector(":scope > content\\:encoded")?.textContent || description;
                     const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
                     if (imgMatch) {
                         image = imgMatch[1];
                     } else {
                         
-                        const mediaContent = item.querySelector('media\\:content');
+                        const mediaContent = item.querySelector(":scope > media\\:content");
                         if (mediaContent) {
                             const mediaUrl = mediaContent.getAttribute('url');
                             if (mediaUrl) {
                                 image = mediaUrl;
                             }
                         } else {
-                            const enclosure = item.querySelector('enclosure[type^="image"]');
+                            const enclosure = item.querySelector(':scope > enclosure[type^="image"]');
                             if (enclosure) {
                                 image = enclosure.getAttribute('url') || '';
                             }
@@ -191,6 +203,18 @@ export class FeedPreviewModal extends Modal {
             .replace(/&#39;/g, "'")
             .replace(/&#x27;/g, "'")
             .replace(/&#x2F;/g, '/')
+            .replace(/&#(\d+);/g, (match: string, dec: string) => {
+                const num = parseInt(dec, 10);
+                return Number.isFinite(num) && num >= 0 && num <= 0x10ffff
+                    ? String.fromCodePoint(num)
+                    : match;
+            })
+            .replace(/&#x([0-9a-fA-F]+);/g, (match: string, hex: string) => {
+                const num = parseInt(hex, 16);
+                return Number.isFinite(num) && num >= 0 && num <= 0x10ffff
+                    ? String.fromCodePoint(num)
+                    : match;
+            })
             .replace(/\s+/g, ' ') 
             .trim();
     }
