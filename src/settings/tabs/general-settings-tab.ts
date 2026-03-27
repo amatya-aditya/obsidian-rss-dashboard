@@ -11,14 +11,17 @@
 import { Notice, Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { setCssProps } from "../../utils/platform-utils";
-import { getPageSizeOptions, PAGE_SIZE_OPTIONS } from "../../utils/page-size-options";
 import {
-  ApplyMaxItemsToExistingFeedsModal,
-} from "../modals/settings-modals";
+  getPageSizeOptions,
+  PAGE_SIZE_OPTIONS,
+} from "../../utils/page-size-options";
+import { ApplyMaxItemsToExistingFeedsModal } from "../modals/settings-modals";
 
 // ── Pure preset helpers (exported for testing) ───────────────────────────────
 
-export const REFRESH_INTERVAL_PRESETS = [5, 10, 15, 30, 60, 120, 240, 480, 720, 1440];
+export const REFRESH_INTERVAL_PRESETS = [
+  5, 10, 15, 30, 60, 120, 240, 480, 720, 1440,
+];
 export const MAX_ITEMS_PRESETS = [0, 10, 25, 50, 100, 200, 500, 1000];
 export const AUTO_DELETE_PRESETS = [0, 1, 3, 7, 14, 30, 60, 90, 180, 365];
 
@@ -70,7 +73,8 @@ export function renderGeneralSettingsTab(
         .addOption("left-sidebar", "Left sidebar")
         .setValue(plugin.settings.viewLocation)
         .onChange(async (value: string) => {
-          plugin.settings.viewLocation = value as import("../../types/types").ViewLocation;
+          plugin.settings.viewLocation =
+            value as import("../../types/types").ViewLocation;
           await plugin.saveSettings();
         }),
     );
@@ -85,7 +89,8 @@ export function renderGeneralSettingsTab(
         .addOption("left-sidebar", "Left sidebar")
         .setValue(plugin.settings.readerViewLocation || "main")
         .onChange(async (value: string) => {
-          plugin.settings.readerViewLocation = value as import("../../types/types").ViewLocation;
+          plugin.settings.readerViewLocation =
+            value as import("../../types/types").ViewLocation;
           await plugin.saveSettings();
         }),
     );
@@ -125,13 +130,17 @@ export function renderGeneralSettingsTab(
         const label =
           size === 0
             ? "All"
-            : PAGE_SIZE_OPTIONS.includes(size as (typeof PAGE_SIZE_OPTIONS)[number])
+            : PAGE_SIZE_OPTIONS.includes(
+                  size as (typeof PAGE_SIZE_OPTIONS)[number],
+                )
               ? String(size)
               : `Current (${size})`;
         dropdown.addOption(String(size), label);
       }
 
-      dropdown.setValue(isMixed ? "mixed" : String(plugin.settings.allArticlesPageSize));
+      dropdown.setValue(
+        isMixed ? "mixed" : String(plugin.settings.allArticlesPageSize),
+      );
 
       dropdown.onChange(async (value) => {
         if (value === "mixed") {
@@ -226,7 +235,8 @@ export function renderGeneralSettingsTab(
   // ── Max items ─────────────────────────────────────────────────────────────
   let maxItemsPromptTimer: number | null = null;
   let maxItemsPromptOpen = false;
-  let pendingMaxItemsChange: { oldValue: number; newValue: number } | null = null;
+  let pendingMaxItemsChange: { oldValue: number; newValue: number } | null =
+    null;
 
   const queueMaxItemsApplyPrompt = (oldValue: number, newValue: number) => {
     pendingMaxItemsChange = { oldValue, newValue };
@@ -369,21 +379,20 @@ export function renderGeneralSettingsTab(
       .onChange((value) => {
         if (value === "custom") {
           if (!autoDeleteCustomInput) {
-            autoDeleteCustomInput =
-              defaultAutoDeleteSetting.controlEl.createEl("input", {
+            autoDeleteCustomInput = defaultAutoDeleteSetting.controlEl.createEl(
+              "input",
+              {
                 type: "number",
                 placeholder: "Enter days",
                 cls: "rss-custom-input",
-              });
+              },
+            );
             autoDeleteCustomInput.min = "1";
             autoDeleteCustomInput.value =
               defaultDuration > 0 ? defaultDuration.toString() : "";
             autoDeleteCustomInput.addEventListener("change", () => {
               void (async () => {
-                const parsed = parseInt(
-                  autoDeleteCustomInput?.value || "",
-                  10,
-                );
+                const parsed = parseInt(autoDeleteCustomInput?.value || "", 10);
                 defaultDuration = Number.isFinite(parsed) ? parsed : 0;
                 plugin.settings.defaultAutoDeleteDuration = defaultDuration;
                 await plugin.saveSettings();
@@ -409,10 +418,8 @@ export function renderGeneralSettingsTab(
   new Setting(containerEl).setName("Proxy").setHeading();
 
   new Setting(containerEl)
-    // eslint-disable-next-line obsidianmd/ui/sentence-case
     .setName("Enable CORS proxy")
     .setDesc(
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
       "When enabled, article fetches that are blocked by a firewall (e.g. on iOS) will be retried through the proxy URL below",
     )
     .addToggle((toggle) => {
@@ -448,7 +455,6 @@ export function renderGeneralSettingsTab(
 
     const proxySetting = new Setting(containerEl)
       .setName("Proxy URL")
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
       .setDesc("Base URL of the CORS proxy.");
     proxySetting.settingEl.addClass("rss-proxy-setting-item");
 
@@ -507,13 +513,15 @@ export function renderGeneralSettingsTab(
         dropdown.onChange((value: string) => {
           if (value === "custom") {
             if (saveButton)
-              void import("../../utils/platform-utils").then(({ setCssProps }) =>
-                setCssProps(saveButton!.buttonEl, { display: "" }),
+              void import("../../utils/platform-utils").then(
+                ({ setCssProps }) =>
+                  setCssProps(saveButton!.buttonEl, { display: "" }),
               );
           } else {
             if (saveButton)
-              void import("../../utils/platform-utils").then(({ setCssProps }) =>
-                setCssProps(saveButton!.buttonEl, { display: "none" }),
+              void import("../../utils/platform-utils").then(
+                ({ setCssProps }) =>
+                  setCssProps(saveButton!.buttonEl, { display: "none" }),
               );
             if (value !== "") {
               textComponent.setValue(value);

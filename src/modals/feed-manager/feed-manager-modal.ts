@@ -452,14 +452,12 @@ export class FeedManagerModal extends Modal {
       });
       backupDiv.createEl("p", {
         // OPML is an acronym - sentence case doesn't apply
-        // eslint-disable-next-line obsidianmd/ui/sentence-case
         text: "Before deleting, we strongly recommend backing up your feeds by exporting to an OPML file.",
       });
 
       // Export OPML button
       const exportBtn = backupDiv.createEl("button", {
         // OPML is an acronym - sentence case doesn't apply
-        // eslint-disable-next-line obsidianmd/ui/sentence-case
         text: "Export OPML",
         cls: "rss-dashboard-primary-button export-opml-btn",
       });

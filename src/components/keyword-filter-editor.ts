@@ -138,7 +138,8 @@ export function renderKeywordFilterEditor(
 
       const enabledBtn = headerLeft.createEl("button", {
         cls:
-          "rss-keyword-filter-enabled-btn" + (rule.enabled ? " is-checked" : ""),
+          "rss-keyword-filter-enabled-btn" +
+          (rule.enabled ? " is-checked" : ""),
         attr: {
           type: "button",
           "aria-pressed": rule.enabled ? "true" : "false",
@@ -167,7 +168,6 @@ export function renderKeywordFilterEditor(
         attr: { "aria-label": `Delete rule ${index + 1}` },
       });
       // "X" is intentional icon-like prefix for quick visual scanning.
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
       removeBtn.setText("X Delete rule");
       removeBtn.addEventListener("click", () => {
         onChange({
