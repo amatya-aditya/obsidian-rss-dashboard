@@ -21,3 +21,5 @@ release/
 docs/archive
 CLAUDE.md
 .agent/*
+userdata.json.backup
+feeds.opml.backup

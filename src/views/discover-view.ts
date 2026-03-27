@@ -15,8 +15,14 @@ import {
   shouldUseMobileSidebarLayout,
   attachInputClearButton,
 } from "../utils/platform-utils";
-import { getPageSizeOptions, PAGE_SIZE_OPTIONS } from "../utils/page-size-options";
-import { computePagination, computeResultsRange } from "../utils/pagination-utils";
+import {
+  getPageSizeOptions,
+  PAGE_SIZE_OPTIONS,
+} from "../utils/page-size-options";
+import {
+  computePagination,
+  computeResultsRange,
+} from "../utils/pagination-utils";
 
 import feedsData from "../discover/discover-feeds.json";
 
@@ -1736,7 +1742,7 @@ export class DiscoverView extends ItemView {
       });
       setIcon(searchFilter, "search");
       searchFilter.appendText(` "${this.filters.query}"`);
-      
+
       const removeBtn = searchFilter.createDiv({
         cls: "rss-discover-selected-filter-remove",
         attr: {
@@ -1767,7 +1773,7 @@ export class DiscoverView extends ItemView {
       });
       setIcon(typeFilter, "tag");
       typeFilter.appendText(` ${type}`);
-      
+
       const removeBtn = typeFilter.createDiv({
         cls: "rss-discover-selected-filter-remove",
         attr: {
@@ -1803,7 +1809,7 @@ export class DiscoverView extends ItemView {
         .filter(Boolean)
         .join(" > ");
       pathFilter.appendText(` ${pathText}`);
-      
+
       const removeBtn = pathFilter.createDiv({
         cls: "rss-discover-selected-filter-remove",
         attr: {
@@ -1843,7 +1849,7 @@ export class DiscoverView extends ItemView {
       setIcon(tagFilter, "hash");
       tagFilter.appendText(` ${tag}`);
       tagFilter.style.setProperty("--tag-color", this.getTagColor(tag));
-      
+
       const removeBtn = tagFilter.createDiv({
         cls: "rss-discover-selected-filter-remove",
         attr: {
@@ -1936,7 +1942,11 @@ export class DiscoverView extends ItemView {
         size as (typeof PAGE_SIZE_OPTIONS)[number],
       );
       const label =
-        size === 0 ? "All" : isStandardOption ? String(size) : `Current (${size})`;
+        size === 0
+          ? "All"
+          : isStandardOption
+            ? String(size)
+            : `Current (${size})`;
       const opt = pageSizeDropdown.createEl("option", {
         text: label,
         value: String(size),

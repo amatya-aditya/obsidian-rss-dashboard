@@ -370,7 +370,7 @@
           var(--rss-footer-system-bottom, 0px),
           var(--rss-footer-platform-fallback-bottom, 0px)
         )
-      );
+    );
 }
 
 @media (max-width: 768px) {
@@ -486,7 +486,10 @@
     border: 2px solid var(--background-primary);
   }
 
-  .rss-reader-format-mobile-sheet .rss-reader-format-controls .setting-item-control button {
+  .rss-reader-format-mobile-sheet
+    .rss-reader-format-controls
+    .setting-item-control
+    button {
     min-height: 44px;
   }
 
@@ -562,5 +565,6 @@ mark.rss-highlight {
   }
 }
 
-.rss-reader-action-button.saved { color: var(--interactive-accent); }
-
+.rss-reader-action-button.saved {
+  color: var(--interactive-accent);
+}
