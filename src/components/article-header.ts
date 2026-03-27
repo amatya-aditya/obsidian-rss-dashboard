@@ -452,6 +452,7 @@ export class ArticleHeader {
     options: Record<string, string>,
     currentVal: string,
     onChange: (val: string) => void,
+    icons?: Record<string, string>,
   ) {
     this.closeActivePortal();
     const portal = document.body.createDiv({
@@ -467,6 +468,13 @@ export class ArticleHeader {
       if (value === currentVal) {
         setIcon(check, "check");
         item.addClass("is-active");
+      }
+      // Add icon between checkbox and text if provided
+      if (icons && icons[value]) {
+        const iconDiv = item.createDiv({
+          cls: "rss-dashboard-filter-menu-icon",
+        });
+        setIcon(iconDiv, icons[value]);
       }
       item.createDiv({ text: label, cls: "rss-dashboard-filter-menu-text" });
       item.onclick = () => {
@@ -519,12 +527,18 @@ export class ArticleHeader {
 
     selector.onclick = (e) => {
       e.stopPropagation();
+      const viewIcons: Record<string, string> = {
+        feed: "newspaper",
+        card: "layout-grid",
+        list: "list",
+      };
       this.showThemedMenu(
         selector,
         { "List View": "list", "Card View": "card", "Feed View": "feed" },
         this.settings.viewStyle,
         (val) =>
           this.callbacks.onToggleViewStyle(val as "list" | "card" | "feed"),
+        viewIcons,
       );
     };
   }

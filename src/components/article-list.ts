@@ -9,12 +9,13 @@ import {
 } from "../utils/platform-utils";
 import { HighlightService } from "../services/highlight-service";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
-import { getPageSizeOptions, PAGE_SIZE_OPTIONS } from "../utils/page-size-options";
+import {
+  getPageSizeOptions,
+  PAGE_SIZE_OPTIONS,
+} from "../utils/page-size-options";
 import { computeResultsRange } from "../utils/pagination-utils";
 
 const MAX_VISIBLE_TAGS = 6;
-
-
 
 interface ArticleListCallbacks {
   onArticleClick: (article: FeedItem) => void;
@@ -119,8 +120,8 @@ export class ArticleList {
     this.currentFeedUrl = currentFeedUrl || null;
     this.showFeedSource = showFeedSource;
 
-    // Header and filter logic were extracted to ArticleHeader and ArticleFilterMenu 
-    // to reduce this file's length and complexity. Legacy methods like renderHeader(), 
+    // Header and filter logic were extracted to ArticleHeader and ArticleFilterMenu
+    // to reduce this file's length and complexity. Legacy methods like renderHeader(),
     // createControls(), and showFiltersMenu() now live in those respective classes.
     this.header = new ArticleHeader(
       this.container,
@@ -134,39 +135,41 @@ export class ArticleList {
       {
         onToggleSidebar: () => this.callbacks.onToggleSidebar(),
         onSearch: (q) => {
-            this.articleSearchQuery = q;
-            this.filterArticlesBySearch(q);
-            this.callbacks.onSearch(q);
+          this.articleSearchQuery = q;
+          this.filterArticlesBySearch(q);
+          this.callbacks.onSearch(q);
         },
         onSortChange: (s) => this.callbacks.onSortChange(s),
         onGroupChange: (g) => this.callbacks.onGroupChange(g),
         onFilterChange: (f) => this.callbacks.onFilterChange(f),
         onToggleViewStyle: (v) => this.callbacks.onToggleViewStyle(v),
         onPersistSettings: () => {
-             if (this.callbacks.onPersistSettings) {
-                 void this.callbacks.onPersistSettings();
-             }
+          if (this.callbacks.onPersistSettings) {
+            void this.callbacks.onPersistSettings();
+          }
         },
         onRefreshFeeds: () => this.callbacks.onRefreshFeeds(),
         onMarkAllAsRead: () => {
-             if (this.callbacks.onMarkAllAsRead) {
-                this.callbacks.onMarkAllAsRead();
-             } else {
-                this.articles.forEach(a => a.read = true);
-                if (this.callbacks.onPersistSettings) void this.callbacks.onPersistSettings();
-                this.render();
-             }
+          if (this.callbacks.onMarkAllAsRead) {
+            this.callbacks.onMarkAllAsRead();
+          } else {
+            this.articles.forEach((a) => (a.read = true));
+            if (this.callbacks.onPersistSettings)
+              void this.callbacks.onPersistSettings();
+            this.render();
+          }
         },
         onMarkAllAsUnread: () => {
-             if (this.callbacks.onMarkAllAsUnread) {
-                this.callbacks.onMarkAllAsUnread();
-             } else {
-                this.articles.forEach(a => a.read = false);
-                if (this.callbacks.onPersistSettings) void this.callbacks.onPersistSettings();
-                this.render();
-             }
-        }
-      }
+          if (this.callbacks.onMarkAllAsUnread) {
+            this.callbacks.onMarkAllAsUnread();
+          } else {
+            this.articles.forEach((a) => (a.read = false));
+            if (this.callbacks.onPersistSettings)
+              void this.callbacks.onPersistSettings();
+            this.render();
+          }
+        },
+      },
     );
   }
 
@@ -191,7 +194,6 @@ export class ArticleList {
       this.tagsDropdownCleanup = null;
     }
   }
-
 
   private isMobileViewport(): boolean {
     return window.matchMedia("(max-width: 768px)").matches;
@@ -567,10 +569,13 @@ export class ArticleList {
 
     // Update all filter trigger badges (desktop + mobile)
     if (this.header) {
-        this.header.updateFilters(this.statusFilters, this.tagFilters, this.filterLogic);
-        this.header.updateFilterBadge();
+      this.header.updateFilters(
+        this.statusFilters,
+        this.tagFilters,
+        this.filterLogic,
+      );
+      this.header.updateFilterBadge();
     }
-
 
     // Remove both the articles list and the pagination wrapper
     // (pagination is rendered as a sibling to the articles list)
@@ -583,7 +588,7 @@ export class ArticleList {
 
     // Ensure local search filter is reapplied after articles list is recreated
     if (this.articleSearchQuery) {
-        this.filterArticlesBySearch(this.articleSearchQuery);
+      this.filterArticlesBySearch(this.articleSearchQuery);
     }
   }
 
@@ -592,7 +597,7 @@ export class ArticleList {
     this.titleTooltip = tooltip;
 
     if (this.header) {
-        this.header.updateTitle(title, tooltip);
+      this.header.updateTitle(title, tooltip);
     }
   }
 
@@ -744,7 +749,7 @@ export class ArticleList {
     // Remove active class from any currently active element
     this.container
       .querySelectorAll<HTMLElement>(
-        ".rss-dashboard-article-item.active, .rss-dashboard-article-card.active",
+        ".rss-dashboard-article-item.active, .rss-dashboard-article-card.active, .rss-dashboard-feed-item.active",
       )
       .forEach((el) => el.classList.remove("active"));
     // Add active class to the newly selected article element
@@ -950,9 +955,6 @@ export class ArticleList {
       }
     });
   }
-
-
-
 
   private renderArticles(): void {
     const articlesList = this.container.createDiv({
@@ -1507,12 +1509,14 @@ export class ArticleList {
           cls: "rss-dashboard-feed-summary",
         });
         const textToDisplay = article.summary || article.content || "";
-        
+
         if (
           this.settings.highlights?.enabled &&
           this.settings.highlights.highlightInSummaries
         ) {
-          const highlightService = new HighlightService(this.settings.highlights);
+          const highlightService = new HighlightService(
+            this.settings.highlights,
+          );
           highlightService.setHighlightedText(summaryEl, textToDisplay);
         } else {
           summaryEl.textContent = textToDisplay;
@@ -1939,7 +1943,11 @@ export class ArticleList {
         size as (typeof PAGE_SIZE_OPTIONS)[number],
       );
       const label =
-        size === 0 ? "All" : isStandardOption ? String(size) : `Current (${size})`;
+        size === 0
+          ? "All"
+          : isStandardOption
+            ? String(size)
+            : `Current (${size})`;
       const opt = pageSizeDropdown.createEl("option", {
         text: label,
         value: String(size),
