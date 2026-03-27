@@ -1,4 +1,4 @@
-﻿import { Modal, App, Setting, Notice, setIcon } from "obsidian";
+import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import type { Feed, Folder } from "../types/types";
 import { OpmlManager } from "../services/opml-manager";
@@ -61,15 +61,11 @@ export class ImportOpmlModal extends Modal {
     }
 
     contentEl.empty();
-    // OPML is an acronym - sentence case doesn't apply
-    // eslint-disable-next-line obsidianmd/ui/sentence-case
     new Setting(contentEl).setName("Import OPML").setHeading();
 
     // Add subtitle
     const subtitle = contentEl.createDiv({ cls: "add-feed-subtitle" });
     subtitle.textContent =
-      // OPML is an acronym - sentence case doesn't apply
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
       "Import feeds from an OPML file with preview and validation";
 
     // File selector row
@@ -130,18 +126,57 @@ export class ImportOpmlModal extends Modal {
       },
     });
 
-    // Import OPML file button
+    // Import file button
     const fileButton = fileSelector.createEl("button", {
       cls: "import-file-button",
     });
     setIcon(fileButton, "folder-open");
-    fileButton.createSpan({ text: " Import OPML file..." });
+    fileButton.createSpan({ text: " Import file..." });
     fileButton.onclick = () => this.openFilePicker();
   }
 
   private openFilePicker() {
+    /**
+     * NOTE for future developers: The following block uses Electron's native dialog via 'window.require'
+     * to support multiple file extension filters simultaneously (e.g., .opml, .xml) on Windows.
+     * This is a known desktop-only pattern in Obsidian. We use 'any' casts and disable ESLint 
+     * rules here because these Electron-specific APIs are not in the standard Obsidian type 
+     * definitions. The surrounding try...catch is CRITICAL to ensure the plugin doesn't 
+     * crash on mobile where these APIs are absent.
+     */
+    try {
+      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
+      const remote = (window as any).require?.("@electron/remote") || (window as any).require?.("electron")?.remote;
+      if (remote && remote.dialog) {
+        const filePaths = remote.dialog.showOpenDialogSync({
+          title: "Import feeds from OPML or XML",
+          properties: ["openFile"],
+          filters: [
+            { name: "OPML, XML, or Backup Files", extensions: ["opml", "xml", "backup"] },
+            { name: "All Files", extensions: ["*"] },
+          ],
+        });
+
+        if (filePaths && filePaths.length > 0) {
+          const filePath = filePaths[0];
+          const fs = (window as any).require("fs");
+          const content = fs.readFileSync(filePath, "utf-8");
+          const fileName = filePath.split(/[/\\]/).pop() || "file";
+          const file = new File([content], fileName, { type: "text/xml" });
+          void this.handleFileSelection(file);
+          return;
+        } else if (filePaths === undefined) {
+          return; // Dialog was cancelled
+        }
+      }
+      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
+    } catch {
+      // Ignore errors and fallback to HTML input (e.g., on mobile)
+    }
+
+    // Fallback for mobile / web: standard HTML file input
     const input = document.body.createEl("input", {
-      attr: { type: "file", accept: ".opml" },
+      attr: { type: "file", accept: ".opml,.xml" },
     });
     input.onchange = async () => {
       const file = input.files?.[0];
@@ -152,7 +187,6 @@ export class ImportOpmlModal extends Modal {
     };
     input.click();
   }
-
   private async handleFileSelection(file: File) {
     this.selectedFile = file;
     this.filePathInput.value = file.name;
@@ -175,9 +209,10 @@ export class ImportOpmlModal extends Modal {
 
   private async validateAndParseFile(file: File): Promise<void> {
     // Check file extension
-    if (!file.name.endsWith(".opml")) {
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith(".opml") && !fileName.endsWith(".xml") && !fileName.endsWith(".backup")) {
       this.validationError =
-        "Please select a valid OPML file (.opml extension required)";
+        "Please select a valid OPML or XML file (.opml, .xml, or .backup extension required)";
       this.validationErrorKind = "invalid_extension";
       return;
     }
@@ -224,7 +259,9 @@ export class ImportOpmlModal extends Modal {
         this.validationError = null;
         this.validationErrorKind = null;
 
-        const existingUrls = new Set(this.plugin.settings.feeds.map((f) => f.url));
+        const existingUrls = new Set(
+          this.plugin.settings.feeds.map((f) => f.url),
+        );
         this.previewModel = new OpmlImportPreviewModel({
           feeds: this.parsedFeeds,
           folders: this.parsedFolders,
@@ -289,11 +326,8 @@ export class ImportOpmlModal extends Modal {
       const errorDiv = this.errorContainer.createDiv({
         cls: "import-error-message",
       });
-      // OPML is an acronym - sentence case doesn't apply
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
       errorDiv.textContent = "No feeds found in the OPML file.";
       this.validationErrorKind = "no_feeds";
-
       this.previewContainer.removeClass("import-visible");
       this.previewContainer.addClass("import-hidden");
       this.modeSelectorContainer.removeClass("import-visible");
@@ -307,8 +341,9 @@ export class ImportOpmlModal extends Modal {
     if (!model) return;
 
     // Preserve scroll position across re-renders
-    const existingList =
-      this.previewContainer.querySelector<HTMLDivElement>(".import-preview-list");
+    const existingList = this.previewContainer.querySelector<HTMLDivElement>(
+      ".import-preview-list",
+    );
     const previousScrollTop = existingList?.scrollTop ?? 0;
 
     this.previewContainer.removeClass("import-hidden");
@@ -317,7 +352,9 @@ export class ImportOpmlModal extends Modal {
 
     const stats = model.getStats();
 
-    const header = this.previewContainer.createDiv({ cls: "import-preview-header" });
+    const header = this.previewContainer.createDiv({
+      cls: "import-preview-header",
+    });
     header.createEl("h4", { text: "Preview" });
 
     const badges = header.createDiv({ cls: "import-preview-badges" });
@@ -366,7 +403,9 @@ export class ImportOpmlModal extends Modal {
     });
 
     makeButton("Collapse all", () => {
-      this.collapsedFolderPaths = new Set(this.collectAllFolderPaths(model.getFolderTree()));
+      this.collapsedFolderPaths = new Set(
+        this.collectAllFolderPaths(model.getFolderTree()),
+      );
       this.renderPreview();
     });
 
@@ -376,7 +415,9 @@ export class ImportOpmlModal extends Modal {
       this.updateImportButtonFromModel();
     });
 
-    const list = this.previewContainer.createDiv({ cls: "import-preview-list import-preview-tree" });
+    const list = this.previewContainer.createDiv({
+      cls: "import-preview-list import-preview-tree",
+    });
     list.scrollTop = previousScrollTop;
 
     const tree = model.getFolderTree();
@@ -395,12 +436,17 @@ export class ImportOpmlModal extends Modal {
     const stats = this.previewModel.getStats();
     const count = stats.selectedImportableFeeds;
 
-    this.importButton.textContent = count === 1 ? "Import 1 feed" : `Import ${count} feeds`;
+    this.importButton.textContent =
+      count === 1 ? "Import 1 feed" : `Import ${count} feeds`;
     this.importButton.disabled = count === 0 || stats.hasBlockingErrors;
-    this.importButton.classList.toggle("is-disabled", this.importButton.disabled);
+    this.importButton.classList.toggle(
+      "is-disabled",
+      this.importButton.disabled,
+    );
 
     if (stats.hasBlockingErrors) {
-      this.importButton.title = "Fix invalid names (or unselect them) to import.";
+      this.importButton.title =
+        "Fix invalid names (or unselect them) to import.";
     } else if (count === 0) {
       this.importButton.title = "Select at least one feed to import.";
     } else {
@@ -409,16 +455,14 @@ export class ImportOpmlModal extends Modal {
   }
 
   private renderOpmlCleanerSuggestion(container: HTMLElement): void {
-    const wrapper = container.createDiv({ cls: "import-opml-cleaner-suggestion" });
+    const wrapper = container.createDiv({
+      cls: "import-opml-cleaner-suggestion",
+    });
     wrapper.createEl("div", {
       cls: "import-opml-cleaner-title",
-      // OPML is an acronym - sentence case doesn't apply
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
       text: "Tip: try cleaning/formatting your OPML file",
     });
-
     const row = wrapper.createDiv({ cls: "import-opml-cleaner-row" });
-
     const link = row.createEl("a", {
       cls: "import-opml-cleaner-link",
       text: ImportOpmlModal.OPML_CLEANER_URL,
@@ -463,7 +507,9 @@ export class ImportOpmlModal extends Modal {
     });
   }
 
-  private collectAllFeedUrls(tree: OpmlImportPreviewFolderSnapshot[]): string[] {
+  private collectAllFeedUrls(
+    tree: OpmlImportPreviewFolderSnapshot[],
+  ): string[] {
     const urls: string[] = [];
     const stack = [...tree];
     while (stack.length > 0) {
@@ -475,7 +521,9 @@ export class ImportOpmlModal extends Modal {
     return urls;
   }
 
-  private collectAllFolderPaths(tree: OpmlImportPreviewFolderSnapshot[]): string[] {
+  private collectAllFolderPaths(
+    tree: OpmlImportPreviewFolderSnapshot[],
+  ): string[] {
     const paths: string[] = [];
     const stack = [...tree];
     while (stack.length > 0) {
@@ -593,10 +641,13 @@ export class ImportOpmlModal extends Modal {
     });
 
     const meta = folderRow.createDiv({ cls: "import-preview-meta" });
-    const selectedCount = descendantUrls.filter((url) => model.getFeedState(url).selected).length;
+    const selectedCount = descendantUrls.filter(
+      (url) => model.getFeedState(url).selected,
+    ).length;
     meta.textContent = `${selectedCount}/${descendantUrls.length}`;
 
-    const hasChildren = (node.children?.length ?? 0) > 0 || node.feedUrls.length > 0;
+    const hasChildren =
+      (node.children?.length ?? 0) > 0 || node.feedUrls.length > 0;
     const collapsed = this.collapsedFolderPaths.has(node.path);
     const toggle = folderRow.createDiv({
       cls: "clickable-icon import-preview-toggle",
@@ -652,7 +703,9 @@ export class ImportOpmlModal extends Modal {
 
     const { feed, selected, duplicate } = model.getFeedState(url);
 
-    const row = listEl.createDiv({ cls: "import-preview-row import-preview-row--feed" });
+    const row = listEl.createDiv({
+      cls: "import-preview-row import-preview-row--feed",
+    });
     row.style.setProperty("--import-indent", `${depth * 14}px`);
 
     const checkbox = row.createEl("input", {
@@ -799,7 +852,9 @@ export class ImportOpmlModal extends Modal {
       overwriteOption.removeClass("selected");
 
       if (this.previewModel) {
-        const existingUrls = new Set(this.plugin.settings.feeds.map((f) => f.url));
+        const existingUrls = new Set(
+          this.plugin.settings.feeds.map((f) => f.url),
+        );
         this.previewModel.setImportMode("update", existingUrls);
         this.renderPreview();
         this.updateImportButtonFromModel();
@@ -850,15 +905,11 @@ export class ImportOpmlModal extends Modal {
       text: "Recommended: export your feeds first",
     });
     backupDiv.createEl("p", {
-      // OPML is an acronym - sentence case doesn't apply
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
       text: "Before overwriting, we strongly recommend backing up your current feeds by exporting to an OPML file.",
     });
 
     // Export OPML button
     const exportBtn = backupDiv.createEl("button", {
-      // OPML is an acronym - sentence case doesn't apply
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
       text: "Export OPML",
       cls: "rss-dashboard-primary-button export-opml-btn",
     });
@@ -899,7 +950,8 @@ export class ImportOpmlModal extends Modal {
         return;
       }
 
-      const derivedFolders = this.previewModel.getDerivedFoldersForSelectedFeeds();
+      const derivedFolders =
+        this.previewModel.getDerivedFoldersForSelectedFeeds();
 
       if (this.importMode === "overwrite") {
         // Clear existing feeds and folders
@@ -969,8 +1021,6 @@ export class ImportOpmlModal extends Modal {
         );
 
         if (addedCount === 0) {
-          // OPML is an acronym - sentence case doesn't apply
-          // eslint-disable-next-line obsidianmd/ui/sentence-case
           new Notice("No new feeds found in the OPML file.");
           this.close();
           return;

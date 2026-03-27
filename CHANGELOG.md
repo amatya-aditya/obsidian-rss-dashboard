@@ -1,3 +1,36 @@
+## [2.2.0-beta.9] - March 25, 2026
+
+### New Features
+
+- **Sidebar Horizontal Scrolling**:
+  - Added support for horizontal scrolling in the sidebar header toolbar via the mouse scrollwheel.
+  - Added click-and-drag horizontal scrolling for desktop and mobile touch devices.
+  - Added "grabbing" cursor feedback and touch-drag optimization to prevent accidental icon clicks while scrolling.
+
+- **XML support**: Import OPML window now allows XML filenames in addition to OPML filenames.
+
+- **Feed View**:
+  - Added a new "Feed" view mode for a social-media-style, single-column layout.
+  - Features hero images, clamped text summaries, and integrated action toolbars.
+  - Added a 3-button view toggle (List, Card, Feed) to the hamburger menu using the accessible `clickable-icon` pattern.
+  - Added "Feed" view as a preference in General settings.
+  - Improved Feed View image quality by prioritizing high-resolution images and implementing a "hero blur" background layout to handle varying aspect ratios gracefully.
+  - Refactored the hamburger menu view toggle from individual buttons into a single consolidated dropdown menu with dynamic icons and enhanced theme compatibility for both dark and light modes.
+
+- **Auto-backup**: Added auto-backup for data.json, OPML, and userdata on plugin unload. By default, OPML and userdata are backed up to the plugin's data directory. These can be changed in the import/export settings.
+
+### Fixes
+
+- **Pagination**: Fixed a bug where the Dashboard would bypass pagination limits and display all articles when toggling view filters or switching to the "Unread" sidebar view.
+
+- **Scroll Restoration**: Fixed a bug where the Dashboard would reset to the top when opening the Reader panel or resizing the window; implemented a focus-locking mechanism to keep the selected article in view.
+
+- **Auto-delete bug**: Fixed a bug where imported feeds were not respecting the global default auto-delete duration.
+
+### Development
+
+- **Refactor article-list.ts**: Refactored article-list.ts monolith - extracted the filter menu and hamburger menu into separate components.
+
 ## [2.2.0-beta.8] - March 24, 2026
 
 - **IMPORTANT**: Earlier limited releases intended for users experiencing specific issues were tagged as 2.3.0-alpha.1, 2.3.0-alpha.2, and 2.3.0-alpha.3. These were incorrectly versioned. They have been retroactively designated as 2.2.0-beta.5, 2.2.0-beta.6, and 2.2.0-beta.7 in our internal documentation. The original GitHub release tags have been left intact to avoid breaking any shared links. Development continues from 2.2.0-beta.8 forward.

@@ -1,479 +1,467 @@
 .rss-dashboard-content {
-	flex-grow: 1;
-	display: flex;
-	flex-direction: column;
-	overflow: hidden;
-	/* Creates a stacking context so iOS WebKit compositing of the overflow-y:auto
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Creates a stacking context so iOS WebKit compositing of the overflow-y:auto
 	   scroll child (.rss-dashboard-articles) cannot paint over preceding siblings
 	   like .rss-dashboard-filter-subheader. Without this, real iPhone hides the
 	   filter/highlight status bar even though it renders correctly in emulation. */
-	isolation: isolate;
-	background-color: var(--background-primary);
-	width: 100%;
+  isolation: isolate;
+  background-color: var(--background-primary);
+  width: 100%;
 }
 
 @media (max-width: 1200px) {
-	/* Override inline sizing when tablet/mobile sidebar is hidden. */
-	.rss-dashboard-content {
-		width: 100% !important;
-		margin-left: 0 !important;
-	}
+  /* Override inline sizing when tablet/mobile sidebar is hidden. */
+  .rss-dashboard-content {
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
 }
 
 .rss-dashboard-articles {
-	padding: 0px 10px 10px 10px;
-	overflow-y: auto;
-	flex: 1 1 0;
-	min-height: 0;
+  padding: 0px 10px 10px 10px;
+  overflow-y: auto;
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .rss-dashboard-articles-title {
-	font-size: 18px;
-	font-weight: 600;
-	color: var(--text-normal);
-	margin-left: 12px;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-normal);
+  margin-left: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rss-dashboard-article-controls {
-	display: flex;
-	gap: 10px;
-	align-items: center;
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 .rss-dashboard-view-toggle {
-	display: flex;
-	border-radius: 4px;
-	overflow: hidden;
-	gap: 0.5rem;
+  display: flex;
+  border-radius: 4px;
+  overflow: hidden;
+  gap: 0.5rem;
 }
 
 .rss-dashboard-view-toggle button {
-	border: 0;
-	background: none;
-	padding: 4px 8px;
-	cursor: pointer;
-	color: var(--text-normal);
-	height: var(--input-height);
-	font-size: var(--font-ui-small);
-	font-family: inherit;
-	font-weight: var(--input-font-weight);
-	color: var(--text-normal);
-	line-height: var(--line-height-tight);
-	max-width: 100%;
-	box-sizing: border-box;
-	margin: 0;
-	border: 0;
-	box-shadow: var(--input-shadow);
-	border-radius: var(--input-radius);
-	-webkit-appearance: none;
-	appearance: none;
-	background-color: var(--dropdown-background);
-	padding: var(--dropdown-padding);
-	background-repeat: no-repeat, repeat;
-	background-position: var(--dropdown-background-position);
-	background-size: var(--dropdown-background-size);
-	background-blend-mode: hard-light;
+  border: 0;
+  background: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--text-normal);
+  height: var(--input-height);
+  font-size: var(--font-ui-small);
+  font-family: inherit;
+  font-weight: var(--input-font-weight);
+  color: var(--text-normal);
+  line-height: var(--line-height-tight);
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  border: 0;
+  box-shadow: var(--input-shadow);
+  border-radius: var(--input-radius);
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--dropdown-background);
+  padding: var(--dropdown-padding);
+  background-repeat: no-repeat, repeat;
+  background-position: var(--dropdown-background-position);
+  background-size: var(--dropdown-background-size);
+  background-blend-mode: hard-light;
 }
 
 .rss-dashboard-view-toggle button:hover {
-	background-color: var(--background-modifier-hover);
+  background-color: var(--background-modifier-hover);
 }
 
 .rss-dashboard-view-toggle button.active {
-	background-color: var(--interactive-accent);
-	color: var(--text-on-accent);
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
 }
 
-.theme-light .rss-dashboard-view-toggle button.active,
-body:not(.theme-dark) .rss-dashboard-view-toggle button.active {
-	color: #000 !important;
-}
-
-.theme-light .rss-dashboard-view-toggle button.active svg,
-body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
-	color: #000 !important;
-}
+/* Light mode override - REMOVED: causing black icons on active buttons */
 
 .rss-dashboard-articles-list {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	padding: 12px 0;
-	animation: rss-dashboard-fade-in 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+  animation: rss-dashboard-fade-in 0.3s ease;
 }
 
-
-
 .rss-dashboard-article-title {
-	font-size: 1.1em;
-	font-weight: 600;
-	color: var(--text-normal);
-	margin-bottom: 2px;
-	white-space: normal;
-	text-overflow: ellipsis;
-	display: -webkit-box;
-	-webkit-line-clamp: 2;
-	line-clamp: 2;
-	-webkit-box-orient: vertical;
-	line-height: 1.4;
-	overflow: hidden;
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--text-normal);
+  margin-bottom: 2px;
+  white-space: normal;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
+  overflow: hidden;
 }
 
 .rss-dashboard-article-meta {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	font-size: 0.97em;
-	color: var(--text-muted);
-	margin-bottom: 2px;
-	margin-top: 2px;
-	flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.97em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+  margin-top: 2px;
+  flex-wrap: wrap;
 }
 
 .rss-dashboard-article-summary {
-	color: var(--text-muted);
-	font-size: 0.99em;
-	margin: 2px 0 0 0;
-	line-height: 1.5;
-	display: -webkit-box;
-	line-clamp: 3;
-	-webkit-box-orient: vertical;
-	overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.99em;
+  margin: 2px 0 0 0;
+  line-height: 1.5;
+  display: -webkit-box;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .rss-dashboard-article-tag {
-	padding: 2px 8px;
-	border-radius: 4px;
-	font-size: 0.95em;
-	color: #fff;
-	background: var(--interactive-accent);
-	font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.95em;
+  color: #fff;
+  background: var(--tag-color, var(--interactive-accent));
+  font-weight: 500;
 }
 
 .rss-dashboard-article-actions {
-	margin-left: auto;
-	display: flex;
-	gap: 10px;
-	align-items: center;
-	background: none;
-	border-radius: 0;
-	padding: 0;
-	margin-top: 4px;
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: none;
+  border-radius: 0;
+  padding: 0;
+  margin-top: 4px;
 }
 
 @media (max-width: 900px) {
-
-	.rss-dashboard-article-title,
-	.rss-dashboard-article-summary {
-		font-size: 1em;
-		line-clamp: 2;
-	}
+  .rss-dashboard-article-title,
+  .rss-dashboard-article-summary {
+    font-size: 1em;
+    line-clamp: 2;
+  }
 }
 
 .rss-dashboard-article-card.unread .rss-dashboard-article-title {
-	font-weight: bold;
+  font-weight: bold;
 }
 
 .rss-dashboard-article-card.read {
-	opacity: 0.8;
+  opacity: 0.8;
 }
 
-
-
 .rss-dashboard-article-header {
-	display: flex;
-	justify-content: flex-end;
-	margin-bottom: 5px;
-	width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 5px;
+  width: 100%;
 }
 
 .rss-dashboard-card-footer {
-	display: flex;
-	justify-content: space-between;
-	font-size: 11px;
-	color: var(--text-muted);
-	margin-top: auto;
-	padding-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: auto;
+  padding-top: 4px;
 }
 
 .rss-dashboard-article-feed,
 .rss-dashboard-article-date {
-	font-size: 12px;
-	color: var(--text-muted);
-	overflow: hidden;
-	text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rss-dashboard-article-feed,
 .rss-dashboard-article-source {
-	display: block;
-	min-width: 0;
-	max-width: 100%;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rss-dashboard-article-date {
-	cursor: help;
-	position: relative;
+  cursor: help;
+  position: relative;
 }
 
 .rss-dashboard-article-date:hover {
-	color: var(--text-normal);
+  color: var(--text-normal);
 }
 
 .rss-dashboard-article-date[title]:hover::after {
-	content: attr(title);
-	position: absolute;
-	bottom: 100%;
-	left: 50%;
-	transform: translateX(-50%);
-	background: var(--background-primary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 4px;
-	padding: 4px 8px;
-	font-size: 11px;
-	white-space: nowrap;
-	z-index: 1000;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .rss-dashboard-save-toggle,
 .rss-dashboard-read-toggle,
 .rss-dashboard-star-toggle,
 .rss-dashboard-tags-toggle {
-	--icon-size: 16px;
-	cursor: pointer;
-	color: var(--text-muted);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 24px;
-	height: 24px;
-	border-radius: 50%;
-	padding: 2px;
-	background-color: var(--background-primary-alt);
-	position: relative;
+  --icon-size: 16px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  padding: 2px;
+  background-color: var(--background-primary-alt);
+  position: relative;
 }
 
 .rss-dashboard-save-toggle svg,
 .rss-dashboard-read-toggle svg,
 .rss-dashboard-star-toggle svg,
 .rss-dashboard-tags-toggle svg {
-	width: var(--icon-size) !important;
-	height: var(--icon-size) !important;
-	display: block !important;
-	visibility: visible !important;
-	stroke-width: 2 !important;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
+  stroke-width: 2 !important;
 }
 
 .rss-dashboard-save-toggle:hover,
 .rss-dashboard-read-toggle:hover,
 .rss-dashboard-star-toggle:hover,
 .rss-dashboard-tags-toggle:hover {
-	color: var(--text-normal);
+  color: var(--text-normal);
 }
 
 .rss-dashboard-read-toggle.read {
-	color: #2ecc71;
+  color: #2ecc71;
 }
 
 .rss-dashboard-star-toggle.starred {
-	color: #f1c40f;
+  color: #f1c40f;
 }
 
 .rss-dashboard-star-toggle.starred svg {
-	fill: #f1c40f;
+  fill: #f1c40f;
 }
 
 .rss-dashboard-star-toggle.unstarred {
-	color: #888 !important;
-	opacity: 1 !important;
+  color: #888 !important;
+  opacity: 1 !important;
 }
 
 .rss-dashboard-star-toggle svg {
-	opacity: 1 !important;
+  opacity: 1 !important;
 }
 
 @media (max-width: 768px) {
-	.rss-dashboard-action-toolbar .rss-dashboard-save-toggle,
-	.rss-dashboard-action-toolbar .rss-dashboard-read-toggle,
-	.rss-dashboard-action-toolbar .rss-dashboard-star-toggle,
-	.rss-dashboard-action-toolbar .rss-dashboard-tags-toggle {
-		width: auto;
-		min-width: 40px;
-		height: 36px;
-		border-radius: 10px;
-		padding: 0 10px;
-		border: 1px solid var(--background-modifier-border);
-		background-color: var(--background-primary);
-	}
+  .rss-dashboard-action-toolbar .rss-dashboard-save-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-read-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-star-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-tags-toggle {
+    width: auto;
+    min-width: 40px;
+    height: 36px;
+    border-radius: 12px;
+    padding: 0 10px;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+  }
 
-	.rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
-		.rss-dashboard-grid-actions
-		.rss-dashboard-save-toggle,
-	.rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
-		.rss-dashboard-grid-actions
-		.rss-dashboard-read-toggle,
-	.rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
-		.rss-dashboard-grid-actions
-		.rss-dashboard-star-toggle,
-	.rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
-		.rss-dashboard-grid-actions
-		.rss-dashboard-tags-toggle,
-	.rss-dashboard-articles-list.rss-dashboard-mobile-list-style-minimal
-		.rss-dashboard-grid-actions
-		.rss-dashboard-read-toggle {
-		min-width: 40px;
-		width: 40px;
-		height: 40px;
-		padding: 0;
-		border-radius: 10px;
-	}
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
+    .rss-dashboard-grid-actions
+    .rss-dashboard-save-toggle,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
+    .rss-dashboard-grid-actions
+    .rss-dashboard-read-toggle,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
+    .rss-dashboard-grid-actions
+    .rss-dashboard-star-toggle,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
+    .rss-dashboard-grid-actions
+    .rss-dashboard-tags-toggle,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-minimal
+    .rss-dashboard-grid-actions
+    .rss-dashboard-read-toggle {
+    min-width: 40px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 12px;
+  }
 }
 
 .rss-dashboard-tags-dropdown {
-	position: relative;
+  position: relative;
 }
 
 .rss-dashboard-tags-dropdown-content {
-	display: none;
-	position: absolute;
-	top: 100%;
-	background-color: var(--background-primary);
-	width: auto;
-	min-width: 160px;
-	max-width: 250px;
-	max-height: 300px;
-	overflow-y: auto;
-	box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
-	z-index: 9999;
-	border-radius: 4px;
-	overflow: hidden;
-	border: 1px solid var(--background-modifier-border);
-	padding: 5px 0;
+  display: none;
+  position: absolute;
+  top: 100%;
+  background-color: var(--background-primary);
+  width: auto;
+  min-width: 160px;
+  max-width: 250px;
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+  z-index: 9999;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--background-modifier-border);
+  padding: 5px 0;
 }
 
 .rss-dashboard-tag-item {
-	padding: 6px 8px;
-	display: flex;
-	align-items: center;
-	gap: 5px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .rss-dashboard-tag-item:hover {
-	background-color: var(--background-modifier-hover);
+  background-color: var(--background-modifier-hover);
 }
 
 .rss-dashboard-tag-item-separator {
-	height: 1px;
-	background-color: var(--background-modifier-border);
-	margin: 4px 0;
+  height: 1px;
+  background-color: var(--background-modifier-border);
+  margin: 4px 0;
 }
 
 .rss-dashboard-tag-inline-add-row {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
 }
 
 .rss-dashboard-tag-inline-color {
-	width: 22px;
-	height: 22px;
-	padding: 0;
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
-	background: transparent;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
 }
 
 .rss-dashboard-tag-inline-input {
-	flex: 1;
-	min-width: 0;
-	padding: 4px 8px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 4px;
-	background: var(--background-secondary);
-	color: var(--text-normal);
-	font-size: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: 12px;
 }
 
 .rss-dashboard-tag-inline-input:focus {
-	outline: none;
-	border-color: var(--interactive-accent);
+  outline: none;
+  border-color: var(--interactive-accent);
 }
 
 .rss-dashboard-tag-inline-button {
-	--icon-size: 14px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 24px;
-	height: 24px;
-	padding: 0;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 4px;
-	background: var(--background-secondary);
-	color: var(--text-muted);
-	cursor: pointer;
-	flex-shrink: 0;
+  --icon-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .rss-dashboard-tag-inline-button:hover {
-	color: var(--text-normal);
-	border-color: var(--interactive-accent);
+  color: var(--text-normal);
+  border-color: var(--interactive-accent);
 }
 
 .rss-dashboard-tag-inline-button svg {
-	width: var(--icon-size) !important;
-	height: var(--icon-size) !important;
-	display: block !important;
-	visibility: visible !important;
-	stroke-width: 2 !important;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
+  stroke-width: 2 !important;
 }
 
 .rss-dashboard-tag-checkbox {
-	margin: 0;
-	cursor: pointer;
+  margin: 0;
+  cursor: pointer;
 }
 
 .rss-dashboard-tag-label {
-	padding: 1px 6px;
-	border-radius: 3px;
-	font-size: 11px;
-	color: #fff;
-	cursor: pointer;
-	flex-grow: 1;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: #fff;
+  cursor: pointer;
+  flex-grow: 1;
+  background-color: var(--tag-color, var(--interactive-accent));
 }
 
 .rss-dashboard-tag-action-button {
-	--icon-size: 13px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 20px;
-	height: 20px;
-	padding: 0;
-	margin-left: 4px; /* Added spacing since there can be two buttons */
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 4px;
-	background: var(--background-secondary);
-	color: var(--text-muted);
-	cursor: pointer;
-	flex-shrink: 0;
+  --icon-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin-left: 4px; /* Added spacing since there can be two buttons */
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .rss-dashboard-tag-action-button svg {
-	width: var(--icon-size) !important;
-	height: var(--icon-size) !important;
-	display: block !important;
-	visibility: visible !important;
-	stroke-width: 2 !important;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
+  stroke-width: 2 !important;
 }
 
 /* Ensure the first action button gets the margin-auto spacing to push both to the right */
@@ -486,8 +474,8 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 }
 
 .rss-dashboard-tag-delete-button:hover {
-	color: var(--text-error);
-	border-color: var(--text-error);
+  color: var(--text-error);
+  border-color: var(--text-error);
 }
 
 .rss-dashboard-tag-edit-button:hover {
@@ -496,107 +484,108 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 }
 
 .rss-dashboard-article-tag {
-	padding: 1px 6px;
-	border-radius: 3px;
-	font-size: 11px;
-	color: #fff;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: #fff;
+  background-color: var(--tag-color, var(--interactive-accent));
 }
 
 .rss-dashboard-article-summary {
-	font-size: 0.9em;
-	color: var(--text-muted);
-	margin: 5px 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	display: -webkit-box;
-	line-clamp: 5;
-	-webkit-box-orient: vertical;
+  font-size: 0.9em;
+  color: var(--text-muted);
+  margin: 5px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  line-clamp: 5;
+  -webkit-box-orient: vertical;
 }
 
 .rss-dashboard-article-feed-container {
-	display: flex;
-	align-items: center;
-	gap: 5px;
-	min-width: 0;
-	max-width: 100%;
-	flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
 }
 
 .rss-dashboard-article-feed-icon {
-	width: 16px;
-	height: 16px;
-	display: flex;
-	align-items: center;
-	flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
 }
 
 .rss-dashboard-article-feed-icon.video {
-	color: red;
+  color: red;
 }
 
 .rss-dashboard-article-feed-icon.youtube {
-	color: red;
+  color: red;
 }
 
 .rss-dashboard-article-feed-icon.podcast {
-	color: #8e44ad;
+  color: #8e44ad;
 }
 
 .rss-dashboard-save-toggle {
-	cursor: pointer;
-	opacity: 0.7;
-	transition: opacity 0.2s ease;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
 }
 
 .rss-dashboard-save-toggle:hover {
-	opacity: 1;
+  opacity: 1;
 }
 
 .rss-dashboard-save-toggle.saved {
-	opacity: 1;
-	color: var(--interactive-accent);
+  opacity: 1;
+  color: var(--interactive-accent);
 }
 
 .rss-dashboard-save-toggle.saved:hover {
-	opacity: 0.8;
+  opacity: 0.8;
 }
 
 .rss-dashboard-save-toggle.saving {
-	opacity: 0.5;
-	cursor: not-allowed;
-	position: relative;
+  opacity: 0.5;
+  cursor: not-allowed;
+  position: relative;
 }
 
 .rss-dashboard-save-toggle.saving::after {
-	content: "";
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	width: 12px;
-	height: 12px;
-	margin: -6px 0 0 -6px;
-	border: 2px solid transparent;
-	border-top: 2px solid currentColor;
-	border-radius: 50%;
-	animation: spin 1s linear infinite;
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
 .rss-dashboard-article-card.saved {
-	border-left: 3px solid var(--interactive-accent);
+  border-left: 3px solid var(--interactive-accent);
 }
 
 .rss-dashboard-empty-state {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	padding: 40px 20px;
-	text-align: center;
-	color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
 }
 
 .rss-dashboard-empty-state svg {
- 	margin-bottom: 15px;
+  margin-bottom: 15px;
 }
 
 .rss-dashboard-empty-state-icon {
@@ -605,72 +594,69 @@ body:not(.theme-dark) .rss-dashboard-view-toggle button.active svg {
 }
 
 .rss-dashboard-empty-state h3 {
- 	margin: 0 0 10px 0;
- 	font-size: 18px;
-	color: var(--text-normal);
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  color: var(--text-normal);
 }
 
 .rss-dashboard-empty-state p {
-	margin: 0;
-	font-size: 14px;
+  margin: 0;
+  font-size: 14px;
 }
 
 .rss-reader-media-player.audio-player {
-	background-color: var(--background-secondary);
-	border-radius: 8px;
-	padding: 15px;
-	margin-bottom: 20px;
+  background-color: var(--background-secondary);
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
 }
 
 .rss-reader-media-player audio {
-	width: 100%;
-	margin-top: 10px;
+  width: 100%;
+  margin-top: 10px;
 }
 
 .rss-dashboard-article-duration {
-	background-color: #8e44ad;
-	color: #fff;
-	padding: 2px 6px;
-	border-radius: 3px;
-	font-size: 12px;
+  background-color: #8e44ad;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
 }
-
-
 
 .rss-dashboard-read-toggle.read svg {
-	color: #43a047 !important;
+  color: #43a047 !important;
 }
-
 
 /* Ensure smooth transitions for article elements */
 .rss-dashboard-article-card {
-	transition:
-		opacity 0.2s ease-out,
-		transform 0.2s ease-out,
-		background-color 0.15s ease,
-		box-shadow 0.18s ease,
-		border 0.18s ease;
+  transition:
+    opacity 0.2s ease-out,
+    transform 0.2s ease-out,
+    background-color 0.15s ease,
+    box-shadow 0.18s ease,
+    border 0.18s ease;
 }
 
 @media (hover: none) and (pointer: coarse) {
-	.rss-dashboard-article-card:hover,
-	.rss-dashboard-article-item:hover {
-		cursor: pointer;
-		transition: background-color 0.2s ease;
-	}
+  .rss-dashboard-article-card:hover,
+  .rss-dashboard-article-item:hover {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
 
-	.rss-dashboard-article-card:active,
-	.rss-dashboard-article-item:active {
-		background-color: var(--background-modifier-active);
-	}
+  .rss-dashboard-article-card:active,
+  .rss-dashboard-article-item:active {
+    background-color: var(--background-modifier-active);
+  }
 }
 
 @keyframes rss-dashboard-fade-in {
-	from {
-		opacity: 0;
-	}
+  from {
+    opacity: 0;
+  }
 
-	to {
-		opacity: 1;
-	}
+  to {
+    opacity: 1;
+  }
 }

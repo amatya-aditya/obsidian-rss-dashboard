@@ -63,6 +63,8 @@ export default class RssDashboardPlugin extends Plugin {
   public backgroundImportQueue: FeedMetadata[] = [];
   public settingTab: RssDashboardSettingTab | null = null;
   private isBackgroundImporting = false;
+  public vaultAbsolutePath = "";
+  private _beforeUnloadHandler: (() => void) | null = null;
 
   public async getActiveDashboardView(): Promise<RssDashboardView | null> {
     const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
@@ -152,7 +154,22 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   async onload() {
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
+    const adapter = this.app.vault.adapter as any;
+    if (adapter.getBasePath)
+      this.vaultAbsolutePath = adapter.getBasePath() as string;
+    else if (adapter.getFullPath)
+      this.vaultAbsolutePath = adapter.getFullPath(".") as string;
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
+
     await this.loadSettings();
+
+    // Register a window-level beforeunload listener for reliable backup
+    // on Obsidian quit. onunload is NOT reliably called by Electron on window close.
+    this._beforeUnloadHandler = () => {
+      this.performAutoBackupsSyncDesktop();
+    };
+    window.addEventListener("beforeunload", this._beforeUnloadHandler);
 
     const view = await this.getActiveDashboardView();
     if (view) {
@@ -483,6 +500,10 @@ export default class RssDashboardPlugin extends Plugin {
             },
             false,
           );
+          await this.syncReaderArticleUpdate(item.guid, {
+            saved: true,
+            tags: originalItem.tags ? [...originalItem.tags] : [],
+          });
         }
       }
     }
@@ -507,6 +528,23 @@ export default class RssDashboardPlugin extends Plugin {
         updates,
         !!shouldRerender,
       );
+      await this.syncReaderArticleUpdate(item.guid, updates);
+    }
+  }
+
+  private async syncReaderArticleUpdate(
+    articleGuid: string,
+    updates: Partial<FeedItem>,
+  ): Promise<void> {
+    const leaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
+    for (const leaf of leaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      if (view instanceof ReaderView) {
+        view.applyExternalUpdate(articleGuid, updates);
+      }
     }
   }
 
@@ -648,6 +686,8 @@ export default class RssDashboardPlugin extends Plugin {
         view.refresh();
       }
     }
+
+    await this.syncReaderArticleUpdate(articleGuid, updates);
   }
 
   private showImportProgressModal(
@@ -713,12 +753,9 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   importOpml(): void {
-    const input = document.body.createEl("input", {
-      attr: { type: "file" },
-    });
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (file && file.name.endsWith(".opml")) {
+    const handleImportOpmlFile = async (file: File) => {
+      const fileName = file.name.toLowerCase() || "";
+      if (fileName.endsWith(".opml") || fileName.endsWith(".xml")) {
         const content = await file.text();
         try {
           const { feeds: newFeedsMetadata, folders: newFolders } =
@@ -730,7 +767,7 @@ export default class RssDashboardPlugin extends Plugin {
           );
 
           if (feedsToAdd.length === 0) {
-            new Notice("No new feeds found in the opml file.");
+            new Notice("No new feeds found in the file.");
             return;
           }
 
@@ -743,18 +780,21 @@ export default class RssDashboardPlugin extends Plugin {
               items: [],
               lastUpdated: Date.now(),
               mediaType: feedMetadata.mediaType || "article",
-              autoDeleteDuration: feedMetadata.autoDeleteDuration,
-               maxItemsLimit:
-                 typeof feedMetadata.maxItemsLimit === "number"
-                   ? feedMetadata.maxItemsLimit
-                   : 50,
-               scanInterval: feedMetadata.scanInterval,
-               keywordRules: {
-                 overrideGlobalRules: false,
-                 includeLogic: "AND",
-                 rules: [],
-               },
-             };
+              autoDeleteDuration:
+                typeof feedMetadata.autoDeleteDuration === "number"
+                  ? feedMetadata.autoDeleteDuration
+                  : this.settings.defaultAutoDeleteDuration,
+              maxItemsLimit:
+                typeof feedMetadata.maxItemsLimit === "number"
+                  ? feedMetadata.maxItemsLimit
+                  : this.settings.maxItems,
+              scanInterval: feedMetadata.scanInterval,
+              keywordRules: {
+                overrideGlobalRules: false,
+                includeLogic: "AND",
+                rules: [],
+              },
+            };
 
             if (
               feedToAdd.mediaType === "video" &&
@@ -803,8 +843,62 @@ export default class RssDashboardPlugin extends Plugin {
           new Notice(message);
         }
       } else {
-        new Notice("Please select a valid opml file.");
+        new Notice("Please select a valid OPML or XML file.");
       }
+    };
+
+    /**
+     * NOTE for future developers: The following block uses Electron's native dialog via 'window.require'
+     * to support multiple file extension filters simultaneously (e.g., .opml, .xml) on Windows.
+     * This is a known desktop-only pattern in Obsidian. We use 'any' casts and disable ESLint
+     * rules here because these Electron-specific APIs are not in the standard Obsidian type
+     * definitions. The surrounding try...catch is CRITICAL to ensure the plugin doesn't
+     * crash on mobile where these APIs are absent.
+     */
+    try {
+      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
+      const remote =
+        (window as any).require?.("@electron/remote") ||
+        (window as any).require?.("electron")?.remote;
+      if (remote && remote.dialog) {
+        const filePaths = remote.dialog.showOpenDialogSync({
+          title: "Import feeds from OPML or XML",
+          properties: ["openFile"],
+          filters: [
+            {
+              name: "OPML, XML, or Backup Files",
+              extensions: ["opml", "xml", "backup"],
+            },
+            { name: "All Files", extensions: ["*"] },
+          ],
+        });
+
+        if (filePaths && filePaths.length > 0) {
+          const filePath = filePaths[0];
+          const fs = (window as any).require("fs");
+          const content = fs.readFileSync(filePath, "utf-8");
+          const fileName = filePath.split(/[/\\]/).pop() || "file";
+          const file = new File([content], fileName, { type: "text/xml" });
+          void handleImportOpmlFile(file);
+          return;
+        } else if (filePaths === undefined) {
+          return; // Dialog was cancelled
+        }
+      }
+      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
+    } catch {
+      // Ignore errors and fallback
+    }
+
+    const input = document.body.createEl("input", {
+      attr: { type: "file", accept: ".opml,.xml" },
+    });
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (file) {
+        void handleImportOpmlFile(file);
+      }
+      input.remove();
     };
     input.click();
   }
@@ -883,7 +977,11 @@ export default class RssDashboardPlugin extends Plugin {
           this.settings.feeds[feedIndex] = {
             ...this.settings.feeds[feedIndex],
             title: parsedFeed.title || feedMetadata.title,
-            items: parsedFeed.items.slice(0, 50),
+            items: parsedFeed.items.slice(
+              0,
+              this.settings.feeds[feedIndex].maxItemsLimit ||
+                this.settings.maxItems,
+            ),
             lastUpdated: Date.now(),
             mediaType: parsedFeed.mediaType,
           };
@@ -948,126 +1046,154 @@ export default class RssDashboardPlugin extends Plugin {
     const input = document.body.createEl("input", {
       attr: {
         type: "file",
-        accept: ".json,application/json",
+        accept: ".json,.backup,application/json",
       },
     });
 
     input.onchange = () => {
-      void (async () => {
-        const file = input.files?.[0];
-        if (!file) return;
-
-        try {
-          const text = await file.text();
-          const parsed = JSON.parse(text) as Partial<RssDashboardSettings>;
-          if (!parsed || typeof parsed !== "object") {
-            throw new Error("Invalid usersettings.json");
-          }
-
-          const parsedWithCollections =
-            parsed as Partial<RssDashboardSettings> & {
-              feeds?: unknown;
-              folders?: unknown;
-              availableTags?: unknown;
-            };
-          const hasFeedCollections =
-            Array.isArray(parsedWithCollections.feeds) ||
-            Array.isArray(parsedWithCollections.folders) ||
-            Array.isArray(parsedWithCollections.availableTags);
-
-          if (hasFeedCollections) {
-            this.settings = Object.assign(
-              {},
-              DEFAULT_SETTINGS,
-              this.settings,
-              parsed,
-            );
-            this.settings.feeds = Array.isArray(parsedWithCollections.feeds)
-              ? parsedWithCollections.feeds
-              : [];
-            this.settings.folders = Array.isArray(parsedWithCollections.folders)
-              ? parsedWithCollections.folders
-              : this.settings.folders;
-            this.settings.availableTags = Array.isArray(
-              parsedWithCollections.availableTags,
-            )
-              ? parsedWithCollections.availableTags
-              : this.settings.availableTags;
-
-            this.migrateLegacySettings();
-            for (const feed of this.settings.feeds) {
-              if (!feed.keywordRules) {
-                feed.keywordRules = {
-                  overrideGlobalRules: false,
-                  includeLogic: "AND",
-                  rules: [],
-                };
-                continue;
-              }
-              feed.keywordRules = Object.assign(
-                {},
-                {
-                  overrideGlobalRules: false,
-                  includeLogic: "AND",
-                  rules: [],
-                },
-                feed.keywordRules,
-              );
-            }
-
-            await this.saveSettings();
-            await this.refreshDashboardViews();
-            const discoverView = await this.getActiveDiscoverView();
-            discoverView?.render();
-
-            new Notice("Imported JSON with feeds and settings");
-            return;
-          }
-
-          const {
-            feeds: _feeds,
-            folders: _folders,
-            availableTags: _availableTags,
-            ...settingsOnly
-          } = parsed as Partial<RssDashboardSettings> & {
-            feeds?: unknown;
-            folders?: unknown;
-            availableTags?: unknown;
-          };
-          void _feeds;
-          void _folders;
-          void _availableTags;
-
-          this.settings = Object.assign(
-            {},
-            DEFAULT_SETTINGS,
-            this.settings,
-            settingsOnly,
-          );
-
-          // Keep legacy keys and nested defaults normalized after import.
-          this.migrateLegacySettings();
-
-          await this.saveSettings();
-          await this.refreshDashboardViews();
-          const discoverView = await this.getActiveDiscoverView();
-          discoverView?.render();
-
-          new Notice("Imported usersettings.json");
-        } catch (error) {
-          new Notice(
-            `Invalid usersettings.json file${error instanceof Error ? `: ${error.message}` : ""}`,
-          );
-        }
-      })();
+      const file = input.files?.[0];
+      if (!file) return;
+      void this.importUserSettingsJsonFromFile(file);
     };
 
     input.click();
   }
 
+  public async importUserSettingsJsonFromFile(file: File): Promise<void> {
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as Partial<RssDashboardSettings>;
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error("Invalid usersettings.json");
+      }
+
+      const parsedWithCollections = parsed as Partial<RssDashboardSettings> & {
+        feeds?: unknown;
+        folders?: unknown;
+        availableTags?: unknown;
+      };
+      const hasFeedCollections =
+        Array.isArray(parsedWithCollections.feeds) ||
+        Array.isArray(parsedWithCollections.folders) ||
+        Array.isArray(parsedWithCollections.availableTags);
+
+      if (hasFeedCollections) {
+        this.settings = Object.assign(
+          {},
+          DEFAULT_SETTINGS,
+          this.settings,
+          parsed,
+        );
+        this.settings.feeds = Array.isArray(parsedWithCollections.feeds)
+          ? parsedWithCollections.feeds
+          : [];
+        this.settings.folders = Array.isArray(parsedWithCollections.folders)
+          ? parsedWithCollections.folders
+          : this.settings.folders;
+        this.settings.availableTags = Array.isArray(
+          parsedWithCollections.availableTags,
+        )
+          ? parsedWithCollections.availableTags
+          : this.settings.availableTags;
+
+        this.migrateLegacySettings();
+        for (const feed of this.settings.feeds) {
+          if (!feed.keywordRules) {
+            feed.keywordRules = {
+              overrideGlobalRules: false,
+              includeLogic: "AND",
+              rules: [],
+            };
+            continue;
+          }
+          feed.keywordRules = Object.assign(
+            {},
+            {
+              overrideGlobalRules: false,
+              includeLogic: "AND",
+              rules: [],
+            },
+            feed.keywordRules,
+          );
+
+          // Migrate legacy feeds: apply default auto-delete and maxItems if not set
+          // This ensures feeds imported before the fix will respect the global defaults
+          if (typeof feed.autoDeleteDuration !== "number") {
+            feed.autoDeleteDuration = this.settings.defaultAutoDeleteDuration;
+          }
+          if (typeof feed.maxItemsLimit !== "number") {
+            feed.maxItemsLimit = this.settings.maxItems;
+          }
+        }
+
+        await this.saveSettings();
+        await this.refreshDashboardViews();
+        const discoverView = await this.getActiveDiscoverView();
+        discoverView?.render();
+
+        new Notice("Imported JSON with feeds and settings");
+        return;
+      }
+
+      const {
+        feeds: _feeds,
+        folders: _folders,
+        availableTags: _availableTags,
+        ...settingsOnly
+      } = parsed as Partial<RssDashboardSettings> & {
+        feeds?: unknown;
+        folders?: unknown;
+        availableTags?: unknown;
+      };
+      void _feeds;
+      void _folders;
+      void _availableTags;
+
+      this.settings = Object.assign(
+        {},
+        DEFAULT_SETTINGS,
+        this.settings,
+        settingsOnly,
+      );
+
+      // Keep legacy keys and nested defaults normalized after import.
+      this.migrateLegacySettings();
+
+      await this.saveSettings();
+      await this.refreshDashboardViews();
+      const discoverView = await this.getActiveDiscoverView();
+      discoverView?.render();
+
+      new Notice("Imported usersettings.json");
+    } catch (error) {
+      new Notice(
+        `Invalid usersettings.json file${error instanceof Error ? `: ${error.message}` : ""}`,
+      );
+    }
+  }
+
+  public getUserSettingsJson(): string {
+    const {
+      feeds: _feeds,
+      folders: _folders,
+      availableTags: _availableTags,
+      ...settingsOnly
+    } = this.settings as Partial<RssDashboardSettings> & {
+      feeds?: unknown;
+      folders?: unknown;
+      availableTags?: unknown;
+    };
+
+    void _feeds;
+    void _folders;
+    void _availableTags;
+
+    return JSON.stringify(settingsOnly, null, 2);
+  }
+
   public async exportUserSettingsJson(): Promise<void> {
     const filename = "usersettings.json";
-    const blob = new Blob([JSON.stringify(this.settings, null, 2)], {
+    const blob = new Blob([this.getUserSettingsJson()], {
       type: "application/json",
     });
 
@@ -1140,9 +1266,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async copyUserSettingsJsonToClipboard(): Promise<void> {
     const filename = "usersettings.json";
-    const result = await copyTextToClipboard(
-      JSON.stringify(this.settings, null, 2),
-    );
+    const result = await copyTextToClipboard(this.getUserSettingsJson());
     this.showCopyNotice(result, filename);
   }
 
@@ -1475,7 +1599,6 @@ export default class RssDashboardPlugin extends Plugin {
         );
       }
 
-
       if (!this.settings.media) {
         this.settings.media = DEFAULT_SETTINGS.media;
       } else {
@@ -1517,6 +1640,8 @@ export default class RssDashboardPlugin extends Plugin {
         );
       }
 
+      let didChange = false;
+
       for (const feed of this.settings.feeds) {
         if (!feed.keywordRules) {
           feed.keywordRules = {
@@ -1536,6 +1661,23 @@ export default class RssDashboardPlugin extends Plugin {
           },
           feed.keywordRules,
         );
+
+        // Migrate legacy feeds: apply default auto-delete and maxItems if not set
+        // This ensures feeds imported before the fix will respect the global defaults
+        if (typeof feed.autoDeleteDuration !== "number") {
+          feed.autoDeleteDuration = this.settings.defaultAutoDeleteDuration;
+          didChange = true;
+          console.warn(
+            `[RSS Dashboard] Migration: Applied default auto-delete (${this.settings.defaultAutoDeleteDuration} days) to feed: ${feed.title}`,
+          );
+        }
+        if (typeof feed.maxItemsLimit !== "number") {
+          feed.maxItemsLimit = this.settings.maxItems;
+          didChange = true;
+          console.warn(
+            `[RSS Dashboard] Migration: Applied default maxItems (${this.settings.maxItems}) to feed: ${feed.title}`,
+          );
+        }
       }
 
       // Normalize dashboard page-size settings to a single global value.
@@ -1571,7 +1713,12 @@ export default class RssDashboardPlugin extends Plugin {
       const didNormalizeAndDedupeItems =
         this.normalizeAndDedupeStoredFeedItems();
 
-      if (didMigrateKeywordRules || didNormalizeAndDedupeItems || didNormalizePageSizes) {
+      if (
+        didMigrateKeywordRules ||
+        didNormalizeAndDedupeItems ||
+        didNormalizePageSizes ||
+        didChange
+      ) {
         await this.saveSettings();
       }
     } catch (error) {
@@ -1606,10 +1753,7 @@ export default class RssDashboardPlugin extends Plugin {
       return bTrim.length > aTrim.length ? b : a;
     };
 
-    const pickLongerOptional = (
-      a?: string,
-      b?: string,
-    ): string | undefined => {
+    const pickLongerOptional = (a?: string, b?: string): string | undefined => {
       const aTrim = (a ?? "").trim();
       const bTrim = (b ?? "").trim();
       if (!aTrim && !bTrim) return a ?? b;
@@ -1618,7 +1762,10 @@ export default class RssDashboardPlugin extends Plugin {
       return bTrim.length > aTrim.length ? b : a;
     };
 
-    const mergeTags = (a: FeedItem["tags"], b: FeedItem["tags"]): FeedItem["tags"] => {
+    const mergeTags = (
+      a: FeedItem["tags"],
+      b: FeedItem["tags"],
+    ): FeedItem["tags"] => {
       const out: FeedItem["tags"] = [];
       const seen = new Set<string>();
       for (const tag of [...(a || []), ...(b || [])]) {
@@ -1865,6 +2012,16 @@ export default class RssDashboardPlugin extends Plugin {
       }
     });
 
+    if (!this.settings.autoBackup) {
+      this.settings.autoBackup = Object.assign({}, DEFAULT_SETTINGS.autoBackup);
+    } else {
+      this.settings.autoBackup = Object.assign(
+        {},
+        DEFAULT_SETTINGS.autoBackup,
+        this.settings.autoBackup,
+      );
+    }
+
     return didMigrateKeywordRules;
   }
 
@@ -1872,7 +2029,132 @@ export default class RssDashboardPlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
-  onunload() {}
+  public async performAutoBackups(): Promise<void> {
+    const { autoBackup } = this.settings;
+    if (!autoBackup) return;
+
+    const pluginDir = this.manifest.dir;
+    if (!pluginDir) return;
+
+    try {
+      // 1. data.json
+      if (autoBackup.backupDataJson) {
+        const dataPath = `${pluginDir}/data.json`;
+        if (await this.app.vault.adapter.exists(dataPath)) {
+          const content = await this.app.vault.adapter.read(dataPath);
+          await this.app.vault.adapter.write(`${dataPath}.backup`, content);
+        }
+      }
+
+      // 2. feeds.opml
+      if (autoBackup.backupOpml) {
+        const opmlContent = OpmlManager.generateOpml(
+          this.settings.feeds,
+          this.settings.folders,
+        );
+        const opmlPath = `${pluginDir}/feeds.opml.backup`;
+        await this.app.vault.adapter.write(opmlPath, opmlContent);
+      }
+
+      // 3. userdata.json / usersettings.json
+      if (autoBackup.backupUserdata) {
+        // We look for both common names, prioritizing 'usersettings.json' since that's what's exported.
+        const userSettingsPath = `${pluginDir}/usersettings.json`;
+        const userDataPath = `${pluginDir}/userdata.json`;
+
+        if (await this.app.vault.adapter.exists(userSettingsPath)) {
+          const content = await this.app.vault.adapter.read(userSettingsPath);
+          await this.app.vault.adapter.write(
+            `${userSettingsPath}.backup`,
+            content,
+          );
+        } else if (await this.app.vault.adapter.exists(userDataPath)) {
+          const content = await this.app.vault.adapter.read(userDataPath);
+          await this.app.vault.adapter.write(`${userDataPath}.backup`, content);
+        }
+      }
+    } catch (e) {
+      console.error("[RSS Dashboard] Auto-backup failed:", e);
+    }
+  }
+
+  public performAutoBackupsSyncDesktop(): boolean {
+    const { autoBackup } = this.settings;
+    if (!autoBackup) return false;
+
+    const pluginDir = this.manifest.dir;
+    if (!pluginDir) return false;
+
+    try {
+      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+      const req = (window as any).require;
+      if (!req) return false;
+
+      const fs = req("fs");
+      const path = req("path");
+
+      if (fs && path) {
+        const vaultRoot = this.vaultAbsolutePath;
+
+        if (!vaultRoot) {
+          return false;
+        }
+
+        const absPluginDir = path.resolve(vaultRoot, pluginDir);
+
+        if (autoBackup.backupDataJson) {
+          const dataPath = path.join(absPluginDir, "data.json");
+          if (fs.existsSync(dataPath)) {
+            fs.copyFileSync(dataPath, `${dataPath}.backup`);
+          }
+        }
+
+        if (autoBackup.backupOpml) {
+          const opmlContent = OpmlManager.generateOpml(
+            this.settings.feeds,
+            this.settings.folders,
+          );
+          const opmlPath = path.join(absPluginDir, "feeds.opml.backup");
+          fs.writeFileSync(opmlPath, opmlContent, "utf-8");
+        }
+
+        if (autoBackup.backupUserdata) {
+          const userSettingsPath = path.join(absPluginDir, "usersettings.json");
+          const userDataPath = path.join(absPluginDir, "userdata.json");
+          const backupPath = path.join(absPluginDir, "userdata.json.backup");
+
+          if (fs.existsSync(userSettingsPath)) {
+            fs.copyFileSync(userSettingsPath, backupPath);
+          } else if (fs.existsSync(userDataPath)) {
+            fs.copyFileSync(userDataPath, backupPath);
+          } else {
+            fs.writeFileSync(backupPath, this.getUserSettingsJson(), "utf-8");
+          }
+        }
+
+        return true;
+      }
+
+      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+    } catch (e) {
+      console.error("[RSS Dashboard] Sync Auto-backup failed:", e);
+    }
+    return false;
+  }
+
+  onunload() {
+    // Remove the beforeunload listener to avoid it firing when the plugin
+    // is manually disabled (onunload handles it instead).
+    if (this._beforeUnloadHandler) {
+      window.removeEventListener("beforeunload", this._beforeUnloadHandler);
+      this._beforeUnloadHandler = null;
+    }
+    // Run backups synchronously on plugin disable
+    const synced = this.performAutoBackupsSyncDesktop();
+    if (!synced) {
+      void this.performAutoBackups();
+    }
+  }
 
   private async validateSavedArticles(): Promise<void> {
     let updatedCount = 0;

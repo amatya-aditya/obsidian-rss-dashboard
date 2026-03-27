@@ -18,8 +18,6 @@ master                          ← stable, tagged releases only
            dev
             ↓  when features are complete, cut a release branch
       release/x.x.x
-            ↓  tag RCs here, announce to testers
-        x.x.x-rc.1 → rc.2 → ...
             ↓  stable → merge to master, then back to dev
            master (tag x.x.x)
 ```
@@ -55,8 +53,7 @@ master                          ← stable, tagged releases only
 ### `release/x.x.x`
 
 - Cut from `dev` when features for a release are complete
-- Only stabilization work (bug fixes from RC testing) happens here — no new features
-- RC tags are made on this branch
+- Only stabilization work (bug fixes from Beta testing) happens here — no new features
 - Merges into `master` when stable, then immediately back into `dev`
 
 ---
@@ -109,6 +106,27 @@ master                          ← stable, tagged releases only
 
 ---
 
+## Testing and TDD Approach
+
+We strongly encourage a **Test-Driven Development (TDD)** workflow. When adding new features or fixing bugs, follow the Red-Green-Refactor cycle:
+
+1. **Red**: Write a failing test for the new functionality or bug reproduction.
+2. **Green**: Write the minimal code required to pass the test.
+3. **Refactor**: Clean up the code while ensuring the test stays green.
+
+### Current Test Suite
+
+Our project currently utilizes ~380 test cases across ~60 files. The vast majority are **unit tests** and fast **integration-style tests** (using JSDOM polyfills for Obsidian components) that validate UI rendering and business logic without needing to launch the full Obsidian app. You can find them in the `test_files/unit/` directory.
+
+### Running and Writing Tests
+
+- **Run all tests**: `npm run test:unit`
+- **Recommended**: Keep the test runner open in watch mode (`npx vitest`) while developing.
+- **Organization**: Please organize new tests into domain folders (e.g., `services/`, `views/`, `utils/`) matching the `src/` directory to prevent clutter in the root `test_files/unit/` folder.
+- For more detailed guidance on what and how to test, see the [Testing Guide](docs/development/testing-guide.md).
+
+---
+
 ## Release Process
 
 ### Step 1 — Feature Complete
@@ -122,10 +140,10 @@ git checkout dev
 git checkout -b release/2.3.0
 ```
 
-### Step 3 — Tag and Announce RC
+### Step 3 — Tag and Announce Beta
 
 ```
-git tag 2.3.0-rc.1
+git tag 2.3.0-beta.1
 git push origin release/2.3.0 --tags
 ```
 
@@ -133,10 +151,10 @@ Announce to testers via BRAT. Collect feedback.
 
 ### Step 4 — Stabilize
 
-Fix any issues found during RC testing **on the release branch**, not on dev. Tag new RCs as needed:
+Fix any issues found during Beta testing **on the release branch**, not on dev. Tag new beta versions as needed:
 
 ```
-git tag 2.3.0-rc.2
+git tag 2.3.0-beta.2
 ```
 
 ### Step 5 — Ship
@@ -150,7 +168,7 @@ git merge release/2.3.0
 git tag 2.3.0
 git push origin master --tags
 
-# Merge release branch back to dev so RC fixes aren't lost
+# Merge release branch back to dev so Beta fixes aren't lost
 git checkout dev
 git merge release/2.3.0
 git push origin dev
@@ -163,21 +181,22 @@ git branch -d release/2.3.0
 
 ## Versioning (SemVer)
 
-We follow [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`
+We follow [Semantic Versioning](https://semver.org). Given `MAJOR.MINOR.PATCH`, increment:
 
-| Part      | When to bump                                       |
-| --------- | -------------------------------------------------- |
-| **MAJOR** | Breaking changes — existing user setups will break |
-| **MINOR** | New features added, backwards compatible           |
-| **PATCH** | Bug fixes only, no new features                    |
+| Part      | When to bump                                      |
+| --------- | ------------------------------------------------- |
+| **MAJOR** | Incompatible API changes or breaking user setups  |
+| **MINOR** | New functionality in a backward compatible manner |
+| **PATCH** | Backward compatible bug fixes                     |
+
+_Note: Only **Beta** and **Stable** releases are permitted. No Alphas or RCs._
 
 ### Pre-release Labels
 
-| Label          | Meaning                                           |
-| -------------- | ------------------------------------------------- |
-| `2.3.0-beta.1` | Feature may still be changing, expect rough edges |
-| `2.3.0-rc.1`   | Feature complete, testing for release confidence  |
-| `2.3.0`        | Stable release                                    |
+| Label          | Meaning                             |
+| -------------- | ----------------------------------- |
+| `x.x.x-beta.n` | Feature testing, expect rough edges |
+| `x.x.x`        | Stable release                      |
 
 ## Naming Conventions and Validation
 
@@ -203,7 +222,8 @@ To ensure compatibility across different operating systems and Obsidian's intern
 - **Keep branches short-lived** — long-running branches cause merge conflicts
 - **Rebase, don't merge, to stay current** — keeps history linear and readable
 - **Dev must always reflect master** — sync immediately after every stable release
-- **RC fixes go on the release branch** — not back on dev until the release branch merges
+- **Beta fixes go on the release branch** — not back on dev until the release branch merges
+- **No Alpha/RC versions** — only Beta and Stable releases are permitted.
 
 ---
 
@@ -220,8 +240,8 @@ git fetch origin && git rebase origin/dev
 # Cut a release branch
 git checkout dev && git checkout -b release/2.3.0
 
-# Tag an RC
-git tag 2.3.0-rc.1 && git push origin release/2.3.0 --tags
+# Tag the Beta
+git tag 2.3.0-beta.1 && git push origin release/2.3.0 --tags
 
 # Ship a release
 git checkout master && git merge release/2.3.0

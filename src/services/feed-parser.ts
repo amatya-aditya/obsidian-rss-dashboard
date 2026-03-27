@@ -26,7 +26,7 @@ interface ItunesLookupResponse {
 
 export async function resolvePodcastPlatformUrl(
   url: string,
-  corsProxyUrl?: string
+  corsProxyUrl?: string,
 ): Promise<string | null> {
   const platform = detectPodcastPlatform(url);
   if (!platform) return null;
@@ -42,102 +42,156 @@ export async function resolvePodcastPlatformUrl(
   return null;
 }
 
-async function resolvePocketCastsUrl(url: string, corsProxyUrl?: string): Promise<string | null> {
+async function resolvePocketCastsUrl(
+  url: string,
+  corsProxyUrl?: string,
+): Promise<string | null> {
   const proxyUrls: string[] = [];
 
   // 1. User's proxy if available
   if (corsProxyUrl) {
-    const isEncoded = corsProxyUrl.includes("allorigins") || corsProxyUrl.includes("codetabs");
+    const isEncoded =
+      corsProxyUrl.includes("allorigins") || corsProxyUrl.includes("codetabs");
     const targetUrl = isEncoded ? encodeURIComponent(url) : url;
     proxyUrls.push(`${corsProxyUrl}${targetUrl}`);
   }
 
   // 2. Default AllOrigins proxy
-  proxyUrls.push(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+  proxyUrls.push(
+    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  );
 
   // 3. Fallback CodeTabs proxy
-  proxyUrls.push(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`);
+  proxyUrls.push(
+    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+  );
 
   let lastError: Error | null = null;
 
   for (const proxyUrl of proxyUrls) {
     try {
-      console.debug(`[RSS Dashboard] Attempting to resolve Pocket Casts URL using proxy: ${proxyUrl}`);
+      console.debug(
+        `[RSS Dashboard] Attempting to resolve Pocket Casts URL using proxy: ${proxyUrl}`,
+      );
       const response = await requestUrl({ url: proxyUrl, method: "GET" });
-      
+
       let contents = "";
       if (proxyUrl.includes("allorigins.win/get")) {
         const data = JSON.parse(response.text) as { contents: string };
-        if (!data.contents) throw new Error("AllOrigins returned empty contents");
+        if (!data.contents)
+          throw new Error("AllOrigins returned empty contents");
         contents = data.contents;
       } else {
         contents = response.text;
       }
-      
-      const match = contents.match(
-        /<link[^>]+type=["']application\/rss\+xml["'][^>]+href=["']([^"']+)["']/i
-      ) || contents.match(
-        /<link[^>]+href=["']([^"']+)["'][^>]+type=["']application\/rss\+xml["']/i
-      );
-      
+
+      const match =
+        contents.match(
+          /<link[^>]+type=["']application\/rss\+xml["'][^>]+href=["']([^"']+)["']/i,
+        ) ||
+        contents.match(
+          /<link[^>]+href=["']([^"']+)["'][^>]+type=["']application\/rss\+xml["']/i,
+        );
+
       if (match?.[1]) {
-        console.debug(`[RSS Dashboard] Successfully resolved Pocket Casts URL via meta tag: ${match[1]}`);
+        console.debug(
+          `[RSS Dashboard] Successfully resolved Pocket Casts URL via meta tag: ${match[1]}`,
+        );
         return match[1];
       }
-      
+
       // FALLBACK STRATEGY: Semantic Discovery via iTunes Search
       // Pocket Casts often hides the direct RSS link in their web player.
       // We extract the podcast title and use the public iTunes Search API to find the feed.
-      
+
       // Flexible regex: Handles attributes in any order (e.g., meta data-rh="true" property="og:title" content="...")
-      let titleMatch = contents.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) || 
-                       contents.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i) ||
-                       contents.match(/<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']/i) ||
-                       contents.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:title["']/i);
-      
+      let titleMatch =
+        contents.match(
+          /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i,
+        ) ||
+        contents.match(
+          /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i,
+        ) ||
+        contents.match(
+          /<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']/i,
+        ) ||
+        contents.match(
+          /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:title["']/i,
+        );
+
       if (!titleMatch) {
-         // Fallback to <title> tag, but be careful of generic site titles
-         const docTitle = contents.match(/<title>([^<]+)<\/title>/i);
-         if (docTitle?.[1] && !docTitle[1].includes("Pocket Casts")) {
-             titleMatch = docTitle;
-         }
+        // Fallback to <title> tag, but be careful of generic site titles
+        const docTitle = contents.match(/<title>([^<]+)<\/title>/i);
+        if (docTitle?.[1] && !docTitle[1].includes("Pocket Casts")) {
+          titleMatch = docTitle;
+        }
       }
-      
+
       if (titleMatch?.[1]) {
-          const rawTitle = titleMatch[1];
-          const decodedTitle = rawTitle.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-          console.debug(`[RSS Dashboard] Extracted title for iTunes search: "${decodedTitle}"`);
-          
-          if (decodedTitle.toLowerCase() === "pocket casts plus") {
-              // Generic title found, search would be too ambiguous
-              console.warn(`[RSS Dashboard] Extracted generic title "Pocket Casts Plus", skipping search to avoid incorrect resolution.`);
-          } else {
-              try {
-                  // iTunes Search API is public, free, and returns canonical RSS feedUrls
-                  const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(decodedTitle)}&entity=podcast&limit=3`;
-                  const itunesResponse = await requestUrl({ url: searchUrl, method: "GET" });
-                  const itunesData = JSON.parse(itunesResponse.text) as { results?: Array<{ feedUrl?: string, collectionName?: string }> };
-                  if (itunesData.results && itunesData.results.length > 0 && itunesData.results[0].feedUrl) {
-                      const feedUrl = itunesData.results[0].feedUrl;
-                      console.debug(`[RSS Dashboard] Successfully resolved Pocket Casts URL via iTunes API: ${feedUrl} (matched "${itunesData.results[0].collectionName}")`);
-                      return feedUrl;
-                  }
-                  console.debug(`[RSS Dashboard] iTunes API returned no feedUrl for title: ${decodedTitle}`);
-              } catch (itunesErr) {
-                  console.warn(`[RSS Dashboard] iTunes Search API fallback failed:`, itunesErr);
-              }
+        const rawTitle = titleMatch[1];
+        const decodedTitle = rawTitle
+          .replace(/&amp;/g, "&")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'");
+        console.debug(
+          `[RSS Dashboard] Extracted title for iTunes search: "${decodedTitle}"`,
+        );
+
+        if (decodedTitle.toLowerCase() === "pocket casts plus") {
+          // Generic title found, search would be too ambiguous
+          console.warn(
+            `[RSS Dashboard] Extracted generic title "Pocket Casts Plus", skipping search to avoid incorrect resolution.`,
+          );
+        } else {
+          try {
+            // iTunes Search API is public, free, and returns canonical RSS feedUrls
+            const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(decodedTitle)}&entity=podcast&limit=3`;
+            const itunesResponse = await requestUrl({
+              url: searchUrl,
+              method: "GET",
+            });
+            const itunesData = JSON.parse(itunesResponse.text) as {
+              results?: Array<{ feedUrl?: string; collectionName?: string }>;
+            };
+            if (
+              itunesData.results &&
+              itunesData.results.length > 0 &&
+              itunesData.results[0].feedUrl
+            ) {
+              const feedUrl = itunesData.results[0].feedUrl;
+              console.debug(
+                `[RSS Dashboard] Successfully resolved Pocket Casts URL via iTunes API: ${feedUrl} (matched "${itunesData.results[0].collectionName}")`,
+              );
+              return feedUrl;
+            }
+            console.debug(
+              `[RSS Dashboard] iTunes API returned no feedUrl for title: ${decodedTitle}`,
+            );
+          } catch (itunesErr) {
+            console.warn(
+              `[RSS Dashboard] iTunes Search API fallback failed:`,
+              itunesErr,
+            );
           }
+        }
       }
-      
-      throw new Error(`Could not find RSS feed link or valid title in HTML from Pocket Casts layout`);
+
+      throw new Error(
+        `Could not find RSS feed link or valid title in HTML from Pocket Casts layout`,
+      );
     } catch (e) {
-      console.warn(`[RSS Dashboard] Proxy ${proxyUrl} failed to resolve Pocket Casts URL:`, e);
+      console.warn(
+        `[RSS Dashboard] Proxy ${proxyUrl} failed to resolve Pocket Casts URL:`,
+        e,
+      );
       lastError = e instanceof Error ? e : new Error(String(e));
       // Continue to next proxy
     }
   }
 
-  throw new Error(`Failed to resolve Pocket Casts URL after trying multiple proxies. Last error: ${lastError?.message}`);
+  throw new Error(
+    `Failed to resolve Pocket Casts URL after trying multiple proxies. Last error: ${lastError?.message}`,
+  );
 }
 
 async function resolveApplePodcastUrl(
@@ -1234,9 +1288,15 @@ export class CustomXMLParser {
     const score = (el: Element): number => {
       const type = (el.getAttribute("type") || "").toLowerCase();
       const medium = (el.getAttribute("medium") || "").toLowerCase();
+      const width = parseInt(el.getAttribute("width") || "0", 10);
+      const height = parseInt(el.getAttribute("height") || "0", 10);
       const isImage = type.startsWith("image/") || medium === "image";
-      // Prefer image-typed media:content over unknown types.
-      return isImage ? 2 : 1;
+
+      // Base score: 1000 for images, 1 otherwise
+      let s = isImage ? 1000 : 1;
+      // Add dimensions to prioritize larger images
+      s += Math.max(width, height);
+      return s;
     };
 
     const pickBest = (candidates: Element[]): string => {
@@ -1250,7 +1310,9 @@ export class CustomXMLParser {
 
     // 1) Standard selectors (works in many environments)
     try {
-      const url = pickBest(Array.from(item.querySelectorAll("media\\:content")));
+      const url = pickBest(
+        Array.from(item.querySelectorAll("media\\:content")),
+      );
       if (url) return url;
     } catch {
       /* ignore */
@@ -1355,12 +1417,37 @@ export class CustomXMLParser {
     return url;
   }
 
+  /**
+   * Normalizes URL-encoded strings that may be double-encoded.
+   * For example: "ai%2520girlfriend.jpg" -> "ai girlfriend.jpg"
+   * Detects double-encoding by checking for %25 (encoded percent)
+   */
+  public normalizeUrlEncoding(url: string): string {
+    if (!url || !url.includes("%25")) {
+      return url;
+    }
+    // URL decode once - this converts %25 to %
+    // After this, %20 remains as %20 (single-encoded space), which is correct
+    try {
+      return decodeURIComponent(url);
+    } catch {
+      // If decode fails, return original
+      return url;
+    }
+  }
+
   private extractImageFromContent(content: string): string {
     if (!content) return "";
 
     try {
       const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
       const imageUrl = imgMatch ? imgMatch[1] : "";
+      // Debug: log image URL extraction for troubleshooting
+      if (imageUrl && imageUrl.includes("%25")) {
+        console.debug(
+          `[RSS Dashboard] extractImageFromContent: Found double-encoded URL: ${imageUrl}`,
+        );
+      }
       return this.convertAppUrls(imageUrl);
     } catch {
       return "";
@@ -1899,7 +1986,9 @@ export class CustomXMLParser {
             cdata.replace(/</g, "\u0001").replace(/>/g, "\u0002"),
         );
         const aggressiveItemRegex = /<item[^>]*>[\s\S]*?<\/item>/gi;
-        while ((itemMatch = aggressiveItemRegex.exec(xmlForAggressiveSplit)) !== null) {
+        while (
+          (itemMatch = aggressiveItemRegex.exec(xmlForAggressiveSplit)) !== null
+        ) {
           const full = xmlString.substring(
             itemMatch.index,
             itemMatch.index + itemMatch[0].length,
@@ -2413,6 +2502,9 @@ export class FeedParser {
   private convertToAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
     if (!relativeUrl || !baseUrl) return relativeUrl;
 
+    // Normalize double-encoded URLs before processing
+    relativeUrl = this.parser.normalizeUrlEncoding(relativeUrl);
+
     if (relativeUrl.startsWith("app://")) {
       return relativeUrl.replace("app://", "https://");
     }
@@ -2592,6 +2684,25 @@ export class FeedParser {
     return decoded;
   }
 
+  /**
+   * Normalizes URL-encoded strings that may be double-encoded.
+   * For example: "ai%2520girlfriend.jpg" -> "ai girlfriend.jpg"
+   * Detects double-encoding by checking for %25 (encoded percent)
+   */
+  private normalizeUrlEncoding(url: string): string {
+    if (!url || !url.includes("%25")) {
+      return url;
+    }
+    // URL decode once - this converts %25 to %
+    // After this, %20 remains as %20 (single-encoded space), which is correct
+    try {
+      return decodeURIComponent(url);
+    } catch {
+      // If decode fails, return original
+      return url;
+    }
+  }
+
   private convertRelativeUrlsInContent(
     content: string,
     baseUrl: string,
@@ -2662,6 +2773,12 @@ export class FeedParser {
       const ogImage = doc.querySelector('meta[property="og:image"]');
       if (ogImage?.getAttribute("content")) {
         const content = ogImage.getAttribute("content");
+        // Debug: log og:image URL for troubleshooting double-encoding
+        if (content && content.includes("%25")) {
+          console.debug(
+            `[RSS Dashboard] extractCoverImage: og:image contains double-encoded: ${content}`,
+          );
+        }
         if (content && content.startsWith("http")) {
           return content;
         } else if (content && baseUrl) {
@@ -2672,6 +2789,12 @@ export class FeedParser {
       const twitterImage = doc.querySelector('meta[name="twitter:image"]');
       if (twitterImage?.getAttribute("content")) {
         const content = twitterImage.getAttribute("content");
+        // Debug: log twitter:image URL for troubleshooting double-encoding
+        if (content && content.includes("%25")) {
+          console.debug(
+            `[RSS Dashboard] extractCoverImage: twitter:image contains double-encoded: ${content}`,
+          );
+        }
         if (content && content.startsWith("http")) {
           return content;
         } else if (content && baseUrl) {
@@ -2682,6 +2805,12 @@ export class FeedParser {
       const firstImg = doc.querySelector("img");
       if (firstImg?.getAttribute("src")) {
         const src = firstImg.getAttribute("src");
+        // Debug: log first img src for troubleshooting double-encoding
+        if (src && src.includes("%25")) {
+          console.debug(
+            `[RSS Dashboard] extractCoverImage: first img src contains double-encoded: ${src}`,
+          );
+        }
         if (src && src.startsWith("http")) {
           return src;
         } else if (src && baseUrl) {
@@ -2692,6 +2821,12 @@ export class FeedParser {
       const imgTags = doc.querySelectorAll("img");
       for (const img of Array.from(imgTags)) {
         const src = img.getAttribute("src");
+        // Debug: log each img src for troubleshooting double-encoding
+        if (src && src.includes("%25")) {
+          console.debug(
+            `[RSS Dashboard] extractCoverImage: img src contains double-encoded: ${src}`,
+          );
+        }
         if (
           src &&
           src.startsWith("http") &&
@@ -2810,18 +2945,18 @@ export class FeedParser {
 
     const feedTitle = existingFeed?.title || parsed.title || "Unnamed feed";
 
-	    const newFeed: Feed = existingFeed || {
-	      title: feedTitle,
-	      url: url,
-	      folder: "Uncategorized",
-	      items: [],
-	      lastUpdated: Date.now(),
-	    };
+    const newFeed: Feed = existingFeed || {
+      title: feedTitle,
+      url: url,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+    };
 
-	    const resolvedSiteUrl = resolveAbsoluteHttpUrl(parsed.link, url);
-	    if (resolvedSiteUrl) {
-	      newFeed.siteUrl = resolvedSiteUrl;
-	    }
+    const resolvedSiteUrl = resolveAbsoluteHttpUrl(parsed.link, url);
+    if (resolvedSiteUrl) {
+      newFeed.siteUrl = resolvedSiteUrl;
+    }
 
     const existingItems = new Map<string, FeedItem>();
     if (existingFeed) {
@@ -2873,28 +3008,28 @@ export class FeedParser {
 
       const existingItem = existingItems.get(itemGuid);
 
-        if (existingItem) {
-          let coverImage = existingItem.coverImage;
-          if (isPodcast) {
-            coverImage =
-              this.extractPodcastCoverImage(item, parsed.image, url) ||
-              existingItem.coverImage;
-          } else {
-            coverImage =
-              this.extractCoverImage(
-                item.content || item.description || "",
-                url,
-              ) ||
-              this.convertToAbsoluteUrl(
-                item.itunes?.image?.href || item.image?.url || "",
-                url,
-              ) ||
-              (item.enclosure?.type?.startsWith("image/")
-                ? this.convertToAbsoluteUrl(item.enclosure.url, url)
-                : "") ||
-              existingItem.coverImage;
-          }
-          const updatedItem: FeedItem = {
+      if (existingItem) {
+        let coverImage = existingItem.coverImage;
+        if (isPodcast) {
+          coverImage =
+            this.extractPodcastCoverImage(item, parsed.image, url) ||
+            existingItem.coverImage;
+        } else {
+          coverImage =
+            this.extractCoverImage(
+              item.content || item.description || "",
+              url,
+            ) ||
+            this.convertToAbsoluteUrl(
+              item.itunes?.image?.href || item.image?.url || "",
+              url,
+            ) ||
+            (item.enclosure?.type?.startsWith("image/")
+              ? this.convertToAbsoluteUrl(item.enclosure.url, url)
+              : "") ||
+            existingItem.coverImage;
+        }
+        const updatedItem: FeedItem = {
           ...existingItem,
           guid: itemGuid,
           link:
@@ -2916,15 +3051,13 @@ export class FeedParser {
           summary:
             this.extractSummary(item.content || item.description || "") ||
             existingItem.summary,
-            image:
-              this.convertToAbsoluteUrl(
-                item.itunes?.image?.href ||
-                  item.image?.url ||
-                  "",
-                url,
-              ) ||
-              (item.enclosure?.type?.startsWith("image/")
-                ? this.convertToAbsoluteUrl(item.enclosure.url, url)
+          image:
+            this.convertToAbsoluteUrl(
+              item.itunes?.image?.href || item.image?.url || "",
+              url,
+            ) ||
+            (item.enclosure?.type?.startsWith("image/")
+              ? this.convertToAbsoluteUrl(item.enclosure.url, url)
               : "") ||
             existingItem.image,
           duration: item.itunes?.duration || existingItem.duration,
@@ -2940,12 +3073,14 @@ export class FeedParser {
           enclosure: enclosure ? enclosure : existingItem.enclosure,
           ieee: item.ieee || existingItem.ieee,
           audioUrl: audioUrl ? audioUrl : existingItem.audioUrl,
-          mediaType: isPodcast ? "podcast" : existingItem.mediaType || "article",
+          mediaType: isPodcast
+            ? "podcast"
+            : existingItem.mediaType || "article",
         };
         updatedItems.push(updatedItem);
-        } else {
-          let coverImage = "";
-          if (isPodcast) {
+      } else {
+        let coverImage = "";
+        if (isPodcast) {
           coverImage = this.extractPodcastCoverImage(item, parsed.image, url);
           if (!coverImage) {
             if (parsed.feedItunesImage) {
@@ -2971,26 +3106,24 @@ export class FeedParser {
               url,
             );
           }
-          } else {
-            coverImage =
-              this.extractCoverImage(
-                item.content || item.description || "",
-                url,
-              ) ||
-              this.convertToAbsoluteUrl(
-                item.itunes?.image?.href || item.image?.url || "",
-                url,
-              ) ||
-              (item.enclosure?.type?.startsWith("image/")
-                ? this.convertToAbsoluteUrl(item.enclosure.url, url)
-                : "");
-          }
-          let image = this.convertToAbsoluteUrl(
-            item.itunes?.image?.href ||
-              item.image?.url ||
-              "",
-            url,
-          );
+        } else {
+          coverImage =
+            this.extractCoverImage(
+              item.content || item.description || "",
+              url,
+            ) ||
+            this.convertToAbsoluteUrl(
+              item.itunes?.image?.href || item.image?.url || "",
+              url,
+            ) ||
+            (item.enclosure?.type?.startsWith("image/")
+              ? this.convertToAbsoluteUrl(item.enclosure.url, url)
+              : "");
+        }
+        let image = this.convertToAbsoluteUrl(
+          item.itunes?.image?.href || item.image?.url || "",
+          url,
+        );
         if (!image) {
           image = this.extractCoverImage(
             item.content || item.description || "",
@@ -3224,14 +3357,14 @@ export class FeedParserService {
       ieee: item.ieee,
     }));
 
-	    const tempFeed: Feed = {
-	      title: parsed.title || "",
-	      url: url,
-	      siteUrl: resolveAbsoluteHttpUrl(parsed.link, url) || undefined,
-	      items: items,
-	      folder: folder,
-	      lastUpdated: Date.now(),
-	      mediaType: isPodcast ? "podcast" : "article",
+    const tempFeed: Feed = {
+      title: parsed.title || "",
+      url: url,
+      siteUrl: resolveAbsoluteHttpUrl(parsed.link, url) || undefined,
+      items: items,
+      folder: folder,
+      lastUpdated: Date.now(),
+      mediaType: isPodcast ? "podcast" : "article",
       iconUrl:
         parsed.feedItunesImage ||
         parsed.feedImageUrl ||

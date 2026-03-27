@@ -267,7 +267,7 @@ export function createTagsDropdownPortal(
     const colorInput = inlineAddRow.createEl("input", {
       attr: {
         type: "color",
-        value: "#3498db",
+        value: "#8b5cf6",
       },
       cls: "rss-dashboard-tag-inline-color",
     });

@@ -353,8 +353,6 @@
 }
 
 /* Row 3: Viewing filter stats (dashboard multi-filters) */
-.rss-dashboard-viewing-filter-stats-row {
-}
 
 .rss-dashboard-viewing-filter-open-btn {
   --icon-size: 15px;
@@ -816,10 +814,20 @@
   border-color: var(--interactive-accent);
 }
 
-.rss-dashboard-hamburger-button.active {
+.rss-dashboard-hamburger-button.is-menu-open {
   background: var(--interactive-accent);
   color: var(--text-on-accent);
   border-color: var(--interactive-accent);
+}
+
+.rss-dashboard-menu-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 999;
+  background: transparent;
 }
 
 .rss-dashboard-dropdown-menu {
@@ -840,7 +848,7 @@
   margin-top: 8px;
 }
 
-.rss-dashboard-dropdown-menu.active {
+.rss-dashboard-dropdown-menu.is-menu-open {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
@@ -856,6 +864,29 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-mark-all-button.rss-dashboard-mark-read {
+  border-color: rgba(46, 204, 113, 0.3);
+}
+
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-mark-all-button.rss-dashboard-mark-read
+  span.rss-dashboard-mark-all-text {
+  color: var(--text-normal);
+}
+
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-mark-all-button.rss-dashboard-mark-read:hover {
+  background-color: rgba(46, 204, 113, 0.1);
+  border-color: #2ecc71;
+}
+
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-mark-all-button.rss-dashboard-mark-read
+  svg {
+  color: #2ecc71;
 }
 
 .rss-dashboard-dropdown-controls .rss-dashboard-multi-filter-btn,
@@ -994,9 +1025,53 @@
   padding: 0 8px;
 }
 
+.rss-dashboard-desktop-controls .rss-dashboard-select-inner {
+  display: contents;
+}
+
+.rss-dashboard-themed-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--input-radius, 6px);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  padding: 0 8px;
+  height: var(--input-height, 32px);
+  min-width: 80px;
+  transition: all 0.15s ease;
+}
+
+.rss-dashboard-themed-select-trigger:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
+
+.rss-dashboard-themed-select-trigger.active {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
+.rss-dashboard-themed-select-trigger .rss-dashboard-selector-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+}
+
 .rss-dashboard-dropdown-controls .rss-dashboard-select-with-icon {
   position: relative;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-select-inner {
+  position: relative;
   width: 100%;
 }
 
@@ -1010,6 +1085,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 1;
 }
 
 .rss-dashboard-dropdown-controls .rss-dashboard-select-icon svg {
@@ -1025,16 +1101,25 @@
   .rss-dashboard-sort,
 .rss-dashboard-dropdown-controls
   .rss-dashboard-select-with-icon
-  .rss-dashboard-group {
+  .rss-dashboard-group,
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-select-with-icon
+  .rss-dashboard-view-style-select,
+.rss-dashboard-dropdown-controls .rss-dashboard-themed-select-trigger {
   width: 100%;
   height: 42px;
   min-height: 42px;
   padding: 8px 12px 8px 38px;
+  box-sizing: border-box;
   border: 1px solid var(--background-modifier-border);
   border-radius: 10px;
   background: var(--background-secondary);
   color: var(--text-normal);
   font-size: 14px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  color-scheme: inherit;
 }
 
 .rss-dashboard-dropdown-controls
@@ -1045,8 +1130,12 @@
   .rss-dashboard-sort:hover,
 .rss-dashboard-dropdown-controls
   .rss-dashboard-select-with-icon
-  .rss-dashboard-group:hover {
+  .rss-dashboard-group:hover,
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-select-with-icon
+  .rss-dashboard-view-style-select:hover {
   border-color: var(--rss-dashboard-dropdown-accent);
+  background-color: var(--background-modifier-hover);
 }
 
 .rss-dashboard-dropdown-controls
@@ -1057,66 +1146,130 @@
   .rss-dashboard-sort:focus,
 .rss-dashboard-dropdown-controls
   .rss-dashboard-select-with-icon
-  .rss-dashboard-group:focus {
+  .rss-dashboard-group:focus,
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-select-with-icon
+  .rss-dashboard-view-style-select:focus,
+.rss-dashboard-dropdown-controls .rss-dashboard-themed-select-trigger.active {
   border-color: var(--rss-dashboard-dropdown-accent);
+  outline: none;
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-view-toggle {
+.rss-dashboard-dropdown-controls .rss-dashboard-view-style-row {
   display: flex;
+  align-items: center;
   gap: 8px;
+  width: 100%;
+  margin: 8px 0;
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-view-toggle button {
+.rss-dashboard-dropdown-controls .rss-dashboard-view-style-selector {
   flex: 1;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 0 12px;
   border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
   background: var(--background-secondary);
   color: var(--text-normal);
-  font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
+  position: relative;
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-view-toggle button:hover {
+.rss-dashboard-dropdown-controls .rss-dashboard-view-style-selector:hover {
   background: var(--background-modifier-hover);
   border-color: var(--rss-dashboard-dropdown-accent);
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-view-toggle button.active {
-  background: rgba(155, 89, 182, 0.22);
-  color: #f3e8ff;
+.rss-dashboard-dropdown-controls .rss-dashboard-selector-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  --icon-size: 18px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-selector-icon svg {
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-selector-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-selector-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  --icon-size: 14px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-selector-arrow svg {
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-view-refresh-button {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-view-refresh-button:hover {
+  background: var(--background-modifier-hover);
   border-color: var(--rss-dashboard-dropdown-accent);
 }
 
-.theme-light
-  .rss-dashboard-dropdown-controls
-  .rss-dashboard-view-toggle
-  button.active {
-  color: #000 !important;
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-view-refresh-button
+  .rss-dashboard-refresh-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.theme-light
-  .rss-dashboard-dropdown-controls
-  .rss-dashboard-view-toggle
-  button.active
+.rss-dashboard-dropdown-controls
+  .rss-dashboard-view-refresh-button
+  .rss-dashboard-refresh-icon
   svg {
-  color: #000 !important;
+  width: 18px;
+  height: 18px;
+  color: inherit;
 }
 
-body:not(.theme-dark)
-  .rss-dashboard-dropdown-controls
-  .rss-dashboard-view-toggle
-  button.active {
-  color: #000 !important;
+.rss-dashboard-dropdown-controls .rss-dashboard-view-refresh-button:hover svg {
+  color: inherit;
+  animation: rss-dashboard-refresh-spin 0.6s ease-out;
 }
 
-body:not(.theme-dark)
-  .rss-dashboard-dropdown-controls
-  .rss-dashboard-view-toggle
-  button.active
-  svg {
-  color: #000 !important;
+@keyframes rss-dashboard-refresh-hover-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
+
+/* Light mode override - REMOVED: causing black icons on active buttons */
 
 .rss-dashboard-dropdown-controls
   .rss-dashboard-view-toggle

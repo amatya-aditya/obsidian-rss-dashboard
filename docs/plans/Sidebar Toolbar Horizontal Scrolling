@@ -1,0 +1,107 @@
+# Implementation Plan: Sidebar Toolbar Horizontal Scrolling
+
+## Goal
+Enable horizontal scrolling of the sidebar header toolbar icons (`.rss-dashboard-header-icon-row`) via mouse scrollwheel and touch dragging. Currently, it supports scrolling only via trackpad or scrollbar (which is hidden).
+
+## Proposed Changes
+### src/components/sidebar.ts
+The `Sidebar` class manages the `renderHeader` method where the `rss-dashboard-header-icon-row` is created. We will add an `addHorizontalScrollBehavior` utility/method or attach listeners directly in `renderHeader`:
+
+#### [MODIFY] src/components/sidebar.ts
+- Add `wheel` event listener to `.rss-dashboard-header-icon-row` to intercept vertical scrolling (`e.deltaY`) and apply it to `scrollLeft`.
+- Add `mousedown`, `mousemove`, `mouseup`, `mouseleave` listeners to `.rss-dashboard-header-icon-row` for click-and-drag scrolling (touch drag is natively handled by `overflow-x: auto`, but click-and-drag for generic testing / desktop usage is helpful, or maybe they just mean touch. Actually, mobile touch drag works natively with `overflow-x: auto`. We just need to make sure mouse wheel works. Let's add wheel for sure.
+- Wait, the user specifically requested: "allow them to scroll horizontally via mouse scrollwheel or via touch on mobile".
+- Standard `overflow-x: auto; -webkit-overflow-scrolling: touch;` in CSS typically handles touch on mobile. Let's verify `sidebar.css` and `sidebar.ts` for these touch aspects, and add a grab-to-scroll implementation to be safe, plus the mousewheel scroll.
+
+*Details of changes to sidebar.ts:*
+```typescript
+    // In renderHeader, after creating iconRow:
+    
+    // 1. Mouse wheel horizontal scrolling
+    iconRow.addEventListener("wheel", (e: WheelEvent) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        iconRow.scrollLeft += e.deltaY;
+      }
+    }, { passive: false });
+
+    // 2. Touch/Mouse drag scrolling
+    let isDown = false;
+    let startX: number;
+    let scrollLeft: number;
+
+    const startDrag = (e: MouseEvent | TouchEvent) => {
+      isDown = true;
+      iconRow.classList.add("dragging");
+      const clientX = e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+      startX = clientX - iconRow.offsetLeft;
+      scrollLeft = iconRow.scrollLeft;
+    };
+
+    const stopDrag = () => {
+      isDown = false;
+      iconRow.classList.remove("dragging");
+    };
+
+    const drag = (e: MouseEvent | TouchEvent) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const clientX = e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+      const x = clientX - iconRow.offsetLeft;
+      const walk = (x - startX) * 2; // Scroll speed multiplier
+      iconRow.scrollLeft = scrollLeft - walk;
+    };
+
+    iconRow.addEventListener("mousedown", startDrag);
+    iconRow.addEventListener("mouseleave", stopDrag);
+    iconRow.addEventListener("mouseup", stopDrag);
+    iconRow.addEventListener("mousemove", drag);
+    
+    // Check if touch needs explicit handling or if native is enough
+    iconRow.addEventListener("touchstart", startDrag, { passive: true });
+    iconRow.addEventListener("touchend", stopDrag);
+    iconRow.addEventListener("touchcancel", stopDrag);
+    iconRow.addEventListener("touchmove", drag, { passive: false });
+```
+Note: If we add click-to-drag, we need to prevent `click` events from firing when the user was just dragging. We can check if a drag distance was greater than a threshold and call `e.stopPropagation()` in a capture-phase click listener, or simply let `overflow-x: auto` handle touch natively, and only implement wheel. Given the request includes "via touch on mobile", we should ensure touch drag doesn't accidentally trigger clicks.
+
+Let's refine the drag logic to prevent clicks:
+```typescript
+    let isDragging = false;
+    // ... in drag:
+    if (Math.abs(walk) > 5) isDragging = true;
+
+    // Add a capture click listener to block clicks if we were dragging:
+    iconRow.addEventListener("click", (e) => {
+       if (isDragging) {
+         e.preventDefault();
+         e.stopPropagation();
+         isDragging = false;
+       }
+    }, { capture: true });
+```
+
+### src/styles/sidebar.css
+#### [MODIFY] src/styles/sidebar.css
+- Ensure `.rss-dashboard-header-icon-row` has `touch-action: pan-x;` (or similar) or disable `user-select` when dragging.
+- Add `.rss-dashboard-header-icon-row.dragging` class to change cursor to `grabbing` and disable text selection:
+```css
+.rss-dashboard-header-icon-row.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+.rss-dashboard-header-icon-row.dragging .clickable-icon {
+  pointer-events: none; /* Prevent hover states while dragging */
+}
+```
+
+## Verification Plan
+1. **Automated Tests**:
+   - Create/Update a unit test in `test_files/unit/sidebar.test.ts` (if exists) or create one to simulate `wheel` and `mousedown/move/up` events on the header icon row and assert `scrollLeft` changes. Wait, we are modifying an obsidian plugin. There are existing tests in `test_files/unit/sidebar-sort.test.ts`, maybe a new `sidebar-scrolling.test.ts`?
+2. **Manual Verification**:
+   - Instruct the user to open the plugin sidebar.
+   - Resize the sidebar so not all header icons fit (causing left/right scroll fade indicators to appear).
+   - Use the mouse scroll wheel over the icons and verify it scrolls horizontally.
+   - Click and drag the icon row and verify it scrolls.
+   - Verify that clicking an icon after a drag *does not* activate the icon.
+   - Verify that simply clicking an icon *does* activate it.

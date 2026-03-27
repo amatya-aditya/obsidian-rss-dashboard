@@ -8,12 +8,12 @@ export function computePagination(params: {
   startIdx: number;
   endIdx: number;
 } {
-  const totalItems = Number.isFinite(params.totalItems)
-    ? Math.max(0, params.totalItems)
+  const totalItems = Number.isFinite(Number(params.totalItems))
+    ? Math.max(0, Number(params.totalItems))
     : 0;
-  const pageSize = params.pageSize;
-  const requestedPage = Number.isFinite(params.requestedPage)
-    ? params.requestedPage
+  const pageSize = Number(params.pageSize);
+  const requestedPage = Number.isFinite(Number(params.requestedPage))
+    ? Number(params.requestedPage)
     : 1;
 
   if (!Number.isFinite(pageSize) || pageSize <= 0) {
@@ -37,12 +37,12 @@ export function computeResultsRange(params: {
   pageSize: number;
   currentPage: number;
 }): { start: number; end: number } {
-  const totalItems = Number.isFinite(params.totalItems)
-    ? Math.max(0, params.totalItems)
+  const totalItems = Number.isFinite(Number(params.totalItems))
+    ? Math.max(0, Number(params.totalItems))
     : 0;
-  const pageSize = params.pageSize;
-  const currentPage = Number.isFinite(params.currentPage)
-    ? Math.max(1, params.currentPage)
+  const pageSize = Number(params.pageSize);
+  const currentPage = Number.isFinite(Number(params.currentPage))
+    ? Math.max(1, Number(params.currentPage))
     : 1;
 
   if (!Number.isFinite(pageSize) || pageSize <= 0) {

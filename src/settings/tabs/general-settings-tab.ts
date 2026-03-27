@@ -42,14 +42,15 @@ export function renderGeneralSettingsTab(
 ): void {
   new Setting(containerEl)
     .setName("View style")
-    .setDesc("Choose between list and card view for articles")
+    .setDesc("Choose between list, card, and feed view for articles")
     .addDropdown((dropdown) =>
       dropdown
         .addOption("list", "List view")
         .addOption("card", "Card view")
+        .addOption("feed", "Feed view")
         .setValue(plugin.settings.viewStyle)
         .onChange(async (value: string) => {
-          plugin.settings.viewStyle = value as "list" | "card";
+          plugin.settings.viewStyle = value as "list" | "card" | "feed";
           await plugin.saveSettings();
           const view = await plugin.getActiveDashboardView();
           if (view) {
