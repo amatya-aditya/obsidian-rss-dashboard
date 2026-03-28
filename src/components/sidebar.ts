@@ -2179,10 +2179,6 @@ export class Sidebar {
       );
     };
 
-    // Track whether we've passed the last nav icon so we can inject a divider
-    let seenNavIcon = false;
-    let navDividerAdded = false;
-
     for (const id of iconOrder) {
       const iconConfig = getIconById(id);
       if (!iconConfig) continue;
@@ -2190,33 +2186,15 @@ export class Sidebar {
       const hideKey = iconConfig.settingKey;
       if (display[hideKey]) continue;
 
-      // Inject a visual divider once, between nav icons and action icons
-      if (!navDividerAdded && seenNavIcon && !iconConfig.isNav) {
-        const divider = iconRow.createDiv({ cls: "rss-nav-divider" });
-        iconRow.appendChild(divider);
-        navDividerAdded = true;
-      }
-      if (iconConfig.isNav) seenNavIcon = true;
-
       let btn: HTMLElement;
 
       switch (id) {
-        case "dashboard": {
-          const action = () => {
-            if (this.callbacks.onActivateDashboard) {
-              this.callbacks.onActivateDashboard();
-            } else {
-              void this.plugin.activateView();
-            }
-          };
-          this.iconActions.set("dashboard", action);
-          btn = createToolbarButton(iconConfig, action);
-          btn.addClass(
-            "rss-dashboard-nav-button",
-            "rss-dashboard-nav-button--icon",
-            "active",
-          );
-          break;
+        case "divider": {
+          // Render the divider as a separate element based on iconOrder position
+          const divider = iconRow.createDiv({ cls: "rss-nav-divider" });
+          iconRow.appendChild(divider);
+          this.iconBtnEls.set(id, divider);
+          continue;
         }
 
         case "discover": {
@@ -2229,10 +2207,7 @@ export class Sidebar {
           };
           this.iconActions.set("discover", action);
           btn = createToolbarButton(iconConfig, action);
-          btn.addClass(
-            "rss-dashboard-nav-button",
-            "rss-dashboard-nav-button--icon",
-          );
+          btn.addClass("clickable-icon");
           break;
         }
 

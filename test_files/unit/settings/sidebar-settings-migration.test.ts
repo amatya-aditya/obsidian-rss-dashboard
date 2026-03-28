@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { migrateDisplaySettings } from "../../../src/utils/settings-migration";
 
 const CANONICAL_ICON_ORDER = [
-  "dashboard",
   "discover",
+  "divider",
   "addFeed",
   "manageFeeds",
   "search",
@@ -15,8 +15,8 @@ const CANONICAL_ICON_ORDER = [
 ];
 
 const ICON_HIDE_FIELDS = [
-  "hideIconDashboard",
   "hideIconDiscover",
+  "hideIconDivider",
   "hideIconAddFeed",
   "hideIconManageFeeds",
   "hideIconSearch",
@@ -45,11 +45,9 @@ describe("migrateDisplaySettings()", () => {
 
     it("existing false values are preserved", () => {
       const display: Record<string, unknown> = {
-        hideIconDashboard: false,
         hideIconSort: false,
       };
       migrateDisplaySettings(display);
-      expect(display.hideIconDashboard).toBe(false);
       expect(display.hideIconSort).toBe(false);
     });
 
@@ -65,16 +63,14 @@ describe("migrateDisplaySettings()", () => {
 
     it("partial presence: missing fields get false, present fields preserved", () => {
       const display: Record<string, unknown> = {
-        hideIconDashboard: true,
         hideIconDiscover: false,
         // rest are missing
       };
       migrateDisplaySettings(display);
-      expect(display.hideIconDashboard).toBe(true);
       expect(display.hideIconDiscover).toBe(false);
       // All others should now be false
       for (const field of ICON_HIDE_FIELDS) {
-        if (field !== "hideIconDashboard" && field !== "hideIconDiscover") {
+        if (field !== "hideIconDiscover") {
           expect(display[field], `${field} should default to false`).toBe(
             false,
           );
@@ -99,7 +95,6 @@ describe("migrateDisplaySettings()", () => {
     it("iconOrder present with custom order → missing icons appended", () => {
       const customOrder = [
         "discover",
-        "dashboard",
         "addFeed",
         "settings",
         "search",
@@ -110,8 +105,8 @@ describe("migrateDisplaySettings()", () => {
       ];
       const display: Record<string, unknown> = { iconOrder: [...customOrder] };
       migrateDisplaySettings(display);
-      // "tags" should be appended
-      expect(display.iconOrder).toEqual([...customOrder, "tags"]);
+      // "tags" and "divider" should be appended
+      expect(display.iconOrder).toEqual([...customOrder, "divider", "tags"]);
     });
 
     it("default iconOrder has exactly 10 entries", () => {
@@ -130,10 +125,10 @@ describe("migrateDisplaySettings()", () => {
   });
 
   describe("edge cases", () => {
-    it("completely empty object → all 10 new fields initialized", () => {
+    it("completely empty object → all 11 new fields initialized", () => {
       const display: Record<string, unknown> = {};
       migrateDisplaySettings(display);
-      // 9 hide booleans + hideToolbarEntirely + iconOrder = 11 new fields
+      // 10 hide booleans + hideToolbarEntirely + iconOrder = 12 new fields
       for (const field of ICON_HIDE_FIELDS) {
         expect(display[field]).toBeDefined();
       }
@@ -153,7 +148,6 @@ describe("migrateDisplaySettings()", () => {
 
     it("iconOrder present but missing 'settings' ID → appended", () => {
       const orderWithoutSettings = [
-        "dashboard",
         "discover",
         "addFeed",
         "manageFeeds",
@@ -167,8 +161,12 @@ describe("migrateDisplaySettings()", () => {
         iconOrder: [...orderWithoutSettings],
       };
       migrateDisplaySettings(display);
-      // "settings" should be appended
-      expect(display.iconOrder).toEqual([...orderWithoutSettings, "settings"]);
+      // "settings" and "divider" should be appended
+      expect(display.iconOrder).toEqual([
+        ...orderWithoutSettings,
+        "divider",
+        "settings",
+      ]);
     });
   });
 });

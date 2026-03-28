@@ -136,6 +136,7 @@ export async function robustFetch(
     const decoder = new TextDecoder(charset);
     return decoder.decode(response.arrayBuffer);
   } catch (e) {
+    void e;
     // [RSS Dashboard] Failed to decode with charset ${charset}, falling back to utf-8
     // Fallback to utf-8 if specified charset fails
     const decoder = new TextDecoder("utf-8");

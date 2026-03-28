@@ -1,3 +1,15 @@
+## [Unreleased]
+
+### New Features
+
+- **Sidebar Toolbar Divider**:
+  - Decoupled the vertical divider from the discover icon - now a standalone, configurable element.
+  - Added "Divider" to the icon visibility settings in Display tab.
+  - The divider can now be enabled/disabled and reordered among other icons via drag-and-drop.
+  - Default position is between Discover and Add Feed icons.
+
+---
+
 ## [2.2.0-beta.9] - March 27, 2026
 
 ### New Features

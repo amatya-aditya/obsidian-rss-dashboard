@@ -6,8 +6,8 @@ import {
 } from "../../../src/utils/sidebar-icon-registry";
 
 const ALL_EXPECTED_IDS = [
-  "dashboard",
   "discover",
+  "divider",
   "addFeed",
   "manageFeeds",
   "search",
@@ -25,7 +25,7 @@ describe("SIDEBAR_ICONS registry", () => {
     }
   });
 
-  it("has exactly 9 entries", () => {
+  it("has exactly 10 entries", () => {
     expect(SIDEBAR_ICONS).toHaveLength(10);
   });
 
@@ -47,10 +47,8 @@ describe("SIDEBAR_ICONS registry", () => {
     }
   });
 
-  it("dashboard and discover have neverCollapses: true", () => {
-    const dashboard = SIDEBAR_ICONS.find((i) => i.id === "dashboard");
+  it("discover has neverCollapses: true", () => {
     const discover = SIDEBAR_ICONS.find((i) => i.id === "discover");
-    expect(dashboard?.neverCollapses).toBe(true);
     expect(discover?.neverCollapses).toBe(true);
   });
 
@@ -63,7 +61,7 @@ describe("SIDEBAR_ICONS registry", () => {
 });
 
 describe("SIDEBAR_ICON_IDS", () => {
-  it("contains exactly 9 IDs", () => {
+  it("contains exactly 10 IDs", () => {
     expect(SIDEBAR_ICON_IDS).toHaveLength(10);
   });
 

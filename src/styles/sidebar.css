@@ -792,8 +792,20 @@
   cursor: pointer;
   transition: background-color 0.2s ease;
   padding: 4px;
-  border-bottom: solid 1px #333;
-  border-top: solid 1px #333;
+  border-bottom: solid 1px;
+  border-top: solid 1px;
+}
+
+/* Light mode: reduce opacity */
+body.theme-light .rss-dashboard-all-feeds-button {
+  border-bottom-color: #33333380;
+  border-top-color: #33333380;
+}
+
+/* Dark mode */
+body.theme-dark .rss-dashboard-all-feeds-button {
+  border-bottom-color: var(--text-muted);
+  border-top-color: var(--text-muted);
 }
 
 .rss-dashboard-all-feeds-button:hover {
@@ -811,7 +823,7 @@
   align-items: center;
   justify-content: center;
   margin-right: 8px;
-  color: var(--text-muted);
+  color: var(--rss-unread-badge-all-feeds-color);
 }
 
 .rss-dashboard-all-feeds-button.active .rss-dashboard-all-feeds-icon {
@@ -834,7 +846,6 @@
 
 .rss-dashboard-all-feeds-button.active .rss-dashboard-all-feeds-label {
   font-weight: 600;
-  color: var(--text-accent);
 }
 
 .rss-folder-name-modal {

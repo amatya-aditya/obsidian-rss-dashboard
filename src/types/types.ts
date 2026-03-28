@@ -205,6 +205,7 @@ export interface DisplaySettings {
   hideIconSort: boolean;
   hideIconCollapseAll: boolean;
   hideIconSettings: boolean;
+  hideIconDivider: boolean;
   hideToolbarEntirely: boolean;
   iconOrder: string[];
 }
@@ -216,6 +217,7 @@ export interface SidebarIconConfig {
   settingKey: keyof DisplaySettings;
   neverCollapses?: boolean;
   isNav?: boolean;
+  isDivider?: boolean;
 }
 
 export type ReaderTextAlign = "justify" | "left";
@@ -431,19 +433,19 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     fontFamily: "default",
     paragraphSpacing: "default",
   },
-	  media: {
-	    defaultYouTubeFolder: "Videos",
-	    defaultYouTubeTag: "youtube",
-	    defaultPodcastFolder: "Podcast",
-	    defaultPodcastTag: "podcast",
-	    defaultRssFolder: "RSS",
-	    defaultRssTag: "RSS",
-	    defaultSmallwebFolder: "Smallweb",
-	    defaultSmallwebTag: "smallweb",
-	    openInSplitView: true,
-	    podcastTheme: "obsidian",
-	    enableApplePodcastsOpen: false,
-	  },
+  media: {
+    defaultYouTubeFolder: "Videos",
+    defaultYouTubeTag: "youtube",
+    defaultPodcastFolder: "Podcast",
+    defaultPodcastTag: "podcast",
+    defaultRssFolder: "RSS",
+    defaultRssTag: "RSS",
+    defaultSmallwebFolder: "Smallweb",
+    defaultSmallwebTag: "smallweb",
+    openInSplitView: true,
+    podcastTheme: "obsidian",
+    enableApplePodcastsOpen: false,
+  },
   articleSaving: {
     addSavedTag: true,
     defaultFolder: "RSS articles/",
@@ -518,10 +520,11 @@ guid: "{{guid}}"
     hideIconSort: false,
     hideIconCollapseAll: false,
     hideIconSettings: false,
+    hideIconDivider: false,
     hideToolbarEntirely: false,
     iconOrder: [
-      "dashboard",
       "discover",
+      "divider",
       "addFeed",
       "manageFeeds",
       "search",

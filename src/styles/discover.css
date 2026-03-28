@@ -301,6 +301,43 @@
   /* border-bottom: 1px solid var(--background-modifier-border); */
 }
 
+/* Return Home button in Discover view */
+.rss-discover-return-home {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--background-modifier-hover);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  color: var(--text-normal);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.rss-discover-return-home:hover {
+  background: var(--background-modifier-active);
+  border-color: var(--interactive-accent);
+  color: var(--text-accent);
+}
+
+.rss-discover-return-home:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.rss-discover-return-home svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.rss-discover-return-home-text {
+  white-space: nowrap;
+}
+
 .rss-discover-filter-header {
   display: flex;
   justify-content: space-between;

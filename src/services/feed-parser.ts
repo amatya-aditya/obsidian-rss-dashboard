@@ -166,6 +166,7 @@ async function resolvePocketCastsUrl(
               `[RSS Dashboard] iTunes API returned no feedUrl for title: ${decodedTitle}`,
             );
           } catch (itunesErr) {
+            void itunesErr;
             // [RSS Dashboard] iTunes Search API fallback failed (expected during proxy fallback chain)
           }
         }
@@ -770,6 +771,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
 
       throw new Error("Not a valid RSS/Atom feed");
     } catch (error) {
+      void error;
       // [RSS Dashboard] direct fetch failed for ${targetUrl}, trying AllOrigins proxy...
 
       try {
@@ -821,6 +823,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
               throw new Error("Not a valid RSS/Atom feed");
             }
           } catch (e) {
+            void e;
             // [RSS dashboard] codetabs proxy failed (expected - falls through to next proxy)
           }
 
@@ -837,6 +840,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
               throw new Error("Not a valid RSS/Atom feed");
             }
           } catch (e) {
+            void e;
             // [RSS dashboard] isomorphic-git proxy failed (expected - falls through to next proxy)
           }
 
@@ -855,6 +859,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
               throw new Error("Not a valid RSS/Atom feed");
             }
           } catch (e) {
+            void e;
             // [RSS dashboard] thingproxy failed (expected - falls through to next proxy)
           }
 
@@ -881,6 +886,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
               }
             }
           } catch (e) {
+            void e;
             // [RSS dashboard] discoverFeedUrl proxy fetch failed (expected - falls through to next proxy)
           }
         }
