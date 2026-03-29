@@ -19,8 +19,8 @@ This document serves as the working plan for improving test coverage across the 
 | Metric                    | Value     |
 | ------------------------- | --------- |
 | Test Framework            | Vitest 4.1.2 + jsdom |
-| Test Files                | 64 total  |
-| Passing Tests             | 469 (100%) |
+| Test Files                | 65 total  |
+| Passing Tests             | 472 (100%) |
 | Failing Tests             | 0 (0%)    |
 | Line Coverage (global)    | 28.05%    |
 | Branch Coverage (global)  | 24.94%    |
@@ -172,13 +172,19 @@ describe("verifySavedArticle / fixSavedFilePaths")
 
 ### P0-3: Feed Fetch → Parse → Render Pipeline
 
-**Target:** Integration across `feed-parser.ts` → `dashboard-view.ts` → `article-list.ts`  
-**Current Coverage:** 0% (no integration tests)  
+**Target:** Integration across `main.ts` (refresh) → `feed-parser.ts` → settings persistence → view refresh  
+**Current Coverage:** Not represented in v8 totals (tests exercise `main.ts`, but `main.ts` is outside `vitest.config.mjs` coverage `include`)  
 **Target Coverage:** 70% for pipeline  
 **Risk:** Critical — core user workflow
 **Handoff:** [`docs/development/p0-3-handoff.md`](docs/development/p0-3-handoff.md)
 
-**Scenarios to Cover:**
+**Work Completed (2026-03-29):**
+- Added integration-style `refreshFeeds()` pipeline tests: `test_files/unit/main/feed-refresh-pipeline.test.ts`
+- Covered: refresh-all, refresh-selected, and error/Notice behavior
+- Verified: `npm run test:unit` is green (65 files / 472 tests)
+- Coverage totals unchanged (still Lines 28.05% | Branches 24.94% | Functions 21.37%) because `main.ts` is excluded from coverage collection
+
+**Scenarios to Cover (remaining / stretch):**
 
 ```typescript
 describe("Feed Refresh Pipeline")
@@ -195,8 +201,9 @@ describe("Article Save Pipeline")
   └── should update saved article count
 ```
 
-**Est. New Test Files:** 2  
-**Est. New Tests:** 15-20
+**Delivered (refreshFeeds):** 1 test file (`test_files/unit/main/feed-refresh-pipeline.test.ts`)  
+**Delivered Tests:** 3  
+**Remaining (stretch):** +1 test file, +12-17 tests (deeper parser/view coverage + article save pipeline)
 
 ---
 
@@ -559,7 +566,7 @@ Week 11-12:
 | --------------- | -------- | -------------- | -------------- | ------------ |
 | Line Coverage   | 28%      | 55%            | 62%            | 65%          |
 | Branch Coverage | 25%      | 45%            | 52%            | 55%          |
-| Test Count      | 469      | 500            | 650            | 750          |
+| Test Count      | 472      | 500            | 650            | 750          |
 | P0 Tests        | 0        | 80             | 100            | 100          |
 | P1 Tests        | 0        | 0              | 60             | 70           |
 | Failing Tests   | 0        | 0              | 0              | 0            |
@@ -569,21 +576,29 @@ Week 11-12:
 ## Notes
 
 - Related to original audit: [`docs/development/coverage-audit-report.md`](docs/development/coverage-audit-report.md)
-- Current test run results (2026-03-29): 64 passing test files, 469 passing tests, 0 failing
+- Current test run results (2026-03-29): 65 passing test files, 472 passing tests, 0 failing
 - `npm run test:unit -- --coverage` currently fails due to global thresholds (Lines 40% | Branches 30% | Functions 50%) being higher than current global coverage (Lines 28.05% | Branches 24.94% | Functions 21.37%)
-- P0-1 lifecycle tests exist, but `main.ts` is currently outside `vitest.config.mjs` coverage `include` (`src/**/*.ts`), so main coverage is not represented in coverage totals yet.
+- P0-1 lifecycle tests and P0-3 refresh pipeline tests both exercise `main.ts`, but `main.ts` is currently outside `vitest.config.mjs` coverage `include` (`src/**/*.ts`), so these tests do not move the reported coverage totals yet.
 
 ## Next Steps
 
-### Recommended: Continue with P0-3 (Feed Fetch → Parse → Render Pipeline)
+### Recommended: Continue with P0-4 (Folder Selector Popup)
 
-Now that P0-1 is complete and P0-2 has a baseline suite, the recommended next step is P0-3: Feed pipeline integration tests. This is the highest-leverage next step because:
+Now that P0-3 has baseline coverage for `refreshFeeds()`, the recommended next step is P0-4: `src/components/folder-selector-popup.ts` unit tests. This is the highest-leverage next step because:
 
-1. **Core workflow risk** — refresh is the top-level user action (fetch → parse → merge → persist → refresh view)
-2. **Broad coverage gains** — exercises `main.ts` + parser + settings persistence paths
-3. **Unblocks CI work** — makes it realistic to raise coverage toward (or adjust) the current CI threshold gate
+1. **User-impact risk** — wrong folder selection breaks saves silently
+2. **Contained surface area** — DOM-heavy but isolated and very testable in jsdom
+3. **Direct coverage gain** — lives under `src/**` so it immediately improves v8 totals
 
-Handoff doc: [`docs/development/p0-3-handoff.md`](docs/development/p0-3-handoff.md)
+**Handoff (P0-4):**
+- Suggested test file: `test_files/unit/components/folder-selector-popup.test.ts`
+- Test harness: call `installObsidianDomPolyfills()` (see `test_files/unit/test-dom-polyfills.ts`) before creating the popup
+- Suggested scenarios:
+  - positions below/above anchor based on viewport (mock `getBoundingClientRect`, `window.innerWidth/innerHeight`)
+  - filters list on input typing and toggles clear button visibility
+  - keyboard navigation (ArrowUp/ArrowDown wraps; Enter selects; Escape/Tab closes)
+  - create-new-folder row behavior (non-listOnly) and sanitize rules (forbidden chars + trim dots/spaces)
+  - click-outside closes and calls `onClose`
 
 ### Alternative: Unblock CI Coverage Gate (without adding new tests)
 

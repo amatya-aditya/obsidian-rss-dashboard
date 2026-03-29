@@ -24,6 +24,12 @@
     "strict": true
   },
   "include": [
-    "**/*.ts"
+    "main.ts",
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "test_files/**",
+    "coverage/**",
+    "node_modules/**"
   ]
 }
