@@ -130,6 +130,12 @@ export function installObsidianDomPolyfills(): void {
       return el;
     };
   }
+
+  if (typeof Element.prototype.scrollIntoView !== "function") {
+    Element.prototype.scrollIntoView = function scrollIntoView(): void {
+      // no-op for jsdom
+    };
+  }
 }
 
 export function installMediaElementPolyfills(): void {

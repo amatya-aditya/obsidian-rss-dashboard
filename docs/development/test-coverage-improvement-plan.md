@@ -19,12 +19,12 @@ This document serves as the working plan for improving test coverage across the 
 | Metric                    | Value     |
 | ------------------------- | --------- |
 | Test Framework            | Vitest 4.1.2 + jsdom |
-| Test Files                | 65 total  |
-| Passing Tests             | 472 (100%) |
+| Test Files                | 67 total  |
+| Passing Tests             | 493 (100%) |
 | Failing Tests             | 0 (0%)    |
-| Line Coverage (global)    | 28.05%    |
-| Branch Coverage (global)  | 24.94%    |
-| Function Coverage (global)| 21.37%    |
+| Line Coverage (global)    | 29.48%    |
+| Branch Coverage (global)  | 26.19%    |
+| Function Coverage (global)| 22.65%    |
 
 ### Target State (Q3 2026)
 
@@ -181,8 +181,8 @@ describe("verifySavedArticle / fixSavedFilePaths")
 **Work Completed (2026-03-29):**
 - Added integration-style `refreshFeeds()` pipeline tests: `test_files/unit/main/feed-refresh-pipeline.test.ts`
 - Covered: refresh-all, refresh-selected, and error/Notice behavior
-- Verified: `npm run test:unit` is green (65 files / 472 tests)
-- Coverage totals unchanged (still Lines 28.05% | Branches 24.94% | Functions 21.37%) because `main.ts` is excluded from coverage collection
+- Verified: `npm run test:unit` is green (66 files / 481 tests)
+- Coverage totals unchanged from these tests (still Lines 29.20% | Branches 25.75% | Functions 22.45%) because `main.ts` is excluded from coverage collection
 
 **Scenarios to Cover (remaining / stretch):**
 
@@ -210,9 +210,14 @@ describe("Article Save Pipeline")
 ### P0-4: Folder Selector Popup
 
 **Target:** `src/components/folder-selector-popup.ts`  
-**Current Coverage:** 0%  
+**Current Coverage:** ~90% lines (v8)  
 **Target Coverage:** 85%  
 **Risk:** Critical — saves articles to wrong location
+
+**Work Completed (2026-03-29):**
+- Added unit tests: `test_files/unit/components/folder-selector-popup.test.ts`
+- Added jsdom polyfill: `Element.prototype.scrollIntoView` in `test_files/unit/test-dom-polyfills.ts` (shared test utility)
+- Verified: `npm run test:unit` is green (66 files / 481 tests)
 
 **Scenarios to Cover:**
 
@@ -233,9 +238,14 @@ describe("FolderSelectorPopup")
 ### P0-5: Keyword Filter Service
 
 **Target:** `src/services/keyword-filter-service.ts`  
-**Current Coverage:** 0%  
+**Current Coverage:** ~96% lines (v8)  
 **Target Coverage:** 85%  
 **Risk:** Critical — silent data exclusion
+
+**Work Completed (2026-03-29):**
+- Added unit tests: `test_files/unit/services/keyword-filter-service.test.ts`
+- Covered: active-rule filtering, include AND/OR logic, exclude precedence, exact vs partial matching, applyTo* fallbacks, global bypass, and feed override behavior
+- Verified: `npm run test:unit` is green (67 files / 493 tests)
 
 **Scenarios to Cover:**
 
@@ -566,7 +576,7 @@ Week 11-12:
 | --------------- | -------- | -------------- | -------------- | ------------ |
 | Line Coverage   | 28%      | 55%            | 62%            | 65%          |
 | Branch Coverage | 25%      | 45%            | 52%            | 55%          |
-| Test Count      | 472      | 500            | 650            | 750          |
+| Test Count      | 493      | 500            | 650            | 750          |
 | P0 Tests        | 0        | 80             | 100            | 100          |
 | P1 Tests        | 0        | 0              | 60             | 70           |
 | Failing Tests   | 0        | 0              | 0              | 0            |
@@ -576,29 +586,24 @@ Week 11-12:
 ## Notes
 
 - Related to original audit: [`docs/development/coverage-audit-report.md`](docs/development/coverage-audit-report.md)
-- Current test run results (2026-03-29): 65 passing test files, 472 passing tests, 0 failing
-- `npm run test:unit -- --coverage` currently fails due to global thresholds (Lines 40% | Branches 30% | Functions 50%) being higher than current global coverage (Lines 28.05% | Branches 24.94% | Functions 21.37%)
+- Current test run results (2026-03-29): 67 passing test files, 493 passing tests, 0 failing
+- `npm run test:unit -- --coverage` currently fails due to global thresholds (Lines 40% | Branches 30% | Functions 50%) being higher than current global coverage (Lines 29.48% | Branches 26.19% | Functions 22.65%)
 - P0-1 lifecycle tests and P0-3 refresh pipeline tests both exercise `main.ts`, but `main.ts` is currently outside `vitest.config.mjs` coverage `include` (`src/**/*.ts`), so these tests do not move the reported coverage totals yet.
 
 ## Next Steps
 
-### Recommended: Continue with P0-4 (Folder Selector Popup)
+### Recommended: Continue with P1-1 (OPML Manager)
 
-Now that P0-3 has baseline coverage for `refreshFeeds()`, the recommended next step is P0-4: `src/components/folder-selector-popup.ts` unit tests. This is the highest-leverage next step because:
+Now that P0-5 is complete, the recommended next step is P1-1: `src/services/opml-manager.ts` unit tests. This is the highest-leverage next step because:
 
-1. **User-impact risk** — wrong folder selection breaks saves silently
-2. **Contained surface area** — DOM-heavy but isolated and very testable in jsdom
-3. **Direct coverage gain** — lives under `src/**` so it immediately improves v8 totals
+1. **Core data portability** — import/export is a common recovery path for users
+2. **Mostly pure logic** — quick coverage gains without heavy DOM stubbing
+3. **Stability** — reduces risk around backups and migrations
 
-**Handoff (P0-4):**
-- Suggested test file: `test_files/unit/components/folder-selector-popup.test.ts`
-- Test harness: call `installObsidianDomPolyfills()` (see `test_files/unit/test-dom-polyfills.ts`) before creating the popup
-- Suggested scenarios:
-  - positions below/above anchor based on viewport (mock `getBoundingClientRect`, `window.innerWidth/innerHeight`)
-  - filters list on input typing and toggles clear button visibility
-  - keyboard navigation (ArrowUp/ArrowDown wraps; Enter selects; Escape/Tab closes)
-  - create-new-folder row behavior (non-listOnly) and sanitize rules (forbidden chars + trim dots/spaces)
-  - click-outside closes and calls `onClose`
+**Handoff (P1-1):**
+- Suggested test file: `test_files/unit/services/opml-manager.test.ts`
+- Cover `OpmlManager.generateOpml()` for nested folders, empty feeds, and stable ordering
+- Cover OPML parse paths (valid/invalid XML) and metadata extraction
 
 ### Alternative: Unblock CI Coverage Gate (without adding new tests)
 
