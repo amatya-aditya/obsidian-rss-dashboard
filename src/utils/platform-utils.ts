@@ -210,7 +210,7 @@ export function attachInputClearButton(
 
   const clearButton = useButton
     ? wrapper.createEl("button", {
-        cls: `${buttonClass} ${hiddenClass}`,
+        cls: buttonClass,
         attr: {
           type: "button",
           "aria-label": "Clear search",

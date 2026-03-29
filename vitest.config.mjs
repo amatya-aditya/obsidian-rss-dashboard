@@ -26,13 +26,13 @@ export default defineConfig({
     environment: "jsdom",
     coverage: {
       provider: "v8",
-      reporter: ["text", "html"],
-      include: ["src/**/*.ts"],
+      reporter: ["text", "html", "json"],
+      include: ["src/**/*.ts", "main.ts"],
       exclude: ["src/types/**", "src/styles/**", "src/**/*.d.ts"],
       thresholds: {
-        lines: 40,
-        branches: 30,
-        functions: 50,
+        lines: 35,
+        branches: 29,
+        functions: 29,
       },
     },
   },

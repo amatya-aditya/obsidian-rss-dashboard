@@ -2,10 +2,12 @@
 
 ## Status
 
-P1-6 is complete (delivered on 2026-03-29).
+P2-1 is complete (delivered on 2026-03-29).
 
-- Added: `test_files/unit/components/discover-sidebar.test.ts`
-- Verified: `npm run test:unit` is green (73 files / 537 tests)
+- Added: `test_files/unit/utils/platform-utils.test.ts`
+- Updated: `src/utils/platform-utils.ts` (`useButtonElement` clear button now respects initial input value visibility)
+- Verified: `npm run test:unit` is green (74 files / 550 tests)
+- Next recommended phase: P2-2 Safe HTML tests (`docs/development/p2-2-handoff.md`)
 
 ## Context
 
@@ -64,4 +66,3 @@ Use `installObsidianDomPolyfills()` and simulate DOM events.
 
 - `setIcon(...)` is stubbed to write `el.dataset.icon`; assertions can validate expected icon names (`x`) without snapshots.
 - Prefer direct DOM queries by class names (these are stable CSS contract points for the UI).
-

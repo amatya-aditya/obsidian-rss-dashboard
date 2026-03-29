@@ -960,5 +960,5 @@ it("should exclude articles matching global EXCLUDE rule with 'not' mode", () =>
 
 ---
 
-_Report generated: 2024-03-29_
+_Report generated: 2026-03-29_
 _Plugin: obsidian-rss-dashboard v2.2.0_
