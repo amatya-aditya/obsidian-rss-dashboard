@@ -334,7 +334,8 @@ export default class RssDashboardPlugin extends Plugin {
           this.settings.refreshInterval * 60 * 1000,
         ),
       );
-    } catch {
+    } catch (e) {
+      console.error("[RSS Dashboard] onload initialization failed:", e);
       new Notice("Error initializing RSS dashboard plugin.");
     }
   }

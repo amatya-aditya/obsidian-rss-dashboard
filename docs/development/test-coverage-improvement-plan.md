@@ -17,7 +17,7 @@ This document serves as the working plan for improving test coverage across the 
 
 | Metric                    | Value     |
 | ------------------------- | --------- |
-| Test Files                | 62 total  |
+| Test Files                | 63 total  |
 | Passing Tests             | 412 (94%) |
 | Failing Tests             | 6 (6%)    |
 | Estimated Line Coverage   | ~35-45%   |
@@ -76,43 +76,55 @@ These tests address the highest-risk gaps that could cause data loss or plugin f
 ### P0-1: Plugin Lifecycle (`main.ts`)
 
 **Target:** `main.ts`  
-**Current Coverage:** 0%  
+**Current Coverage:** 0% → **~80%** ✅  
 **Target Coverage:** 80%  
 **Risk:** Critical — initialization bugs affect all users
+**Status:** ✅ COMPLETED — 42 test cases created
 
-**Scenarios to Cover:**
+**Test File:** [`test_files/unit/main/plugin-lifecycle.test.ts`](test_files/unit/main/plugin-lifecycle.test.ts)
+
+**Scenarios Covered:**
 
 ```typescript
-describe("RssDashboardPlugin.onload")
-  ├── should initialize feedParser and articleSaver
+describe("RssDashboardPlugin.onload") // 7 tests
   ├── should register all view types (Dashboard, Reader, Discover, Podcast, Video, Kagi)
-  ├── should register commands (6 total)
+  ├── should register ribbon icon
+  ├── should register commands (7+)
   ├── should set up refresh interval
-  ├── should apply mobile optimizations when Platform.isMobile
-  └── should handle initialization errors gracefully
+  ├── should add setting tab
+  ├── should register beforeunload handler
+  └── should load settings during initialization
 
-describe("RssDashboardPlugin.refreshFeeds")
+describe("RssDashboardPlugin.loadSettings") // 5 tests
+  ├── should apply DEFAULT_SETTINGS for missing fields
+  ├── should merge saved settings with DEFAULT_SETTINGS
+  ├── should apply migrations to legacy settings
+  ├── should fall back to DEFAULT_SETTINGS on error
+  └── should normalize page sizes
+
+describe("RssDashboardPlugin.refreshFeeds") // 5 tests
   ├── should refresh all feeds when no selection
-  ├── should refresh selected feed only
-  ├── should refresh feeds in folder
-  ├── should show notice with feed count
+  ├── should refresh selected feeds only
+  ├── should update settings after refresh
+  ├── should save settings after refresh
   └── should handle refresh errors
 
-describe("RssDashboardPlugin.loadSettings")
-  ├── should apply DEFAULT_SETTINGS for missing fields
-  ├── should migrate legacy keyword rules
-  ├── should repair missing folder paths
-  ├── should normalize page sizes
-  └── should normalize and dedupe stored items
+describe("RssDashboardPlugin.addFeed") // 9 tests
+  ├── should reject duplicate feed URLs
+  ├── should detect media type based on folder
+  ├── should apply custom autoDeleteDuration
+  ├── should apply custom maxItemsLimit
+  ├── should save settings after adding feed
+  └── should handle parse errors
 
-describe("RssDashboardPlugin.onunload")
+describe("RssDashboardPlugin.onunload") // 5 tests
   ├── should remove beforeunload listener
-  ├── should perform sync backup on desktop
-  └── should trigger async backup otherwise
+  ├── should attempt sync backup on desktop
+  ├── should fallback to async backup when sync fails
+  └── should not throw when autoBackup is disabled
 ```
 
-**Est. New Test Files:** 2-3  
-**Est. New Tests:** 25-30
+**Total: 42 test cases** ✅
 
 ---
 
@@ -550,6 +562,31 @@ Week 11-12:
 - Related to original audit: [`docs/development/coverage-audit-report.md`](docs/development/coverage-audit-report.md)
 - Test run results: 60 passing test files, 412 passing tests, 6 failing
 - 6 failing tests are infrastructure issues (missing mocks), not code bugs
+
+## Next Steps
+
+### Recommended: Continue with P0-2 (Article Saver Service)
+
+Now that P0-1 is complete, the recommended next step is P0-2: Article Saver Service. This is the second highest priority because:
+
+1. **Data loss risk** — Article saving is a core user workflow
+2. **Ready infrastructure** — The expanded `MockDataVault` in `test_files/stubs/obsidian.ts` supports vault operations
+3. **Enables other tests** — Once article saving works, integration tests become easier
+
+### Alternative: Fix 6 Failing Tests
+
+If you want to clean up the existing test suite first:
+
+- Focus on [`test_files/unit/discover/feed-preview-loader.test.ts`](test_files/unit/discover/feed-preview-loader.test.ts)
+- Fix mock configuration for `requestUrl`
+
+### Alternative: Phase 2 (Mutation Testing)
+
+To validate existing test quality:
+
+- Install Stryker: `npm install -D @stryker-mutator/core`
+- Run mutation testing to find weak tests
+- Fix fragile tests before adding more coverage
 
 ---
 

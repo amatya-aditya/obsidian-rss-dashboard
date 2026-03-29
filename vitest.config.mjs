@@ -9,6 +9,15 @@ export default defineConfig({
   resolve: {
     alias: {
       obsidian: path.resolve(__dirname, "test_files/stubs/obsidian.ts"),
+      // Map any import of 'main' to the TypeScript source file
+      // This explicitly handles the relative import path used in plugin-lifecycle.test.ts
+      "../../../main": path.resolve(__dirname, "main.ts"),
+      // Also handle simpler relative path patterns
+      "../main": path.resolve(__dirname, "main.ts"),
+      "./main": path.resolve(__dirname, "main.ts"),
+      // As fallback, match any path ending in /main
+      "/main": path.resolve(__dirname, "main.ts"),
+      main: path.resolve(__dirname, "main.ts"),
     },
   },
   test: {

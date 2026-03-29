@@ -17,10 +17,18 @@ export const RequestUrlParam: any = {};
 
 export const Platform = {
   isAndroidApp: false,
+  // Common flags used by plugins
+  isMobile: false,
+  isMobileApp: false,
+  isDesktop: true,
 };
 
 export function setIcon(el: HTMLElement, iconName: string): void {
   el.dataset.icon = iconName;
+}
+
+export function normalizePath(path: string): string {
+  return path;
 }
 
 export function requireApiVersion(): boolean {
@@ -128,10 +136,25 @@ export class MockDataVault {
   private files: Map<string, TFile> = new Map();
   private folders: Map<string, TFolder> = new Map();
   private root: TFolder;
+  private adapterFiles: Map<string, string> = new Map();
+
+  // Mirror Obsidian's `vault.adapter` surface area used by this repo
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  adapter: any;
 
   constructor() {
     this.root = new TFolder("/");
     this.folders.set("/", this.root);
+
+    this.adapter = {
+      getBasePath: () => "/test/vault",
+      getFullPath: (p: string) => p,
+      exists: async (path: string) => this.adapterFiles.has(path),
+      read: async (path: string) => this.adapterFiles.get(path) ?? "",
+      write: async (path: string, content: string) => {
+        this.adapterFiles.set(path, content);
+      },
+    };
   }
 
   async create(path: string, _content: string): Promise<TFile> {
@@ -231,6 +254,73 @@ export class App {
   static createMock(): App {
     return new App();
   }
+}
+
+// =============================================================================
+// Plugin Base Classes
+// =============================================================================
+
+export interface PluginManifest {
+  id: string;
+  name: string;
+  version: string;
+  author?: string;
+  description?: string;
+  dir?: string;
+}
+
+export class Plugin {
+  app: App;
+  manifest: PluginManifest;
+
+  constructor(app: App, manifest: PluginManifest) {
+    this.app = app;
+    this.manifest = manifest;
+  }
+
+  async onload(): Promise<void> {}
+  onunload(): void {}
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  registerView(_type: string, _creator: (leaf: any) => any): void {}
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addCommand(_command: any): void {}
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addRibbonIcon(_icon: string, _title: string, _callback: (...args: any[]) => any): any {
+    return {};
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addSettingTab(_tab: any): void {}
+
+  registerInterval(id: number): number {
+    return id;
+  }
+
+  // Data API (overridden in tests when needed)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async loadData(): Promise<any> {
+    return null;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async saveData(_data: any): Promise<void> {}
+}
+
+export class PluginSettingTab {
+  app: App;
+  plugin: Plugin;
+  containerEl: HTMLElement;
+
+  constructor(app: App, plugin: Plugin) {
+    this.app = app;
+    this.plugin = plugin;
+    this.containerEl = document.createElement("div");
+  }
+
+  display(): void {}
+  hide(): void {}
 }
 
 // =============================================================================
