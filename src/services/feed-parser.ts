@@ -2450,6 +2450,7 @@ export class FeedParser {
 
     const newItems: FeedItem[] = [];
     const updatedItems: FeedItem[] = [];
+    const matchedExistingGuids = new Set<string>();
 
     parsed.items.forEach((item: ParsedItem) => {
       const isAudioEnclosure = item.enclosure?.type?.startsWith("audio/");
@@ -2479,6 +2480,7 @@ export class FeedParser {
       const existingItem = existingItems.get(itemGuid);
 
       if (existingItem) {
+        matchedExistingGuids.add(existingItem.guid);
         let coverImage = existingItem.coverImage;
         if (isPodcast) {
           coverImage =
@@ -2660,12 +2662,7 @@ export class FeedParser {
 
     if (existingFeed) {
       existingFeed.items.forEach((item) => {
-        const itemGuid = this.convertToAbsoluteUrl(
-          item.guid || item.link || "",
-          url,
-        );
-
-        if (!existingItems.has(itemGuid)) {
+        if (!matchedExistingGuids.has(item.guid)) {
           allItems.push(item);
         }
       });
