@@ -1,11 +1,17 @@
-// Stub for obsidian module in tests - currently unused but available for mocking if needed
+import { vi } from "vitest";
+
+// =============================================================================
+// Core Obsidian API Stubs
+// =============================================================================
+
+// Stub for HTTP requests - configure mock in test
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function requestUrl(_param?: any): Promise<{ status: number; text: string }> {
+export async function requestUrl(
+  _param?: any,
+): Promise<{ status: number; text: string }> {
   throw new Error("requestUrl stub - configure mock in test if needed");
 }
 
-// Some production modules import RequestUrlParam as a runtime symbol (not type-only).
-// Provide a value export to satisfy ESM imports in tests.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const RequestUrlParam: any = {};
 
@@ -21,15 +27,197 @@ export function requireApiVersion(): boolean {
   return false;
 }
 
+// =============================================================================
+// Mock Event System
+// =============================================================================
+
+/**
+ * Mock event emitter for simulating Obsidian's event system.
+ * Used for workspace events, vault events, etc.
+ */
+export class MockEvent {
+  private handlers: Map<string, Set<(...args: unknown[]) => void>> = new Map();
+
+  on(event: string, handler: (...args: unknown[]) => void): MockEvent {
+    if (!this.handlers.has(event)) {
+      this.handlers.set(event, new Set());
+    }
+    this.handlers.get(event)!.add(handler);
+    return this;
+  }
+
+  off(event: string, handler: (...args: unknown[]) => void): void {
+    this.handlers.get(event)?.delete(handler);
+  }
+
+  trigger(...args: unknown[]): void {
+    this.handlers.forEach((handlers) => {
+      handlers.forEach((handler) => handler(...args));
+    });
+  }
+
+  clear(): void {
+    this.handlers.clear();
+  }
+}
+
+// =============================================================================
+// Mock TFile
+// =============================================================================
+
+export class TFile {
+  path: string;
+  basename: string;
+  extension: string;
+  name: string;
+  stat: {
+    mtime: number;
+    ctime: number;
+    size: number;
+  };
+
+  constructor(path: string = "/test/file.md") {
+    this.path = path;
+    this.basename = path.split("/").pop() || "file.md";
+    this.name = this.basename;
+    this.extension = "md";
+    this.stat = {
+      mtime: Date.now(),
+      ctime: Date.now(),
+      size: 1024,
+    };
+  }
+}
+
+// =============================================================================
+// Mock TFolder
+// =============================================================================
+
+export class TFolder {
+  children: (TFile | TFolder)[] = [];
+  path: string;
+  name: string;
+
+  constructor(path: string = "/test") {
+    this.path = path;
+    this.name = path.split("/").pop() || "folder";
+  }
+
+  createFile(name: string): TFile {
+    const file = new TFile(`${this.path}/${name}`);
+    this.children.push(file);
+    return file;
+  }
+
+  createFolder(name: string): TFolder {
+    const folder = new TFolder(`${this.path}/${name}`);
+    this.children.push(folder);
+    return folder;
+  }
+
+  getChild(name: string): TFile | TFolder | undefined {
+    return this.children.find((c) => c.name === name);
+  }
+}
+
+// =============================================================================
+// Mock DataVault (Enhanced)
+// =============================================================================
+
+export class MockDataVault {
+  private files: Map<string, TFile> = new Map();
+  private folders: Map<string, TFolder> = new Map();
+  private root: TFolder;
+
+  constructor() {
+    this.root = new TFolder("/");
+    this.folders.set("/", this.root);
+  }
+
+  async create(path: string, _content: string): Promise<TFile> {
+    const file = new TFile(path);
+    this.files.set(path, file);
+    return file;
+  }
+
+  async read(file: TFile | string): Promise<string> {
+    const path = typeof file === "string" ? file : file.path;
+    return "# Test Article\n\nContent here";
+  }
+
+  async delete(file: TFile | string): Promise<void> {
+    const path = typeof file === "string" ? file : file.path;
+    this.files.delete(path);
+  }
+
+  async modify(_file: TFile, _content: string): Promise<void> {}
+
+  getAbstractFileByPath(path: string): TFile | TFolder | null {
+    return this.files.get(path) || this.folders.get(path) || null;
+  }
+
+  getRoot(): TFolder {
+    return this.root;
+  }
+
+  getFiles(): TFile[] {
+    return Array.from(this.files.values());
+  }
+
+  // Event system
+  onResolve = new MockEvent();
+  onModify = new MockEvent();
+  onCreate = new MockEvent();
+  onDelete = new MockEvent();
+  onRename = new MockEvent();
+}
+
+// =============================================================================
+// Mock Workspace
+// =============================================================================
+
+export class MockWorkspace {
+  private leaves: Map<string, unknown> = new Map();
+  private activeLeaf: unknown = null;
+
+  onLayoutChange = new MockEvent();
+  onActiveLeafChange = new MockEvent();
+  onWindowResize = new MockEvent();
+
+  getLeavesOfType(_type: string): unknown[] {
+    return Array.from(this.leaves.values());
+  }
+
+  getMostRecentLeaf(): unknown {
+    return this.activeLeaf;
+  }
+
+  setActiveLeaf(leaf: unknown): void {
+    this.activeLeaf = leaf;
+  }
+
+  createLeafByType(_type: string): unknown {
+    return {};
+  }
+}
+
+// =============================================================================
+// App Class (Enhanced with full mocks)
+// =============================================================================
+
 export class App {
   private localStorage = new Map<string, unknown>();
 
-  // Minimal vault stub used by some UI helpers.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  vault: any = {
-    on: () => ({}) as unknown,
-    getRoot: () => ({ children: [] }),
-  };
+  /** Full vault mock for file operations */
+  vault: MockDataVault;
+
+  /** Full workspace mock for view management */
+  workspace: MockWorkspace;
+
+  constructor() {
+    this.vault = new MockDataVault();
+    this.workspace = new MockWorkspace();
+  }
 
   saveLocalStorage(key: string, value: unknown): void {
     this.localStorage.set(key, value);
@@ -38,10 +226,19 @@ export class App {
   loadLocalStorage(key: string): unknown {
     return this.localStorage.get(key);
   }
+
+  /** Create a fresh mock App instance for tests */
+  static createMock(): App {
+    return new App();
+  }
 }
 
+// =============================================================================
+// UI Components
+// =============================================================================
+
 export class Notice {
-  constructor(message: string, timeout?: number) {
+  constructor(message: string, _timeout?: number) {
     console.log("[Stub Notice]", message);
   }
 }
@@ -62,13 +259,11 @@ export class ItemView {
     this.leaf = leaf;
     this.app = leaf.app;
 
-    // Many views assume `containerEl.children[1]` exists.
     this.containerEl = document.createElement("div");
     this.containerEl.appendChild(document.createElement("div"));
     this.containerEl.appendChild(document.createElement("div"));
   }
 
-  // Lifecycle stubs
   onOpen(): Promise<void> {
     return Promise.resolve();
   }
@@ -77,16 +272,8 @@ export class ItemView {
     return Promise.resolve();
   }
 
-  // Event registration stubs
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   registerEvent(_evt: any): void {}
-}
-
-export class TFile {}
-export class TFolder {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  children: any[] = [];
-  path = "";
 }
 
 export class Menu {
@@ -453,4 +640,3 @@ export class AbstractInputSuggest<T> {
   selectSuggestion(_value: T, _evt: any): void {}
   close(): void {}
 }
-
