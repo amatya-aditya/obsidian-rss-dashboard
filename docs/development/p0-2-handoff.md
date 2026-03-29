@@ -1,132 +1,80 @@
-# P0-2: Article Saver Service Tests — Handoff Prompt
+# P0-2: Article Saver Service Tests - Handoff (post P0-1 + Vitest v4 upgrade)
 
 ## Context
 
-This is a continuation of the test coverage improvement plan for the obsidian-rss-dashboard plugin. P0-1 (plugin lifecycle tests) has been completed with 42 test cases.
+This continues the test coverage improvement plan in `docs/development/test-coverage-improvement-plan.md`.
 
-## Task
+Recent groundwork that landed during P0-1 / infra:
 
-Create test file for P0-2: Article Saver Service at `test_files/unit/services/article-saver.test.ts`
+- Vitest upgraded to `4.1.2` (and `@vitest/coverage-v8` to `4.1.2`); `npm run test:unit` is green.
+- Obsidian stubs were expanded so `main.ts` lifecycle tests can run without a full Obsidian runtime:
+  - `test_files/stubs/obsidian.ts` now provides `Plugin`, `PluginSettingTab`, a richer `Platform`, and a usable `vault.adapter` surface.
+- `test_files/unit/main/plugin-lifecycle.test.ts` was updated to use constructable class mocks for modules instantiated via `new` (not plain objects), preventing `onload()` from bailing out early.
 
-## Target File
+## Task (P0-2)
 
-`src/services/article-saver.ts`
+Add unit tests for `src/services/article-saver.ts`.
 
-## Current Coverage
+- Create: `test_files/unit/services/article-saver.test.ts`
+- Current coverage: 0%
+- Target coverage: 90%
+- Risk: Critical - article saving is a core workflow (data loss potential).
 
-0% — no existing tests
+## What to Test (from the plan)
 
-## Target Coverage
+### saveArticle()
 
-90%
+- Generates markdown with template variables
+- Handles missing optional fields gracefully
+- Writes to the correct vault path (folder + sanitized filename)
+- Returns `TFile` on success
+- Returns `null` (and shows Notice) on write failure
 
-## Why This Matters
+### saveArticleWithFullContent()
 
-Article saving is a core user workflow with data loss potential if broken.
+- Fetches full article content (happy path)
+- Falls back to `saveArticle()` when content is empty/unavailable
+- Applies a custom template when provided
+- Handles invalid HTML gracefully
 
----
+### verify / repair helpers
 
-## Scenarios to Cover
+- `verifySavedArticle()` unmarks saved articles when files are missing
+- `fixSavedFilePaths()` normalizes paths and clears invalid saved state
 
-### 1. saveArticle()
+## Testing Notes (important)
 
-```typescript
-describe("saveArticle")
-  ├── should generate markdown with template variables
-  ├── should handle missing optional fields gracefully
-  ├── should write file to correct vault path
-  ├── should return TFile on success
-  └── should throw on write failure
-```
+### Prefer the existing Vitest alias-based stubs
 
-### 2. saveArticleWithFullContent()
+Vitest config aliases `obsidian` to `test_files/stubs/obsidian.ts` (see `vitest.config.mjs`). In tests, import Obsidian primitives from `"obsidian"` (not via relative stub paths).
 
-```typescript
-describe("saveArticleWithFullContent")
-  ├── should fetch full article content
-  ├── should apply custom template
-  ├── should handle fetch timeout
-  └── should handle invalid HTML gracefully
-```
+### Mock network/content fetching at the boundary
 
-### 3. verifyAllSavedArticles()
+`ArticleSaver.fetchFullArticleContent()` calls `fetchWithProxyFallback()` which ultimately uses the `requestUrl` stub. For deterministic unit tests, mock `src/utils/fetch-helpers` (or spy on `fetchWithProxyFallback`) rather than relying on `requestUrl`.
 
-```typescript
-describe("verifyAllSavedArticles")
-  ├── should mark unsaved articles that have files
-  ├── should unmark saved articles with missing files
-  └── should handle path conflicts
-```
+### Stub gaps you'll likely need to extend for P0-2
 
----
+`ArticleSaver` uses APIs that are not fully covered by the current stubs:
 
-## Available Mocks
+- `app.fileManager.trashFile(...)` and `app.fileManager.renameFile(...)`
+- `vault.createFolder(...)` (used by `ensureFolderExists()`)
 
-Use `test_files/stubs/obsidian.ts` which now includes:
+If tests hit these, add minimal implementations to `test_files/stubs/obsidian.ts` rather than mocking ad-hoc per test.
 
-- `MockDataVault` — File operations (create, read, delete, modify)
-- `MockEvent` — Event system emulation
-- `App.createMock()` — Factory for fresh instances
-- `TFile`, `TFolder` — File system mocks
+## Suggested Test Skeleton
 
-### Example Usage
+Create `test_files/unit/services/article-saver.test.ts`:
 
-```typescript
-import { MockDataVault, TFile } from "../stubs/obsidian";
+- Use `const app = App.createMock()` from `"obsidian"`
+- Build a minimal `FeedItem` fixture (title/link/feedTitle/guid/pubDate/tags)
+- Mock `fetchWithProxyFallback()` for `saveArticleWithFullContent()` cases
+- Assert on:
+  - created file path (`savedFilePath` and vault create call)
+  - generated content includes expected template substitutions / frontmatter behaviors
+  - mutation of `item.saved` and saved tag behavior
 
-const vault = new MockDataVault();
-const file = await vault.create("/path/to/article.md", "# Content");
-```
+## Next Steps After P0-2 (per the plan)
 
----
-
-## Test Structure
-
-Create: `test_files/unit/services/article-saver.test.ts`
-
-```typescript
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MockDataVault, App, TFile } from "../stubs/obsidian";
-
-// Mock dependencies
-vi.mock("../stubs/obsidian", async () => {
-  const actual = await vi.importActual("../stubs/obsidian");
-  return { ...actual };
-});
-
-describe("ArticleSaver", () => {
-  let mockApp: App;
-  let articleSaver: any;
-
-  beforeEach(() => {
-    mockApp = App.createMock();
-    // Import the actual article-saver module
-    // Note: May need to mock fetch for saveArticleWithFullContent
-  });
-
-  describe("saveArticle", () => {
-    // Test cases here
-  });
-
-  // ... other describe blocks
-});
-```
-
----
-
-## Est. New Tests
-
-15-20 test cases
-
-## Risk Level
-
-**Critical** — data loss potential
-
----
-
-## Reference Files
-
-- Target: `src/services/article-saver.ts`
-- Test location: `test_files/unit/services/article-saver.test.ts`
-- Stubs: `test_files/stubs/obsidian.ts`
-- Previous work: P0-1 in `test_files/unit/main/plugin-lifecycle.test.ts`
+- P0-3: Feed Fetch -> Parse -> Render pipeline integration tests
+- P0-4: Folder selector popup tests
+- Add CI coverage gate (Phase A / Week 2: "T-1.4")

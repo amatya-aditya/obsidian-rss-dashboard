@@ -157,23 +157,68 @@ export class MockDataVault {
     };
   }
 
-  async create(path: string, _content: string): Promise<TFile> {
+  async create(path: string, content: string): Promise<TFile> {
     const file = new TFile(path);
     this.files.set(path, file);
+    this.adapterFiles.set(path, content);
     return file;
   }
 
   async read(file: TFile | string): Promise<string> {
     const path = typeof file === "string" ? file : file.path;
-    return "# Test Article\n\nContent here";
+    return this.adapterFiles.get(path) ?? "# Test Article\n\nContent here";
   }
 
   async delete(file: TFile | string): Promise<void> {
     const path = typeof file === "string" ? file : file.path;
     this.files.delete(path);
+    this.adapterFiles.delete(path);
   }
 
   async modify(_file: TFile, _content: string): Promise<void> {}
+
+  async createFolder(folderPath: string): Promise<TFolder> {
+    const cleanPath = folderPath.replace(/^\/+|\/+$/g, "");
+    if (!cleanPath) return this.root;
+
+    const existing = this.folders.get(cleanPath);
+    if (existing) return existing;
+
+    let currentPath = "";
+    let parent = this.root;
+    for (const part of cleanPath.split("/").filter(Boolean)) {
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+      let folder = this.folders.get(currentPath);
+      if (!folder) {
+        folder = new TFolder(currentPath);
+        parent.children.push(folder);
+        this.folders.set(currentPath, folder);
+      }
+      parent = folder;
+    }
+
+    return parent;
+  }
+
+  async trashAbstractFile(file: TFile | TFolder): Promise<void> {
+    if (file instanceof TFile) {
+      await this.delete(file);
+      return;
+    }
+    this.folders.delete(file.path);
+  }
+
+  async renameAbstractFile(file: TFile, newPath: string): Promise<void> {
+    const oldPath = file.path;
+    this.files.delete(oldPath);
+    this.adapterFiles.delete(oldPath);
+
+    file.path = newPath;
+    file.basename = newPath.split("/").pop() || file.basename;
+    file.name = file.basename;
+
+    this.files.set(newPath, file);
+  }
 
   getAbstractFileByPath(path: string): TFile | TFolder | null {
     return this.files.get(path) || this.folders.get(path) || null;
@@ -234,11 +279,25 @@ export class App {
   /** Full vault mock for file operations */
   vault: MockDataVault;
 
+  /** Minimal fileManager mock for trash/rename */
+  fileManager: {
+    trashFile: (file: TFile | TFolder) => Promise<void>;
+    renameFile: (file: TFile, newPath: string) => Promise<void>;
+  };
+
   /** Full workspace mock for view management */
   workspace: MockWorkspace;
 
   constructor() {
     this.vault = new MockDataVault();
+    this.fileManager = {
+      trashFile: async (file: TFile | TFolder) => {
+        await this.vault.trashAbstractFile(file);
+      },
+      renameFile: async (file: TFile, newPath: string) => {
+        await this.vault.renameAbstractFile(file, newPath);
+      },
+    };
     this.workspace = new MockWorkspace();
   }
 
@@ -331,6 +390,8 @@ export class Notice {
   constructor(message: string, _timeout?: number) {
     console.log("[Stub Notice]", message);
   }
+
+  hide(): void {}
 }
 
 export class WorkspaceLeaf {

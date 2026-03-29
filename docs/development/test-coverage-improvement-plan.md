@@ -5,7 +5,8 @@
 > **Related Audits:**
 >
 > - [`docs/development/coverage-audit-report.md`](docs/development/coverage-audit-report.md) (original detailed audit)
-> - [`coverage-audit-report-v2.md`](coverage-audit-report-v2.md) (current audit with test run results)
+> - [`docs/development/test-coverage-audit-report.md`](docs/development/test-coverage-audit-report.md) (audit snapshot)
+> - [`COVERAGE_AUDIT_REPORT_Vitest.md`](COVERAGE_AUDIT_REPORT_Vitest.md) (Vitest coverage output + notes)
 
 ---
 
@@ -17,11 +18,13 @@ This document serves as the working plan for improving test coverage across the 
 
 | Metric                    | Value     |
 | ------------------------- | --------- |
-| Test Files                | 63 total  |
-| Passing Tests             | 412 (94%) |
-| Failing Tests             | 6 (6%)    |
-| Estimated Line Coverage   | ~35-45%   |
-| Estimated Branch Coverage | ~25-35%   |
+| Test Framework            | Vitest 4.1.2 + jsdom |
+| Test Files                | 64 total  |
+| Passing Tests             | 469 (100%) |
+| Failing Tests             | 0 (0%)    |
+| Line Coverage (global)    | 28.05%    |
+| Branch Coverage (global)  | 24.94%    |
+| Function Coverage (global)| 21.37%    |
 
 ### Target State (Q3 2026)
 
@@ -131,11 +134,14 @@ describe("RssDashboardPlugin.onunload") // 5 tests
 ### P0-2: Article Saver Service
 
 **Target:** `src/services/article-saver.ts`  
-**Current Coverage:** 0%  
-**Target Coverage:** 90%  
-**Risk:** Critical — data loss potential
+**Current Coverage (v8):** Lines 55.55% | Branches 50.51% | Functions 46.34%  
+**Target Coverage:** 90% (stretch)  
+**Risk:** Critical — data loss potential  
+**Status:** ✅ COMPLETED — baseline unit suite added (happy paths + key failure modes)
 
-**Scenarios to Cover:**
+**Test File:** [`test_files/unit/services/article-saver.test.ts`](test_files/unit/services/article-saver.test.ts)
+
+**Covered Now:**
 
 ```typescript
 describe("saveArticle")
@@ -143,22 +149,24 @@ describe("saveArticle")
   ├── should handle missing optional fields gracefully
   ├── should write file to correct vault path
   ├── should return TFile on success
-  └── should throw on write failure
+  └── should return null on write failure
 
 describe("saveArticleWithFullContent")
   ├── should fetch full article content
   ├── should apply custom template
-  ├── should handle fetch timeout
   └── should handle invalid HTML gracefully
 
-describe("verifyAllSavedArticles")
-  ├── should mark unsaved articles that have files
+describe("verifySavedArticle / fixSavedFilePaths")
   ├── should unmark saved articles with missing files
   └── should handle path conflicts
 ```
 
-**Est. New Test Files:** 1-2  
-**Est. New Tests:** 15-20
+**Stub Work Completed (P0-2):**
+- `test_files/stubs/obsidian.ts` now supports `app.fileManager.trashFile/renameFile`, `vault.createFolder`, and `Notice.hide()`.
+
+**Follow-ups to reach 90%:**
+- Add focused tests for URL conversion (`convertRelativeUrlsInContent`, `processSrcset`, `convertToAbsoluteUrl`) and HTML cleaning (`cleanHtml`) edge cases.
+- Add tests for `extractContentFromDocument()` selector fallbacks (non-Readability path).
 
 ---
 
@@ -168,6 +176,7 @@ describe("verifyAllSavedArticles")
 **Current Coverage:** 0% (no integration tests)  
 **Target Coverage:** 70% for pipeline  
 **Risk:** Critical — core user workflow
+**Handoff:** [`docs/development/p0-3-handoff.md`](docs/development/p0-3-handoff.md)
 
 **Scenarios to Cover:**
 
@@ -447,7 +456,7 @@ export default defineConfig({
 | T-2.1 | Add mutation testing (Stryker) | ⬜ Pending |
 | T-2.2 | Create test fixtures directory | ⬜ Pending |
 | T-2.3 | Add integration test directory | ⬜ Pending |
-| T-2.4 | Fix 6 failing tests            | ⬜ Pending |
+| T-2.4 | Unblock CI coverage thresholds  | ⬜ Pending |
 
 **Implementation:**
 
@@ -548,37 +557,41 @@ Week 11-12:
 
 | Metric          | Baseline | Phase A Target | Phase B Target | Final Target |
 | --------------- | -------- | -------------- | -------------- | ------------ |
-| Line Coverage   | ~40%     | 55%            | 62%            | 65%          |
-| Branch Coverage | ~30%     | 45%            | 52%            | 55%          |
-| Test Count      | 412      | 500            | 650            | 750          |
+| Line Coverage   | 28%      | 55%            | 62%            | 65%          |
+| Branch Coverage | 25%      | 45%            | 52%            | 55%          |
+| Test Count      | 469      | 500            | 650            | 750          |
 | P0 Tests        | 0        | 80             | 100            | 100          |
 | P1 Tests        | 0        | 0              | 60             | 70           |
-| Failing Tests   | 6        | 0              | 0              | 0            |
+| Failing Tests   | 0        | 0              | 0              | 0            |
 
 ---
 
 ## Notes
 
 - Related to original audit: [`docs/development/coverage-audit-report.md`](docs/development/coverage-audit-report.md)
-- Test run results: 60 passing test files, 412 passing tests, 6 failing
-- 6 failing tests are infrastructure issues (missing mocks), not code bugs
+- Current test run results (2026-03-29): 64 passing test files, 469 passing tests, 0 failing
+- `npm run test:unit -- --coverage` currently fails due to global thresholds (Lines 40% | Branches 30% | Functions 50%) being higher than current global coverage (Lines 28.05% | Branches 24.94% | Functions 21.37%)
+- P0-1 lifecycle tests exist, but `main.ts` is currently outside `vitest.config.mjs` coverage `include` (`src/**/*.ts`), so main coverage is not represented in coverage totals yet.
 
 ## Next Steps
 
-### Recommended: Continue with P0-2 (Article Saver Service)
+### Recommended: Continue with P0-3 (Feed Fetch → Parse → Render Pipeline)
 
-Now that P0-1 is complete, the recommended next step is P0-2: Article Saver Service. This is the second highest priority because:
+Now that P0-1 is complete and P0-2 has a baseline suite, the recommended next step is P0-3: Feed pipeline integration tests. This is the highest-leverage next step because:
 
-1. **Data loss risk** — Article saving is a core user workflow
-2. **Ready infrastructure** — The expanded `MockDataVault` in `test_files/stubs/obsidian.ts` supports vault operations
-3. **Enables other tests** — Once article saving works, integration tests become easier
+1. **Core workflow risk** — refresh is the top-level user action (fetch → parse → merge → persist → refresh view)
+2. **Broad coverage gains** — exercises `main.ts` + parser + settings persistence paths
+3. **Unblocks CI work** — makes it realistic to raise coverage toward (or adjust) the current CI threshold gate
 
-### Alternative: Fix 6 Failing Tests
+Handoff doc: [`docs/development/p0-3-handoff.md`](docs/development/p0-3-handoff.md)
 
-If you want to clean up the existing test suite first:
+### Alternative: Unblock CI Coverage Gate (without adding new tests)
 
-- Focus on [`test_files/unit/discover/feed-preview-loader.test.ts`](test_files/unit/discover/feed-preview-loader.test.ts)
-- Fix mock configuration for `requestUrl`
+CI currently runs `npm run test:unit -- --coverage` and fails due to thresholds. Options:
+
+- Temporarily lower global thresholds to current baseline and raise them gradually each week.
+- Switch to a non-blocking coverage upload (Codecov-only) until Phase A targets are met.
+- Narrow coverage `include` to measured targets while Phase A is in progress (then expand again).
 
 ### Alternative: Phase 2 (Mutation Testing)
 
