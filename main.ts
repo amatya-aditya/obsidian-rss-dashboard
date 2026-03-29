@@ -30,7 +30,7 @@ import {
   RSS_SMALLWEB_VIEW_TYPE,
 } from "./src/views/kagi-smallweb-view";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./src/views/reader-view";
-import { FeedParser } from "./src/services/feed-parser";
+import { FeedParser, setSimulateEmptyFetch, getSimulateEmptyFetch } from "./src/services/feed-parser";
 import { ArticleSaver } from "./src/services/article-saver";
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
@@ -271,6 +271,16 @@ export default class RssDashboardPlugin extends Plugin {
         name: "Apply feed limits to all feeds",
         callback: () => {
           void this.applyFeedLimitsToAllFeeds();
+        },
+      });
+
+      this.addCommand({
+        id: "toggle-simulate-empty-fetch",
+        name: "Debug: toggle simulate empty feed response",
+        callback: () => {
+          const newValue = !getSimulateEmptyFetch();
+          setSimulateEmptyFetch(newValue);
+          new Notice(`Simulate empty fetch: ${newValue ? "ON" : "OFF"}`);
         },
       });
 

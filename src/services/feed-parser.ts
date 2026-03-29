@@ -340,7 +340,21 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
   return null;
 }
 
+let simulateEmptyFetch = false;
+
+export function setSimulateEmptyFetch(value: boolean): void {
+  simulateEmptyFetch = value;
+}
+
+export function getSimulateEmptyFetch(): boolean {
+  return simulateEmptyFetch;
+}
+
 export async function fetchFeedXml(url: string): Promise<string> {
+  if (simulateEmptyFetch) {
+    console.warn("[RSS Debug] simulateEmptyFetch is ON — returning empty feed for:", url);
+    return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Empty (simulated)</title></channel></rss>`;
+  }
   const isAndroid = Platform.isAndroidApp;
 
   async function tryFetch(targetUrl: string): Promise<string> {
