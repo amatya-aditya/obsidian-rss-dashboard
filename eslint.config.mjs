@@ -13,7 +13,6 @@ export default defineConfig([
       "*.mjs",
       "scripts/**/*.js",
       "test_files/**",
-      "update_reader_view.js",
     ],
   },
   ...obsidianmd.configs.recommended,
