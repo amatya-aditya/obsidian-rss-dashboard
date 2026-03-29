@@ -111,9 +111,15 @@ export function installObsidianDomPolyfills(): void {
     proto.createEl = function createEl<K extends keyof HTMLElementTagNameMap>(
       this: HTMLElement,
       tag: K,
-      opts?: { cls?: string; text?: string; attr?: Record<string, string> } & Partial<
-        HTMLElementTagNameMap[K] extends HTMLInputElement ? { type: string } : Record<string, never>
-      >,
+      opts?: {
+        cls?: string;
+        text?: string;
+        attr?: Record<string, string>;
+        // Obsidian's createEl supports passing through common element props (e.g. value/placeholder).
+        // Keep this permissive so unit tests behave like plugin runtime.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        [key: string]: any;
+      },
     ): HTMLElementTagNameMap[K] {
       const el = document.createElement(tag);
       if (opts?.cls) el.className = opts.cls;
@@ -123,8 +129,19 @@ export function installObsidianDomPolyfills(): void {
           el.setAttribute(k, v),
         );
       }
-      if (tag === "input" && opts && "type" in opts && typeof (opts as { type?: unknown }).type === "string") {
-        (el as unknown as HTMLInputElement).type = (opts as { type: string }).type;
+      if (opts) {
+        Object.entries(opts).forEach(([key, value]) => {
+          if (key === "cls" || key === "text" || key === "attr") return;
+          if (tag === "input" && key === "type" && typeof value === "string") {
+            (el as unknown as HTMLInputElement).type = value;
+            return;
+          }
+          // Pass through common properties like value/placeholder/disabled/etc.
+          if (key in el) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (el as any)[key] = value;
+          }
+        });
       }
       this.appendChild(el);
       return el;

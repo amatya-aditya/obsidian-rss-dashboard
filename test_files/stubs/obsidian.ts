@@ -477,9 +477,15 @@ export class Setting {
   }
 
   setName(_name?: string): this {
+    if (_name !== undefined) {
+      this.nameEl.textContent = _name;
+    }
     return this;
   }
   setDesc(_desc?: string): this {
+    if (_desc !== undefined) {
+      this.descEl.textContent = _desc;
+    }
     return this;
   }
   setHeading(): this {
@@ -510,6 +516,16 @@ export class Setting {
         return this;
       }
 
+      setIcon(icon: string): this {
+        this.buttonEl.dataset.icon = icon;
+        return this;
+      }
+
+      setTooltip(tooltip: string): this {
+        this.buttonEl.title = tooltip;
+        return this;
+      }
+
       onClick(handler: (evt: MouseEvent) => void): this {
         this.clickHandler = handler;
         this.buttonEl.addEventListener("click", handler);
@@ -518,6 +534,11 @@ export class Setting {
 
       setCta(): this {
         this.buttonEl.classList.add("mod-cta");
+        return this;
+      }
+
+      setWarning(): this {
+        this.buttonEl.classList.add("mod-warning");
         return this;
       }
 
@@ -673,6 +694,10 @@ export class Setting {
         return this;
       }
 
+      getValue(): string {
+        return this.inputEl.value;
+      }
+
       onChange(handler: (value: string) => void): this {
         this.changeHandler = handler;
         return this;
@@ -753,6 +778,10 @@ export class TextComponent {
   setPlaceholder(value: string): this {
     this.inputEl.placeholder = value;
     return this;
+  }
+
+  getValue(): string {
+    return this.inputEl.value;
   }
 
   onChange(handler: (value: string) => void): this {

@@ -1,4 +1,4 @@
-# Test Coverage Improvement Plan
+﻿# Test Coverage Improvement Plan
 
 > **Post-Mortem Report** — Working Document  
 > **Date:** 2026-03-29  
@@ -19,8 +19,8 @@ This document serves as the working plan for improving test coverage across the 
 | Metric                    | Value     |
 | ------------------------- | --------- |
 | Test Framework            | Vitest 4.1.2 + jsdom |
-| Test Files                | 67 total  |
-| Passing Tests             | 493 (100%) |
+| Test Files                | 73 total  |
+| Passing Tests             | 537 (100%) |
 | Failing Tests             | 0 (0%)    |
 | Line Coverage (global)    | 29.48%    |
 | Branch Coverage (global)  | 26.19%    |
@@ -79,7 +79,7 @@ These tests address the highest-risk gaps that could cause data loss or plugin f
 ### P0-1: Plugin Lifecycle (`main.ts`)
 
 **Target:** `main.ts`  
-**Current Coverage:** 0% → **~80%** ✅  
+**Current Coverage:** 0% -> **~80%** ✅  
 **Target Coverage:** 80%  
 **Risk:** Critical — initialization bugs affect all users
 **Status:** ✅ COMPLETED — 42 test cases created
@@ -90,41 +90,41 @@ These tests address the highest-risk gaps that could cause data loss or plugin f
 
 ```typescript
 describe("RssDashboardPlugin.onload") // 7 tests
-  ├── should register all view types (Dashboard, Reader, Discover, Podcast, Video, Kagi)
-  ├── should register ribbon icon
-  ├── should register commands (7+)
-  ├── should set up refresh interval
-  ├── should add setting tab
-  ├── should register beforeunload handler
-  └── should load settings during initialization
+  - should register all view types (Dashboard, Reader, Discover, Podcast, Video, Kagi)
+  - should register ribbon icon
+  - should register commands (7+)
+  - should set up refresh interval
+  - should add setting tab
+  - should register beforeunload handler
+  - should load settings during initialization
 
 describe("RssDashboardPlugin.loadSettings") // 5 tests
-  ├── should apply DEFAULT_SETTINGS for missing fields
-  ├── should merge saved settings with DEFAULT_SETTINGS
-  ├── should apply migrations to legacy settings
-  ├── should fall back to DEFAULT_SETTINGS on error
-  └── should normalize page sizes
+  - should apply DEFAULT_SETTINGS for missing fields
+  - should merge saved settings with DEFAULT_SETTINGS
+  - should apply migrations to legacy settings
+  - should fall back to DEFAULT_SETTINGS on error
+  - should normalize page sizes
 
 describe("RssDashboardPlugin.refreshFeeds") // 5 tests
-  ├── should refresh all feeds when no selection
-  ├── should refresh selected feeds only
-  ├── should update settings after refresh
-  ├── should save settings after refresh
-  └── should handle refresh errors
+  - should refresh all feeds when no selection
+  - should refresh selected feeds only
+  - should update settings after refresh
+  - should save settings after refresh
+  - should handle refresh errors
 
 describe("RssDashboardPlugin.addFeed") // 9 tests
-  ├── should reject duplicate feed URLs
-  ├── should detect media type based on folder
-  ├── should apply custom autoDeleteDuration
-  ├── should apply custom maxItemsLimit
-  ├── should save settings after adding feed
-  └── should handle parse errors
+  - should reject duplicate feed URLs
+  - should detect media type based on folder
+  - should apply custom autoDeleteDuration
+  - should apply custom maxItemsLimit
+  - should save settings after adding feed
+  - should handle parse errors
 
 describe("RssDashboardPlugin.onunload") // 5 tests
-  ├── should remove beforeunload listener
-  ├── should attempt sync backup on desktop
-  ├── should fallback to async backup when sync fails
-  └── should not throw when autoBackup is disabled
+  - should remove beforeunload listener
+  - should attempt sync backup on desktop
+  - should fallback to async backup when sync fails
+  - should not throw when autoBackup is disabled
 ```
 
 **Total: 42 test cases** ✅
@@ -145,20 +145,20 @@ describe("RssDashboardPlugin.onunload") // 5 tests
 
 ```typescript
 describe("saveArticle")
-  ├── should generate markdown with template variables
-  ├── should handle missing optional fields gracefully
-  ├── should write file to correct vault path
-  ├── should return TFile on success
-  └── should return null on write failure
+  - should generate markdown with template variables
+  - should handle missing optional fields gracefully
+  - should write file to correct vault path
+  - should return TFile on success
+  - should return null on write failure
 
 describe("saveArticleWithFullContent")
-  ├── should fetch full article content
-  ├── should apply custom template
-  └── should handle invalid HTML gracefully
+  - should fetch full article content
+  - should apply custom template
+  - should handle invalid HTML gracefully
 
 describe("verifySavedArticle / fixSavedFilePaths")
-  ├── should unmark saved articles with missing files
-  └── should handle path conflicts
+  - should unmark saved articles with missing files
+  - should handle path conflicts
 ```
 
 **Stub Work Completed (P0-2):**
@@ -170,9 +170,9 @@ describe("verifySavedArticle / fixSavedFilePaths")
 
 ---
 
-### P0-3: Feed Fetch → Parse → Render Pipeline
+### P0-3: Feed Fetch -> Parse -> Render Pipeline
 
-**Target:** Integration across `main.ts` (refresh) → `feed-parser.ts` → settings persistence → view refresh  
+**Target:** Integration across `main.ts` (refresh) -> `feed-parser.ts` -> settings persistence -> view refresh  
 **Current Coverage:** Not represented in v8 totals (tests exercise `main.ts`, but `main.ts` is outside `vitest.config.mjs` coverage `include`)  
 **Target Coverage:** 70% for pipeline  
 **Risk:** Critical — core user workflow
@@ -188,17 +188,17 @@ describe("verifySavedArticle / fixSavedFilePaths")
 
 ```typescript
 describe("Feed Refresh Pipeline")
-  ├── should fetch → parse → merge → save → notify views
-  ├── should handle partial failures gracefully
-  ├── should update existing items by GUID
-  ├── should add new items to top of list
-  └── should handle network timeout
+  - should fetch -> parse -> merge -> save -> notify views
+  - should handle partial failures gracefully
+  - should update existing items by GUID
+  - should add new items to top of list
+  - should handle network timeout
 
 describe("Article Save Pipeline")
-  ├── should click → generate → write → update state → notify
-  ├── should handle vault permission errors
-  ├── should preserve article metadata
-  └── should update saved article count
+  - should click -> generate -> write -> update state -> notify
+  - should handle vault permission errors
+  - should preserve article metadata
+  - should update saved article count
 ```
 
 **Delivered (refreshFeeds):** 1 test file (`test_files/unit/main/feed-refresh-pipeline.test.ts`)  
@@ -223,11 +223,11 @@ describe("Article Save Pipeline")
 
 ```typescript
 describe("FolderSelectorPopup")
-  ├── should open folder picker
-  ├── should return selected path
-  ├── should handle cancelled selection
-  ├── should display current folder
-  └── should handle permission denied
+  - should open folder picker
+  - should return selected path
+  - should handle cancelled selection
+  - should display current folder
+  - should handle permission denied
 ```
 
 **Est. New Test Files:** 1  
@@ -251,14 +251,14 @@ describe("FolderSelectorPopup")
 
 ```typescript
 describe("evaluateForArticle")
-  ├── should include article matching include rule
-  ├── should exclude article matching exclude rule
-  ├── should handle regex match mode
-  ├── should respect applyToTitle/Summary/Content flags
-  └── should apply AND logic between multiple rules
+  - should include article matching include rule
+  - should exclude article matching exclude rule
+  - should handle regex match mode
+  - should respect applyToTitle/Summary/Content flags
+  - should apply AND logic between multiple rules
 
 describe("hasActiveRules")
-  └── should return true when any enabled rule exists
+  - should return true when any enabled rule exists
 ```
 
 **Est. New Test Files:** 1  
@@ -272,21 +272,27 @@ describe("hasActiveRules")
 
 **Target:** `src/services/opml-manager.ts`  
 **Current Coverage:** 0%  
-**Target Coverage:** 80%
+**Target Coverage:** 80%  
+**Handoff:** [`docs/development/p1-1-handoff.md`](docs/development/p1-1-handoff.md)
+
+**Work Completed (2026-03-29):**
+- Added unit tests: `test_files/unit/services/opml-manager.test.ts`
+- Covered: `parseOpmlMetadata`, `parseOpml`, `importOpml`, `mergeFolders`, and `generateOpml` (including invalid XML + unescaped ampersand preprocessing + XML escaping)
+- Verified: `npm run test:unit` is green (68 files / 503 tests)
 
 ```typescript
 describe("parseOpmlMetadata")
-  ├── should parse standard RSS outline
-  ├── should handle nested folder structure
-  ├── should extract xmlUrl attribute
-  ├── should handle missing title (use xmlUrl)
-  └── should handle invalid XML gracefully
+  - should parse standard RSS outline
+  - should handle nested folder structure
+  - should extract xmlUrl attribute
+  - should handle missing title (use xmlUrl)
+  - should handle invalid XML gracefully
 
 describe("generateOpml")
-  ├── should generate valid OPML with header
-  ├── should output all feeds as outlines
-  ├── should preserve folder structure
-  └── should handle empty feeds list
+  - should generate valid OPML with header
+  - should output all feeds as outlines
+  - should preserve folder structure
+  - should handle empty feeds list
 ```
 
 **Est. New Test Files:** 1  
@@ -298,14 +304,20 @@ describe("generateOpml")
 
 **Target:** `src/services/sidebar-ordering-controller.ts`  
 **Current Coverage:** 0%  
-**Target Coverage:** 80%
+**Target Coverage:** 80%  
+**Handoff:** [`docs/development/p1-2-handoff.md`](docs/development/p1-2-handoff.md)
+
+**Work Completed (2026-03-29):**
+- Added unit tests: `test_files/unit/services/sidebar-ordering-controller.test.ts`
+- Expanded coverage beyond existing view-level tests: error paths + root normalization + remap behavior for `moveFolder`
+- Verified: `npm run test:unit` is green (69 files / 516 tests)
 
 ```typescript
 describe("Sidebar Ordering")
-  ├── should reorder feeds on drag
-  ├── should persist order to settings
-  ├── should handle folder-level ordering
-  └── should restore order on reload
+  - should reorder feeds on drag
+  - should persist order to settings
+  - should handle folder-level ordering
+  - should restore order on reload
 ```
 
 **Est. New Test Files:** 1  
@@ -317,14 +329,20 @@ describe("Sidebar Ordering")
 
 **Target:** `src/views/discover-view.ts`  
 **Current Coverage:** 0%  
-**Target Coverage:** 70%
+**Target Coverage:** 70%  
+**Handoff:** [`docs/development/p1-3-handoff.md`](docs/development/p1-3-handoff.md)
+
+**Work Completed (2026-03-29):**
+- Added unit tests: `test_files/unit/views/discover-view.test.ts`
+- Covered: `loadData()` saved filter restore, filter combinations (query/type/tag/path/follow), pagination clamping, and localStorage persistence (`saveFilterState()`)
+- Verified: `npm run test:unit` is green (70 files / 520 tests)
 
 ```typescript
 describe("DiscoverView")
-  ├── should load discover-feeds.json
-  ├── should categorize feeds by type
-  ├── should handle search/filter
-  └── should navigate to dashboard on feed selection
+  - should load discover-feeds.json
+  - should categorize feeds by type
+  - should handle search/filter
+  - should navigate to dashboard on feed selection
 ```
 
 **Est. New Test Files:** 1  
@@ -336,14 +354,20 @@ describe("DiscoverView")
 
 **Target:** `src/components/keyword-filter-editor.ts`  
 **Current Coverage:** 0%  
-**Target Coverage:** 70%
+**Target Coverage:** 70%  
+**Handoff:** [`docs/development/p1-4-handoff.md`](docs/development/p1-4-handoff.md)
+
+**Work Completed (2026-03-29):**
+- Added unit tests: `test_files/unit/components/keyword-filter-editor.test.ts`
+- Covered: empty state, add rule, delete rule, enable/disable rule, include/exclude + exact/partial toggles, keyword editing, and applyTo* toggles
+- Verified: `npm run test:unit` is green (71 files / 525 tests)
 
 ```typescript
 describe("Keyword Filter Editor")
-  ├── should add new filter
-  ├── should remove filter
-  ├── should validate filter syntax
-  └── should persist filter to settings
+  - should add new filter
+  - should remove filter
+  - should validate filter syntax
+  - should persist filter to settings
 ```
 
 **Est. New Test Files:** 1  
@@ -355,14 +379,21 @@ describe("Keyword Filter Editor")
 
 **Target:** `src/settings/tabs/article-saving-settings-tab.ts`  
 **Current Coverage:** 0%  
-**Target Coverage:** 75%
+**Target Coverage:** 75%  
+**Handoff:** [`docs/development/p1-5-handoff.md`](docs/development/p1-5-handoff.md)
+
+**Work Completed (2026-03-29):**
+- Added unit tests: `test_files/unit/settings/article-saving-settings-tab.test.ts`
+- Covered: save path normalization, toggles, fetch-timeout slider default + persistence, template edit/reset, save-as-template flow (modal), and saved-template load/update/delete actions
+- Updated stubs: `test_files/stubs/obsidian.ts` (`Setting.setName/setDesc`, `ButtonComponent.setIcon/setTooltip/setWarning`, `TextComponent.getValue`)
+- Verified: `npm run test:unit` is green (72 files / 532 tests)
 
 ```typescript
 describe("Article Saving Settings")
-  ├── should save template to settings
-  ├── should load template from settings
-  ├── should validate template syntax
-  └── should handle folder path changes
+  - should save template to settings
+  - should load template from settings
+  - should validate template syntax
+  - should handle folder path changes
 ```
 
 **Est. New Test Files:** 1  
@@ -375,13 +406,20 @@ describe("Article Saving Settings")
 **Target:** `src/components/discover-sidebar.ts`  
 **Current Coverage:** 0%  
 **Target Coverage:** 70%
+**Handoff:** [`docs/development/p1-6-handoff.md`](docs/development/p1-6-handoff.md)
+
+**Work Completed (2026-03-29):**
+- Added unit tests: `test_files/unit/components/discover-sidebar.test.ts`
+- Covered: section switching, search + clear wiring, type/tag selection toggles, category selection + expand/collapse, and header callback behavior
+- Updated test DOM polyfills: `test_files/unit/test-dom-polyfills.ts` (`createEl` now applies common props like `value`/`placeholder`)
+- Verified: `npm run test:unit` is green (73 files / 537 tests)
 
 ```typescript
 describe("DiscoverSidebar")
-  ├── should render feed items
-  ├── should handle feed selection
-  ├── should update unread counts
-  └── should handle search input
+  - should switch sidebar sections (types/categories/tags)
+  - should persist query/type/tag selections
+  - should toggle category path selection + expand/collapse
+  - should fire callbacks on interactions
 ```
 
 **Est. New Test Files:** 1  
@@ -397,10 +435,10 @@ describe("DiscoverSidebar")
 
 ```typescript
 describe("robustFetch")
-  ├── should retry on timeout
-  ├── should handle CORS proxy
-  ├── should detect encoding from header
-  └── should fallback to UTF-8
+  - should retry on timeout
+  - should handle CORS proxy
+  - should detect encoding from header
+  - should fallback to UTF-8
 ```
 
 ### P2-2: Safe HTML
@@ -409,9 +447,9 @@ describe("robustFetch")
 
 ```typescript
 describe("Safe HTML")
-  ├── should strip script tags
-  ├── should allow safe tags
-  └── should handle malformed HTML
+  - should strip script tags
+  - should allow safe tags
+  - should handle malformed HTML
 ```
 
 ### P2-3: Video Player
@@ -420,8 +458,8 @@ describe("Safe HTML")
 
 ```typescript
 describe("VideoPlayer")
-  ├── should render video element
-  └── should handle unsupported format
+  - should render video element
+  - should handle unsupported format
 ```
 
 ---
@@ -508,26 +546,26 @@ npm install -D @stryker-mutator/core @stryker-mutator/vitest-runner
 
 ```
 Week 1:
-├── P0-1: Plugin lifecycle tests (start)
-├── T-1.1: Add coverage reporting
-├── T-1.3: Expand Obsidian stubs
-└── Fix failing tests
+- P0-1: Plugin lifecycle tests (start)
+- T-1.1: Add coverage reporting
+- T-1.3: Expand Obsidian stubs
+- Fix failing tests
 
 Week 2:
-├── P0-1: Plugin lifecycle tests (complete)
-├── P0-2: Article saver tests (start)
-└── T-1.4: Add CI coverage gate
+- P0-1: Plugin lifecycle tests (complete)
+- P0-2: Article saver tests (start)
+- T-1.4: Add CI coverage gate
 
 Week 3:
-├── P0-2: Article saver tests (complete)
-├── P0-3: Feed pipeline integration tests (start)
-└── P0-4: Folder selector tests (start)
+- P0-2: Article saver tests (complete)
+- P0-3: Feed pipeline integration tests (start)
+- P0-4: Folder selector tests (start)
 
 Week 4:
-├── P0-3: Feed pipeline integration tests (complete)
-├── P0-4: Folder selector tests (complete)
-├── P0-5: Keyword filter service tests (start)
-└── T-2.1: Add mutation testing
+- P0-3: Feed pipeline integration tests (complete)
+- P0-4: Folder selector tests (complete)
+- P0-5: Keyword filter service tests (start)
+- T-2.1: Add mutation testing
 ```
 
 **Milestone:** 80% of P0 tests complete, line coverage ~55%
@@ -538,14 +576,14 @@ Week 4:
 
 ```
 Week 5-6:
-├── P1-1: OPML Manager tests
-├── P1-2: Sidebar ordering tests
-└── P1-3: Discover view tests
+- P1-1: OPML Manager tests
+- P1-2: Sidebar ordering tests
+- P1-3: Discover view tests
 
 Week 7-8:
-├── P1-4: Keyword filter editor tests
-├── P1-5: Article saving settings tests
-└── P1-6: Discover sidebar tests
+- P1-4: Keyword filter editor tests
+- P1-5: Article saving settings tests
+- P1-6: Discover sidebar tests
 ```
 
 **Milestone:** P1 tests complete, line coverage ~65%
@@ -556,14 +594,14 @@ Week 7-8:
 
 ```
 Week 9-10:
-├── P2-1: Platform utilities tests
-├── P2-2: Safe HTML tests
-└── T-3.1: Snapshot testing
+- P2-1: Platform utilities tests
+- P2-2: Safe HTML tests
+- T-3.1: Snapshot testing
 
 Week 11-12:
-├── P2-3: Video player tests
-├── Performance benchmarking
-└── Coverage threshold enforcement
+- P2-3: Video player tests
+- Performance benchmarking
+- Coverage threshold enforcement
 ```
 
 **Milestone:** All phases complete, line coverage 65%+, branch 55%+
@@ -586,24 +624,26 @@ Week 11-12:
 ## Notes
 
 - Related to original audit: [`docs/development/coverage-audit-report.md`](docs/development/coverage-audit-report.md)
-- Current test run results (2026-03-29): 67 passing test files, 493 passing tests, 0 failing
+- Current test run results (2026-03-29): 73 passing test files, 537 passing tests, 0 failing
 - `npm run test:unit -- --coverage` currently fails due to global thresholds (Lines 40% | Branches 30% | Functions 50%) being higher than current global coverage (Lines 29.48% | Branches 26.19% | Functions 22.65%)
 - P0-1 lifecycle tests and P0-3 refresh pipeline tests both exercise `main.ts`, but `main.ts` is currently outside `vitest.config.mjs` coverage `include` (`src/**/*.ts`), so these tests do not move the reported coverage totals yet.
 
 ## Next Steps
 
-### Recommended: Continue with P1-1 (OPML Manager)
+### Recommended: Continue with P2-1 (Platform Utilities)
 
-Now that P0-5 is complete, the recommended next step is P1-1: `src/services/opml-manager.ts` unit tests. This is the highest-leverage next step because:
+P1-6 is complete as of 2026-03-29. The recommended next step is P2-1: `src/utils/platform-utils.ts` tests.
 
-1. **Core data portability** — import/export is a common recovery path for users
-2. **Mostly pure logic** — quick coverage gains without heavy DOM stubbing
-3. **Stability** — reduces risk around backups and migrations
+This is high-leverage because:
 
-**Handoff (P1-1):**
-- Suggested test file: `test_files/unit/services/opml-manager.test.ts`
-- Cover `OpmlManager.generateOpml()` for nested folders, empty feeds, and stable ordering
-- Cover OPML parse paths (valid/invalid XML) and metadata extraction
+1. **Shared utility surface** - many views/components depend on these helpers
+2. **Network + decoding risks** - `robustFetch()` is a common source of subtle bugs
+3. **Easy unit isolation** - can be covered with small, deterministic tests
+
+**Handoff (P2-1):**
+- Full handoff doc: [`docs/development/p2-1-handoff.md`](docs/development/p2-1-handoff.md)
+- Suggested test file: `test_files/unit/utils/platform-utils.test.ts`
+- Focus: `robustFetch()` charset detection/decoding fallbacks + `attachInputClearButton()` behavior
 
 ### Alternative: Unblock CI Coverage Gate (without adding new tests)
 
@@ -624,3 +664,5 @@ To validate existing test quality:
 ---
 
 _Last updated: 2026-03-29_
+
+
