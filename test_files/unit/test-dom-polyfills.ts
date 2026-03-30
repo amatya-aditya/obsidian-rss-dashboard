@@ -45,6 +45,15 @@ export function installObsidianDomPolyfills(): void {
     };
   }
 
+  if (typeof (proto as any).addClasses !== "function") {
+    (proto as any).addClasses = function addClasses(
+      this: HTMLElement,
+      classes: string[],
+    ): void {
+      this.classList.add(...classes);
+    };
+  }
+
   if (typeof proto.removeClass !== "function") {
     proto.removeClass = function removeClass(this: HTMLElement, ...classes: string[]): void {
       this.classList.remove(...classes);
@@ -78,13 +87,19 @@ export function installObsidianDomPolyfills(): void {
   if (typeof proto.createDiv !== "function") {
     proto.createDiv = function createDiv(
       this: HTMLElement,
-      opts?: { cls?: string; text?: string; attr?: Record<string, string> },
+      opts?:
+        | string
+        | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLDivElement {
       const el = document.createElement("div");
-      if (opts?.cls) el.className = opts.cls;
-      if (opts?.text !== undefined) el.textContent = opts.text;
-      if (opts?.attr) {
-        Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
+      if (typeof opts === "string") {
+        el.className = opts;
+      } else {
+        if (opts?.cls) el.className = opts.cls;
+        if (opts?.text !== undefined) el.textContent = opts.text;
+        if (opts?.attr) {
+          Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
+        }
       }
       this.appendChild(el);
       return el;
@@ -94,16 +109,28 @@ export function installObsidianDomPolyfills(): void {
   if (typeof proto.createSpan !== "function") {
     proto.createSpan = function createSpan(
       this: HTMLElement,
-      opts?: { cls?: string; text?: string; attr?: Record<string, string> },
+      opts?:
+        | string
+        | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLSpanElement {
       const el = document.createElement("span");
-      if (opts?.cls) el.className = opts.cls;
-      if (opts?.text !== undefined) el.textContent = opts.text;
-      if (opts?.attr) {
-        Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
+      if (typeof opts === "string") {
+        el.className = opts;
+      } else {
+        if (opts?.cls) el.className = opts.cls;
+        if (opts?.text !== undefined) el.textContent = opts.text;
+        if (opts?.attr) {
+          Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
+        }
       }
       this.appendChild(el);
       return el;
+    };
+  }
+
+  if (typeof (proto as any).appendText !== "function") {
+    (proto as any).appendText = function appendText(this: HTMLElement, text: string): void {
+      this.append(document.createTextNode(text));
     };
   }
 

@@ -1,0 +1,85 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as obsidian from "obsidian";
+import { AddFeedModal } from "../../../src/modals/feed-manager/add-feed-modal";
+import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+
+function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
+  const settingEls = Array.from(containerEl.querySelectorAll(".setting-item"));
+  const match = settingEls.find((el) => {
+    const nameEl = el.querySelector(".setting-item-name");
+    return nameEl?.textContent === name;
+  });
+  if (!match) {
+    throw new Error(`Setting not found: ${name}`);
+  }
+  return match as HTMLElement;
+}
+
+function flushPromises(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+beforeEach(() => {
+  installObsidianDomPolyfills();
+  document.body.empty();
+  Object.defineProperty(window, "innerWidth", { value: 1400, configurable: true });
+  vi.restoreAllMocks();
+});
+
+describe("AddFeedModal", () => {
+  it("validates required fields and does not call onAdd when URL is empty", async () => {
+    const app = obsidian.App.createMock();
+    const onAdd = vi.fn(async () => true);
+    const onSave = vi.fn();
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const modal = new AddFeedModal(app as any, [], onAdd as any, onSave as any);
+    modal.open();
+
+    const titleSetting = getSettingByName(modal.contentEl, "Title");
+    const titleInput = titleSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    titleInput.value = "My feed";
+    titleInput.dispatchEvent(new Event("input"));
+
+    const saveBtn = Array.from(modal.contentEl.querySelectorAll("button")).find(
+      (b) => b.textContent === "Save",
+    ) as HTMLButtonElement;
+    saveBtn.click();
+    await flushPromises();
+
+    expect(onAdd).toHaveBeenCalledTimes(0);
+    expect(onSave).toHaveBeenCalledTimes(0);
+    expect(logSpy).toHaveBeenCalledWith("[Stub Notice]", "Feed URL cannot be empty");
+  });
+
+  it("does not close or call onSave when onAdd returns false (e.g., duplicate URL)", async () => {
+    const app = obsidian.App.createMock();
+    const onAdd = vi.fn(async () => false);
+    const onSave = vi.fn();
+
+    const modal = new AddFeedModal(app as any, [], onAdd as any, onSave as any);
+    const closeSpy = vi.spyOn(modal, "close");
+    modal.open();
+
+    const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
+    const urlInput = urlSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    urlInput.value = "https://example.com/feed.xml";
+    urlInput.dispatchEvent(new Event("input"));
+
+    const titleSetting = getSettingByName(modal.contentEl, "Title");
+    const titleInput = titleSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    titleInput.value = "My feed";
+    titleInput.dispatchEvent(new Event("input"));
+
+    const saveBtn = Array.from(modal.contentEl.querySelectorAll("button")).find(
+      (b) => b.textContent === "Save",
+    ) as HTMLButtonElement;
+    saveBtn.click();
+    await flushPromises();
+
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledTimes(0);
+    expect(closeSpy).toHaveBeenCalledTimes(0);
+  });
+});
+

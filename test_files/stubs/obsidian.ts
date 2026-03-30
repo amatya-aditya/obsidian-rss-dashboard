@@ -267,6 +267,10 @@ export class MockWorkspace {
   createLeafByType(_type: string): unknown {
     return {};
   }
+
+  // Minimal surface used by settings tabs to focus a view.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async revealLeaf(_leaf: any): Promise<void> {}
 }
 
 // =============================================================================
@@ -453,6 +457,9 @@ export class Setting {
   nameEl: HTMLDivElement;
   descEl: HTMLDivElement;
   controlEl: HTMLDivElement;
+  // Obsidian stores created components here; many settings tabs access it.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  components: any[] = [];
 
   constructor(containerEl: HTMLElement) {
     this.settingEl = document.createElement("div");
@@ -552,6 +559,7 @@ export class Setting {
     }
 
     const component = new ButtonComponent(this.controlEl);
+    this.components.push(component);
     cb(component);
     return this;
   }
@@ -595,6 +603,7 @@ export class Setting {
     }
 
     const component = new SliderComponent(this.controlEl);
+    this.components.push(component);
     cb(component);
     return this;
   }
@@ -619,6 +628,10 @@ export class Setting {
         return this;
       }
 
+      getValue(): string {
+        return this.inputEl.value;
+      }
+
       setPlaceholder(value: string): this {
         this.inputEl.placeholder = value;
         return this;
@@ -631,6 +644,7 @@ export class Setting {
     }
 
     const component = new ColorComponent(this.controlEl);
+    this.components.push(component);
     cb(component);
     return this;
   }
@@ -666,6 +680,7 @@ export class Setting {
     }
 
     const component = new ToggleComponent(this.controlEl);
+    this.components.push(component);
     cb(component);
     return this;
   }
@@ -710,6 +725,7 @@ export class Setting {
     }
 
     const component = new TextComponent(this.controlEl);
+    this.components.push(component);
     cb(component);
     return this;
   }
@@ -752,6 +768,7 @@ export class Setting {
     }
 
     const component = new DropdownComponent(this.controlEl);
+    this.components.push(component);
     cb(component);
     return this;
   }
@@ -792,14 +809,37 @@ export class TextComponent {
 
 export class Modal {
   app: App;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  containerEl: any;
+  containerEl: HTMLDivElement;
+  modalEl: HTMLDivElement;
+  contentEl: HTMLDivElement;
   constructor(app: App) {
     this.app = app;
     this.containerEl = document.createElement("div");
+    this.containerEl.className = "modal-container";
+
+    this.modalEl = document.createElement("div");
+    this.modalEl.className = "modal";
+    this.containerEl.appendChild(this.modalEl);
+
+    this.contentEl = document.createElement("div");
+    this.contentEl.className = "modal-content";
+    this.modalEl.appendChild(this.contentEl);
   }
-  open(): void {}
-  close(): void {}
+
+  onOpen(): void {}
+  onClose(): void {}
+
+  open(): void {
+    if (!this.containerEl.isConnected) {
+      document.body.appendChild(this.containerEl);
+    }
+    this.onOpen();
+  }
+
+  close(): void {
+    this.onClose();
+    this.containerEl.remove();
+  }
 }
 
 export class AbstractInputSuggest<T> {

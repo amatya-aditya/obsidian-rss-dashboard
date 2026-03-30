@@ -2,9 +2,9 @@
 
 ## Status
 
-P3-1 is pending (not started).
+P3-1 is **complete** (implemented 2026-03-29).
 
-### Current baseline (2026-03-29)
+### Baseline (before P3-1) (2026-03-29)
 
 From `npm run test:unit -- --coverage` (see `coverage/coverage-final.json`):
 
@@ -15,6 +15,13 @@ Category callouts (measured):
 
 - Modals: Lines **3.89%** (dominant gap)
 - Settings: Lines **27.48%** (very low branch coverage)
+
+### New snapshot (after P3-1) (2026-03-29)
+
+From `npm run test:unit -- --coverage`:
+
+- Global: Lines **39.71%** | Branches **31.57%** | Functions **32.95%**
+- Thresholds (`vitest.config.mjs`): Lines **35** | Branches **29** | Functions **29** (unchanged)
 
 ## Context
 
@@ -55,6 +62,25 @@ Why P3-1: the biggest remaining risk/coverage holes are **modal-driven user flow
 3. Expand Obsidian stubs only as needed:
 
 - If modal tests require additional Modal/App/Vault/Workspace behavior beyond `test_files/stubs/obsidian.ts`, add the minimum surface area needed and document it in the PR description.
+
+### Implementation notes (what was added)
+
+- Fixtures:
+  - `test_files/fixtures/opml/single-feed.opml`
+  - `test_files/fixtures/opml/nested-folders.opml`
+  - `test_files/fixtures/opml/invalid.opml`
+- New unit tests:
+  - `test_files/unit/modals/import-opml-modal.test.ts`
+  - `test_files/unit/modals/feed-manager-modal.test.ts`
+  - `test_files/unit/modals/add-feed-modal.test.ts`
+  - `test_files/unit/modals/edit-feed-modal.test.ts`
+  - `test_files/unit/settings/media-settings-tab.test.ts`
+  - `test_files/unit/settings/tags-settings-tab.test.ts`
+- Stub + polyfill expansion (minimal):
+  - `test_files/stubs/obsidian.ts`: more complete `Modal` surface (`modalEl`, `contentEl`, `open/close`), `Setting.components`, `ColorPicker.getValue()`, and `workspace.revealLeaf()`
+  - `test_files/unit/test-dom-polyfills.ts`: add `HTMLElement.addClasses()` used by modals
+- Coverage reporting:
+  - `vitest.config.mjs`: add `json-summary` reporter and explicitly set `reportsDirectory: "coverage"`
 
 ## What to Test (decision-complete scenarios)
 
@@ -112,3 +138,4 @@ Next bump gate (threshold + 0.75%):
 
 Once all three are met, bump to: Lines **36** | Branches **30** | Functions **30** (in a dedicated PR without coverage-surface expansion).
 
+**P3-1 note:** The new snapshot (Lines 39.71% | Branches 31.57% | Functions 32.95%) exceeds the bump gate; proceed with the dedicated threshold bump PR when ready.
