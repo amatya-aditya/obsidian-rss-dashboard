@@ -21,6 +21,7 @@ release/
 # agent
 docs/archive
 CLAUDE.md
+.claude/
 .agent/*
 userdata.json.backup
 feeds.opml.backup

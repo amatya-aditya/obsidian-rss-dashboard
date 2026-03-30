@@ -180,6 +180,15 @@ export function installObsidianDomPolyfills(): void {
       // no-op for jsdom
     };
   }
+
+  if (typeof window.ResizeObserver !== "function") {
+    class MockResizeObserver {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    (window as any).ResizeObserver = MockResizeObserver;
+  }
 }
 
 export function installMediaElementPolyfills(): void {

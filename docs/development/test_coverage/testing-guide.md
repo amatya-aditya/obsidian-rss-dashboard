@@ -1,5 +1,16 @@
 # RSS Dashboard Testing Guide
 
+## 1. Current Test Status (as of 2026-03-30)
+
+- **Total Tests:** 701
+- **Passing:** 701 (100%)
+- **Line Coverage:** 46.2%
+- **Branch Coverage:** 35.96%
+- **Function Coverage:** 40.0%
+
+*Note: Coverage is enforced via Vitest thresholds in `vitest.config.mjs` and ratcheted up as we improve the suite.*
+
+
 ## 1. Test-Driven Development (TDD)
 
 This project relies heavily on **Test-Driven Development (TDD)** to maintain stability, especially when integrating with Obsidian's DOM and managing complex background parsing.
@@ -20,6 +31,23 @@ Our tests live in the `test_files/unit/` directory. Historically, tests were kep
 - `test_files/unit/components/`: For reusable isolated UI components and Obsidian modals.
 
 *Note: Grouping tests by feature or module makes it much easier to maintain the suite and understand coverage.*
+
+## 3. Test Suites Reference
+
+### Core Services
+- **Feed Parser (`test_files/unit/feed-parser.test.ts`):** Validates RSS/Atom/JSON parsing, encoding detection, and URL conversion.
+- **Article Saver (`test_files/unit/services/article-saver.test.ts`):** Validates markdown generation, template variables, and vault persistence.
+- **OPML Manager (`test_files/unit/services/opml-manager.test.ts`):** Validates import/export and folder merging.
+- **Highlight Service (`test_files/unit/services/highlight-service.test.ts`):** Validates regex generation and DOM-based highlighting.
+
+### Views
+- **Dashboard View (`test_files/unit/views/dashboard-lifecycle.test.ts`):** Validates main view orchestration, pagination, and multi-filter persistence.
+- **Discover View (`test_files/unit/views/discover-view.test.ts`):** Validates feed categorization and filter state persistence.
+
+### Components
+- **Sidebar (`test_files/unit/components/sidebar-core.test.ts`):** Validates sidebar rendering, toolbar actions, and tag filters.
+- **Modals:** Extensive coverage for feed management, OPML import, and settings modals in `test_files/unit/modals/`.
+
 
 ## 3. Explaining the Purpose of Each Test
 
@@ -48,7 +76,17 @@ We use `jsdom` alongside custom polyfills (`test_files/unit/test-dom-polyfills.t
 - Always clean up the DOM between tests with `document.body.empty()`.
 - Mock file system and external network calls (e.g., using `vi.spyOn(obsidian, "requestUrl")`).
 
-## 5. Running Tests
+## 6. Best Practices
 
-- Run tests in watch mode during development: `npx vitest`
-- Run the full suite confidently before a commit: `npm run test:unit`
+1. **Mocking Obsidian APIs**: Use the stubs in `test_files/stubs/obsidian.ts`. If a required API is missing, expand the stub.
+2. **Environment**: Ensure `environment: 'jsdom'` is set in the test file or config if testing DOM-reliant code.
+3. **Fixtures**: Keep large XML/JSON fixtures in dedicated `fixtures/` files (e.g., `test_files/unit/fixtures/`).
+4. **Cleanup**: Always use `document.body.empty()` or `vi.clearAllMocks()` in `afterEach` to ensure test independence.
+5. **Descriptive Naming**: Write clear `it` statements explaining *behavior*, not implementation (e.g., `it("persists the new feed...")` not `it("calls the save function...")`).
+
+## 7. Running Tests
+
+- **Run all tests**: `npm run test:unit`
+- **Watch mode**: `npx vitest`
+- **Coverage report**: `npm run test:unit -- --coverage`
+
