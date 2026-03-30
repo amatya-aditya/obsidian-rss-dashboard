@@ -2966,6 +2966,15 @@ export class FeedParser {
     const updatedItems: FeedItem[] = [];
     const seenGuids = new Set<string>();
 
+    // Compute auto-delete cutoff so we can skip "new" items that are actually
+    // old entries re-appearing in the feed after being auto-deleted.
+    const autoDeleteDays =
+      typeof newFeed.autoDeleteDuration === "number"
+        ? newFeed.autoDeleteDuration
+        : 0;
+    const autoDeleteCutoffMs =
+      autoDeleteDays > 0 ? Date.now() - autoDeleteDays * 24 * 60 * 60 * 1000 : 0;
+
     for (const item of parsed.items) {
       const isAudioEnclosure = item.enclosure?.type?.startsWith("audio/");
       const isAudioLink = !!(item.link && item.link.includes(".mp3"));
@@ -3069,6 +3078,16 @@ export class FeedParser {
         };
         updatedItems.push(updatedItem);
       } else {
+        // Skip items older than the auto-delete cutoff during refresh.
+        // These were likely auto-deleted previously and should not reappear as unread.
+        if (
+          existingFeed &&
+          autoDeleteCutoffMs > 0 &&
+          getPubDateMs(item.pubDate) <= autoDeleteCutoffMs
+        ) {
+          continue;
+        }
+
         let coverImage = "";
         if (isPodcast) {
           coverImage = this.extractPodcastCoverImage(item, parsed.image, url);
