@@ -1128,7 +1128,6 @@ export class Sidebar {
           );
 
           this.callbacks.onToggleFolderCollapse(fullPath, false);
-          this.callbacks.onFolderClick(fullPath);
         } else {
           this.callbacks.onFolderClick(fullPath);
         }
