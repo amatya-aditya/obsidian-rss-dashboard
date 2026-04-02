@@ -475,6 +475,100 @@ describe("refreshFeeds()", () => {
     // Then: Error should be handled (no throw)
     expect(plugin.settings).toBeDefined();
   });
+
+  it("saves lastRefreshTimestamp after successful refresh", async () => {
+    // Given: Mock refreshAllFeeds returns updated feeds
+    mockRefreshAllFeeds.mockResolvedValue([sampleFeed]);
+    const beforeRefresh = Date.now();
+
+    // When: refreshFeeds is called
+    await plugin.refreshFeeds();
+    const afterRefresh = Date.now();
+
+    // Then: lastRefreshTimestamp should be set
+    expect(plugin.settings.lastRefreshTimestamp).toBeGreaterThanOrEqual(
+      beforeRefresh,
+    );
+    expect(plugin.settings.lastRefreshTimestamp).toBeLessThanOrEqual(
+      afterRefresh,
+    );
+  });
+
+  it("does NOT save lastRefreshTimestamp on refresh failure", async () => {
+    // Given: Mock refreshAllFeeds throws error
+    mockRefreshAllFeeds.mockRejectedValue(new Error("Network error"));
+    plugin.settings.lastRefreshTimestamp = 0;
+
+    // When: refreshFeeds is called
+    await plugin.refreshFeeds();
+
+    // Then: lastRefreshTimestamp should remain 0 (not updated on failure)
+    expect(plugin.settings.lastRefreshTimestamp).toBe(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test Suite: lastRefreshTimestamp settings
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("lastRefreshTimestamp in settings", () => {
+  it("has lastRefreshTimestamp in DEFAULT_SETTINGS with default value 0", () => {
+    // Then: DEFAULT_SETTINGS should include lastRefreshTimestamp
+    expect(DEFAULT_SETTINGS).toHaveProperty("lastRefreshTimestamp");
+    expect(DEFAULT_SETTINGS.lastRefreshTimestamp).toBe(0);
+  });
+
+  it("shouldRefreshOnOpen returns true when no timestamp exists", () => {
+    // Given: Settings with no lastRefreshTimestamp
+    const settings = { ...DEFAULT_SETTINGS, lastRefreshTimestamp: 0 };
+
+    // When: Checking if should refresh on open
+    const shouldRefresh =
+      !settings.lastRefreshTimestamp ||
+      Date.now() - settings.lastRefreshTimestamp >=
+        settings.refreshInterval * 60 * 1000;
+
+    // Then: Should return true for first-time users
+    expect(shouldRefresh).toBe(true);
+  });
+
+  it("shouldRefreshOnOpen returns true when interval has elapsed", () => {
+    // Given: Settings with timestamp 90 minutes ago, interval 60 minutes
+    const ninetyMinutesAgo = Date.now() - 90 * 60 * 1000;
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      lastRefreshTimestamp: ninetyMinutesAgo,
+      refreshInterval: 60,
+    };
+
+    // When: Checking if should refresh on open
+    const shouldRefresh =
+      !settings.lastRefreshTimestamp ||
+      Date.now() - settings.lastRefreshTimestamp >=
+        settings.refreshInterval * 60 * 1000;
+
+    // Then: Should return true
+    expect(shouldRefresh).toBe(true);
+  });
+
+  it("shouldRefreshOnOpen returns false when interval has not elapsed", () => {
+    // Given: Settings with timestamp 30 minutes ago, interval 60 minutes
+    const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000;
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      lastRefreshTimestamp: thirtyMinutesAgo,
+      refreshInterval: 60,
+    };
+
+    // When: Checking if should refresh on open
+    const shouldRefresh =
+      !settings.lastRefreshTimestamp ||
+      Date.now() - settings.lastRefreshTimestamp >=
+        settings.refreshInterval * 60 * 1000;
+
+    // Then: Should return false
+    expect(shouldRefresh).toBe(false);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

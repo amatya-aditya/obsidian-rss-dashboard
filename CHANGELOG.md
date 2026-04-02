@@ -8,6 +8,13 @@
   - The divider can now be enabled/disabled and reordered among other icons via drag-and-drop.
   - Default position is between Discover and Add Feed icons.
 
+- **Smart Auto-Refresh on Vault Open**:
+  - Feeds now automatically refresh when opening the vault if the configured refresh interval has elapsed since the last refresh.
+  - **Before:** The refresh timer reset to zero each time Obsidian closed. Users had to manually refresh or wait for the interval to pass after reopening the vault.
+  - **After:** The plugin now tracks the last refresh timestamp in settings. On vault open, it checks if enough time has passed and refreshes immediately if needed.
+  - Manual refreshes (sidebar icon, right-click menu, header button) also update the timestamp.
+  - Respects all existing refresh interval settings (5 min to 24 hours).
+
 ### Development
 
 - **Testing Baseline for 2.2.0**:

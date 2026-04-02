@@ -164,6 +164,16 @@ export default class RssDashboardPlugin extends Plugin {
 
     await this.loadSettings();
 
+    const shouldRefreshOnOpen = (): boolean => {
+      if (!this.settings.lastRefreshTimestamp) return true;
+      const elapsed = Date.now() - this.settings.lastRefreshTimestamp;
+      return elapsed >= this.settings.refreshInterval * 60 * 1000;
+    };
+
+    if (shouldRefreshOnOpen()) {
+      void this.refreshFeeds();
+    }
+
     // Register a window-level beforeunload listener for reliable backup
     // on Obsidian quit. onunload is NOT reliably called by Electron on window close.
     this._beforeUnloadHandler = () => {
@@ -596,6 +606,7 @@ export default class RssDashboardPlugin extends Plugin {
       });
 
       await this.validateSavedArticles();
+      this.settings.lastRefreshTimestamp = Date.now();
       await this.saveSettings();
       const view = await this.getActiveDashboardView();
       if (view) {
