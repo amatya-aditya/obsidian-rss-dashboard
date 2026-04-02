@@ -3,20 +3,19 @@ import type { SidebarIconConfig } from "../types/types";
 
 export const SIDEBAR_ICONS: SidebarIconConfig[] = [
   {
-    id: "dashboard",
-    label: "Dashboard",
-    lucideIcon: "house",
-    settingKey: "hideIconDashboard",
-    neverCollapses: true,
-    isNav: true,
-  },
-  {
     id: "discover",
     label: "Discover",
     lucideIcon: "compass",
     settingKey: "hideIconDiscover",
     neverCollapses: true,
     isNav: true,
+  },
+  {
+    id: "divider",
+    label: "Divider",
+    lucideIcon: "minus-vertical",
+    settingKey: "hideIconDivider",
+    isDivider: true,
   },
   {
     id: "addFeed",

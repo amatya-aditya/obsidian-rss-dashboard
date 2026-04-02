@@ -549,16 +549,25 @@ export class DiscoverView extends ItemView {
       cls: "rss-dashboard-nav-container",
     });
 
+    // Return Home button - navigates to Dashboard
     const dashboardBtn = navContainer.createDiv({
-      cls: "rss-dashboard-nav-button rss-dashboard-nav-button--icon",
+      cls: "rss-dashboard-nav-button clickable-icon rss-discover-return-home",
       attr: {
-        title: "Dashboard",
-        "aria-label": "Dashboard",
+        title: "Return to Dashboard",
+        "aria-label": "Return to Dashboard",
         role: "button",
         tabindex: "0",
       },
     });
-    setIcon(dashboardBtn, "home");
+    setIcon(dashboardBtn, "arrow-left");
+
+    // Add "Return Home" text span
+    const _returnHomeText = dashboardBtn.createSpan({
+      cls: "rss-discover-return-home-text",
+      text: "Return Home",
+    });
+    void _returnHomeText;
+
     dashboardBtn.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
@@ -568,27 +577,6 @@ export class DiscoverView extends ItemView {
     dashboardBtn.addEventListener(
       "click",
       () => void this.plugin.activateView(),
-    );
-
-    const discoverBtn = navContainer.createDiv({
-      cls: "rss-dashboard-nav-button rss-dashboard-nav-button--icon active",
-      attr: {
-        title: "Discover",
-        "aria-label": "Discover",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(discoverBtn, "compass");
-    discoverBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        discoverBtn.click();
-      }
-    });
-    discoverBtn.addEventListener(
-      "click",
-      () => void this.plugin.activateDiscoverView(),
     );
   }
 

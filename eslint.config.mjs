@@ -8,11 +8,12 @@ export default defineConfig([
   {
     ignores: [
       "node_modules/**",
+      "coverage/**",
       "main.js",
       "*.mjs",
       "scripts/**/*.js",
       "test_files/**",
-      "update_reader_view.js",
+      ".kilo/**",
     ],
   },
   ...obsidianmd.configs.recommended,

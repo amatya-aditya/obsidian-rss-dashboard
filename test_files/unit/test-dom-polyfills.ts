@@ -45,6 +45,15 @@ export function installObsidianDomPolyfills(): void {
     };
   }
 
+  if (typeof (proto as any).addClasses !== "function") {
+    (proto as any).addClasses = function addClasses(
+      this: HTMLElement,
+      classes: string[],
+    ): void {
+      this.classList.add(...classes);
+    };
+  }
+
   if (typeof proto.removeClass !== "function") {
     proto.removeClass = function removeClass(this: HTMLElement, ...classes: string[]): void {
       this.classList.remove(...classes);
@@ -78,13 +87,19 @@ export function installObsidianDomPolyfills(): void {
   if (typeof proto.createDiv !== "function") {
     proto.createDiv = function createDiv(
       this: HTMLElement,
-      opts?: { cls?: string; text?: string; attr?: Record<string, string> },
+      opts?:
+        | string
+        | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLDivElement {
       const el = document.createElement("div");
-      if (opts?.cls) el.className = opts.cls;
-      if (opts?.text !== undefined) el.textContent = opts.text;
-      if (opts?.attr) {
-        Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
+      if (typeof opts === "string") {
+        el.className = opts;
+      } else {
+        if (opts?.cls) el.className = opts.cls;
+        if (opts?.text !== undefined) el.textContent = opts.text;
+        if (opts?.attr) {
+          Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
+        }
       }
       this.appendChild(el);
       return el;
@@ -94,16 +109,28 @@ export function installObsidianDomPolyfills(): void {
   if (typeof proto.createSpan !== "function") {
     proto.createSpan = function createSpan(
       this: HTMLElement,
-      opts?: { cls?: string; text?: string; attr?: Record<string, string> },
+      opts?:
+        | string
+        | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLSpanElement {
       const el = document.createElement("span");
-      if (opts?.cls) el.className = opts.cls;
-      if (opts?.text !== undefined) el.textContent = opts.text;
-      if (opts?.attr) {
-        Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
+      if (typeof opts === "string") {
+        el.className = opts;
+      } else {
+        if (opts?.cls) el.className = opts.cls;
+        if (opts?.text !== undefined) el.textContent = opts.text;
+        if (opts?.attr) {
+          Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
+        }
       }
       this.appendChild(el);
       return el;
+    };
+  }
+
+  if (typeof (proto as any).appendText !== "function") {
+    (proto as any).appendText = function appendText(this: HTMLElement, text: string): void {
+      this.append(document.createTextNode(text));
     };
   }
 
@@ -111,9 +138,15 @@ export function installObsidianDomPolyfills(): void {
     proto.createEl = function createEl<K extends keyof HTMLElementTagNameMap>(
       this: HTMLElement,
       tag: K,
-      opts?: { cls?: string; text?: string; attr?: Record<string, string> } & Partial<
-        HTMLElementTagNameMap[K] extends HTMLInputElement ? { type: string } : Record<string, never>
-      >,
+      opts?: {
+        cls?: string;
+        text?: string;
+        attr?: Record<string, string>;
+        // Obsidian's createEl supports passing through common element props (e.g. value/placeholder).
+        // Keep this permissive so unit tests behave like plugin runtime.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        [key: string]: any;
+      },
     ): HTMLElementTagNameMap[K] {
       const el = document.createElement(tag);
       if (opts?.cls) el.className = opts.cls;
@@ -123,12 +156,38 @@ export function installObsidianDomPolyfills(): void {
           el.setAttribute(k, v),
         );
       }
-      if (tag === "input" && opts && "type" in opts && typeof (opts as { type?: unknown }).type === "string") {
-        (el as unknown as HTMLInputElement).type = (opts as { type: string }).type;
+      if (opts) {
+        Object.entries(opts).forEach(([key, value]) => {
+          if (key === "cls" || key === "text" || key === "attr") return;
+          if (tag === "input" && key === "type" && typeof value === "string") {
+            (el as unknown as HTMLInputElement).type = value;
+            return;
+          }
+          // Pass through common properties like value/placeholder/disabled/etc.
+          if (key in el) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (el as any)[key] = value;
+          }
+        });
       }
       this.appendChild(el);
       return el;
     };
+  }
+
+  if (typeof Element.prototype.scrollIntoView !== "function") {
+    Element.prototype.scrollIntoView = function scrollIntoView(): void {
+      // no-op for jsdom
+    };
+  }
+
+  if (typeof window.ResizeObserver !== "function") {
+    class MockResizeObserver {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    (window as any).ResizeObserver = MockResizeObserver;
   }
 }
 

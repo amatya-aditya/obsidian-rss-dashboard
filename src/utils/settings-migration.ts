@@ -10,8 +10,8 @@ const CANONICAL_ICON_ORDER = [...SIDEBAR_ICON_IDS];
  */
 export function migrateDisplaySettings(display: Record<string, unknown>): void {
   const booleanDefaults: string[] = [
-    "hideIconDashboard",
     "hideIconDiscover",
+    "hideIconDivider",
     "hideIconAddFeed",
     "hideIconManageFeeds",
     "hideIconSearch",
@@ -141,7 +141,11 @@ export function migrateKeywordRulesSettings(
   }
 
   if (!isRecord(settings.keywordRules)) {
-    settings.keywordRules = { includeLogic: "AND", bypassAll: false, rules: [] };
+    settings.keywordRules = {
+      includeLogic: "AND",
+      bypassAll: false,
+      rules: [],
+    };
     changed = true;
   }
 

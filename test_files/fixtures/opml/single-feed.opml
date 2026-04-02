@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>Single feed fixture</title>
+  </head>
+  <body>
+    <outline
+      text="Example Feed"
+      title="Example Feed"
+      type="rss"
+      xmlUrl="https://example.com/feed.xml"
+      category="Tech"
+    />
+  </body>
+</opml>
