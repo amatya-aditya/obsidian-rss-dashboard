@@ -125,6 +125,30 @@ Want to influence the next release? </h3> : Join our [Discord server](https://di
 
 ## Getting Started
 
+## Development
+
+### Local setup
+
+This repo targets Node 22 for local development and CI. If you use `nvm`, run `nvm use` from the repo root to pick up the version from `.nvmrc`.
+
+### Local CI-equivalent commands
+
+Run the same install and test commands used in GitHub Actions:
+
+```bash
+nvm use
+npm ci
+npm run test:unit -- --coverage
+```
+
+To mirror the release workflow build step locally:
+
+```bash
+nvm use
+npm ci
+npm run build
+```
+
 ### Adding Your First Feed
 
 1. Open the RSS Dashboard view using the ribbon icon or command palette
