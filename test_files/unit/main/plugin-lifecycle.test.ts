@@ -50,7 +50,7 @@ vi.mock("../../../src/utils/settings-migration", () => ({
 import RssDashboardPlugin from "../../../main";
 
 // Use App from obsidian stub (provided via Vitest alias)
-import { App } from "obsidian";
+import { App, Platform } from "obsidian";
 
 // Type for mock app - use any to avoid TS errors with vi.mock
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -276,6 +276,8 @@ describe("loadSettings()", () => {
 
 describe("onload() initialization", () => {
   let plugin: RssDashboardPlugin;
+  let originalPlatformIsMobile: boolean;
+  let originalPlatformIsDesktop: boolean;
 
   beforeEach(async () => {
     const app = createMockApp();
@@ -283,9 +285,13 @@ describe("onload() initialization", () => {
     vi.clearAllMocks();
     mockRefreshAllFeeds.mockClear();
     mockParseFeed.mockClear();
+    originalPlatformIsMobile = Platform.isMobile;
+    originalPlatformIsDesktop = Platform.isDesktop;
   });
 
   afterEach(() => {
+    Platform.isMobile = originalPlatformIsMobile;
+    Platform.isDesktop = originalPlatformIsDesktop;
     vi.restoreAllMocks();
   });
 
@@ -366,6 +372,16 @@ describe("onload() initialization", () => {
 
     // Then: settings should be loaded
     expect(plugin.settings).toBeDefined();
+  });
+
+  it("preserves list view on mobile startup", async () => {
+    Platform.isMobile = true;
+    Platform.isDesktop = false;
+    plugin.loadData = vi.fn().mockResolvedValue({ viewStyle: "list" });
+
+    await plugin.onload();
+
+    expect(plugin.settings.viewStyle).toBe("list");
   });
 });
 

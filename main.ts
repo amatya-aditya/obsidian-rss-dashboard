@@ -374,10 +374,6 @@ export default class RssDashboardPlugin extends Plugin {
       this.settings.maxItems = 50;
     }
 
-    if (this.settings.viewStyle === "list") {
-      this.settings.viewStyle = "card";
-    }
-
     if (!this.settings.sidebarCollapsed) {
       this.settings.sidebarCollapsed = true;
     }
