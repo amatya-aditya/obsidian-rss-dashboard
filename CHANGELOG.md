@@ -15,6 +15,9 @@
   - Manual refreshes (sidebar icon, right-click menu, header button) also update the timestamp.
   - Respects all existing refresh interval settings (5 min to 24 hours).
 
+- **Auto Refresh: Off Option added**
+  - Added a new "Off" option to the refresh interval dropdown in General > Global Feeds > Refresh Interval. Resolves GH Issue #92
+
 ### Development
 
 - **Testing Baseline for 2.2.0**:

@@ -48,6 +48,7 @@ import { sleep, setCssProps } from "./src/utils/platform-utils";
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { copyTextToClipboard, exportBlob } from "./src/utils/export-utils";
 import { canonicalizeItemIdentityUrl } from "./src/utils/url-utils";
+import { normalizeRefreshIntervalMinutes } from "./src/utils/validation";
 
 export interface FiltersUpdatedEventPayload {
   source: string;
@@ -65,6 +66,18 @@ export default class RssDashboardPlugin extends Plugin {
   private isBackgroundImporting = false;
   public vaultAbsolutePath = "";
   private _beforeUnloadHandler: (() => void) | null = null;
+
+  private getAutoRefreshIntervalMs(): number | null {
+    const normalizedMinutes = normalizeRefreshIntervalMinutes(
+      this.settings.refreshInterval,
+    );
+
+    if (normalizedMinutes <= 0) {
+      return null;
+    }
+
+    return normalizedMinutes * 60 * 1000;
+  }
 
   public async getActiveDashboardView(): Promise<RssDashboardView | null> {
     const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
@@ -165,9 +178,11 @@ export default class RssDashboardPlugin extends Plugin {
     await this.loadSettings();
 
     const shouldRefreshOnOpen = (): boolean => {
+      const intervalMs = this.getAutoRefreshIntervalMs();
+      if (intervalMs === null) return false;
       if (!this.settings.lastRefreshTimestamp) return true;
       const elapsed = Date.now() - this.settings.lastRefreshTimestamp;
-      return elapsed >= this.settings.refreshInterval * 60 * 1000;
+      return elapsed >= intervalMs;
     };
 
     if (shouldRefreshOnOpen()) {
@@ -336,14 +351,14 @@ export default class RssDashboardPlugin extends Plugin {
         },
       });
 
-      this.registerInterval(
-        window.setInterval(
-          () => {
+      const autoRefreshIntervalMs = this.getAutoRefreshIntervalMs();
+      if (autoRefreshIntervalMs !== null) {
+        this.registerInterval(
+          window.setInterval(() => {
             void this.refreshFeeds();
-          },
-          this.settings.refreshInterval * 60 * 1000,
-        ),
-      );
+          }, autoRefreshIntervalMs),
+        );
+      }
     } catch (e) {
       console.error("[RSS Dashboard] onload initialization failed:", e);
       new Notice("Error initializing RSS dashboard plugin.");
@@ -351,7 +366,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private applyMobileOptimizations(): void {
-    if (this.settings.refreshInterval < 60) {
+    if (this.settings.refreshInterval > 0 && this.settings.refreshInterval < 60) {
       this.settings.refreshInterval = 60;
     }
 
@@ -1585,6 +1600,11 @@ export default class RssDashboardPlugin extends Plugin {
       const data = (await this.loadData()) as RssDashboardSettings | null;
 
       this.settings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
+
+      const normalizedRefreshInterval = Number(this.settings.refreshInterval);
+      this.settings.refreshInterval = Number.isFinite(normalizedRefreshInterval)
+        ? normalizeRefreshIntervalMinutes(normalizedRefreshInterval)
+        : DEFAULT_SETTINGS.refreshInterval;
 
       const didMigrateKeywordRules = this.migrateLegacySettings();
 

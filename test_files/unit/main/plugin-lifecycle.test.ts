@@ -181,6 +181,26 @@ describe("loadSettings()", () => {
     expect(plugin.settings.feeds).toHaveLength(1);
   });
 
+  it("normalizes refreshInterval=0 to disabled instead of re-enabling it", async () => {
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockResolvedValue({
+      refreshInterval: 0,
+    });
+
+    await plugin.loadSettings();
+
+    expect(plugin.settings.refreshInterval).toBe(0);
+  });
+
+  it("normalizes negative refreshInterval values to disabled", async () => {
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockResolvedValue({
+      refreshInterval: -5,
+    });
+
+    await plugin.loadSettings();
+
+    expect(plugin.settings.refreshInterval).toBe(0);
+  });
+
   it("applies migrations to legacy settings", async () => {
     // Given: Legacy settings without new properties
     const legacySettings = {
@@ -314,6 +334,14 @@ describe("onload() initialization", () => {
 
     // Then: registerInterval should be called with a setInterval result
     expect(plugin.registerInterval).toHaveBeenCalled();
+  });
+
+  it("does not register auto refresh when refreshInterval is disabled", async () => {
+    plugin.loadData = vi.fn().mockResolvedValue({ refreshInterval: 0 });
+
+    await plugin.onload();
+
+    expect(plugin.registerInterval).not.toHaveBeenCalled();
   });
 
   it("adds setting tab", async () => {
@@ -530,6 +558,22 @@ describe("lastRefreshTimestamp in settings", () => {
 
     // Then: Should return true for first-time users
     expect(shouldRefresh).toBe(true);
+  });
+
+  it("shouldRefreshOnOpen returns false when auto refresh is disabled", () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      refreshInterval: 0,
+      lastRefreshTimestamp: 0,
+    };
+
+    const shouldRefresh =
+      settings.refreshInterval > 0 &&
+      (!settings.lastRefreshTimestamp ||
+        Date.now() - settings.lastRefreshTimestamp >=
+          settings.refreshInterval * 60 * 1000);
+
+    expect(shouldRefresh).toBe(false);
   });
 
   it("shouldRefreshOnOpen returns true when interval has elapsed", () => {

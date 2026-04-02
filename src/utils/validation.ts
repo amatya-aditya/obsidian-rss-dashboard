@@ -9,6 +9,37 @@ export interface ValidationResult {
   error?: string;
 }
 
+export function normalizeRefreshIntervalMinutes(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  const normalizedValue = Math.trunc(value);
+  return normalizedValue > 0 ? normalizedValue : 0;
+}
+
+export function isValidRefreshInterval(value: number): ValidationResult {
+  if (!Number.isFinite(value)) {
+    return { valid: false, error: "Refresh interval must be a number." };
+  }
+
+  if (!Number.isInteger(value)) {
+    return {
+      valid: false,
+      error: "Refresh interval must be a whole number of minutes.",
+    };
+  }
+
+  if (value < 0) {
+    return {
+      valid: false,
+      error: "Refresh interval cannot be negative.",
+    };
+  }
+
+  return { valid: true };
+}
+
 /**
  * Validates a folder name based on Obsidian's forbidden characters and path separator rules.
  * @param name The folder name to validate

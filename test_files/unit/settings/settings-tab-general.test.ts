@@ -28,8 +28,8 @@ describe("isPresetRefreshInterval()", () => {
     }
   });
 
-  it("covers the expected preset list [5,10,15,30,60,120,240,480,720,1440]", () => {
-    const expected = [5, 10, 15, 30, 60, 120, 240, 480, 720, 1440];
+  it("covers the expected preset list [0,5,10,15,30,60,120,240,480,720,1440]", () => {
+    const expected = [0, 5, 10, 15, 30, 60, 120, 240, 480, 720, 1440];
     expect(REFRESH_INTERVAL_PRESETS).toEqual(expected);
   });
 
@@ -37,8 +37,8 @@ describe("isPresetRefreshInterval()", () => {
     expect(isPresetRefreshInterval(45)).toBe(false);
   });
 
-  it("returns false for 0", () => {
-    expect(isPresetRefreshInterval(0)).toBe(false);
+  it("returns true for 0 (Off)", () => {
+    expect(isPresetRefreshInterval(0)).toBe(true);
   });
 
   it("returns false for a negative value", () => {
