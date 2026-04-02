@@ -1,5 +1,3 @@
-import { vi } from "vitest";
-
 // =============================================================================
 // Core Obsidian API Stubs
 // =============================================================================
@@ -351,7 +349,11 @@ export class Plugin {
   addCommand(_command: any): void {}
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addRibbonIcon(_icon: string, _title: string, _callback: (...args: any[]) => any): any {
+  addRibbonIcon(
+    _icon: string,
+    _title: string,
+    _callback: (...args: any[]) => any,
+  ): any {
     return {};
   }
 

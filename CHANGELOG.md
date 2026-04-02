@@ -8,6 +8,18 @@
   - The divider can now be enabled/disabled and reordered among other icons via drag-and-drop.
   - Default position is between Discover and Add Feed icons.
 
+### Development
+
+- **Testing Baseline for 2.2.0**:
+  - Established the first durable repo-wide automated test baseline for the plugin.
+  - The pre-testing reference point was `2.1.9`, which effectively shipped without a meaningful unit test suite beyond minimal Vitest scaffolding.
+  - The repo now has **103 passing test files** and **741 passing tests**.
+  - Global coverage baseline is now **46.77% statements**, **37.32% branches**, **41.51% functions**, and **47.66% lines**.
+  - Added broad unit and integration-style coverage across core services, views, components, settings flows, modals, and plugin lifecycle behavior.
+  - Added and expanded shared test infrastructure including Obsidian API stubs, JSDOM polyfills, and purpose-built harnesses for complex UI/service surfaces.
+  - Coverage thresholds are now actively enforced in `vitest.config.mjs` at **lines 40 / branches 33 / functions 34** to prevent regression.
+  - Added contributor-facing testing documentation and archived the phase-by-phase handoff artifacts used during the coverage push.
+
 ---
 
 ## [2.2.0-beta.9] - March 27, 2026

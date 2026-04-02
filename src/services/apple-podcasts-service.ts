@@ -35,7 +35,8 @@ export async function resolveApplePodcastsShowUrl(
   feedUrl: string,
   feedTitle: string,
 ): Promise<string | null> {
-  const cached = applePodcastsUrlCache.get(feedUrl);
+  const cacheKey = normalizeUrlForComparison(feedUrl) ?? feedUrl;
+  const cached = applePodcastsUrlCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
   const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(
@@ -48,6 +49,9 @@ export async function resolveApplePodcastsShowUrl(
       method: "GET",
       headers: { Accept: "application/json" },
     });
+    if (response.status !== 200) {
+      return null;
+    }
     const data = JSON.parse(response.text) as ItunesSearchResponse;
     const results = Array.isArray(data.results) ? data.results : [];
 
@@ -57,11 +61,17 @@ export async function resolveApplePodcastsShowUrl(
     });
 
     const showUrl = match ? getShowUrl(match) : null;
-    applePodcastsUrlCache.set(feedUrl, showUrl);
+    if (showUrl) {
+      applePodcastsUrlCache.set(cacheKey, showUrl);
+    }
     return showUrl;
   } catch {
     // Network/transient errors: don't cache so user can retry
     return null;
   }
+}
+
+export function clearApplePodcastsUrlCacheForTests(): void {
+  applePodcastsUrlCache.clear();
 }
 

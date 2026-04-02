@@ -67,7 +67,7 @@ export function normalizeUrlForComparison(rawUrl: string): string | null {
     const parsedUrl = new URL(rawUrl);
     const hostname = parsedUrl.hostname.toLowerCase();
     const port = parsedUrl.port ? `:${parsedUrl.port}` : "";
-    const pathname = parsedUrl.pathname.replace(/\/+$/, "");
+    const pathname = parsedUrl.pathname.toLowerCase().replace(/\/+$/, "");
     return `${hostname}${port}${pathname}${parsedUrl.search}`;
   } catch {
     const trimmed = rawUrl.trim().toLowerCase().replace(/\/+$/, "");
