@@ -405,6 +405,8 @@ export class WorkspaceLeaf {
   constructor(app: App) {
     this.app = app;
   }
+
+  updateHeader(): void {}
 }
 
 export class ItemView {
