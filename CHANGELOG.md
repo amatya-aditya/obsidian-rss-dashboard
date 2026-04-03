@@ -1,4 +1,4 @@
-## [Unreleased]
+## [2.2.0-beta.10] - April 2, 2026
 
 ### New Features
 
