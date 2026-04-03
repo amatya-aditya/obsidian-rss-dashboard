@@ -57,6 +57,8 @@ export class DiscoverView extends ItemView {
   private mobileSidebarModal: MobileDiscoverFiltersModal | null = null;
   private lastViewportMobileSidebarMode: boolean | null = null;
   private isAddingAllFeeds = false;
+  private bulkAddCompletedCount = 0;
+  private bulkAddTotalCount = 0;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -1557,7 +1559,9 @@ export class DiscoverView extends ItemView {
         cls: "rss-discover-add-all-spinner",
       });
       setIcon(spinner, "loader-2");
-      addAllButton.createSpan({ text: "Adding..." });
+      addAllButton.createSpan({
+        text: `Adding ${this.bulkAddCompletedCount}/${this.bulkAddTotalCount}...`,
+      });
     } else {
       addAllButton.setText("Add all...");
     }
@@ -1579,44 +1583,38 @@ export class DiscoverView extends ItemView {
   }
 
   private async addFilteredFeedsToFolder(folderName: string): Promise<void> {
+    const skippedAlreadyFollowed = this.filteredFeeds.filter((feed) =>
+      this.isFollowedFeed(feed),
+    ).length;
+    const feedsToAdd = this.filteredFeeds
+      .filter((feed) => !this.isFollowedFeed(feed))
+      .map((feed) => ({
+        title: feed.title,
+        url: feed.url,
+        folder: folderName,
+      }));
+
     this.isAddingAllFeeds = true;
+    this.bulkAddCompletedCount = 0;
+    this.bulkAddTotalCount = feedsToAdd.length;
     this.render();
 
     try {
-      await this.plugin.ensureFolderExists(folderName);
-
-      let addedCount = 0;
-      let skippedCount = 0;
-      let failedCount = 0;
-
-      for (const feed of this.filteredFeeds) {
-        if (this.isFollowedFeed(feed)) {
-          skippedCount += 1;
-          continue;
-        }
-
-        const added = await this.plugin.addFeed(
-          feed.title,
-          feed.url,
-          folderName,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          { showNotice: false },
-        );
-
-        if (added) {
-          addedCount += 1;
-        } else {
-          failedCount += 1;
-        }
-      }
+      const result = await this.plugin.ingestFeedsForBackgroundImport(
+        feedsToAdd,
+        {
+          mode: "update",
+          onProgress: (completed: number, total: number) => {
+            this.bulkAddCompletedCount = completed;
+            this.bulkAddTotalCount = total;
+            this.render();
+          },
+        },
+      );
 
       this.refreshViewAfterFollowStateChange();
       new Notice(
-        `Added ${addedCount} feeds to "${folderName}" (${skippedCount} already followed, ${failedCount} failed)`,
+        `Added ${result.addedCount} feeds. Articles will be fetched in the background. Skipped ${skippedAlreadyFollowed + result.skippedCount} already-followed feeds.`,
       );
     } catch (error) {
       new Notice(
@@ -1624,6 +1622,8 @@ export class DiscoverView extends ItemView {
       );
     } finally {
       this.isAddingAllFeeds = false;
+      this.bulkAddCompletedCount = 0;
+      this.bulkAddTotalCount = 0;
       this.render();
     }
   }

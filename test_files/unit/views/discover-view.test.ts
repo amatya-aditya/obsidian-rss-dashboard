@@ -98,15 +98,19 @@ async function createView(opts?: {
 
   const plugin = {
     settings,
-    addFeed: vi.fn(async (title: string, url: string, folder: string) => {
-      settings.feeds.push({
-        title,
-        url,
-        folder,
-        items: [],
-        lastUpdated: Date.now(),
-      });
-      return true;
+    ingestFeedsForBackgroundImport: vi.fn(async (feeds: Array<{ title: string; url: string; folder: string }>) => {
+      settings.feeds.push(
+        ...feeds.map((feed) => ({
+          ...feed,
+          items: [],
+          lastUpdated: Date.now(),
+        })),
+      );
+      return {
+        addedCount: feeds.length,
+        skippedCount: 0,
+        queuedFeeds: settings.feeds,
+      };
     }),
     ensureFolderExists: vi.fn(async () => undefined),
     saveSettings: vi.fn(async () => undefined),
@@ -256,49 +260,27 @@ describe("DiscoverView (P1-3)", () => {
     folderSelectorSpy.calls[0].onSelect("Uncategorized");
     await flushPromises();
 
-    expect(plugin.addFeed).toHaveBeenCalledTimes(3);
-    expect(plugin.addFeed).toHaveBeenNthCalledWith(
-      1,
-      "Alpha Tech Blog",
-      "https://alpha.example.com/rss.xml",
-      "Uncategorized",
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      { showNotice: false },
+    expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledTimes(1);
+    expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          title: "Alpha Tech Blog",
+          url: "https://alpha.example.com/rss.xml",
+          folder: "Uncategorized",
+        }),
+        expect.objectContaining({
+          title: "Beta News",
+          url: "https://beta.example.com/rss.xml",
+          folder: "Uncategorized",
+        }),
+        expect.objectContaining({
+          title: "Gamma Podcast",
+          url: "https://gamma.example.com/rss.xml",
+          folder: "Uncategorized",
+        }),
+      ],
+      expect.objectContaining({ mode: "update" }),
     );
-    expect(plugin.addFeed).toHaveBeenNthCalledWith(
-      2,
-      "Beta News",
-      "https://beta.example.com/rss.xml",
-      "Uncategorized",
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      { showNotice: false },
-    );
-    expect(plugin.addFeed).toHaveBeenNthCalledWith(
-      3,
-      "Gamma Podcast",
-      "https://gamma.example.com/rss.xml",
-      "Uncategorized",
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      { showNotice: false },
-    );
-    expect(
-      view.containerEl.querySelectorAll(".rss-discover-card-remove-btn").length,
-    ).toBe(1);
-    expect(
-      view.containerEl.querySelectorAll(".rss-discover-card-add-to-btn").length,
-    ).toBe(0);
   });
 
   it("bulk add only adds filtered feeds and skips feeds that are already followed", async () => {
@@ -329,40 +311,74 @@ describe("DiscoverView (P1-3)", () => {
     folderSelectorSpy.calls[0].onSelect("Research");
     await flushPromises();
 
-    expect(plugin.addFeed).toHaveBeenCalledTimes(2);
-    expect(plugin.addFeed).toHaveBeenNthCalledWith(
-      1,
-      "Alpha Tech Blog",
-      "https://alpha.example.com/rss.xml",
-      "Research",
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      { showNotice: false },
+    expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledTimes(1);
+    expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          title: "Alpha Tech Blog",
+          url: "https://alpha.example.com/rss.xml",
+          folder: "Research",
+        }),
+        expect.objectContaining({
+          title: "Gamma Podcast",
+          url: "https://gamma.example.com/rss.xml",
+          folder: "Research",
+        }),
+      ],
+      expect.objectContaining({ mode: "update" }),
     );
-    expect(plugin.addFeed).toHaveBeenNthCalledWith(
-      2,
-      "Gamma Podcast",
-      "https://gamma.example.com/rss.xml",
-      "Research",
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      { showNotice: false },
+  });
+
+  it("bulk add shows enqueue progress and then clears when ingestion resolves", async () => {
+    const { plugin, view } = await createView();
+    let resolveImport: ((value: unknown) => void) | undefined;
+    plugin.ingestFeedsForBackgroundImport.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveImport = resolve;
+        }),
     );
+
+    (view as any).loadData();
+    view.render();
+
+    const addAllButton = view.containerEl.querySelector(
+      ".rss-discover-add-all-btn",
+    ) as HTMLButtonElement;
+
+    addAllButton.click();
+    folderSelectorSpy.calls[0].onSelect("Uncategorized");
+    await flushPromises();
+
+    const processingButton = view.containerEl.querySelector(
+      ".rss-discover-add-all-btn",
+    ) as HTMLButtonElement;
+    expect(processingButton.disabled).toBe(true);
+    expect(processingButton.textContent).toContain("Adding 0/3...");
+
+    resolveImport?.({
+      addedCount: 3,
+      skippedCount: 0,
+      queuedFeeds: [],
+    });
+    await flushPromises();
+
+    const resetButton = view.containerEl.querySelector(
+      ".rss-discover-add-all-btn",
+    ) as HTMLButtonElement;
+    expect(resetButton.disabled).toBe(false);
+    expect(resetButton.textContent).toContain("Add all...");
   });
 
   it("bulk add summarizes added and skipped counts in a single notice", async () => {
     const { plugin, view } = await createView({
       followedUrls: ["https://beta.example.com/rss.xml"],
     });
-    plugin.addFeed
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(false);
+    plugin.ingestFeedsForBackgroundImport.mockResolvedValue({
+      addedCount: 2,
+      skippedCount: 0,
+      queuedFeeds: [],
+    });
 
     (view as any).loadData();
     view.render();
@@ -377,7 +393,7 @@ describe("DiscoverView (P1-3)", () => {
 
     expect(console.log).toHaveBeenCalledWith(
       "[Stub Notice]",
-      'Added 1 feeds to "Uncategorized" (1 already followed, 1 failed)',
+      "Added 2 feeds. Articles will be fetched in the background. Skipped 1 already-followed feeds.",
     );
   });
 });
