@@ -30,6 +30,8 @@
 
 - Auto-deleted items no longer reappearing as unread upon refresh (PR#87 submitted by emiraga)
 
+- Fixed fresh-install startup auto-refresh from showing a “Refreshing 0 feeds” toast or failing before the feed parser initializes.
+
 ### Development
 
 - **Testing Baseline for 2.2.0**:

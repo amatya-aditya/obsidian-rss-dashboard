@@ -383,6 +383,21 @@ describe("onload() initialization", () => {
 
     expect(plugin.settings.viewStyle).toBe("list");
   });
+
+  it("does not attempt a startup refresh before FeedParser initialization", async () => {
+    plugin.loadData = vi.fn().mockResolvedValue({
+      refreshInterval: 60,
+      lastRefreshTimestamp: 0,
+      feeds: [],
+    });
+    const refreshSpy = vi.spyOn(plugin, "refreshFeeds").mockResolvedValue(undefined);
+
+    await plugin.onload();
+
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(mockRefreshAllFeeds).not.toHaveBeenCalled();
+    expect(plugin.feedParser).toBeDefined();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

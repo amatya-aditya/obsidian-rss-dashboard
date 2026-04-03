@@ -185,10 +185,6 @@ export default class RssDashboardPlugin extends Plugin {
       return elapsed >= intervalMs;
     };
 
-    if (shouldRefreshOnOpen()) {
-      void this.refreshFeeds();
-    }
-
     // Register a window-level beforeunload listener for reliable backup
     // on Obsidian quit. onunload is NOT reliably called by Electron on window close.
     this._beforeUnloadHandler = () => {
@@ -358,6 +354,10 @@ export default class RssDashboardPlugin extends Plugin {
             void this.refreshFeeds();
           }, autoRefreshIntervalMs),
         );
+      }
+
+      if (shouldRefreshOnOpen()) {
+        void this.refreshFeeds();
       }
     } catch (e) {
       console.error("[RSS Dashboard] onload initialization failed:", e);
@@ -596,6 +596,15 @@ export default class RssDashboardPlugin extends Plugin {
   async refreshFeeds(selectedFeeds?: Feed[]) {
     try {
       const feedsToRefresh = selectedFeeds || this.settings.feeds;
+      if (feedsToRefresh.length === 0) {
+        return;
+      }
+
+      if (!this.feedParser) {
+        console.warn("[RSS dashboard] Feed parser not initialized; skipping refresh.");
+        return;
+      }
+
       let feedNoticeText = "";
       if (feedsToRefresh.length === 1) {
         feedNoticeText = feedsToRefresh[0].title;
