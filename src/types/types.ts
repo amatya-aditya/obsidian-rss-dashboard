@@ -313,12 +313,12 @@ export interface RssDashboardSettings {
     ascending: boolean;
   };
   feedSortOrder?: {
-    by: "name" | "created" | "itemCount" | "custom";
+    by: "name" | "created" | "itemCount" | "unreadCount" | "custom";
     ascending: boolean;
   };
   folderFeedSortOrders?: {
     [folderPath: string]: {
-      by: "name" | "created" | "itemCount" | "custom";
+      by: "name" | "created" | "itemCount" | "unreadCount" | "custom";
       ascending: boolean;
     };
   };
