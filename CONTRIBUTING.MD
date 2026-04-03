@@ -189,7 +189,7 @@ git commit -m "2.3.0"
 
 ```
 git tag 2.3.0-beta.1
-git push origin release/2.3.0 --tags
+git push --set-upstream origin release/2.3.0 --tags
 ```
 
 Pushing the Beta tag triggers this repo's GitHub Actions release workflow, which builds the plugin and creates a GitHub pre-release with the standard Obsidian assets attached:
@@ -199,6 +199,8 @@ Pushing the Beta tag triggers this repo's GitHub Actions release workflow, which
 - `styles.css`
 
 If the workflow is unavailable for any reason, create the GitHub release manually from the same tag and upload those files yourself.
+
+Use `--set-upstream` on the first push of a new release branch so your local branch tracks `origin/release/...` and tools like VS Code stop showing `Publish Branch`.
 
 Announce to testers via BRAT. Collect feedback.
 
@@ -310,7 +312,7 @@ git checkout dev && git checkout -b release/2.3.0
 npm version 2.3.0-beta.1 --no-git-tag-version
 git add package.json package-lock.json manifest.json versions.json
 git commit -m "2.3.0-beta.1"
-git tag 2.3.0-beta.1 && git push origin release/2.3.0 --tags
+git tag 2.3.0-beta.1 && git push --set-upstream origin release/2.3.0 --tags
 
 # Ship a release
 npm version 2.3.0 --no-git-tag-version
