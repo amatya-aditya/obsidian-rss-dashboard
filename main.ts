@@ -1444,10 +1444,14 @@ export default class RssDashboardPlugin extends Plugin {
     scanInterval?: number,
     feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
+    options?: { showNotice?: boolean },
   ) {
+    const showNotice = options?.showNotice !== false;
     try {
       if (this.settings.feeds.some((f) => f.url === url)) {
-        new Notice("This feed URL already exists");
+        if (showNotice) {
+          new Notice("This feed URL already exists");
+        }
         return false;
       }
 
@@ -1519,16 +1523,22 @@ export default class RssDashboardPlugin extends Plugin {
         if (view) {
           void view.refresh();
         }
-        new Notice(`Feed "${title}" added`);
+        if (showNotice) {
+          new Notice(`Feed "${title}" added`);
+        }
         return true;
       } catch (error) {
-        new Notice(formatFeedParseNoticeMessage(error));
+        if (showNotice) {
+          new Notice(formatFeedParseNoticeMessage(error));
+        }
         return false;
       }
     } catch (error) {
-      new Notice(
-        `Error adding feed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
+      if (showNotice) {
+        new Notice(
+          `Error adding feed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      }
       return false;
     }
   }

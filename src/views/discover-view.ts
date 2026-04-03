@@ -56,6 +56,7 @@ export class DiscoverView extends ItemView {
   private hasRegisteredResizeEvents: boolean = false;
   private mobileSidebarModal: MobileDiscoverFiltersModal | null = null;
   private lastViewportMobileSidebarMode: boolean | null = null;
+  private isAddingAllFeeds = false;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -1035,6 +1036,7 @@ export class DiscoverView extends ItemView {
       cls: "rss-discover-results-count",
     });
     resultsCount.textContent = `${this.filteredFeeds.length} feeds found`;
+    this.renderAddAllButton(leftSection);
 
     this.renderSelectedFilters(leftSection);
 
@@ -1541,22 +1543,112 @@ export class DiscoverView extends ItemView {
    * Add feed to a specific folder
    * Creates the folder if it doesn't exist
    */
+  private renderAddAllButton(container: HTMLElement): void {
+    const addAllButton = container.createEl("button", {
+      cls: "rss-discover-add-all-btn",
+      attr: { type: "button" },
+    });
+    addAllButton.disabled =
+      this.filteredFeeds.length === 0 || this.isAddingAllFeeds;
+
+    if (this.isAddingAllFeeds) {
+      addAllButton.addClass("is-processing");
+      const spinner = addAllButton.createSpan({
+        cls: "rss-discover-add-all-spinner",
+      });
+      setIcon(spinner, "loader-2");
+      addAllButton.createSpan({ text: "Adding..." });
+    } else {
+      addAllButton.setText("Add all...");
+    }
+
+    addAllButton.addEventListener("click", () => {
+      if (this.filteredFeeds.length === 0 || this.isAddingAllFeeds) {
+        return;
+      }
+
+      new FolderSelectorPopup(this.plugin, {
+        anchorEl: addAllButton,
+        defaultFolder: "Uncategorized",
+        listOnly: true,
+        onSelect: (folderName) => {
+          void this.addFilteredFeedsToFolder(folderName);
+        },
+      });
+    });
+  }
+
+  private async addFilteredFeedsToFolder(folderName: string): Promise<void> {
+    this.isAddingAllFeeds = true;
+    this.render();
+
+    try {
+      await this.plugin.ensureFolderExists(folderName);
+
+      let addedCount = 0;
+      let skippedCount = 0;
+      let failedCount = 0;
+
+      for (const feed of this.filteredFeeds) {
+        if (this.isFollowedFeed(feed)) {
+          skippedCount += 1;
+          continue;
+        }
+
+        const added = await this.plugin.addFeed(
+          feed.title,
+          feed.url,
+          folderName,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { showNotice: false },
+        );
+
+        if (added) {
+          addedCount += 1;
+        } else {
+          failedCount += 1;
+        }
+      }
+
+      this.refreshViewAfterFollowStateChange();
+      new Notice(
+        `Added ${addedCount} feeds to "${folderName}" (${skippedCount} already followed, ${failedCount} failed)`,
+      );
+    } catch (error) {
+      new Notice(
+        `Failed to add feeds: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      this.isAddingAllFeeds = false;
+      this.render();
+    }
+  }
+
   private async addFeedToFolder(
     feed: FeedMetadata,
     folderName: string,
   ): Promise<void> {
     try {
-      // Ensure the folder exists
-      const folderExists = this.plugin.settings.folders.some(
-        (f) => f.name.toLowerCase() === folderName.toLowerCase(),
+      await this.plugin.ensureFolderExists(folderName);
+
+      const added = await this.plugin.addFeed(
+        feed.title,
+        feed.url,
+        folderName,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { showNotice: false },
       );
-
-      if (!folderExists) {
-        await this.plugin.ensureFolderExists(folderName);
+      if (!added) {
+        return;
       }
-
-      // Add the feed
-      await this.plugin.addFeed(feed.title, feed.url, folderName);
       new Notice(`Feed "${feed.title}" added to "${folderName}"`);
 
       // Re-filter when follow status filters are active, then refresh.
