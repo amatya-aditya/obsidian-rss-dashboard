@@ -413,6 +413,9 @@ export class RssDashboardView extends ItemView {
         },
         onPageChange: this.handlePageChange.bind(this),
         onPageSizeChange: this.handlePageSizeChange.bind(this),
+        onMarkPageAsRead: () => {
+          this.markCurrentPageAsRead();
+        },
         onOpenTagsSettings: () => {
           void this.plugin.openTagsSettings();
         },
@@ -1839,6 +1842,147 @@ export class RssDashboardView extends ItemView {
 
     this.articleList.updateArticleInPlace(article);
     this.refreshFilterStatusBarOnly();
+  }
+
+  private markPageArticlesAsRead(
+    currentPageArticles: FeedItem[],
+    previousPage: number,
+    previousTotalPages: number,
+    pageSize: number,
+    previousTotalArticles: number,
+  ): void {
+    if (!this.articleList) {
+      return;
+    }
+
+    const updatedArticles: FeedItem[] = [];
+    currentPageArticles.forEach((article) => {
+      if (article.read) {
+        return;
+      }
+
+      const originalArticle = this.findBackingArticleForDisplayItem(article);
+      if (!originalArticle || originalArticle.read) {
+        return;
+      }
+
+      originalArticle.read = true;
+      article.read = true;
+      updatedArticles.push(article);
+    });
+
+    if (updatedArticles.length === 0) {
+      new Notice("No unread items on current page");
+      return;
+    }
+
+    void this.plugin.saveSettings();
+
+    const filtered = this.getFilteredArticles();
+    const pagination = computePagination({
+      totalItems: filtered.length,
+      pageSize,
+      requestedPage: previousPage,
+    });
+    if (pagination.currentPage !== previousPage) {
+      this.setCurrentPageState(pagination.currentPage);
+    }
+
+    const nextPageArticles = filtered.slice(
+      pagination.startIdx,
+      pagination.endIdx,
+    );
+    const currentPageGuids = currentPageArticles.map((article) => article.guid);
+    const nextPageGuids = nextPageArticles.map((article) => article.guid);
+    const pageCompositionChanged =
+      currentPageGuids.length !== nextPageGuids.length ||
+      currentPageGuids.some((guid, index) => guid !== nextPageGuids[index]);
+    const paginationChanged =
+      pagination.currentPage !== previousPage ||
+      pagination.totalPages !== previousTotalPages ||
+      filtered.length !== previousTotalArticles;
+
+    if (!pageCompositionChanged && !paginationChanged) {
+      updatedArticles.forEach((article) => {
+        this.articleList.updateArticleInPlace(article);
+      });
+      this.refreshFilterStatusBarOnly();
+      new Notice(`Marked ${updatedArticles.length} items as read`);
+      return;
+    }
+
+    this.articleList.refilter(
+      new Set(this.activeStatusFilters),
+      new Set(this.activeTagFilters),
+      this.filterLogic,
+      nextPageArticles,
+      pagination.currentPage,
+      pagination.totalPages,
+      pageSize,
+      filtered.length,
+    );
+    this.refreshFilterStatusBarOnly();
+    new Notice(`Marked ${updatedArticles.length} items as read`);
+  }
+
+  private markCurrentPageAsRead(): void {
+    if (!this.articleList) {
+      return;
+    }
+
+    const filtered = this.getFilteredArticles();
+    const pageSize = this.getCurrentPageSize();
+    const requestedPage = this.getCurrentPage();
+    const pagination = computePagination({
+      totalItems: filtered.length,
+      pageSize,
+      requestedPage,
+    });
+
+    if (pagination.currentPage !== requestedPage) {
+      this.setCurrentPageState(pagination.currentPage);
+    }
+
+    const currentPageArticles = filtered.slice(
+      pagination.startIdx,
+      pagination.endIdx,
+    );
+
+    this.markPageArticlesAsRead(
+      currentPageArticles,
+      pagination.currentPage,
+      pagination.totalPages,
+      pageSize,
+      filtered.length,
+    );
+  }
+
+  private findBackingArticleForDisplayItem(article: FeedItem): FeedItem | null {
+    if (this.currentFeed) {
+      const currentFeedMatch = this.currentFeed.items.find(
+        (item) => item.guid === article.guid,
+      );
+      if (currentFeedMatch) {
+        return currentFeedMatch;
+      }
+    }
+
+    if (article.feedUrl) {
+      const feed = this.settings.feeds.find((f) => f.url === article.feedUrl);
+      const feedMatch = feed?.items.find((item) => item.guid === article.guid);
+      if (feedMatch) {
+        return feedMatch;
+      }
+    }
+
+    for (const feed of this.settings.feeds) {
+      const match = feed.items.find((item) => item.guid === article.guid);
+      if (match) {
+        return match;
+      }
+    }
+
+    return null;
   }
 
   private openViewingFiltersMenu(): void {

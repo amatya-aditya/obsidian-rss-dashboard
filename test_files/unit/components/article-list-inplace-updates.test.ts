@@ -171,4 +171,101 @@ describe("Phase 7 - ArticleList in-place updates", () => {
 
     h.cleanup();
   });
+
+  it("pagination caps visible pages at 5 and adds mark-page-read between next and page size", () => {
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: Array.from({ length: 10 }, (_, index) =>
+        buildArticle({ guid: String(index + 1), title: `Item ${index + 1}` }),
+      ),
+      currentPage: 4,
+      totalPages: 10,
+      pageSize: 10,
+      totalArticles: 100,
+    });
+    h.list.render();
+
+    const pagination = h.container.querySelector(".rss-dashboard-pagination");
+    const buttons = Array.from(
+      pagination?.querySelectorAll<HTMLButtonElement>(
+        "button.rss-dashboard-pagination-btn",
+      ) ?? [],
+    );
+    const buttonTexts = buttons.map((button) => button.textContent?.trim());
+
+    expect(buttonTexts).toEqual([
+      "<",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "10",
+      ">",
+      "Mark page read",
+    ]);
+
+    const ellipsis = Array.from(
+      pagination?.querySelectorAll(".rss-dashboard-pagination-ellipsis") ?? [],
+    ).map((node) => node.textContent?.trim());
+    expect(ellipsis).toEqual(["..."]);
+
+    const nextButton = pagination?.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-pagination-btn.next",
+    );
+    const markPageReadButton = pagination?.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-pagination-mark-page-read",
+    );
+    const pageSizeDropdown = pagination?.querySelector<HTMLSelectElement>(
+      ".rss-dashboard-page-size-dropdown",
+    );
+
+    expect(nextButton?.nextElementSibling).toBe(markPageReadButton);
+    expect(markPageReadButton?.nextElementSibling).toBe(pageSizeDropdown);
+
+    h.cleanup();
+  });
+
+  it("mark-page fallback should mutate only current page articles, persist, and rerender", () => {
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      callbacks: {
+        onMarkPageAsRead: undefined,
+        onPersistSettings: vi.fn(),
+      },
+      articles: [
+        buildArticle({ guid: "1", title: "One", read: false }),
+        buildArticle({ guid: "2", title: "Two", read: true }),
+        buildArticle({ guid: "3", title: "Three", read: false }),
+      ],
+      currentPage: 2,
+      totalPages: 4,
+      pageSize: 3,
+      totalArticles: 12,
+    });
+    h.list.render();
+
+    const btn = h.container.querySelector<HTMLButtonElement>(
+      "button.rss-dashboard-pagination-mark-page-read",
+    );
+    expect(btn).not.toBeNull();
+    btn?.click();
+
+    expect(h.articles.map((article) => article.read)).toEqual([true, true, true]);
+    expect((h.callbacks as any).onPersistSettings).toHaveBeenCalledTimes(1);
+    expect(h.getArticleEl("1")?.classList.contains("read")).toBe(true);
+    expect(h.getArticleEl("2")?.classList.contains("read")).toBe(true);
+    expect(h.getArticleEl("3")?.classList.contains("read")).toBe(true);
+
+    h.cleanup();
+  });
 });

@@ -1,6 +1,6 @@
 # Git Branching Strategy
 
-Last updated: 2026-04-01
+Last updated: 2026-04-02
 
 ## Overview
 
@@ -165,28 +165,67 @@ git checkout dev
 git checkout -b release/2.3.0
 ```
 
-### Step 3 — Tag and Announce Beta
+### Step 3 — Bump the Version First
+
+Before tagging a Beta or Stable release, bump the version with `npm version` so `package.json`, `package-lock.json`, `manifest.json`, and `versions.json` stay in sync.
+
+For the first Beta on a new release branch:
+
+```
+npm version 2.3.0-beta.1 --no-git-tag-version
+git add package.json package-lock.json manifest.json versions.json
+git commit -m "2.3.0-beta.1"
+```
+
+For the final Stable release:
+
+```
+npm version 2.3.0 --no-git-tag-version
+git add package.json package-lock.json manifest.json versions.json
+git commit -m "2.3.0"
+```
+
+### Step 4 — Tag and Announce Beta
 
 ```
 git tag 2.3.0-beta.1
 git push origin release/2.3.0 --tags
 ```
 
+Pushing the Beta tag triggers this repo's GitHub Actions release workflow, which builds the plugin and creates a GitHub pre-release with the standard Obsidian assets attached:
+
+- `main.js`
+- `manifest.json`
+- `styles.css`
+
+If the workflow is unavailable for any reason, create the GitHub release manually from the same tag and upload those files yourself.
+
 Announce to testers via BRAT. Collect feedback.
 
-### Step 4 — Stabilize
+### Step 5 — Stabilize
 
 Fix any issues found during Beta testing **on the release branch**, not on dev. Tag new beta versions as needed:
 
 ```
+npm version 2.3.0-beta.2 --no-git-tag-version
+git add package.json package-lock.json manifest.json versions.json
+git commit -m "2.3.0-beta.2"
 git tag 2.3.0-beta.2
+git push origin release/2.3.0 --tags
 ```
 
-### Step 5 — Ship
+Each pushed Beta tag should produce or be matched by a GitHub pre-release from that same tag.
+
+### Step 6 — Ship
 
 When confidence is high and no new issues are surfacing:
 
 ```
+# Bump to the final stable version on the release branch first
+npm version 2.3.0 --no-git-tag-version
+git add package.json package-lock.json manifest.json versions.json
+git commit -m "2.3.0"
+
 # Merge to master and tag
 git checkout master
 git merge release/2.3.0
@@ -201,6 +240,8 @@ git push origin dev
 # Clean up
 git branch -d release/2.3.0
 ```
+
+Pushing the stable tag triggers this repo's release workflow, which creates a GitHub release from that tag and attaches the standard Obsidian plugin assets. If you ever need to do it manually, create the GitHub release from tag `2.3.0` and upload `main.js`, `manifest.json`, and `styles.css`.
 
 ---
 
@@ -265,10 +306,16 @@ git fetch origin && git rebase origin/dev
 # Cut a release branch
 git checkout dev && git checkout -b release/2.3.0
 
-# Tag the Beta
+# Bump and tag the Beta
+npm version 2.3.0-beta.1 --no-git-tag-version
+git add package.json package-lock.json manifest.json versions.json
+git commit -m "2.3.0-beta.1"
 git tag 2.3.0-beta.1 && git push origin release/2.3.0 --tags
 
 # Ship a release
+npm version 2.3.0 --no-git-tag-version
+git add package.json package-lock.json manifest.json versions.json
+git commit -m "2.3.0"
 git checkout master && git merge release/2.3.0
 git tag 2.3.0 && git push origin master --tags
 git checkout dev && git merge release/2.3.0 && git push origin dev

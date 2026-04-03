@@ -18,6 +18,10 @@
 - **Auto Refresh: Off Option added**
   - Added a new "Off" option to the refresh interval dropdown in General > Global Feeds > Refresh Interval. Resolves GH Issue #92
 
+- **Mark Page Read button added**
+  - Appears at the bottom of the article list
+  - Marks only the articles from the current page as read, but leaves remaining articles in the feed untouched.
+
 ### Fixes
 
 - Android bug causing list and card views to regress after every open
