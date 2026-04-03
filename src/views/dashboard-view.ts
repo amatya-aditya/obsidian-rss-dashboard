@@ -72,7 +72,6 @@ export class RssDashboardView extends ItemView {
     filtersActive: false,
   };
   private dashboardMultiFilterCounts: {
-    filtersActive: boolean;
     shown: number;
     filteredOut: number;
     total: number;
@@ -634,8 +633,9 @@ export class RssDashboardView extends ItemView {
 
     // ── Row 3: Viewing filters / collapse toggle ──────────────────────────────
     if (hasDashboardMultiFilterStats && this.dashboardMultiFilterCounts) {
-      const { filtersActive, shown, filteredOut, total } =
-        this.dashboardMultiFilterCounts;
+      const hasActiveDashboardMultiFilters =
+        this.activeStatusFilters.size > 0 || this.activeTagFilters.size > 0;
+      const { shown, filteredOut, total } = this.dashboardMultiFilterCounts;
       const viewingFilterRow = subheaderContent.createDiv({
         cls: "rss-dashboard-filter-stats-row rss-dashboard-viewing-filter-stats-row",
       });
@@ -666,7 +666,7 @@ export class RssDashboardView extends ItemView {
 
       viewingFilterRow.createSpan({
         cls: "rss-dashboard-viewing-filter-stats-text",
-        text: filtersActive
+        text: hasActiveDashboardMultiFilters
           ? `Viewing filters: Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`
           : `No filters applied - Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`,
       });
@@ -2173,15 +2173,7 @@ export class RssDashboardView extends ItemView {
 
   private computeDashboardMultiFilterCounts(
     keywordFilteredArticles: FeedItem[],
-  ): {
-    filtersActive: boolean;
-    shown: number;
-    filteredOut: number;
-    total: number;
-  } {
-    const filtersActive =
-      this.activeStatusFilters.size > 0 || this.activeTagFilters.size > 0;
-
+  ): { shown: number; filteredOut: number; total: number } {
     let total = 0;
     let shown = 0;
 
@@ -2195,7 +2187,6 @@ export class RssDashboardView extends ItemView {
     }
 
     const result = {
-      filtersActive,
       shown,
       total,
       filteredOut: Math.max(0, total - shown),
