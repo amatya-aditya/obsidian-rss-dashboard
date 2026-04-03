@@ -11,6 +11,7 @@
 import { Notice, Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { setCssProps } from "../../utils/platform-utils";
+import { normalizeRefreshIntervalMinutes } from "../../utils/validation";
 import {
   getPageSizeOptions,
   PAGE_SIZE_OPTIONS,
@@ -20,7 +21,7 @@ import { ApplyMaxItemsToExistingFeedsModal } from "../modals/settings-modals";
 // ── Pure preset helpers (exported for testing) ───────────────────────────────
 
 export const REFRESH_INTERVAL_PRESETS = [
-  5, 10, 15, 30, 60, 120, 240, 480, 720, 1440,
+  0, 5, 10, 15, 30, 60, 120, 240, 480, 720, 1440,
 ];
 export const MAX_ITEMS_PRESETS = [0, 10, 25, 50, 100, 200, 500, 1000];
 export const AUTO_DELETE_PRESETS = [0, 1, 3, 7, 14, 30, 60, 90, 180, 365];
@@ -178,6 +179,7 @@ export function renderGeneralSettingsTab(
 
   refreshIntervalSetting.addDropdown((dropdown) => {
     dropdown
+      .addOption("0", "Off")
       .addOption("5", "5 minutes")
       .addOption("10", "10 minutes")
       .addOption("15", "15 minutes")
@@ -203,7 +205,7 @@ export function renderGeneralSettingsTab(
                 placeholder: "Enter minutes",
                 cls: "rss-custom-input",
               });
-            refreshIntervalCustomInput.min = "1";
+            refreshIntervalCustomInput.min = "0";
             refreshIntervalCustomInput.value =
               refreshInterval > 0 ? refreshInterval.toString() : "";
             refreshIntervalCustomInput.addEventListener("change", () => {
@@ -212,7 +214,12 @@ export function renderGeneralSettingsTab(
                   refreshIntervalCustomInput?.value || "",
                   10,
                 );
-                refreshInterval = Number.isFinite(parsed) ? parsed : 0;
+                refreshInterval = normalizeRefreshIntervalMinutes(
+                  Number.isFinite(parsed) ? parsed : 0,
+                );
+                if (refreshIntervalCustomInput) {
+                  refreshIntervalCustomInput.value = refreshInterval.toString();
+                }
                 plugin.settings.refreshInterval = refreshInterval;
                 await plugin.saveSettings();
               })();
@@ -224,7 +231,7 @@ export function renderGeneralSettingsTab(
         }
 
         refreshIntervalCustomInput?.addClass("hidden");
-        refreshInterval = parseInt(value, 10) || 0;
+        refreshInterval = normalizeRefreshIntervalMinutes(parseInt(value, 10));
         void (async () => {
           plugin.settings.refreshInterval = refreshInterval;
           await plugin.saveSettings();

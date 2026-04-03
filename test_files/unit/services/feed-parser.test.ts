@@ -515,6 +515,65 @@ describe("FeedParser.parseFeed", () => {
 
     requestUrlSpy.mockRestore();
   });
+
+  it("skips new items older than autoDeleteDuration cutoff during refresh", async () => {
+    const feedUrl = "https://example.com/feed.xml";
+
+    // Feed contains one recent item and one very old item
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Recent Article</title>
+      <link>https://example.com/recent</link>
+      <description>recent desc</description>
+      <pubDate>Mon, 30 Mar 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/recent</guid>
+    </item>
+    <item>
+      <title>Old Article</title>
+      <link>https://example.com/old</link>
+      <description>old desc</description>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>https://example.com/old</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({
+      status: 200,
+      headers: {},
+      arrayBuffer: new ArrayBuffer(0),
+      json: {},
+      text: xml,
+    });
+
+    const parser = new FeedParser(mediaSettings, []);
+
+    // Simulate an existing feed (refresh scenario) with autoDeleteDuration of 365 days.
+    // The old article (Jan 2024) is beyond the cutoff and not in the existing items,
+    // meaning it was previously auto-deleted. It should NOT reappear as unread.
+    const existingFeed: Feed = {
+      title: "Test Feed",
+      url: feedUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+      autoDeleteDuration: 365,
+    };
+
+    const result = await parser.parseFeed(feedUrl, existingFeed);
+
+    // Only the recent article should be present; the old one should be skipped
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].guid).toBe("https://example.com/recent");
+    expect(result.items[0].read).toBe(false);
+
+    requestUrlSpy.mockRestore();
+  });
 });
 
 describe("applyFeedRetentionLimits", () => {

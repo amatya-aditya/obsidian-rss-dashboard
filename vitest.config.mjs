@@ -12,10 +12,8 @@ export default defineConfig({
       // Map any import of 'main' to the TypeScript source file
       // This explicitly handles the relative import path used in plugin-lifecycle.test.ts
       "../../../main": path.resolve(__dirname, "main.ts"),
-      // Also handle simpler relative path patterns
       "../main": path.resolve(__dirname, "main.ts"),
       "./main": path.resolve(__dirname, "main.ts"),
-      // As fallback, match any path ending in /main
       "/main": path.resolve(__dirname, "main.ts"),
       main: path.resolve(__dirname, "main.ts"),
     },
@@ -24,18 +22,26 @@ export default defineConfig({
     include: ["test_files/unit/**/*.test.ts"],
     globals: true,
     environment: "jsdom",
+    cache: false,
     coverage: {
       provider: "v8",
-      reporter: ["text", "text-summary", "html", "json", "json-summary", "lcov"],
+      reporter: [
+        "text",
+        "text-summary",
+        "html",
+        "json",
+        "json-summary",
+        "lcov",
+      ],
       reportsDirectory: "coverage",
       clean: true,
       cleanOnRerun: true,
       include: ["src/**/*.ts", "main.ts"],
       exclude: ["src/types/**", "src/styles/**", "src/**/*.d.ts"],
       thresholds: {
-        lines: 39,
-        branches: 32,
-        functions: 33,
+        lines: 40,
+        branches: 33,
+        functions: 34,
       },
     },
   },

@@ -1,4 +1,4 @@
-## [Unreleased]
+## [2.2.0-beta.10] - April 2, 2026
 
 ### New Features
 
@@ -7,6 +7,43 @@
   - Added "Divider" to the icon visibility settings in Display tab.
   - The divider can now be enabled/disabled and reordered among other icons via drag-and-drop.
   - Default position is between Discover and Add Feed icons.
+
+- **Smart Auto-Refresh on Vault Open**:
+  - Feeds now automatically refresh when opening the vault if the configured refresh interval has elapsed since the last refresh.
+  - **Before:** The refresh timer reset to zero each time Obsidian closed. Users had to manually refresh or wait for the interval to pass after reopening the vault.
+  - **After:** The plugin now tracks the last refresh timestamp in settings. On vault open, it checks if enough time has passed and refreshes immediately if needed.
+  - Manual refreshes (sidebar icon, right-click menu, header button) also update the timestamp.
+  - Respects all existing refresh interval settings (5 min to 24 hours).
+
+- **Auto Refresh: Off Option added**
+  - Added a new "Off" option to the refresh interval dropdown in General > Global Feeds > Refresh Interval. Resolves GH Issue #92
+
+- **Mark Page Read button added**
+  - Appears at the bottom of the article list
+  - Marks only the articles from the current page as read, but leaves remaining articles in the feed untouched.
+
+### Fixes
+
+- Android bug causing list and card views to regress after every open
+- New feeds now reliably preserve the current global max item default when added, instead of inheriting a lower retained-item limit if parser output omits the per-feed override.
+
+- Chevron clicks in sidebar now only toggle collapse - GH[#91](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/91)
+
+- Auto-deleted items no longer reappearing as unread upon refresh (PR#87 submitted by emiraga)
+
+- Fixed fresh-install startup auto-refresh from showing a “Refreshing 0 feeds” toast or failing before the feed parser initializes.
+
+### Development
+
+- **Testing Baseline for 2.2.0**:
+  - Established the first durable repo-wide automated test baseline for the plugin.
+  - The pre-testing reference point was `2.1.9`, which effectively shipped without a meaningful unit test suite beyond minimal Vitest scaffolding.
+  - The repo now has **103 passing test files** and **741 passing tests**.
+  - Global coverage baseline is now **46.77% statements**, **37.32% branches**, **41.51% functions**, and **47.66% lines**.
+  - Added broad unit and integration-style coverage across core services, views, components, settings flows, modals, and plugin lifecycle behavior.
+  - Added and expanded shared test infrastructure including Obsidian API stubs, JSDOM polyfills, and purpose-built harnesses for complex UI/service surfaces.
+  - Coverage thresholds are now actively enforced in `vitest.config.mjs` at **lines 40 / branches 33 / functions 34** to prevent regression.
+  - Added contributor-facing testing documentation and archived the phase-by-phase handoff artifacts used during the coverage push.
 
 ---
 

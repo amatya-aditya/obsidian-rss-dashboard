@@ -286,6 +286,7 @@ export interface RssDashboardSettings {
   feeds: Feed[];
   folders: Folder[];
   refreshInterval: number;
+  lastRefreshTimestamp: number;
   maxItems: number;
   defaultAutoDeleteDuration: number;
   viewStyle: "list" | "card" | "feed";
@@ -392,6 +393,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     },
   ],
   refreshInterval: 60,
+  lastRefreshTimestamp: 0,
   maxItems: 50,
   defaultAutoDeleteDuration: 30,
   viewStyle: "card",

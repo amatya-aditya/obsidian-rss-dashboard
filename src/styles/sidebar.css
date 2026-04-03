@@ -804,8 +804,8 @@ body.theme-light .rss-dashboard-all-feeds-button {
 
 /* Dark mode */
 body.theme-dark .rss-dashboard-all-feeds-button {
-  border-bottom-color: var(--text-muted);
-  border-top-color: var(--text-muted);
+  border-bottom-color: var(--background-secondary-alt);
+  border-top-color: var(--background-secondary-alt);
 }
 
 .rss-dashboard-all-feeds-button:hover {

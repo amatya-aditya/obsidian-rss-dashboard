@@ -43,6 +43,7 @@ interface ArticleListCallbacks {
   }) => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
+  onMarkPageAsRead?: () => void;
   onMarkAllAsRead?: () => void;
   onMarkAllAsUnread?: () => void;
   onPersistSettings?: () => Promise<void> | void;
@@ -1896,9 +1897,9 @@ export class ArticleList {
     prevButton.disabled = currentPage === 1;
     prevButton.onclick = () => this.callbacks.onPageChange(currentPage - 1);
 
-    const maxPagesToShow = 7;
-    let startPage = Math.max(1, currentPage - 3);
-    let endPage = Math.min(totalPages, currentPage + 3);
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, currentPage + 2);
     if (endPage - startPage < maxPagesToShow - 1) {
       if (startPage === 1) {
         endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
@@ -1934,6 +1935,33 @@ export class ArticleList {
     });
     nextButton.disabled = currentPage === totalPages;
     nextButton.onclick = () => this.callbacks.onPageChange(currentPage + 1);
+
+    const markPageReadButton = paginationContainer.createEl("button", {
+      cls: "rss-dashboard-pagination-btn rss-dashboard-pagination-mark-page-read",
+      text: "Mark page read",
+    });
+    markPageReadButton.onclick = () => {
+      if (this.callbacks.onMarkPageAsRead) {
+        this.callbacks.onMarkPageAsRead();
+      } else {
+        let changedCount = 0;
+        this.articles.forEach((article) => {
+          if (!article.read) {
+            article.read = true;
+            changedCount++;
+          }
+        });
+
+        if (changedCount > 0) {
+          if (this.callbacks.onPersistSettings) {
+            void this.callbacks.onPersistSettings();
+          }
+          this.render();
+        } else {
+          new Notice("No unread items on current page");
+        }
+      }
+    };
 
     const pageSizeDropdown = paginationContainer.createEl("select", {
       cls: "rss-dashboard-page-size-dropdown",

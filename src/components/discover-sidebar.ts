@@ -449,7 +449,8 @@ export class DiscoverSidebar {
           depth + 1,
         );
 
-        expandIcon.addEventListener("click", () => {
+        expandIcon.addEventListener("click", (e) => {
+          e.stopPropagation();
           const isCollapsed = childrenContainer.hasClass("rss-collapsed");
           if (isCollapsed) {
             childrenContainer.removeClass("rss-collapsed");

@@ -1191,6 +1191,10 @@
   transition: border 0.15s;
 }
 
+.rss-dashboard-pagination-mark-page-read {
+  margin-left: 0.5rem;
+}
+
 .rss-dashboard-page-size-dropdown:focus {
   border-color: var(--color-accent);
 }

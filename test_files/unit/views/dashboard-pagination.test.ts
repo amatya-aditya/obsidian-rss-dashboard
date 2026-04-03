@@ -8,6 +8,19 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 
+let latestArticleListArgs: any[] = [];
+let latestArticleListInstance: {
+  render: ReturnType<typeof vi.fn>;
+  destroy: ReturnType<typeof vi.fn>;
+  refilter: ReturnType<typeof vi.fn>;
+  setSelectedArticle: ReturnType<typeof vi.fn>;
+  hasArticle: ReturnType<typeof vi.fn>;
+  insertArticleInPlace: ReturnType<typeof vi.fn>;
+  removeArticleInPlace: ReturnType<typeof vi.fn>;
+  updateArticleInPlace: ReturnType<typeof vi.fn>;
+  updateRefreshButtonText: ReturnType<typeof vi.fn>;
+} | null = null;
+
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
   ensureUtf8Meta: (html: string) => html,
@@ -17,25 +30,19 @@ vi.mock("../../../src/utils/platform-utils", () => ({
 vi.mock("../../../src/components/article-list", () => ({
   ArticleList: class ArticleListMock {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
-    render(): void {}
-    destroy(): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    refilter(..._args: any[]): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setSelectedArticle(..._args: any[]): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    hasArticle(..._args: any[]): boolean {
-      return false;
+    constructor(...args: any[]) {
+      latestArticleListArgs = args;
+      latestArticleListInstance = this as unknown as typeof latestArticleListInstance;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    insertArticleInPlace(..._args: any[]): boolean {
-      return false;
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    removeArticleInPlace(..._args: any[]): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    updateArticleInPlace(..._args: any[]): void {}
+    render = vi.fn();
+    destroy = vi.fn();
+    refilter = vi.fn();
+    setSelectedArticle = vi.fn();
+    hasArticle = vi.fn(() => false);
+    insertArticleInPlace = vi.fn(() => false);
+    removeArticleInPlace = vi.fn();
+    updateArticleInPlace = vi.fn();
+    updateRefreshButtonText = vi.fn();
   },
 }));
 
@@ -110,6 +117,8 @@ describe("Dashboard pagination", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
     document.body.empty();
+    latestArticleListArgs = [];
+    latestArticleListInstance = null;
   });
 
   it("getFilteredArticles() returns all cached feed items (not maxItems)", async () => {
@@ -205,6 +214,253 @@ describe("Dashboard pagination", () => {
     expect(settings.readArticlesPageSize).toBe(40);
     expect(settings.savedArticlesPageSize).toBe(40);
     expect(settings.starredArticlesPageSize).toBe(40);
+  });
+
+  it("mark-page-read updates current page items in place without full rerender when filters still match", async () => {
+    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
+
+    const app = new App();
+    const settings = cloneSettings();
+    settings.allArticlesPageSize = 10;
+
+    const feedUrl = "https://example.com/feed.xml";
+    const items = makeFeedItems(25, "BBC News", feedUrl);
+    const feed: Feed = {
+      title: "BBC News",
+      url: feedUrl,
+      folder: "News",
+      items,
+      lastUpdated: Date.now(),
+    };
+    settings.feeds = [feed];
+
+    const plugin = {
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      openTagsSettings: vi.fn(async () => {}),
+    };
+
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
+    const view = new RssDashboardView(leaf, plugin as never);
+    (view as unknown as { currentFeed: Feed | null }).currentFeed = feed;
+    (view as unknown as { feedPages: Record<string, number> }).feedPages[feedUrl] = 2;
+    (view as unknown as { setupSidebarResize: () => void }).setupSidebarResize =
+      vi.fn();
+
+    view.render();
+    const renderSpy = vi.spyOn(view, "render");
+
+    const callbacks = latestArticleListArgs[6] as {
+      onMarkPageAsRead?: () => void;
+    };
+    expect(callbacks?.onMarkPageAsRead).toBeTypeOf("function");
+
+    callbacks.onMarkPageAsRead?.();
+
+    expect(items.slice(0, 10).every((item) => !item.read)).toBe(true);
+    expect(items.slice(10, 20).every((item) => item.read)).toBe(true);
+    expect(items.slice(20).every((item) => !item.read)).toBe(true);
+    expect(plugin.saveSettings).toHaveBeenCalled();
+    expect(renderSpy).not.toHaveBeenCalled();
+    expect(latestArticleListInstance?.updateArticleInPlace).toHaveBeenCalledTimes(
+      10,
+    );
+    expect(latestArticleListInstance?.refilter).not.toHaveBeenCalled();
+    expect(consoleLogSpy).toHaveBeenCalledWith("[Stub Notice]", "Marked 10 items as read");
+
+    consoleLogSpy.mockRestore();
+  });
+
+  it("mark-page-read refilters instead of full rerender when unread filtering removes current page items", async () => {
+    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
+
+    const app = new App();
+    const settings = cloneSettings();
+    settings.unreadArticlesPageSize = 10;
+
+    const feedUrl = "https://example.com/feed.xml";
+    const items = makeFeedItems(25, "BBC News", feedUrl);
+    const feed: Feed = {
+      title: "BBC News",
+      url: feedUrl,
+      folder: "News",
+      items,
+      lastUpdated: Date.now(),
+    };
+    settings.feeds = [feed];
+
+    const plugin = {
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      openTagsSettings: vi.fn(async () => {}),
+    };
+
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
+    const view = new RssDashboardView(leaf, plugin as never);
+    (view as unknown as { currentFolder: string | null }).currentFolder = "unread";
+    (view as unknown as { unreadArticlesPage: number }).unreadArticlesPage = 2;
+    (view as unknown as { setupSidebarResize: () => void }).setupSidebarResize =
+      vi.fn();
+
+    view.render();
+    const renderSpy = vi.spyOn(view, "render");
+
+    const callbacks = latestArticleListArgs[6] as {
+      onMarkPageAsRead?: () => void;
+    };
+    expect(callbacks?.onMarkPageAsRead).toBeTypeOf("function");
+
+    callbacks.onMarkPageAsRead?.();
+
+    expect(items.slice(0, 10).every((item) => !item.read)).toBe(true);
+    expect(items.slice(10, 20).every((item) => item.read)).toBe(true);
+    expect(items.slice(20).every((item) => !item.read)).toBe(true);
+    expect(plugin.saveSettings).toHaveBeenCalled();
+    expect(renderSpy).not.toHaveBeenCalled();
+    expect(latestArticleListInstance?.updateArticleInPlace).not.toHaveBeenCalled();
+    expect(latestArticleListInstance?.refilter).toHaveBeenCalledTimes(1);
+    expect(consoleLogSpy).toHaveBeenCalledWith("[Stub Notice]", "Marked 10 items as read");
+
+    const refilterArgs = latestArticleListInstance?.refilter.mock.calls[0];
+    expect(refilterArgs?.[3]).toHaveLength(5);
+    expect(refilterArgs?.[4]).toBe(2);
+    expect(refilterArgs?.[5]).toBe(2);
+    expect(refilterArgs?.[7]).toBe(15);
+
+    consoleLogSpy.mockRestore();
+  });
+
+  it("mark-page-read still resolves unread items in filtered single-feed views", async () => {
+    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
+
+    const app = new App();
+    const settings = cloneSettings();
+    settings.allArticlesPageSize = 10;
+
+    const feedUrl = "https://example.com/feed.xml";
+    const items = makeFeedItems(12, "BBC News", feedUrl).map((item) => {
+      const { feedUrl: _feedUrl, ...rest } = item as FeedItem & {
+        feedUrl?: string;
+      };
+      return rest as FeedItem;
+    });
+    const feed: Feed = {
+      title: "BBC News",
+      url: feedUrl,
+      folder: "News",
+      items,
+      lastUpdated: Date.now(),
+    };
+    settings.feeds = [feed];
+
+    const plugin = {
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      openTagsSettings: vi.fn(async () => {}),
+    };
+
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
+    const view = new RssDashboardView(leaf, plugin as never);
+    (view as unknown as { currentFeed: Feed | null }).currentFeed = feed;
+    (view as unknown as { activeStatusFilters: Set<string> }).activeStatusFilters =
+      new Set(["unread"]);
+    (view as unknown as { setupSidebarResize: () => void }).setupSidebarResize =
+      vi.fn();
+
+    view.render();
+
+    const callbacks = latestArticleListArgs[6] as {
+      onMarkPageAsRead?: () => void;
+    };
+    expect(callbacks?.onMarkPageAsRead).toBeTypeOf("function");
+
+    callbacks.onMarkPageAsRead?.();
+
+    expect(items.slice(0, 10).every((item) => item.read)).toBe(true);
+    expect(plugin.saveSettings).toHaveBeenCalled();
+    expect(consoleLogSpy).toHaveBeenCalledWith("[Stub Notice]", "Marked 10 items as read");
+    expect(consoleLogSpy).not.toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "No unread items on current page",
+    );
+
+    consoleLogSpy.mockRestore();
+  });
+
+  it("mark-page-read uses live page state after header unread refilter", async () => {
+    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
+
+    const app = new App();
+    const settings = cloneSettings();
+    settings.allArticlesPageSize = 10;
+
+    const feedUrl = "https://example.com/feed.xml";
+    const items = makeFeedItems(20, "BBC News", feedUrl).map((item, index) => ({
+      ...item,
+      read: index < 10,
+    }));
+    const feed: Feed = {
+      title: "BBC News",
+      url: feedUrl,
+      folder: "News",
+      items,
+      lastUpdated: Date.now(),
+    };
+    settings.feeds = [feed];
+
+    const plugin = {
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      openTagsSettings: vi.fn(async () => {}),
+    };
+
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
+    const view = new RssDashboardView(leaf, plugin as never);
+    (view as unknown as { setupSidebarResize: () => void }).setupSidebarResize =
+      vi.fn();
+
+    view.render();
+    const renderSpy = vi.spyOn(view, "render");
+
+    const callbacks = latestArticleListArgs[6] as {
+      onMarkPageAsRead?: () => void;
+    };
+    expect(callbacks?.onMarkPageAsRead).toBeTypeOf("function");
+
+    (
+      view as unknown as {
+        handleFilterChange: (value: {
+          type: string;
+          checked?: boolean;
+        }) => void;
+      }
+    ).handleFilterChange({
+      type: "unread",
+      checked: true,
+    });
+
+    callbacks.onMarkPageAsRead?.();
+
+    expect(items.slice(0, 10).every((item) => item.read)).toBe(true);
+    expect(items.slice(10, 20).every((item) => item.read)).toBe(true);
+    expect(plugin.saveSettings).toHaveBeenCalled();
+    expect(renderSpy).not.toHaveBeenCalled();
+    expect(latestArticleListInstance?.refilter).toHaveBeenCalled();
+    expect(consoleLogSpy).toHaveBeenCalledWith("[Stub Notice]", "Marked 10 items as read");
+    expect(consoleLogSpy).not.toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "No unread items on current page",
+    );
+
+    consoleLogSpy.mockRestore();
   });
 });
 

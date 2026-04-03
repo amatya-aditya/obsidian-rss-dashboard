@@ -50,7 +50,7 @@ vi.mock("../../../src/utils/settings-migration", () => ({
 import RssDashboardPlugin from "../../../main";
 
 // Use App from obsidian stub (provided via Vitest alias)
-import { App } from "obsidian";
+import { App, Platform } from "obsidian";
 
 // Type for mock app - use any to avoid TS errors with vi.mock
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -181,6 +181,26 @@ describe("loadSettings()", () => {
     expect(plugin.settings.feeds).toHaveLength(1);
   });
 
+  it("normalizes refreshInterval=0 to disabled instead of re-enabling it", async () => {
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockResolvedValue({
+      refreshInterval: 0,
+    });
+
+    await plugin.loadSettings();
+
+    expect(plugin.settings.refreshInterval).toBe(0);
+  });
+
+  it("normalizes negative refreshInterval values to disabled", async () => {
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockResolvedValue({
+      refreshInterval: -5,
+    });
+
+    await plugin.loadSettings();
+
+    expect(plugin.settings.refreshInterval).toBe(0);
+  });
+
   it("applies migrations to legacy settings", async () => {
     // Given: Legacy settings without new properties
     const legacySettings = {
@@ -256,6 +276,8 @@ describe("loadSettings()", () => {
 
 describe("onload() initialization", () => {
   let plugin: RssDashboardPlugin;
+  let originalPlatformIsMobile: boolean;
+  let originalPlatformIsDesktop: boolean;
 
   beforeEach(async () => {
     const app = createMockApp();
@@ -263,9 +285,13 @@ describe("onload() initialization", () => {
     vi.clearAllMocks();
     mockRefreshAllFeeds.mockClear();
     mockParseFeed.mockClear();
+    originalPlatformIsMobile = Platform.isMobile;
+    originalPlatformIsDesktop = Platform.isDesktop;
   });
 
   afterEach(() => {
+    Platform.isMobile = originalPlatformIsMobile;
+    Platform.isDesktop = originalPlatformIsDesktop;
     vi.restoreAllMocks();
   });
 
@@ -316,6 +342,14 @@ describe("onload() initialization", () => {
     expect(plugin.registerInterval).toHaveBeenCalled();
   });
 
+  it("does not register auto refresh when refreshInterval is disabled", async () => {
+    plugin.loadData = vi.fn().mockResolvedValue({ refreshInterval: 0 });
+
+    await plugin.onload();
+
+    expect(plugin.registerInterval).not.toHaveBeenCalled();
+  });
+
   it("adds setting tab", async () => {
     // When: onload is called
     await plugin.onload();
@@ -338,6 +372,31 @@ describe("onload() initialization", () => {
 
     // Then: settings should be loaded
     expect(plugin.settings).toBeDefined();
+  });
+
+  it("preserves list view on mobile startup", async () => {
+    Platform.isMobile = true;
+    Platform.isDesktop = false;
+    plugin.loadData = vi.fn().mockResolvedValue({ viewStyle: "list" });
+
+    await plugin.onload();
+
+    expect(plugin.settings.viewStyle).toBe("list");
+  });
+
+  it("does not attempt a startup refresh before FeedParser initialization", async () => {
+    plugin.loadData = vi.fn().mockResolvedValue({
+      refreshInterval: 60,
+      lastRefreshTimestamp: 0,
+      feeds: [],
+    });
+    const refreshSpy = vi.spyOn(plugin, "refreshFeeds").mockResolvedValue(undefined);
+
+    await plugin.onload();
+
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(mockRefreshAllFeeds).not.toHaveBeenCalled();
+    expect(plugin.feedParser).toBeDefined();
   });
 });
 
@@ -474,6 +533,116 @@ describe("refreshFeeds()", () => {
 
     // Then: Error should be handled (no throw)
     expect(plugin.settings).toBeDefined();
+  });
+
+  it("saves lastRefreshTimestamp after successful refresh", async () => {
+    // Given: Mock refreshAllFeeds returns updated feeds
+    mockRefreshAllFeeds.mockResolvedValue([sampleFeed]);
+    const beforeRefresh = Date.now();
+
+    // When: refreshFeeds is called
+    await plugin.refreshFeeds();
+    const afterRefresh = Date.now();
+
+    // Then: lastRefreshTimestamp should be set
+    expect(plugin.settings.lastRefreshTimestamp).toBeGreaterThanOrEqual(
+      beforeRefresh,
+    );
+    expect(plugin.settings.lastRefreshTimestamp).toBeLessThanOrEqual(
+      afterRefresh,
+    );
+  });
+
+  it("does NOT save lastRefreshTimestamp on refresh failure", async () => {
+    // Given: Mock refreshAllFeeds throws error
+    mockRefreshAllFeeds.mockRejectedValue(new Error("Network error"));
+    plugin.settings.lastRefreshTimestamp = 0;
+
+    // When: refreshFeeds is called
+    await plugin.refreshFeeds();
+
+    // Then: lastRefreshTimestamp should remain 0 (not updated on failure)
+    expect(plugin.settings.lastRefreshTimestamp).toBe(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test Suite: lastRefreshTimestamp settings
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("lastRefreshTimestamp in settings", () => {
+  it("has lastRefreshTimestamp in DEFAULT_SETTINGS with default value 0", () => {
+    // Then: DEFAULT_SETTINGS should include lastRefreshTimestamp
+    expect(DEFAULT_SETTINGS).toHaveProperty("lastRefreshTimestamp");
+    expect(DEFAULT_SETTINGS.lastRefreshTimestamp).toBe(0);
+  });
+
+  it("shouldRefreshOnOpen returns true when no timestamp exists", () => {
+    // Given: Settings with no lastRefreshTimestamp
+    const settings = { ...DEFAULT_SETTINGS, lastRefreshTimestamp: 0 };
+
+    // When: Checking if should refresh on open
+    const shouldRefresh =
+      !settings.lastRefreshTimestamp ||
+      Date.now() - settings.lastRefreshTimestamp >=
+        settings.refreshInterval * 60 * 1000;
+
+    // Then: Should return true for first-time users
+    expect(shouldRefresh).toBe(true);
+  });
+
+  it("shouldRefreshOnOpen returns false when auto refresh is disabled", () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      refreshInterval: 0,
+      lastRefreshTimestamp: 0,
+    };
+
+    const shouldRefresh =
+      settings.refreshInterval > 0 &&
+      (!settings.lastRefreshTimestamp ||
+        Date.now() - settings.lastRefreshTimestamp >=
+          settings.refreshInterval * 60 * 1000);
+
+    expect(shouldRefresh).toBe(false);
+  });
+
+  it("shouldRefreshOnOpen returns true when interval has elapsed", () => {
+    // Given: Settings with timestamp 90 minutes ago, interval 60 minutes
+    const ninetyMinutesAgo = Date.now() - 90 * 60 * 1000;
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      lastRefreshTimestamp: ninetyMinutesAgo,
+      refreshInterval: 60,
+    };
+
+    // When: Checking if should refresh on open
+    const shouldRefresh =
+      !settings.lastRefreshTimestamp ||
+      Date.now() - settings.lastRefreshTimestamp >=
+        settings.refreshInterval * 60 * 1000;
+
+    // Then: Should return true
+    expect(shouldRefresh).toBe(true);
+  });
+
+  it("shouldRefreshOnOpen returns false when interval has not elapsed", () => {
+    // Given: Settings with timestamp 30 minutes ago, interval 60 minutes
+    const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000;
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      lastRefreshTimestamp: thirtyMinutesAgo,
+      refreshInterval: 60,
+    };
+
+    // When: Checking if should refresh on open
+    const shouldRefresh =
+      !settings.lastRefreshTimestamp ||
+      Date.now() - settings.lastRefreshTimestamp >=
+        settings.refreshInterval * 60 * 1000;
+
+    // Then: Should return false
+    expect(shouldRefresh).toBe(false);
   });
 });
 
@@ -751,6 +920,26 @@ describe("addFeed()", () => {
     // Then: Feed should have custom limit
     const addedFeed = plugin.settings.feeds.find((f: Feed) => f.url === newUrl);
     expect(addedFeed?.maxItemsLimit).toBe(customLimit);
+  });
+
+  it("preserves the global maxItems default when parser output omits maxItemsLimit", async () => {
+    const newUrl = "https://example.com/global-default-limit.xml";
+
+    plugin.settings.maxItems = 50;
+
+    mockParseFeed.mockResolvedValue({
+      title: "Global Default Feed",
+      url: newUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+      mediaType: "article",
+    });
+
+    await plugin.addFeed("Global Default Feed", newUrl, "Uncategorized");
+
+    const addedFeed = plugin.settings.feeds.find((f: Feed) => f.url === newUrl);
+    expect(addedFeed?.maxItemsLimit).toBe(50);
   });
 
   it("saves settings after adding feed", async () => {

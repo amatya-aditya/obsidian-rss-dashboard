@@ -108,6 +108,41 @@ describe("Sidebar Rendering", () => {
     expect(feed1).not.toBeNull();
   });
 
+  it("should toggle a folder from the chevron without opening the folder", () => {
+    const sidebar = new Sidebar(
+      app as any,
+      container,
+      plugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    const folderHeader = container.querySelector(
+      "[data-folder-path=\"Folder 1\"].rss-dashboard-feed-folder-header",
+    ) as HTMLElement;
+    const toggleButton = folderHeader.querySelector(
+      ".rss-dashboard-feed-folder-toggle",
+    ) as HTMLElement;
+    const folderFeeds = folderHeader.parentElement?.querySelector(
+      ".rss-dashboard-folder-feeds",
+    ) as HTMLElement;
+
+    expect(folderHeader.classList.contains("collapsed")).toBe(false);
+    expect(folderFeeds.classList.contains("collapsed")).toBe(false);
+
+    toggleButton.click();
+
+    expect(folderHeader.classList.contains("collapsed")).toBe(true);
+    expect(folderFeeds.classList.contains("collapsed")).toBe(true);
+    expect(callbacks.onToggleFolderCollapse).toHaveBeenCalledWith(
+      "Folder 1",
+      false,
+    );
+    expect(callbacks.onFolderClick).not.toHaveBeenCalled();
+  });
+
   it("should render the tags section when tags are expanded", () => {
     const sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
     sidebar["isTagsExpanded"] = true;

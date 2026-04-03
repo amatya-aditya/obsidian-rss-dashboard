@@ -13,6 +13,7 @@ rss-dashboard.sqlite
 styles.css
 userdata.json.backup
 feeds.opml.backup
+tsconfig.tsbuildinfo
 
 # build artifacts
 release/
@@ -21,8 +22,11 @@ release/
 # agent
 docs/archive
 CLAUDE.md
+.kilo/
 .claude/
 .agent/*
+.agents
+.agents/*
 userdata.json.backup
 feeds.opml.backup
 coverage/

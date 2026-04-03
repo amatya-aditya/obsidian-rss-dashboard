@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { isValidFolderName, isValidFeedTitle, sanitizeName } from "../../../src/utils/validation";
+import {
+  isValidFolderName,
+  isValidFeedTitle,
+  sanitizeName,
+  isValidRefreshInterval,
+  normalizeRefreshIntervalMinutes,
+} from "../../../src/utils/validation";
 
 describe("Validation Utility", () => {
   describe("isValidFolderName", () => {
@@ -72,6 +78,40 @@ describe("Validation Utility", () => {
 
     it("trims whitespace", () => {
       expect(sanitizeName("  My Folder  ")).toBe("My Folder");
+    });
+  });
+
+  describe("isValidRefreshInterval", () => {
+    it("accepts 0 to disable auto refresh", () => {
+      expect(isValidRefreshInterval(0)).toEqual({ valid: true });
+    });
+
+    it("accepts positive whole numbers", () => {
+      expect(isValidRefreshInterval(15)).toEqual({ valid: true });
+    });
+
+    it("rejects negative values", () => {
+      expect(isValidRefreshInterval(-1).valid).toBe(false);
+    });
+
+    it("rejects decimal values", () => {
+      expect(isValidRefreshInterval(1.5).valid).toBe(false);
+    });
+  });
+
+  describe("normalizeRefreshIntervalMinutes", () => {
+    it("keeps positive whole numbers unchanged", () => {
+      expect(normalizeRefreshIntervalMinutes(30)).toBe(30);
+    });
+
+    it("converts 0 and negative values to disabled", () => {
+      expect(normalizeRefreshIntervalMinutes(0)).toBe(0);
+      expect(normalizeRefreshIntervalMinutes(-5)).toBe(0);
+    });
+
+    it("truncates decimals and treats invalid values as disabled", () => {
+      expect(normalizeRefreshIntervalMinutes(12.9)).toBe(12);
+      expect(normalizeRefreshIntervalMinutes(Number.NaN)).toBe(0);
     });
   });
 });

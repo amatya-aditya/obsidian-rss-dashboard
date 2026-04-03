@@ -1,5 +1,7 @@
 # Git Branching Strategy
 
+Last updated: 2026-04-02
+
 ## Overview
 
 This document outlines the branching strategy for all contributors. Following these conventions keeps our codebase stable, our release process predictable, and collaboration smooth.
@@ -114,16 +116,39 @@ We strongly encourage a **Test-Driven Development (TDD)** workflow. When adding 
 2. **Green**: Write the minimal code required to pass the test.
 3. **Refactor**: Clean up the code while ensuring the test stays green.
 
+### Test Coverage Philosophy
+
+Coverage is a **floor, not a goal**. We use coverage to prevent regressions and to make refactors safe, but we value **meaningful assertions** over chasing percentages.
+
+- Prefer tests around critical user flows, bug fixes, and pure business logic.
+- For refactors (especially large files), start with **characterization tests** that lock in current behavior, then refactor behind that safety net.
+- Keep tests deterministic (avoid real network/time; use stubs/fixtures).
+
+### Coverage Gate (Ratcheting)
+
+CI enforces global coverage thresholds (configured in `vitest.config.mjs`). We use a ratchet so the minimum acceptable coverage rises over time and cannot silently drift downward.
+
+- Only raise thresholds when the measured global metric is comfortably above the current threshold (see the ratchet rules in `docs/development/test_coverage/test-coverage-improvement-plan.md`).
+- Avoid raising thresholds in the same PR that significantly expands the measured surface area (e.g., broadening `coverage.include`).
+
 ### Current Test Suite
 
-Our project currently utilizes ~380 test cases across ~60 files. The vast majority are **unit tests** and fast **integration-style tests** (using JSDOM polyfills for Obsidian components) that validate UI rendering and business logic without needing to launch the full Obsidian app. You can find them in the `test_files/unit/` directory.
+As of **2026-04-01**, the suite contains **741 passing tests across 103 passing files**. This is the automated test baseline intended to ship with `2.2.0`. Most are **unit tests** plus fast **integration-style** tests (JSDOM + Obsidian stubs) that validate UI rendering and business logic without launching the full Obsidian app. Tests live under `test_files/unit/`.
+
+Current global coverage snapshot (from `npm run test:unit -- --coverage`):
+
+- **Statements** : 46.77% (7385/15789)
+- **Branches** : 37.32% (3386/9071)
+- **Functions** : 41.51% (1089/2623)
+- **Lines** : 47.66% (7137/14974)
 
 ### Running and Writing Tests
 
 - **Run all tests**: `npm run test:unit`
+- **Generate coverage reports**: `npm run test:unit -- --coverage`
 - **Recommended**: Keep the test runner open in watch mode (`npx vitest`) while developing.
 - **Organization**: Please organize new tests into domain folders (e.g., `services/`, `views/`, `utils/`) matching the `src/` directory to prevent clutter in the root `test_files/unit/` folder.
-- For more detailed guidance on what and how to test, see the [Testing Guide](docs/development/testing-guide.md).
+- For deeper context and current priorities, see `docs/development/test_coverage/test-coverage-improvement-plan.md` and `docs/development/refactorability-testing.md`.
 
 ---
 
@@ -140,28 +165,69 @@ git checkout dev
 git checkout -b release/2.3.0
 ```
 
-### Step 3 — Tag and Announce Beta
+### Step 3 — Bump the Version First
+
+Before tagging a Beta or Stable release, bump the version with `npm version` so `package.json`, `package-lock.json`, `manifest.json`, and `versions.json` stay in sync.
+
+For the first Beta on a new release branch:
+
+```
+npm version 2.3.0-beta.1 --no-git-tag-version
+git add package.json package-lock.json manifest.json versions.json
+git commit -m "2.3.0-beta.1"
+```
+
+For the final Stable release:
+
+```
+npm version 2.3.0 --no-git-tag-version
+git add package.json package-lock.json manifest.json versions.json
+git commit -m "2.3.0"
+```
+
+### Step 4 — Tag and Announce Beta
 
 ```
 git tag 2.3.0-beta.1
-git push origin release/2.3.0 --tags
+git push --set-upstream origin release/2.3.0 --tags
 ```
+
+Pushing the Beta tag triggers this repo's GitHub Actions release workflow, which builds the plugin and creates a GitHub pre-release with the standard Obsidian assets attached:
+
+- `main.js`
+- `manifest.json`
+- `styles.css`
+
+If the workflow is unavailable for any reason, create the GitHub release manually from the same tag and upload those files yourself.
+
+Use `--set-upstream` on the first push of a new release branch so your local branch tracks `origin/release/...` and tools like VS Code stop showing `Publish Branch`.
 
 Announce to testers via BRAT. Collect feedback.
 
-### Step 4 — Stabilize
+### Step 5 — Stabilize
 
 Fix any issues found during Beta testing **on the release branch**, not on dev. Tag new beta versions as needed:
 
 ```
+npm version 2.3.0-beta.2 --no-git-tag-version
+git add package.json package-lock.json manifest.json versions.json
+git commit -m "2.3.0-beta.2"
 git tag 2.3.0-beta.2
+git push origin release/2.3.0 --tags
 ```
 
-### Step 5 — Ship
+Each pushed Beta tag should produce or be matched by a GitHub pre-release from that same tag.
+
+### Step 6 — Ship
 
 When confidence is high and no new issues are surfacing:
 
 ```
+# Bump to the final stable version on the release branch first
+npm version 2.3.0 --no-git-tag-version
+git add package.json package-lock.json manifest.json versions.json
+git commit -m "2.3.0"
+
 # Merge to master and tag
 git checkout master
 git merge release/2.3.0
@@ -176,6 +242,8 @@ git push origin dev
 # Clean up
 git branch -d release/2.3.0
 ```
+
+Pushing the stable tag triggers this repo's release workflow, which creates a GitHub release from that tag and attaches the standard Obsidian plugin assets. If you ever need to do it manually, create the GitHub release from tag `2.3.0` and upload `main.js`, `manifest.json`, and `styles.css`.
 
 ---
 
@@ -240,10 +308,16 @@ git fetch origin && git rebase origin/dev
 # Cut a release branch
 git checkout dev && git checkout -b release/2.3.0
 
-# Tag the Beta
-git tag 2.3.0-beta.1 && git push origin release/2.3.0 --tags
+# Bump and tag the Beta
+npm version 2.3.0-beta.1 --no-git-tag-version
+git add package.json package-lock.json manifest.json versions.json
+git commit -m "2.3.0-beta.1"
+git tag 2.3.0-beta.1 && git push --set-upstream origin release/2.3.0 --tags
 
 # Ship a release
+npm version 2.3.0 --no-git-tag-version
+git add package.json package-lock.json manifest.json versions.json
+git commit -m "2.3.0"
 git checkout master && git merge release/2.3.0
 git tag 2.3.0 && git push origin master --tags
 git checkout dev && git merge release/2.3.0 && git push origin dev

@@ -13,6 +13,7 @@ export default defineConfig([
       "*.mjs",
       "scripts/**/*.js",
       "test_files/**",
+      ".kilo/**",
     ],
   },
   ...obsidianmd.configs.recommended,

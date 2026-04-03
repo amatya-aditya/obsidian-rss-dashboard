@@ -180,4 +180,28 @@ describe("refreshFeeds() pipeline behavior", () => {
     expect(notices[0]).toBe("Refreshing Feed A...");
     expect(notices).toContain("Error refreshing  network down");
   });
+
+  it("skips refresh cleanly when there are no feeds", async () => {
+    const plugin = createPluginWithSettings([]);
+
+    await expect(plugin.refreshFeeds()).resolves.toBeUndefined();
+
+    expect(plugin.feedParser.refreshAllFeeds).not.toHaveBeenCalled();
+    expect(plugin.saveData).not.toHaveBeenCalled();
+    expect(getNoticeMessages(consoleLogSpy)).toEqual([]);
+  });
+
+  it("skips refresh when feedParser is not initialized yet", async () => {
+    const plugin = createPluginWithSettings([createFeed()]);
+    plugin.feedParser = undefined as any;
+    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(plugin.refreshFeeds()).resolves.toBeUndefined();
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "[RSS dashboard] Feed parser not initialized; skipping refresh.",
+    );
+    expect(plugin.saveData).not.toHaveBeenCalled();
+    expect(getNoticeMessages(consoleLogSpy)).toEqual([]);
+  });
 });

@@ -48,6 +48,7 @@ import { sleep, setCssProps } from "./src/utils/platform-utils";
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { copyTextToClipboard, exportBlob } from "./src/utils/export-utils";
 import { canonicalizeItemIdentityUrl } from "./src/utils/url-utils";
+import { normalizeRefreshIntervalMinutes } from "./src/utils/validation";
 
 export interface FiltersUpdatedEventPayload {
   source: string;
@@ -65,6 +66,18 @@ export default class RssDashboardPlugin extends Plugin {
   private isBackgroundImporting = false;
   public vaultAbsolutePath = "";
   private _beforeUnloadHandler: (() => void) | null = null;
+
+  private getAutoRefreshIntervalMs(): number | null {
+    const normalizedMinutes = normalizeRefreshIntervalMinutes(
+      this.settings.refreshInterval,
+    );
+
+    if (normalizedMinutes <= 0) {
+      return null;
+    }
+
+    return normalizedMinutes * 60 * 1000;
+  }
 
   public async getActiveDashboardView(): Promise<RssDashboardView | null> {
     const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
@@ -163,6 +176,14 @@ export default class RssDashboardPlugin extends Plugin {
     /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 
     await this.loadSettings();
+
+    const shouldRefreshOnOpen = (): boolean => {
+      const intervalMs = this.getAutoRefreshIntervalMs();
+      if (intervalMs === null) return false;
+      if (!this.settings.lastRefreshTimestamp) return true;
+      const elapsed = Date.now() - this.settings.lastRefreshTimestamp;
+      return elapsed >= intervalMs;
+    };
 
     // Register a window-level beforeunload listener for reliable backup
     // on Obsidian quit. onunload is NOT reliably called by Electron on window close.
@@ -326,14 +347,18 @@ export default class RssDashboardPlugin extends Plugin {
         },
       });
 
-      this.registerInterval(
-        window.setInterval(
-          () => {
+      const autoRefreshIntervalMs = this.getAutoRefreshIntervalMs();
+      if (autoRefreshIntervalMs !== null) {
+        this.registerInterval(
+          window.setInterval(() => {
             void this.refreshFeeds();
-          },
-          this.settings.refreshInterval * 60 * 1000,
-        ),
-      );
+          }, autoRefreshIntervalMs),
+        );
+      }
+
+      if (shouldRefreshOnOpen()) {
+        void this.refreshFeeds();
+      }
     } catch (e) {
       console.error("[RSS Dashboard] onload initialization failed:", e);
       new Notice("Error initializing RSS dashboard plugin.");
@@ -341,16 +366,15 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private applyMobileOptimizations(): void {
-    if (this.settings.refreshInterval < 60) {
+    if (
+      this.settings.refreshInterval > 0 &&
+      this.settings.refreshInterval < 60
+    ) {
       this.settings.refreshInterval = 60;
     }
 
     if (this.settings.maxItems > 50) {
       this.settings.maxItems = 50;
-    }
-
-    if (this.settings.viewStyle === "list") {
-      this.settings.viewStyle = "card";
     }
 
     if (!this.settings.sidebarCollapsed) {
@@ -575,6 +599,17 @@ export default class RssDashboardPlugin extends Plugin {
   async refreshFeeds(selectedFeeds?: Feed[]) {
     try {
       const feedsToRefresh = selectedFeeds || this.settings.feeds;
+      if (feedsToRefresh.length === 0) {
+        return;
+      }
+
+      if (!this.feedParser) {
+        console.warn(
+          "[RSS dashboard] Feed parser not initialized; skipping refresh.",
+        );
+        return;
+      }
+
       let feedNoticeText = "";
       if (feedsToRefresh.length === 1) {
         feedNoticeText = feedsToRefresh[0].title;
@@ -596,6 +631,7 @@ export default class RssDashboardPlugin extends Plugin {
       });
 
       await this.validateSavedArticles();
+      this.settings.lastRefreshTimestamp = Date.now();
       await this.saveSettings();
       const view = await this.getActiveDashboardView();
       if (view) {
@@ -1451,14 +1487,32 @@ export default class RssDashboardPlugin extends Plugin {
         const parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
           allowEmpty: true,
         });
-        if (parsedFeed.folder) {
-          await this.ensureFolderExists(parsedFeed.folder, {
+        const feedToStore: Feed = {
+          ...newFeed,
+          ...parsedFeed,
+          autoDeleteDuration:
+            typeof parsedFeed.autoDeleteDuration === "number"
+              ? parsedFeed.autoDeleteDuration
+              : newFeed.autoDeleteDuration,
+          maxItemsLimit:
+            typeof parsedFeed.maxItemsLimit === "number"
+              ? parsedFeed.maxItemsLimit
+              : newFeed.maxItemsLimit,
+          scanInterval:
+            typeof parsedFeed.scanInterval === "number"
+              ? parsedFeed.scanInterval
+              : newFeed.scanInterval,
+          customTemplate: parsedFeed.customTemplate ?? newFeed.customTemplate,
+          keywordRules: parsedFeed.keywordRules ?? newFeed.keywordRules,
+        };
+        if (feedToStore.folder) {
+          await this.ensureFolderExists(feedToStore.folder, {
             saveSettings: false,
             refreshView: false,
           });
         }
         // Only add to settings if parsing succeeded
-        this.settings.feeds.push(parsedFeed);
+        this.settings.feeds.push(feedToStore);
         await this.saveSettings();
 
         const view = await this.getActiveDashboardView();
@@ -1574,6 +1628,11 @@ export default class RssDashboardPlugin extends Plugin {
       const data = (await this.loadData()) as RssDashboardSettings | null;
 
       this.settings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
+
+      const normalizedRefreshInterval = Number(this.settings.refreshInterval);
+      this.settings.refreshInterval = Number.isFinite(normalizedRefreshInterval)
+        ? normalizeRefreshIntervalMinutes(normalizedRefreshInterval)
+        : DEFAULT_SETTINGS.refreshInterval;
 
       const didMigrateKeywordRules = this.migrateLegacySettings();
 
