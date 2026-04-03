@@ -922,6 +922,26 @@ describe("addFeed()", () => {
     expect(addedFeed?.maxItemsLimit).toBe(customLimit);
   });
 
+  it("preserves the global maxItems default when parser output omits maxItemsLimit", async () => {
+    const newUrl = "https://example.com/global-default-limit.xml";
+
+    plugin.settings.maxItems = 50;
+
+    mockParseFeed.mockResolvedValue({
+      title: "Global Default Feed",
+      url: newUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+      mediaType: "article",
+    });
+
+    await plugin.addFeed("Global Default Feed", newUrl, "Uncategorized");
+
+    const addedFeed = plugin.settings.feeds.find((f: Feed) => f.url === newUrl);
+    expect(addedFeed?.maxItemsLimit).toBe(50);
+  });
+
   it("saves settings after adding feed", async () => {
     // Given: New unique URL
     const newUrl = "https://example.com/save-test.xml";

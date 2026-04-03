@@ -1482,14 +1482,32 @@ export default class RssDashboardPlugin extends Plugin {
         const parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
           allowEmpty: true,
         });
-        if (parsedFeed.folder) {
-          await this.ensureFolderExists(parsedFeed.folder, {
+        const feedToStore: Feed = {
+          ...newFeed,
+          ...parsedFeed,
+          autoDeleteDuration:
+            typeof parsedFeed.autoDeleteDuration === "number"
+              ? parsedFeed.autoDeleteDuration
+              : newFeed.autoDeleteDuration,
+          maxItemsLimit:
+            typeof parsedFeed.maxItemsLimit === "number"
+              ? parsedFeed.maxItemsLimit
+              : newFeed.maxItemsLimit,
+          scanInterval:
+            typeof parsedFeed.scanInterval === "number"
+              ? parsedFeed.scanInterval
+              : newFeed.scanInterval,
+          customTemplate: parsedFeed.customTemplate ?? newFeed.customTemplate,
+          keywordRules: parsedFeed.keywordRules ?? newFeed.keywordRules,
+        };
+        if (feedToStore.folder) {
+          await this.ensureFolderExists(feedToStore.folder, {
             saveSettings: false,
             refreshView: false,
           });
         }
         // Only add to settings if parsing succeeded
-        this.settings.feeds.push(parsedFeed);
+        this.settings.feeds.push(feedToStore);
         await this.saveSettings();
 
         const view = await this.getActiveDashboardView();

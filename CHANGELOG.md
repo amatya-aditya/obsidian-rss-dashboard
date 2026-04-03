@@ -25,6 +25,7 @@
 ### Fixes
 
 - Android bug causing list and card views to regress after every open
+- New feeds now reliably preserve the current global max item default when added, instead of inheriting a lower retained-item limit if parser output omits the per-feed override.
 
 - Chevron clicks in sidebar now only toggle collapse - GH[#91](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/91)
 
