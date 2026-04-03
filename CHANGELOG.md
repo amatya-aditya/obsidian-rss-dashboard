@@ -18,6 +18,14 @@
 - **Auto Refresh: Off Option added**
   - Added a new "Off" option to the refresh interval dropdown in General > Global Feeds > Refresh Interval. Resolves GH Issue #92
 
+### Fixes
+
+- Android bug causing list and card views to regress after every open
+
+- Chevron clicks in sidebar now only toggle collapse - GH[#91](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/91)
+
+- Auto-deleted items no longer reappearing as unread upon refresh (PR#87 submitted by emiraga)
+
 ### Development
 
 - **Testing Baseline for 2.2.0**:
