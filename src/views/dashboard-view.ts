@@ -2241,6 +2241,28 @@ export class RssDashboardView extends ItemView {
     }
   }
 
+  refreshSidebarOnly(): void {
+    if (!this.sidebar) {
+      return;
+    }
+
+    this.sidebar.clearFolderPathCache();
+    this.sidebar["options"] = {
+      currentFolder: this.currentFolder,
+      currentFeed: this.currentFeed,
+      selectedTags: this.selectedTags,
+      tagsCollapsed: this.tagsCollapsed,
+      collapsedFolders: this.collapsedFolders,
+    };
+    this.sidebar["settings"] = this.settings;
+    this.sidebar.render();
+
+    if (this.sidebarContainer && !this.settings.sidebarCollapsed) {
+      this.applySidebarWidth();
+      this.setupSidebarResize();
+    }
+  }
+
   refresh(): void {
     this.render();
   }
