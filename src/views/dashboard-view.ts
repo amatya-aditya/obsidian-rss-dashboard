@@ -1744,7 +1744,7 @@ export class RssDashboardView extends ItemView {
     if (shouldRerender) {
       void this.render();
     } else {
-      if (updates.tags && this.sidebar) {
+      if ((updates.tags || updates.read !== undefined) && this.sidebar) {
         this.sidebar.render();
       }
       this.syncArticleListAfterUpdate(article);
@@ -1782,7 +1782,7 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
-    if (updates.tags && this.sidebar) {
+    if ((updates.tags || updates.read !== undefined) && this.sidebar) {
       this.sidebar.render();
     }
 
@@ -1903,6 +1903,9 @@ export class RssDashboardView extends ItemView {
       filtered.length !== previousTotalArticles;
 
     if (!pageCompositionChanged && !paginationChanged) {
+      if (this.sidebar) {
+        this.sidebar.render();
+      }
       updatedArticles.forEach((article) => {
         this.articleList.updateArticleInPlace(article);
       });
@@ -1911,6 +1914,9 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
+    if (this.sidebar) {
+      this.sidebar.render();
+    }
     this.articleList.refilter(
       new Set(this.activeStatusFilters),
       new Set(this.activeTagFilters),
