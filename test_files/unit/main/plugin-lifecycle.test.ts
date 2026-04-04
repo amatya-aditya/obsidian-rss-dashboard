@@ -985,6 +985,91 @@ describe("addFeed()", () => {
 // Test Suite: onunload() Cleanup
 // ─────────────────────────────────────────────────────────────────────────────
 
+describe("ingestFeedsForBackgroundImport()", () => {
+  let plugin: RssDashboardPlugin;
+
+  beforeEach(async () => {
+    const app = createMockApp();
+    plugin = await createPluginInstance(app);
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      feeds: [sampleFeed],
+    };
+    plugin.startBackgroundImport = vi.fn();
+    plugin.ensureFolderExists = vi.fn().mockResolvedValue(false);
+    plugin.getActiveDashboardView = vi.fn().mockResolvedValue({
+      refresh: vi.fn(),
+    });
+    vi.clearAllMocks();
+  });
+
+  it("dedupes URLs, inserts placeholders, saves once, and queues hydration", async () => {
+    const result = await (plugin as any).ingestFeedsForBackgroundImport(
+      [
+        {
+          title: "New Feed",
+          url: "https://example.com/new.xml",
+          folder: "Research",
+        },
+        {
+          title: "Duplicate Existing",
+          url: sampleFeed.url,
+          folder: "Research",
+        },
+        {
+          title: "Duplicate Incoming",
+          url: "https://example.com/new.xml",
+          folder: "Research",
+        },
+      ],
+      { mode: "update" },
+    );
+
+    expect(result.addedCount).toBe(1);
+    expect(result.skippedCount).toBe(2);
+    expect(plugin.settings.feeds.some((f) => f.url === "https://example.com/new.xml")).toBe(true);
+    const addedFeed = plugin.settings.feeds.find(
+      (f) => f.url === "https://example.com/new.xml",
+    );
+    expect(addedFeed?.items).toEqual([]);
+    expect(plugin.saveData).toHaveBeenCalledTimes(1);
+    expect(plugin.ensureFolderExists).toHaveBeenCalledWith("Research", {
+      saveSettings: false,
+      refreshView: false,
+    });
+    expect(plugin.startBackgroundImport).toHaveBeenCalledWith([
+      expect.objectContaining({
+        title: "New Feed",
+        url: "https://example.com/new.xml",
+        folder: "Research",
+      }),
+    ]);
+  });
+
+  it("supports overwrite mode and replaces folders when provided", async () => {
+    const result = await (plugin as any).ingestFeedsForBackgroundImport(
+      [
+        {
+          title: "Only Feed",
+          url: "https://example.com/only.xml",
+          folder: "Tech/AI",
+        },
+      ],
+      {
+        mode: "overwrite",
+        folders: [{ name: "Tech", subfolders: [{ name: "AI", subfolders: [] }] }],
+      },
+    );
+
+    expect(result.addedCount).toBe(1);
+    expect(plugin.settings.feeds).toHaveLength(1);
+    expect(plugin.settings.feeds[0].url).toBe("https://example.com/only.xml");
+    expect(plugin.settings.folders).toEqual([
+      { name: "Tech", subfolders: [{ name: "AI", subfolders: [] }] },
+    ]);
+  });
+});
+
 describe("onunload()", () => {
   let plugin: RssDashboardPlugin;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

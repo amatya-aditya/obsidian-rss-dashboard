@@ -2495,6 +2495,16 @@ export class Sidebar {
       );
       menu.addItem((item) =>
         item
+          .setTitle("Unread count (high to low)")
+          .onClick(() => void this.sortAllFeeds("unreadCount", false)),
+      );
+      menu.addItem((item) =>
+        item
+          .setTitle("Unread count (low to high)")
+          .onClick(() => void this.sortAllFeeds("unreadCount", true)),
+      );
+      menu.addItem((item) =>
+        item
           .setTitle("Folder name (a to z)")
           .onClick(() => void this.sortFolders("name", true)),
       );
@@ -2653,6 +2663,16 @@ export class Sidebar {
       menu.addItem((item) =>
         item.setTitle("Feed name (z to a)").onClick(() => {
           void this.sortAllFeeds("name", false);
+        }),
+      );
+      menu.addItem((item) =>
+        item.setTitle("Unread count (high to low)").onClick(() => {
+          void this.sortAllFeeds("unreadCount", false);
+        }),
+      );
+      menu.addItem((item) =>
+        item.setTitle("Unread count (low to high)").onClick(() => {
+          void this.sortAllFeeds("unreadCount", true);
         }),
       );
       menu.addItem((item) =>
@@ -3115,7 +3135,7 @@ export class Sidebar {
 
   private async sortFeedsInFolder(
     folderPath: string,
-    by: "name" | "created" | "itemCount",
+    by: "name" | "created" | "itemCount" | "unreadCount",
     ascending: boolean,
   ) {
     let feedsInFolder: Feed[];
@@ -3170,7 +3190,7 @@ export class Sidebar {
   private applyFeedSortOrder(
     feeds: Feed[],
     sortOrder: {
-      by: "name" | "created" | "itemCount" | "custom";
+      by: "name" | "created" | "itemCount" | "unreadCount" | "custom";
       ascending: boolean;
     },
   ): Feed[] {
@@ -3178,7 +3198,7 @@ export class Sidebar {
   }
 
   private async sortAllFeeds(
-    by: "name" | "created" | "itemCount",
+    by: "name" | "created" | "itemCount" | "unreadCount",
     ascending: boolean,
   ) {
     if (!this.settings.folderFeedSortOrders) {

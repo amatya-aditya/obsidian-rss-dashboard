@@ -126,7 +126,7 @@ describe("Filter Status Bar counts (TDD)", () => {
     expect(result).toEqual({ shown: 3, total: 4, filteredOut: 1 });
   });
 
-  it("renders counts when keyword/highlights are inactive", async () => {
+  it("renders viewing-filter counts when dashboard multi-filters are active", async () => {
     const { RssDashboardView } = await import("../../../src/views/dashboard-view");
 
     const app = new App();
@@ -140,6 +140,8 @@ describe("Filter Status Bar counts (TDD)", () => {
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);
 
+    (view as any).activeStatusFilters = new Set(["unread"]);
+    (view as any).activeTagFilters = new Set();
     (view as any).dashboardMultiFilterCounts = {
       shown: 3,
       filteredOut: 1,
@@ -166,6 +168,52 @@ describe("Filter Status Bar counts (TDD)", () => {
       (s) =>
         (s.textContent ?? "").trim() ===
         "Viewing filters: Showing 3 | Filtered out 1 | Total 4",
+    );
+    expect(match).toBeTruthy();
+  });
+
+  it("renders the no-filters message when dashboard multi-filters are enabled but empty", async () => {
+    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
+
+    const app = new App();
+    const settings = cloneSettings();
+    const plugin = {
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      openSettingsToTab: vi.fn(async () => {}),
+    };
+
+    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
+    const view = new RssDashboardView(leaf, plugin as never);
+
+    (view as any).activeStatusFilters = new Set();
+    (view as any).activeTagFilters = new Set();
+    (view as any).dashboardMultiFilterCounts = {
+      shown: 4,
+      filteredOut: 0,
+      total: 4,
+    };
+    (view as any).keywordFilterStats = {
+      articlesRetrieved: 0,
+      globalExcluded: 0,
+      feedExcluded: 0,
+      finalVisible: 0,
+      bypassActive: false,
+      filtersActive: false,
+    };
+    (view as any).highlightMatchCounts = [];
+
+    const container = document.body.createDiv();
+    (view as any).renderFilterSubheader(container);
+
+    const subheader = container.querySelector(".rss-dashboard-filter-subheader");
+    expect(subheader).toBeTruthy();
+
+    const spans = Array.from(subheader?.querySelectorAll("span") ?? []);
+    const match = spans.find(
+      (s) =>
+        (s.textContent ?? "").trim() ===
+        "No filters applied - Showing 4 | Filtered out 0 | Total 4",
     );
     expect(match).toBeTruthy();
   });

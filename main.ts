@@ -16,6 +16,7 @@ import {
   FeedMetadata,
   FeedRefreshState,
   FeedKeywordRulesSettings,
+  Folder,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
 import {
@@ -45,7 +46,7 @@ import {
 import { ArticleSaver } from "./src/services/article-saver";
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
-import { sleep, setCssProps } from "./src/utils/platform-utils";
+import { setCssProps } from "./src/utils/platform-utils";
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { copyTextToClipboard, exportBlob } from "./src/utils/export-utils";
 import { canonicalizeItemIdentityUrl } from "./src/utils/url-utils";
@@ -55,6 +56,28 @@ export interface FiltersUpdatedEventPayload {
   source: string;
   feedUrl?: string;
   timestamp: number;
+}
+
+export interface FeedIngestionCandidate {
+  title: string;
+  url: string;
+  folder?: string;
+  author?: string;
+  mediaType?: "article" | "video" | "podcast";
+  autoDetect?: boolean;
+  customTemplate?: string;
+  customFolder?: string;
+  customTags?: string[];
+  autoDeleteDuration?: number;
+  maxItemsLimit?: number;
+  scanInterval?: number;
+  keywordRules?: FeedKeywordRulesSettings;
+}
+
+export interface FeedIngestionOptions {
+  mode?: "update" | "overwrite";
+  folders?: Folder[];
+  onProgress?: (completed: number, total: number) => void;
 }
 
 export default class RssDashboardPlugin extends Plugin {
@@ -379,7 +402,10 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private applyMobileOptimizations(): void {
-    if (this.settings.refreshInterval > 0 && this.settings.refreshInterval < 60) {
+    if (
+      this.settings.refreshInterval > 0 &&
+      this.settings.refreshInterval < 60
+    ) {
       this.settings.refreshInterval = 60;
     }
 
@@ -614,7 +640,9 @@ export default class RssDashboardPlugin extends Plugin {
       }
 
       if (!this.feedParser) {
-        console.warn("[RSS dashboard] Feed parser not initialized; skipping refresh.");
+        console.warn(
+          "[RSS dashboard] Feed parser not initialized; skipping refresh.",
+        );
         return;
       }
 
@@ -791,83 +819,22 @@ export default class RssDashboardPlugin extends Plugin {
         try {
           const { feeds: newFeedsMetadata, folders: newFolders } =
             OpmlManager.parseOpmlMetadata(content);
-
-          const feedsToAdd = newFeedsMetadata.filter(
-            (newFeed) =>
-              !this.settings.feeds.some((f) => f.url === newFeed.url),
+          const result = await this.ingestFeedsForBackgroundImport(
+            newFeedsMetadata,
+            {
+              mode: "update",
+              folders: newFolders,
+            },
           );
 
-          if (feedsToAdd.length === 0) {
+          if (result.addedCount === 0) {
             new Notice("No new feeds found in the file.");
             return;
           }
 
-          const addedFeeds: Feed[] = [];
-          for (const feedMetadata of feedsToAdd) {
-            const feedToAdd: Feed = {
-              title: feedMetadata.title,
-              url: feedMetadata.url,
-              folder: feedMetadata.folder,
-              items: [],
-              lastUpdated: Date.now(),
-              mediaType: feedMetadata.mediaType || "article",
-              autoDeleteDuration:
-                typeof feedMetadata.autoDeleteDuration === "number"
-                  ? feedMetadata.autoDeleteDuration
-                  : this.settings.defaultAutoDeleteDuration,
-              maxItemsLimit:
-                typeof feedMetadata.maxItemsLimit === "number"
-                  ? feedMetadata.maxItemsLimit
-                  : this.settings.maxItems,
-              scanInterval: feedMetadata.scanInterval,
-              keywordRules: {
-                overrideGlobalRules: false,
-                includeLogic: "AND",
-                rules: [],
-              },
-            };
-
-            if (
-              feedToAdd.mediaType === "video" &&
-              (!feedToAdd.folder || feedToAdd.folder === "Uncategorized")
-            ) {
-              feedToAdd.folder = this.settings.media.defaultYouTubeFolder;
-            } else if (
-              feedToAdd.mediaType === "podcast" &&
-              (!feedToAdd.folder || feedToAdd.folder === "Uncategorized")
-            ) {
-              feedToAdd.folder = this.settings.media.defaultPodcastFolder;
-            }
-
-            addedFeeds.push(feedToAdd);
-          }
-
-          this.settings.feeds.push(...addedFeeds);
-          this.settings.folders = OpmlManager.mergeFolders(
-            this.settings.folders,
-            newFolders,
-          );
-
-          for (const feed of addedFeeds) {
-            if (feed.folder) {
-              await this.ensureFolderExists(feed.folder, {
-                saveSettings: false,
-                refreshView: false,
-              });
-            }
-          }
-          await this.saveSettings();
-
-          const view = await this.getActiveDashboardView();
-          if (view) {
-            view.render();
-          }
-
           new Notice(
-            `Imported ${addedFeeds.length} feeds. Articles will be fetched in the background.`,
+            `Imported ${result.addedCount} feeds. Articles will be fetched in the background.`,
           );
-
-          void this.startBackgroundImport(addedFeeds);
         } catch (error) {
           const message =
             error instanceof Error ? error.message : String(error);
@@ -935,12 +902,24 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public startBackgroundImport(feeds: Feed[]): void {
-    this.backgroundImportQueue.push(
-      ...feeds.map((feed) => ({
+    const queuedUrls = new Set(this.backgroundImportQueue.map((feed) => feed.url));
+    const newQueueItems = feeds
+      .filter(
+        (feed) =>
+          !queuedUrls.has(feed.url) &&
+          !this.backgroundImportInFlightUrls.has(feed.url),
+      )
+      .map((feed) => ({
         ...feed,
         importStatus: "pending" as const,
-      })),
-    );
+      }));
+
+    if (newQueueItems.length === 0) {
+      return;
+    }
+
+    this.backgroundImportQueue.push(...newQueueItems);
+    this.backgroundImportTotalCount += newQueueItems.length;
 
     if (!this.isBackgroundImporting) {
       void this.processBackgroundImportQueue();
@@ -966,8 +945,7 @@ export default class RssDashboardPlugin extends Plugin {
       });
     }
 
-    const totalFeeds = this.backgroundImportQueue.length;
-    let processedCount = 0;
+    const totalFeeds = this.backgroundImportTotalCount;
     const saveEvery =
       totalFeeds >= 20000
         ? 200
@@ -981,81 +959,139 @@ export default class RssDashboardPlugin extends Plugin {
         ? 500
         : totalFeeds >= 5000
           ? 150
-          : totalFeeds >= 1000
+        : totalFeeds >= 1000
             ? 40
             : 3;
-    const interFeedDelayMs = totalFeeds >= 5000 ? 10 : 100;
     const shouldRenderDuringImport = totalFeeds < 5000;
+    const workerCount = Math.min(4, this.backgroundImportQueue.length);
 
-    while (this.backgroundImportQueue.length > 0) {
-      const feedMetadata = this.backgroundImportQueue[0];
-      if (!feedMetadata) break;
+    try {
+      await Promise.all(
+        Array.from({ length: workerCount }, () =>
+          this.processBackgroundImportWorker(
+            saveEvery,
+            renderEvery,
+            shouldRenderDuringImport,
+          ),
+        ),
+      );
+
+      await this.saveSettings();
+      const view = await this.getActiveDashboardView();
+      if (view) {
+        view.render();
+      }
+
+      new Notice(
+        `Background import completed. Processed ${this.backgroundImportProcessedCount} feeds.`,
+      );
+    } finally {
+      if (this.importStatusBarItem) {
+        this.importStatusBarItem.remove();
+        this.importStatusBarItem = null;
+      }
+
+      this.isBackgroundImporting = false;
+      this.backgroundImportProcessedCount = 0;
+      this.backgroundImportTotalCount = 0;
+      this.backgroundImportInFlightUrls.clear();
+
+      if (this.backgroundImportQueue.length > 0) {
+        void this.processBackgroundImportQueue();
+      }
+    }
+  }
+
+  private async processBackgroundImportWorker(
+    saveEvery: number,
+    renderEvery: number,
+    shouldRenderDuringImport: boolean,
+  ): Promise<void> {
+    while (true) {
+      const feedMetadata = this.backgroundImportQueue.shift();
+      if (!feedMetadata) {
+        return;
+      }
+
+      this.backgroundImportInFlightUrls.add(feedMetadata.url);
 
       try {
         feedMetadata.importStatus = "processing";
         this.updateBackgroundImportProgress(
-          processedCount,
-          totalFeeds,
+          this.backgroundImportProcessedCount,
+          this.backgroundImportTotalCount,
           feedMetadata.title,
         );
 
-        const parsedFeed = await this.feedParser.parseFeed(feedMetadata.url);
-
-        const feedIndex = this.settings.feeds.findIndex(
-          (f) => f.url === feedMetadata.url,
-        );
-        if (feedIndex >= 0) {
-          this.settings.feeds[feedIndex] = {
-            ...this.settings.feeds[feedIndex],
-            title: parsedFeed.title || feedMetadata.title,
-            items: parsedFeed.items.slice(
-              0,
-              this.settings.feeds[feedIndex].maxItemsLimit ||
-                this.settings.maxItems,
-            ),
-            lastUpdated: Date.now(),
-            mediaType: parsedFeed.mediaType,
-          };
-        }
-
+        const parsedFeed = await this.parseFeedWithTimeout(feedMetadata.url);
+        this.mergeBackgroundImportedFeed(feedMetadata, parsedFeed);
         feedMetadata.importStatus = "completed";
       } catch (error) {
-        feedMetadata.importStatus = "failed";
-        feedMetadata.importError = getFeedErrorMessage(error);
+        if (error instanceof Error && error.message === "Timed out") {
+          feedMetadata.importStatus = "timed_out";
+        } else {
+          feedMetadata.importStatus = "failed";
+        }
+        feedMetadata.importError = getFeedErrorMessage(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       } finally {
-        this.backgroundImportQueue.shift();
-        processedCount++;
+        this.backgroundImportInFlightUrls.delete(feedMetadata.url);
+        this.backgroundImportProcessedCount += 1;
       }
 
-      if (processedCount % saveEvery === 0) {
+      if (this.backgroundImportProcessedCount % saveEvery === 0) {
         await this.saveSettings();
       }
 
-      if (shouldRenderDuringImport && processedCount % renderEvery === 0) {
+      if (
+        shouldRenderDuringImport &&
+        this.backgroundImportProcessedCount % renderEvery === 0
+      ) {
         const view = await this.getActiveDashboardView();
         if (view) {
           view.render();
         }
       }
-
-      await sleep(interFeedDelayMs);
     }
+  }
 
-    await this.saveSettings();
-    const view = await this.getActiveDashboardView();
-    if (view) {
-      view.render();
-    }
-
-    if (this.importStatusBarItem) {
-      this.importStatusBarItem.remove();
-      this.importStatusBarItem = null;
-    }
-
-    this.isBackgroundImporting = false;
-    new Notice(
-      `Background import completed. Processed ${processedCount} feeds.`,
+  private mergeBackgroundImportedFeed(
+    feedMetadata: FeedMetadata,
+    parsedFeed: Feed,
+  ): void {
+    const feedIndex = this.settings.feeds.findIndex(
+      (f) => f.url === feedMetadata.url,
     );
+    if (feedIndex < 0) {
+      return;
+    }
+
+    const existingFeed = this.settings.feeds[feedIndex];
+    this.settings.feeds[feedIndex] = {
+      ...existingFeed,
+      title: parsedFeed.title || existingFeed.title || feedMetadata.title,
+      author: parsedFeed.author ?? existingFeed.author,
+      siteUrl: parsedFeed.siteUrl ?? existingFeed.siteUrl,
+      iconUrl: parsedFeed.iconUrl ?? existingFeed.iconUrl,
+      mediaType: parsedFeed.mediaType ?? existingFeed.mediaType,
+      items: parsedFeed.items.slice(
+        0,
+        existingFeed.maxItemsLimit || this.settings.maxItems,
+      ),
+      lastUpdated: Date.now(),
+    };
+  }
+
+  private async parseFeedWithTimeout(url: string): Promise<Feed> {
+    const timeoutMs = 15000;
+
+    return await Promise.race([
+      this.feedParser.parseFeed(url),
+      new Promise<Feed>((_, reject) => {
+        window.setTimeout(() => reject(new Error("Timed out")), timeoutMs);
+      }),
+    ]);
   }
 
   private updateBackgroundImportProgress(
@@ -1071,6 +1107,110 @@ export default class RssDashboardPlugin extends Plugin {
         textSpan.textContent = `  Fetching articles: ${current}/${total} - ${currentFeedTitle}`;
       }
     }
+  }
+
+  private createPlaceholderFeed(candidate: FeedIngestionCandidate): Feed {
+    const mediaType = candidate.mediaType || "article";
+    let folder = candidate.folder || "Uncategorized";
+
+    if (mediaType === "video" && (!folder || folder === "Uncategorized")) {
+      folder = this.settings.media.defaultYouTubeFolder;
+    } else if (
+      mediaType === "podcast" &&
+      (!folder || folder === "Uncategorized")
+    ) {
+      folder = this.settings.media.defaultPodcastFolder;
+    }
+
+    return {
+      title: candidate.title,
+      url: candidate.url,
+      folder,
+      items: [],
+      lastUpdated: Date.now(),
+      author: candidate.author,
+      mediaType,
+      autoDetect: candidate.autoDetect,
+      customTemplate: candidate.customTemplate,
+      customFolder: candidate.customFolder,
+      customTags: candidate.customTags,
+      autoDeleteDuration:
+        typeof candidate.autoDeleteDuration === "number"
+          ? candidate.autoDeleteDuration
+          : this.settings.defaultAutoDeleteDuration,
+      maxItemsLimit:
+        typeof candidate.maxItemsLimit === "number"
+          ? candidate.maxItemsLimit
+          : this.settings.maxItems,
+      scanInterval: candidate.scanInterval || 0,
+      keywordRules: candidate.keywordRules || {
+        overrideGlobalRules: false,
+        includeLogic: "AND",
+        rules: [],
+      },
+    };
+  }
+
+  public async ingestFeedsForBackgroundImport(
+    candidates: FeedIngestionCandidate[],
+    options?: FeedIngestionOptions,
+  ): Promise<{ addedCount: number; skippedCount: number; queuedFeeds: Feed[] }> {
+    const mode = options?.mode || "update";
+    const placeholders: Feed[] = [];
+    let skippedCount = 0;
+    const seenUrls = new Set<string>();
+
+    if (mode === "overwrite") {
+      this.settings.feeds = [];
+      if (options?.folders) {
+        this.settings.folders = options.folders;
+      }
+    } else if (options?.folders) {
+      this.settings.folders = OpmlManager.mergeFolders(
+        this.settings.folders,
+        options.folders,
+      );
+    }
+
+    const existingUrls = new Set(this.settings.feeds.map((feed) => feed.url));
+    const totalCandidates = candidates.length;
+
+    for (const candidate of candidates) {
+      if (existingUrls.has(candidate.url) || seenUrls.has(candidate.url)) {
+        skippedCount += 1;
+        options?.onProgress?.(placeholders.length + skippedCount, totalCandidates);
+        continue;
+      }
+
+      const placeholder = this.createPlaceholderFeed(candidate);
+      placeholders.push(placeholder);
+      this.settings.feeds.push(placeholder);
+      existingUrls.add(candidate.url);
+      seenUrls.add(candidate.url);
+
+      if (placeholder.folder) {
+        await this.ensureFolderExists(placeholder.folder, {
+          saveSettings: false,
+          refreshView: false,
+        });
+      }
+
+      options?.onProgress?.(placeholders.length + skippedCount, totalCandidates);
+    }
+
+    await this.saveSettings();
+    const view = await this.getActiveDashboardView();
+    if (view) {
+      view.refresh();
+    }
+
+    this.startBackgroundImport(placeholders);
+
+    return {
+      addedCount: placeholders.length,
+      skippedCount,
+      queuedFeeds: placeholders,
+    };
   }
 
   public importUserSettingsJson(): void {
@@ -1438,10 +1578,14 @@ export default class RssDashboardPlugin extends Plugin {
     scanInterval?: number,
     feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
+    options?: { showNotice?: boolean },
   ) {
+    const showNotice = options?.showNotice !== false;
     try {
       if (this.settings.feeds.some((f) => f.url === url)) {
-        new Notice("This feed URL already exists");
+        if (showNotice) {
+          new Notice("This feed URL already exists");
+        }
         return false;
       }
 
@@ -1513,16 +1657,22 @@ export default class RssDashboardPlugin extends Plugin {
         if (view) {
           void view.refresh();
         }
-        new Notice(`Feed "${title}" added`);
+        if (showNotice) {
+          new Notice(`Feed "${title}" added`);
+        }
         return true;
       } catch (error) {
-        new Notice(formatFeedParseNoticeMessage(error));
+        if (showNotice) {
+          new Notice(formatFeedParseNoticeMessage(error));
+        }
         return false;
       }
     } catch (error) {
-      new Notice(
-        `Error adding feed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
+      if (showNotice) {
+        new Notice(
+          `Error adding feed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      }
       return false;
     }
   }
