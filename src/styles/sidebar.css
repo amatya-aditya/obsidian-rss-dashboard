@@ -53,6 +53,8 @@
 }
 .rss-dashboard-folder-icon,
 .rss-dashboard-feed-icon {
+  flex: 0 0 16px;
+  flex-shrink: 0;
   width: 16px;
   height: 16px;
   display: flex;
