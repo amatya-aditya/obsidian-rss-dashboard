@@ -2,7 +2,11 @@ import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { Sidebar, SidebarOptions, SidebarCallbacks } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
-import { RssDashboardSettings, Folder } from "../../../src/types/types";
+import {
+  RssDashboardSettings,
+  Folder,
+  type Feed,
+} from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 installObsidianDomPolyfills();
@@ -222,6 +226,76 @@ describe("Sidebar Core", () => {
       sidebar.destroy();
       expect(mockObserver.disconnect).toHaveBeenCalled();
       expect(sidebar["resizeObserver"]).toBeNull();
+    });
+  });
+
+  describe("refresh progress rendering", () => {
+    function createFeed(overrides: Partial<Feed> = {}): Feed {
+      return {
+        title: "Feed A",
+        url: "https://example.com/a.xml",
+        folder: "",
+        items: [],
+        lastUpdated: 0,
+        mediaType: "article",
+        ...overrides,
+      };
+    }
+
+    it("shows the all-feeds spinner and per-feed queued/processing indicators from plugin refresh state", () => {
+      const processingFeed = createFeed({
+        title: "Processing Feed",
+        url: "https://example.com/processing.xml",
+      });
+      const queuedFeed = createFeed({
+        title: "Queued Feed",
+        url: "https://example.com/queued.xml",
+      });
+
+      settings.feeds = [processingFeed, queuedFeed];
+      plugin.activeRefreshState = new Map([
+        [processingFeed.url, { status: "processing", startedAt: Date.now() }],
+        [queuedFeed.url, { status: "pending", startedAt: Date.now() }],
+      ]);
+
+      const sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
+      sidebar.render();
+
+      const allFeedsIcon = container.querySelector(".rss-dashboard-all-feeds-icon");
+      expect(allFeedsIcon?.classList.contains("refreshing")).toBe(true);
+
+      const feedEls = Array.from(container.querySelectorAll(".rss-dashboard-feed"));
+      const processingEl = feedEls.find((el) => el.getAttribute("data-feed-url") === processingFeed.url);
+      const queuedEl = feedEls.find((el) => el.getAttribute("data-feed-url") === queuedFeed.url);
+
+      expect(processingEl?.querySelector(".rss-dashboard-feed-icon")?.getAttribute("data-icon")).toBe("loader-2");
+      expect(processingEl?.classList.contains("processing-feed")).toBe(true);
+      expect(queuedEl?.querySelector(".rss-dashboard-feed-processing-indicator")?.textContent).toContain("⏳");
+    });
+
+    it("prefers import processing visuals over refresh visuals when both exist", () => {
+      const feed = createFeed({
+        title: "Imported Feed",
+        url: "https://example.com/importing.xml",
+      });
+
+      settings.feeds = [feed];
+      plugin.activeRefreshState = new Map([
+        [feed.url, { status: "pending", startedAt: Date.now() }],
+      ]);
+      plugin.backgroundImportQueue = [
+        {
+          ...feed,
+          importStatus: "processing",
+        },
+      ];
+
+      const sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
+      sidebar.render();
+
+      const feedEl = container.querySelector(".rss-dashboard-feed");
+      expect(feedEl?.querySelector(".rss-dashboard-feed-icon")?.getAttribute("data-icon")).toBe("loader-2");
+      expect(feedEl?.querySelector(".rss-dashboard-feed-processing-indicator")).toBeNull();
     });
   });
 });

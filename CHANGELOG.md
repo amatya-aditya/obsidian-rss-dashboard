@@ -1,3 +1,23 @@
+## Unreleased
+
+- **"Add All" Button added to Discover page**
+  - Added a new "Add All" button to the Discover page header. This button adds all feeds from the current page to the user's feed list.
+
+- **Sort feeds by unread count**
+  - Added a new option to the 'Sort' icon which organizes feeds by unread count. 
+  - Two options: High to Low / Low to High
+
+
+### Fixes
+
+- Fixed a bug where the Obsidian tab title was not properly updating when switching between feeds.
+
+- Multi-feed refreshes now run through a bounded worker pool of 4 with a 15s per-feed timeout, keep runtime-only refresh state per URL, merge refreshed feeds back into settings during the run, and finish with one save plus a final dashboard refresh. Single-feed refresh stays on the lightweight direct path. (Old behavior: all feeds were being refreshed individually with no indication of progress or completion)
+
+### Improvements
+
+- Optimized the feed refresh process to reduce unnecessary network requests.
+
 ## [2.2.0-beta.10] - April 2, 2026
 
 ### New Features

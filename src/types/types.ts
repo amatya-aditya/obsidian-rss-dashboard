@@ -80,6 +80,14 @@ export interface Feed {
   keywordRules?: FeedKeywordRulesSettings;
 }
 
+export type FeedRefreshStatus = "pending" | "processing" | "timed_out" | "failed";
+
+export interface FeedRefreshState {
+  status: FeedRefreshStatus;
+  startedAt: number;
+  error?: string;
+}
+
 export interface FeedMetadata {
   title: string;
   url: string;

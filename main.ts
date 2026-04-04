@@ -14,6 +14,7 @@ import {
   Feed,
   FeedItem,
   FeedMetadata,
+  FeedRefreshState,
   FeedKeywordRulesSettings,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
@@ -62,10 +63,18 @@ export default class RssDashboardPlugin extends Plugin {
   articleSaver!: ArticleSaver;
   private importStatusBarItem: HTMLElement | null = null;
   public backgroundImportQueue: FeedMetadata[] = [];
+  public activeRefreshState = new Map<string, FeedRefreshState>();
   public settingTab: RssDashboardSettingTab | null = null;
   private isBackgroundImporting = false;
+  private isMultiFeedRefreshRunning = false;
+  private backgroundImportInFlightUrls = new Set<string>();
+  private backgroundImportProcessedCount = 0;
+  private backgroundImportTotalCount = 0;
   public vaultAbsolutePath = "";
   private _beforeUnloadHandler: (() => void) | null = null;
+  private static readonly FEED_REFRESH_TIMEOUT_MS = 15000;
+  private static readonly FEED_REFRESH_CONCURRENCY = 4;
+  private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
 
   private getAutoRefreshIntervalMs(): number | null {
     const normalizedMinutes = normalizeRefreshIntervalMinutes(
@@ -104,6 +113,10 @@ export default class RssDashboardPlugin extends Plugin {
         view.refresh();
       }
     }
+  }
+
+  public get isMultiFeedRefreshActive(): boolean {
+    return this.isMultiFeedRefreshRunning;
   }
 
   public notifyFiltersUpdated(payload: FiltersUpdatedEventPayload): void {
@@ -613,26 +626,12 @@ export default class RssDashboardPlugin extends Plugin {
       }
 
       new Notice(`Refreshing ${feedNoticeText}...`);
-      const updatedFeeds =
-        await this.feedParser.refreshAllFeeds(feedsToRefresh);
-
-      updatedFeeds.forEach((updatedFeed) => {
-        const index = this.settings.feeds.findIndex(
-          (f) => f.url === updatedFeed.url,
-        );
-        if (index >= 0) {
-          this.settings.feeds[index] = updatedFeed;
-        }
-      });
-
-      await this.validateSavedArticles();
-      this.settings.lastRefreshTimestamp = Date.now();
-      await this.saveSettings();
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        view.refresh();
-        new Notice(`Feeds refreshed: ${feedNoticeText}`);
+      if (feedsToRefresh.length === 1) {
+        await this.refreshSingleFeed(feedsToRefresh[0], feedNoticeText);
+        return;
       }
+
+      await this.refreshFeedBatch(feedsToRefresh, feedNoticeText);
     } catch (error) {
       console.error(`[RSS dashboard] Error refreshing feeds:`, error);
       new Notice(
@@ -2082,6 +2081,185 @@ export default class RssDashboardPlugin extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
+  }
+
+  private mergeRefreshedFeed(updatedFeed: Feed): void {
+    const index = this.settings.feeds.findIndex((f) => f.url === updatedFeed.url);
+    if (index >= 0) {
+      this.settings.feeds[index] = updatedFeed;
+    }
+  }
+
+  private async refreshSingleFeed(
+    feed: Feed,
+    feedNoticeText: string,
+  ): Promise<void> {
+    const updatedFeed = await this.refreshFeedWithTimeout(feed);
+    this.mergeRefreshedFeed(updatedFeed);
+
+    await this.validateSavedArticles();
+    this.settings.lastRefreshTimestamp = Date.now();
+    await this.saveSettings();
+    const view = await this.getActiveDashboardView();
+    if (view) {
+      view.refresh();
+      new Notice(`Feeds refreshed: ${feedNoticeText}`);
+    }
+  }
+
+  private async refreshFeedBatch(
+    feedsToRefresh: Feed[],
+    feedNoticeText: string,
+  ): Promise<void> {
+    if (this.isMultiFeedRefreshRunning) {
+      new Notice("A multi-feed refresh is already in progress.");
+      return;
+    }
+
+    this.isMultiFeedRefreshRunning = true;
+    this.activeRefreshState.clear();
+    const refreshSummary = {
+      failed: 0,
+      timedOut: 0,
+    };
+
+    for (const feed of feedsToRefresh) {
+      this.activeRefreshState.set(feed.url, {
+        status: "pending",
+        startedAt: Date.now(),
+      });
+    }
+
+    let nextFeedIndex = 0;
+    let lastRenderAt = 0;
+
+    const refreshView = async (force = false): Promise<void> => {
+      const now = Date.now();
+      if (
+        !force &&
+        now - lastRenderAt < RssDashboardPlugin.FEED_REFRESH_RENDER_THROTTLE_MS
+      ) {
+        return;
+      }
+
+      const view = await this.getActiveDashboardView();
+      if (view) {
+        if (typeof view.refreshSidebarOnly === "function") {
+          view.refreshSidebarOnly();
+        } else {
+          view.refresh();
+        }
+      }
+      lastRenderAt = now;
+    };
+
+    const worker = async (): Promise<void> => {
+      while (true) {
+        const currentFeed = feedsToRefresh[nextFeedIndex];
+        nextFeedIndex += 1;
+        if (!currentFeed) {
+          return;
+        }
+
+        this.activeRefreshState.set(currentFeed.url, {
+          status: "processing",
+          startedAt: Date.now(),
+        });
+
+        try {
+          const updatedFeed = await this.refreshFeedWithTimeout(currentFeed);
+          this.mergeRefreshedFeed(updatedFeed);
+        } catch (error) {
+          const isTimedOut =
+            error instanceof Error && error.message === "Timed out";
+          if (isTimedOut) {
+            refreshSummary.timedOut += 1;
+          } else {
+            refreshSummary.failed += 1;
+          }
+
+          console.error(
+            `[RSS dashboard] Error refreshing feed ${currentFeed.title}:`,
+            error,
+          );
+        } finally {
+          this.activeRefreshState.delete(currentFeed.url);
+
+          if (this.activeRefreshState.size > 0) {
+            await refreshView();
+          }
+        }
+      }
+    };
+
+    const workerCount = Math.min(
+      RssDashboardPlugin.FEED_REFRESH_CONCURRENCY,
+      feedsToRefresh.length,
+    );
+
+    try {
+      const workers = Array.from({ length: workerCount }, () => worker());
+      await refreshView(true);
+      await Promise.all(workers);
+
+      await this.validateSavedArticles();
+      this.settings.lastRefreshTimestamp = Date.now();
+      await this.saveSettings();
+      this.activeRefreshState.clear();
+      this.isMultiFeedRefreshRunning = false;
+      const view = await this.getActiveDashboardView();
+      if (view) {
+        view.refresh();
+      }
+
+      const failureSuffix = this.buildRefreshFailureSummary(refreshSummary);
+      new Notice(`Feeds refreshed: ${feedNoticeText}${failureSuffix}`);
+    } finally {
+      this.activeRefreshState.clear();
+      this.isMultiFeedRefreshRunning = false;
+    }
+  }
+
+  private buildRefreshFailureSummary(summary: {
+    failed: number;
+    timedOut: number;
+  }): string {
+    const parts: string[] = [];
+    if (summary.timedOut > 0) {
+      parts.push(
+        `${summary.timedOut} timed out`,
+      );
+    }
+    if (summary.failed > 0) {
+      parts.push(`${summary.failed} failed`);
+    }
+
+    if (parts.length === 0) {
+      return "";
+    }
+
+    return ` (${parts.join(", ")})`;
+  }
+
+  private async refreshFeedWithTimeout(feed: Feed): Promise<Feed> {
+    return await Promise.race([
+      this.refreshFeedDirect(feed),
+      new Promise<Feed>((_, reject) => {
+        window.setTimeout(
+          () => reject(new Error("Timed out")),
+          RssDashboardPlugin.FEED_REFRESH_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  }
+
+  private async refreshFeedDirect(feed: Feed): Promise<Feed> {
+    if (typeof this.feedParser.refreshFeed === "function") {
+      return await this.feedParser.refreshFeed(feed);
+    }
+
+    const updatedFeeds = await this.feedParser.refreshAllFeeds([feed]);
+    return updatedFeeds[0] ?? feed;
   }
 
   public async performAutoBackups(): Promise<void> {

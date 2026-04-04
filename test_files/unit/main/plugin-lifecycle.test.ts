@@ -457,8 +457,12 @@ describe("refreshFeeds()", () => {
     // When: refreshFeeds is called without selection
     await plugin.refreshFeeds();
 
-    // Then: refreshAllFeeds should be called with all feeds
-    expect(mockRefreshAllFeeds).toHaveBeenCalledWith(plugin.settings.feeds);
+    // Then: the fallback multi-feed path should refresh each feed individually
+    expect(mockRefreshAllFeeds).toHaveBeenCalledTimes(2);
+    expect(mockRefreshAllFeeds.mock.calls.map((call) => call[0][0].url)).toEqual([
+      "https://example.com/feed1.xml",
+      "https://example.com/feed2.xml",
+    ]);
   });
 
   it("refreshes only selected feeds when provided", async () => {
@@ -702,10 +706,9 @@ describe("refreshFeedsInFolder()", () => {
     // When: refreshFeedsInFolder is called with parent folder
     await plugin.refreshFeedsInFolder("News");
 
-    // Then: refreshAllFeeds should be called with feeds in News folder
-    expect(mockRefreshAllFeeds).toHaveBeenCalled();
-    const feedsCalled = mockRefreshAllFeeds.mock.calls[0][0];
-    expect(feedsCalled.length).toBe(2);
+    // Then: the fallback multi-feed path should refresh each matching feed individually
+    expect(mockRefreshAllFeeds).toHaveBeenCalledTimes(2);
+    const feedsCalled = mockRefreshAllFeeds.mock.calls.map((call) => call[0][0]);
     expect(feedsCalled.every((f: Feed) => f.folder.startsWith("News/"))).toBe(
       true,
     );

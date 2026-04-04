@@ -250,7 +250,6 @@ export class Sidebar {
   private searchQuery = "";
   private isTagsExpanded = false;
   private isAddTagExpanded = false;
-  private isRefreshing = false;
   private longPressTimer: number | null = null;
   private pendingImportFeedUrls = new Set<string>();
   private processingImportFeedUrls = new Set<string>();
@@ -939,12 +938,15 @@ export class Sidebar {
     const allFeedsButton = container.createDiv({
       cls: "rss-dashboard-all-feeds-button" + (isAllActive ? " active" : ""),
     });
+    const isRefreshActive =
+      this.plugin.isMultiFeedRefreshActive ||
+      (this.plugin.activeRefreshState?.size ?? 0) > 0;
 
     // Feed icon (refresh button) - clickable
     const feedIcon = allFeedsButton.createDiv({
       cls:
         "rss-dashboard-all-feeds-icon" +
-        (this.isRefreshing ? " refreshing" : ""),
+        (isRefreshActive ? " refreshing" : ""),
       attr: {
         title: "Refresh all feeds",
         "aria-label": "Refresh all feeds",
@@ -953,7 +955,7 @@ export class Sidebar {
     setIcon(feedIcon, "refresh-cw");
     feedIcon.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (this.isRefreshing) return;
+      if (this.plugin.isMultiFeedRefreshActive) return;
       void this.handleRefresh();
     });
 
@@ -1546,9 +1548,16 @@ export class Sidebar {
       feed.items.length === 0 && this.processingImportFeedUrls.has(feed.url);
     const isQueuedForImport =
       feed.items.length === 0 && this.pendingImportFeedUrls.has(feed.url);
+    const refreshState = this.plugin.activeRefreshState?.get(feed.url);
+    const isRefreshProcessing = refreshState?.status === "processing";
+    const isQueuedForRefresh = refreshState?.status === "pending";
 
     if (isProcessing) {
       // Show loading spinner for processing feeds
+      setIcon(feedIcon, "loader-2");
+      feedIcon.addClass("processing");
+      feedEl.classList.add("processing-feed");
+    } else if (isRefreshProcessing) {
       setIcon(feedIcon, "loader-2");
       feedIcon.addClass("processing");
       feedEl.classList.add("processing-feed");
@@ -1598,6 +1607,20 @@ export class Sidebar {
       processingIndicator.setAttribute(
         "title",
         "Articles being fetched in background",
+      );
+    } else if (
+      isQueuedForRefresh &&
+      !isRefreshProcessing &&
+      !isProcessing &&
+      !isQueuedForImport
+    ) {
+      const processingIndicator = feedNameContainer.createDiv({
+        cls: "rss-dashboard-feed-processing-indicator",
+        text: "⏳",
+      });
+      processingIndicator.setAttribute(
+        "title",
+        "Feed queued for refresh",
       );
     }
 
@@ -3233,17 +3256,8 @@ export class Sidebar {
   }
 
   private async handleRefresh(): Promise<void> {
-    if (this.isRefreshing) return;
-
-    this.isRefreshing = true;
-    this.render();
-
-    try {
-      await this.plugin.refreshFeeds();
-    } finally {
-      this.isRefreshing = false;
-      this.render();
-    }
+    if (this.plugin.isMultiFeedRefreshActive) return;
+    await this.plugin.refreshFeeds();
   }
 
   private collectAncestorFolders(element: HTMLElement): HTMLElement[] {
