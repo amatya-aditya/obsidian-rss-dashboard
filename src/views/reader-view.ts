@@ -174,6 +174,30 @@ export class ReaderView extends ItemView {
     return "file-text";
   }
 
+  private getEffectiveReaderTitle(): string {
+    if (!this.currentItem) {
+      return "RSS reader";
+    }
+
+    return (
+      this.currentReaderTitle ||
+      this.currentDisplayTitle ||
+      this.currentItem.title
+    );
+  }
+
+  private syncReaderTitle(): void {
+    if (this.titleElement) {
+      this.titleElement.setText(this.getEffectiveReaderTitle());
+    }
+
+    (
+      this.leaf as WorkspaceLeaf & {
+        updateHeader?: () => void;
+      }
+    ).updateHeader?.();
+  }
+
   onOpen(): Promise<void> {
     this.contentEl.empty();
     this.contentEl.addClass("rss-reader-view");
@@ -593,10 +617,7 @@ export class ReaderView extends ItemView {
       ? this.formatNitterReaderTitle(item)
       : undefined;
     this.currentContentIsFullArticle = false;
-
-    if (this.titleElement) {
-      this.titleElement.setText(this.currentReaderTitle || item.title);
-    }
+    this.syncReaderTitle();
 
     // Update toggle button states
     this.updateToggleButtons();
@@ -660,12 +681,7 @@ export class ReaderView extends ItemView {
       this.currentFullContent = fullContent;
       this.currentDisplayTitle = displayTitle || undefined;
       this.currentContentIsFullArticle = hasFullArticleContent;
-
-      if (this.titleElement) {
-        this.titleElement.setText(
-          this.currentReaderTitle || this.currentDisplayTitle || item.title,
-        );
-      }
+      this.syncReaderTitle();
       await this.displayArticle(item, fullContent);
     }
   }
@@ -728,9 +744,11 @@ export class ReaderView extends ItemView {
 
     const onEpisodeSelected = (selectedEpisode: FeedItem) => {
       this.currentItem = selectedEpisode;
-      if (this.titleElement) {
-        this.titleElement.setText(selectedEpisode.title);
-      }
+      this.currentDisplayTitle = undefined;
+      this.currentReaderTitle = this.isTweetLikeItem(selectedEpisode)
+        ? this.formatNitterReaderTitle(selectedEpisode)
+        : undefined;
+      this.syncReaderTitle();
       this.updateToggleButtons();
       this.closeTagsDropdown();
       void this.syncDashboardSelectionFromPlayer(selectedEpisode);
@@ -2019,9 +2037,7 @@ export class ReaderView extends ItemView {
   }
 
   private resetTitle(): void {
-    if (this.titleElement) {
-      this.titleElement.setText("RSS reader");
-    }
+    this.syncReaderTitle();
   }
 
   private checkSavedFileExists(item: FeedItem): boolean {
