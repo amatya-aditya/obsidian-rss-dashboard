@@ -57,6 +57,7 @@ function createPluginWithSettings(feeds: Feed[]): RssDashboardPlugin {
   plugin.saveData = vi.fn().mockResolvedValue(undefined);
 
   plugin.feedParser = {
+    refreshFeed: vi.fn(),
     refreshAllFeeds: vi.fn(),
   } as any;
 
@@ -78,7 +79,8 @@ beforeEach(() => {
 });
 
 describe("refreshFeeds() pipeline behavior", () => {
-  it("refreshes all feeds, merges updates by url, validates + saves, and refreshes the active view", async () => {
+  it("refreshes multi-feed selections with bounded concurrency, incremental merges, and a final save + refresh", async () => {
+    vi.useFakeTimers();
     const feedA = createFeed({
       title: "Feed A",
       url: "https://example.com/a.xml",
@@ -91,47 +93,137 @@ describe("refreshFeeds() pipeline behavior", () => {
       items: [createItem({ guid: "b-1", feedTitle: "Feed B", feedUrl: "https://example.com/b.xml" })],
       lastUpdated: 200,
     });
+    const feedC = createFeed({
+      title: "Feed C",
+      url: "https://example.com/c.xml",
+      items: [createItem({ guid: "c-1", feedTitle: "Feed C", feedUrl: "https://example.com/c.xml" })],
+      lastUpdated: 300,
+    });
+    const feedD = createFeed({
+      title: "Feed D",
+      url: "https://example.com/d.xml",
+      items: [createItem({ guid: "d-1", feedTitle: "Feed D", feedUrl: "https://example.com/d.xml" })],
+      lastUpdated: 400,
+    });
+    const feedE = createFeed({
+      title: "Feed E",
+      url: "https://example.com/e.xml",
+      items: [createItem({ guid: "e-1", feedTitle: "Feed E", feedUrl: "https://example.com/e.xml" })],
+      lastUpdated: 500,
+    });
 
-    const plugin = createPluginWithSettings([feedA, feedB]);
+    const plugin = createPluginWithSettings([feedA, feedB, feedC, feedD, feedE]);
 
     const updatedA = {
       ...feedA,
       lastUpdated: 999,
       items: [createItem({ guid: "a-1" }), createItem({ guid: "a-2" })],
     };
-
-    (plugin.feedParser.refreshAllFeeds as any).mockResolvedValue([updatedA]);
+    const updatedB = {
+      ...feedB,
+      lastUpdated: 888,
+      items: [createItem({ guid: "b-1", feedTitle: "Feed B", feedUrl: "https://example.com/b.xml" })],
+    };
+    const updatedC = {
+      ...feedC,
+      lastUpdated: 777,
+      items: [createItem({ guid: "c-1", feedTitle: "Feed C", feedUrl: "https://example.com/c.xml" })],
+    };
+    const updatedD = {
+      ...feedD,
+      lastUpdated: 666,
+      items: [createItem({ guid: "d-1", feedTitle: "Feed D", feedUrl: "https://example.com/d.xml" })],
+    };
+    const updatedE = {
+      ...feedE,
+      lastUpdated: 555,
+      items: [createItem({ guid: "e-1", feedTitle: "Feed E", feedUrl: "https://example.com/e.xml" })],
+    };
 
     const validateSpy = vi.spyOn(plugin as any, "validateSavedArticles");
     const viewRefreshSpy = vi.fn();
+    const sidebarRefreshSpy = vi.fn();
     vi.spyOn(plugin, "getActiveDashboardView").mockResolvedValue({
+      refreshSidebarOnly: sidebarRefreshSpy,
       refresh: viewRefreshSpy,
     } as any);
 
-    await plugin.refreshFeeds();
+    const resolvers: Array<() => void> = [];
+    (plugin.feedParser.refreshFeed as any).mockImplementation((feed: Feed) => {
+      if (feed.url === feedE.url) {
+        return Promise.resolve(updatedE);
+      }
 
-    const refreshArg = (plugin.feedParser.refreshAllFeeds as any).mock.calls[0][0] as Feed[];
-    expect(refreshArg.map((f) => f.url)).toEqual([
+      return new Promise<Feed>((resolve) => {
+        resolvers.push(() => {
+          switch (feed.url) {
+            case feedA.url:
+              resolve(updatedA);
+              break;
+            case feedB.url:
+              resolve(updatedB);
+              break;
+            case feedC.url:
+              resolve(updatedC);
+              break;
+            case feedD.url:
+              resolve(updatedD);
+              break;
+          }
+        });
+      });
+    });
+
+    const refreshPromise = plugin.refreshFeeds();
+    await Promise.resolve();
+
+    expect((plugin.feedParser.refreshFeed as any).mock.calls.map(([feed]: [Feed]) => feed.url)).toEqual([
       "https://example.com/a.xml",
       "https://example.com/b.xml",
+      "https://example.com/c.xml",
+      "https://example.com/d.xml",
     ]);
+    expect(sidebarRefreshSpy).toHaveBeenCalledTimes(1);
+    expect(viewRefreshSpy).toHaveBeenCalledTimes(0);
+
+    await vi.advanceTimersByTimeAsync(251);
+    resolvers[0]?.();
+    await vi.runAllTicks();
+    await Promise.resolve();
+
+    resolvers[1]?.();
+    resolvers[2]?.();
+    resolvers[3]?.();
+    await refreshPromise;
 
     expect(plugin.settings.feeds[0].url).toBe("https://example.com/a.xml");
     expect(plugin.settings.feeds[0].lastUpdated).toBe(999);
     expect(plugin.settings.feeds[0].items).toHaveLength(2);
     expect(plugin.settings.feeds[1].url).toBe("https://example.com/b.xml");
-    expect(plugin.settings.feeds[1].lastUpdated).toBe(200);
+    expect(plugin.settings.feeds[1].lastUpdated).toBe(888);
+    expect(plugin.settings.feeds[2].lastUpdated).toBe(777);
+    expect(plugin.settings.feeds[3].lastUpdated).toBe(666);
+    expect(plugin.settings.feeds[4].lastUpdated).toBe(555);
+    expect((plugin.feedParser.refreshFeed as any).mock.calls.map(([feed]: [Feed]) => feed.url)).toEqual([
+      "https://example.com/a.xml",
+      "https://example.com/b.xml",
+      "https://example.com/c.xml",
+      "https://example.com/d.xml",
+      "https://example.com/e.xml",
+    ]);
 
     expect(validateSpy).toHaveBeenCalledTimes(1);
     expect(plugin.saveData).toHaveBeenCalledTimes(1);
+    expect(sidebarRefreshSpy).toHaveBeenCalledTimes(2);
     expect(viewRefreshSpy).toHaveBeenCalledTimes(1);
+    expect(plugin.feedParser.refreshAllFeeds).not.toHaveBeenCalled();
 
     const notices = getNoticeMessages(consoleLogSpy);
-    expect(notices[0]).toBe("Refreshing 2 feeds...");
-    expect(notices).toContain("Feeds refreshed: 2 feeds");
+    expect(notices[0]).toBe("Refreshing 5 feeds...");
+    expect(notices).toContain("Feeds refreshed: 5 feeds");
   });
 
-  it("refreshes only the selected feeds and does not require an active dashboard view", async () => {
+  it("refreshes a single feed via the direct path and does not require an active dashboard view", async () => {
     const feedA = createFeed({
       title: "Feed A",
       url: "https://example.com/a.xml",
@@ -149,14 +241,14 @@ describe("refreshFeeds() pipeline behavior", () => {
       ...feedB,
       lastUpdated: 777,
     };
-    (plugin.feedParser.refreshAllFeeds as any).mockResolvedValue([updatedB]);
+    (plugin.feedParser.refreshFeed as any).mockResolvedValue(updatedB);
 
     vi.spyOn(plugin, "getActiveDashboardView").mockResolvedValue(null);
 
     await plugin.refreshFeeds([feedB]);
 
-    const refreshArg = (plugin.feedParser.refreshAllFeeds as any).mock.calls[0][0] as Feed[];
-    expect(refreshArg.map((f) => f.url)).toEqual(["https://example.com/b.xml"]);
+    expect(plugin.feedParser.refreshFeed).toHaveBeenCalledWith(feedB);
+    expect(plugin.feedParser.refreshAllFeeds).not.toHaveBeenCalled();
     expect(plugin.settings.feeds[0].lastUpdated).toBe(100);
     expect(plugin.settings.feeds[1].lastUpdated).toBe(777);
     expect(plugin.saveData).toHaveBeenCalledTimes(1);
@@ -166,14 +258,62 @@ describe("refreshFeeds() pipeline behavior", () => {
     expect(notices.some((m) => m.startsWith("Feeds refreshed:"))).toBe(false);
   });
 
-  it("swallows refreshAllFeeds errors and shows an error Notice", async () => {
+  it("times out a stalled feed without blocking the rest of a multi-feed refresh", async () => {
+    vi.useFakeTimers();
+    const feedA = createFeed({
+      title: "Feed A",
+      url: "https://example.com/a.xml",
+      lastUpdated: 100,
+    });
+    const feedB = createFeed({
+      title: "Feed B",
+      url: "https://example.com/b.xml",
+      lastUpdated: 200,
+    });
+    const plugin = createPluginWithSettings([feedA, feedB]);
+    const viewRefreshSpy = vi.fn();
+    const sidebarRefreshSpy = vi.fn();
+    vi.spyOn(plugin, "getActiveDashboardView").mockResolvedValue({
+      refreshSidebarOnly: sidebarRefreshSpy,
+      refresh: viewRefreshSpy,
+    } as any);
+
+    (plugin.feedParser.refreshFeed as any).mockImplementation((feed: Feed) => {
+      if (feed.url === feedA.url) {
+        return new Promise<Feed>(() => undefined);
+      }
+
+      return Promise.resolve({
+        ...feedB,
+        lastUpdated: 777,
+      });
+    });
+
+    const refreshPromise = plugin.refreshFeeds();
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(15000);
+    await refreshPromise;
+
+    expect(plugin.settings.feeds[0].lastUpdated).toBe(100);
+    expect(plugin.settings.feeds[1].lastUpdated).toBe(777);
+    expect(plugin.saveData).toHaveBeenCalledTimes(1);
+    expect(sidebarRefreshSpy).toHaveBeenCalledTimes(1);
+    expect(viewRefreshSpy).toHaveBeenCalledTimes(1);
+    expect(plugin.activeRefreshState.size).toBe(0);
+
+    const notices = getNoticeMessages(consoleLogSpy);
+    expect(notices[0]).toBe("Refreshing 2 feeds...");
+    expect(notices).toContain("Feeds refreshed: 2 feeds (1 timed out)");
+  });
+
+  it("swallows direct refresh errors and shows an error Notice", async () => {
     const plugin = createPluginWithSettings([createFeed()]);
 
-    (plugin.feedParser.refreshAllFeeds as any).mockRejectedValue(
+    (plugin.feedParser.refreshFeed as any).mockRejectedValue(
       new Error("network down"),
     );
 
-    await expect(plugin.refreshFeeds()).resolves.toBeUndefined();
+    await expect(plugin.refreshFeeds([plugin.settings.feeds[0]])).resolves.toBeUndefined();
     expect(plugin.saveData).not.toHaveBeenCalled();
 
     const notices = getNoticeMessages(consoleLogSpy);
@@ -186,6 +326,7 @@ describe("refreshFeeds() pipeline behavior", () => {
 
     await expect(plugin.refreshFeeds()).resolves.toBeUndefined();
 
+    expect(plugin.feedParser.refreshFeed).not.toHaveBeenCalled();
     expect(plugin.feedParser.refreshAllFeeds).not.toHaveBeenCalled();
     expect(plugin.saveData).not.toHaveBeenCalled();
     expect(getNoticeMessages(consoleLogSpy)).toEqual([]);

@@ -101,6 +101,78 @@ describe("Sidebar Feed Sorting", () => {
     });
   });
 
+  describe("Unread Count Sorting", () => {
+    it("sorts lowest to highest unread count (ascending)", () => {
+      const feedWithOneUnread = makeFeedWithItems("One Unread", 1000, 4);
+      feedWithOneUnread.items[1].read = true;
+      feedWithOneUnread.items[2].read = true;
+      feedWithOneUnread.items[3].read = true;
+
+      const feedWithTwoUnread = makeFeedWithItems("Two Unread", 1000, 3);
+      feedWithTwoUnread.items[2].read = true;
+
+      const feedWithZeroUnread = makeFeedWithItems("Zero Unread", 1000, 2);
+      feedWithZeroUnread.items.forEach((item) => {
+        item.read = true;
+      });
+
+      const sorted = applyFeedSortOrder(
+        [feedWithOneUnread, feedWithTwoUnread, feedWithZeroUnread],
+        { by: "unreadCount", ascending: true },
+      );
+
+      expect(sorted.map((feed) => feed.title)).toEqual([
+        "Zero Unread",
+        "One Unread",
+        "Two Unread",
+      ]);
+    });
+
+    it("sorts highest to lowest unread count (descending)", () => {
+      const feedWithThreeUnread = makeFeedWithItems("Three Unread", 1000, 3);
+
+      const feedWithTwoUnread = makeFeedWithItems("Two Unread", 1000, 3);
+      feedWithTwoUnread.items[2].read = true;
+
+      const feedWithOneUnread = makeFeedWithItems("One Unread", 1000, 4);
+      feedWithOneUnread.items[1].read = true;
+      feedWithOneUnread.items[2].read = true;
+      feedWithOneUnread.items[3].read = true;
+
+      const sorted = applyFeedSortOrder(
+        [feedWithOneUnread, feedWithTwoUnread, feedWithThreeUnread],
+        { by: "unreadCount", ascending: false },
+      );
+
+      expect(sorted.map((feed) => feed.title)).toEqual([
+        "Three Unread",
+        "Two Unread",
+        "One Unread",
+      ]);
+    });
+
+    it("does not misorder feeds that have equal unread counts", () => {
+      const first = makeFeedWithItems("First", 1000, 2);
+      const second = makeFeedWithItems("Second", 1000, 2);
+      const third = makeFeedWithItems("Third", 1000, 2);
+
+      first.items[1].read = true;
+      second.items[1].read = true;
+      third.items[1].read = true;
+
+      const sorted = applyFeedSortOrder([first, second, third], {
+        by: "unreadCount",
+        ascending: true,
+      });
+
+      expect(sorted.map((feed) => feed.title)).toEqual([
+        "First",
+        "Second",
+        "Third",
+      ]);
+    });
+  });
+
   describe("Stability on Equal Values", () => {
     it("maintains order when sorting by a property that is equal", () => {
       const f1 = makeFeedWithItems("A", 1000, 2);

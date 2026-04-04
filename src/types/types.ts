@@ -80,6 +80,14 @@ export interface Feed {
   keywordRules?: FeedKeywordRulesSettings;
 }
 
+export type FeedRefreshStatus = "pending" | "processing" | "timed_out" | "failed";
+
+export interface FeedRefreshState {
+  status: FeedRefreshStatus;
+  startedAt: number;
+  error?: string;
+}
+
 export interface FeedMetadata {
   title: string;
   url: string;
@@ -94,7 +102,12 @@ export interface FeedMetadata {
   autoDeleteDuration?: number;
   maxItemsLimit?: number;
   scanInterval?: number;
-  importStatus?: "pending" | "processing" | "completed" | "failed";
+  importStatus?:
+    | "pending"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "timed_out";
   importError?: string;
 }
 
@@ -313,12 +326,12 @@ export interface RssDashboardSettings {
     ascending: boolean;
   };
   feedSortOrder?: {
-    by: "name" | "created" | "itemCount" | "custom";
+    by: "name" | "created" | "itemCount" | "unreadCount" | "custom";
     ascending: boolean;
   };
   folderFeedSortOrders?: {
     [folderPath: string]: {
-      by: "name" | "created" | "itemCount" | "custom";
+      by: "name" | "created" | "itemCount" | "unreadCount" | "custom";
       ascending: boolean;
     };
   };

@@ -89,6 +89,7 @@ export class RssDashboardView extends ItemView {
   private highlightMatchCounts: Array<{ word: HighlightWord; count: number }> =
     [];
 
+  // --- View lifecycle and initial setup ---
   constructor(
     leaf: WorkspaceLeaf,
     private plugin: RssDashboardPlugin,
@@ -131,6 +132,7 @@ export class RssDashboardView extends ItemView {
     return "rss";
   }
 
+  // --- Render pipeline ---
   onOpen(): Promise<void> {
     this.registerEvent(
       this.app.vault.on("delete", (file) => {
@@ -281,7 +283,7 @@ export class RssDashboardView extends ItemView {
       );
     }
 
-    // Store dashboard container reference
+    // Keep a stable reference to the dashboard root for later renders.
     this.dashboardContainer = dashboardContainer;
 
     this.render();
@@ -308,7 +310,7 @@ export class RssDashboardView extends ItemView {
       this.containerEl.removeClass("sidebar-collapsed");
     }
 
-    // Apply sidebar width on render
+    // Reapply persisted sidebar width before painting the list.
     this.applySidebarWidth();
 
     if (this.sidebar) {
@@ -476,8 +478,7 @@ export class RssDashboardView extends ItemView {
 
     this.updateRefreshButtonText();
 
-    // Setup sidebar resize handle AFTER sidebar.render() completes
-    // because sidebar.render() empties the container which would destroy the handle
+    // Recreate the resize handle after sidebar.render() clears the container.
     this.setupSidebarResize();
   }
 
@@ -485,11 +486,12 @@ export class RssDashboardView extends ItemView {
     container.createDiv({ cls: "rss-dashboard-toolbar" });
   }
 
+  // --- Status bar / dashboard filter summary ---
   /**
    * FILTER STATUS BAR
    * ─────────────────
    * Renders a collapsible info strip directly below the toolbar. It contains
-   * up to two rows:
+   * up to three rows:
    *
    *   Row 1 – Keyword rules stats:
    *     "Articles retrieved: N | Excluded by global keyword rules: X | Excluded by per-feed keyword rules: Y"
@@ -504,8 +506,16 @@ export class RssDashboardView extends ItemView {
    *     (an article counted once even if the word appears multiple times).
    *     (Data written by computeHighlightMatchCounts() → this.highlightMatchCounts)
    *
+   *   Row 3 – Viewing filters:
+   *     "Viewing filters: Showing N | Filtered out N | Total N" when dashboard
+   *     multi-filters are active, or
+   *     "No filters applied - Showing N | Filtered out 0 | Total N" when the
+   *     status/tag filter panel is enabled but no filters are selected.
+   *     (Data written by computeDashboardMultiFilterCounts() →
+   *     this.dashboardMultiFilterCounts)
+   *
    * Visibility: hidden entirely when settings.display.showFilterStatusBar is
-   * false, or when neither row has anything to show.
+   * false, or when no keyword/highlight/viewing-filter stats are available.
    *
    * Collapse state persisted in this.isFilterSubheaderCollapsed across renders.
    */
@@ -521,7 +531,7 @@ export class RssDashboardView extends ItemView {
       this.dashboardMultiFilterCounts !== null;
     const hasHighlightStats = this.highlightMatchCounts.length > 0;
 
-    // Only render when there is at least one row worth of content
+    // Only render when there is at least one row worth of content.
     if (
       !hasKeywordStats &&
       !hasDashboardMultiFilterStats &&
@@ -533,7 +543,7 @@ export class RssDashboardView extends ItemView {
     const subheader = container.createDiv({
       cls: "rss-dashboard-filter-subheader",
     });
-    // subheaderContent animates between open/collapsed via CSS max-height transition
+    // subheaderContent animates between open/collapsed via CSS max-height transition.
     const subheaderContent = subheader.createDiv({
       cls: "rss-dashboard-filter-subheader-content",
     });
@@ -621,8 +631,10 @@ export class RssDashboardView extends ItemView {
       });
     }
 
-    // ── Collapse toggle button ───────────────────────────────────────────────
+    // ── Row 3: Viewing filters / collapse toggle ──────────────────────────────
     if (hasDashboardMultiFilterStats && this.dashboardMultiFilterCounts) {
+      const hasActiveDashboardMultiFilters =
+        this.activeStatusFilters.size > 0 || this.activeTagFilters.size > 0;
       const { shown, filteredOut, total } = this.dashboardMultiFilterCounts;
       const viewingFilterRow = subheaderContent.createDiv({
         cls: "rss-dashboard-filter-stats-row rss-dashboard-viewing-filter-stats-row",
@@ -654,7 +666,9 @@ export class RssDashboardView extends ItemView {
 
       viewingFilterRow.createSpan({
         cls: "rss-dashboard-viewing-filter-stats-text",
-        text: `Viewing filters: Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`,
+        text: hasActiveDashboardMultiFilters
+          ? `Viewing filters: Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`
+          : `No filters applied - Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`,
       });
     }
 
@@ -689,6 +703,7 @@ export class RssDashboardView extends ItemView {
     applyCollapsedState();
   }
 
+  // --- Highlight match counting ---
   /**
    * HIGHLIGHT MATCH COUNTING
    * ─────────────────────────
@@ -710,7 +725,7 @@ export class RssDashboardView extends ItemView {
    * word's caseSensitive flag.
    */
   private computeHighlightMatchCounts(articles: FeedItem[]): void {
-    // Always reset so stale data from a previous render doesn't linger
+    // Always reset so stale data from a previous render does not linger.
     this.highlightMatchCounts = [];
 
     const hs = this.settings.highlights;
@@ -751,6 +766,7 @@ export class RssDashboardView extends ItemView {
     }
   }
 
+  // --- Title and article-scope helpers ---
   private getArticlesTitle(): string {
     if (this.currentFeed) {
       return this.currentFeed.title;
@@ -978,6 +994,7 @@ export class RssDashboardView extends ItemView {
     this.filterLogic = mf.logic === "AND" ? "AND" : "OR";
   }
 
+  // --- Keyword filtering and filter matching ---
   private applyKeywordFiltersWithStats(articles: FeedItem[]): FeedItem[] {
     const globalRules = this.settings.keywordRules || {
       includeLogic: "AND" as const,
@@ -1204,6 +1221,7 @@ export class RssDashboardView extends ItemView {
     return result;
   }
 
+  // --- Sidebar navigation and selection ---
   private handleFolderClick(folder: string | null): void {
     let scrollPosition = 0;
     if (this.sidebarContainer) {
@@ -1341,6 +1359,7 @@ export class RssDashboardView extends ItemView {
     void this.render();
   }
 
+  // --- Feed and folder management ---
   private handleAddFolder(name: string): void {
     void this.plugin.ensureFolderExists(name);
   }
@@ -1448,6 +1467,7 @@ export class RssDashboardView extends ItemView {
     void this.plugin.exportOpml();
   }
 
+  // --- Mobile sidebar and article opening ---
   public openMobileSidebar(): void {
     if (!this.shouldUseMobileSidebarMode()) {
       this.closeMobileSidebarModal();
@@ -1553,6 +1573,7 @@ export class RssDashboardView extends ItemView {
     void this.render();
   }
 
+  // --- Article open/save actions ---
   private async handleArticleClick(article: FeedItem): Promise<void> {
     this.selectedArticle = article;
     this.articleList?.setSelectedArticle(article);
@@ -1709,6 +1730,7 @@ export class RssDashboardView extends ItemView {
     }
   }
 
+  // --- Article mutation, sync, and persistence ---
   private async updateArticleStatus(
     article: FeedItem,
     updates: Partial<FeedItem>,
@@ -2157,15 +2179,7 @@ export class RssDashboardView extends ItemView {
 
   private computeDashboardMultiFilterCounts(
     keywordFilteredArticles: FeedItem[],
-  ): { shown: number; filteredOut: number; total: number } | null {
-    const hasDashboardMultiFilters =
-      this.activeStatusFilters.size > 0 || this.activeTagFilters.size > 0;
-
-    if (!hasDashboardMultiFilters) {
-      this.dashboardMultiFilterCounts = null;
-      return null;
-    }
-
+  ): { shown: number; filteredOut: number; total: number } {
     let total = 0;
     let shown = 0;
 
@@ -2233,6 +2247,28 @@ export class RssDashboardView extends ItemView {
     }
   }
 
+  refreshSidebarOnly(): void {
+    if (!this.sidebar) {
+      return;
+    }
+
+    this.sidebar.clearFolderPathCache();
+    this.sidebar["options"] = {
+      currentFolder: this.currentFolder,
+      currentFeed: this.currentFeed,
+      selectedTags: this.selectedTags,
+      tagsCollapsed: this.tagsCollapsed,
+      collapsedFolders: this.collapsedFolders,
+    };
+    this.sidebar["settings"] = this.settings;
+    this.sidebar.render();
+
+    if (this.sidebarContainer && !this.settings.sidebarCollapsed) {
+      this.applySidebarWidth();
+      this.setupSidebarResize();
+    }
+  }
+
   refresh(): void {
     this.render();
   }
@@ -2260,6 +2296,7 @@ export class RssDashboardView extends ItemView {
     this.dashboardContainer = null;
   }
 
+  // --- Layout and resize controls ---
   private setupSidebarResize(): void {
     // Don't setup resize on mobile/tablet
     if (this.shouldUseMobileSidebarMode()) {
@@ -2375,6 +2412,7 @@ export class RssDashboardView extends ItemView {
     }
   }
 
+  // --- Filter state and refresh affordances ---
   private updateRefreshButtonText(): void {
     if (!this.articleList) return;
 
@@ -2712,6 +2750,7 @@ export class RssDashboardView extends ItemView {
     return articles.length;
   }
 
+  // --- Saved article file lookup and reader handoff ---
   private getCurrentPage(): number {
     if (this.currentFeed && this.currentFeed.url) {
       return this.feedPages[this.currentFeed.url] || 1;
