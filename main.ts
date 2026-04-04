@@ -366,7 +366,10 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private applyMobileOptimizations(): void {
-    if (this.settings.refreshInterval > 0 && this.settings.refreshInterval < 60) {
+    if (
+      this.settings.refreshInterval > 0 &&
+      this.settings.refreshInterval < 60
+    ) {
       this.settings.refreshInterval = 60;
     }
 
@@ -601,7 +604,9 @@ export default class RssDashboardPlugin extends Plugin {
       }
 
       if (!this.feedParser) {
-        console.warn("[RSS dashboard] Feed parser not initialized; skipping refresh.");
+        console.warn(
+          "[RSS dashboard] Feed parser not initialized; skipping refresh.",
+        );
         return;
       }
 
