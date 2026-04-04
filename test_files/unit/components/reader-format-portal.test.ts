@@ -59,6 +59,7 @@ describe("createReaderFormatPortal", () => {
     const applyFormat = vi.fn();
     const scheduleSave = vi.fn();
     const flushSave = vi.fn();
+    const openReaderDisplaySettings = vi.fn();
 
     const handle = createReaderFormatPortal({
       anchor,
@@ -67,27 +68,120 @@ describe("createReaderFormatPortal", () => {
       applyFormat,
       scheduleSave,
       flushSave,
+      openReaderDisplaySettings,
     });
 
     const portal = document.body.querySelector(".rss-reader-format-dropdown-portal");
     expect(portal).toBeTruthy();
     expect(document.body.querySelector(".rss-reader-format-sheet-backdrop")).toBeNull();
 
-    const selects = portal?.querySelectorAll("select") ?? [];
-    expect(selects.length).toBeGreaterThan(0);
+    expect(portal?.textContent).toContain("Theme default");
+    expect(portal?.textContent).not.toContain("Font default");
+    expect(portal?.textContent).not.toContain("Paragraph width");
 
-    const firstSelect = selects[0] as HTMLSelectElement;
-    // Change alignment away from initial value
-    firstSelect.value = "left";
-    firstSelect.dispatchEvent(new Event("change"));
+    const fontScaleValue = portal?.querySelector(
+      ".rss-reader-format-row[data-setting='fontScalePct'] .rss-reader-format-value",
+    ) as HTMLElement | null;
+    expect(fontScaleValue?.textContent).toBe("100%");
 
-    expect(format.textAlign).toBe("left");
-    expect(applyFormat).toHaveBeenCalled();
-    expect(scheduleSave).toHaveBeenCalled();
+    const fontScaleIncrease = portal?.querySelector(
+      ".rss-reader-format-row[data-setting='fontScalePct'] .rss-reader-format-stepper-increase",
+    ) as HTMLElement | null;
+    expect(fontScaleIncrease).toBeTruthy();
+    fontScaleIncrease?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(format.fontScalePct).toBe(110);
+    expect(fontScaleValue?.textContent).toBe("110%");
+    expect(applyFormat).toHaveBeenCalledTimes(1);
+    expect(scheduleSave).toHaveBeenCalledTimes(1);
+
+    const lineHeightDecrease = portal?.querySelector(
+      ".rss-reader-format-row[data-setting='lineHeightPct'] .rss-reader-format-stepper-decrease",
+    ) as HTMLElement | null;
+    expect(lineHeightDecrease).toBeTruthy();
+    lineHeightDecrease?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(format.lineHeightPct).toBe(130);
+    expect(applyFormat).toHaveBeenCalledTimes(2);
+    expect(scheduleSave).toHaveBeenCalledTimes(2);
+
+    const fontFamilyButtons = Array.from(
+      portal?.querySelectorAll(".rss-reader-format-font-button") ?? [],
+    ) as HTMLButtonElement[];
+    expect(fontFamilyButtons.map((button) => button.textContent?.trim())).toEqual([
+      "Theme default",
+      "Serif",
+      "Sans",
+      "Mono",
+    ]);
+
+    const serifButton = fontFamilyButtons.find(
+      (button) => button.dataset.value === "serif",
+    );
+    serifButton?.click();
+    expect(format.fontFamily).toBe("serif");
+    expect(applyFormat).toHaveBeenCalledTimes(3);
+    expect(scheduleSave).toHaveBeenCalledTimes(3);
+
+    const settingsButton = portal?.querySelector(
+      ".rss-reader-format-settings-button",
+    ) as HTMLElement | null;
+    expect(settingsButton).toBeTruthy();
+    settingsButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(openReaderDisplaySettings).toHaveBeenCalledTimes(1);
 
     handle.close(true);
     expect(flushSave).toHaveBeenCalled();
     expect(document.body.querySelector(".rss-reader-format-dropdown-portal")).toBeNull();
+  });
+
+  it("resets the quick controls back to defaults", () => {
+    setMatchMedia(false);
+
+    const anchor = document.body.createDiv();
+    const format = createFormat({
+      fontScalePct: 150,
+      lineHeightPct: 180,
+      fontFamily: "mono",
+    });
+    const defaults = createFormat();
+
+    const applyFormat = vi.fn();
+    const scheduleSave = vi.fn();
+
+    createReaderFormatPortal({
+      anchor,
+      format,
+      defaults,
+      applyFormat,
+      scheduleSave,
+      flushSave: vi.fn(),
+      openReaderDisplaySettings: vi.fn(),
+    });
+
+    const portal = document.body.querySelector(".rss-reader-format-dropdown-portal");
+    const resetButton = portal?.querySelector(
+      ".rss-reader-format-reset-button",
+    ) as HTMLElement | null;
+    expect(resetButton).toBeTruthy();
+
+    resetButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(format.fontScalePct).toBe(defaults.fontScalePct);
+    expect(format.lineHeightPct).toBe(defaults.lineHeightPct);
+    expect(format.fontFamily).toBe(defaults.fontFamily);
+
+    const fontScaleValue = portal?.querySelector(
+      ".rss-reader-format-row[data-setting='fontScalePct'] .rss-reader-format-value",
+    ) as HTMLElement | null;
+    expect(fontScaleValue?.textContent).toBe("100%");
+
+    const activeFontButton = portal?.querySelector(
+      ".rss-reader-format-font-button.is-active",
+    ) as HTMLElement | null;
+    expect(activeFontButton?.textContent?.trim()).toBe("Theme default");
+    expect(applyFormat).toHaveBeenCalledTimes(1);
+    expect(scheduleSave).toHaveBeenCalledTimes(1);
   });
 
   it("creates a mobile sheet with backdrop and closes on backdrop click", () => {
@@ -105,6 +199,7 @@ describe("createReaderFormatPortal", () => {
       applyFormat: vi.fn(),
       scheduleSave: vi.fn(),
       flushSave,
+      openReaderDisplaySettings: vi.fn(),
     });
 
     expect(document.body.querySelector(".rss-reader-format-dropdown-portal")).toBeTruthy();

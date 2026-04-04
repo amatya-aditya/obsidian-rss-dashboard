@@ -188,7 +188,10 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  public async openSettingsToTab(tabName: string): Promise<void> {
+  public async openSettingsToTab(
+    tabName: string,
+    sectionName?: string,
+  ): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
     const setting = (this.app as any).setting;
     if (setting) {
@@ -197,7 +200,7 @@ export default class RssDashboardPlugin extends Plugin {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       setting.openTabById(this.manifest.id);
       if (this.settingTab) {
-        this.settingTab.activateTab(tabName);
+        this.settingTab.activateTab(tabName, sectionName);
       }
     }
   }

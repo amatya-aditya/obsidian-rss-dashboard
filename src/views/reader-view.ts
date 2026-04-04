@@ -1886,6 +1886,9 @@ export class ReaderView extends ItemView {
       applyFormat: () => this.applyReaderFormat(),
       scheduleSave: () => this.scheduleReaderFormatSave(),
       flushSave: () => this.flushReaderFormatSave(),
+      openReaderDisplaySettings: () => {
+        void this.openRssDashboardDisplaySettings();
+      },
       onClosed: () => {
         if (this.readerFormatPortal === portal) {
           this.readerFormatPortal = null;
@@ -1939,6 +1942,43 @@ export class ReaderView extends ItemView {
     }
 
     return null;
+  }
+
+  private async openRssDashboardDisplaySettings(): Promise<void> {
+    const appWithPlugins = this.app as unknown as {
+      plugins?: {
+        getPlugin?: (id: string) => unknown;
+        plugins?: Record<string, unknown>;
+      };
+      setting?: {
+        open?: () => void;
+        openTabById?: (id: string) => void;
+      };
+    };
+
+    type SettingsPlugin = {
+      openSettingsToTab?: (
+        tabName: string,
+        sectionName?: string,
+      ) => Promise<void> | void;
+    };
+    const plugins = appWithPlugins.plugins;
+    const pluginByGetter =
+      typeof plugins?.getPlugin === "function"
+        ? (plugins.getPlugin("rss-dashboard") as SettingsPlugin | null)
+        : null;
+    const pluginByRegistry = plugins?.plugins?.["rss-dashboard"] as
+      | SettingsPlugin
+      | undefined;
+
+    const plugin = pluginByGetter || pluginByRegistry;
+    if (typeof plugin?.openSettingsToTab === "function") {
+      await plugin.openSettingsToTab("Display", "Reader");
+      return;
+    }
+
+    appWithPlugins.setting?.open?.();
+    appWithPlugins.setting?.openTabById?.("rss-dashboard");
   }
 
   private async flushReaderFormatSave(): Promise<void> {

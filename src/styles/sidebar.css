@@ -828,9 +828,10 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   color: var(--rss-unread-badge-all-feeds-color);
 }
 
-.rss-dashboard-all-feeds-button.active .rss-dashboard-all-feeds-icon {
+/* Spinner color override */
+/* .rss-dashboard-all-feeds-button.active .rss-dashboard-all-feeds-icon {
   color: var(--text-accent);
-}
+} */
 
 .rss-dashboard-all-feeds-label-container {
   flex-grow: 1;

@@ -1,4 +1,4 @@
-import { Setting } from "obsidian";
+import { setIcon } from "obsidian";
 import type { ReaderFormatSettings } from "../types/types";
 
 export type ReaderFormatPortalOptions = {
@@ -8,6 +8,7 @@ export type ReaderFormatPortalOptions = {
   applyFormat: () => void;
   scheduleSave: () => void;
   flushSave: () => Promise<void> | void;
+  openReaderDisplaySettings: () => void;
   onClosed?: () => void;
 };
 
@@ -21,6 +22,7 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
     applyFormat,
     scheduleSave,
     flushSave,
+    openReaderDisplaySettings,
     onClosed,
   } = options;
 
@@ -60,119 +62,176 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
     scheduleSave();
   };
 
-  const parsePct = (value: string, fallback: number) => {
-    const parsed = Number.parseInt(value, 10);
-    return Number.isFinite(parsed) ? parsed : fallback;
+  const FONT_SCALE_STEPS = [80, 90, 100, 110, 120, 130, 150, 175, 200];
+  const LINE_HEIGHT_STEPS = [100, 110, 120, 130, 140, 150, 160, 180, 200];
+  const FONT_OPTIONS: Array<{
+    value: ReaderFormatSettings["fontFamily"];
+    label: string;
+  }> = [
+    { value: "default", label: "Theme default" },
+    { value: "serif", label: "Serif" },
+    { value: "sans", label: "Sans" },
+    { value: "mono", label: "Mono" },
+  ];
+
+  const runButtonAction = (
+    event: MouseEvent | KeyboardEvent,
+    action: () => void,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    action();
   };
 
-  let alignDropdown: { setValue: (value: string) => void } | null = null;
-  new Setting(controlsContainer)
-    .setName("Alignment")
-    .addDropdown((dropdown) => {
-      alignDropdown = dropdown;
-      dropdown
-        .addOption("justify", "Justify")
-        .addOption("left", "Left")
-        .setValue(format.textAlign)
-        .onChange((value: string) => {
-          format.textAlign = value as ReaderFormatSettings["textAlign"];
-          onFormatMutated();
-        });
+  const bindClickableIcon = (
+    element: HTMLElement,
+    action: () => void,
+  ): HTMLElement => {
+    element.addClass("clickable-icon");
+    element.setAttribute("role", "button");
+    element.setAttribute("tabindex", "0");
+    element.addEventListener("click", (event) => {
+      runButtonAction(event, action);
+    });
+    element.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        runButtonAction(event, action);
+      }
+    });
+    return element;
+  };
+
+  const createStepperRow = (
+    settingKey: "fontScalePct" | "lineHeightPct",
+    label: string,
+    values: number[],
+  ): { sync: () => void } => {
+    const row = controlsContainer.createDiv({
+      cls: "rss-reader-format-row",
+      attr: { "data-setting": settingKey },
+    });
+    row.createDiv({
+      cls: "rss-reader-format-label",
+      text: label,
     });
 
-  let widthDropdown: { setValue: (value: string) => void } | null = null;
-  new Setting(controlsContainer)
-    .setName("Paragraph width")
-    .addDropdown((dropdown) => {
-      widthDropdown = dropdown;
-      dropdown
-        .addOption("100", "100%")
-        .addOption("75", "75%")
-        .addOption("50", "50%")
-        .addOption("25", "25%")
-        .setValue(String(format.paragraphWidth))
-        .onChange((value: string) => {
-          format.paragraphWidth = parsePct(value, format.paragraphWidth);
-          onFormatMutated();
-        });
+    const controls = row.createDiv({
+      cls: "rss-reader-format-stepper",
     });
 
-  let fontSizeDropdown: { setValue: (value: string) => void } | null = null;
-  new Setting(controlsContainer)
-    .setName("Font size")
-    .addDropdown((dropdown) => {
-      fontSizeDropdown = dropdown;
-      dropdown
-        .addOption("80", "80%")
-        .addOption("90", "90%")
-        .addOption("100", "100%")
-        .addOption("110", "110%")
-        .addOption("120", "120%")
-        .addOption("130", "130%")
-        .addOption("150", "150%")
-        .addOption("175", "175%")
-        .addOption("200", "200%")
-        .setValue(String(format.fontScalePct))
-        .onChange((value: string) => {
-          format.fontScalePct = parsePct(value, format.fontScalePct);
-          onFormatMutated();
-        });
+    const valueEl = controls.createDiv({
+      cls: "rss-reader-format-value",
     });
 
-  let lineHeightDropdown: { setValue: (value: string) => void } | null = null;
-  new Setting(controlsContainer)
-    .setName("Line height")
-    .addDropdown((dropdown) => {
-      lineHeightDropdown = dropdown;
-      dropdown
-        .addOption("100", "100%")
-        .addOption("110", "110%")
-        .addOption("120", "120%")
-        .addOption("130", "130%")
-        .addOption("140", "140%")
-        .addOption("150", "150%")
-        .addOption("160", "160%")
-        .addOption("180", "180%")
-        .addOption("200", "200%")
-        .setValue(String(format.lineHeightPct))
-        .onChange((value: string) => {
-          format.lineHeightPct = parsePct(value, format.lineHeightPct);
-          onFormatMutated();
-        });
-    });
+    const updateValue = () => {
+      valueEl.setText(`${format[settingKey]}%`);
+    };
 
-  let fontDropdown: { setValue: (value: string) => void } | null = null;
-  new Setting(controlsContainer).setName("Font").addDropdown((dropdown) => {
-    fontDropdown = dropdown;
-    dropdown
-      .addOption("default", "Theme default")
-      .addOption("serif", "Serif")
-      .addOption("sans", "Sans")
-      .addOption("mono", "Mono")
-      .setValue(format.fontFamily)
-      .onChange((value: string) => {
-        format.fontFamily = value as ReaderFormatSettings["fontFamily"];
-        onFormatMutated();
-      });
+    const stepValue = (direction: -1 | 1) => {
+      const currentIndex = values.indexOf(format[settingKey]);
+      const safeIndex = currentIndex >= 0 ? currentIndex : 0;
+      const nextIndex = Math.max(
+        0,
+        Math.min(values.length - 1, safeIndex + direction),
+      );
+      const nextValue = values[nextIndex];
+      if (nextValue === format[settingKey]) {
+        return;
+      }
+      format[settingKey] = nextValue;
+      updateValue();
+      onFormatMutated();
+    };
+
+    const decreaseButton = bindClickableIcon(
+      controls.createDiv({
+        cls:
+          "rss-reader-format-icon-button rss-reader-format-stepper-button rss-reader-format-stepper-decrease",
+        attr: {
+          "aria-label": `Decrease ${label.toLowerCase()}`,
+          title: `Decrease ${label.toLowerCase()}`,
+        },
+      }),
+      () => stepValue(-1),
+    );
+    setIcon(decreaseButton, "minus");
+
+    controls.appendChild(valueEl);
+
+    const increaseButton = bindClickableIcon(
+      controls.createDiv({
+        cls:
+          "rss-reader-format-icon-button rss-reader-format-stepper-button rss-reader-format-stepper-increase",
+        attr: {
+          "aria-label": `Increase ${label.toLowerCase()}`,
+          title: `Increase ${label.toLowerCase()}`,
+        },
+      }),
+      () => stepValue(1),
+    );
+    setIcon(increaseButton, "plus");
+
+    updateValue();
+    return { sync: updateValue };
+  };
+
+  const fontRow = controlsContainer.createDiv({
+    cls: "rss-reader-format-row rss-reader-format-row--font",
+  });
+  fontRow.createDiv({
+    cls: "rss-reader-format-label",
+    text: "Font",
   });
 
-  let paragraphDropdown: { setValue: (value: string) => void } | null = null;
-  new Setting(controlsContainer)
-    .setName("Paragraph spacing")
-    .addDropdown((dropdown) => {
-      paragraphDropdown = dropdown;
-      dropdown
-        .addOption("default", "Theme default")
-        .addOption("tight", "Tight")
-        .addOption("normal", "Normal")
-        .addOption("loose", "Loose")
-        .setValue(format.paragraphSpacing)
-        .onChange((value: string) => {
-          format.paragraphSpacing =
-            value as ReaderFormatSettings["paragraphSpacing"];
-          onFormatMutated();
-        });
+  const fontButtons = fontRow.createDiv({
+    cls: "rss-reader-format-font-buttons",
+  });
+
+  const fontButtonsByValue = new Map<
+    ReaderFormatSettings["fontFamily"],
+    HTMLButtonElement
+  >();
+  const syncFontButtons = () => {
+    fontButtonsByValue.forEach((button, value) => {
+      button.classList.toggle("is-active", value === format.fontFamily);
     });
+  };
+
+  FONT_OPTIONS.forEach((option) => {
+    const button = fontButtons.createEl("button", {
+      cls: `rss-reader-format-font-button rss-reader-format-font-button--${option.value}`,
+      text: option.label,
+    });
+    button.type = "button";
+    button.dataset.value = option.value;
+    button.setAttribute("aria-pressed", String(option.value === format.fontFamily));
+    button.addEventListener("click", (event) => {
+      runButtonAction(event, () => {
+        if (format.fontFamily === option.value) {
+          return;
+        }
+        format.fontFamily = option.value;
+        syncFontButtons();
+        fontButtonsByValue.forEach((btn, value) => {
+          btn.setAttribute("aria-pressed", String(value === format.fontFamily));
+        });
+        onFormatMutated();
+      });
+    });
+    fontButtonsByValue.set(option.value, button);
+  });
+  syncFontButtons();
+
+  const fontSizeRow = createStepperRow(
+    "fontScalePct",
+    "Font size",
+    FONT_SCALE_STEPS,
+  );
+  const lineHeightRow = createStepperRow(
+    "lineHeightPct",
+    "Line height",
+    LINE_HEIGHT_STEPS,
+  );
 
   let closed = false;
   let outsideHandler: ((event: MouseEvent) => void) | null = null;
@@ -205,36 +264,56 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
     onClosed?.();
   };
 
-  new Setting(controlsContainer).addButton((btn) => {
-    btn.setButtonText("Reset").onClick((evt: MouseEvent) => {
-      evt.preventDefault();
-      evt.stopPropagation();
-
-      Object.assign(format, defaults);
-
-      alignDropdown?.setValue(format.textAlign);
-      widthDropdown?.setValue(String(format.paragraphWidth));
-      fontSizeDropdown?.setValue(String(format.fontScalePct));
-      lineHeightDropdown?.setValue(String(format.lineHeightPct));
-      fontDropdown?.setValue(format.fontFamily);
-      paragraphDropdown?.setValue(format.paragraphSpacing);
-
-      onFormatMutated();
-    });
+  const footer = controlsContainer.createDiv({
+    cls: "rss-reader-format-footer",
   });
 
-  if (isMobile) {
-    new Setting(controlsContainer).addButton((btn) => {
-      btn.setButtonText("Done");
-      const maybeCta = btn as unknown as { setCta?: () => void };
-      maybeCta.setCta?.();
-      btn.buttonEl?.addClass?.("mod-cta");
-      btn.buttonEl?.addClass?.("rss-reader-format-done-cta");
-      btn.onClick((evt: MouseEvent) => {
-        evt.preventDefault();
-        evt.stopPropagation();
-        close(true);
+  const resetButton = bindClickableIcon(
+    footer.createDiv({
+      cls: "rss-reader-format-icon-button rss-reader-format-reset-button",
+      attr: {
+        "aria-label": "Reset reader format",
+        title: "Reset reader format",
+      },
+    }),
+    () => {
+      Object.assign(format, defaults);
+      fontSizeRow.sync();
+      lineHeightRow.sync();
+      syncFontButtons();
+      fontButtonsByValue.forEach((button, value) => {
+        button.setAttribute("aria-pressed", String(value === format.fontFamily));
       });
+      onFormatMutated();
+    },
+  );
+  setIcon(resetButton, "rotate-ccw");
+
+  const settingsButton = bindClickableIcon(
+    footer.createDiv({
+      cls: "rss-reader-format-icon-button rss-reader-format-settings-button",
+      attr: {
+        "aria-label": "Open reader display settings",
+        title: "Open reader display settings",
+      },
+    }),
+    () => {
+      openReaderDisplaySettings();
+      close(true);
+    },
+  );
+  setIcon(settingsButton, "settings-2");
+
+  if (isMobile) {
+    const doneButton = controlsContainer.createEl("button", {
+      cls: "mod-cta rss-reader-format-done-cta",
+      text: "Done",
+    });
+    doneButton.type = "button";
+    doneButton.addEventListener("click", (evt: MouseEvent) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      close(true);
     });
   }
 

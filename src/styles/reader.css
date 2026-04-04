@@ -322,12 +322,12 @@
 }
 
 .rss-reader-format-dropdown-portal {
-  min-width: 280px;
-  width: 340px;
-  max-width: min(95vw, 360px);
-  max-height: 420px;
+  min-width: 340px;
+  width: 400px;
+  max-width: min(95vw, 440px);
+  max-height: 520px;
   overflow: auto;
-  padding: 8px 10px;
+  padding: 12px;
 }
 
 @media (max-width: 600px) {
@@ -363,7 +363,7 @@
   max-height: 80vh;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.28);
-  padding: 8px 0
+  padding: 12px
     calc(
       var(--rss-footer-visual-pad, 8px) +
         max(
@@ -376,122 +376,151 @@
 
 @media (max-width: 768px) {
   .rss-reader-format-mobile-sheet .rss-reader-format-controls {
-    padding-inline: clamp(14px, 10vw, 44px);
+    padding-inline: clamp(2px, 1vw, 6px);
   }
 }
 
-.rss-reader-format-controls .setting-item {
+.rss-reader-format-controls {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  padding-top: 12px;
-  padding-bottom: 12px;
+  gap: 12px;
+}
+
+.rss-reader-format-row {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
-.rss-reader-format-controls .setting-item-info {
-  margin: 0;
+.rss-reader-format-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
-.rss-reader-format-controls .setting-item-control {
+.rss-reader-format-stepper {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  background: var(--background-primary);
 }
 
-@media (max-width: 768px) {
-  .rss-reader-format-controls .setting-item-control {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-
-.rss-reader-format-controls
-  .setting-item-control
-  > :not(.rss-reader-slider-value-input) {
+.rss-reader-format-value {
   flex: 1 1 auto;
-  min-width: 0;
-  width: 100%;
-}
-
-.rss-reader-format-controls .setting-item-control select {
-  width: 100%;
-}
-
-.rss-reader-format-controls .rss-reader-slider-value-input {
-  flex: 0 0 auto;
-  width: 100%;
-  max-width: 120px;
   text-align: center;
-  align-self: flex-start;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.rss-reader-format-font-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rss-reader-format-font-button {
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.rss-reader-format-font-button--default {
+  font-family: inherit;
+}
+
+.rss-reader-format-font-button--serif {
+  font-family: var(--font-text), Georgia, "Times New Roman", serif;
+}
+
+.rss-reader-format-font-button--sans {
+  font-family: var(--font-interface), var(--font-text), Arial, sans-serif;
+}
+
+.rss-reader-format-font-button--mono {
+  font-family: var(--font-monospace), "Courier New", monospace;
+}
+
+.rss-reader-format-font-button.is-active {
+  border-color: var(--interactive-accent);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.rss-reader-format-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.rss-reader-format-icon-button {
+  --icon-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  cursor: pointer;
+}
+
+.rss-reader-format-icon-button:hover,
+.rss-reader-format-font-button:hover {
+  background: var(--background-modifier-hover);
+}
+
+.rss-reader-format-icon-button:focus-visible,
+.rss-reader-format-font-button:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.rss-reader-format-controls .rss-reader-format-icon-button svg {
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+.rss-reader-format-done-cta {
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.rss-reader-format-stepper-button {
+  flex: 0 0 auto;
 }
 
 @media (max-width: 768px) {
-  .rss-reader-format-controls .rss-reader-slider-value-input {
-    max-width: none;
-    width: 100%;
-    margin-top: 4px;
-  }
-}
-
-@media (max-width: 768px) {
-  .rss-reader-format-mobile-sheet
-    .rss-reader-format-controls
-    input[type="range"] {
-    width: 100%;
-    height: 28px;
-    padding: 0;
-    background: transparent;
-    -webkit-appearance: none;
-    appearance: none;
+  .rss-reader-format-font-buttons {
+    grid-template-columns: 1fr;
   }
 
-  .rss-reader-format-mobile-sheet
-    .rss-reader-format-controls
-    input[type="range"]::-webkit-slider-runnable-track {
-    height: 8px;
-    border-radius: 999px;
-    background: var(--background-modifier-border);
-  }
-
-  .rss-reader-format-mobile-sheet
-    .rss-reader-format-controls
-    input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: var(--interactive-accent);
-    border: 2px solid var(--background-primary);
-    margin-top: -6px;
-  }
-
-  .rss-reader-format-mobile-sheet
-    .rss-reader-format-controls
-    input[type="range"]::-moz-range-track {
-    height: 8px;
-    border-radius: 999px;
-    background: var(--background-modifier-border);
-  }
-
-  .rss-reader-format-mobile-sheet
-    .rss-reader-format-controls
-    input[type="range"]::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: var(--interactive-accent);
-    border: 2px solid var(--background-primary);
-  }
-
-  .rss-reader-format-mobile-sheet
-    .rss-reader-format-controls
-    .setting-item-control
-    button {
+  .rss-reader-format-icon-button,
+  .rss-reader-format-font-button,
+  .rss-reader-format-done-cta {
     min-height: 44px;
+  }
+
+  .rss-reader-format-footer {
+    justify-content: stretch;
+  }
+
+  .rss-reader-format-footer .rss-reader-format-icon-button {
+    flex: 1 1 0;
+    width: auto;
   }
 
   .rss-reader-format-mobile-sheet .rss-reader-format-done-cta {

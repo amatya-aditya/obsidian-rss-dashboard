@@ -243,6 +243,13 @@ When a visual pattern changes:
 2. Link affected selectors/files in PR notes.
 3. Include before/after screenshots for desktop + mobile modal where relevant.
 
+## Reader Format Control Ownership
+
+- Reader quick-format controls live in `src/utils/reader-format-portal.ts` and `src/styles/reader.css`.
+- This surface is a compact quick-actions menu, not a stacked settings form.
+- Icon-only quick actions in the reader format menu must use scoped `.rss-reader-format-*` selectors together with the `clickable-icon` pattern.
+- Lower-frequency reader format controls belong in the `Display` settings tab under the `Reader` section.
+
 ## Known Current Conventions (March 2026)
 
 - Primary tabs are implemented in `layout.css` and overridden in `modals.css`.
