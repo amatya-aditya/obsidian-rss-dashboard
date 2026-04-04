@@ -4,6 +4,7 @@
   height: 100%;
   overflow: hidden;
   background-color: var(--background-primary);
+  --rss-reader-body-font-size: 1em;
   --rss-reader-font-scale: 1;
   --rss-reader-line-height: 1.6;
   --rss-reader-max-width: none;
@@ -139,7 +140,7 @@
 .rss-reader-article-content,
 .rss-reader-description-body {
   line-height: var(--rss-reader-line-height);
-  font-size: calc(1em * var(--rss-reader-font-scale));
+  font-size: var(--rss-reader-body-font-size);
   font-family: var(--rss-reader-font-family);
   text-align: justify;
   color: var(--text-normal);
@@ -541,11 +542,6 @@ mark.rss-highlight {
     max-width: 100%;
     height: auto;
     border-radius: 8px;
-  }
-
-  .rss-reader-article-content {
-    font-size: 16px;
-    line-height: var(--rss-reader-line-height);
   }
 
   .rss-reader-responsive-img {

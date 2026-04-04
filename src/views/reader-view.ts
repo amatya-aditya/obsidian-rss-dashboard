@@ -1851,6 +1851,7 @@ export class ReaderView extends ItemView {
     }
 
     setCssProps(this.contentEl, {
+      "--rss-reader-body-font-size": `${format.fontScalePct / 100}em`,
       "--rss-reader-font-scale": String(format.fontScalePct / 100),
       "--rss-reader-line-height": String(format.lineHeightPct / 100),
       "--rss-reader-max-width": maxWidth,

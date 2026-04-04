@@ -11,9 +11,9 @@ export type ReaderFormatPortalOptions = {
   onClosed?: () => void;
 };
 
-export function createReaderFormatPortal(
-  options: ReaderFormatPortalOptions,
-): { close: (flushSave: boolean) => void } {
+export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
+  close: (flushSave: boolean) => void;
+} {
   const {
     anchor,
     format,
@@ -55,8 +55,6 @@ export function createReaderFormatPortal(
     cls: "rss-reader-format-controls",
   });
 
-  new Setting(controlsContainer).setName("Reader settings").setHeading();
-
   const onFormatMutated = () => {
     applyFormat();
     scheduleSave();
@@ -68,17 +66,19 @@ export function createReaderFormatPortal(
   };
 
   let alignDropdown: { setValue: (value: string) => void } | null = null;
-  new Setting(controlsContainer).setName("Alignment").addDropdown((dropdown) => {
-    alignDropdown = dropdown;
-    dropdown
-      .addOption("justify", "Justify")
-      .addOption("left", "Left")
-      .setValue(format.textAlign)
-      .onChange((value: string) => {
-        format.textAlign = value as ReaderFormatSettings["textAlign"];
-        onFormatMutated();
-      });
-  });
+  new Setting(controlsContainer)
+    .setName("Alignment")
+    .addDropdown((dropdown) => {
+      alignDropdown = dropdown;
+      dropdown
+        .addOption("justify", "Justify")
+        .addOption("left", "Left")
+        .setValue(format.textAlign)
+        .onChange((value: string) => {
+          format.textAlign = value as ReaderFormatSettings["textAlign"];
+          onFormatMutated();
+        });
+    });
 
   let widthDropdown: { setValue: (value: string) => void } | null = null;
   new Setting(controlsContainer)
@@ -98,24 +98,26 @@ export function createReaderFormatPortal(
     });
 
   let fontSizeDropdown: { setValue: (value: string) => void } | null = null;
-  new Setting(controlsContainer).setName("Font size").addDropdown((dropdown) => {
-    fontSizeDropdown = dropdown;
-    dropdown
-      .addOption("80", "80%")
-      .addOption("90", "90%")
-      .addOption("100", "100%")
-      .addOption("110", "110%")
-      .addOption("120", "120%")
-      .addOption("130", "130%")
-      .addOption("150", "150%")
-      .addOption("175", "175%")
-      .addOption("200", "200%")
-      .setValue(String(format.fontScalePct))
-      .onChange((value: string) => {
-        format.fontScalePct = parsePct(value, format.fontScalePct);
-        onFormatMutated();
-      });
-  });
+  new Setting(controlsContainer)
+    .setName("Font size")
+    .addDropdown((dropdown) => {
+      fontSizeDropdown = dropdown;
+      dropdown
+        .addOption("80", "80%")
+        .addOption("90", "90%")
+        .addOption("100", "100%")
+        .addOption("110", "110%")
+        .addOption("120", "120%")
+        .addOption("130", "130%")
+        .addOption("150", "150%")
+        .addOption("175", "175%")
+        .addOption("200", "200%")
+        .setValue(String(format.fontScalePct))
+        .onChange((value: string) => {
+          format.fontScalePct = parsePct(value, format.fontScalePct);
+          onFormatMutated();
+        });
+    });
 
   let lineHeightDropdown: { setValue: (value: string) => void } | null = null;
   new Setting(controlsContainer)
@@ -276,9 +278,10 @@ export function createReaderFormatPortal(
 
   const rect = anchor.getBoundingClientRect();
   const dropdownRect = portalDropdown.getBoundingClientRect();
-  const appContainer =
-    anchor.closest(".workspace-leaf-content") || targetBody;
-  const appContainerRect = (appContainer as HTMLElement).getBoundingClientRect();
+  const appContainer = anchor.closest(".workspace-leaf-content") || targetBody;
+  const appContainerRect = (
+    appContainer as HTMLElement
+  ).getBoundingClientRect();
 
   let left = rect.right;
   let top = rect.top;
@@ -313,4 +316,3 @@ export function createReaderFormatPortal(
 
   return { close };
 }
-
