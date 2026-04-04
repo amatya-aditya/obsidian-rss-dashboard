@@ -94,7 +94,12 @@ export interface FeedMetadata {
   autoDeleteDuration?: number;
   maxItemsLimit?: number;
   scanInterval?: number;
-  importStatus?: "pending" | "processing" | "completed" | "failed";
+  importStatus?:
+    | "pending"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "timed_out";
   importError?: string;
 }
 
