@@ -918,6 +918,9 @@ export class ReaderView extends ItemView {
     const articleTitleEl = headerContainer.createEl("h1", {
       cls: "rss-reader-item-title",
     });
+    articleTitleEl.style.fontFamily = this.resolveReaderFontFamily(
+      this.getReaderFormat().fontFamily,
+    );
     if (
       this.settings.highlights?.enabled &&
       this.settings.highlights.highlightInTitles
@@ -1803,6 +1806,17 @@ export class ReaderView extends ItemView {
     }
   }
 
+  private applyReaderHeadlineFont(fontFamily: string): void {
+    const headlineElements =
+      this.readingContainer?.querySelectorAll<HTMLElement>(
+        ".rss-reader-item-title",
+      ) ?? [];
+
+    headlineElements.forEach((headline) => {
+      headline.style.fontFamily = fontFamily;
+    });
+  }
+
   private getReaderFormat(): ReaderFormatSettings {
     if (!this.settings.readerFormat) {
       this.settings.readerFormat = { ...DEFAULT_SETTINGS.readerFormat };
@@ -1842,6 +1856,7 @@ export class ReaderView extends ItemView {
   private applyReaderFormat(): void {
     const format = this.getReaderFormat();
     const paragraphWidth = format.paragraphWidth || 100;
+    const resolvedFontFamily = this.resolveReaderFontFamily(format.fontFamily);
 
     let maxWidth = "none";
     if (paragraphWidth === 100) {
@@ -1855,11 +1870,10 @@ export class ReaderView extends ItemView {
       "--rss-reader-font-scale": String(format.fontScalePct / 100),
       "--rss-reader-line-height": String(format.lineHeightPct / 100),
       "--rss-reader-max-width": maxWidth,
-      "--rss-reader-font-family": this.resolveReaderFontFamily(
-        format.fontFamily,
-      ),
+      "--rss-reader-font-family": resolvedFontFamily,
     });
 
+    this.applyReaderHeadlineFont(resolvedFontFamily);
     this.contentEl.dataset.rssReaderAlign = format.textAlign;
     this.contentEl.dataset.rssReaderFont = format.fontFamily;
     this.contentEl.dataset.rssReaderParagraph = format.paragraphSpacing;
