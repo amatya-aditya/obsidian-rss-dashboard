@@ -59,7 +59,7 @@ export class RssDashboardView extends ItemView {
     }
 
     getDisplayText(): string {
-        return "RSS dashboard";
+        return "RSS dashboard+";
     }
 
     getIcon(): string {

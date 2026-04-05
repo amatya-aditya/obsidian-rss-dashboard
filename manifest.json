@@ -4,8 +4,8 @@
 	"version": "2.2.1",
 	"minAppVersion": "1.1.0",
 	"description": "A dashboard for organizing and consuming RSS feeds, YouTube channels, and podcasts with smart tagging, media playback, and seamless content flow.",
-	"author": "Aditya Amatya",
-	"authorUrl": "https://github.com/amatya-aditya",
+	"author": "motion2082 (fork of Aditya Amatya's RSS Dashboard)",
+	"authorUrl": "https://github.com/motion2082/obsidian-rss-dashboard",
 	"fundingUrl": "https://buymeacoffee.com/amatya_aditya",
 	"isDesktopOnly": false
 }
