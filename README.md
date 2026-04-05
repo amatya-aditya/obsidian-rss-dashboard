@@ -1,75 +1,54 @@
 <div align="center">
-  <a href="https://github.com/amatya-aditya/obsidian-rss-dashboard" target="_blank">
-    <img src="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/assets/logo.png" alt="RSS Dashboard Logo" width="10%" />
-  </a>
+  <img src="assets/logo.png" alt="RSS Dashboard Logo" width="10%" />
 </div>
 
-<h1 align="center">RSS Dashboard</h1>
-<h4 align="center">Only the feeds you need</h4>
+<h1 align="center">RSS Dashboard — Personal Fork</h1>
 <h4 align="center">Stream the world's knowledge into your vault: RSS, podcasts, and YouTube, all in one Dashboard</h4>
 
- <br>
+<br>
 <p align="center">
-  <img  src="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/assets/l5.png">
+  <img src="assets/dash-mod1.png">
 </p>
 
 <p align="center">
-  <img  src="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/assets/d4.png">
+  <img src="assets/dash-mod2.png">
 </p>
 
-
 <p align="center">
-  <a href="https://github.com/amatya-aditya/obsidian-rss-dashboard/releases/latest">
-		<img src="https://img.shields.io/github/v/release/amatya-aditya/obsidian-rss-dashboard?style=flat-square&color=573E7A&label=release">
-	</a>
-  <img src="https://img.shields.io/github/release-date/amatya-aditya/obsidian-rss-dashboard">
-	<a href="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/main/LICENSE">
-		<img src="https://img.shields.io/github/license/amatya-aditya/obsidian-rss-dashboard">
-	</a>
-	<img src="https://img.shields.io/github/downloads/amatya-aditya/obsidian-rss-dashboard/total">
-	<a href="https://github.com/amatya-aditya/obsidian-rss-dashboard/issues">
-		<img src="https://img.shields.io/github/issues/amatya-aditya/obsidian-rss-dashboard">
-	</a>
-
-</p>
-
-
-<p align="center">
-  <a href="https://www.buymeacoffee.com/amatya_aditya" target="_blank">☕ Buy me a coffee</a>
-</p>
-
-<p align="center"> <a href='https://ko-fi.com/Y8Y41FV4WI' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a></p>
-
-
-<p align="center">
-  <a href="https://youtu.be/YwBu3Kdn1Qk" target="_blank">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_play_button_icon_%282013%E2%80%932017%29.svg" 
-         style="width: 50px; height: auto; ">
+  <a href="https://github.com/motion2082/obsidian-rss-dashboard/releases/latest">
+    <img src="https://img.shields.io/github/v/release/motion2082/obsidian-rss-dashboard?style=flat-square&color=573E7A&label=release&include_prereleases">
+  </a>
+  <img src="https://img.shields.io/github/release-date/motion2082/obsidian-rss-dashboard">
+  <a href="https://github.com/motion2082/obsidian-rss-dashboard/blob/master/LICENSE">
+    <img src="https://img.shields.io/github/license/motion2082/obsidian-rss-dashboard">
   </a>
 </p>
 
 <p align="center">
-  <a href="#community">📣 Community</a> •
+  <a href="#about-this-fork">About</a> •
   <a href="#features">Features</a> •
-  <a href="#screenshots">Screenshots</a> •
+  <a href="#my-modifications">Modifications</a> •
   <a href="#installation">Installation</a> •
-  <a href="#getting-started">Getting Started</a> •
-  <a href="#troubleshooting">Troubleshooting</a> •
+  <a href="#youtube-api-setup">YouTube API</a> •
   <a href="#license">License</a>
 </p>
 
 
-## Community <h3> 
-Want to influence the next release? </h3>  : Join our [Discord server](https://discord.gg/9bu7V9BBbs): it's where we:
-- Help build our manually curated Discover page (Collection of hand-pick RSS feeds, grouped by category (philosophy, engineering, physics etc.) for one-click subscribe.)
-- Discuss ideas, questions, and best practices in real time
-- Share sneak peeks of upcoming features (get early feedback!)
+## About This Fork
 
-👉 Click here to join - https://discord.gg/9bu7V9BBbs - See you inside!
+This is a personal fork of [RSS Dashboard](https://github.com/amatya-aditya/obsidian-rss-dashboard) by [Aditya Amatya](https://github.com/amatya-aditya) — an excellent Obsidian plugin for managing RSS feeds, YouTube channels, and podcasts in a unified dashboard.
+
+I've contributed several of these changes back to the original repository, but maintain this fork as a personalised build that suits my own workflow and preferences. It tracks the original closely and is distributed via BRAT for easy installation.
+
+If you find this useful, please consider supporting the original developer whose work this is built on:
+
+<p align="center">
+  <a href="https://www.buymeacoffee.com/amatya_aditya" target="_blank">☕ Buy Aditya a coffee</a> &nbsp;|&nbsp;
+  <a href="https://ko-fi.com/Y8Y41FV4WI" target="_blank">Ko-fi</a>
+</p>
+
 
 ## Features
-
-<div align="left">✅ Implemented</div>
 
 | **Feature**                             | **Description**                                                                                | **Status** |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------- |
@@ -88,125 +67,94 @@ Want to influence the next release? </h3>  : Join our [Discord server](https://d
 | **Pagination**                          | Paginated article lists with configurable page sizes                                          | ✅         |
 | **Media Detection**                     | Automatic detection of video and podcast content                                              | ✅         |
 | **Custom Templates**                    | Customizable templates for saved articles with variable substitution                          | ✅         |
-| **Androi/iPad Support**                 | Support mobile devices with responsive design                                                 | ✅         |
+| **Mobile/iPad Support**                 | Responsive design for mobile and tablet                                                       | ✅         |
 
 
-## Planned Features
+## My Modifications
 
-<div align="left">🔄 Planned</div>
+Changes I've made on top of the original plugin:
 
-| **Feature**                             | **Description**                                                                            | **Status**   |
-| --------------------------------------- | ------------------------------------------------------------------------------------------ | ------------ |
-| **Advanced Analytics**                  | Track reading time, articles read, and detailed insights                                   | 🔄           |
-| **Text-to-Speech (TTS) Support**        | Enjoy smooth, multilingual narration—even within article.                                  | 🔄           |
-| **Keyboard Shortcuts**                  | Implement keybindings for navigation                                                       | 🔄           |
-| **Newsletter Integration**              | Support for newsletter subscriptions and management                                        | 🔄           |
-| **YouTube Transcripts**                 | Extract and display YouTube video transcripts                                              | 🔄           |
-| **NoteStamp Integration**               | Enhanced note-taking with timestamps and annotations                                       | 🔄           |
-| **Advanced Search**                     | Full-text search across all saved articles and feeds                                       | 🔄           |
-| **AI-Powered Summarization**            | Generate summaries of articles using AI for quick insights                                 | 🔄           |
-| **Progress Tracking**                   | Track reading progress and podcast playback position                                       | 🔄           |
-
-
-
-
+| **Change**                              | **Description**                                                                                         |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **YouTube View & Like Counts**          | Cards display view and like counts (requires YouTube API key). Updated on every feed refresh.           |
+| **YouTube GUID Fix**                    | Fixed a critical bug where YouTube feeds stopped updating after the first refresh due to GUID mangling. |
+| **YouTube API Fallback**                | When YouTube's RSS endpoint is down, the plugin falls back to the YouTube Data API v3 automatically.    |
+| **YouTube Handle Case Fix**             | Mixed-case YouTube handles (e.g. `@AIDailyBrief`) now resolve correctly.                               |
+| **Extended Save Template Variables**    | 9 new template variables for media: `{{videoId}}`, `{{embedUrl}}`, `{{channelName}}`, `{{duration}}`, `{{coverImage}}`, `{{mediaType}}`, `{{audioUrl}}`, and more. |
+| **Reddit Card Summaries**               | Fixed blank card previews on Reddit feeds — shows text summary when images fail to load.                |
+| **Orphaned Feed Items Fix**             | Items older than the RSS window (e.g. videos outside YouTube's 15-item feed) are now correctly preserved on refresh. |
+| **Reader Image Optimization**           | Images in the reader are capped at 400px height and load lazily with a fade-in transition.              |
+| **Save & Open In-Place**               | "Save & Open" now opens the saved note in the same pane as the reader instead of a new tab.             |
+| **Dead Proxy Cleanup**                  | Removed broken CORS proxies from the fallback chain to reduce console noise.                            |
+| **Discover Feed Cleanup**               | Trimmed the Discover page to a focused set of ~36 feeds across tech, AI, dev, PKM, and security.        |
 
 
 ## Installation
 
+### Via BRAT (recommended)
+
+[BRAT](https://github.com/TfTHacker/obsidian42-brat) lets you install and auto-update beta plugins directly from GitHub.
+
+1. Install **BRAT** from Obsidian's Community Plugins.
+2. Open the command palette → **"BRAT: Add a beta plugin for testing"**
+3. Enter this repository URL:
+   ```
+   https://github.com/motion2082/obsidian-rss-dashboard
+   ```
+4. Select the latest version and click **Add Plugin**.
+5. Go to **Settings → Community Plugins**, find **RSS Dashboard**, and enable it.
+
 ### Manual Installation
 
-1. Download the latest release files (manifest.json, styles.css, main.js) from the [Releases page](https://github.com/amatya-aditya/obsidian-rss-dashboard/releases).
-2. Create a folder named "rss-dashboard" in the Obsidian plugins folder (.obsidian/plugins).
-3. Copy the files from step 1 into the new folder.
-4. Enable the plugin in the Obsidian settings under the "Community plugins" section. You might have to restart Obsidian to see the plugin.
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/motion2082/obsidian-rss-dashboard/releases/latest).
+2. Create a folder at `.obsidian/plugins/rss-dashboard/` in your vault.
+3. Copy the three files into that folder.
+4. Enable the plugin under **Settings → Community Plugins**.
 
-### Installing through BRAT
 
-1. Install BRAT from the Community Plugins in Obsidian.
-2. Get the link to the GitHub repository: https://github.com/amatya-aditya/obsidian-rss-dashboard
-3. Open the command palette and run the command "BRAT: Add a beta plugin for testing"
-4. Using the link from step 2, copy that into the modal that opens up and Select the latest version (recommended)
-5. Click on Add Plugin -- wait a few seconds and BRAT will tell you what is going on.
-6. After BRAT confirms the installation, in Settings go to the Community plugins tab.
-7. Refresh the list of plugins.
-8. Find the RSS Dashboard in the plugin list and Enable it (If not enabled)
+## YouTube API Setup
+
+YouTube view/like counts and the API fallback for RSS outages require a free YouTube Data API v3 key.
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/) and create a new project.
+2. Navigate to **APIs & Services → Library**, search for **YouTube Data API v3**, and enable it.
+3. Go to **APIs & Services → Credentials** → **Create Credentials → API key**.
+4. Copy the key and paste it into **Obsidian → Settings → RSS Dashboard → YouTube API Key**.
+
+The free quota (10,000 units/day) is more than sufficient for personal use. View/like count fetches use batch requests, so a feed refresh costs roughly 1 unit per 50 videos.
+
 
 ## Getting Started
 
 ### Adding Your First Feed
 
-1. Open the RSS Dashboard view using the ribbon icon or command palette
-2. Click the "+" button in the sidebar to add a new feed
-3. Enter the feed URL or website URL (the plugin will auto-discover RSS feeds)
-4. Choose a folder to organize your feed
-5. Click "Add Feed" to start following the feed
+1. Open the RSS Dashboard view via the ribbon icon or command palette.
+2. Click **"+"** in the sidebar to add a new feed.
+3. Enter a feed URL or website URL — the plugin auto-discovers RSS feeds.
+4. Choose a folder and click **Add Feed**.
 
-### Using the Discover Page
+### YouTube Channels
 
-1. Open the RSS Discover view using the search icon or command palette
-2. Browse through curated feeds organized by categories
-3. Use filters to find specific types of content
-4. Click "Add Feed" on any feed card to subscribe instantly
+Enter any YouTube channel URL (e.g. `https://www.youtube.com/@3blue1brown`). The plugin converts it to an RSS feed automatically. With an API key configured, you'll also see view and like counts on video cards.
 
-### Reading Articles
+### Saving Articles
 
-1. Click on any article in the dashboard to open it in the reader view
-2. Use the built-in reader for a clean reading experience
-3. Save articles as markdown files for permanent storage
-4. Use the video player for YouTube content or audio player for podcasts
+Open any article in the reader view and click the save icon. Articles are saved as Markdown files using your configured template. Use `{{videoId}}`, `{{embedUrl}}`, and other variables to build rich YouTube note templates.
 
-### Organizing Your Feeds
-
-1. Create folders and subfolders to organize your feeds
-2. Add tags to categorize your content
-3. Use the filtering and sorting options to find specific articles
-4. Export your feed list using OPML for backup
 
 ## Troubleshooting
 
-### Common Issues
+**Feed not loading**: Check the URL is correct and try a manual refresh. Some feeds require direct access (no CORS proxy support).
 
-**Feed not loading**: 
-- Check if the feed URL is correct
-- Try refreshing the feed manually
-- Some feeds may require authentication
+**YouTube feeds not updating**: Usually caused by the GUID fix in this fork — if upgrading from the original plugin, delete and re-add YouTube feeds once to reset stored GUIDs.
 
-**YouTube feeds not working**:
-- Make sure you're using a valid YouTube channel URL
-- Try using the channel ID instead of the custom URL
-- Some channels may have disabled RSS feeds
+**YouTube view counts not showing**: Ensure a valid API key is configured in settings. RSS-only YouTube feeds (no API key) won't show stats.
 
-**Podcast audio not playing**:
-- Check if the audio URL is accessible
-- Some podcasts may require authentication
-- Try opening the audio URL in a browser
+**Podcast audio not playing**: Verify the audio URL is publicly accessible. Try opening it directly in a browser.
 
-### Getting Help
-
-If you encounter any issues or have suggestions:
-- Create an issue on [GitHub](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)
-- Join our [Discord community](https://discord.com/invite/9bu7V9BBbs)
-- Check the existing issues for solutions
-
-## Support the Development
-
-If you find this plugin useful, consider supporting its long-term development:
-
-<p align="center">
-  <a href="https://www.buymeacoffee.com/amatya_aditya" target="_blank">☕ Buy me a coffee</a>
-</p>
-
-<p align="center"> <a href='https://ko-fi.com/Y8Y41FV4WI' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a></p>
-
-## Other Plugins by Me
-
-1. [Media Slider](https://github.com/amatya-aditya/obsidian-media-slider)
-2. [Zen Space](https://github.com/amatya-aditya/obsidian-zen-space)
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
-
-
+Original plugin by [Aditya Amatya](https://github.com/amatya-aditya) — [amatya-aditya/obsidian-rss-dashboard](https://github.com/amatya-aditya/obsidian-rss-dashboard).
