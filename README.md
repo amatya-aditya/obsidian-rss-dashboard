@@ -2,7 +2,7 @@
   <img src="assets/logo.png" alt="RSS Dashboard Logo" width="10%" />
 </div>
 
-<h1 align="center">RSS Dashboard — Personal Fork</h1>
+<h1 align="center">RSS Dashboard+</h1>
 <h4 align="center">Stream the world's knowledge into your vault: RSS, podcasts, and YouTube, all in one Dashboard</h4>
 
 <br>
