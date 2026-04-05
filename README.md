@@ -43,8 +43,8 @@ I've contributed several of these changes back to the original repository, but m
 If you find this useful, please consider supporting the original developer whose work this is built on:
 
 <p align="center">
-  <a href="https://www.buymeacoffee.com/amatya_aditya" target="_blank">☕ Buy Aditya a coffee</a> &nbsp;|&nbsp;
-  <a href="https://ko-fi.com/Y8Y41FV4WI" target="_blank">Ko-fi</a>
+  <a href="https://ko-fi.com/motion2082" target="_blank">☕ Support this fork on Ko-fi</a> &nbsp;|&nbsp;
+  <a href="https://www.buymeacoffee.com/amatya_aditya" target="_blank">☕ Support the original developer</a>
 </p>
 
 
