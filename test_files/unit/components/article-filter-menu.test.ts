@@ -18,13 +18,18 @@ describe("ArticleFilterMenu Component", () => {
     document.body.appendChild(toggleBtn);
 
     settings = {
+      viewStyle: "card",
       availableTags: [
         { name: "Tag1", color: "#ff0000" },
         { name: "Tag2", color: "#00ff00" }
       ],
       keywordRules: { bypassAll: false },
       highlights: { enabled: true },
-      display: { showFilterStatusBar: true }
+      display: {
+        showFilterStatusBar: true,
+        cardColumnsPerRow: 0,
+        cardSpacing: 15,
+      }
     };
 
     mockCallbacks = {
@@ -66,8 +71,6 @@ describe("ArticleFilterMenu Component", () => {
     filterMenu.show(toggleBtn);
 
     const applyBtn = document.querySelector(".rss-dashboard-filter-apply-btn") as HTMLElement;
-    const unreadCheckbox = document.querySelector(".rss-dashboard-filter-checkbox") as HTMLInputElement;
-    
     // Simulate checking Unread (usually item index 1 or by label)
     // Find the item with text "Unread"
     const items = document.querySelectorAll(".rss-dashboard-filter-menu-item");
@@ -88,5 +91,21 @@ describe("ArticleFilterMenu Component", () => {
 
     const lastCall = mockCallbacks.onFilterChange.mock.calls[0][0];
     expect(lastCall.batch.statusFilters.has("unread")).toBe(true);
+  });
+
+  it("keeps card layout controls out of the filter menu", () => {
+    const filterMenu = new ArticleFilterMenu(
+      settings,
+      new Set(),
+      new Set(),
+      "AND",
+      mockCallbacks
+    );
+
+    filterMenu.show(toggleBtn);
+
+    const portal = document.querySelector(".rss-dashboard-filter-menu-portal");
+    expect(portal?.textContent).not.toContain("Cards per row");
+    expect(portal?.textContent).not.toContain("Card spacing");
   });
 });

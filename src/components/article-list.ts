@@ -602,6 +602,23 @@ export class ArticleList {
     }
   }
 
+  public updateCardSpacingLayout(cardSpacing: number): void {
+    this.settings.display.cardSpacing = cardSpacing;
+
+    const articlesList = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-list.rss-dashboard-card-view",
+    );
+    if (!articlesList) {
+      return;
+    }
+
+    articlesList.style.setProperty(
+      "--rss-dashboard-card-gap",
+      `${this.getCardSpacing()}px`,
+    );
+    this.scheduleCardTagLayout(articlesList);
+  }
+
   public removeArticleInPlace(guid: string): void {
     this.articles = this.articles.filter((a) => a.guid !== guid);
 

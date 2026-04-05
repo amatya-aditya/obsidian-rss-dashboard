@@ -56,6 +56,7 @@ export class RssDashboardView extends ItemView {
   private verificationTimeout: number | null = null;
   private dashboardMultiFiltersDirty = false;
   private dashboardMultiFiltersSaveTimeout: number | null = null;
+  private cardLayoutSaveTimeout: number | null = null;
   private headerTitleRefreshTimeout: number | null = null;
   private folderPages: Record<string, number> = {};
   private feedPages: Record<string, number> = {};
@@ -2469,6 +2470,8 @@ export class RssDashboardView extends ItemView {
       bypassAll?: boolean;
       highlightsEnabled?: boolean;
       statusBarVisible?: boolean;
+      cardColumnsPerRow?: number;
+      cardSpacing?: number;
     };
   }): void {
     if (filter.type === "batch" && filter.batch) {
@@ -2513,12 +2516,57 @@ export class RssDashboardView extends ItemView {
           needsFullRender = true;
         }
       }
+      if (b.cardColumnsPerRow !== undefined) {
+        const nextCardColumnsPerRow = Math.max(
+          0,
+          Math.min(6, Math.round(b.cardColumnsPerRow)),
+        );
+        if (
+          this.settings.display.cardColumnsPerRow !== nextCardColumnsPerRow
+        ) {
+          this.settings.display.cardColumnsPerRow = nextCardColumnsPerRow;
+          needsFullRender = true;
+        }
+      }
+      if (b.cardSpacing !== undefined) {
+        const nextCardSpacing = Math.max(
+          0,
+          Math.min(40, Math.round(b.cardSpacing)),
+        );
+        if (this.settings.display.cardSpacing !== nextCardSpacing) {
+          this.settings.display.cardSpacing = nextCardSpacing;
+          needsFullRender = true;
+        }
+      }
 
       if (needsFullRender) {
         void this.plugin.saveSettings();
         void this.render();
         return;
       }
+    } else if (filter.type === "card-spacing-live") {
+      const nextCardSpacing = Math.max(
+        0,
+        Math.min(40, Math.round(Number(filter.value))),
+      );
+      if (!Number.isFinite(nextCardSpacing)) {
+        return;
+      }
+
+      if (this.settings.display.cardSpacing !== nextCardSpacing) {
+        this.settings.display.cardSpacing = nextCardSpacing;
+      }
+
+      this.articleList?.updateCardSpacingLayout(nextCardSpacing);
+
+      if (this.cardLayoutSaveTimeout !== null) {
+        window.clearTimeout(this.cardLayoutSaveTimeout);
+      }
+      this.cardLayoutSaveTimeout = window.setTimeout(() => {
+        this.cardLayoutSaveTimeout = null;
+        void this.plugin.saveSettings();
+      }, 120);
+      return;
     } else if (filter.type === "logic" && filter.logic) {
       this.filterLogic = filter.logic;
     } else if (filter.type === "status-bar-visibility") {

@@ -17,6 +17,8 @@ export interface ArticleHeaderCallbacks {
   onMarkAllAsUnread: () => void;
 }
 
+type MenuOptionEntries = Array<[label: string, value: string]>;
+
 /**
  * ArticleHeader Component
  *
@@ -109,6 +111,20 @@ export class ArticleHeader {
       target.removeEventListener(type, listener),
     );
     this.documentListeners = [];
+  }
+
+  private clampCardColumnsPerRow(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.min(6, Math.round(value)));
+  }
+
+  private clampCardSpacing(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 15;
+    }
+    return Math.max(0, Math.min(40, Math.round(value)));
   }
 
   private closeActivePortal(): void {
@@ -371,6 +387,10 @@ export class ArticleHeader {
       this.createRefreshButton(controls, "");
     }
 
+    if (options.isDropdown && this.settings.viewStyle === "card") {
+      this.createDropdownCardLayoutControls(controls);
+    }
+
     const markAllRow = controls.createDiv({
       cls: "rss-dashboard-mark-all-row",
     });
@@ -398,6 +418,97 @@ export class ArticleHeader {
       cls: "rss-dashboard-mark-all-text",
     });
     unreadBtn.onclick = () => this.callbacks.onMarkAllAsUnread();
+  }
+
+  private createDropdownCardLayoutControls(parent: HTMLElement): void {
+    const cardLayoutControls = parent.createDiv({
+      cls: "rss-dashboard-dropdown-card-layout-controls",
+    });
+
+    const cardsPerRowRow = cardLayoutControls.createDiv({
+      cls: "rss-dashboard-dropdown-card-layout-row",
+    });
+    cardsPerRowRow.createSpan({
+      cls: "rss-dashboard-dropdown-card-layout-label",
+      text: "Cards / row:",
+    });
+
+    const cardsPerRowTrigger = cardsPerRowRow.createDiv({
+      cls: "rss-dashboard-dropdown-card-layout-trigger rss-dashboard-themed-select-trigger rss-dashboard-dropdown-cards-per-row-trigger",
+      attr: { role: "button", tabindex: "0" },
+    });
+    const getCardsPerRowLabel = () => {
+      const currentValue = this.clampCardColumnsPerRow(
+        this.settings.display.cardColumnsPerRow ?? 0,
+      );
+      return currentValue === 0 ? "Auto" : String(currentValue);
+    };
+    cardsPerRowTrigger.createSpan({ text: getCardsPerRowLabel() });
+    setIcon(
+      cardsPerRowTrigger.createDiv({ cls: "rss-dashboard-selector-arrow" }),
+      "chevron-down",
+    );
+    cardsPerRowTrigger.onclick = (e) => {
+      e.stopPropagation();
+      this.showThemedMenu(
+        cardsPerRowTrigger,
+        [
+          ["Auto", "0"],
+          ["1", "1"],
+          ["2", "2"],
+          ["3", "3"],
+          ["4", "4"],
+          ["5", "5"],
+          ["6", "6"],
+        ],
+        String(
+          this.clampCardColumnsPerRow(
+            this.settings.display.cardColumnsPerRow ?? 0,
+          ),
+        ),
+        (val) => {
+          this.callbacks.onFilterChange({
+            type: "batch",
+            value: null,
+            batch: {
+              cardColumnsPerRow: this.clampCardColumnsPerRow(Number(val)),
+            },
+          });
+        },
+      );
+    };
+
+    const cardSpacingGroup = cardLayoutControls.createDiv({
+      cls: "rss-dashboard-dropdown-card-spacing-group",
+    });
+    const cardSpacingLabel = cardSpacingGroup.createDiv({
+      cls: "rss-dashboard-dropdown-card-layout-label",
+      text: `Card spacing: ${this.clampCardSpacing(
+        this.settings.display.cardSpacing ?? 15,
+      )}px`,
+    });
+    const cardSpacingInput = cardSpacingGroup.createEl("input", {
+      cls: "rss-dashboard-dropdown-card-spacing-input",
+      attr: {
+        type: "range",
+        min: "0",
+        max: "40",
+        step: "1",
+      },
+    });
+    cardSpacingInput.value = String(
+      this.clampCardSpacing(this.settings.display.cardSpacing ?? 15),
+    );
+    cardSpacingInput.addEventListener("click", (e) => e.stopPropagation());
+    cardSpacingInput.addEventListener("input", () => {
+      const nextValue = this.clampCardSpacing(Number(cardSpacingInput.value));
+      cardSpacingInput.value = String(nextValue);
+      cardSpacingLabel.setText(`Card spacing: ${nextValue}px`);
+      this.callbacks.onFilterChange({
+        type: "card-spacing-live",
+        value: nextValue,
+      });
+    });
   }
 
   /**
@@ -449,7 +560,7 @@ export class ArticleHeader {
 
   private showThemedMenu(
     trigger: HTMLElement,
-    options: Record<string, string>,
+    options: Record<string, string> | MenuOptionEntries,
     currentVal: string,
     onChange: (val: string) => void,
     icons?: Record<string, string>,
@@ -462,7 +573,9 @@ export class ArticleHeader {
     this.activePortalToggleBtn = trigger;
     trigger.addClass("active");
 
-    Object.entries(options).forEach(([label, value]) => {
+    const entries = Array.isArray(options) ? options : Object.entries(options);
+
+    entries.forEach(([label, value]) => {
       const item = portal.createDiv({ cls: "rss-dashboard-filter-menu-item" });
       const check = item.createDiv({ cls: "rss-dashboard-filter-menu-check" });
       if (value === currentVal) {

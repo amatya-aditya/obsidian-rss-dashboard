@@ -14,6 +14,8 @@ export interface FilterChangeEvent {
     bypassAll?: boolean;
     highlightsEnabled?: boolean;
     statusBarVisible?: boolean;
+    cardColumnsPerRow?: number;
+    cardSpacing?: number;
   };
 }
 
