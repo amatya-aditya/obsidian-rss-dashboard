@@ -160,8 +160,10 @@ describe("Dashboard card layout filter batch", () => {
     const view = new RssDashboardView(leaf, plugin as never);
     view.render = vi.fn(async () => {}) as unknown as typeof view.render;
     const updateCardSpacingLayout = vi.fn();
+    const refreshCardTagLayout = vi.fn();
     (view as any).articleList = {
       updateCardSpacingLayout,
+      refreshCardTagLayout,
     };
 
     (view as any).handleFilterChange({
@@ -171,8 +173,62 @@ describe("Dashboard card layout filter batch", () => {
 
     expect(settings.display.cardSpacing).toBe(24);
     expect(updateCardSpacingLayout).toHaveBeenCalledWith(24);
+    expect(refreshCardTagLayout).not.toHaveBeenCalled();
     expect(view.render).not.toHaveBeenCalled();
     expect(plugin.saveSettings).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(90);
+    expect(refreshCardTagLayout).toHaveBeenCalledTimes(1);
+    expect(view.render).not.toHaveBeenCalled();
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(30);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
+
+  it("commits card spacing without a full rerender and refreshes visible tag layout immediately", async () => {
+    vi.useFakeTimers();
+
+    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
+
+    const app = new App();
+    const settings = cloneSettings();
+    settings.display.cardSpacing = 15;
+
+    const plugin = {
+      settings,
+      saveSettings: vi.fn(async () => {}),
+    };
+
+    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
+    const view = new RssDashboardView(leaf, plugin as never);
+    view.render = vi.fn(async () => {}) as unknown as typeof view.render;
+    const updateCardSpacingLayout = vi.fn();
+    const refreshCardTagLayout = vi.fn();
+    (view as any).articleList = {
+      updateCardSpacingLayout,
+      refreshCardTagLayout,
+    };
+
+    (view as any).handleFilterChange({
+      type: "card-spacing-live",
+      value: 24,
+    });
+
+    expect(refreshCardTagLayout).not.toHaveBeenCalled();
+
+    await (view as any).handleFilterChange({
+      type: "card-spacing-commit",
+      value: 24,
+    });
+
+    expect(settings.display.cardSpacing).toBe(24);
+    expect(updateCardSpacingLayout).toHaveBeenCalledWith(24);
+    expect(refreshCardTagLayout).toHaveBeenCalledTimes(1);
+    expect(view.render).not.toHaveBeenCalled();
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
 
     await vi.advanceTimersByTimeAsync(120);
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);

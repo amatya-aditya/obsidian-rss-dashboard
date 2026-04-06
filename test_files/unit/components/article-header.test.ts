@@ -145,6 +145,112 @@ describe("ArticleHeader Component", () => {
     expect(dropdown?.textContent).toContain("Card spacing: 15px");
   });
 
+  it("toggles the hamburger menu open and closed from the button", () => {
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks
+    );
+
+    header.render();
+
+    const hamburgerBtn = container.querySelector(
+      ".rss-dashboard-hamburger-button"
+    ) as HTMLElement;
+    const dropdown = container.querySelector(
+      ".rss-dashboard-dropdown-menu"
+    ) as HTMLElement;
+
+    expect(dropdown.classList.contains("is-menu-open")).toBe(false);
+    expect(hamburgerBtn.classList.contains("is-menu-open")).toBe(false);
+
+    hamburgerBtn.click();
+
+    expect(dropdown.classList.contains("is-menu-open")).toBe(true);
+    expect(hamburgerBtn.classList.contains("is-menu-open")).toBe(true);
+
+    hamburgerBtn.click();
+
+    expect(dropdown.classList.contains("is-menu-open")).toBe(false);
+    expect(hamburgerBtn.classList.contains("is-menu-open")).toBe(false);
+  });
+
+  it("closes the hamburger menu when clicking outside", () => {
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks
+    );
+
+    header.render();
+
+    const hamburgerBtn = container.querySelector(
+      ".rss-dashboard-hamburger-button"
+    ) as HTMLElement;
+    const dropdown = container.querySelector(
+      ".rss-dashboard-dropdown-menu"
+    ) as HTMLElement;
+
+    hamburgerBtn.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true })
+    );
+    expect(dropdown.classList.contains("is-menu-open")).toBe(true);
+
+    document.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true })
+    );
+
+    expect(dropdown.classList.contains("is-menu-open")).toBe(false);
+    expect(hamburgerBtn.classList.contains("is-menu-open")).toBe(false);
+  });
+
+  it("keeps the hamburger menu open when clicking inside the dropdown", () => {
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks
+    );
+
+    header.render();
+
+    const hamburgerBtn = container.querySelector(
+      ".rss-dashboard-hamburger-button"
+    ) as HTMLElement;
+    const dropdown = container.querySelector(
+      ".rss-dashboard-dropdown-menu"
+    ) as HTMLElement;
+
+    hamburgerBtn.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true })
+    );
+
+    const markAllRow = container.querySelector(
+      ".rss-dashboard-mark-all-row"
+    ) as HTMLElement;
+    markAllRow.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+
+    expect(dropdown.classList.contains("is-menu-open")).toBe(true);
+    expect(hamburgerBtn.classList.contains("is-menu-open")).toBe(true);
+  });
+
   it("keeps card layout controls out of the hamburger menu for non-card views", () => {
     settings.viewStyle = "list";
     const header = new ArticleHeader(
@@ -169,6 +275,65 @@ describe("ArticleHeader Component", () => {
     const dropdown = container.querySelector(".rss-dashboard-dropdown-menu");
     expect(dropdown?.textContent).not.toContain("Cards / row:");
     expect(dropdown?.textContent).not.toContain("Card spacing:");
+  });
+
+  it("calls onRefreshFeeds from the hamburger menu refresh button", () => {
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks
+    );
+
+    header.render();
+
+    const hamburgerBtn = container.querySelector(
+      ".rss-dashboard-hamburger-button"
+    ) as HTMLElement;
+    hamburgerBtn.click();
+
+    const refreshBtn = container.querySelector(
+      ".rss-dashboard-view-refresh-button"
+    ) as HTMLButtonElement;
+    refreshBtn.click();
+
+    expect(mockCallbacks.onRefreshFeeds).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls mark-all callbacks from the hamburger menu", () => {
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks
+    );
+
+    header.render();
+
+    const hamburgerBtn = container.querySelector(
+      ".rss-dashboard-hamburger-button"
+    ) as HTMLElement;
+    hamburgerBtn.click();
+
+    const buttons = Array.from(
+      container.querySelectorAll(".rss-dashboard-mark-all-button")
+    ) as HTMLButtonElement[];
+
+    buttons[0].click();
+    buttons[1].click();
+
+    expect(mockCallbacks.onMarkAllAsRead).toHaveBeenCalledTimes(1);
+    expect(mockCallbacks.onMarkAllAsUnread).toHaveBeenCalledTimes(1);
   });
 
   it("emits batch updates when hamburger card layout controls change", () => {

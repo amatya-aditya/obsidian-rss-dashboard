@@ -616,6 +616,16 @@ export class ArticleList {
       "--rss-dashboard-card-gap",
       `${this.getCardSpacing()}px`,
     );
+  }
+
+  public refreshCardTagLayout(): void {
+    const articlesList = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-list.rss-dashboard-card-view",
+    );
+    if (!articlesList) {
+      return;
+    }
+
     this.scheduleCardTagLayout(articlesList);
   }
 

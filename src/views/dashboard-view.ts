@@ -34,6 +34,8 @@ import { computePagination } from "../utils/pagination-utils";
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
 export class RssDashboardView extends ItemView {
+  private static readonly CARD_LAYOUT_RELAYOUT_DELAY_MS = 90;
+  private static readonly CARD_LAYOUT_SAVE_DELAY_MS = 120;
   private settings: RssDashboardSettings;
   private saver: ArticleSaver;
   public currentFolder: string | null = null;
@@ -57,6 +59,7 @@ export class RssDashboardView extends ItemView {
   private dashboardMultiFiltersDirty = false;
   private dashboardMultiFiltersSaveTimeout: number | null = null;
   private cardLayoutSaveTimeout: number | null = null;
+  private cardLayoutRefreshTimeout: number | null = null;
   private headerTitleRefreshTimeout: number | null = null;
   private folderPages: Record<string, number> = {};
   private feedPages: Record<string, number> = {};
@@ -304,6 +307,7 @@ export class RssDashboardView extends ItemView {
     if (this.articleList) {
       this.articleList.destroy();
     }
+    this.clearCardLayoutRefreshTimeout();
 
     if (this.settings.sidebarCollapsed) {
       this.containerEl.addClass("sidebar-collapsed");
@@ -2285,6 +2289,8 @@ export class RssDashboardView extends ItemView {
       window.clearTimeout(this.dashboardMultiFiltersSaveTimeout);
       this.dashboardMultiFiltersSaveTimeout = null;
     }
+    this.clearCardLayoutRefreshTimeout();
+    this.clearCardLayoutSaveTimeout();
     if (this.dashboardMultiFiltersDirty) {
       this.dashboardMultiFiltersDirty = false;
       await this.plugin.saveSettings();
@@ -2544,7 +2550,10 @@ export class RssDashboardView extends ItemView {
         void this.render();
         return;
       }
-    } else if (filter.type === "card-spacing-live") {
+    } else if (
+      filter.type === "card-spacing-live" ||
+      filter.type === "card-spacing-commit"
+    ) {
       const nextCardSpacing = Math.max(
         0,
         Math.min(40, Math.round(Number(filter.value))),
@@ -2559,13 +2568,15 @@ export class RssDashboardView extends ItemView {
 
       this.articleList?.updateCardSpacingLayout(nextCardSpacing);
 
-      if (this.cardLayoutSaveTimeout !== null) {
-        window.clearTimeout(this.cardLayoutSaveTimeout);
-      }
-      this.cardLayoutSaveTimeout = window.setTimeout(() => {
-        this.cardLayoutSaveTimeout = null;
+      if (filter.type === "card-spacing-live") {
+        this.scheduleCardLayoutRefresh();
+        this.scheduleCardLayoutSave();
+      } else {
+        this.clearCardLayoutRefreshTimeout();
+        this.articleList?.refreshCardTagLayout();
+        this.clearCardLayoutSaveTimeout();
         void this.plugin.saveSettings();
-      }, 120);
+      }
       return;
     } else if (filter.type === "logic" && filter.logic) {
       this.filterLogic = filter.logic;
@@ -2713,6 +2724,36 @@ export class RssDashboardView extends ItemView {
       this.dashboardMultiFiltersDirty = false;
       void this.plugin.saveSettings();
     }, 150);
+  }
+
+  private scheduleCardLayoutRefresh(): void {
+    this.clearCardLayoutRefreshTimeout();
+    this.cardLayoutRefreshTimeout = window.setTimeout(() => {
+      this.cardLayoutRefreshTimeout = null;
+      this.articleList?.refreshCardTagLayout();
+    }, RssDashboardView.CARD_LAYOUT_RELAYOUT_DELAY_MS);
+  }
+
+  private clearCardLayoutRefreshTimeout(): void {
+    if (this.cardLayoutRefreshTimeout !== null) {
+      window.clearTimeout(this.cardLayoutRefreshTimeout);
+      this.cardLayoutRefreshTimeout = null;
+    }
+  }
+
+  private scheduleCardLayoutSave(): void {
+    this.clearCardLayoutSaveTimeout();
+    this.cardLayoutSaveTimeout = window.setTimeout(() => {
+      this.cardLayoutSaveTimeout = null;
+      void this.plugin.saveSettings();
+    }, RssDashboardView.CARD_LAYOUT_SAVE_DELAY_MS);
+  }
+
+  private clearCardLayoutSaveTimeout(): void {
+    if (this.cardLayoutSaveTimeout !== null) {
+      window.clearTimeout(this.cardLayoutSaveTimeout);
+      this.cardLayoutSaveTimeout = null;
+    }
   }
 
   private handleGroupChange(value: "none" | "feed" | "date" | "folder"): void {

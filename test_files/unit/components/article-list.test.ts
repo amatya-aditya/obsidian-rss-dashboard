@@ -319,6 +319,77 @@ describe("ArticleList Component", () => {
     });
   });
 
+  describe("Card Spacing Layout", () => {
+    it("updates the card gap variable without re-running tag layout on live spacing changes", () => {
+      settings.viewStyle = "card";
+      articles[0].tags = [{ name: "Tag1", color: "#8b5cf6" }] as any;
+
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR"
+      );
+
+      articleList.render();
+
+      const scheduleSpy = vi.spyOn(articleList as any, "scheduleCardTagLayout");
+
+      articleList.updateCardSpacingLayout(22);
+
+      const articlesList = container.querySelector(
+        ".rss-dashboard-articles-list.rss-dashboard-card-view"
+      ) as HTMLElement;
+      expect(
+        articlesList.style.getPropertyValue("--rss-dashboard-card-gap")
+      ).toBe("22px");
+      expect(scheduleSpy).not.toHaveBeenCalled();
+    });
+
+    it("refreshes visible card tag layout when explicitly requested", () => {
+      settings.viewStyle = "card";
+      articles[0].tags = [{ name: "Tag1", color: "#8b5cf6" }] as any;
+
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR"
+      );
+
+      articleList.render();
+
+      const scheduleSpy = vi.spyOn(articleList as any, "scheduleCardTagLayout");
+
+      articleList.refreshCardTagLayout();
+
+      const articlesList = container.querySelector(
+        ".rss-dashboard-articles-list.rss-dashboard-card-view"
+      ) as HTMLElement;
+      expect(scheduleSpy).toHaveBeenCalledWith(articlesList);
+    });
+  });
+
   describe("Feed View Rendering", () => {
     it("should render with rss-dashboard-feed-view class when viewStyle is feed", () => {
       settings.viewStyle = "feed";

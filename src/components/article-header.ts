@@ -2,7 +2,14 @@ import { setIcon } from "obsidian";
 import { RssDashboardSettings } from "../types/types";
 import { TABLET_LAYOUT_MAX_WIDTH } from "../utils/platform-utils";
 import { ArticleFilterMenu, FilterChangeEvent } from "./article-filter-menu";
+import { ArticleHeaderMenu } from "./article-header-menu";
 import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
+
+interface ArticleHeaderMenuController {
+  destroy(): void;
+  render(parent: HTMLElement): void;
+  setSearchQuery(query: string): void;
+}
 
 export interface ArticleHeaderCallbacks {
   onToggleSidebar: () => void;
@@ -43,12 +50,10 @@ export class ArticleHeader {
   private resizeObserver: ResizeObserver | null = null;
   private articleSearchQuery: string = "";
   private articleSearchDesktopInput: HTMLInputElement | null = null;
-  private articleSearchDropdownInput: HTMLInputElement | null = null;
+  private headerMenu: ArticleHeaderMenuController | null = null;
   private activePortal: HTMLElement | null = null;
   private activePortalToggleBtn: HTMLElement | null = null;
   private activePortalCleanup: (() => void) | null = null;
-  private dropdownMenu: HTMLElement | null = null;
-  private hamburgerBtn: HTMLElement | null = null;
   private documentListeners: Array<{
     target: Document | Window;
     type: string;
@@ -106,25 +111,16 @@ export class ArticleHeader {
 
   public destroy(): void {
     if (this.resizeObserver) this.resizeObserver.disconnect();
+    const headerMenu: ArticleHeaderMenuController | null = this.headerMenu;
+    if (headerMenu) {
+      (headerMenu as { destroy: () => void }).destroy();
+    }
+    this.headerMenu = null;
     this.closeActivePortal();
     this.documentListeners.forEach(({ target, type, listener }) =>
       target.removeEventListener(type, listener),
     );
     this.documentListeners = [];
-  }
-
-  private clampCardColumnsPerRow(value: number): number {
-    if (!Number.isFinite(value)) {
-      return 0;
-    }
-    return Math.max(0, Math.min(6, Math.round(value)));
-  }
-
-  private clampCardSpacing(value: number): number {
-    if (!Number.isFinite(value)) {
-      return 15;
-    }
-    return Math.max(0, Math.min(40, Math.round(value)));
   }
 
   private closeActivePortal(): void {
@@ -148,6 +144,10 @@ export class ArticleHeader {
    * proper Obsidian theme (Dark/Light mode) inheritance.
    */
   public render(): void {
+    if (this.headerMenu) {
+      this.headerMenu.destroy();
+    }
+    this.headerMenu = null;
     this.container.empty();
     const articlesHeader = this.container.createDiv({
       cls: "rss-dashboard-articles-header",
@@ -210,89 +210,36 @@ export class ArticleHeader {
       this.showFiltersMenu(mobileFilterBtn);
     });
 
-    const hamburgerMenu = rightSection.createDiv({
-      cls: "rss-dashboard-hamburger-menu",
-    });
-    const hamburgerBtn = hamburgerMenu.createDiv({
-      cls: "rss-dashboard-hamburger-button clickable-icon",
-      attr: { title: "Menu", role: "button", tabindex: "0" },
-    });
-    setIcon(hamburgerBtn, "menu");
-
-    const dropdownMenu = hamburgerMenu.createDiv({
-      cls: "rss-dashboard-dropdown-menu",
-    });
-    const dropdownControls = dropdownMenu.createDiv({
-      cls: "rss-dashboard-dropdown-controls",
-    });
-    this.createControls(dropdownControls, {
-      includeFilter: false,
-      isDropdown: true,
-    });
-
-    this.dropdownMenu = dropdownMenu;
-    this.hamburgerBtn = hamburgerBtn;
-
-    const closeHamburgerMenu = () => {
-      dropdownMenu.classList.remove("is-menu-open");
-      hamburgerBtn.classList.remove("is-menu-open");
-    };
-
-    hamburgerBtn.addEventListener(
-      "click",
-      (e: MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const isOpen = dropdownMenu.classList.contains("is-menu-open");
-        if (isOpen) {
-          closeHamburgerMenu();
-        } else {
-          this.closeActivePortal();
-          dropdownMenu.classList.add("is-menu-open");
-          hamburgerBtn.classList.add("is-menu-open");
-        }
+    const existingHeaderMenu: ArticleHeaderMenuController | null =
+      this.headerMenu;
+    if (existingHeaderMenu) {
+      (existingHeaderMenu as { destroy: () => void }).destroy();
+    }
+    this.headerMenu = new ArticleHeaderMenu(this.settings, this.articleSearchQuery, {
+      onSearch: (query) => {
+        this.syncSearch(query);
+        this.callbacks.onSearch(query);
       },
-      { capture: true },
-    );
+      onSortChange: (value) => this.callbacks.onSortChange(value),
+      onGroupChange: (value) => this.callbacks.onGroupChange(value),
+      onFilterChange: (event) => this.callbacks.onFilterChange(event),
+      onToggleViewStyle: (style) => this.callbacks.onToggleViewStyle(style),
+      onPersistSettings: () => this.callbacks.onPersistSettings(),
+      onRefreshFeeds: () => this.callbacks.onRefreshFeeds(),
+      onMarkAllAsRead: () => this.callbacks.onMarkAllAsRead(),
+      onMarkAllAsUnread: () => this.callbacks.onMarkAllAsUnread(),
+    });
+    this.headerMenu.render(rightSection);
 
     const desktopControls = rightSection.createDiv({
       cls: "rss-dashboard-desktop-controls",
     });
-    this.createControls(desktopControls, {
-      includeFilter: true,
-      isDropdown: false,
-    });
-
-    const handleDocPointerDown = (e: Event) => {
-      if (!dropdownMenu.classList.contains("is-menu-open")) return;
-
-      const target = e.target as Node;
-
-      // Ignore if clicking on hamburger button itself (toggle button should handle its own clicks)
-      if (hamburgerBtn.contains(target)) return;
-
-      // Also ignore if clicking inside the dropdown menu when it's open
-      if (
-        dropdownMenu.classList.contains("is-menu-open") &&
-        dropdownMenu.contains(target)
-      )
-        return;
-
-      // Close menu only if clicking outside hamburger menu AND not inside any active portal
-      if (
-        !hamburgerMenu.contains(target) &&
-        !this.activePortal?.contains(target)
-      ) {
-        closeHamburgerMenu();
-      }
-    };
-    this.addDocumentListener(document, "pointerdown", handleDocPointerDown);
+    this.createControls(desktopControls, { includeFilter: true });
   }
 
   private createControls(
     container: HTMLElement,
-    options: { includeFilter: boolean; isDropdown: boolean },
+    options: { includeFilter: boolean },
   ): void {
     const controls = container.createDiv({
       cls: "rss-dashboard-article-controls",
@@ -327,12 +274,12 @@ export class ArticleHeader {
         spellcheck: "false",
       },
     });
-    if (options.isDropdown) this.articleSearchDropdownInput = searchInput;
-    else this.articleSearchDesktopInput = searchInput;
+    searchInput.value = this.articleSearchQuery;
+    this.articleSearchDesktopInput = searchInput;
 
     searchInput.addEventListener("input", (e) => {
       const val = (e.target as HTMLInputElement).value;
-      this.syncSearch(val, options.isDropdown);
+      this.syncSearch(val);
       this.callbacks.onSearch(val);
     });
 
@@ -378,18 +325,7 @@ export class ArticleHeader {
     });
     this.createViewStyleSelector(viewStyleRow);
 
-    if (options.isDropdown) {
-      this.createRefreshButton(
-        viewStyleRow,
-        "rss-dashboard-view-refresh-button",
-      );
-    } else {
-      this.createRefreshButton(controls, "");
-    }
-
-    if (options.isDropdown && this.settings.viewStyle === "card") {
-      this.createDropdownCardLayoutControls(controls);
-    }
+    this.createRefreshButton(controls, "");
 
     const markAllRow = controls.createDiv({
       cls: "rss-dashboard-mark-all-row",
@@ -418,97 +354,6 @@ export class ArticleHeader {
       cls: "rss-dashboard-mark-all-text",
     });
     unreadBtn.onclick = () => this.callbacks.onMarkAllAsUnread();
-  }
-
-  private createDropdownCardLayoutControls(parent: HTMLElement): void {
-    const cardLayoutControls = parent.createDiv({
-      cls: "rss-dashboard-dropdown-card-layout-controls",
-    });
-
-    const cardsPerRowRow = cardLayoutControls.createDiv({
-      cls: "rss-dashboard-dropdown-card-layout-row",
-    });
-    cardsPerRowRow.createSpan({
-      cls: "rss-dashboard-dropdown-card-layout-label",
-      text: "Cards / row:",
-    });
-
-    const cardsPerRowTrigger = cardsPerRowRow.createDiv({
-      cls: "rss-dashboard-dropdown-card-layout-trigger rss-dashboard-themed-select-trigger rss-dashboard-dropdown-cards-per-row-trigger",
-      attr: { role: "button", tabindex: "0" },
-    });
-    const getCardsPerRowLabel = () => {
-      const currentValue = this.clampCardColumnsPerRow(
-        this.settings.display.cardColumnsPerRow ?? 0,
-      );
-      return currentValue === 0 ? "Auto" : String(currentValue);
-    };
-    cardsPerRowTrigger.createSpan({ text: getCardsPerRowLabel() });
-    setIcon(
-      cardsPerRowTrigger.createDiv({ cls: "rss-dashboard-selector-arrow" }),
-      "chevron-down",
-    );
-    cardsPerRowTrigger.onclick = (e) => {
-      e.stopPropagation();
-      this.showThemedMenu(
-        cardsPerRowTrigger,
-        [
-          ["Auto", "0"],
-          ["1", "1"],
-          ["2", "2"],
-          ["3", "3"],
-          ["4", "4"],
-          ["5", "5"],
-          ["6", "6"],
-        ],
-        String(
-          this.clampCardColumnsPerRow(
-            this.settings.display.cardColumnsPerRow ?? 0,
-          ),
-        ),
-        (val) => {
-          this.callbacks.onFilterChange({
-            type: "batch",
-            value: null,
-            batch: {
-              cardColumnsPerRow: this.clampCardColumnsPerRow(Number(val)),
-            },
-          });
-        },
-      );
-    };
-
-    const cardSpacingGroup = cardLayoutControls.createDiv({
-      cls: "rss-dashboard-dropdown-card-spacing-group",
-    });
-    const cardSpacingLabel = cardSpacingGroup.createDiv({
-      cls: "rss-dashboard-dropdown-card-layout-label",
-      text: `Card spacing: ${this.clampCardSpacing(
-        this.settings.display.cardSpacing ?? 15,
-      )}px`,
-    });
-    const cardSpacingInput = cardSpacingGroup.createEl("input", {
-      cls: "rss-dashboard-dropdown-card-spacing-input",
-      attr: {
-        type: "range",
-        min: "0",
-        max: "40",
-        step: "1",
-      },
-    });
-    cardSpacingInput.value = String(
-      this.clampCardSpacing(this.settings.display.cardSpacing ?? 15),
-    );
-    cardSpacingInput.addEventListener("click", (e) => e.stopPropagation());
-    cardSpacingInput.addEventListener("input", () => {
-      const nextValue = this.clampCardSpacing(Number(cardSpacingInput.value));
-      cardSpacingInput.value = String(nextValue);
-      cardSpacingLabel.setText(`Card spacing: ${nextValue}px`);
-      this.callbacks.onFilterChange({
-        type: "card-spacing-live",
-        value: nextValue,
-      });
-    });
   }
 
   /**
@@ -573,7 +418,9 @@ export class ArticleHeader {
     this.activePortalToggleBtn = trigger;
     trigger.addClass("active");
 
-    const entries = Array.isArray(options) ? options : Object.entries(options);
+    const entries: MenuOptionEntries = Array.isArray(options)
+      ? options
+      : Object.keys(options).map((label) => [label, options[label]]);
 
     entries.forEach(([label, value]) => {
       const item = portal.createDiv({ cls: "rss-dashboard-filter-menu-item" });
@@ -668,12 +515,14 @@ export class ArticleHeader {
     });
   }
 
-  private syncSearch(val: string, fromDropdown: boolean) {
+  private syncSearch(val: string) {
     this.articleSearchQuery = val;
-    if (fromDropdown && this.articleSearchDesktopInput)
+    if (this.articleSearchDesktopInput)
       this.articleSearchDesktopInput.value = val;
-    if (!fromDropdown && this.articleSearchDropdownInput)
-      this.articleSearchDropdownInput.value = val;
+    const headerMenu: ArticleHeaderMenuController | null = this.headerMenu;
+    if (headerMenu) {
+      (headerMenu as { setSearchQuery: (query: string) => void }).setSearchQuery(val);
+    }
   }
 
   private createRefreshButton(parent: HTMLElement, cls: string) {
