@@ -306,6 +306,14 @@
   font-size: 13px;
 }
 
+.rss-dashboard-filter-menu .rss-dashboard-tag-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--tag-color, var(--interactive-accent));
+  flex-shrink: 0;
+}
+
 .rss-dashboard-filter-menu-item.is-active {
   background-color: var(--background-modifier-hover);
   color: var(--interactive-accent);

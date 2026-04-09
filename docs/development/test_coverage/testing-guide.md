@@ -1,6 +1,6 @@
 # RSS Dashboard Testing Guide
 
-Last updated: 2026-04-01
+Last updated: 2026-04-07
 
 ## 1. Current Test Status
 
@@ -12,12 +12,12 @@ Last updated: 2026-04-01
 
 ### Current Baseline (closeout snapshot)
 
-- **Test Files:** 103
-- **Passing Tests:** 741 / 741 (100%)
-- **Statements:** 46.77% (7385/15789)
-- **Branches:** 37.32% (3386/9071)
-- **Functions:** 41.51% (1089/2623)
-- **Lines:** 47.66% (7137/14974)
+- **Test Files:** 110
+- **Passing Tests:** 820 / 820 (100%)
+- **Statements:** 51.72% (8494/16423)
+- **Branches:** 41.04% (3831/9334)
+- **Functions:** 46.12% (1275/2764)
+- **Lines:** 52.73% (8223/15593)
 - **Coverage Thresholds:** lines `40`, branches `33`, functions `34`
 
 _Note: Coverage is enforced via Vitest thresholds in `vitest.config.mjs` and should be treated as a ratcheted floor, not just a report._
@@ -25,7 +25,7 @@ _Note: Coverage is enforced via Vitest thresholds in `vitest.config.mjs` and sho
 ### Recent Milestones
 
 - **Phase 8 completed:** `web-viewer-integration.ts` reached strong coverage with dedicated harness-backed tests.
-- **Phase 9 completed:** `apple-podcasts-service.test.ts` was added and the suite is no longer blocked; the repo closeout baseline is now 103 passing test files and 741 passing tests.
+- **Latest verification refresh:** the repo baseline now stands at 110 passing test files and 820 passing tests.
 - **Closeout status:** active planning artifacts were reduced to the testing guide, the long-form improvement plan, and the final closeout checklist. Older phase handoffs were moved to `docs/development/test_coverage/archive/`.
 
 ## 2. Test-Driven Development (TDD)
