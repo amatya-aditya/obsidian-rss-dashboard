@@ -16,6 +16,8 @@ This document defines the UI design rules for the plugin so visual changes are c
 - Dashboard sidebar and header controls
 - Discover sidebar controls
 - Modal/mobile navigation surfaces
+- Common CTA, neutral, destructive, and icon-button patterns
+- Discover cards and filter control surfaces
 - Typography and hierarchy for interactive controls
 - Breakpoint behavior
 
@@ -36,6 +38,55 @@ If this spec conflicts with existing CSS, update CSS to match this spec unless t
 3. Theme-native color usage: prefer Obsidian variables over hardcoded values.
 4. Compact touch-safe layout: maintain tap targets without bloating vertical rhythm.
 5. Accessibility first: preserve visible focus states and readable contrast in dark/light themes.
+
+## Component Inventory
+
+Use this format when adding or updating governed surfaces:
+
+- Purpose
+- Canonical selector / owner
+- Visual hierarchy role
+- States
+- Breakpoint notes
+
+Current governed surfaces:
+
+- Dashboard primary navigation
+  - Canonical selector / owner: `.rss-dashboard-nav-button` in `src/styles/layout.css`
+  - Purpose: global top-level view switching and return navigation
+  - Visual hierarchy role: Tier 1 primary navigation
+- Discover secondary navigation
+  - Canonical selector / owner: `.rss-discover-sidebar-nav button` in `src/styles/discover.css` and `src/components/discover-sidebar.ts`
+  - Purpose: local content-mode switching inside Discover
+  - Visual hierarchy role: Tier 2 secondary navigation
+- Mobile modal headers and close affordances
+  - Canonical selector / owner: `.modal.rss-mobile-navigation-modal .rss-dashboard-header`, `.modal.rss-mobile-discover-filters-modal .rss-discover-header`, `.rss-dashboard-header-close-button` in `src/styles/modals.css`
+  - Purpose: mobile-specific top bar layout, safe-area ownership, dismiss action
+  - Visual hierarchy role: structural shell controls
+- Accent CTA buttons
+  - Canonical selector / owner: `.rss-dashboard-primary-button`, `.rss-discover-ok-button` in `src/styles/modals.css` and `src/styles/discover.css`
+  - Purpose: confirm, save, proceed, or commit actions
+  - Visual hierarchy role: primary action
+- Neutral buttons
+  - Canonical selector / owner: `.rss-discover-card-add-btn`, `.rss-discover-card-preview-btn` and other neutral action buttons in `src/styles/discover.css`
+  - Purpose: secondary actions that should not visually outrank primary CTAs
+  - Visual hierarchy role: supporting action
+- Destructive buttons
+  - Canonical selector / owner: `.rss-dashboard-danger-button`, `.rss-clear-filter-button`, `.rss-discover-card-remove-btn`
+  - Purpose: delete, clear, cancel-destructive, or unfollow/remove actions
+  - Visual hierarchy role: destructive action
+- Clickable-icon controls
+  - Canonical selector / owner: `.clickable-icon` pattern with component scope in `src/styles/modals.css`, `src/styles/sidebar.css`, and component/view owners
+  - Purpose: icon-only actions with keyboard parity
+  - Visual hierarchy role: compact utility action
+- Discover cards
+  - Canonical selector / owner: `.rss-discover-card` family in `src/styles/discover.css`
+  - Purpose: feed and Smallweb result presentation with metadata and actions
+  - Visual hierarchy role: content container
+- Discover filter controls
+  - Canonical selector / owner: `.rss-discover-filter-header`, `.rss-discover-filter-controls`, `.rss-discover-filter-container`
+  - Purpose: search, sort, filter, and bulk action grouping
+  - Visual hierarchy role: supportive control surface
 
 ## Navigation Hierarchy
 
@@ -94,7 +145,7 @@ Canonical selector:
 - Size contract:
   - At least one scale step smaller than primary tabs
 
-## Breakpoints and Behavior
+## Responsive Intent by Breakpoint
 
 - Desktop: `> 1200px`
 - Tablet and below: `<= 1200px`
@@ -107,6 +158,25 @@ Rules:
 3. Discover secondary tabs must keep tab semantics in both sidebar and modal.
 4. Any breakpoint-specific overrides for nav controls must be declared in one place per component and referenced here.
 5. Mobile sidebar modal header top spacing must be status-bar aware and may include platform-scoped overrides.
+
+### Desktop Intent
+
+- Keep sidebar-based layout for Discover filters and preserve simultaneous visibility of navigation + content.
+- Tier 1 and Tier 2 controls should read as distinct by both scale and fill treatment, not only position.
+- Card grids may expand horizontally, but card action rows must remain stable and legible.
+
+### Tablet Intent
+
+- Sidebar filters may collapse out of the main layout and be replaced by mobile/modal filter affordances.
+- Hierarchy must remain unchanged when controls stack or wrap.
+- Wrapped control groups are acceptable, but nav labels and key CTA labels should remain single-line.
+
+### Mobile Intent
+
+- Discover filters and some navigation affordances may move into modal shells.
+- Header spacing must be safe-area aware and platform-scoped where needed.
+- Primary nav and close affordances must remain easy to hit without oversized vertical chrome.
+- Content cards may stack to a single column, but card actions and labels should remain readable without text truncation regressions beyond existing intentional ellipsis patterns.
 
 ### Modal Header Inset Ownership
 
@@ -125,7 +195,50 @@ Preferred tokens:
 - `--text-muted`
 - `--text-on-accent`
 - `--background-primary`
+- `--background-secondary`
 - `--background-modifier-border`
+
+Most-used tokens in current stylesheet usage snapshot:
+
+- `--background-modifier-border`: default borders, dividers, and neutral outlines
+- `--text-normal`: primary body and control text
+- `--text-muted`: secondary text, helper copy, and subdued icon color
+- `--interactive-accent`: primary interactive accent for active states, pills, and CTA surfaces
+- `--background-secondary`: raised neutral surfaces such as cards, controls, and grouped rows
+- `--background-modifier-hover`: hover fill for neutral controls
+- `--background-primary`: base app surface and input backgrounds
+- `--text-on-accent`: high-contrast text/icon color on accent-filled surfaces
+- `--text-accent`: accent-colored text treatment without a filled background
+- `--color-accent`: theme accent used by nav tabs and some legacy/high-emphasis surfaces
+
+Accent button pairing rule:
+
+- When a button or tab uses `background: var(--color-accent)` or `background: var(--interactive-accent)`, pair it with `color: var(--text-on-accent)` unless there is a documented accessibility exception.
+- Example patterns in the codebase include `src/styles/layout.css` primary nav buttons and Discover accent buttons in `src/styles/discover.css`.
+
+## Token Mapping
+
+| Token | Intended purpose | Common usage examples | Avoid / non-goals |
+| --- | --- | --- | --- |
+| `--interactive-accent` | Default interactive accent fill and emphasis color | Primary CTA states, pills, active controls, focus-adjacent emphasis | Do not use as a neutral hover replacement for every control |
+| `--color-accent` | Theme accent for high-emphasis nav or legacy accent surfaces | Primary nav active fills, accent-forward tabs, established legacy surfaces | Do not introduce for new generic buttons when `--interactive-accent` fits |
+| `--text-on-accent` | Contrast-safe text/icon color on accent surfaces | Text and icons on `--interactive-accent` or `--color-accent` backgrounds | Do not use on neutral or transparent surfaces |
+| `--text-normal` | Primary readable text color | Headers, labels, body copy, neutral button text | Do not use to imply inactive or disabled states |
+| `--text-muted` | Secondary or lower-emphasis text/icon color | Metadata, helper text, inactive icons, secondary labels | Do not use when the control needs primary emphasis |
+| `--text-accent` | Accent-colored text without filled background | Links, active text-only treatments, underline-tab text emphasis | Do not substitute for filled CTA styling |
+| `--background-primary` | Base app and input background | Primary panes, inputs, modal bodies | Do not use when a raised neutral surface is intended |
+| `--background-secondary` | Raised neutral control/card background | Cards, grouped controls, secondary surfaces | Do not use to indicate active selection by itself |
+| `--background-modifier-border` | Neutral border and divider token | Dividers, outlines, subtle separators, skeleton fills | Do not use as a focus ring substitute |
+| `--background-modifier-hover` | Neutral hover surface treatment | Hover fill for neutral buttons and selectable rows | Do not use for selected-state persistence |
+| `--interactive-accent-hover` | Hover-state accent variant where needed | Accent CTA hover or stronger accent affordance | Do not add unless the component already distinguishes accent hover from accent rest |
+
+### Token Precedence
+
+1. Use `--interactive-accent` for standard interactive controls and active UI states.
+2. Use `--color-accent` for higher-emphasis nav or legacy accent surfaces that intentionally match theme accent styling.
+3. Use `--text-on-accent` as the default text/icon pairing for either accent fill.
+4. Prefer `--text-accent` for text-only emphasis and link-like affordances.
+5. Prefer neutral background and border tokens before introducing custom fills.
 
 Rules:
 
@@ -133,14 +246,45 @@ Rules:
 2. Hardcoded color values require a comment explaining why token usage is insufficient.
 3. Keep active vs hover distinctions consistent across components.
 
-## Spacing and Density
+## Interaction State Matrix
 
-Rules:
+| Control type | Default | Hover | Active / selected | Focus-visible | Disabled | Loading |
+| --- | --- | --- | --- | --- | --- | --- |
+| Primary nav buttons | Neutral or subdued fill with semibold label | May increase fill or border emphasis without outranking active peer | Filled accent surface with `--text-on-accent` | Visible outline using accent-compatible token | Reduced emphasis, no fake active fill | Preserve width; spinner/icon swaps must not shift layout noticeably |
+| Secondary tabs | Transparent, text-first tab styling | Text emphasis only, no full fill | Accent text plus underline indicator | Visible outline that does not erase underline semantics | Reduced contrast but still readable | Rare; avoid unless content mode switch truly waits on async state |
+| Neutral buttons | Neutral fill, border, `--text-normal` | `--background-modifier-hover` and optional accent border | May use subtle pressed or selected styling, but should not mimic CTA fill | Visible outline | Opacity and cursor changes without disappearing text | Preserve button label and width while showing progress if async |
+| Accent buttons | Accent fill plus `--text-on-accent` | Hover brightness or accent-hover refinement | Same family as hover; active state may darken slightly | Accent-compatible outline with clear separation from fill edge | Lower emphasis but keep contrast legible | Spinner allowed; keep text readable or reserve width |
+| Destructive buttons | Distinct destructive treatment with readable text | Stronger destructive hover, no ambiguity with neutral controls | Persistent destructive emphasis only when the state is truly destructive/armed | Visible outline maintained on destructive fills | Lower emphasis, no misleading active danger state | Preserve destructive intent while preventing duplicate actions |
+| Clickable-icon controls | Compact hit area with scoped icon rendering | Background or icon-color emphasis only | Optional selected state if the icon represents a toggle | Required keyboard-visible outline | Reduced opacity and no pointer affordance | Avoid swapping icon size; loading may use spin only if motion is necessary |
 
-1. Do not rely on dark strips to imply hierarchy.
-2. Use spacing + typography + state treatment to communicate importance.
-3. Avoid large top/bottom padding around tab rows unless required for touch targets.
-4. Keep section dividers subtle and singular.
+## Typography and Density
+
+### Typography
+
+- Section headers: `font-weight: 600`; use `--text-normal`; visually above control labels but below page titles.
+- Primary nav labels: semibold (`600`), tight line-height around `1.1`, one scale step above secondary tabs at the same breakpoint.
+- Secondary tab labels: medium inactive / semibold active, compact line-height around `1.0`.
+- Standard button labels: medium or semibold depending on emphasis; prefer `13px` to `16px` depending on surface density.
+- Helper and meta text: use smaller UI sizes and `--text-muted` unless stronger emphasis is required.
+
+### Density
+
+- Do not rely on dark strips to imply hierarchy.
+- Use spacing + typography + state treatment to communicate importance.
+- Compact control padding should usually stay within `6px 12px` to `8px 14px` unless a mobile touch target requires more.
+- Standard gaps inside grouped controls should generally stay in the `6px` to `12px` range.
+- Avoid large top/bottom padding around tab rows unless required for touch targets.
+- Keep section dividers subtle and singular.
+
+## Shape, Border, and Elevation
+
+- Rounded rectangles are the default control shape; avoid capsule styling unless a surface already establishes it.
+- Standard control and card radii should generally stay in the `4px` to `8px` range.
+- Default border weight is `1px` using `--background-modifier-border`.
+- Underlines or inset accents are preferred over filled surfaces for subordinate navigation such as secondary tabs.
+- Filled accent surfaces are preferred for primary actions and active Tier 1 navigation.
+- Shadows are optional and should be reserved for overlays, popups, menus, or hover-elevated cards where separation from the background is necessary.
+- Do not stack heavy border + shadow + saturated fill on the same control unless there is a clear hierarchy reason.
 
 ## Accessibility
 
@@ -150,6 +294,18 @@ Minimum expectations:
 2. Active/inactive states remain distinguishable without hover.
 3. Text remains single-line for nav labels (`white-space: nowrap`).
 4. Interaction targets remain usable on touch screens.
+5. Accent-filled controls must preserve readable contrast in both dark and light themes.
+6. Icon-only controls must maintain keyboard parity with standard buttons.
+7. New motion on interactive surfaces should respect reduced-motion expectations where animation meaningfully affects perception.
+
+### Explicit Accessibility Expectations
+
+- Minimum interactive hit area target is `32px`, and `40px` is preferred for mobile modal controls and icon buttons.
+- Focus-visible styling must remain visible against both neutral and accent-filled surfaces.
+- Do not communicate active, destructive, or disabled state with color alone when another signal is feasible.
+- Clickable icons must support `Enter` and `Space` activation.
+- If a loading state removes text or swaps icons, the control should retain a stable footprint and accessible labeling.
+- New non-essential animations should be short, restrained, and disable gracefully under reduced-motion preferences.
 
 ## Implementation Constraints
 
@@ -165,7 +321,8 @@ Minimum expectations:
 3. Are modal overrides aligned with non-modal behavior?
 4. Are only tokenized colors used (or justified exceptions documented)?
 5. Are focus-visible and contrast preserved?
-6. Is the change reflected in this spec if behavior or styling conventions changed?
+6. Are control states defined and consistent for the affected surface?
+7. Is the change reflected in this spec if behavior or styling conventions changed?
 
 ## Icon Rendering Standards
 
@@ -242,6 +399,13 @@ When a visual pattern changes:
 1. Update this spec in the same PR.
 2. Link affected selectors/files in PR notes.
 3. Include before/after screenshots for desktop + mobile modal where relevant.
+
+## Known Exceptions / Legacy Patterns
+
+- `--color-accent` remains an approved token for established high-emphasis nav surfaces and a small number of legacy accent-forward controls. Do not treat that as the default accent choice for all new buttons.
+- Some destructive controls still use hardcoded red values in Discover and adjacent surfaces. These are tolerated as legacy exceptions, but new destructive patterns should prefer documented destructive tokens when available or be explicitly justified.
+- Discover header nav buttons and related accent-forward controls intentionally inherit parts of the primary nav visual language. Reuse this pattern only when the control is acting as high-emphasis navigation, not as a generic action button.
+- Transitional legacy patterns may remain in place when replacing them immediately would create broad visual churn, but they should not be copied into new components without documenting the reason.
 
 ## Reader Format Control Ownership
 
