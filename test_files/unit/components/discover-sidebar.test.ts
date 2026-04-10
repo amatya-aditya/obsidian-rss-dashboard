@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { DiscoverSidebar } from "../../../src/components/discover-sidebar";
-import type { DiscoverFilters, FeedMetadata } from "../../../src/types/discover-types";
+import type {
+  DiscoverFilters,
+  FeedMetadata,
+} from "../../../src/types/discover-types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
@@ -33,7 +36,9 @@ function createFeed(overrides: Partial<FeedMetadata> = {}): FeedMetadata {
   };
 }
 
-function createFilters(overrides: Partial<DiscoverFilters> = {}): DiscoverFilters {
+function createFilters(
+  overrides: Partial<DiscoverFilters> = {},
+): DiscoverFilters {
   return {
     query: "",
     selectedTypes: [],
@@ -57,6 +62,7 @@ function setupSidebar(opts?: {
     onFilterChange: vi.fn(),
     onActivateView: vi.fn(),
     onActivateDiscoverView: vi.fn(),
+    onActivateSmallwebView: vi.fn(),
     onCloseMobileSidebar: opts?.onCloseMobileSidebar,
   };
 
@@ -88,14 +94,19 @@ describe("DiscoverSidebar", () => {
   it("renders nav and switches sections (types/categories/tags)", () => {
     const { container } = setupSidebar({
       activeSection: "types",
-      feeds: [createFeed({ type: "News" }), createFeed({ id: "f2", type: "Podcast" })],
+      feeds: [
+        createFeed({ type: "News" }),
+        createFeed({ id: "f2", type: "Podcast" }),
+      ],
     });
 
-    const nav = container.querySelector(".rss-discover-sidebar-nav") as HTMLElement;
+    const nav = container.querySelector(
+      ".rss-discover-sidebar-nav",
+    ) as HTMLElement;
     const getNavButton = (text: string) =>
-      Array.from(nav.querySelectorAll("button")).find((b) => b.textContent === text) as
-        | HTMLButtonElement
-        | undefined;
+      Array.from(nav.querySelectorAll("button")).find(
+        (b) => b.textContent === text,
+      ) as HTMLButtonElement | undefined;
 
     const typesBtn = getNavButton("Types")!;
     const categoriesBtn = getNavButton("Categories")!;
@@ -117,7 +128,9 @@ describe("DiscoverSidebar", () => {
     const filters = createFilters({ query: "initial" });
     const { container, callbacks } = setupSidebar({ filters });
 
-    const input = container.querySelector(".rss-discover-search-input") as HTMLInputElement;
+    const input = container.querySelector(
+      ".rss-discover-search-input",
+    ) as HTMLInputElement;
     expect(input.value).toBe("initial");
 
     input.value = "next";
@@ -125,20 +138,26 @@ describe("DiscoverSidebar", () => {
     expect(filters.query).toBe("next");
     expect(callbacks.onFilterChange).toHaveBeenCalledTimes(1);
 
-    const clearBtn = container.querySelector(".rss-test-clear-button") as HTMLButtonElement;
+    const clearBtn = container.querySelector(
+      ".rss-test-clear-button",
+    ) as HTMLButtonElement;
     expect(clearBtn).toBeTruthy();
     clearBtn.click();
     expect(filters.query).toBe("");
     expect(callbacks.onFilterChange).toHaveBeenCalledTimes(2);
   });
 
-  it("fires header callbacks (Return Home click/keyboard + mobile close conditional)", () => {
+  it("fires header callbacks for Return Home and Kagi Smallweb with click + keyboard parity", () => {
     const onCloseMobileSidebar = vi.fn();
     const { container, callbacks } = setupSidebar({ onCloseMobileSidebar });
 
-    const returnHome = container.querySelector(".rss-discover-return-home") as HTMLElement;
+    const returnHome = container.querySelector(
+      ".rss-discover-return-home",
+    ) as HTMLElement;
     expect(returnHome).toBeTruthy();
     expect(returnHome.dataset.icon).toBe("arrow-left");
+    expect(returnHome.getAttribute("role")).toBe("button");
+    expect(returnHome.getAttribute("tabindex")).toBe("0");
 
     returnHome.click();
     expect(callbacks.onActivateView).toHaveBeenCalledTimes(1);
@@ -146,7 +165,30 @@ describe("DiscoverSidebar", () => {
     returnHome.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
     expect(callbacks.onActivateView).toHaveBeenCalledTimes(2);
 
-    const closeBtn = container.querySelector(".rss-dashboard-header-close-button") as HTMLElement;
+    returnHome.dispatchEvent(new KeyboardEvent("keydown", { key: " " }));
+    expect(callbacks.onActivateView).toHaveBeenCalledTimes(3);
+
+    const smallweb = container.querySelector(
+      ".rss-discover-smallweb-button",
+    ) as HTMLElement;
+    expect(smallweb).toBeTruthy();
+    expect(smallweb.dataset.icon).toBe("sparkles");
+    expect(smallweb.textContent).toContain("Kagi");
+    expect(smallweb.getAttribute("role")).toBe("button");
+    expect(smallweb.getAttribute("tabindex")).toBe("0");
+
+    smallweb.click();
+    expect(callbacks.onActivateSmallwebView).toHaveBeenCalledTimes(1);
+
+    smallweb.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(callbacks.onActivateSmallwebView).toHaveBeenCalledTimes(2);
+
+    smallweb.dispatchEvent(new KeyboardEvent("keydown", { key: " " }));
+    expect(callbacks.onActivateSmallwebView).toHaveBeenCalledTimes(3);
+
+    const closeBtn = container.querySelector(
+      ".rss-dashboard-header-close-button",
+    ) as HTMLElement;
     expect(closeBtn).toBeTruthy();
     expect(closeBtn.dataset.icon).toBe("panel-left-close");
     closeBtn.click();
@@ -155,7 +197,9 @@ describe("DiscoverSidebar", () => {
     // When callback is absent, close button should not render.
     document.body.empty();
     const noClose = setupSidebar();
-    expect(noClose.container.querySelector(".rss-dashboard-header-close-button")).toBeFalsy();
+    expect(
+      noClose.container.querySelector(".rss-dashboard-header-close-button"),
+    ).toBeFalsy();
   });
 
   it("toggles type and tag selections and calls onFilterChange()", () => {
@@ -169,13 +213,19 @@ describe("DiscoverSidebar", () => {
       createFeed({ id: "e", type: "" as any, tags: [] }), // empty type should be skipped
     ];
 
-    const { container, callbacks } = setupSidebar({ filters, feeds, activeSection: "types" });
+    const { container, callbacks } = setupSidebar({
+      filters,
+      feeds,
+      activeSection: "types",
+    });
 
     const findTypeRow = (type: string) =>
-      Array.from(container.querySelectorAll(".rss-discover-type-item")).find((el) => {
-        const label = el.querySelector("label");
-        return label?.textContent === type;
-      }) as HTMLElement | undefined;
+      Array.from(container.querySelectorAll(".rss-discover-type-item")).find(
+        (el) => {
+          const label = el.querySelector("label");
+          return label?.textContent === type;
+        },
+      ) as HTMLElement | undefined;
 
     expect(findTypeRow("")).toBeFalsy();
 
@@ -198,18 +248,28 @@ describe("DiscoverSidebar", () => {
     expect(filters.selectedTypes).not.toContain("News");
 
     // Switch to Tags and toggle one
-    (Array.from(container.querySelectorAll(".rss-discover-sidebar-nav button")) as HTMLButtonElement[])
+    (
+      Array.from(
+        container.querySelectorAll(".rss-discover-sidebar-nav button"),
+      ) as HTMLButtonElement[]
+    )
       .find((b) => b.textContent === "Tags")!
       .click();
 
     const findTagRow = (tag: string) =>
-      Array.from(container.querySelectorAll(".rss-discover-tag-item")).find((el) => {
-        const label = el.querySelector("label");
-        return label?.textContent === tag;
-      }) as HTMLElement | undefined;
+      Array.from(container.querySelectorAll(".rss-discover-tag-item")).find(
+        (el) => {
+          const label = el.querySelector("label");
+          return label?.textContent === tag;
+        },
+      ) as HTMLElement | undefined;
 
-    const tagB = findTagRow("tag-b")!.querySelector('input[type="checkbox"]') as HTMLInputElement;
-    const tagA = findTagRow("tag-a")!.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const tagB = findTagRow("tag-b")!.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
+    const tagA = findTagRow("tag-a")!.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
 
     expect(tagB.checked).toBe(true);
     expect(tagA.checked).toBe(false);
@@ -226,7 +286,14 @@ describe("DiscoverSidebar", () => {
       selectedPaths: [{ domain: "Tech", subdomain: "AI" }],
     });
     const feeds = [
-      createFeed({ id: "u", domain: [], subdomain: [], area: [], topic: [], type: "News" }),
+      createFeed({
+        id: "u",
+        domain: [],
+        subdomain: [],
+        area: [],
+        topic: [],
+        type: "News",
+      }),
       createFeed({
         id: "t1",
         domain: ["Tech"],
@@ -237,19 +304,29 @@ describe("DiscoverSidebar", () => {
       }),
     ];
 
-    const { container, callbacks } = setupSidebar({ filters, feeds, activeSection: "categories" });
+    const { container, callbacks } = setupSidebar({
+      filters,
+      feeds,
+      activeSection: "categories",
+    });
 
     const findCategoryItem = (labelText: string) =>
-      Array.from(container.querySelectorAll(".rss-discover-category-item")).find((item) => {
+      Array.from(
+        container.querySelectorAll(".rss-discover-category-item"),
+      ).find((item) => {
         const label = item.querySelector(".rss-discover-category-main label");
         return label?.textContent === labelText;
       }) as HTMLElement | undefined;
 
     const techItem = findCategoryItem("Tech")!;
-    const techExpand = techItem.querySelector(".rss-discover-category-expand") as HTMLElement;
+    const techExpand = techItem.querySelector(
+      ".rss-discover-category-expand",
+    ) as HTMLElement;
     expect(techExpand.dataset.icon).toBe("chevron-right");
 
-    const techChildren = techItem.querySelector(".rss-discover-category-children") as HTMLElement;
+    const techChildren = techItem.querySelector(
+      ".rss-discover-category-children",
+    ) as HTMLElement;
     expect(techChildren.classList.contains("rss-collapsed")).toBe(true);
 
     techExpand.click();
@@ -261,7 +338,9 @@ describe("DiscoverSidebar", () => {
     expect(techExpand.dataset.icon).toBe("chevron-right");
 
     const aiItem = findCategoryItem("AI")!;
-    const aiCheckbox = aiItem.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const aiCheckbox = aiItem.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
     expect(aiCheckbox.checked).toBe(true);
 
     const uncategorizedItem = findCategoryItem("Uncategorized")!;
@@ -276,9 +355,10 @@ describe("DiscoverSidebar", () => {
 
     uncategorizedCheckbox.checked = false;
     uncategorizedCheckbox.dispatchEvent(new Event("change"));
-    expect(filters.selectedPaths).not.toContainEqual({ domain: "Uncategorized" });
+    expect(filters.selectedPaths).not.toContainEqual({
+      domain: "Uncategorized",
+    });
 
     expect(callbacks.onFilterChange).toHaveBeenCalled();
   });
 });
-

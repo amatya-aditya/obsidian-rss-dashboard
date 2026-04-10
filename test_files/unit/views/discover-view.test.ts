@@ -1,11 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App, WorkspaceLeaf } from "obsidian";
-import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
-import type { FeedMetadata, CategoryPath, DiscoverFilters } from "../../../src/types/discover-types";
+import {
+  DEFAULT_SETTINGS,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
+import type {
+  FeedMetadata,
+  CategoryPath,
+  DiscoverFilters,
+} from "../../../src/types/discover-types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { DiscoverSidebar } from "../../../src/components/discover-sidebar";
 
 const folderSelectorSpy = vi.hoisted(() => ({
-  calls: [] as Array<{ anchorEl: HTMLElement; onSelect: (folderName: string) => void; listOnly?: boolean; defaultFolder?: string }>,
+  calls: [] as Array<{
+    anchorEl: HTMLElement;
+    onSelect: (folderName: string) => void;
+    listOnly?: boolean;
+    defaultFolder?: string;
+  }>,
 }));
 
 const FEEDS_FIXTURE: FeedMetadata[] = [
@@ -98,20 +111,22 @@ async function createView(opts?: {
 
   const plugin = {
     settings,
-    ingestFeedsForBackgroundImport: vi.fn(async (feeds: Array<{ title: string; url: string; folder: string }>) => {
-      settings.feeds.push(
-        ...feeds.map((feed) => ({
-          ...feed,
-          items: [],
-          lastUpdated: Date.now(),
-        })),
-      );
-      return {
-        addedCount: feeds.length,
-        skippedCount: 0,
-        queuedFeeds: settings.feeds,
-      };
-    }),
+    ingestFeedsForBackgroundImport: vi.fn(
+      async (feeds: Array<{ title: string; url: string; folder: string }>) => {
+        settings.feeds.push(
+          ...feeds.map((feed) => ({
+            ...feed,
+            items: [],
+            lastUpdated: Date.now(),
+          })),
+        );
+        return {
+          addedCount: feeds.length,
+          skippedCount: 0,
+          queuedFeeds: settings.feeds,
+        };
+      },
+    ),
     ensureFolderExists: vi.fn(async () => undefined),
     saveSettings: vi.fn(async () => undefined),
     getActiveDashboardView: vi.fn(async () => null),
@@ -153,7 +168,9 @@ describe("DiscoverView (P1-3)", () => {
 
     const categoryMap = (view as any).categoryMap;
     expect(categoryMap).toBeTruthy();
-    expect(Object.keys(categoryMap.categories)).toEqual(expect.arrayContaining(["Technology", "World"]));
+    expect(Object.keys(categoryMap.categories)).toEqual(
+      expect.arrayContaining(["Technology", "World"]),
+    );
 
     const filtered = (view as any).filteredFeeds as FeedMetadata[];
     expect(filtered).toHaveLength(1);
@@ -161,7 +178,9 @@ describe("DiscoverView (P1-3)", () => {
   });
 
   it("filterFeeds() applies query, type, tag, path, and follow-status filters", async () => {
-    const { view } = await createView({ followedUrls: ["https://gamma.example.com/rss.xml"] });
+    const { view } = await createView({
+      followedUrls: ["https://gamma.example.com/rss.xml"],
+    });
 
     (view as any).feeds = FEEDS_FIXTURE;
     (view as any).filters = {
@@ -214,7 +233,10 @@ describe("DiscoverView (P1-3)", () => {
     } satisfies DiscoverFilters;
 
     (view as any).saveFilterState();
-    expect(spy).toHaveBeenCalledWith("rss-discover-filters", (view as any).filters);
+    expect(spy).toHaveBeenCalledWith(
+      "rss-discover-filters",
+      (view as any).filters,
+    );
   });
 
   it("renders an Add all... button next to the results count and opens the folder picker in list-only mode", async () => {
@@ -242,6 +264,36 @@ describe("DiscoverView (P1-3)", () => {
     expect(folderSelectorSpy.calls[0].anchorEl).toBe(addAllButton);
     expect(folderSelectorSpy.calls[0].listOnly).toBe(true);
     expect(folderSelectorSpy.calls[0].defaultFolder).toBe("Uncategorized");
+  });
+
+  it("renders desktop sidebar via the shared DiscoverSidebar and moves Smallweb into the sidebar header", async () => {
+    const sharedSidebarRenderSpy = vi.spyOn(
+      DiscoverSidebar.prototype,
+      "render",
+    );
+    const { plugin, view } = await createView();
+
+    (view as any).loadData();
+    view.render();
+
+    expect(sharedSidebarRenderSpy).toHaveBeenCalled();
+
+    const sidebar = view.containerEl.querySelector(
+      ".rss-discover-sidebar",
+    ) as HTMLElement;
+    const sidebarSmallweb = sidebar.querySelector(
+      ".rss-discover-smallweb-button",
+    ) as HTMLElement;
+    expect(sidebarSmallweb).toBeTruthy();
+    expect(sidebarSmallweb.textContent).toContain("Kagi");
+
+    const filterHeader = view.containerEl.querySelector(
+      ".rss-discover-filter-header-right",
+    ) as HTMLElement;
+    expect(filterHeader.textContent).not.toContain("Smallweb");
+
+    sidebarSmallweb.click();
+    expect(plugin.activateSmallwebView).toHaveBeenCalledTimes(1);
   });
 
   it("bulk add uses the full filtered feed set instead of only the current page", async () => {
@@ -397,4 +449,3 @@ describe("DiscoverView (P1-3)", () => {
     );
   });
 });
-

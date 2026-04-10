@@ -8,6 +8,7 @@ import {
 import { RssDashboardSettings, Feed } from "../types/types";
 import { FeedPreviewModal } from "../modals/feed-preview-modal";
 import { FolderSelectorPopup } from "../components/folder-selector-popup";
+import { DiscoverSidebar } from "../components/discover-sidebar";
 import { MobileDiscoverFiltersModal } from "../modals/mobile-discover-filters-modal";
 import type RssDashboardPlugin from "../../main";
 import {
@@ -474,9 +475,43 @@ export class DiscoverView extends ItemView {
   }
 
   private renderSidebar(container: HTMLElement): void {
-    container.empty();
-    this.renderSidebarHeader(container);
-    this.renderSidebarContent(container);
+    const sidebar = new DiscoverSidebar(
+      this.app,
+      container,
+      this.plugin,
+      this.filters,
+      this.feeds,
+      this.activeSidebarSection,
+      {
+        onFilterChange: () => {
+          this.handleSidebarFilterChange();
+        },
+        onActivateView: () => {
+          void this.plugin.activateView();
+        },
+        onActivateDiscoverView: () => {
+          void this.plugin.activateDiscoverView();
+        },
+        onActivateSmallwebView: () => {
+          void this.plugin.activateSmallwebView();
+        },
+      },
+    );
+
+    sidebar.render();
+  }
+
+  private handleSidebarFilterChange(): void {
+    this.currentPage = 1;
+    this.filterFeeds();
+    this.saveFilterState();
+
+    const contentEl = this.containerEl.querySelector(
+      ".rss-discover-content",
+    );
+    if (contentEl instanceof HTMLElement) {
+      this.renderContent(contentEl);
+    }
   }
 
   private renderSidebarContent(container: HTMLElement): void {
@@ -1054,6 +1089,7 @@ export class DiscoverView extends ItemView {
     smallwebBtn.addEventListener("click", () => {
       void this.plugin.activateSmallwebView();
     });
+    smallwebBtn.remove();
 
     const desktopFilterControls = rightSection.createDiv({
       cls: "rss-discover-filter-controls",
