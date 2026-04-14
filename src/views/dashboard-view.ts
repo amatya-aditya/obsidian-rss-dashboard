@@ -1586,53 +1586,7 @@ export class RssDashboardView extends ItemView {
     if (!article.read && this.settings.display.autoMarkReadOnOpen) {
       await this.updateArticleStatus(article, { read: true }, false);
     }
-
-    const readerLeaves =
-      this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
-    const results = await Promise.all(
-      readerLeaves.map(async (leaf) => {
-        if (requireApiVersion("1.7.2")) {
-          await leaf.loadIfDeferred();
-        }
-        if (leaf.view instanceof ReaderView) {
-          return leaf.view.isPodcastPlaying();
-        }
-        return false;
-      }),
-    );
-    const podcastPlaying = results.some((result) => result);
-
-    if (podcastPlaying) {
-      if (this.settings.media.openInSplitView) {
-        if (
-          this.articleReaderLeafWhilePodcast &&
-          this.app.workspace
-            .getLeavesOfType(RSS_READER_VIEW_TYPE)
-            .includes(this.articleReaderLeafWhilePodcast)
-        ) {
-          await this.openArticleInSpecificLeaf(
-            article,
-            this.articleReaderLeafWhilePodcast,
-          );
-        } else {
-          const newLeaf = await this.openArticleInNewTab(article);
-          this.articleReaderLeafWhilePodcast = newLeaf;
-        }
-      } else {
-        window.open(article.link, "_blank");
-      }
-    } else {
-      this.articleReaderLeafWhilePodcast = null;
-      if (this.settings.media.openInSplitView) {
-        if (readerLeaves.length > 0) {
-          await this.openArticleInSpecificLeaf(article, readerLeaves[0]);
-        } else {
-          await this.openArticleInNewTab(article);
-        }
-      } else {
-        window.open(article.link, "_blank");
-      }
-    }
+    await this.openArticleInConfiguredReaderLocation(article);
   }
 
   private async openArticleInNewTab(article: FeedItem): Promise<WorkspaceLeaf> {
@@ -2741,6 +2695,94 @@ export class RssDashboardView extends ItemView {
     }
   }
 
+  private getReaderViewLocation():
+    | "main"
+    | "right-sidebar"
+    | "left-sidebar" {
+    const location = this.settings.readerViewLocation;
+    if (location === "left-sidebar" || location === "right-sidebar") {
+      return location;
+    }
+    return "main";
+  }
+
+  private getConfiguredReaderLeaf(): WorkspaceLeaf | null {
+    const { workspace } = this.app;
+
+    switch (this.getReaderViewLocation()) {
+      case "left-sidebar":
+        return workspace.getLeftLeaf(false);
+      case "right-sidebar":
+        return workspace.getRightLeaf(false);
+      default:
+        return workspace.getLeaf(Platform.isMobile ? "tab" : "split");
+    }
+  }
+
+  private async getPodcastPlayingReaderLeaves(): Promise<WorkspaceLeaf[]> {
+    const readerLeaves = this.app.workspace.getLeavesOfType(
+      RSS_READER_VIEW_TYPE,
+    );
+    const playingLeaves = await Promise.all(
+      readerLeaves.map(async (leaf) => {
+        if (requireApiVersion("1.7.2")) {
+          await leaf.loadIfDeferred();
+        }
+        if (leaf.view instanceof ReaderView && leaf.view.isPodcastPlaying()) {
+          return leaf;
+        }
+        return null;
+      }),
+    );
+
+    return playingLeaves.filter((leaf): leaf is WorkspaceLeaf => leaf !== null);
+  }
+
+  private async openArticleInConfiguredReaderLocation(
+    article: FeedItem,
+  ): Promise<void> {
+    const readerLeaves = this.app.workspace.getLeavesOfType(
+      RSS_READER_VIEW_TYPE,
+    );
+    const podcastPlayingLeaves = await this.getPodcastPlayingReaderLeaves();
+    const targetLeaf = this.getConfiguredReaderLeaf();
+
+    if (podcastPlayingLeaves.length > 0) {
+      const reusablePodcastLeaf =
+        this.articleReaderLeafWhilePodcast &&
+        readerLeaves.includes(this.articleReaderLeafWhilePodcast)
+          ? this.articleReaderLeafWhilePodcast
+          : null;
+
+      if (
+        reusablePodcastLeaf &&
+        !podcastPlayingLeaves.includes(reusablePodcastLeaf)
+      ) {
+        await this.openArticleInSpecificLeaf(article, reusablePodcastLeaf);
+        return;
+      }
+
+      if (targetLeaf && !podcastPlayingLeaves.includes(targetLeaf)) {
+        this.articleReaderLeafWhilePodcast = targetLeaf;
+        await this.openArticleInSpecificLeaf(article, targetLeaf);
+        return;
+      }
+
+      const newLeaf = await this.openArticleInNewTab(article);
+      this.articleReaderLeafWhilePodcast = newLeaf;
+      return;
+    }
+
+    this.articleReaderLeafWhilePodcast = null;
+
+    if (targetLeaf) {
+      await this.openArticleInSpecificLeaf(article, targetLeaf);
+      return;
+    }
+
+    await this.openArticleInNewTab(article);
+  }
+
   private scheduleCardLayoutSave(): void {
     this.clearCardLayoutSaveTimeout();
     this.cardLayoutSaveTimeout = window.setTimeout(() => {
@@ -2984,53 +3026,7 @@ export class RssDashboardView extends ItemView {
     if (!article.read) {
       await this.updateArticleStatus(article, { read: true }, false);
     }
-
-    const readerLeaves =
-      this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
-    const results = await Promise.all(
-      readerLeaves.map(async (leaf) => {
-        if (requireApiVersion("1.7.2")) {
-          await leaf.loadIfDeferred();
-        }
-        if (leaf.view instanceof ReaderView) {
-          return leaf.view.isPodcastPlaying();
-        }
-        return false;
-      }),
-    );
-    const podcastPlaying = results.some((result) => result);
-
-    if (podcastPlaying) {
-      if (this.settings.media.openInSplitView) {
-        if (
-          this.articleReaderLeafWhilePodcast &&
-          this.app.workspace
-            .getLeavesOfType(RSS_READER_VIEW_TYPE)
-            .includes(this.articleReaderLeafWhilePodcast)
-        ) {
-          await this.openArticleInSpecificLeaf(
-            article,
-            this.articleReaderLeafWhilePodcast,
-          );
-        } else {
-          const newLeaf = await this.openArticleInNewTab(article);
-          this.articleReaderLeafWhilePodcast = newLeaf;
-        }
-      } else {
-        window.open(article.link, "_blank");
-      }
-    } else {
-      this.articleReaderLeafWhilePodcast = null;
-      if (this.settings.media.openInSplitView) {
-        if (readerLeaves.length > 0) {
-          await this.openArticleInSpecificLeaf(article, readerLeaves[0]);
-        } else {
-          await this.openArticleInNewTab(article);
-        }
-      } else {
-        window.open(article.link, "_blank");
-      }
-    }
+    await this.openArticleInConfiguredReaderLocation(article);
   }
 
   private verifySavedArticles(): void {

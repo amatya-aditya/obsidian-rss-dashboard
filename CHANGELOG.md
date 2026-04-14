@@ -4,9 +4,8 @@
   - Added a new "Add All" button to the Discover page header. This button adds all feeds from the current page to the user's feed list.
 
 - **Sort feeds by unread count**
-  - Added a new option to the 'Sort' icon which organizes feeds by unread count. 
+  - Added a new option to the 'Sort' icon which organizes feeds by unread count.
   - Two options: High to Low / Low to High
-
 
 ### Fixes
 
@@ -52,6 +51,8 @@
 - Auto-deleted items no longer reappearing as unread upon refresh (PR#87 submitted by emiraga)
 
 - Fixed fresh-install startup auto-refresh from showing a “Refreshing 0 feeds” toast or failing before the feed parser initializes.
+
+- Fixed Reader View Location So It Controls Article Opening into sidebars (GH[#100](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/100)
 
 ### Development
 
