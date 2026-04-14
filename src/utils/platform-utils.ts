@@ -118,6 +118,64 @@ export function setCssProps(
 export const PHONE_MAX_WIDTH = 768;
 export const TABLET_LAYOUT_MAX_WIDTH = 1200;
 
+/**
+ * Detect if the current platform is Android
+ * Uses user agent detection to identify Android devices
+ */
+export function isAndroid(): boolean {
+  if (typeof navigator === "undefined" || !navigator.userAgent) {
+    return false;
+  }
+  return /Android/i.test(navigator.userAgent);
+}
+
+/**
+ * Detect if running inside a WebView (embedded browser)
+ * Common in mobile apps that embed web content
+ */
+export function isWebView(): boolean {
+  if (typeof navigator === "undefined" || !navigator.userAgent) {
+    return false;
+  }
+  const ua = navigator.userAgent.toLowerCase();
+  // Check for common WebView indicators
+  // Android WebView
+  if (/wv|webview/i.test(ua) && isAndroid()) {
+    return true;
+  }
+  // iOS WKWebView
+  if (/(iphone|ipod|ipad).*applewebkit(?!.*safari)/i.test(ua)) {
+    return true;
+  }
+  // Generic WebView patterns
+  if (/webview/i.test(ua)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Get the current platform type for rendering decisions
+ */
+export type PlatformType = "android" | "ios" | "mobile" | "desktop";
+
+export function getPlatform(): PlatformType {
+  if (typeof navigator === "undefined" || !navigator.userAgent) {
+    return "desktop";
+  }
+  const ua = navigator.userAgent.toLowerCase();
+  if (/android/i.test(ua)) {
+    return "android";
+  }
+  if (/iphone|ipad|ipod/i.test(ua)) {
+    return "ios";
+  }
+  if (/mobile|android/i.test(ua)) {
+    return "mobile";
+  }
+  return "desktop";
+}
+
 export type ViewportTier = "phone" | "tablet" | "desktop";
 
 function getViewportWidth(viewportWidth?: number): number {
