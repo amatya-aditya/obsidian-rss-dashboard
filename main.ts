@@ -466,17 +466,7 @@ export default class RssDashboardPlugin extends Plugin {
       if (leaves.length > 0) {
         leaf = leaves[0];
       } else {
-        switch (this.settings.viewLocation) {
-          case "left-sidebar":
-            leaf = workspace.getLeftLeaf(false);
-            break;
-          case "right-sidebar":
-            leaf = workspace.getRightLeaf(false);
-            break;
-          default:
-            leaf = workspace.getLeaf("tab");
-            break;
-        }
+        leaf = workspace.getLeaf("tab");
       }
 
       if (leaf) {
@@ -501,17 +491,7 @@ export default class RssDashboardPlugin extends Plugin {
       if (leaves.length > 0) {
         leaf = leaves[0];
       } else {
-        switch (this.settings.viewLocation) {
-          case "left-sidebar":
-            leaf = workspace.getLeftLeaf(false);
-            break;
-          case "right-sidebar":
-            leaf = workspace.getRightLeaf(false);
-            break;
-          default:
-            leaf = workspace.getLeaf("tab");
-            break;
-        }
+        leaf = workspace.getLeaf("tab");
       }
 
       if (leaf) {

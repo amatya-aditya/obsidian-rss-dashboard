@@ -19,6 +19,8 @@
 
 - Fixed Reader View Location So It Controls Article Opening into sidebars (GH[#100](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/100))
 
+- Fixed Discover and Smallweb views incorrectly opening in the sidebar when Dashboard view location was set to a sidebar option; they now always open as a new tab in the main content area.
+
 ### Improvements
 
 - Optimized the feed refresh process to reduce unnecessary network requests.
