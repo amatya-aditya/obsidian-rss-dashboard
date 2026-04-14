@@ -11,6 +11,8 @@
 
 ### Fixes
 
+- Fixed badge color settings not syncing between color picker and hex input controls. Color picker now updates hex input immediately, and hex input now updates color picker after validation.
+
 - Fixed a bug where the Obsidian tab title was not properly updating when switching between feeds.
 
 - Multi-feed refreshes now run through a bounded worker pool of 4 with a 15s per-feed timeout, keep runtime-only refresh state per URL, merge refreshed feeds back into settings during the run, and finish with one save plus a final dashboard refresh. Single-feed refresh stays on the lightweight direct path. (Old behavior: all feeds were being refreshed individually with no indication of progress or completion)

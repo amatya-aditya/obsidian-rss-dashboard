@@ -939,6 +939,20 @@ export function renderDisplaySettingsTab(
     colorKey: keyof typeof plugin.settings.display,
     placeholder: string,
   ) => {
+    let isSyncingBadgeColor = false;
+    let badgeColorPicker: { setValue: (value: string) => void } | null = null;
+    let badgeColorInput: import("obsidian").TextComponent | null = null;
+
+    const applyBadgeColor = async (value: string): Promise<void> => {
+      (plugin.settings.display[colorKey] as string) = value;
+      await plugin.saveSettings();
+      const view = await plugin.getActiveDashboardView();
+      if (view?.sidebar) {
+        await plugin.app.workspace.revealLeaf(view.leaf);
+        view.sidebar.render();
+      }
+    };
+
     new Setting(containerEl)
       .setName(label)
       .setDesc("Enabled | color picker | hex input")
@@ -957,33 +971,31 @@ export function renderDisplaySettingsTab(
             }
           }),
       )
-      .addColorPicker((colorPicker) =>
+      .addColorPicker((colorPicker) => {
+        badgeColorPicker = colorPicker;
         colorPicker
           .setValue(plugin.settings.display[colorKey] as string)
           .onChange(async (value) => {
-            (plugin.settings.display[colorKey] as string) = value;
-            await plugin.saveSettings();
-            const view = await plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await plugin.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
-          }),
-      )
+            if (isSyncingBadgeColor) return;
+            isSyncingBadgeColor = true;
+            badgeColorInput?.setValue(value);
+            isSyncingBadgeColor = false;
+            await applyBadgeColor(value);
+          });
+      })
       .addText((text) => {
+        badgeColorInput = text;
         text
           .setPlaceholder(placeholder)
           .setValue(plugin.settings.display[colorKey] as string)
           .onChange(async (value) => {
+            if (isSyncingBadgeColor) return;
             const normalized = normalizeHexColor(value);
             if (!normalized) return;
-            (plugin.settings.display[colorKey] as string) = normalized;
-            await plugin.saveSettings();
-            const view = await plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await plugin.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
+            isSyncingBadgeColor = true;
+            badgeColorPicker?.setValue(normalized);
+            isSyncingBadgeColor = false;
+            await applyBadgeColor(normalized);
           });
         text.inputEl.addClass("rss-dashboard-color-hex-input");
       });
