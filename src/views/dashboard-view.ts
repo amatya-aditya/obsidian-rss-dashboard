@@ -23,6 +23,7 @@ import type {
 import { Sidebar } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { ArticleSaver } from "../services/article-saver";
+import { ArticleRenderer } from "../components/article-renderer";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
 import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
@@ -84,6 +85,8 @@ export class RssDashboardView extends ItemView {
   private isFilterSubheaderCollapsed = false;
   private mobileSidebarModal: MobileNavigationModal | null = null;
   private lastViewportMobileSidebarMode: boolean | null = null;
+  private inlineArticle: FeedItem | null = null;
+  private articleRenderer: ArticleRenderer | null = null;
 
   // ── Highlight match stats ─────────────────────────────────────────────────
   // Populated by computeHighlightMatchCounts() on every render cycle (before
@@ -138,6 +141,21 @@ export class RssDashboardView extends ItemView {
 
   // --- Render pipeline ---
   onOpen(): Promise<void> {
+    this.articleRenderer = new ArticleRenderer({
+      app: this.app,
+      settings: this.settings,
+      onArticleSave: (item) => {
+        item.saved = true;
+        void this.render();
+      },
+      onArticleUpdate: (item, updates, shouldRerender) => {
+        void this.updateArticleStatus(item, updates, shouldRerender);
+      },
+      onOpenSavedArticle: (file) => {
+        void this.app.workspace.getLeaf().openFile(file);
+      },
+    });
+
     this.registerEvent(
       this.app.vault.on("delete", (file) => {
         if (file instanceof TFile) {
@@ -355,6 +373,12 @@ export class RssDashboardView extends ItemView {
     // Must run after getFilteredArticles() so counts reflect the active view,
     // and before renderFilterSubheader() which reads this.highlightMatchCounts.
     this.computeHighlightMatchCounts(allFilteredArticles);
+
+    if (this.inlineArticle) {
+      this.renderInlineArticle(contentContainer);
+      return;
+    }
+
     this.renderToolbar(contentContainer);
     this.renderFilterSubheader(contentContainer);
 
@@ -1228,6 +1252,7 @@ export class RssDashboardView extends ItemView {
 
   // --- Sidebar navigation and selection ---
   private handleFolderClick(folder: string | null): void {
+    this.inlineArticle = null;
     let scrollPosition = 0;
     if (this.sidebarContainer) {
       const foldersSection = this.sidebarContainer.querySelector(
@@ -1270,6 +1295,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private handleFeedClick(feed: Feed): void {
+    this.inlineArticle = null;
     let scrollPosition = 0;
     if (this.sidebarContainer) {
       const foldersSection = this.sidebarContainer.querySelector(
@@ -1299,6 +1325,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private handleTagToggle(tag: string): void {
+    this.inlineArticle = null;
     if (this.selectedTags.includes(tag)) {
       this.selectedTags = this.selectedTags.filter((t) => t !== tag);
     } else {
@@ -2481,9 +2508,7 @@ export class RssDashboardView extends ItemView {
           0,
           Math.min(6, Math.round(b.cardColumnsPerRow)),
         );
-        if (
-          this.settings.display.cardColumnsPerRow !== nextCardColumnsPerRow
-        ) {
+        if (this.settings.display.cardColumnsPerRow !== nextCardColumnsPerRow) {
           this.settings.display.cardColumnsPerRow = nextCardColumnsPerRow;
           needsFullRender = true;
         }
@@ -2698,9 +2723,14 @@ export class RssDashboardView extends ItemView {
   private getReaderViewLocation():
     | "main"
     | "right-sidebar"
-    | "left-sidebar" {
+    | "left-sidebar"
+    | "inline" {
     const location = this.settings.readerViewLocation;
-    if (location === "left-sidebar" || location === "right-sidebar") {
+    if (
+      location === "left-sidebar" ||
+      location === "right-sidebar" ||
+      location === "inline"
+    ) {
       return location;
     }
     return "main";
@@ -2714,15 +2744,16 @@ export class RssDashboardView extends ItemView {
         return workspace.getLeftLeaf(false);
       case "right-sidebar":
         return workspace.getRightLeaf(false);
+      case "inline":
+        return null;
       default:
         return workspace.getLeaf(Platform.isMobile ? "tab" : "split");
     }
   }
 
   private async getPodcastPlayingReaderLeaves(): Promise<WorkspaceLeaf[]> {
-    const readerLeaves = this.app.workspace.getLeavesOfType(
-      RSS_READER_VIEW_TYPE,
-    );
+    const readerLeaves =
+      this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
     const playingLeaves = await Promise.all(
       readerLeaves.map(async (leaf) => {
         if (requireApiVersion("1.7.2")) {
@@ -2741,9 +2772,8 @@ export class RssDashboardView extends ItemView {
   private async openArticleInConfiguredReaderLocation(
     article: FeedItem,
   ): Promise<void> {
-    const readerLeaves = this.app.workspace.getLeavesOfType(
-      RSS_READER_VIEW_TYPE,
-    );
+    const readerLeaves =
+      this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
     const podcastPlayingLeaves = await this.getPodcastPlayingReaderLeaves();
     const targetLeaf = this.getConfiguredReaderLeaf();
 
@@ -2775,12 +2805,47 @@ export class RssDashboardView extends ItemView {
 
     this.articleReaderLeafWhilePodcast = null;
 
+    if (this.settings.readerViewLocation === "inline") {
+      this.inlineArticle = article;
+      void this.render();
+      return;
+    }
+
     if (targetLeaf) {
       await this.openArticleInSpecificLeaf(article, targetLeaf);
       return;
     }
 
     await this.openArticleInNewTab(article);
+  }
+
+  private renderInlineArticle(container: HTMLElement): void {
+    const header = container.createDiv({
+      cls: "rss-reader-header inline-reader-header",
+    });
+    const backButton = header.createDiv({
+      cls: "rss-reader-back-button clickable-icon",
+      attr: { title: "Back to dashboard", "aria-label": "Back to dashboard" },
+    });
+    setIcon(backButton, "arrow-left");
+    backButton.addEventListener("click", () => {
+      this.inlineArticle = null;
+      void this.render();
+    });
+
+    header.createDiv({
+      cls: "rss-reader-title",
+      text: this.inlineArticle?.title || "Article",
+    });
+
+    const body = container.createDiv({
+      cls: "rss-reader-content inline-reader-content",
+    });
+
+    if (this.articleRenderer && this.inlineArticle) {
+      const related = this.getRelatedItems(this.inlineArticle);
+      void this.articleRenderer.render(body, this.inlineArticle, related);
+    }
   }
 
   private scheduleCardLayoutSave(): void {

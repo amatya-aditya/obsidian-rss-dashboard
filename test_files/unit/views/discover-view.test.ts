@@ -93,7 +93,7 @@ async function createView(opts?: {
   savedFilters?: Partial<DiscoverFilters> | null;
   followedUrls?: string[];
 }) {
-  const app = App.createMock();
+  const app = new App();
   if (opts?.savedFilters) {
     app.saveLocalStorage("rss-discover-filters", opts.savedFilters);
   }
@@ -133,7 +133,8 @@ async function createView(opts?: {
     activateSmallwebView: vi.fn(async () => undefined),
     activateView: vi.fn(async () => undefined),
   } as any;
-  const leaf = new WorkspaceLeaf(app);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const leaf = new (WorkspaceLeaf as any)(app);
 
   const mod = await import("../../../src/views/discover-view");
   const view = new mod.DiscoverView(leaf as any, plugin);

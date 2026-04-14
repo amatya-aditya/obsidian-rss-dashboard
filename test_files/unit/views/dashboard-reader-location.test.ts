@@ -78,6 +78,12 @@ vi.mock("../../../src/views/reader-view", () => ({
   RSS_READER_VIEW_TYPE: "rss-reader-view",
 }));
 
+type MockReaderView = {
+  setReturnLeaf: ReturnType<typeof vi.fn>;
+  displayItem: ReturnType<typeof vi.fn>;
+  isPodcastPlaying: ReturnType<typeof vi.fn>;
+};
+
 vi.mock("../../../src/services/article-saver", () => ({
   ArticleSaver: class ArticleSaverMock {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -114,12 +120,6 @@ function makeFeed(url: string, items: Partial<FeedItem>[] = []): Feed {
   };
 }
 
-type MockReaderView = InstanceType<typeof ReaderView> & {
-  setReturnLeaf: ReturnType<typeof vi.fn>;
-  displayItem: ReturnType<typeof vi.fn>;
-  isPodcastPlaying: ReturnType<typeof vi.fn>;
-};
-
 type MockLeaf = {
   id: string;
   app: App;
@@ -129,11 +129,9 @@ type MockLeaf = {
 };
 
 function createReaderLeaf(app: App, id: string): MockLeaf {
-  const view = new ReaderView() as MockReaderView;
-  view.setReturnLeaf = vi.fn();
-  view.displayItem = vi.fn(async () => {});
-  view.isPodcastPlaying = vi.fn(() => false);
-
+  // Cast through unknown to bypass constructor argument requirements —
+  // at runtime ReaderView is the zero-arg mock class registered above.
+  const view = new (ReaderView as unknown as new () => MockReaderView)();
   return {
     id,
     app,
@@ -145,9 +143,11 @@ function createReaderLeaf(app: App, id: string): MockLeaf {
 
 async function createDashboardView(
   settings: RssDashboardSettings,
-  workspaceOverrides: Partial<App["workspace"]> = {},
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  workspaceOverrides: Record<string, any> = {},
 ) {
-  const { RssDashboardView } = await import("../../../src/views/dashboard-view");
+  const { RssDashboardView } =
+    await import("../../../src/views/dashboard-view");
   const app = new App();
   Object.assign(app.workspace, workspaceOverrides);
 
@@ -186,9 +186,11 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await view.handleArticleClick(feed.items[0]);
+    await (view as any).handleArticleClick(feed.items[0]);
 
-    expect((view.app.workspace.getLeaf as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith("split");
+    expect(
+      view.app.workspace.getLeaf as ReturnType<typeof vi.fn>,
+    ).toHaveBeenCalledWith("split");
     expect(mainLeaf.setViewState).toHaveBeenCalledWith({
       type: "rss-reader-view",
       active: true,
@@ -204,7 +206,9 @@ describe("Dashboard reader location", () => {
     settings.readerViewLocation = "right-sidebar";
     settings.media.openInSplitView = false;
     const rightLeaf = createReaderLeaf(new App(), "right");
-    const windowOpenSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const windowOpenSpy = vi
+      .spyOn(window, "open")
+      .mockImplementation(() => null);
     const { view } = await createDashboardView(settings, {
       getLeavesOfType: vi.fn(() => []),
       getLeaf: vi.fn(),
@@ -213,9 +217,11 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await view.handleArticleClick(feed.items[0]);
+    await (view as any).handleArticleClick(feed.items[0]);
 
-    expect((view.app.workspace.getRightLeaf as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(false);
+    expect(
+      view.app.workspace.getRightLeaf as ReturnType<typeof vi.fn>,
+    ).toHaveBeenCalledWith(false);
     expect(rightLeaf.setViewState).toHaveBeenCalledWith({
       type: "rss-reader-view",
       active: true,
@@ -238,9 +244,11 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await view.handleArticleClick(feed.items[0]);
+    await (view as any).handleArticleClick(feed.items[0]);
 
-    expect((view.app.workspace.getLeftLeaf as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(false);
+    expect(
+      view.app.workspace.getLeftLeaf as ReturnType<typeof vi.fn>,
+    ).toHaveBeenCalledWith(false);
     expect(leftLeaf.setViewState).toHaveBeenCalledWith({
       type: "rss-reader-view",
       active: true,
@@ -262,7 +270,7 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await view.handleArticleClick(feed.items[0]);
+    await (view as any).handleArticleClick(feed.items[0]);
 
     expect(rightLeaf.setViewState).toHaveBeenCalledTimes(1);
     expect(leftLeaf.setViewState).not.toHaveBeenCalled();
@@ -282,9 +290,11 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await view.handleOpenInReaderView(feed.items[0]);
+    await (view as any).handleOpenInReaderView(feed.items[0]);
 
-    expect((view.app.workspace.getRightLeaf as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(false);
+    expect(
+      view.app.workspace.getRightLeaf as ReturnType<typeof vi.fn>,
+    ).toHaveBeenCalledWith(false);
     expect(rightLeaf.setViewState).toHaveBeenCalledTimes(1);
   });
 
@@ -295,7 +305,9 @@ describe("Dashboard reader location", () => {
     settings.readerViewLocation = "left-sidebar";
     settings.media.openInSplitView = false;
     const leftLeaf = createReaderLeaf(new App(), "left");
-    const windowOpenSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const windowOpenSpy = vi
+      .spyOn(window, "open")
+      .mockImplementation(() => null);
     const { view } = await createDashboardView(settings, {
       getLeavesOfType: vi.fn(() => []),
       getLeaf: vi.fn(),
@@ -304,7 +316,7 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await view.handleOpenInReaderView(feed.items[0]);
+    await (view as any).handleOpenInReaderView(feed.items[0]);
 
     expect(leftLeaf.setViewState).toHaveBeenCalledTimes(1);
     expect(windowOpenSpy).not.toHaveBeenCalled();
@@ -313,7 +325,9 @@ describe("Dashboard reader location", () => {
 
   it("keeps podcast-active opens in the configured sidebar target", async () => {
     const settings = cloneSettings();
-    const feed = makeFeed("https://example.com/feed", [{ mediaType: "podcast" }]);
+    const feed = makeFeed("https://example.com/feed", [
+      { mediaType: "podcast" },
+    ]);
     settings.feeds = [feed];
     settings.readerViewLocation = "right-sidebar";
     const existingReaderLeaf = createReaderLeaf(new App(), "existing");
@@ -327,9 +341,78 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await view.handleArticleClick(feed.items[0]);
+    await (view as any).handleArticleClick(feed.items[0]);
 
     expect(rightLeaf.setViewState).toHaveBeenCalledTimes(1);
     expect(existingReaderLeaf.setViewState).not.toHaveBeenCalled();
+  });
+
+  it("does not open a reader leaf and renders inline when readerViewLocation is inline", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    settings.readerViewLocation = "inline";
+    const mainLeaf = createReaderLeaf(new App(), "main");
+    const { view } = await createDashboardView(settings, {
+      getLeavesOfType: vi.fn(() => []),
+      getLeaf: vi.fn(() => mainLeaf),
+      getLeftLeaf: vi.fn(),
+      getRightLeaf: vi.fn(),
+      revealLeaf: vi.fn(async () => {}),
+    });
+
+    await (view as any).handleArticleClick(feed.items[0]);
+
+    // Should NOT open any leaf
+    expect(
+      view.app.workspace.getLeaf as ReturnType<typeof vi.fn>,
+    ).not.toHaveBeenCalled();
+    expect(
+      view.app.workspace.getRightLeaf as ReturnType<typeof vi.fn>,
+    ).not.toHaveBeenCalled();
+    expect(
+      view.app.workspace.getLeftLeaf as ReturnType<typeof vi.fn>,
+    ).not.toHaveBeenCalled();
+
+    // Check state and re-render was triggered
+    expect((view as any).inlineArticle).toBe(feed.items[0]);
+    expect(view.render).toHaveBeenCalled();
+  });
+
+  it("uses inline mode for explicit open-in-reader actions too", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    settings.readerViewLocation = "inline";
+    const mainLeaf = createReaderLeaf(new App(), "main");
+    const { view } = await createDashboardView(settings, {
+      getLeavesOfType: vi.fn(() => []),
+      getLeaf: vi.fn(() => mainLeaf),
+      getLeftLeaf: vi.fn(),
+      getRightLeaf: vi.fn(),
+      revealLeaf: vi.fn(async () => {}),
+    });
+
+    await (view as any).handleOpenInReaderView(feed.items[0]);
+
+    expect((view as any).inlineArticle).toBe(feed.items[0]);
+    expect(view.render).toHaveBeenCalled();
+  });
+
+  it("exits inline mode when a feed is clicked in the sidebar", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    settings.readerViewLocation = "inline";
+    const { view } = await createDashboardView(settings);
+
+    (view as any).inlineArticle = feed.items[0];
+
+    // Trigger sidebar navigation (same as handleFeedClick)
+    await (view as any).handleFeedClick(feed);
+
+    // Should clear inline article and render regular list
+    expect((view as any).inlineArticle).toBe(null);
+    expect(view.render).toHaveBeenCalled();
   });
 });

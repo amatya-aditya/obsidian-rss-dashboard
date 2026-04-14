@@ -88,6 +88,7 @@ export function renderGeneralSettingsTab(
         .addOption("main", "Main view (split)")
         .addOption("right-sidebar", "Right sidebar")
         .addOption("left-sidebar", "Left sidebar")
+        .addOption("inline", "Inline (inside dashboard)")
         .setValue(plugin.settings.readerViewLocation || "main")
         .onChange(async (value: string) => {
           plugin.settings.readerViewLocation =
