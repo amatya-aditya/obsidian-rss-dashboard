@@ -1033,7 +1033,11 @@ export default class RssDashboardPlugin extends Plugin {
       ) {
         const view = await this.getActiveDashboardView();
         if (view) {
-          view.render();
+          if (typeof view.refreshSidebarOnly === "function") {
+            view.refreshSidebarOnly();
+          } else {
+            view.render();
+          }
         }
       }
     }

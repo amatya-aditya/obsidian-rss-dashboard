@@ -77,6 +77,7 @@ describe("background import orchestration", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
     document.body.empty();
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -122,9 +123,11 @@ describe("background import orchestration", () => {
   it("times out a stalled feed without blocking the rest of the queue and refreshes once at completion", async () => {
     vi.useFakeTimers();
     const plugin = createPlugin();
-    const refreshSpy = vi.fn();
+    const renderSpy = vi.fn();
+    const sidebarOnlySpy = vi.fn();
     plugin.getActiveDashboardView = vi.fn().mockResolvedValue({
-      render: refreshSpy,
+      render: renderSpy,
+      refreshSidebarOnly: sidebarOnlySpy,
     } as any);
 
     mockParseFeed.mockImplementation((url: string) => {
@@ -150,7 +153,50 @@ describe("background import orchestration", () => {
     await Promise.resolve();
 
     expect(plugin.saveData).toHaveBeenCalled();
-    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    // The single final render at completion must be a full render
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+    // No mid-import full renders; sidebar-only path used for progress
+    expect(sidebarOnlySpy).not.toHaveBeenCalled();
     expect((plugin as any).isBackgroundImporting).toBe(false);
+  });
+
+  it("uses refreshSidebarOnly for mid-import progress renders and render() only once at completion", async () => {
+    const plugin = createPlugin();
+    const renderSpy = vi.fn();
+    const sidebarOnlySpy = vi.fn();
+    plugin.getActiveDashboardView = vi.fn().mockResolvedValue({
+      render: renderSpy,
+      refreshSidebarOnly: sidebarOnlySpy,
+    } as any);
+
+    // 5 feeds: renderEvery=3 for counts < 1000, so one mid-import sidebar
+    // refresh fires after feed 3, and render() fires once at completion.
+    const feeds = Array.from({ length: 5 }, (_, i) =>
+      createPlaceholderFeed(`https://example.com/${i}.xml`),
+    );
+    plugin.settings.feeds = [...feeds];
+
+    mockParseFeed.mockImplementation((url: string) =>
+      Promise.resolve({
+        ...createPlaceholderFeed(url),
+        title: `Parsed ${url}`,
+        items: [],
+      }),
+    );
+
+    plugin.startBackgroundImport(feeds);
+
+    // Wait for the fire-and-forget import to fully complete
+    await vi.waitFor(
+      () => {
+        expect((plugin as any).isBackgroundImporting).toBe(false);
+      },
+      { timeout: 3000 },
+    );
+
+    // Mid-import progress renders must use refreshSidebarOnly, not render()
+    expect(sidebarOnlySpy.mock.calls.length).toBeGreaterThanOrEqual(1);
+    // The final completion render must be exactly one full render
+    expect(renderSpy).toHaveBeenCalledTimes(1);
   });
 });
