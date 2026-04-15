@@ -64,8 +64,49 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     expect(articleEl?.classList.contains("unstarred")).toBe(false);
 
     expect(readToggle?.getAttribute("title")).toBe("Mark as unread");
-    expect(saveToggle?.getAttribute("title")).toBe("Click to open saved article");
+    expect(saveToggle?.getAttribute("title")).toBe(
+      "Click to open saved article",
+    );
     expect(starToggle?.getAttribute("title")).toBe("Remove from starred items");
+
+    h.cleanup();
+  });
+
+  it("syncVisibleArticlesFromSource should refresh tag colors for cloned visible articles", () => {
+    const visibleArticle = buildArticle({
+      guid: "1",
+      title: "One",
+      tags: [{ name: "tag1", color: "#000000" }],
+    });
+    const backingArticle = buildArticle({
+      guid: "1",
+      title: "One",
+      tags: [{ name: "tag1", color: "#ff0000" }],
+    });
+
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "card",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: [visibleArticle],
+    });
+    h.list.render();
+
+    const articleEl = h.getArticleEl("1");
+    const tagEl = articleEl?.querySelector<HTMLElement>(
+      ".rss-dashboard-article-tag",
+    );
+    expect(tagEl?.style.getPropertyValue("--tag-color")).toBe("#000000");
+
+    h.list.syncVisibleArticlesFromSource(() => backingArticle);
+    h.list.refreshVisibleArticleTags();
+
+    const updatedTagEl = h
+      .getArticleEl("1")
+      ?.querySelector<HTMLElement>(".rss-dashboard-article-tag");
+    expect(updatedTagEl?.style.getPropertyValue("--tag-color")).toBe("#ff0000");
 
     h.cleanup();
   });
@@ -260,7 +301,11 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     expect(btn).not.toBeNull();
     btn?.click();
 
-    expect(h.articles.map((article) => article.read)).toEqual([true, true, true]);
+    expect(h.articles.map((article) => article.read)).toEqual([
+      true,
+      true,
+      true,
+    ]);
     expect((h.callbacks as any).onPersistSettings).toHaveBeenCalledTimes(1);
     expect(h.getArticleEl("1")?.classList.contains("read")).toBe(true);
     expect(h.getArticleEl("2")?.classList.contains("read")).toBe(true);

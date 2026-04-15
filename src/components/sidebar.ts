@@ -2064,6 +2064,7 @@ export class Sidebar {
       tag,
       onSave: async () => {
         await this.plugin.saveSettings();
+        await this.plugin.refreshOpenTagColorViews();
         this.app.workspace.trigger("rss-dashboard:tags-mutated");
         this.render();
       },

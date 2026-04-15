@@ -228,9 +228,27 @@ export class ArticleList {
     return "minimal";
   }
 
-  private refreshVisibleArticleTags(): void {
+  public refreshVisibleArticleTags(): void {
     this.articles.forEach((article) => {
       this.updateArticleInPlace(article);
+    });
+  }
+
+  public syncVisibleArticlesFromSource(
+    resolveSourceArticle: (article: FeedItem) => FeedItem | null,
+  ): void {
+    this.articles.forEach((article, index) => {
+      const sourceArticle = resolveSourceArticle(article);
+      if (!sourceArticle) {
+        return;
+      }
+
+      Object.assign(article, sourceArticle, {
+        feedTitle: article.feedTitle,
+        feedUrl: article.feedUrl,
+      });
+      article.tags = sourceArticle.tags?.map((tag) => ({ ...tag })) ?? [];
+      this.articles[index] = article;
     });
   }
 

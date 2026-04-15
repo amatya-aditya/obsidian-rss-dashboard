@@ -452,6 +452,7 @@ export class RssDashboardView extends ItemView {
           void this.plugin.openTagsSettings();
         },
         onTagsMutated: () => {
+          void this.plugin.refreshOpenTagColorViews();
           this.app.workspace.trigger("rss-dashboard:tags-mutated");
         },
         onPersistSettings: async () => {
@@ -1811,6 +1812,13 @@ export class RssDashboardView extends ItemView {
   public setSelectedArticleFromExternal(article: FeedItem): void {
     this.selectedArticle = article;
     this.articleList?.setSelectedArticle(article);
+  }
+
+  public refreshTagColors(): void {
+    this.articleList?.syncVisibleArticlesFromSource((article) =>
+      this.findBackingArticleForDisplayItem(article),
+    );
+    this.articleList?.refreshVisibleArticleTags();
   }
 
   private syncArticleListAfterUpdate(article: FeedItem): void {

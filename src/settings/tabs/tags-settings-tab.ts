@@ -7,6 +7,7 @@
  */
 import { Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
+import { updateTagInSettings } from "../../utils/tag-utils";
 
 export function renderTagsSettingsTab(
   containerEl: HTMLElement,
@@ -24,13 +25,10 @@ export function renderTagsSettingsTab(
       .setName(tag.name)
       .addColorPicker((colorPicker) =>
         colorPicker.setValue(tag.color).onChange(async (value) => {
-          plugin.settings.availableTags[i].color = value;
+          updateTagInSettings(plugin.settings, tag, { color: value });
           await plugin.saveSettings();
-          const view = await plugin.getActiveDashboardView();
-          if (view) {
-            await plugin.app.workspace.revealLeaf(view.leaf);
-            view.render();
-          }
+          await plugin.refreshOpenTagColorViews();
+          plugin.app.workspace.trigger("rss-dashboard:tags-mutated");
         }),
       )
       .addButton((button) =>

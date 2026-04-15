@@ -308,83 +308,79 @@ export class ReaderView extends ItemView {
     });
 
     // Open in browser button
-	    const browserButton = actions.createDiv({
-	      cls: "rss-reader-action-button",
-	      attr: { title: "Open in Browser" },
-	    });
-	    setIcon(browserButton, "external-link");
-	    browserButton.addEventListener("click", (e) => {
-	      const item = this.currentItem;
-	      if (!item) return;
+    const browserButton = actions.createDiv({
+      cls: "rss-reader-action-button",
+      attr: { title: "Open in Browser" },
+    });
+    setIcon(browserButton, "external-link");
+    browserButton.addEventListener("click", (e) => {
+      const item = this.currentItem;
+      if (!item) return;
 
-	      if (item.mediaType === "podcast") {
-	        const feedMatch =
-	          this.settings.feeds.find((f) => f.url === item.feedUrl) || null;
-	        const feed = feedMatch || { url: item.feedUrl, siteUrl: undefined };
-	        const destinations = resolvePodcastOpenDestinations(item, feed, {
-	          includeApplePodcasts: Boolean(
-	            this.settings.media.enableApplePodcastsOpen,
-	          ),
-	        });
+      if (item.mediaType === "podcast") {
+        const feedMatch =
+          this.settings.feeds.find((f) => f.url === item.feedUrl) || null;
+        const feed = feedMatch || { url: item.feedUrl, siteUrl: undefined };
+        const destinations = resolvePodcastOpenDestinations(item, feed, {
+          includeApplePodcasts: Boolean(
+            this.settings.media.enableApplePodcastsOpen,
+          ),
+        });
 
-	        if (destinations.length === 0) {
-	          new Notice("No link available for this podcast.");
-	          return;
-	        }
+        if (destinations.length === 0) {
+          new Notice("No link available for this podcast.");
+          return;
+        }
 
-	        const menu = new Menu();
-		        for (const destination of destinations) {
-		          menu.addItem((menuItem: MenuItem) => {
-		            menuItem.setTitle(destination.title);
-		            menuItem.setIcon("external-link");
+        const menu = new Menu();
+        for (const destination of destinations) {
+          menu.addItem((menuItem: MenuItem) => {
+            menuItem.setTitle(destination.title);
+            menuItem.setIcon("external-link");
 
-		            if (destination.url) {
-		              const dom = (menuItem as unknown as { dom?: HTMLElement }).dom;
-		              dom?.setAttribute("title", destination.url);
-		            }
+            if (destination.url) {
+              const dom = (menuItem as unknown as { dom?: HTMLElement }).dom;
+              dom?.setAttribute("title", destination.url);
+            }
 
-		            if (destination.id === "apple_podcasts") {
-		              menuItem.onClick(() => {
-		                void (async () => {
-	                  if (!feedMatch?.url || !feedMatch.title) {
-	                    new Notice(
-	                      "Could not find this show in apple podcasts.",
-	                    );
-	                    return;
-	                  }
-	                  const appleUrl = await resolveApplePodcastsShowUrl(
-	                    feedMatch.url,
-	                    feedMatch.title,
-	                  );
-	                  if (!appleUrl) {
-	                    new Notice(
-	                      "Could not find this show in apple podcasts.",
-	                    );
-	                    return;
-	                  }
-	                  window.open(appleUrl, "_blank");
-	                })();
-	              });
-	              return;
-	            }
+            if (destination.id === "apple_podcasts") {
+              menuItem.onClick(() => {
+                void (async () => {
+                  if (!feedMatch?.url || !feedMatch.title) {
+                    new Notice("Could not find this show in apple podcasts.");
+                    return;
+                  }
+                  const appleUrl = await resolveApplePodcastsShowUrl(
+                    feedMatch.url,
+                    feedMatch.title,
+                  );
+                  if (!appleUrl) {
+                    new Notice("Could not find this show in apple podcasts.");
+                    return;
+                  }
+                  window.open(appleUrl, "_blank");
+                })();
+              });
+              return;
+            }
 
-	            const url = destination.url;
-	            if (url) {
-	              menuItem.onClick(() => window.open(url, "_blank"));
-	            } else {
-	              menuItem.setDisabled(true);
-	            }
-	          });
-	        }
+            const url = destination.url;
+            if (url) {
+              menuItem.onClick(() => window.open(url, "_blank"));
+            } else {
+              menuItem.setDisabled(true);
+            }
+          });
+        }
 
-	        menu.showAtMouseEvent(e as MouseEvent);
-	        return;
-	      }
+        menu.showAtMouseEvent(e as MouseEvent);
+        return;
+      }
 
-	      const url = resolveItemExternalUrl(item);
-	      if (!url) return;
-	      window.open(url, "_blank");
-	    });
+      const url = resolveItemExternalUrl(item);
+      if (!url) return;
+      window.open(url, "_blank");
+    });
 
     this.readingContainer = this.contentEl.createDiv({
       cls: "rss-reader-content",
@@ -451,7 +447,9 @@ export class ReaderView extends ItemView {
                 )
               : this.currentFullContent || item.description || "";
           const markdownContent = this.turndownService.turndown(htmlToSave);
-          const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
+          const saveItem = displayTitle
+            ? { ...item, title: displayTitle }
+            : item;
           const customTemplate = this.getCustomTemplateForArticle(item);
           const file = await this.articleSaver.saveArticle(
             saveItem,
@@ -978,7 +976,10 @@ export class ReaderView extends ItemView {
       const feedIconUrl =
         this.settings.feeds.find((f) => f.url === item.feedUrl)?.iconUrl || "";
       const normalize = (u: string) => u.trim().replace(/\/$/, "");
-      if (feedIconUrl && normalize(fallbackHeroUrl) === normalize(feedIconUrl)) {
+      if (
+        feedIconUrl &&
+        normalize(fallbackHeroUrl) === normalize(feedIconUrl)
+      ) {
         fallbackHeroUrl = undefined;
       }
     }
@@ -1065,7 +1066,7 @@ export class ReaderView extends ItemView {
           }
         });
 
-      doc.querySelectorAll("img").forEach((el) => {
+        doc.querySelectorAll("img").forEach((el) => {
           const src = el.getAttribute("src");
           if (!src) return;
           try {
@@ -1211,7 +1212,10 @@ export class ReaderView extends ItemView {
     return item.title;
   }
 
-  private extractNitterNameAndHandle(item: FeedItem): { name: string; handle: string } {
+  private extractNitterNameAndHandle(item: FeedItem): {
+    name: string;
+    handle: string;
+  } {
     const tryExtract = (source: string): { name: string; handle: string } => {
       const handleMatch = source.match(/@[\w.]+/i);
       const handle = handleMatch ? handleMatch[0] : "";
@@ -1234,9 +1238,13 @@ export class ReaderView extends ItemView {
     const feedTitle = (item.feedTitle || "").trim();
 
     const authorParsed = author ? tryExtract(author) : { name: "", handle: "" };
-    const feedParsed = feedTitle ? tryExtract(feedTitle) : { name: "", handle: "" };
+    const feedParsed = feedTitle
+      ? tryExtract(feedTitle)
+      : { name: "", handle: "" };
 
-    const urlHandle = this.extractHandleFromUrl(item.link) || this.extractHandleFromUrl(item.feedUrl);
+    const urlHandle =
+      this.extractHandleFromUrl(item.link) ||
+      this.extractHandleFromUrl(item.feedUrl);
 
     const handle =
       (/^@[\w.]+$/i.test(author) ? author : authorParsed.handle) ||
@@ -1264,7 +1272,11 @@ export class ReaderView extends ItemView {
       const parts = u.pathname.split("/").filter(Boolean);
       const username = parts[0] || "";
       if (!username) return "";
-      if (/^(home|explore|messages|notifications|settings|search|i)$/i.test(username)) {
+      if (
+        /^(home|explore|messages|notifications|settings|search|i)$/i.test(
+          username,
+        )
+      ) {
         return "";
       }
       return username.startsWith("@") ? username : `@${username}`;
@@ -1294,10 +1306,16 @@ export class ReaderView extends ItemView {
       return "";
     }
 
-    return parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return parsed.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
-  private pickBestNitterTweetHtml(item: FeedItem, fullContent?: string): string {
+  private pickBestNitterTweetHtml(
+    item: FeedItem,
+    fullContent?: string,
+  ): string {
     const description = (item.description || "").trim();
     const content = (item.content || "").trim();
     const full = (fullContent || "").trim();
@@ -1343,7 +1361,9 @@ export class ReaderView extends ItemView {
     const extractCount = (markerClass: string): string => {
       const marker = target.querySelector<HTMLElement>(`.${markerClass}`);
       if (!marker) return "";
-      const text = (marker.parentElement?.textContent || "").replace(/\s+/g, " ").trim();
+      const text = (marker.parentElement?.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim();
       const match = text.match(/(\d[\d.,]*\s*[kKmMbB]?)/);
       return (match ? match[1] : "").trim();
     };
@@ -1352,7 +1372,11 @@ export class ReaderView extends ItemView {
     statsEl.className = "rss-nitter-stats";
 
     const pills: Array<{ key: string; icon: string; count: string }> = [
-      { key: "comment", icon: "message-circle", count: extractCount("icon-comment") },
+      {
+        key: "comment",
+        icon: "message-circle",
+        count: extractCount("icon-comment"),
+      },
       { key: "retweet", icon: "repeat-2", count: extractCount("icon-retweet") },
       { key: "heart", icon: "heart", count: extractCount("icon-heart") },
       { key: "views", icon: "bar-chart-2", count: extractCount("icon-views") },
@@ -1381,15 +1405,17 @@ export class ReaderView extends ItemView {
   }
 
   private hydrateNitterStatsIcons(container: HTMLElement): void {
-    container.querySelectorAll<HTMLElement>(".rss-nitter-stat-icon").forEach((el) => {
-      const iconName = el.dataset.rssIcon;
-      if (!iconName) return;
-      try {
-        setIcon(el, iconName);
-      } catch {
-        // ignore icon failures
-      }
-    });
+    container
+      .querySelectorAll<HTMLElement>(".rss-nitter-stat-icon")
+      .forEach((el) => {
+        const iconName = el.dataset.rssIcon;
+        if (!iconName) return;
+        try {
+          setIcon(el, iconName);
+        } catch {
+          // ignore icon failures
+        }
+      });
   }
 
   private stripTopHeadlineFromHtml(html: string): string {
@@ -1642,6 +1668,19 @@ export class ReaderView extends ItemView {
     }
   }
 
+  public refreshTagColors(): void {
+    if (!this.currentItem) {
+      return;
+    }
+
+    this.refreshReaderHeaderTags();
+
+    if (this.podcastPlayer && this.currentItem.mediaType === "podcast") {
+      this.podcastPlayer.refreshTags();
+      this.podcastPlayer.refreshPlaylistTags(this.currentItem.guid);
+    }
+  }
+
   private toggleStarStatus(): void {
     if (!this.currentItem) return;
     const nextStarred = !this.currentItem.starred;
@@ -1693,10 +1732,11 @@ export class ReaderView extends ItemView {
         }
       },
       onAfterSettingsTagsMutated: () => {
-        this.refreshReaderHeaderTags();
-        if (this.podcastPlayer) {
-          this.podcastPlayer.refreshTags();
-          this.podcastPlayer.refreshPlaylistTags();
+        const plugin = this.getRssDashboardPluginForSettingsSave();
+        if (plugin?.refreshOpenTagColorViews) {
+          void plugin.refreshOpenTagColorViews();
+        } else {
+          this.refreshTagColors();
         }
         this.app.workspace.trigger("rss-dashboard:tags-mutated");
       },
@@ -1925,6 +1965,7 @@ export class ReaderView extends ItemView {
 
   private getRssDashboardPluginForSettingsSave(): {
     saveSettings: () => Promise<void>;
+    refreshOpenTagColorViews?: () => Promise<void>;
   } | null {
     try {
       const appWithPlugins = this.app as unknown as {
@@ -1946,10 +1987,16 @@ export class ReaderView extends ItemView {
       const pluginByRegistry = plugins.plugins?.["rss-dashboard"];
 
       const plugin = (pluginByGetter || pluginByRegistry) as
-        | { saveSettings?: unknown }
+        | {
+            saveSettings?: unknown;
+            refreshOpenTagColorViews?: unknown;
+          }
         | undefined;
       if (plugin && typeof plugin.saveSettings === "function") {
-        return plugin as { saveSettings: () => Promise<void> };
+        return plugin as {
+          saveSettings: () => Promise<void>;
+          refreshOpenTagColorViews?: () => Promise<void>;
+        };
       }
     } catch {
       return null;

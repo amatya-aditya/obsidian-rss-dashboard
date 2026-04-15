@@ -256,6 +256,33 @@ export default class RssDashboardPlugin extends Plugin {
     return null;
   }
 
+  public async refreshOpenTagColorViews(): Promise<void> {
+    const dashboardLeaves = this.app.workspace.getLeavesOfType(
+      RSS_DASHBOARD_VIEW_TYPE,
+    );
+    for (const leaf of dashboardLeaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      if (view instanceof RssDashboardView) {
+        view.refreshTagColors();
+      }
+    }
+
+    const readerLeaves =
+      this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
+    for (const leaf of readerLeaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      if (view instanceof ReaderView) {
+        view.refreshTagColors();
+      }
+    }
+  }
+
   public async performFactoryReset(): Promise<void> {
     const resetSettings = this.buildFactoryResetSettings();
     this.settings = resetSettings;

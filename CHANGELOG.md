@@ -25,6 +25,8 @@
 
 - Adding a feed as "Favorite" now also applies the "Favorite" tag and is removed when un-favorited.
 
+- Fixed tag color edits so dashboard cards, reader tags, and existing tagged articles refresh immediately after editing without needing to leave and reopen the view.
+
 ### Improvements
 
 - Optimized the feed refresh process to reduce unnecessary network requests.
