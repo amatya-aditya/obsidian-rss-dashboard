@@ -1259,7 +1259,49 @@ export class CustomXMLParser {
     tagName: string,
     attribute: string,
   ): string {
-    const el = element?.querySelector(tagName);
+    if (!element) return "";
+
+    let el: Element | null = null;
+
+    if (tagName.includes("\\:")) {
+      try {
+        el = element.querySelector(tagName);
+      } catch {
+        /* ignore */
+      }
+    } else if (tagName.includes(":")) {
+      const [namespace, localName] = tagName.split(":");
+
+      try {
+        el = element.querySelector(`${namespace}\\:${localName}`);
+      } catch {
+        /* ignore */
+      }
+
+      if (!el) {
+        try {
+          const elements = element.getElementsByTagNameNS("*", localName);
+          if (elements.length > 0) el = elements[0];
+        } catch {
+          /* ignore */
+        }
+      }
+
+      if (!el) {
+        try {
+          el = element.querySelector(localName);
+        } catch {
+          /* ignore */
+        }
+      }
+    } else {
+      try {
+        el = element.querySelector(tagName);
+      } catch {
+        /* ignore */
+      }
+    }
+
     return el?.getAttribute(attribute) || "";
   }
 
@@ -1479,14 +1521,12 @@ export class CustomXMLParser {
       ? { url: this.getTextContent(imageElement, "url") }
       : undefined;
 
-    const itunesImageElement = channel.querySelector("itunes\\:image");
-    const itunesImage = itunesImageElement
-      ? { url: itunesImageElement.getAttribute("href") || "" }
+    const feedItunesImage =
+      this.getAttribute(channel, "itunes:image", "href") ||
+      this.getAttribute(channel, "itunes\\:image", "href");
+    const itunesImage = feedItunesImage
+      ? { url: feedItunesImage }
       : undefined;
-
-    const feedItunesImage = itunesImageElement
-      ? itunesImageElement.getAttribute("href") || ""
-      : "";
     const feedImageUrl = imageElement
       ? this.getTextContent(imageElement, "url")
       : "";
@@ -2897,6 +2937,31 @@ export class FeedParser {
     return "";
   }
 
+  private resolvePodcastCoverImage(
+    item: ParsedItem,
+    parsed: ParsedFeed,
+    baseUrl: string,
+  ): string {
+    const resolvedImage = this.extractPodcastCoverImage(
+      item,
+      parsed.image,
+      baseUrl,
+    );
+    if (resolvedImage) {
+      return resolvedImage;
+    }
+
+    if (parsed.feedItunesImage) {
+      return this.convertToAbsoluteUrl(parsed.feedItunesImage, baseUrl);
+    }
+
+    if (parsed.feedImageUrl) {
+      return this.convertToAbsoluteUrl(parsed.feedImageUrl, baseUrl);
+    }
+
+    return "";
+  }
+
   private extractSummary(description: string, maxLength = 220): string {
     if (!description) return "";
 
@@ -3011,7 +3076,7 @@ export class FeedParser {
         let coverImage = existingItem.coverImage;
         if (isPodcast) {
           coverImage =
-            this.extractPodcastCoverImage(item, parsed.image, url) ||
+            this.resolvePodcastCoverImage(item, parsed, url) ||
             existingItem.coverImage;
         } else {
           coverImage =
@@ -3090,31 +3155,7 @@ export class FeedParser {
 
         let coverImage = "";
         if (isPodcast) {
-          coverImage = this.extractPodcastCoverImage(item, parsed.image, url);
-          if (!coverImage) {
-            if (parsed.feedItunesImage) {
-              coverImage = this.convertToAbsoluteUrl(
-                parsed.feedItunesImage,
-                url,
-              );
-            } else if (parsed.feedImageUrl) {
-              coverImage = this.convertToAbsoluteUrl(parsed.feedImageUrl, url);
-            } else if (
-              parsed.image &&
-              typeof parsed.image === "object" &&
-              parsed.image.url
-            ) {
-              coverImage = this.convertToAbsoluteUrl(parsed.image.url, url);
-            } else if (typeof parsed.image === "string") {
-              coverImage = this.convertToAbsoluteUrl(parsed.image, url);
-            }
-          }
-          if (!coverImage) {
-            coverImage = this.extractCoverImage(
-              item.content || item.description || "",
-              url,
-            );
-          }
+          coverImage = this.resolvePodcastCoverImage(item, parsed, url);
         } else {
           coverImage =
             this.extractCoverImage(
@@ -3225,7 +3266,7 @@ export class FeedParser {
         count >= Math.max(2, Math.floor(totalItems * 0.8))
       ) {
         newFeed.items.forEach((item) => {
-          if (item.coverImage === imgUrl) {
+          if (item.coverImage === imgUrl && item.mediaType !== "podcast") {
             item.coverImage = "";
           }
         });
@@ -3331,6 +3372,14 @@ export class FeedParserService {
         item.itunes?.explicit,
     );
 
+    const podcastFeedImage =
+      parsed.feedItunesImage ||
+      parsed.feedImageUrl ||
+      (parsed.image && typeof parsed.image === "object"
+        ? parsed.image.url
+        : "") ||
+      (typeof parsed.image === "string" ? parsed.image : "");
+
     const items: FeedItem[] = parsed.items.map((item: ParsedItem) => ({
       title: item.title || "",
       link: item.link || "",
@@ -3342,7 +3391,9 @@ export class FeedParserService {
       tags: [],
       feedTitle: parsed.title || "",
       feedUrl: url,
-      coverImage: item.itunes?.image?.href || item.image?.url || "",
+      coverImage: isPodcast
+        ? item.itunes?.image?.href || item.image?.url || podcastFeedImage || ""
+        : item.itunes?.image?.href || item.image?.url || "",
       mediaType: isPodcast ? "podcast" : "article",
       author: item.author || "",
       content: item.content || "",

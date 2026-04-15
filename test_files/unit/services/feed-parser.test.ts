@@ -5,6 +5,7 @@ import * as obsidian from "obsidian";
 import {
   CustomXMLParser,
   FeedParser,
+  FeedParserService,
   isValidFeed,
   EmptyFeedError,
   isEmptyFeedError,
@@ -96,6 +97,33 @@ const RSS2_WITH_ENCLOSURE = `<?xml version="1.0" encoding="UTF-8"?>
       <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="12345"/>
       <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
       <guid>ep-1</guid>
+    </item>
+  </channel>
+</rss>`;
+
+const RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Lex Feed</title>
+    <link>https://lexfridman.com</link>
+    <itunes:image href="https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png" />
+    <item>
+      <title>Episode 1</title>
+      <link>https://lexfridman.com/podcast/1</link>
+      <description>Episode one</description>
+      <enclosure url="https://lexfridman.com/audio/1.mp3" type="audio/mpeg" length="12345"/>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>lex-1</guid>
+      <itunes:duration>3600</itunes:duration>
+    </item>
+    <item>
+      <title>Episode 2</title>
+      <link>https://lexfridman.com/podcast/2</link>
+      <description>Episode two</description>
+      <enclosure url="https://lexfridman.com/audio/2.mp3" type="audio/mpeg" length="67890"/>
+      <pubDate>Tue, 02 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>lex-2</guid>
+      <itunes:duration>4200</itunes:duration>
     </item>
   </channel>
 </rss>`;
@@ -380,6 +408,16 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
     expect(result.items[0].enclosure?.type).toBe("audio/mpeg");
   });
 
+  it("parses feed-level itunes:image href for podcast feeds", () => {
+    const result = parser.parseString(RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE);
+    expect(result.feedItunesImage).toBe(
+      "https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png",
+    );
+    expect(result.image?.url).toBe(
+      "https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png",
+    );
+  });
+
   it("parses channel image", () => {
     const result = parser.parseString(RSS2_WITH_IMAGE);
     expect(result.image?.url).toBe("https://example.com/logo.png");
@@ -571,6 +609,74 @@ describe("FeedParser.parseFeed", () => {
     expect(result.items).toHaveLength(1);
     expect(result.items[0].guid).toBe("https://example.com/recent");
     expect(result.items[0].read).toBe(false);
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("preserves shared feed artwork for podcast episodes on parse and refresh", async () => {
+    const feedUrl = "https://lexfridman.com/feed/podcast/";
+    const sharedArtwork =
+      "https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png";
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+        text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+        text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
+      });
+
+    const parser = new FeedParser(mediaSettings, []);
+    const first = await parser.parseFeed(feedUrl, null);
+
+    expect(first.mediaType).toBe("podcast");
+    expect(first.iconUrl).toBe(sharedArtwork);
+    expect(first.items).toHaveLength(2);
+    expect(first.items.every((item) => item.coverImage === sharedArtwork)).toBe(
+      true,
+    );
+
+    const refreshed = await parser.parseFeed(feedUrl, first);
+    expect(
+      refreshed.items.every((item) => item.coverImage === sharedArtwork),
+    ).toBe(true);
+
+    requestUrlSpy.mockRestore();
+  });
+});
+
+describe("FeedParserService.parseFeed", () => {
+  it("uses channel-level podcast artwork during initial feed import", async () => {
+    const feedUrl = "https://lexfridman.com/feed/podcast/";
+    const sharedArtwork =
+      "https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png";
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({
+      status: 200,
+      headers: {},
+      arrayBuffer: new ArrayBuffer(0),
+      json: {},
+      text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
+    });
+
+    const service = FeedParserService.getInstance();
+    const parsedFeed = await service.parseFeed(feedUrl, "Podcast");
+
+    expect(parsedFeed.mediaType).toBe("podcast");
+    expect(parsedFeed.iconUrl).toBe(sharedArtwork);
+    expect(
+      parsedFeed.items.every((item) => item.coverImage === sharedArtwork),
+    ).toBe(true);
 
     requestUrlSpy.mockRestore();
   });

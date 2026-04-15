@@ -27,6 +27,8 @@
 
 - Fixed tag color edits so dashboard cards, reader tags, and existing tagged articles refresh immediately after editing without needing to leave and reopen the view.
 
+- Fixed podcast feeds that only expose channel-level artwork so shared feed artwork now appears correctly in podcast episodes and the player instead of being dropped during parsing/refresh.
+
 ### Improvements
 
 - Optimized the feed refresh process to reduce unnecessary network requests.
