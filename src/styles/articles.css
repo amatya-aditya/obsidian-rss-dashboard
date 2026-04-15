@@ -570,10 +570,6 @@
   animation: spin 1s linear infinite;
 }
 
-.rss-dashboard-article-card.saved {
-  border-left: 3px solid var(--interactive-accent);
-}
-
 .rss-dashboard-empty-state {
   display: flex;
   flex-direction: column;

@@ -555,12 +555,48 @@ export class ArticleList {
       }
 
       if (this.selectedArticle) {
-        const selectedEl = this.container.querySelector(
-          `#article-${CSS.escape(this.selectedArticle.guid)}`,
-        );
-        selectedEl?.scrollIntoView({ block: "nearest", behavior: "auto" });
+        this.scrollSelectedArticleIntoViewIfNeeded(this.selectedArticle);
       }
     });
+  }
+
+  private getArticlesListElement(): HTMLElement | null {
+    return this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-list",
+    );
+  }
+
+  private isArticleFullyVisibleInList(
+    listEl: HTMLElement,
+    articleEl: HTMLElement,
+  ): boolean {
+    const listRect = listEl.getBoundingClientRect();
+    const articleRect = articleEl.getBoundingClientRect();
+
+    if (listRect.height <= 0 || articleRect.height <= 0) {
+      return false;
+    }
+
+    return (
+      articleRect.top >= listRect.top && articleRect.bottom <= listRect.bottom
+    );
+  }
+
+  private scrollSelectedArticleIntoViewIfNeeded(article: FeedItem): void {
+    const listEl = this.getArticlesListElement();
+    const articleEl = this.container.querySelector<HTMLElement>(
+      `#article-${CSS.escape(article.guid)}`,
+    );
+
+    if (!listEl || !articleEl) {
+      return;
+    }
+
+    if (this.isArticleFullyVisibleInList(listEl, articleEl)) {
+      return;
+    }
+
+    articleEl.scrollIntoView({ block: "nearest", behavior: "auto" });
   }
 
   /**
@@ -804,7 +840,7 @@ export class ArticleList {
     );
     if (targetEl) {
       targetEl.classList.add("active");
-      targetEl.scrollIntoView({ block: "nearest", behavior: "auto" });
+      this.scrollSelectedArticleIntoViewIfNeeded(article);
     }
   }
 
@@ -1455,6 +1491,7 @@ export class ArticleList {
             ? " active"
             : "") +
           (article.read ? " read" : " unread") +
+          (article.starred ? " starred" : " unstarred") +
           (article.saved ? " saved" : "") +
           (article.mediaType === "video"
             ? " rss-dashboard-youtube-article"
@@ -1753,6 +1790,7 @@ export class ArticleList {
             ? " active"
             : "") +
           (article.read ? " read" : " unread") +
+          (article.starred ? " starred" : " unstarred") +
           (article.saved ? " saved" : "") +
           (article.mediaType === "video"
             ? " rss-dashboard-youtube-article"

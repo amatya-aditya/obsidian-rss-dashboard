@@ -58,12 +58,26 @@ describe("ArticleList Component", () => {
       },
       articleSaving: {
         saveFullContent: false,
-      }
+      },
     } as any;
 
     articles = [
-      { guid: "1", title: "Article 1", link: "link1", pubDate: new Date().toISOString(), read: false, tags: [] },
-      { guid: "2", title: "Article 2", link: "link2", pubDate: new Date().toISOString(), read: false, tags: [] },
+      {
+        guid: "1",
+        title: "Article 1",
+        link: "link1",
+        pubDate: new Date().toISOString(),
+        read: false,
+        tags: [],
+      },
+      {
+        guid: "2",
+        title: "Article 2",
+        link: "link2",
+        pubDate: new Date().toISOString(),
+        read: false,
+        tags: [],
+      },
     ] as any;
 
     mockCallbacks = {
@@ -106,12 +120,14 @@ describe("ArticleList Component", () => {
       2,
       new Set(),
       new Set(),
-      "OR"
+      "OR",
     );
 
     articleList.render();
 
-    const articleElements = container.querySelectorAll(".rss-dashboard-article-item");
+    const articleElements = container.querySelectorAll(
+      ".rss-dashboard-article-item",
+    );
     expect(articleElements.length).toBe(2);
     expect(container.textContent).toContain("Article 1");
     expect(container.textContent).toContain("Article 2");
@@ -132,12 +148,14 @@ describe("ArticleList Component", () => {
       2,
       new Set(),
       new Set(),
-      "OR"
+      "OR",
     );
 
     articleList.render();
 
-    const firstArticle = container.querySelector(".rss-dashboard-article-item") as HTMLElement;
+    const firstArticle = container.querySelector(
+      ".rss-dashboard-article-item",
+    ) as HTMLElement;
     firstArticle.click();
 
     expect(mockCallbacks.onArticleClick).toHaveBeenCalledWith(articles[0]);
@@ -158,7 +176,7 @@ describe("ArticleList Component", () => {
       2,
       new Set(),
       new Set(),
-      "OR"
+      "OR",
     );
 
     articleList.render();
@@ -166,12 +184,26 @@ describe("ArticleList Component", () => {
     const newArticles = [articles[0]];
     articleList.refilter(new Set(), new Set(), "OR", newArticles, 1, 1, 10, 1);
 
-    const articleElements = container.querySelectorAll(".rss-dashboard-article-item");
+    const articleElements = container.querySelectorAll(
+      ".rss-dashboard-article-item",
+    );
     expect(articleElements.length).toBe(1);
     expect(container.textContent).not.toContain("Article 2");
   });
 
   describe("Scroll Restoration (TDD Fixes)", () => {
+    const makeRect = (top: number, bottom: number) => ({
+      top,
+      bottom,
+      left: 0,
+      right: 0,
+      width: 0,
+      height: bottom - top,
+      x: 0,
+      y: top,
+      toJSON: () => ({}),
+    });
+
     it("should restore scroll position on the NEW list element after render", () => {
       const articleList = new ArticleList(
         container,
@@ -187,22 +219,29 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
       articleList.render();
 
       // Simulate scrolling
-      const listEl = container.querySelector(".rss-dashboard-articles-list") as HTMLElement;
-      Object.defineProperty(listEl, "scrollTop", { value: 100, writable: true });
-      
+      const listEl = container.querySelector(
+        ".rss-dashboard-articles-list",
+      ) as HTMLElement;
+      Object.defineProperty(listEl, "scrollTop", {
+        value: 100,
+        writable: true,
+      });
+
       // Initial render creates the element and applies scroll.
       // But we want to test that a SUBSEQUENT render restores it from the OLD element's state.
       // In reality, render() captures scroll from the DOM, empties container, then renders.
-      
+
       articleList.render();
-      
-      const newListEl = container.querySelector(".rss-dashboard-articles-list") as HTMLElement;
+
+      const newListEl = container.querySelector(
+        ".rss-dashboard-articles-list",
+      ) as HTMLElement;
       // Current behavior: it restores scroll on the OLD listEl (which is disconnected)
       // We expect it to be 100 on the NEW listEl.
       expect(newListEl.scrollTop).toBe(100);
@@ -223,13 +262,74 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
       articleList.render();
 
       const selectedEl = container.querySelector("#article-2");
-      expect(selectedEl?.scrollIntoView).toHaveBeenCalledWith({ block: "nearest", behavior: "auto" });
+      expect(selectedEl?.scrollIntoView).toHaveBeenCalledWith({
+        block: "nearest",
+        behavior: "auto",
+      });
+    });
+
+    it("should preserve scroll position when rerender keeps the selected article visible", () => {
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        articles[1],
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR",
+      );
+
+      articleList.render();
+
+      const listEl = container.querySelector(
+        ".rss-dashboard-articles-list",
+      ) as HTMLElement;
+      Object.defineProperty(listEl, "scrollTop", {
+        value: 180,
+        writable: true,
+      });
+
+      const rectSpy = vi
+        .spyOn(Element.prototype, "getBoundingClientRect")
+        .mockImplementation(function mockGetBoundingClientRect(this: Element) {
+          if (
+            this instanceof HTMLElement &&
+            this.classList.contains("rss-dashboard-articles-list")
+          ) {
+            return makeRect(100, 500) as DOMRect;
+          }
+
+          if (this instanceof HTMLElement && this.id === "article-2") {
+            return makeRect(220, 280) as DOMRect;
+          }
+
+          return makeRect(0, 0) as DOMRect;
+        });
+      const scrollIntoViewSpy = vi.spyOn(Element.prototype, "scrollIntoView");
+      scrollIntoViewSpy.mockClear();
+
+      articleList.render();
+
+      const newListEl = container.querySelector(
+        ".rss-dashboard-articles-list",
+      ) as HTMLElement;
+      expect(newListEl.scrollTop).toBe(180);
+      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+
+      rectSpy.mockRestore();
     });
 
     it("should scroll the newly selected article into view when setSelectedArticle is called", () => {
@@ -247,15 +347,75 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
       articleList.render();
 
-      const secondArticleEl = container.querySelector("#article-2") as HTMLElement;
+      const secondArticleEl = container.querySelector(
+        "#article-2",
+      ) as HTMLElement;
       articleList.setSelectedArticle(articles[1]);
 
-      expect(secondArticleEl.scrollIntoView).toHaveBeenCalledWith({ block: "nearest", behavior: "auto" });
+      expect(secondArticleEl.scrollIntoView).toHaveBeenCalledWith({
+        block: "nearest",
+        behavior: "auto",
+      });
+    });
+
+    it("should keep the current list anchor when selecting an already visible article", () => {
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR",
+      );
+
+      articleList.render();
+
+      const listEl = container.querySelector(
+        ".rss-dashboard-articles-list",
+      ) as HTMLElement;
+      Object.defineProperty(listEl, "scrollTop", {
+        value: 240,
+        writable: true,
+      });
+
+      const rectSpy = vi
+        .spyOn(Element.prototype, "getBoundingClientRect")
+        .mockImplementation(function mockGetBoundingClientRect(this: Element) {
+          if (
+            this instanceof HTMLElement &&
+            this.classList.contains("rss-dashboard-articles-list")
+          ) {
+            return makeRect(100, 500) as DOMRect;
+          }
+
+          if (this instanceof HTMLElement && this.id === "article-2") {
+            return makeRect(260, 340) as DOMRect;
+          }
+
+          return makeRect(0, 0) as DOMRect;
+        });
+      const scrollIntoViewSpy = vi.spyOn(Element.prototype, "scrollIntoView");
+      scrollIntoViewSpy.mockClear();
+
+      articleList.setSelectedArticle(articles[1]);
+
+      expect(listEl.scrollTop).toBe(240);
+      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+
+      rectSpy.mockRestore();
     });
   });
 
@@ -275,7 +435,7 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
       articleList.render();
@@ -338,7 +498,7 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
       articleList.render();
@@ -348,10 +508,10 @@ describe("ArticleList Component", () => {
       articleList.updateCardSpacingLayout(22);
 
       const articlesList = container.querySelector(
-        ".rss-dashboard-articles-list.rss-dashboard-card-view"
+        ".rss-dashboard-articles-list.rss-dashboard-card-view",
       ) as HTMLElement;
       expect(
-        articlesList.style.getPropertyValue("--rss-dashboard-card-gap")
+        articlesList.style.getPropertyValue("--rss-dashboard-card-gap"),
       ).toBe("22px");
       expect(scheduleSpy).not.toHaveBeenCalled();
     });
@@ -374,7 +534,7 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
       articleList.render();
@@ -384,7 +544,7 @@ describe("ArticleList Component", () => {
       articleList.refreshCardTagLayout();
 
       const articlesList = container.querySelector(
-        ".rss-dashboard-articles-list.rss-dashboard-card-view"
+        ".rss-dashboard-articles-list.rss-dashboard-card-view",
       ) as HTMLElement;
       expect(scheduleSpy).toHaveBeenCalledWith(articlesList);
     });
@@ -407,7 +567,7 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
       articleList.render();
@@ -432,12 +592,14 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
       articleList.render();
 
-      const feedArticles = container.querySelectorAll(".rss-dashboard-feed-item");
+      const feedArticles = container.querySelectorAll(
+        ".rss-dashboard-feed-item",
+      );
       expect(feedArticles.length).toBe(articles.length);
     });
 
@@ -445,7 +607,7 @@ describe("ArticleList Component", () => {
       settings.viewStyle = "feed";
       // Ensure first article has an image
       articles[0].image = "https://example.com/test.jpg";
-      
+
       const articleList = new ArticleList(
         container,
         settings,
@@ -460,17 +622,23 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
       articleList.render();
 
       const item = container.querySelector(".rss-dashboard-feed-item");
-      const blur = item?.querySelector(".rss-dashboard-feed-hero-blur") as HTMLElement;
-      const img = item?.querySelector(".rss-dashboard-feed-hero-image") as HTMLImageElement;
+      const blur = item?.querySelector(
+        ".rss-dashboard-feed-hero-blur",
+      ) as HTMLElement;
+      const img = item?.querySelector(
+        ".rss-dashboard-feed-hero-image",
+      ) as HTMLImageElement;
 
       expect(blur).not.toBeNull();
-      expect(blur.style.backgroundImage).toContain("https://example.com/test.jpg");
+      expect(blur.style.backgroundImage).toContain(
+        "https://example.com/test.jpg",
+      );
       expect(img).not.toBeNull();
       expect(img.src).toBe("https://example.com/test.jpg");
       expect(img.getAttribute("loading")).toBe("lazy");
@@ -479,7 +647,7 @@ describe("ArticleList Component", () => {
     it("should render tags in a dedicated region above the footer, not in the toolbar", () => {
       settings.viewStyle = "feed";
       articles[0].tags = [{ name: "Tag1", color: "#8b5cf6" }];
-      
+
       const articleList = new ArticleList(
         container,
         settings,
@@ -494,19 +662,21 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
       articleList.render();
 
-      const item = container.querySelector(".rss-dashboard-feed-item") as HTMLElement;
+      const item = container.querySelector(
+        ".rss-dashboard-feed-item",
+      ) as HTMLElement;
       const tagsRegion = item.querySelector(".rss-dashboard-feed-tags-region");
       const toolbar = item.querySelector(".rss-dashboard-feed-toolbar");
       const toolbarTags = toolbar?.querySelector(".rss-dashboard-article-tags");
 
       expect(tagsRegion).not.toBeNull();
       expect(toolbarTags).toBeNull();
-      
+
       // Verify ordering: tagsRegion should be before footer
       const footer = item.querySelector(".rss-dashboard-feed-footer");
       const children = Array.from(item.children);
@@ -518,7 +688,7 @@ describe("ArticleList Component", () => {
     it("should use renderSingleRowCardTagChips for feed view tags to support truncation", () => {
       settings.viewStyle = "feed";
       articles[0].tags = [{ name: "Tag1", color: "#8b5cf6" }];
-      
+
       const articleList = new ArticleList(
         container,
         settings,
@@ -533,11 +703,14 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
-      const renderSpy = vi.spyOn(ArticleList.prototype as any, "renderSingleRowCardTagChips");
-      
+      const renderSpy = vi.spyOn(
+        ArticleList.prototype as any,
+        "renderSingleRowCardTagChips",
+      );
+
       articleList.render();
 
       expect(renderSpy).toHaveBeenCalled();
@@ -546,7 +719,7 @@ describe("ArticleList Component", () => {
     it("should keep tags in the dedicated region after syncArticleTags is called", () => {
       settings.viewStyle = "feed";
       articles[0].tags = []; // Start with no tags
-      
+
       const articleList = new ArticleList(
         container,
         settings,
@@ -561,26 +734,32 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
       articleList.render();
 
       // Initially no tags region because hasTags was false
-      let tagsRegion = container.querySelector(".rss-dashboard-feed-tags-region");
+      let tagsRegion = container.querySelector(
+        ".rss-dashboard-feed-tags-region",
+      );
       expect(tagsRegion).toBeNull();
 
       // Now add a tag and sync
       articles[0].tags = [{ name: "NewTag", color: "#8b5cf6" }];
-      const item = container.querySelector(".rss-dashboard-feed-item") as HTMLElement;
+      const item = container.querySelector(
+        ".rss-dashboard-feed-item",
+      ) as HTMLElement;
       (articleList as any).syncArticleTags(item, articles[0]);
 
       // Check if it's in the toolbar (incorrect) or tags region (correct)
-      const toolbarTags = item.querySelector(".rss-dashboard-feed-toolbar .rss-dashboard-article-tags");
-      
+      const toolbarTags = item.querySelector(
+        ".rss-dashboard-feed-toolbar .rss-dashboard-article-tags",
+      );
+
       // If the bug exists, toolbarTags will NOT be null
       expect(toolbarTags).toBeNull();
-      
+
       tagsRegion = item.querySelector(".rss-dashboard-feed-tags-region");
       expect(tagsRegion).not.toBeNull();
     });
@@ -588,7 +767,7 @@ describe("ArticleList Component", () => {
     it("should update tags for feed items in-place via updateArticleInPlace", () => {
       settings.viewStyle = "feed";
       articles[0].tags = [{ name: "OldTag", color: "#3498db" }];
-      
+
       const articleList = new ArticleList(
         container,
         settings,
@@ -603,17 +782,22 @@ describe("ArticleList Component", () => {
         2,
         new Set(),
         new Set(),
-        "OR"
+        "OR",
       );
 
       articleList.render();
 
-      const item = container.querySelector(".rss-dashboard-feed-item") as HTMLElement;
+      const item = container.querySelector(
+        ".rss-dashboard-feed-item",
+      ) as HTMLElement;
       const initialTag = item.querySelector(".rss-dashboard-article-tag");
       expect(initialTag?.textContent).toBe("OldTag");
 
       // Update the article in-place
-      const updatedArticle = { ...articles[0], tags: [{ name: "NewTag", color: "#8b5cf6" }] };
+      const updatedArticle = {
+        ...articles[0],
+        tags: [{ name: "NewTag", color: "#8b5cf6" }],
+      };
       articleList.updateArticleInPlace(updatedArticle);
 
       const updatedTag = item.querySelector(".rss-dashboard-article-tag");

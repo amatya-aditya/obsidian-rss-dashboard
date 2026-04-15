@@ -256,10 +256,6 @@
   opacity: 0.8;
 }
 
-.rss-dashboard-article-card.saved {
-  border-left: 3px solid var(--interactive-accent);
-}
-
 .rss-dashboard-article-cover {
   width: 100%;
   min-width: 0;
