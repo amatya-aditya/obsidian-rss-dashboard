@@ -26,7 +26,10 @@ function cloneSettings(): typeof DEFAULT_SETTINGS {
 beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
-  Object.defineProperty(window, "innerWidth", { value: 1400, configurable: true });
+  Object.defineProperty(window, "innerWidth", {
+    value: 1400,
+    configurable: true,
+  });
   vi.restoreAllMocks();
 });
 
@@ -121,9 +124,13 @@ describe("ImportOpmlModal", () => {
     const modal = new ImportOpmlModal(app as any, plugin as any);
     modal.open();
 
-    const file = new File([readFixture("single-feed.opml")], "single-feed.opml", {
-      type: "text/xml",
-    });
+    const file = new File(
+      [readFixture("single-feed.opml")],
+      "single-feed.opml",
+      {
+        type: "text/xml",
+      },
+    );
 
     await (modal as any).handleFileSelection(file);
 
@@ -147,6 +154,82 @@ describe("ImportOpmlModal", () => {
     expect(logSpy.mock.calls.some((c) => c[0] === "[Stub Notice]")).toBe(true);
   });
 
+  it("calls the optional callback after a successful import starts", async () => {
+    const app = obsidian.App.createMock();
+    const plugin = {
+      app,
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      startBackgroundImport: vi.fn(),
+      ingestFeedsForBackgroundImport: vi.fn(async () => ({
+        addedCount: 1,
+        skippedCount: 0,
+        queuedFeeds: [],
+      })),
+    };
+    const onImportStarted = vi.fn();
+
+    const modal = new ImportOpmlModal(
+      app as any,
+      plugin as any,
+      onImportStarted,
+    );
+    modal.open();
+
+    const file = new File(
+      [readFixture("single-feed.opml")],
+      "single-feed.opml",
+      {
+        type: "text/xml",
+      },
+    );
+
+    await (modal as any).handleFileSelection(file);
+    await (modal as any).executeImport();
+    await flushPromises();
+
+    expect(onImportStarted).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls the optional callback when update mode finds no new feeds", async () => {
+    const app = obsidian.App.createMock();
+    const plugin = {
+      app,
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      startBackgroundImport: vi.fn(),
+      ingestFeedsForBackgroundImport: vi.fn(async () => ({
+        addedCount: 0,
+        skippedCount: 1,
+        queuedFeeds: [],
+      })),
+    };
+    const onImportStarted = vi.fn();
+
+    const modal = new ImportOpmlModal(
+      app as any,
+      plugin as any,
+      onImportStarted,
+    );
+    modal.open();
+
+    const file = new File(
+      [readFixture("single-feed.opml")],
+      "single-feed.opml",
+      {
+        type: "text/xml",
+      },
+    );
+
+    await (modal as any).handleFileSelection(file);
+    await (modal as any).executeImport();
+    await flushPromises();
+
+    expect(onImportStarted).toHaveBeenCalledTimes(1);
+  });
+
   it("parses nested folders and imports derived folders", async () => {
     const app = obsidian.App.createMock();
     const plugin = {
@@ -165,9 +248,13 @@ describe("ImportOpmlModal", () => {
     const modal = new ImportOpmlModal(app as any, plugin as any);
     modal.open();
 
-    const file = new File([readFixture("nested-folders.opml")], "nested-folders.opml", {
-      type: "text/xml",
-    });
+    const file = new File(
+      [readFixture("nested-folders.opml")],
+      "nested-folders.opml",
+      {
+        type: "text/xml",
+      },
+    );
 
     await (modal as any).handleFileSelection(file);
     await (modal as any).executeImport();
@@ -202,9 +289,13 @@ describe("ImportOpmlModal", () => {
     const modal = new ImportOpmlModal(app as any, plugin as any);
     modal.open();
 
-    const file = new File([readFixture("single-feed.opml")], "single-feed.opml", {
-      type: "text/xml",
-    });
+    const file = new File(
+      [readFixture("single-feed.opml")],
+      "single-feed.opml",
+      {
+        type: "text/xml",
+      },
+    );
 
     await (modal as any).handleFileSelection(file);
     (modal as any).importMode = "overwrite";

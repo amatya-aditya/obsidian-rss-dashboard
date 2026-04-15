@@ -29,6 +29,8 @@
 
 - Fixed podcast feeds that only expose channel-level artwork so shared feed artwork now appears correctly in podcast episodes and the player instead of being dropped during parsing/refresh.
 
+- Fixed the Manage Feeds workflow so the modal now closes after the user initiates an OPML import instead of remaining open behind the import flow.
+
 ### Improvements
 
 - Optimized the feed refresh process to reduce unnecessary network requests.
