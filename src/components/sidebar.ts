@@ -946,8 +946,7 @@ export class Sidebar {
     // Feed icon (refresh button) - clickable
     const feedIcon = allFeedsButton.createDiv({
       cls:
-        "rss-dashboard-all-feeds-icon" +
-        (isRefreshActive ? " refreshing" : ""),
+        "rss-dashboard-all-feeds-icon" + (isRefreshActive ? " refreshing" : ""),
       attr: {
         title: "Refresh all feeds",
         "aria-label": "Refresh all feeds",
@@ -1619,10 +1618,7 @@ export class Sidebar {
         cls: "rss-dashboard-feed-processing-indicator",
         text: "⏳",
       });
-      processingIndicator.setAttribute(
-        "title",
-        "Feed queued for refresh",
-      );
+      processingIndicator.setAttribute("title", "Feed queued for refresh");
     }
 
     feedEl.addEventListener("click", (e) => {

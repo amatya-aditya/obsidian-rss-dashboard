@@ -507,9 +507,7 @@ export class DiscoverView extends ItemView {
     this.filterFeeds();
     this.saveFilterState();
 
-    const contentEl = this.containerEl.querySelector(
-      ".rss-discover-content",
-    );
+    const contentEl = this.containerEl.querySelector(".rss-discover-content");
     if (contentEl instanceof HTMLElement) {
       this.renderContent(contentEl);
     }

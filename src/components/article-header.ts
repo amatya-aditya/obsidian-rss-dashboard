@@ -288,7 +288,7 @@ export class ArticleHeader {
       "history",
       "Age:",
       this.getAgeOptions(),
-      () => String(this.settings.articleFilter.value),
+      () => this.getCurrentAgeFilterValue(),
       (val) =>
         this.callbacks.onFilterChange({
           type: Number(val) === 0 ? "none" : "age",
@@ -586,6 +586,19 @@ export class ArticleHeader {
       "6 months": "15552000000",
       "1 year": "31536000000",
     };
+  }
+
+  private getCurrentAgeFilterValue(): string {
+    if (this.settings.articleFilter.type !== "age") {
+      return "0";
+    }
+
+    const currentValue = this.settings.articleFilter.value;
+    if (typeof currentValue !== "number" || currentValue <= 0) {
+      return "0";
+    }
+
+    return String(currentValue);
   }
 
   private renderHeaderFeedIcon(container: HTMLElement, feedUrl: string): void {
