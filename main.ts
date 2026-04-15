@@ -718,8 +718,18 @@ export default class RssDashboardPlugin extends Plugin {
 
   async refreshFeeds(selectedFeeds?: Feed[]) {
     try {
-      const feedsToRefresh = selectedFeeds || this.settings.feeds;
+      const candidateFeeds = selectedFeeds || this.settings.feeds;
+      if (candidateFeeds.length === 0) {
+        return;
+      }
+
+      const feedsToRefresh = this.getRefreshableFeeds(candidateFeeds);
       if (feedsToRefresh.length === 0) {
+        new Notice(
+          selectedFeeds
+            ? "All selected feeds are excluded from refresh."
+            : "All feeds are excluded from refresh.",
+        );
         return;
       }
 
@@ -789,7 +799,22 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   async refreshSelectedFeed(feed: Feed) {
-    await this.refreshFeeds([feed]);
+    try {
+      if (!this.feedParser) {
+        console.warn(
+          "[RSS dashboard] Feed parser not initialized; skipping refresh.",
+        );
+        return;
+      }
+
+      new Notice(`Refreshing ${feed.title}...`);
+      await this.refreshSingleFeed(feed, feed.title);
+    } catch (error) {
+      console.error(`[RSS dashboard] Error refreshing feeds:`, error);
+      new Notice(
+        `Error refreshing  ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
   }
 
   async refreshFeedsInFolder(folderPath: string) {
@@ -1149,6 +1174,7 @@ export default class RssDashboardPlugin extends Plugin {
     scanInterval?: number,
     feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
+    excludeFromRefresh?: boolean,
     options?: { showNotice?: boolean },
   ) {
     const showNotice = options?.showNotice !== false;
@@ -1182,6 +1208,7 @@ export default class RssDashboardPlugin extends Plugin {
             ? maxItemsLimit
             : this.settings.maxItems,
         scanInterval: typeof scanInterval === "number" ? scanInterval : 0,
+        excludeFromRefresh: excludeFromRefresh === true,
         mediaType: mediaType,
         customTemplate: customTemplate || undefined,
         keywordRules: feedKeywordRules || {
@@ -1211,6 +1238,8 @@ export default class RssDashboardPlugin extends Plugin {
             typeof parsedFeed.scanInterval === "number"
               ? parsedFeed.scanInterval
               : newFeed.scanInterval,
+          excludeFromRefresh:
+            parsedFeed.excludeFromRefresh ?? newFeed.excludeFromRefresh,
           customTemplate: parsedFeed.customTemplate ?? newFeed.customTemplate,
           keywordRules: parsedFeed.keywordRules ?? newFeed.keywordRules,
         };
@@ -1377,12 +1406,25 @@ export default class RssDashboardPlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
+  private isFeedExcludedFromRefresh(feed: Feed): boolean {
+    return feed.excludeFromRefresh === true;
+  }
+
+  private getRefreshableFeeds(feeds: Feed[]): Feed[] {
+    return feeds.filter((feed) => !this.isFeedExcludedFromRefresh(feed));
+  }
+
   private mergeRefreshedFeed(updatedFeed: Feed): void {
     const index = this.settings.feeds.findIndex(
       (f) => f.url === updatedFeed.url,
     );
     if (index >= 0) {
-      this.settings.feeds[index] = updatedFeed;
+      this.settings.feeds[index] = {
+        ...updatedFeed,
+        excludeFromRefresh:
+          updatedFeed.excludeFromRefresh ??
+          this.settings.feeds[index].excludeFromRefresh,
+      };
     }
   }
 

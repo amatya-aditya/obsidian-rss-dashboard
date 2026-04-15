@@ -76,6 +76,7 @@ export interface Feed {
   autoDeleteDuration?: number;
   maxItemsLimit?: number;
   scanInterval?: number;
+  excludeFromRefresh?: boolean;
   iconUrl?: string;
   keywordRules?: FeedKeywordRulesSettings;
 }
@@ -106,6 +107,7 @@ export interface FeedMetadata {
   autoDeleteDuration?: number;
   maxItemsLimit?: number;
   scanInterval?: number;
+  excludeFromRefresh?: boolean;
   importStatus?:
     | "pending"
     | "processing"
@@ -128,6 +130,7 @@ export interface FeedIngestionCandidate {
   autoDeleteDuration?: number;
   maxItemsLimit?: number;
   scanInterval?: number;
+  excludeFromRefresh?: boolean;
   keywordRules?: FeedKeywordRulesSettings;
 }
 

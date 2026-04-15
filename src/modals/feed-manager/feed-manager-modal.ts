@@ -143,6 +143,7 @@ export class FeedManagerModal extends Modal {
           scanInterval,
           feedFilters,
           customTemplate,
+          excludeFromRefresh,
         ) =>
           this.plugin.addFeed(
             title,
@@ -153,6 +154,7 @@ export class FeedManagerModal extends Modal {
             scanInterval,
             feedFilters,
             customTemplate,
+            excludeFromRefresh,
           ),
         () => this.onOpen(),
         "",

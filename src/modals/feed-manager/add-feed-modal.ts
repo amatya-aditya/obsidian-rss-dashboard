@@ -42,6 +42,7 @@ export class AddFeedModal extends Modal {
     scanInterval?: number,
     feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
+    excludeFromRefresh?: boolean,
   ) => Promise<boolean | void>;
   onSave: () => void;
   defaultFolder: string;
@@ -59,6 +60,7 @@ export class AddFeedModal extends Modal {
       scanInterval?: number,
       feedKeywordRules?: FeedKeywordRulesSettings,
       customTemplate?: string,
+      excludeFromRefresh?: boolean,
     ) => Promise<boolean | void>,
     onSave: () => void,
     defaultFolder = "",
@@ -462,6 +464,7 @@ export class AddFeedModal extends Modal {
       this.plugin?.settings?.defaultAutoDeleteDuration ?? 30;
     let maxItemsLimit = this.plugin?.settings?.maxItems ?? 50;
     let scanInterval = 0;
+    let excludeFromRefresh = false;
 
     const autoDeleteSetting = new Setting(perFeedControlsBody)
       .setName("Auto delete articles duration")
@@ -632,6 +635,17 @@ export class AddFeedModal extends Modal {
         });
     });
 
+    new Setting(perFeedControlsBody)
+      .setName("Exclude from refresh")
+      .setDesc(
+        "Skip this feed during automatic refresh and bulk refresh actions. You can still refresh it directly from its feed view.",
+      )
+      .addToggle((toggle) => {
+        toggle.setValue(excludeFromRefresh).onChange((value) => {
+          excludeFromRefresh = value;
+        });
+      });
+
     // Template selection
     let customTemplate = "";
     const savedTemplates =
@@ -726,6 +740,7 @@ export class AddFeedModal extends Modal {
           scanInterval,
           feedKeywordRules,
           customTemplate,
+          excludeFromRefresh,
         ).catch(() => {
           return false;
         });

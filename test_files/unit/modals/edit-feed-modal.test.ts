@@ -55,6 +55,18 @@ function getButtonByText(
   return buttonEl;
 }
 
+function getToggleBySettingName(
+  containerEl: HTMLElement,
+  name: string,
+): HTMLInputElement {
+  const settingEl = getSettingByName(containerEl, name);
+  const toggleEl = settingEl.querySelector('input[type="checkbox"]');
+  if (!(toggleEl instanceof HTMLInputElement)) {
+    throw new Error(`Toggle not found for setting: ${name}`);
+  }
+  return toggleEl;
+}
+
 beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
@@ -156,6 +168,53 @@ describe("EditFeedModal", () => {
     await flushPromises();
 
     expect(feed.scanInterval).toBe(0);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists exclude-from-refresh when enabled", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+      excludeFromRefresh: false,
+    } as any;
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
+    modal.open();
+
+    const excludeToggle = getToggleBySettingName(
+      modal.contentEl,
+      "Exclude from refresh",
+    );
+    excludeToggle.checked = true;
+    excludeToggle.dispatchEvent(new Event("change"));
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(feed.excludeFromRefresh).toBe(true);
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
   });
 

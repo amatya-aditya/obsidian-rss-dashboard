@@ -543,6 +543,28 @@ describe("refreshFeeds()", () => {
     expect(mockRefreshAllFeeds).toHaveBeenCalledWith([feed1]);
   });
 
+  it("skips excluded feeds during bulk refresh", async () => {
+    const includedFeed = {
+      ...sampleFeed,
+      url: "https://example.com/feed1.xml",
+      title: "Included Feed",
+    };
+    const excludedFeed = {
+      ...sampleFeed,
+      url: "https://example.com/feed2.xml",
+      title: "Excluded Feed",
+      excludeFromRefresh: true,
+    };
+    plugin.settings.feeds = [includedFeed, excludedFeed];
+
+    mockRefreshAllFeeds.mockResolvedValue([includedFeed]);
+
+    await plugin.refreshFeeds();
+
+    expect(mockRefreshAllFeeds).toHaveBeenCalledTimes(1);
+    expect(mockRefreshAllFeeds).toHaveBeenCalledWith([includedFeed]);
+  });
+
   it("updates settings after refresh", async () => {
     // Given: Mock refreshAllFeeds returns updated feed
     const newItem = {
@@ -768,6 +790,31 @@ describe("refreshFeedsInFolder()", () => {
     expect(feedsCalled.every((f: Feed) => f.folder.startsWith("News/"))).toBe(
       true,
     );
+  });
+
+  it("skips excluded feeds in the specified folder", async () => {
+    plugin.settings.feeds = [
+      {
+        ...sampleFeed,
+        url: "https://example.com/feed1.xml",
+        folder: "News/Tech",
+      },
+      {
+        ...sampleFeed,
+        url: "https://example.com/feed2.xml",
+        folder: "News/Sports",
+        excludeFromRefresh: true,
+      },
+    ];
+
+    mockRefreshAllFeeds.mockResolvedValue([]);
+
+    await plugin.refreshFeedsInFolder("News");
+
+    expect(mockRefreshAllFeeds).toHaveBeenCalledTimes(1);
+    expect(mockRefreshAllFeeds).toHaveBeenCalledWith([
+      expect.objectContaining({ url: "https://example.com/feed1.xml" }),
+    ]);
   });
 
   it("shows notice when no feeds in folder", async () => {
@@ -1004,6 +1051,34 @@ describe("addFeed()", () => {
 
     const addedFeed = plugin.settings.feeds.find((f: Feed) => f.url === newUrl);
     expect(addedFeed?.scanInterval).toBe(-1);
+  });
+
+  it("preserves exclude-from-refresh when provided", async () => {
+    const newUrl = "https://example.com/excluded.xml";
+
+    mockParseFeed.mockResolvedValue({
+      title: "Excluded Feed",
+      url: newUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+      mediaType: "article",
+    });
+
+    await plugin.addFeed(
+      "Excluded Feed",
+      newUrl,
+      "Uncategorized",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      true,
+    );
+
+    const addedFeed = plugin.settings.feeds.find((f: Feed) => f.url === newUrl);
+    expect(addedFeed?.excludeFromRefresh).toBe(true);
   });
 
   it("preserves the global maxItems default when parser output omits maxItemsLimit", async () => {
@@ -1350,15 +1425,16 @@ describe("refreshSelectedFeed()", () => {
     mockParseFeed.mockClear();
   });
 
-  it("refreshes a single feed", async () => {
-    // Given: Mock refreshFeeds
-    plugin.refreshFeeds = vi.fn().mockResolvedValue(undefined);
+  it("refreshes a single excluded feed explicitly", async () => {
+    const excludedFeed = {
+      ...sampleFeed,
+      excludeFromRefresh: true,
+    };
+    mockRefreshAllFeeds.mockResolvedValue([excludedFeed]);
 
-    // When: refreshSelectedFeed is called
-    await plugin.refreshSelectedFeed(sampleFeed);
+    await plugin.refreshSelectedFeed(excludedFeed);
 
-    // Then: refreshFeeds should be called with array containing the feed
-    expect(plugin.refreshFeeds).toHaveBeenCalledWith([sampleFeed]);
+    expect(mockRefreshAllFeeds).toHaveBeenCalledWith([excludedFeed]);
   });
 });
 

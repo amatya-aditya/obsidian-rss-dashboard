@@ -26,6 +26,7 @@
 ### Improvements
 
 - Optimized the feed refresh process to reduce unnecessary network requests.
+- Added a per-feed "Exclude from refresh" option in Add/Edit Feed so selected feeds can be skipped by auto-refresh and bulk refresh actions while still allowing direct manual refresh.
 
 ## [2.2.0-beta.10] - April 2, 2026
 

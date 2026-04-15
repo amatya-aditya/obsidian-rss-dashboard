@@ -56,6 +56,18 @@ function getButtonByText(
   return buttonEl;
 }
 
+function getToggleBySettingName(
+  containerEl: HTMLElement,
+  name: string,
+): HTMLInputElement {
+  const settingEl = getSettingByName(containerEl, name);
+  const toggleEl = settingEl.querySelector('input[type="checkbox"]');
+  if (!(toggleEl instanceof HTMLInputElement)) {
+    throw new Error(`Toggle not found for setting: ${name}`);
+  }
+  return toggleEl;
+}
+
 beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
@@ -142,6 +154,43 @@ describe("AddFeedModal", () => {
 
     expect(onAdd).toHaveBeenCalledTimes(1);
     expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[5]).toBe(0);
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it("submits exclude-from-refresh when enabled", async () => {
+    const app = createMockApp();
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const onSave = vi.fn();
+
+    const modal = new AddFeedModal(app as any, [], onAdd as any, onSave as any);
+    modal.open();
+
+    const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
+    const urlInput = urlSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+    urlInput.value = "https://example.com/feed.xml";
+    urlInput.dispatchEvent(new Event("input"));
+
+    const titleSetting = getSettingByName(modal.contentEl, "Title");
+    const titleInput = titleSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+    titleInput.value = "My feed";
+    titleInput.dispatchEvent(new Event("input"));
+
+    const excludeToggle = getToggleBySettingName(
+      modal.contentEl,
+      "Exclude from refresh",
+    );
+    excludeToggle.checked = true;
+    excludeToggle.dispatchEvent(new Event("change"));
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[8]).toBe(true);
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 

@@ -1409,6 +1409,7 @@ export class RssDashboardView extends ItemView {
     scanInterval?: number,
     feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
+    excludeFromRefresh?: boolean,
   ): Promise<void> {
     await this.plugin.addFeed(
       title,
@@ -1419,6 +1420,7 @@ export class RssDashboardView extends ItemView {
       scanInterval,
       feedKeywordRules,
       customTemplate,
+      excludeFromRefresh,
     );
     void this.render();
   }

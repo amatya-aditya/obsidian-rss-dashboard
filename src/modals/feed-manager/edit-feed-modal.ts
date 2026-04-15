@@ -245,6 +245,7 @@ export class EditFeedModal extends Modal {
     let maxItemsLimit =
       this.feed.maxItemsLimit ?? this.plugin.settings.maxItems;
     let scanInterval = this.feed.scanInterval ?? 0;
+    let excludeFromRefresh = !!this.feed.excludeFromRefresh;
 
     const autoDeleteSetting = new Setting(perFeedControlsBody)
       .setName("Auto delete articles duration")
@@ -415,6 +416,17 @@ export class EditFeedModal extends Modal {
         });
     });
 
+    new Setting(perFeedControlsBody)
+      .setName("Exclude from refresh")
+      .setDesc(
+        "Skip this feed during automatic refresh and bulk refresh actions. You can still refresh it directly from its feed view.",
+      )
+      .addToggle((toggle) => {
+        toggle.setValue(excludeFromRefresh).onChange((value) => {
+          excludeFromRefresh = value;
+        });
+      });
+
     // Template selection
     let customTemplate = this.feed.customTemplate || "";
     const savedTemplates =
@@ -521,6 +533,7 @@ export class EditFeedModal extends Modal {
 
         this.feed.maxItemsLimit = newMaxItemsLimit;
         this.feed.scanInterval = scanInterval;
+        this.feed.excludeFromRefresh = excludeFromRefresh;
         this.feed.customTemplate = customTemplate || undefined;
         this.feed.keywordRules = {
           overrideGlobalRules: feedKeywordRules.overrideGlobalRules,

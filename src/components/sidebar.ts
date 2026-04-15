@@ -68,6 +68,7 @@ export interface SidebarCallbacks {
     scanInterval?: number,
     feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
+    excludeFromRefresh?: boolean,
   ) => Promise<void>;
   onEditFeed: (feed: Feed, title: string, url: string, folder: string) => void;
   onDeleteFeed: (feed: Feed) => void;
@@ -2798,6 +2799,7 @@ export class Sidebar {
         scanInterval,
         feedFilters,
         customTemplate,
+        excludeFromRefresh,
       ) =>
         await this.callbacks.onAddFeed(
           title,
@@ -2808,6 +2810,7 @@ export class Sidebar {
           scanInterval,
           feedFilters,
           customTemplate,
+          excludeFromRefresh,
         ),
       () => this.render(),
       defaultFolder,

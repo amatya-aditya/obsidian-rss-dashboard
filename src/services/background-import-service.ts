@@ -445,6 +445,7 @@ export class BackgroundImportService {
           : this.getSettings().maxItems,
       scanInterval:
         typeof candidate.scanInterval === "number" ? candidate.scanInterval : 0,
+      excludeFromRefresh: candidate.excludeFromRefresh === true,
       keywordRules: candidate.keywordRules || {
         overrideGlobalRules: false,
         includeLogic: "AND",

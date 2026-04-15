@@ -125,6 +125,21 @@ describe("BackgroundImportService", () => {
       expect(placeholder.scanInterval).toBe(-1);
     });
 
+    it("preserves exclude-from-refresh from the candidate", async () => {
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const deps = makeDeps();
+      const service = new BackgroundImportService(deps);
+
+      const placeholder = (service as any).createPlaceholderFeed({
+        title: "Muted Feed",
+        url: "https://example.com/muted.xml",
+        excludeFromRefresh: true,
+      });
+
+      expect(placeholder.excludeFromRefresh).toBe(true);
+    });
+
     it("preserves an explicit article mediaType instead of relying on the default fallback", async () => {
       const { BackgroundImportService } =
         await import("../../../src/services/background-import-service");
