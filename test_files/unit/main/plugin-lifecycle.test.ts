@@ -981,6 +981,31 @@ describe("addFeed()", () => {
     expect(addedFeed?.maxItemsLimit).toBe(customLimit);
   });
 
+  it("preserves an explicit Off scanInterval sentinel when provided", async () => {
+    const newUrl = "https://example.com/refresh-off.xml";
+
+    mockParseFeed.mockResolvedValue({
+      title: "Refresh Off Feed",
+      url: newUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+      mediaType: "article",
+    });
+
+    await plugin.addFeed(
+      "Refresh Off Feed",
+      newUrl,
+      "Uncategorized",
+      undefined,
+      undefined,
+      -1,
+    );
+
+    const addedFeed = plugin.settings.feeds.find((f: Feed) => f.url === newUrl);
+    expect(addedFeed?.scanInterval).toBe(-1);
+  });
+
   it("preserves the global maxItems default when parser output omits maxItemsLimit", async () => {
     const newUrl = "https://example.com/global-default-limit.xml";
 

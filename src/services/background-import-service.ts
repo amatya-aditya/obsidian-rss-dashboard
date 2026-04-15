@@ -443,7 +443,8 @@ export class BackgroundImportService {
         typeof candidate.maxItemsLimit === "number"
           ? candidate.maxItemsLimit
           : this.getSettings().maxItems,
-      scanInterval: candidate.scanInterval || 0,
+      scanInterval:
+        typeof candidate.scanInterval === "number" ? candidate.scanInterval : 0,
       keywordRules: candidate.keywordRules || {
         overrideGlobalRules: false,
         includeLogic: "AND",

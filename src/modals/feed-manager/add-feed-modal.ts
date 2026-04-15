@@ -6,12 +6,19 @@ import type {
   SavedTemplate,
 } from "../../types/types";
 import { FolderSuggest } from "../../components/folder-suggest";
-import { resolvePodcastPlatformUrl, loadFeedForPreview } from "../../services/feed-parser";
+import {
+  resolvePodcastPlatformUrl,
+  loadFeedForPreview,
+} from "../../services/feed-parser";
 import { detectPodcastPlatform } from "../../utils/podcast-platforms";
 import { MediaService } from "../../services/media-service";
 import { renderKeywordFilterEditor } from "../../components/keyword-filter-editor";
 import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
 import { isValidFeedTitle } from "../../utils/validation";
+import {
+  FEED_REFRESH_DISABLED_INTERVAL,
+  getPerFeedRefreshIntervalDropdownValue,
+} from "../../utils/refresh-intervals";
 import { renderSupportedFormatBadges } from "./supported-format-badges";
 
 const EMPTY_FEED_VALIDATION_WARNING =
@@ -168,7 +175,8 @@ export class AddFeedModal extends Modal {
               let isXConversion = false;
 
               // Normalize Nitter profile URLs to their RSS endpoint
-              const normalizedNitterUrl = MediaService.normalizeNitterUrlToRss(url);
+              const normalizedNitterUrl =
+                MediaService.normalizeNitterUrlToRss(url);
               if (normalizedNitterUrl) {
                 url = normalizedNitterUrl;
                 feedUrl = normalizedNitterUrl;
@@ -243,7 +251,9 @@ export class AddFeedModal extends Modal {
                 if (platform) {
                   if (platform.id === "pocketcasts") {
                     if (!this.plugin?.settings.corsProxyEnabled) {
-                      throw new Error("Pocket Casts resolution requires the CORS Proxy to be enabled in Settings (due to Pocket Casts API limitations). Please enable it, or try another feed source.");
+                      throw new Error(
+                        "Pocket Casts resolution requires the CORS Proxy to be enabled in Settings (due to Pocket Casts API limitations). Please enable it, or try another feed source.",
+                      );
                     }
                   }
 
@@ -252,7 +262,7 @@ export class AddFeedModal extends Modal {
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
                   const resolvedUrl = await resolvePodcastPlatformUrl(
                     url,
-                    this.plugin?.settings?.corsProxyUrl
+                    this.plugin?.settings?.corsProxyUrl,
                   );
                   if (!resolvedUrl) {
                     throw new Error("Could not resolve podcast feed URL");
@@ -308,10 +318,10 @@ export class AddFeedModal extends Modal {
               } else {
                 latestEntry = "N/A";
               }
-              
+
               if (refs.latestEntryDiv)
                 refs.latestEntryDiv.textContent = latestEntry;
-              
+
               if (refs.statusDiv) {
                 refs.statusDiv.removeClass("status-loading");
                 refs.statusDiv.removeClass("status-error");
@@ -320,12 +330,16 @@ export class AddFeedModal extends Modal {
 
                 if (feedData.hasEntries) {
                   status = "OK";
-                  const conversionNotice = isXConversion ? " (X > nitter conversion)" : "";
+                  const conversionNotice = isXConversion
+                    ? " (X > nitter conversion)"
+                    : "";
                   refs.statusDiv.textContent = `\u2705 OK${conversionNotice}`;
                   refs.statusDiv.addClass("status-ok");
                 } else {
                   status = EMPTY_FEED_VALIDATION_WARNING;
-                  const conversionNotice = isXConversion ? " (X > nitter conversion)" : "";
+                  const conversionNotice = isXConversion
+                    ? " (X > nitter conversion)"
+                    : "";
                   refs.statusDiv.textContent = `⚠ ${EMPTY_FEED_VALIDATION_WARNING}${conversionNotice}`;
                   refs.statusDiv.addClass("rss-dashboard-status-warning");
                 }
@@ -444,7 +458,8 @@ export class AddFeedModal extends Modal {
       cls: "rss-keyword-filter-details-body",
     });
 
-    let autoDeleteDuration = this.plugin?.settings?.defaultAutoDeleteDuration ?? 30;
+    let autoDeleteDuration =
+      this.plugin?.settings?.defaultAutoDeleteDuration ?? 30;
     let maxItemsLimit = this.plugin?.settings?.maxItems ?? 50;
     let scanInterval = 0;
 
@@ -561,14 +576,15 @@ export class AddFeedModal extends Modal {
     });
 
     const scanIntervalSetting = new Setting(perFeedControlsBody)
-      .setName("Scan interval")
-      .setDesc("Custom scan interval in minutes");
+      .setName("Auto-refresh interval")
+      .setDesc("Custom auto-refresh interval in minutes");
 
     let scanIntervalCustomInput: HTMLInputElement | null = null;
 
     scanIntervalSetting.addDropdown((dropdown) => {
       dropdown
         .addOption("0", "Use global setting")
+        .addOption(String(FEED_REFRESH_DISABLED_INTERVAL), "Off")
         .addOption("5", "5 minutes")
         .addOption("10", "10 minutes")
         .addOption("15", "15 minutes")
@@ -580,15 +596,7 @@ export class AddFeedModal extends Modal {
         .addOption("720", "12 hours")
         .addOption("1440", "24 hours")
         .addOption("custom", "Custom...")
-        .setValue(
-          scanInterval === 0
-            ? "0"
-            : [5, 10, 15, 30, 60, 120, 240, 480, 720, 1440].includes(
-                  scanInterval,
-                )
-              ? scanInterval.toString()
-              : "custom",
-        )
+        .setValue(getPerFeedRefreshIntervalDropdownValue(scanInterval))
         .onChange((value) => {
           if (value === "custom") {
             if (!scanIntervalCustomInput) {
@@ -601,11 +609,13 @@ export class AddFeedModal extends Modal {
                 },
               );
               scanIntervalCustomInput.min = "1";
+              scanIntervalCustomInput.value =
+                scanInterval > 0 ? scanInterval.toString() : "";
               scanIntervalCustomInput.addEventListener(
                 "change",
                 (evt: Event) => {
                   const target = evt.target as HTMLInputElement;
-                  scanInterval = parseInt(target.value) || 0;
+                  scanInterval = parseInt(target.value, 10) || 0;
                 },
               );
             }
@@ -617,7 +627,7 @@ export class AddFeedModal extends Modal {
             if (scanIntervalCustomInput) {
               scanIntervalCustomInput.addClass("hidden");
             }
-            scanInterval = parseInt(value) || 0;
+            scanInterval = parseInt(value, 10) || 0;
           }
         });
     });
@@ -719,7 +729,7 @@ export class AddFeedModal extends Modal {
         ).catch(() => {
           return false;
         });
-        
+
         if (added !== false) {
           this.onSave();
           this.close();
@@ -737,4 +747,3 @@ export class AddFeedModal extends Modal {
     this.contentEl.empty();
   }
 }
-

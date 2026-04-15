@@ -110,6 +110,21 @@ describe("BackgroundImportService", () => {
       expect(placeholder.maxItemsLimit).toBe(75);
     });
 
+    it("preserves an explicit Off scanInterval sentinel from the candidate", async () => {
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const deps = makeDeps();
+      const service = new BackgroundImportService(deps);
+
+      const placeholder = (service as any).createPlaceholderFeed({
+        title: "Refresh Off",
+        url: "https://example.com/refresh-off.xml",
+        scanInterval: -1,
+      });
+
+      expect(placeholder.scanInterval).toBe(-1);
+    });
+
     it("preserves an explicit article mediaType instead of relying on the default fallback", async () => {
       const { BackgroundImportService } =
         await import("../../../src/services/background-import-service");

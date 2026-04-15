@@ -15,6 +15,8 @@
 
 - Fixed a bug where the Obsidian tab title was not properly updating when switching between feeds.
 
+- Per-feed Add/Edit Feed options now support a separate Auto-refresh "Off" override in addition to "Use global setting", and the explicit Off state is preserved when adding or importing feeds.
+
 - Multi-feed refreshes now run through a bounded worker pool of 4 with a 15s per-feed timeout, keep runtime-only refresh state per URL, merge refreshed feeds back into settings during the run, and finish with one save plus a final dashboard refresh. Single-feed refresh stays on the lightweight direct path. (Old behavior: all feeds were being refreshed individually with no indication of progress or completion)
 
 - Fixed Reader View Location So It Controls Article Opening into sidebars (GH[#100](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/100))

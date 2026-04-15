@@ -12,6 +12,11 @@ import { Notice, Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { setCssProps } from "../../utils/platform-utils";
 import { normalizeRefreshIntervalMinutes } from "../../utils/validation";
+import { isPresetRefreshInterval } from "../../utils/refresh-intervals";
+export {
+  REFRESH_INTERVAL_PRESETS,
+  isPresetRefreshInterval,
+} from "../../utils/refresh-intervals";
 import {
   getPageSizeOptions,
   PAGE_SIZE_OPTIONS,
@@ -20,15 +25,8 @@ import { ApplyMaxItemsToExistingFeedsModal } from "../modals/settings-modals";
 
 // ── Pure preset helpers (exported for testing) ───────────────────────────────
 
-export const REFRESH_INTERVAL_PRESETS = [
-  0, 5, 10, 15, 30, 60, 120, 240, 480, 720, 1440,
-];
 export const MAX_ITEMS_PRESETS = [0, 10, 25, 50, 100, 200, 500, 1000];
 export const AUTO_DELETE_PRESETS = [0, 1, 3, 7, 14, 30, 60, 90, 180, 365];
-
-export function isPresetRefreshInterval(value: number): boolean {
-  return REFRESH_INTERVAL_PRESETS.includes(value);
-}
 
 export function isPresetMaxItems(value: number): boolean {
   return MAX_ITEMS_PRESETS.includes(value);
@@ -172,8 +170,8 @@ export function renderGeneralSettingsTab(
 
   // ── Refresh interval ──────────────────────────────────────────────────────
   const refreshIntervalSetting = new Setting(containerEl)
-    .setName("Refresh interval")
-    .setDesc("How often to refresh feeds (in minutes)");
+    .setName("Auto-Refresh interval")
+    .setDesc("How often to auto-refresh feeds (in minutes)");
 
   let refreshInterval = plugin.settings.refreshInterval;
   let refreshIntervalCustomInput: HTMLInputElement | null = null;

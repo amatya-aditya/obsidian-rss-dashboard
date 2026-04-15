@@ -1181,7 +1181,7 @@ export default class RssDashboardPlugin extends Plugin {
           typeof maxItemsLimit === "number"
             ? maxItemsLimit
             : this.settings.maxItems,
-        scanInterval: scanInterval || 0,
+        scanInterval: typeof scanInterval === "number" ? scanInterval : 0,
         mediaType: mediaType,
         customTemplate: customTemplate || undefined,
         keywordRules: feedKeywordRules || {

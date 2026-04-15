@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { DEFAULT_SETTINGS, type Feed } from "../../../src/types/types";
+import {
+  BACKGROUND_IMPORT_CONCURRENCY,
+  BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS,
+  BACKGROUND_IMPORT_TIMEOUT_RETRY_COUNT,
+} from "../../../src/services/feed-timeout";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { BackgroundImportService } from "../../../src/services/background-import-service";
 
@@ -100,7 +105,7 @@ describe("background import orchestration", () => {
     mockParseFeed.mockReset();
   });
 
-  it("processes queued feeds with bounded concurrency of 4", async () => {
+  it("processes queued feeds with bounded concurrency", async () => {
     const plugin = createPlugin();
     const resolvers: Array<() => void> = [];
 
@@ -125,10 +130,20 @@ describe("background import orchestration", () => {
     plugin.startBackgroundImport(feeds);
     await flushPromises();
 
-    expect(mockParseFeed).toHaveBeenCalledTimes(4);
+    expect(mockParseFeed).toHaveBeenCalledTimes(
+      BACKGROUND_IMPORT_CONCURRENCY,
+    );
 
     resolvers[0]?.();
     resolvers[1]?.();
+    await flushPromises();
+
+    expect(mockParseFeed).toHaveBeenCalledTimes(
+      BACKGROUND_IMPORT_CONCURRENCY * 2,
+    );
+
+    resolvers[2]?.();
+    resolvers[3]?.();
     await flushPromises();
 
     expect(mockParseFeed).toHaveBeenCalledTimes(6);
@@ -162,7 +177,10 @@ describe("background import orchestration", () => {
     plugin.settings.feeds = [...feeds];
 
     plugin.startBackgroundImport(feeds);
-    await vi.advanceTimersByTimeAsync(15000);
+    await vi.advanceTimersByTimeAsync(
+      BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS *
+        (BACKGROUND_IMPORT_TIMEOUT_RETRY_COUNT + 1),
+    );
     await Promise.resolve();
     await Promise.resolve();
 
