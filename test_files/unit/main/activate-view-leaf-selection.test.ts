@@ -98,6 +98,11 @@ async function createPlugin(
 
   await plugin.loadSettings();
 
+  // Initialize folderService after loadSettings
+  const { FolderService } =
+    await import("../../../src/services/folder-service");
+  (plugin as any).folderService = new FolderService(plugin.settings);
+
   return { plugin, app, mockLeaf };
 }
 

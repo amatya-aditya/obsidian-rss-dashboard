@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { DEFAULT_SETTINGS, type Feed } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { BackgroundImportService } from "../../../src/services/background-import-service";
 
 const mockParseFeed = vi.fn();
 
@@ -35,14 +36,17 @@ import RssDashboardPlugin from "../../../main";
 
 function createPlugin(): RssDashboardPlugin {
   const app = (App as any).createMock();
-  const plugin = new RssDashboardPlugin(app as any, {
-    id: "rss-dashboard",
-    name: "RSS Dashboard",
-    version: "1.0.0",
-    author: "Test",
-    description: "Test plugin",
-    dir: ".",
-  } as any);
+  const plugin = new RssDashboardPlugin(
+    app as any,
+    {
+      id: "rss-dashboard",
+      name: "RSS Dashboard",
+      version: "1.0.0",
+      author: "Test",
+      description: "Test plugin",
+      dir: ".",
+    } as any,
+  );
 
   plugin.settings = {
     ...DEFAULT_SETTINGS,
@@ -54,6 +58,16 @@ function createPlugin(): RssDashboardPlugin {
     parseFeed: mockParseFeed,
     refreshAllFeeds: vi.fn(),
   } as any;
+
+  // Initialize BackgroundImportService (normally done in onload)
+  (plugin as any).backgroundImportService = new BackgroundImportService({
+    feedParser: plugin.feedParser,
+    getSettings: () => plugin.settings,
+    getView: () => plugin.getActiveDashboardView(),
+    saveSettings: () => plugin.saveSettings(),
+    ensureFolderExists: vi.fn().mockResolvedValue(false),
+    addStatusBarItem: () => (plugin.addStatusBarItem as any)(),
+  });
 
   return plugin;
 }

@@ -1,0 +1,1 @@
+export const FEED_REQUEST_TIMEOUT_MS = 15000;

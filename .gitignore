@@ -30,3 +30,4 @@ CLAUDE.md
 userdata.json.backup
 feeds.opml.backup
 coverage/
+.github/prompts/

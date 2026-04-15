@@ -80,7 +80,11 @@ export interface Feed {
   keywordRules?: FeedKeywordRulesSettings;
 }
 
-export type FeedRefreshStatus = "pending" | "processing" | "timed_out" | "failed";
+export type FeedRefreshStatus =
+  | "pending"
+  | "processing"
+  | "timed_out"
+  | "failed";
 
 export interface FeedRefreshState {
   status: FeedRefreshStatus;
@@ -109,6 +113,28 @@ export interface FeedMetadata {
     | "failed"
     | "timed_out";
   importError?: string;
+}
+
+export interface FeedIngestionCandidate {
+  title: string;
+  url: string;
+  folder?: string;
+  author?: string;
+  mediaType?: "article" | "video" | "podcast";
+  autoDetect?: boolean;
+  customTemplate?: string;
+  customFolder?: string;
+  customTags?: string[];
+  autoDeleteDuration?: number;
+  maxItemsLimit?: number;
+  scanInterval?: number;
+  keywordRules?: FeedKeywordRulesSettings;
+}
+
+export interface FeedIngestionOptions {
+  mode?: "update" | "overwrite";
+  folders?: Folder[];
+  onProgress?: (completed: number, total: number) => void;
 }
 
 export interface Tag {

@@ -5,7 +5,10 @@
  * Imports are kept minimal — only Obsidian core + platform utils.
  */
 import { App, Modal, Setting, TextComponent } from "obsidian";
-import { setCssProps, shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
+import {
+  setCssProps,
+  shouldUseMobileSidebarLayout,
+} from "../../utils/platform-utils";
 
 // ── TemplateNameModal ───────────────────────────────────────────────────────
 
@@ -188,6 +191,68 @@ export class ConfirmDeleteModal extends Modal {
     if (this.resolvePromise) {
       this.resolvePromise(this.confirmed);
     }
+  }
+
+  waitForClose(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}
+
+// ── FactoryResetConfirmModal ────────────────────────────────────────────────
+
+export class FactoryResetConfirmModal extends Modal {
+  private confirmed = false;
+  private resolvePromise: ((value: boolean) => void) | null = null;
+
+  constructor(app: App) {
+    super(app);
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    this.modalEl.addClass("rss-dashboard-modal");
+    this.modalEl.addClass("rss-dashboard-modal-container");
+
+    contentEl.createEl("h2", { text: "Factory reset RSS Dashboard?" });
+    contentEl.createEl("p", {
+      text: "This restores all plugin settings to their default values and clears your feeds, folders, tags, and plugin-managed local state.",
+    });
+    contentEl.createEl("p", {
+      text: "Existing backup files and saved article markdown files in your vault will not be deleted.",
+    });
+
+    const buttonsSetting = new Setting(contentEl);
+    buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
+    buttonsSetting
+      .addButton((btn) =>
+        btn
+          .setButtonText("Cancel")
+          .setClass("rss-confirm-modal-cancel")
+          .onClick(() => {
+            this.confirmed = false;
+            this.close();
+          }),
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Factory reset")
+          .setWarning()
+          .setClass("rss-dashboard-danger-button")
+          .onClick(() => {
+            this.confirmed = true;
+            this.close();
+          }),
+      );
+  }
+
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+    this.resolvePromise?.(this.confirmed);
   }
 
   waitForClose(): Promise<boolean> {

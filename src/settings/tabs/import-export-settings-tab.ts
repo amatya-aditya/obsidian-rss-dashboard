@@ -5,11 +5,67 @@
  * Exports:
  *   - renderImportExportSettingsTab(containerEl, plugin)
  */
-import { Notice, Setting } from "obsidian";
-import RssDashboardPlugin from "../../../main";
+import { App, Modal, Notice, Setting } from "obsidian";
+import type RssDashboardPlugin from "../../../main";
 import { ImportOpmlModal } from "../../modals/import-opml-modal";
 import { ImportSuccessModal } from "../../modals/import-success-modal";
 import { AutoBackupSettings, RssDashboardSettings } from "../../types/types";
+
+export class FactoryResetConfirmModal extends Modal {
+  private confirmed = false;
+  private resolvePromise: ((value: boolean) => void) | null = null;
+
+  constructor(app: App) {
+    super(app);
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    this.modalEl.addClass("rss-dashboard-modal");
+    this.modalEl.addClass("rss-dashboard-modal-container");
+
+    contentEl.createEl("h2", { text: "Factory reset RSS Dashboard?" });
+    contentEl.createEl("p", {
+      text: "This restores all plugin settings to their default values and clears your feeds, folders, tags, and plugin-managed local state.",
+    });
+    contentEl.createEl("p", {
+      text: "Existing backup files and saved article markdown files in your vault will not be deleted.",
+    });
+
+    const buttonsSetting = new Setting(contentEl);
+    buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
+    buttonsSetting
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => {
+          this.confirmed = false;
+          this.close();
+        }),
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Factory reset")
+          .setWarning()
+          .onClick(() => {
+            this.confirmed = true;
+            this.close();
+          }),
+      );
+  }
+
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+    this.resolvePromise?.(this.confirmed);
+  }
+
+  waitForClose(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}
 
 /**
  * Returns a fresh copy of the default auto-backup settings.
@@ -104,9 +160,7 @@ export function renderImportExportSettingsTab(
     .setHeading();
 
   const userSettingsActions = new Setting(userSettingsSection);
-  userSettingsActions.settingEl.addClass(
-    "rss-dashboard-import-export-actions",
-  );
+  userSettingsActions.settingEl.addClass("rss-dashboard-import-export-actions");
   userSettingsActions
     .addButton((button) =>
       button
@@ -232,4 +286,34 @@ export function renderImportExportSettingsTab(
           await plugin.saveSettings();
         }),
     );
+
+  // ── Factory Reset ─────────────────────────────────────────────────────────
+  const factoryResetSection = containerEl.createDiv();
+  new Setting(factoryResetSection)
+    .setName("Factory Reset")
+    .setDesc(
+      "Restore all plugin settings to their default values and clear plugin-managed data. Existing backup files and saved article markdown files are left untouched.",
+    )
+    .setHeading();
+
+  const factoryResetActions = new Setting(factoryResetSection);
+  factoryResetActions.settingEl.addClass("rss-dashboard-import-export-actions");
+  factoryResetActions.addButton((button) =>
+    button
+      .setIcon("rotate-ccw")
+      .setButtonText("Factory reset")
+      .setWarning()
+      .onClick(() => {
+        void (async () => {
+          const confirmModal = new FactoryResetConfirmModal(plugin.app);
+          confirmModal.open();
+          const shouldReset = await confirmModal.waitForClose();
+          if (!shouldReset) {
+            return;
+          }
+
+          await plugin.performFactoryReset();
+        })();
+      }),
+  );
 }

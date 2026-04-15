@@ -40,6 +40,15 @@ vi.mock("../../../src/services/article-saver", () => ({
   },
 }));
 
+vi.mock("../../../src/services/backup-service", () => ({
+  BackupService: class BackupService {
+    performAutoBackups = vi.fn().mockResolvedValue(undefined);
+    performAutoBackupsSyncDesktop = vi.fn().mockReturnValue(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructor(_options?: any) {}
+  },
+}));
+
 vi.mock("../../../src/utils/settings-migration", () => ({
   migrateDisplaySettings: vi.fn(),
   migrateDefaultFilterToDashboardMultiFilters: vi.fn(),
@@ -101,6 +110,47 @@ async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
 
   // Mock registerInterval
   plugin.registerInterval = vi.fn((id: number) => id);
+
+  // Initialize backupService with mock
+  const { BackupService } =
+    await import("../../../src/services/backup-service");
+  (plugin as any).backupService = new BackupService({
+    settings: plugin.settings,
+    manifest: plugin.manifest,
+    vaultAbsolutePath: "",
+    vault: app.vault,
+    getUserSettingsJson: () => JSON.stringify({}),
+  });
+
+  // Initialize folderService
+  const { FolderService } =
+    await import("../../../src/services/folder-service");
+  (plugin as any).folderService = new FolderService(plugin.settings);
+
+  // Initialize backgroundImportService
+  const { BackgroundImportService } =
+    await import("../../../src/services/background-import-service");
+  (plugin as any).backgroundImportService = new BackgroundImportService({
+    feedParser: {
+      parseFeed: (url: string) =>
+        ((plugin as any).feedParser?.parseFeed ?? vi.fn())(url),
+    },
+    getSettings: () => plugin.settings,
+    getView: () => plugin.getActiveDashboardView(),
+    saveSettings: () => plugin.saveSettings(),
+    ensureFolderExists: (folder, opts) =>
+      plugin.ensureFolderExists(folder, opts),
+    addStatusBarItem: () => {
+      const el = document.createElement("div");
+      el.createSpan = (opts?: any) => {
+        const span = document.createElement("span");
+        if (opts?.cls) span.className = opts.cls;
+        el.appendChild(span);
+        return span;
+      };
+      return el;
+    },
+  });
 
   return plugin;
 }
@@ -390,7 +440,9 @@ describe("onload() initialization", () => {
       lastRefreshTimestamp: 0,
       feeds: [],
     });
-    const refreshSpy = vi.spyOn(plugin, "refreshFeeds").mockResolvedValue(undefined);
+    const refreshSpy = vi
+      .spyOn(plugin, "refreshFeeds")
+      .mockResolvedValue(undefined);
 
     await plugin.onload();
 
@@ -459,7 +511,9 @@ describe("refreshFeeds()", () => {
 
     // Then: the fallback multi-feed path should refresh each feed individually
     expect(mockRefreshAllFeeds).toHaveBeenCalledTimes(2);
-    expect(mockRefreshAllFeeds.mock.calls.map((call) => call[0][0].url)).toEqual([
+    expect(
+      mockRefreshAllFeeds.mock.calls.map((call) => call[0][0].url),
+    ).toEqual([
       "https://example.com/feed1.xml",
       "https://example.com/feed2.xml",
     ]);
@@ -708,7 +762,9 @@ describe("refreshFeedsInFolder()", () => {
 
     // Then: the fallback multi-feed path should refresh each matching feed individually
     expect(mockRefreshAllFeeds).toHaveBeenCalledTimes(2);
-    const feedsCalled = mockRefreshAllFeeds.mock.calls.map((call) => call[0][0]);
+    const feedsCalled = mockRefreshAllFeeds.mock.calls.map(
+      (call) => call[0][0],
+    );
     expect(feedsCalled.every((f: Feed) => f.folder.startsWith("News/"))).toBe(
       true,
     );
@@ -995,12 +1051,15 @@ describe("ingestFeedsForBackgroundImport()", () => {
       ...DEFAULT_SETTINGS,
       feeds: [sampleFeed],
     };
-    plugin.startBackgroundImport = vi.fn();
+    vi.clearAllMocks();
+    vi.spyOn(
+      (plugin as any).backgroundImportService,
+      "startBackgroundImport",
+    ).mockImplementation(() => {});
     plugin.ensureFolderExists = vi.fn().mockResolvedValue(false);
     plugin.getActiveDashboardView = vi.fn().mockResolvedValue({
       refresh: vi.fn(),
     });
-    vi.clearAllMocks();
   });
 
   it("dedupes URLs, inserts placeholders, saves once, and queues hydration", async () => {
@@ -1027,7 +1086,11 @@ describe("ingestFeedsForBackgroundImport()", () => {
 
     expect(result.addedCount).toBe(1);
     expect(result.skippedCount).toBe(2);
-    expect(plugin.settings.feeds.some((f) => f.url === "https://example.com/new.xml")).toBe(true);
+    expect(
+      plugin.settings.feeds.some(
+        (f) => f.url === "https://example.com/new.xml",
+      ),
+    ).toBe(true);
     const addedFeed = plugin.settings.feeds.find(
       (f) => f.url === "https://example.com/new.xml",
     );
@@ -1037,7 +1100,9 @@ describe("ingestFeedsForBackgroundImport()", () => {
       saveSettings: false,
       refreshView: false,
     });
-    expect(plugin.startBackgroundImport).toHaveBeenCalledWith([
+    expect(
+      (plugin as any).backgroundImportService.startBackgroundImport,
+    ).toHaveBeenCalledWith([
       expect.objectContaining({
         title: "New Feed",
         url: "https://example.com/new.xml",
@@ -1057,7 +1122,9 @@ describe("ingestFeedsForBackgroundImport()", () => {
       ],
       {
         mode: "overwrite",
-        folders: [{ name: "Tech", subfolders: [{ name: "AI", subfolders: [] }] }],
+        folders: [
+          { name: "Tech", subfolders: [{ name: "AI", subfolders: [] }] },
+        ],
       },
     );
 
@@ -1124,25 +1191,33 @@ describe("onunload()", () => {
 
   it("attempts sync backup on desktop", () => {
     // Given: Plugin with auto-backup settings
-    plugin.performAutoBackupsSyncDesktop = vi.fn().mockReturnValue(true);
+    (plugin as any).backupService.performAutoBackupsSyncDesktop = vi
+      .fn()
+      .mockReturnValue(true);
 
     // When: onunload is called
     plugin.onunload();
 
     // Then: performAutoBackupsSyncDesktop should be called
-    expect(plugin.performAutoBackupsSyncDesktop).toHaveBeenCalled();
+    expect(
+      (plugin as any).backupService.performAutoBackupsSyncDesktop,
+    ).toHaveBeenCalled();
   });
 
   it("falls back to async backup when sync fails", () => {
     // Given: Plugin with auto-backup settings that fails sync
-    plugin.performAutoBackupsSyncDesktop = vi.fn().mockReturnValue(false);
-    plugin.performAutoBackups = vi.fn().mockResolvedValue(undefined);
+    (plugin as any).backupService.performAutoBackupsSyncDesktop = vi
+      .fn()
+      .mockReturnValue(false);
+    (plugin as any).backupService.performAutoBackups = vi
+      .fn()
+      .mockResolvedValue(undefined);
 
     // When: onunload is called
     plugin.onunload();
 
     // Then: performAutoBackups should be called as fallback
-    expect(plugin.performAutoBackups).toHaveBeenCalled();
+    expect((plugin as any).backupService.performAutoBackups).toHaveBeenCalled();
   });
 
   it("does not throw when autoBackup is disabled", () => {
