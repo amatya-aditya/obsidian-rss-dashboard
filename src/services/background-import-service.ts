@@ -8,7 +8,11 @@ import type {
 } from "../types/types";
 import { OpmlManager } from "./opml-manager";
 import { getFeedErrorMessage } from "./feed-parser";
-import { FEED_REQUEST_TIMEOUT_MS } from "./feed-timeout";
+import {
+  BACKGROUND_IMPORT_CONCURRENCY,
+  BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS,
+  BACKGROUND_IMPORT_TIMEOUT_RETRY_COUNT,
+} from "./feed-timeout";
 import { setCssProps } from "../utils/platform-utils";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -216,7 +220,10 @@ export class BackgroundImportService {
             ? 40
             : 3;
     const shouldRenderDuringImport = totalFeeds < 5000;
-    const workerCount = Math.min(4, this.backgroundImportQueue.length);
+    const workerCount = Math.min(
+      BACKGROUND_IMPORT_CONCURRENCY,
+      this.backgroundImportQueue.length,
+    );
 
     try {
       await Promise.all(
@@ -314,15 +321,51 @@ export class BackgroundImportService {
   }
 
   private async parseFeedWithTimeout(url: string): Promise<Feed> {
-    return await Promise.race([
-      this.feedParser.parseFeed(url),
-      new Promise<Feed>((_, reject) => {
-        window.setTimeout(
-          () => reject(new Error("Timed out")),
-          FEED_REQUEST_TIMEOUT_MS,
-        );
-      }),
-    ]);
+    let lastError: Error | null = null;
+
+    for (
+      let attempt = 0;
+      attempt <= BACKGROUND_IMPORT_TIMEOUT_RETRY_COUNT;
+      attempt += 1
+    ) {
+      try {
+        return await this.parseFeedAttemptWithTimeout(url);
+      } catch (error) {
+        const normalizedError =
+          error instanceof Error ? error : new Error(String(error));
+        lastError = normalizedError;
+
+        const shouldRetry =
+          normalizedError.message === "Timed out" &&
+          attempt < BACKGROUND_IMPORT_TIMEOUT_RETRY_COUNT;
+
+        if (!shouldRetry) {
+          throw normalizedError;
+        }
+      }
+    }
+
+    throw (lastError ?? new Error("Timed out"));
+  }
+
+  private async parseFeedAttemptWithTimeout(url: string): Promise<Feed> {
+    let timeoutId: number | null = null;
+
+    try {
+      return await Promise.race([
+        this.feedParser.parseFeed(url),
+        new Promise<Feed>((_, reject) => {
+          timeoutId = window.setTimeout(
+            () => reject(new Error("Timed out")),
+            BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS,
+          );
+        }),
+      ]);
+    } finally {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    }
   }
 
   private mergeBackgroundImportedFeed(
@@ -368,7 +411,7 @@ export class BackgroundImportService {
   }
 
   private createPlaceholderFeed(candidate: FeedIngestionCandidate): Feed {
-    const mediaType = candidate.mediaType || "article";
+    const mediaType = this.resolveCandidateMediaType(candidate);
     let folder = candidate.folder || "Uncategorized";
 
     if (mediaType === "video" && (!folder || folder === "Uncategorized")) {
@@ -407,6 +450,12 @@ export class BackgroundImportService {
         rules: [],
       },
     };
+  }
+
+  private resolveCandidateMediaType(
+    candidate: FeedIngestionCandidate,
+  ): "article" | "video" | "podcast" {
+    return candidate.mediaType ?? "article";
   }
 
   private showImportProgressModal(

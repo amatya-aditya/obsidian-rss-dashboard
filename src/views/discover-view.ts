@@ -3,6 +3,7 @@ import {
   FeedMetadata,
   CategoryPath,
   DiscoverFilters,
+  FeedType,
   FollowStatus,
 } from "../types/discover-types";
 import { RssDashboardSettings, Feed } from "../types/types";
@@ -1628,6 +1629,7 @@ export class DiscoverView extends ItemView {
         title: feed.title,
         url: feed.url,
         folder: folderName,
+        mediaType: this.getMediaTypeForDiscoverFeed(feed.type),
       }));
 
     this.isAddingAllFeeds = true;
@@ -1694,6 +1696,24 @@ export class DiscoverView extends ItemView {
         `Failed to add feed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
+  }
+
+  private getMediaTypeForDiscoverFeed(
+    feedType: FeedType,
+  ): "article" | "video" | "podcast" {
+    if (feedType === "Podcast") {
+      return "podcast";
+    }
+
+    if (
+      feedType === "YouTube" ||
+      feedType === "Video Series" ||
+      feedType === "Vlog"
+    ) {
+      return "video";
+    }
+
+    return "article";
   }
 
   /**

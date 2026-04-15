@@ -61,6 +61,19 @@ const FEEDS_FIXTURE: FeedMetadata[] = [
     type: "Podcast",
     summary: "Interviews",
   },
+  {
+    id: "4",
+    title: "Delta YouTube",
+    url: "https://www.youtube.com/feeds/videos.xml?channel_id=delta",
+    imageUrl: "",
+    domain: ["Education"],
+    subdomain: ["Video"],
+    area: ["Science"],
+    topic: ["Physics"],
+    tags: ["video", "science"],
+    type: "YouTube",
+    summary: "Channel updates",
+  },
 ];
 
 vi.mock("../../../src/discover/discover-feeds.json", () => ({
@@ -112,7 +125,14 @@ async function createView(opts?: {
   const plugin = {
     settings,
     ingestFeedsForBackgroundImport: vi.fn(
-      async (feeds: Array<{ title: string; url: string; folder: string }>) => {
+      async (
+        feeds: Array<{
+          title: string;
+          url: string;
+          folder: string;
+          mediaType?: "article" | "video" | "podcast";
+        }>,
+      ) => {
         settings.feeds.push(
           ...feeds.map((feed) => ({
             ...feed,
@@ -162,7 +182,7 @@ describe("DiscoverView (P1-3)", () => {
 
     (view as any).loadData();
 
-    expect((view as any).feeds).toHaveLength(3);
+    expect((view as any).feeds).toHaveLength(4);
     expect((view as any).filters.query).toBe("technology");
     expect((view as any).filters.selectedTypes).toEqual(["Blog"]);
     expect((view as any).filters.selectedTags).toEqual(["ai"]);
@@ -256,7 +276,7 @@ describe("DiscoverView (P1-3)", () => {
       ".rss-discover-add-all-btn",
     ) as HTMLButtonElement;
 
-    expect(resultsCount.textContent).toBe("3 feeds found");
+    expect(resultsCount.textContent).toBe("4 feeds found");
     expect(addAllButton.textContent).toContain("Add all...");
 
     addAllButton.click();
@@ -315,25 +335,35 @@ describe("DiscoverView (P1-3)", () => {
 
     expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledTimes(1);
     expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledWith(
-      [
+      expect.arrayContaining([
         expect.objectContaining({
           title: "Alpha Tech Blog",
           url: "https://alpha.example.com/rss.xml",
           folder: "Uncategorized",
+          mediaType: "article",
         }),
         expect.objectContaining({
           title: "Beta News",
           url: "https://beta.example.com/rss.xml",
           folder: "Uncategorized",
+          mediaType: "article",
         }),
         expect.objectContaining({
           title: "Gamma Podcast",
           url: "https://gamma.example.com/rss.xml",
           folder: "Uncategorized",
+          mediaType: "podcast",
         }),
-      ],
+        expect.objectContaining({
+          title: "Delta YouTube",
+          url: "https://www.youtube.com/feeds/videos.xml?channel_id=delta",
+          folder: "Uncategorized",
+          mediaType: "video",
+        }),
+      ]),
       expect.objectContaining({ mode: "update" }),
     );
+    expect(plugin.ingestFeedsForBackgroundImport.mock.calls[0][0]).toHaveLength(4);
   });
 
   it("bulk add only adds filtered feeds and skips feeds that are already followed", async () => {
@@ -366,20 +396,23 @@ describe("DiscoverView (P1-3)", () => {
 
     expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledTimes(1);
     expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledWith(
-      [
+      expect.arrayContaining([
         expect.objectContaining({
           title: "Alpha Tech Blog",
           url: "https://alpha.example.com/rss.xml",
           folder: "Research",
+          mediaType: "article",
         }),
         expect.objectContaining({
           title: "Gamma Podcast",
           url: "https://gamma.example.com/rss.xml",
           folder: "Research",
+          mediaType: "podcast",
         }),
-      ],
+      ]),
       expect.objectContaining({ mode: "update" }),
     );
+    expect(plugin.ingestFeedsForBackgroundImport.mock.calls[0][0]).toHaveLength(2);
   });
 
   it("bulk add shows enqueue progress and then clears when ingestion resolves", async () => {
@@ -407,7 +440,7 @@ describe("DiscoverView (P1-3)", () => {
       ".rss-discover-add-all-btn",
     ) as HTMLButtonElement;
     expect(processingButton.disabled).toBe(true);
-    expect(processingButton.textContent).toContain("Adding 0/3...");
+    expect(processingButton.textContent).toContain("Adding 0/4...");
 
     resolveImport?.({
       addedCount: 3,

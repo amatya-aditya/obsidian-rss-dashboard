@@ -109,6 +109,81 @@ describe("BackgroundImportService", () => {
 
       expect(placeholder.maxItemsLimit).toBe(75);
     });
+
+    it("preserves an explicit article mediaType instead of relying on the default fallback", async () => {
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const deps = makeDeps();
+      const service = new BackgroundImportService(deps);
+
+      const placeholder = (service as any).createPlaceholderFeed({
+        title: "Typed Article",
+        url: "https://example.com/article.xml",
+        mediaType: "article",
+      });
+
+      expect(placeholder.mediaType).toBe("article");
+      expect(placeholder.folder).toBe("Uncategorized");
+    });
+  });
+
+  describe("parseFeedWithTimeout", () => {
+    it("retries timeout failures once before succeeding", async () => {
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const deps = makeDeps();
+      const parsedFeed: Feed = {
+        title: "Recovered Feed",
+        url: "https://example.com/recovered.xml",
+        folder: "Inbox",
+        items: [],
+        lastUpdated: 0,
+        mediaType: "video",
+      };
+      deps.feedParser.parseFeed = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Timed out"))
+        .mockResolvedValueOnce(parsedFeed);
+      const service = new BackgroundImportService(deps);
+
+      await expect(
+        (service as any).parseFeedWithTimeout("https://example.com/recovered.xml"),
+      ).resolves.toEqual(parsedFeed);
+      expect(deps.feedParser.parseFeed).toHaveBeenCalledTimes(2);
+    });
+
+    it("marks a feed as timed out after exhausting timeout retries", async () => {
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const deps = makeDeps({
+        feeds: [
+          {
+            title: "Slow Feed",
+            url: "https://example.com/slow.xml",
+            folder: "Inbox",
+            items: [],
+            lastUpdated: 0,
+            mediaType: "article",
+          },
+        ],
+      });
+      deps.feedParser.parseFeed = vi.fn().mockRejectedValue(new Error("Timed out"));
+      const service = new BackgroundImportService(deps);
+
+      (service as any).backgroundImportQueue = [deps._settings.feeds[0]];
+      (service as any).backgroundImportTotalCount = 1;
+
+      await (service as any).processBackgroundImportWorker(1, 1, false);
+
+      const updatedFeed = deps._settings.feeds[0] as Feed & {
+        importStatus?: string;
+        importError?: string;
+      };
+
+      expect(deps.feedParser.parseFeed).toHaveBeenCalledTimes(2);
+      expect(updatedFeed.importStatus).toBe("timed_out");
+      expect(updatedFeed.importError).toBeTruthy();
+    });
   });
 
   // ── mergeBackgroundImportedFeed ──────────────────────────────────────────────
