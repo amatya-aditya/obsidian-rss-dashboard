@@ -321,7 +321,7 @@
   background: var(--interactive-normal);
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
-  color: var(--text-on-accent);
+  color: var(--text-color);
   cursor: pointer;
   font-size: 16px;
   font-weight: 600;
@@ -1569,12 +1569,6 @@
 }
 
 @media (max-width: 1200px) {
-  .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-nav,
-  .modal.rss-mobile-discover-filters-modal .rss-discover-header {
-    /* padding-left: 16px;
-    padding-right: 16px; */
-  }
-
   .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-nav {
     margin-top: 2px;
     margin-bottom: 8px;
