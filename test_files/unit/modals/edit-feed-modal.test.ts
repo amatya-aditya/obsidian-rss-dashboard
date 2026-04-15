@@ -4,10 +4,14 @@ import { EditFeedModal } from "../../../src/modals/feed-manager/edit-feed-modal"
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type { Feed } from "../../../src/types/types";
 
-type MockApp = ReturnType<(typeof obsidian.App & { createMock(): unknown })["createMock"]>;
+type MockApp = ReturnType<
+  (typeof obsidian.App & { createMock(): unknown })["createMock"]
+>;
 
 function createMockApp(): MockApp {
-  return (obsidian.App as typeof obsidian.App & { createMock(): MockApp }).createMock();
+  return (
+    obsidian.App as typeof obsidian.App & { createMock(): MockApp }
+  ).createMock();
 }
 
 function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
@@ -38,7 +42,10 @@ function getSelectBySettingName(
   return selectEl;
 }
 
-function getButtonByText(containerEl: HTMLElement, label: string): HTMLButtonElement {
+function getButtonByText(
+  containerEl: HTMLElement,
+  label: string,
+): HTMLButtonElement {
   const buttonEl = Array.from(containerEl.querySelectorAll("button")).find(
     (button) => button.textContent === label,
   );
@@ -51,7 +58,10 @@ function getButtonByText(containerEl: HTMLElement, label: string): HTMLButtonEle
 beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
-  Object.defineProperty(window, "innerWidth", { value: 1400, configurable: true });
+  Object.defineProperty(window, "innerWidth", {
+    value: 1400,
+    configurable: true,
+  });
   vi.restoreAllMocks();
 });
 
@@ -81,7 +91,12 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-    const modal = new EditFeedModal(app as any, plugin as any, feed as any, vi.fn());
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
     modal.open();
 
     const scanIntervalSelect = getSelectBySettingName(
@@ -122,7 +137,12 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-    const modal = new EditFeedModal(app as any, plugin as any, feed as any, vi.fn());
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
     modal.open();
 
     const scanIntervalSelect = getSelectBySettingName(
@@ -171,16 +191,25 @@ describe("EditFeedModal", () => {
     };
 
     const onSave = vi.fn();
-    const modal = new EditFeedModal(app as any, plugin as any, feed as any, onSave);
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      onSave,
+    );
     const closeSpy = vi.spyOn(modal, "close");
     modal.open();
 
     const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
-    const urlInput = urlSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    const urlInput = urlSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
     expect(urlInput.value).toBe("https://example.com/old.xml");
 
     const titleSetting = getSettingByName(modal.contentEl, "Title");
-    const titleInput = titleSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    const titleInput = titleSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
     titleInput.value = "New title";
     titleInput.dispatchEvent(new Event("input"));
 
@@ -208,13 +237,22 @@ describe("EditFeedModal", () => {
 
     const plugin = {
       app,
-      settings: { folders: [], maxItems: 50, articleSaving: { savedTemplates: [] } },
+      settings: {
+        folders: [],
+        maxItems: 50,
+        articleSaving: { savedTemplates: [] },
+      },
       ensureFolderExists: vi.fn(async () => {}),
       saveSettings: vi.fn(async () => {}),
       notifyFiltersUpdated: vi.fn(),
     };
 
-    const modal = new EditFeedModal(app as any, plugin as any, feed as any, vi.fn());
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
     const closeSpy = vi.spyOn(modal, "close");
     modal.open();
 

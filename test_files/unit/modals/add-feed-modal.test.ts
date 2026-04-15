@@ -3,10 +3,14 @@ import * as obsidian from "obsidian";
 import { AddFeedModal } from "../../../src/modals/feed-manager/add-feed-modal";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
-type MockApp = ReturnType<(typeof obsidian.App & { createMock(): unknown })["createMock"]>;
+type MockApp = ReturnType<
+  (typeof obsidian.App & { createMock(): unknown })["createMock"]
+>;
 
 function createMockApp(): MockApp {
-  return (obsidian.App as typeof obsidian.App & { createMock(): MockApp }).createMock();
+  return (
+    obsidian.App as typeof obsidian.App & { createMock(): MockApp }
+  ).createMock();
 }
 
 type OnAddFn = AddFeedModal["onAdd"];
@@ -39,7 +43,10 @@ function getSelectBySettingName(
   return selectEl;
 }
 
-function getButtonByText(containerEl: HTMLElement, label: string): HTMLButtonElement {
+function getButtonByText(
+  containerEl: HTMLElement,
+  label: string,
+): HTMLButtonElement {
   const buttonEl = Array.from(containerEl.querySelectorAll("button")).find(
     (button) => button.textContent === label,
   );
@@ -52,7 +59,10 @@ function getButtonByText(containerEl: HTMLElement, label: string): HTMLButtonEle
 beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
-  Object.defineProperty(window, "innerWidth", { value: 1400, configurable: true });
+  Object.defineProperty(window, "innerWidth", {
+    value: 1400,
+    configurable: true,
+  });
   vi.restoreAllMocks();
 });
 
@@ -66,12 +76,16 @@ describe("AddFeedModal", () => {
     modal.open();
 
     const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
-    const urlInput = urlSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    const urlInput = urlSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
     urlInput.value = "https://example.com/feed.xml";
     urlInput.dispatchEvent(new Event("input"));
 
     const titleSetting = getSettingByName(modal.contentEl, "Title");
-    const titleInput = titleSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    const titleInput = titleSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
     titleInput.value = "My feed";
     titleInput.dispatchEvent(new Event("input"));
 
@@ -79,9 +93,9 @@ describe("AddFeedModal", () => {
       modal.contentEl,
       "Auto-refresh interval",
     );
-    expect(Array.from(scanIntervalSelect.options).map((option) => option.text)).toEqual(
-      expect.arrayContaining(["Use global setting", "Off"]),
-    );
+    expect(
+      Array.from(scanIntervalSelect.options).map((option) => option.text),
+    ).toEqual(expect.arrayContaining(["Use global setting", "Off"]));
 
     scanIntervalSelect.value = "-1";
     scanIntervalSelect.dispatchEvent(new Event("change"));
@@ -103,12 +117,16 @@ describe("AddFeedModal", () => {
     modal.open();
 
     const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
-    const urlInput = urlSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    const urlInput = urlSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
     urlInput.value = "https://example.com/feed.xml";
     urlInput.dispatchEvent(new Event("input"));
 
     const titleSetting = getSettingByName(modal.contentEl, "Title");
-    const titleInput = titleSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    const titleInput = titleSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
     titleInput.value = "My feed";
     titleInput.dispatchEvent(new Event("input"));
 
@@ -137,7 +155,9 @@ describe("AddFeedModal", () => {
     modal.open();
 
     const titleSetting = getSettingByName(modal.contentEl, "Title");
-    const titleInput = titleSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    const titleInput = titleSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
     titleInput.value = "My feed";
     titleInput.dispatchEvent(new Event("input"));
 
@@ -147,7 +167,10 @@ describe("AddFeedModal", () => {
 
     expect(onAdd).toHaveBeenCalledTimes(0);
     expect(onSave).toHaveBeenCalledTimes(0);
-    expect(logSpy).toHaveBeenCalledWith("[Stub Notice]", "Feed URL cannot be empty");
+    expect(logSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "Feed URL cannot be empty",
+    );
   });
 
   it("does not close or call onSave when onAdd returns false (e.g., duplicate URL)", async () => {
@@ -160,12 +183,16 @@ describe("AddFeedModal", () => {
     modal.open();
 
     const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
-    const urlInput = urlSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    const urlInput = urlSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
     urlInput.value = "https://example.com/feed.xml";
     urlInput.dispatchEvent(new Event("input"));
 
     const titleSetting = getSettingByName(modal.contentEl, "Title");
-    const titleInput = titleSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    const titleInput = titleSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
     titleInput.value = "My feed";
     titleInput.dispatchEvent(new Event("input"));
 
@@ -178,4 +205,3 @@ describe("AddFeedModal", () => {
     expect(closeSpy).toHaveBeenCalledTimes(0);
   });
 });
-

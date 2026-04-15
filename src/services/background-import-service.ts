@@ -345,7 +345,7 @@ export class BackgroundImportService {
       }
     }
 
-    throw (lastError ?? new Error("Timed out"));
+    throw lastError ?? new Error("Timed out");
   }
 
   private async parseFeedAttemptWithTimeout(url: string): Promise<Feed> {

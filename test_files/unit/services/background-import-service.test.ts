@@ -162,7 +162,9 @@ describe("BackgroundImportService", () => {
       const service = new BackgroundImportService(deps);
 
       await expect(
-        (service as any).parseFeedWithTimeout("https://example.com/recovered.xml"),
+        (service as any).parseFeedWithTimeout(
+          "https://example.com/recovered.xml",
+        ),
       ).resolves.toEqual(parsedFeed);
       expect(deps.feedParser.parseFeed).toHaveBeenCalledTimes(2);
     });
@@ -182,7 +184,9 @@ describe("BackgroundImportService", () => {
           },
         ],
       });
-      deps.feedParser.parseFeed = vi.fn().mockRejectedValue(new Error("Timed out"));
+      deps.feedParser.parseFeed = vi
+        .fn()
+        .mockRejectedValue(new Error("Timed out"));
       const service = new BackgroundImportService(deps);
 
       (service as any).backgroundImportQueue = [deps._settings.feeds[0]];
