@@ -199,6 +199,36 @@ describe("Dashboard reader location", () => {
     expect(mainLeaf.view.displayItem).toHaveBeenCalledWith(feed.items[0], []);
   });
 
+  it("reuses an existing reader leaf for article clicks when readerViewLocation is main", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    settings.readerViewLocation = "main";
+    const existingLeaf = createReaderLeaf(new App(), "existing-main");
+    const { view, dashboardLeaf } = await createDashboardView(settings, {
+      getLeavesOfType: vi.fn(() => [existingLeaf]),
+      getLeaf: vi.fn(),
+      getLeftLeaf: vi.fn(),
+      getRightLeaf: vi.fn(),
+      revealLeaf: vi.fn(async () => {}),
+    });
+
+    await (view as any).handleArticleClick(feed.items[0]);
+
+    expect(
+      view.app.workspace.getLeaf as ReturnType<typeof vi.fn>,
+    ).not.toHaveBeenCalled();
+    expect(existingLeaf.setViewState).toHaveBeenCalledWith({
+      type: "rss-reader-view",
+      active: true,
+    });
+    expect(existingLeaf.view.setReturnLeaf).toHaveBeenCalledWith(dashboardLeaf);
+    expect(existingLeaf.view.displayItem).toHaveBeenCalledWith(
+      feed.items[0],
+      [],
+    );
+  });
+
   it("opens article clicks in the right sidebar when readerViewLocation is right-sidebar", async () => {
     const settings = cloneSettings();
     const feed = makeFeed("https://example.com/feed", [{}]);

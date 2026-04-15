@@ -2740,6 +2740,7 @@ export class RssDashboardView extends ItemView {
 
   private getConfiguredReaderLeaf(): WorkspaceLeaf | null {
     const { workspace } = this.app;
+    const readerLeaves = workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
 
     switch (this.getReaderViewLocation()) {
       case "left-sidebar":
@@ -2749,7 +2750,7 @@ export class RssDashboardView extends ItemView {
       case "inline":
         return null;
       default:
-        return workspace.getLeaf(Platform.isMobile ? "tab" : "split");
+        return readerLeaves[0] ?? null;
     }
   }
 
@@ -2774,6 +2775,7 @@ export class RssDashboardView extends ItemView {
   private async openArticleInConfiguredReaderLocation(
     article: FeedItem,
   ): Promise<void> {
+    const readerLocation = this.getReaderViewLocation();
     const readerLeaves =
       this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
     const podcastPlayingLeaves = await this.getPodcastPlayingReaderLeaves();
@@ -2807,7 +2809,7 @@ export class RssDashboardView extends ItemView {
 
     this.articleReaderLeafWhilePodcast = null;
 
-    if (this.settings.readerViewLocation === "inline") {
+    if (readerLocation === "inline") {
       this.inlineArticle = article;
       void this.render();
       return;
