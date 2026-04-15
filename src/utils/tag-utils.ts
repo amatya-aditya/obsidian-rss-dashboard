@@ -1,10 +1,131 @@
 import { Notice, Setting } from "obsidian";
-import type { RssDashboardSettings, Tag } from "../types/types";
+import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
+
+const AUTO_TAG_DEFINITIONS = {
+  saved: { name: "Saved", fallbackColor: "#3498db" },
+  favorite: { name: "Favorite", fallbackColor: "#f1c40f" },
+} as const;
+
+function cloneTags(tags: readonly Tag[] | undefined): Tag[] {
+  return (tags ?? []).map((tag) => ({ ...tag }));
+}
+
+function ensureCanonicalTag(
+  tags: readonly Tag[] | undefined,
+  availableTags: readonly Tag[],
+  tagKey: keyof typeof AUTO_TAG_DEFINITIONS,
+): { changed: boolean; tags: Tag[] } {
+  const definition = AUTO_TAG_DEFINITIONS[tagKey];
+  const nextTags = cloneTags(tags);
+  const matchingTag = availableTags.find(
+    (tag) => tag.name.toLowerCase() === definition.name.toLowerCase(),
+  );
+  const existingIndex = nextTags.findIndex(
+    (tag) => tag.name.toLowerCase() === definition.name.toLowerCase(),
+  );
+  const resolvedColor = matchingTag?.color || definition.fallbackColor;
+
+  if (existingIndex >= 0) {
+    const existingTag = nextTags[existingIndex];
+    const nextTag: Tag = {
+      ...existingTag,
+      name: definition.name,
+      color: existingTag.color || resolvedColor,
+    };
+    const changed =
+      nextTag.name !== existingTag.name || nextTag.color !== existingTag.color;
+    if (changed) {
+      nextTags[existingIndex] = nextTag;
+    }
+    return { changed, tags: nextTags };
+  }
+
+  nextTags.push({
+    name: definition.name,
+    color: resolvedColor,
+  });
+  return { changed: true, tags: nextTags };
+}
+
+function removeCanonicalTag(
+  tags: readonly Tag[] | undefined,
+  tagKey: keyof typeof AUTO_TAG_DEFINITIONS,
+): { changed: boolean; tags: Tag[] } {
+  const definition = AUTO_TAG_DEFINITIONS[tagKey];
+  const nextTags = cloneTags(tags);
+  const filteredTags = nextTags.filter(
+    (tag) => tag.name.toLowerCase() !== definition.name.toLowerCase(),
+  );
+
+  return {
+    changed: filteredTags.length !== nextTags.length,
+    tags: filteredTags,
+  };
+}
+
+export function applyAutomaticArticleTags(
+  article: Readonly<FeedItem>,
+  updates: Partial<FeedItem>,
+  settings: Pick<RssDashboardSettings, "availableTags" | "articleSaving">,
+): Partial<FeedItem> {
+  let nextTags = cloneTags(updates.tags ?? article.tags);
+  let tagsChanged = updates.tags !== undefined;
+
+  if (updates.saved === true && settings.articleSaving.addSavedTag) {
+    const result = ensureCanonicalTag(
+      nextTags,
+      settings.availableTags,
+      "saved",
+    );
+    nextTags = result.tags;
+    tagsChanged = tagsChanged || result.changed;
+  }
+
+  if (updates.starred === true) {
+    const result = ensureCanonicalTag(
+      nextTags,
+      settings.availableTags,
+      "favorite",
+    );
+    nextTags = result.tags;
+    tagsChanged = tagsChanged || result.changed;
+  } else if (updates.starred === false) {
+    const result = removeCanonicalTag(nextTags, "favorite");
+    nextTags = result.tags;
+    tagsChanged = tagsChanged || result.changed;
+  }
+
+  if (!tagsChanged) {
+    return updates;
+  }
+
+  return {
+    ...updates,
+    tags: nextTags,
+  };
+}
+
+export function withSavedTagName(tagNames: readonly string[]): string[] {
+  const normalizedNames = tagNames
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
+  const savedIndex = normalizedNames.findIndex(
+    (name) => name.toLowerCase() === "saved",
+  );
+
+  if (savedIndex >= 0) {
+    const nextNames = [...normalizedNames];
+    nextNames[savedIndex] = AUTO_TAG_DEFINITIONS.saved.name;
+    return nextNames;
+  }
+
+  return [...normalizedNames, AUTO_TAG_DEFINITIONS.saved.name];
+}
 
 export function updateTagInSettings(
   settings: Readonly<RssDashboardSettings>,
   oldTag: Readonly<Tag>,
-  newTagUpdate: Readonly<Partial<Tag>>
+  newTagUpdate: Readonly<Partial<Tag>>,
 ): Tag[] {
   // Update the tag definition in availableTags
   const updatedTags = settings.availableTags.map((tag) => {
@@ -13,7 +134,7 @@ export function updateTagInSettings(
     }
     return tag;
   });
-  
+
   // Mutable update is needed since the plugin settings object acts as a live reference
   settings.availableTags.length = 0;
   settings.availableTags.push(...updatedTags);
@@ -98,7 +219,7 @@ export function showEditTagModal({
     text: submitLabel,
     cls: "rss-dashboard-primary-button",
   });
-  
+
   saveButton.addEventListener("click", () => {
     void (async () => {
       const newTagName = nameInput.value.trim();

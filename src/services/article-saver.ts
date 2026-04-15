@@ -4,6 +4,7 @@ import TurndownService from "turndown";
 import { ArticleSavingSettings, FeedItem } from "../types/types";
 import { fetchWithProxyFallback } from "../utils/fetch-helpers";
 import { ensureUtf8Meta } from "../utils/platform-utils";
+import { withSavedTagName } from "../utils/tag-utils";
 
 export class ArticleSaver {
   private app: App;
@@ -95,11 +96,8 @@ export class ArticleSaver {
           typeof name === "string" && name.trim() !== "",
       );
 
-    if (
-      this.settings.addSavedTag &&
-      !tagNames.some((t) => t.toLowerCase() === "saved")
-    ) {
-      tagNames.push("saved");
+    if (this.settings.addSavedTag) {
+      tagNames.splice(0, tagNames.length, ...withSavedTagName(tagNames));
     }
 
     const tagsString = tagNames.join(", ");
@@ -172,17 +170,15 @@ export class ArticleSaver {
       day: "numeric",
     });
 
-    let tagsString = "";
-    if (item.tags && item.tags.length > 0) {
-      tagsString = item.tags.map((tag) => tag.name).join(", ");
-    }
-
-    if (
-      this.settings.addSavedTag &&
-      !tagsString.toLowerCase().includes("saved")
-    ) {
-      tagsString = tagsString ? `${tagsString}, saved` : "saved";
-    }
+    const tagNames = (item.tags ?? [])
+      .map((tag) => tag.name)
+      .filter(
+        (name): name is string =>
+          typeof name === "string" && name.trim() !== "",
+      );
+    const tagsString = this.settings.addSavedTag
+      ? withSavedTagName(tagNames).join(", ")
+      : tagNames.join(", ");
 
     return template
       .replace(/{{title}}/g, item.title)
@@ -513,7 +509,7 @@ export class ArticleSaver {
         this.settings.addSavedTag &&
         (!item.tags || !item.tags.some((t) => t.name.toLowerCase() === "saved"))
       ) {
-        const savedTag = { name: "saved", color: "#3498db" };
+        const savedTag = { name: "Saved", color: "#3498db" };
         if (!item.tags) item.tags = [savedTag];
         else item.tags.push(savedTag);
       }

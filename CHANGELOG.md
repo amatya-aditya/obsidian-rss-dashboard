@@ -23,6 +23,8 @@
 
 - Fixed Discover and Smallweb views incorrectly opening in the sidebar when Dashboard view location was set to a sidebar option; they now always open as a new tab in the main content area.
 
+- Adding a feed as "Favorite" now also applies the "Favorite" tag and is removed when un-favorited.
+
 ### Improvements
 
 - Optimized the feed refresh process to reduce unnecessary network requests.

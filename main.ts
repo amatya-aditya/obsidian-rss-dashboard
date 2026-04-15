@@ -52,6 +52,7 @@ import {
   loadAndNormalizeSettings,
   migrateSettings,
 } from "./src/utils/settings-loader";
+import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
 
 export interface FiltersUpdatedEventPayload {
   source: string;
@@ -660,20 +661,30 @@ export default class RssDashboardPlugin extends Plugin {
     shouldRerender?: boolean,
   ): Promise<void> {
     if (item.feedUrl) {
+      const normalizedUpdates = applyAutomaticArticleTags(
+        item,
+        updates,
+        this.settings,
+      );
       const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
       if (!feed) return;
 
       const originalItem = feed.items.find((i) => i.guid === item.guid);
       if (!originalItem) return;
 
-      await this.updateArticle(item.guid, item.feedUrl, updates, false);
+      await this.updateArticle(
+        item.guid,
+        item.feedUrl,
+        normalizedUpdates,
+        false,
+      );
       await this.syncDashboardArticleUpdate(
         item.guid,
         item.feedUrl,
-        updates,
+        normalizedUpdates,
         !!shouldRerender,
       );
-      await this.syncReaderArticleUpdate(item.guid, updates);
+      await this.syncReaderArticleUpdate(item.guid, normalizedUpdates);
     }
   }
 

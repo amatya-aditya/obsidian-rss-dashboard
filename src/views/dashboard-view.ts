@@ -31,6 +31,7 @@ import { KeywordFilterService } from "../services/keyword-filter-service";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 import { formatDashboardMultiFiltersTitle } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
+import { applyAutomaticArticleTags } from "../utils/tag-utils";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -1724,6 +1725,11 @@ export class RssDashboardView extends ItemView {
     updates: Partial<FeedItem>,
     shouldRerender = true,
   ): Promise<void> {
+    const normalizedUpdates = applyAutomaticArticleTags(
+      article,
+      updates,
+      this.settings,
+    );
     const feed = this.settings.feeds.find(
       (f: Feed) => f.url === article.feedUrl,
     );
@@ -1736,25 +1742,28 @@ export class RssDashboardView extends ItemView {
 
     if (!originalArticle) return;
 
-    Object.assign(originalArticle, updates);
-    Object.assign(article, updates);
+    Object.assign(originalArticle, normalizedUpdates);
+    Object.assign(article, normalizedUpdates);
 
-    if (updates.tags) {
-      originalArticle.tags = updates.tags;
-      article.tags = updates.tags;
+    if (normalizedUpdates.tags) {
+      originalArticle.tags = normalizedUpdates.tags;
+      article.tags = normalizedUpdates.tags;
     }
 
     await this.plugin.updateArticle(
       originalArticle.guid,
       feed.url,
-      updates,
+      normalizedUpdates,
       false,
     );
 
     if (shouldRerender) {
       void this.render();
     } else {
-      if ((updates.tags || updates.read !== undefined) && this.sidebar) {
+      if (
+        (normalizedUpdates.tags || normalizedUpdates.read !== undefined) &&
+        this.sidebar
+      ) {
         this.sidebar.render();
       }
       this.syncArticleListAfterUpdate(article);

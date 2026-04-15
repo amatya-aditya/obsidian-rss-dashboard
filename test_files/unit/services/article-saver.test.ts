@@ -78,14 +78,14 @@ describe("ArticleSaver.saveArticle", () => {
     expect(written).toContain('source: "Test Feed"');
     expect(written).toContain('link: "https://example.com/article"');
     expect(written).toContain('guid: "guid-1"');
-    expect(written).toContain("tags: [tech, saved]");
+    expect(written).toContain("tags: [tech, Saved]");
     expect(written).toContain("iso=2024-01-01T00:00:00.000Z");
-    expect(written).toContain("tags=tech, saved");
+    expect(written).toContain("tags=tech, Saved");
     expect(written).toContain("BODY");
 
     expect(item.saved).toBe(true);
     expect(item.savedFilePath).toBe(expectedPath);
-    expect(item.tags.map((t) => t.name)).toEqual(["tech", "saved"]);
+    expect(item.tags.map((t) => t.name)).toEqual(["tech", "Saved"]);
   });
 
   it("trashes an existing file at the same path before creating a new one", async () => {

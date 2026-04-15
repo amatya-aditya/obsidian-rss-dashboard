@@ -371,7 +371,7 @@ guid: "{{guid}}"
 
       const out = generateFrontmatter(item);
       expect(out).toContain('title: "My Article"');
-      expect(out).toContain("tags: [saved]");
+      expect(out).toContain("tags: [Saved]");
       expect(out).toContain('guid: "g1"');
       expect(out).toContain(new Date().toISOString());
 
