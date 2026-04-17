@@ -32,6 +32,7 @@ import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 import { formatDashboardMultiFiltersTitle } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
+import { resolveItemExternalUrl } from "../utils/item-url-utils";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -1658,6 +1659,16 @@ export class RssDashboardView extends ItemView {
     }
   }
 
+  private openArticleInExternalBrowser(article: FeedItem): void {
+    const url = resolveItemExternalUrl(article);
+    if (!url) {
+      new Notice("No external URL available for this item.");
+      return;
+    }
+
+    window.open(url, "_blank");
+  }
+
   private getRelatedItems(article: FeedItem): FeedItem[] {
     if (!article.feedUrl) return [];
 
@@ -2743,12 +2754,14 @@ export class RssDashboardView extends ItemView {
     | "main"
     | "right-sidebar"
     | "left-sidebar"
-    | "inline" {
+    | "inline"
+    | "external-browser" {
     const location = this.settings.readerViewLocation;
     if (
       location === "left-sidebar" ||
       location === "right-sidebar" ||
-      location === "inline"
+      location === "inline" ||
+      location === "external-browser"
     ) {
       return location;
     }
@@ -2765,6 +2778,7 @@ export class RssDashboardView extends ItemView {
       case "right-sidebar":
         return workspace.getRightLeaf(false);
       case "inline":
+      case "external-browser":
         return null;
       default:
         return readerLeaves[0] ?? null;
@@ -2793,6 +2807,12 @@ export class RssDashboardView extends ItemView {
     article: FeedItem,
   ): Promise<void> {
     const readerLocation = this.getReaderViewLocation();
+
+    if (readerLocation === "external-browser") {
+      this.openArticleInExternalBrowser(article);
+      return;
+    }
+
     const readerLeaves =
       this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
     const podcastPlayingLeaves = await this.getPodcastPlayingReaderLeaves();

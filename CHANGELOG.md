@@ -9,6 +9,8 @@
 
 - Added new "inline" reader view option to the general settings which opens the article in the same tab as the dashboard. (GH[#100](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/100))
 
+- Added a new "external browser" reader view location option in General settings so article and media opens can bypass the in-app reader and launch in the system browser. (GH[#89](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/89)
+
 ### Fixes
 
 - Fixed badge color settings not syncing between color picker and hex input controls. Color picker now updates hex input immediately, and hex input now updates color picker after validation.

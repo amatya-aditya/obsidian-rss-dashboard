@@ -153,7 +153,12 @@ export interface Folder {
   pinned?: boolean;
 }
 
-export type ViewLocation = "main" | "right-sidebar" | "left-sidebar" | "inline";
+export type ViewLocation =
+  | "main"
+  | "right-sidebar"
+  | "left-sidebar"
+  | "inline"
+  | "external-browser";
 
 export type PodcastTheme =
   | "obsidian"
