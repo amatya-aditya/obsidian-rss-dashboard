@@ -7645,6 +7645,84 @@ mark.rss-highlight {
   left: var(--submenu-left, 0);
 }
 
+/* src/styles/pagination.css */
+.rss-dashboard-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  flex-wrap: wrap;
+  justify-content: space-around;
+}
+.rss-dashboard-pagination-btn {
+  background: var(--background-secondary);
+  color: var(--text-color);
+  border-radius: 6px;
+  padding: 0.3em 0.9em;
+  font-size: 1rem;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border 0.15s;
+  margin: 0 2px;
+}
+.rss-dashboard-pagination-btn.active,
+.rss-dashboard-pagination-btn:disabled {
+  background: var(--color-accent);
+  color: var(--text-on-accent);
+  border-color: var(--color-accent);
+  cursor: default;
+}
+.rss-dashboard-pagination-btn.prev,
+.rss-dashboard-pagination-btn.next {
+  font-weight: bold;
+  background: var(--background-secondary);
+  color: var(--text-color);
+  border-radius: 6px;
+}
+.rss-dashboard-pagination-btn.prev:disabled,
+.rss-dashboard-pagination-btn.next:disabled {
+  background: var(--background-secondary);
+  color: var(--text-color);
+  border-color: var(--color-accent);
+}
+.rss-dashboard-pagination-ellipsis {
+  color: var(--text-color);
+  font-size: 1.1em;
+  margin: 0 4px;
+}
+.rss-dashboard-pagination-results {
+  margin-left: 1.2rem;
+  color: var(--text-color);
+  font-size: 0.98em;
+}
+.rss-dashboard-page-size-dropdown {
+  margin-left: 1.2rem;
+  padding: 0.2em 0.8em;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  color: var(--text-color);
+  font-size: 1em;
+  outline: none;
+  cursor: pointer;
+  transition: border 0.15s;
+}
+.rss-dashboard-pagination-mark-page-read {
+  margin-left: 0.5rem;
+}
+.rss-dashboard-page-size-dropdown:focus {
+  border-color: var(--color-accent);
+}
+.rss-dashboard-pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 /* src/styles/discover.css */
 .rss-discover-container {
   height: 100%;
@@ -8650,82 +8728,6 @@ mark.rss-highlight {
 .rss-load-more-trigger {
   height: 1px;
   visibility: hidden;
-}
-.rss-dashboard-pagination {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 2rem 0 1rem 0;
-  flex-wrap: wrap;
-  justify-content: space-around;
-}
-.rss-dashboard-pagination-btn {
-  background: var(--background-secondary);
-  color: var(--text-color);
-  border-radius: 6px;
-  padding: 0.3em 0.9em;
-  font-size: 1rem;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    color 0.15s,
-    border 0.15s;
-  margin: 0 2px;
-}
-.rss-dashboard-pagination-btn.active,
-.rss-dashboard-pagination-btn:disabled {
-  background: var(--color-accent);
-  color: var(--text-on-accent);
-  border-color: var(--color-accent);
-  cursor: default;
-}
-.rss-dashboard-pagination-btn.prev,
-.rss-dashboard-pagination-btn.next {
-  font-weight: bold;
-  background: var(--background-secondary);
-  color: var(--text-color);
-  border-radius: 6px;
-}
-.rss-dashboard-pagination-btn.prev:disabled,
-.rss-dashboard-pagination-btn.next:disabled {
-  background: var(--background-secondary);
-  color: var(--text-color);
-  border-color: var(--color-accent);
-}
-.rss-dashboard-pagination-ellipsis {
-  color: var(--text-color);
-  font-size: 1.1em;
-  margin: 0 4px;
-}
-.rss-dashboard-pagination-results {
-  margin-left: 1.2rem;
-  color: var(--text-color);
-  font-size: 0.98em;
-}
-.rss-dashboard-page-size-dropdown {
-  margin-left: 1.2rem;
-  padding: 0.2em 0.8em;
-  border-radius: 6px;
-  background: var(--background-secondary);
-  color: var(--text-color);
-  font-size: 1em;
-  outline: none;
-  cursor: pointer;
-  transition: border 0.15s;
-}
-.rss-dashboard-pagination-mark-page-read {
-  margin-left: 0.5rem;
-}
-.rss-dashboard-page-size-dropdown:focus {
-  border-color: var(--color-accent);
-}
-.rss-dashboard-pagination-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  margin-top: 2rem;
-  margin-bottom: 2rem;
 }
 .feed-preview-modal {
   width: 90vw;
