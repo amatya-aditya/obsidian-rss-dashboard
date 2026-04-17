@@ -2382,6 +2382,31 @@ export class Sidebar {
     }
 
     this.addHorizontalScrollBehavior(iconRow);
+
+    if (this.callbacks.onCloseMobileSidebar) {
+      const rightActions = header.createDiv({
+        cls: "rss-dashboard-header-right",
+      });
+      const closeBtn = rightActions.createDiv({
+        cls: "rss-dashboard-header-close-button clickable-icon",
+        attr: {
+          title: "Close sidebar",
+          "aria-label": "Close sidebar",
+          role: "button",
+          tabindex: "0",
+        },
+      });
+      setIcon(closeBtn, "panel-left-close");
+      closeBtn.addEventListener("click", () => {
+        this.callbacks.onCloseMobileSidebar?.();
+      });
+      closeBtn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          this.callbacks.onCloseMobileSidebar?.();
+        }
+      });
+    }
   }
 
   private addHorizontalScrollBehavior(iconRow: HTMLElement): void {

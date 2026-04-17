@@ -9,6 +9,15 @@
   gap: 8px;
   position: relative; /* anchor for hamburger popover */
 }
+
+.rss-dashboard-header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  padding-left: 8px;
+}
 .rss-dashboard-title {
   font-weight: bold;
   font-size: 16px;
