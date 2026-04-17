@@ -10,13 +10,12 @@
   position: relative; /* anchor for hamburger popover */
 }
 
-.rss-dashboard-header-right {
-  margin-left: auto;
+.rss-dashboard-sidebar-header-right {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   flex: 0 0 auto;
-  padding-left: 8px;
+  margin-left: 2px;
 }
 .rss-dashboard-title {
   font-weight: bold;

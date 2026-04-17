@@ -2385,7 +2385,7 @@ export class Sidebar {
 
     if (this.callbacks.onCloseMobileSidebar) {
       const rightActions = header.createDiv({
-        cls: "rss-dashboard-header-right",
+        cls: "rss-dashboard-sidebar-header-right",
       });
       const closeBtn = rightActions.createDiv({
         cls: "rss-dashboard-header-close-button clickable-icon",

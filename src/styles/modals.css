@@ -2863,19 +2863,19 @@
     }
 
     .modal.rss-mobile-navigation-modal .rss-dashboard-header-close-button {
-      width: 36px;
-      min-width: 36px;
-      height: 36px;
+      width: 32px;
+      min-width: 32px;
+      height: 32px;
       padding: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      border-radius: 8px;
-      border: 1px solid var(--background-secondary);
-      background: var(--background-secondary);
-      color: #fff;
-      margin-right: 2px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      margin-right: 0;
     }
 
     .modal.rss-mobile-discover-filters-modal
@@ -2897,9 +2897,8 @@
 
     .modal.rss-mobile-navigation-modal
       .rss-dashboard-header-close-button:hover {
-      border-color: #9b59b6;
-      background: #9b59b6;
-      color: #fff;
+      background: var(--background-modifier-hover);
+      color: var(--text-normal);
     }
 
     .modal.rss-mobile-discover-filters-modal
