@@ -270,6 +270,79 @@
   position: relative;
 }
 
+.rss-dashboard-folder-combobox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+  cursor: text;
+}
+
+.rss-dashboard-folder-combobox:hover {
+  border-color: var(--background-modifier-border-hover);
+  background: var(--background-primary-alt);
+}
+
+.rss-dashboard-folder-combobox:focus-within {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--interactive-accent) 30%, transparent);
+  background: var(--background-primary);
+}
+
+.rss-dashboard-modal .rss-dashboard-folder-combobox-input,
+.feed-manager-modal .rss-dashboard-folder-combobox-input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding-right: 40px !important;
+}
+
+.rss-dashboard-modal .rss-dashboard-folder-combobox-input:hover,
+.rss-dashboard-modal .rss-dashboard-folder-combobox-input:focus,
+.feed-manager-modal .rss-dashboard-folder-combobox-input:hover,
+.feed-manager-modal .rss-dashboard-folder-combobox-input:focus {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.rss-dashboard-folder-combobox-arrow {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.rss-dashboard-folder-combobox:focus-within
+  .rss-dashboard-folder-combobox-arrow,
+.rss-dashboard-folder-combobox:hover .rss-dashboard-folder-combobox-arrow {
+  color: var(--text-normal);
+}
+
+.rss-dashboard-folder-combobox-arrow svg {
+  width: 16px;
+  height: 16px;
+}
+
 .edit-feed-folder-dropdown {
   position: absolute;
   background: var(--background-primary);

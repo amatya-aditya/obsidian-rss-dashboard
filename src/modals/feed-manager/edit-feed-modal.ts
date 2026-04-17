@@ -14,6 +14,7 @@ import {
   getPerFeedRefreshIntervalDropdownValue,
 } from "../../utils/refresh-intervals";
 import { renderSupportedFormatBadges } from "./supported-format-badges";
+import { decorateFolderSelectorInput } from "./folder-selector-field";
 import {
   formatLatestEntryLabel,
   resolveAndLoadPreview,
@@ -66,7 +67,7 @@ export class EditFeedModal extends Modal {
     let latestEntry = "-";
     let titleInput: HTMLInputElement;
     let urlInput: HTMLInputElement;
-    let folderInput: HTMLInputElement;
+    let folderInput!: HTMLInputElement;
     let loadBtn: HTMLButtonElement;
     const refs: {
       statusDiv?: HTMLDivElement;
@@ -220,7 +221,7 @@ export class EditFeedModal extends Modal {
       cls: "add-feed-status",
     });
 
-    new Setting(contentEl).setName("Folder").addText((text) => {
+    const folderSetting = new Setting(contentEl).setName("Folder").addText((text) => {
       text.setValue(folder).setPlaceholder("Type or select folder...");
       folderInput = text.inputEl;
       folderInput.autocomplete = "off";
@@ -229,6 +230,7 @@ export class EditFeedModal extends Modal {
 
       new FolderSuggest(this.app, folderInput, this.plugin.settings.folders);
     });
+    decorateFolderSelectorInput(folderSetting, folderInput);
 
     const perFeedControlsDetails = contentEl.createEl("details", {
       cls: "rss-keyword-filter-details rss-per-feed-controls-details",

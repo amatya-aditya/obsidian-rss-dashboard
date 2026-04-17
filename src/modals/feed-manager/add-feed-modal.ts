@@ -20,6 +20,7 @@ import {
   getPerFeedRefreshIntervalDropdownValue,
 } from "../../utils/refresh-intervals";
 import { renderSupportedFormatBadges } from "./supported-format-badges";
+import { decorateFolderSelectorInput } from "./folder-selector-field";
 
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
@@ -101,7 +102,7 @@ export class AddFeedModal extends Modal {
     let folder = this.defaultFolder;
     let titleInput: HTMLInputElement;
     let urlInput: HTMLInputElement;
-    let folderInput: HTMLInputElement;
+    let folderInput!: HTMLInputElement;
     let loadBtn: HTMLButtonElement;
     const refs: {
       statusDiv?: HTMLDivElement;
@@ -439,7 +440,7 @@ export class AddFeedModal extends Modal {
       cls: "add-feed-status",
     });
 
-    new Setting(contentEl).setName("Folder").addText((text) => {
+    const folderSetting = new Setting(contentEl).setName("Folder").addText((text) => {
       text.setValue(folder).setPlaceholder("Type or select folder...");
       folderInput = text.inputEl;
       folderInput.autocomplete = "off";
@@ -448,6 +449,7 @@ export class AddFeedModal extends Modal {
 
       new FolderSuggest(this.app, folderInput, this.folders);
     });
+    decorateFolderSelectorInput(folderSetting, folderInput);
 
     const perFeedControlsDetails = contentEl.createEl("details", {
       cls: "rss-keyword-filter-details rss-per-feed-controls-details",
