@@ -377,6 +377,7 @@
   color: var(--text-accent);
 }
 .rss-dashboard-feed-folder-name {
+  min-width: 0;
   flex-grow: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -437,8 +438,10 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  min-width: 0;
 }
 .rss-dashboard-feed-name {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -447,6 +450,7 @@
 .rss-dashboard-feed-unread-count,
 .rss-dashboard-all-feeds-unread,
 .rss-dashboard-folder-unread-count {
+  flex-shrink: 0;
   color: white;
   display: inline-flex;
   align-items: center;
