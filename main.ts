@@ -1667,7 +1667,7 @@ export default class RssDashboardPlugin extends Plugin {
     for (const feed of this.settings.feeds) {
       for (const item of feed.items) {
         if (item.saved) {
-          const fileExists = this.checkSavedFileExists(item);
+          const fileExists = this.articleSaver.checkSavedFileExists(item);
           if (!fileExists) {
             item.saved = false;
 
@@ -1691,10 +1691,6 @@ export default class RssDashboardPlugin extends Plugin {
         view.render();
       }
     }
-  }
-
-  private checkSavedFileExists(item: FeedItem): boolean {
-    return this.articleSaver.checkSavedFileExists(item);
   }
 
   private getAllArticles(): FeedItem[] {

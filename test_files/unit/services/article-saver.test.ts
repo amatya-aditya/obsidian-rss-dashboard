@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App, TFile, moment } from "obsidian";
 import type { ArticleSavingSettings, FeedItem } from "../../../src/types/types";
-import { ArticleSaver } from "../../../src/services/article-saver";
+import { ArticleSaver, sanitizeFilename } from "../../../src/services/article-saver";
 import * as fetchHelpers from "../../../src/utils/fetch-helpers";
 
 function createSettings(
@@ -9,7 +9,7 @@ function createSettings(
 ): ArticleSavingSettings {
   return {
     addSavedTag: false,
-    defaultFolder: "",
+    defaultFolder: "RSS articles",
     defaultTemplate: "",
     includeFrontmatter: false,
     frontmatterTemplate: "",
@@ -354,5 +354,256 @@ describe("ArticleSaver.fixSavedFilePaths", () => {
     expect(item.saved).toBe(false);
     expect(item.savedFilePath).toBeUndefined();
     expect(item.tags.map((t) => t.name)).toEqual(["keep"]);
+  });
+});
+describe("sanitizeFilename", () => {
+  it("removes special characters that are illegal in file systems", () => {
+    expect(sanitizeFilename("Hello / \\ : * ? \" < > | World")).toBe("Hello World");
+  });
+
+  it("preserves single spaces between words but trims leading/trailing spaces", () => {
+    expect(sanitizeFilename("  Hello   World  ")).toBe("Hello World");
+  });
+
+  it("truncates to maximum of 5 words", () => {
+    expect(sanitizeFilename("One Two Three Four Five Six Seven")).toBe("One Two Three Four Five");
+  });
+
+  it("enforces a character limit of 50 characters", () => {
+    const longWord = "A".repeat(60);
+    expect(sanitizeFilename(longWord).length).toBe(50);
+  });
+
+  it("handles long titles correctly", () => {
+    const longTitle = "Word1 Word2 Word3 Word4 Word5-very-long-suffix-that-should-be-cut-off";
+    const sanitized = sanitizeFilename(longTitle);
+    expect(sanitized.length).toBe(50);
+    expect(sanitized).toBe("Word1 Word2 Word3 Word4 Word5-very-long-suffix-tha");
+  });
+
+  it("handles edge inputs: empty string", () => {
+    expect(sanitizeFilename("")).toBe("");
+  });
+
+  it("handles edge inputs: only special characters", () => {
+    expect(sanitizeFilename("/\\:*?\"<>|")).toBe("");
+  });
+
+  it("handles edge inputs: only spaces", () => {
+    expect(sanitizeFilename("   ")).toBe("");
+  });
+
+  it("handles mixed alphanumeric and special characters", () => {
+    expect(sanitizeFilename("Article! @# Name$%")).toBe("Article Name");
+  });
+
+  it("preserves non-ASCII characters (Cyrillic)", () => {
+    expect(sanitizeFilename("Пример Статьи")).toBe("Пример Статьи");
+  });
+
+  it("preserves emojis", () => {
+    expect(sanitizeFilename("🚀 Space Article")).toBe("🚀 Space Article");
+  });
+
+  it("truncates even if the first word is longer than 50 characters", () => {
+    const hugeWord = "B".repeat(100);
+    expect(sanitizeFilename(hugeWord)).toBe("B".repeat(50));
+  });
+
+  it("collapses multiple spaces between words", () => {
+    expect(sanitizeFilename("Word1    Word2")).toBe("Word1 Word2");
+  });
+});
+
+describe("ArticleSaver.checkSavedFileExists", () => {
+  let app: any;
+  let settings: ArticleSavingSettings;
+  let saver: ArticleSaver;
+
+  beforeEach(() => {
+    app = (App as any).createMock();
+    settings = createSettings();
+    saver = new ArticleSaver(app, settings);
+  });
+
+  it("handles folder normalization with leading/trailing slashes", () => {
+    settings.defaultFolder = "/Articles/";
+    const item = createItem({ title: "Test" });
+    const expectedPath = "Articles/Test.md";
+    vi.spyOn(app.vault, "getAbstractFileByPath").mockImplementation((path) => 
+        path === expectedPath ? new TFile(path) : null
+    );
+    expect(saver.checkSavedFileExists(item)).toBe(true);
+  });
+
+  it("works correctly when defaultFolder is empty", () => {
+    settings.defaultFolder = "";
+    const item = createItem({ title: "Test" });
+    const expectedPath = "Test.md";
+    vi.spyOn(app.vault, "getAbstractFileByPath").mockImplementation((path) => 
+        path === expectedPath ? new TFile(path) : null
+    );
+    expect(saver.checkSavedFileExists(item)).toBe(true);
+  });
+
+  it("returns false when vault errors occur", () => {
+    const item = createItem({ title: "Test" });
+    vi.spyOn(app.vault, "getAbstractFileByPath").mockImplementation(() => {
+        throw new Error("Vault error");
+    });
+    expect(saver.checkSavedFileExists(item)).toBe(false);
+  });
+
+  it("returns false if item has no title", () => {
+    const item = createItem({ title: "" });
+    expect(saver.checkSavedFileExists(item)).toBe(false);
+  });
+
+  it("returns true if file exists in a subfolder", async () => {
+    settings.defaultFolder = "Sub/Folder";
+    const item = createItem({ title: "Deep" });
+    await app.vault.create("Sub/Folder/Deep.md", "content");
+    expect(saver.checkSavedFileExists(item)).toBe(true);
+  });
+
+  it("returns false if file exists but with different extension", async () => {
+    settings.defaultFolder = "Articles";
+    const item = createItem({ title: "Test" });
+    await app.vault.create("Articles/Test.txt", "content");
+    expect(saver.checkSavedFileExists(item)).toBe(false);
+  });
+
+  it("is case-sensitive", async () => {
+    settings.defaultFolder = "Articles";
+    const item = createItem({ title: "test" });
+    await app.vault.create("Articles/Test.md", "content");
+    expect(saver.checkSavedFileExists(item)).toBe(false);
+  });
+
+  it("handles folders with many spaces correctly", async () => {
+    settings.defaultFolder = "  Many   Spaces  ";
+    const item = createItem({ title: "Spaced" });
+    await app.vault.create("Many Spaces/Spaced.md", "content");
+    expect(saver.checkSavedFileExists(item)).toBe(true);
+  });
+});
+
+describe("ArticleSaver.findSavedArticleFile", () => {
+  let app: any;
+  let settings: ArticleSavingSettings;
+  let saver: ArticleSaver;
+
+  beforeEach(() => {
+    app = (App as any).createMock();
+    settings = createSettings();
+    saver = new ArticleSaver(app, settings);
+  });
+
+  it("returns a TFile instance via savedFilePath", async () => {
+    const item = createItem({ title: "Found", saved: true, savedFilePath: "Folder/Found.md" });
+    const mockFile = new TFile("Folder/Found.md");
+    vi.spyOn(app.vault, "getAbstractFileByPath").mockReturnValue(mockFile);
+    const result = await saver.findSavedArticleFile(item);
+    expect(result).toBe(mockFile);
+  });
+
+  it("normalizes path when searching by title", async () => {
+    const item = createItem({ title: "Searching", saved: true });
+    settings.defaultFolder = "/Unnormalized/Path/";
+    const expectedPath = "Unnormalized/Path/Searching.md";
+    await app.vault.create(expectedPath, "content");
+    const result = await saver.findSavedArticleFile(item);
+    expect(result!.path).toBe(expectedPath);
+  });
+
+  it("searches in vault root if folder is empty", async () => {
+    settings.defaultFolder = "";
+    const item = createItem({ title: "Root", saved: true });
+    await app.vault.create("Root.md", "content");
+    const result = await saver.findSavedArticleFile(item);
+    expect(result!.path).toBe("Root.md");
+  });
+
+  it("clears saved state if savedFilePath file is missing", async () => {
+    const item = createItem({ title: "Missing", saved: true, savedFilePath: "Old/Path.md" });
+    const result = await saver.findSavedArticleFile(item);
+    expect(result).toBeNull();
+    expect(item.saved).toBe(false);
+  });
+
+  it("updates savedFilePath if found by title", async () => {
+    const item = createItem({ title: "TitleSearch", saved: true });
+    await app.vault.create("RSS articles/TitleSearch.md", "content");
+    await saver.findSavedArticleFile(item);
+    expect(item.savedFilePath).toBe("RSS articles/TitleSearch.md");
+  });
+
+  it("returns null if item not marked saved", async () => {
+    const item = createItem({ title: "Unsaved", saved: false });
+    await app.vault.create("RSS articles/Unsaved.md", "content");
+    expect(await saver.findSavedArticleFile(item)).toBeNull();
+  });
+
+  it("returns null if title is empty", async () => {
+    const item = createItem({ title: "", saved: true });
+    expect(await saver.findSavedArticleFile(item)).toBeNull();
+  });
+});
+
+describe("ArticleSaver Round-trip and Collisions", () => {
+  let app: any;
+  let settings: ArticleSavingSettings;
+  let saver: ArticleSaver;
+
+  beforeEach(() => {
+    app = (App as any).createMock();
+    settings = createSettings();
+    saver = new ArticleSaver(app, settings);
+  });
+
+  it("round-trip: special characters in title", async () => {
+    const item = createItem({ title: "A / B: C?" });
+    const saved = await saver.saveArticle(item);
+    const found = await saver.findSavedArticleFile(item);
+    expect(found!.path).toBe(saved!.path);
+  });
+
+  it("round-trip: 5-word truncation", async () => {
+    const item = createItem({ title: "One Two Three Four Five Six" });
+    const saved = await saver.saveArticle(item);
+    expect(saved!.path).toContain("One Two Three Four Five.md");
+    const found = await saver.findSavedArticleFile(item);
+    expect(found!.path).toBe(saved!.path);
+  });
+
+  it("round-trip: empty folder", async () => {
+    settings.defaultFolder = "";
+    const item = createItem({ title: "NoFolder" });
+    const saved = await saver.saveArticle(item);
+    expect(saved!.path).toBe("NoFolder.md");
+    const found = await saver.findSavedArticleFile(item);
+    expect(found!.path).toBe("NoFolder.md");
+  });
+
+  it("false negative: custom folder limitation", async () => {
+    const item = createItem({ title: "Custom" });
+    await saver.saveArticle(item, "CustomFolder");
+    item.savedFilePath = undefined; // Lose reference
+    expect(await saver.findSavedArticleFile(item)).toBeNull();
+  });
+
+  it("false positive: title collision", async () => {
+    const item1 = createItem({ title: "A: B", guid: "1" });
+    const item2 = createItem({ title: "A? B", guid: "2", saved: true });
+    await saver.saveArticle(item1);
+    const found = await saver.findSavedArticleFile(item2);
+    expect(found!.path).toBe("RSS articles/A B.md"); // Points to item1's file
+  });
+
+  it("only looks in defaultFolder if no savedFilePath", async () => {
+    settings.defaultFolder = "RSS";
+    const item = createItem({ title: "Root", saved: true });
+    await app.vault.create("Root.md", "content");
+    expect(await saver.findSavedArticleFile(item)).toBeNull();
   });
 });

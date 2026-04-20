@@ -8,7 +8,7 @@ import { withSavedTagName } from "../utils/tag-utils";
 
 export function sanitizeFilename(name: string): string {
     const sanitized = name
-      .replace(/[/\\:*?"<>|]/g, "")
+      .replace(/[\\/:*?"<>|!@#$%^&()+=~`{}[\];:'",.<>]/g, "")
       .replace(/\s+/g, " ")
       .trim();
 
@@ -202,7 +202,10 @@ export class ArticleSaver {
       return "";
     }
 
-    return path.replace(/^\/+|\/+$/g, "");
+    return path
+      .replace(/[\\:*?"<>|]/g, "")
+      .replace(/\s+/g, " ")
+      .replace(/^[/\s]+|[/\s]+$/g, "");
   }
 
   private async ensureFolderExists(folderPath: string): Promise<void> {
@@ -609,5 +612,90 @@ export class ArticleSaver {
       .forEach((article) => {
         this.verifySavedArticle(article);
       });
+  }
+
+  checkSavedFileExists(item: FeedItem): boolean {
+    if (!item.title) return false;
+    try {
+      const folder = this.normalizePath(
+        this.settings.defaultFolder || "",
+      );
+      const filename = sanitizeFilename(item.title);
+      const filePath =
+        folder && folder.trim() !== ""
+          ? `${folder}/${filename}.md`
+          : `${filename}.md`;
+
+      return this.app.vault.getAbstractFileByPath(filePath) !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  private async updateArticleStatus(
+    article: FeedItem,
+    updates: Partial<FeedItem>,
+    _shouldRerender: boolean = true,
+  ): Promise<void> {
+    Object.assign(article, updates);
+    if (updates.saved === false && article.tags) {
+      article.tags = article.tags.filter(
+        (t) => t.name.toLowerCase() !== "saved",
+      );
+    }
+    return Promise.resolve();
+  }
+
+  async findSavedArticleFile(article: FeedItem): Promise<TFile | null> {
+    if (!article.saved) {
+      return null;
+    }
+
+    if (article.savedFilePath) {
+      try {
+        const file = this.app.vault.getAbstractFileByPath(
+          article.savedFilePath,
+        );
+        if (file !== null) {
+          if (file instanceof TFile) {
+            return file;
+          }
+        } else {
+          await this.updateArticleStatus(
+            article,
+            { saved: false, savedFilePath: undefined },
+            false,
+          );
+          return null;
+        }
+      } catch {
+        // File path check failed, continue with filename search
+      }
+    }
+
+    const filename = sanitizeFilename(article.title);
+    const folder = this.normalizePath(this.settings.defaultFolder || "");
+    const expectedPath =
+      folder && folder.trim() !== ""
+        ? `${folder}/${filename}.md`
+        : `${filename}.md`;
+
+    try {
+      const file = this.app.vault.getAbstractFileByPath(expectedPath);
+      if (file !== null) {
+        if (file instanceof TFile) {
+          await this.updateArticleStatus(
+            article,
+            { savedFilePath: expectedPath },
+            false,
+          );
+          return file;
+        }
+      }
+    } catch {
+      // File lookup failed
+    }
+
+    return null;
   }
 }
