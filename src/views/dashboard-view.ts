@@ -1379,7 +1379,7 @@ export class RssDashboardView extends ItemView {
     if (article.saved) {
       const loadingNotice = new Notice("Opening saved article...", 0);
       try {
-        const savedFile = this.findSavedArticleFile(article);
+        const savedFile = await this.findSavedArticleFile(article);
         if (savedFile) {
           await this.openSavedArticleFile(savedFile);
           loadingNotice.hide();
@@ -2194,11 +2194,15 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private findSavedArticleFile(article: FeedItem): TFile | null {
+  private async findSavedArticleFile(article: FeedItem): Promise<TFile | null> {
     if (!article.saved) {
       return null;
     }
-    return this.saver.findSavedArticleFile(article);
+    const file = this.saver.findSavedArticleFile(article);
+    if (file === null) {
+      await this.updateArticleStatus(article, { saved: false }, false);
+    }
+    return file;
   }
 
   private async openSavedArticleFile(file: TFile): Promise<void> {
@@ -2223,7 +2227,7 @@ export class RssDashboardView extends ItemView {
     const loadingNotice = new Notice("Opening saved article...", 0);
 
     try {
-      const savedFile = this.findSavedArticleFile(article);
+      const savedFile = await this.findSavedArticleFile(article);
       if (savedFile) {
         await this.openSavedArticleFile(savedFile);
         loadingNotice.hide();
