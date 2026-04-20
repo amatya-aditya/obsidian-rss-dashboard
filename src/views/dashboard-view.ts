@@ -22,7 +22,7 @@ import type {
 } from "../../main";
 import { Sidebar } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
-import { ArticleSaver } from "../services/article-saver";
+import { ArticleSaver, sanitizeFilename } from "../services/article-saver";
 import { ArticleRenderer } from "../components/article-renderer";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
@@ -3044,7 +3044,7 @@ export class RssDashboardView extends ItemView {
       }
     }
 
-    const filename = this.sanitizeFilename(article.title);
+    const filename = sanitizeFilename(article.title);
     const folder = this.settings.articleSaving.defaultFolder || "";
     const expectedPath =
       folder && folder.trim() !== ""
@@ -3081,17 +3081,6 @@ export class RssDashboardView extends ItemView {
       const message = error instanceof Error ? error.message : String(error);
       new Notice(`Error opening saved article: ${message}`);
     }
-  }
-
-  private sanitizeFilename(name: string): string {
-    const sanitized = name
-      .replace(/[/\\:*?"<>|]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    const words = sanitized.split(" ");
-    const shortened = words.slice(0, 5).join(" ");
-    return shortened.substring(0, 50);
   }
 
   private async handleOpenSavedArticle(article: FeedItem): Promise<void> {

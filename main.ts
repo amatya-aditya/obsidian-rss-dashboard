@@ -1693,24 +1693,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private checkSavedFileExists(item: FeedItem): boolean {
-    try {
-      const folder =
-        this.settings.articleSaving.defaultFolder || "RSS articles";
-      const filename = this.sanitizeFilename(item.title);
-      const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
-
-      return this.app.vault.getAbstractFileByPath(filePath) !== null;
-    } catch {
-      return false;
-    }
-  }
-
-  private sanitizeFilename(name: string): string {
-    return name
-      .replace(/[/\\:*?"<>|]/g, "_")
-      .replace(/\s+/g, "_")
-      .replace(/_+/g, "_")
-      .substring(0, 100);
+    return this.articleSaver.checkSavedFileExists(item);
   }
 
   private getAllArticles(): FeedItem[] {

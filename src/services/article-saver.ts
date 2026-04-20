@@ -6,6 +6,17 @@ import { fetchWithProxyFallback } from "../utils/fetch-helpers";
 import { ensureUtf8Meta } from "../utils/platform-utils";
 import { withSavedTagName } from "../utils/tag-utils";
 
+export function sanitizeFilename(name: string): string {
+    const sanitized = name
+      .replace(/[/\\:*?"<>|]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const words = sanitized.split(" ");
+    const shortened = words.slice(0, 5).join(" ");
+    return shortened.substring(0, 50);
+}
+
 export class ArticleSaver {
   private app: App;
   private settings: ArticleSavingSettings;
@@ -122,17 +133,6 @@ export class ArticleSaver {
     }
 
     return frontmatter.endsWith("\n") ? frontmatter : `${frontmatter}\n`;
-  }
-
-  private sanitizeFilename(name: string): string {
-    const sanitized = name
-      .replace(/[/\\:*?"<>|]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    const words = sanitized.split(" ");
-    const shortened = words.slice(0, 5).join(" ");
-    return shortened.substring(0, 50);
   }
 
   private formatMoment(date: Date, formatStr: string): string {
@@ -478,7 +478,7 @@ export class ArticleSaver {
         await this.ensureFolderExists(folder);
       }
 
-      const filename = this.sanitizeFilename(item.title);
+      const filename = sanitizeFilename(item.title);
       const filePath =
         folder && folder.trim() !== ""
           ? `${folder}/${filename}.md`
@@ -556,7 +556,7 @@ export class ArticleSaver {
         const normalizedFolder = this.normalizePath(
           this.settings.defaultFolder || "",
         );
-        const filename = this.sanitizeFilename(article.title);
+        const filename = sanitizeFilename(article.title);
         const newName = `${filename}.md`;
         const newPath =
           normalizedFolder && normalizedFolder.trim() !== ""
