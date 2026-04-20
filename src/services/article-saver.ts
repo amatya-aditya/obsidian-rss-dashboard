@@ -4,6 +4,16 @@ import TurndownService from "turndown";
 import { Readability } from "@mozilla/readability";
 import { ensureUtf8Meta } from '../utils/platform-utils';
 
+export function sanitizeFilename(name: string): string {
+    const sanitized = name
+        .replace(/[/\\:*?"<>|]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const words = sanitized.split(' ');
+    const shortened = words.slice(0, 5).join(' ');
+    return shortened.substring(0, 50);
+}
+
 export class ArticleSaver {
     private app: App;
     private settings: ArticleSavingSettings;
@@ -133,17 +143,22 @@ guid: "{{guid}}"
     }
     
     
-    private sanitizeFilename(name: string): string {
-        
-        const sanitized = name
-            .replace(/[/\\:*?"<>|]/g, '') 
-            .replace(/\s+/g, ' ') 
-            .trim(); 
+    checkSavedFileExists(item: FeedItem): boolean {
+        try {
+            if (item.savedFilePath) {
+                return this.app.vault.getAbstractFileByPath(item.savedFilePath) !== null;
+            }
+            const folder = this.settings.defaultFolder || "";
+            const filename = sanitizeFilename(item.title);
+            const filePath = folder.trim() ? `${folder}/${filename}.md` : `${filename}.md`;
+            return this.app.vault.getAbstractFileByPath(filePath) !== null;
+        } catch {
+            return false;
+        }
+    }
 
-        
-        const words = sanitized.split(' ');
-        const shortened = words.slice(0, 5).join(' ');
-        return shortened.substring(0, 50);
+    private sanitizeFilename(name: string): string {
+        return sanitizeFilename(name);
     }
     
     
