@@ -143,24 +143,22 @@ guid: "{{guid}}"
     }
     
     
-    checkSavedFileExists(item: FeedItem): boolean {
+    findSavedArticleFile(item: FeedItem): TFile | null {
         try {
-            if (item.savedFilePath) {
-                return this.app.vault.getAbstractFileByPath(item.savedFilePath) !== null;
-            }
-            const folder = this.settings.defaultFolder || "";
+            const folder = this.normalizePath(this.settings.defaultFolder || "");
             const filename = sanitizeFilename(item.title);
-            const filePath = folder.trim() ? `${folder}/${filename}.md` : `${filename}.md`;
-            return this.app.vault.getAbstractFileByPath(filePath) !== null;
+            const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
+            const file = this.app.vault.getAbstractFileByPath(filePath);
+            return file instanceof TFile ? file : null;
         } catch {
-            return false;
+            return null;
         }
     }
 
-    private sanitizeFilename(name: string): string {
-        return sanitizeFilename(name);
+    checkSavedFileExists(item: FeedItem): boolean {
+        return this.findSavedArticleFile(item) !== null;
     }
-    
+
     
     private applyTemplate(item: FeedItem, template: string, rawContent?: string): string {
         
@@ -526,7 +524,7 @@ guid: "{{guid}}"
             }
             
             
-            const filename = this.sanitizeFilename(item.title);
+            const filename = sanitizeFilename(item.title);
             const filePath = folder && folder.trim() !== '' ? `${folder}/${filename}.md` : `${filename}.md`;
            
             
@@ -605,7 +603,7 @@ guid: "{{guid}}"
                             
                             try {
                                 const normalizedFolder = this.normalizePath(this.settings.defaultFolder || '');
-                                const filename = this.sanitizeFilename(article.title);
+                                const filename = sanitizeFilename(article.title);
                                 const newName = `${filename}.md`;
 
                                 const newPath =

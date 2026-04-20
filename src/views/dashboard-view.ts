@@ -22,7 +22,7 @@ import type {
 } from "../../main";
 import { Sidebar } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
-import { ArticleSaver, sanitizeFilename } from "../services/article-saver";
+import { ArticleSaver } from "../services/article-saver";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
 import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
@@ -1379,7 +1379,7 @@ export class RssDashboardView extends ItemView {
     if (article.saved) {
       const loadingNotice = new Notice("Opening saved article...", 0);
       try {
-        const savedFile = await this.findSavedArticleFile(article);
+        const savedFile = this.findSavedArticleFile(article);
         if (savedFile) {
           await this.openSavedArticleFile(savedFile);
           loadingNotice.hide();
@@ -2194,57 +2194,11 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private async findSavedArticleFile(article: FeedItem): Promise<TFile | null> {
+  private findSavedArticleFile(article: FeedItem): TFile | null {
     if (!article.saved) {
       return null;
     }
-
-    if (article.savedFilePath) {
-      try {
-        const file = this.app.vault.getAbstractFileByPath(
-          article.savedFilePath,
-        );
-        if (file !== null) {
-          if (file instanceof TFile) {
-            return file;
-          }
-        } else {
-          await this.updateArticleStatus(
-            article,
-            { saved: false, savedFilePath: undefined },
-            false,
-          );
-          return null;
-        }
-      } catch {
-        // File path check failed, continue with filename search
-      }
-    }
-
-    const filename = sanitizeFilename(article.title);
-    const folder = this.settings.articleSaving.defaultFolder || "";
-    const expectedPath =
-      folder && folder.trim() !== ""
-        ? `${folder}/${filename}.md`
-        : `${filename}.md`;
-
-    try {
-      const file = this.app.vault.getAbstractFileByPath(expectedPath);
-      if (file !== null) {
-        if (file instanceof TFile) {
-          await this.updateArticleStatus(
-            article,
-            { savedFilePath: expectedPath },
-            false,
-          );
-          return file;
-        }
-      }
-    } catch {
-      // File lookup failed
-    }
-
-    return null;
+    return this.saver.findSavedArticleFile(article);
   }
 
   private async openSavedArticleFile(file: TFile): Promise<void> {
@@ -2269,7 +2223,7 @@ export class RssDashboardView extends ItemView {
     const loadingNotice = new Notice("Opening saved article...", 0);
 
     try {
-      const savedFile = await this.findSavedArticleFile(article);
+      const savedFile = this.findSavedArticleFile(article);
       if (savedFile) {
         await this.openSavedArticleFile(savedFile);
         loadingNotice.hide();
