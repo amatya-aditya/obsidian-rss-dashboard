@@ -505,8 +505,8 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
  source: "{{source}}"
  link: "{{link}}"
  author: "{{author}}"
-feedTitle: "{{feedTitle}}"
-guid: "{{guid}}"
+ feedTitle: "{{feedTitle}}"
+ guid: "{{guid}}"
 ---
 
 # {{title}}
@@ -522,8 +522,8 @@ guid: "{{guid}}"
  source: "{{source}}"
  link: "{{link}}"
  author: "{{author}}"
-feedTitle: "{{feedTitle}}"
-guid: "{{guid}}"
+ feedTitle: "{{feedTitle}}"
+ guid: "{{guid}}"
 ---`,
     saveFullContent: true,
     fetchTimeout: 10,
