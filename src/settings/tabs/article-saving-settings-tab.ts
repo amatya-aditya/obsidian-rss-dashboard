@@ -79,7 +79,7 @@ export function renderArticleSavingSettingsTab(
   new Setting(templateContainer)
     .setName("Default article template")
     .setDesc(
-      "Template for saved articles. Use variables like {{title}}, {{content}}, {{link}}, etc.",
+      "Template for saved articles. All frontmatter properties must start with a single space indent.",
     );
 
   const templateInput = templateContainer.createEl("textarea", {
@@ -96,9 +96,28 @@ export function renderArticleSavingSettingsTab(
 
   templateContainer.appendChild(templateInput);
 
-  containerEl.createEl("div", {
-    cls: "setting-item-description",
-    text: "Available variables: {{title}}, {{content}}, {{link}}, {{date}}, {{isoDate}}, {{source}}, {{author}}, {{summary}}, {{tags}}, {{feedTitle}}, {{guid}}",
+  const helpText = containerEl.createEl("div", {
+    cls: "setting-item-description rss-dashboard-template-help",
+  });
+
+  helpText.createEl("p", { text: "Available variables:" });
+  const list = helpText.createEl("ul", { cls: "rss-dashboard-variable-list" });
+  [
+    "{{title}}",
+    "{{date}} (Long format)",
+    "{{dateShort}} (YYYY-MM-DD)",
+    "{{date:FORMAT}} (Moment.js format, e.g. {{date:YYYY/MM/DD}})",
+    "{{isoDate}}",
+    "[{{tags}}] (array of tags e.g. [tag1, tag2, ...])",
+    "{{author}}",
+    "{{feedTitle}}",
+    "{{summary}}",
+    "{{guid}}",
+    "{{content}}",
+    "{{source}}",
+    "{{link}}",
+  ].forEach((variable) => {
+    list.createEl("li", { text: variable });
   });
 
   const templateBtnRow = containerEl.createDiv({

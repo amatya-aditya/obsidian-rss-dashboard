@@ -1,7 +1,11 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals"],
+    "baseUrl": ".",
+    "paths": {
+      "obsidian": ["./stubs/obsidian.ts"]
+    }
   },
   "include": ["**/*.ts", "../main.ts", "../src/**/*.ts"],
   "exclude": ["../coverage/**", "../node_modules/**"]

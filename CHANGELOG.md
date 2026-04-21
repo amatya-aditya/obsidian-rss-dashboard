@@ -9,7 +9,13 @@
 
 - Added new "inline" reader view option to the general settings which opens the article in the same tab as the dashboard. (GH[#100](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/100))
 
-- Added a new "external browser" reader view location option in General settings so article and media opens can bypass the in-app reader and launch in the system browser. (GH[#89](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/89)
+- Added a new "external browser" reader view location option in General settings so article and media opens can bypass the in-app reader and launch in the system browser. (GH[#89](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/89))
+
+- **Flexible Date Formatting for Templates** (GH[#102](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/102)):
+  - Added support for custom date formats in article templates using Moment.js.
+  - New variables: `{{dateShort}}` (renders as `YYYY-MM-DD`) and parameterized `{{date:FORMAT}}` (e.g., `{{date:YYYY/MM/DD HH:mm}}`).
+  - Improved settings UI for Article Saving with a readable, row-by-row guide of all available template variables.
+  - Full backward compatibility for `{{date}}`, `{{isoDate}}`, and `{{isoDateTime}}`.
 
 ### Fixes
 

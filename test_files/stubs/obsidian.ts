@@ -1,6 +1,10 @@
 // =============================================================================
 // Core Obsidian API Stubs
 // =============================================================================
+// =============================================================================
+
+import moment from "moment";
+export { moment };
 
 // Stub for HTTP requests - configure mock in test
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

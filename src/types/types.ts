@@ -506,6 +506,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
  link: "{{link}}"
  author: "{{author}}"
  feedTitle: "{{feedTitle}}"
+ summary: "{{summary}}"
  guid: "{{guid}}"
 ---
 
@@ -523,6 +524,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
  link: "{{link}}"
  author: "{{author}}"
  feedTitle: "{{feedTitle}}"
+ summary: "{{summary}}"
  guid: "{{guid}}"
 ---`,
     saveFullContent: true,

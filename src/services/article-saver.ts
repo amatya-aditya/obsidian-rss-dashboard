@@ -1,4 +1,4 @@
-import { App, Notice, TFile } from "obsidian";
+import { App, Notice, TFile, moment } from "obsidian";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
 import { ArticleSavingSettings, FeedItem } from "../types/types";
@@ -103,26 +103,9 @@ export class ArticleSaver {
     const tagsString = tagNames.join(", ");
 
     const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
-    const isoDateTime = Number.isNaN(pubDate.getTime())
-      ? new Date().toISOString()
-      : pubDate.toISOString();
-    const dateString = Number.isNaN(pubDate.getTime())
-      ? new Date().toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-      : pubDate.toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
 
-    frontmatter = frontmatter
+    frontmatter = this.replaceDatePlaceholders(frontmatter, pubDate)
       .replace(/{{title}}/g, item.title)
-      .replace(/{{date}}/g, dateString)
-      .replace(/{{isoDate}}/g, isoDateTime)
-      .replace(/{{isoDateTime}}/g, isoDateTime)
       .replace(/{{tags}}/g, tagsString)
       .replace(/{{source}}/g, item.feedTitle)
       .replace(/{{link}}/g, item.link)
@@ -152,6 +135,35 @@ export class ArticleSaver {
     return shortened.substring(0, 50);
   }
 
+  private formatMoment(date: Date, formatStr: string): string {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any
+    return (moment as any)(date).format(formatStr);
+  }
+
+  private replaceDatePlaceholders(text: string, date: Date): string {
+    const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
+    const isoDateTime = validDate.toISOString();
+
+    const longFormattedDate = validDate.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    let replaced = text
+      .replace(/{{date}}/g, longFormattedDate)
+      .replace(/{{dateShort}}/g, this.formatMoment(validDate, "YYYY-MM-DD"))
+      .replace(/{{isoDate}}/g, isoDateTime)
+      .replace(/{{isoDateTime}}/g, isoDateTime);
+
+    // Handle dynamic formats: {{date:FORMAT}}
+    replaced = replaced.replace(/{{date:(.+?)}}/g, (_match: string, format: string) => {
+      return this.formatMoment(validDate, format);
+    });
+
+    return replaced;
+  }
+
   private applyTemplate(
     item: FeedItem,
     template: string,
@@ -160,15 +172,6 @@ export class ArticleSaver {
     const content = rawContent || this.cleanHtml(item.description);
 
     const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
-    const isoDateTime = Number.isNaN(pubDate.getTime())
-      ? new Date().toISOString()
-      : pubDate.toISOString();
-
-    const formattedDate = pubDate.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
 
     const tagNames = (item.tags ?? [])
       .map((tag) => tag.name)
@@ -180,11 +183,10 @@ export class ArticleSaver {
       ? withSavedTagName(tagNames).join(", ")
       : tagNames.join(", ");
 
-    return template
+    const replacedWithDates = this.replaceDatePlaceholders(template, pubDate);
+
+    return replacedWithDates
       .replace(/{{title}}/g, item.title)
-      .replace(/{{date}}/g, formattedDate)
-      .replace(/{{isoDate}}/g, isoDateTime)
-      .replace(/{{isoDateTime}}/g, isoDateTime)
       .replace(/{{link}}/g, item.link)
       .replace(/{{author}}/g, item.author || "")
       .replace(/{{source}}/g, item.feedTitle)

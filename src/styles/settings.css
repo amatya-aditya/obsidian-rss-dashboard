@@ -240,6 +240,19 @@
   width: 100%;
 }
 
+.rss-dashboard-variable-list {
+  margin: 8px 0 0 16px;
+  padding: 0;
+  list-style-type: none;
+  font-family: var(--font-monospace);
+  font-size: 13px;
+  color: var(--text-normal);
+}
+
+.rss-dashboard-variable-list li {
+  margin-bottom: 2px;
+}
+
 /* Template Button Styling */
 .rss-dashboard-template-btn-row {
   display: flex;
