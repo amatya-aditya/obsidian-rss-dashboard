@@ -1,10 +1,15 @@
-﻿import { requestUrl, Platform } from "obsidian";
+import { requestUrl, Platform } from "obsidian";
 import { Feed, FeedItem, MediaSettings, Tag } from "../types/types.js";
 import { MediaService } from "./media-service";
 import {
   detectPodcastPlatform,
   APPLE_PODCASTS,
+  POCKET_CASTS,
 } from "../utils/podcast-platforms.js";
+import {
+  canonicalizeItemIdentityUrl,
+  resolveAbsoluteHttpUrl,
+} from "../utils/url-utils.js";
 
 interface ItunesLookupResponse {
   resultCount: number;
@@ -21,6 +26,7 @@ interface ItunesLookupResponse {
 
 export async function resolvePodcastPlatformUrl(
   url: string,
+  corsProxyUrl?: string,
 ): Promise<string | null> {
   const platform = detectPodcastPlatform(url);
   if (!platform) return null;
@@ -29,7 +35,156 @@ export async function resolvePodcastPlatformUrl(
     return resolveApplePodcastUrl(url);
   }
 
+  if (platform.id === POCKET_CASTS.id) {
+    return resolvePocketCastsUrl(url, corsProxyUrl);
+  }
+
   return null;
+}
+
+async function resolvePocketCastsUrl(
+  url: string,
+  corsProxyUrl?: string,
+): Promise<string | null> {
+  const proxyUrls: string[] = [];
+
+  // 1. User's proxy if available
+  if (corsProxyUrl) {
+    const isEncoded =
+      corsProxyUrl.includes("allorigins") || corsProxyUrl.includes("codetabs");
+    const targetUrl = isEncoded ? encodeURIComponent(url) : url;
+    proxyUrls.push(`${corsProxyUrl}${targetUrl}`);
+  }
+
+  // 2. Default AllOrigins proxy
+  proxyUrls.push(
+    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  );
+
+  // 3. Fallback CodeTabs proxy
+  proxyUrls.push(
+    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+  );
+
+  let lastError: Error | null = null;
+
+  for (const proxyUrl of proxyUrls) {
+    try {
+      console.debug(
+        `[RSS Dashboard] Attempting to resolve Pocket Casts URL using proxy: ${proxyUrl}`,
+      );
+      const response = await requestUrl({ url: proxyUrl, method: "GET" });
+
+      let contents = "";
+      if (proxyUrl.includes("allorigins.win/get")) {
+        const data = JSON.parse(response.text) as { contents: string };
+        if (!data.contents)
+          throw new Error("AllOrigins returned empty contents");
+        contents = data.contents;
+      } else {
+        contents = response.text;
+      }
+
+      const match =
+        contents.match(
+          /<link[^>]+type=["']application\/rss\+xml["'][^>]+href=["']([^"']+)["']/i,
+        ) ||
+        contents.match(
+          /<link[^>]+href=["']([^"']+)["'][^>]+type=["']application\/rss\+xml["']/i,
+        );
+
+      if (match?.[1]) {
+        console.debug(
+          `[RSS Dashboard] Successfully resolved Pocket Casts URL via meta tag: ${match[1]}`,
+        );
+        return match[1];
+      }
+
+      // FALLBACK STRATEGY: Semantic Discovery via iTunes Search
+      // Pocket Casts often hides the direct RSS link in their web player.
+      // We extract the podcast title and use the public iTunes Search API to find the feed.
+
+      // Flexible regex: Handles attributes in any order (e.g., meta data-rh="true" property="og:title" content="...")
+      let titleMatch =
+        contents.match(
+          /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i,
+        ) ||
+        contents.match(
+          /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i,
+        ) ||
+        contents.match(
+          /<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']/i,
+        ) ||
+        contents.match(
+          /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:title["']/i,
+        );
+
+      if (!titleMatch) {
+        // Fallback to <title> tag, but be careful of generic site titles
+        const docTitle = contents.match(/<title>([^<]+)<\/title>/i);
+        if (docTitle?.[1] && !docTitle[1].includes("Pocket Casts")) {
+          titleMatch = docTitle;
+        }
+      }
+
+      if (titleMatch?.[1]) {
+        const rawTitle = titleMatch[1];
+        const decodedTitle = rawTitle
+          .replace(/&amp;/g, "&")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'");
+        console.debug(
+          `[RSS Dashboard] Extracted title for iTunes search: "${decodedTitle}"`,
+        );
+
+        if (decodedTitle.toLowerCase() === "pocket casts plus") {
+          // Generic title found, search would be too ambiguous
+          // [RSS Dashboard] Extracted generic title "Pocket Casts Plus", skipping search to avoid incorrect resolution.
+        } else {
+          try {
+            // iTunes Search API is public, free, and returns canonical RSS feedUrls
+            const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(decodedTitle)}&entity=podcast&limit=3`;
+            const itunesResponse = await requestUrl({
+              url: searchUrl,
+              method: "GET",
+            });
+            const itunesData = JSON.parse(itunesResponse.text) as {
+              results?: Array<{ feedUrl?: string; collectionName?: string }>;
+            };
+            if (
+              itunesData.results &&
+              itunesData.results.length > 0 &&
+              itunesData.results[0].feedUrl
+            ) {
+              const feedUrl = itunesData.results[0].feedUrl;
+              console.debug(
+                `[RSS Dashboard] Successfully resolved Pocket Casts URL via iTunes API: ${feedUrl} (matched "${itunesData.results[0].collectionName}")`,
+              );
+              return feedUrl;
+            }
+            console.debug(
+              `[RSS Dashboard] iTunes API returned no feedUrl for title: ${decodedTitle}`,
+            );
+          } catch (itunesErr) {
+            void itunesErr;
+            // [RSS Dashboard] iTunes Search API fallback failed (expected during proxy fallback chain)
+          }
+        }
+      }
+
+      throw new Error(
+        `Could not find RSS feed link or valid title in HTML from Pocket Casts layout`,
+      );
+    } catch (e) {
+      // [RSS Dashboard] Proxy ${proxyUrl} failed to resolve Pocket Casts URL (expected - trying next proxy)
+      lastError = e instanceof Error ? e : new Error(String(e));
+      // Continue to next proxy
+    }
+  }
+
+  throw new Error(
+    `Failed to resolve Pocket Casts URL after trying multiple proxies. Last error: ${lastError?.message}`,
+  );
 }
 
 async function resolveApplePodcastUrl(
@@ -73,13 +228,36 @@ export interface FeedPreviewData {
   link: string;
   image: string;
   latestPubDate: string;
+  hasEntries: boolean;
   feedUrl: string;
+}
+
+export interface FeedParseOptions {
+  allowEmpty?: boolean;
+}
+
+const BARE_AMPERSAND_REGEX =
+  /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g;
+
+export function parseFeedPreviewFromXmlText(
+  xmlText: string,
+  feedUrl: string,
+): FeedPreviewData | null {
+  if (!xmlText) return null;
+
+  const sanitizedXmlText = xmlText.replace(BARE_AMPERSAND_REGEX, "&amp;");
+  const doc = new DOMParser().parseFromString(sanitizedXmlText, "text/xml");
+
+  if (doc.querySelector("parsererror")) {
+    return null;
+  }
+
+  return parseFeedDoc(doc, feedUrl);
 }
 
 export async function loadFeedForPreview(
   feedUrl: string,
 ): Promise<FeedPreviewData> {
-
   // Try direct request first
   try {
     const response = await requestUrl({
@@ -122,6 +300,7 @@ export async function loadFeedForPreview(
       link: data.feed.link || "",
       image: data.feed.image || "",
       latestPubDate: data.items?.[0]?.pubDate || "",
+      hasEntries: (data.items?.length || 0) > 0,
       feedUrl,
     };
   } catch (e) {
@@ -152,6 +331,7 @@ function parseFeedDoc(doc: Document, feedUrl: string): FeedPreviewData {
     link,
     image: imageEl,
     latestPubDate,
+    hasEntries: !!firstItem,
     feedUrl,
   };
 }
@@ -211,7 +391,43 @@ interface JsonFeed {
   items?: JsonFeedItem[];
 }
 
-function isValidFeed(text: string): boolean {
+export const EMPTY_FEED_ERROR_MESSAGE =
+  "Feed is valid, but it currently has no items or entries to import.";
+
+export class EmptyFeedError extends Error {
+  constructor(message = EMPTY_FEED_ERROR_MESSAGE) {
+    super(message);
+    this.name = "EmptyFeedError";
+  }
+}
+
+export function isEmptyFeedError(error: unknown): error is EmptyFeedError {
+  return (
+    error instanceof EmptyFeedError ||
+    (error instanceof Error && error.name === "EmptyFeedError")
+  );
+}
+
+export function getFeedErrorMessage(error: unknown): string {
+  if (isEmptyFeedError(error)) {
+    return EMPTY_FEED_ERROR_MESSAGE;
+  }
+
+  return error instanceof Error ? error.message : "Unknown error";
+}
+
+export function formatFeedParseNoticeMessage(
+  error: unknown,
+  prefix = "Error parsing feed",
+): string {
+  if (isEmptyFeedError(error)) {
+    return EMPTY_FEED_ERROR_MESSAGE;
+  }
+
+  return `${prefix}: ${getFeedErrorMessage(error)}`;
+}
+
+export function isValidFeed(text: string): boolean {
   if (!text) return false;
   const sample = text.slice(0, 2048).toLowerCase();
   return (
@@ -461,9 +677,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
         response.text.includes("WordPress") ||
         response.text.includes("wp-blog-header.php")
       ) {
-        console.warn(
-          "Received php file instead of RSS feed, trying alternative URLs...",
-        );
+        // [RSS Dashboard] Received php file instead of RSS feed, trying alternative URLs...
 
         const baseUrl = secureUrl.replace(/\/feed\/?$/, "");
         const alternativeUrls = [
@@ -557,10 +771,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
 
       throw new Error("Not a valid RSS/Atom feed");
     } catch (error) {
-      console.warn(
-        `[RSS dashboard] direct fetch failed for ${targetUrl}, trying AllOrigins proxy...`,
-        error,
-      );
+      void error;
+      // [RSS Dashboard] direct fetch failed for ${targetUrl}, trying AllOrigins proxy...
 
       try {
         const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
@@ -611,7 +823,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
               throw new Error("Not a valid RSS/Atom feed");
             }
           } catch (e) {
-            console.warn("[RSS dashboard] codetabs proxy failed", e);
+            void e;
+            // [RSS dashboard] codetabs proxy failed (expected - falls through to next proxy)
           }
 
           // isomorphic-git CORS proxy (raw)
@@ -627,7 +840,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
               throw new Error("Not a valid RSS/Atom feed");
             }
           } catch (e) {
-            console.warn("[RSS dashboard] isomorphic-git proxy failed", e);
+            void e;
+            // [RSS dashboard] isomorphic-git proxy failed (expected - falls through to next proxy)
           }
 
           try {
@@ -645,7 +859,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
               throw new Error("Not a valid RSS/Atom feed");
             }
           } catch (e) {
-            console.warn("[RSS dashboard] thingproxy failed", e);
+            void e;
+            // [RSS dashboard] thingproxy failed (expected - falls through to next proxy)
           }
 
           try {
@@ -671,10 +886,8 @@ export async function fetchFeedXml(url: string): Promise<string> {
               }
             }
           } catch (e) {
-            console.warn(
-              "[RSS dashboard] discoverFeedUrl proxy fetch failed",
-              e,
-            );
+            void e;
+            // [RSS dashboard] discoverFeedUrl proxy fetch failed (expected - falls through to next proxy)
           }
         }
         throw new Error(
@@ -794,6 +1007,15 @@ interface ParsedItem {
   };
 }
 
+function assertParsedFeedHasEntries(
+  parsed: ParsedFeed,
+  options?: FeedParseOptions,
+): void {
+  if (!options?.allowEmpty && parsed.items.length === 0) {
+    throw new EmptyFeedError();
+  }
+}
+
 export class CustomXMLParser {
   private parseXML(xmlString: string): Document {
     const parser = new DOMParser();
@@ -808,65 +1030,62 @@ export class CustomXMLParser {
   private getTextContent(element: Element | null, tagName: string): string {
     if (!element) return "";
     let el: Element | null = null;
+
     if (tagName.includes("\\:")) {
       el = element.querySelector(tagName);
     } else if (tagName.includes(":")) {
-      const parts = tagName.split(":");
-      if (parts.length === 2) {
-        const [namespace, localName] = parts;
+      const [namespace, localName] = tagName.split(":");
+
+      // 1. Try namespaced selector with backslash
+      try {
+        el = element.querySelector(`${namespace}\\:${localName}`);
+      } catch {
+        /* ignore */
+      }
+
+      // 2. Try getElementsByTagNameNS if not found
+      if (!el) {
         try {
-          el = element.querySelector(`${namespace}\\:${localName}`);
+          const elements = element.getElementsByTagNameNS("*", localName);
+          if (elements.length > 0) el = elements[0];
         } catch {
-          try {
-            const elements = element.getElementsByTagNameNS("*", localName);
-            if (elements.length > 0) {
-              el = elements[0];
-            }
-          } catch {
-            try {
-              el = element.querySelector(localName);
-            } catch {
-              el = element.querySelector(`*[local-name()="${localName}"]`);
-            }
-          }
+          /* ignore */
         }
-        if (!el && namespace === "content" && localName === "encoded") {
-          const contentSelectors = [
-            "content\\:encoded",
-            "content:encoded",
-            '*[local-name()="encoded"]',
-            "encoded",
-          ];
-          for (const selector of contentSelectors) {
-            try {
-              el = element.querySelector(selector);
-              if (el) break;
-            } catch {
-              continue;
-            }
-          }
+      }
+
+      // 3. Try local name only if still not found
+      if (!el) {
+        try {
+          el = element.querySelector(localName);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      // 4. Try local-name() selector if still not found
+      if (!el) {
+        try {
+          el = element.querySelector(`*[local-name()="${localName}"]`);
+        } catch {
+          /* ignore */
         }
       }
     } else {
+      // Basic tag
       el = element.querySelector(tagName);
       if (!el) {
-        const tagEls = element.getElementsByTagName(tagName);
-        if (tagEls.length > 0) {
-          el = tagEls[0];
-        } else if (element.getElementsByTagNameNS) {
-          const nsEls = element.getElementsByTagNameNS("*", tagName);
-          if (nsEls.length > 0) {
-            el = nsEls[0];
-          }
+        try {
+          const tagEls = element.getElementsByTagName(tagName);
+          if (tagEls.length > 0) el = tagEls[0];
+        } catch {
+          /* ignore */
         }
       }
     }
+
     if (!el) return "";
     const textContent = el.textContent?.trim() || "";
-    if (textContent) {
-      return this.sanitizeCDATA(textContent);
-    }
-    return "";
+    return textContent ? this.sanitizeCDATA(textContent) : "";
   }
 
   private sanitizeCDATA(text: string): string {
@@ -1044,6 +1263,81 @@ export class CustomXMLParser {
     return el?.getAttribute(attribute) || "";
   }
 
+  private getMediaImageUrl(item: Element): string {
+    const MRSS_NS = "search.yahoo.com/mrss";
+
+    const isMrss = (el: Element): boolean => {
+      const ns = (el.namespaceURI || "").toLowerCase();
+      if (ns.includes(MRSS_NS)) return true;
+
+      // Fallback for DOM implementations that don't expose namespaceURI reliably.
+      const tag = (el.tagName || "").toLowerCase();
+      return tag.startsWith("media:") || tag.includes(":media:");
+    };
+
+    const score = (el: Element): number => {
+      const type = (el.getAttribute("type") || "").toLowerCase();
+      const medium = (el.getAttribute("medium") || "").toLowerCase();
+      const width = parseInt(el.getAttribute("width") || "0", 10);
+      const height = parseInt(el.getAttribute("height") || "0", 10);
+      const isImage = type.startsWith("image/") || medium === "image";
+
+      // Base score: 1000 for images, 1 otherwise
+      let s = isImage ? 1000 : 1;
+      // Add dimensions to prioritize larger images
+      s += Math.max(width, height);
+      return s;
+    };
+
+    const pickBest = (candidates: Element[]): string => {
+      const withUrl = candidates
+        .map((el) => ({ el, url: (el.getAttribute("url") || "").trim() }))
+        .filter((x) => !!x.url);
+      if (withUrl.length === 0) return "";
+      withUrl.sort((a, b) => score(b.el) - score(a.el));
+      return withUrl[0].url;
+    };
+
+    // 1) Standard selectors (works in many environments)
+    try {
+      const url = pickBest(
+        Array.from(item.querySelectorAll("media\\:content")),
+      );
+      if (url) return url;
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      const url = pickBest(
+        Array.from(item.querySelectorAll("media\\:thumbnail")),
+      );
+      if (url) return url;
+    } catch {
+      /* ignore */
+    }
+
+    // 2) Namespace-robust fallback using localName + namespaceURI
+    try {
+      const all = Array.from(item.getElementsByTagNameNS("*", "*"));
+      const mediaContent = all.filter(
+        (el) => el.localName === "content" && isMrss(el),
+      );
+      const contentUrl = pickBest(mediaContent);
+      if (contentUrl) return contentUrl;
+
+      const mediaThumb = all.filter(
+        (el) => el.localName === "thumbnail" && isMrss(el),
+      );
+      const thumbUrl = pickBest(mediaThumb);
+      if (thumbUrl) return thumbUrl;
+    } catch {
+      /* ignore */
+    }
+
+    return "";
+  }
+
   private getTextContentWithMultipleSelectors(
     element: Element | null,
     selectors: string[],
@@ -1113,12 +1407,37 @@ export class CustomXMLParser {
     return url;
   }
 
+  /**
+   * Normalizes URL-encoded strings that may be double-encoded.
+   * For example: "ai%2520girlfriend.jpg" -> "ai girlfriend.jpg"
+   * Detects double-encoding by checking for %25 (encoded percent)
+   */
+  public normalizeUrlEncoding(url: string): string {
+    if (!url || !url.includes("%25")) {
+      return url;
+    }
+    // URL decode once - this converts %25 to %
+    // After this, %20 remains as %20 (single-encoded space), which is correct
+    try {
+      return decodeURIComponent(url);
+    } catch {
+      // If decode fails, return original
+      return url;
+    }
+  }
+
   private extractImageFromContent(content: string): string {
     if (!content) return "";
 
     try {
       const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
       const imageUrl = imgMatch ? imgMatch[1] : "";
+      // Debug: log image URL extraction for troubleshooting
+      if (imageUrl && imageUrl.includes("%25")) {
+        console.debug(
+          `[RSS Dashboard] extractImageFromContent: Found double-encoded URL: ${imageUrl}`,
+        );
+      }
       return this.convertAppUrls(imageUrl);
     } catch {
       return "";
@@ -1151,12 +1470,9 @@ export class CustomXMLParser {
     const description = this.getTextContent(channel, "description");
     const link = this.getTextContent(channel, "link");
 
-    const author = this.getTextContentWithMultipleSelectors(channel, [
-      "author",
-      "dc\\:creator",
-      "dc:creator",
-      '*[local-name()="creator"]',
-    ]);
+    const author =
+      this.getTextContent(channel, "author") ||
+      this.getTextContent(channel, "dc:creator");
 
     const imageElement = channel.querySelector("image");
     const image = imageElement
@@ -1176,7 +1492,11 @@ export class CustomXMLParser {
       : "";
 
     const items: ParsedItem[] = [];
-    const itemElements = channel.querySelectorAll("item");
+    // Use only direct child <item> nodes to avoid accidentally parsing nested
+    // <item> tags that may appear in malformed feeds (e.g., inside description HTML).
+    const itemElements = Array.from(channel.children).filter(
+      (el) => el.tagName.toLowerCase() === "item",
+    );
 
     itemElements.forEach((item) => {
       const title = this.getTextContent(item, "title");
@@ -1221,20 +1541,13 @@ export class CustomXMLParser {
 
       const author =
         authors ||
-        this.getTextContentWithMultipleSelectors(item, [
-          "author",
-          "dc\\:creator",
-          "dc:creator",
-          '*[local-name()="creator"]',
-        ]);
+        this.getTextContent(item, "author") ||
+        this.getTextContent(item, "dc:creator");
 
       const content =
-        this.getTextContentWithMultipleSelectors(item, [
-          "content\\:encoded",
-          "content:encoded",
-          '*[local-name()="encoded"]',
-          "encoded",
-        ]) || description;
+        this.getTextContent(item, "content:encoded") ||
+        this.getTextContent(item, "encoded") ||
+        description;
 
       const enclosureElement = item.querySelector("enclosure");
       const enclosure = enclosureElement
@@ -1264,13 +1577,7 @@ export class CustomXMLParser {
         : undefined;
 
       let mediaImage = "";
-      const mediaContentElement = item.querySelector("media\\:content");
-      if (mediaContentElement) {
-        const mediaUrl = mediaContentElement.getAttribute("url");
-        if (mediaUrl) {
-          mediaImage = mediaUrl;
-        }
-      }
+      mediaImage = this.getMediaImageUrl(item);
 
       let fallbackImage = "";
       if (!itemImage && !mediaImage) {
@@ -1379,12 +1686,9 @@ export class CustomXMLParser {
       }
 
       const contentValue =
-        this.getTextContentWithMultipleSelectors(item, [
-          "content\\:encoded",
-          "content:encoded",
-          '*[local-name()="encoded"]',
-          "encoded",
-        ]) || description;
+        this.getTextContent(item, "content:encoded") ||
+        this.getTextContent(item, "encoded") ||
+        description;
 
       items.push({
         title: title || "Untitled",
@@ -1478,6 +1782,15 @@ export class CustomXMLParser {
       const author = this.getTextContent(entry, "author > name");
       const content = this.getTextContent(entry, "content") || description;
 
+      // Extract duration from media:content or itunes:duration
+      let duration = this.getTextContent(entry, "itunes\\:duration");
+      if (!duration) {
+        const mediaContent = entry.querySelector("media\\:content");
+        if (mediaContent) {
+          duration = mediaContent.getAttribute("duration") || "";
+        }
+      }
+
       items.push({
         title,
         link,
@@ -1487,6 +1800,9 @@ export class CustomXMLParser {
         author,
         content,
         category: this.getTextContent(entry, "category"),
+        itunes: {
+          duration: duration || undefined,
+        },
       });
     });
 
@@ -1553,11 +1869,10 @@ export class CustomXMLParser {
       cleanedXml = cleanedXml.replace(/<\?php[\s\S]*?\?>/gi, "");
       cleanedXml = cleanedXml.replace(/<\?.*?\?>/gi, "");
 
-      // Unwrap CDATA sections so regex-based extraction can match content
-      cleanedXml = cleanedXml.replace(
-        /<!\[CDATA\[([\s\S]*?)\]\]>/g,
-        "$1",
-      );
+      // IMPORTANT: Do not unwrap CDATA globally here.
+      // The fallback parser uses regexes to split `<item>...</item>` blocks, and unwrapping CDATA
+      // can introduce literal `<item>` / `</item>` sequences from HTML content that cause item
+      // boundaries to be detected incorrectly (leading to "two articles merged into one").
 
       const rssStartMatch = cleanedXml.match(/<rss[^>]*>/i);
       if (rssStartMatch) {
@@ -1593,24 +1908,40 @@ export class CustomXMLParser {
 
       const items: ParsedItem[] = [];
 
-      const itemMatches: RegExpMatchArray[] = [];
+      const itemMatches: Array<{ full: string; inner: string }> = [];
 
-      const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
-      let itemMatch;
-      while ((itemMatch = itemRegex.exec(cleanedXml)) !== null) {
-        itemMatches.push(itemMatch);
+      // When splitting items with regex, ignore any `<item>` strings inside CDATA sections by
+      // masking `<`/`>` within CDATA with same-length control characters. This keeps indices stable
+      // so we can slice from the unmodified `cleanedXml`.
+      const xmlForItemSplit = cleanedXml.replace(
+        /<!\[CDATA\[[\s\S]*?\]\]>/g,
+        (cdata: string) =>
+          cdata.replace(/</g, "\u0001").replace(/>/g, "\u0002"),
+      );
+
+      const itemRegex = /<item[^>]*>[\s\S]*?<\/item>/gi;
+      let itemMatch: RegExpExecArray | null;
+      while ((itemMatch = itemRegex.exec(xmlForItemSplit)) !== null) {
+        const full = cleanedXml.substring(
+          itemMatch.index,
+          itemMatch.index + itemMatch[0].length,
+        );
+        const inner = full
+          .replace(/^<item[^>]*>/i, "")
+          .replace(/<\/item>\s*$/i, "");
+        itemMatches.push({ full, inner });
       }
 
       if (itemMatches.length === 0) {
         // Replace lookahead with compatible pattern: find items by matching content until next item/channel/rss tag
         const itemStartRegex = /<item[^>]*>/gi;
-        while ((itemMatch = itemStartRegex.exec(cleanedXml)) !== null) {
+        while ((itemMatch = itemStartRegex.exec(xmlForItemSplit)) !== null) {
           const itemStartIndex = itemMatch.index;
           const itemStartTag = itemMatch[0];
           const contentStartIndex = itemStartIndex + itemStartTag.length;
 
           // Find where this item ends by looking for next item, channel close, or rss close
-          const remainingText = cleanedXml.substring(contentStartIndex);
+          const remainingText = xmlForItemSplit.substring(contentStartIndex);
           const nextItemMatch = remainingText.match(/<item[^>]*>/i);
           const channelCloseMatch = remainingText.match(/<\/channel>/i);
           const rssCloseMatch = remainingText.match(/<\/rss>/i);
@@ -1626,21 +1957,41 @@ export class CustomXMLParser {
             endIndex = Math.min(endIndex, rssCloseMatch.index);
           }
 
-          const itemContent = remainingText.substring(0, endIndex);
-          const fullMatch = itemStartTag + itemContent;
-          itemMatches.push([fullMatch, itemContent]);
+          const full = cleanedXml.substring(
+            itemStartIndex,
+            contentStartIndex + endIndex,
+          );
+          const inner = cleanedXml.substring(
+            contentStartIndex,
+            contentStartIndex + endIndex,
+          );
+          itemMatches.push({ full, inner });
         }
       }
 
       if (itemMatches.length === 0) {
-        const aggressiveItemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
-        while ((itemMatch = aggressiveItemRegex.exec(xmlString)) !== null) {
-          itemMatches.push(itemMatch);
+        const xmlForAggressiveSplit = xmlString.replace(
+          /<!\[CDATA\[[\s\S]*?\]\]>/g,
+          (cdata: string) =>
+            cdata.replace(/</g, "\u0001").replace(/>/g, "\u0002"),
+        );
+        const aggressiveItemRegex = /<item[^>]*>[\s\S]*?<\/item>/gi;
+        while (
+          (itemMatch = aggressiveItemRegex.exec(xmlForAggressiveSplit)) !== null
+        ) {
+          const full = xmlString.substring(
+            itemMatch.index,
+            itemMatch.index + itemMatch[0].length,
+          );
+          const inner = full
+            .replace(/^<item[^>]*>/i, "")
+            .replace(/<\/item>\s*$/i, "");
+          itemMatches.push({ full, inner });
         }
       }
 
-      itemMatches.forEach((itemMatch, index) => {
-        const itemXml = itemMatch[1];
+      itemMatches.forEach((match) => {
+        const itemXml = match.inner;
 
         let itemAuthor = "";
         let itemPubDate = "";
@@ -1703,6 +2054,13 @@ export class CustomXMLParser {
           ? this.sanitizeCDATA(itemCategoryMatch[1].trim())
           : "";
 
+        const mediaUrlMatch =
+          itemXml.match(/<media:content[^>]*url=["']([^"']+)["']/i) ||
+          itemXml.match(/<media\\:content[^>]*url=["']([^"']+)["']/i) ||
+          itemXml.match(/<media:thumbnail[^>]*url=["']([^"']+)["']/i) ||
+          itemXml.match(/<media\\:thumbnail[^>]*url=["']([^"']+)["']/i);
+        const mediaUrl = mediaUrlMatch?.[1]?.trim() || "";
+
         const pubYearMatch = itemXml.match(/<pubYear[^>]*>([^<]+)<\/pubYear>/i);
         const pubYear = pubYearMatch
           ? this.sanitizeCDATA(pubYearMatch[1].trim())
@@ -1764,6 +2122,7 @@ export class CustomXMLParser {
           guid: itemGuid,
           author: itemAuthor || undefined,
           content: itemDescription,
+          image: mediaUrl ? { url: this.convertAppUrls(mediaUrl) } : undefined,
           category: itemCategory,
           ieee,
         });
@@ -2026,6 +2385,99 @@ export class CustomXMLParser {
   }
 }
 
+function getPubDateMs(pubDate: string | undefined | null): number {
+  if (!pubDate) return 0;
+  const ms = Date.parse(pubDate);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function isProtectedItem(item: FeedItem): boolean {
+  return !!item.saved || !!item.starred;
+}
+
+/**
+ * Merge refreshed items with any previously cached items that fell out of the
+ * server's latest-N window, keyed by item guid.
+ *
+ * Assumes `guid` values are stable identifiers (as produced by our parser).
+ */
+export function mergeFeedHistoryItems(
+  existingItems: FeedItem[] | null | undefined,
+  refreshedItems: FeedItem[],
+): FeedItem[] {
+  const seen = new Set<string>();
+  const uniqueRefreshed: FeedItem[] = [];
+
+  for (const item of refreshedItems) {
+    const key = canonicalizeItemIdentityUrl(item.guid || item.link || "");
+    if (!key) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    uniqueRefreshed.push(item);
+  }
+
+  const carriedForward: FeedItem[] = [];
+  for (const item of existingItems || []) {
+    const key = canonicalizeItemIdentityUrl(item.guid || item.link || "");
+    if (!key) continue;
+    if (!seen.has(key)) {
+      carriedForward.push(item);
+      seen.add(key);
+    }
+  }
+
+  return [...carriedForward, ...uniqueRefreshed];
+}
+
+export function applyFeedRetentionLimits(
+  feed: Feed,
+  options?: { nowMs?: number },
+): Feed {
+  const nowMs = options?.nowMs ?? Date.now();
+  const maxItemsLimit =
+    typeof feed.maxItemsLimit === "number" ? feed.maxItemsLimit : undefined;
+  const autoDeleteDuration =
+    typeof feed.autoDeleteDuration === "number"
+      ? feed.autoDeleteDuration
+      : undefined;
+
+  const byNewest = (a: FeedItem, b: FeedItem): number => {
+    const aMs = getPubDateMs(a.pubDate);
+    const bMs = getPubDateMs(b.pubDate);
+    if (aMs !== bMs) return bMs - aMs;
+    return (a.guid || "").localeCompare(b.guid || "");
+  };
+
+  let items = [...(feed.items || [])];
+
+  // Auto-delete: remove read-only items older than cutoff (never remove protected).
+  if (autoDeleteDuration && autoDeleteDuration > 0) {
+    const cutoffMs = nowMs - autoDeleteDuration * 24 * 60 * 60 * 1000;
+    items = items.filter((item) => {
+      if (isProtectedItem(item)) return true;
+      if (!item.read) return true;
+      return getPubDateMs(item.pubDate) > cutoffMs;
+    });
+  }
+
+  // Max-items: keep newest non-protected items up to the limit; protected items don't count.
+  if (maxItemsLimit && maxItemsLimit > 0) {
+    const protectedItems = items.filter(isProtectedItem);
+    const nonProtected = items.filter((item) => !isProtectedItem(item));
+    nonProtected.sort(byNewest);
+    const limitedNonProtected = nonProtected.slice(0, maxItemsLimit);
+    items = [...protectedItems, ...limitedNonProtected];
+  }
+
+  // Always sort newest-first for predictable slicing in views and for stable persistence.
+  items.sort(byNewest);
+
+  return {
+    ...feed,
+    items,
+  };
+}
+
 export class FeedParser {
   private mediaSettings: MediaSettings;
   private availableTags: Tag[];
@@ -2039,6 +2491,9 @@ export class FeedParser {
 
   private convertToAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
     if (!relativeUrl || !baseUrl) return relativeUrl;
+
+    // Normalize double-encoded URLs before processing
+    relativeUrl = this.parser.normalizeUrlEncoding(relativeUrl);
 
     if (relativeUrl.startsWith("app://")) {
       return relativeUrl.replace("app://", "https://");
@@ -2219,6 +2674,25 @@ export class FeedParser {
     return decoded;
   }
 
+  /**
+   * Normalizes URL-encoded strings that may be double-encoded.
+   * For example: "ai%2520girlfriend.jpg" -> "ai girlfriend.jpg"
+   * Detects double-encoding by checking for %25 (encoded percent)
+   */
+  private normalizeUrlEncoding(url: string): string {
+    if (!url || !url.includes("%25")) {
+      return url;
+    }
+    // URL decode once - this converts %25 to %
+    // After this, %20 remains as %20 (single-encoded space), which is correct
+    try {
+      return decodeURIComponent(url);
+    } catch {
+      // If decode fails, return original
+      return url;
+    }
+  }
+
   private convertRelativeUrlsInContent(
     content: string,
     baseUrl: string,
@@ -2289,6 +2763,12 @@ export class FeedParser {
       const ogImage = doc.querySelector('meta[property="og:image"]');
       if (ogImage?.getAttribute("content")) {
         const content = ogImage.getAttribute("content");
+        // Debug: log og:image URL for troubleshooting double-encoding
+        if (content && content.includes("%25")) {
+          console.debug(
+            `[RSS Dashboard] extractCoverImage: og:image contains double-encoded: ${content}`,
+          );
+        }
         if (content && content.startsWith("http")) {
           return content;
         } else if (content && baseUrl) {
@@ -2299,6 +2779,12 @@ export class FeedParser {
       const twitterImage = doc.querySelector('meta[name="twitter:image"]');
       if (twitterImage?.getAttribute("content")) {
         const content = twitterImage.getAttribute("content");
+        // Debug: log twitter:image URL for troubleshooting double-encoding
+        if (content && content.includes("%25")) {
+          console.debug(
+            `[RSS Dashboard] extractCoverImage: twitter:image contains double-encoded: ${content}`,
+          );
+        }
         if (content && content.startsWith("http")) {
           return content;
         } else if (content && baseUrl) {
@@ -2309,6 +2795,12 @@ export class FeedParser {
       const firstImg = doc.querySelector("img");
       if (firstImg?.getAttribute("src")) {
         const src = firstImg.getAttribute("src");
+        // Debug: log first img src for troubleshooting double-encoding
+        if (src && src.includes("%25")) {
+          console.debug(
+            `[RSS Dashboard] extractCoverImage: first img src contains double-encoded: ${src}`,
+          );
+        }
         if (src && src.startsWith("http")) {
           return src;
         } else if (src && baseUrl) {
@@ -2319,6 +2811,12 @@ export class FeedParser {
       const imgTags = doc.querySelectorAll("img");
       for (const img of Array.from(imgTags)) {
         const src = img.getAttribute("src");
+        // Debug: log each img src for troubleshooting double-encoding
+        if (src && src.includes("%25")) {
+          console.debug(
+            `[RSS Dashboard] extractCoverImage: img src contains double-encoded: ${src}`,
+          );
+        }
         if (
           src &&
           src.startsWith("http") &&
@@ -2424,6 +2922,7 @@ export class FeedParser {
   async parseFeed(
     url: string,
     existingFeed: Feed | null = null,
+    options?: FeedParseOptions,
   ): Promise<Feed> {
     if (!url) {
       throw new Error("Feed url is required");
@@ -2431,6 +2930,9 @@ export class FeedParser {
 
     const responseText = await fetchFeedXml(url);
     const parsed = this.parser.parseString(responseText);
+
+    assertParsedFeedHasEntries(parsed, options);
+
     const feedTitle = existingFeed?.title || parsed.title || "Unnamed feed";
 
     const newFeed: Feed = existingFeed || {
@@ -2441,17 +2943,39 @@ export class FeedParser {
       lastUpdated: Date.now(),
     };
 
+    const resolvedSiteUrl = resolveAbsoluteHttpUrl(parsed.link, url);
+    if (resolvedSiteUrl) {
+      newFeed.siteUrl = resolvedSiteUrl;
+    }
+
     const existingItems = new Map<string, FeedItem>();
     if (existingFeed) {
       existingFeed.items.forEach((item) => {
-        existingItems.set(item.guid, item);
+        const rawKey = this.convertToAbsoluteUrl(
+          item.guid || item.link || "",
+          url,
+        );
+        const key = canonicalizeItemIdentityUrl(rawKey);
+        if (key) {
+          existingItems.set(key, item);
+        }
       });
     }
 
     const newItems: FeedItem[] = [];
     const updatedItems: FeedItem[] = [];
+    const seenGuids = new Set<string>();
 
-    parsed.items.forEach((item: ParsedItem) => {
+    // Compute auto-delete cutoff so we can skip "new" items that are actually
+    // old entries re-appearing in the feed after being auto-deleted.
+    const autoDeleteDays =
+      typeof newFeed.autoDeleteDuration === "number"
+        ? newFeed.autoDeleteDuration
+        : 0;
+    const autoDeleteCutoffMs =
+      autoDeleteDays > 0 ? Date.now() - autoDeleteDays * 24 * 60 * 60 * 1000 : 0;
+
+    for (const item of parsed.items) {
       const isAudioEnclosure = item.enclosure?.type?.startsWith("audio/");
       const isAudioLink = !!(item.link && item.link.includes(".mp3"));
       const isPodcast = isAudioEnclosure || isAudioLink;
@@ -2472,10 +2996,15 @@ export class FeedParser {
             }
           : undefined);
 
-      const itemGuid = this.convertToAbsoluteUrl(
+      const rawItemGuid = this.convertToAbsoluteUrl(
         item.guid || item.link || "",
         url,
       );
+      const itemGuid = canonicalizeItemIdentityUrl(rawItemGuid);
+      if (!itemGuid) continue;
+      if (seenGuids.has(itemGuid)) continue;
+      seenGuids.add(itemGuid);
+
       const existingItem = existingItems.get(itemGuid);
 
       if (existingItem) {
@@ -2497,15 +3026,14 @@ export class FeedParser {
             (item.enclosure?.type?.startsWith("image/")
               ? this.convertToAbsoluteUrl(item.enclosure.url, url)
               : "") ||
-            (parsed.image &&
-            typeof parsed.image === "object" &&
-            parsed.image.url
-              ? this.convertToAbsoluteUrl(parsed.image.url, url)
-              : "") ||
             existingItem.coverImage;
         }
         const updatedItem: FeedItem = {
           ...existingItem,
+          guid: itemGuid,
+          link:
+            this.convertToAbsoluteUrl(item.link || "", url) ||
+            existingItem.link,
           title: item.title || existingItem.title,
           description: this.convertRelativeUrlsInContent(
             item.description || "",
@@ -2516,7 +3044,6 @@ export class FeedParser {
           author: item.author || parsed.author || existingItem.author,
           read: existingItem.read,
           starred: existingItem.starred,
-          tags: existingItem.tags,
           saved: existingItem.saved,
           feedTitle: newFeed.title, // Update feedTitle to match the new feed title
           coverImage,
@@ -2525,10 +3052,7 @@ export class FeedParser {
             existingItem.summary,
           image:
             this.convertToAbsoluteUrl(
-              item.itunes?.image?.href ||
-                item.image?.url ||
-                parsed.image?.url ||
-                "",
+              item.itunes?.image?.href || item.image?.url || "",
               url,
             ) ||
             (item.enclosure?.type?.startsWith("image/")
@@ -2554,6 +3078,16 @@ export class FeedParser {
         };
         updatedItems.push(updatedItem);
       } else {
+        // Skip items older than the auto-delete cutoff during refresh.
+        // These were likely auto-deleted previously and should not reappear as unread.
+        if (
+          existingFeed &&
+          autoDeleteCutoffMs > 0 &&
+          getPubDateMs(item.pubDate) <= autoDeleteCutoffMs
+        ) {
+          continue;
+        }
+
         let coverImage = "";
         if (isPodcast) {
           coverImage = this.extractPodcastCoverImage(item, parsed.image, url);
@@ -2593,18 +3127,10 @@ export class FeedParser {
             ) ||
             (item.enclosure?.type?.startsWith("image/")
               ? this.convertToAbsoluteUrl(item.enclosure.url, url)
-              : "") ||
-            (parsed.image &&
-            typeof parsed.image === "object" &&
-            parsed.image.url
-              ? this.convertToAbsoluteUrl(parsed.image.url, url)
               : "");
         }
         let image = this.convertToAbsoluteUrl(
-          item.itunes?.image?.href ||
-            item.image?.url ||
-            parsed.image?.url ||
-            "",
+          item.itunes?.image?.href || item.image?.url || "",
           url,
         );
         if (!image) {
@@ -2654,28 +3180,24 @@ export class FeedParser {
         };
         newItems.push(newItem);
       }
-    });
+    }
 
-    const allItems: FeedItem[] = [];
-
+    const refreshedItems = [...updatedItems, ...newItems];
+    const carriedForward: FeedItem[] = [];
     if (existingFeed) {
-      existingFeed.items.forEach((item) => {
-        const itemGuid = this.convertToAbsoluteUrl(
+      for (const item of existingFeed.items) {
+        const rawKey = this.convertToAbsoluteUrl(
           item.guid || item.link || "",
           url,
         );
-
-        if (!existingItems.has(itemGuid)) {
-          allItems.push(item);
+        const key = canonicalizeItemIdentityUrl(rawKey);
+        if (key && !seenGuids.has(key)) {
+          carriedForward.push(item);
         }
-      });
+      }
     }
 
-    allItems.push(...updatedItems);
-
-    allItems.push(...newItems);
-
-    newFeed.items = allItems;
+    newFeed.items = mergeFeedHistoryItems(carriedForward, refreshedItems);
     newFeed.lastUpdated = Date.now();
 
     this.applyFeedLimits(newFeed);
@@ -2728,36 +3250,8 @@ export class FeedParser {
    * Apply maxItemsLimit and autoDeleteDuration to a feed's items
    */
   private applyFeedLimits(feed: Feed): void {
-    if (
-      feed.maxItemsLimit &&
-      feed.maxItemsLimit > 0 &&
-      feed.items.length > feed.maxItemsLimit
-    ) {
-      const readItems = feed.items.filter((item) => item.read);
-      const unreadItems = feed.items.filter((item) => !item.read);
-
-      unreadItems.sort(
-        (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
-      );
-
-      const maxUnreadItems = Math.max(0, feed.maxItemsLimit - readItems.length);
-      const limitedUnreadItems = unreadItems.slice(0, maxUnreadItems);
-
-      feed.items = [...readItems, ...limitedUnreadItems];
-    }
-
-    if (feed.autoDeleteDuration && feed.autoDeleteDuration > 0) {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - feed.autoDeleteDuration);
-
-      const readItems = feed.items.filter((item) => item.read);
-      const unreadItems = feed.items.filter(
-        (item) =>
-          !item.read && new Date(item.pubDate).getTime() > cutoffDate.getTime(),
-      );
-
-      feed.items = [...readItems, ...unreadItems];
-    }
+    const updated = applyFeedRetentionLimits(feed);
+    feed.items = updated.items;
   }
 
   async refreshFeed(feed: Feed): Promise<Feed> {
@@ -2828,6 +3322,8 @@ export class FeedParserService {
     const xml = await this.fetchFeedXml(url);
     const parsed = this.parser.parseString(xml);
 
+    assertParsedFeedHasEntries(parsed);
+
     const isPodcast = parsed.items.some(
       (item) =>
         item.enclosure?.type?.startsWith("audio/") ||
@@ -2840,7 +3336,7 @@ export class FeedParserService {
       link: item.link || "",
       description: item.description || "",
       pubDate: item.pubDate || new Date().toISOString(),
-      guid: item.guid || item.link || "",
+      guid: canonicalizeItemIdentityUrl(item.guid || item.link || ""),
       read: false,
       starred: false,
       tags: [],
@@ -2870,9 +3366,10 @@ export class FeedParserService {
       ieee: item.ieee,
     }));
 
-    return {
+    const tempFeed: Feed = {
       title: parsed.title || "",
       url: url,
+      siteUrl: resolveAbsoluteHttpUrl(parsed.link, url) || undefined,
       items: items,
       folder: folder,
       lastUpdated: Date.now(),
@@ -2885,6 +3382,10 @@ export class FeedParserService {
           : "") ||
         (typeof parsed.image === "string" ? parsed.image : ""),
     };
+
+    // Correctly detect and process media types (YouTube, etc.)
+    const processedFeed = MediaService.detectAndProcessFeed(tempFeed);
+
+    return processedFeed;
   }
 }
-

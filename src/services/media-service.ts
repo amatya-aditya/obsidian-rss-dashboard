@@ -1,20 +1,170 @@
 import { requestUrl, Notice } from "obsidian";
 import { Feed, Tag } from "../types/types";
 
+export interface YouTubeEmbedConfig {
+  videoId: string;
+  embedUrl: string;
+  watchUrl: string;
+  referrerPolicy: "strict-origin-when-cross-origin";
+  allow: string;
+}
+
 export class MediaService {
+  static readonly YOUTUBE_EMBED_REFERRER_POLICY =
+    "strict-origin-when-cross-origin";
+  static readonly YOUTUBE_EMBED_ALLOW =
+    "accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
   private static readonly YOUTUBE_PATTERNS = [
     "youtube.com/feeds/videos.xml",
     "youtube.com/channel/",
     "youtube.com/user/",
     "youtube.com/c/",
     "youtube.com/@",
+    "youtube.com/playlist?list=",
+    "youtube.com/results?search_query=",
     "youtube.com/watch",
     "youtu.be/",
   ];
 
   static isYouTubeFeed(url: string): boolean {
     if (!url) return false;
-    return this.YOUTUBE_PATTERNS.some((pattern) => url.includes(pattern));
+    const normalizedUrl = url.toLowerCase();
+    return this.YOUTUBE_PATTERNS.some((pattern) =>
+      normalizedUrl.includes(pattern),
+    );
+  }
+
+  static isXUrl(url: string): boolean {
+    if (!url) return false;
+    return (
+      url.includes("x.com/") ||
+      url.includes("twitter.com/") ||
+      url.includes("t.co/")
+    );
+  }
+
+  static getNitterRssFeed(url: string): string | null {
+    if (!url) return null;
+
+    // Handle x.com and twitter.com
+    const xMatch = url.match(/(?:x|twitter)\.com\/([^/?#]+)/);
+    if (xMatch?.[1]) {
+      const username = xMatch[1];
+      // Skip if it's a common page like 'home', 'notifications', etc.
+      const commonPages = [
+        "home",
+        "notifications",
+        "messages",
+        "explore",
+        "search",
+        "i",
+        "settings",
+      ];
+      if (commonPages.includes(username.toLowerCase())) return null;
+
+      return `https://nitter.net/${username}/rss`;
+    }
+
+    return null;
+  }
+
+  /**
+   * Normalize a Nitter profile URL to its RSS endpoint.
+   *
+   * Examples:
+   * - https://nitter.net/alliekmiller -> https://nitter.net/alliekmiller/rss
+   * - https://nitter.net/alliekmiller/ -> https://nitter.net/alliekmiller/rss
+   * - https://nitter.net/alliekmiller/rss -> https://nitter.net/alliekmiller/rss
+   */
+  static normalizeNitterUrlToRss(inputUrl: string): string | null {
+    if (!inputUrl) return null;
+
+    let parsed: URL;
+    try {
+      parsed = new URL(inputUrl);
+    } catch {
+      return null;
+    }
+
+    if (!/nitter\.net$/i.test(parsed.hostname)) return null;
+
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    if (parts.length === 0) return null;
+
+    const username = parts[0];
+    const commonPages = [
+      "home",
+      "notifications",
+      "messages",
+      "explore",
+      "search",
+      "i",
+      "settings",
+    ];
+    if (commonPages.includes(username.toLowerCase())) return null;
+
+    if (parts.length === 1) {
+      return `${parsed.origin}/${username}/rss`;
+    }
+
+    if (parts.length === 2 && parts[1].toLowerCase() === "rss") {
+      return `${parsed.origin}/${username}/rss`;
+    }
+
+    return null;
+  }
+
+  private static extractChannelIdFromHtml(html: string): string | null {
+    if (!html) return null;
+
+    // 1. Try RSS feed link
+    const rssMatch = html.match(
+      /href="https:\/\/www\.youtube\.com\/feeds\/videos\.xml\?channel_id=(UC[\w-]{22})"/,
+    );
+    if (rssMatch?.[1]) return rssMatch[1];
+
+    // 2. Try canonical link
+    const canonicalMatch = html.match(
+      /<link rel="canonical" href="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
+    );
+    if (canonicalMatch?.[1]) return canonicalMatch[1];
+
+    // 3. Try meta itemprop
+    const metaMatch = html.match(
+      /<meta itemprop="channelId" content="(UC[\w-]{22})"/,
+    );
+    if (metaMatch?.[1]) return metaMatch[1];
+
+    // 4. Try other common metadata
+    const ogMatch = html.match(
+      /<meta property="og:url" content="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
+    );
+    if (ogMatch?.[1]) return ogMatch[1];
+
+    const twitterMatch = html.match(
+      /<meta name="twitter:app:url:googleplay" content="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
+    );
+    if (twitterMatch?.[1]) return twitterMatch[1];
+
+    // 5. Fallback to existing broad patterns
+    const patterns = [
+      /channelId"?\s*:\s*"(UC[\w-]{22})"/,
+      /"externalId"\s*:\s*"(UC[\w-]{22})"/,
+      /"id"\s*:\s*"(UC[\w-]{22})"/,
+      /data-channel-external-id="(UC[\w-]{22})"/,
+      /"channelId"\s*:\s*"(UC[\w-]{22})"/,
+      /channelId=(UC[\w-]{22})/,
+      /"ucid"\s*:\s*"(UC[\w-]{22})"/,
+    ];
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) {
+        return match[1];
+      }
+    }
+
+    return null;
   }
 
   static async getYouTubeRssFeed(input: string): Promise<string | null> {
@@ -56,23 +206,13 @@ export class MediaService {
               throw new Error("Empty response from YouTube");
             }
 
-            // Try multiple regex patterns to find channel ID
-            const patterns = [
-              /channelId"?\s*:\s*"(UC[\w-]{22})"/,
-              /"externalId"\s*:\s*"(UC[\w-]{22})"/,
-              /"id"\s*:\s*"(UC[\w-]{22})"/,
-              /data-channel-external-id="(UC[\w-]{22})"/,
-              /"channelId"\s*:\s*"(UC[\w-]{22})"/,
-              /channelId=(UC[\w-]{22})/,
-              /"ucid"\s*:\s*"(UC[\w-]{22})"/,
-            ];
+            if (!response.text) {
+              throw new Error("Empty response from YouTube");
+            }
 
-            for (const pattern of patterns) {
-              const match = response.text.match(pattern);
-              if (match?.[1]) {
-                channelId = match[1];
-                break;
-              }
+            const extractedId = this.extractChannelIdFromHtml(response.text);
+            if (extractedId) {
+              channelId = extractedId;
             }
           } catch (error) {
             console.error(`[YouTube] Error fetching channel:`, error);
@@ -103,23 +243,13 @@ export class MediaService {
               throw new Error("Empty response from YouTube");
             }
 
-            // Try multiple regex patterns to find channel ID
-            const patterns = [
-              /channelId"?\s*:\s*"(UC[\w-]{22})"/,
-              /"externalId"\s*:\s*"(UC[\w-]{22})"/,
-              /"id"\s*:\s*"(UC[\w-]{22})"/,
-              /data-channel-external-id="(UC[\w-]{22})"/,
-              /"channelId"\s*:\s*"(UC[\w-]{22})"/,
-              /channelId=(UC[\w-]{22})/,
-              /"ucid"\s*:\s*"(UC[\w-]{22})"/,
-            ];
+            if (!response.text) {
+              throw new Error("Empty response from YouTube");
+            }
 
-            for (const pattern of patterns) {
-              const idMatch = response.text.match(pattern);
-              if (idMatch?.[1]) {
-                channelId = idMatch[1];
-                break;
-              }
+            const extractedId = this.extractChannelIdFromHtml(response.text);
+            if (extractedId) {
+              channelId = extractedId;
             }
           } catch (error) {
             console.error(`[YouTube] Error fetching channel:`, error);
@@ -361,19 +491,34 @@ export class MediaService {
     };
   }
 
+  static buildYouTubeEmbed(videoId: string): YouTubeEmbedConfig {
+    const normalizedVideoId = videoId.trim();
+
+    return {
+      videoId: normalizedVideoId,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${normalizedVideoId}?rel=0`,
+      watchUrl: `https://www.youtube.com/watch?v=${normalizedVideoId}`,
+      referrerPolicy: this.YOUTUBE_EMBED_REFERRER_POLICY,
+      allow: this.YOUTUBE_EMBED_ALLOW,
+    };
+  }
+
   static getYouTubePlayerHtml(
     videoId: string,
     width = 560,
     height = 315,
   ): string {
+    const embed = this.buildYouTubeEmbed(videoId);
+
     return `
             <div class="rss-dashboard-media-player youtube-player">
                 <iframe 
                     width="${width}" 
                     height="${height}" 
-                    src="https://www.youtube.com/embed/${videoId}" 
+                    src="${embed.embedUrl}" 
                     frameborder="0" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    referrerpolicy="${embed.referrerPolicy}"
+                    allow="${embed.allow}" 
                     allowfullscreen>
                 </iframe>
             </div>

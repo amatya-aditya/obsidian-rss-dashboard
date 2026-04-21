@@ -125,6 +125,30 @@ Want to influence the next release? </h3> : Join our [Discord server](https://di
 
 ## Getting Started
 
+## Development
+
+### Local setup
+
+This repo targets Node 22 for local development and CI. If you use `nvm`, run `nvm use` from the repo root to pick up the version from `.nvmrc`.
+
+### Local CI-equivalent commands
+
+Run the same install and test commands used in GitHub Actions:
+
+```bash
+nvm use
+npm ci
+npm run test:unit -- --coverage
+```
+
+To mirror the release workflow build step locally:
+
+```bash
+nvm use
+npm ci
+npm run build
+```
+
 ### Adding Your First Feed
 
 1. Open the RSS Dashboard view using the ribbon icon or command palette
@@ -146,6 +170,7 @@ Want to influence the next release? </h3> : Join our [Discord server](https://di
 2. Use the built-in reader for a clean reading experience
 3. Save articles as markdown files for permanent storage
 4. Use the video player for YouTube content or audio player for podcasts
+5. YouTube embeds are routed through Privacy Enhanced Mode using `youtube-nocookie.com`, and each video includes a visible "Watch on YouTube" link
 
 ### Organizing Your Feeds
 
@@ -169,6 +194,7 @@ Want to influence the next release? </h3> : Join our [Discord server](https://di
 - Make sure you're using a valid YouTube channel URL
 - Try using the channel ID instead of the custom URL
 - Some channels may have disabled RSS feeds
+- Embedded playback now uses `youtube-nocookie.com` with a strict referrer policy to satisfy current YouTube embed requirements
 
 **Podcast audio not playing**:
 
@@ -183,6 +209,17 @@ If you encounter any issues or have suggestions:
 - Create an issue on [GitHub](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)
 - Join our [Discord community](https://discord.com/invite/9bu7V9BBbs)
 - Check the existing issues for solutions
+
+## YouTube Embeds and Terms
+
+RSS Dashboard resolves YouTube feed items to a canonical `videoId`, renders the embedded player through Privacy Enhanced Mode (`https://www.youtube-nocookie.com/embed/...`), and provides a standard `Watch on YouTube` link that opens the original video in your browser or native YouTube app.
+
+The plugin does not add YouTube download features, background audio-only playback, or ad-blocking behavior around the embedded player.
+
+YouTube embeds and API usage are subject to:
+
+- [YouTube API Services Terms of Service](https://developers.google.com/youtube/terms/api-services-terms-of-service)
+- [YouTube Terms of Service](https://www.youtube.com/t/terms)
 
 ## Support the Development
 

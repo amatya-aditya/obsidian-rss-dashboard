@@ -34,7 +34,7 @@
   width: 250px;
   min-width: 200px;
   border-right: 1px solid var(--background-modifier-border);
-  padding: 0 6px;
+  padding: 0px;
   overflow-y: auto;
   position: relative;
   flex-shrink: 0;
@@ -84,15 +84,58 @@
   margin-right: 8px;
 }
 
+.rss-discover-search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
 .rss-discover-search-input,
 .rss-discover-tag-search {
   width: 100%;
   padding: 8px 12px;
+  padding-right: 36px;
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
   background: var(--background-primary);
   color: var(--text-normal);
   font-size: 14px;
+}
+
+.rss-discover-search-input-wrapper .rss-discover-search-clear {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  cursor: pointer;
+  color: #ea6962;
+  background-color: rgba(234, 105, 98, 0.12);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.rss-discover-search-input-wrapper .rss-discover-search-clear-hidden {
+  display: none !important;
+}
+
+.rss-discover-search-input-wrapper .rss-discover-search-clear:hover {
+  color: #d94839;
+  background-color: rgba(217, 72, 57, 0.2);
+  transform: scale(1.08);
+}
+
+.rss-discover-search-input-wrapper .rss-discover-search-clear:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.rss-discover-search-input-wrapper .rss-discover-search-clear svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.5;
 }
 
 .rss-discover-type-list,
@@ -258,6 +301,43 @@
   /* border-bottom: 1px solid var(--background-modifier-border); */
 }
 
+/* Return Home button in Discover view */
+.rss-discover-return-home {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--background-modifier-hover);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  color: var(--text-normal);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.rss-discover-return-home:hover {
+  background: var(--background-modifier-active);
+  border-color: var(--interactive-accent);
+  color: var(--text-accent);
+}
+
+.rss-discover-return-home:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.rss-discover-return-home svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.rss-discover-return-home-text {
+  white-space: nowrap;
+}
+
 .rss-discover-filter-header {
   display: flex;
   justify-content: space-between;
@@ -305,6 +385,7 @@
 }
 
 .rss-discover-mobile-filters-button {
+  --icon-size: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -319,14 +400,14 @@
 }
 
 .rss-discover-mobile-filters-button svg {
-  width: 24px;
-  height: 24px;
-  display: block;
-  visibility: visible;
-  opacity: 1;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  stroke-width: 2 !important;
 }
 
 .rss-discover-mobile-filters-button:hover {
@@ -699,6 +780,7 @@
 .rss-discover-selected-filter {
   display: flex;
   align-items: center;
+  gap: 6px;
   background: var(--background-secondary);
   color: var(--text-normal);
   padding: 4px 8px;
@@ -706,12 +788,54 @@
   font-size: 12px;
   font-weight: 500;
   border: 1px solid var(--background-modifier-border);
+  cursor: default;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.rss-discover-selected-filter:hover {
+  background: var(--background-modifier-border);
+  border-color: var(--interactive-accent);
 }
 
 .rss-discover-selected-filter svg {
-  margin-right: 4px;
   width: 12px;
   height: 12px;
+  flex-shrink: 0;
+}
+
+.rss-discover-selected-filter-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 2px;
+  cursor: pointer;
+  color: #ea6962;
+  background-color: rgba(234, 105, 98, 0.12);
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.rss-discover-selected-filter-remove:hover {
+  color: #d94839;
+  background-color: rgba(217, 72, 57, 0.2);
+  transform: scale(1.12);
+}
+
+.rss-discover-selected-filter-remove:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+.rss-discover-selected-filter-remove svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.5;
 }
 
 .rss-discover-card-tag {
@@ -908,8 +1032,7 @@
   display: none !important;
 }
 
-.rss-discover-controls-container.is-narrow
-  .rss-discover-mobile-filters-menu {
+.rss-discover-controls-container.is-narrow .rss-discover-mobile-filters-menu {
   display: block;
 }
 
@@ -1066,6 +1189,10 @@
   outline: none;
   cursor: pointer;
   transition: border 0.15s;
+}
+
+.rss-dashboard-pagination-mark-page-read {
+  margin-left: 0.5rem;
 }
 
 .rss-dashboard-page-size-dropdown:focus {
@@ -1553,6 +1680,7 @@
 .rss-smallweb-search-wrapper {
   flex: 1;
   max-width: 300px;
+  position: relative;
 }
 
 .rss-smallweb-results-count {
@@ -1877,4 +2005,34 @@
     min-width: auto;
   }
 }
-.rss-folder-selector-input-wrapper { position: relative !important; } .rss-folder-selector-input { padding-right: 32px !important; } .rss-folder-selector-clear { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; display: flex !important; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); border-radius: 4px; transition: background-color 0.15s ease, color 0.15s ease; z-index: 10; } .rss-folder-selector-clear:hover { background-color: var(--background-modifier-hover); color: var(--text-normal); } .rss-folder-selector-clear.is-hidden { display: none !important; }
+.rss-folder-selector-input-wrapper {
+  position: relative !important;
+}
+.rss-folder-selector-input {
+  padding-right: 32px !important;
+}
+.rss-folder-selector-clear {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 4px;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+  z-index: 10;
+}
+.rss-folder-selector-clear:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.rss-folder-selector-clear.is-hidden {
+  display: none !important;
+}

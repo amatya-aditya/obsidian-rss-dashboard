@@ -4,23 +4,29 @@
 # npm
 node_modules
 
-
 # obsidian
 data.json
 data.json.backup
 usersettings.json
 main.js
 rss-dashboard.sqlite
+styles.css
+userdata.json.backup
+feeds.opml.backup
+tsconfig.tsbuildinfo
 
 # build artifacts
 release/
 *.zip
 
-
-# testfiles
-test_files
-
 # agent
 docs/archive
 CLAUDE.md
-agent.md
+.kilo/
+.claude/
+.agent/*
+.agents
+.agents/*
+userdata.json.backup
+feeds.opml.backup
+coverage/

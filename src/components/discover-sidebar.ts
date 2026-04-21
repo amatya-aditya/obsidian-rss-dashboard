@@ -5,6 +5,7 @@ import {
   FeedMetadata,
   CategoryPath,
 } from "../types/discover-types";
+import { attachInputClearButton } from "../utils/platform-utils";
 
 interface DiscoverSidebarCallbacks {
   onFilterChange: () => void;
@@ -118,16 +119,25 @@ export class DiscoverSidebar {
       cls: "rss-dashboard-nav-container",
     });
 
+    // Return Home button - navigates to Dashboard
     const dashboardBtn = navContainer.createDiv({
-      cls: "rss-dashboard-nav-button rss-dashboard-nav-button--icon",
+      cls: "rss-dashboard-nav-button clickable-icon rss-discover-return-home",
       attr: {
-        title: "Dashboard",
-        "aria-label": "Dashboard",
+        title: "Return to Dashboard",
+        "aria-label": "Return to Dashboard",
         role: "button",
         tabindex: "0",
       },
     });
-    setIcon(dashboardBtn, "home");
+    setIcon(dashboardBtn, "arrow-left");
+
+    // Add "Return Home" text span
+    const _returnHomeText = dashboardBtn.createSpan({
+      cls: "rss-discover-return-home-text",
+      text: "Return Home",
+    });
+    void _returnHomeText;
+
     dashboardBtn.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
@@ -136,26 +146,6 @@ export class DiscoverSidebar {
     });
     dashboardBtn.addEventListener("click", () =>
       this.callbacks.onActivateView(),
-    );
-
-    const discoverBtn = navContainer.createDiv({
-      cls: "rss-dashboard-nav-button rss-dashboard-nav-button--icon active",
-      attr: {
-        title: "Discover",
-        "aria-label": "Discover",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(discoverBtn, "compass");
-    discoverBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        discoverBtn.click();
-      }
-    });
-    discoverBtn.addEventListener("click", () =>
-      this.callbacks.onActivateDiscoverView(),
     );
 
     if (this.callbacks.onCloseMobileSidebar) {
@@ -181,12 +171,21 @@ export class DiscoverSidebar {
       cls: "rss-discover-section",
     });
 
-    const searchInput = searchSection.createEl("input", {
+    const searchInputWrapper = searchSection.createDiv({
+      cls: "rss-discover-search-input-wrapper",
+    });
+
+    const searchInput = searchInputWrapper.createEl("input", {
       type: "text",
       placeholder: "Search feeds...",
       value: this.filters.query,
     });
     searchInput.addClass("rss-discover-search-input");
+
+    attachInputClearButton(searchInputWrapper, searchInput, () => {
+      this.filters.query = "";
+      this.callbacks.onFilterChange();
+    });
 
     searchInput.addEventListener("input", (e) => {
       this.filters.query = (e.target as HTMLInputElement).value;
@@ -450,7 +449,8 @@ export class DiscoverSidebar {
           depth + 1,
         );
 
-        expandIcon.addEventListener("click", () => {
+        expandIcon.addEventListener("click", (e) => {
+          e.stopPropagation();
           const isCollapsed = childrenContainer.hasClass("rss-collapsed");
           if (isCollapsed) {
             childrenContainer.removeClass("rss-collapsed");

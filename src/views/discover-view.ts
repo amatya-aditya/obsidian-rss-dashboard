@@ -13,7 +13,16 @@ import type RssDashboardPlugin from "../../main";
 import {
   TABLET_LAYOUT_MAX_WIDTH,
   shouldUseMobileSidebarLayout,
+  attachInputClearButton,
 } from "../utils/platform-utils";
+import {
+  getPageSizeOptions,
+  PAGE_SIZE_OPTIONS,
+} from "../utils/page-size-options";
+import {
+  computePagination,
+  computeResultsRange,
+} from "../utils/pagination-utils";
 
 import feedsData from "../discover/discover-feeds.json";
 
@@ -154,11 +163,12 @@ export class DiscoverView extends ItemView {
       return;
     }
 
-    const totalPages = Math.max(
-      1,
-      Math.ceil(this.filteredFeeds.length / this.pageSize),
-    );
-    this.currentPage = Math.min(this.currentPage, totalPages);
+    const pagination = computePagination({
+      totalItems: this.filteredFeeds.length,
+      pageSize: this.pageSize,
+      requestedPage: this.currentPage,
+    });
+    this.currentPage = pagination.currentPage;
   }
 
   private refreshViewAfterFollowStateChange(feedUrl?: string): void {
@@ -539,16 +549,25 @@ export class DiscoverView extends ItemView {
       cls: "rss-dashboard-nav-container",
     });
 
+    // Return Home button - navigates to Dashboard
     const dashboardBtn = navContainer.createDiv({
-      cls: "rss-dashboard-nav-button rss-dashboard-nav-button--icon",
+      cls: "rss-dashboard-nav-button clickable-icon rss-discover-return-home",
       attr: {
-        title: "Dashboard",
-        "aria-label": "Dashboard",
+        title: "Return to Dashboard",
+        "aria-label": "Return to Dashboard",
         role: "button",
         tabindex: "0",
       },
     });
-    setIcon(dashboardBtn, "home");
+    setIcon(dashboardBtn, "arrow-left");
+
+    // Add "Return Home" text span
+    const _returnHomeText = dashboardBtn.createSpan({
+      cls: "rss-discover-return-home-text",
+      text: "Return Home",
+    });
+    void _returnHomeText;
+
     dashboardBtn.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
@@ -558,27 +577,6 @@ export class DiscoverView extends ItemView {
     dashboardBtn.addEventListener(
       "click",
       () => void this.plugin.activateView(),
-    );
-
-    const discoverBtn = navContainer.createDiv({
-      cls: "rss-dashboard-nav-button rss-dashboard-nav-button--icon active",
-      attr: {
-        title: "Discover",
-        "aria-label": "Discover",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(discoverBtn, "compass");
-    discoverBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        discoverBtn.click();
-      }
-    });
-    discoverBtn.addEventListener(
-      "click",
-      () => void this.plugin.activateDiscoverView(),
     );
   }
 
@@ -611,12 +609,29 @@ export class DiscoverView extends ItemView {
       cls: "rss-discover-section",
     });
 
-    const searchInput = searchSection.createEl("input", {
+    const searchInputWrapper = searchSection.createDiv({
+      cls: "rss-discover-search-input-wrapper",
+    });
+
+    const searchInput = searchInputWrapper.createEl("input", {
       type: "text",
       placeholder: "Search feeds...",
       value: this.filters.query,
     });
     searchInput.addClass("rss-discover-search-input");
+
+    attachInputClearButton(searchInputWrapper, searchInput, () => {
+      this.filters.query = "";
+      this.currentPage = 1;
+      this.filterFeeds();
+      this.saveFilterState();
+      const contentEl = this.containerEl.querySelector(
+        ".rss-discover-content",
+      ) as HTMLElement;
+      if (contentEl) {
+        this.renderContent(contentEl);
+      }
+    });
 
     searchInput.addEventListener("input", (e) => {
       this.filters.query = (e.target as HTMLInputElement).value;
@@ -1050,14 +1065,22 @@ export class DiscoverView extends ItemView {
     const mobileFiltersMenu = rightSection.createDiv({
       cls: "rss-discover-mobile-filters-menu",
     });
-    const mobileFiltersButton = mobileFiltersMenu.createEl("button", {
-      cls: "rss-discover-mobile-filters-button",
+    const mobileFiltersButton = mobileFiltersMenu.createDiv({
+      cls: "rss-discover-mobile-filters-button clickable-icon",
       attr: {
-        type: "button",
         "aria-label": "Toggle discover filters menu",
+        role: "button",
+        tabindex: "0",
       },
     });
     setIcon(mobileFiltersButton, "menu");
+
+    mobileFiltersButton.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        mobileFiltersButton.click();
+      }
+    });
 
     const mobileFiltersDropdown = mobileFiltersMenu.createDiv({
       cls: "rss-discover-mobile-filters-dropdown",
@@ -1155,16 +1178,16 @@ export class DiscoverView extends ItemView {
       return;
     }
 
-    const totalPages = Math.max(
-      1,
-      Math.ceil(this.filteredFeeds.length / this.pageSize),
+    const pagination = computePagination({
+      totalItems: this.filteredFeeds.length,
+      pageSize: this.pageSize,
+      requestedPage: this.currentPage,
+    });
+    this.currentPage = pagination.currentPage;
+    const feedsForPage = this.filteredFeeds.slice(
+      pagination.startIdx,
+      pagination.endIdx,
     );
-    const startIdx = (this.currentPage - 1) * this.pageSize;
-    const endIdx = Math.min(
-      startIdx + this.pageSize,
-      this.filteredFeeds.length,
-    );
-    const feedsForPage = this.filteredFeeds.slice(startIdx, endIdx);
 
     feedsForPage.forEach((feed) => {
       this.renderFeedCard(grid, feed);
@@ -1176,7 +1199,7 @@ export class DiscoverView extends ItemView {
     this.renderPagination(
       paginationWrapper,
       this.currentPage,
-      totalPages,
+      pagination.totalPages,
       this.pageSize,
       this.filteredFeeds.length,
     );
@@ -1707,6 +1730,29 @@ export class DiscoverView extends ItemView {
       });
       setIcon(searchFilter, "search");
       searchFilter.appendText(` "${this.filters.query}"`);
+
+      const removeBtn = searchFilter.createDiv({
+        cls: "rss-discover-selected-filter-remove",
+        attr: {
+          "aria-label": "Remove search filter",
+          role: "button",
+          tabindex: "0",
+        },
+      });
+      setIcon(removeBtn, "x");
+      removeBtn.addEventListener("click", () => {
+        this.filters.query = "";
+        this.currentPage = 1;
+        this.filterFeeds();
+        this.saveFilterState();
+        void this.render();
+      });
+      removeBtn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          removeBtn.click();
+        }
+      });
     }
 
     this.filters.selectedTypes.forEach((type) => {
@@ -1715,6 +1761,31 @@ export class DiscoverView extends ItemView {
       });
       setIcon(typeFilter, "tag");
       typeFilter.appendText(` ${type}`);
+
+      const removeBtn = typeFilter.createDiv({
+        cls: "rss-discover-selected-filter-remove",
+        attr: {
+          "aria-label": `Remove type filter: ${type}`,
+          role: "button",
+          tabindex: "0",
+        },
+      });
+      setIcon(removeBtn, "x");
+      removeBtn.addEventListener("click", () => {
+        this.filters.selectedTypes = this.filters.selectedTypes.filter(
+          (t) => t !== type,
+        );
+        this.currentPage = 1;
+        this.filterFeeds();
+        this.saveFilterState();
+        void this.render();
+      });
+      removeBtn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          removeBtn.click();
+        }
+      });
     });
 
     this.filters.selectedPaths.forEach((path) => {
@@ -1726,6 +1797,37 @@ export class DiscoverView extends ItemView {
         .filter(Boolean)
         .join(" > ");
       pathFilter.appendText(` ${pathText}`);
+
+      const removeBtn = pathFilter.createDiv({
+        cls: "rss-discover-selected-filter-remove",
+        attr: {
+          "aria-label": `Remove category filter: ${pathText}`,
+          role: "button",
+          tabindex: "0",
+        },
+      });
+      setIcon(removeBtn, "x");
+      removeBtn.addEventListener("click", () => {
+        this.filters.selectedPaths = this.filters.selectedPaths.filter(
+          (p) =>
+            !(
+              p.domain === path.domain &&
+              p.subdomain === path.subdomain &&
+              p.area === path.area &&
+              p.topic === path.topic
+            ),
+        );
+        this.currentPage = 1;
+        this.filterFeeds();
+        this.saveFilterState();
+        void this.render();
+      });
+      removeBtn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          removeBtn.click();
+        }
+      });
     });
 
     this.filters.selectedTags.forEach((tag) => {
@@ -1735,6 +1837,31 @@ export class DiscoverView extends ItemView {
       setIcon(tagFilter, "hash");
       tagFilter.appendText(` ${tag}`);
       tagFilter.style.setProperty("--tag-color", this.getTagColor(tag));
+
+      const removeBtn = tagFilter.createDiv({
+        cls: "rss-discover-selected-filter-remove",
+        attr: {
+          "aria-label": `Remove tag filter: ${tag}`,
+          role: "button",
+          tabindex: "0",
+        },
+      });
+      setIcon(removeBtn, "x");
+      removeBtn.addEventListener("click", () => {
+        this.filters.selectedTags = this.filters.selectedTags.filter(
+          (t) => t !== tag,
+        );
+        this.currentPage = 1;
+        this.filterFeeds();
+        this.saveFilterState();
+        void this.render();
+      });
+      removeBtn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          removeBtn.click();
+        }
+      });
     });
   }
 
@@ -1798,10 +1925,18 @@ export class DiscoverView extends ItemView {
     const pageSizeDropdown = paginationContainer.createEl("select", {
       cls: "rss-dashboard-page-size-dropdown",
     });
-    const pageSizeOptions = [10, 20, 40, 50, 60, 80, 100];
-    for (const size of pageSizeOptions) {
+    for (const size of getPageSizeOptions(pageSize)) {
+      const isStandardOption = PAGE_SIZE_OPTIONS.includes(
+        size as (typeof PAGE_SIZE_OPTIONS)[number],
+      );
+      const label =
+        size === 0
+          ? "All"
+          : isStandardOption
+            ? String(size)
+            : `Current (${size})`;
       const opt = pageSizeDropdown.createEl("option", {
-        text: String(size),
+        text: label,
         value: String(size),
       });
       if (size === pageSize) opt.selected = true;
@@ -1811,8 +1946,11 @@ export class DiscoverView extends ItemView {
       this.handlePageSizeChange(size);
     };
 
-    const startIdx = (currentPage - 1) * pageSize + 1;
-    const endIdx = Math.min(currentPage * pageSize, totalFeeds);
+    const { start: startIdx, end: endIdx } = computeResultsRange({
+      totalItems: totalFeeds,
+      pageSize,
+      currentPage,
+    });
     paginationContainer.createEl("span", {
       cls: "rss-dashboard-pagination-results",
       text: `Results: ${startIdx} - ${endIdx} of ${totalFeeds}`,

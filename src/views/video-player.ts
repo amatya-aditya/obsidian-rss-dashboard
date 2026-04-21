@@ -2,6 +2,7 @@ import { Notice, Setting } from "obsidian";
 import { FeedItem } from "../types/types";
 import { setIcon } from "obsidian";
 import { ensureUtf8Meta } from '../utils/platform-utils';
+import { MediaService } from "../services/media-service";
 
 export class VideoPlayer {
     private container: HTMLElement;
@@ -35,6 +36,7 @@ export class VideoPlayer {
     
     private render(): void {
         if (!this.currentItem || !this.currentItem.videoId) return;
+        const embed = MediaService.buildYouTubeEmbed(this.currentItem.videoId);
         
         this.container.empty();
         
@@ -53,8 +55,9 @@ export class VideoPlayer {
         
         this.iframeEl = this.container.createEl("iframe", {
             attr: {
-                src: `https://www.youtube.com/embed/${this.currentItem.videoId}?rel=0&autoplay=1`,
-                allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                src: embed.embedUrl,
+                allow: embed.allow,
+                referrerpolicy: embed.referrerPolicy
             }
         });
         this.iframeEl.allowFullscreen = true;
@@ -118,61 +121,19 @@ export class VideoPlayer {
         });
         
         
-        const youtubeButton = linksContainer.createDiv({
+        const youtubeButton = linksContainer.createEl("a", {
             cls: "rss-video-youtube-button",
+            href: embed.watchUrl,
         });
+        youtubeButton.target = "_blank";
+        youtubeButton.rel = "noopener noreferrer";
         
-        setIcon(youtubeButton, "youtube");
-        
-        youtubeButton.addEventListener("click", () => {
-            if (this.currentItem?.videoId) {
-                window.open(`https://www.youtube.com/watch?v=${this.currentItem.videoId}`, "_blank");
-            }
+        const youtubeIcon = youtubeButton.createSpan({
+            cls: "rss-video-youtube-button-icon",
         });
-        
-        
-        const qualityContainer = linksContainer.createDiv({
-            cls: "rss-video-quality",
-        });
-        
-        qualityContainer.createDiv({
-            cls: "rss-video-quality-label",
-            text: "Quality: ",
-        });
-        
-        const qualityOptions = qualityContainer.createDiv({
-            cls: "rss-video-quality-options",
-        });
-        
-        
-        const qualities = ["sd", "hd", "Full hd"];
-        
-        qualities.forEach((quality, index) => {
-            const qualityButton = qualityOptions.createDiv({
-                cls: `rss-video-quality-option ${index === 1 ? "active" : ""}`,
-                text: quality,
-            });
-            
-            qualityButton.addEventListener("click", () => {
-                
-                qualityOptions.querySelectorAll(".rss-video-quality-option").forEach(el => {
-                    el.classList.remove("active");
-                });
-                
-                qualityButton.classList.add("active");
-                
-                
-                if (this.iframeEl && this.currentItem) {
-                    
-                    let quality = "";
-                    if (index === 0) quality = "medium"; 
-                    else if (index === 1) quality = "hd720"; 
-                    else if (index === 2) quality = "hd1080"; 
-                    
-                    
-                    this.iframeEl.src = `https://www.youtube.com/embed/${this.currentItem.videoId}?rel=0&vq=${quality}`;
-                }
-            });
+        setIcon(youtubeIcon, "youtube");
+        youtubeButton.createSpan({
+            text: "Watch on YouTube",
         });
         
         

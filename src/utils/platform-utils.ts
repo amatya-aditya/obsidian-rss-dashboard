@@ -1,3 +1,5 @@
+import { requestUrl, RequestUrlParam, setIcon } from "obsidian";
+
 export function sleep(ms: number): Promise<void> {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
@@ -102,6 +104,70 @@ export function ensureUtf8Meta(html: string): string {
 }
 
 /**
+ * Robust fetch that handles encoding detection and manual decoding.
+ * Useful for Android where requestUrl might mis-detect encoding.
+ */
+export async function robustFetch(
+  url: string,
+  options: Partial<RequestUrlParam> = {},
+): Promise<string> {
+  const response = await requestUrl({
+    ...options,
+    url,
+    method: options.method || "GET",
+  });
+
+  if (!response.arrayBuffer) {
+    return response.text || "";
+  }
+
+  const contentType = response.headers["content-type"] || "";
+  let charset = detectCharsetFromHeader(contentType);
+
+  if (!charset) {
+    // Try to detect from body if not in header
+    charset = detectCharsetFromBody(response.arrayBuffer);
+  }
+
+  // Default to utf-8 if still not found
+  charset = charset || "utf-8";
+
+  try {
+    const decoder = new TextDecoder(charset);
+    return decoder.decode(response.arrayBuffer);
+  } catch (e) {
+    void e;
+    // [RSS Dashboard] Failed to decode with charset ${charset}, falling back to utf-8
+    // Fallback to utf-8 if specified charset fails
+    const decoder = new TextDecoder("utf-8");
+    return decoder.decode(response.arrayBuffer);
+  }
+}
+
+function detectCharsetFromHeader(contentType: string): string | null {
+  const match = contentType.match(/charset=([^;]+)/i);
+  return match ? match[1].trim() : null;
+}
+
+function detectCharsetFromBody(buffer: ArrayBuffer): string | null {
+  // We only look at the first 2048 bytes for speed
+  const view = new Uint8Array(buffer.slice(0, 2048));
+  const text = new TextDecoder("ascii").decode(view);
+
+  // Look for <meta charset="...">
+  const charsetMatch = text.match(/<meta[^>]+charset=["']?([^"' >]+)/i);
+  if (charsetMatch) return charsetMatch[1];
+
+  // Look for <meta http-equiv="Content-Type" content="...charset=...">
+  const equivMatch = text.match(
+    /<meta[^>]+http-equiv=["']?Content-Type["']?[^>]+content=["']?[^"'>]+charset=([^"' >]+)/i,
+  );
+  if (equivMatch) return equivMatch[1];
+
+  return null;
+}
+
+/**
  * Set CSS custom properties on an element
  * @param element The HTML element to set properties on
  * @param props An object with CSS property names as keys and values
@@ -117,6 +183,79 @@ export function setCssProps(
 
 export const PHONE_MAX_WIDTH = 768;
 export const TABLET_LAYOUT_MAX_WIDTH = 1200;
+
+/**
+ * Attaches a clear (X) button inside a search input wrapper.
+ * Handles creation, visibility toggling, click, and keyboard events.
+ * The `onClear` callback is called when the input is cleared.
+ * @param wrapper The container element for the input and clear button
+ * @param input The input element to attach the clear button to
+ * @param onClear Callback invoked after input is cleared
+ * @param options Optional configuration (CSS classes, button element type)
+ */
+export function attachInputClearButton(
+  wrapper: HTMLElement,
+  input: HTMLInputElement,
+  onClear: () => void,
+  options?: {
+    buttonClass?: string;
+    hiddenClass?: string;
+    useButtonElement?: boolean;
+  },
+): HTMLElement {
+  const buttonClass = options?.buttonClass || "rss-discover-search-clear";
+  const hiddenClass =
+    options?.hiddenClass || "rss-discover-search-clear-hidden";
+  const useButton = options?.useButtonElement ?? false;
+
+  const clearButton = useButton
+    ? wrapper.createEl("button", {
+        cls: buttonClass,
+        attr: {
+          type: "button",
+          "aria-label": "Clear search",
+          title: "Clear search",
+        },
+      })
+    : wrapper.createDiv({
+        cls: `clickable-icon ${buttonClass}`,
+        attr: {
+          "aria-label": "Clear search",
+          role: "button",
+          tabindex: "0",
+        },
+      });
+
+  setIcon(clearButton, "x");
+
+  if (!input.value) {
+    clearButton.addClass(hiddenClass);
+  }
+
+  clearButton.addEventListener("click", () => {
+    input.value = "";
+    clearButton.addClass(hiddenClass);
+    onClear();
+  });
+
+  clearButton.addEventListener("keydown", (e) => {
+    const keyEvent = e as KeyboardEvent;
+    if (keyEvent.key === "Enter" || keyEvent.key === " ") {
+      keyEvent.preventDefault();
+      clearButton.click();
+    }
+  });
+
+  input.addEventListener("input", () => {
+    if (input.value) {
+      clearButton.removeClass(hiddenClass);
+    } else {
+      clearButton.addClass(hiddenClass);
+    }
+  });
+
+  return clearButton;
+}
 
 export type ViewportTier = "phone" | "tablet" | "desktop";
 

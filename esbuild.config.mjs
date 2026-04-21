@@ -55,8 +55,15 @@ const cssContext = await esbuild.context({
 });
 
 if (prod) {
-	await Promise.all([context.rebuild(), cssContext.rebuild()]);
-	process.exit(0);
+	try {
+		await Promise.all([context.rebuild(), cssContext.rebuild()]);
+		console.log("Build complete: main.js and styles.css have been updated.");
+		process.exit(0);
+	} catch (err) {
+		console.error("Build failed:", err);
+		process.exit(1);
+	}
 } else {
 	await Promise.all([context.watch(), cssContext.watch()]);
+	console.log("Watch mode active: main.js and styles.css are being watched.");
 }

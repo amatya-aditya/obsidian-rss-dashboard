@@ -1,8 +1,8 @@
 import {
   Feed,
   FeedItem,
-  FeedFilterSettings,
-  GlobalFilterSettings,
+  FeedKeywordRulesSettings,
+  GlobalKeywordRulesSettings,
   KeywordFilterRule,
 } from "../types/types";
 
@@ -35,39 +35,39 @@ export class KeywordFilterService {
   }
 
   static shouldApplyGlobalFilters(
-    feedFilters: FeedFilterSettings | undefined,
+    feedRules: FeedKeywordRulesSettings | undefined,
   ): boolean {
-    return !feedFilters?.overrideGlobalFilters;
+    return !feedRules?.overrideGlobalRules;
   }
 
   static evaluateForArticle(
     item: FeedItem,
     feed: Feed | undefined,
-    globalFilters: GlobalFilterSettings,
+    globalRules: GlobalKeywordRulesSettings,
   ): KeywordFilterDecision {
-    if (globalFilters.bypassAll) {
+    if (globalRules.bypassAll) {
       return { included: true, excludedBy: "none" };
     }
 
-    const feedFilters = feed?.filters;
-    const applyGlobal = this.shouldApplyGlobalFilters(feedFilters);
+    const feedRules = feed?.keywordRules;
+    const applyGlobal = this.shouldApplyGlobalFilters(feedRules);
 
     if (applyGlobal) {
       const globalPassed = this.evaluateRules(
         item,
-        globalFilters.rules,
-        globalFilters.includeLogic,
+        globalRules.rules,
+        globalRules.includeLogic,
       );
       if (!globalPassed) {
         return { included: false, excludedBy: "global" };
       }
     }
 
-    if (feedFilters) {
+    if (feedRules) {
       const feedPassed = this.evaluateRules(
         item,
-        feedFilters.rules,
-        feedFilters.includeLogic,
+        feedRules.rules,
+        feedRules.includeLogic,
       );
       if (!feedPassed) {
         return { included: false, excludedBy: "feed" };

@@ -1,59 +1,28 @@
 import { Notice, Menu, MenuItem, setIcon, Setting } from "obsidian";
 import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
+import { ArticleHeader } from "./article-header";
+import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
 import {
   formatDateWithRelative,
   ensureUtf8Meta,
   setCssProps,
-  TABLET_LAYOUT_MAX_WIDTH,
 } from "../utils/platform-utils";
 import { HighlightService } from "../services/highlight-service";
+import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import {
+  getPageSizeOptions,
+  PAGE_SIZE_OPTIONS,
+} from "../utils/page-size-options";
+import { computeResultsRange } from "../utils/pagination-utils";
 
 const MAX_VISIBLE_TAGS = 6;
 
-function extractDomain(url: string): string {
-  try {
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname;
-    const parts = hostname.split(".");
-    if (parts.length >= 2) {
-      if (parts.length === 3 && parts[0] === "feeds") {
-        return `${parts[1]}.${parts[2]}`;
-      } else if (parts.length >= 3) {
-        return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
-      } else {
-        return hostname;
-      }
-    }
-    return hostname;
-  } catch {
-    const match = url.match(/https?:\/\/([^/?]+)/);
-    if (match) {
-      const hostname = match[1];
-      const parts = hostname.split(".");
-      if (parts.length >= 2) {
-        if (parts.length === 3 && parts[0] === "feeds") {
-          return `${parts[1]}.${parts[2]}`;
-        } else if (parts.length >= 3) {
-          return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
-        } else {
-          return hostname;
-        }
-      }
-      return hostname;
-    }
-    return "";
-  }
-}
-
-function getFaviconUrl(domain: string): string {
-  if (!domain) return "";
-  return `https://www.google.com/s2/favicons?sz=32&domain_url=http://${domain}`;
-}
-
 interface ArticleListCallbacks {
   onArticleClick: (article: FeedItem) => void;
-  onToggleViewStyle: (style: "list" | "card") => void;
-  onRefreshFeeds: () => Promise<void> | void;
+  onToggleViewStyle: (style: "list" | "card" | "feed") => void;
+  onRefreshFeeds: () => Promise<void>;
+  onSearch: (query: string) => void;
+
   onArticleUpdate: (
     article: FeedItem,
     updates: Partial<FeedItem>,
@@ -74,33 +43,40 @@ interface ArticleListCallbacks {
   }) => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
+  onMarkPageAsRead?: () => void;
   onMarkAllAsRead?: () => void;
   onMarkAllAsUnread?: () => void;
   onPersistSettings?: () => Promise<void> | void;
   onOpenTagsSettings?: () => Promise<void> | void;
+  onTagsMutated?: () => void;
 }
 
 export class ArticleList {
   private container: HTMLElement;
   private settings: RssDashboardSettings;
   private title: string;
+  private titleTooltip: string | null;
+  private headerTitleEl: HTMLElement | null = null;
   private articles: FeedItem[];
   private selectedArticle: FeedItem | null;
   private callbacks: ArticleListCallbacks;
   private refreshButton: HTMLElement | null = null;
   private resizeObserver: ResizeObserver | null = null;
+  private cardLayoutFrame: number | null = null;
   private currentPage: number;
   private totalPages: number;
   private pageSize: number;
   private totalArticles: number;
   private currentFeedUrl: string | null = null;
+  private header: ArticleHeader | null = null;
+
   private showFeedSource: boolean = true;
   private statusFilters: Set<string>;
   private tagFilters: Set<string>;
   private filterLogic: "AND" | "OR";
   private articleSearchQuery: string = "";
-  private articleSearchDesktopInput: HTMLInputElement | null = null;
-  private articleSearchDropdownInput: HTMLInputElement | null = null;
+  private tagsDropdownCleanup: (() => void) | null = null;
+
   private documentListeners: Array<{
     target: Document;
     type: string;
@@ -109,12 +85,12 @@ export class ArticleList {
   private activePortal: HTMLElement | null = null;
   private activeFilterToggleBtn: HTMLElement | null = null;
   private activeFilterOutsideListenerCleanup: (() => void) | null = null;
-  private tagsDropdownCleanup: (() => void) | null = null;
 
   constructor(
     container: HTMLElement,
     settings: RssDashboardSettings,
     title: string,
+    titleTooltip: string | null,
     articles: FeedItem[],
     selectedArticle: FeedItem | null,
     callbacks: ArticleListCallbacks,
@@ -131,6 +107,7 @@ export class ArticleList {
     this.container = container;
     this.settings = settings;
     this.title = title;
+    this.titleTooltip = titleTooltip;
     this.articles = articles;
     this.selectedArticle = selectedArticle;
     this.callbacks = callbacks;
@@ -143,6 +120,58 @@ export class ArticleList {
     this.filterLogic = filterLogic;
     this.currentFeedUrl = currentFeedUrl || null;
     this.showFeedSource = showFeedSource;
+
+    // Header and filter logic were extracted to ArticleHeader and ArticleFilterMenu
+    // to reduce this file's length and complexity. Legacy methods like renderHeader(),
+    // createControls(), and showFiltersMenu() now live in those respective classes.
+    this.header = new ArticleHeader(
+      this.container,
+      this.settings,
+      this.title,
+      this.titleTooltip,
+      this.currentFeedUrl,
+      this.statusFilters,
+      this.tagFilters,
+      this.filterLogic,
+      {
+        onToggleSidebar: () => this.callbacks.onToggleSidebar(),
+        onSearch: (q) => {
+          this.articleSearchQuery = q;
+          this.filterArticlesBySearch(q);
+          this.callbacks.onSearch(q);
+        },
+        onSortChange: (s) => this.callbacks.onSortChange(s),
+        onGroupChange: (g) => this.callbacks.onGroupChange(g),
+        onFilterChange: (f) => this.callbacks.onFilterChange(f),
+        onToggleViewStyle: (v) => this.callbacks.onToggleViewStyle(v),
+        onPersistSettings: () => {
+          if (this.callbacks.onPersistSettings) {
+            void this.callbacks.onPersistSettings();
+          }
+        },
+        onRefreshFeeds: () => this.callbacks.onRefreshFeeds(),
+        onMarkAllAsRead: () => {
+          if (this.callbacks.onMarkAllAsRead) {
+            this.callbacks.onMarkAllAsRead();
+          } else {
+            this.articles.forEach((a) => (a.read = true));
+            if (this.callbacks.onPersistSettings)
+              void this.callbacks.onPersistSettings();
+            this.render();
+          }
+        },
+        onMarkAllAsUnread: () => {
+          if (this.callbacks.onMarkAllAsUnread) {
+            this.callbacks.onMarkAllAsUnread();
+          } else {
+            this.articles.forEach((a) => (a.read = false));
+            if (this.callbacks.onPersistSettings)
+              void this.callbacks.onPersistSettings();
+            this.render();
+          }
+        },
+      },
+    );
   }
 
   public destroy(): void {
@@ -150,7 +179,13 @@ export class ArticleList {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
     }
-    this.closeActiveFilterMenu();
+    if (this.cardLayoutFrame !== null) {
+      cancelAnimationFrame(this.cardLayoutFrame);
+      this.cardLayoutFrame = null;
+    }
+    if (this.header) {
+      this.header.destroy();
+    }
     this.documentListeners.forEach(({ target, type, listener }) => {
       target.removeEventListener(type, listener);
     });
@@ -161,44 +196,17 @@ export class ArticleList {
     }
   }
 
-  private closeActiveFilterMenu(): void {
-    if (this.activeFilterOutsideListenerCleanup) {
-      this.activeFilterOutsideListenerCleanup();
-      this.activeFilterOutsideListenerCleanup = null;
-    }
-    if (this.activePortal) {
-      this.activePortal.remove();
-      this.activePortal = null;
-    }
-    if (this.activeFilterToggleBtn) {
-      this.activeFilterToggleBtn.removeClass("active");
-      this.activeFilterToggleBtn = null;
-    }
-  }
-
-  private updateFilterTriggerBadge(button: HTMLElement): void {
-    button.classList.remove("has-active-filters");
-    button
-      .querySelectorAll(".rss-dashboard-filter-badge")
-      .forEach((el) => el.remove());
-
-    const count = this.statusFilters.size + this.tagFilters.size;
-    if (count > 0) {
-      button.classList.add("has-active-filters");
-      button.createDiv({
-        cls: "rss-dashboard-filter-badge",
-        text: String(count),
-      });
-    }
-  }
-
   private isMobileViewport(): boolean {
     return window.matchMedia("(max-width: 768px)").matches;
   }
 
-  private shouldShowToolbarForView(view: "list" | "card"): boolean {
+  private shouldShowToolbarForView(view: "list" | "card" | "feed"): boolean {
     if (view === "list") {
       return this.settings.display.mobileShowListToolbar;
+    }
+
+    if (view === "feed") {
+      return true; // Feed view always shows toolbar as per requirements
     }
 
     if (!this.isMobileViewport()) {
@@ -218,6 +226,12 @@ export class ArticleList {
       return style;
     }
     return "minimal";
+  }
+
+  private refreshVisibleArticleTags(): void {
+    this.articles.forEach((article) => {
+      this.updateArticleInPlace(article);
+    });
   }
 
   private persistSettings(): void {
@@ -243,6 +257,242 @@ export class ArticleList {
     return Math.max(0, Math.min(40, Math.round(value)));
   }
 
+  private getCardGridTemplateColumns(cardColumns: number): string | null {
+    if (cardColumns > 0) {
+      return `repeat(${cardColumns}, minmax(0, 1fr))`;
+    }
+
+    return null;
+  }
+
+  private applyCardGridLayout(
+    articlesList: HTMLElement,
+    _containerWidth: number,
+  ): void {
+    const cardColumns = this.getCardColumnsPerRow();
+    const gridTemplateColumns = this.getCardGridTemplateColumns(cardColumns);
+
+    if (gridTemplateColumns) {
+      articlesList.style.setProperty(
+        "grid-template-columns",
+        gridTemplateColumns,
+      );
+      return;
+    }
+
+    articlesList.style.removeProperty("grid-template-columns");
+  }
+
+  private scheduleCardTagLayout(root: ParentNode = this.container): void {
+    if (this.settings.viewStyle !== "card") {
+      return;
+    }
+
+    if (this.cardLayoutFrame !== null) {
+      cancelAnimationFrame(this.cardLayoutFrame);
+    }
+
+    this.cardLayoutFrame = requestAnimationFrame(() => {
+      this.cardLayoutFrame = null;
+      this.layoutCardTagRows(root);
+    });
+  }
+
+  private layoutCardTagRows(root: ParentNode = this.container): void {
+    const cards: HTMLElement[] = [];
+
+    if (
+      root instanceof HTMLElement &&
+      root.classList.contains("rss-dashboard-article-card")
+    ) {
+      cards.push(root);
+    }
+
+    root
+      .querySelectorAll<HTMLElement>(".rss-dashboard-article-card")
+      .forEach((card) => cards.push(card));
+
+    cards.forEach((card) => this.layoutSingleCardTagRow(card));
+  }
+
+  private layoutSingleCardTagRow(card: HTMLElement): void {
+    const tagsContainer = card.querySelector<HTMLElement>(
+      ".rss-dashboard-card-tags-region .rss-dashboard-article-tags",
+    );
+    const articleGuid = card.dataset.articleGuid;
+    if (!tagsContainer || !articleGuid) {
+      return;
+    }
+
+    const article = this.articles.find((item) => item.guid === articleGuid);
+    if (!article?.tags?.length) {
+      tagsContainer.empty();
+      return;
+    }
+
+    this.renderSingleRowCardTagChips(tagsContainer, article.tags);
+  }
+
+  private renderTagChips(container: HTMLElement, tags: Tag[]): void {
+    container.empty();
+
+    const tagsToShow = tags.slice(0, MAX_VISIBLE_TAGS);
+    tagsToShow.forEach((tag) => {
+      const tagEl = container.createDiv({
+        cls: "rss-dashboard-article-tag",
+        text: tag.name,
+      });
+      tagEl.style.setProperty(
+        "--tag-color",
+        tag.color || "var(--interactive-accent)",
+      );
+    });
+
+    if (tags.length > MAX_VISIBLE_TAGS) {
+      const overflow = container.createDiv({
+        cls: "rss-dashboard-tag-overflow",
+        text: `+${tags.length - MAX_VISIBLE_TAGS}`,
+      });
+      overflow.title = tags
+        .slice(MAX_VISIBLE_TAGS)
+        .map((t) => t.name)
+        .join(", ");
+    }
+  }
+
+  private createTagChip(container: HTMLElement, tag: Tag): HTMLElement {
+    const tagEl = container.createDiv({
+      cls: "rss-dashboard-article-tag",
+      text: tag.name,
+    });
+    tagEl.style.setProperty(
+      "--tag-color",
+      tag.color || "var(--interactive-accent)",
+    );
+    return tagEl;
+  }
+
+  private createTagOverflowChip(
+    container: HTMLElement,
+    hiddenTags: Tag[],
+  ): HTMLElement {
+    const overflow = container.createDiv({
+      cls: "rss-dashboard-tag-overflow",
+      text: `+${hiddenTags.length}`,
+    });
+    overflow.title = hiddenTags.map((tag) => tag.name).join(", ");
+    return overflow;
+  }
+
+  private renderSingleRowCardTagChips(
+    container: HTMLElement,
+    tags: Tag[],
+  ): void {
+    container.empty();
+
+    if (tags.length === 0) {
+      return;
+    }
+
+    if (container.clientWidth <= 0) {
+      this.renderTagChips(container, tags);
+      return;
+    }
+
+    let visibleCount = 0;
+
+    for (let i = 0; i < tags.length; i += 1) {
+      this.createTagChip(container, tags[i]);
+      visibleCount = i + 1;
+
+      const remainingTags = tags.slice(visibleCount);
+      let probeOverflow: HTMLElement | null = null;
+      if (remainingTags.length > 0) {
+        probeOverflow = this.createTagOverflowChip(container, remainingTags);
+      }
+
+      const exceedsWidth = container.scrollWidth > container.clientWidth;
+      probeOverflow?.remove();
+
+      if (exceedsWidth) {
+        container.lastElementChild?.remove();
+        visibleCount = i;
+        break;
+      }
+    }
+
+    if (visibleCount < tags.length) {
+      const hiddenTags = tags.slice(visibleCount);
+      this.createTagOverflowChip(container, hiddenTags);
+    }
+  }
+
+  private ensureCardTagsContainer(articleEl: HTMLElement): HTMLElement | null {
+    if (!articleEl.classList.contains("rss-dashboard-article-card")) {
+      return null;
+    }
+
+    let tagsRegion = articleEl.querySelector<HTMLElement>(
+      ".rss-dashboard-card-tags-region",
+    );
+    if (!tagsRegion) {
+      tagsRegion = document.createElement("div");
+      tagsRegion.className = "rss-dashboard-card-tags-region";
+      const cardFooter = articleEl.querySelector<HTMLElement>(
+        ".rss-dashboard-card-footer",
+      );
+      if (cardFooter) {
+        articleEl.insertBefore(tagsRegion, cardFooter);
+      } else {
+        articleEl.appendChild(tagsRegion);
+      }
+    }
+
+    let tagsContainer = tagsRegion.querySelector<HTMLElement>(
+      ".rss-dashboard-article-tags",
+    );
+    if (!tagsContainer) {
+      tagsContainer = tagsRegion.createDiv({
+        cls: "rss-dashboard-article-tags",
+      });
+    }
+
+    return tagsContainer;
+  }
+
+  private ensureFeedTagsContainer(articleEl: HTMLElement): HTMLElement | null {
+    if (!articleEl.classList.contains("rss-dashboard-feed-item")) {
+      return null;
+    }
+
+    let tagsRegion = articleEl.querySelector<HTMLElement>(
+      ".rss-dashboard-feed-tags-region",
+    );
+    if (!tagsRegion) {
+      tagsRegion = document.createElement("div");
+      tagsRegion.className = "rss-dashboard-feed-tags-region";
+      const feedFooter = articleEl.querySelector<HTMLElement>(
+        ".rss-dashboard-feed-footer",
+      );
+      if (feedFooter) {
+        articleEl.insertBefore(tagsRegion, feedFooter);
+      } else {
+        articleEl.appendChild(tagsRegion);
+      }
+    }
+
+    let tagsContainer = tagsRegion.querySelector<HTMLElement>(
+      ".rss-dashboard-article-tags",
+    );
+    if (!tagsContainer) {
+      tagsContainer = tagsRegion.createDiv({
+        cls: "rss-dashboard-article-tags",
+      });
+    }
+
+    return tagsContainer;
+  }
+
   private addDocumentListener(
     target: Document,
     type: string,
@@ -266,15 +516,33 @@ export class ArticleList {
     const scrollPosition = articlesList?.scrollTop;
 
     this.container.empty();
+    this.headerTitleEl = null;
 
-    this.renderHeader();
-    this.renderArticles();
-
-    if (articlesList && scrollPosition !== undefined) {
-      requestAnimationFrame(() => {
-        articlesList.scrollTop = scrollPosition;
-      });
+    if (this.header) {
+      this.header.render();
     }
+    this.renderArticles();
+    if (this.articleSearchQuery) {
+      this.filterArticlesBySearch(this.articleSearchQuery);
+    }
+
+    requestAnimationFrame(() => {
+      if (scrollPosition !== undefined) {
+        const newArticlesList = this.container.querySelector(
+          ".rss-dashboard-articles-list",
+        );
+        if (newArticlesList) {
+          newArticlesList.scrollTop = scrollPosition;
+        }
+      }
+
+      if (this.selectedArticle) {
+        const selectedEl = this.container.querySelector(
+          `#article-${CSS.escape(this.selectedArticle.guid)}`,
+        );
+        selectedEl?.scrollIntoView({ block: "nearest", behavior: "auto" });
+      }
+    });
   }
 
   /**
@@ -286,16 +554,29 @@ export class ArticleList {
     tagFilters: Set<string>,
     filterLogic: "AND" | "OR",
     articles: FeedItem[],
+    currentPage: number,
+    totalPages: number,
+    pageSize: number,
+    totalArticles: number,
   ): void {
     this.statusFilters = statusFilters;
     this.tagFilters = tagFilters;
     this.filterLogic = filterLogic;
     this.articles = articles;
+    this.currentPage = currentPage;
+    this.totalPages = totalPages;
+    this.pageSize = pageSize;
+    this.totalArticles = totalArticles;
 
     // Update all filter trigger badges (desktop + mobile)
-    this.container
-      .querySelectorAll(".rss-dashboard-filter-trigger")
-      .forEach((el) => this.updateFilterTriggerBadge(el as HTMLElement));
+    if (this.header) {
+      this.header.updateFilters(
+        this.statusFilters,
+        this.tagFilters,
+        this.filterLogic,
+      );
+      this.header.updateFilterBadge();
+    }
 
     // Remove both the articles list and the pagination wrapper
     // (pagination is rendered as a sibling to the articles list)
@@ -305,6 +586,20 @@ export class ArticleList {
       )
       .forEach((el) => el.remove());
     this.renderArticles();
+
+    // Ensure local search filter is reapplied after articles list is recreated
+    if (this.articleSearchQuery) {
+      this.filterArticlesBySearch(this.articleSearchQuery);
+    }
+  }
+
+  public updateHeaderTitle(title: string, tooltip: string | null): void {
+    this.title = title;
+    this.titleTooltip = tooltip;
+
+    if (this.header) {
+      this.header.updateTitle(title, tooltip);
+    }
   }
 
   public removeArticleInPlace(guid: string): void {
@@ -385,6 +680,8 @@ export class ArticleList {
 
     if (this.settings.viewStyle === "list") {
       this.renderListView(temp, [article]);
+    } else if (this.settings.viewStyle === "feed") {
+      this.renderFeedView(temp, [article]);
     } else {
       this.renderCardView(temp, [article]);
     }
@@ -453,7 +750,7 @@ export class ArticleList {
     // Remove active class from any currently active element
     this.container
       .querySelectorAll<HTMLElement>(
-        ".rss-dashboard-article-item.active, .rss-dashboard-article-card.active",
+        ".rss-dashboard-article-item.active, .rss-dashboard-article-card.active, .rss-dashboard-feed-item.active",
       )
       .forEach((el) => el.classList.remove("active"));
     // Add active class to the newly selected article element
@@ -462,6 +759,7 @@ export class ArticleList {
     );
     if (targetEl) {
       targetEl.classList.add("active");
+      targetEl.scrollIntoView({ block: "nearest", behavior: "auto" });
     }
   }
 
@@ -474,7 +772,7 @@ export class ArticleList {
     const targetId = `article-${article.guid}`;
     const articleEls = Array.from(
       this.container.querySelectorAll<HTMLElement>(
-        ".rss-dashboard-article-item, .rss-dashboard-article-card",
+        ".rss-dashboard-article-item, .rss-dashboard-article-card, .rss-dashboard-feed-item",
       ),
     ).filter((el) => el.id === targetId);
 
@@ -550,23 +848,31 @@ export class ArticleList {
     );
 
     const hasTags = tags.length > 0;
+    if (articleEl.classList.contains("rss-dashboard-article-card")) {
+      articleEl.classList.toggle(
+        "rss-dashboard-article-card--has-tags",
+        hasTags,
+      );
+    }
     if (!hasTags && existingContainers.length > 0) {
       existingContainers.forEach((container) => container.remove());
+      if (articleEl.classList.contains("rss-dashboard-article-card")) {
+        articleEl
+          .querySelectorAll(".rss-dashboard-card-tags-region")
+          .forEach((el) => el.remove());
+      }
+      if (articleEl.classList.contains("rss-dashboard-feed-item")) {
+        articleEl
+          .querySelectorAll(".rss-dashboard-feed-tags-region")
+          .forEach((el) => el.remove());
+      }
       return;
     }
 
     if (hasTags && existingContainers.length === 0) {
       if (articleEl.classList.contains("rss-dashboard-article-card")) {
-        const cardContent = articleEl.querySelector<HTMLElement>(
-          ".rss-dashboard-card-content",
-        );
-        if (cardContent) {
-          existingContainers.push(
-            cardContent.createDiv({
-              cls: "rss-dashboard-article-tags",
-            }),
-          );
-        }
+        const tagsContainer = this.ensureCardTagsContainer(articleEl);
+        if (tagsContainer) existingContainers.push(tagsContainer);
       } else if (
         articleEl.classList.contains("rss-dashboard-list-item-bottom-row")
       ) {
@@ -585,6 +891,9 @@ export class ArticleList {
           }
           existingContainers.push(tagContainer);
         }
+      } else if (articleEl.classList.contains("rss-dashboard-feed-item")) {
+        const tagsContainer = this.ensureFeedTagsContainer(articleEl);
+        if (tagsContainer) existingContainers.push(tagsContainer);
       } else {
         const toolbar = articleEl.querySelector<HTMLElement>(
           ".rss-dashboard-action-toolbar",
@@ -598,30 +907,28 @@ export class ArticleList {
     }
 
     existingContainers.forEach((container) => {
-      container.empty();
-      const tagsToShow = tags.slice(0, MAX_VISIBLE_TAGS);
-      tagsToShow.forEach((tag) => {
-        const tagEl = container.createDiv({
-          cls: "rss-dashboard-article-tag",
-          text: tag.name,
-        });
-        tagEl.style.setProperty(
-          "--tag-color",
-          tag.color || "var(--interactive-accent)",
-        );
-      });
-
-      if (tags.length > MAX_VISIBLE_TAGS) {
-        const overflow = container.createDiv({
-          cls: "rss-dashboard-tag-overflow",
-          text: `+${tags.length - MAX_VISIBLE_TAGS}`,
-        });
-        overflow.title = tags
-          .slice(MAX_VISIBLE_TAGS)
-          .map((t) => t.name)
-          .join(", ");
+      const isCardTagStrip = !!container.closest(
+        ".rss-dashboard-card-tags-region",
+      );
+      const isFeedTagStrip = !!container.closest(
+        ".rss-dashboard-feed-tags-region",
+      );
+      if (
+        (articleEl.classList.contains("rss-dashboard-article-card") &&
+          isCardTagStrip) ||
+        (articleEl.classList.contains("rss-dashboard-feed-item") &&
+          isFeedTagStrip)
+      ) {
+        this.renderSingleRowCardTagChips(container, tags);
+        return;
       }
+
+      this.renderTagChips(container, tags);
     });
+
+    if (articleEl.classList.contains("rss-dashboard-article-card")) {
+      this.scheduleCardTagLayout(articleEl);
+    }
   }
 
   /**
@@ -643,1119 +950,9 @@ export class ArticleList {
       const title = titleEl?.textContent?.toLowerCase() || "";
 
       if (query && !title.includes(query)) {
-        (el as HTMLElement).classList.add("search-hidden");
+        (el as HTMLElement).classList.add("rss-dashboard-search-hidden");
       } else {
-        (el as HTMLElement).classList.remove("search-hidden");
-      }
-    });
-  }
-
-  private renderHeader(): void {
-    const articlesHeader = this.container.createDiv({
-      cls: "rss-dashboard-articles-header",
-    });
-
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-    }
-
-    this.resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const width = entry.contentRect.width;
-        // Keep header actions compact on narrow panes.
-        if (width <= TABLET_LAYOUT_MAX_WIDTH) {
-          articlesHeader.classList.add("is-narrow");
-        } else {
-          articlesHeader.classList.remove("is-narrow");
-        }
-      }
-    });
-    this.resizeObserver.observe(articlesHeader);
-
-    const leftSection = articlesHeader.createDiv({
-      cls: "rss-dashboard-header-left",
-    });
-
-    const sidebarToggleButton = leftSection.createDiv({
-      cls: "rss-dashboard-sidebar-toggle",
-      attr: { title: "Toggle sidebar" },
-    });
-    setIcon(
-      sidebarToggleButton,
-      this.settings.sidebarCollapsed ? "panel-left-open" : "panel-left-close",
-    );
-    sidebarToggleButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this.callbacks.onToggleSidebar();
-    });
-
-    // Add feed logo if viewing a specific feed
-    if (this.currentFeedUrl) {
-      const feedIconContainer = leftSection.createDiv({
-        cls: "rss-dashboard-header-feed-icon",
-      });
-      this.renderHeaderFeedIcon(feedIconContainer, this.currentFeedUrl);
-    }
-
-    leftSection.createDiv({
-      cls: "rss-dashboard-articles-title",
-      text: this.title,
-    });
-
-    const rightSection = articlesHeader.createDiv({
-      cls: "rss-dashboard-header-right",
-    });
-
-    const mobileFilterButton = rightSection.createEl("button", {
-      cls: "rss-dashboard-mobile-filter-button rss-dashboard-filter-trigger",
-      attr: { title: "Filters" },
-    });
-    const mobileFilterIcon = mobileFilterButton.createDiv({
-      cls: "rss-dashboard-mobile-filter-icon",
-    });
-    setIcon(mobileFilterIcon, "filter");
-    this.updateFilterTriggerBadge(mobileFilterButton);
-    mobileFilterButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this.showFiltersMenu(mobileFilterButton);
-    });
-
-    const hamburgerMenu = rightSection.createDiv({
-      cls: "rss-dashboard-hamburger-menu",
-    });
-
-    const hamburgerButton = hamburgerMenu.createDiv({
-      cls: "rss-dashboard-hamburger-button",
-      attr: { title: "Menu" },
-    });
-    setIcon(hamburgerButton, "menu");
-    const hamburgerSvg = hamburgerButton.querySelector("svg");
-    const hasRenderableIcon = !!hamburgerSvg?.querySelector(
-      "path, line, polyline, polygon, circle, rect",
-    );
-    if (!hasRenderableIcon) {
-      hamburgerButton.addClass("rss-dashboard-icon-fallback");
-      hamburgerButton.setText("☰");
-    }
-
-    const dropdownMenu = hamburgerMenu.createDiv({
-      cls: "rss-dashboard-dropdown-menu",
-    });
-
-    const dropdownControls = dropdownMenu.createDiv({
-      cls: "rss-dashboard-dropdown-controls",
-    });
-
-    this.createControls(dropdownControls, { includeFilter: false });
-
-    const desktopControls = rightSection.createDiv({
-      cls: "rss-dashboard-desktop-controls",
-    });
-
-    this.createControls(desktopControls);
-
-    hamburgerButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      dropdownMenu.classList.toggle("active");
-      hamburgerButton.classList.toggle("active");
-    });
-
-    const handleDocumentClick = (e: Event) => {
-      const clickTarget = e.target as Node;
-      const isInsideHamburgerMenu = hamburgerMenu.contains(clickTarget);
-      const isInsideActiveFilterMenu =
-        this.activePortal?.contains(clickTarget) ?? false;
-
-      if (!isInsideHamburgerMenu && !isInsideActiveFilterMenu) {
-        dropdownMenu.classList.remove("active");
-        hamburgerButton.classList.remove("active");
-      }
-    };
-
-    this.addDocumentListener(
-      this.container.ownerDocument || document,
-      "click",
-      handleDocumentClick,
-    );
-  }
-
-  private createControls(
-    container: HTMLElement,
-    options?: { includeFilter?: boolean },
-  ): void {
-    const articleControls = container.createDiv({
-      cls: "rss-dashboard-article-controls",
-    });
-    const includeFilter = options?.includeFilter ?? true;
-
-    const isDropdown = container.classList.contains(
-      "rss-dashboard-dropdown-controls",
-    );
-
-    const createSelectControl = (
-      iconName: string,
-      classNames: string[],
-      labelText?: string,
-    ): HTMLSelectElement => {
-      const selectWrapper = articleControls.createDiv({
-        cls:
-          "rss-dashboard-select-with-icon" +
-          (!isDropdown && labelText ? " rss-dashboard-select-with-label" : ""),
-      });
-      const selectIcon = selectWrapper.createDiv({
-        cls: "rss-dashboard-select-icon",
-      });
-      setIcon(selectIcon, iconName);
-
-      if (!isDropdown && labelText) {
-        selectWrapper.createSpan({
-          cls: "rss-dashboard-select-label",
-          text: labelText,
-        });
-      }
-
-      const select = selectWrapper.createEl("select");
-      select.addClass(...classNames);
-      return select;
-    };
-
-    if (includeFilter) {
-      const multiFilterBtn = articleControls.createEl("button", {
-        cls: "rss-dashboard-multi-filter-btn rss-dashboard-filter-trigger",
-      });
-      const filterIcon = multiFilterBtn.createDiv();
-      setIcon(filterIcon, "filter");
-      multiFilterBtn.createSpan({ text: "Filter" });
-      this.updateFilterTriggerBadge(multiFilterBtn);
-
-      multiFilterBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.showFiltersMenu(multiFilterBtn);
-      });
-    }
-
-    // Article search input
-    const searchContainer = articleControls.createDiv({
-      cls: "rss-dashboard-article-search-container",
-    });
-
-    // Create search icon first (so it's absolutely positioned correctly)
-    const searchIcon = searchContainer.createDiv({
-      cls: "rss-dashboard-article-search-icon",
-    });
-    setIcon(searchIcon, "search");
-
-    const searchInput = searchContainer.createEl("input", {
-      cls: "rss-dashboard-article-search-input",
-      attr: {
-        type: "text",
-        placeholder: "Search articles...",
-        autocomplete: "off",
-        spellcheck: "false",
-      },
-    });
-
-    let clearSearchButton: HTMLButtonElement | null = null;
-    if (isDropdown) {
-      clearSearchButton = searchContainer.createEl("button", {
-        cls: "rss-dashboard-article-search-clear-button is-hidden",
-        attr: {
-          type: "button",
-          title: "Clear search",
-          "aria-label": "Clear search",
-        },
-      });
-      setIcon(clearSearchButton, "x");
-    }
-
-    // Store reference to sync between dropdown and desktop
-    if (isDropdown) {
-      this.articleSearchDropdownInput = searchInput;
-    } else {
-      this.articleSearchDesktopInput = searchInput;
-    }
-
-    let searchTimeout: number;
-    const applySearchQuery = (rawValue: string, debounce = true): void => {
-      const query = rawValue.toLowerCase().trim();
-      this.articleSearchQuery = query;
-
-      if (clearSearchButton) {
-        const hasValue = rawValue.trim().length > 0;
-        clearSearchButton.toggleClass("is-hidden", !hasValue);
-      }
-
-      // Sync the other search input if it exists
-      if (isDropdown && this.articleSearchDesktopInput) {
-        this.articleSearchDesktopInput.value = rawValue;
-      } else if (!isDropdown && this.articleSearchDropdownInput) {
-        this.articleSearchDropdownInput.value = rawValue;
-      }
-
-      if (searchTimeout) {
-        window.clearTimeout(searchTimeout);
-      }
-
-      if (!debounce) {
-        this.filterArticlesBySearch(query);
-        return;
-      }
-
-      searchTimeout = window.setTimeout(() => {
-        this.filterArticlesBySearch(query);
-      }, 150);
-    };
-
-    // Search input event handler with debouncing
-    searchInput.addEventListener("input", (e) => {
-      applySearchQuery((e.target as HTMLInputElement)?.value || "", true);
-    });
-
-    if (clearSearchButton) {
-      clearSearchButton.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        searchInput.value = "";
-        applySearchQuery("", false);
-        searchInput.focus();
-      });
-    }
-
-    // Move age filter into its own space or keep as is?
-    // For now, let's keep it but make it smaller or label it better.
-    const ageDropdown = createSelectControl(
-      "history",
-      ["rss-dashboard-filter", "rss-dashboard-age-filter"],
-      "Age:",
-    );
-    const ageOptions = {
-      All: 0,
-      "1 hour": 3600 * 1000,
-      "2 hours": 2 * 3600 * 1000,
-      "4 hours": 4 * 3600 * 1000,
-      "8 hours": 8 * 3600 * 1000,
-      "24 hours": 24 * 3600 * 1000,
-      "48 hours": 48 * 3600 * 1000,
-      "3 days": 3 * 24 * 3600 * 1000,
-      "1 week": 7 * 24 * 3600 * 1000,
-      "2 weeks": 14 * 24 * 3600 * 1000,
-      "1 month": 30 * 24 * 3600 * 1000,
-      "2 months": 60 * 24 * 3600 * 1000,
-      "6 months": 180 * 24 * 3600 * 1000,
-      "1 year": 365 * 24 * 3600 * 1000,
-    };
-
-    for (const [text, value] of Object.entries(ageOptions)) {
-      ageDropdown.createEl("option", {
-        text: text,
-        value: String(value),
-      });
-    }
-
-    const filterValue =
-      typeof this.settings.articleFilter.value === "number"
-        ? this.settings.articleFilter.value
-        : 0;
-    ageDropdown.value = String(filterValue);
-
-    ageDropdown.addEventListener("change", (e: Event) => {
-      const value = Number((e.target as HTMLSelectElement).value);
-      this.callbacks.onFilterChange({
-        type: value === 0 ? "none" : "age",
-        value: value,
-      });
-    });
-
-    const sortDropdown = createSelectControl(
-      "arrow-up-down",
-      ["rss-dashboard-sort"],
-      "Sort:",
-    );
-    sortDropdown.createEl("option", {
-      text: "Newest",
-      value: "newest",
-    });
-    sortDropdown.createEl("option", {
-      text: "Oldest",
-      value: "oldest",
-    });
-    sortDropdown.value = this.settings.articleSort;
-    sortDropdown.addEventListener("change", (e: Event) => {
-      this.callbacks.onSortChange(
-        (e.target as HTMLSelectElement).value as "newest" | "oldest",
-      );
-    });
-
-    const groupDropdown = createSelectControl(
-      "folders",
-      ["rss-dashboard-group"],
-      "Grouping:",
-    );
-    groupDropdown.createEl("option", {
-      text: "None",
-      value: "none",
-    });
-    groupDropdown.createEl("option", {
-      text: "Feed",
-      value: "feed",
-    });
-    groupDropdown.createEl("option", {
-      text: "Date",
-      value: "date",
-    });
-    groupDropdown.createEl("option", {
-      text: "Folder",
-      value: "folder",
-    });
-    groupDropdown.value = this.settings.articleGroupBy;
-    groupDropdown.addEventListener("change", (e: Event) => {
-      this.callbacks.onGroupChange(
-        (e.target as HTMLSelectElement).value as
-          | "none"
-          | "feed"
-          | "date"
-          | "folder",
-      );
-    });
-
-    const viewStyleToggle = articleControls.createDiv({
-      cls: "rss-dashboard-view-toggle",
-    });
-
-    const listViewButton = viewStyleToggle.createEl("button", {
-      cls:
-        "rss-dashboard-list-view-button" +
-        (this.settings.viewStyle === "list" ? " active" : ""),
-    });
-    const listIcon = listViewButton.createDiv();
-    setIcon(listIcon, "list");
-    listViewButton.createSpan({ text: "List" });
-
-    listViewButton.addEventListener("click", () => {
-      this.callbacks.onToggleViewStyle("list");
-    });
-
-    const cardViewButton = viewStyleToggle.createEl("button", {
-      cls:
-        "rss-dashboard-card-view-button" +
-        (this.settings.viewStyle === "card" ? " active" : ""),
-    });
-    const cardIcon = cardViewButton.createDiv();
-    setIcon(cardIcon, "layout-grid");
-    cardViewButton.createSpan({ text: "Card" });
-
-    cardViewButton.addEventListener("click", () => {
-      this.callbacks.onToggleViewStyle("card");
-    });
-
-    if (
-      isDropdown &&
-      (this.settings.viewStyle === "list" || this.isMobileViewport())
-    ) {
-      const toolbarModeRow = articleControls.createDiv({
-        cls: "rss-dashboard-toolbar-mode-row",
-      });
-      toolbarModeRow.createSpan({
-        cls: "rss-dashboard-toolbar-mode-label",
-        text: "Toolbar:",
-      });
-
-      const toolbarModeSelect = toolbarModeRow.createEl("select", {
-        cls: "rss-dashboard-toolbar-mode-select",
-        attr: { "aria-label": "Mobile toolbar mode" },
-      });
-
-      if (this.settings.viewStyle === "list") {
-        toolbarModeSelect.createEl("option", {
-          text: "2x2",
-          value: "left-grid",
-        });
-        toolbarModeSelect.createEl("option", {
-          text: "Bottom row",
-          value: "bottom-row",
-        });
-        toolbarModeSelect.createEl("option", {
-          text: "Single read/unread",
-          value: "minimal",
-        });
-        toolbarModeSelect.createEl("option", {
-          text: "None",
-          value: "none",
-        });
-        toolbarModeSelect.value = this.settings.display.mobileShowListToolbar
-          ? this.getMobileListToolbarStyle()
-          : "none";
-      } else {
-        toolbarModeSelect.createEl("option", {
-          text: "Bottom",
-          value: "bottom",
-        });
-        toolbarModeSelect.createEl("option", {
-          text: "None",
-          value: "none",
-        });
-        toolbarModeSelect.value = this.settings.display.mobileShowCardToolbar
-          ? "bottom"
-          : "none";
-      }
-
-      toolbarModeSelect.addEventListener("change", (e: Event) => {
-        const value = (e.target as HTMLSelectElement).value;
-
-        if (this.settings.viewStyle === "list") {
-          if (value === "none") {
-            this.settings.display.mobileShowListToolbar = false;
-          } else if (
-            value === "left-grid" ||
-            value === "bottom-row" ||
-            value === "minimal"
-          ) {
-            this.settings.display.mobileShowListToolbar = true;
-            this.settings.display.mobileListToolbarStyle = value;
-          }
-        } else {
-          this.settings.display.mobileShowCardToolbar = value !== "none";
-        }
-
-        this.persistSettings();
-        this.render();
-      });
-    }
-
-    if (isDropdown && this.settings.viewStyle === "card") {
-      const cardsPerRowRow = articleControls.createDiv({
-        cls: "rss-dashboard-toolbar-mode-row",
-      });
-      cardsPerRowRow.createSpan({
-        cls: "rss-dashboard-toolbar-mode-label",
-        text: "Cards / row:",
-      });
-
-      const cardsPerRowSelect = cardsPerRowRow.createEl("select", {
-        cls: "rss-dashboard-toolbar-mode-select",
-        attr: { "aria-label": "Cards per row" },
-      });
-
-      cardsPerRowSelect.createEl("option", {
-        text: "Auto",
-        value: "0",
-      });
-
-      for (const count of [1, 2, 3, 4, 5, 6]) {
-        cardsPerRowSelect.createEl("option", {
-          text: `${count}`,
-          value: String(count),
-        });
-      }
-
-      cardsPerRowSelect.value = String(this.getCardColumnsPerRow());
-
-      cardsPerRowSelect.addEventListener("change", (e: Event) => {
-        const value = Number((e.target as HTMLSelectElement).value);
-        // Shared with Display settings tab: keep this value normalized in the
-        // same range so either surface can update the same persisted field.
-        this.settings.display.cardColumnsPerRow = Number.isFinite(value)
-          ? Math.max(0, Math.min(6, Math.round(value)))
-          : 0;
-        this.persistSettings();
-        this.render();
-      });
-
-      const cardSpacingRow = articleControls.createDiv({
-        cls: "rss-dashboard-toolbar-mode-row",
-      });
-      const cardSpacingLabel = cardSpacingRow.createSpan({
-        cls: "rss-dashboard-toolbar-mode-label",
-        text: "Card spacing: 15px",
-      });
-
-      const cardSpacingSlider = cardSpacingRow.createEl("input", {
-        cls: "rss-dashboard-toolbar-mode-slider",
-        attr: {
-          type: "range",
-          min: "0",
-          max: "40",
-          step: "1",
-          "aria-label": "Card spacing",
-        },
-      });
-
-      cardSpacingSlider.value = String(this.getCardSpacing());
-      cardSpacingLabel.setText(`Card spacing: ${cardSpacingSlider.value}px`);
-
-      cardSpacingSlider.addEventListener("input", (e: Event) => {
-        const value = Number((e.target as HTMLInputElement).value);
-        const cardSpacing = Number.isFinite(value)
-          ? Math.max(0, Math.min(40, Math.round(value)))
-          : 15;
-        // Shared with Display settings tab; this drives the runtime CSS gap.
-        this.settings.display.cardSpacing = cardSpacing;
-        cardSpacingSlider.value = String(cardSpacing);
-        cardSpacingLabel.setText(`Card spacing: ${cardSpacing}px`);
-        this.persistSettings();
-        const currentArticlesList = this.container.querySelector<HTMLElement>(
-          ".rss-dashboard-articles-list.rss-dashboard-card-view",
-        );
-        currentArticlesList?.style.setProperty(
-          "--rss-dashboard-card-gap",
-          `${cardSpacing}px`,
-        );
-      });
-    }
-
-    const createRefreshButton = (
-      parentEl: HTMLElement,
-      extraClass = "",
-      storeReference = false,
-    ): void => {
-      const dashboardRefreshButton = parentEl.createEl("button", {
-        cls:
-          "rss-dashboard-refresh-button" + (extraClass ? ` ${extraClass}` : ""),
-      });
-      const refreshIcon = dashboardRefreshButton.createDiv({
-        cls: "rss-dashboard-refresh-icon",
-      });
-      setIcon(refreshIcon, "refresh-cw");
-      dashboardRefreshButton.setAttr("title", "Refresh feeds");
-
-      if (storeReference) {
-        this.refreshButton = dashboardRefreshButton;
-      }
-
-      dashboardRefreshButton.addEventListener("click", () => {
-        if (dashboardRefreshButton.classList.contains("refreshing")) return;
-        void this.handleRefreshButtonClick();
-      });
-    };
-
-    if (isDropdown) {
-      createRefreshButton(viewStyleToggle, "rss-dashboard-view-refresh-button");
-    } else {
-      createRefreshButton(articleControls, "", true);
-    }
-
-    const markAllRow = articleControls.createDiv({
-      cls: "rss-dashboard-mark-all-row",
-    });
-
-    markAllRow.createSpan({
-      cls: "rss-dashboard-mark-all-label",
-      text: "Mark all:",
-    });
-
-    const markAllButtonsContainer = markAllRow.createDiv({
-      cls: "rss-dashboard-mark-all-buttons-row",
-    });
-
-    const markAllReadButton = markAllButtonsContainer.createEl("button", {
-      cls: "rss-dashboard-mark-all-read-button rss-dashboard-mark-all-button",
-    });
-    const markReadIcon = markAllReadButton.createDiv({
-      cls: "rss-dashboard-mark-all-read-icon",
-    });
-    setIcon(markReadIcon, "check-circle");
-    markAllReadButton.createSpan({
-      cls: "rss-dashboard-mark-all-read-text",
-      text: "Read",
-    });
-    markAllReadButton.setAttr(
-      "title",
-      "Mark all articles in current view as read",
-    );
-
-    markAllReadButton.addEventListener("click", () => {
-      this.callbacks.onMarkAllAsRead?.();
-    });
-
-    const markAllUnreadButton = markAllButtonsContainer.createEl("button", {
-      cls: "rss-dashboard-mark-all-unread-button rss-dashboard-mark-all-button",
-    });
-    const markUnreadIcon = markAllUnreadButton.createDiv({
-      cls: "rss-dashboard-mark-all-unread-icon",
-    });
-    setIcon(markUnreadIcon, "circle");
-    markAllUnreadButton.createSpan({
-      cls: "rss-dashboard-mark-all-unread-text",
-      text: "Unread",
-    });
-    markAllUnreadButton.setAttr(
-      "title",
-      "Mark all articles in current view as unread",
-    );
-
-    markAllUnreadButton.addEventListener("click", () => {
-      this.callbacks.onMarkAllAsUnread?.();
-    });
-  }
-
-  private showFiltersMenu(toggleBtn: HTMLElement): void {
-    const targetDocument = toggleBtn.ownerDocument;
-    const targetBody = targetDocument.body;
-    const targetWindow = targetDocument.defaultView || window;
-
-    // Toggle close when clicking the same trigger.
-    if (this.activePortal && this.activeFilterToggleBtn === toggleBtn) {
-      this.closeActiveFilterMenu();
-      return;
-    }
-    this.closeActiveFilterMenu();
-
-    // Remove any existing menus from stale state.
-    targetDocument
-      .querySelectorAll(".rss-dashboard-filter-menu-portal")
-      .forEach((el) => el.remove());
-
-    const menuPortal = targetBody.createDiv({
-      cls: "rss-dashboard-filter-menu rss-dashboard-filter-menu-portal",
-    });
-    this.activePortal = menuPortal;
-    this.activeFilterToggleBtn = toggleBtn;
-    toggleBtn.addClass("active");
-    const pendingStatusFilters = new Set(this.statusFilters);
-    const pendingTagFilters = new Set(this.tagFilters);
-    let pendingFilterLogic: "AND" | "OR" = this.filterLogic;
-    const currentBypassAll = this.settings.filters?.bypassAll ?? false;
-    let pendingBypassAll = currentBypassAll;
-    const currentHighlightsEnabled = this.settings.highlights?.enabled ?? false;
-    let pendingHighlightsEnabled = currentHighlightsEnabled;
-    const currentStatusBarVisible =
-      this.settings.display.showFilterStatusBar ?? true;
-    let pendingStatusBarVisible = currentStatusBarVisible;
-    const removeTagSubmenus = () => {
-      menuPortal
-        .querySelectorAll(".rss-dashboard-tag-submenu")
-        .forEach((el) => el.remove());
-    };
-
-    // Logic Toggles: And / Or
-    const logicToggles = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-logic-toggles",
-    });
-
-    const andBtn = logicToggles.createEl("button", {
-      cls:
-        "rss-dashboard-filter-logic-btn" +
-        (pendingFilterLogic === "AND" ? " active" : ""),
-      text: "And",
-    });
-    const orBtn = logicToggles.createEl("button", {
-      cls:
-        "rss-dashboard-filter-logic-btn" +
-        (pendingFilterLogic === "OR" ? " active" : ""),
-      text: "Or",
-    });
-
-    andBtn.addEventListener("click", () => {
-      pendingFilterLogic = "AND";
-      andBtn.addClass("active");
-      orBtn.removeClass("active");
-    });
-
-    orBtn.addEventListener("click", () => {
-      pendingFilterLogic = "OR";
-      orBtn.addClass("active");
-      andBtn.removeClass("active");
-    });
-
-    menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
-
-    const filterOptions = [
-      { id: "unread", name: "Unread", icon: "circle" },
-      { id: "read", name: "Read", icon: "check-circle" },
-      { id: "saved", name: "Saved", icon: "save" },
-      { id: "starred", name: "Starred", icon: "star" },
-      { id: "podcasts", name: "Podcast", icon: "mic" },
-      { id: "videos", name: "Videos", icon: "play" },
-      { id: "tagged", name: "Tagged", icon: "tag" },
-    ];
-
-    filterOptions.forEach((opt) => {
-      const item = menuPortal.createDiv({
-        cls: "rss-dashboard-filter-menu-item",
-      });
-
-      const checkbox = item.createEl("input", {
-        attr: { type: "checkbox" },
-        cls: "rss-dashboard-filter-checkbox",
-      });
-      checkbox.checked = this.statusFilters.has(opt.id);
-
-      const iconDiv = item.createDiv({
-        cls: "rss-dashboard-filter-menu-icon",
-      });
-      setIcon(iconDiv, opt.icon);
-
-      item.createDiv({
-        cls: "rss-dashboard-filter-menu-text",
-        text: opt.name,
-      });
-
-      if (opt.id === "tagged") {
-        const arrow = item.createDiv({
-          cls: "rss-dashboard-filter-menu-arrow",
-        });
-        setIcon(arrow, "chevron-right");
-
-        // Submenu logic
-        item.addEventListener("mouseenter", () => {
-          this.showTagsSubMenu(item, menuPortal, pendingTagFilters);
-        });
-      } else {
-        item.addEventListener("mouseenter", () => {
-          removeTagSubmenus();
-        });
-      }
-
-      checkbox.addEventListener("change", (e) => {
-        e.stopPropagation();
-        if (checkbox.checked) {
-          pendingStatusFilters.add(opt.id);
-        } else {
-          pendingStatusFilters.delete(opt.id);
-        }
-      });
-
-      item.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (e.target !== checkbox) {
-          checkbox.checked = !checkbox.checked;
-          if (checkbox.checked) {
-            pendingStatusFilters.add(opt.id);
-          } else {
-            pendingStatusFilters.delete(opt.id);
-          }
-        }
-      });
-    });
-
-    // Add separator after filter options
-    const postFilterSeparator = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-separator",
-    });
-    postFilterSeparator.addEventListener("mouseenter", removeTagSubmenus);
-
-    const statusBarItem = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-item rss-dashboard-status-bar-toggle",
-    });
-    const statusBarCheckbox = statusBarItem.createEl("input", {
-      attr: { type: "checkbox" },
-      cls: "rss-dashboard-filter-checkbox",
-    });
-    statusBarCheckbox.checked = pendingStatusBarVisible;
-    const statusBarIconDiv = statusBarItem.createDiv({
-      cls: "rss-dashboard-filter-menu-icon",
-    });
-    setIcon(statusBarIconDiv, "info");
-    statusBarItem.createDiv({
-      cls: "rss-dashboard-filter-menu-text",
-      text: "Show Status Bar",
-    });
-    statusBarCheckbox.addEventListener("change", (e) => {
-      e.stopPropagation();
-      pendingStatusBarVisible = statusBarCheckbox.checked;
-    });
-    statusBarItem.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (e.target !== statusBarCheckbox) {
-        statusBarCheckbox.checked = !statusBarCheckbox.checked;
-        pendingStatusBarVisible = statusBarCheckbox.checked;
-      }
-    });
-    statusBarItem.addEventListener("mouseenter", removeTagSubmenus);
-
-    const postStatusBarSeparator = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-separator",
-    });
-    postStatusBarSeparator.addEventListener("mouseenter", removeTagSubmenus);
-
-    const bypassItem = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-item rss-dashboard-bypass-filters-toggle",
-    });
-    const bypassCheckbox = bypassItem.createEl("input", {
-      attr: { type: "checkbox" },
-      cls: "rss-dashboard-filter-checkbox",
-    });
-    bypassCheckbox.checked = pendingBypassAll;
-    const bypassIconDiv = bypassItem.createDiv({
-      cls: "rss-dashboard-filter-menu-icon",
-    });
-    setIcon(bypassIconDiv, "power");
-    bypassItem.createDiv({
-      cls: "rss-dashboard-filter-menu-text",
-      text: "Bypass All Filters",
-    });
-    bypassCheckbox.addEventListener("change", (e) => {
-      e.stopPropagation();
-      pendingBypassAll = bypassCheckbox.checked;
-    });
-    bypassItem.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (e.target !== bypassCheckbox) {
-        bypassCheckbox.checked = !bypassCheckbox.checked;
-        pendingBypassAll = bypassCheckbox.checked;
-      }
-    });
-    bypassItem.addEventListener("mouseenter", removeTagSubmenus);
-
-    const postBypassSeparator = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-separator",
-    });
-    postBypassSeparator.addEventListener("mouseenter", removeTagSubmenus);
-
-    // Add "Show Highlights" toggle
-    const highlightsItem = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-item rss-dashboard-highlights-toggle",
-    });
-
-    const highlightsCheckbox = highlightsItem.createEl("input", {
-      attr: { type: "checkbox" },
-      cls: "rss-dashboard-filter-checkbox",
-    });
-    highlightsCheckbox.checked = pendingHighlightsEnabled;
-
-    const highlightsIconDiv = highlightsItem.createDiv({
-      cls: "rss-dashboard-filter-menu-icon",
-    });
-    setIcon(highlightsIconDiv, "highlighter");
-
-    highlightsItem.createDiv({
-      cls: "rss-dashboard-filter-menu-text",
-      text: "Show Highlights",
-    });
-
-    highlightsCheckbox.addEventListener("change", (e) => {
-      e.stopPropagation();
-      pendingHighlightsEnabled = highlightsCheckbox.checked;
-    });
-
-    highlightsItem.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (e.target !== highlightsCheckbox) {
-        highlightsCheckbox.checked = !highlightsCheckbox.checked;
-        pendingHighlightsEnabled = highlightsCheckbox.checked;
-      }
-    });
-    highlightsItem.addEventListener("mouseenter", removeTagSubmenus);
-
-    const preApplySeparator = menuPortal.createDiv({
-      cls: "rss-dashboard-filter-menu-separator",
-    });
-    preApplySeparator.addEventListener("mouseenter", removeTagSubmenus);
-
-    const applyBtn = menuPortal.createEl("button", {
-      cls: "rss-dashboard-filter-apply-btn",
-      text: "Apply",
-    });
-    applyBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-
-      if (pendingFilterLogic !== this.filterLogic) {
-        this.callbacks.onFilterChange({
-          type: "logic",
-          value: null,
-          logic: pendingFilterLogic,
-        });
-      }
-
-      const statusKeys = new Set([
-        ...Array.from(this.statusFilters),
-        ...Array.from(pendingStatusFilters),
-      ]);
-      statusKeys.forEach((id) => {
-        const wasChecked = this.statusFilters.has(id);
-        const isChecked = pendingStatusFilters.has(id);
-        if (wasChecked !== isChecked) {
-          this.callbacks.onFilterChange({
-            type: id,
-            value: null,
-            checked: isChecked,
-          });
-        }
-      });
-
-      const tagKeys = new Set([
-        ...Array.from(this.tagFilters),
-        ...Array.from(pendingTagFilters),
-      ]);
-      tagKeys.forEach((tagName) => {
-        const wasChecked = this.tagFilters.has(tagName);
-        const isChecked = pendingTagFilters.has(tagName);
-        if (wasChecked !== isChecked) {
-          this.callbacks.onFilterChange({
-            type: tagName,
-            value: null,
-            checked: isChecked,
-            isTag: true,
-          });
-        }
-      });
-
-      if (pendingBypassAll !== currentBypassAll) {
-        void this.callbacks.onFilterChange({
-          type: "bypass-filters",
-          value: pendingBypassAll,
-          checked: pendingBypassAll,
-        });
-      }
-
-      if (pendingHighlightsEnabled !== currentHighlightsEnabled) {
-        if (!this.settings.highlights) {
-          this.settings.highlights = {
-            enabled: false,
-            defaultColor: "#ffd700",
-            highlightInContent: true,
-            highlightInTitles: true,
-            highlightInSummaries: true,
-            words: [],
-          };
-        }
-        this.settings.highlights.enabled = pendingHighlightsEnabled;
-        void this.callbacks.onFilterChange({
-          type: "highlights",
-          value: pendingHighlightsEnabled,
-          checked: pendingHighlightsEnabled,
-        });
-      }
-
-      if (pendingStatusBarVisible !== currentStatusBarVisible) {
-        void this.callbacks.onFilterChange({
-          type: "status-bar-visibility",
-          value: pendingStatusBarVisible,
-          checked: pendingStatusBarVisible,
-        });
-      }
-
-      this.closeActiveFilterMenu();
-    });
-
-    // Position the menu
-    const rect = toggleBtn.getBoundingClientRect();
-    menuPortal.style.top = `${rect.bottom + 5}px`;
-    menuPortal.style.left = `${rect.left}px`;
-    targetWindow.requestAnimationFrame(() => {
-      const menuRect = menuPortal.getBoundingClientRect();
-      const margin = 8;
-      const maxLeft = targetWindow.innerWidth - menuRect.width - margin;
-      const nextLeft = Math.max(margin, Math.min(rect.left, maxLeft));
-      menuPortal.style.left = `${nextLeft}px`;
-    });
-
-    // Close menu on click outside
-    targetWindow.setTimeout(() => {
-      if (this.activePortal !== menuPortal) {
-        return;
-      }
-
-      const handleClickOutside = (e: Event) => {
-        if (this.activePortal !== menuPortal) {
-          return;
-        }
-
-        if (
-          !menuPortal.contains(e.target as Node) &&
-          !toggleBtn.contains(e.target as Node)
-        ) {
-          this.closeActiveFilterMenu();
-        }
-      };
-
-      this.activeFilterOutsideListenerCleanup = this.addDocumentListener(
-        targetDocument,
-        "mousedown",
-        handleClickOutside,
-      );
-    }, 0);
-  }
-
-  private showTagsSubMenu(
-    parentItem: HTMLElement,
-    parentMenu: HTMLElement,
-    pendingTagFilters: Set<string>,
-  ): void {
-    // Remove existing submenus
-    parentMenu
-      .querySelectorAll(".rss-dashboard-tag-submenu")
-      .forEach((el) => el.remove());
-
-    const subMenu = parentMenu.createDiv({
-      cls: "rss-dashboard-filter-menu rss-dashboard-tag-submenu",
-    });
-
-    if (this.settings.availableTags.length === 0) {
-      subMenu.createDiv({
-        cls: "rss-dashboard-filter-menu-item empty",
-        text: "No tags available",
-      });
-    }
-
-    this.settings.availableTags.forEach((tag) => {
-      const item = subMenu.createDiv({
-        cls: "rss-dashboard-filter-menu-item",
-      });
-
-      const checkbox = item.createEl("input", {
-        attr: { type: "checkbox" },
-        cls: "rss-dashboard-filter-checkbox",
-      });
-      checkbox.checked = pendingTagFilters.has(tag.name);
-
-      const colorDot = item.createDiv({
-        cls: "rss-dashboard-tag-color-dot",
-      });
-      colorDot.style.setProperty("--tag-color", tag.color);
-
-      item.createDiv({
-        cls: "rss-dashboard-filter-menu-text",
-        text: tag.name,
-      });
-
-      checkbox.addEventListener("change", (e) => {
-        e.stopPropagation();
-        if (checkbox.checked) {
-          pendingTagFilters.add(tag.name);
-        } else {
-          pendingTagFilters.delete(tag.name);
-        }
-      });
-
-      item.addEventListener("click", (e) => {
-        if (e.target !== checkbox) {
-          checkbox.checked = !checkbox.checked;
-          if (checkbox.checked) {
-            pendingTagFilters.add(tag.name);
-          } else {
-            pendingTagFilters.delete(tag.name);
-          }
-        }
-      });
-    });
-
-    // Position the submenu using fixed viewport coordinates
-    const rect = parentItem.getBoundingClientRect();
-    const parentMenuRect = parentMenu.getBoundingClientRect();
-
-    // Start: position fixed, to the right of the parent menu
-    let subLeft = parentMenuRect.right + 4;
-    let subTop = rect.top;
-
-    subMenu.addClass("rss-dashboard-submenu-fixed");
-    subMenu.style.setProperty("--submenu-top", `${subTop}px`);
-    subMenu.style.setProperty("--submenu-left", `${subLeft}px`);
-
-    // After the browser renders it, flip left if it goes off-screen
-    requestAnimationFrame(() => {
-      const subRect = subMenu.getBoundingClientRect();
-      if (subRect.right > window.innerWidth) {
-        subMenu.style.setProperty(
-          "--submenu-left",
-          `${parentMenuRect.left - subRect.width - 4}px`,
-        );
-      }
-      if (subRect.bottom > window.innerHeight) {
-        subMenu.style.setProperty(
-          "--submenu-top",
-          `${window.innerHeight - subRect.height - 8}px`,
-        );
+        (el as HTMLElement).classList.remove("rss-dashboard-search-hidden");
       }
     });
   }
@@ -1767,17 +964,9 @@ export class ArticleList {
     if (this.settings.viewStyle === "card") {
       // Keep card layout controls in one render-time path so both hamburger
       // controls and formal settings stay in sync with the same persisted fields.
-      const cardColumns = this.getCardColumnsPerRow();
       const cardSpacing = this.getCardSpacing();
 
-      if (cardColumns > 0) {
-        articlesList.style.setProperty(
-          "grid-template-columns",
-          `repeat(${cardColumns}, minmax(0, 1fr))`,
-        );
-      } else {
-        articlesList.style.removeProperty("grid-template-columns");
-      }
+      this.applyCardGridLayout(articlesList, this.container.clientWidth);
 
       articlesList.style.setProperty(
         "--rss-dashboard-card-gap",
@@ -1815,8 +1004,11 @@ export class ArticleList {
     if (this.settings.articleGroupBy === "none") {
       if (this.settings.viewStyle === "list") {
         this.renderListView(articlesList, this.articles);
+      } else if (this.settings.viewStyle === "feed") {
+        this.renderFeedView(articlesList, this.articles);
       } else {
         this.renderCardView(articlesList, this.articles);
+        this.scheduleCardTagLayout(articlesList);
       }
     } else {
       const groupedArticles = this.groupArticles(
@@ -1831,8 +1023,11 @@ export class ArticleList {
         const groupArticles = groupedArticles[groupName];
         if (this.settings.viewStyle === "list") {
           this.renderListView(groupContainer, groupArticles);
+        } else if (this.settings.viewStyle === "feed") {
+          this.renderFeedView(groupContainer, groupArticles);
         } else {
           this.renderCardView(groupContainer, groupArticles);
+          this.scheduleCardTagLayout(groupContainer);
         }
       }
     }
@@ -1971,13 +1166,17 @@ export class ArticleList {
     article: FeedItem,
   ): void {
     const readToggle = actionToolbar.createDiv({
-      cls: `rss-dashboard-read-toggle ${article.read ? "read" : "unread"}`,
+      cls: `rss-dashboard-read-toggle clickable-icon ${article.read ? "read" : "unread"}`,
       attr: {
         title: article.read ? "Mark as unread" : "Mark as read",
+        role: "button",
+        tabindex: "0",
+        "aria-label": article.read ? "Mark as unread" : "Mark as read",
       },
     });
     setIcon(readToggle, article.read ? "check-circle" : "circle");
-    readToggle.addEventListener("click", (e) => {
+
+    const toggleRead = (e: Event) => {
       e.stopPropagation();
       const newReadState = !article.read;
       article.read = newReadState;
@@ -1985,6 +1184,14 @@ export class ArticleList {
       readToggle.classList.toggle("read", newReadState);
       readToggle.classList.toggle("unread", !newReadState);
       setIcon(readToggle, newReadState ? "check-circle" : "circle");
+    };
+
+    readToggle.addEventListener("click", toggleRead);
+    readToggle.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleRead(e);
+      }
     });
   }
 
@@ -1993,20 +1200,24 @@ export class ArticleList {
     article: FeedItem,
   ): void {
     const saveButton = actionToolbar.createDiv({
-      cls: `rss-dashboard-save-toggle ${article.saved ? "saved" : ""}`,
+      cls: `rss-dashboard-save-toggle clickable-icon ${article.saved ? "saved" : ""}`,
       attr: {
         title: article.saved
           ? "Click to open saved article"
           : this.settings.articleSaving.saveFullContent
             ? "Save full article content to notes"
             : "Save article summary to notes",
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Save article",
       },
     });
     setIcon(saveButton, "save");
     if (!saveButton.querySelector("svg")) {
       saveButton.textContent = "S";
     }
-    saveButton.addEventListener("click", (e) => {
+
+    const toggleSave = (e: Event) => {
       e.stopPropagation();
       if (article.saved) {
         if (this.callbacks.onOpenSavedArticle) {
@@ -2030,6 +1241,14 @@ export class ArticleList {
         saveButton.classList.remove("saving");
         saveButton.setAttribute("title", "Click to open saved article");
       }
+    };
+
+    saveButton.addEventListener("click", toggleSave);
+    saveButton.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleSave(e);
+      }
     });
   }
 
@@ -2038,11 +1257,14 @@ export class ArticleList {
     article: FeedItem,
   ): void {
     const starToggle = actionToolbar.createDiv({
-      cls: `rss-dashboard-star-toggle ${article.starred ? "starred" : "unstarred"}`,
+      cls: `rss-dashboard-star-toggle clickable-icon ${article.starred ? "starred" : "unstarred"}`,
       attr: {
         title: article.starred
           ? "Remove from starred items"
           : "Add to starred items",
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Toggle star",
       },
     });
     const starIcon = starToggle.createSpan({
@@ -2053,7 +1275,8 @@ export class ArticleList {
     if (!starIcon.querySelector("svg")) {
       starIcon.textContent = article.starred ? "*" : "o";
     }
-    starToggle.addEventListener("click", (e) => {
+
+    const toggleStar = (e: Event) => {
       e.stopPropagation();
       const newStarState = !article.starred;
       article.starred = newStarState;
@@ -2067,6 +1290,14 @@ export class ArticleList {
           iconEl.textContent = newStarState ? "*" : "o";
         }
       }
+    };
+
+    starToggle.addEventListener("click", toggleStar);
+    starToggle.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleStar(e);
+      }
     });
   }
 
@@ -2078,65 +1309,80 @@ export class ArticleList {
       cls: "rss-dashboard-tags-dropdown",
     });
     const tagsToggle = tagsDropdown.createDiv({
-      cls: "rss-dashboard-tags-toggle",
-      attr: { title: "Manage tags" },
+      cls: "rss-dashboard-tags-toggle clickable-icon",
+      attr: {
+        title: "Manage tags",
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Manage tags",
+      },
     });
     setIcon(tagsToggle, "tag");
     tagsToggle.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.createPortalDropdown(tagsToggle, article, (tag, checked) => {
-        if (!article.tags) article.tags = [];
-        if (checked) {
-          if (!article.tags.some((t) => t.name === tag.name)) {
-            article.tags.push({ ...tag });
-          }
-        } else {
-          article.tags = article.tags.filter((t) => t.name !== tag.name);
+      this.showTagsDropdownPortal(tagsToggle, article);
+    });
+    tagsToggle.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        this.showTagsDropdownPortal(tagsToggle, article);
+      }
+    });
+  }
+
+  private showTagsDropdownPortal(anchor: HTMLElement, article: FeedItem): void {
+    this.createPortalDropdown(anchor, article, (tag, checked) => {
+      if (!article.tags) article.tags = [];
+      if (checked) {
+        if (!article.tags.some((t) => t.name === tag.name)) {
+          article.tags.push({ ...tag });
         }
+      } else {
+        article.tags = article.tags.filter((t) => t.name !== tag.name);
+      }
 
-        const index = this.articles.findIndex((a) => a.guid === article.guid);
-        if (index !== -1) {
-          this.articles[index] = { ...article };
-        }
+      const index = this.articles.findIndex((a) => a.guid === article.guid);
+      if (index !== -1) {
+        this.articles[index] = { ...article };
+      }
 
-        this.callbacks.onArticleUpdate(
-          article,
-          { tags: [...article.tags] },
-          false,
-        );
+      this.callbacks.onArticleUpdate(
+        article,
+        { tags: [...article.tags] },
+        false,
+      );
 
-        let articleEl = this.container.querySelector(
-          `[id="article-${article.guid}"]`,
+      let articleEl = this.container.querySelector(
+        `[id="article-${article.guid}"]`,
+      ) as HTMLElement;
+      if (!articleEl) {
+        articleEl = this.container
+          .closest(".rss-dashboard-container")
+          ?.querySelector(`[id="article-${article.guid}"]`) as HTMLElement;
+      }
+      if (!articleEl) {
+        articleEl = document.getElementById(
+          `article-${article.guid}`,
         ) as HTMLElement;
-        if (!articleEl) {
-          articleEl = this.container
-            .closest(".rss-dashboard-container")
-            ?.querySelector(`[id="article-${article.guid}"]`) as HTMLElement;
-        }
-        if (!articleEl) {
-          articleEl = document.getElementById(
-            `article-${article.guid}`,
-          ) as HTMLElement;
-        }
-        if (articleEl) {
-          articleEl.classList.add("rss-dashboard-tag-change-feedback");
-          window.setTimeout(() => {
-            articleEl.classList.remove("rss-dashboard-tag-change-feedback");
-          }, 200);
-          this.syncArticleTags(articleEl, article);
-          void articleEl.offsetHeight;
-        } else {
-          const tempIndicator = document.body.createDiv({
-            cls: "rss-dashboard-tag-change-notification",
-            text: `Tag "${tag.name}" ${checked ? "added" : "removed"}`,
-          });
-          window.setTimeout(() => {
-            if (tempIndicator.parentNode) {
-              tempIndicator.parentNode.removeChild(tempIndicator);
-            }
-          }, 1500);
-        }
-      });
+      }
+      if (articleEl) {
+        articleEl.classList.add("rss-dashboard-tag-change-feedback");
+        window.setTimeout(() => {
+          articleEl.classList.remove("rss-dashboard-tag-change-feedback");
+        }, 200);
+        this.syncArticleTags(articleEl, article);
+        void articleEl.offsetHeight;
+      } else {
+        const tempIndicator = document.body.createDiv({
+          cls: "rss-dashboard-tag-change-notification",
+          text: `Tag "${tag.name}" ${checked ? "added" : "removed"}`,
+        });
+        window.setTimeout(() => {
+          if (tempIndicator.parentNode) {
+            tempIndicator.parentNode.removeChild(tempIndicator);
+          }
+        }, 1500);
+      }
     });
   }
 
@@ -2152,6 +1398,168 @@ export class ArticleList {
     this.createSaveButton(actionToolbar, article);
     this.createStarToggle(actionToolbar, article);
     this.createTagsToggle(actionToolbar, article);
+  }
+
+  private renderFeedView(container: HTMLElement, articles: FeedItem[]): void {
+    for (const article of articles) {
+      const hasTags = !!article.tags?.length;
+      const feedItem = container.createDiv({
+        cls:
+          "rss-dashboard-feed-item" +
+          (this.selectedArticle && article.guid === this.selectedArticle.guid
+            ? " active"
+            : "") +
+          (article.read ? " read" : " unread") +
+          (article.saved ? " saved" : "") +
+          (article.mediaType === "video"
+            ? " rss-dashboard-youtube-article"
+            : "") +
+          (article.mediaType === "podcast"
+            ? " rss-dashboard-podcast-article"
+            : ""),
+        attr: {
+          id: `article-${article.guid}`,
+          "data-article-guid": article.guid,
+        },
+      });
+
+      const feedContent = feedItem.createDiv({
+        cls: "rss-dashboard-feed-content",
+      });
+
+      // 1. Preview Image (Hero)
+      let coverImgSrc = article.image || article.coverImage;
+      if (!coverImgSrc && article.content) {
+        const extracted = extractFirstImageSrc(article.content);
+        if (extracted) coverImgSrc = extracted;
+      }
+      if (!coverImgSrc && article.summary) {
+        const extracted = extractFirstImageSrc(article.summary);
+        if (extracted) coverImgSrc = extracted;
+      }
+      if (
+        !coverImgSrc &&
+        article.enclosure?.type?.startsWith("image/") &&
+        article.enclosure?.url
+      ) {
+        coverImgSrc = article.enclosure.url;
+      }
+
+      if (coverImgSrc) {
+        const previewRegion = feedContent.createDiv({
+          cls: "rss-dashboard-feed-preview-region",
+        });
+        // Blurred background for premium look and to handle small/varying aspect ratio images
+        previewRegion.createDiv({
+          cls: "rss-dashboard-feed-hero-blur",
+          attr: {
+            style: `background-image: url('${coverImgSrc}')`,
+          },
+        });
+        previewRegion.createEl("img", {
+          cls: "rss-dashboard-feed-hero-image",
+          attr: {
+            src: coverImgSrc,
+            alt: article.title,
+            loading: "lazy",
+          },
+        });
+      }
+
+      const textRegion = feedContent.createDiv({
+        cls: "rss-dashboard-feed-text-region",
+      });
+
+      // 2. Title and Source
+      const header = textRegion.createDiv({
+        cls: "rss-dashboard-feed-header",
+      });
+
+      const titleEl = header.createDiv({
+        cls: "rss-dashboard-article-title",
+      });
+
+      if (
+        this.settings.highlights?.enabled &&
+        this.settings.highlights.highlightInTitles
+      ) {
+        const highlightService = new HighlightService(this.settings.highlights);
+        highlightService.setHighlightedText(titleEl, article.title);
+      } else {
+        titleEl.textContent = article.title;
+      }
+
+      if (this.showFeedSource) {
+        const articleMeta = header.createDiv({
+          cls: "rss-dashboard-article-meta",
+        });
+        const feedContainer = articleMeta.createDiv({
+          cls: "rss-dashboard-article-feed-container",
+        });
+        this.renderFeedIcon(feedContainer, article.feedUrl, article.mediaType);
+        feedContainer.createDiv({
+          cls: "rss-dashboard-article-feed",
+          text: article.feedTitle,
+          attr: { title: article.feedTitle },
+        });
+      }
+
+      // 3. Clamped Summary/Content
+      if (article.summary || article.content) {
+        const summaryEl = textRegion.createDiv({
+          cls: "rss-dashboard-feed-summary",
+        });
+        const textToDisplay = article.summary || article.content || "";
+
+        if (
+          this.settings.highlights?.enabled &&
+          this.settings.highlights.highlightInSummaries
+        ) {
+          const highlightService = new HighlightService(
+            this.settings.highlights,
+          );
+          highlightService.setHighlightedText(summaryEl, textToDisplay);
+        } else {
+          summaryEl.textContent = textToDisplay;
+        }
+      }
+
+      // 4. Tags
+      if (hasTags) {
+        const tagsRegion = feedItem.createDiv({
+          cls: "rss-dashboard-feed-tags-region",
+        });
+        const tagsContainer = tagsRegion.createDiv({
+          cls: "rss-dashboard-article-tags",
+        });
+        this.renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
+      }
+
+      // 5. Toolbar
+      const feedFooter = feedItem.createEl("footer", {
+        cls: "rss-dashboard-feed-footer",
+      });
+      const actionToolbar = feedFooter.createDiv({
+        cls: "rss-dashboard-action-toolbar rss-dashboard-feed-toolbar",
+      });
+      this.createArticleActionButtons(actionToolbar, article, "full");
+
+      const dateEl = actionToolbar.createDiv({
+        cls: "rss-dashboard-article-date",
+      });
+      const dateInfo = formatDateWithRelative(article.pubDate);
+      dateEl.textContent = dateInfo.text;
+      dateEl.setAttribute("title", dateInfo.title);
+
+      feedItem.addEventListener("click", () => {
+        this.callbacks.onArticleClick(article);
+      });
+
+      feedItem.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        this.showArticleContextMenu(e, article);
+      });
+    }
   }
 
   private renderListView(container: HTMLElement, articles: FeedItem[]): void {
@@ -2291,9 +1699,11 @@ export class ArticleList {
 
   private renderCardView(container: HTMLElement, articles: FeedItem[]): void {
     for (const article of articles) {
+      const hasTags = !!article.tags?.length;
       const card = container.createDiv({
         cls:
           "rss-dashboard-article-card" +
+          (hasTags ? " rss-dashboard-article-card--has-tags" : "") +
           (this.selectedArticle && article.guid === this.selectedArticle.guid
             ? " active"
             : "") +
@@ -2305,14 +1715,21 @@ export class ArticleList {
           (article.mediaType === "podcast"
             ? " rss-dashboard-podcast-article"
             : ""),
-        attr: { id: `article-${article.guid}` },
+        attr: {
+          id: `article-${article.guid}`,
+          "data-article-guid": article.guid,
+        },
       });
 
       const cardContent = card.createDiv({
         cls: "rss-dashboard-card-content",
       });
 
-      const cardTitleEl = cardContent.createDiv({
+      const cardHeader = cardContent.createDiv({
+        cls: "rss-dashboard-card-header",
+      });
+
+      const cardTitleEl = cardHeader.createDiv({
         cls: "rss-dashboard-article-title",
       });
 
@@ -2327,7 +1744,7 @@ export class ArticleList {
       }
 
       if (this.showFeedSource) {
-        const articleMeta = cardContent.createDiv({
+        const articleMeta = cardHeader.createDiv({
           cls: "rss-dashboard-article-meta",
         });
 
@@ -2361,7 +1778,10 @@ export class ArticleList {
       }
 
       if (coverImgSrc) {
-        const coverContainer = cardContent.createDiv({
+        const previewRegion = cardContent.createDiv({
+          cls: "rss-dashboard-card-preview-region",
+        });
+        const coverContainer = previewRegion.createDiv({
           cls:
             "rss-dashboard-cover-container" +
             (article.summary ? " has-summary" : ""),
@@ -2374,7 +1794,8 @@ export class ArticleList {
           },
         });
         coverImg.onerror = () => {
-          coverContainer.remove();
+          previewRegion.remove();
+          this.scheduleCardTagLayout(card);
         };
 
         if (article.summary) {
@@ -2397,7 +1818,10 @@ export class ArticleList {
           }
         }
       } else if (article.summary) {
-        const summaryOnlyContainer = cardContent.createDiv({
+        const previewRegion = cardContent.createDiv({
+          cls: "rss-dashboard-card-preview-region",
+        });
+        const summaryOnlyContainer = previewRegion.createDiv({
           cls: "rss-dashboard-cover-summary-only",
         });
         if (
@@ -2416,28 +1840,14 @@ export class ArticleList {
         }
       }
 
-      if (article.tags && article.tags.length > 0) {
-        const tagsContainer = cardContent.createDiv({
+      if (hasTags) {
+        const tagsRegion = document.createElement("div");
+        tagsRegion.className = "rss-dashboard-card-tags-region";
+        const tagsContainer = tagsRegion.createDiv({
           cls: "rss-dashboard-article-tags",
         });
-        const tagsToShow = article.tags.slice(0, MAX_VISIBLE_TAGS);
-        tagsToShow.forEach((tag) => {
-          const tagEl = tagsContainer.createDiv({
-            cls: "rss-dashboard-article-tag",
-            text: tag.name,
-          });
-          tagEl.style.setProperty("--tag-color", tag.color);
-        });
-        if (article.tags.length > MAX_VISIBLE_TAGS) {
-          const overflowTag = tagsContainer.createDiv({
-            cls: "rss-dashboard-tag-overflow",
-            text: `+${article.tags.length - MAX_VISIBLE_TAGS}`,
-          });
-          overflowTag.title = article.tags
-            .slice(MAX_VISIBLE_TAGS)
-            .map((t) => t.name)
-            .join(", ");
-        }
+        this.renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
+        card.appendChild(tagsRegion);
       }
 
       if (this.shouldShowToolbarForView("card")) {
@@ -2465,6 +1875,8 @@ export class ArticleList {
         e.preventDefault();
         this.showArticleContextMenu(e, article);
       });
+
+      this.scheduleCardTagLayout(card);
     }
   }
   private renderPagination(
@@ -2485,9 +1897,9 @@ export class ArticleList {
     prevButton.disabled = currentPage === 1;
     prevButton.onclick = () => this.callbacks.onPageChange(currentPage - 1);
 
-    const maxPagesToShow = 7;
-    let startPage = Math.max(1, currentPage - 3);
-    let endPage = Math.min(totalPages, currentPage + 3);
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, currentPage + 2);
     if (endPage - startPage < maxPagesToShow - 1) {
       if (startPage === 1) {
         endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
@@ -2524,13 +1936,48 @@ export class ArticleList {
     nextButton.disabled = currentPage === totalPages;
     nextButton.onclick = () => this.callbacks.onPageChange(currentPage + 1);
 
+    const markPageReadButton = paginationContainer.createEl("button", {
+      cls: "rss-dashboard-pagination-btn rss-dashboard-pagination-mark-page-read",
+      text: "Mark page read",
+    });
+    markPageReadButton.onclick = () => {
+      if (this.callbacks.onMarkPageAsRead) {
+        this.callbacks.onMarkPageAsRead();
+      } else {
+        let changedCount = 0;
+        this.articles.forEach((article) => {
+          if (!article.read) {
+            article.read = true;
+            changedCount++;
+          }
+        });
+
+        if (changedCount > 0) {
+          if (this.callbacks.onPersistSettings) {
+            void this.callbacks.onPersistSettings();
+          }
+          this.render();
+        } else {
+          new Notice("No unread items on current page");
+        }
+      }
+    };
+
     const pageSizeDropdown = paginationContainer.createEl("select", {
       cls: "rss-dashboard-page-size-dropdown",
     });
-    const pageSizeOptions = [10, 20, 40, 50, 60, 80, 100];
-    for (const size of pageSizeOptions) {
+    for (const size of getPageSizeOptions(pageSize)) {
+      const isStandardOption = PAGE_SIZE_OPTIONS.includes(
+        size as (typeof PAGE_SIZE_OPTIONS)[number],
+      );
+      const label =
+        size === 0
+          ? "All"
+          : isStandardOption
+            ? String(size)
+            : `Current (${size})`;
       const opt = pageSizeDropdown.createEl("option", {
-        text: String(size),
+        text: label,
         value: String(size),
       });
       if (size === pageSize) opt.selected = true;
@@ -2540,8 +1987,11 @@ export class ArticleList {
       this.callbacks.onPageSizeChange(size);
     };
 
-    const startIdx = (currentPage - 1) * pageSize + 1;
-    const endIdx = Math.min(currentPage * pageSize, totalArticles);
+    const { start: startIdx, end: endIdx } = computeResultsRange({
+      totalItems: totalArticles,
+      pageSize,
+      currentPage,
+    });
     paginationContainer.createEl("span", {
       cls: "rss-dashboard-pagination-results",
       text: `Results: ${startIdx} - ${endIdx} of ${totalArticles}`,
@@ -2595,7 +2045,7 @@ export class ArticleList {
     menu.addItem((item: MenuItem) => {
       item
         .setTitle("Open in browser")
-        .setIcon("globe-2")
+        .setIcon("external-link")
         .onClick(() => {
           window.open(article.link, "_blank");
         });
@@ -2667,343 +2117,25 @@ export class ArticleList {
       this.tagsDropdownCleanup = null;
     }
 
-    const targetDocument = toggleElement.ownerDocument;
-    const targetBody = targetDocument.body;
-    const targetWindow = targetDocument.defaultView || window;
-    const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
-
-    targetDocument
-      .querySelectorAll(
-        ".rss-dashboard-tags-dropdown-content-portal, .rss-dashboard-tags-sheet-backdrop",
-      )
-      .forEach((el) => {
-        (el as HTMLElement).parentNode?.removeChild(el);
-      });
-
-    const sheetBackdrop = isMobile
-      ? targetBody.createDiv({
-          cls: "rss-dashboard-tags-sheet-backdrop",
-        })
-      : null;
-
-    const portalDropdown = targetBody.createDiv({
-      cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal",
+    const cleanup = createTagsDropdownPortal({
+      anchor: toggleElement,
+      settings: this.settings,
+      item: article,
+      onTagAssignmentChange: onTagChange,
+      onPersistSettings: () => this.persistSettings(),
+      onAfterSettingsTagsMutated: () => {
+        this.refreshVisibleArticleTags();
+        this.callbacks.onTagsMutated?.();
+      },
+      onOpenTagsSettings: this.callbacks.onOpenTagsSettings,
+      appContainer: this.container,
+      onClosed: () => {
+        if (this.tagsDropdownCleanup === cleanup) {
+          this.tagsDropdownCleanup = null;
+        }
+      },
     });
-    if (isMobile) {
-      portalDropdown.addClass("rss-dashboard-tags-mobile-sheet");
-      const sheetHeader = portalDropdown.createDiv({
-        cls: "rss-dashboard-tags-sheet-header",
-      });
-      sheetHeader.createDiv({
-        cls: "rss-dashboard-tags-sheet-title",
-        text: "Manage tags",
-      });
-      const sheetActions = sheetHeader.createDiv({
-        cls: "rss-dashboard-tags-sheet-actions",
-      });
-      const addTagBtn = sheetActions.createEl("button", {
-        cls: "rss-dashboard-tags-sheet-btn",
-        text: "Add tag",
-      });
-      setIcon(addTagBtn, "plus");
-      addTagBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (this.tagsDropdownCleanup) {
-          this.tagsDropdownCleanup();
-        }
-        const result = this.callbacks.onOpenTagsSettings?.();
-        if (result instanceof Promise) {
-          void result;
-        }
-      });
-      const doneBtn = sheetActions.createEl("button", {
-        cls: "rss-dashboard-tags-sheet-btn rss-dashboard-tags-sheet-btn-done",
-        text: "Done",
-      });
-      doneBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (this.tagsDropdownCleanup) {
-          this.tagsDropdownCleanup();
-        }
-      });
-    }
-    const tagsListContainer = portalDropdown.createDiv({
-      cls: "rss-dashboard-tag-list",
-    });
-    const tagSeparator = portalDropdown.createDiv({
-      cls: "rss-dashboard-tag-item-separator",
-    });
-
-    const updateTagSeparatorVisibility = () => {
-      const hasTags = this.settings.availableTags.length > 0;
-      tagSeparator.style.display = hasTags ? "" : "none";
-    };
-
-    const deleteTagFromProfile = (tag: Tag) => {
-      const tagIndex = this.settings.availableTags.findIndex(
-        (t) => t.name === tag.name,
-      );
-      if (tagIndex === -1) {
-        return;
-      }
-
-      this.settings.availableTags.splice(tagIndex, 1);
-      this.settings.feeds.forEach((feed) => {
-        feed.items.forEach((item) => {
-          if (item.tags) {
-            item.tags = item.tags.filter((t) => t.name !== tag.name);
-          }
-        });
-      });
-
-      if (article.tags?.some((t) => t.name === tag.name)) {
-        onTagChange(tag, false);
-      }
-
-      this.persistSettings();
-      new Notice(`Tag "${tag.name}" deleted successfully!`);
-      updateTagSeparatorVisibility();
-    };
-
-    const appendTagItem = (tag: Tag, checkedOverride?: boolean) => {
-      const tagItem = tagsListContainer.createDiv({
-        cls: "rss-dashboard-tag-item",
-      });
-      const hasTag =
-        checkedOverride ??
-        (article.tags?.some((t) => t.name === tag.name) || false);
-
-      const tagCheckbox = tagItem.createEl("input", {
-        attr: { type: "checkbox" },
-        cls: "rss-dashboard-tag-checkbox",
-      });
-      tagCheckbox.checked = hasTag;
-
-      const tagLabel = tagItem.createDiv({
-        cls: "rss-dashboard-tag-label",
-        text: tag.name,
-      });
-      tagLabel.style.setProperty("--tag-color", tag.color);
-      const deleteButton = tagItem.createEl("button", {
-        cls: "rss-dashboard-tag-delete-button",
-        attr: { title: `Delete "${tag.name}" tag`, "aria-label": "Delete tag" },
-      });
-      setIcon(deleteButton, "trash");
-
-      tagCheckbox.addEventListener("change", (e) => {
-        e.stopPropagation();
-        const isChecked = (e.target as HTMLInputElement).checked;
-
-        tagCheckbox.checked = isChecked;
-
-        tagItem.classList.add("rss-dashboard-tag-item-processing");
-
-        onTagChange(tag, isChecked);
-
-        window.setTimeout(() => {
-          tagItem.classList.remove("rss-dashboard-tag-item-processing");
-        }, 200);
-      });
-
-      deleteButton.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        deleteTagFromProfile(tag);
-        tagItem.remove();
-      });
-
-      tagItem.appendChild(tagCheckbox);
-      tagItem.appendChild(tagLabel);
-      tagItem.appendChild(deleteButton);
-    };
-
-    for (const tag of this.settings.availableTags) {
-      appendTagItem(tag);
-    }
-    updateTagSeparatorVisibility();
-
-    if (!isMobile) {
-      const inlineAddRow = portalDropdown.createDiv({
-        cls: "rss-dashboard-tag-inline-add-row",
-      });
-
-      const colorInput = inlineAddRow.createEl("input", {
-        attr: {
-          type: "color",
-          value: "#3498db",
-        },
-        cls: "rss-dashboard-tag-inline-color",
-      });
-
-      const nameInput = inlineAddRow.createEl("input", {
-        attr: {
-          type: "text",
-          placeholder: "Add new tag...",
-          autocomplete: "off",
-        },
-        cls: "rss-dashboard-tag-inline-input",
-      });
-      nameInput.spellcheck = false;
-
-      const addButton = inlineAddRow.createEl("button", {
-        cls: "rss-dashboard-tag-inline-button",
-        attr: { title: "Add tag" },
-      });
-      setIcon(addButton, "plus");
-
-      const submitInlineTag = () => {
-        const tagName = nameInput.value.trim();
-        const tagColor = colorInput.value;
-
-        if (!tagName) {
-          new Notice("Please enter a tag name!");
-          return;
-        }
-
-        if (
-          this.settings.availableTags.some(
-            (tag) => tag.name.toLowerCase() === tagName.toLowerCase(),
-          )
-        ) {
-          new Notice("A tag with this name already exists!");
-          return;
-        }
-
-        const newTag: Tag = {
-          name: tagName,
-          color: tagColor,
-        };
-
-        this.settings.availableTags.push(newTag);
-        this.persistSettings();
-        onTagChange(newTag, true);
-        appendTagItem(newTag, true);
-
-        nameInput.value = "";
-        requestAnimationFrame(() => nameInput.focus());
-        new Notice(`Tag "${tagName}" added`);
-      };
-
-      addButton.addEventListener("click", (e) => {
-        e.stopPropagation();
-        submitInlineTag();
-      });
-
-      nameInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          e.stopPropagation();
-          submitInlineTag();
-        }
-      });
-    } // end !isMobile
-
-    targetBody.appendChild(portalDropdown);
-    portalDropdown.addClass("rss-dashboard-tags-dropdown-content-portal");
-
-    let removeDesktopListener: (() => void) | null = null;
-    let removeViewportListener: (() => void) | null = null;
-    let isClosed = false;
-
-    const closeDropdown = () => {
-      if (isClosed) {
-        return;
-      }
-      isClosed = true;
-      portalDropdown.remove();
-      sheetBackdrop?.remove();
-      removeDesktopListener?.();
-      removeDesktopListener = null;
-      removeViewportListener?.();
-      removeViewportListener = null;
-      if (this.tagsDropdownCleanup === closeDropdown) {
-        this.tagsDropdownCleanup = null;
-      }
-    };
-    this.tagsDropdownCleanup = closeDropdown;
-
-    if (isMobile) {
-      const syncMobileViewportHeight = () => {
-        const vvp = targetWindow.visualViewport;
-        const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
-        portalDropdown.style.setProperty(
-          "max-height",
-          `${viewportHeight - 16}px`,
-          "important",
-        );
-      };
-      syncMobileViewportHeight();
-
-      const visualViewport = targetWindow.visualViewport;
-      if (visualViewport) {
-        visualViewport.addEventListener("resize", syncMobileViewportHeight);
-        visualViewport.addEventListener("scroll", syncMobileViewportHeight);
-        removeViewportListener = () => {
-          visualViewport.removeEventListener(
-            "resize",
-            syncMobileViewportHeight,
-          );
-          visualViewport.removeEventListener(
-            "scroll",
-            syncMobileViewportHeight,
-          );
-        };
-      } else {
-        targetWindow.addEventListener("resize", syncMobileViewportHeight);
-        removeViewportListener = () => {
-          targetWindow.removeEventListener("resize", syncMobileViewportHeight);
-        };
-      }
-
-      if (sheetBackdrop) {
-        sheetBackdrop.addEventListener("click", () => {
-          closeDropdown();
-        });
-      }
-
-      return;
-    }
-
-    const rect = toggleElement.getBoundingClientRect();
-    const dropdownRect = portalDropdown.getBoundingClientRect();
-    const appContainer =
-      this.container.closest(".workspace-leaf-content") || targetBody;
-    const appContainerRect = appContainer.getBoundingClientRect();
-
-    let left = rect.right;
-    let top = rect.top;
-
-    if (left + dropdownRect.width > appContainerRect.right) {
-      left = rect.left - dropdownRect.width;
-    }
-
-    if (left < appContainerRect.left) {
-      left = appContainerRect.left;
-    }
-
-    if (top + dropdownRect.height > targetWindow.innerHeight) {
-      top = targetWindow.innerHeight - dropdownRect.height - 5;
-    }
-
-    portalDropdown.style.left = `${left}px`;
-    portalDropdown.style.top = `${top}px`;
-
-    targetWindow.setTimeout(() => {
-      if (isClosed) {
-        return;
-      }
-      const handleClickOutside = (ev: MouseEvent) => {
-        if (portalDropdown && !portalDropdown.contains(ev.target as Node)) {
-          closeDropdown();
-        }
-      };
-      targetDocument.addEventListener("mousedown", handleClickOutside);
-      removeDesktopListener = () => {
-        targetDocument.removeEventListener("mousedown", handleClickOutside);
-      };
-    }, 0);
+    this.tagsDropdownCleanup = cleanup;
   }
 
   updateRefreshButtonText(text: string): void {

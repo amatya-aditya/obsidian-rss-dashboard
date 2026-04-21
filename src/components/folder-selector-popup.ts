@@ -1,6 +1,6 @@
 import { setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
-import type { Folder } from "../types/types";
+import { collectFolderPaths } from "../utils/folder-paths";
 
 export interface FolderSelectorOptions {
   /** The element to position the popup relative to */
@@ -44,7 +44,7 @@ export class FolderSelectorPopup {
     this.onClose = options.onClose;
     this.defaultFolder = options.defaultFolder;
     this.listOnly = options.listOnly ?? false;
-    this.folders = this.collectAllFolders(plugin.settings.folders);
+    this.folders = collectFolderPaths(plugin.settings.folders, { sort: true });
     this.filteredFolders = this.getPrioritizedFolders(options.defaultFolder);
 
     this.popupEl = this.createPopup(
@@ -64,21 +64,6 @@ export class FolderSelectorPopup {
         this.inputEl?.focus();
       }, 0);
     }
-  }
-
-  /**
-   * Collects all folder paths from the folder tree
-   */
-  private collectAllFolders(folders: Folder[], base = ""): string[] {
-    let paths: string[] = [];
-    for (const f of folders) {
-      const path = base ? `${base}/${f.name}` : f.name;
-      paths.push(path);
-      if (f.subfolders && f.subfolders.length > 0) {
-        paths = paths.concat(this.collectAllFolders(f.subfolders, path));
-      }
-    }
-    return paths.sort((a, b) => a.localeCompare(b));
   }
 
   /**
@@ -476,7 +461,9 @@ export class FolderSelectorPopup {
    * Updates the folder list (useful if folders changed externally)
    */
   updateFolders(): void {
-    this.folders = this.collectAllFolders(this.plugin.settings.folders);
+    this.folders = collectFolderPaths(this.plugin.settings.folders, {
+      sort: true,
+    });
     this.filterFolders(this.inputEl?.value || "");
   }
 }

@@ -93,6 +93,10 @@
 		);
 }
 
+.rss-dashboard-tags-mobile-sheet .rss-dashboard-tag-edit-button {
+	display: none;
+}
+
 .rss-dashboard-tags-sheet-header {
 	display: flex;
 	align-items: center;
@@ -298,6 +302,26 @@
 .rss-dashboard-filter-menu-text {
 	flex-grow: 1;
 	font-size: 13px;
+}
+
+.rss-dashboard-filter-menu-item.is-active {
+	background-color: var(--background-modifier-hover);
+	color: var(--interactive-accent);
+}
+
+.rss-dashboard-filter-menu-check {
+	width: 20px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--interactive-accent);
+	flex-shrink: 0;
+}
+
+.rss-dashboard-filter-menu-check svg {
+	width: 14px;
+	height: 14px;
 }
 
 .rss-dashboard-bypass-filters-toggle .rss-dashboard-filter-menu-icon {

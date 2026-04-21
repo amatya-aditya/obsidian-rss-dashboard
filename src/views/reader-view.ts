@@ -5,26 +5,35 @@ import {
   MenuItem,
   App,
   Setting,
+  requireApiVersion,
+  TFile,
   Notice,
 } from "obsidian";
 import { setIcon } from "obsidian";
 import {
-  FeedItem,
   RssDashboardSettings,
+  FeedItem,
+  ReaderFormatSettings,
+  DEFAULT_SETTINGS,
   ArticleSavingSettings,
   Tag,
 } from "../types/types";
-import { MediaService } from "../services/media-service";
-import { ArticleSaver } from "../services/article-saver";
-import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { HighlightService } from "../services/highlight-service";
+import { ArticleSaver } from "../services/article-saver";
+import { setCssProps } from "../utils/platform-utils";
+import { fetchWithProxyFallback } from "../utils/fetch-helpers";
+import TurndownService from "turndown";
+import { WebViewerIntegration } from "../services/web-viewer-integration";
+import { MediaService } from "../services/media-service";
+import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import { resolveItemExternalUrl } from "../utils/item-url-utils";
+import { resolvePodcastOpenDestinations } from "../utils/podcast-open-destinations";
+import { resolveApplePodcastsShowUrl } from "../services/apple-podcasts-service";
+import { createReaderFormatPortal } from "../utils/reader-format-portal";
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
-import { requestUrl } from "obsidian";
-import { Readability } from "@mozilla/readability";
-import TurndownService from "turndown";
-import { ensureUtf8Meta } from "../utils/platform-utils";
 import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
+import { VaultFolderSuggest } from "../components/folder-suggest";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
@@ -45,34 +54,39 @@ export class ReaderView extends ItemView {
   private videoPlayer: VideoPlayer | null = null;
   private relatedItems: FeedItem[] = [];
   private currentFullContent?: string;
+  private currentDisplayTitle?: string;
+  private currentReaderTitle?: string;
+  private currentContentIsFullArticle = false;
   private turndownService = new TurndownService();
   private readToggleButton: HTMLElement | null = null;
   private starToggleButton: HTMLElement | null = null;
+  private saveButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
-  private tagsDropdownPortal: HTMLElement | null = null;
-  private tagsDropdownBackdrop: HTMLElement | null = null;
-  private tagsDropdownOutsideHandler: ((event: MouseEvent) => void) | null =
+  private tagsDropdownCleanup: (() => void) | null = null;
+
+  private readerFormatPortal: { close: (flushSave: boolean) => void } | null =
     null;
-  private tagsDropdownDocument: Document | null = null;
-  private tagsDropdownViewportCleanup: (() => void) | null = null;
+  private readerFormatSaveTimeout: number | null = null;
 
   public setReturnLeaf(leaf: WorkspaceLeaf | null): void {
     this.returnLeaf = leaf;
   }
 
   private async navigateBackToDashboard(): Promise<void> {
-    const dashboardLeaves =
-      this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+    const dashboardLeaves = this.app.workspace.getLeavesOfType(
+      RSS_DASHBOARD_VIEW_TYPE,
+    );
     const targetLeaf =
       this.returnLeaf && dashboardLeaves.includes(this.returnLeaf)
         ? this.returnLeaf
-        : dashboardLeaves[0] ?? null;
+        : (dashboardLeaves[0] ?? null);
 
     if (targetLeaf) {
       this.app.workspace.setActiveLeaf(targetLeaf, { focus: true });
       await this.app.workspace.revealLeaf(targetLeaf);
     }
 
+    this.closeTagsDropdown();
     this.leaf.detach();
   }
 
@@ -142,7 +156,11 @@ export class ReaderView extends ItemView {
   }
 
   getDisplayText(): string {
-    return this.currentItem ? this.currentItem.title : "RSS reader";
+    return this.currentItem
+      ? this.currentReaderTitle ||
+          this.currentDisplayTitle ||
+          this.currentItem.title
+      : "RSS reader";
   }
 
   getIcon(): string {
@@ -181,13 +199,22 @@ export class ReaderView extends ItemView {
     const actions = header.createDiv({ cls: "rss-reader-actions" });
 
     // Save button
-    const saveButton = actions.createDiv({
+    this.saveButton = actions.createDiv({
       cls: "rss-reader-action-button",
       attr: { title: "Save article" },
     });
 
-    setIcon(saveButton, "save");
-    saveButton.addEventListener("click", (e) => {
+    setIcon(this.saveButton, "save");
+    this.saveButton.addEventListener("click", (e) => {
+      if (this.currentItem && this.currentItem.saved) {
+        const file = this.app.vault.getAbstractFileByPath(
+          this.currentItem.savedFilePath || "",
+        );
+        if (file instanceof TFile) {
+          void this.leaf.openFile(file);
+          return;
+        }
+      }
       if (this.currentItem) {
         this.showSaveOptions(e, this.currentItem);
       }
@@ -217,33 +244,155 @@ export class ReaderView extends ItemView {
       }
     });
 
-    // Tags button
-    const tagsButton = actions.createDiv({
-      cls: "rss-reader-action-button rss-reader-tags-button",
-      attr: { title: "Manage tags" },
+    // Tags button (same portal menu as dashboard cards)
+    const tagsDropdown = actions.createDiv({
+      cls: "rss-dashboard-tags-dropdown",
+    });
+    const tagsButton = tagsDropdown.createDiv({
+      cls: "rss-dashboard-tags-toggle clickable-icon",
+      attr: {
+        title: "Manage tags",
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Manage tags",
+      },
     });
     setIcon(tagsButton, "tag");
-    tagsButton.addEventListener("click", (e) => {
-      if (this.currentItem) {
-        this.showTagsDropdown(e, this.currentItem);
+    const toggleTagsMenu = (e: Event) => {
+      e.stopPropagation();
+      if (!this.currentItem) {
+        return;
+      }
+      this.toggleTagsDropdown(tagsButton);
+    };
+    tagsButton.addEventListener("click", toggleTagsMenu);
+    tagsButton.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleTagsMenu(e);
       }
     });
 
+    // Reader formatting button
+    const readerFormatButton = actions.createDiv({
+      cls: "rss-reader-action-button rss-reader-format-button",
+      attr: { title: "Reader settings" },
+    });
+    setIcon(readerFormatButton, "type");
+    readerFormatButton.addEventListener("click", (e) => {
+      this.toggleReaderFormatDropdown(e as MouseEvent);
+    });
+
     // Open in browser button
-    const browserButton = actions.createDiv({
-      cls: "rss-reader-action-button",
-      attr: { title: "Open in Browser" },
-    });
-    setIcon(browserButton, "globe-2");
-    browserButton.addEventListener("click", () => {
-      if (this.currentItem) {
-        window.open(this.currentItem.link, "_blank");
-      }
-    });
+	    const browserButton = actions.createDiv({
+	      cls: "rss-reader-action-button",
+	      attr: { title: "Open in Browser" },
+	    });
+	    setIcon(browserButton, "external-link");
+	    browserButton.addEventListener("click", (e) => {
+	      const item = this.currentItem;
+	      if (!item) return;
+
+	      if (item.mediaType === "podcast") {
+	        const feedMatch =
+	          this.settings.feeds.find((f) => f.url === item.feedUrl) || null;
+	        const feed = feedMatch || { url: item.feedUrl, siteUrl: undefined };
+	        const destinations = resolvePodcastOpenDestinations(item, feed, {
+	          includeApplePodcasts: Boolean(
+	            this.settings.media.enableApplePodcastsOpen,
+	          ),
+	        });
+
+	        if (destinations.length === 0) {
+	          new Notice("No link available for this podcast.");
+	          return;
+	        }
+
+	        const menu = new Menu();
+		        for (const destination of destinations) {
+		          menu.addItem((menuItem: MenuItem) => {
+		            menuItem.setTitle(destination.title);
+		            menuItem.setIcon("external-link");
+
+		            if (destination.url) {
+		              const dom = (menuItem as unknown as { dom?: HTMLElement }).dom;
+		              dom?.setAttribute("title", destination.url);
+		            }
+
+		            if (destination.id === "apple_podcasts") {
+		              menuItem.onClick(() => {
+		                void (async () => {
+	                  if (!feedMatch?.url || !feedMatch.title) {
+	                    new Notice(
+	                      "Could not find this show in apple podcasts.",
+	                    );
+	                    return;
+	                  }
+	                  const appleUrl = await resolveApplePodcastsShowUrl(
+	                    feedMatch.url,
+	                    feedMatch.title,
+	                  );
+	                  if (!appleUrl) {
+	                    new Notice(
+	                      "Could not find this show in apple podcasts.",
+	                    );
+	                    return;
+	                  }
+	                  window.open(appleUrl, "_blank");
+	                })();
+	              });
+	              return;
+	            }
+
+	            const url = destination.url;
+	            if (url) {
+	              menuItem.onClick(() => window.open(url, "_blank"));
+	            } else {
+	              menuItem.setDisabled(true);
+	            }
+	          });
+	        }
+
+	        menu.showAtMouseEvent(e as MouseEvent);
+	        return;
+	      }
+
+	      const url = resolveItemExternalUrl(item);
+	      if (!url) return;
+	      window.open(url, "_blank");
+	    });
 
     this.readingContainer = this.contentEl.createDiv({
       cls: "rss-reader-content",
     });
+
+    this.applyReaderFormat();
+    return Promise.resolve();
+  }
+
+  async onClose(): Promise<void> {
+    this.closeTagsDropdown();
+
+    if (this.readerFormatPortal) {
+      this.readerFormatPortal.close(true);
+      this.readerFormatPortal = null;
+    }
+
+    if (this.readerFormatSaveTimeout !== null) {
+      window.clearTimeout(this.readerFormatSaveTimeout);
+      this.readerFormatSaveTimeout = null;
+    }
+
+    if (this.podcastPlayer) {
+      this.podcastPlayer.destroy();
+      this.podcastPlayer = null;
+    }
+
+    if (this.videoPlayer) {
+      this.videoPlayer.destroy();
+      this.videoPlayer = null;
+    }
+
     return Promise.resolve();
   }
 
@@ -264,18 +413,24 @@ export class ReaderView extends ItemView {
 
   private showSaveOptions(event: MouseEvent, item: FeedItem): void {
     const menu = new Menu();
+    const displayTitle = this.currentDisplayTitle;
 
     menu.addItem((menuItem: MenuItem) => {
       menuItem
         .setTitle("Save with default settings")
         .setIcon("save")
         .onClick(async () => {
-          const markdownContent = this.turndownService.turndown(
-            this.currentFullContent || item.description || "",
-          );
+          const htmlToSave =
+            this.currentFullContent && this.currentContentIsFullArticle
+              ? this.stripNavigationChromeFromHtml(
+                  this.stripTopHeadlineFromHtml(this.currentFullContent),
+                )
+              : this.currentFullContent || item.description || "";
+          const markdownContent = this.turndownService.turndown(htmlToSave);
+          const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
           const customTemplate = this.getCustomTemplateForArticle(item);
           const file = await this.articleSaver.saveArticle(
-            item,
+            saveItem,
             undefined,
             customTemplate,
             markdownContent,
@@ -301,6 +456,7 @@ export class ReaderView extends ItemView {
   }
 
   private showCustomSaveModal(item: FeedItem): void {
+    const displayTitle = this.currentDisplayTitle;
     const modal = document.body.createDiv({
       cls: "rss-dashboard-modal rss-dashboard-modal-container",
     });
@@ -315,13 +471,40 @@ export class ReaderView extends ItemView {
       text: "Save to folder:",
     });
 
-    const folderInput = modalContent.createEl("input", {
+    const folderInputContainer = modalContent.createDiv({
+      cls: "rss-dashboard-folder-input-container",
+    });
+
+    const folderInput = folderInputContainer.createEl("input", {
       attr: {
         type: "text",
         placeholder: "Enter folder path",
         value: this.settings.articleSaving.defaultFolder || "",
       },
     });
+
+    const clearIcon = folderInputContainer.createDiv({
+      cls: "clickable-icon rss-dashboard-clear-icon",
+      attr: {
+        "aria-label": "Clear input",
+        role: "button",
+        tabindex: "0",
+      },
+    });
+    setIcon(clearIcon, "x");
+    const clearAction = () => {
+      folderInput.value = "";
+      folderInput.focus();
+    };
+    clearIcon.addEventListener("click", clearAction);
+    clearIcon.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        clearAction();
+      }
+    });
+
+    new VaultFolderSuggest(this.app, folderInput);
 
     const templateLabel = modalContent.createEl("label", {
       text: "Use template:",
@@ -358,11 +541,16 @@ export class ReaderView extends ItemView {
         const folder = folderInput.value.trim();
         const template = templateInput.value.trim() || undefined;
 
-        const markdownContent = this.turndownService.turndown(
-          this.currentFullContent || item.description || "",
-        );
+        const htmlToSave =
+          this.currentFullContent && this.currentContentIsFullArticle
+            ? this.stripNavigationChromeFromHtml(
+                this.stripTopHeadlineFromHtml(this.currentFullContent),
+              )
+            : this.currentFullContent || item.description || "";
+        const markdownContent = this.turndownService.turndown(htmlToSave);
+        const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
         const file = await this.articleSaver.saveArticle(
-          item,
+          saveItem,
           folder,
           template,
           markdownContent,
@@ -381,7 +569,7 @@ export class ReaderView extends ItemView {
     buttonContainer.appendChild(saveButton);
 
     modalContent.appendChild(folderLabel);
-    modalContent.appendChild(folderInput);
+    modalContent.appendChild(folderInputContainer);
     modalContent.appendChild(templateLabel);
     modalContent.appendChild(templateInput);
     modalContent.appendChild(buttonContainer);
@@ -394,14 +582,20 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
+    this.closeTagsDropdown();
     if (this.readingContainer) {
       this.readingContainer.empty();
     }
     this.currentItem = item;
     this.relatedItems = relatedItems;
+    this.currentDisplayTitle = undefined;
+    this.currentReaderTitle = this.isTweetLikeItem(item)
+      ? this.formatNitterReaderTitle(item)
+      : undefined;
+    this.currentContentIsFullArticle = false;
 
     if (this.titleElement) {
-      this.titleElement.setText(item.title);
+      this.titleElement.setText(this.currentReaderTitle || item.title);
     }
 
     // Update toggle button states
@@ -452,13 +646,26 @@ export class ReaderView extends ItemView {
       }
       await this.displayPodcast(item);
     } else {
-      const fetchedContent = this.shouldSkipFullArticleFetch(item.link)
+      const fetchedContent = this.shouldSkipFullArticleFetch(item)
         ? ""
         : await this.fetchFullArticleContent(item.link);
-      const fullContent = this.hasMeaningfulArticleContent(fetchedContent)
+      const hasFullArticleContent =
+        this.hasMeaningfulArticleContent(fetchedContent);
+      const displayTitle = hasFullArticleContent
+        ? this.extractDisplayTitleFromHtml(fetchedContent)
+        : null;
+      const fullContent = hasFullArticleContent
         ? fetchedContent
         : item.content || item.description || "";
       this.currentFullContent = fullContent;
+      this.currentDisplayTitle = displayTitle || undefined;
+      this.currentContentIsFullArticle = hasFullArticleContent;
+
+      if (this.titleElement) {
+        this.titleElement.setText(
+          this.currentReaderTitle || this.currentDisplayTitle || item.title,
+        );
+      }
       await this.displayArticle(item, fullContent);
     }
   }
@@ -480,10 +687,19 @@ export class ReaderView extends ItemView {
         this.videoPlayer.setRelatedVideos(this.relatedItems);
       }
     } else {
-      container.createDiv({
+      const errorContainer = container.createDiv({
         cls: "rss-reader-error",
         text: "Video id not found. Cannot play this video.",
       });
+      if (item.link) {
+        const watchLink = errorContainer.createEl("a", {
+          cls: "rss-reader-error-link",
+          text: "Watch on YouTube",
+          href: item.link,
+        });
+        watchLink.target = "_blank";
+        watchLink.rel = "noopener noreferrer";
+      }
       await this.displayArticle(item);
     }
   }
@@ -492,6 +708,10 @@ export class ReaderView extends ItemView {
     if (this.videoPlayer) {
       this.videoPlayer.destroy();
       this.videoPlayer = null;
+    }
+    if (this.podcastPlayer) {
+      this.podcastPlayer.destroy();
+      this.podcastPlayer = null;
     }
 
     const container = this.readingContainer.createDiv({
@@ -506,11 +726,23 @@ export class ReaderView extends ItemView {
       }
     }
 
+    const onEpisodeSelected = (selectedEpisode: FeedItem) => {
+      this.currentItem = selectedEpisode;
+      if (this.titleElement) {
+        this.titleElement.setText(selectedEpisode.title);
+      }
+      this.updateToggleButtons();
+      this.closeTagsDropdown();
+      void this.syncDashboardSelectionFromPlayer(selectedEpisode);
+    };
+
     if (item.audioUrl) {
       this.podcastPlayer = new PodcastPlayer(
         container,
         this.app,
         this.settings.media.podcastTheme,
+        undefined,
+        onEpisodeSelected,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -524,6 +756,8 @@ export class ReaderView extends ItemView {
           container,
           this.app,
           this.settings.media.podcastTheme,
+          undefined,
+          onEpisodeSelected,
         );
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
       } else {
@@ -539,6 +773,23 @@ export class ReaderView extends ItemView {
   updatePodcastTheme(theme: string): void {
     if (this.podcastPlayer) {
       this.podcastPlayer.updateTheme(theme);
+    }
+  }
+
+  private async syncDashboardSelectionFromPlayer(
+    article: FeedItem,
+  ): Promise<void> {
+    const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+    for (const leaf of leaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view as unknown as {
+        setSelectedArticleFromExternal?: (next: FeedItem) => void;
+      };
+      if (typeof view.setSelectedArticleFromExternal === "function") {
+        view.setSelectedArticleFromExternal(article);
+      }
     }
   }
 
@@ -564,7 +815,7 @@ export class ReaderView extends ItemView {
       try {
         const success = await this.webViewerIntegration.openInWebViewer(
           item.link,
-          item.title,
+          this.currentDisplayTitle || item.title,
         );
         if (!success) {
           this.renderArticle(item, fullContent);
@@ -587,8 +838,34 @@ export class ReaderView extends ItemView {
       return false;
     }
 
-    const feedHtml = (fullContent || item.content || item.description || "").trim();
+    const feedHtml = (
+      fullContent ||
+      item.content ||
+      item.description ||
+      ""
+    ).trim();
     if (!feedHtml) {
+      return false;
+    }
+
+    if (this.isTweetLikeItem(item)) {
+      return true;
+    }
+
+    try {
+      const host = new URL(item.link).hostname.toLowerCase();
+      return this.isFeedContentPreferredHost(host);
+    } catch {
+      return false;
+    }
+  }
+
+  private shouldSkipFullArticleFetch(item: FeedItem): boolean {
+    if (this.isTweetLikeItem(item)) {
+      return true;
+    }
+
+    if (!item.link) {
       return false;
     }
 
@@ -600,25 +877,15 @@ export class ReaderView extends ItemView {
     }
   }
 
-  private shouldSkipFullArticleFetch(url: string): boolean {
-    if (!url) {
-      return false;
-    }
-
-    try {
-      const host = new URL(url).hostname.toLowerCase();
-      return this.isFeedContentPreferredHost(host);
-    } catch {
-      return false;
-    }
-  }
-
   private isFeedContentPreferredHost(host: string): boolean {
     return (
       host === "kite.kagi.com" ||
       host === "news.kagi.com" ||
       host === "aeon.co" ||
-      host.endsWith(".aeon.co")
+      host.endsWith(".aeon.co") ||
+      host === "substack.com" ||
+      host.endsWith(".substack.com") ||
+      this.isNitterHost(host)
     );
   }
 
@@ -627,6 +894,9 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-article-header",
     });
 
+    const isNitter = this.isTweetLikeItem(item);
+    const displayTitle =
+      this.currentReaderTitle || this.currentDisplayTitle || item.title;
     const articleTitleEl = headerContainer.createEl("h1", {
       cls: "rss-reader-item-title",
     });
@@ -635,24 +905,26 @@ export class ReaderView extends ItemView {
       this.settings.highlights.highlightInTitles
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
-      highlightService.setHighlightedText(articleTitleEl, item.title);
+      highlightService.setHighlightedText(articleTitleEl, displayTitle);
     } else {
-      articleTitleEl.setText(item.title);
+      articleTitleEl.setText(displayTitle);
     }
 
-    const metaContainer = headerContainer.createDiv({
-      cls: "rss-reader-meta",
-    });
+    if (!isNitter) {
+      const metaContainer = headerContainer.createDiv({
+        cls: "rss-reader-meta",
+      });
 
-    metaContainer.createDiv({
-      cls: "rss-reader-feed-title",
-      text: item.feedTitle,
-    });
+      metaContainer.createDiv({
+        cls: "rss-reader-feed-title",
+        text: item.feedTitle,
+      });
 
-    metaContainer.createDiv({
-      cls: "rss-reader-pub-date",
-      text: new Date(item.pubDate).toLocaleString(),
-    });
+      metaContainer.createDiv({
+        cls: "rss-reader-pub-date",
+        text: new Date(item.pubDate).toLocaleString(),
+      });
+    }
 
     if (item.tags && item.tags.length > 0) {
       const tagsContainer = headerContainer.createDiv({
@@ -668,10 +940,33 @@ export class ReaderView extends ItemView {
       }
     }
 
+    const heroSlot = this.readingContainer.createDiv({
+      cls: "rss-reader-hero-slot",
+    });
+
     const descriptionHtml = (item.description || "").trim();
     const mainHtml = (fullContent || item.content || "").trim();
+    let fallbackHeroUrl =
+      (item.coverImage || "").trim() ||
+      (item.image || "").trim() ||
+      (item.itunes?.image?.href || "").trim() ||
+      undefined;
 
-    if (descriptionHtml) {
+    // Avoid using the feed icon (logo) as the article hero image.
+    if (fallbackHeroUrl && item.feedUrl) {
+      const feedIconUrl =
+        this.settings.feeds.find((f) => f.url === item.feedUrl)?.iconUrl || "";
+      const normalize = (u: string) => u.trim().replace(/\/$/, "");
+      if (feedIconUrl && normalize(fallbackHeroUrl) === normalize(feedIconUrl)) {
+        fallbackHeroUrl = undefined;
+      }
+    }
+
+    const hasDistinctMainContent =
+      mainHtml !== "" &&
+      (!descriptionHtml || !this.isEquivalentHtml(mainHtml, descriptionHtml));
+
+    if (!isNitter && descriptionHtml && hasDistinctMainContent) {
       const descriptionCallout = this.readingContainer.createEl("details", {
         cls: "rss-reader-description-callout",
       });
@@ -680,20 +975,40 @@ export class ReaderView extends ItemView {
       const descriptionBody = descriptionCallout.createDiv({
         cls: "rss-reader-description rss-reader-description-body",
       });
-      this.populateArticleHtml(descriptionBody, descriptionHtml, item.link);
+      this.populateArticleHtml(
+        descriptionBody,
+        descriptionHtml,
+        item.link,
+        fallbackHeroUrl,
+        displayTitle,
+        heroSlot,
+        false,
+        false,
+      );
     }
 
-    const hasDistinctMainContent =
-      mainHtml && (!descriptionHtml || !this.isEquivalentHtml(mainHtml, descriptionHtml));
+    const contentToRender = isNitter
+      ? this.pickBestNitterTweetHtml(item, fullContent)
+      : hasDistinctMainContent
+        ? mainHtml
+        : mainHtml || descriptionHtml;
 
-    if (hasDistinctMainContent || !descriptionHtml) {
+    if (contentToRender) {
       const contentContainer = this.readingContainer.createDiv({
         cls: "rss-reader-article-content",
       });
-      const htmlToRender = hasDistinctMainContent
-        ? mainHtml
-        : descriptionHtml || mainHtml;
-      this.populateArticleHtml(contentContainer, htmlToRender, item.link);
+      const shouldStripHeadline =
+        this.currentContentIsFullArticle && contentToRender === mainHtml;
+      this.populateArticleHtml(
+        contentContainer,
+        contentToRender,
+        item.link,
+        fallbackHeroUrl,
+        displayTitle,
+        heroSlot,
+        shouldStripHeadline,
+        isNitter,
+      );
     }
   }
 
@@ -701,823 +1016,928 @@ export class ReaderView extends ItemView {
     container: HTMLElement,
     rawHtml: string,
     baseUrl: string,
+    fallbackHeroUrl?: string,
+    title?: string,
+    heroSlot?: HTMLElement,
+    stripTopHeadline = false,
+    isNitter = false,
   ): void {
-    const htmlString = ensureUtf8Meta(rawHtml || "");
-    const processedHtmlString = this.convertRelativeUrlsInContent(
-      htmlString,
-      baseUrl,
-    );
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(processedHtmlString, "text/html");
+    if (!rawHtml) return;
 
-    function appendNodes(parent: HTMLElement, nodes: NodeListOf<ChildNode>) {
-      nodes.forEach((node) => {
-        if (node.nodeType === Node.TEXT_NODE) {
-          parent.appendText(node.textContent || "");
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          const element = node as HTMLElement;
-          const isIconElement =
-            element.tagName === "I" && element.classList.contains("icon-class");
-          if (!isIconElement) {
-            const tag =
-              element.tagName.toLowerCase() as keyof HTMLElementTagNameMap;
-            const el = parent.createEl(tag);
+    let html = rawHtml;
 
-            Array.from(element.attributes).forEach((attr) => {
-              el.setAttr(attr.name, attr.value);
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      // Resolve relative URLs (for correct link/image navigation in Obsidian)
+      if (baseUrl) {
+        const base = new URL(baseUrl);
+
+        doc.querySelectorAll("a").forEach((el) => {
+          const href = el.getAttribute("href");
+          if (!href) return;
+          try {
+            el.setAttribute("href", new URL(href, base).toString());
+          } catch {
+            /* ignore */
+          }
+        });
+
+      doc.querySelectorAll("img").forEach((el) => {
+          const src = el.getAttribute("src");
+          if (!src) return;
+          try {
+            el.setAttribute("src", new URL(src, base).toString());
+          } catch {
+            /* ignore */
+          }
+        });
+      }
+
+      // Clean up fetched full-article HTML before hero extraction so we don't pick
+      // navigation icons / breadcrumbs as the hero image.
+      if (stripTopHeadline) {
+        this.stripNavigationChromeFromDocument(doc);
+        this.stripTopHeadlineFromDocument(doc);
+      }
+
+      // Attempt to extract and place hero image
+      if (heroSlot) {
+        const firstImg = doc.body.querySelector("img");
+
+        if (heroSlot.childElementCount === 0) {
+          let heroUrl = fallbackHeroUrl;
+          const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
+          if (firstImgSrc) {
+            heroUrl = firstImgSrc;
+          }
+
+          if (heroUrl) {
+            heroSlot.createEl("img", {
+              cls: "rss-reader-fallback-hero",
+              attr: { src: heroUrl, alt: title || "Hero image" },
             });
 
-            appendNodes(el, node.childNodes);
+            // Remove the first image from the body if it's the hero image to avoid duplication
+            if (firstImg && firstImgSrc && firstImgSrc === heroUrl) {
+              firstImg.remove();
+            }
+          }
+        } else {
+          // Hero slot already filled by a previous section (e.g. description)
+          // If the current section starts with the same image as the hero image, remove it to avoid duplication
+          const existingHeroSrc =
+            heroSlot.querySelector("img")?.getAttribute("src")?.trim() || "";
+          const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
+          if (existingHeroSrc && firstImg && firstImgSrc === existingHeroSrc) {
+            firstImg.remove();
           }
         }
+      }
+
+      // Obsidian shows tooltips for many elements with `aria-label` / `data-tooltip*`.
+      // Embedded article HTML frequently includes accessibility labels like "Breadcrumbs" and "Article body",
+      // which then appear as noisy tooltips on hover throughout the reader view.
+      doc.body.querySelectorAll<HTMLElement>("[aria-label]").forEach((el) => {
+        el.removeAttribute("aria-label");
       });
+      doc.body.querySelectorAll<HTMLElement>("[data-tooltip]").forEach((el) => {
+        el.removeAttribute("data-tooltip");
+      });
+      doc.body
+        .querySelectorAll<HTMLElement>("[data-tooltip-position]")
+        .forEach((el) => {
+          el.removeAttribute("data-tooltip-position");
+        });
+      doc.body
+        .querySelectorAll<HTMLElement>("[data-tooltip-delay]")
+        .forEach((el) => {
+          el.removeAttribute("data-tooltip-delay");
+        });
+
+      if (isNitter) {
+        this.transformNitterStatsMarkup(doc);
+      }
+
+      html = doc.body.innerHTML;
+    } catch {
+      // Fall back to raw HTML if parsing fails
     }
-
-    appendNodes(container, doc.body.childNodes);
-
-    container.querySelectorAll("img").forEach((img) => {
-      const src = img.getAttribute("src");
-      if (src && src.startsWith("app://")) {
-        img.setAttribute("src", src.replace("app://", "https://"));
-      }
-      img.classList.add("rss-reader-responsive-img");
-
-      img.addEventListener("error", function () {
-        this.remove();
-      });
-    });
-
-    container.querySelectorAll("source").forEach((source) => {
-      const srcset = source.getAttribute("srcset");
-      if (srcset) {
-        const processedSrcset = srcset
-          .split(",")
-          .map((part: string) => {
-            const trimmedPart = part.trim();
-
-            const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
-            if (urlMatch) {
-              const url = urlMatch[1];
-              const sizeDescriptor = urlMatch[2] || "";
-
-              let absoluteUrl = url;
-              if (url.startsWith("app://")) {
-                absoluteUrl = url.replace("app://", "https://");
-              } else if (url.startsWith("//")) {
-                absoluteUrl = "https:" + url;
-              }
-              return absoluteUrl + sizeDescriptor;
-            }
-            return trimmedPart;
-          })
-          .join(", ");
-        source.setAttribute("srcset", processedSrcset);
-      }
-    });
-
-    container.querySelectorAll("a").forEach((link) => {
-      const href = link.getAttribute("href");
-      if (href && href.startsWith("app://")) {
-        link.setAttribute("href", href.replace("app://", "https://"));
-      }
-      link.setAttribute("target", "_blank");
-      link.setAttribute("rel", "noopener noreferrer");
-    });
-
-    this.app.workspace.trigger("parse-math", container);
 
     if (
       this.settings.highlights?.enabled &&
       this.settings.highlights.highlightInContent
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
+      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
       highlightService.highlightElement(container);
+    } else {
+      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
+    }
+
+    // Add classes to images for styling
+    container.querySelectorAll("img").forEach((img) => {
+      img.addClass("rss-reader-responsive-img");
+    });
+
+    if (isNitter) {
+      this.hydrateNitterStatsIcons(container);
     }
   }
 
-  private isEquivalentHtml(first: string, second: string): boolean {
-    if (!first || !second) {
-      return false;
+  private isNitterHost(host: string): boolean {
+    return host.toLowerCase().includes("nitter");
+  }
+
+  private isTweetLikeItem(item: FeedItem): boolean {
+    if (this.isNitterItem(item)) {
+      return true;
     }
-    const firstSignature = this.buildDedupSignature(first);
-    const secondSignature = this.buildDedupSignature(second);
-    return Boolean(
-      firstSignature &&
-        secondSignature &&
-        firstSignature === secondSignature,
+
+    return MediaService.isXUrl(item.link) || MediaService.isXUrl(item.feedUrl);
+  }
+
+  private isNitterItem(item: FeedItem): boolean {
+    const candidates = [item.feedUrl, item.link].filter(
+      (u): u is string => typeof u === "string" && u.trim().length > 0,
     );
-  }
 
-  private buildDedupSignature(html: string): string {
-    if (!html || !html.trim()) {
-      return "";
-    }
-
-    const tokens = this.extractComparableTokens(html);
-    if (tokens.length === 0) {
-      return "";
-    }
-
-    const tokenFrequency = new Map<string, number>();
-    for (const token of tokens) {
-      tokenFrequency.set(token, (tokenFrequency.get(token) || 0) + 1);
-    }
-
-    return JSON.stringify(
-      Array.from(tokenFrequency.entries()).sort(([a], [b]) =>
-        a.localeCompare(b),
-      ),
-    );
-  }
-
-  private extractComparableTokens(html: string): string[] {
-    const parsedText = this.extractNormalizedTextFromHtml(html);
-    if (!parsedText) {
-      return [];
-    }
-
-    const normalized = parsedText
-      .normalize("NFKC")
-      .toLowerCase()
-      .replace(/[“”]/g, '"')
-      .replace(/[‘’]/g, "'")
-      .replace(/[‐‑‒–—]/g, "-")
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim();
-
-    if (!normalized) {
-      return [];
-    }
-
-    return normalized
-      .split(/\s+/)
-      .filter((token) => token.length >= 2);
-  }
-
-  private extractNormalizedTextFromHtml(html: string): string {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(ensureUtf8Meta(html), "text/html");
-      return (doc.body.textContent || "")
-        .toLowerCase()
-        .replace(/\s+/g, " ")
-        .trim();
-    } catch {
-      return html
-        .toLowerCase()
-        .replace(/<[^>]*>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-    }
-  }
-
-  async fetchFullArticleContent(url: string): Promise<string> {
-    // Reuse the more robust fetch/extraction strategy used by article saving.
-    try {
-      const saverContent = await this.articleSaver.fetchFullArticleContent(url);
-      if (
-        this.hasMeaningfulArticleContent(saverContent) &&
-        !this.isBlockedOrChallengeContent(saverContent)
-      ) {
-        return saverContent;
+    for (const url of candidates) {
+      try {
+        const host = new URL(url).hostname.toLowerCase();
+        if (this.isNitterHost(host)) {
+          return true;
+        }
+      } catch {
+        // ignore invalid urls
       }
-    } catch {
-      // Fall through to local reader fetch path.
     }
 
-    const headers: Record<string, string> = {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      Accept:
-        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Upgrade-Insecure-Requests": "1",
-      DNT: "1",
+    return false;
+  }
+
+  private formatNitterReaderTitle(item: FeedItem): string {
+    const { name, handle } = this.extractNitterNameAndHandle(item);
+    const date = this.formatIsoDate(item.pubDate);
+    const time = this.formatTimeOfDay(item.pubDate);
+    const dateTime = [date, time].filter(Boolean).join(" ");
+
+    if (name && handle && dateTime) return `${name} (${handle}) · ${dateTime}`;
+    if (name && handle) return `${name} (${handle})`;
+    if (name && dateTime) return `${name} · ${dateTime}`;
+    if (handle && dateTime) return `${handle} · ${dateTime}`;
+    return item.title;
+  }
+
+  private extractNitterNameAndHandle(item: FeedItem): { name: string; handle: string } {
+    const tryExtract = (source: string): { name: string; handle: string } => {
+      const handleMatch = source.match(/@[\w.]+/i);
+      const handle = handleMatch ? handleMatch[0] : "";
+      let name = source;
+
+      if (handle) {
+        name = name.replace(handle, "");
+      }
+
+      name = name
+        .replace(/[()]/g, " ")
+        .replace(/[|/]/g, " ")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+
+      return { name, handle };
     };
 
-    try {
-      const response = await requestUrl({ url, method: "GET", headers });
-      if (!response.text) {
-        return "";
-      }
-      if (this.isBlockedOrChallengeContent(response.text)) {
-        return "";
-      }
+    const author = (item.author || "").trim();
+    const feedTitle = (item.feedTitle || "").trim();
 
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(response.text, "text/html");
-      return this.extractReadableContentFromHtmlDocument(doc, url);
+    const authorParsed = author ? tryExtract(author) : { name: "", handle: "" };
+    const feedParsed = feedTitle ? tryExtract(feedTitle) : { name: "", handle: "" };
+
+    const urlHandle = this.extractHandleFromUrl(item.link) || this.extractHandleFromUrl(item.feedUrl);
+
+    const handle =
+      (/^@[\w.]+$/i.test(author) ? author : authorParsed.handle) ||
+      feedParsed.handle ||
+      urlHandle;
+    const name = authorParsed.name || feedParsed.name;
+
+    return { name, handle };
+  }
+
+  private extractHandleFromUrl(url: string): string {
+    const trimmed = (url || "").trim();
+    if (!trimmed) return "";
+
+    try {
+      const u = new URL(trimmed);
+      const host = u.hostname.toLowerCase();
+      if (
+        !this.isNitterHost(host) &&
+        !host.includes("twitter.com") &&
+        !host.includes("x.com")
+      ) {
+        return "";
+      }
+      const parts = u.pathname.split("/").filter(Boolean);
+      const username = parts[0] || "";
+      if (!username) return "";
+      if (/^(home|explore|messages|notifications|settings|search|i)$/i.test(username)) {
+        return "";
+      }
+      return username.startsWith("@") ? username : `@${username}`;
     } catch {
       return "";
     }
   }
 
-  private extractReadableContentFromHtmlDocument(
-    doc: Document,
-    url: string,
-  ): string {
-    const reader = new Readability(doc);
-    const article = reader.parse();
-    const readableContent = article?.content || "";
-    if (
-      this.hasMeaningfulArticleContent(readableContent) &&
-      !this.isBlockedOrChallengeContent(readableContent)
-    ) {
-      return this.convertRelativeUrlsInContent(readableContent, url);
+  private formatIsoDate(dateInput: string): string {
+    const trimmed = (dateInput || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      return trimmed.slice(0, 10);
     }
 
-    const mainContent = doc.querySelector(
-      "main, article, .content, .post-content, .entry-content, .article-content, .main-content, section[role='main']",
-    );
-    if (mainContent) {
-      return this.convertRelativeUrlsInContent(
-        ensureUtf8Meta(new XMLSerializer().serializeToString(mainContent)),
-        url,
-      );
+    const parsed = new Date(trimmed);
+    if (Number.isFinite(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 10);
     }
 
-    return this.convertRelativeUrlsInContent(
-      ensureUtf8Meta(new XMLSerializer().serializeToString(doc.body)),
-      url,
-    );
+    return "";
   }
 
-  private isBlockedOrChallengeContent(content: string): boolean {
-    const text = this.extractNormalizedTextFromHtml(content);
-    if (!text) {
-      return false;
+  private formatTimeOfDay(dateInput: string): string {
+    const trimmed = (dateInput || "").trim();
+    const parsed = new Date(trimmed);
+    if (!Number.isFinite(parsed.getTime())) {
+      return "";
     }
 
-    const blockedMarkers = [
-      "vercel security checkpoint",
-      "too many requests",
-      "error 429",
-      "status code 429",
-      "rate limit",
-      "access denied",
-      "enable javascript and cookies",
-      "checking your browser",
-      "captcha",
-      "bot detection",
-      "request blocked",
-      "please verify you are human",
+    return parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  private pickBestNitterTweetHtml(item: FeedItem, fullContent?: string): string {
+    const description = (item.description || "").trim();
+    const content = (item.content || "").trim();
+    const full = (fullContent || "").trim();
+
+    const hasRichFormatting = (html: string): boolean =>
+      /<(br|p|blockquote|img)\b/i.test(html);
+
+    if (
+      description &&
+      (hasRichFormatting(description) ||
+        description.length > (content ? content.length : 0))
+    ) {
+      return description;
+    }
+
+    return content || full || description;
+  }
+
+  private transformNitterStatsMarkup(doc: Document): void {
+    let target =
+      doc.body.querySelector<HTMLElement>(".tweet-stats") ||
+      doc.body.querySelector<HTMLElement>(".tweet-stats-container");
+
+    if (!target) {
+      const iconEl = doc.body.querySelector<HTMLElement>(
+        ".icon-comment, .icon-retweet, .icon-heart, .icon-views",
+      );
+      let cursor: HTMLElement | null = iconEl;
+      for (let i = 0; i < 6 && cursor; i++) {
+        const count = cursor.querySelectorAll(
+          ".icon-comment, .icon-retweet, .icon-heart, .icon-views",
+        ).length;
+        if (count >= 2) {
+          target = cursor;
+          break;
+        }
+        cursor = cursor.parentElement;
+      }
+    }
+
+    if (!target) return;
+
+    const extractCount = (markerClass: string): string => {
+      const marker = target.querySelector<HTMLElement>(`.${markerClass}`);
+      if (!marker) return "";
+      const text = (marker.parentElement?.textContent || "").replace(/\s+/g, " ").trim();
+      const match = text.match(/(\d[\d.,]*\s*[kKmMbB]?)/);
+      return (match ? match[1] : "").trim();
+    };
+
+    const statsEl = doc.createElement("div");
+    statsEl.className = "rss-nitter-stats";
+
+    const pills: Array<{ key: string; icon: string; count: string }> = [
+      { key: "comment", icon: "message-circle", count: extractCount("icon-comment") },
+      { key: "retweet", icon: "repeat-2", count: extractCount("icon-retweet") },
+      { key: "heart", icon: "heart", count: extractCount("icon-heart") },
+      { key: "views", icon: "bar-chart-2", count: extractCount("icon-views") },
     ];
 
-    return blockedMarkers.some((marker) => text.includes(marker));
-  }
+    for (const pill of pills) {
+      const pillEl = doc.createElement("span");
+      pillEl.className = "rss-nitter-stat";
+      pillEl.setAttribute("data-stat", pill.key);
 
-  private hasMeaningfulArticleContent(content: string): boolean {
-    if (!content || !content.trim()) {
-      return false;
+      const iconEl = doc.createElement("span");
+      iconEl.className = "rss-nitter-stat-icon";
+      iconEl.setAttribute("data-rss-icon", pill.icon);
+
+      const countEl = doc.createElement("span");
+      countEl.className = "rss-nitter-stat-count";
+      countEl.textContent = pill.count;
+
+      pillEl.appendChild(iconEl);
+      pillEl.appendChild(countEl);
+      statsEl.appendChild(pillEl);
     }
 
+    target.parentElement?.insertBefore(statsEl, target);
+    target.remove();
+  }
+
+  private hydrateNitterStatsIcons(container: HTMLElement): void {
+    container.querySelectorAll<HTMLElement>(".rss-nitter-stat-icon").forEach((el) => {
+      const iconName = el.dataset.rssIcon;
+      if (!iconName) return;
+      try {
+        setIcon(el, iconName);
+      } catch {
+        // ignore icon failures
+      }
+    });
+  }
+
+  private stripTopHeadlineFromHtml(html: string): string {
+    if (!html) return html;
     try {
       const parser = new DOMParser();
-      const doc = parser.parseFromString(content, "text/html");
-      const body = doc.body;
-      if (!body) {
-        return false;
+      const doc = parser.parseFromString(html, "text/html");
+      this.stripTopHeadlineFromDocument(doc);
+      return doc.body.innerHTML;
+    } catch {
+      return html;
+    }
+  }
+
+  private stripNavigationChromeFromHtml(html: string): string {
+    if (!html) return html;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      this.stripNavigationChromeFromDocument(doc);
+      return doc.body.innerHTML;
+    } catch {
+      return html;
+    }
+  }
+
+  private stripTopHeadlineFromDocument(doc: Document): void {
+    const h1 = doc.body?.querySelector("h1");
+    if (!h1) return;
+
+    const elements = Array.from(doc.body.querySelectorAll("*"));
+    const idx = elements.indexOf(h1);
+    if (idx === -1 || idx > 9) return;
+
+    h1.remove();
+  }
+
+  private stripNavigationChromeFromDocument(doc: Document): void {
+    const body = doc.body;
+    if (!body) return;
+
+    const elements = Array.from(body.querySelectorAll<HTMLElement>("*"));
+    if (elements.length === 0) return;
+
+    const indexByEl = new Map<HTMLElement, number>();
+    elements.forEach((el, idx) => indexByEl.set(el, idx));
+
+    const substantialParagraphIndex = elements.findIndex((el) => {
+      if (el.tagName.toLowerCase() !== "p") return false;
+      const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+      return text.length >= 120;
+    });
+
+    const cutoffIndex = Math.max(
+      29,
+      substantialParagraphIndex >= 0 ? substantialParagraphIndex - 1 : 29,
+    );
+
+    const hasBreadcrumbSignal = (el: HTMLElement): boolean => {
+      const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+      const testId = (el.getAttribute("data-testid") || "").toLowerCase();
+      const cls = (el.getAttribute("class") || "").toLowerCase();
+      const id = (el.getAttribute("id") || "").toLowerCase();
+      return (
+        aria.includes("breadcrumb") ||
+        testId.includes("breadcrumb") ||
+        cls.includes("breadcrumb") ||
+        cls.includes("breadcrumbs") ||
+        id.includes("breadcrumb") ||
+        id.includes("breadcrumbs")
+      );
+    };
+
+    const looksLikeBreadcrumbList = (el: HTMLElement): boolean => {
+      const tag = el.tagName.toLowerCase();
+      if (tag !== "ol" && tag !== "ul") return false;
+
+      const liEls = Array.from(el.children).filter(
+        (c) => (c as HTMLElement).tagName?.toLowerCase() === "li",
+      ) as HTMLElement[];
+      if (liEls.length < 2 || liEls.length > 10) return false;
+
+      const totalText = (el.textContent || "").replace(/\s+/g, " ").trim();
+      if (totalText.length > 140) return false;
+
+      let linkish = 0;
+      for (const li of liEls) {
+        const kids = Array.from(li.children) as HTMLElement[];
+        if (kids.length !== 1) continue;
+        const only = kids[0];
+        if (only.tagName.toLowerCase() !== "a") continue;
+        const t = (only.textContent || "").replace(/\s+/g, " ").trim();
+        if (t.length < 1 || t.length > 40) continue;
+        linkish++;
       }
 
-      body.querySelectorAll("script, style, noscript").forEach((node) => {
-        node.remove();
-      });
+      return linkish / liEls.length >= 0.7;
+    };
 
-      const text = (body.textContent || "").replace(/\s+/g, " ").trim();
-      if (text.length >= 80) {
+    const looksLikeChromeContainer = (el: HTMLElement): boolean => {
+      if (hasBreadcrumbSignal(el)) return true;
+
+      const role = (el.getAttribute("role") || "").toLowerCase();
+      if (role === "navigation") return true;
+
+      if (
+        el.querySelector(
+          "nav, [role='navigation'], [aria-label*='breadcrumb' i], [data-testid*='breadcrumb' i]",
+        )
+      ) {
         return true;
       }
 
-      return Boolean(
-        body.querySelector("p, article, li, blockquote, h1, h2, h3, h4"),
-      );
-    } catch {
-      return content.trim().length >= 80;
-    }
-  }
+      const linkCount = el.querySelectorAll("a").length;
+      const paragraphCount = el.querySelectorAll("p").length;
+      const textLen = (el.textContent || "").replace(/\s+/g, " ").trim().length;
+      return linkCount >= 3 && paragraphCount === 0 && textLen < 200;
+    };
 
-  private convertHtmlToMarkdown(html: string): string {
-    return this.turndownService.turndown(html);
-  }
+    const shouldRemove = (el: HTMLElement): boolean => {
+      const tag = el.tagName.toLowerCase();
 
-  private showMarkdownView(markdownContent: string, item: FeedItem): void {
-    const modal = document.body.createDiv({
-      cls: "rss-reader-markdown-modal",
-    });
+      if (tag === "nav") return true;
 
-    const modalContent = modal.createDiv({
-      cls: "rss-reader-markdown-content",
-    });
+      const role = (el.getAttribute("role") || "").toLowerCase();
+      if (role === "navigation") return true;
 
-    modalContent.createDiv({
-      text: markdownContent,
-    });
+      if (hasBreadcrumbSignal(el)) return true;
 
-    const saveButton = modalContent.createEl("button", {
-      text: "Save to vault",
-    });
-    saveButton.addEventListener("click", () => {
-      void (async () => {
-        const markdownContent = this.turndownService.turndown(
-          this.currentFullContent || item.description || "",
-        );
-        const customTemplate = this.getCustomTemplateForArticle(item);
-        const file = await this.articleSaver.saveArticle(
-          item,
-          undefined,
-          customTemplate,
-          markdownContent,
-        );
-        if (file) {
-          this.onArticleSave(item);
-        }
-        document.body.removeChild(modal);
-      })();
-    });
-
-    const closeButton = modalContent.createEl("button", {
-      text: "Close",
-    });
-    closeButton.addEventListener("click", () => {
-      document.body.removeChild(modal);
-    });
-    document.body.appendChild(modal);
-  }
-
-  onClose(): Promise<void> {
-    this.closeTagsDropdownPortal();
-    this.contentEl.empty();
-    return Promise.resolve();
-  }
-
-  private convertRelativeUrlsInContent(
-    content: string,
-    baseUrl: string,
-  ): string {
-    if (!content || !baseUrl) return content;
-    try {
-      const baseHost = (() => {
-        try {
-          return new URL(baseUrl).host;
-        } catch {
-          return "";
-        }
-      })();
-
-      content = content.replace(/app:\/\//g, "https://");
-
-      content = content.replace(
-        /<img([^>]+)src=["']([^"']+)["']/gi,
-        (match: string, attributes: string, src: string) => {
-          try {
-            const srcUrl = new URL(src, baseUrl);
-            if (srcUrl.host !== baseHost) {
-              srcUrl.host = baseHost;
-              srcUrl.protocol = "https:";
-              return `<img${attributes}src="${srcUrl.toString()}"`;
-            }
-            return `<img${attributes}src="${srcUrl.toString()}"`;
-          } catch {
-            return `<img${attributes}src="${src}"`;
-          }
-        },
-      );
-
-      content = content.replace(
-        /<source([^>]+)srcset=["']([^"']+)["']/gi,
-        (match: string, attributes: string, srcset: string) => {
-          const processedSrcset = srcset
-            .split(",")
-            .map((part: string) => {
-              const trimmedPart = part.trim();
-              const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
-              if (urlMatch) {
-                const url = urlMatch[1];
-                const sizeDescriptor = urlMatch[2] || "";
-                const absoluteUrl = this.convertToAbsoluteUrl(url, baseUrl);
-                return absoluteUrl + sizeDescriptor;
-              }
-              return trimmedPart;
-            })
-            .join(", ");
-          return `<source${attributes}srcset="${processedSrcset}"`;
-        },
-      );
-
-      content = content.replace(
-        /<a([^>]+)href=["']([^"']+)["']/gi,
-        (match: string, attributes: string, href: string) => {
-          const absoluteHref = this.convertToAbsoluteUrl(href, baseUrl);
-          return `<a${attributes}href="${absoluteHref}"`;
-        },
-      );
-      return content;
-    } catch {
-      return content;
-    }
-  }
-
-  private convertToAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
-    if (!relativeUrl || !baseUrl) return relativeUrl;
-
-    if (relativeUrl.startsWith("app://")) {
-      return relativeUrl.replace("app://", "https://");
-    }
-
-    if (relativeUrl.startsWith("//")) {
-      return "https:" + relativeUrl;
-    }
-
-    if (
-      relativeUrl.startsWith("http://") ||
-      relativeUrl.startsWith("https://")
-    ) {
-      return relativeUrl;
-    }
-
-    try {
-      const base = new URL(baseUrl);
-
-      if (relativeUrl.startsWith("/")) {
-        return `${base.protocol}//${base.host}${relativeUrl}`;
+      if (tag === "header" || tag === "footer" || tag === "aside") {
+        return looksLikeChromeContainer(el);
       }
 
-      return new URL(relativeUrl, base).href;
+      if (looksLikeBreadcrumbList(el)) return true;
+
+      return false;
+    };
+
+    const candidates = elements.filter((el) => {
+      const idx = indexByEl.get(el);
+      if (idx === undefined || idx > cutoffIndex) return false;
+      return shouldRemove(el);
+    });
+
+    if (candidates.length === 0) return;
+
+    const removeSet = new Set(candidates);
+    const topLevel = candidates.filter((el) => {
+      let p = el.parentElement;
+      while (p) {
+        if (removeSet.has(p)) return false;
+        p = p.parentElement;
+      }
+      return true;
+    });
+
+    topLevel.forEach((el) => el.remove());
+  }
+
+  private extractDisplayTitleFromHtml(html: string): string | null {
+    if (!html) return null;
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const h1 = doc.body?.querySelector("h1");
+      if (!h1) return null;
+
+      const elements = Array.from(doc.body.querySelectorAll("*"));
+      const idx = elements.indexOf(h1);
+      if (idx === -1 || idx > 9) return null;
+
+      const raw = (h1.textContent || "").replace(/\s+/g, " ").trim();
+      if (!this.isAcceptableDisplayTitle(raw)) return null;
+      return raw;
     } catch {
-      return relativeUrl;
+      return null;
     }
   }
 
-  private updateSavedLabel(saved: boolean): void {
-    // This method is kept for compatibility but no longer displays a label
-    // The save button icon state is now managed elsewhere
-    void saved;
+  private isAcceptableDisplayTitle(text: string): boolean {
+    const t = (text || "").replace(/\s+/g, " ").trim();
+    if (!t) return false;
+    if (t.length < 10 || t.length > 200) return false;
+
+    const words = t.split(" ").filter(Boolean);
+    if (words.length < 3) return false;
+
+    const lower = t.toLowerCase();
+    const boilerplate = [
+      "sign in",
+      "log in",
+      "login",
+      "subscribe",
+      "advertisement",
+      "sponsored",
+    ];
+    if (boilerplate.some((b) => lower.includes(b))) return false;
+
+    return true;
+  }
+
+  private isEquivalentHtml(html1: string, html2: string): boolean {
+    const clean = (h: string) => h.replace(/\s+/g, " ").toLowerCase().trim();
+    return clean(html1) === clean(html2);
+  }
+
+  private hasMeaningfulArticleContent(html: string | null): boolean {
+    if (!html) return false;
+    const text =
+      new DOMParser().parseFromString(html, "text/html").body.textContent || "";
+    return text.trim().length > 200;
+  }
+
+  private async fetchFullArticleContent(url: string): Promise<string> {
+    const proxyUrl =
+      this.settings.corsProxyEnabled && this.settings.corsProxyUrl
+        ? this.settings.corsProxyUrl
+        : undefined;
+    return fetchWithProxyFallback(url, proxyUrl);
   }
 
   private toggleReadStatus(): void {
     if (!this.currentItem) return;
+    const nextRead = !this.currentItem.read;
+    this.onArticleUpdate(this.currentItem, { read: nextRead }, false);
+    this.updateToggleButtons();
+  }
 
-    const newReadState = !this.currentItem.read;
-    this.currentItem.read = newReadState;
-
-    // Update the icon
-    if (this.readToggleButton) {
-      setIcon(this.readToggleButton, newReadState ? "check-circle" : "circle");
-      this.readToggleButton.classList.toggle("read", newReadState);
-      this.readToggleButton.classList.toggle("unread", !newReadState);
-      this.readToggleButton.setAttr(
-        "title",
-        newReadState ? "Mark as unread" : "Mark as read",
-      );
+  public applyExternalUpdate(
+    articleGuid: string,
+    updates: Partial<FeedItem>,
+  ): void {
+    if (!this.currentItem || this.currentItem.guid !== articleGuid) {
+      return;
     }
 
-    // Notify parent to persist the change
-    this.onArticleUpdate(this.currentItem, { read: newReadState }, false);
+    Object.assign(this.currentItem, updates);
+    if (updates.tags) {
+      this.currentItem.tags = updates.tags;
+      this.refreshReaderHeaderTags();
+    }
+
+    if (
+      updates.read !== undefined ||
+      updates.starred !== undefined ||
+      updates.saved !== undefined
+    ) {
+      this.updateToggleButtons();
+    }
   }
 
   private toggleStarStatus(): void {
     if (!this.currentItem) return;
-
-    const newStarState = !this.currentItem.starred;
-    this.currentItem.starred = newStarState;
-
-    // Update the icon
-    if (this.starToggleButton) {
-      setIcon(this.starToggleButton, newStarState ? "star" : "star-off");
-      this.starToggleButton.classList.toggle("starred", newStarState);
-      this.starToggleButton.classList.toggle("unstarred", !newStarState);
-      this.starToggleButton.setAttr(
-        "title",
-        newStarState ? "Remove from starred" : "Add to starred",
-      );
-    }
-
-    // Notify parent to persist the change
-    this.onArticleUpdate(this.currentItem, { starred: newStarState }, false);
+    const nextStarred = !this.currentItem.starred;
+    this.onArticleUpdate(this.currentItem, { starred: nextStarred });
+    this.updateToggleButtons();
   }
 
-  private showTagsDropdown(event: MouseEvent, item: FeedItem): void {
+  private updateSavedLabel(saved: boolean): void {
+    if (!this.currentItem) return;
+    this.onArticleUpdate(this.currentItem, { saved });
+
+    if (this.saveButton) {
+      this.saveButton.toggleClass("saved", saved);
+      this.saveButton.setAttr(
+        "title",
+        saved ? "Click to open saved article" : "Save article",
+      );
+    }
+  }
+
+  private toggleTagsDropdown(anchor: HTMLElement): void {
+    if (!this.currentItem) {
+      return;
+    }
+
+    if (this.tagsDropdownCleanup) {
+      this.tagsDropdownCleanup();
+      this.tagsDropdownCleanup = null;
+      return;
+    }
+
+    const item = this.currentItem;
+    const cleanup = createTagsDropdownPortal({
+      anchor,
+      settings: this.settings,
+      item,
+      onTagAssignmentChange: (tag, checked) => {
+        this.toggleTag(item, tag, checked);
+      },
+      onPersistSettings: async () => {
+        const plugin = this.getRssDashboardPluginForSettingsSave();
+        if (!plugin) {
+          return;
+        }
+        try {
+          await plugin.saveSettings();
+        } catch {
+          // ignore
+        }
+      },
+      onAfterSettingsTagsMutated: () => {
+        this.refreshReaderHeaderTags();
+        if (this.podcastPlayer) {
+          this.podcastPlayer.refreshTags();
+          this.podcastPlayer.refreshPlaylistTags();
+        }
+        this.app.workspace.trigger("rss-dashboard:tags-mutated");
+      },
+      onOpenTagsSettings: () => {
+        this.openTagsSettings();
+      },
+      appContainer: this.contentEl,
+      onClosed: () => {
+        if (this.tagsDropdownCleanup === cleanup) {
+          this.tagsDropdownCleanup = null;
+        }
+      },
+    });
+
+    this.tagsDropdownCleanup = cleanup;
+  }
+
+  private closeTagsDropdown(): void {
+    if (this.tagsDropdownCleanup) {
+      this.tagsDropdownCleanup();
+      this.tagsDropdownCleanup = null;
+    }
+  }
+
+  private openTagsSettings(): void {
+    const appWithPlugins = this.app as unknown as {
+      plugins?: {
+        getPlugin?: (id: string) => unknown;
+        plugins?: Record<string, unknown>;
+      };
+      setting?: {
+        open?: () => void;
+        openTabById?: (id: string) => void;
+      };
+    };
+
+    type TagsPlugin = { openTagsSettings?: () => void };
+    const plugins = appWithPlugins.plugins;
+    const pluginByGetter =
+      typeof plugins?.getPlugin === "function"
+        ? (plugins.getPlugin("rss-dashboard") as TagsPlugin | null)
+        : null;
+    const pluginByRegistry = plugins?.plugins?.["rss-dashboard"] as
+      | TagsPlugin
+      | undefined;
+
+    const plugin = pluginByGetter || pluginByRegistry;
+    if (typeof plugin?.openTagsSettings === "function") {
+      plugin.openTagsSettings();
+      return;
+    }
+
+    appWithPlugins.setting?.open?.();
+    appWithPlugins.setting?.openTabById?.("rss-dashboard");
+  }
+
+  private refreshReaderHeaderTags(): void {
+    if (!this.currentItem) {
+      return;
+    }
+
+    const headerContainer = this.readingContainer?.querySelector<HTMLElement>(
+      ".rss-reader-article-header",
+    );
+    if (!headerContainer) {
+      return;
+    }
+
+    const tags = this.currentItem.tags || [];
+    const existing =
+      headerContainer.querySelector<HTMLElement>(".rss-reader-tags");
+
+    if (tags.length === 0) {
+      existing?.remove();
+      return;
+    }
+
+    const tagsContainer =
+      existing ??
+      headerContainer.createDiv({
+        cls: "rss-reader-tags",
+      });
+
+    tagsContainer.empty();
+    for (const tag of tags) {
+      const tagElement = tagsContainer.createDiv({
+        cls: "rss-reader-tag",
+      });
+      tagElement.textContent = tag.name;
+      tagElement.style.setProperty("--tag-color", tag.color);
+    }
+  }
+
+  private resolveReaderFontFamily(
+    fontFamily: ReaderFormatSettings["fontFamily"],
+  ): string {
+    switch (fontFamily) {
+      case "serif":
+        return 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif';
+      case "sans":
+        return 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+      case "mono":
+        return 'var(--font-monospace), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+      case "default":
+      default:
+        return "inherit";
+    }
+  }
+
+  private getReaderFormat(): ReaderFormatSettings {
+    if (!this.settings.readerFormat) {
+      this.settings.readerFormat = { ...DEFAULT_SETTINGS.readerFormat };
+      return this.settings.readerFormat;
+    }
+
+    const format = this.settings
+      .readerFormat as Partial<ReaderFormatSettings> & {
+      wordsPerLine?: number;
+    };
+    const defaults = DEFAULT_SETTINGS.readerFormat;
+
+    // Migrate wordsPerLine to paragraphWidth if it exists
+    if (format.paragraphWidth === undefined) {
+      if (format.wordsPerLine !== undefined) {
+        format.paragraphWidth = format.wordsPerLine > 0 ? 75 : 100;
+        delete format.wordsPerLine;
+      } else {
+        format.paragraphWidth = defaults.paragraphWidth;
+      }
+    }
+
+    if (format.textAlign === undefined) format.textAlign = defaults.textAlign;
+    if (format.fontScalePct === undefined)
+      format.fontScalePct = defaults.fontScalePct;
+    if (format.lineHeightPct === undefined)
+      format.lineHeightPct = defaults.lineHeightPct;
+    if (format.fontFamily === undefined)
+      format.fontFamily = defaults.fontFamily;
+    if (format.paragraphSpacing === undefined) {
+      format.paragraphSpacing = defaults.paragraphSpacing;
+    }
+
+    return format as ReaderFormatSettings;
+  }
+
+  private applyReaderFormat(): void {
+    const format = this.getReaderFormat();
+    const paragraphWidth = format.paragraphWidth || 100;
+
+    let maxWidth = "none";
+    if (paragraphWidth === 100) {
+      maxWidth = "calc(100% - 4px)";
+    } else {
+      maxWidth = `${paragraphWidth}%`;
+    }
+
+    setCssProps(this.contentEl, {
+      "--rss-reader-font-scale": String(format.fontScalePct / 100),
+      "--rss-reader-line-height": String(format.lineHeightPct / 100),
+      "--rss-reader-max-width": maxWidth,
+      "--rss-reader-font-family": this.resolveReaderFontFamily(
+        format.fontFamily,
+      ),
+    });
+
+    this.contentEl.dataset.rssReaderAlign = format.textAlign;
+    this.contentEl.dataset.rssReaderFont = format.fontFamily;
+    this.contentEl.dataset.rssReaderParagraph = format.paragraphSpacing;
+  }
+
+  private toggleReaderFormatDropdown(event: MouseEvent): void {
     event.stopPropagation();
     const anchor = event.currentTarget;
     if (!(anchor instanceof HTMLElement)) {
       return;
     }
-    this.createTagsDropdownPortal(anchor, item);
-  }
 
-  private createTagsDropdownPortal(anchor: HTMLElement, item: FeedItem): void {
-    this.closeTagsDropdownPortal();
-
-    const targetDocument = anchor.ownerDocument;
-    const targetBody = targetDocument.body;
-    const targetWindow = targetDocument.defaultView || window;
-    const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
-    if (isMobile) {
-      this.tagsDropdownBackdrop = targetBody.createDiv({
-        cls: "rss-dashboard-tags-sheet-backdrop",
-      });
-    }
-
-    const portalDropdown = targetBody.createDiv({
-      cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal rss-reader-tags-dropdown-portal",
-    });
-    if (isMobile) {
-      portalDropdown.addClass("rss-dashboard-tags-mobile-sheet");
-      const sheetHeader = portalDropdown.createDiv({
-        cls: "rss-dashboard-tags-sheet-header",
-      });
-      sheetHeader.createDiv({
-        cls: "rss-dashboard-tags-sheet-title",
-        text: "Manage tags",
-      });
-      const sheetActions = sheetHeader.createDiv({
-        cls: "rss-dashboard-tags-sheet-actions",
-      });
-      const addTagBtn = sheetActions.createEl("button", {
-        cls: "rss-dashboard-tags-sheet-btn",
-        text: "Add tag",
-      });
-      setIcon(addTagBtn, "plus");
-      addTagBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.closeTagsDropdownPortal();
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-        void (this.app as any).plugins.plugins["rss-dashboard"].openTagsSettings();
-      });
-      const doneBtn = sheetActions.createEl("button", {
-        cls: "rss-dashboard-tags-sheet-btn rss-dashboard-tags-sheet-btn-done",
-        text: "Done",
-      });
-      doneBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.closeTagsDropdownPortal();
-      });
-    }
-    const tagsListContainer = portalDropdown.createDiv({
-      cls: "rss-dashboard-tag-list",
-    });
-    const tagSeparator = portalDropdown.createDiv({
-      cls: "rss-dashboard-tag-item-separator",
-    });
-    const updateTagSeparatorVisibility = (): void => {
-      const hasTags = this.settings.availableTags.length > 0;
-      tagSeparator.style.display = hasTags ? "" : "none";
-    };
-    const deleteTagFromProfile = (tag: Tag): void => {
-      const tagIndex = this.settings.availableTags.findIndex(
-        (t) => t.name === tag.name,
-      );
-      if (tagIndex === -1) return;
-      this.settings.availableTags.splice(tagIndex, 1);
-      this.settings.feeds.forEach((feed) => {
-        feed.items.forEach((feedItem) => {
-          if (feedItem.tags) {
-            feedItem.tags = feedItem.tags.filter((t) => t.name !== tag.name);
-          }
-        });
-      });
-      if (item.tags?.some((t) => t.name === tag.name)) {
-        item.tags = item.tags.filter((t) => t.name !== tag.name);
-      }
-      this.onArticleUpdate(item, {}, false);
-      new Notice(`Tag "${tag.name}" deleted successfully!`);
-      updateTagSeparatorVisibility();
-    };
-    this.tagsDropdownPortal = portalDropdown;
-    this.tagsDropdownDocument = targetDocument;
-
-    const appendTagItem = (tag: Tag, checkedOverride?: boolean) => {
-      const tagItem = tagsListContainer.createDiv({
-        cls: "rss-dashboard-tag-item",
-      });
-      const hasTag =
-        checkedOverride ??
-        (item.tags?.some((existing) => existing.name === tag.name) || false);
-
-      const tagCheckbox = tagItem.createEl("input", {
-        attr: { type: "checkbox" },
-        cls: "rss-dashboard-tag-checkbox",
-      });
-      tagCheckbox.checked = hasTag;
-
-      const tagLabel = tagItem.createDiv({
-        cls: "rss-dashboard-tag-label",
-        text: tag.name,
-      });
-      tagLabel.style.setProperty("--tag-color", tag.color);
-
-      const deleteButton = tagItem.createEl("button", {
-        cls: "rss-dashboard-tag-delete-button",
-        attr: { title: `Delete "${tag.name}" tag`, "aria-label": "Delete tag" },
-      });
-      setIcon(deleteButton, "trash");
-
-      tagCheckbox.addEventListener("change", (e) => {
-        e.stopPropagation();
-        const isChecked = (e.target as HTMLInputElement).checked;
-        this.toggleTag(item, tag, isChecked);
-      });
-
-      tagItem.addEventListener("click", (e) => {
-        if (
-          e.target === tagCheckbox ||
-          (e.target instanceof Element &&
-            e.target.closest(".rss-dashboard-tag-delete-button"))
-        ) {
-          return;
-        }
-        tagCheckbox.checked = !tagCheckbox.checked;
-        this.toggleTag(item, tag, tagCheckbox.checked);
-      });
-
-      deleteButton.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        deleteTagFromProfile(tag);
-        tagItem.remove();
-      });
-
-      tagItem.appendChild(tagCheckbox);
-      tagItem.appendChild(tagLabel);
-      tagItem.appendChild(deleteButton);
-    };
-
-    for (const tag of this.settings.availableTags) {
-      appendTagItem(tag);
-    }
-    updateTagSeparatorVisibility();
-
-    if (!isMobile) {
-    const inlineAddRow = portalDropdown.createDiv({
-      cls: "rss-dashboard-tag-inline-add-row",
-    });
-
-    const colorInput = inlineAddRow.createEl("input", {
-      attr: {
-        type: "color",
-        value: "#3498db",
-      },
-      cls: "rss-dashboard-tag-inline-color",
-    });
-
-    const nameInput = inlineAddRow.createEl("input", {
-      attr: {
-        type: "text",
-        placeholder: "Add new tag...",
-        autocomplete: "off",
-      },
-      cls: "rss-dashboard-tag-inline-input",
-    });
-    nameInput.spellcheck = false;
-
-    const addButton = inlineAddRow.createEl("button", {
-      cls: "rss-dashboard-tag-inline-button",
-      attr: { title: "Add tag" },
-    });
-    setIcon(addButton, "plus");
-
-    const submitInlineTag = () => {
-      const tagName = nameInput.value.trim();
-      const tagColor = colorInput.value;
-
-      if (!tagName) {
-        new Notice("Please enter a tag name!");
-        return;
-      }
-
-      if (
-        this.settings.availableTags.some(
-          (tag) => tag.name.toLowerCase() === tagName.toLowerCase(),
-        )
-      ) {
-        new Notice("A tag with this name already exists!");
-        return;
-      }
-
-      const newTag: Tag = {
-        name: tagName,
-        color: tagColor,
-      };
-
-      this.settings.availableTags.push(newTag);
-      this.toggleTag(item, newTag, true);
-      appendTagItem(newTag, true);
-
-      nameInput.value = "";
-      requestAnimationFrame(() => nameInput.focus());
-      new Notice(`Tag "${tagName}" added`);
-    };
-
-    addButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      submitInlineTag();
-    });
-
-    nameInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        e.stopPropagation();
-        submitInlineTag();
-      }
-    });
-    } // end !isMobile
-
-    const rect = anchor.getBoundingClientRect();
-    const dropdownRect = portalDropdown.getBoundingClientRect();
-    const appContainer =
-      this.contentEl.closest(".workspace-leaf-content") || targetBody;
-    const appContainerRect = appContainer.getBoundingClientRect();
-
-    if (isMobile) {
-      const syncMobileViewportHeight = () => {
-        const vvp = targetWindow.visualViewport;
-        const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
-        portalDropdown.style.setProperty("max-height", `${viewportHeight - 16}px`, "important");
-      };
-      syncMobileViewportHeight();
-
-      const visualViewport = targetWindow.visualViewport;
-      if (visualViewport) {
-        visualViewport.addEventListener("resize", syncMobileViewportHeight);
-        visualViewport.addEventListener("scroll", syncMobileViewportHeight);
-        this.tagsDropdownViewportCleanup = () => {
-          visualViewport.removeEventListener("resize", syncMobileViewportHeight);
-          visualViewport.removeEventListener("scroll", syncMobileViewportHeight);
-        };
-      } else {
-        targetWindow.addEventListener("resize", syncMobileViewportHeight);
-        this.tagsDropdownViewportCleanup = () => {
-          targetWindow.removeEventListener("resize", syncMobileViewportHeight);
-        };
-      }
-
-      this.tagsDropdownBackdrop?.addEventListener("click", () => {
-        this.closeTagsDropdownPortal();
-      });
-
+    if (this.readerFormatPortal) {
+      this.readerFormatPortal.close(true);
+      this.readerFormatPortal = null;
       return;
     }
 
-    let left = rect.right;
-    let top = rect.top;
-
-    if (left + dropdownRect.width > appContainerRect.right) {
-      left = rect.left - dropdownRect.width;
-    }
-
-    if (left < appContainerRect.left) {
-      left = appContainerRect.left;
-    }
-
-    if (top + dropdownRect.height > targetWindow.innerHeight) {
-      top = targetWindow.innerHeight - dropdownRect.height - 5;
-    }
-
-    portalDropdown.style.left = `${left}px`;
-    portalDropdown.style.top = `${top}px`;
-
-    targetWindow.setTimeout(() => {
-      const outsideHandler = (ev: MouseEvent) => {
-        if (
-          this.tagsDropdownPortal &&
-          !this.tagsDropdownPortal.contains(ev.target as Node) &&
-          !anchor.contains(ev.target as Node)
-        ) {
-          this.closeTagsDropdownPortal();
+    const format = this.getReaderFormat();
+    const portal = createReaderFormatPortal({
+      anchor,
+      format,
+      defaults: DEFAULT_SETTINGS.readerFormat,
+      applyFormat: () => this.applyReaderFormat(),
+      scheduleSave: () => this.scheduleReaderFormatSave(),
+      flushSave: () => this.flushReaderFormatSave(),
+      onClosed: () => {
+        if (this.readerFormatPortal === portal) {
+          this.readerFormatPortal = null;
         }
-      };
-      this.tagsDropdownOutsideHandler = outsideHandler;
-      targetDocument.addEventListener("mousedown", outsideHandler);
-    }, 0);
+      },
+    });
+
+    this.readerFormatPortal = portal;
   }
 
-  private closeTagsDropdownPortal(): void {
-    if (this.tagsDropdownBackdrop) {
-      this.tagsDropdownBackdrop.remove();
-      this.tagsDropdownBackdrop = null;
+  private scheduleReaderFormatSave(): void {
+    if (this.readerFormatSaveTimeout !== null) {
+      window.clearTimeout(this.readerFormatSaveTimeout);
     }
 
-    if (this.tagsDropdownPortal) {
-      this.tagsDropdownPortal.remove();
-      this.tagsDropdownPortal = null;
+    this.readerFormatSaveTimeout = window.setTimeout(() => {
+      void this.flushReaderFormatSave();
+    }, 300);
+  }
+
+  private getRssDashboardPluginForSettingsSave(): {
+    saveSettings: () => Promise<void>;
+  } | null {
+    try {
+      const appWithPlugins = this.app as unknown as {
+        plugins?: {
+          getPlugin?: (id: string) => unknown;
+          plugins?: Record<string, unknown>;
+        };
+      };
+
+      const plugins = appWithPlugins.plugins;
+      if (!plugins) {
+        return null;
+      }
+
+      const pluginByGetter =
+        typeof plugins.getPlugin === "function"
+          ? plugins.getPlugin("rss-dashboard")
+          : null;
+      const pluginByRegistry = plugins.plugins?.["rss-dashboard"];
+
+      const plugin = (pluginByGetter || pluginByRegistry) as
+        | { saveSettings?: unknown }
+        | undefined;
+      if (plugin && typeof plugin.saveSettings === "function") {
+        return plugin as { saveSettings: () => Promise<void> };
+      }
+    } catch {
+      return null;
     }
 
-    if (this.tagsDropdownOutsideHandler && this.tagsDropdownDocument) {
-      this.tagsDropdownDocument.removeEventListener(
-        "mousedown",
-        this.tagsDropdownOutsideHandler,
-      );
+    return null;
+  }
+
+  private async flushReaderFormatSave(): Promise<void> {
+    if (this.readerFormatSaveTimeout !== null) {
+      window.clearTimeout(this.readerFormatSaveTimeout);
+      this.readerFormatSaveTimeout = null;
     }
 
-    if (this.tagsDropdownViewportCleanup) {
-      this.tagsDropdownViewportCleanup();
-      this.tagsDropdownViewportCleanup = null;
+    const plugin = this.getRssDashboardPluginForSettingsSave();
+    if (!plugin) {
+      return;
     }
 
-    this.tagsDropdownOutsideHandler = null;
-    this.tagsDropdownDocument = null;
+    try {
+      await plugin.saveSettings();
+    } catch {
+      // Ignore save errors; formatting still applies for this session.
+    }
   }
 
   private toggleTag(item: FeedItem, tag: Tag, add: boolean): void {
@@ -1535,6 +1955,19 @@ export class ReaderView extends ItemView {
 
     // Notify parent to persist the change
     this.onArticleUpdate(item, { tags: [...item.tags] }, false);
+
+    if (this.currentItem?.guid === item.guid) {
+      this.refreshReaderHeaderTags();
+    }
+
+    if (
+      this.podcastPlayer &&
+      this.currentItem?.guid === item.guid &&
+      this.currentItem.mediaType === "podcast"
+    ) {
+      this.podcastPlayer.refreshTags();
+      this.podcastPlayer.refreshPlaylistTags(item.guid);
+    }
   }
 
   private updateToggleButtons(): void {
@@ -1571,6 +2004,16 @@ export class ReaderView extends ItemView {
       this.starToggleButton.setAttr(
         "title",
         this.currentItem.starred ? "Remove from starred" : "Add to starred",
+      );
+    }
+
+    // Update save button state
+    if (this.saveButton) {
+      const isSaved = Boolean(this.currentItem.saved);
+      this.saveButton.toggleClass("saved", isSaved);
+      this.saveButton.setAttr(
+        "title",
+        isSaved ? "Click to open saved article" : "Save article",
       );
     }
   }

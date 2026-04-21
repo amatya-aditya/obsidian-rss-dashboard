@@ -11,15 +11,16 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: "18.x"
+          node-version: "22.x"
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build plugin
         run: npm run build
@@ -46,10 +47,16 @@ jobs:
           release_notes="Release $tag"
           release_flags=(--title="$tag" --notes="$release_notes" --draft)
 
+          # Alpha tags are prereleases and should be published (not drafts) so BRAT can see them.
+          if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+$ ]]; then
+            release_notes="Alpha release $tag"
+            release_flags=(--title="$tag" --notes="$release_notes" --prerelease)
+          fi
+
           # Beta tags must be formatted without a leading "v", e.g. 2.1.0-beta.1
           if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]]; then
             release_notes="Beta release $tag"
-            release_flags=(--title="$tag" --notes="$release_notes" --draft --prerelease)
+            release_flags=(--title="$tag" --notes="$release_notes" --prerelease)
           fi
 
           # Create release with all assets

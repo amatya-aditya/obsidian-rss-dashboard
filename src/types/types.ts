@@ -58,6 +58,10 @@ export interface FeedItem {
 export interface Feed {
   title: string;
   url: string;
+  /**
+   * Canonical website/homepage URL for the feed (not the RSS URL).
+   */
+  siteUrl?: string;
   folder: string;
   items: FeedItem[];
   lastUpdated: number;
@@ -73,7 +77,7 @@ export interface Feed {
   maxItemsLimit?: number;
   scanInterval?: number;
   iconUrl?: string;
-  filters?: FeedFilterSettings;
+  keywordRules?: FeedKeywordRulesSettings;
 }
 
 export interface FeedMetadata {
@@ -132,6 +136,7 @@ export interface MediaSettings {
   defaultSmallwebTag: string;
   openInSplitView: boolean;
   podcastTheme: PodcastTheme;
+  enableApplePodcastsOpen?: boolean;
 }
 
 export interface SavedTemplate {
@@ -187,6 +192,45 @@ export interface DisplaySettings {
   sidebarItemPaddingRight: number;
   cardColumnsPerRow: number;
   cardSpacing: number;
+  hideEmptyFeeds: boolean;
+
+  // Icon visibility (all default false = visible)
+  hideIconDashboard: boolean;
+  hideIconDiscover: boolean;
+  hideIconAddFeed: boolean;
+  hideIconManageFeeds: boolean;
+  hideIconSearch: boolean;
+  hideIconTags: boolean;
+  hideIconAddFolder: boolean;
+  hideIconSort: boolean;
+  hideIconCollapseAll: boolean;
+  hideIconSettings: boolean;
+  hideIconDivider: boolean;
+  hideToolbarEntirely: boolean;
+  iconOrder: string[];
+}
+
+export interface SidebarIconConfig {
+  id: string;
+  label: string;
+  lucideIcon: string;
+  settingKey: keyof DisplaySettings;
+  neverCollapses?: boolean;
+  isNav?: boolean;
+  isDivider?: boolean;
+}
+
+export type ReaderTextAlign = "justify" | "left";
+export type ReaderFontFamily = "default" | "serif" | "sans" | "mono";
+export type ReaderParagraphSpacing = "default" | "tight" | "normal" | "loose";
+
+export interface ReaderFormatSettings {
+  textAlign: ReaderTextAlign;
+  paragraphWidth: number;
+  fontScalePct: number;
+  lineHeightPct: number;
+  fontFamily: ReaderFontFamily;
+  paragraphSpacing: ReaderParagraphSpacing;
 }
 
 export interface HighlightWord {
@@ -220,24 +264,32 @@ export interface KeywordFilterRule {
   createdAt: number;
 }
 
-export interface GlobalFilterSettings {
+export interface GlobalKeywordRulesSettings {
   includeLogic: "AND" | "OR";
   bypassAll: boolean;
   rules: KeywordFilterRule[];
 }
 
-export interface FeedFilterSettings {
-  overrideGlobalFilters: boolean;
+export interface FeedKeywordRulesSettings {
+  overrideGlobalRules: boolean;
   includeLogic: "AND" | "OR";
   rules: KeywordFilterRule[];
+}
+
+export interface AutoBackupSettings {
+  backupDataJson: boolean; // copies data.json → data.json.backup
+  backupOpml: boolean; // copies feeds.opml → feeds.opml.backup
+  backupUserdata: boolean; // copies userdata.json → userdata.json.backup
 }
 
 export interface RssDashboardSettings {
   feeds: Feed[];
   folders: Folder[];
   refreshInterval: number;
+  lastRefreshTimestamp: number;
   maxItems: number;
-  viewStyle: "list" | "card";
+  defaultAutoDeleteDuration: number;
+  viewStyle: "list" | "card" | "feed";
   showFeedArt: boolean;
   showThumbnails: boolean;
   sidebarCollapsed: boolean;
@@ -257,16 +309,16 @@ export interface RssDashboardSettings {
   starredArticlesPageSize: number;
   availableTags: Tag[];
   folderSortOrder?: {
-    by: "name" | "created" | "modified";
+    by: "name" | "created" | "modified" | "custom";
     ascending: boolean;
   };
   feedSortOrder?: {
-    by: "name" | "created" | "itemCount";
+    by: "name" | "created" | "itemCount" | "custom";
     ascending: boolean;
   };
   folderFeedSortOrders?: {
     [folderPath: string]: {
-      by: "name" | "created" | "itemCount";
+      by: "name" | "created" | "itemCount" | "custom";
       ascending: boolean;
     };
   };
@@ -274,14 +326,43 @@ export interface RssDashboardSettings {
   readerViewLocation: ViewLocation;
   useWebViewer: boolean;
 
+  corsProxyEnabled: boolean;
+  corsProxyUrl: string;
+  customProxyUrls: string[];
+
+  readerFormat: ReaderFormatSettings;
+
   media: MediaSettings;
   articleSaving: ArticleSavingSettings;
   display: DisplaySettings;
   highlights: HighlightSettings;
-  filters: GlobalFilterSettings;
+  keywordRules: GlobalKeywordRulesSettings;
+
+  /**
+   * Dashboard multi-filters state (status/tag filters + AND/OR) that should persist
+   * across navigation and restarts.
+   */
+  dashboardMultiFilters: {
+    statusFilters: string[];
+    tagFilters: string[];
+    logic: "AND" | "OR";
+  };
+
+  /**
+   * Tag filter mode for the sidebar tags section.
+   * or  = articles matching at least one selected tag (default)
+   * and = articles matching all selected tags
+   * not = articles matching none of the selected tags
+   */
+  sidebarTagFilterMode: "or" | "and" | "not";
+
+  autoBackup: AutoBackupSettings;
 }
 
-export type SettingsOnly = Omit<RssDashboardSettings, 'feeds' | 'folders' | 'availableTags'>;
+export type SettingsOnly = Omit<
+  RssDashboardSettings,
+  "feeds" | "folders" | "availableTags"
+>;
 
 export const DEFAULT_SETTINGS: RssDashboardSettings = {
   feeds: [],
@@ -312,7 +393,9 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     },
   ],
   refreshInterval: 60,
-  maxItems: 25,
+  lastRefreshTimestamp: 0,
+  maxItems: 50,
+  defaultAutoDeleteDuration: 30,
   viewStyle: "card",
   showFeedArt: true,
   showThumbnails: true,
@@ -341,6 +424,17 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   viewLocation: "main",
   readerViewLocation: "main",
   useWebViewer: true,
+  corsProxyEnabled: false,
+  corsProxyUrl: "",
+  customProxyUrls: [],
+  readerFormat: {
+    textAlign: "justify",
+    paragraphWidth: 100,
+    fontScalePct: 100,
+    lineHeightPct: 160,
+    fontFamily: "default",
+    paragraphSpacing: "default",
+  },
   media: {
     defaultYouTubeFolder: "Videos",
     defaultYouTubeTag: "youtube",
@@ -352,17 +446,18 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultSmallwebTag: "smallweb",
     openInSplitView: true,
     podcastTheme: "obsidian",
+    enableApplePodcastsOpen: false,
   },
   articleSaving: {
     addSavedTag: true,
     defaultFolder: "RSS articles/",
     defaultTemplate: `---
-title: "{{title}}"
-date: {{date}}
-tags: [{{tags}}]
-source: "{{source}}"
-link: {{link}}
-author: "{{author}}"
+ title: "{{title}}"
+ date: "{{date}}"
+ tags: [{{tags}}]
+ source: "{{source}}"
+ link: "{{link}}"
+ author: "{{author}}"
 feedTitle: "{{feedTitle}}"
 guid: "{{guid}}"
 ---
@@ -371,15 +466,15 @@ guid: "{{guid}}"
 
 {{content}}
 
-[Source]({{link}})`,
+  [Source]({{link}})`,
     includeFrontmatter: true,
     frontmatterTemplate: `---
-title: "{{title}}"
-date: {{date}}
-tags: [{{tags}}]
-source: "{{source}}"
-link: {{link}}
-author: "{{author}}"
+ title: "{{title}}"
+ date: "{{date}}"
+ tags: [{{tags}}]
+ source: "{{source}}"
+ link: "{{link}}"
+ author: "{{author}}"
 feedTitle: "{{feedTitle}}"
 guid: "{{guid}}"
 ---`,
@@ -416,6 +511,31 @@ guid: "{{guid}}"
     sidebarItemPaddingRight: 2,
     cardColumnsPerRow: 0,
     cardSpacing: 15,
+    hideEmptyFeeds: false,
+    hideIconDashboard: false,
+    hideIconDiscover: false,
+    hideIconAddFeed: false,
+    hideIconManageFeeds: false,
+    hideIconSearch: false,
+    hideIconTags: false,
+    hideIconAddFolder: false,
+    hideIconSort: false,
+    hideIconCollapseAll: false,
+    hideIconSettings: false,
+    hideIconDivider: false,
+    hideToolbarEntirely: false,
+    iconOrder: [
+      "discover",
+      "divider",
+      "addFeed",
+      "manageFeeds",
+      "search",
+      "tags",
+      "addFolder",
+      "sort",
+      "collapseAll",
+      "settings",
+    ],
   },
   highlights: {
     enabled: false,
@@ -425,9 +545,20 @@ guid: "{{guid}}"
     highlightInSummaries: true,
     words: [],
   },
-  filters: {
+  keywordRules: {
     includeLogic: "AND",
     bypassAll: false,
     rules: [],
+  },
+  dashboardMultiFilters: {
+    statusFilters: [],
+    tagFilters: [],
+    logic: "OR",
+  },
+  sidebarTagFilterMode: "or",
+  autoBackup: {
+    backupDataJson: false,
+    backupOpml: true,
+    backupUserdata: true,
   },
 };

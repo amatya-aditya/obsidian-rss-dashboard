@@ -1,7 +1,7 @@
 ﻿import { ItemView, WorkspaceLeaf, Notice, setIcon, requestUrl } from "obsidian";
 import { Feed } from "../types/types";
 import type RssDashboardPlugin from "../../main";
-import { setCssProps } from "../utils/platform-utils";
+import { setCssProps, attachInputClearButton } from "../utils/platform-utils";
 import { FolderSelectorPopup } from "../components/folder-selector-popup";
 
 export const RSS_SMALLWEB_VIEW_TYPE = "rss-smallweb-view";
@@ -380,7 +380,7 @@ export class KagiSmallwebView extends ItemView {
 
     // Search input
     const searchWrapper = controlsRow.createDiv({
-      cls: "rss-smallweb-search-wrapper",
+      cls: "rss-smallweb-search-wrapper rss-discover-search-input-wrapper",
     });
     const searchInput = searchWrapper.createEl("input", {
       type: "text",
@@ -388,6 +388,13 @@ export class KagiSmallwebView extends ItemView {
       value: this.smallwebSearchQuery,
     });
     searchInput.addClass("rss-discover-search-input");
+
+    attachInputClearButton(searchWrapper, searchInput, () => {
+      this.smallwebSearchQuery = "";
+      this.filterSmallwebEntries();
+      this.render();
+    });
+
     searchInput.addEventListener("input", (e) => {
       const value = (e.target as HTMLInputElement).value;
       this.debouncedSmallwebSearch(value);

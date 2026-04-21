@@ -1,12 +1,13 @@
 {
   "name": "rss-dashboard",
-  "version": "2.2.0",
+  "version": "2.2.0-beta.10",
   "description": "RSS dashboard for Obsidian",
   "main": "main.js",
   "type": "commonjs",
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "eslint . --ext .ts && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "check:css-scope": "node scripts/check-css-scope.js",
+    "build": "npm run check:css-scope && eslint . --ext .ts && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "lint": "eslint . --ext .ts",
     "test:unit": "vitest run --config vitest.config.mjs",
     "hooks:install": "node scripts/setup-git-hooks.mjs",
@@ -16,23 +17,30 @@
   "keywords": [],
   "author": "",
   "license": "MIT",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "devDependencies": {
-    "@types/node": "^16.11.6",
+    "@types/node": "^24.0.0",
     "@typescript-eslint/parser": "^8.51.0",
     "@typescript-eslint/utils": "^8.51.0",
+    "@vitest/coverage-v8": "4.1.2",
     "builtin-modules": "3.3.0",
-    "esbuild": "^0.25.5",
+    "esbuild": "0.27.7",
     "eslint": "^9.39.2",
     "eslint-plugin-obsidianmd": "^0.1.9",
     "globals": "^16.5.0",
-    "obsidian": "latest",
+    "obsidian": "1.8.7",
+    "postcss": "^8.5.6",
+    "postcss-selector-parser": "^7.1.0",
     "prettier": "^3.8.1",
     "tslib": "2.4.0",
     "typescript": "^5.9.3",
-    "vitest": "^0.34.6"
+    "vitest": "4.1.2"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
+    "jsdom": "^28.1.0",
     "turndown": "^7.2.0"
   }
 }

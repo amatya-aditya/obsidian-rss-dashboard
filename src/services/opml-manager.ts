@@ -20,9 +20,25 @@ function escapeXml(unsafe: string): string {
 }
 
 export class OpmlManager {
+  private static preProcessOpml(opmlContent: string): string {
+    // Replace unescaped & with &amp;
+    // This regex looks for & not followed by a valid entity sequence
+    return opmlContent.replace(
+      /&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[a-f\d]+);)/gi,
+      "&amp;",
+    );
+  }
+
   static parseOpml(opmlContent: string): { feeds: Feed[]; folders: Folder[] } {
+    const processedContent = this.preProcessOpml(opmlContent);
     const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(opmlContent, "text/xml");
+    const xmlDoc = parser.parseFromString(processedContent, "text/xml");
+
+    // Check for parsing errors
+    const parserError = xmlDoc.getElementsByTagName("parsererror");
+    if (parserError.length > 0) {
+      throw new Error("Invalid OPML format");
+    }
 
     const newFeeds: Feed[] = [];
     const folderMap: { [key: string]: Folder } = {};
@@ -136,8 +152,15 @@ export class OpmlManager {
     feeds: FeedMetadata[];
     folders: Folder[];
   } {
+    const processedContent = this.preProcessOpml(opmlContent);
     const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(opmlContent, "text/xml");
+    const xmlDoc = parser.parseFromString(processedContent, "text/xml");
+
+    // Check for parsing errors
+    const parserError = xmlDoc.getElementsByTagName("parsererror");
+    if (parserError.length > 0) {
+      throw new Error("Invalid OPML format");
+    }
 
     const newFeeds: FeedMetadata[] = [];
     const folderMap: { [key: string]: Folder } = {};

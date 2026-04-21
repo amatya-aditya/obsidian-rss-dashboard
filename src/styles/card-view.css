@@ -325,8 +325,6 @@
   line-clamp: 2;
   -webkit-box-orient: vertical;
   line-height: 1.4;
-  min-height: calc(2 * 1.4em);
-  max-height: calc(2 * 1.4em);
   flex-shrink: 0;
   overflow: hidden;
   word-wrap: break-word;
@@ -392,8 +390,8 @@
   }
 
   .rss-dashboard-article-card {
-    min-height: 420px;
-    max-height: 420px;
+    min-height: 360px;
+    max-height: 360px;
   }
 }
 
@@ -403,8 +401,8 @@
   }
 
   .rss-dashboard-article-card {
-    min-height: 400px;
-    max-height: 400px;
+    min-height: 360px;
+    max-height: 360px;
   }
 
   .rss-dashboard-card-content {
@@ -414,8 +412,6 @@
   .rss-dashboard-article-title {
     font-size: 1.15em;
     line-height: 1.4;
-    min-height: calc(2 * 1.4em);
-    max-height: calc(2 * 1.4em);
   }
 }
 
@@ -425,8 +421,8 @@
   }
 
   .rss-dashboard-article-card {
-    min-height: 380px;
-    max-height: 380px;
+    min-height: 360px;
+    max-height: 360px;
   }
 }
 
@@ -451,15 +447,13 @@
   }
 
   .rss-dashboard-article-card {
-    min-height: 340px;
-    max-height: 380px;
+    min-height: 360px;
+    max-height: 360px;
   }
 
   .rss-dashboard-article-title {
     font-size: 1.05em;
     line-height: 1.35;
-    min-height: calc(2 * 1.35em);
-    max-height: calc(2 * 1.35em);
   }
 }
 
@@ -480,8 +474,6 @@
   .rss-dashboard-article-title {
     font-size: 1em;
     line-height: 1.3;
-    min-height: calc(2 * 1.3em);
-    max-height: calc(2 * 1.3em);
   }
 
   .rss-dashboard-article-meta {
@@ -514,8 +506,6 @@
   .rss-dashboard-article-title {
     font-size: 1em;
     line-height: 1.35;
-    min-height: calc(2 * 1.35em);
-    max-height: calc(2 * 1.35em);
     margin-bottom: 8px;
   }
 
@@ -565,10 +555,8 @@
   .rss-dashboard-article-title {
     font-size: 1em;
     line-height: 1.3;
-    min-height: calc(2 * 1.3em);
-    max-height: calc(2 * 1.3em);
-    line-clamp: 3;
-    -webkit-line-clamp: 3;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
   }
 
   .rss-dashboard-article-meta {
@@ -700,4 +688,98 @@
 .rss-dashboard-tags-toggle:focus {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
+}
+
+.rss-dashboard-card-view {
+  --rss-dashboard-card-tags-region-height: 56px;
+}
+
+.rss-dashboard-card-view .rss-dashboard-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  flex: 0 0 auto;
+}
+
+.rss-dashboard-card-view .rss-dashboard-card-preview-region {
+  flex: 0 0 auto;
+  min-height: 120px;
+  max-height: 200px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.rss-dashboard-card-view .rss-dashboard-card-preview-region > * {
+  min-height: 120px;
+  max-height: 200px;
+}
+
+.rss-dashboard-card-view
+  .rss-dashboard-card-preview-region
+  .rss-dashboard-cover-container {
+  position: relative;
+  height: clamp(120px, 24vh, 200px);
+  width: 100%;
+  margin: 0;
+  padding-top: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--background-modifier-border);
+}
+
+.rss-dashboard-card-view
+  .rss-dashboard-card-preview-region
+  .rss-dashboard-cover-image,
+.rss-dashboard-card-view
+  .rss-dashboard-card-preview-region
+  .rss-dashboard-summary-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.rss-dashboard-card-view
+  .rss-dashboard-card-preview-region
+  .rss-dashboard-cover-summary-only {
+  min-height: 120px;
+  max-height: 200px;
+  margin: 0;
+  overflow: auto;
+}
+
+.rss-dashboard-card-view .rss-dashboard-card-tags-region {
+  flex: 0 0 auto;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 8px 12px 8px 12px;
+}
+
+.rss-dashboard-card-view
+  .rss-dashboard-article-card--has-tags
+  .rss-dashboard-card-tags-region {
+  max-height: var(--rss-dashboard-card-tags-region-height);
+}
+
+.rss-dashboard-card-view
+  .rss-dashboard-card-tags-region
+  .rss-dashboard-article-tags {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 5px;
+  margin: 0;
+  max-height: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  align-content: flex-start;
+}
+
+.rss-dashboard-card-view .rss-dashboard-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding: 8px 16px 8px;
+  flex-shrink: 0;
 }
