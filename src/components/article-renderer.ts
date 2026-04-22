@@ -10,7 +10,11 @@ export interface ArticleRendererOptions {
   app: App;
   settings: RssDashboardSettings;
   onArticleSave: (item: FeedItem) => void;
-  onArticleUpdate: (item: FeedItem, updates: Partial<FeedItem>, shouldRerender?: boolean) => void;
+  onArticleUpdate: (
+    item: FeedItem,
+    updates: Partial<FeedItem>,
+    shouldRerender?: boolean,
+  ) => void;
   onOpenSavedArticle?: (file: TFile) => void;
 }
 
@@ -18,7 +22,11 @@ export class ArticleRenderer {
   private app: App;
   private settings: RssDashboardSettings;
   private onArticleSave: (item: FeedItem) => void;
-  private onArticleUpdate: (item: FeedItem, updates: Partial<FeedItem>, shouldRerender?: boolean) => void;
+  private onArticleUpdate: (
+    item: FeedItem,
+    updates: Partial<FeedItem>,
+    shouldRerender?: boolean,
+  ) => void;
   private onOpenSavedArticle?: (file: TFile) => void;
 
   private podcastPlayer: PodcastPlayer | null = null;
@@ -38,7 +46,11 @@ export class ArticleRenderer {
     this.onOpenSavedArticle = options.onOpenSavedArticle;
   }
 
-  public async render(container: HTMLElement, item: FeedItem, relatedItems: FeedItem[] = []): Promise<void> {
+  public async render(
+    container: HTMLElement,
+    item: FeedItem,
+    relatedItems: FeedItem[] = [],
+  ): Promise<void> {
     container.empty();
     this.currentItem = item;
     this.relatedItems = relatedItems;
@@ -70,7 +82,8 @@ export class ArticleRenderer {
       const fetchedContent = this.shouldSkipFullArticleFetch(item)
         ? ""
         : await this.fetchFullArticleContent(item.link);
-      const hasFullArticleContent = this.hasMeaningfulArticleContent(fetchedContent);
+      const hasFullArticleContent =
+        this.hasMeaningfulArticleContent(fetchedContent);
       const displayTitle = hasFullArticleContent
         ? this.extractDisplayTitleFromHtml(fetchedContent)
         : null;
@@ -84,7 +97,10 @@ export class ArticleRenderer {
     }
   }
 
-  private async displayVideo(container: HTMLElement, item: FeedItem): Promise<void> {
+  private async displayVideo(
+    container: HTMLElement,
+    item: FeedItem,
+  ): Promise<void> {
     this.cleanupPlayers();
     const videoContainer = container.createDiv({
       cls: "rss-reader-video-container enhanced",
@@ -115,12 +131,18 @@ export class ArticleRenderer {
     }
   }
 
-  private async displayVideoPodcast(container: HTMLElement, item: FeedItem): Promise<void> {
-     // Placeholder for displayVideoPodcast if needed, logic seems missing in original snippet but referenced
-     await this.displayArticle(container, item);
+  private async displayVideoPodcast(
+    container: HTMLElement,
+    item: FeedItem,
+  ): Promise<void> {
+    // Placeholder for displayVideoPodcast if needed, logic seems missing in original snippet but referenced
+    await this.displayArticle(container, item);
   }
 
-  private async displayPodcast(container: HTMLElement, item: FeedItem): Promise<void> {
+  private async displayPodcast(
+    container: HTMLElement,
+    item: FeedItem,
+  ): Promise<void> {
     this.cleanupPlayers();
     const podcastContainer = container.createDiv({
       cls: "rss-reader-podcast-container enhanced",
@@ -154,26 +176,35 @@ export class ArticleRenderer {
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
-       await this.displayArticle(container, item);
+      await this.displayArticle(container, item);
     }
   }
 
-  private async displayArticle(container: HTMLElement, item: FeedItem, fullContent?: string): Promise<void> {
+  private async displayArticle(
+    container: HTMLElement,
+    item: FeedItem,
+    fullContent?: string,
+  ): Promise<void> {
     this.cleanupPlayers();
     this.renderArticle(container, item, fullContent);
   }
 
-  private renderArticle(container: HTMLElement, item: FeedItem, fullContent?: string): void {
+  private renderArticle(
+    container: HTMLElement,
+    item: FeedItem,
+    fullContent?: string,
+  ): void {
     const headerContainer = container.createDiv({
       cls: "rss-reader-article-header",
     });
 
     const isNitter = this.isTweetLikeItem(item);
-    const displayTitle = this.currentReaderTitle || this.currentDisplayTitle || item.title;
+    const displayTitle =
+      this.currentReaderTitle || this.currentDisplayTitle || item.title;
     const articleTitleEl = headerContainer.createEl("h1", {
       cls: "rss-reader-item-title",
     });
-    
+
     // Note: font family resolving and highlighting logic here...
     articleTitleEl.setText(displayTitle);
 
@@ -238,6 +269,7 @@ export class ArticleRenderer {
         heroSlot,
         false,
         false,
+        undefined,
       );
     }
 
@@ -251,7 +283,8 @@ export class ArticleRenderer {
       const contentContainer = container.createDiv({
         cls: "rss-reader-article-content",
       });
-      const shouldStripHeadline = this.currentContentIsFullArticle && contentToRender === mainHtml;
+      const shouldStripHeadline =
+        this.currentContentIsFullArticle && contentToRender === mainHtml;
       this.populateArticleHtml(
         contentContainer,
         contentToRender,
@@ -261,6 +294,7 @@ export class ArticleRenderer {
         heroSlot,
         shouldStripHeadline,
         isNitter,
+        descriptionHtml,
       );
     }
   }
@@ -274,6 +308,7 @@ export class ArticleRenderer {
     heroSlot?: HTMLElement,
     stripTopHeadline = false,
     isNitter = false,
+    feedDescriptionHtml?: string,
   ): void {
     if (!rawHtml) return;
 
@@ -288,18 +323,36 @@ export class ArticleRenderer {
         doc.querySelectorAll("a").forEach((el) => {
           const href = el.getAttribute("href");
           if (!href) return;
-          try { el.setAttribute("href", new URL(href, base).toString()); } catch { /* intentionally empty */ }
+          try {
+            el.setAttribute("href", new URL(href, base).toString());
+          } catch {
+            /* intentionally empty */
+          }
         });
         doc.querySelectorAll("img").forEach((el) => {
           const src = el.getAttribute("src");
           if (!src) return;
-          try { el.setAttribute("src", new URL(src, base).toString()); } catch { /* intentionally empty */ }
+          try {
+            el.setAttribute("src", new URL(src, base).toString());
+          } catch {
+            /* intentionally empty */
+          }
         });
       }
 
       if (stripTopHeadline) {
         this.stripNavigationChromeFromDocument(doc);
         this.stripTopHeadlineFromDocument(doc);
+        this.stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
+        this.stripSkipLinksFromDocument(doc);
+        // Strip inline SVGs from fetched articles — these are publisher UI
+        // decorations (section icons, share buttons) never present in RSS payloads.
+        doc.body.querySelectorAll("svg").forEach((el) => el.remove());
+        if (fallbackHeroUrl) {
+          this.stripLeadMediaBeforeContent(doc);
+          this.stripDuplicateLeadMediaMatchingHero(doc, fallbackHeroUrl);
+          this.stripDuplicateLeadCaptionBlocks(doc);
+        }
       }
 
       if (heroSlot) {
@@ -307,30 +360,41 @@ export class ArticleRenderer {
         if (heroSlot.childElementCount === 0) {
           let heroUrl = fallbackHeroUrl;
           const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
-          if (firstImgSrc) heroUrl = firstImgSrc;
+          if (!heroUrl && firstImgSrc) heroUrl = firstImgSrc;
           if (heroUrl) {
             heroSlot.createEl("img", {
               cls: "rss-reader-fallback-hero",
               attr: { src: heroUrl, alt: title || "Hero image" },
             });
-            if (firstImg && firstImgSrc && firstImgSrc === heroUrl) firstImg.remove();
+            if (firstImg && firstImgSrc && firstImgSrc === heroUrl) {
+              this.removeLeadImageElement(firstImg);
+            }
           }
         }
       }
 
-      doc.body.querySelectorAll<HTMLElement>("[aria-label], [data-tooltip], [data-tooltip-position], [data-tooltip-delay]").forEach((el) => {
-        el.removeAttribute("aria-label");
-        el.removeAttribute("data-tooltip");
-        el.removeAttribute("data-tooltip-position");
-        el.removeAttribute("data-tooltip-delay");
-      });
+      doc.body
+        .querySelectorAll<HTMLElement>(
+          "[aria-label], [data-tooltip], [data-tooltip-position], [data-tooltip-delay]",
+        )
+        .forEach((el) => {
+          el.removeAttribute("aria-label");
+          el.removeAttribute("data-tooltip");
+          el.removeAttribute("data-tooltip-position");
+          el.removeAttribute("data-tooltip-delay");
+        });
 
       if (isNitter) this.transformNitterStatsMarkup(doc);
 
       html = doc.body.innerHTML;
-    } catch { /* intentionally empty */ }
+    } catch {
+      /* intentionally empty */
+    }
 
-    if (this.settings.highlights?.enabled && this.settings.highlights.highlightInContent) {
+    if (
+      this.settings.highlights?.enabled &&
+      this.settings.highlights.highlightInContent
+    ) {
       const highlightService = new HighlightService(this.settings.highlights);
       // eslint-disable-next-line @microsoft/sdl/no-inner-html
       container.innerHTML = html;
@@ -340,7 +404,9 @@ export class ArticleRenderer {
       container.innerHTML = html;
     }
 
-    container.querySelectorAll("img").forEach((img) => img.addClass("rss-reader-responsive-img"));
+    container
+      .querySelectorAll("img")
+      .forEach((img) => img.addClass("rss-reader-responsive-img"));
     if (isNitter) this.hydrateNitterStatsIcons(container);
   }
 
@@ -356,18 +422,25 @@ export class ArticleRenderer {
   }
 
   // --- Helper methods (extracted from ReaderView) ---
-  
+
   private async fetchFullArticleContent(url?: string): Promise<string> {
     if (!url) return "";
     try {
-      const proxyUrl = this.settings.corsProxyEnabled ? this.settings.corsProxyUrl : undefined;
+      const proxyUrl = this.settings.corsProxyEnabled
+        ? this.settings.corsProxyUrl
+        : undefined;
       return await fetchWithProxyFallback(url, proxyUrl);
-    } catch { return ""; }
+    } catch {
+      return "";
+    }
   }
 
   private hasMeaningfulArticleContent(html: string): boolean {
     if (!html) return false;
-    const text = html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+    const text = html
+      .replace(/<[^>]*>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
     return text.length > 200;
   }
 
@@ -377,16 +450,30 @@ export class ArticleRenderer {
     try {
       const host = new URL(item.link).hostname.toLowerCase();
       return this.isFeedContentPreferredHost(host);
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }
 
   private isFeedContentPreferredHost(host: string): boolean {
-    const preferred = ["kite.kagi.com", "news.kagi.com", "aeon.co", "substack.com"];
-    return preferred.some(p => host === p || host.endsWith("." + p)) || host.toLowerCase().includes("nitter");
+    const preferred = [
+      "kite.kagi.com",
+      "news.kagi.com",
+      "aeon.co",
+      "substack.com",
+    ];
+    return (
+      preferred.some((p) => host === p || host.endsWith("." + p)) ||
+      host.toLowerCase().includes("nitter")
+    );
   }
 
   private isTweetLikeItem(item: FeedItem): boolean {
-    return item.link?.toLowerCase().includes("nitter") || MediaService.isXUrl(item.link) || MediaService.isXUrl(item.feedUrl);
+    return (
+      item.link?.toLowerCase().includes("nitter") ||
+      MediaService.isXUrl(item.link) ||
+      MediaService.isXUrl(item.feedUrl)
+    );
   }
 
   private formatNitterReaderTitle(item: FeedItem): string {
@@ -402,7 +489,10 @@ export class ArticleRenderer {
     return item.title;
   }
 
-  private extractNitterNameAndHandle(item: FeedItem): { name: string; handle: string } {
+  private extractNitterNameAndHandle(item: FeedItem): {
+    name: string;
+    handle: string;
+  } {
     const tryExtract = (source: string): { name: string; handle: string } => {
       const handleMatch = source.match(/@[\w.]+/i);
       const handle = handleMatch ? handleMatch[0] : "";
@@ -423,9 +513,13 @@ export class ArticleRenderer {
     const feedTitle = (item.feedTitle || "").trim();
 
     const authorParsed = author ? tryExtract(author) : { name: "", handle: "" };
-    const feedParsed = feedTitle ? tryExtract(feedTitle) : { name: "", handle: "" };
+    const feedParsed = feedTitle
+      ? tryExtract(feedTitle)
+      : { name: "", handle: "" };
 
-    const urlHandle = this.extractHandleFromUrl(item.link) || this.extractHandleFromUrl(item.feedUrl);
+    const urlHandle =
+      this.extractHandleFromUrl(item.link) ||
+      this.extractHandleFromUrl(item.feedUrl);
 
     const handle =
       (/^@[\w.]+$/i.test(author) ? author : authorParsed.handle) ||
@@ -453,7 +547,11 @@ export class ArticleRenderer {
       const parts = u.pathname.split("/").filter(Boolean);
       const username = parts[0] || "";
       if (!username) return "";
-      if (/^(home|explore|messages|notifications|settings|search|i)$/i.test(username)) {
+      if (
+        /^(home|explore|messages|notifications|settings|search|i)$/i.test(
+          username,
+        )
+      ) {
         return "";
       }
       return username.startsWith("@") ? username : `@${username}`;
@@ -482,10 +580,16 @@ export class ArticleRenderer {
     const trimmed = (dateInput || "").trim();
     const parsed = new Date(trimmed);
     if (!Number.isFinite(parsed.getTime())) return "";
-    return parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return parsed.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
-  private pickBestNitterTweetHtml(item: FeedItem, fullContent?: string): string {
+  private pickBestNitterTweetHtml(
+    item: FeedItem,
+    fullContent?: string,
+  ): string {
     const description = (item.description || "").trim();
     const content = (item.content || "").trim();
     const full = (fullContent || "").trim();
@@ -505,8 +609,234 @@ export class ArticleRenderer {
   }
 
   private isEquivalentHtml(html1: string, html2: string): boolean {
-    const clean = (h: string) => h.replace(/\s+/g, " ").toLowerCase().trim();
-    return clean(html1) === clean(html2);
+    return (
+      this.normalizeComparableText(html1) ===
+      this.normalizeComparableText(html2)
+    );
+  }
+
+  private normalizeComparableText(html: string): string {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return (doc.body.textContent || "")
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/\s+/g, " ")
+      .toLowerCase()
+      .trim();
+  }
+
+  private stripDuplicateLeadContentFromDocument(
+    doc: Document,
+    feedDescriptionHtml?: string,
+  ): void {
+    const normalizedDescription = this.normalizeComparableText(
+      feedDescriptionHtml || "",
+    );
+    if (!normalizedDescription || !doc.body) return;
+
+    const blocks = Array.from(doc.body.children) as HTMLElement[];
+    const firstSubstantialIndex = blocks.findIndex(
+      (block) => this.getNormalizedBlockText(block).length >= 120,
+    );
+
+    if (firstSubstantialIndex > 0) {
+      // Fast path: description appears as a direct child before the first substantial block.
+      const duplicateIndex = blocks.findIndex((block, index) => {
+        if (index >= firstSubstantialIndex) return false;
+        return this.getNormalizedBlockText(block) === normalizedDescription;
+      });
+      if (duplicateIndex !== -1) {
+        blocks[duplicateIndex].remove();
+        for (let index = duplicateIndex - 1; index >= 0; index--) {
+          const block = blocks[index];
+          if (this.isShortLeadInBlock(block) || this.isLeadMediaBlock(block)) {
+            block.remove();
+            continue;
+          }
+          break;
+        }
+        return;
+      }
+    }
+
+    // Slow path: Readability wraps content in a single root div, so the
+    // description may be nested inside a <header> element inside the article.
+    // Scope the search to <header> descendants to avoid false positives in the
+    // article body.
+    doc.body
+      .querySelectorAll<HTMLElement>("header p, header div")
+      .forEach((el) => {
+        if (
+          this.normalizeComparableText(el.textContent || "") ===
+          normalizedDescription
+        ) {
+          el.remove();
+        }
+      });
+  }
+
+  private stripLeadMediaBeforeContent(doc: Document): void {
+    if (!doc.body) return;
+    const blocks = Array.from(doc.body.children) as HTMLElement[];
+    const firstSubstantialIndex = blocks.findIndex(
+      (block) => this.getNormalizedBlockText(block).length >= 120,
+    );
+    if (firstSubstantialIndex <= 0) return;
+
+    for (let index = 0; index < firstSubstantialIndex; index++) {
+      const block = blocks[index];
+      if (this.isLeadMediaBlock(block)) {
+        block.remove();
+      }
+    }
+  }
+
+  private getNormalizedBlockText(block: HTMLElement): string {
+    return this.normalizeComparableText(
+      block.innerHTML || block.textContent || "",
+    );
+  }
+
+  private isShortLeadInBlock(block: HTMLElement): boolean {
+    if (this.isLeadMediaBlock(block)) return false;
+    const text = this.getNormalizedBlockText(block);
+    if (!text) return false;
+    return text.length < 80 && text.split(" ").filter(Boolean).length <= 12;
+  }
+
+  private isLeadMediaBlock(block: HTMLElement): boolean {
+    const tag = block.tagName.toLowerCase();
+    if (["img", "figure", "picture"].includes(tag)) return true;
+    return (
+      !!block.querySelector("img, figure, picture") &&
+      this.getNormalizedBlockText(block).length < 40
+    );
+  }
+
+  private removeLeadImageElement(imageEl: Element): void {
+    const wrapper = imageEl.closest("figure, picture, a");
+    (wrapper || imageEl).remove();
+  }
+
+  private stripSkipLinksFromDocument(doc: Document): void {
+    if (!doc.body) return;
+
+    doc.body.querySelectorAll<HTMLAnchorElement>("a").forEach((anchor) => {
+      const href = (anchor.getAttribute("href") || "").trim().toLowerCase();
+      const text = (anchor.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+      const aria = (anchor.getAttribute("aria-label") || "").toLowerCase();
+      const cls = (anchor.getAttribute("class") || "").toLowerCase();
+      const id = (anchor.getAttribute("id") || "").toLowerCase();
+
+      const looksLikeSkipLink =
+        text.includes("skip to content") ||
+        text.includes("skip to main content") ||
+        ((href.startsWith("#") || aria.includes("content")) &&
+          (text.startsWith("skip to") ||
+            aria.includes("skip") ||
+            cls.includes("skip") ||
+            id.includes("skip")));
+
+      if (looksLikeSkipLink) {
+        anchor.remove();
+      }
+    });
+  }
+
+  private stripDuplicateLeadMediaMatchingHero(
+    doc: Document,
+    heroUrl: string,
+  ): void {
+    if (!doc.body || !heroUrl) return;
+
+    const firstSubstantial = this.findFirstSubstantialParagraph(doc);
+    doc.body.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
+      if (!this.isBeforeBoundary(img, firstSubstantial)) return;
+      const src = (img.getAttribute("src") || "").trim();
+      if (!src) return;
+
+      if (this.isLikelySameImageSource(src, heroUrl)) {
+        this.removeLeadImageElement(img);
+      }
+    });
+  }
+
+  private stripDuplicateLeadCaptionBlocks(doc: Document): void {
+    if (!doc.body) return;
+
+    const firstSubstantial = this.findFirstSubstantialParagraph(doc);
+    const removedCaptionTexts = new Set<string>();
+
+    doc.body
+      .querySelectorAll<HTMLElement>(
+        "figcaption, [id^='caption-'], [id*='caption-']",
+      )
+      .forEach((el) => {
+        if (!this.isBeforeBoundary(el, firstSubstantial)) return;
+        const raw = (el.textContent || "").replace(/\s+/g, " ").trim();
+        const normalized = this.normalizeComparableText(raw);
+        if (!normalized) return;
+
+        const looksLikeCredit = /(credit|photo|image|source)/i.test(raw);
+        if (!looksLikeCredit || normalized.length > 300) return;
+
+        removedCaptionTexts.add(normalized);
+        el.remove();
+      });
+
+    if (removedCaptionTexts.size === 0) return;
+
+    doc.body.querySelectorAll<HTMLElement>("p").forEach((p) => {
+      if (!this.isBeforeBoundary(p, firstSubstantial)) return;
+      const raw = (p.textContent || "").replace(/\s+/g, " ").trim();
+      if (!raw) return;
+
+      const normalized = this.normalizeComparableText(raw);
+      if (!removedCaptionTexts.has(normalized)) return;
+      if (!/(credit|photo|image|source)/i.test(raw)) return;
+
+      p.remove();
+    });
+  }
+
+  private findFirstSubstantialParagraph(doc: Document): HTMLElement | null {
+    return (
+      Array.from(doc.body.querySelectorAll<HTMLElement>("p")).find(
+        (p) => (p.textContent || "").replace(/\s+/g, " ").trim().length >= 120,
+      ) || null
+    );
+  }
+
+  private isBeforeBoundary(el: Element, boundary: HTMLElement | null): boolean {
+    if (!boundary) return true;
+    return !!(
+      el.compareDocumentPosition(boundary) & Node.DOCUMENT_POSITION_FOLLOWING
+    );
+  }
+
+  private isLikelySameImageSource(urlA: string, urlB: string): boolean {
+    const keyA = this.normalizeImageSourceKey(urlA);
+    const keyB = this.normalizeImageSourceKey(urlB);
+    if (!keyA || !keyB) return false;
+    return keyA === keyB;
+  }
+
+  private normalizeImageSourceKey(rawUrl: string): string {
+    const fallback = rawUrl.trim().toLowerCase();
+    if (!fallback) return "";
+
+    try {
+      const url = new URL(rawUrl, "https://example.invalid");
+      const normalizedPath = url.pathname
+        .toLowerCase()
+        .replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");
+      return `${url.hostname.toLowerCase()}${normalizedPath}`;
+    } catch {
+      return fallback.replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");
+    }
   }
 
   private stripNavigationChromeFromDocument(doc: Document): void {
@@ -522,27 +852,37 @@ export class ArticleRenderer {
       return text.length >= 120;
     });
 
-    const cutoffIndex = Math.max(29, substantialParagraphIndex >= 0 ? substantialParagraphIndex - 1 : 29);
+    const cutoffIndex = Math.max(
+      29,
+      substantialParagraphIndex >= 0 ? substantialParagraphIndex - 1 : 29,
+    );
 
     const hasBreadcrumbSignal = (el: HTMLElement): boolean => {
-      const attr = (name: string) => (el.getAttribute(name) || "").toLowerCase();
+      const attr = (name: string) =>
+        (el.getAttribute(name) || "").toLowerCase();
       const aria = attr("aria-label");
       const testId = attr("data-testid");
       const cls = attr("class");
       const id = attr("id");
-      return [aria, testId, cls, id].some(s => s.includes("breadcrumb"));
+      return [aria, testId, cls, id].some((s) => s.includes("breadcrumb"));
     };
 
     const looksLikeBreadcrumbList = (el: HTMLElement): boolean => {
       const tag = el.tagName.toLowerCase();
       if (tag !== "ol" && tag !== "ul") return false;
-      const liEls = Array.from(el.children).filter(c => c.tagName.toLowerCase() === "li") as HTMLElement[];
+      const liEls = Array.from(el.children).filter(
+        (c) => c.tagName.toLowerCase() === "li",
+      ) as HTMLElement[];
       if (liEls.length < 2 || liEls.length > 10) return false;
       const totalText = (el.textContent || "").replace(/\s+/g, " ").trim();
       if (totalText.length > 140) return false;
       let linkish = 0;
       for (const li of liEls) {
-        if (li.children.length === 1 && li.children[0].tagName.toLowerCase() === "a") linkish++;
+        if (
+          li.children.length === 1 &&
+          li.children[0].tagName.toLowerCase() === "a"
+        )
+          linkish++;
       }
       return linkish / liEls.length >= 0.7;
     };
@@ -550,26 +890,46 @@ export class ArticleRenderer {
     const looksLikeChromeContainer = (el: HTMLElement): boolean => {
       if (hasBreadcrumbSignal(el)) return true;
       if (el.getAttribute("role") === "navigation") return true;
-      if (el.querySelector("nav, [role='navigation'], [aria-label*='breadcrumb' i], [data-testid*='breadcrumb' i]")) return true;
+      if (
+        el.querySelector(
+          "nav, [role='navigation'], [aria-label*='breadcrumb' i], [data-testid*='breadcrumb' i]",
+        )
+      )
+        return true;
       const links = el.querySelectorAll("a").length;
       const paragraphs = el.querySelectorAll("p").length;
-      return links >= 3 && paragraphs === 0 && (el.textContent || "").length < 200;
+      return (
+        links >= 3 && paragraphs === 0 && (el.textContent || "").length < 200
+      );
     };
 
     const shouldRemove = (el: HTMLElement): boolean => {
       const tag = el.tagName.toLowerCase();
-      if (tag === "nav" || el.getAttribute("role") === "navigation" || hasBreadcrumbSignal(el)) return true;
-      if (["header", "footer", "aside"].includes(tag)) return looksLikeChromeContainer(el);
+      if (
+        tag === "nav" ||
+        el.getAttribute("role") === "navigation" ||
+        hasBreadcrumbSignal(el)
+      )
+        return true;
+      if (["header", "footer", "aside"].includes(tag))
+        return looksLikeChromeContainer(el);
       if (looksLikeBreadcrumbList(el)) return true;
       return false;
     };
 
-    const removeSet = new Set(elements.filter((el, idx) => idx <= cutoffIndex && shouldRemove(el)));
-    elements.filter(el => {
-      let p = el.parentElement;
-      while (p) { if (removeSet.has(p)) return false; p = p.parentElement; }
-      return removeSet.has(el);
-    }).forEach(el => el.remove());
+    const removeSet = new Set(
+      elements.filter((el, idx) => idx <= cutoffIndex && shouldRemove(el)),
+    );
+    elements
+      .filter((el) => {
+        let p = el.parentElement;
+        while (p) {
+          if (removeSet.has(p)) return false;
+          p = p.parentElement;
+        }
+        return removeSet.has(el);
+      })
+      .forEach((el) => el.remove());
   }
 
   private stripTopHeadlineFromDocument(doc: Document): void {
@@ -580,13 +940,22 @@ export class ArticleRenderer {
   }
 
   private transformNitterStatsMarkup(doc: Document): void {
-    let target = doc.body.querySelector<HTMLElement>(".tweet-stats, .tweet-stats-container");
+    let target = doc.body.querySelector<HTMLElement>(
+      ".tweet-stats, .tweet-stats-container",
+    );
     if (!target) {
-      const iconEl = doc.body.querySelector<HTMLElement>(".icon-comment, .icon-retweet, .icon-heart, .icon-views");
+      const iconEl = doc.body.querySelector<HTMLElement>(
+        ".icon-comment, .icon-retweet, .icon-heart, .icon-views",
+      );
       let cursor = iconEl;
       for (let i = 0; i < 6 && cursor; i++) {
-        if (cursor.querySelectorAll(".icon-comment, .icon-retweet, .icon-heart, .icon-views").length >= 2) {
-          target = cursor; break;
+        if (
+          cursor.querySelectorAll(
+            ".icon-comment, .icon-retweet, .icon-heart, .icon-views",
+          ).length >= 2
+        ) {
+          target = cursor;
+          break;
         }
         cursor = cursor.parentElement;
       }
@@ -595,12 +964,22 @@ export class ArticleRenderer {
 
     const extractCount = (cls: string) => {
       const m = target.querySelector(`.${cls}`);
-      return (m?.parentElement?.textContent || "").replace(/\s+/g, " ").trim().match(/(\d[\d.,]*\s*[kKmMbB]?)/)?.[1] || "";
+      return (
+        (m?.parentElement?.textContent || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .match(/(\d[\d.,]*\s*[kKmMbB]?)/)?.[1] || ""
+      );
     };
 
     const statsEl = doc.createElement("div");
     statsEl.className = "rss-nitter-stats";
-    [{k: "comment", i: "message-circle"}, {k: "retweet", i: "repeat-2"}, {k: "heart", i: "heart"}, {k: "views", i: "bar-chart-2"}].forEach(p => {
+    [
+      { k: "comment", i: "message-circle" },
+      { k: "retweet", i: "repeat-2" },
+      { k: "heart", i: "heart" },
+      { k: "views", i: "bar-chart-2" },
+    ].forEach((p) => {
       const pill = doc.createElement("span");
       pill.className = "rss-nitter-stat";
       pill.setAttribute("data-stat", p.k);
@@ -610,7 +989,9 @@ export class ArticleRenderer {
       const count = doc.createElement("span");
       count.className = "rss-nitter-stat-count";
       count.textContent = extractCount(`icon-${p.k}`);
-      pill.appendChild(icon); pill.appendChild(count); statsEl.appendChild(pill);
+      pill.appendChild(icon);
+      pill.appendChild(count);
+      statsEl.appendChild(pill);
     });
 
     target.parentElement?.insertBefore(statsEl, target);
@@ -618,10 +999,17 @@ export class ArticleRenderer {
   }
 
   private hydrateNitterStatsIcons(container: HTMLElement): void {
-    container.querySelectorAll<HTMLElement>(".rss-nitter-stat-icon").forEach(el => {
-      const icon = el.dataset.rssIcon;
-      if (icon) try { setIcon(el, icon); } catch { /* intentionally empty */ }
-    });
+    container
+      .querySelectorAll<HTMLElement>(".rss-nitter-stat-icon")
+      .forEach((el) => {
+        const icon = el.dataset.rssIcon;
+        if (icon)
+          try {
+            setIcon(el, icon);
+          } catch {
+            /* intentionally empty */
+          }
+      });
   }
 
   private extractDisplayTitleFromHtml(html: string): string | null {
@@ -631,6 +1019,8 @@ export class ArticleRenderer {
       const doc = parser.parseFromString(html, "text/html");
       const h1 = doc.body?.querySelector("h1");
       return h1 ? h1.textContent : null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 }

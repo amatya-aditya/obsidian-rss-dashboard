@@ -2,7 +2,6 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "types": ["vitest/globals"],
-    "baseUrl": ".",
     "paths": {
       "obsidian": ["./stubs/obsidian.ts"]
     }

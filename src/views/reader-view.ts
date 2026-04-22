@@ -1006,6 +1006,7 @@ export class ReaderView extends ItemView {
         heroSlot,
         false,
         false,
+        undefined,
       );
     }
 
@@ -1030,6 +1031,7 @@ export class ReaderView extends ItemView {
         heroSlot,
         shouldStripHeadline,
         isNitter,
+        descriptionHtml,
       );
     }
   }
@@ -1043,6 +1045,7 @@ export class ReaderView extends ItemView {
     heroSlot?: HTMLElement,
     stripTopHeadline = false,
     isNitter = false,
+    feedDescriptionHtml?: string,
   ): void {
     if (!rawHtml) return;
 
@@ -1082,6 +1085,16 @@ export class ReaderView extends ItemView {
       if (stripTopHeadline) {
         this.stripNavigationChromeFromDocument(doc);
         this.stripTopHeadlineFromDocument(doc);
+        this.stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
+        this.stripSkipLinksFromDocument(doc);
+        if (fallbackHeroUrl) {
+          this.stripLeadMediaBeforeContent(doc);
+          this.stripDuplicateLeadMediaMatchingHero(doc, fallbackHeroUrl);
+          this.stripDuplicateLeadCaptionBlocks(doc);
+        }
+        // Strip inline SVGs from fetched articles — these are publisher UI
+        // decorations (section icons, share buttons) never present in RSS payloads.
+        doc.body.querySelectorAll("svg").forEach((el) => el.remove());
       }
 
       // Attempt to extract and place hero image
@@ -1091,7 +1104,7 @@ export class ReaderView extends ItemView {
         if (heroSlot.childElementCount === 0) {
           let heroUrl = fallbackHeroUrl;
           const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
-          if (firstImgSrc) {
+          if (!heroUrl && firstImgSrc) {
             heroUrl = firstImgSrc;
           }
 
@@ -1103,7 +1116,7 @@ export class ReaderView extends ItemView {
 
             // Remove the first image from the body if it's the hero image to avoid duplication
             if (firstImg && firstImgSrc && firstImgSrc === heroUrl) {
-              firstImg.remove();
+              this.removeLeadImageElement(firstImg);
             }
           }
         } else {
@@ -1113,7 +1126,7 @@ export class ReaderView extends ItemView {
             heroSlot.querySelector("img")?.getAttribute("src")?.trim() || "";
           const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
           if (existingHeroSrc && firstImg && firstImgSrc === existingHeroSrc) {
-            firstImg.remove();
+            this.removeLeadImageElement(firstImg);
           }
         }
       }
@@ -1619,8 +1632,234 @@ export class ReaderView extends ItemView {
   }
 
   private isEquivalentHtml(html1: string, html2: string): boolean {
-    const clean = (h: string) => h.replace(/\s+/g, " ").toLowerCase().trim();
-    return clean(html1) === clean(html2);
+    return (
+      this.normalizeComparableText(html1) ===
+      this.normalizeComparableText(html2)
+    );
+  }
+
+  private normalizeComparableText(html: string): string {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return (doc.body.textContent || "")
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/\s+/g, " ")
+      .toLowerCase()
+      .trim();
+  }
+
+  private stripDuplicateLeadContentFromDocument(
+    doc: Document,
+    feedDescriptionHtml?: string,
+  ): void {
+    const normalizedDescription = this.normalizeComparableText(
+      feedDescriptionHtml || "",
+    );
+    if (!normalizedDescription || !doc.body) return;
+
+    const blocks = Array.from(doc.body.children) as HTMLElement[];
+    const firstSubstantialIndex = blocks.findIndex(
+      (block) => this.getNormalizedBlockText(block).length >= 120,
+    );
+
+    if (firstSubstantialIndex > 0) {
+      // Fast path: description appears as a direct child before the first substantial block.
+      const duplicateIndex = blocks.findIndex((block, index) => {
+        if (index >= firstSubstantialIndex) return false;
+        return this.getNormalizedBlockText(block) === normalizedDescription;
+      });
+      if (duplicateIndex !== -1) {
+        blocks[duplicateIndex].remove();
+        for (let index = duplicateIndex - 1; index >= 0; index--) {
+          const block = blocks[index];
+          if (this.isShortLeadInBlock(block) || this.isLeadMediaBlock(block)) {
+            block.remove();
+            continue;
+          }
+          break;
+        }
+        return;
+      }
+    }
+
+    // Slow path: Readability wraps content in a single root div, so the
+    // description may be nested inside a <header> element inside the article.
+    // Scope the search to <header> descendants to avoid false positives in the
+    // article body.
+    doc.body
+      .querySelectorAll<HTMLElement>("header p, header div")
+      .forEach((el) => {
+        if (
+          this.normalizeComparableText(el.textContent || "") ===
+          normalizedDescription
+        ) {
+          el.remove();
+        }
+      });
+  }
+
+  private stripLeadMediaBeforeContent(doc: Document): void {
+    if (!doc.body) return;
+    const blocks = Array.from(doc.body.children) as HTMLElement[];
+    const firstSubstantialIndex = blocks.findIndex(
+      (block) => this.getNormalizedBlockText(block).length >= 120,
+    );
+    if (firstSubstantialIndex <= 0) return;
+
+    for (let index = 0; index < firstSubstantialIndex; index++) {
+      const block = blocks[index];
+      if (this.isLeadMediaBlock(block)) {
+        block.remove();
+      }
+    }
+  }
+
+  private getNormalizedBlockText(block: HTMLElement): string {
+    return this.normalizeComparableText(
+      block.innerHTML || block.textContent || "",
+    );
+  }
+
+  private isShortLeadInBlock(block: HTMLElement): boolean {
+    if (this.isLeadMediaBlock(block)) return false;
+    const text = this.getNormalizedBlockText(block);
+    if (!text) return false;
+    return text.length < 80 && text.split(" ").filter(Boolean).length <= 12;
+  }
+
+  private isLeadMediaBlock(block: HTMLElement): boolean {
+    const tag = block.tagName.toLowerCase();
+    if (["img", "figure", "picture"].includes(tag)) return true;
+    return (
+      !!block.querySelector("img, figure, picture") &&
+      this.getNormalizedBlockText(block).length < 40
+    );
+  }
+
+  private removeLeadImageElement(imageEl: Element): void {
+    const wrapper = imageEl.closest("figure, picture, a");
+    (wrapper || imageEl).remove();
+  }
+
+  private stripSkipLinksFromDocument(doc: Document): void {
+    if (!doc.body) return;
+
+    doc.body.querySelectorAll<HTMLAnchorElement>("a").forEach((anchor) => {
+      const href = (anchor.getAttribute("href") || "").trim().toLowerCase();
+      const text = (anchor.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+      const aria = (anchor.getAttribute("aria-label") || "").toLowerCase();
+      const cls = (anchor.getAttribute("class") || "").toLowerCase();
+      const id = (anchor.getAttribute("id") || "").toLowerCase();
+
+      const looksLikeSkipLink =
+        text.includes("skip to content") ||
+        text.includes("skip to main content") ||
+        ((href.startsWith("#") || aria.includes("content")) &&
+          (text.startsWith("skip to") ||
+            aria.includes("skip") ||
+            cls.includes("skip") ||
+            id.includes("skip")));
+
+      if (looksLikeSkipLink) {
+        anchor.remove();
+      }
+    });
+  }
+
+  private stripDuplicateLeadMediaMatchingHero(
+    doc: Document,
+    heroUrl: string,
+  ): void {
+    if (!doc.body || !heroUrl) return;
+
+    const firstSubstantial = this.findFirstSubstantialParagraph(doc);
+    doc.body.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
+      if (!this.isBeforeBoundary(img, firstSubstantial)) return;
+      const src = (img.getAttribute("src") || "").trim();
+      if (!src) return;
+
+      if (this.isLikelySameImageSource(src, heroUrl)) {
+        this.removeLeadImageElement(img);
+      }
+    });
+  }
+
+  private stripDuplicateLeadCaptionBlocks(doc: Document): void {
+    if (!doc.body) return;
+
+    const firstSubstantial = this.findFirstSubstantialParagraph(doc);
+    const removedCaptionTexts = new Set<string>();
+
+    doc.body
+      .querySelectorAll<HTMLElement>(
+        "figcaption, [id^='caption-'], [id*='caption-']",
+      )
+      .forEach((el) => {
+        if (!this.isBeforeBoundary(el, firstSubstantial)) return;
+        const raw = (el.textContent || "").replace(/\s+/g, " ").trim();
+        const normalized = this.normalizeComparableText(raw);
+        if (!normalized) return;
+
+        const looksLikeCredit = /(credit|photo|image|source)/i.test(raw);
+        if (!looksLikeCredit || normalized.length > 300) return;
+
+        removedCaptionTexts.add(normalized);
+        el.remove();
+      });
+
+    if (removedCaptionTexts.size === 0) return;
+
+    doc.body.querySelectorAll<HTMLElement>("p").forEach((p) => {
+      if (!this.isBeforeBoundary(p, firstSubstantial)) return;
+      const raw = (p.textContent || "").replace(/\s+/g, " ").trim();
+      if (!raw) return;
+
+      const normalized = this.normalizeComparableText(raw);
+      if (!removedCaptionTexts.has(normalized)) return;
+      if (!/(credit|photo|image|source)/i.test(raw)) return;
+
+      p.remove();
+    });
+  }
+
+  private findFirstSubstantialParagraph(doc: Document): HTMLElement | null {
+    return (
+      Array.from(doc.body.querySelectorAll<HTMLElement>("p")).find(
+        (p) => (p.textContent || "").replace(/\s+/g, " ").trim().length >= 120,
+      ) || null
+    );
+  }
+
+  private isBeforeBoundary(el: Element, boundary: HTMLElement | null): boolean {
+    if (!boundary) return true;
+    return !!(
+      el.compareDocumentPosition(boundary) & Node.DOCUMENT_POSITION_FOLLOWING
+    );
+  }
+
+  private isLikelySameImageSource(urlA: string, urlB: string): boolean {
+    const keyA = this.normalizeImageSourceKey(urlA);
+    const keyB = this.normalizeImageSourceKey(urlB);
+    if (!keyA || !keyB) return false;
+    return keyA === keyB;
+  }
+
+  private normalizeImageSourceKey(rawUrl: string): string {
+    const fallback = rawUrl.trim().toLowerCase();
+    if (!fallback) return "";
+
+    try {
+      const url = new URL(rawUrl, "https://example.invalid");
+      const normalizedPath = url.pathname
+        .toLowerCase()
+        .replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");
+      return `${url.hostname.toLowerCase()}${normalizedPath}`;
+    } catch {
+      return fallback.replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");
+    }
   }
 
   private hasMeaningfulArticleContent(html: string | null): boolean {
