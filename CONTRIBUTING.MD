@@ -1,6 +1,6 @@
 # Git Branching Strategy
 
-Last updated: 2026-04-02
+Last updated: 2026-04-22
 
 ## Overview
 
@@ -38,7 +38,8 @@ master                          ← stable, tagged releases only
 
 - The living integration branch — all contributor work lands here
 - Must always be **at or ahead of master**
-- After every stable release, master is merged back into dev immediately
+- After every stable release, **merge `master` back into `dev` immediately**
+- **Do not rebase shared `dev`** after it has diverged or after others have based work on it
 - Should be stable enough to cut a release branch from at any time
 
 ### Feature / Fix Branches
@@ -92,12 +93,14 @@ master                          ← stable, tagged releases only
 
 3. **Make commits** — keep them small and focused. One concern per commit.
 
-4. **Stay current** — if dev moves forward while you're working, rebase:
+4. **Stay current while working on your own branch** — if `dev` moves forward while you're working, rebase your feature/fix branch onto `origin/dev`:
 
    ```
    git fetch origin
    git rebase origin/dev
    ```
+
+   This guidance applies to **your personal work branch**, not to shared branches like `dev`. To sync shared `dev` after a stable release, merge `origin/master` into `dev` instead of rebasing `dev`.
 
 5. **Open a Pull Request** targeting `dev` when your work is:
    - Complete and self-tested
@@ -234,9 +237,10 @@ git merge release/2.3.0
 git tag 2.3.0
 git push origin master --tags
 
-# Merge release branch back to dev so Beta fixes aren't lost
+# Sync shared dev with the released history from master
 git checkout dev
-git merge release/2.3.0
+git pull --ff-only origin dev
+git merge origin/master
 git push origin dev
 
 # Clean up
@@ -288,7 +292,8 @@ To ensure compatibility across different operating systems and Obsidian's intern
 - **Never commit directly to `master` or `dev`** — always via PR or merge
 - **One concern per branch** — don't mix a feature with unrelated fixes
 - **Keep branches short-lived** — long-running branches cause merge conflicts
-- **Rebase, don't merge, to stay current** — keeps history linear and readable
+- **Rebase your personal work branch to stay current** — keeps feature/fix history linear and readable
+- **Merge `master` into shared `dev` after every stable release** — preserves shared history and avoids rewriting teammates' commits
 - **Dev must always reflect master** — sync immediately after every stable release
 - **Beta fixes go on the release branch** — not back on dev until the release branch merges
 - **No Alpha/RC versions** — only Beta and Stable releases are permitted.
@@ -302,7 +307,7 @@ To ensure compatibility across different operating systems and Obsidian's intern
 git checkout dev && git pull origin dev
 git checkout -b feature/my-feature
 
-# Stay current while working
+# Stay current while working on your branch
 git fetch origin && git rebase origin/dev
 
 # Cut a release branch
@@ -320,5 +325,6 @@ git add package.json package-lock.json manifest.json versions.json
 git commit -m "2.3.0"
 git checkout master && git merge release/2.3.0
 git tag 2.3.0 && git push origin master --tags
-git checkout dev && git merge release/2.3.0 && git push origin dev
+git checkout dev && git pull --ff-only origin dev
+git merge origin/master && git push origin dev
 ```
