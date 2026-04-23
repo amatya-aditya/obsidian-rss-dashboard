@@ -548,6 +548,22 @@ describe("ArticleSaver.findSavedArticleFile", () => {
     const item = createItem({ title: "", saved: true });
     expect(await saver.findSavedArticleFile(item)).toBeNull();
   });
+
+  it("fails: returns null if updateArticleStatus throws error even if file exists", async () => {
+    const app = (App as any).createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const item = createItem({ title: "Found but error", saved: true });
+    const expectedPath = "Found but error.md";
+    await app.vault.create(expectedPath, "content");
+    
+    vi.spyOn(saver as any, "updateArticleStatus").mockRejectedValue(new Error("Database full"));
+
+    const result = await saver.findSavedArticleFile(item);
+    
+    expect(result).not.toBeNull();
+    expect(result?.path).toBe(expectedPath);
+  });
 });
 
 describe("ArticleSaver Round-trip and Collisions", () => {

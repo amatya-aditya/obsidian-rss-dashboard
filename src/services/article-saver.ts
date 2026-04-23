@@ -617,19 +617,19 @@ export class ArticleSaver {
   checkSavedFileExists(item: FeedItem): boolean {
     if (!item.title) return false;
     try {
-      const folder = this.normalizePath(
-        this.settings.defaultFolder || "",
-      );
-      const filename = sanitizeFilename(item.title);
-      const filePath =
-        folder && folder.trim() !== ""
-          ? `${folder}/${filename}.md`
-          : `${filename}.md`;
-
+      const filePath = this.buildSavedArticleFilePath(item);
       return this.app.vault.getAbstractFileByPath(filePath) !== null;
     } catch {
       return false;
     }
+  }
+
+  private buildSavedArticleFilePath(item: FeedItem): string {
+    const folder = this.normalizePath(this.settings.defaultFolder || "");
+    const filename = sanitizeFilename(item.title);
+    return folder && folder.trim() !== ""
+        ? `${folder}/${filename}.md`
+        : `${filename}.md`;
   }
 
   private async updateArticleStatus(
@@ -650,52 +650,17 @@ export class ArticleSaver {
     if (!article.saved) {
       return null;
     }
-
-    if (article.savedFilePath) {
-      try {
-        const file = this.app.vault.getAbstractFileByPath(
-          article.savedFilePath,
-        );
-        if (file !== null) {
-          if (file instanceof TFile) {
-            return file;
-          }
-        } else {
-          await this.updateArticleStatus(
-            article,
-            { saved: false, savedFilePath: undefined },
-            false,
-          );
-          return null;
-        }
-      } catch {
-        // File path check failed, continue with filename search
-      }
-    }
-
-    const filename = sanitizeFilename(article.title);
-    const folder = this.normalizePath(this.settings.defaultFolder || "");
-    const expectedPath =
-      folder && folder.trim() !== ""
-        ? `${folder}/${filename}.md`
-        : `${filename}.md`;
-
+    const expectedPath = article.savedFilePath || this.buildSavedArticleFilePath(article);
+    const file = this.app.vault.getAbstractFileByPath(expectedPath);
     try {
-      const file = this.app.vault.getAbstractFileByPath(expectedPath);
-      if (file !== null) {
-        if (file instanceof TFile) {
-          await this.updateArticleStatus(
-            article,
-            { savedFilePath: expectedPath },
-            false,
-          );
-          return file;
-        }
-      }
-    } catch {
-      // File lookup failed
+      await this.updateArticleStatus(
+        article,
+        { saved: (file instanceof TFile), savedFilePath: file === null ? undefined : expectedPath },
+        false,
+      );
+    } catch (e) {
+      // Update failed
     }
-
-    return null;
+    return file;
   }
 }
