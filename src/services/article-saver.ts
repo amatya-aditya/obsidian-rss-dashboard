@@ -8,7 +8,7 @@ import { withSavedTagName } from "../utils/tag-utils";
 
 export function sanitizeFilename(name: string): string {
     const sanitized = name
-      .replace(/[\\/:*?"<>|!@#$%^&()+=~`{}[\];:'",.<>]/g, "")
+      .replace(/[\\/:*?"<>|#^[\]]/g, "")
       .replace(/\s+/g, " ")
       .trim();
 

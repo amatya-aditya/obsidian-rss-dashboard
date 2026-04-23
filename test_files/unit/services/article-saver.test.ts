@@ -394,7 +394,8 @@ describe("sanitizeFilename", () => {
   });
 
   it("handles mixed alphanumeric and special characters", () => {
-    expect(sanitizeFilename("Article! @# Name$%")).toBe("Article Name");
+    // # is removed, but ! @ $ % are kept
+    expect(sanitizeFilename("Article! @# Name$%")).toBe("Article! @ Name$%");
   });
 
   it("preserves non-ASCII characters (Cyrillic)", () => {
