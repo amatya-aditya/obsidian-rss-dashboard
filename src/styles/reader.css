@@ -117,6 +117,7 @@
   border-radius: 4px;
   font-size: 12px;
   color: #fff;
+  background-color: var(--tag-color, var(--interactive-accent));
 }
 .rss-reader-cover-image {
   margin-bottom: 20px;

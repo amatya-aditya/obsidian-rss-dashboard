@@ -1917,6 +1917,7 @@ export class ReaderView extends ItemView {
       return;
     }
 
+    this.currentItem.tags = this.syncTagColorsWithSettings(this.currentItem.tags);
     this.refreshReaderHeaderTags();
 
     if (this.podcastPlayer && this.currentItem.mediaType === "podcast") {
@@ -2072,6 +2073,23 @@ export class ReaderView extends ItemView {
       tagElement.textContent = tag.name;
       tagElement.style.setProperty("--tag-color", tag.color);
     }
+  }
+
+  private syncTagColorsWithSettings(tags: FeedItem["tags"]): Tag[] {
+    return (tags ?? []).map((tag) => {
+      const matchingTag = this.settings.availableTags.find(
+        (availableTag) => availableTag.name === tag.name,
+      );
+
+      if (!matchingTag || matchingTag.color === tag.color) {
+        return tag;
+      }
+
+      return {
+        ...tag,
+        color: matchingTag.color,
+      };
+    });
   }
 
   private resolveReaderFontFamily(

@@ -33,7 +33,9 @@
 
 - Adding a feed as "Favorite" now also applies the "Favorite" tag and is removed when un-favorited.
 
-- Fixed tag color edits so dashboard cards, reader tags, and existing tagged articles refresh immediately after editing without needing to leave and reopen the view.
+- Fixed reader tag pills so tag colors now render correctly in Reader view instead of showing plain text with no colored background.
+
+- Fixed tag color edits so Reader view now refreshes its open tag DOM immediately after popover/settings color changes, matching the existing dashboard tag refresh behavior without needing to reopen the article.
 
 - Fixed podcast feeds that only expose channel-level artwork so shared feed artwork now appears correctly in podcast episodes and the player instead of being dropped during parsing/refresh.
 
