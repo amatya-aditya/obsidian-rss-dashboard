@@ -621,7 +621,7 @@ export class ReaderView extends ItemView {
     this.updateToggleButtons();
 
     if (item.saved) {
-      const fileExists = this.checkSavedFileExists(item);
+      const fileExists = this.articleSaver.checkSavedFileExists(item);
       if (!fileExists) {
         item.saved = false;
         if (item.tags) {
@@ -2379,10 +2379,6 @@ export class ReaderView extends ItemView {
 
   private resetTitle(): void {
     this.syncReaderTitle();
-  }
-
-  private checkSavedFileExists(item: FeedItem): boolean {
-    return this.articleSaver.checkSavedFileExists(item);
   }
 
   private async displayVideoPodcast(item: FeedItem): Promise<void> {
