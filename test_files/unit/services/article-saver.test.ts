@@ -9,7 +9,7 @@ function createSettings(
 ): ArticleSavingSettings {
   return {
     addSavedTag: false,
-    defaultFolder: "RSS articles",
+    defaultFolder: "",
     defaultTemplate: "",
     includeFrontmatter: false,
     frontmatterTemplate: "",
@@ -533,14 +533,14 @@ describe("ArticleSaver.findSavedArticleFile", () => {
 
   it("updates savedFilePath if found by title", async () => {
     const item = createItem({ title: "TitleSearch", saved: true });
-    await app.vault.create("RSS articles/TitleSearch.md", "content");
+    await app.vault.create("TitleSearch.md", "content");
     await saver.findSavedArticleFile(item);
-    expect(item.savedFilePath).toBe("RSS articles/TitleSearch.md");
+    expect(item.savedFilePath).toBe("TitleSearch.md");
   });
 
   it("returns null if item not marked saved", async () => {
     const item = createItem({ title: "Unsaved", saved: false });
-    await app.vault.create("RSS articles/Unsaved.md", "content");
+    await app.vault.create("Unsaved.md", "content");
     expect(await saver.findSavedArticleFile(item)).toBeNull();
   });
 
@@ -597,7 +597,7 @@ describe("ArticleSaver Round-trip and Collisions", () => {
     const item2 = createItem({ title: "A? B", guid: "2", saved: true });
     await saver.saveArticle(item1);
     const found = await saver.findSavedArticleFile(item2);
-    expect(found!.path).toBe("RSS articles/A B.md"); // Points to item1's file
+    expect(found!.path).toBe("A B.md"); // Points to item1's file
   });
 
   it("only looks in defaultFolder if no savedFilePath", async () => {
