@@ -1023,7 +1023,7 @@ export class ArticleList {
     if (!articlesList) return;
 
     const articleElements = articlesList.querySelectorAll(
-      ".rss-dashboard-article-item, .rss-dashboard-article-card",
+      ".rss-dashboard-article-item, .rss-dashboard-article-card, .rss-dashboard-feed-item",
     );
 
     articleElements.forEach((el) => {

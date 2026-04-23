@@ -79,6 +79,44 @@ describe("Phase 7 - ArticleList characterization", () => {
     h.cleanup();
   });
 
+  it("filterArticlesBySearch should also hide and unhide feed view items", () => {
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "feed",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: [
+        buildArticle({ guid: "1", title: "Hello Feed" }),
+        buildArticle({ guid: "2", title: "Something Else" }),
+      ],
+    });
+
+    h.list.render();
+
+    expect(h.getArticleEl("1")?.classList.contains("rss-dashboard-feed-item")).toBe(
+      true,
+    );
+    expect(h.getArticleEl("2")?.classList.contains("rss-dashboard-feed-item")).toBe(
+      true,
+    );
+
+    (h.list as any).filterArticlesBySearch("hello");
+    expect(
+      h.getArticleEl("1")?.classList.contains("rss-dashboard-search-hidden"),
+    ).toBe(false);
+    expect(
+      h.getArticleEl("2")?.classList.contains("rss-dashboard-search-hidden"),
+    ).toBe(true);
+
+    (h.list as any).filterArticlesBySearch("");
+    expect(
+      h.getArticleEl("2")?.classList.contains("rss-dashboard-search-hidden"),
+    ).toBe(false);
+
+    h.cleanup();
+  });
+
   it("refilter should re-apply the existing local search query after list recreation", () => {
     const h = createArticleListHarness({
       settings: {
