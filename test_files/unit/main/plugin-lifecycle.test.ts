@@ -450,6 +450,67 @@ describe("onload() initialization", () => {
     expect(mockRefreshAllFeeds).not.toHaveBeenCalled();
     expect(plugin.feedParser).toBeDefined();
   });
+
+  it("defers saved-article startup validation until layout is ready", async () => {
+    const validateSpy = vi.spyOn(plugin as any, "validateSavedArticles");
+
+    await plugin.onload();
+
+    expect(validateSpy).not.toHaveBeenCalled();
+    expect((plugin as any).articleSaver.fixSavedFilePaths).not.toHaveBeenCalled();
+
+    ((plugin.app as any).workspace).triggerLayoutReady();
+    await Promise.resolve();
+
+    expect((plugin as any).articleSaver.fixSavedFilePaths).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(validateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists savedFilePath when an article is saved", async () => {
+    plugin.settings = JSON.parse(
+      JSON.stringify({
+        ...DEFAULT_SETTINGS,
+        feeds: [
+          {
+            name: "Feed",
+            url: "https://example.com/rss.xml",
+            folder: "",
+            items: [
+              {
+                guid: "guid-1",
+                title: "Saved article",
+                link: "https://example.com/article",
+                description: "",
+                pubDate: "2024-01-01T00:00:00.000Z",
+                read: false,
+                starred: false,
+                saved: false,
+                tags: [],
+                feedTitle: "Feed",
+                feedUrl: "https://example.com/rss.xml",
+                coverImage: "",
+              },
+            ],
+          },
+        ],
+      }),
+    ) as RssDashboardSettings;
+
+    const item = {
+      ...plugin.settings.feeds[0].items[0],
+      saved: true,
+      savedFilePath: "Articles/Saved article.md",
+    };
+
+    await (plugin as any).onArticleSaved(item);
+
+    expect(plugin.settings.feeds[0].items[0].saved).toBe(true);
+    expect(plugin.settings.feeds[0].items[0].savedFilePath).toBe(
+      "Articles/Saved article.md",
+    );
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1726,7 +1726,11 @@ export class RssDashboardView extends ItemView {
       : await this.saver.saveArticle(article, undefined, customTemplate);
 
     if (file) {
-      await this.updateArticleStatus(article, { saved: true }, false);
+      await this.updateArticleStatus(
+        article,
+        { saved: true, savedFilePath: file.path },
+        false,
+      );
       this.updateArticleSaveButton(article.guid);
     }
   }
@@ -3018,55 +3022,16 @@ export class RssDashboardView extends ItemView {
   }
 
   private async findSavedArticleFile(article: FeedItem): Promise<TFile | null> {
-    if (!article.saved) {
-      return null;
+    const file = await this.saver.findSavedArticleFile(article);
+    if (file !== null) {
+      return file;
     }
 
-    if (article.savedFilePath) {
-      try {
-        const file = this.app.vault.getAbstractFileByPath(
-          article.savedFilePath,
-        );
-        if (file !== null) {
-          if (file instanceof TFile) {
-            return file;
-          }
-        } else {
-          await this.updateArticleStatus(
-            article,
-            { saved: false, savedFilePath: undefined },
-            false,
-          );
-          return null;
-        }
-      } catch {
-        // File path check failed, continue with filename search
-      }
-    }
-
-    const filename = this.sanitizeFilename(article.title);
-    const folder = this.settings.articleSaving.defaultFolder || "";
-    const expectedPath =
-      folder && folder.trim() !== ""
-        ? `${folder}/${filename}.md`
-        : `${filename}.md`;
-
-    try {
-      const file = this.app.vault.getAbstractFileByPath(expectedPath);
-      if (file !== null) {
-        if (file instanceof TFile) {
-          await this.updateArticleStatus(
-            article,
-            { savedFilePath: expectedPath },
-            false,
-          );
-          return file;
-        }
-      }
-    } catch {
-      // File lookup failed
-    }
-
+    await this.updateArticleStatus(
+      article,
+      { saved: false, savedFilePath: undefined },
+      false,
+    );
     return null;
   }
 
@@ -3083,17 +3048,6 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private sanitizeFilename(name: string): string {
-    const sanitized = name
-      .replace(/[/\\:*?"<>|]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    const words = sanitized.split(" ");
-    const shortened = words.slice(0, 5).join(" ");
-    return shortened.substring(0, 50);
-  }
-
   private async handleOpenSavedArticle(article: FeedItem): Promise<void> {
     if (!article.saved) {
       new Notice("Article is not saved locally");
@@ -3103,7 +3057,7 @@ export class RssDashboardView extends ItemView {
     const loadingNotice = new Notice("Opening saved article...", 0);
 
     try {
-      const savedFile = await this.findSavedArticleFile(article);
+      const savedFile = await this.saver.findSavedArticleFile(article);
       if (savedFile) {
         await this.openSavedArticleFile(savedFile);
         loadingNotice.hide();

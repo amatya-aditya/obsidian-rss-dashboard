@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { sanitizeFilename } from "../../../src/services/article-saver";
 import {
   buildFeedItem,
   createWebViewerIntegrationHarness,
@@ -258,10 +259,10 @@ describe("Phase 8 - WebViewerIntegration", () => {
       );
 
       expect(file).not.toBeNull();
-      expect(h.app.vault.getAbstractFileByPath("Folder/My_File.md")).not.toBeNull();
+      expect(h.app.vault.getAbstractFileByPath("Folder/My File.md")).not.toBeNull();
       expect(logSpy).toHaveBeenCalledWith(
         "[Stub Notice]",
-        expect.stringContaining("Article saved: My_File"),
+        expect.stringContaining("Article saved: My File"),
       );
 
       h.cleanup();
@@ -295,13 +296,8 @@ describe("Phase 8 - WebViewerIntegration", () => {
 
   describe("helpers", () => {
     it("sanitizeFilename replaces illegal chars, collapses whitespace, and caps length", () => {
-      const h = createWebViewerIntegrationHarness();
-      const sanitize = (h.integration as any).sanitizeFilename.bind(h.integration);
-
-      expect(sanitize('Hello / World: "Test"')).toBe("Hello_World_Test_");
-      expect(sanitize("a".repeat(200))).toHaveLength(100);
-
-      h.cleanup();
+      expect(sanitizeFilename('Hello / World: "Test"')).toBe("Hello World Test");
+      expect(sanitizeFilename("a".repeat(200))).toHaveLength(50);
     });
 
     it("applyTemplate replaces common placeholders", () => {

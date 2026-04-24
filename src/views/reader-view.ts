@@ -458,6 +458,8 @@ export class ReaderView extends ItemView {
             markdownContent,
           );
           if (file) {
+            item.saved = true;
+            item.savedFilePath = file.path;
             this.onArticleSave(item);
 
             this.updateSavedLabel(true);
@@ -578,6 +580,8 @@ export class ReaderView extends ItemView {
           markdownContent,
         );
         if (file) {
+          item.saved = true;
+          item.savedFilePath = file.path;
           this.onArticleSave(item);
 
           this.updateSavedLabel(true);
@@ -621,9 +625,10 @@ export class ReaderView extends ItemView {
     this.updateToggleButtons();
 
     if (item.saved) {
-      const fileExists = this.checkSavedFileExists(item);
+      const fileExists = this.articleSaver.checkSavedFileExists(item);
       if (!fileExists) {
         item.saved = false;
+        item.savedFilePath = undefined;
         if (item.tags) {
           item.tags = item.tags.filter(
             (tag) => tag.name.toLowerCase() !== "saved",
@@ -2379,27 +2384,6 @@ export class ReaderView extends ItemView {
 
   private resetTitle(): void {
     this.syncReaderTitle();
-  }
-
-  private checkSavedFileExists(item: FeedItem): boolean {
-    try {
-      const folder =
-        this.settings.articleSaving.defaultFolder || "RSS articles";
-      const filename = this.sanitizeFilename(item.title);
-      const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
-
-      return this.app.vault.getAbstractFileByPath(filePath) !== null;
-    } catch {
-      return false;
-    }
-  }
-
-  private sanitizeFilename(name: string): string {
-    return name
-      .replace(/[/\\:*?"<>|]/g, "_")
-      .replace(/\s+/g, "_")
-      .replace(/_+/g, "_")
-      .substring(0, 100);
   }
 
   private async displayVideoPodcast(item: FeedItem): Promise<void> {

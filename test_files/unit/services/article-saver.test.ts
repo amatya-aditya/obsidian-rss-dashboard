@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App, TFile, moment } from "obsidian";
 import type { ArticleSavingSettings, FeedItem } from "../../../src/types/types";
-import { ArticleSaver } from "../../../src/services/article-saver";
+import {
+  ArticleSaver,
+  sanitizeFilename,
+} from "../../../src/services/article-saver";
 import * as fetchHelpers from "../../../src/utils/fetch-helpers";
 
 function createSettings(
@@ -131,10 +134,10 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
     const date = new Date("2024-04-21T12:00:00Z");
-    
+
     const input = "Date: {{date}}";
     const result = (saver as any).replaceDatePlaceholders(input, date);
-    
+
     // toLocaleDateString depends on environment, but we expect the long format
     expect(result).toContain("April 21, 2024");
   });
@@ -144,10 +147,10 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
     const date = new Date("2024-04-21T12:00:00Z");
-    
+
     const input = "Short: {{dateShort}}";
     const result = (saver as any).replaceDatePlaceholders(input, date);
-    
+
     expect(result).toBe("Short: 2024-04-21");
   });
 
@@ -156,10 +159,10 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
     const date = new Date("2024-04-21T12:00:00Z");
-    
+
     const input = "ISO: {{isoDate}}";
     const result = (saver as any).replaceDatePlaceholders(input, date);
-    
+
     expect(result).toBe("ISO: 2024-04-21T12:00:00.000Z");
   });
 
@@ -168,10 +171,10 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
     const date = new Date("2024-04-21T12:00:00Z");
-    
+
     const input = "Custom: {{date:YYYY/MM/DD}} Time: {{date:HH:mm}}";
     const result = (saver as any).replaceDatePlaceholders(input, date);
-    
+
     const expectedDate = moment(date).format("YYYY/MM/DD");
     const expectedTime = moment(date).format("HH:mm");
     expect(result).toBe(`Custom: ${expectedDate} Time: ${expectedTime}`);
@@ -182,10 +185,10 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
     const date = new Date("2024-04-21T12:00:00Z");
-    
+
     const input = "{{date:dddd, MMMM Do YYYY}}";
     const result = (saver as any).replaceDatePlaceholders(input, date);
-    
+
     const expected = moment(date).format("dddd, MMMM Do YYYY");
     expect(result).toBe(expected);
   });
@@ -354,5 +357,59 @@ describe("ArticleSaver.fixSavedFilePaths", () => {
     expect(item.saved).toBe(false);
     expect(item.savedFilePath).toBeUndefined();
     expect(item.tags.map((t) => t.name)).toEqual(["keep"]);
+  });
+});
+
+describe("ArticleSaver saved file lookups", () => {
+  it("prefers savedFilePath when the title-based filename no longer matches", async () => {
+    const app = (App as any).createMock();
+    const settings = createSettings({ defaultFolder: "Articles" });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: "Title With / Slash",
+      saved: true,
+      savedFilePath: "Archive/Already Saved.md",
+    });
+
+    await app.vault.create("Archive/Already Saved.md", "content");
+
+    expect(saver.checkSavedFileExists(item)).toBe(true);
+    expect(item.savedFilePath).toBe("Archive/Already Saved.md");
+  });
+
+  it("falls back to the normalized default-folder path for legacy items", async () => {
+    const app = (App as any).createMock();
+    const settings = createSettings({ defaultFolder: "/Articles/" });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: "Legacy / Saved Article",
+      saved: true,
+    });
+
+    await app.vault.create("Articles/Legacy Saved Article.md", "content");
+
+    expect(saver.checkSavedFileExists(item)).toBe(true);
+    expect(item.savedFilePath).toBe("Articles/Legacy Saved Article.md");
+  });
+
+  it("finds a saved file by savedFilePath even when the default folder differs", async () => {
+    const app = (App as any).createMock();
+    const settings = createSettings({ defaultFolder: "RSS articles" });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: "My Article",
+      saved: true,
+      savedFilePath: "Custom Folder/My Article.md",
+    });
+
+    await app.vault.create("Custom Folder/My Article.md", "content");
+
+    const file = await saver.findSavedArticleFile(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    expect(file?.path).toBe("Custom Folder/My Article.md");
   });
 });

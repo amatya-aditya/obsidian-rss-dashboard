@@ -1,5 +1,6 @@
 import { App, Notice, TFile, setIcon, Setting } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
+import { sanitizeFilename } from "./article-saver";
 
 interface WebViewerPlugin {
   openWebpage?(url: string, title: string): Promise<void>;
@@ -248,7 +249,7 @@ export class WebViewerIntegration {
       await this.ensureFolderExists(folder);
     }
 
-    const filename = this.sanitizeFilename(item.title);
+    const filename = sanitizeFilename(item.title);
     const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
 
     if (this.app.vault.getAbstractFileByPath(filePath) !== null) {
@@ -333,14 +334,6 @@ guid: "{{guid}}"
       .replace(/{{guid}}/g, item.guid);
 
     return frontmatter.endsWith("\n") ? frontmatter : `${frontmatter}\n`;
-  }
-
-  private sanitizeFilename(name: string): string {
-    return name
-      .replace(/[/\\:*?"<>|]/g, "_")
-      .replace(/\s+/g, "_")
-      .replace(/_+/g, "_")
-      .substring(0, 100);
   }
 
   private applyTemplate(item: FeedItem, template: string): string {

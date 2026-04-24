@@ -652,6 +652,57 @@ describe("FeedParser.parseFeed", () => {
 
     requestUrlSpy.mockRestore();
   });
+
+  it("preserves savedFilePath across refresh for an existing saved article", async () => {
+    const feedUrl = "https://example.com/feed.xml";
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Saved Article</title>
+      <link>https://example.com/saved</link>
+      <description>desc</description>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>https://example.com/saved</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+        text: xml,
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+        text: xml,
+      });
+
+    const parser = new FeedParser(mediaSettings, []);
+    const first = await parser.parseFeed(feedUrl, null);
+    first.items[0].saved = true;
+    first.items[0].savedFilePath = "Articles/Saved Article.md";
+
+    const refreshed = await parser.parseFeed(feedUrl, first);
+
+    expect(refreshed.items).toHaveLength(1);
+    expect(refreshed.items[0].saved).toBe(true);
+    expect(refreshed.items[0].savedFilePath).toBe(
+      "Articles/Saved Article.md",
+    );
+
+    requestUrlSpy.mockRestore();
+  });
 });
 
 describe("FeedParserService.parseFeed", () => {
