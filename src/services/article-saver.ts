@@ -655,7 +655,10 @@ export class ArticleSaver {
     try {
       await this.updateArticleStatus(
         article,
-        { saved: (file instanceof TFile), savedFilePath: file === null ? undefined : expectedPath },
+        {
+          saved: (file instanceof TFile),
+          savedFilePath: (file && expectedPath || undefined)
+        },
         false,
       );
     } catch (e) {
