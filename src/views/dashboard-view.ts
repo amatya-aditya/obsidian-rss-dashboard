@@ -1726,7 +1726,11 @@ export class RssDashboardView extends ItemView {
       : await this.saver.saveArticle(article, undefined, customTemplate);
 
     if (file) {
-      await this.updateArticleStatus(article, { saved: true }, false);
+      await this.updateArticleStatus(
+        article,
+        { saved: true, savedFilePath: file.path },
+        false,
+      );
       this.updateArticleSaveButton(article.guid);
     }
   }
@@ -3015,6 +3019,20 @@ export class RssDashboardView extends ItemView {
     } else {
       return this.allArticlesPage;
     }
+  }
+
+  private async findSavedArticleFile(article: FeedItem): Promise<TFile | null> {
+    const file = await this.saver.findSavedArticleFile(article);
+    if (file !== null) {
+      return file;
+    }
+
+    await this.updateArticleStatus(
+      article,
+      { saved: false, savedFilePath: undefined },
+      false,
+    );
+    return null;
   }
 
   private async openSavedArticleFile(file: TFile): Promise<void> {

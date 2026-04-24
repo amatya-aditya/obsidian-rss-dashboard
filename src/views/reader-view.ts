@@ -458,6 +458,8 @@ export class ReaderView extends ItemView {
             markdownContent,
           );
           if (file) {
+            item.saved = true;
+            item.savedFilePath = file.path;
             this.onArticleSave(item);
 
             this.updateSavedLabel(true);
@@ -578,6 +580,8 @@ export class ReaderView extends ItemView {
           markdownContent,
         );
         if (file) {
+          item.saved = true;
+          item.savedFilePath = file.path;
           this.onArticleSave(item);
 
           this.updateSavedLabel(true);
@@ -624,6 +628,7 @@ export class ReaderView extends ItemView {
       const fileExists = this.articleSaver.checkSavedFileExists(item);
       if (!fileExists) {
         item.saved = false;
+        item.savedFilePath = undefined;
         if (item.tags) {
           item.tags = item.tags.filter(
             (tag) => tag.name.toLowerCase() !== "saved",

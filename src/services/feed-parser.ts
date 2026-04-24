@@ -3110,6 +3110,7 @@ export class FeedParser {
           read: existingItem.read,
           starred: existingItem.starred,
           saved: existingItem.saved,
+          savedFilePath: existingItem.savedFilePath,
           feedTitle: newFeed.title, // Update feedTitle to match the new feed title
           coverImage,
           summary:

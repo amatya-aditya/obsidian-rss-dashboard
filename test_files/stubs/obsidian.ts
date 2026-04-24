@@ -249,6 +249,7 @@ export class MockDataVault {
 export class MockWorkspace {
   private leaves: Map<string, unknown> = new Map();
   private activeLeaf: unknown = null;
+  private layoutReadyCallbacks: Array<() => void> = [];
 
   onLayoutChange = new MockEvent();
   onActiveLeafChange = new MockEvent();
@@ -273,6 +274,16 @@ export class MockWorkspace {
   // Minimal surface used by settings tabs to focus a view.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async revealLeaf(_leaf: any): Promise<void> {}
+
+  onLayoutReady(callback: () => void): void {
+    this.layoutReadyCallbacks.push(callback);
+  }
+
+  triggerLayoutReady(): void {
+    const callbacks = [...this.layoutReadyCallbacks];
+    this.layoutReadyCallbacks = [];
+    callbacks.forEach((callback) => callback());
+  }
 }
 
 // =============================================================================

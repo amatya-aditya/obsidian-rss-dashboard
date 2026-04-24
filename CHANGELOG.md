@@ -39,6 +39,8 @@
 
 - Fixed the Manage Feeds workflow so the modal now closes after the user initiates an OPML import instead of remaining open behind the import flow.
 
+- Saved articles now persist across vault reloads (PR#106)
+
 ### Improvements
 
 - Optimized the feed refresh process to reduce unnecessary network requests.
