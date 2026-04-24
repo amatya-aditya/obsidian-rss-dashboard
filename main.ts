@@ -379,11 +379,19 @@ export default class RssDashboardPlugin extends Plugin {
         this.applyMobileOptimizations();
       }
 
-      this.app.workspace.onLayoutReady(async () => {
+      const fixSavedArticlesAfterLayout = async () => {
         const allArticles = this.getAllArticles();
         await this.articleSaver.fixSavedFilePaths(allArticles);
         await this.validateSavedArticles();
-      });
+      };
+
+      if (typeof this.app.workspace.onLayoutReady === "function") {
+        this.app.workspace.onLayoutReady(() => {
+          void fixSavedArticlesAfterLayout();
+        });
+      } else {
+        await fixSavedArticlesAfterLayout();
+      }
 
       this.registerView(
         RSS_DASHBOARD_VIEW_TYPE,

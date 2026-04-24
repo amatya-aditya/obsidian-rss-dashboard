@@ -22,7 +22,7 @@ import type {
 } from "../../main";
 import { Sidebar } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
-import { ArticleSaver, sanitizeFilename } from "../services/article-saver";
+import { ArticleSaver } from "../services/article-saver";
 import { ArticleRenderer } from "../components/article-renderer";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";

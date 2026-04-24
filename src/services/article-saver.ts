@@ -652,18 +652,19 @@ export class ArticleSaver {
     }
     const expectedPath = article.savedFilePath || this.buildSavedArticleFilePath(article);
     const file = this.app.vault.getAbstractFileByPath(expectedPath);
+    const savedFile = file instanceof TFile ? file : null;
     try {
       await this.updateArticleStatus(
         article,
         {
-          saved: (file instanceof TFile),
-          savedFilePath: (file && expectedPath || undefined)
+          saved: savedFile !== null,
+          savedFilePath: savedFile ? expectedPath : undefined,
         },
         false,
       );
-    } catch (e) {
+    } catch {
       // Update failed
     }
-    return file;
+    return savedFile;
   }
 }
