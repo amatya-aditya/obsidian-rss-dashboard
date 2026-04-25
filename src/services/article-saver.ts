@@ -12,9 +12,7 @@ export function sanitizeFilename(name: string): string {
     .replace(/\s+/g, " ")
     .trim();
 
-  const words = sanitized.split(" ");
-  const shortened = words.slice(0, 5).join(" ");
-  return shortened.substring(0, 50);
+  return sanitized || "Untitled Article";
 }
 
 export class ArticleSaver {

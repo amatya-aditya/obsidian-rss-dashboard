@@ -295,9 +295,19 @@ describe("Phase 8 - WebViewerIntegration", () => {
   });
 
   describe("helpers", () => {
-    it("sanitizeFilename replaces illegal chars, collapses whitespace, and caps length", () => {
+    it("sanitizeFilename replaces illegal chars, collapses whitespace, and preserves the full title", () => {
       expect(sanitizeFilename('Hello / World: "Test"')).toBe("Hello World Test");
-      expect(sanitizeFilename("a".repeat(200))).toHaveLength(50);
+      expect(
+        sanitizeFilename(
+          'This is a deliberately long article title with / illegal : characters " removed" and extra words',
+        ),
+      ).toBe(
+        "This is a deliberately long article title with illegal characters removed and extra words",
+      );
+    });
+
+    it("sanitizeFilename falls back to a safe filename when sanitization removes everything", () => {
+      expect(sanitizeFilename(' / \\\\ : * ? " < > | ')).toBe("Untitled Article");
     });
 
     it("applyTemplate replaces common placeholders", () => {

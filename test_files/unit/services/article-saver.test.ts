@@ -47,6 +47,22 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
+describe("sanitizeFilename", () => {
+  it("preserves the full sanitized title without truncating words or length", () => {
+    const title =
+      'This is a deliberately long article title with / illegal : characters " removed" and extra words';
+
+    expect(sanitizeFilename(title)).toBe(
+      "This is a deliberately long article title with illegal characters removed and extra words",
+    );
+  });
+
+  it("falls back to a safe filename when sanitization removes everything", () => {
+    expect(sanitizeFilename(' / \\\\ : * ? " < > | ')).toBe("Untitled Article");
+    expect(sanitizeFilename("   ")).toBe("Untitled Article");
+  });
+});
+
 describe("ArticleSaver.saveArticle", () => {
   it("writes to a normalized folder path and applies template/frontmatter substitutions", async () => {
     const app = (App as any).createMock();
@@ -125,6 +141,49 @@ describe("ArticleSaver.saveArticle", () => {
     expect(result).toBeNull();
     expect(item.saved).not.toBe(true);
     expect(item.savedFilePath).toBeUndefined();
+  });
+
+  it("uses the full sanitized title in the saved file path", async () => {
+    const app = (App as any).createMock();
+    const settings = createSettings({
+      defaultFolder: "Articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title:
+        'This is a deliberately long article title with / illegal : characters " removed" and extra words',
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const expectedPath =
+      "Articles/This is a deliberately long article title with illegal characters removed and extra words.md";
+    expect(createSpy).toHaveBeenCalled();
+    expect(createSpy.mock.calls[0][0]).toBe(expectedPath);
+    expect(item.savedFilePath).toBe(expectedPath);
+  });
+
+  it("uses a fallback filename when the title sanitizes to empty", async () => {
+    const app = (App as any).createMock();
+    const settings = createSettings({
+      defaultFolder: "Articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({ title: ' / \\\\ : * ? " < > | ' });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    expect(createSpy).toHaveBeenCalled();
+    expect(createSpy.mock.calls[0][0]).toBe("Articles/Untitled Article.md");
+    expect(item.savedFilePath).toBe("Articles/Untitled Article.md");
   });
 });
 

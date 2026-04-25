@@ -43,6 +43,8 @@
 
 - Saved articles now persist across vault reloads (PR#106)
 
+- Saved articles no longer truncate title names
+
 ### Improvements
 
 - Optimized the feed refresh process to reduce unnecessary network requests.
