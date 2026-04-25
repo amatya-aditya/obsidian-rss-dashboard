@@ -6,140 +6,215 @@
 
 <h1 align="center">RSS Dashboard</h1>
 <h4 align="center">Only the feeds you need</h4>
-<h4 align="center">Stream the world's knowledge into your vault: RSS, podcasts, and YouTube, all in one Dashboard</h4>
+<h4 align="center">Stream the world's knowledge into your vault: RSS, podcasts, YouTube, and more, all in one dashboard</h4>
 
- <br>
+## Screenshots
+
+<br>
 <p align="center">
-  <img  src="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/assets/l5.png">
+  <img src="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/dev/assets/2.2/2.2_Dashboard.jpg" alt="RSS Dashboard main dashboard view">
 </p>
 
 <p align="center">
-  <img  src="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/assets/d4.png">
+  <img src="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/dev/assets/2.2/2.2_Dashboard_feedview_light.jpg" alt="RSS Dashboard feed view in light mode">
 </p>
 
 <p align="center">
   <a href="https://github.com/amatya-aditya/obsidian-rss-dashboard/releases/latest">
-		<img src="https://img.shields.io/github/v/release/amatya-aditya/obsidian-rss-dashboard?style=flat-square&color=573E7A&label=release">
-	</a>
-  <img src="https://img.shields.io/github/release-date/amatya-aditya/obsidian-rss-dashboard">
-	<a href="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/main/LICENSE">
-		<img src="https://img.shields.io/github/license/amatya-aditya/obsidian-rss-dashboard">
-	</a>
-	<img src="https://img.shields.io/github/downloads/amatya-aditya/obsidian-rss-dashboard/total">
-	<a href="https://github.com/amatya-aditya/obsidian-rss-dashboard/issues">
-		<img src="https://img.shields.io/github/issues/amatya-aditya/obsidian-rss-dashboard">
-	</a>
-
-</p>
-
-<p align="center">
-  <a href="https://www.buymeacoffee.com/amatya_aditya" target="_blank">☕ Buy me a coffee</a>
-</p>
-
-<p align="center"> <a href='https://ko-fi.com/Y8Y41FV4WI' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a></p>
-
-<p align="center">
-  <a href="https://youtu.be/YwBu3Kdn1Qk" target="_blank">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_play_button_icon_%282013%E2%80%932017%29.svg" 
-         style="width: 50px; height: auto; ">
+    <img src="https://img.shields.io/github/v/release/amatya-aditya/obsidian-rss-dashboard?style=flat-square&color=573E7A&label=release" alt="Latest release">
+  </a>
+  <img src="https://img.shields.io/github/release-date/amatya-aditya/obsidian-rss-dashboard" alt="Release date">
+  <a href="https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/amatya-aditya/obsidian-rss-dashboard" alt="License">
+  </a>
+  <img src="https://img.shields.io/github/downloads/amatya-aditya/obsidian-rss-dashboard/total" alt="Total downloads">
+  <a href="https://github.com/amatya-aditya/obsidian-rss-dashboard/issues">
+    <img src="https://img.shields.io/github/issues/amatya-aditya/obsidian-rss-dashboard" alt="Open issues">
   </a>
 </p>
 
 <p align="center">
-  <a href="#community">📣 Community</a> •
-  <a href="#features">Features</a> •
-  <a href="#screenshots">Screenshots</a> •
-  <a href="#installation">Installation</a> •
-  <a href="#getting-started">Getting Started</a> •
-  <a href="#troubleshooting">Troubleshooting</a> •
+  <a href="https://www.buymeacoffee.com/amatya_aditya" target="_blank">Buy me a coffee</a>
+</p>
+
+<p align="center">
+  <a href="https://ko-fi.com/Y8Y41FV4WI" target="_blank">
+    <img height="36" style="border:0;height:36px;" src="https://storage.ko-fi.com/cdn/kofi2.png?v=6" border="0" alt="Buy me a coffee at ko-fi.com" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://youtu.be/YwBu3Kdn1Qk" target="_blank">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_play_button_icon_%282013%E2%80%932017%29.svg" style="width: 50px; height: auto;" alt="Watch the demo on YouTube">
+  </a>
+</p>
+
+<p align="center">
+  <a href="#about">About</a> |
+  <a href="#community">Community</a> |
+  <a href="#features">Features</a> |
+  <a href="#screenshots">Screenshots</a> |
+  <a href="#roadmap">Roadmap</a> |
+  <a href="#installation">Installation</a> |
+  <a href="#getting-started">Getting Started</a> |
+  <a href="#troubleshooting">Troubleshooting</a> |
   <a href="#license">License</a>
 </p>
 
-## Community <h3>
+## About
 
-Want to influence the next release? </h3> : Join our [Discord server](https://discord.gg/9bu7V9BBbs): it's where we:
+RSS Dashboard is a free, open source community plugin for Obsidian that makes it easy to manage your RSS feeds, YouTube subscriptions, podcasts, and Twitter/X feeds in one place. Data is stored locally, and content that comes through the plugin can be saved directly to your vault with a click. Twitter/X links are supported through native Nitter resolution, so profile URLs can be turned into feed subscriptions automatically.
 
-- Help build our manually curated Discover page (Collection of hand-pick RSS feeds, grouped by category (philosophy, engineering, physics etc.) for one-click subscribe.)
+## Community
+
+Want to help shape the next release? Join our [Discord server](https://discord.gg/9bu7V9BBbs). It is where we:
+
+- Help build the manually curated Discover page, with one-click subscriptions grouped by category
 - Discuss ideas, questions, and best practices in real time
-- Share sneak peeks of upcoming features (get early feedback!)
+- Share sneak peeks of upcoming features and gather early feedback
 
-👉 Click here to join - https://discord.gg/9bu7V9BBbs - See you inside!
+Join here: https://discord.gg/9bu7V9BBbs
 
 ## Features
 
-<div align="left">✅ Implemented</div>
+### Feed and Media Support
 
-| **Feature**                  | **Description**                                                                           | **Status** |
-| ---------------------------- | ----------------------------------------------------------------------------------------- | ---------- |
-| **Multi-Format RSS Support** | Support for RSS, Atom, and JSON feeds with automatic feed discovery and parsing           | ✅         |
-| **YouTube Integration**      | Convert YouTube channels, users, and playlists to RSS feeds with embedded video player    | ✅         |
-| **Podcast Support**          | Full podcast feed support with integrated podcast player                                  | ✅         |
-| **Discover Page**            | Curated collection of RSS feeds organized by categories (News, Technology, Science, etc.) | ✅         |
-| **Article Reader View**      | Built-in reader with full article content fetching and markdown conversion                | ✅         |
-| **Article Saving**           | Save articles as markdown files with customizable templates and frontmatter               | ✅         |
-| **Folder Organization**      | Organize feeds into folders and subfolders with hierarchical structure                    | ✅         |
-| **Tag Management**           | Add custom tags to feeds and articles for better organization                             | ✅         |
-| **OPML Import/Export**       | Import and export feed subscriptions in OPML format                                       | ✅         |
-| **Auto-Refresh**             | Automatic feed refresh with configurable intervals                                        | ✅         |
-| **Article Filtering**        | Filter articles by read status, age, starred, saved, and more                             | ✅         |
-| **Article Sorting**          | Sort articles by newest, oldest, and group by feed, date, or folder                       | ✅         |
-| **Pagination**               | Paginated article lists with configurable page sizes                                      | ✅         |
-| **Media Detection**          | Automatic detection of video and podcast content                                          | ✅         |
-| **Custom Templates**         | Customizable templates for saved articles with variable substitution                      | ✅         |
-| **Androi/iPad Support**      | Support mobile devices with responsive design                                             | ✅         |
+| **Feature**                  | **Description**                                                                     |
+| ---------------------------- | ----------------------------------------------------------------------------------- |
+| **Multi-Format RSS Support** | Support for RSS, Atom, XML and JSON feeds with automatic feed discovery and parsing |
+| **YouTube Integration**      | Convert YouTube channels to RSS feeds with embedded video playback                  |
+| **Podcast Support**          | Full podcast feed support with an integrated podcast player                         |
+| **Twitter/X Support**        | Convert Twitter/X profile URLs to chronological Nitter RSS feeds automatically      |
+| **Media Detection**          | Automatic detection of video and podcast content                                    |
 
-## Planned Features
+### Reading and Saving
 
-<div align="left">🔄 Planned</div>
+| **Feature**               | **Description**                                                             |
+| ------------------------- | --------------------------------------------------------------------------- |
+| **Article Reader View**   | Built-in reader with full article content fetching and Markdown conversion  |
+| **Article Saving**        | Save articles as Markdown files with customizable templates and frontmatter |
+| **Custom Templates**      | Customize saved article output with variable substitution                   |
+| **Pagination**            | Paginated article lists with configurable page sizes                        |
+| **Android/Apple Support** | Responsive support for cross-platform mobile devices                        |
 
-| **Feature**                      | **Description**                                           | **Status** |
-| -------------------------------- | --------------------------------------------------------- | ---------- |
-| **Advanced Analytics**           | Track reading time, articles read, and detailed insights  | 🔄         |
-| **Text-to-Speech (TTS) Support** | Enjoy smooth, multilingual narration—even within article. | 🔄         |
-| **Keyboard Shortcuts**           | Implement keybindings for navigation                      | 🔄         |
-| **Newsletter Integration**       | Support for newsletter subscriptions and management       | 🔄         |
-| **YouTube Transcripts**          | Extract and display YouTube video transcripts             | 🔄         |
-| **NoteStamp Integration**        | Enhanced note-taking with timestamps and annotations      | 🔄         |
-| **Advanced Search**              | Full-text search across all saved articles and feeds      | 🔄         |
-| **Progress Tracking**            | Track reading progress and podcast playback position      | 🔄         |
+### Organization and Workflow
+
+| **Feature**             | **Description**                                                        |
+| ----------------------- | ---------------------------------------------------------------------- |
+| **Folder Organization** | Organize feeds into folders and subfolders with hierarchical structure |
+| **Tag Management**      | Add custom tags to feeds and articles for better organization          |
+| **Article Filtering**   | Filter articles by read status, age, starred, saved, and more          |
+| **Article Sorting**     | Sort articles by newest, oldest, and group by feed, date, or folder    |
+| **Auto-Refresh**        | Automatic feed refresh with configurable intervals                     |
+| **OPML Import/Export**  | Import and export feed subscriptions in OPML format                    |
+
+### Discovery
+
+| **Feature**       | **Description**                                                                    |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| **Discover Page** | Curated collection of RSS feeds organized by categories                            |
+| **Kagi Smallweb** | Browse and subscribe to a curated stream of smaller independent blogs and websites |
+
+## Roadmap
+
+Looking for upcoming features? The old README planned-features list now lives in [docs/plans/public-roadmap.md](docs/plans/public-roadmap.md), along with links to other public-facing plans that have not been implemented yet.
 
 ## Installation
 
+### Community Plugins Directory
+
+1. Open **Settings** in Obsidian.
+2. Go to **Community plugins** and disable **Restricted mode** if it is enabled.
+3. Click **Browse**.
+4. Search for `RSS Dashboard`.
+5. Click **Install**, then **Enable**.
+
+### Installing Through BRAT
+
+1. Install BRAT from Obsidian's Community Plugins browser.
+2. Copy the repository URL: `https://github.com/amatya-aditya/obsidian-rss-dashboard`
+3. Open the command palette and run `BRAT: Add a beta plugin for testing`.
+4. Paste the repository URL into the modal and select the latest version.
+5. Click **Add Plugin** and wait for BRAT to finish.
+6. Open **Settings** -> **Community plugins**.
+7. Refresh the plugin list if needed.
+8. Find **RSS Dashboard** and enable it.
+
 ### Manual Installation
 
-1. Download the latest release files (manifest.json, styles.css, main.js) from the [Releases page](https://github.com/amatya-aditya/obsidian-rss-dashboard/releases).
-2. Create a folder named "rss-dashboard" in the Obsidian plugins folder (.obsidian/plugins).
-3. Copy the files from step 1 into the new folder.
-4. Enable the plugin in the Obsidian settings under the "Community plugins" section. You might have to restart Obsidian to see the plugin.
-
-### Installing through BRAT
-
-1. Install BRAT from the Community Plugins in Obsidian.
-2. Get the link to the GitHub repository: https://github.com/amatya-aditya/obsidian-rss-dashboard
-3. Open the command palette and run the command "BRAT: Add a beta plugin for testing"
-4. Using the link from step 2, copy that into the modal that opens up and Select the latest version (recommended)
-5. Click on Add Plugin -- wait a few seconds and BRAT will tell you what is going on.
-6. After BRAT confirms the installation, in Settings go to the Community plugins tab.
-7. Refresh the list of plugins.
-8. Find the RSS Dashboard in the plugin list and Enable it (If not enabled)
+1. Download the latest release files (`manifest.json`, `styles.css`, `main.js`) from the [Releases page](https://github.com/amatya-aditya/obsidian-rss-dashboard/releases).
+2. Create a folder named `rss-dashboard` in your vault's `.obsidian/plugins` directory.
+3. Copy the downloaded files into that folder.
+4. Enable the plugin in **Settings** -> **Community plugins**. You may need to restart Obsidian before it appears.
 
 ## Getting Started
 
+### Adding Your First Feed
+
+1. Open the RSS Dashboard view using the ribbon icon or the command palette.
+2. Click the `+` button in the sidebar to add a new feed.
+3. Enter a feed URL or website URL. The plugin will try to auto-discover the feed for you.
+4. Choose a folder to organize the feed.
+5. Click **Add Feed** to subscribe.
+
+### Using the Discover Page
+
+1. Open the RSS Discover view using the Discover icon or the command palette.
+2. Browse curated feeds organized by category.
+3. Use the Kagi Smallweb button at the top of the Discover sidebar to open a curated collection of smaller independent blogs and websites.
+4. Use filters or search to find content you want to follow.
+5. Click **Add Feed** on any feed card to subscribe instantly.
+
+### Reading Articles
+
+1. Click any article in the dashboard to open it in the reader view.
+2. Use the built-in reader for a cleaner reading experience.
+3. Save articles as Markdown files for long-term storage in your vault.
+4. Use the video player for YouTube content or the audio player for podcasts.
+5. YouTube embeds use Privacy Enhanced Mode through `youtube-nocookie.com`, and each video includes a visible **Watch on YouTube** link.
+
+### Organizing Your Feeds
+
+1. Create folders and subfolders to organize your subscriptions.
+2. Drag and drop feeds and folders to reorder them and build the structure you want more directly.
+3. Add tags to categorize your content.
+4. Use the filtering and sorting options to find specific articles quickly.
+5. Export your feed list as OPML for backup or migration.
+
 ## Development
 
-### Local setup
+### Local Setup
 
-This repo targets Node 22 for local development and CI. If you use `nvm`, run `nvm use` from the repo root to pick up the version from `.nvmrc`.
+This repo targets Node 22 for local development and CI. Both `.nvmrc` and `.node-version` are pinned to `22`.
 
-### Local CI-equivalent commands
+If you use `nvm`, run:
 
-Run the same install and test commands used in GitHub Actions:
+```bash
+nvm use
+npm ci
+```
+
+### Local Development
+
+Use the development build while making changes locally:
+
+```bash
+nvm use
+npm ci
+npm run dev
+```
+
+### Local CI-Equivalent Commands
+
+Run the same install and unit test flow used in GitHub Actions:
 
 ```bash
 nvm use
 npm ci
 npm run test:unit -- --coverage
 ```
+
+### Production Build
 
 To mirror the release workflow build step locally:
 
@@ -149,70 +224,41 @@ npm ci
 npm run build
 ```
 
-### Adding Your First Feed
-
-1. Open the RSS Dashboard view using the ribbon icon or command palette
-2. Click the "+" button in the sidebar to add a new feed
-3. Enter the feed URL or website URL (the plugin will auto-discover RSS feeds)
-4. Choose a folder to organize your feed
-5. Click "Add Feed" to start following the feed
-
-### Using the Discover Page
-
-1. Open the RSS Discover view using the search icon or command palette
-2. Browse through curated feeds organized by categories
-3. Use filters to find specific types of content
-4. Click "Add Feed" on any feed card to subscribe instantly
-
-### Reading Articles
-
-1. Click on any article in the dashboard to open it in the reader view
-2. Use the built-in reader for a clean reading experience
-3. Save articles as markdown files for permanent storage
-4. Use the video player for YouTube content or audio player for podcasts
-5. YouTube embeds are routed through Privacy Enhanced Mode using `youtube-nocookie.com`, and each video includes a visible "Watch on YouTube" link
-
-### Organizing Your Feeds
-
-1. Create folders and subfolders to organize your feeds
-2. Add tags to categorize your content
-3. Use the filtering and sorting options to find specific articles
-4. Export your feed list using OPML for backup
-
 ## Troubleshooting
 
 ### Common Issues
 
 **Feed not loading**:
 
-- Check if the feed URL is correct
-- Try refreshing the feed manually
-- Some feeds may require authentication
+- Check that the feed URL is correct.
+- Try refreshing the feed manually.
+- Some feeds require authentication.
 
 **YouTube feeds not working**:
 
-- Make sure you're using a valid YouTube channel URL
-- Try using the channel ID instead of the custom URL
-- Some channels may have disabled RSS feeds
-- Embedded playback now uses `youtube-nocookie.com` with a strict referrer policy to satisfy current YouTube embed requirements
+- Make sure you are using a valid YouTube channel, user, or playlist URL.
+- Try using the channel ID instead of a custom URL.
+- Some channels have disabled RSS feeds.
+- YouTube feed retrieval is currently limited, and only about 15 YouTube feeds can usually be fetched at a time.
+- Embedded playback uses `youtube-nocookie.com` with a strict referrer policy to satisfy current YouTube embed requirements.
 
 **Podcast audio not playing**:
 
-- Check if the audio URL is accessible
-- Some podcasts may require authentication
-- Try opening the audio URL in a browser
+- Check that the audio URL is accessible.
+- Some podcasts require authentication.
+- Try opening the audio URL in a browser.
 
 ### Getting Help
 
-If you encounter any issues or have suggestions:
+If you run into an issue or have a suggestion:
 
 - Create an issue on [GitHub](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)
-- Join our [Discord community](https://discord.com/invite/9bu7V9BBbs)
-- Check the existing issues for solutions
+- Join the [Discord community](https://discord.com/invite/9bu7V9BBbs)
+- Check existing issues for known fixes and workarounds
 
 ## YouTube Embeds and Terms
 
-RSS Dashboard resolves YouTube feed items to a canonical `videoId`, renders the embedded player through Privacy Enhanced Mode (`https://www.youtube-nocookie.com/embed/...`), and provides a standard `Watch on YouTube` link that opens the original video in your browser or native YouTube app.
+RSS Dashboard resolves YouTube feed items to a canonical `videoId`, renders the embedded player through Privacy Enhanced Mode (`https://www.youtube-nocookie.com/embed/...`), and provides a standard **Watch on YouTube** link that opens the original video in your browser or native YouTube app.
 
 The plugin does not add YouTube download features, background audio-only playback, or ad-blocking behavior around the embedded player.
 
@@ -226,10 +272,14 @@ YouTube embeds and API usage are subject to:
 If you find this plugin useful, consider supporting its long-term development:
 
 <p align="center">
-  <a href="https://www.buymeacoffee.com/amatya_aditya" target="_blank">☕ Buy me a coffee</a>
+  <a href="https://www.buymeacoffee.com/amatya_aditya" target="_blank">Buy me a coffee</a>
 </p>
 
-<p align="center"> <a href='https://ko-fi.com/Y8Y41FV4WI' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a></p>
+<p align="center">
+  <a href="https://ko-fi.com/Y8Y41FV4WI" target="_blank">
+    <img height="36" style="border:0;height:36px;" src="https://storage.ko-fi.com/cdn/kofi2.png?v=6" border="0" alt="Buy me a coffee at ko-fi.com" />
+  </a>
+</p>
 
 ## Other Plugins by Me
 
@@ -238,4 +288,4 @@ If you find this plugin useful, consider supporting its long-term development:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

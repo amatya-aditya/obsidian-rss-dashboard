@@ -2,6 +2,7 @@
 
 ## Update History
 
+- 2026-04-25: Add branding guidance for logo typography and asset storage
 - 2026-03-17: Standardize icon rendering using clickable-icon pattern for Android compatibility
 - 2026-03-04: Update iPhone modal headroom fix and sync docs
 - 2026-03-04: Fix mobile sidebar header top insets for iOS and Android
@@ -16,6 +17,7 @@ This document defines the UI design rules for the plugin so visual changes are c
 - Dashboard sidebar and header controls
 - Discover sidebar controls
 - Modal/mobile navigation surfaces
+- Branding guidance for logo typography and logo asset organization
 - Common CTA, neutral, destructive, and icon-button patterns
 - Discover cards and filter control surfaces
 - Typography and hierarchy for interactive controls
@@ -38,6 +40,20 @@ If this spec conflicts with existing CSS, update CSS to match this spec unless t
 3. Theme-native color usage: prefer Obsidian variables over hardcoded values.
 4. Compact touch-safe layout: maintain tap targets without bloating vertical rhythm.
 5. Accessibility first: preserve visible focus states and readable contrast in dark/light themes.
+
+## Branding
+
+### Brand Typography
+
+- The logo wordmark uses `JetBrains Mono`.
+- Preserve the exact capitalization and spacing used in the approved logo source files.
+- Treat `JetBrains Mono` as a branding asset choice for the logo, not as the default UI typeface for the plugin interface.
+
+### Logo Asset Storage
+
+- Store official logo files in `assets/branding/`.
+- Use this directory for source and exported logo assets such as SVG, PNG, monochrome variants, and platform-specific marks.
+- Keep non-branding screenshots, mockups, and exploratory images outside `assets/branding/` so the folder stays clean and predictable for contributors.
 
 ## Component Inventory
 

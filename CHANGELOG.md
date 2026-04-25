@@ -1,4 +1,6 @@
-## Unreleased
+## [2.2.0-beta.11] - April 25, 2026
+
+### Features
 
 - **"Add All" Button added to Discover page**
   - Added a new "Add All" button to the Discover page header. This button adds all feeds from the current page to the user's feed list.
@@ -48,6 +50,7 @@
 ### Improvements
 
 - Optimized the feed refresh process to reduce unnecessary network requests.
+
 - Added a per-feed "Exclude from refresh" option in Add/Edit Feed so selected feeds can be skipped by auto-refresh and bulk refresh actions while still allowing direct manual refresh.
 
 ## [2.2.0-beta.10] - April 2, 2026
