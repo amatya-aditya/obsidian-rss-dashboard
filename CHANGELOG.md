@@ -1,3 +1,9 @@
+# [Unreleased]
+
+### Fixed
+
+- Card view: Selected article now anchors correctly below the sticky dashboard header after opening in split/sidebar reader, even after repeated reader opens or layout changes. Fixes long-standing visual anchor regression when the dashboard header is present and sticky.
+
 ## [2.2.0-beta.11] - April 25, 2026
 
 ### Features

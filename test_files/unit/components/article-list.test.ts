@@ -225,10 +225,7 @@ describe("ArticleList Component", () => {
       articleList.render();
 
       // Simulate scrolling
-      const listEl = container.querySelector(
-        ".rss-dashboard-articles-list",
-      ) as HTMLElement;
-      Object.defineProperty(listEl, "scrollTop", {
+      Object.defineProperty(container, "scrollTop", {
         value: 100,
         writable: true,
       });
@@ -239,12 +236,7 @@ describe("ArticleList Component", () => {
 
       articleList.render();
 
-      const newListEl = container.querySelector(
-        ".rss-dashboard-articles-list",
-      ) as HTMLElement;
-      // Current behavior: it restores scroll on the OLD listEl (which is disconnected)
-      // We expect it to be 100 on the NEW listEl.
-      expect(newListEl.scrollTop).toBe(100);
+      expect(container.scrollTop).toBe(100);
     });
 
     it("should scroll the selected article into view after render", () => {
@@ -294,10 +286,7 @@ describe("ArticleList Component", () => {
 
       articleList.render();
 
-      const listEl = container.querySelector(
-        ".rss-dashboard-articles-list",
-      ) as HTMLElement;
-      Object.defineProperty(listEl, "scrollTop", {
+      Object.defineProperty(container, "scrollTop", {
         value: 180,
         writable: true,
       });
@@ -305,10 +294,7 @@ describe("ArticleList Component", () => {
       const rectSpy = vi
         .spyOn(Element.prototype, "getBoundingClientRect")
         .mockImplementation(function mockGetBoundingClientRect(this: Element) {
-          if (
-            this instanceof HTMLElement &&
-            this.classList.contains("rss-dashboard-articles-list")
-          ) {
+          if (this === container) {
             return makeRect(100, 500) as DOMRect;
           }
 
@@ -323,10 +309,7 @@ describe("ArticleList Component", () => {
 
       articleList.render();
 
-      const newListEl = container.querySelector(
-        ".rss-dashboard-articles-list",
-      ) as HTMLElement;
-      expect(newListEl.scrollTop).toBe(180);
+      expect(container.scrollTop).toBe(180);
       expect(scrollIntoViewSpy).not.toHaveBeenCalled();
 
       rectSpy.mockRestore();
@@ -383,10 +366,7 @@ describe("ArticleList Component", () => {
 
       articleList.render();
 
-      const listEl = container.querySelector(
-        ".rss-dashboard-articles-list",
-      ) as HTMLElement;
-      Object.defineProperty(listEl, "scrollTop", {
+      Object.defineProperty(container, "scrollTop", {
         value: 240,
         writable: true,
       });
@@ -394,10 +374,7 @@ describe("ArticleList Component", () => {
       const rectSpy = vi
         .spyOn(Element.prototype, "getBoundingClientRect")
         .mockImplementation(function mockGetBoundingClientRect(this: Element) {
-          if (
-            this instanceof HTMLElement &&
-            this.classList.contains("rss-dashboard-articles-list")
-          ) {
+          if (this === container) {
             return makeRect(100, 500) as DOMRect;
           }
 
@@ -412,10 +389,445 @@ describe("ArticleList Component", () => {
 
       articleList.setSelectedArticle(articles[1]);
 
-      expect(listEl.scrollTop).toBe(240);
+      expect(container.scrollTop).toBe(240);
       expect(scrollIntoViewSpy).not.toHaveBeenCalled();
 
       rectSpy.mockRestore();
+    });
+
+    it("should top-align selected card when split/sidebar anchor is requested", () => {
+      settings.viewStyle = "card";
+      const articleList = new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR",
+      );
+
+      articleList.render();
+
+      Object.defineProperty(container, "scrollTop", {
+        value: 40,
+        writable: true,
+      });
+
+      const rectSpy = vi
+        .spyOn(Element.prototype, "getBoundingClientRect")
+        .mockImplementation(function mockGetBoundingClientRect(this: Element) {
+          if (this === container) {
+            return makeRect(100, 500) as DOMRect;
+          }
+
+          if (this instanceof HTMLElement && this.id === "article-2") {
+            return makeRect(460, 520) as DOMRect;
+          }
+
+          return makeRect(0, 0) as DOMRect;
+        });
+
+      const scrollIntoViewSpy = vi.spyOn(Element.prototype, "scrollIntoView");
+      scrollIntoViewSpy.mockClear();
+
+      articleList.setSelectedArticle(articles[1], { forceCardTopAnchor: true });
+
+      expect(container.scrollTop).toBe(400);
+      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+
+      rectSpy.mockRestore();
+    });
+  });
+
+  describe("scheduleCardTopAnchorOnResize", () => {
+    const makeRect = (top: number, bottom: number) => ({
+      top,
+      bottom,
+      left: 0,
+      right: 0,
+      width: 0,
+      height: bottom - top,
+      x: 0,
+      y: top,
+      toJSON: () => ({}),
+    });
+
+    const makeArticleList = () =>
+      new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR",
+      );
+
+    afterEach(() => {
+      // Always restore the class-based mock so subsequent tests are not polluted.
+      window.ResizeObserver =
+        ResizeObserverMock as unknown as typeof ResizeObserver;
+    });
+
+    it("sets pendingCardTopAnchor and starts observing the container", () => {
+      settings.viewStyle = "card";
+      const articleList = makeArticleList();
+      articleList.render();
+      articleList.setSelectedArticle(articles[1]);
+
+      let observedEl: Element | null = null;
+
+      class TestResizeObserver {
+        constructor(_cb: ResizeObserverCallback) {}
+        observe(el: Element) {
+          observedEl = el;
+        }
+        unobserve() {}
+        disconnect() {}
+      }
+      window.ResizeObserver =
+        TestResizeObserver as unknown as typeof ResizeObserver;
+
+      articleList.scheduleCardTopAnchorOnResize();
+
+      expect(observedEl).toBe(container);
+      expect((articleList as any).pendingCardTopAnchor).toBe(true);
+    });
+
+    it("top-anchors the selected card and disconnects the observer when a resize fires", () => {
+      settings.viewStyle = "card";
+      const articleList = makeArticleList();
+      articleList.render();
+      articleList.setSelectedArticle(articles[1]);
+
+      let capturedCallback: ResizeObserverCallback | null = null;
+      let disconnected = false;
+
+      class TestResizeObserver {
+        constructor(cb: ResizeObserverCallback) {
+          capturedCallback = cb;
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {
+          disconnected = true;
+        }
+      }
+      window.ResizeObserver =
+        TestResizeObserver as unknown as typeof ResizeObserver;
+
+      Object.defineProperty(container, "scrollTop", {
+        value: 0,
+        writable: true,
+        configurable: true,
+      });
+      const rectSpy = vi
+        .spyOn(Element.prototype, "getBoundingClientRect")
+        .mockImplementation(function (this: Element) {
+          if (this === container) return makeRect(0, 400) as DOMRect;
+          if (this instanceof HTMLElement && this.id === "article-2")
+            return makeRect(200, 260) as DOMRect;
+          return makeRect(0, 0) as DOMRect;
+        });
+
+      articleList.scheduleCardTopAnchorOnResize();
+      // Simulate the ResizeObserver firing (rAF runs synchronously in tests)
+      capturedCallback!([], {} as ResizeObserver);
+
+      expect(container.scrollTop).toBe(200);
+      expect(disconnected).toBe(true);
+      expect((articleList as any).pendingCardTopAnchor).toBe(false);
+
+      rectSpy.mockRestore();
+    });
+
+    it("triggers the fallback relock via timeout if the observer never fires", () => {
+      vi.useFakeTimers();
+      settings.viewStyle = "card";
+      const articleList = makeArticleList();
+      articleList.render();
+      articleList.setSelectedArticle(articles[1]);
+
+      let disconnected = false;
+
+      class TestResizeObserver {
+        constructor(_cb: ResizeObserverCallback) {}
+        observe() {}
+        unobserve() {}
+        disconnect() {
+          disconnected = true;
+        }
+      }
+      window.ResizeObserver =
+        TestResizeObserver as unknown as typeof ResizeObserver;
+
+      Object.defineProperty(container, "scrollTop", {
+        value: 0,
+        writable: true,
+        configurable: true,
+      });
+      const rectSpy = vi
+        .spyOn(Element.prototype, "getBoundingClientRect")
+        .mockImplementation(function (this: Element) {
+          if (this === container) return makeRect(0, 400) as DOMRect;
+          if (this instanceof HTMLElement && this.id === "article-2")
+            return makeRect(200, 260) as DOMRect;
+          return makeRect(0, 0) as DOMRect;
+        });
+
+      articleList.scheduleCardTopAnchorOnResize();
+      vi.advanceTimersByTime(500);
+
+      expect(container.scrollTop).toBe(200);
+      expect(disconnected).toBe(true);
+      expect((articleList as any).pendingCardTopAnchor).toBe(false);
+
+      rectSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it("does not relock if viewStyle is not card when the observer fires", () => {
+      settings.viewStyle = "list";
+      const articleList = makeArticleList();
+      articleList.render();
+      articleList.setSelectedArticle(articles[1]);
+
+      let capturedCallback: ResizeObserverCallback | null = null;
+
+      class TestResizeObserver {
+        constructor(cb: ResizeObserverCallback) {
+          capturedCallback = cb;
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+      window.ResizeObserver =
+        TestResizeObserver as unknown as typeof ResizeObserver;
+
+      Object.defineProperty(container, "scrollTop", {
+        value: 0,
+        writable: true,
+        configurable: true,
+      });
+      const scrollIntoViewSpy = vi.spyOn(Element.prototype, "scrollIntoView");
+      scrollIntoViewSpy.mockClear();
+
+      articleList.scheduleCardTopAnchorOnResize();
+      capturedCallback!([], {} as ResizeObserver);
+
+      // scrollTop should be untouched by the forced-anchor path
+      expect(container.scrollTop).toBe(0);
+
+      scrollIntoViewSpy.mockRestore();
+    });
+  });
+
+  describe("scrollSelectedCardToTop", () => {
+    const makeRect = (top: number, bottom: number) => ({
+      top,
+      bottom,
+      left: 0,
+      right: 0,
+      width: 0,
+      height: bottom - top,
+      x: 0,
+      y: top,
+      toJSON: () => ({}),
+    });
+
+    const makeArticleList = () =>
+      new ArticleList(
+        container,
+        settings,
+        "All articles",
+        null,
+        articles,
+        null,
+        mockCallbacks,
+        1,
+        1,
+        10,
+        2,
+        new Set(),
+        new Set(),
+        "OR",
+      );
+
+    it("scrolls the selected card to the top of the list container", () => {
+      settings.viewStyle = "card";
+      const articleList = makeArticleList();
+      articleList.render();
+      articleList.setSelectedArticle(articles[1]);
+
+      Object.defineProperty(container, "scrollTop", {
+        value: 0,
+        writable: true,
+        configurable: true,
+      });
+      const rectSpy = vi
+        .spyOn(Element.prototype, "getBoundingClientRect")
+        .mockImplementation(function (this: Element) {
+          if (this === container) return makeRect(0, 400) as DOMRect;
+          if (this instanceof HTMLElement && this.id === "article-2")
+            return makeRect(200, 260) as DOMRect;
+          return makeRect(0, 0) as DOMRect;
+        });
+
+      articleList.scrollSelectedCardToTop();
+
+      expect(container.scrollTop).toBe(200);
+      expect((articleList as any).pendingCardTopAnchor).toBe(false);
+
+      rectSpy.mockRestore();
+    });
+
+    it("anchors selected card below sticky articles header overlap", () => {
+      settings.viewStyle = "card";
+      const articleList = makeArticleList();
+      articleList.render();
+      articleList.setSelectedArticle(articles[1]);
+
+      Object.defineProperty(container, "scrollTop", {
+        value: 0,
+        writable: true,
+        configurable: true,
+      });
+      const rectSpy = vi
+        .spyOn(Element.prototype, "getBoundingClientRect")
+        .mockImplementation(function (this: Element) {
+          if (this === container) return makeRect(0, 400) as DOMRect;
+          if (
+            this instanceof HTMLElement &&
+            this.classList.contains("rss-dashboard-articles-header")
+          ) {
+            return makeRect(0, 56) as DOMRect;
+          }
+          if (this instanceof HTMLElement && this.id === "article-2") {
+            return makeRect(200, 260) as DOMRect;
+          }
+
+          return makeRect(0, 0) as DOMRect;
+        });
+
+      articleList.scrollSelectedCardToTop();
+
+      // scrollTop = 0 + (200 - 0 - 56) = 144
+      // so the selected card sits just below the sticky header's visible band.
+      expect(container.scrollTop).toBe(144);
+
+      rectSpy.mockRestore();
+    });
+
+    it("ignores a sibling filter status bar when computing the top-anchor scroll amount", () => {
+      // The filter-subheader and the articles scroll container are flex siblings
+      // inside .rss-dashboard-content. The scroll container's getBoundingClientRect()
+      // already starts below the status bar, so no extra offset is needed. A
+      // visible, fully-populated status bar must not change the resulting scrollTop.
+      settings.viewStyle = "card";
+      const contentEl = document.createElement("div");
+      const statusBarEl = document.createElement("div");
+      const statusBarContentEl = document.createElement("div");
+      const keywordRow = document.createElement("div");
+      const highlightRow = document.createElement("div");
+      const viewingRow = document.createElement("div");
+      statusBarEl.className = "rss-dashboard-filter-subheader";
+      statusBarContentEl.className = "rss-dashboard-filter-subheader-content";
+      keywordRow.className = "rss-dashboard-filter-stats-row";
+      highlightRow.className = "rss-dashboard-highlight-stats";
+      viewingRow.className =
+        "rss-dashboard-filter-stats-row rss-dashboard-viewing-filter-stats-row";
+      statusBarEl.style.paddingTop = "8px";
+      statusBarEl.style.paddingBottom = "8px";
+      statusBarEl.style.borderTop = "1px solid transparent";
+      statusBarEl.style.borderBottom = "1px solid transparent";
+      statusBarEl.style.marginBottom = "14px";
+      statusBarContentEl.appendChild(keywordRow);
+      statusBarContentEl.appendChild(highlightRow);
+      statusBarContentEl.appendChild(viewingRow);
+      statusBarEl.appendChild(statusBarContentEl);
+      document.body.appendChild(contentEl);
+      contentEl.appendChild(statusBarEl);
+      contentEl.appendChild(container);
+
+      const articleList = makeArticleList();
+      articleList.render();
+      articleList.setSelectedArticle(articles[1]);
+
+      Object.defineProperty(container, "scrollTop", {
+        value: 0,
+        writable: true,
+        configurable: true,
+      });
+      const rectSpy = vi
+        .spyOn(Element.prototype, "getBoundingClientRect")
+        .mockImplementation(function (this: Element) {
+          if (this === container) return makeRect(100, 500) as DOMRect;
+          if (this === keywordRow) return makeRect(28, 45) as DOMRect;
+          if (this === highlightRow) return makeRect(56, 72) as DOMRect;
+          if (this === viewingRow) return makeRect(83, 100) as DOMRect;
+          if (this instanceof HTMLElement && this.id === "article-2") {
+            return makeRect(300, 360) as DOMRect;
+          }
+
+          return makeRect(0, 0) as DOMRect;
+        });
+
+      articleList.scrollSelectedCardToTop();
+
+      // scrollTop = 0 + (articleRect.top 300 − listRect.top 100) = 200
+      // The sibling status bar must not inflate this value.
+      expect(container.scrollTop).toBe(200);
+
+      rectSpy.mockRestore();
+    });
+
+    it("does nothing when viewStyle is not card", () => {
+      settings.viewStyle = "list";
+      const articleList = makeArticleList();
+      articleList.render();
+      articleList.setSelectedArticle(articles[1]);
+
+      Object.defineProperty(container, "scrollTop", {
+        value: 0,
+        writable: true,
+        configurable: true,
+      });
+
+      articleList.scrollSelectedCardToTop();
+
+      expect(container.scrollTop).toBe(0);
+    });
+
+    it("does nothing when no article is selected", () => {
+      settings.viewStyle = "card";
+      const articleList = makeArticleList();
+      articleList.render();
+
+      Object.defineProperty(container, "scrollTop", {
+        value: 0,
+        writable: true,
+        configurable: true,
+      });
+
+      articleList.scrollSelectedCardToTop();
+
+      expect(container.scrollTop).toBe(0);
     });
   });
 

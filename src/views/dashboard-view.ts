@@ -6,6 +6,7 @@ import {
   requireApiVersion,
   Platform,
   setIcon,
+  type EventRef,
 } from "obsidian";
 import {
   Feed,
@@ -69,6 +70,7 @@ export class RssDashboardView extends ItemView {
   private articleReaderLeafWhilePodcast: WorkspaceLeaf | null = null;
   private isResizing: boolean = false;
   private resizeHandle: HTMLElement | null = null;
+  private layoutChangeRef: EventRef | null = null;
   private dashboardContainer: HTMLElement | null = null;
   private keywordFilterStats = {
     articlesRetrieved: 0,
@@ -1612,6 +1614,13 @@ export class RssDashboardView extends ItemView {
 
   // --- Article open/save actions ---
   private async handleArticleClick(article: FeedItem): Promise<void> {
+    const readerLocation = this.getReaderViewLocation();
+    const shouldForceCardTopAnchor =
+      this.settings.viewStyle === "card" &&
+      (readerLocation === "left-sidebar" ||
+        readerLocation === "right-sidebar" ||
+        (readerLocation === "main" && !Platform.isMobile));
+
     this.selectedArticle = article;
     this.articleList?.setSelectedArticle(article);
 
@@ -1619,6 +1628,27 @@ export class RssDashboardView extends ItemView {
       await this.updateArticleStatus(article, { read: true }, false);
     }
     await this.openArticleInConfiguredReaderLocation(article);
+
+    if (shouldForceCardTopAnchor) {
+      // Clear any stale ref from a previous rapid click.
+      this._clearLayoutChangeRef();
+      // ResizeObserver + 500ms fallback: sets pendingCardTopAnchor so
+      // intermediate render()s don't clobber scroll position.
+      this.articleList?.scheduleCardTopAnchorOnResize();
+      // layout-change fires after Obsidian fully commits the new panel
+      // geometry (post-CSS-transition), ensuring final rects are accurate.
+      this.layoutChangeRef = this.app.workspace.on("layout-change", () => {
+        this._clearLayoutChangeRef();
+        this.articleList?.scrollSelectedCardToTop();
+      });
+    }
+  }
+
+  private _clearLayoutChangeRef(): void {
+    if (this.layoutChangeRef) {
+      this.app.workspace.offref(this.layoutChangeRef);
+      this.layoutChangeRef = null;
+    }
   }
 
   private async openArticleInNewTab(article: FeedItem): Promise<WorkspaceLeaf> {
@@ -2306,6 +2336,7 @@ export class RssDashboardView extends ItemView {
     }
     this.clearCardLayoutRefreshTimeout();
     this.clearCardLayoutSaveTimeout();
+    this._clearLayoutChangeRef();
     if (this.dashboardMultiFiltersDirty) {
       this.dashboardMultiFiltersDirty = false;
       await this.plugin.saveSettings();
@@ -2751,6 +2782,19 @@ export class RssDashboardView extends ItemView {
     if (this.cardLayoutRefreshTimeout !== null) {
       window.clearTimeout(this.cardLayoutRefreshTimeout);
       this.cardLayoutRefreshTimeout = null;
+    }
+  }
+
+  private async waitForAnimationFrames(count = 1): Promise<void> {
+    for (let index = 0; index < count; index += 1) {
+      await new Promise<void>((resolve) => {
+        if (typeof window.requestAnimationFrame === "function") {
+          window.requestAnimationFrame(() => resolve());
+          return;
+        }
+
+        window.setTimeout(resolve, 0);
+      });
     }
   }
 
