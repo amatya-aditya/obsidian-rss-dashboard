@@ -140,6 +140,26 @@ describe("ArticleEmptyState - Component Rendering", () => {
       expect(description?.textContent).toContain("1 month");
     });
 
+    it("renders view-filter copy without age wording when the active reason is a view filter", () => {
+      const context: FilterContext = {
+        type: "AllArticlesFiltered",
+        unfilteredCount: 3,
+        filteredCount: 0,
+        filterReason: "view-filter",
+        filterReasonLabel: "the Unread view filter",
+        actionLabel: "Adjust view filters",
+      };
+
+      const component = new ArticleEmptyState();
+      component.render(container, context);
+
+      const description = container.querySelector("p");
+      const button = container.querySelector('[role="button"]');
+      expect(description?.textContent).toContain("the Unread view filter");
+      expect(description?.textContent).not.toContain("older than");
+      expect(button?.textContent).toContain("Adjust view filters");
+    });
+
     it("renders settings button with keyboard accessibility", () => {
       // Arrange
       const context: FilterContext = {
@@ -179,7 +199,7 @@ describe("ArticleEmptyState - Component Rendering", () => {
 
       // Assert
       const button = container.querySelector('[role="button"]');
-      expect(button?.getAttribute("aria-label")).toContain("settings");
+      expect(button?.getAttribute("aria-label")).toContain("Adjust");
     });
 
     it("button is keyboard accessible - handles Enter key", () => {
@@ -190,20 +210,20 @@ describe("ArticleEmptyState - Component Rendering", () => {
         filteredCount: 0,
         filterReason: "age filter (1 month)",
         thresholdLabel: "1 month",
+        actionLabel: "Adjust view filters",
       };
 
       const component = new ArticleEmptyState();
-      component.render(container, context);
+      const onAction = vi.fn();
+      component.render(container, context, { onAction });
 
       const button = container.querySelector('[role="button"]') as HTMLElement;
-      const clickSpy = vi.spyOn(button, "dispatchEvent");
 
       // Act
       const enterEvent = new KeyboardEvent("keydown", { key: "Enter" });
       button.dispatchEvent(enterEvent);
 
-      // Assert - Button should respond to Enter (this just verifies listener was called)
-      expect(button).toBeTruthy();
+      expect(onAction).toHaveBeenCalledTimes(1);
     });
 
     it("button is keyboard accessible - handles Space key", () => {
@@ -214,10 +234,12 @@ describe("ArticleEmptyState - Component Rendering", () => {
         filteredCount: 0,
         filterReason: "age filter (1 month)",
         thresholdLabel: "1 month",
+        actionLabel: "Adjust view filters",
       };
 
       const component = new ArticleEmptyState();
-      component.render(container, context);
+      const onAction = vi.fn();
+      component.render(container, context, { onAction });
 
       const button = container.querySelector('[role="button"]') as HTMLElement;
 
@@ -225,8 +247,7 @@ describe("ArticleEmptyState - Component Rendering", () => {
       const spaceEvent = new KeyboardEvent("keydown", { key: " " });
       button.dispatchEvent(spaceEvent);
 
-      // Assert - Button should respond to Space
-      expect(button).toBeTruthy();
+      expect(onAction).toHaveBeenCalledTimes(1);
     });
 
     it("renders icon div with scoped CSS class", () => {
@@ -286,6 +307,7 @@ describe("ArticleEmptyState - Component Rendering", () => {
         unfilteredCount: 0,
         prunedCount: 4,
         retentionLabel: "30 days",
+        actionLabel: "Adjust per-feed filter settings",
       };
 
       const component = new ArticleEmptyState();
@@ -293,10 +315,31 @@ describe("ArticleEmptyState - Component Rendering", () => {
 
       const heading = container.querySelector("h2");
       const description = container.querySelector("p");
+      const button = container.querySelector('[role="button"]');
 
       expect(heading?.textContent).toContain("Feed refreshed successfully");
       expect(description?.textContent).toContain("4");
       expect(description?.textContent).toContain("30 days");
+      expect(button?.textContent).toContain("Adjust per-feed filter settings");
+    });
+
+    it("invokes the per-feed action callback when the button is clicked", () => {
+      const context: FilterContext = {
+        type: "AllArticlesPrunedByRetention",
+        unfilteredCount: 0,
+        prunedCount: 4,
+        retentionLabel: "30 days",
+        actionLabel: "Adjust per-feed filter settings",
+      };
+
+      const onAction = vi.fn();
+      const component = new ArticleEmptyState();
+      component.render(container, context, { onAction });
+
+      const button = container.querySelector('[role="button"]') as HTMLElement;
+      button.click();
+
+      expect(onAction).toHaveBeenCalledTimes(1);
     });
   });
 });

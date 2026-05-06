@@ -24,6 +24,8 @@ interface ArticleListCallbacks {
   onToggleViewStyle: (style: "list" | "card" | "feed") => void;
   onRefreshFeeds: () => Promise<void>;
   onSearch: (query: string) => void;
+  onOpenViewFilters?: () => void;
+  onOpenPerFeedSettings?: () => void;
 
   onArticleUpdate: (
     article: FeedItem,
@@ -1192,12 +1194,19 @@ export class ArticleList {
 
     if (this.articles.length === 0) {
       const emptyState = new ArticleEmptyState();
+      const onAction =
+        this.emptyStateContext?.actionTarget === "per-feed-settings"
+          ? this.callbacks.onOpenPerFeedSettings
+          : this.emptyStateContext?.actionTarget === "view-filter"
+            ? this.callbacks.onOpenViewFilters
+            : undefined;
       emptyState.render(
         articlesList,
         this.emptyStateContext ?? {
           type: "NoArticlesAtAll",
           unfilteredCount: 0,
         },
+        { onAction },
       );
       return;
     }

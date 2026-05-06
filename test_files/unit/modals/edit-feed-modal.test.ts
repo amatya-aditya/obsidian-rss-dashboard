@@ -78,6 +78,58 @@ beforeEach(() => {
 });
 
 describe("EditFeedModal", () => {
+  it("opens with the per-feed controls expanded and highlighted when requested", () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+    } as any;
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+      { expandSection: "per-feed", highlightSection: "per-feed" },
+    );
+    modal.open();
+
+    const details = modal.contentEl.querySelector(
+      ".rss-per-feed-controls-details",
+    ) as HTMLDetailsElement;
+    const autoDeleteSetting = getSettingByName(
+      modal.contentEl,
+      "Auto delete articles duration",
+    );
+
+    expect(details.open).toBe(true);
+    expect(details.classList.contains("rss-per-feed-controls-highlight")).toBe(
+      true,
+    );
+    expect(
+      autoDeleteSetting.classList.contains(
+        "rss-per-feed-auto-delete-highlight",
+      ),
+    ).toBe(true);
+  });
+
   it("pre-selects explicit Off and persists -1 on Save", async () => {
     const app = createMockApp();
     const feed: Feed = {

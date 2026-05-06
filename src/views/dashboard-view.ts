@@ -428,6 +428,17 @@ export class RssDashboardView extends ItemView {
         onSearch: (q: string) => {
           // State is handled by ArticleList locally, but we could sync it here if needed
         },
+        onOpenViewFilters: () => {
+          this.openViewingFiltersMenu();
+        },
+        onOpenPerFeedSettings: () => {
+          if (this.currentFeed) {
+            this.showEditFeedModal(this.currentFeed, {
+              expandSection: "per-feed",
+              highlightSection: "per-feed",
+            });
+          }
+        },
         onArticleUpdate: (article, updates, shouldRerender) => {
           void this.handleArticleUpdate(article, updates, shouldRerender);
         },
@@ -519,6 +530,7 @@ export class RssDashboardView extends ItemView {
         visibleCount: allFilteredArticles.length,
         scopedCount: scopedArticles.length,
         availableBeforeAgeFilterCount: articlesIgnoringAge.length,
+        viewFilterReasonLabel: this.getViewFilterReasonLabel(),
         articleFilter: this.settings.articleFilter,
         refreshDiagnostics: this.currentFeed?.lastRefreshDiagnostics,
       }),
@@ -2190,6 +2202,53 @@ export class RssDashboardView extends ItemView {
     trigger?.click();
   }
 
+  private getViewFilterReasonLabel(): string | null {
+    const specialFolderLabels: Record<string, string> = {
+      unread: "the Unread view filter",
+      read: "the Read view filter",
+      starred: "the Starred view filter",
+      saved: "the Saved view filter",
+      videos: "the Videos view filter",
+      podcasts: "the Podcasts view filter",
+    };
+
+    if (this.currentFolder && specialFolderLabels[this.currentFolder]) {
+      return specialFolderLabels[this.currentFolder];
+    }
+
+    if (
+      this.activeStatusFilters.size === 1 &&
+      this.activeTagFilters.size === 0
+    ) {
+      const [statusFilter] = Array.from(this.activeStatusFilters);
+      const statusLabel =
+        statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1);
+      return `the ${statusLabel} view filter`;
+    }
+
+    if (
+      this.activeStatusFilters.size === 0 &&
+      this.activeTagFilters.size === 1
+    ) {
+      const [tagFilter] = Array.from(this.activeTagFilters);
+      return `the "${tagFilter}" tag filter`;
+    }
+
+    if (this.activeStatusFilters.size > 0 || this.activeTagFilters.size > 0) {
+      return "the current view filters";
+    }
+
+    if (this.selectedTags.length === 1) {
+      return `the "${this.selectedTags[0]}" tag filter`;
+    }
+
+    if (this.selectedTags.length > 1) {
+      return "the current tag filters";
+    }
+
+    return null;
+  }
+
   /**
    * Checks if an item matches all active filters (sidebar tag/folder, header multi-filters, age filter).
    */
@@ -2378,8 +2437,14 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  showEditFeedModal(feed: Feed): void {
-    this.sidebar.showEditFeedModal(feed);
+  showEditFeedModal(
+    feed: Feed,
+    options?: {
+      expandSection?: "per-feed" | "rules";
+      highlightSection?: "per-feed" | "rules";
+    },
+  ): void {
+    this.sidebar.showEditFeedModal(feed, options);
   }
 
   /**

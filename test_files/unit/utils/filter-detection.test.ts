@@ -276,6 +276,7 @@ describe("Filter Detection - detectFilteredOutScenario", () => {
         visibleCount: 0,
         scopedCount: 3,
         availableBeforeAgeFilterCount: 3,
+        viewFilterReasonLabel: null,
         articleFilter: {
           type: "age",
           value: 30 * 24 * 60 * 60 * 1000,
@@ -285,6 +286,26 @@ describe("Filter Detection - detectFilteredOutScenario", () => {
       expect(context.type).toBe("AllArticlesFiltered");
       expect(context.unfilteredCount).toBe(3);
       expect(context.thresholdLabel).toBe("1 month");
+      expect(context.actionLabel).toBe("Adjust view filters");
+    });
+
+    it("builds a view-filter context when items exist but fail the current unread/read filter", () => {
+      const context = buildArticleEmptyStateContext({
+        visibleCount: 0,
+        scopedCount: 3,
+        availableBeforeAgeFilterCount: 0,
+        viewFilterReasonLabel: "the Unread view filter",
+        articleFilter: {
+          type: "age",
+          value: 30 * 24 * 60 * 60 * 1000,
+        },
+      });
+
+      expect(context.type).toBe("AllArticlesFiltered");
+      expect(context.thresholdLabel).toBeUndefined();
+      expect(context.filterReason).toBe("view-filter");
+      expect(context.filterReasonLabel).toBe("the Unread view filter");
+      expect(context.actionLabel).toBe("Adjust view filters");
     });
 
     it("builds a retention-pruned context when refresh skipped all items due to auto-delete cutoff", () => {
@@ -301,6 +322,7 @@ describe("Filter Detection - detectFilteredOutScenario", () => {
         visibleCount: 0,
         scopedCount: 0,
         availableBeforeAgeFilterCount: 0,
+        viewFilterReasonLabel: null,
         articleFilter: {
           type: "age",
           value: 30 * 24 * 60 * 60 * 1000,
@@ -311,6 +333,7 @@ describe("Filter Detection - detectFilteredOutScenario", () => {
       expect(context.type).toBe("AllArticlesPrunedByRetention");
       expect(context.prunedCount).toBe(4);
       expect(context.retentionLabel).toBe("30 days");
+      expect(context.actionLabel).toBe("Adjust per-feed filter settings");
     });
   });
 });

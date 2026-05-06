@@ -2,6 +2,18 @@
 
 **TL;DR:** Implement a detection layer that identifies when all articles are hidden due to active date/multi-filters (not truly empty feeds). Replace "No articles found" with a context-aware message showing the filter reason, count, and a link to adjust settings. Use strict TDD cycle (Red → Green → Refactor), mock Obsidian APIs via stubs, follow design-spec tokenized colors and clickable-icon pattern, and organize tests in folders mirroring src structure.
 
+### Implementation Status (May 2026)
+
+- Completed: detection and empty-state context now distinguish genuinely empty feeds, age-threshold filtering, view-filter exclusions, and per-feed retention pruning.
+- Completed: empty-state CTA routing is wired to real actions:
+  - View-filter cases open the dashboard viewing filters.
+  - Per-feed retention cases open Edit Feed directly to per-feed controls.
+- Completed: per-feed deep-link opens and highlights:
+  - The full per-feed controls section.
+  - The Auto delete articles duration setting row using dedicated class `.rss-per-feed-auto-delete-highlight`.
+- Completed: targeted unit tests cover context modeling, empty-state rendering/action behavior, ArticleList callback routing, and EditFeedModal deep-link highlighting behavior.
+- Completed: CSS scope check and build pass after the implementation.
+
 ---
 
 ### Steps

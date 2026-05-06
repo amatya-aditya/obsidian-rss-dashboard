@@ -19,15 +19,19 @@ export interface FilterContext {
   unfilteredCount: number;
   filteredCount?: number;
   filterReason?: string;
+  filterReasonLabel?: string;
   thresholdLabel?: string;
   prunedCount?: number;
   retentionLabel?: string;
+  actionTarget?: "view-filter" | "per-feed-settings";
+  actionLabel?: string;
 }
 
 interface BuildArticleEmptyStateContextOptions {
   visibleCount: number;
   scopedCount: number;
   availableBeforeAgeFilterCount: number;
+  viewFilterReasonLabel: string | null;
   articleFilter: ArticleFilter;
   refreshDiagnostics?: FeedRefreshDiagnostics;
 }
@@ -74,6 +78,7 @@ export function buildArticleEmptyStateContext(
     visibleCount,
     scopedCount,
     availableBeforeAgeFilterCount,
+    viewFilterReasonLabel,
     articleFilter,
     refreshDiagnostics,
   } = options;
@@ -95,8 +100,10 @@ export function buildArticleEmptyStateContext(
       type: "AllArticlesFiltered",
       unfilteredCount: availableBeforeAgeFilterCount,
       filteredCount: 0,
-      filterReason: "age filter",
+      filterReason: "age-filter",
       thresholdLabel: getThresholdLabel(articleFilter.value),
+      actionTarget: "view-filter",
+      actionLabel: "Adjust view filters",
     };
   }
 
@@ -113,6 +120,8 @@ export function buildArticleEmptyStateContext(
       unfilteredCount: 0,
       prunedCount,
       retentionLabel,
+      actionTarget: "per-feed-settings",
+      actionLabel: "Adjust per-feed filter settings",
     };
   }
 
@@ -121,7 +130,10 @@ export function buildArticleEmptyStateContext(
       type: "AllArticlesFiltered",
       unfilteredCount: scopedCount,
       filteredCount: 0,
-      filterReason: "active filter combination",
+      filterReason: "view-filter",
+      filterReasonLabel: viewFilterReasonLabel ?? "the current view filters",
+      actionTarget: "view-filter",
+      actionLabel: "Adjust view filters",
     };
   }
 
