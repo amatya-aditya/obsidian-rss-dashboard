@@ -1524,9 +1524,7 @@ export class CustomXMLParser {
     const feedItunesImage =
       this.getAttribute(channel, "itunes:image", "href") ||
       this.getAttribute(channel, "itunes\\:image", "href");
-    const itunesImage = feedItunesImage
-      ? { url: feedItunesImage }
-      : undefined;
+    const itunesImage = feedItunesImage ? { url: feedItunesImage } : undefined;
     const feedImageUrl = imageElement
       ? this.getTextContent(imageElement, "url")
       : "";
@@ -3030,6 +3028,7 @@ export class FeedParser {
     const newItems: FeedItem[] = [];
     const updatedItems: FeedItem[] = [];
     const seenGuids = new Set<string>();
+    let skippedByRefreshCutoffCount = 0;
 
     // Compute auto-delete cutoff so we can skip "new" items that are actually
     // old entries re-appearing in the feed after being auto-deleted.
@@ -3038,7 +3037,9 @@ export class FeedParser {
         ? newFeed.autoDeleteDuration
         : 0;
     const autoDeleteCutoffMs =
-      autoDeleteDays > 0 ? Date.now() - autoDeleteDays * 24 * 60 * 60 * 1000 : 0;
+      autoDeleteDays > 0
+        ? Date.now() - autoDeleteDays * 24 * 60 * 60 * 1000
+        : 0;
 
     for (const item of parsed.items) {
       const isAudioEnclosure = item.enclosure?.type?.startsWith("audio/");
@@ -3151,6 +3152,7 @@ export class FeedParser {
           autoDeleteCutoffMs > 0 &&
           getPubDateMs(item.pubDate) <= autoDeleteCutoffMs
         ) {
+          skippedByRefreshCutoffCount++;
           continue;
         }
 
@@ -3242,7 +3244,21 @@ export class FeedParser {
     newFeed.items = mergeFeedHistoryItems(carriedForward, refreshedItems);
     newFeed.lastUpdated = Date.now();
 
+    const mergedItemCountBeforeRetention = newFeed.items.length;
+
     this.applyFeedLimits(newFeed);
+
+    newFeed.lastRefreshDiagnostics = {
+      fetchedItemCount: parsed.items.length,
+      mergedItemCountBeforeRetention,
+      retainedItemCount: newFeed.items.length,
+      retentionRemovedCount: Math.max(
+        0,
+        mergedItemCountBeforeRetention - newFeed.items.length,
+      ),
+      skippedByRefreshCutoffCount,
+      autoDeleteDurationDays: autoDeleteDays > 0 ? autoDeleteDays : undefined,
+    };
 
     const feedLogoCandidates = [
       parsed.feedItunesImage,
