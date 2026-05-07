@@ -3074,6 +3074,16 @@ export class FeedParser {
       const existingItem = existingItems.get(itemGuid);
 
       if (existingItem) {
+        if (
+          autoDeleteCutoffMs > 0 &&
+          !isProtectedItem(existingItem) &&
+          getPubDateMs(item.pubDate || existingItem.pubDate) <=
+            autoDeleteCutoffMs
+        ) {
+          skippedByRefreshCutoffCount++;
+          continue;
+        }
+
         let coverImage = existingItem.coverImage;
         if (isPodcast) {
           coverImage =
@@ -3235,7 +3245,15 @@ export class FeedParser {
           url,
         );
         const key = canonicalizeItemIdentityUrl(rawKey);
-        if (key && !seenGuids.has(key)) {
+        if (
+          key &&
+          !seenGuids.has(key) &&
+          !(
+            autoDeleteCutoffMs > 0 &&
+            !isProtectedItem(item) &&
+            getPubDateMs(item.pubDate) <= autoDeleteCutoffMs
+          )
+        ) {
           carriedForward.push(item);
         }
       }

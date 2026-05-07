@@ -562,6 +562,10 @@ export class EditFeedModal extends Modal {
 
       void (async () => {
         const oldTitle = this.feed.title;
+        const previousAutoDeleteDuration =
+          typeof this.feed.autoDeleteDuration === "number"
+            ? this.feed.autoDeleteDuration
+            : 0;
         this.feed.title = title;
         this.feed.url = url;
         const finalFolder = folderInput?.value || folder;
@@ -592,6 +596,8 @@ export class EditFeedModal extends Modal {
           includeLogic: feedKeywordRules.includeLogic,
           rules: feedKeywordRules.rules,
         };
+        const didAutoDeleteDurationChange =
+          previousAutoDeleteDuration !== autoDeleteDuration;
 
         if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
           this.feed.items.sort(
@@ -606,6 +612,9 @@ export class EditFeedModal extends Modal {
           new Notice("Feed updated");
         }
         await this.plugin.saveSettings();
+        if (didAutoDeleteDurationChange) {
+          await this.plugin.refreshSelectedFeed?.(this.feed);
+        }
         this.plugin.notifyFiltersUpdated({
           source: "edit-feed-modal",
           feedUrl: this.feed.url,

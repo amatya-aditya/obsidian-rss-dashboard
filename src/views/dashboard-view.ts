@@ -1036,25 +1036,16 @@ export class RssDashboardView extends ItemView {
         "podcasts",
       ];
       if (specialFolders.includes(this.currentFolder)) {
+        // Special folders are view filters, not scope reducers, for empty-state
+        // detection. Keep the full article pool here so the empty state can
+        // explain that items exist but none match the active view filter.
         for (const feed of this.settings.feeds) {
           articles = articles.concat(
-            feed.items
-              .filter((item) => {
-                if (this.currentFolder === "starred") return item.starred;
-                if (this.currentFolder === "unread") return !item.read;
-                if (this.currentFolder === "read") return item.read;
-                if (this.currentFolder === "saved") return item.saved;
-                if (this.currentFolder === "videos")
-                  return item.mediaType === "video";
-                if (this.currentFolder === "podcasts")
-                  return item.mediaType === "podcast";
-                return true;
-              })
-              .map((item) => ({
-                ...item,
-                feedTitle: feed.title,
-                feedUrl: feed.url,
-              })),
+            feed.items.map((item) => ({
+              ...item,
+              feedTitle: feed.title,
+              feedUrl: feed.url,
+            })),
           );
         }
       } else {
