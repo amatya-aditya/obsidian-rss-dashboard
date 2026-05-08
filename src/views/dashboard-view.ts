@@ -34,6 +34,7 @@ import { formatDashboardMultiFiltersTitle } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
+import { buildArticleEmptyStateContext } from "../utils/filter-detection";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -373,6 +374,10 @@ export class RssDashboardView extends ItemView {
       contentContainer.empty();
     }
 
+    const scopedArticles = this.getUnfilteredArticles();
+    const articlesIgnoringAge = scopedArticles.filter((item) =>
+      this.matchesFilters(item, { ignoreAgeFilter: true }),
+    );
     const allFilteredArticles = this.getFilteredArticles();
     // Must run after getFilteredArticles() so counts reflect the active view,
     // and before renderFilterSubheader() which reads this.highlightMatchCounts.
@@ -422,6 +427,17 @@ export class RssDashboardView extends ItemView {
         onRefreshFeeds: this.handleRefreshFeeds.bind(this),
         onSearch: (q: string) => {
           // State is handled by ArticleList locally, but we could sync it here if needed
+        },
+        onOpenViewFilters: () => {
+          this.openViewingFiltersMenu();
+        },
+        onOpenPerFeedSettings: () => {
+          if (this.currentFeed) {
+            this.showEditFeedModal(this.currentFeed, {
+              expandSection: "per-feed",
+              highlightSection: "per-feed",
+            });
+          }
         },
         onArticleUpdate: (article, updates, shouldRerender) => {
           void this.handleArticleUpdate(article, updates, shouldRerender);
@@ -508,6 +524,18 @@ export class RssDashboardView extends ItemView {
       this.currentFeed?.url,
       this.currentFeed === null,
     );
+
+    this.articleList.setEmptyStateContext(
+      buildArticleEmptyStateContext({
+        visibleCount: allFilteredArticles.length,
+        scopedCount: scopedArticles.length,
+        availableBeforeAgeFilterCount: articlesIgnoringAge.length,
+        viewFilterReasonLabel: this.getViewFilterReasonLabel(),
+        articleFilter: this.settings.articleFilter,
+        refreshDiagnostics: this.currentFeed?.lastRefreshDiagnostics,
+      }),
+    );
+
     this.articleList.render();
 
     this.updateRefreshButtonText();
@@ -961,6 +989,93 @@ export class RssDashboardView extends ItemView {
         (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
       );
     }
+
+    return articles;
+  }
+
+  /**
+   * Get all articles in the current view BEFORE filter matching is applied.
+   * Used for empty state detection to determine if articles exist but are filtered out.
+   */
+  private getUnfilteredArticles(): FeedItem[] {
+    this.syncCurrentFeedReference();
+    let articles: FeedItem[] = [];
+
+    if (this.currentFeed) {
+      articles = [...this.currentFeed.items];
+    } else if (this.selectedTags.length > 0) {
+      const mode = this.settings.sidebarTagFilterMode || "or";
+      for (const feed of this.settings.feeds) {
+        articles = articles.concat(
+          feed.items
+            .filter((item) => {
+              const itemTags = (item.tags ?? []).map((t) => t.name);
+              if (mode === "or") {
+                return this.selectedTags.some((tag) => itemTags.includes(tag));
+              } else if (mode === "and") {
+                return this.selectedTags.every((tag) => itemTags.includes(tag));
+              } else if (mode === "not") {
+                return !this.selectedTags.some((tag) => itemTags.includes(tag));
+              }
+              return false;
+            })
+            .map((item) => ({
+              ...item,
+              feedTitle: feed.title,
+              feedUrl: feed.url,
+            })),
+        );
+      }
+    } else if (this.currentFolder) {
+      const specialFolders = [
+        "read",
+        "unread",
+        "starred",
+        "saved",
+        "videos",
+        "podcasts",
+      ];
+      if (specialFolders.includes(this.currentFolder)) {
+        // Special folders are view filters, not scope reducers, for empty-state
+        // detection. Keep the full article pool here so the empty state can
+        // explain that items exist but none match the active view filter.
+        for (const feed of this.settings.feeds) {
+          articles = articles.concat(
+            feed.items.map((item) => ({
+              ...item,
+              feedTitle: feed.title,
+              feedUrl: feed.url,
+            })),
+          );
+        }
+      } else {
+        const allFolders = this.getAllDescendantFolders(this.currentFolder);
+        for (const feed of this.settings.feeds) {
+          if (feed.folder && allFolders.includes(feed.folder)) {
+            articles = articles.concat(
+              feed.items.map((item) => ({
+                ...item,
+                feedTitle: feed.title,
+                feedUrl: feed.url,
+              })),
+            );
+          }
+        }
+      }
+    } else {
+      for (const feed of this.settings.feeds) {
+        articles = articles.concat(
+          feed.items.map((item) => ({
+            ...item,
+            feedTitle: feed.title,
+            feedUrl: feed.url,
+          })),
+        );
+      }
+    }
+
+    // Apply keyword rules but not filter matching
+    articles = this.applyKeywordFiltersWithStats(articles);
 
     return articles;
   }
@@ -2078,12 +2193,62 @@ export class RssDashboardView extends ItemView {
     trigger?.click();
   }
 
+  private getViewFilterReasonLabel(): string | null {
+    const specialFolderLabels: Record<string, string> = {
+      unread: "the Unread view filter",
+      read: "the Read view filter",
+      starred: "the Starred view filter",
+      saved: "the Saved view filter",
+      videos: "the Videos view filter",
+      podcasts: "the Podcasts view filter",
+    };
+
+    if (this.currentFolder && specialFolderLabels[this.currentFolder]) {
+      return specialFolderLabels[this.currentFolder];
+    }
+
+    if (
+      this.activeStatusFilters.size === 1 &&
+      this.activeTagFilters.size === 0
+    ) {
+      const [statusFilter] = Array.from(this.activeStatusFilters);
+      const statusLabel =
+        statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1);
+      return `the ${statusLabel} view filter`;
+    }
+
+    if (
+      this.activeStatusFilters.size === 0 &&
+      this.activeTagFilters.size === 1
+    ) {
+      const [tagFilter] = Array.from(this.activeTagFilters);
+      return `the "${tagFilter}" tag filter`;
+    }
+
+    if (this.activeStatusFilters.size > 0 || this.activeTagFilters.size > 0) {
+      return "the current view filters";
+    }
+
+    if (this.selectedTags.length === 1) {
+      return `the "${this.selectedTags[0]}" tag filter`;
+    }
+
+    if (this.selectedTags.length > 1) {
+      return "the current tag filters";
+    }
+
+    return null;
+  }
+
   /**
    * Checks if an item matches all active filters (sidebar tag/folder, header multi-filters, age filter).
    */
   private matchesFilters(
     item: FeedItem,
-    options: { ignoreDashboardMultiFilters?: boolean } = {},
+    options: {
+      ignoreDashboardMultiFilters?: boolean;
+      ignoreAgeFilter?: boolean;
+    } = {},
   ): boolean {
     // 1. Check selected tags (if any)
     if (this.selectedTags.length > 0) {
@@ -2216,6 +2381,7 @@ export class RssDashboardView extends ItemView {
 
     // 4. Check age filter
     if (
+      !options.ignoreAgeFilter &&
       this.settings.articleFilter.type === "age" &&
       typeof this.settings.articleFilter.value === "number" &&
       this.settings.articleFilter.value > 0
@@ -2262,8 +2428,14 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  showEditFeedModal(feed: Feed): void {
-    this.sidebar.showEditFeedModal(feed);
+  showEditFeedModal(
+    feed: Feed,
+    options?: {
+      expandSection?: "per-feed" | "rules";
+      highlightSection?: "per-feed" | "rules";
+    },
+  ): void {
+    this.sidebar.showEditFeedModal(feed, options);
   }
 
   /**

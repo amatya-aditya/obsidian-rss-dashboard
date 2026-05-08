@@ -1,12 +1,14 @@
 import { Notice, Menu, MenuItem, setIcon, Setting } from "obsidian";
 import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { ArticleHeader } from "./article-header";
+import { ArticleEmptyState } from "./article-empty-state";
 import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
 import {
   formatDateWithRelative,
   ensureUtf8Meta,
   setCssProps,
 } from "../utils/platform-utils";
+import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import {
@@ -22,6 +24,8 @@ interface ArticleListCallbacks {
   onToggleViewStyle: (style: "list" | "card" | "feed") => void;
   onRefreshFeeds: () => Promise<void>;
   onSearch: (query: string) => void;
+  onOpenViewFilters?: () => void;
+  onOpenPerFeedSettings?: () => void;
 
   onArticleUpdate: (
     article: FeedItem,
@@ -58,6 +62,7 @@ export class ArticleList {
   private titleTooltip: string | null;
   private headerTitleEl: HTMLElement | null = null;
   private articles: FeedItem[];
+  private emptyStateContext: FilterContext | null = null;
   private selectedArticle: FeedItem | null;
   private callbacks: ArticleListCallbacks;
   private refreshButton: HTMLElement | null = null;
@@ -526,6 +531,10 @@ export class ArticleList {
         (e) => e !== entry,
       );
     };
+  }
+
+  setEmptyStateContext(context: FilterContext | null): void {
+    this.emptyStateContext = context;
   }
 
   render(): void {
@@ -1184,16 +1193,21 @@ export class ArticleList {
     }
 
     if (this.articles.length === 0) {
-      const emptyState = articlesList.createDiv({
-        cls: "rss-dashboard-empty-state",
-      });
-      const iconDiv = emptyState.createDiv();
-      setIcon(iconDiv, "rss");
-      iconDiv.addClass("rss-dashboard-empty-state-icon");
-      new Setting(emptyState).setName("No articles found").setHeading();
-      emptyState.createEl("p", {
-        text: "Try refreshing your feeds or adding new ones.",
-      });
+      const emptyState = new ArticleEmptyState();
+      const onAction =
+        this.emptyStateContext?.actionTarget === "per-feed-settings"
+          ? this.callbacks.onOpenPerFeedSettings
+          : this.emptyStateContext?.actionTarget === "view-filter"
+            ? this.callbacks.onOpenViewFilters
+            : undefined;
+      emptyState.render(
+        articlesList,
+        this.emptyStateContext ?? {
+          type: "NoArticlesAtAll",
+          unfilteredCount: 0,
+        },
+        { onAction },
+      );
       return;
     }
 

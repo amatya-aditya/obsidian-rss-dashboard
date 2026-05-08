@@ -425,7 +425,9 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
 
   it("parses media:content url as item image", () => {
     const result = parser.parseString(RSS2_WITH_MEDIA_CONTENT_IMAGE);
-    expect(result.items[0].image?.url).toBe("https://images.mktw.net/im-24303993");
+    expect(result.items[0].image?.url).toBe(
+      "https://images.mktw.net/im-24303993",
+    );
   });
 
   it("returns type 'rss' for RSS 2.0", () => {
@@ -442,7 +444,9 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
   it("parses Substack-style feeds with content:encoded", () => {
     const result = parser.parseString(SUBSTACK_RSS);
     expect(result.items).toHaveLength(1);
-    expect(result.items[0].description).toBe("This is the summary description.");
+    expect(result.items[0].description).toBe(
+      "This is the summary description.",
+    );
     // This is the critical check - it should extract the long content even if description is present
     expect(result.items[0].content).toContain("full content");
     expect(result.items[0].content).toContain("</b>");
@@ -450,7 +454,11 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
 });
 
 describe("mergeFeedHistoryItems", () => {
-  const makeItem = (guid: string, pubDate: string, overrides?: Partial<FeedItem>): FeedItem => ({
+  const makeItem = (
+    guid: string,
+    pubDate: string,
+    overrides?: Partial<FeedItem>,
+  ): FeedItem => ({
     title: guid,
     link: `https://example.com/${guid}`,
     description: "",
@@ -609,8 +617,181 @@ describe("FeedParser.parseFeed", () => {
     expect(result.items).toHaveLength(1);
     expect(result.items[0].guid).toBe("https://example.com/recent");
     expect(result.items[0].read).toBe(false);
+    expect(result.lastRefreshDiagnostics?.fetchedItemCount).toBe(2);
+    expect(result.lastRefreshDiagnostics?.skippedByRefreshCutoffCount).toBe(1);
+    expect(result.lastRefreshDiagnostics?.autoDeleteDurationDays).toBe(365);
 
     requestUrlSpy.mockRestore();
+  });
+
+  it("hides restored old unread items again when autoDeleteDuration is re-enabled", async () => {
+    const feedUrl = "https://example.com/feed.xml";
+    const fixedNowMs = Date.parse("2026-05-01T00:00:00Z");
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Recent Article</title>
+      <link>https://example.com/recent</link>
+      <description>recent desc</description>
+      <pubDate>Tue, 28 Apr 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/recent</guid>
+    </item>
+    <item>
+      <title>Old Article</title>
+      <link>https://example.com/old</link>
+      <description>old desc</description>
+      <pubDate>Sun, 01 Mar 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/old</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(fixedNowMs);
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+        text: xml,
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+        text: xml,
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+        text: xml,
+      });
+
+    const parser = new FeedParser(mediaSettings, []);
+
+    const first = await parser.parseFeed(feedUrl, {
+      title: "Test Feed",
+      url: feedUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: fixedNowMs,
+      autoDeleteDuration: 30,
+    });
+
+    expect(first.items.map((item) => item.guid)).toEqual([
+      "https://example.com/recent",
+    ]);
+
+    first.autoDeleteDuration = 0;
+    const second = await parser.parseFeed(feedUrl, first);
+    expect(second.items.map((item) => item.guid)).toEqual([
+      "https://example.com/recent",
+      "https://example.com/old",
+    ]);
+    expect(second.items.every((item) => item.read === false)).toBe(true);
+
+    second.autoDeleteDuration = 30;
+    const third = await parser.parseFeed(feedUrl, second);
+    expect(third.items.map((item) => item.guid)).toEqual([
+      "https://example.com/recent",
+    ]);
+
+    requestUrlSpy.mockRestore();
+    nowSpy.mockRestore();
+  });
+
+  it("does not carry forward old unread items beyond the cutoff when duration is tightened", async () => {
+    const feedUrl = "https://example.com/feed.xml";
+    const fixedNowMs = Date.parse("2026-05-01T00:00:00Z");
+
+    const xmlWithOldAndRecent = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Recent Article</title>
+      <link>https://example.com/recent</link>
+      <description>recent desc</description>
+      <pubDate>Tue, 28 Apr 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/recent</guid>
+    </item>
+    <item>
+      <title>Old Article</title>
+      <link>https://example.com/old</link>
+      <description>old desc</description>
+      <pubDate>Sun, 01 Mar 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/old</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const xmlWithRecentOnly = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Recent Article</title>
+      <link>https://example.com/recent</link>
+      <description>recent desc</description>
+      <pubDate>Tue, 28 Apr 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/recent</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(fixedNowMs);
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+        text: xmlWithOldAndRecent,
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+        text: xmlWithRecentOnly,
+      });
+
+    const parser = new FeedParser(mediaSettings, []);
+
+    const first = await parser.parseFeed(feedUrl, {
+      title: "Test Feed",
+      url: feedUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: fixedNowMs,
+      autoDeleteDuration: 0,
+    });
+
+    expect(first.items.map((item) => item.guid)).toEqual([
+      "https://example.com/recent",
+      "https://example.com/old",
+    ]);
+    expect(first.items.every((item) => item.read === false)).toBe(true);
+
+    first.autoDeleteDuration = 30;
+    const second = await parser.parseFeed(feedUrl, first);
+    expect(second.items.map((item) => item.guid)).toEqual([
+      "https://example.com/recent",
+    ]);
+
+    requestUrlSpy.mockRestore();
+    nowSpy.mockRestore();
   });
 
   it("preserves shared feed artwork for podcast episodes on parse and refresh", async () => {
@@ -697,9 +878,7 @@ describe("FeedParser.parseFeed", () => {
 
     expect(refreshed.items).toHaveLength(1);
     expect(refreshed.items[0].saved).toBe(true);
-    expect(refreshed.items[0].savedFilePath).toBe(
-      "Articles/Saved Article.md",
-    );
+    expect(refreshed.items[0].savedFilePath).toBe("Articles/Saved Article.md");
 
     requestUrlSpy.mockRestore();
   });
@@ -734,7 +913,11 @@ describe("FeedParserService.parseFeed", () => {
 });
 
 describe("applyFeedRetentionLimits", () => {
-  const makeItem = (guid: string, pubDate: string, overrides?: Partial<FeedItem>): FeedItem => ({
+  const makeItem = (
+    guid: string,
+    pubDate: string,
+    overrides?: Partial<FeedItem>,
+  ): FeedItem => ({
     title: guid,
     link: `https://example.com/${guid}`,
     description: "",
@@ -758,13 +941,18 @@ describe("applyFeedRetentionLimits", () => {
       lastUpdated: Date.now(),
       maxItemsLimit: 1,
       items: [
-        makeItem("saved-old", "2024-01-01T00:00:00Z", { saved: true, read: true }),
+        makeItem("saved-old", "2024-01-01T00:00:00Z", {
+          saved: true,
+          read: true,
+        }),
         makeItem("old", "2024-01-02T00:00:00Z", { read: true }),
         makeItem("new", "2024-01-03T00:00:00Z", { read: false }),
       ],
     };
 
-    const updated = applyFeedRetentionLimits(feed, { nowMs: Date.parse("2024-01-10T00:00:00Z") });
+    const updated = applyFeedRetentionLimits(feed, {
+      nowMs: Date.parse("2024-01-10T00:00:00Z"),
+    });
     expect(updated.items.map((i) => i.guid)).toEqual(["new", "saved-old"]);
   });
 
@@ -818,12 +1006,18 @@ describe("applyFeedRetentionLimits", () => {
     };
 
     const firstMerged = mergeFeedHistoryItems(existingItems, refreshedItems);
-    const first = applyFeedRetentionLimits({ ...feedBase, items: firstMerged } as Feed);
+    const first = applyFeedRetentionLimits({
+      ...feedBase,
+      items: firstMerged,
+    } as Feed);
     expect(first.items).toHaveLength(50);
     expect(first.items[0]?.guid).toBe("id-60");
 
     const secondMerged = mergeFeedHistoryItems(first.items, refreshedItems);
-    const second = applyFeedRetentionLimits({ ...feedBase, items: secondMerged } as Feed);
+    const second = applyFeedRetentionLimits({
+      ...feedBase,
+      items: secondMerged,
+    } as Feed);
     expect(second.items).toHaveLength(50);
     expect(second.items[0]?.guid).toBe("id-60");
   });
@@ -947,9 +1141,15 @@ describe("CustomXMLParser - decodeHtmlEntities", () => {
   });
 
   it("decodes common HTML entities", () => {
-    expect(parser.decodeHtmlEntities("Hello &amp; World")).toBe("Hello & World");
-    expect(parser.decodeHtmlEntities("&lt;b&gt;bold&lt;/b&gt;")).toBe("<b>bold</b>");
-    expect(parser.decodeHtmlEntities("She said &quot;hello&quot;")).toBe('She said "hello"');
+    expect(parser.decodeHtmlEntities("Hello &amp; World")).toBe(
+      "Hello & World",
+    );
+    expect(parser.decodeHtmlEntities("&lt;b&gt;bold&lt;/b&gt;")).toBe(
+      "<b>bold</b>",
+    );
+    expect(parser.decodeHtmlEntities("She said &quot;hello&quot;")).toBe(
+      'She said "hello"',
+    );
     expect(parser.decodeHtmlEntities("It&apos;s fine")).toBe("It's fine");
   });
 

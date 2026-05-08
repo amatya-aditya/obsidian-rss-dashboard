@@ -2840,8 +2840,20 @@ export class Sidebar {
     ).open();
   }
 
-  public showEditFeedModal(feed: Feed): void {
-    new EditFeedModal(this.app, this.plugin, feed, () => this.render()).open();
+  public showEditFeedModal(
+    feed: Feed,
+    options?: {
+      expandSection?: "per-feed" | "rules";
+      highlightSection?: "per-feed" | "rules";
+    },
+  ): void {
+    new EditFeedModal(
+      this.app,
+      this.plugin,
+      feed,
+      () => this.render(),
+      options,
+    ).open();
   }
 
   private showFeedContextMenu(event: MouseEvent, feed: Feed): void {

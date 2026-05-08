@@ -84,6 +84,8 @@ describe("ArticleList Component", () => {
       onArticleClick: vi.fn(),
       onToggleViewStyle: vi.fn(),
       onRefreshFeeds: vi.fn(),
+      onOpenViewFilters: vi.fn(),
+      onOpenPerFeedSettings: vi.fn(),
       onArticleUpdate: vi.fn(),
       onArticleSave: vi.fn(),
       onOpenSavedArticle: vi.fn(),
@@ -189,6 +191,43 @@ describe("ArticleList Component", () => {
     );
     expect(articleElements.length).toBe(1);
     expect(container.textContent).not.toContain("Article 2");
+  });
+
+  it("routes the empty-state CTA to the view-filter callback", () => {
+    const articleList = new ArticleList(
+      container,
+      settings,
+      "All articles",
+      null,
+      [],
+      null,
+      mockCallbacks,
+      1,
+      1,
+      10,
+      0,
+      new Set(),
+      new Set(),
+      "OR",
+    );
+
+    articleList.setEmptyStateContext({
+      type: "AllArticlesFiltered",
+      unfilteredCount: 3,
+      filterReason: "view-filter",
+      filterReasonLabel: "the Unread view filter",
+      actionTarget: "view-filter",
+      actionLabel: "Adjust view filters",
+    });
+
+    articleList.render();
+
+    const button = container.querySelector(
+      ".rss-dashboard-empty-state-button",
+    ) as HTMLElement;
+    button.click();
+
+    expect(mockCallbacks.onOpenViewFilters).toHaveBeenCalledTimes(1);
   });
 
   describe("Scroll Restoration (TDD Fixes)", () => {

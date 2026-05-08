@@ -24,6 +24,13 @@ import { MediaService } from "../../services/media-service";
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
 
+interface EditFeedModalOptions {
+  expandSection?: "per-feed" | "rules";
+  highlightSection?: "per-feed" | "rules";
+}
+
+const PER_FEED_HIGHLIGHT_DURATION_MS = 3000;
+
 export class EditFeedModal extends Modal {
   feed: Feed;
   plugin: RssDashboardPlugin;
@@ -33,6 +40,7 @@ export class EditFeedModal extends Modal {
     plugin: RssDashboardPlugin,
     feed: Feed,
     onSave: () => void,
+    private options?: EditFeedModalOptions,
   ) {
     super(app);
     this.feed = feed;
@@ -221,15 +229,17 @@ export class EditFeedModal extends Modal {
       cls: "add-feed-status",
     });
 
-    const folderSetting = new Setting(contentEl).setName("Folder").addText((text) => {
-      text.setValue(folder).setPlaceholder("Type or select folder...");
-      folderInput = text.inputEl;
-      folderInput.autocomplete = "off";
-      folderInput.spellcheck = false;
-      folderInput.addEventListener("focus", () => folderInput.select());
+    const folderSetting = new Setting(contentEl)
+      .setName("Folder")
+      .addText((text) => {
+        text.setValue(folder).setPlaceholder("Type or select folder...");
+        folderInput = text.inputEl;
+        folderInput.autocomplete = "off";
+        folderInput.spellcheck = false;
+        folderInput.addEventListener("focus", () => folderInput.select());
 
-      new FolderSuggest(this.app, folderInput, this.plugin.settings.folders);
-    });
+        new FolderSuggest(this.app, folderInput, this.plugin.settings.folders);
+      });
     decorateFolderSelectorInput(folderSetting, folderInput);
 
     const perFeedControlsDetails = contentEl.createEl("details", {
@@ -242,6 +252,26 @@ export class EditFeedModal extends Modal {
     const perFeedControlsBody = perFeedControlsDetails.createDiv({
       cls: "rss-keyword-filter-details-body",
     });
+
+    const highlightElement = (el: HTMLElement, className: string): void => {
+      el.addClass(className);
+      window.setTimeout(() => {
+        el.removeClass(className);
+      }, PER_FEED_HIGHLIGHT_DURATION_MS);
+    };
+
+    if (this.options?.expandSection === "per-feed") {
+      perFeedControlsDetails.open = true;
+    }
+    if (this.options?.highlightSection === "per-feed") {
+      highlightElement(
+        perFeedControlsDetails,
+        "rss-per-feed-controls-highlight",
+      );
+      requestAnimationFrame(() => {
+        perFeedControlsDetails.scrollIntoView({ block: "nearest" });
+      });
+    }
 
     let autoDeleteDuration = this.feed.autoDeleteDuration || 0;
     let maxItemsLimit =
@@ -306,6 +336,16 @@ export class EditFeedModal extends Modal {
           }
         });
     });
+
+    if (this.options?.highlightSection === "per-feed") {
+      highlightElement(
+        autoDeleteSetting.settingEl,
+        "rss-per-feed-auto-delete-highlight",
+      );
+      requestAnimationFrame(() => {
+        autoDeleteSetting.settingEl.scrollIntoView({ block: "nearest" });
+      });
+    }
 
     const maxItemsSetting = new Setting(perFeedControlsBody)
       .setName("Max items limit")
@@ -470,6 +510,16 @@ export class EditFeedModal extends Modal {
       cls: "rss-keyword-filter-details-body",
     });
 
+    if (this.options?.expandSection === "rules") {
+      feedFiltersDetails.open = true;
+    }
+    if (this.options?.highlightSection === "rules") {
+      highlightElement(feedFiltersDetails, "rss-per-feed-controls-highlight");
+      requestAnimationFrame(() => {
+        feedFiltersDetails.scrollIntoView({ block: "nearest" });
+      });
+    }
+
     const renderFeedFilterEditor = () => {
       renderKeywordFilterEditor({
         containerEl: feedFiltersBody,
@@ -512,6 +562,10 @@ export class EditFeedModal extends Modal {
 
       void (async () => {
         const oldTitle = this.feed.title;
+        const previousAutoDeleteDuration =
+          typeof this.feed.autoDeleteDuration === "number"
+            ? this.feed.autoDeleteDuration
+            : 0;
         this.feed.title = title;
         this.feed.url = url;
         const finalFolder = folderInput?.value || folder;
@@ -542,6 +596,8 @@ export class EditFeedModal extends Modal {
           includeLogic: feedKeywordRules.includeLogic,
           rules: feedKeywordRules.rules,
         };
+        const didAutoDeleteDurationChange =
+          previousAutoDeleteDuration !== autoDeleteDuration;
 
         if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
           this.feed.items.sort(
@@ -556,6 +612,9 @@ export class EditFeedModal extends Modal {
           new Notice("Feed updated");
         }
         await this.plugin.saveSettings();
+        if (didAutoDeleteDurationChange) {
+          await this.plugin.refreshSelectedFeed?.(this.feed);
+        }
         this.plugin.notifyFiltersUpdated({
           source: "edit-feed-modal",
           feedUrl: this.feed.url,
