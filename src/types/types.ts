@@ -79,6 +79,7 @@ export interface Feed {
   excludeFromRefresh?: boolean;
   iconUrl?: string;
   keywordRules?: FeedKeywordRulesSettings;
+  lastRefreshDiagnostics?: FeedRefreshDiagnostics;
 }
 
 export type FeedRefreshStatus =
@@ -91,6 +92,15 @@ export interface FeedRefreshState {
   status: FeedRefreshStatus;
   startedAt: number;
   error?: string;
+}
+
+export interface FeedRefreshDiagnostics {
+  fetchedItemCount: number;
+  mergedItemCountBeforeRetention: number;
+  retainedItemCount: number;
+  retentionRemovedCount: number;
+  skippedByRefreshCutoffCount: number;
+  autoDeleteDurationDays?: number;
 }
 
 export interface FeedMetadata {

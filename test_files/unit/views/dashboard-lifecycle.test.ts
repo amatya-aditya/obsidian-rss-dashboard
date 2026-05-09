@@ -25,9 +25,13 @@ vi.mock("../../../src/components/article-list", () => ({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setSelectedArticle(..._args: any[]): void {}
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    hasArticle(..._args: any[]): boolean { return false; }
+    hasArticle(..._args: any[]): boolean {
+      return false;
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    insertArticleInPlace(..._args: any[]): boolean { return false; }
+    insertArticleInPlace(..._args: any[]): boolean {
+      return false;
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     removeArticleInPlace(..._args: any[]): void {}
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -82,7 +86,11 @@ function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
 
-function makeFeed(url: string, folder = "", items: Partial<FeedItem>[] = []): Feed {
+function makeFeed(
+  url: string,
+  folder = "",
+  items: Partial<FeedItem>[] = [],
+): Feed {
   return {
     title: `Feed (${url})`,
     url,
@@ -109,7 +117,8 @@ function makeFeed(url: string, folder = "", items: Partial<FeedItem>[] = []): Fe
 type DashView = any;
 
 async function makeView(settings: RssDashboardSettings): Promise<DashView> {
-  const { RssDashboardView } = await import("../../../src/views/dashboard-view");
+  const { RssDashboardView } =
+    await import("../../../src/views/dashboard-view");
   const app = new App();
   const plugin = { settings, saveSettings: vi.fn(async () => {}) };
   const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
@@ -138,7 +147,10 @@ describe("Dashboard lifecycle", () => {
     it("returns only items from the active feed when currentFeed is set", async () => {
       const settings = cloneSettings();
       const feed1 = makeFeed("https://a.com/feed", "", [{ read: false }]);
-      const feed2 = makeFeed("https://b.com/feed", "", [{ read: false }, { read: false }]);
+      const feed2 = makeFeed("https://b.com/feed", "", [
+        { read: false },
+        { read: false },
+      ]);
       settings.feeds = [feed1, feed2];
       const view = await makeView(settings);
       view.currentFeed = feed1;
@@ -162,7 +174,12 @@ describe("Dashboard lifecycle", () => {
     it("returns tagged items in AND mode (all tags must match)", async () => {
       const settings = cloneSettings();
       const feed = makeFeed("https://a.com/feed", "", [
-        { tags: [{ name: "Tech", color: "#f00" }, { name: "AI", color: "#00f" }] },
+        {
+          tags: [
+            { name: "Tech", color: "#f00" },
+            { name: "AI", color: "#00f" },
+          ],
+        },
         { tags: [{ name: "Tech", color: "#f00" }] },
       ]);
       settings.feeds = [feed];
@@ -188,7 +205,13 @@ describe("Dashboard lifecycle", () => {
 
     it("filters starred items under 'starred'", async () => {
       const settings = cloneSettings();
-      settings.feeds = [makeFeed("https://a.com/feed", "", [{ starred: true }, { starred: false }, { starred: true }])];
+      settings.feeds = [
+        makeFeed("https://a.com/feed", "", [
+          { starred: true },
+          { starred: false },
+          { starred: true },
+        ]),
+      ];
       const view = await makeView(settings);
       view.currentFolder = "starred";
       expect(view.getFilteredArticles()).toHaveLength(2);
@@ -196,15 +219,38 @@ describe("Dashboard lifecycle", () => {
 
     it("filters unread items under 'unread'", async () => {
       const settings = cloneSettings();
-      settings.feeds = [makeFeed("https://a.com/feed", "", [{ read: false }, { read: true }, { read: false }])];
+      settings.feeds = [
+        makeFeed("https://a.com/feed", "", [
+          { read: false },
+          { read: true },
+          { read: false },
+        ]),
+      ];
       const view = await makeView(settings);
       view.currentFolder = "unread";
       expect(view.getFilteredArticles()).toHaveLength(2);
     });
 
+    it("keeps all scoped items in getUnfilteredArticles for special unread view empty-state detection", async () => {
+      const settings = cloneSettings();
+      settings.feeds = [
+        makeFeed("https://a.com/feed", "", [
+          { read: false },
+          { read: true },
+          { read: true },
+        ]),
+      ];
+      const view = await makeView(settings);
+      view.currentFolder = "unread";
+
+      expect(view.getUnfilteredArticles()).toHaveLength(3);
+    });
+
     it("filters read items under 'read'", async () => {
       const settings = cloneSettings();
-      settings.feeds = [makeFeed("https://a.com/feed", "", [{ read: false }, { read: true }])];
+      settings.feeds = [
+        makeFeed("https://a.com/feed", "", [{ read: false }, { read: true }]),
+      ];
       const view = await makeView(settings);
       view.currentFolder = "read";
       expect(view.getFilteredArticles()).toHaveLength(1);
@@ -212,7 +258,13 @@ describe("Dashboard lifecycle", () => {
 
     it("filters video items under 'videos'", async () => {
       const settings = cloneSettings();
-      settings.feeds = [makeFeed("https://a.com/feed", "", [{ mediaType: "video" }, { mediaType: "podcast" }, {}])];
+      settings.feeds = [
+        makeFeed("https://a.com/feed", "", [
+          { mediaType: "video" },
+          { mediaType: "podcast" },
+          {},
+        ]),
+      ];
       const view = await makeView(settings);
       view.currentFolder = "videos";
       expect(view.getFilteredArticles()).toHaveLength(1);
@@ -237,27 +289,35 @@ describe("Dashboard lifecycle", () => {
     it("sorts articles newest-first by default", async () => {
       const now = Date.now();
       const settings = cloneSettings();
-      settings.feeds = [makeFeed("https://a.com/feed", "", [
-        { pubDate: new Date(now - 5000).toISOString() },
-        { pubDate: new Date(now - 1000).toISOString() },
-      ])];
+      settings.feeds = [
+        makeFeed("https://a.com/feed", "", [
+          { pubDate: new Date(now - 5000).toISOString() },
+          { pubDate: new Date(now - 1000).toISOString() },
+        ]),
+      ];
       settings.articleSort = "newest";
       const view = await makeView(settings);
       const result = view.getFilteredArticles();
-      expect(new Date(result[0].pubDate).getTime()).toBeGreaterThan(new Date(result[1].pubDate).getTime());
+      expect(new Date(result[0].pubDate).getTime()).toBeGreaterThan(
+        new Date(result[1].pubDate).getTime(),
+      );
     });
 
     it("sorts articles oldest-first when setting is 'oldest'", async () => {
       const now = Date.now();
       const settings = cloneSettings();
-      settings.feeds = [makeFeed("https://a.com/feed", "", [
-        { pubDate: new Date(now - 5000).toISOString() },
-        { pubDate: new Date(now - 1000).toISOString() },
-      ])];
+      settings.feeds = [
+        makeFeed("https://a.com/feed", "", [
+          { pubDate: new Date(now - 5000).toISOString() },
+          { pubDate: new Date(now - 1000).toISOString() },
+        ]),
+      ];
       settings.articleSort = "oldest";
       const view = await makeView(settings);
       const result = view.getFilteredArticles();
-      expect(new Date(result[0].pubDate).getTime()).toBeLessThan(new Date(result[1].pubDate).getTime());
+      expect(new Date(result[0].pubDate).getTime()).toBeLessThan(
+        new Date(result[1].pubDate).getTime(),
+      );
     });
   });
 
@@ -349,7 +409,14 @@ describe("Dashboard lifecycle", () => {
   describe("computeHighlightMatchCounts()", () => {
     it("resets highlightMatchCounts to [] when highlighting is disabled", async () => {
       const settings = cloneSettings();
-      settings.highlights = { enabled: false, defaultColor: "#ffff00", words: [], highlightInContent: true, highlightInTitles: true, highlightInSummaries: true };
+      settings.highlights = {
+        enabled: false,
+        defaultColor: "#ffff00",
+        words: [],
+        highlightInContent: true,
+        highlightInTitles: true,
+        highlightInSummaries: true,
+      };
       const view = await makeView(settings);
       view.computeHighlightMatchCounts([]);
       expect(view.highlightMatchCounts).toHaveLength(0);
@@ -358,14 +425,63 @@ describe("Dashboard lifecycle", () => {
     it("counts articles containing a highlight word (case-insensitive)", async () => {
       const settings = cloneSettings();
       settings.highlights = {
-        enabled: true, defaultColor: "#ffff00", highlightInTitles: true, highlightInSummaries: false, highlightInContent: false,
-        words: [{ id: "1", text: "TypeScript", enabled: true, wholeWord: false, caseSensitive: false, createdAt: Date.now() }],
+        enabled: true,
+        defaultColor: "#ffff00",
+        highlightInTitles: true,
+        highlightInSummaries: false,
+        highlightInContent: false,
+        words: [
+          {
+            id: "1",
+            text: "TypeScript",
+            enabled: true,
+            wholeWord: false,
+            caseSensitive: false,
+            createdAt: Date.now(),
+          },
+        ],
       };
       const view = await makeView(settings);
       const articles: FeedItem[] = [
-        { title: "All about typescript today", link: "", description: "", pubDate: new Date().toISOString(), guid: "1", read: false, starred: false, tags: [], feedTitle: "", feedUrl: "", coverImage: "" },
-        { title: "No match here", link: "", description: "", pubDate: new Date().toISOString(), guid: "2", read: false, starred: false, tags: [], feedTitle: "", feedUrl: "", coverImage: "" },
-        { title: "TYPESCRIPT IS GREAT", link: "", description: "", pubDate: new Date().toISOString(), guid: "3", read: false, starred: false, tags: [], feedTitle: "", feedUrl: "", coverImage: "" },
+        {
+          title: "All about typescript today",
+          link: "",
+          description: "",
+          pubDate: new Date().toISOString(),
+          guid: "1",
+          read: false,
+          starred: false,
+          tags: [],
+          feedTitle: "",
+          feedUrl: "",
+          coverImage: "",
+        },
+        {
+          title: "No match here",
+          link: "",
+          description: "",
+          pubDate: new Date().toISOString(),
+          guid: "2",
+          read: false,
+          starred: false,
+          tags: [],
+          feedTitle: "",
+          feedUrl: "",
+          coverImage: "",
+        },
+        {
+          title: "TYPESCRIPT IS GREAT",
+          link: "",
+          description: "",
+          pubDate: new Date().toISOString(),
+          guid: "3",
+          read: false,
+          starred: false,
+          tags: [],
+          feedTitle: "",
+          feedUrl: "",
+          coverImage: "",
+        },
       ];
       view.computeHighlightMatchCounts(articles);
       expect(view.highlightMatchCounts).toHaveLength(1);
@@ -375,11 +491,38 @@ describe("Dashboard lifecycle", () => {
     it("skips disabled highlight words", async () => {
       const settings = cloneSettings();
       settings.highlights = {
-        enabled: true, defaultColor: "#ffff00", highlightInTitles: true, highlightInSummaries: false, highlightInContent: false,
-        words: [{ id: "1", text: "match", enabled: false, wholeWord: false, caseSensitive: false, createdAt: Date.now() }],
+        enabled: true,
+        defaultColor: "#ffff00",
+        highlightInTitles: true,
+        highlightInSummaries: false,
+        highlightInContent: false,
+        words: [
+          {
+            id: "1",
+            text: "match",
+            enabled: false,
+            wholeWord: false,
+            caseSensitive: false,
+            createdAt: Date.now(),
+          },
+        ],
       };
       const view = await makeView(settings);
-      view.computeHighlightMatchCounts([{ title: "this will match", link: "", description: "", pubDate: new Date().toISOString(), guid: "1", read: false, starred: false, tags: [], feedTitle: "", feedUrl: "", coverImage: "" }]);
+      view.computeHighlightMatchCounts([
+        {
+          title: "this will match",
+          link: "",
+          description: "",
+          pubDate: new Date().toISOString(),
+          guid: "1",
+          read: false,
+          starred: false,
+          tags: [],
+          feedTitle: "",
+          feedUrl: "",
+          coverImage: "",
+        },
+      ]);
       expect(view.highlightMatchCounts).toHaveLength(0);
     });
   });
@@ -539,13 +682,20 @@ describe("Dashboard lifecycle", () => {
     it("recursively returns all descendant folder paths", async () => {
       const settings = cloneSettings();
       settings.feeds = [];
-      settings.folders = [{
-        name: "Tech", pinned: false,
-        subfolders: [
-          { name: "AI", pinned: false, subfolders: [{ name: "LLMs", subfolders: [], pinned: false }] },
-          { name: "Web", subfolders: [], pinned: false },
-        ],
-      }];
+      settings.folders = [
+        {
+          name: "Tech",
+          pinned: false,
+          subfolders: [
+            {
+              name: "AI",
+              pinned: false,
+              subfolders: [{ name: "LLMs", subfolders: [], pinned: false }],
+            },
+            { name: "Web", subfolders: [], pinned: false },
+          ],
+        },
+      ];
       const view = await makeView(settings);
       const result = view.getAllDescendantFolders("Tech");
       expect(result).toContain("Tech");
@@ -560,10 +710,17 @@ describe("Dashboard lifecycle", () => {
     it("applies statusFilters, tagFilters, and logic from settings", async () => {
       const settings = cloneSettings();
       settings.feeds = [];
-      settings.dashboardMultiFilters = { statusFilters: ["unread", "starred"], tagFilters: ["Tech"], logic: "AND" };
+      settings.dashboardMultiFilters = {
+        statusFilters: ["unread", "starred"],
+        tagFilters: ["Tech"],
+        logic: "AND",
+      };
       const view = await makeView(settings);
       view.syncDashboardMultiFiltersFromSettings();
-      expect(Array.from(view.activeStatusFilters)).toEqual(["unread", "starred"]);
+      expect(Array.from(view.activeStatusFilters)).toEqual([
+        "unread",
+        "starred",
+      ]);
       expect(Array.from(view.activeTagFilters)).toEqual(["Tech"]);
       expect(view.filterLogic).toBe("AND");
     });

@@ -1,3 +1,9 @@
+# [Unreleased]
+
+### Fixed
+
+- Dashboard article-state handling is now consistent across reader navigation, filter messaging, and per-feed retention updates: selected cards stay anchored below the sticky header after split/sidebar reader opens or layout changes; empty states now explain when articles are hidden by view filters, unread/read special views, age thresholds, or retention windows instead of falling back to a generic “No articles found”; and per-feed auto-delete duration changes now refresh and re-apply retention deterministically when toggled off/on or tightened, preventing old items from lingering or reappearing incorrectly.
+
 ## [2.2.0-beta.11] - April 25, 2026
 
 ### Features

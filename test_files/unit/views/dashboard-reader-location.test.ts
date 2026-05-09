@@ -199,6 +199,61 @@ describe("Dashboard reader location", () => {
     expect(mainLeaf.view.displayItem).toHaveBeenCalledWith(feed.items[0], []);
   });
 
+  it("relocks the selected card after split open in card view", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    settings.viewStyle = "card";
+    settings.readerViewLocation = "main";
+    settings.display.autoMarkReadOnOpen = false;
+    const mainLeaf = createReaderLeaf(new App(), "main");
+
+    const mockRef = {};
+    let capturedLayoutChangeCallback: (() => void) | null = null;
+    const workspaceOn = vi.fn((_name: string, cb: () => void) => {
+      capturedLayoutChangeCallback = cb;
+      return mockRef;
+    });
+    const workspaceOffref = vi.fn();
+
+    const { view } = await createDashboardView(settings, {
+      getLeavesOfType: vi.fn(() => []),
+      getLeaf: vi.fn(() => mainLeaf),
+      getLeftLeaf: vi.fn(),
+      getRightLeaf: vi.fn(),
+      revealLeaf: vi.fn(async () => {}),
+      on: workspaceOn,
+      offref: workspaceOffref,
+    });
+    const setSelectedArticle = vi.fn();
+    const scheduleCardTopAnchorOnResize = vi.fn();
+    const scrollSelectedCardToTop = vi.fn();
+
+    (view as any).articleList = {
+      setSelectedArticle,
+      scheduleCardTopAnchorOnResize,
+      scrollSelectedCardToTop,
+    };
+
+    await (view as any).handleArticleClick(feed.items[0]);
+
+    expect(setSelectedArticle).toHaveBeenCalledTimes(1);
+    expect(setSelectedArticle).toHaveBeenCalledWith(feed.items[0]);
+    expect(scheduleCardTopAnchorOnResize).toHaveBeenCalledTimes(1);
+    expect(workspaceOn).toHaveBeenCalledWith(
+      "layout-change",
+      expect.any(Function),
+    );
+
+    // Simulate Obsidian firing layout-change after the workspace settles.
+    expect(capturedLayoutChangeCallback).not.toBeNull();
+    capturedLayoutChangeCallback!();
+
+    expect(scrollSelectedCardToTop).toHaveBeenCalledTimes(1);
+    // Handler self-deregisters after firing.
+    expect(workspaceOffref).toHaveBeenCalledWith(mockRef);
+  });
+
   it("reuses an existing reader leaf for article clicks when readerViewLocation is main", async () => {
     const settings = cloneSettings();
     const feed = makeFeed("https://example.com/feed", [{}]);

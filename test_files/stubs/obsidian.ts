@@ -284,6 +284,14 @@ export class MockWorkspace {
     this.layoutReadyCallbacks = [];
     callbacks.forEach((callback) => callback());
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on(_name: string, _callback: (...args: any[]) => unknown): unknown {
+    return {};
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  offref(_ref: unknown): void {}
 }
 
 // =============================================================================

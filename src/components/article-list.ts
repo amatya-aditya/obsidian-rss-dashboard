@@ -1,12 +1,14 @@
 import { Notice, Menu, MenuItem, setIcon, Setting } from "obsidian";
 import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { ArticleHeader } from "./article-header";
+import { ArticleEmptyState } from "./article-empty-state";
 import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
 import {
   formatDateWithRelative,
   ensureUtf8Meta,
   setCssProps,
 } from "../utils/platform-utils";
+import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import {
@@ -22,6 +24,8 @@ interface ArticleListCallbacks {
   onToggleViewStyle: (style: "list" | "card" | "feed") => void;
   onRefreshFeeds: () => Promise<void>;
   onSearch: (query: string) => void;
+  onOpenViewFilters?: () => void;
+  onOpenPerFeedSettings?: () => void;
 
   onArticleUpdate: (
     article: FeedItem,
@@ -58,6 +62,7 @@ export class ArticleList {
   private titleTooltip: string | null;
   private headerTitleEl: HTMLElement | null = null;
   private articles: FeedItem[];
+  private emptyStateContext: FilterContext | null = null;
   private selectedArticle: FeedItem | null;
   private callbacks: ArticleListCallbacks;
   private refreshButton: HTMLElement | null = null;
@@ -85,6 +90,7 @@ export class ArticleList {
   private activePortal: HTMLElement | null = null;
   private activeFilterToggleBtn: HTMLElement | null = null;
   private activeFilterOutsideListenerCleanup: (() => void) | null = null;
+  private pendingCardTopAnchor: boolean = false;
 
   constructor(
     container: HTMLElement,
@@ -527,11 +533,12 @@ export class ArticleList {
     };
   }
 
+  setEmptyStateContext(context: FilterContext | null): void {
+    this.emptyStateContext = context;
+  }
+
   render(): void {
-    const articlesList = this.container.querySelector(
-      ".rss-dashboard-articles-list",
-    );
-    const scrollPosition = articlesList?.scrollTop;
+    const scrollPosition = this.container.scrollTop;
 
     this.container.empty();
     this.headerTitleEl = null;
@@ -545,25 +552,23 @@ export class ArticleList {
     }
 
     requestAnimationFrame(() => {
-      if (scrollPosition !== undefined) {
-        const newArticlesList = this.container.querySelector(
-          ".rss-dashboard-articles-list",
-        );
-        if (newArticlesList) {
-          newArticlesList.scrollTop = scrollPosition;
-        }
+      const shouldForceCardTopAnchor =
+        this.pendingCardTopAnchor && this.settings.viewStyle === "card";
+
+      if (!shouldForceCardTopAnchor) {
+        this.container.scrollTop = scrollPosition;
       }
 
       if (this.selectedArticle) {
-        this.scrollSelectedArticleIntoViewIfNeeded(this.selectedArticle);
+        this.scrollSelectedArticleIntoViewIfNeeded(this.selectedArticle, {
+          forceCardTopAnchor: shouldForceCardTopAnchor,
+        });
       }
     });
   }
 
   private getArticlesListElement(): HTMLElement | null {
-    return this.container.querySelector<HTMLElement>(
-      ".rss-dashboard-articles-list",
-    );
+    return this.container;
   }
 
   private isArticleFullyVisibleInList(
@@ -582,7 +587,26 @@ export class ArticleList {
     );
   }
 
-  private scrollSelectedArticleIntoViewIfNeeded(article: FeedItem): void {
+  private getCardTopAnchorViewportInset(listEl: HTMLElement): number {
+    const stickyHeaderEl = listEl.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-header",
+    );
+    if (!stickyHeaderEl) {
+      return 0;
+    }
+
+    const listRect = listEl.getBoundingClientRect();
+    const headerRect = stickyHeaderEl.getBoundingClientRect();
+    const overlapTop = Math.max(listRect.top, headerRect.top);
+    const overlapBottom = Math.min(listRect.bottom, headerRect.bottom);
+
+    return Math.max(0, overlapBottom - overlapTop);
+  }
+
+  private scrollSelectedArticleIntoViewIfNeeded(
+    article: FeedItem,
+    options?: { forceCardTopAnchor?: boolean },
+  ): void {
     const listEl = this.getArticlesListElement();
     const articleEl = this.container.querySelector<HTMLElement>(
       `#article-${CSS.escape(article.guid)}`,
@@ -592,11 +616,24 @@ export class ArticleList {
       return;
     }
 
+    if (options?.forceCardTopAnchor) {
+      const listRect = listEl.getBoundingClientRect();
+      const articleRect = articleEl.getBoundingClientRect();
+      const topAnchorInset = this.getCardTopAnchorViewportInset(listEl);
+      const nextScrollTop =
+        listEl.scrollTop + (articleRect.top - listRect.top - topAnchorInset);
+      listEl.scrollTop = Math.max(0, nextScrollTop);
+      this.pendingCardTopAnchor = false;
+      return;
+    }
+
     if (this.isArticleFullyVisibleInList(listEl, articleEl)) {
+      this.pendingCardTopAnchor = false;
       return;
     }
 
     articleEl.scrollIntoView({ block: "nearest", behavior: "auto" });
+    this.pendingCardTopAnchor = false;
   }
 
   /**
@@ -826,8 +863,14 @@ export class ArticleList {
     return true;
   }
 
-  public setSelectedArticle(article: FeedItem): void {
+  public setSelectedArticle(
+    article: FeedItem,
+    options?: { forceCardTopAnchor?: boolean },
+  ): void {
     this.selectedArticle = article;
+    if (options?.forceCardTopAnchor) {
+      this.pendingCardTopAnchor = true;
+    }
     // Remove active class from any currently active element
     this.container
       .querySelectorAll<HTMLElement>(
@@ -840,8 +883,91 @@ export class ArticleList {
     );
     if (targetEl) {
       targetEl.classList.add("active");
-      this.scrollSelectedArticleIntoViewIfNeeded(article);
+      this.scrollSelectedArticleIntoViewIfNeeded(article, {
+        forceCardTopAnchor:
+          options?.forceCardTopAnchor === true &&
+          this.settings.viewStyle === "card",
+      });
     }
+  }
+
+  /**
+   * Arm a one-shot ResizeObserver relock for card-view top-anchoring.
+   *
+   * Call this immediately after opening a split or sidebar reader leaf.
+   * The relock fires after the container geometry settles (first resize
+   * notification + one rAF debounce), which is later than any fixed
+   * requestAnimationFrame delay and therefore captures the final grid
+   * layout instead of an intermediate one.
+   *
+   * A 500 ms fallback timeout handles the edge case where the dashboard
+   * container width does not change at all (e.g. the sidebar opens
+   * without shrinking the main panel).
+   */
+  public scheduleCardTopAnchorOnResize(): void {
+    this.pendingCardTopAnchor = true;
+
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+
+    const applyRelock = (): void => {
+      if (
+        this.pendingCardTopAnchor &&
+        this.selectedArticle &&
+        this.settings.viewStyle === "card"
+      ) {
+        this.scrollSelectedArticleIntoViewIfNeeded(this.selectedArticle, {
+          forceCardTopAnchor: true,
+        });
+      }
+      if (this.resizeObserver) {
+        this.resizeObserver.disconnect();
+        this.resizeObserver = null;
+      }
+    };
+
+    const fallbackId = window.setTimeout(applyRelock, 500);
+
+    this.resizeObserver = new ResizeObserver(() => {
+      if (this.cardLayoutFrame !== null) {
+        cancelAnimationFrame(this.cardLayoutFrame);
+      }
+      this.cardLayoutFrame = requestAnimationFrame(() => {
+        this.cardLayoutFrame = null;
+        clearTimeout(fallbackId);
+        applyRelock();
+      });
+    });
+
+    this.resizeObserver.observe(this.container);
+  }
+
+  /**
+   * Scroll the selected card so its top edge aligns with the top of the
+   * list container. Called from the `layout-change` handler in DashboardView
+   * after Obsidian has fully committed its new panel geometry (post-animation).
+   */
+  public scrollSelectedCardToTop(): void {
+    if (!this.selectedArticle || this.settings.viewStyle !== "card") {
+      return;
+    }
+    const listEl = this.getArticlesListElement();
+    const articleEl = this.container.querySelector<HTMLElement>(
+      `#article-${CSS.escape(this.selectedArticle.guid)}`,
+    );
+    if (!listEl || !articleEl) {
+      return;
+    }
+    const listRect = listEl.getBoundingClientRect();
+    const articleRect = articleEl.getBoundingClientRect();
+    const topAnchorInset = this.getCardTopAnchorViewportInset(listEl);
+    listEl.scrollTop = Math.max(
+      0,
+      listEl.scrollTop + (articleRect.top - listRect.top - topAnchorInset),
+    );
+    this.pendingCardTopAnchor = false;
   }
 
   public updateArticleInPlace(article: FeedItem): void {
@@ -1067,20 +1193,23 @@ export class ArticleList {
     }
 
     if (this.articles.length === 0) {
-      const emptyState = articlesList.createDiv({
-        cls: "rss-dashboard-empty-state",
-      });
-      const iconDiv = emptyState.createDiv();
-      setIcon(iconDiv, "rss");
-      iconDiv.addClass("rss-dashboard-empty-state-icon");
-      new Setting(emptyState).setName("No articles found").setHeading();
-      emptyState.createEl("p", {
-        text: "Try refreshing your feeds or adding new ones.",
-      });
+      const emptyState = new ArticleEmptyState();
+      const onAction =
+        this.emptyStateContext?.actionTarget === "per-feed-settings"
+          ? this.callbacks.onOpenPerFeedSettings
+          : this.emptyStateContext?.actionTarget === "view-filter"
+            ? this.callbacks.onOpenViewFilters
+            : undefined;
+      emptyState.render(
+        articlesList,
+        this.emptyStateContext ?? {
+          type: "NoArticlesAtAll",
+          unfilteredCount: 0,
+        },
+        { onAction },
+      );
       return;
     }
-
-    const prevScroll = this.container.scrollTop;
 
     if (this.settings.articleGroupBy === "none") {
       if (this.settings.viewStyle === "list") {
@@ -1123,8 +1252,6 @@ export class ArticleList {
       this.pageSize,
       this.totalArticles,
     );
-
-    if (this.container) this.container.scrollTop = prevScroll;
   }
 
   private groupArticles(
