@@ -40,6 +40,15 @@ vi.mock("../../../src/services/article-saver", () => ({
   },
 }));
 
+vi.mock("../../../src/services/backup-service", () => ({
+  BackupService: class BackupService {
+    performAutoBackups = vi.fn().mockResolvedValue(undefined);
+    performAutoBackupsSyncDesktop = vi.fn().mockReturnValue(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructor(_options?: any) {}
+  },
+}));
+
 vi.mock("../../../src/utils/settings-migration", () => ({
   migrateDisplaySettings: vi.fn(),
   migrateDefaultFilterToDashboardMultiFilters: vi.fn(),
@@ -101,6 +110,47 @@ async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
 
   // Mock registerInterval
   plugin.registerInterval = vi.fn((id: number) => id);
+
+  // Initialize backupService with mock
+  const { BackupService } =
+    await import("../../../src/services/backup-service");
+  (plugin as any).backupService = new BackupService({
+    settings: plugin.settings,
+    manifest: plugin.manifest,
+    vaultAbsolutePath: "",
+    vault: app.vault,
+    getUserSettingsJson: () => JSON.stringify({}),
+  });
+
+  // Initialize folderService
+  const { FolderService } =
+    await import("../../../src/services/folder-service");
+  (plugin as any).folderService = new FolderService(plugin.settings);
+
+  // Initialize backgroundImportService
+  const { BackgroundImportService } =
+    await import("../../../src/services/background-import-service");
+  (plugin as any).backgroundImportService = new BackgroundImportService({
+    feedParser: {
+      parseFeed: (url: string) =>
+        ((plugin as any).feedParser?.parseFeed ?? vi.fn())(url),
+    },
+    getSettings: () => plugin.settings,
+    getView: () => plugin.getActiveDashboardView(),
+    saveSettings: () => plugin.saveSettings(),
+    ensureFolderExists: (folder, opts) =>
+      plugin.ensureFolderExists(folder, opts),
+    addStatusBarItem: () => {
+      const el = document.createElement("div");
+      el.createSpan = (opts?: any) => {
+        const span = document.createElement("span");
+        if (opts?.cls) span.className = opts.cls;
+        el.appendChild(span);
+        return span;
+      };
+      return el;
+    },
+  });
 
   return plugin;
 }
@@ -390,13 +440,76 @@ describe("onload() initialization", () => {
       lastRefreshTimestamp: 0,
       feeds: [],
     });
-    const refreshSpy = vi.spyOn(plugin, "refreshFeeds").mockResolvedValue(undefined);
+    const refreshSpy = vi
+      .spyOn(plugin, "refreshFeeds")
+      .mockResolvedValue(undefined);
 
     await plugin.onload();
 
     expect(refreshSpy).toHaveBeenCalledTimes(1);
     expect(mockRefreshAllFeeds).not.toHaveBeenCalled();
     expect(plugin.feedParser).toBeDefined();
+  });
+
+  it("defers saved-article startup validation until layout is ready", async () => {
+    const validateSpy = vi.spyOn(plugin as any, "validateSavedArticles");
+
+    await plugin.onload();
+
+    expect(validateSpy).not.toHaveBeenCalled();
+    expect((plugin as any).articleSaver.fixSavedFilePaths).not.toHaveBeenCalled();
+
+    ((plugin.app as any).workspace).triggerLayoutReady();
+    await Promise.resolve();
+
+    expect((plugin as any).articleSaver.fixSavedFilePaths).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(validateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists savedFilePath when an article is saved", async () => {
+    plugin.settings = JSON.parse(
+      JSON.stringify({
+        ...DEFAULT_SETTINGS,
+        feeds: [
+          {
+            name: "Feed",
+            url: "https://example.com/rss.xml",
+            folder: "",
+            items: [
+              {
+                guid: "guid-1",
+                title: "Saved article",
+                link: "https://example.com/article",
+                description: "",
+                pubDate: "2024-01-01T00:00:00.000Z",
+                read: false,
+                starred: false,
+                saved: false,
+                tags: [],
+                feedTitle: "Feed",
+                feedUrl: "https://example.com/rss.xml",
+                coverImage: "",
+              },
+            ],
+          },
+        ],
+      }),
+    ) as RssDashboardSettings;
+
+    const item = {
+      ...plugin.settings.feeds[0].items[0],
+      saved: true,
+      savedFilePath: "Articles/Saved article.md",
+    };
+
+    await (plugin as any).onArticleSaved(item);
+
+    expect(plugin.settings.feeds[0].items[0].saved).toBe(true);
+    expect(plugin.settings.feeds[0].items[0].savedFilePath).toBe(
+      "Articles/Saved article.md",
+    );
   });
 });
 
@@ -457,8 +570,14 @@ describe("refreshFeeds()", () => {
     // When: refreshFeeds is called without selection
     await plugin.refreshFeeds();
 
-    // Then: refreshAllFeeds should be called with all feeds
-    expect(mockRefreshAllFeeds).toHaveBeenCalledWith(plugin.settings.feeds);
+    // Then: the fallback multi-feed path should refresh each feed individually
+    expect(mockRefreshAllFeeds).toHaveBeenCalledTimes(2);
+    expect(
+      mockRefreshAllFeeds.mock.calls.map((call) => call[0][0].url),
+    ).toEqual([
+      "https://example.com/feed1.xml",
+      "https://example.com/feed2.xml",
+    ]);
   });
 
   it("refreshes only selected feeds when provided", async () => {
@@ -483,6 +602,28 @@ describe("refreshFeeds()", () => {
 
     // Then: refreshAllFeeds should be called only with selected feed
     expect(mockRefreshAllFeeds).toHaveBeenCalledWith([feed1]);
+  });
+
+  it("skips excluded feeds during bulk refresh", async () => {
+    const includedFeed = {
+      ...sampleFeed,
+      url: "https://example.com/feed1.xml",
+      title: "Included Feed",
+    };
+    const excludedFeed = {
+      ...sampleFeed,
+      url: "https://example.com/feed2.xml",
+      title: "Excluded Feed",
+      excludeFromRefresh: true,
+    };
+    plugin.settings.feeds = [includedFeed, excludedFeed];
+
+    mockRefreshAllFeeds.mockResolvedValue([includedFeed]);
+
+    await plugin.refreshFeeds();
+
+    expect(mockRefreshAllFeeds).toHaveBeenCalledTimes(1);
+    expect(mockRefreshAllFeeds).toHaveBeenCalledWith([includedFeed]);
   });
 
   it("updates settings after refresh", async () => {
@@ -702,13 +843,39 @@ describe("refreshFeedsInFolder()", () => {
     // When: refreshFeedsInFolder is called with parent folder
     await plugin.refreshFeedsInFolder("News");
 
-    // Then: refreshAllFeeds should be called with feeds in News folder
-    expect(mockRefreshAllFeeds).toHaveBeenCalled();
-    const feedsCalled = mockRefreshAllFeeds.mock.calls[0][0];
-    expect(feedsCalled.length).toBe(2);
+    // Then: the fallback multi-feed path should refresh each matching feed individually
+    expect(mockRefreshAllFeeds).toHaveBeenCalledTimes(2);
+    const feedsCalled = mockRefreshAllFeeds.mock.calls.map(
+      (call) => call[0][0],
+    );
     expect(feedsCalled.every((f: Feed) => f.folder.startsWith("News/"))).toBe(
       true,
     );
+  });
+
+  it("skips excluded feeds in the specified folder", async () => {
+    plugin.settings.feeds = [
+      {
+        ...sampleFeed,
+        url: "https://example.com/feed1.xml",
+        folder: "News/Tech",
+      },
+      {
+        ...sampleFeed,
+        url: "https://example.com/feed2.xml",
+        folder: "News/Sports",
+        excludeFromRefresh: true,
+      },
+    ];
+
+    mockRefreshAllFeeds.mockResolvedValue([]);
+
+    await plugin.refreshFeedsInFolder("News");
+
+    expect(mockRefreshAllFeeds).toHaveBeenCalledTimes(1);
+    expect(mockRefreshAllFeeds).toHaveBeenCalledWith([
+      expect.objectContaining({ url: "https://example.com/feed1.xml" }),
+    ]);
   });
 
   it("shows notice when no feeds in folder", async () => {
@@ -922,6 +1089,59 @@ describe("addFeed()", () => {
     expect(addedFeed?.maxItemsLimit).toBe(customLimit);
   });
 
+  it("preserves an explicit Off scanInterval sentinel when provided", async () => {
+    const newUrl = "https://example.com/refresh-off.xml";
+
+    mockParseFeed.mockResolvedValue({
+      title: "Refresh Off Feed",
+      url: newUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+      mediaType: "article",
+    });
+
+    await plugin.addFeed(
+      "Refresh Off Feed",
+      newUrl,
+      "Uncategorized",
+      undefined,
+      undefined,
+      -1,
+    );
+
+    const addedFeed = plugin.settings.feeds.find((f: Feed) => f.url === newUrl);
+    expect(addedFeed?.scanInterval).toBe(-1);
+  });
+
+  it("preserves exclude-from-refresh when provided", async () => {
+    const newUrl = "https://example.com/excluded.xml";
+
+    mockParseFeed.mockResolvedValue({
+      title: "Excluded Feed",
+      url: newUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+      mediaType: "article",
+    });
+
+    await plugin.addFeed(
+      "Excluded Feed",
+      newUrl,
+      "Uncategorized",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      true,
+    );
+
+    const addedFeed = plugin.settings.feeds.find((f: Feed) => f.url === newUrl);
+    expect(addedFeed?.excludeFromRefresh).toBe(true);
+  });
+
   it("preserves the global maxItems default when parser output omits maxItemsLimit", async () => {
     const newUrl = "https://example.com/global-default-limit.xml";
 
@@ -982,6 +1202,102 @@ describe("addFeed()", () => {
 // Test Suite: onunload() Cleanup
 // ─────────────────────────────────────────────────────────────────────────────
 
+describe("ingestFeedsForBackgroundImport()", () => {
+  let plugin: RssDashboardPlugin;
+
+  beforeEach(async () => {
+    const app = createMockApp();
+    plugin = await createPluginInstance(app);
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      feeds: [sampleFeed],
+    };
+    vi.clearAllMocks();
+    vi.spyOn(
+      (plugin as any).backgroundImportService,
+      "startBackgroundImport",
+    ).mockImplementation(() => {});
+    plugin.ensureFolderExists = vi.fn().mockResolvedValue(false);
+    plugin.getActiveDashboardView = vi.fn().mockResolvedValue({
+      refresh: vi.fn(),
+    });
+  });
+
+  it("dedupes URLs, inserts placeholders, saves once, and queues hydration", async () => {
+    const result = await (plugin as any).ingestFeedsForBackgroundImport(
+      [
+        {
+          title: "New Feed",
+          url: "https://example.com/new.xml",
+          folder: "Research",
+        },
+        {
+          title: "Duplicate Existing",
+          url: sampleFeed.url,
+          folder: "Research",
+        },
+        {
+          title: "Duplicate Incoming",
+          url: "https://example.com/new.xml",
+          folder: "Research",
+        },
+      ],
+      { mode: "update" },
+    );
+
+    expect(result.addedCount).toBe(1);
+    expect(result.skippedCount).toBe(2);
+    expect(
+      plugin.settings.feeds.some(
+        (f) => f.url === "https://example.com/new.xml",
+      ),
+    ).toBe(true);
+    const addedFeed = plugin.settings.feeds.find(
+      (f) => f.url === "https://example.com/new.xml",
+    );
+    expect(addedFeed?.items).toEqual([]);
+    expect(plugin.saveData).toHaveBeenCalledTimes(1);
+    expect(plugin.ensureFolderExists).toHaveBeenCalledWith("Research", {
+      saveSettings: false,
+      refreshView: false,
+    });
+    expect(
+      (plugin as any).backgroundImportService.startBackgroundImport,
+    ).toHaveBeenCalledWith([
+      expect.objectContaining({
+        title: "New Feed",
+        url: "https://example.com/new.xml",
+        folder: "Research",
+      }),
+    ]);
+  });
+
+  it("supports overwrite mode and replaces folders when provided", async () => {
+    const result = await (plugin as any).ingestFeedsForBackgroundImport(
+      [
+        {
+          title: "Only Feed",
+          url: "https://example.com/only.xml",
+          folder: "Tech/AI",
+        },
+      ],
+      {
+        mode: "overwrite",
+        folders: [
+          { name: "Tech", subfolders: [{ name: "AI", subfolders: [] }] },
+        ],
+      },
+    );
+
+    expect(result.addedCount).toBe(1);
+    expect(plugin.settings.feeds).toHaveLength(1);
+    expect(plugin.settings.feeds[0].url).toBe("https://example.com/only.xml");
+    expect(plugin.settings.folders).toEqual([
+      { name: "Tech", subfolders: [{ name: "AI", subfolders: [] }] },
+    ]);
+  });
+});
+
 describe("onunload()", () => {
   let plugin: RssDashboardPlugin;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1036,25 +1352,33 @@ describe("onunload()", () => {
 
   it("attempts sync backup on desktop", () => {
     // Given: Plugin with auto-backup settings
-    plugin.performAutoBackupsSyncDesktop = vi.fn().mockReturnValue(true);
+    (plugin as any).backupService.performAutoBackupsSyncDesktop = vi
+      .fn()
+      .mockReturnValue(true);
 
     // When: onunload is called
     plugin.onunload();
 
     // Then: performAutoBackupsSyncDesktop should be called
-    expect(plugin.performAutoBackupsSyncDesktop).toHaveBeenCalled();
+    expect(
+      (plugin as any).backupService.performAutoBackupsSyncDesktop,
+    ).toHaveBeenCalled();
   });
 
   it("falls back to async backup when sync fails", () => {
     // Given: Plugin with auto-backup settings that fails sync
-    plugin.performAutoBackupsSyncDesktop = vi.fn().mockReturnValue(false);
-    plugin.performAutoBackups = vi.fn().mockResolvedValue(undefined);
+    (plugin as any).backupService.performAutoBackupsSyncDesktop = vi
+      .fn()
+      .mockReturnValue(false);
+    (plugin as any).backupService.performAutoBackups = vi
+      .fn()
+      .mockResolvedValue(undefined);
 
     // When: onunload is called
     plugin.onunload();
 
     // Then: performAutoBackups should be called as fallback
-    expect(plugin.performAutoBackups).toHaveBeenCalled();
+    expect((plugin as any).backupService.performAutoBackups).toHaveBeenCalled();
   });
 
   it("does not throw when autoBackup is disabled", () => {
@@ -1162,15 +1486,16 @@ describe("refreshSelectedFeed()", () => {
     mockParseFeed.mockClear();
   });
 
-  it("refreshes a single feed", async () => {
-    // Given: Mock refreshFeeds
-    plugin.refreshFeeds = vi.fn().mockResolvedValue(undefined);
+  it("refreshes a single excluded feed explicitly", async () => {
+    const excludedFeed = {
+      ...sampleFeed,
+      excludeFromRefresh: true,
+    };
+    mockRefreshAllFeeds.mockResolvedValue([excludedFeed]);
 
-    // When: refreshSelectedFeed is called
-    await plugin.refreshSelectedFeed(sampleFeed);
+    await plugin.refreshSelectedFeed(excludedFeed);
 
-    // Then: refreshFeeds should be called with array containing the feed
-    expect(plugin.refreshFeeds).toHaveBeenCalledWith([sampleFeed]);
+    expect(mockRefreshAllFeeds).toHaveBeenCalledWith([excludedFeed]);
   });
 });
 

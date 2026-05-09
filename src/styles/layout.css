@@ -127,7 +127,8 @@
   min-height: 38px;
   border-radius: 8px;
   color: var(--text-muted);
-  background: var(--background-primary-alt);
+  background: var(--interactive-normal);
+  border: 1px solid var(--background-modifier-border);
   font-size: 16px;
   font-weight: 600;
   line-height: 1.1;

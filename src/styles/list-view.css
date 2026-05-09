@@ -33,9 +33,6 @@
   opacity: 0.8;
 }
 
-.rss-dashboard-article-item.saved {
-  border-left: 3px solid var(--interactive-accent);
-}
 
 .rss-dashboard-article-item.video .rss-dashboard-article-title::before,
 .rss-dashboard-article-item.podcast .rss-dashboard-article-title::before {

@@ -1,6 +1,10 @@
 // =============================================================================
 // Core Obsidian API Stubs
 // =============================================================================
+// =============================================================================
+
+import moment from "moment";
+export { moment };
 
 // Stub for HTTP requests - configure mock in test
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -245,6 +249,7 @@ export class MockDataVault {
 export class MockWorkspace {
   private leaves: Map<string, unknown> = new Map();
   private activeLeaf: unknown = null;
+  private layoutReadyCallbacks: Array<() => void> = [];
 
   onLayoutChange = new MockEvent();
   onActiveLeafChange = new MockEvent();
@@ -269,6 +274,24 @@ export class MockWorkspace {
   // Minimal surface used by settings tabs to focus a view.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async revealLeaf(_leaf: any): Promise<void> {}
+
+  onLayoutReady(callback: () => void): void {
+    this.layoutReadyCallbacks.push(callback);
+  }
+
+  triggerLayoutReady(): void {
+    const callbacks = [...this.layoutReadyCallbacks];
+    this.layoutReadyCallbacks = [];
+    callbacks.forEach((callback) => callback());
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on(_name: string, _callback: (...args: any[]) => unknown): unknown {
+    return {};
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  offref(_ref: unknown): void {}
 }
 
 // =============================================================================
@@ -405,6 +428,8 @@ export class WorkspaceLeaf {
   constructor(app: App) {
     this.app = app;
   }
+
+  updateHeader(): void {}
 }
 
 export class ItemView {

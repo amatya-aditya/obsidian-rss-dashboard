@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { App, TFile } from "obsidian";
+import { App, TFile, moment } from "obsidian";
 import type { ArticleSavingSettings, FeedItem } from "../../../src/types/types";
-import { ArticleSaver } from "../../../src/services/article-saver";
+import {
+  ArticleSaver,
+  sanitizeFilename,
+} from "../../../src/services/article-saver";
 import * as fetchHelpers from "../../../src/utils/fetch-helpers";
 
 function createSettings(
@@ -44,9 +47,25 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
+describe("sanitizeFilename", () => {
+  it("preserves the full sanitized title without truncating words or length", () => {
+    const title =
+      'This is a deliberately long article title with / illegal : characters " removed" and extra words';
+
+    expect(sanitizeFilename(title)).toBe(
+      "This is a deliberately long article title with illegal characters removed and extra words",
+    );
+  });
+
+  it("falls back to a safe filename when sanitization removes everything", () => {
+    expect(sanitizeFilename(' / \\\\ : * ? " < > | ')).toBe("Untitled Article");
+    expect(sanitizeFilename("   ")).toBe("Untitled Article");
+  });
+});
+
 describe("ArticleSaver.saveArticle", () => {
   it("writes to a normalized folder path and applies template/frontmatter substitutions", async () => {
-    const app = App.createMock();
+    const app = (App as any).createMock();
     const settings = createSettings({
       addSavedTag: true,
       includeFrontmatter: true,
@@ -78,18 +97,18 @@ describe("ArticleSaver.saveArticle", () => {
     expect(written).toContain('source: "Test Feed"');
     expect(written).toContain('link: "https://example.com/article"');
     expect(written).toContain('guid: "guid-1"');
-    expect(written).toContain("tags: [tech, saved]");
+    expect(written).toContain("tags: [tech, Saved]");
     expect(written).toContain("iso=2024-01-01T00:00:00.000Z");
-    expect(written).toContain("tags=tech, saved");
+    expect(written).toContain("tags=tech, Saved");
     expect(written).toContain("BODY");
 
     expect(item.saved).toBe(true);
     expect(item.savedFilePath).toBe(expectedPath);
-    expect(item.tags.map((t) => t.name)).toEqual(["tech", "saved"]);
+    expect(item.tags.map((t) => t.name)).toEqual(["tech", "Saved"]);
   });
 
   it("trashes an existing file at the same path before creating a new one", async () => {
-    const app = App.createMock();
+    const app = (App as any).createMock();
     const settings = createSettings({
       defaultFolder: "Articles",
       defaultTemplate: "{{content}}",
@@ -108,7 +127,7 @@ describe("ArticleSaver.saveArticle", () => {
   });
 
   it("returns null and does not mark the item saved when writing fails", async () => {
-    const app = App.createMock();
+    const app = (App as any).createMock();
     const settings = createSettings({
       defaultTemplate: "{{content}}",
     });
@@ -123,11 +142,120 @@ describe("ArticleSaver.saveArticle", () => {
     expect(item.saved).not.toBe(true);
     expect(item.savedFilePath).toBeUndefined();
   });
+
+  it("uses the full sanitized title in the saved file path", async () => {
+    const app = (App as any).createMock();
+    const settings = createSettings({
+      defaultFolder: "Articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title:
+        'This is a deliberately long article title with / illegal : characters " removed" and extra words',
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const expectedPath =
+      "Articles/This is a deliberately long article title with illegal characters removed and extra words.md";
+    expect(createSpy).toHaveBeenCalled();
+    expect(createSpy.mock.calls[0][0]).toBe(expectedPath);
+    expect(item.savedFilePath).toBe(expectedPath);
+  });
+
+  it("uses a fallback filename when the title sanitizes to empty", async () => {
+    const app = (App as any).createMock();
+    const settings = createSettings({
+      defaultFolder: "Articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({ title: ' / \\\\ : * ? " < > | ' });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    expect(createSpy).toHaveBeenCalled();
+    expect(createSpy.mock.calls[0][0]).toBe("Articles/Untitled Article.md");
+    expect(item.savedFilePath).toBe("Articles/Untitled Article.md");
+  });
+});
+
+describe("ArticleSaver.replaceDatePlaceholders", () => {
+  it("replaces {{date}} with long format", () => {
+    const app = (App as any).createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const date = new Date("2024-04-21T12:00:00Z");
+
+    const input = "Date: {{date}}";
+    const result = (saver as any).replaceDatePlaceholders(input, date);
+
+    // toLocaleDateString depends on environment, but we expect the long format
+    expect(result).toContain("April 21, 2024");
+  });
+
+  it("replaces {{dateShort}} with YYYY-MM-DD", () => {
+    const app = (App as any).createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const date = new Date("2024-04-21T12:00:00Z");
+
+    const input = "Short: {{dateShort}}";
+    const result = (saver as any).replaceDatePlaceholders(input, date);
+
+    expect(result).toBe("Short: 2024-04-21");
+  });
+
+  it("replaces {{isoDate}} with ISO string", () => {
+    const app = (App as any).createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const date = new Date("2024-04-21T12:00:00Z");
+
+    const input = "ISO: {{isoDate}}";
+    const result = (saver as any).replaceDatePlaceholders(input, date);
+
+    expect(result).toBe("ISO: 2024-04-21T12:00:00.000Z");
+  });
+
+  it("replaces parameterized {{date:FORMAT}} using moment", () => {
+    const app = (App as any).createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const date = new Date("2024-04-21T12:00:00Z");
+
+    const input = "Custom: {{date:YYYY/MM/DD}} Time: {{date:HH:mm}}";
+    const result = (saver as any).replaceDatePlaceholders(input, date);
+
+    const expectedDate = moment(date).format("YYYY/MM/DD");
+    const expectedTime = moment(date).format("HH:mm");
+    expect(result).toBe(`Custom: ${expectedDate} Time: ${expectedTime}`);
+  });
+
+  it("handles complex moment formats", () => {
+    const app = (App as any).createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const date = new Date("2024-04-21T12:00:00Z");
+
+    const input = "{{date:dddd, MMMM Do YYYY}}";
+    const result = (saver as any).replaceDatePlaceholders(input, date);
+
+    const expected = moment(date).format("dddd, MMMM Do YYYY");
+    expect(result).toBe(expected);
+  });
 });
 
 describe("ArticleSaver.fetchFullArticleContent", () => {
   it("retries sagepub full-text URLs via /doi/abs/ when the full-text fetch returns empty", async () => {
-    const app = App.createMock();
+    const app = (App as any).createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
 
@@ -151,7 +279,7 @@ describe("ArticleSaver.fetchFullArticleContent", () => {
 
 describe("ArticleSaver.saveArticleWithFullContent", () => {
   it("converts fetched HTML to markdown and saves it", async () => {
-    const app = App.createMock();
+    const app = (App as any).createMock();
     const settings = createSettings({
       defaultTemplate: "{{content}}",
       includeFrontmatter: false,
@@ -172,7 +300,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
   });
 
   it("falls back to saveArticle when full content is unavailable", async () => {
-    const app = App.createMock();
+    const app = (App as any).createMock();
     const settings = createSettings({
       defaultTemplate: "{{content}}",
       includeFrontmatter: false,
@@ -191,7 +319,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
 
 describe("ArticleSaver.verifySavedArticle", () => {
   it("returns true when the saved file exists in the vault", async () => {
-    const app = App.createMock();
+    const app = (App as any).createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
 
@@ -208,7 +336,7 @@ describe("ArticleSaver.verifySavedArticle", () => {
   });
 
   it("clears saved state and removes the saved tag when the file is missing", () => {
-    const app = App.createMock();
+    const app = (App as any).createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
 
@@ -229,7 +357,7 @@ describe("ArticleSaver.verifySavedArticle", () => {
 
 describe("ArticleSaver.fixSavedFilePaths", () => {
   it("normalizes paths when the normalized path exists", async () => {
-    const app = App.createMock();
+    const app = (App as any).createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
 
@@ -247,7 +375,7 @@ describe("ArticleSaver.fixSavedFilePaths", () => {
   });
 
   it("renames files when the old path exists but the normalized path does not", async () => {
-    const app = App.createMock();
+    const app = (App as any).createMock();
     const settings = createSettings({ defaultFolder: "/Normalized/" });
     const saver = new ArticleSaver(app, settings);
 
@@ -271,7 +399,7 @@ describe("ArticleSaver.fixSavedFilePaths", () => {
   });
 
   it("clears saved state when the savedFilePath is missing or not a file", async () => {
-    const app = App.createMock();
+    const app = (App as any).createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
 
@@ -288,5 +416,59 @@ describe("ArticleSaver.fixSavedFilePaths", () => {
     expect(item.saved).toBe(false);
     expect(item.savedFilePath).toBeUndefined();
     expect(item.tags.map((t) => t.name)).toEqual(["keep"]);
+  });
+});
+
+describe("ArticleSaver saved file lookups", () => {
+  it("prefers savedFilePath when the title-based filename no longer matches", async () => {
+    const app = (App as any).createMock();
+    const settings = createSettings({ defaultFolder: "Articles" });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: "Title With / Slash",
+      saved: true,
+      savedFilePath: "Archive/Already Saved.md",
+    });
+
+    await app.vault.create("Archive/Already Saved.md", "content");
+
+    expect(saver.checkSavedFileExists(item)).toBe(true);
+    expect(item.savedFilePath).toBe("Archive/Already Saved.md");
+  });
+
+  it("falls back to the normalized default-folder path for legacy items", async () => {
+    const app = (App as any).createMock();
+    const settings = createSettings({ defaultFolder: "/Articles/" });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: "Legacy / Saved Article",
+      saved: true,
+    });
+
+    await app.vault.create("Articles/Legacy Saved Article.md", "content");
+
+    expect(saver.checkSavedFileExists(item)).toBe(true);
+    expect(item.savedFilePath).toBe("Articles/Legacy Saved Article.md");
+  });
+
+  it("finds a saved file by savedFilePath even when the default folder differs", async () => {
+    const app = (App as any).createMock();
+    const settings = createSettings({ defaultFolder: "RSS articles" });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: "My Article",
+      saved: true,
+      savedFilePath: "Custom Folder/My Article.md",
+    });
+
+    await app.vault.create("Custom Folder/My Article.md", "content");
+
+    const file = await saver.findSavedArticleFile(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    expect(file?.path).toBe("Custom Folder/My Article.md");
   });
 });

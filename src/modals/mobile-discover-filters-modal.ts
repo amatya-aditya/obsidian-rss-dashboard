@@ -72,6 +72,10 @@ export class MobileDiscoverFiltersModal extends Modal {
         onActivateDiscoverView: () => {
           // Already here
         },
+        onActivateSmallwebView: () => {
+          this.close();
+          void this.plugin.activateSmallwebView();
+        },
       },
     );
 

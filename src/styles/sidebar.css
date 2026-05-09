@@ -9,6 +9,14 @@
   gap: 8px;
   position: relative; /* anchor for hamburger popover */
 }
+
+.rss-dashboard-sidebar-header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  margin-left: 2px;
+}
 .rss-dashboard-title {
   font-weight: bold;
   font-size: 16px;
@@ -53,6 +61,8 @@
 }
 .rss-dashboard-folder-icon,
 .rss-dashboard-feed-icon {
+  flex: 0 0 16px;
+  flex-shrink: 0;
   width: 16px;
   height: 16px;
   display: flex;
@@ -375,6 +385,7 @@
   color: var(--text-accent);
 }
 .rss-dashboard-feed-folder-name {
+  min-width: 0;
   flex-grow: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -435,8 +446,10 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  min-width: 0;
 }
 .rss-dashboard-feed-name {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -445,6 +458,7 @@
 .rss-dashboard-feed-unread-count,
 .rss-dashboard-all-feeds-unread,
 .rss-dashboard-folder-unread-count {
+  flex-shrink: 0;
   color: white;
   display: inline-flex;
   align-items: center;
@@ -826,9 +840,10 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   color: var(--rss-unread-badge-all-feeds-color);
 }
 
-.rss-dashboard-all-feeds-button.active .rss-dashboard-all-feeds-icon {
+/* Spinner color override */
+/* .rss-dashboard-all-feeds-button.active .rss-dashboard-all-feeds-icon {
   color: var(--text-accent);
-}
+} */
 
 .rss-dashboard-all-feeds-label-container {
   flex-grow: 1;

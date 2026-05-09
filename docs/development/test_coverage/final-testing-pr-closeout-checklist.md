@@ -23,17 +23,17 @@ We do **not** need another broad coverage phase in this PR. The priority is to d
 ### Unit Tests
 
 ```text
-Test Files  103 passed (103)
-Tests       741 passed (741)
+Test Files  110 passed (110)
+Tests       820 passed (820)
 ```
 
 ### Coverage
 
 ```text
-Statements   : 46.77% (7385/15789)
-Branches     : 37.32% (3386/9071)
-Functions    : 41.51% (1089/2623)
-Lines        : 47.66% (7137/14974)
+Statements   : 51.72% (8494/16423)
+Branches     : 41.04% (3831/9334)
+Functions    : 46.12% (1275/2764)
+Lines        : 52.73% (8223/15593)
 ```
 
 ### Current Global Thresholds
@@ -49,12 +49,12 @@ Lines        : 47.66% (7137/14974)
 - [x] Archive obsolete phase handoff artifacts so the active folder only contains current docs.
 - [x] Confirm the checked-in coverage artifacts and the PR description use the same final numbers.
 - [x] Confirm CI is green with the same `npm run test:unit` expectations used locally.
-- [x] Add a short release note or PR summary section explaining that the repo moved from zero tests to a stable 103-file / 741-test suite.
+- [x] Add a short release note or PR summary section explaining that the repo moved from zero tests to a stable 110-file / 820-test suite.
 - [x] Call out the current threshold floor in the PR so future contributors know coverage is now ratcheted and protected.
 
 ## Recommended PR Summary Blurb
 
-This PR establishes the first durable unit-test baseline for the plugin and is intended to ship in `2.2.0`. The previous release line (`2.1.9`) effectively had no meaningful repo-wide unit suite. The repo now has `103` passing unit test files and `741` passing tests, with global coverage at `47.66%` lines, `37.32%` branches, and `41.51%` functions. Coverage thresholds remain enforced at `40/33/34` for lines/branches/functions.
+This PR establishes the first durable unit-test baseline for the plugin and is intended to ship in `2.2.0`. The previous release line (`2.1.9`) effectively had no meaningful repo-wide unit suite. The repo now has `110` passing unit test files and `820` passing tests, with global coverage at `52.73%` lines, `41.04%` branches, and `46.12%` functions. Coverage thresholds remain enforced at `40/33/34` for lines/branches/functions.
 
 ## Explicit Non-Goals For This PR
 

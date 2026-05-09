@@ -143,6 +143,7 @@ export class FeedManagerModal extends Modal {
           scanInterval,
           feedFilters,
           customTemplate,
+          excludeFromRefresh,
         ) =>
           this.plugin.addFeed(
             title,
@@ -153,6 +154,7 @@ export class FeedManagerModal extends Modal {
             scanInterval,
             feedFilters,
             customTemplate,
+            excludeFromRefresh,
           ),
         () => this.onOpen(),
         "",
@@ -172,7 +174,7 @@ export class FeedManagerModal extends Modal {
     setIcon(importOpmlBtn, "upload");
     importOpmlBtn.createSpan({ text: " Import OPML" });
     importOpmlBtn.onclick = () => {
-      new ImportOpmlModal(this.app, this.plugin).open();
+      new ImportOpmlModal(this.app, this.plugin, () => this.close()).open();
     };
 
     // Export OPML button

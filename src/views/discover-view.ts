@@ -3,11 +3,13 @@ import {
   FeedMetadata,
   CategoryPath,
   DiscoverFilters,
+  FeedType,
   FollowStatus,
 } from "../types/discover-types";
 import { RssDashboardSettings, Feed } from "../types/types";
 import { FeedPreviewModal } from "../modals/feed-preview-modal";
 import { FolderSelectorPopup } from "../components/folder-selector-popup";
+import { DiscoverSidebar } from "../components/discover-sidebar";
 import { MobileDiscoverFiltersModal } from "../modals/mobile-discover-filters-modal";
 import type RssDashboardPlugin from "../../main";
 import {
@@ -56,6 +58,9 @@ export class DiscoverView extends ItemView {
   private hasRegisteredResizeEvents: boolean = false;
   private mobileSidebarModal: MobileDiscoverFiltersModal | null = null;
   private lastViewportMobileSidebarMode: boolean | null = null;
+  private isAddingAllFeeds = false;
+  private bulkAddCompletedCount = 0;
+  private bulkAddTotalCount = 0;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -471,9 +476,41 @@ export class DiscoverView extends ItemView {
   }
 
   private renderSidebar(container: HTMLElement): void {
-    container.empty();
-    this.renderSidebarHeader(container);
-    this.renderSidebarContent(container);
+    const sidebar = new DiscoverSidebar(
+      this.app,
+      container,
+      this.plugin,
+      this.filters,
+      this.feeds,
+      this.activeSidebarSection,
+      {
+        onFilterChange: () => {
+          this.handleSidebarFilterChange();
+        },
+        onActivateView: () => {
+          void this.plugin.activateView();
+        },
+        onActivateDiscoverView: () => {
+          void this.plugin.activateDiscoverView();
+        },
+        onActivateSmallwebView: () => {
+          void this.plugin.activateSmallwebView();
+        },
+      },
+    );
+
+    sidebar.render();
+  }
+
+  private handleSidebarFilterChange(): void {
+    this.currentPage = 1;
+    this.filterFeeds();
+    this.saveFilterState();
+
+    const contentEl = this.containerEl.querySelector(".rss-discover-content");
+    if (contentEl instanceof HTMLElement) {
+      this.renderContent(contentEl);
+    }
   }
 
   private renderSidebarContent(container: HTMLElement): void {
@@ -1035,6 +1072,7 @@ export class DiscoverView extends ItemView {
       cls: "rss-discover-results-count",
     });
     resultsCount.textContent = `${this.filteredFeeds.length} feeds found`;
+    this.renderAddAllButton(leftSection);
 
     this.renderSelectedFilters(leftSection);
 
@@ -1050,6 +1088,7 @@ export class DiscoverView extends ItemView {
     smallwebBtn.addEventListener("click", () => {
       void this.plugin.activateSmallwebView();
     });
+    smallwebBtn.remove();
 
     const desktopFilterControls = rightSection.createDiv({
       cls: "rss-discover-filter-controls",
@@ -1541,22 +1580,112 @@ export class DiscoverView extends ItemView {
    * Add feed to a specific folder
    * Creates the folder if it doesn't exist
    */
+  private renderAddAllButton(container: HTMLElement): void {
+    const addAllButton = container.createEl("button", {
+      cls: "rss-discover-add-all-btn",
+      attr: { type: "button" },
+    });
+    addAllButton.disabled =
+      this.filteredFeeds.length === 0 || this.isAddingAllFeeds;
+
+    if (this.isAddingAllFeeds) {
+      addAllButton.addClass("is-processing");
+      const spinner = addAllButton.createSpan({
+        cls: "rss-discover-add-all-spinner",
+      });
+      setIcon(spinner, "loader-2");
+      addAllButton.createSpan({
+        text: `Adding ${this.bulkAddCompletedCount}/${this.bulkAddTotalCount}...`,
+      });
+    } else {
+      addAllButton.setText("Add all...");
+    }
+
+    addAllButton.addEventListener("click", () => {
+      if (this.filteredFeeds.length === 0 || this.isAddingAllFeeds) {
+        return;
+      }
+
+      new FolderSelectorPopup(this.plugin, {
+        anchorEl: addAllButton,
+        defaultFolder: "Uncategorized",
+        listOnly: true,
+        onSelect: (folderName) => {
+          void this.addFilteredFeedsToFolder(folderName);
+        },
+      });
+    });
+  }
+
+  private async addFilteredFeedsToFolder(folderName: string): Promise<void> {
+    const skippedAlreadyFollowed = this.filteredFeeds.filter((feed) =>
+      this.isFollowedFeed(feed),
+    ).length;
+    const feedsToAdd = this.filteredFeeds
+      .filter((feed) => !this.isFollowedFeed(feed))
+      .map((feed) => ({
+        title: feed.title,
+        url: feed.url,
+        folder: folderName,
+        mediaType: this.getMediaTypeForDiscoverFeed(feed.type),
+      }));
+
+    this.isAddingAllFeeds = true;
+    this.bulkAddCompletedCount = 0;
+    this.bulkAddTotalCount = feedsToAdd.length;
+    this.render();
+
+    try {
+      const result = await this.plugin.ingestFeedsForBackgroundImport(
+        feedsToAdd,
+        {
+          mode: "update",
+          onProgress: (completed: number, total: number) => {
+            this.bulkAddCompletedCount = completed;
+            this.bulkAddTotalCount = total;
+            this.render();
+          },
+        },
+      );
+
+      this.refreshViewAfterFollowStateChange();
+      new Notice(
+        `Added ${result.addedCount} feeds. Articles will be fetched in the background. Skipped ${skippedAlreadyFollowed + result.skippedCount} already-followed feeds.`,
+      );
+    } catch (error) {
+      new Notice(
+        `Failed to add feeds: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      this.isAddingAllFeeds = false;
+      this.bulkAddCompletedCount = 0;
+      this.bulkAddTotalCount = 0;
+      this.render();
+    }
+  }
+
   private async addFeedToFolder(
     feed: FeedMetadata,
     folderName: string,
   ): Promise<void> {
     try {
-      // Ensure the folder exists
-      const folderExists = this.plugin.settings.folders.some(
-        (f) => f.name.toLowerCase() === folderName.toLowerCase(),
+      await this.plugin.ensureFolderExists(folderName);
+
+      const added = await this.plugin.addFeed(
+        feed.title,
+        feed.url,
+        folderName,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { showNotice: false },
       );
-
-      if (!folderExists) {
-        await this.plugin.ensureFolderExists(folderName);
+      if (!added) {
+        return;
       }
-
-      // Add the feed
-      await this.plugin.addFeed(feed.title, feed.url, folderName);
       new Notice(`Feed "${feed.title}" added to "${folderName}"`);
 
       // Re-filter when follow status filters are active, then refresh.
@@ -1566,6 +1695,24 @@ export class DiscoverView extends ItemView {
         `Failed to add feed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
+  }
+
+  private getMediaTypeForDiscoverFeed(
+    feedType: FeedType,
+  ): "article" | "video" | "podcast" {
+    if (feedType === "Podcast") {
+      return "podcast";
+    }
+
+    if (
+      feedType === "YouTube" ||
+      feedType === "Video Series" ||
+      feedType === "Vlog"
+    ) {
+      return "video";
+    }
+
+    return "article";
   }
 
   /**

@@ -11,6 +11,7 @@ interface DiscoverSidebarCallbacks {
   onFilterChange: () => void;
   onActivateView: () => void;
   onActivateDiscoverView: () => void;
+  onActivateSmallwebView: () => void;
   onCloseMobileSidebar?: () => void;
 }
 
@@ -119,33 +120,22 @@ export class DiscoverSidebar {
       cls: "rss-dashboard-nav-container",
     });
 
-    // Return Home button - navigates to Dashboard
-    const dashboardBtn = navContainer.createDiv({
-      cls: "rss-dashboard-nav-button clickable-icon rss-discover-return-home",
-      attr: {
-        title: "Return to Dashboard",
-        "aria-label": "Return to Dashboard",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(dashboardBtn, "arrow-left");
+    this.createHeaderNavButton(
+      navContainer,
+      "rss-discover-return-home",
+      "Home",
+      "Return to Dashboard",
+      "arrow-left",
+      () => this.callbacks.onActivateView(),
+    );
 
-    // Add "Return Home" text span
-    const _returnHomeText = dashboardBtn.createSpan({
-      cls: "rss-discover-return-home-text",
-      text: "Return Home",
-    });
-    void _returnHomeText;
-
-    dashboardBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        dashboardBtn.click();
-      }
-    });
-    dashboardBtn.addEventListener("click", () =>
-      this.callbacks.onActivateView(),
+    this.createHeaderNavButton(
+      navContainer,
+      "rss-discover-smallweb-button",
+      "Kagi",
+      "Open Kagi Smallweb",
+      "sparkles",
+      () => this.callbacks.onActivateSmallwebView(),
     );
 
     if (this.callbacks.onCloseMobileSidebar) {
@@ -164,6 +154,40 @@ export class DiscoverSidebar {
         this.callbacks.onCloseMobileSidebar?.();
       });
     }
+  }
+
+  private createHeaderNavButton(
+    container: HTMLElement,
+    variantClass: string,
+    text: string,
+    label: string,
+    icon: string,
+    onClick: () => void,
+  ): HTMLElement {
+    const button = container.createDiv({
+      cls: `rss-dashboard-nav-button clickable-icon rss-discover-header-nav-button ${variantClass}`,
+      attr: {
+        title: label,
+        "aria-label": label,
+        role: "button",
+        tabindex: "0",
+      },
+    });
+    setIcon(button, icon);
+    button.createSpan({
+      cls: "rss-discover-header-nav-button-text",
+      text,
+    });
+
+    button.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        button.click();
+      }
+    });
+    button.addEventListener("click", onClick);
+
+    return button;
   }
 
   private renderSearch(container: HTMLElement): void {
@@ -496,9 +520,11 @@ export class DiscoverSidebar {
       cls: "rss-discover-tag-list",
     });
 
-    const allTags = Array.from(
-      new Set(this.feeds.flatMap((f) => f.tags || [])),
-    ).sort();
+    const tagValues = this.feeds.reduce<string[]>((tags, feed) => {
+      tags.push(...feed.tags);
+      return tags;
+    }, []);
+    const allTags = Array.from(new Set<string>(tagValues)).sort();
 
     allTags.forEach((tag) => {
       const tagItem = tagList.createDiv({

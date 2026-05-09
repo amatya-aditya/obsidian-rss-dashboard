@@ -31,36 +31,57 @@ beforeEach(() => {
 });
 
 describe("renderTagsSettingsTab()", () => {
-  it("persists color changes and re-renders dashboard when a view is active", async () => {
+  it("persists color changes, updates applied tags, and refreshes open tag views", async () => {
     const containerEl = document.body.createDiv();
     const settings = cloneSettings();
     settings.availableTags = [{ name: "tag1", color: "#000000" }];
+    settings.feeds = [
+      {
+        name: "Feed 1",
+        url: "https://example.com/feed.xml",
+        folder: "",
+        items: [
+          {
+            title: "Article 1",
+            link: "https://example.com/article-1",
+            pubDate: new Date().toISOString(),
+            content: "",
+            description: "",
+            guid: "article-1",
+            read: false,
+            feedUrl: "https://example.com/feed.xml",
+            feedTitle: "Feed 1",
+            tags: [{ name: "tag1", color: "#000000" }],
+          },
+        ],
+      } as any,
+    ];
 
-    const revealLeaf = vi.fn(async () => {});
-    (settings as any).display = settings.display ?? {};
-
-    const view = { leaf: {}, render: vi.fn() };
+    const trigger = vi.fn();
     const plugin = {
       app: obsidian.App.createMock(),
       settings,
       saveSettings: vi.fn(async () => {}),
-      getActiveDashboardView: vi.fn(async () => view),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
     };
 
-    (plugin.app.workspace as any).revealLeaf = revealLeaf;
+    (plugin.app.workspace as any).trigger = trigger;
 
     renderTagsSettingsTab(containerEl, plugin as any, vi.fn());
 
     const tagSetting = getSettingByName(containerEl, "tag1");
-    const picker = tagSetting.querySelector('input[type="color"]') as HTMLInputElement;
+    const picker = tagSetting.querySelector(
+      'input[type="color"]',
+    ) as HTMLInputElement;
     picker.value = "#ff0000";
     picker.dispatchEvent(new Event("input"));
     await flushPromises();
 
     expect(plugin.settings.availableTags[0].color).toBe("#ff0000");
+    expect(plugin.settings.feeds[0].items[0].tags?.[0].color).toBe("#ff0000");
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
-    expect(revealLeaf).toHaveBeenCalledTimes(1);
-    expect(view.render).toHaveBeenCalledTimes(1);
+    expect(plugin.refreshOpenTagColorViews).toHaveBeenCalledTimes(1);
+    expect(trigger).toHaveBeenCalledWith("rss-dashboard:tags-mutated");
   });
 
   it("deletes an existing tag and refreshes", async () => {
@@ -105,12 +126,16 @@ describe("renderTagsSettingsTab()", () => {
     renderTagsSettingsTab(containerEl, plugin as any, onRefresh);
 
     const tagNameSetting = getSettingByName(containerEl, "Tag name");
-    const nameInput = tagNameSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    const nameInput = tagNameSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
     nameInput.value = "newTag";
     nameInput.dispatchEvent(new Event("input"));
 
     const tagColorSetting = getSettingByName(containerEl, "Tag color");
-    const colorInput = tagColorSetting.querySelector('input[type="color"]') as HTMLInputElement;
+    const colorInput = tagColorSetting.querySelector(
+      'input[type="color"]',
+    ) as HTMLInputElement;
     colorInput.value = "#123456";
     colorInput.dispatchEvent(new Event("input"));
 
@@ -121,9 +146,11 @@ describe("renderTagsSettingsTab()", () => {
     await flushPromises();
 
     expect(plugin.settings.availableTags).toHaveLength(1);
-    expect(plugin.settings.availableTags[0]).toEqual({ name: "newTag", color: "#123456" });
+    expect(plugin.settings.availableTags[0]).toEqual({
+      name: "newTag",
+      color: "#123456",
+    });
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 });
-

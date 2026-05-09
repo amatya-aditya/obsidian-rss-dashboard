@@ -174,6 +174,30 @@ export class ReaderView extends ItemView {
     return "file-text";
   }
 
+  private getEffectiveReaderTitle(): string {
+    if (!this.currentItem) {
+      return "RSS reader";
+    }
+
+    return (
+      this.currentReaderTitle ||
+      this.currentDisplayTitle ||
+      this.currentItem.title
+    );
+  }
+
+  private syncReaderTitle(): void {
+    if (this.titleElement) {
+      this.titleElement.setText(this.getEffectiveReaderTitle());
+    }
+
+    (
+      this.leaf as WorkspaceLeaf & {
+        updateHeader?: () => void;
+      }
+    ).updateHeader?.();
+  }
+
   onOpen(): Promise<void> {
     this.contentEl.empty();
     this.contentEl.addClass("rss-reader-view");
@@ -284,83 +308,79 @@ export class ReaderView extends ItemView {
     });
 
     // Open in browser button
-	    const browserButton = actions.createDiv({
-	      cls: "rss-reader-action-button",
-	      attr: { title: "Open in Browser" },
-	    });
-	    setIcon(browserButton, "external-link");
-	    browserButton.addEventListener("click", (e) => {
-	      const item = this.currentItem;
-	      if (!item) return;
+    const browserButton = actions.createDiv({
+      cls: "rss-reader-action-button",
+      attr: { title: "Open in Browser" },
+    });
+    setIcon(browserButton, "external-link");
+    browserButton.addEventListener("click", (e) => {
+      const item = this.currentItem;
+      if (!item) return;
 
-	      if (item.mediaType === "podcast") {
-	        const feedMatch =
-	          this.settings.feeds.find((f) => f.url === item.feedUrl) || null;
-	        const feed = feedMatch || { url: item.feedUrl, siteUrl: undefined };
-	        const destinations = resolvePodcastOpenDestinations(item, feed, {
-	          includeApplePodcasts: Boolean(
-	            this.settings.media.enableApplePodcastsOpen,
-	          ),
-	        });
+      if (item.mediaType === "podcast") {
+        const feedMatch =
+          this.settings.feeds.find((f) => f.url === item.feedUrl) || null;
+        const feed = feedMatch || { url: item.feedUrl, siteUrl: undefined };
+        const destinations = resolvePodcastOpenDestinations(item, feed, {
+          includeApplePodcasts: Boolean(
+            this.settings.media.enableApplePodcastsOpen,
+          ),
+        });
 
-	        if (destinations.length === 0) {
-	          new Notice("No link available for this podcast.");
-	          return;
-	        }
+        if (destinations.length === 0) {
+          new Notice("No link available for this podcast.");
+          return;
+        }
 
-	        const menu = new Menu();
-		        for (const destination of destinations) {
-		          menu.addItem((menuItem: MenuItem) => {
-		            menuItem.setTitle(destination.title);
-		            menuItem.setIcon("external-link");
+        const menu = new Menu();
+        for (const destination of destinations) {
+          menu.addItem((menuItem: MenuItem) => {
+            menuItem.setTitle(destination.title);
+            menuItem.setIcon("external-link");
 
-		            if (destination.url) {
-		              const dom = (menuItem as unknown as { dom?: HTMLElement }).dom;
-		              dom?.setAttribute("title", destination.url);
-		            }
+            if (destination.url) {
+              const dom = (menuItem as unknown as { dom?: HTMLElement }).dom;
+              dom?.setAttribute("title", destination.url);
+            }
 
-		            if (destination.id === "apple_podcasts") {
-		              menuItem.onClick(() => {
-		                void (async () => {
-	                  if (!feedMatch?.url || !feedMatch.title) {
-	                    new Notice(
-	                      "Could not find this show in apple podcasts.",
-	                    );
-	                    return;
-	                  }
-	                  const appleUrl = await resolveApplePodcastsShowUrl(
-	                    feedMatch.url,
-	                    feedMatch.title,
-	                  );
-	                  if (!appleUrl) {
-	                    new Notice(
-	                      "Could not find this show in apple podcasts.",
-	                    );
-	                    return;
-	                  }
-	                  window.open(appleUrl, "_blank");
-	                })();
-	              });
-	              return;
-	            }
+            if (destination.id === "apple_podcasts") {
+              menuItem.onClick(() => {
+                void (async () => {
+                  if (!feedMatch?.url || !feedMatch.title) {
+                    new Notice("Could not find this show in apple podcasts.");
+                    return;
+                  }
+                  const appleUrl = await resolveApplePodcastsShowUrl(
+                    feedMatch.url,
+                    feedMatch.title,
+                  );
+                  if (!appleUrl) {
+                    new Notice("Could not find this show in apple podcasts.");
+                    return;
+                  }
+                  window.open(appleUrl, "_blank");
+                })();
+              });
+              return;
+            }
 
-	            const url = destination.url;
-	            if (url) {
-	              menuItem.onClick(() => window.open(url, "_blank"));
-	            } else {
-	              menuItem.setDisabled(true);
-	            }
-	          });
-	        }
+            const url = destination.url;
+            if (url) {
+              menuItem.onClick(() => window.open(url, "_blank"));
+            } else {
+              menuItem.setDisabled(true);
+            }
+          });
+        }
 
-	        menu.showAtMouseEvent(e as MouseEvent);
-	        return;
-	      }
+        menu.showAtMouseEvent(e as MouseEvent);
+        return;
+      }
 
-	      const url = resolveItemExternalUrl(item);
-	      if (!url) return;
-	      window.open(url, "_blank");
-	    });
+      const url = resolveItemExternalUrl(item);
+      if (!url) return;
+      window.open(url, "_blank");
+    });
 
     this.readingContainer = this.contentEl.createDiv({
       cls: "rss-reader-content",
@@ -427,7 +447,9 @@ export class ReaderView extends ItemView {
                 )
               : this.currentFullContent || item.description || "";
           const markdownContent = this.turndownService.turndown(htmlToSave);
-          const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
+          const saveItem = displayTitle
+            ? { ...item, title: displayTitle }
+            : item;
           const customTemplate = this.getCustomTemplateForArticle(item);
           const file = await this.articleSaver.saveArticle(
             saveItem,
@@ -436,6 +458,8 @@ export class ReaderView extends ItemView {
             markdownContent,
           );
           if (file) {
+            item.saved = true;
+            item.savedFilePath = file.path;
             this.onArticleSave(item);
 
             this.updateSavedLabel(true);
@@ -556,6 +580,8 @@ export class ReaderView extends ItemView {
           markdownContent,
         );
         if (file) {
+          item.saved = true;
+          item.savedFilePath = file.path;
           this.onArticleSave(item);
 
           this.updateSavedLabel(true);
@@ -593,18 +619,16 @@ export class ReaderView extends ItemView {
       ? this.formatNitterReaderTitle(item)
       : undefined;
     this.currentContentIsFullArticle = false;
-
-    if (this.titleElement) {
-      this.titleElement.setText(this.currentReaderTitle || item.title);
-    }
+    this.syncReaderTitle();
 
     // Update toggle button states
     this.updateToggleButtons();
 
     if (item.saved) {
-      const fileExists = this.checkSavedFileExists(item);
+      const fileExists = this.articleSaver.checkSavedFileExists(item);
       if (!fileExists) {
         item.saved = false;
+        item.savedFilePath = undefined;
         if (item.tags) {
           item.tags = item.tags.filter(
             (tag) => tag.name.toLowerCase() !== "saved",
@@ -660,12 +684,7 @@ export class ReaderView extends ItemView {
       this.currentFullContent = fullContent;
       this.currentDisplayTitle = displayTitle || undefined;
       this.currentContentIsFullArticle = hasFullArticleContent;
-
-      if (this.titleElement) {
-        this.titleElement.setText(
-          this.currentReaderTitle || this.currentDisplayTitle || item.title,
-        );
-      }
+      this.syncReaderTitle();
       await this.displayArticle(item, fullContent);
     }
   }
@@ -728,9 +747,11 @@ export class ReaderView extends ItemView {
 
     const onEpisodeSelected = (selectedEpisode: FeedItem) => {
       this.currentItem = selectedEpisode;
-      if (this.titleElement) {
-        this.titleElement.setText(selectedEpisode.title);
-      }
+      this.currentDisplayTitle = undefined;
+      this.currentReaderTitle = this.isTweetLikeItem(selectedEpisode)
+        ? this.formatNitterReaderTitle(selectedEpisode)
+        : undefined;
+      this.syncReaderTitle();
       this.updateToggleButtons();
       this.closeTagsDropdown();
       void this.syncDashboardSelectionFromPlayer(selectedEpisode);
@@ -900,6 +921,9 @@ export class ReaderView extends ItemView {
     const articleTitleEl = headerContainer.createEl("h1", {
       cls: "rss-reader-item-title",
     });
+    articleTitleEl.style.fontFamily = this.resolveReaderFontFamily(
+      this.getReaderFormat().fontFamily,
+    );
     if (
       this.settings.highlights?.enabled &&
       this.settings.highlights.highlightInTitles
@@ -957,7 +981,10 @@ export class ReaderView extends ItemView {
       const feedIconUrl =
         this.settings.feeds.find((f) => f.url === item.feedUrl)?.iconUrl || "";
       const normalize = (u: string) => u.trim().replace(/\/$/, "");
-      if (feedIconUrl && normalize(fallbackHeroUrl) === normalize(feedIconUrl)) {
+      if (
+        feedIconUrl &&
+        normalize(fallbackHeroUrl) === normalize(feedIconUrl)
+      ) {
         fallbackHeroUrl = undefined;
       }
     }
@@ -984,6 +1011,7 @@ export class ReaderView extends ItemView {
         heroSlot,
         false,
         false,
+        undefined,
       );
     }
 
@@ -1008,6 +1036,7 @@ export class ReaderView extends ItemView {
         heroSlot,
         shouldStripHeadline,
         isNitter,
+        descriptionHtml,
       );
     }
   }
@@ -1021,6 +1050,7 @@ export class ReaderView extends ItemView {
     heroSlot?: HTMLElement,
     stripTopHeadline = false,
     isNitter = false,
+    feedDescriptionHtml?: string,
   ): void {
     if (!rawHtml) return;
 
@@ -1044,7 +1074,7 @@ export class ReaderView extends ItemView {
           }
         });
 
-      doc.querySelectorAll("img").forEach((el) => {
+        doc.querySelectorAll("img").forEach((el) => {
           const src = el.getAttribute("src");
           if (!src) return;
           try {
@@ -1060,6 +1090,16 @@ export class ReaderView extends ItemView {
       if (stripTopHeadline) {
         this.stripNavigationChromeFromDocument(doc);
         this.stripTopHeadlineFromDocument(doc);
+        this.stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
+        this.stripSkipLinksFromDocument(doc);
+        if (fallbackHeroUrl) {
+          this.stripLeadMediaBeforeContent(doc);
+          this.stripDuplicateLeadMediaMatchingHero(doc, fallbackHeroUrl);
+          this.stripDuplicateLeadCaptionBlocks(doc);
+        }
+        // Strip inline SVGs from fetched articles — these are publisher UI
+        // decorations (section icons, share buttons) never present in RSS payloads.
+        doc.body.querySelectorAll("svg").forEach((el) => el.remove());
       }
 
       // Attempt to extract and place hero image
@@ -1069,7 +1109,7 @@ export class ReaderView extends ItemView {
         if (heroSlot.childElementCount === 0) {
           let heroUrl = fallbackHeroUrl;
           const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
-          if (firstImgSrc) {
+          if (!heroUrl && firstImgSrc) {
             heroUrl = firstImgSrc;
           }
 
@@ -1081,7 +1121,7 @@ export class ReaderView extends ItemView {
 
             // Remove the first image from the body if it's the hero image to avoid duplication
             if (firstImg && firstImgSrc && firstImgSrc === heroUrl) {
-              firstImg.remove();
+              this.removeLeadImageElement(firstImg);
             }
           }
         } else {
@@ -1091,7 +1131,7 @@ export class ReaderView extends ItemView {
             heroSlot.querySelector("img")?.getAttribute("src")?.trim() || "";
           const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
           if (existingHeroSrc && firstImg && firstImgSrc === existingHeroSrc) {
-            firstImg.remove();
+            this.removeLeadImageElement(firstImg);
           }
         }
       }
@@ -1190,7 +1230,10 @@ export class ReaderView extends ItemView {
     return item.title;
   }
 
-  private extractNitterNameAndHandle(item: FeedItem): { name: string; handle: string } {
+  private extractNitterNameAndHandle(item: FeedItem): {
+    name: string;
+    handle: string;
+  } {
     const tryExtract = (source: string): { name: string; handle: string } => {
       const handleMatch = source.match(/@[\w.]+/i);
       const handle = handleMatch ? handleMatch[0] : "";
@@ -1213,9 +1256,13 @@ export class ReaderView extends ItemView {
     const feedTitle = (item.feedTitle || "").trim();
 
     const authorParsed = author ? tryExtract(author) : { name: "", handle: "" };
-    const feedParsed = feedTitle ? tryExtract(feedTitle) : { name: "", handle: "" };
+    const feedParsed = feedTitle
+      ? tryExtract(feedTitle)
+      : { name: "", handle: "" };
 
-    const urlHandle = this.extractHandleFromUrl(item.link) || this.extractHandleFromUrl(item.feedUrl);
+    const urlHandle =
+      this.extractHandleFromUrl(item.link) ||
+      this.extractHandleFromUrl(item.feedUrl);
 
     const handle =
       (/^@[\w.]+$/i.test(author) ? author : authorParsed.handle) ||
@@ -1243,7 +1290,11 @@ export class ReaderView extends ItemView {
       const parts = u.pathname.split("/").filter(Boolean);
       const username = parts[0] || "";
       if (!username) return "";
-      if (/^(home|explore|messages|notifications|settings|search|i)$/i.test(username)) {
+      if (
+        /^(home|explore|messages|notifications|settings|search|i)$/i.test(
+          username,
+        )
+      ) {
         return "";
       }
       return username.startsWith("@") ? username : `@${username}`;
@@ -1273,10 +1324,16 @@ export class ReaderView extends ItemView {
       return "";
     }
 
-    return parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return parsed.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
-  private pickBestNitterTweetHtml(item: FeedItem, fullContent?: string): string {
+  private pickBestNitterTweetHtml(
+    item: FeedItem,
+    fullContent?: string,
+  ): string {
     const description = (item.description || "").trim();
     const content = (item.content || "").trim();
     const full = (fullContent || "").trim();
@@ -1322,7 +1379,9 @@ export class ReaderView extends ItemView {
     const extractCount = (markerClass: string): string => {
       const marker = target.querySelector<HTMLElement>(`.${markerClass}`);
       if (!marker) return "";
-      const text = (marker.parentElement?.textContent || "").replace(/\s+/g, " ").trim();
+      const text = (marker.parentElement?.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim();
       const match = text.match(/(\d[\d.,]*\s*[kKmMbB]?)/);
       return (match ? match[1] : "").trim();
     };
@@ -1331,7 +1390,11 @@ export class ReaderView extends ItemView {
     statsEl.className = "rss-nitter-stats";
 
     const pills: Array<{ key: string; icon: string; count: string }> = [
-      { key: "comment", icon: "message-circle", count: extractCount("icon-comment") },
+      {
+        key: "comment",
+        icon: "message-circle",
+        count: extractCount("icon-comment"),
+      },
       { key: "retweet", icon: "repeat-2", count: extractCount("icon-retweet") },
       { key: "heart", icon: "heart", count: extractCount("icon-heart") },
       { key: "views", icon: "bar-chart-2", count: extractCount("icon-views") },
@@ -1360,15 +1423,17 @@ export class ReaderView extends ItemView {
   }
 
   private hydrateNitterStatsIcons(container: HTMLElement): void {
-    container.querySelectorAll<HTMLElement>(".rss-nitter-stat-icon").forEach((el) => {
-      const iconName = el.dataset.rssIcon;
-      if (!iconName) return;
-      try {
-        setIcon(el, iconName);
-      } catch {
-        // ignore icon failures
-      }
-    });
+    container
+      .querySelectorAll<HTMLElement>(".rss-nitter-stat-icon")
+      .forEach((el) => {
+        const iconName = el.dataset.rssIcon;
+        if (!iconName) return;
+        try {
+          setIcon(el, iconName);
+        } catch {
+          // ignore icon failures
+        }
+      });
   }
 
   private stripTopHeadlineFromHtml(html: string): string {
@@ -1572,8 +1637,234 @@ export class ReaderView extends ItemView {
   }
 
   private isEquivalentHtml(html1: string, html2: string): boolean {
-    const clean = (h: string) => h.replace(/\s+/g, " ").toLowerCase().trim();
-    return clean(html1) === clean(html2);
+    return (
+      this.normalizeComparableText(html1) ===
+      this.normalizeComparableText(html2)
+    );
+  }
+
+  private normalizeComparableText(html: string): string {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return (doc.body.textContent || "")
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/\s+/g, " ")
+      .toLowerCase()
+      .trim();
+  }
+
+  private stripDuplicateLeadContentFromDocument(
+    doc: Document,
+    feedDescriptionHtml?: string,
+  ): void {
+    const normalizedDescription = this.normalizeComparableText(
+      feedDescriptionHtml || "",
+    );
+    if (!normalizedDescription || !doc.body) return;
+
+    const blocks = Array.from(doc.body.children) as HTMLElement[];
+    const firstSubstantialIndex = blocks.findIndex(
+      (block) => this.getNormalizedBlockText(block).length >= 120,
+    );
+
+    if (firstSubstantialIndex > 0) {
+      // Fast path: description appears as a direct child before the first substantial block.
+      const duplicateIndex = blocks.findIndex((block, index) => {
+        if (index >= firstSubstantialIndex) return false;
+        return this.getNormalizedBlockText(block) === normalizedDescription;
+      });
+      if (duplicateIndex !== -1) {
+        blocks[duplicateIndex].remove();
+        for (let index = duplicateIndex - 1; index >= 0; index--) {
+          const block = blocks[index];
+          if (this.isShortLeadInBlock(block) || this.isLeadMediaBlock(block)) {
+            block.remove();
+            continue;
+          }
+          break;
+        }
+        return;
+      }
+    }
+
+    // Slow path: Readability wraps content in a single root div, so the
+    // description may be nested inside a <header> element inside the article.
+    // Scope the search to <header> descendants to avoid false positives in the
+    // article body.
+    doc.body
+      .querySelectorAll<HTMLElement>("header p, header div")
+      .forEach((el) => {
+        if (
+          this.normalizeComparableText(el.textContent || "") ===
+          normalizedDescription
+        ) {
+          el.remove();
+        }
+      });
+  }
+
+  private stripLeadMediaBeforeContent(doc: Document): void {
+    if (!doc.body) return;
+    const blocks = Array.from(doc.body.children) as HTMLElement[];
+    const firstSubstantialIndex = blocks.findIndex(
+      (block) => this.getNormalizedBlockText(block).length >= 120,
+    );
+    if (firstSubstantialIndex <= 0) return;
+
+    for (let index = 0; index < firstSubstantialIndex; index++) {
+      const block = blocks[index];
+      if (this.isLeadMediaBlock(block)) {
+        block.remove();
+      }
+    }
+  }
+
+  private getNormalizedBlockText(block: HTMLElement): string {
+    return this.normalizeComparableText(
+      block.innerHTML || block.textContent || "",
+    );
+  }
+
+  private isShortLeadInBlock(block: HTMLElement): boolean {
+    if (this.isLeadMediaBlock(block)) return false;
+    const text = this.getNormalizedBlockText(block);
+    if (!text) return false;
+    return text.length < 80 && text.split(" ").filter(Boolean).length <= 12;
+  }
+
+  private isLeadMediaBlock(block: HTMLElement): boolean {
+    const tag = block.tagName.toLowerCase();
+    if (["img", "figure", "picture"].includes(tag)) return true;
+    return (
+      !!block.querySelector("img, figure, picture") &&
+      this.getNormalizedBlockText(block).length < 40
+    );
+  }
+
+  private removeLeadImageElement(imageEl: Element): void {
+    const wrapper = imageEl.closest("figure, picture, a");
+    (wrapper || imageEl).remove();
+  }
+
+  private stripSkipLinksFromDocument(doc: Document): void {
+    if (!doc.body) return;
+
+    doc.body.querySelectorAll<HTMLAnchorElement>("a").forEach((anchor) => {
+      const href = (anchor.getAttribute("href") || "").trim().toLowerCase();
+      const text = (anchor.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+      const aria = (anchor.getAttribute("aria-label") || "").toLowerCase();
+      const cls = (anchor.getAttribute("class") || "").toLowerCase();
+      const id = (anchor.getAttribute("id") || "").toLowerCase();
+
+      const looksLikeSkipLink =
+        text.includes("skip to content") ||
+        text.includes("skip to main content") ||
+        ((href.startsWith("#") || aria.includes("content")) &&
+          (text.startsWith("skip to") ||
+            aria.includes("skip") ||
+            cls.includes("skip") ||
+            id.includes("skip")));
+
+      if (looksLikeSkipLink) {
+        anchor.remove();
+      }
+    });
+  }
+
+  private stripDuplicateLeadMediaMatchingHero(
+    doc: Document,
+    heroUrl: string,
+  ): void {
+    if (!doc.body || !heroUrl) return;
+
+    const firstSubstantial = this.findFirstSubstantialParagraph(doc);
+    doc.body.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
+      if (!this.isBeforeBoundary(img, firstSubstantial)) return;
+      const src = (img.getAttribute("src") || "").trim();
+      if (!src) return;
+
+      if (this.isLikelySameImageSource(src, heroUrl)) {
+        this.removeLeadImageElement(img);
+      }
+    });
+  }
+
+  private stripDuplicateLeadCaptionBlocks(doc: Document): void {
+    if (!doc.body) return;
+
+    const firstSubstantial = this.findFirstSubstantialParagraph(doc);
+    const removedCaptionTexts = new Set<string>();
+
+    doc.body
+      .querySelectorAll<HTMLElement>(
+        "figcaption, [id^='caption-'], [id*='caption-']",
+      )
+      .forEach((el) => {
+        if (!this.isBeforeBoundary(el, firstSubstantial)) return;
+        const raw = (el.textContent || "").replace(/\s+/g, " ").trim();
+        const normalized = this.normalizeComparableText(raw);
+        if (!normalized) return;
+
+        const looksLikeCredit = /(credit|photo|image|source)/i.test(raw);
+        if (!looksLikeCredit || normalized.length > 300) return;
+
+        removedCaptionTexts.add(normalized);
+        el.remove();
+      });
+
+    if (removedCaptionTexts.size === 0) return;
+
+    doc.body.querySelectorAll<HTMLElement>("p").forEach((p) => {
+      if (!this.isBeforeBoundary(p, firstSubstantial)) return;
+      const raw = (p.textContent || "").replace(/\s+/g, " ").trim();
+      if (!raw) return;
+
+      const normalized = this.normalizeComparableText(raw);
+      if (!removedCaptionTexts.has(normalized)) return;
+      if (!/(credit|photo|image|source)/i.test(raw)) return;
+
+      p.remove();
+    });
+  }
+
+  private findFirstSubstantialParagraph(doc: Document): HTMLElement | null {
+    return (
+      Array.from(doc.body.querySelectorAll<HTMLElement>("p")).find(
+        (p) => (p.textContent || "").replace(/\s+/g, " ").trim().length >= 120,
+      ) || null
+    );
+  }
+
+  private isBeforeBoundary(el: Element, boundary: HTMLElement | null): boolean {
+    if (!boundary) return true;
+    return !!(
+      el.compareDocumentPosition(boundary) & Node.DOCUMENT_POSITION_FOLLOWING
+    );
+  }
+
+  private isLikelySameImageSource(urlA: string, urlB: string): boolean {
+    const keyA = this.normalizeImageSourceKey(urlA);
+    const keyB = this.normalizeImageSourceKey(urlB);
+    if (!keyA || !keyB) return false;
+    return keyA === keyB;
+  }
+
+  private normalizeImageSourceKey(rawUrl: string): string {
+    const fallback = rawUrl.trim().toLowerCase();
+    if (!fallback) return "";
+
+    try {
+      const url = new URL(rawUrl, "https://example.invalid");
+      const normalizedPath = url.pathname
+        .toLowerCase()
+        .replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");
+      return `${url.hostname.toLowerCase()}${normalizedPath}`;
+    } catch {
+      return fallback.replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");
+    }
   }
 
   private hasMeaningfulArticleContent(html: string | null): boolean {
@@ -1618,6 +1909,20 @@ export class ReaderView extends ItemView {
       updates.saved !== undefined
     ) {
       this.updateToggleButtons();
+    }
+  }
+
+  public refreshTagColors(): void {
+    if (!this.currentItem) {
+      return;
+    }
+
+    this.currentItem.tags = this.syncTagColorsWithSettings(this.currentItem.tags);
+    this.refreshReaderHeaderTags();
+
+    if (this.podcastPlayer && this.currentItem.mediaType === "podcast") {
+      this.podcastPlayer.refreshTags();
+      this.podcastPlayer.refreshPlaylistTags(this.currentItem.guid);
     }
   }
 
@@ -1672,10 +1977,11 @@ export class ReaderView extends ItemView {
         }
       },
       onAfterSettingsTagsMutated: () => {
-        this.refreshReaderHeaderTags();
-        if (this.podcastPlayer) {
-          this.podcastPlayer.refreshTags();
-          this.podcastPlayer.refreshPlaylistTags();
+        const plugin = this.getRssDashboardPluginForSettingsSave();
+        if (plugin?.refreshOpenTagColorViews) {
+          void plugin.refreshOpenTagColorViews();
+        } else {
+          this.refreshTagColors();
         }
         this.app.workspace.trigger("rss-dashboard:tags-mutated");
       },
@@ -1769,6 +2075,23 @@ export class ReaderView extends ItemView {
     }
   }
 
+  private syncTagColorsWithSettings(tags: FeedItem["tags"]): Tag[] {
+    return (tags ?? []).map((tag) => {
+      const matchingTag = this.settings.availableTags.find(
+        (availableTag) => availableTag.name === tag.name,
+      );
+
+      if (!matchingTag || matchingTag.color === tag.color) {
+        return tag;
+      }
+
+      return {
+        ...tag,
+        color: matchingTag.color,
+      };
+    });
+  }
+
   private resolveReaderFontFamily(
     fontFamily: ReaderFormatSettings["fontFamily"],
   ): string {
@@ -1783,6 +2106,17 @@ export class ReaderView extends ItemView {
       default:
         return "inherit";
     }
+  }
+
+  private applyReaderHeadlineFont(fontFamily: string): void {
+    const headlineElements =
+      this.readingContainer?.querySelectorAll<HTMLElement>(
+        ".rss-reader-item-title",
+      ) ?? [];
+
+    headlineElements.forEach((headline) => {
+      headline.style.fontFamily = fontFamily;
+    });
   }
 
   private getReaderFormat(): ReaderFormatSettings {
@@ -1824,6 +2158,7 @@ export class ReaderView extends ItemView {
   private applyReaderFormat(): void {
     const format = this.getReaderFormat();
     const paragraphWidth = format.paragraphWidth || 100;
+    const resolvedFontFamily = this.resolveReaderFontFamily(format.fontFamily);
 
     let maxWidth = "none";
     if (paragraphWidth === 100) {
@@ -1833,14 +2168,14 @@ export class ReaderView extends ItemView {
     }
 
     setCssProps(this.contentEl, {
+      "--rss-reader-body-font-size": `${format.fontScalePct / 100}em`,
       "--rss-reader-font-scale": String(format.fontScalePct / 100),
       "--rss-reader-line-height": String(format.lineHeightPct / 100),
       "--rss-reader-max-width": maxWidth,
-      "--rss-reader-font-family": this.resolveReaderFontFamily(
-        format.fontFamily,
-      ),
+      "--rss-reader-font-family": resolvedFontFamily,
     });
 
+    this.applyReaderHeadlineFont(resolvedFontFamily);
     this.contentEl.dataset.rssReaderAlign = format.textAlign;
     this.contentEl.dataset.rssReaderFont = format.fontFamily;
     this.contentEl.dataset.rssReaderParagraph = format.paragraphSpacing;
@@ -1867,6 +2202,9 @@ export class ReaderView extends ItemView {
       applyFormat: () => this.applyReaderFormat(),
       scheduleSave: () => this.scheduleReaderFormatSave(),
       flushSave: () => this.flushReaderFormatSave(),
+      openReaderDisplaySettings: () => {
+        void this.openRssDashboardDisplaySettings();
+      },
       onClosed: () => {
         if (this.readerFormatPortal === portal) {
           this.readerFormatPortal = null;
@@ -1889,6 +2227,7 @@ export class ReaderView extends ItemView {
 
   private getRssDashboardPluginForSettingsSave(): {
     saveSettings: () => Promise<void>;
+    refreshOpenTagColorViews?: () => Promise<void>;
   } | null {
     try {
       const appWithPlugins = this.app as unknown as {
@@ -1910,16 +2249,59 @@ export class ReaderView extends ItemView {
       const pluginByRegistry = plugins.plugins?.["rss-dashboard"];
 
       const plugin = (pluginByGetter || pluginByRegistry) as
-        | { saveSettings?: unknown }
+        | {
+            saveSettings?: unknown;
+            refreshOpenTagColorViews?: unknown;
+          }
         | undefined;
       if (plugin && typeof plugin.saveSettings === "function") {
-        return plugin as { saveSettings: () => Promise<void> };
+        return plugin as {
+          saveSettings: () => Promise<void>;
+          refreshOpenTagColorViews?: () => Promise<void>;
+        };
       }
     } catch {
       return null;
     }
 
     return null;
+  }
+
+  private async openRssDashboardDisplaySettings(): Promise<void> {
+    const appWithPlugins = this.app as unknown as {
+      plugins?: {
+        getPlugin?: (id: string) => unknown;
+        plugins?: Record<string, unknown>;
+      };
+      setting?: {
+        open?: () => void;
+        openTabById?: (id: string) => void;
+      };
+    };
+
+    type SettingsPlugin = {
+      openSettingsToTab?: (
+        tabName: string,
+        sectionName?: string,
+      ) => Promise<void> | void;
+    };
+    const plugins = appWithPlugins.plugins;
+    const pluginByGetter =
+      typeof plugins?.getPlugin === "function"
+        ? (plugins.getPlugin("rss-dashboard") as SettingsPlugin | null)
+        : null;
+    const pluginByRegistry = plugins?.plugins?.["rss-dashboard"] as
+      | SettingsPlugin
+      | undefined;
+
+    const plugin = pluginByGetter || pluginByRegistry;
+    if (typeof plugin?.openSettingsToTab === "function") {
+      await plugin.openSettingsToTab("Display", "Reader");
+      return;
+    }
+
+    appWithPlugins.setting?.open?.();
+    appWithPlugins.setting?.openTabById?.("rss-dashboard");
   }
 
   private async flushReaderFormatSave(): Promise<void> {
@@ -2019,30 +2401,7 @@ export class ReaderView extends ItemView {
   }
 
   private resetTitle(): void {
-    if (this.titleElement) {
-      this.titleElement.setText("RSS reader");
-    }
-  }
-
-  private checkSavedFileExists(item: FeedItem): boolean {
-    try {
-      const folder =
-        this.settings.articleSaving.defaultFolder || "RSS articles";
-      const filename = this.sanitizeFilename(item.title);
-      const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
-
-      return this.app.vault.getAbstractFileByPath(filePath) !== null;
-    } catch {
-      return false;
-    }
-  }
-
-  private sanitizeFilename(name: string): string {
-    return name
-      .replace(/[/\\:*?"<>|]/g, "_")
-      .replace(/\s+/g, "_")
-      .replace(/_+/g, "_")
-      .substring(0, 100);
+    this.syncReaderTitle();
   }
 
   private async displayVideoPodcast(item: FeedItem): Promise<void> {

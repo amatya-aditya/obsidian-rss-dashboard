@@ -13,6 +13,7 @@ import { isValidFeedTitle, isValidFolderName } from "../utils/validation";
  */
 export class ImportOpmlModal extends Modal {
   plugin: RssDashboardPlugin;
+  private readonly onImportStarted?: () => void;
 
   private static readonly OPML_CLEANER_URL =
     "https://www.freecodeformat.com/opml-to-format.php";
@@ -42,9 +43,14 @@ export class ImportOpmlModal extends Modal {
   private importButton!: HTMLButtonElement;
   private modeSelectorContainer!: HTMLDivElement;
 
-  constructor(app: App, plugin: RssDashboardPlugin) {
+  constructor(
+    app: App,
+    plugin: RssDashboardPlugin,
+    onImportStarted?: () => void,
+  ) {
     super(app);
     this.plugin = plugin;
+    this.onImportStarted = onImportStarted;
   }
 
   onOpen() {
@@ -139,20 +145,25 @@ export class ImportOpmlModal extends Modal {
     /**
      * NOTE for future developers: The following block uses Electron's native dialog via 'window.require'
      * to support multiple file extension filters simultaneously (e.g., .opml, .xml) on Windows.
-     * This is a known desktop-only pattern in Obsidian. We use 'any' casts and disable ESLint 
-     * rules here because these Electron-specific APIs are not in the standard Obsidian type 
-     * definitions. The surrounding try...catch is CRITICAL to ensure the plugin doesn't 
+     * This is a known desktop-only pattern in Obsidian. We use 'any' casts and disable ESLint
+     * rules here because these Electron-specific APIs are not in the standard Obsidian type
+     * definitions. The surrounding try...catch is CRITICAL to ensure the plugin doesn't
      * crash on mobile where these APIs are absent.
      */
     try {
       /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
-      const remote = (window as any).require?.("@electron/remote") || (window as any).require?.("electron")?.remote;
+      const remote =
+        (window as any).require?.("@electron/remote") ||
+        (window as any).require?.("electron")?.remote;
       if (remote && remote.dialog) {
         const filePaths = remote.dialog.showOpenDialogSync({
           title: "Import feeds from OPML or XML",
           properties: ["openFile"],
           filters: [
-            { name: "OPML, XML, or Backup Files", extensions: ["opml", "xml", "backup"] },
+            {
+              name: "OPML, XML, or Backup Files",
+              extensions: ["opml", "xml", "backup"],
+            },
             { name: "All Files", extensions: ["*"] },
           ],
         });
@@ -210,7 +221,11 @@ export class ImportOpmlModal extends Modal {
   private async validateAndParseFile(file: File): Promise<void> {
     // Check file extension
     const fileName = file.name.toLowerCase();
-    if (!fileName.endsWith(".opml") && !fileName.endsWith(".xml") && !fileName.endsWith(".backup")) {
+    if (
+      !fileName.endsWith(".opml") &&
+      !fileName.endsWith(".xml") &&
+      !fileName.endsWith(".backup")
+    ) {
       this.validationError =
         "Please select a valid OPML or XML file (.opml, .xml, or .backup extension required)";
       this.validationErrorKind = "invalid_extension";
@@ -952,120 +967,26 @@ export class ImportOpmlModal extends Modal {
 
       const derivedFolders =
         this.previewModel.getDerivedFoldersForSelectedFeeds();
-
-      if (this.importMode === "overwrite") {
-        // Clear existing feeds and folders
-        this.plugin.settings.feeds = [];
-        this.plugin.settings.folders = [];
-
-        // Add all selected feeds
-        for (const feed of selectedFeeds) {
-          // Apply default media folders if needed
-          if (
-            feed.mediaType === "video" &&
-            (!feed.folder || feed.folder === "Uncategorized")
-          ) {
-            feed.folder = this.plugin.settings.media.defaultYouTubeFolder;
-          } else if (
-            feed.mediaType === "podcast" &&
-            (!feed.folder || feed.folder === "Uncategorized")
-          ) {
-            feed.folder = this.plugin.settings.media.defaultPodcastFolder;
-          }
-
-          this.plugin.settings.feeds.push({
-            ...feed,
-            items: [],
-            lastUpdated: Date.now(),
-          });
-        }
-
-        // Set folders derived from selected feeds
-        this.plugin.settings.folders = derivedFolders;
-      } else {
-        // Update mode - merge with existing
-        const existingUrls = new Set(
-          this.plugin.settings.feeds.map((f) => f.url),
-        );
-        let addedCount = 0;
-
-        for (const feed of selectedFeeds) {
-          if (!existingUrls.has(feed.url)) {
-            // Apply default media folders if needed
-            if (
-              feed.mediaType === "video" &&
-              (!feed.folder || feed.folder === "Uncategorized")
-            ) {
-              feed.folder = this.plugin.settings.media.defaultYouTubeFolder;
-            } else if (
-              feed.mediaType === "podcast" &&
-              (!feed.folder || feed.folder === "Uncategorized")
-            ) {
-              feed.folder = this.plugin.settings.media.defaultPodcastFolder;
-            }
-
-            this.plugin.settings.feeds.push({
-              ...feed,
-              items: [],
-              lastUpdated: Date.now(),
-            });
-            addedCount++;
-            existingUrls.add(feed.url);
-          }
-        }
-
-        // Merge folders
-        this.plugin.settings.folders = OpmlManager.mergeFolders(
-          this.plugin.settings.folders,
-          derivedFolders,
-        );
-
-        if (addedCount === 0) {
-          new Notice("No new feeds found in the OPML file.");
-          this.close();
-          return;
-        }
-      }
-
-      await this.plugin.saveSettings();
-
-      // Close any open MobileNavigationModal to ensure fresh data on mobile
-      const mobileModals = document.querySelectorAll(
-        ".rss-mobile-navigation-modal",
+      const result = await this.plugin.ingestFeedsForBackgroundImport(
+        selectedFeeds,
+        {
+          mode: this.importMode,
+          folders: derivedFolders,
+        },
       );
-      mobileModals.forEach((modal) => {
-        // Try to close via the header close button
-        const headerCloseBtn = modal.querySelector(
-          ".rss-dashboard-header-close-button",
-        );
-        if (headerCloseBtn) {
-          (headerCloseBtn as HTMLElement).click();
-        }
-      });
 
-      // Refresh the dashboard view and sidebar if they exist
-      const dashboardView = await this.plugin.getActiveDashboardView();
+      this.onImportStarted?.();
 
-      if (dashboardView) {
-        // Clear the sidebar's folder path cache to ensure fresh data
-        if (dashboardView.sidebar) {
-          // Explicitly update sidebar's settings reference
-          dashboardView.sidebar["settings"] = this.plugin.settings;
-          dashboardView.sidebar.clearFolderPathCache();
-        }
-        // Full re-render
-        dashboardView.refresh();
+      if (this.importMode === "update" && result.addedCount === 0) {
+        new Notice("No new feeds found in the OPML file.");
+        this.close();
+        return;
       }
 
       const modeText =
         this.importMode === "overwrite" ? "replaced with" : "updated with";
       new Notice(
         `Feeds ${modeText} ${selectedFeeds.length} imported feeds. Articles will be fetched in the background.`,
-      );
-
-      // Start background import for article fetching
-      void this.plugin.startBackgroundImport(
-        this.plugin.settings.feeds.filter((f) => f.items.length === 0),
       );
 
       this.close();

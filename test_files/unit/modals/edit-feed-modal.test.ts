@@ -1,8 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { EditFeedModal } from "../../../src/modals/feed-manager/edit-feed-modal";
+import { applyFeedRetentionLimits } from "../../../src/services/feed-parser";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type { Feed } from "../../../src/types/types";
+
+type MockApp = ReturnType<
+  (typeof obsidian.App & { createMock(): unknown })["createMock"]
+>;
+
+function createMockApp(): MockApp {
+  return (
+    obsidian.App as typeof obsidian.App & { createMock(): MockApp }
+  ).createMock();
+}
 
 function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
   const settingEls = Array.from(containerEl.querySelectorAll(".setting-item"));
@@ -20,16 +31,639 @@ function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+function getSelectBySettingName(
+  containerEl: HTMLElement,
+  name: string,
+): HTMLSelectElement {
+  const settingEl = getSettingByName(containerEl, name);
+  const selectEl = settingEl.querySelector("select");
+  if (!(selectEl instanceof HTMLSelectElement)) {
+    throw new Error(`Select not found for setting: ${name}`);
+  }
+  return selectEl;
+}
+
+function getNumberInputBySettingName(
+  containerEl: HTMLElement,
+  name: string,
+): HTMLInputElement {
+  const settingEl = getSettingByName(containerEl, name);
+  const inputEl = settingEl.querySelector('input[type="number"]');
+  if (!(inputEl instanceof HTMLInputElement)) {
+    throw new Error(`Number input not found for setting: ${name}`);
+  }
+  return inputEl;
+}
+
+function getButtonByText(
+  containerEl: HTMLElement,
+  label: string,
+): HTMLButtonElement {
+  const buttonEl = Array.from(containerEl.querySelectorAll("button")).find(
+    (button) => button.textContent === label,
+  );
+  if (!(buttonEl instanceof HTMLButtonElement)) {
+    throw new Error(`Button not found: ${label}`);
+  }
+  return buttonEl;
+}
+
+function getToggleBySettingName(
+  containerEl: HTMLElement,
+  name: string,
+): HTMLInputElement {
+  const settingEl = getSettingByName(containerEl, name);
+  const toggleEl = settingEl.querySelector('input[type="checkbox"]');
+  if (!(toggleEl instanceof HTMLInputElement)) {
+    throw new Error(`Toggle not found for setting: ${name}`);
+  }
+  return toggleEl;
+}
+
+function makeArticle(
+  guid: string,
+  pubDate: string,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    title: guid,
+    link: `https://example.com/${guid}`,
+    description: "",
+    pubDate,
+    guid,
+    feedTitle: "Old title",
+    read: false,
+    saved: false,
+    starred: false,
+    tags: [],
+    ...overrides,
+  } as any;
+}
+
+const AUTO_DELETE_TEST_NOW_MS = Date.parse("2026-05-01T00:00:00Z");
+
+function makeServerFeedItems() {
+  return [
+    makeArticle("very-old-read", "2026-03-01T00:00:00Z", { read: true }),
+    makeArticle("mid-read", "2026-04-10T00:00:00Z", { read: true }),
+    makeArticle("recent-read", "2026-04-28T00:00:00Z", { read: true }),
+    makeArticle("recent-unread", "2026-03-01T00:00:00Z", { read: false }),
+  ];
+}
+
+function getItemsForDuration(duration: number) {
+  return applyFeedRetentionLimits(
+    {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: makeServerFeedItems(),
+      lastUpdated: 0,
+      autoDeleteDuration: duration,
+      maxItemsLimit: 0,
+    } as Feed,
+    { nowMs: AUTO_DELETE_TEST_NOW_MS },
+  ).items;
+}
+
 beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
-  Object.defineProperty(window, "innerWidth", { value: 1400, configurable: true });
+  Object.defineProperty(window, "innerWidth", {
+    value: 1400,
+    configurable: true,
+  });
   vi.restoreAllMocks();
 });
 
 describe("EditFeedModal", () => {
+  it("opens with the per-feed controls expanded and highlighted when requested", () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+    } as any;
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+      { expandSection: "per-feed", highlightSection: "per-feed" },
+    );
+    modal.open();
+
+    const details = modal.contentEl.querySelector(
+      ".rss-per-feed-controls-details",
+    ) as HTMLDetailsElement;
+    const autoDeleteSetting = getSettingByName(
+      modal.contentEl,
+      "Auto delete articles duration",
+    );
+
+    expect(details.open).toBe(true);
+    expect(details.classList.contains("rss-per-feed-controls-highlight")).toBe(
+      true,
+    );
+    expect(
+      autoDeleteSetting.classList.contains(
+        "rss-per-feed-auto-delete-highlight",
+      ),
+    ).toBe(true);
+  });
+
+  it("pre-selects explicit Off and persists -1 on Save", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+      scanInterval: -1,
+    } as any;
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
+    modal.open();
+
+    const scanIntervalSelect = getSelectBySettingName(
+      modal.contentEl,
+      "Auto-refresh interval",
+    );
+    expect(scanIntervalSelect.value).toBe("-1");
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(feed.scanInterval).toBe(-1);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists inherited auto-refresh as 0 on Save", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+      scanInterval: 15,
+    } as any;
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
+    modal.open();
+
+    const scanIntervalSelect = getSelectBySettingName(
+      modal.contentEl,
+      "Auto-refresh interval",
+    );
+    scanIntervalSelect.value = "0";
+    scanIntervalSelect.dispatchEvent(new Event("change"));
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(feed.scanInterval).toBe(0);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists exclude-from-refresh when enabled", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+      excludeFromRefresh: false,
+    } as any;
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
+    modal.open();
+
+    const excludeToggle = getToggleBySettingName(
+      modal.contentEl,
+      "Exclude from refresh",
+    );
+    excludeToggle.checked = true;
+    excludeToggle.dispatchEvent(new Event("change"));
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(feed.excludeFromRefresh).toBe(true);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists auto-delete duration when changing from disabled to a preset", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+      autoDeleteDuration: 0,
+    } as any;
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
+    modal.open();
+
+    const autoDeleteSelect = getSelectBySettingName(
+      modal.contentEl,
+      "Auto delete articles duration",
+    );
+    autoDeleteSelect.value = "30";
+    autoDeleteSelect.dispatchEvent(new Event("change"));
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(feed.autoDeleteDuration).toBe(30);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists auto-delete duration when changing from a preset to disabled", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+      autoDeleteDuration: 30,
+    } as any;
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
+    modal.open();
+
+    const autoDeleteSelect = getSelectBySettingName(
+      modal.contentEl,
+      "Auto delete articles duration",
+    );
+    autoDeleteSelect.value = "0";
+    autoDeleteSelect.dispatchEvent(new Event("change"));
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(feed.autoDeleteDuration).toBe(0);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists the latest preset auto-delete duration after toggling between timeframes", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+      autoDeleteDuration: 30,
+    } as any;
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
+    modal.open();
+
+    const autoDeleteSelect = getSelectBySettingName(
+      modal.contentEl,
+      "Auto delete articles duration",
+    );
+    autoDeleteSelect.value = "7";
+    autoDeleteSelect.dispatchEvent(new Event("change"));
+    autoDeleteSelect.value = "30";
+    autoDeleteSelect.dispatchEvent(new Event("change"));
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(feed.autoDeleteDuration).toBe(30);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists a custom auto-delete duration on save", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+      autoDeleteDuration: 0,
+    } as any;
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
+    modal.open();
+
+    const autoDeleteSelect = getSelectBySettingName(
+      modal.contentEl,
+      "Auto delete articles duration",
+    );
+    autoDeleteSelect.value = "custom";
+    autoDeleteSelect.dispatchEvent(new Event("change"));
+
+    const customInput = getNumberInputBySettingName(
+      modal.contentEl,
+      "Auto delete articles duration",
+    );
+    customInput.value = "45";
+    customInput.dispatchEvent(new Event("change"));
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(feed.autoDeleteDuration).toBe(45);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    {
+      label: "applies a newly enabled 30-day window immediately",
+      initialDuration: 0,
+      initialItems: getItemsForDuration(0),
+      selections: ["30"],
+      expectedDuration: 30,
+      expectedGuids: ["recent-read", "mid-read", "recent-unread"],
+    },
+    {
+      label: "keeps current items when switching from 30 days to disabled",
+      initialDuration: 30,
+      initialItems: getItemsForDuration(30),
+      selections: ["0"],
+      expectedDuration: 0,
+      expectedGuids: [
+        "recent-read",
+        "mid-read",
+        "recent-unread",
+        "very-old-read",
+      ],
+    },
+    {
+      label:
+        "prunes additional old read items when tightening from 30 days to 7 days",
+      initialDuration: 30,
+      initialItems: getItemsForDuration(30),
+      selections: ["7"],
+      expectedDuration: 7,
+      expectedGuids: ["recent-read", "recent-unread"],
+    },
+    {
+      label:
+        "does not restore previously retained old items when loosening from 7 days to 30 days",
+      initialDuration: 7,
+      initialItems: getItemsForDuration(7),
+      selections: ["30"],
+      expectedDuration: 30,
+      expectedGuids: ["recent-read", "mid-read", "recent-unread"],
+    },
+    {
+      label:
+        "applies the latest timeframe after toggling from custom to preset",
+      initialDuration: 45,
+      initialItems: getItemsForDuration(45),
+      selections: ["custom", "45", "7"],
+      expectedDuration: 7,
+      expectedGuids: ["recent-read", "recent-unread"],
+    },
+  ])(
+    "$label",
+    async ({
+      initialDuration,
+      initialItems,
+      selections,
+      expectedDuration,
+      expectedGuids,
+    }) => {
+      vi.spyOn(Date, "now").mockReturnValue(AUTO_DELETE_TEST_NOW_MS);
+
+      const app = createMockApp();
+      const feed: Feed = {
+        title: "Old title",
+        url: "https://example.com/old.xml",
+        folder: "Tech",
+        items: initialItems,
+        lastUpdated: 0,
+        autoDeleteDuration: initialDuration,
+        maxItemsLimit: 0,
+      } as any;
+
+      const refreshSelectedFeed = vi.fn(async (targetFeed: Feed) => {
+        targetFeed.items = getItemsForDuration(
+          targetFeed.autoDeleteDuration ?? 0,
+        );
+      });
+
+      const plugin = {
+        app,
+        settings: {
+          folders: [],
+          maxItems: 50,
+          corsProxyEnabled: false,
+          corsProxyUrl: "",
+          articleSaving: { savedTemplates: [] },
+        },
+        ensureFolderExists: vi.fn(async () => {}),
+        saveSettings: vi.fn(async () => {}),
+        refreshSelectedFeed,
+        notifyFiltersUpdated: vi.fn(),
+      };
+
+      const modal = new EditFeedModal(
+        app as any,
+        plugin as any,
+        feed as any,
+        vi.fn(),
+      );
+      modal.open();
+
+      const autoDeleteSelect = getSelectBySettingName(
+        modal.contentEl,
+        "Auto delete articles duration",
+      );
+
+      for (const selection of selections) {
+        if (selection === "custom") {
+          autoDeleteSelect.value = "custom";
+          autoDeleteSelect.dispatchEvent(new Event("change"));
+          continue;
+        }
+
+        const customValue = Number.parseInt(selection, 10);
+        if (autoDeleteSelect.value === "custom" && !Number.isNaN(customValue)) {
+          const customInput = getNumberInputBySettingName(
+            modal.contentEl,
+            "Auto delete articles duration",
+          );
+          customInput.value = selection;
+          customInput.dispatchEvent(new Event("change"));
+          continue;
+        }
+
+        autoDeleteSelect.value = selection;
+        autoDeleteSelect.dispatchEvent(new Event("change"));
+      }
+
+      getButtonByText(modal.contentEl, "Save").click();
+      await flushPromises();
+
+      expect(feed.autoDeleteDuration).toBe(expectedDuration);
+      expect(refreshSelectedFeed).toHaveBeenCalledTimes(1);
+      expect(feed.items.map((item) => item.guid)).toEqual(expectedGuids);
+    },
+  );
+
   it("pre-fills values and persists updates on Save", async () => {
-    const app = obsidian.App.createMock();
+    const app = createMockApp();
     const feed: Feed = {
       title: "Old title",
       url: "https://example.com/old.xml",
@@ -60,22 +694,29 @@ describe("EditFeedModal", () => {
     };
 
     const onSave = vi.fn();
-    const modal = new EditFeedModal(app as any, plugin as any, feed as any, onSave);
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      onSave,
+    );
     const closeSpy = vi.spyOn(modal, "close");
     modal.open();
 
     const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
-    const urlInput = urlSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    const urlInput = urlSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
     expect(urlInput.value).toBe("https://example.com/old.xml");
 
     const titleSetting = getSettingByName(modal.contentEl, "Title");
-    const titleInput = titleSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    const titleInput = titleSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
     titleInput.value = "New title";
     titleInput.dispatchEvent(new Event("input"));
 
-    const saveBtn = Array.from(modal.contentEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Save",
-    ) as HTMLButtonElement;
+    const saveBtn = getButtonByText(modal.contentEl, "Save");
     saveBtn.click();
     await flushPromises();
 
@@ -88,7 +729,7 @@ describe("EditFeedModal", () => {
   });
 
   it("Cancel closes without persisting", async () => {
-    const app = obsidian.App.createMock();
+    const app = createMockApp();
     const feed: Feed = {
       title: "T",
       url: "u",
@@ -99,19 +740,26 @@ describe("EditFeedModal", () => {
 
     const plugin = {
       app,
-      settings: { folders: [], maxItems: 50, articleSaving: { savedTemplates: [] } },
+      settings: {
+        folders: [],
+        maxItems: 50,
+        articleSaving: { savedTemplates: [] },
+      },
       ensureFolderExists: vi.fn(async () => {}),
       saveSettings: vi.fn(async () => {}),
       notifyFiltersUpdated: vi.fn(),
     };
 
-    const modal = new EditFeedModal(app as any, plugin as any, feed as any, vi.fn());
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
     const closeSpy = vi.spyOn(modal, "close");
     modal.open();
 
-    const cancelBtn = Array.from(modal.contentEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Cancel",
-    ) as HTMLButtonElement;
+    const cancelBtn = getButtonByText(modal.contentEl, "Cancel");
     cancelBtn.click();
     await flushPromises();
 

@@ -2,7 +2,14 @@ import { setIcon } from "obsidian";
 import { RssDashboardSettings } from "../types/types";
 import { TABLET_LAYOUT_MAX_WIDTH } from "../utils/platform-utils";
 import { ArticleFilterMenu, FilterChangeEvent } from "./article-filter-menu";
+import { ArticleHeaderMenu } from "./article-header-menu";
 import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
+
+interface ArticleHeaderMenuController {
+  destroy(): void;
+  render(parent: HTMLElement): void;
+  setSearchQuery(query: string): void;
+}
 
 export interface ArticleHeaderCallbacks {
   onToggleSidebar: () => void;
@@ -16,6 +23,8 @@ export interface ArticleHeaderCallbacks {
   onMarkAllAsRead: () => void;
   onMarkAllAsUnread: () => void;
 }
+
+type MenuOptionEntries = Array<[label: string, value: string]>;
 
 /**
  * ArticleHeader Component
@@ -41,12 +50,10 @@ export class ArticleHeader {
   private resizeObserver: ResizeObserver | null = null;
   private articleSearchQuery: string = "";
   private articleSearchDesktopInput: HTMLInputElement | null = null;
-  private articleSearchDropdownInput: HTMLInputElement | null = null;
+  private headerMenu: ArticleHeaderMenuController | null = null;
   private activePortal: HTMLElement | null = null;
   private activePortalToggleBtn: HTMLElement | null = null;
   private activePortalCleanup: (() => void) | null = null;
-  private dropdownMenu: HTMLElement | null = null;
-  private hamburgerBtn: HTMLElement | null = null;
   private documentListeners: Array<{
     target: Document | Window;
     type: string;
@@ -104,6 +111,11 @@ export class ArticleHeader {
 
   public destroy(): void {
     if (this.resizeObserver) this.resizeObserver.disconnect();
+    const headerMenu: ArticleHeaderMenuController | null = this.headerMenu;
+    if (headerMenu) {
+      (headerMenu as { destroy: () => void }).destroy();
+    }
+    this.headerMenu = null;
     this.closeActivePortal();
     this.documentListeners.forEach(({ target, type, listener }) =>
       target.removeEventListener(type, listener),
@@ -132,6 +144,10 @@ export class ArticleHeader {
    * proper Obsidian theme (Dark/Light mode) inheritance.
    */
   public render(): void {
+    if (this.headerMenu) {
+      this.headerMenu.destroy();
+    }
+    this.headerMenu = null;
     this.container.empty();
     const articlesHeader = this.container.createDiv({
       cls: "rss-dashboard-articles-header",
@@ -194,89 +210,36 @@ export class ArticleHeader {
       this.showFiltersMenu(mobileFilterBtn);
     });
 
-    const hamburgerMenu = rightSection.createDiv({
-      cls: "rss-dashboard-hamburger-menu",
-    });
-    const hamburgerBtn = hamburgerMenu.createDiv({
-      cls: "rss-dashboard-hamburger-button clickable-icon",
-      attr: { title: "Menu", role: "button", tabindex: "0" },
-    });
-    setIcon(hamburgerBtn, "menu");
-
-    const dropdownMenu = hamburgerMenu.createDiv({
-      cls: "rss-dashboard-dropdown-menu",
-    });
-    const dropdownControls = dropdownMenu.createDiv({
-      cls: "rss-dashboard-dropdown-controls",
-    });
-    this.createControls(dropdownControls, {
-      includeFilter: false,
-      isDropdown: true,
-    });
-
-    this.dropdownMenu = dropdownMenu;
-    this.hamburgerBtn = hamburgerBtn;
-
-    const closeHamburgerMenu = () => {
-      dropdownMenu.classList.remove("is-menu-open");
-      hamburgerBtn.classList.remove("is-menu-open");
-    };
-
-    hamburgerBtn.addEventListener(
-      "click",
-      (e: MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const isOpen = dropdownMenu.classList.contains("is-menu-open");
-        if (isOpen) {
-          closeHamburgerMenu();
-        } else {
-          this.closeActivePortal();
-          dropdownMenu.classList.add("is-menu-open");
-          hamburgerBtn.classList.add("is-menu-open");
-        }
+    const existingHeaderMenu: ArticleHeaderMenuController | null =
+      this.headerMenu;
+    if (existingHeaderMenu) {
+      (existingHeaderMenu as { destroy: () => void }).destroy();
+    }
+    this.headerMenu = new ArticleHeaderMenu(this.settings, this.articleSearchQuery, {
+      onSearch: (query) => {
+        this.syncSearch(query);
+        this.callbacks.onSearch(query);
       },
-      { capture: true },
-    );
+      onSortChange: (value) => this.callbacks.onSortChange(value),
+      onGroupChange: (value) => this.callbacks.onGroupChange(value),
+      onFilterChange: (event) => this.callbacks.onFilterChange(event),
+      onToggleViewStyle: (style) => this.callbacks.onToggleViewStyle(style),
+      onPersistSettings: () => this.callbacks.onPersistSettings(),
+      onRefreshFeeds: () => this.callbacks.onRefreshFeeds(),
+      onMarkAllAsRead: () => this.callbacks.onMarkAllAsRead(),
+      onMarkAllAsUnread: () => this.callbacks.onMarkAllAsUnread(),
+    });
+    this.headerMenu.render(rightSection);
 
     const desktopControls = rightSection.createDiv({
       cls: "rss-dashboard-desktop-controls",
     });
-    this.createControls(desktopControls, {
-      includeFilter: true,
-      isDropdown: false,
-    });
-
-    const handleDocPointerDown = (e: Event) => {
-      if (!dropdownMenu.classList.contains("is-menu-open")) return;
-
-      const target = e.target as Node;
-
-      // Ignore if clicking on hamburger button itself (toggle button should handle its own clicks)
-      if (hamburgerBtn.contains(target)) return;
-
-      // Also ignore if clicking inside the dropdown menu when it's open
-      if (
-        dropdownMenu.classList.contains("is-menu-open") &&
-        dropdownMenu.contains(target)
-      )
-        return;
-
-      // Close menu only if clicking outside hamburger menu AND not inside any active portal
-      if (
-        !hamburgerMenu.contains(target) &&
-        !this.activePortal?.contains(target)
-      ) {
-        closeHamburgerMenu();
-      }
-    };
-    this.addDocumentListener(document, "pointerdown", handleDocPointerDown);
+    this.createControls(desktopControls, { includeFilter: true });
   }
 
   private createControls(
     container: HTMLElement,
-    options: { includeFilter: boolean; isDropdown: boolean },
+    options: { includeFilter: boolean },
   ): void {
     const controls = container.createDiv({
       cls: "rss-dashboard-article-controls",
@@ -311,12 +274,12 @@ export class ArticleHeader {
         spellcheck: "false",
       },
     });
-    if (options.isDropdown) this.articleSearchDropdownInput = searchInput;
-    else this.articleSearchDesktopInput = searchInput;
+    searchInput.value = this.articleSearchQuery;
+    this.articleSearchDesktopInput = searchInput;
 
     searchInput.addEventListener("input", (e) => {
       const val = (e.target as HTMLInputElement).value;
-      this.syncSearch(val, options.isDropdown);
+      this.syncSearch(val);
       this.callbacks.onSearch(val);
     });
 
@@ -325,7 +288,7 @@ export class ArticleHeader {
       "history",
       "Age:",
       this.getAgeOptions(),
-      () => String(this.settings.articleFilter.value),
+      () => this.getCurrentAgeFilterValue(),
       (val) =>
         this.callbacks.onFilterChange({
           type: Number(val) === 0 ? "none" : "age",
@@ -362,14 +325,7 @@ export class ArticleHeader {
     });
     this.createViewStyleSelector(viewStyleRow);
 
-    if (options.isDropdown) {
-      this.createRefreshButton(
-        viewStyleRow,
-        "rss-dashboard-view-refresh-button",
-      );
-    } else {
-      this.createRefreshButton(controls, "");
-    }
+    this.createRefreshButton(controls, "");
 
     const markAllRow = controls.createDiv({
       cls: "rss-dashboard-mark-all-row",
@@ -449,7 +405,7 @@ export class ArticleHeader {
 
   private showThemedMenu(
     trigger: HTMLElement,
-    options: Record<string, string>,
+    options: Record<string, string> | MenuOptionEntries,
     currentVal: string,
     onChange: (val: string) => void,
     icons?: Record<string, string>,
@@ -462,7 +418,11 @@ export class ArticleHeader {
     this.activePortalToggleBtn = trigger;
     trigger.addClass("active");
 
-    Object.entries(options).forEach(([label, value]) => {
+    const entries: MenuOptionEntries = Array.isArray(options)
+      ? options
+      : Object.keys(options).map((label) => [label, options[label]]);
+
+    entries.forEach(([label, value]) => {
       const item = portal.createDiv({ cls: "rss-dashboard-filter-menu-item" });
       const check = item.createDiv({ cls: "rss-dashboard-filter-menu-check" });
       if (value === currentVal) {
@@ -555,12 +515,14 @@ export class ArticleHeader {
     });
   }
 
-  private syncSearch(val: string, fromDropdown: boolean) {
+  private syncSearch(val: string) {
     this.articleSearchQuery = val;
-    if (fromDropdown && this.articleSearchDesktopInput)
+    if (this.articleSearchDesktopInput)
       this.articleSearchDesktopInput.value = val;
-    if (!fromDropdown && this.articleSearchDropdownInput)
-      this.articleSearchDropdownInput.value = val;
+    const headerMenu: ArticleHeaderMenuController | null = this.headerMenu;
+    if (headerMenu) {
+      (headerMenu as { setSearchQuery: (query: string) => void }).setSearchQuery(val);
+    }
   }
 
   private createRefreshButton(parent: HTMLElement, cls: string) {
@@ -624,6 +586,19 @@ export class ArticleHeader {
       "6 months": "15552000000",
       "1 year": "31536000000",
     };
+  }
+
+  private getCurrentAgeFilterValue(): string {
+    if (this.settings.articleFilter.type !== "age") {
+      return "0";
+    }
+
+    const currentValue = this.settings.articleFilter.value;
+    if (typeof currentValue !== "number" || currentValue <= 0) {
+      return "0";
+    }
+
+    return String(currentValue);
   }
 
   private renderHeaderFeedIcon(container: HTMLElement, feedUrl: string): void {

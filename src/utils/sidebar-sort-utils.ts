@@ -1,6 +1,11 @@
 import type { Feed } from "../types/types";
 
-export type FeedSortBy = "name" | "created" | "itemCount" | "custom";
+export type FeedSortBy =
+  | "name"
+  | "created"
+  | "itemCount"
+  | "unreadCount"
+  | "custom";
 
 export interface FeedSortOrder {
   by: FeedSortBy;
@@ -36,6 +41,10 @@ export function applyFeedSortOrder(
       case "itemCount":
         valA = a.items.length;
         valB = b.items.length;
+        break;
+      case "unreadCount":
+        valA = a.items.filter((item) => !item.read).length;
+        valB = b.items.filter((item) => !item.read).length;
         break;
       default:
         return 0;

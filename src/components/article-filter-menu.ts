@@ -14,6 +14,8 @@ export interface FilterChangeEvent {
     bypassAll?: boolean;
     highlightsEnabled?: boolean;
     statusBarVisible?: boolean;
+    cardColumnsPerRow?: number;
+    cardSpacing?: number;
   };
 }
 
@@ -34,6 +36,7 @@ export class ArticleFilterMenu {
   private tagFilters: Set<string>;
   private filterLogic: "AND" | "OR";
   private callbacks: ArticleFilterCallbacks;
+
   /**
    * Renders the filter menu UI into a portal (document.body).
    * Uses a custom menu structure to avoid native Obsidian menu limitations
@@ -41,6 +44,7 @@ export class ArticleFilterMenu {
    */
   private renderMenu(portal: HTMLElement): void {
   }
+
   private activePortal: HTMLElement | null = null;
   private activeFilterOutsideListenerCleanup: (() => void) | null = null;
   private activeFilterToggleBtn: HTMLElement | null = null;
@@ -64,6 +68,7 @@ export class ArticleFilterMenu {
     this.callbacks = callbacks;
   }
 
+  // Open the floating menu and stage all filter changes locally until Apply.
   public show(toggleBtn: HTMLElement): void {
     const targetDocument = toggleBtn.ownerDocument;
     const targetBody = targetDocument.body;
@@ -107,20 +112,18 @@ export class ArticleFilterMenu {
         .forEach((el) => el.remove());
     };
 
-    // Logic Toggles: And / Or
+    // Filter logic toggle section.
     const logicToggles = menuPortal.createDiv({
       cls: "rss-dashboard-filter-logic-toggles",
     });
 
     const andBtn = logicToggles.createEl("button", {
-      cls:
-        "rss-dashboard-filter-logic-btn" +
+      cls: "rss-dashboard-filter-logic-btn" +
         (pendingFilterLogic === "AND" ? " active" : ""),
       text: "And",
     });
     const orBtn = logicToggles.createEl("button", {
-      cls:
-        "rss-dashboard-filter-logic-btn" +
+      cls: "rss-dashboard-filter-logic-btn" +
         (pendingFilterLogic === "OR" ? " active" : ""),
       text: "Or",
     });
@@ -139,7 +142,7 @@ export class ArticleFilterMenu {
 
     menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
 
-    // "All" Checkbox
+    // Quick reset for all filter checkboxes.
     const allItem = menuPortal.createDiv({
       cls: "rss-dashboard-filter-menu-item rss-dashboard-filter-all-item",
     });
@@ -150,7 +153,9 @@ export class ArticleFilterMenu {
     });
     allCheckbox.checked = pendingAllChecked;
 
-    const allIconDiv = allItem.createDiv({ cls: "rss-dashboard-filter-menu-icon" });
+    const allIconDiv = allItem.createDiv({
+      cls: "rss-dashboard-filter-menu-icon",
+    });
     setIcon(allIconDiv, "fullscreen");
 
     allItem.createDiv({
@@ -190,6 +195,7 @@ export class ArticleFilterMenu {
 
     allItem.addEventListener("mouseenter", removeTagSubmenus);
 
+    // Standard article status filters.
     const filterCheckboxes: Map<string, HTMLInputElement> = new Map();
     const filterOptions = [
       { id: "unread", name: "Unread", icon: "circle" },
@@ -223,7 +229,13 @@ export class ArticleFilterMenu {
         const arrow = item.createDiv({ cls: "rss-dashboard-filter-menu-arrow" });
         setIcon(arrow, "chevron-right");
         item.addEventListener("mouseenter", () => {
-          this.showTagsSubMenu(item, menuPortal, pendingTagFilters, allCheckbox, pendingStatusFilters);
+          this.showTagsSubMenu(
+            item,
+            menuPortal,
+            pendingTagFilters,
+            allCheckbox,
+            pendingStatusFilters
+          );
         });
       } else {
         item.addEventListener("mouseenter", removeTagSubmenus);
@@ -258,15 +270,28 @@ export class ArticleFilterMenu {
       });
     });
 
-    const postFilterSeparator = menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
+    // Display toggles that affect article rendering and filtering behavior.
+    const postFilterSeparator = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-separator",
+    });
     postFilterSeparator.addEventListener("mouseenter", removeTagSubmenus);
 
-    const statusBarItem = menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-item rss-dashboard-status-bar-toggle" });
-    const statusBarCheckbox = statusBarItem.createEl("input", { attr: { type: "checkbox" }, cls: "rss-dashboard-filter-checkbox" });
+    const statusBarItem = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-item rss-dashboard-status-bar-toggle",
+    });
+    const statusBarCheckbox = statusBarItem.createEl("input", {
+      attr: { type: "checkbox" },
+      cls: "rss-dashboard-filter-checkbox",
+    });
     statusBarCheckbox.checked = pendingStatusBarVisible;
-    const statusBarIconDiv = statusBarItem.createDiv({ cls: "rss-dashboard-filter-menu-icon" });
+    const statusBarIconDiv = statusBarItem.createDiv({
+      cls: "rss-dashboard-filter-menu-icon",
+    });
     setIcon(statusBarIconDiv, "info");
-    statusBarItem.createDiv({ cls: "rss-dashboard-filter-menu-text", text: "Show Status Bar" });
+    statusBarItem.createDiv({
+      cls: "rss-dashboard-filter-menu-text",
+      text: "Show Status Bar",
+    });
     statusBarCheckbox.addEventListener("change", (e) => {
       e.stopPropagation();
       pendingStatusBarVisible = statusBarCheckbox.checked;
@@ -279,15 +304,28 @@ export class ArticleFilterMenu {
       }
     });
 
-    const postStatusBarSeparator = menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
+    // Keyword-rule bypass toggle.
+    const postStatusBarSeparator = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-separator",
+    });
     postStatusBarSeparator.addEventListener("mouseenter", removeTagSubmenus);
 
-    const bypassItem = menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-item rss-dashboard-bypass-filters-toggle" });
-    const bypassCheckbox = bypassItem.createEl("input", { attr: { type: "checkbox" }, cls: "rss-dashboard-filter-checkbox" });
+    const bypassItem = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-item rss-dashboard-bypass-filters-toggle",
+    });
+    const bypassCheckbox = bypassItem.createEl("input", {
+      attr: { type: "checkbox" },
+      cls: "rss-dashboard-filter-checkbox",
+    });
     bypassCheckbox.checked = pendingBypassAll;
-    const bypassIconDiv = bypassItem.createDiv({ cls: "rss-dashboard-filter-menu-icon" });
+    const bypassIconDiv = bypassItem.createDiv({
+      cls: "rss-dashboard-filter-menu-icon",
+    });
     setIcon(bypassIconDiv, "power");
-    bypassItem.createDiv({ cls: "rss-dashboard-filter-menu-text", text: "Bypass Keyword Rules" });
+    bypassItem.createDiv({
+      cls: "rss-dashboard-filter-menu-text",
+      text: "Bypass Keyword Rules",
+    });
     bypassCheckbox.addEventListener("change", (e) => {
       e.stopPropagation();
       pendingBypassAll = bypassCheckbox.checked;
@@ -300,15 +338,28 @@ export class ArticleFilterMenu {
       }
     });
 
-    const postBypassSeparator = menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-separator" });
+    // Highlights toggle.
+    const postBypassSeparator = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-separator",
+    });
     postBypassSeparator.addEventListener("mouseenter", removeTagSubmenus);
 
-    const highlightsItem = menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-item rss-dashboard-highlights-toggle" });
-    const highlightsCheckbox = highlightsItem.createEl("input", { attr: { type: "checkbox" }, cls: "rss-dashboard-filter-checkbox" });
+    const highlightsItem = menuPortal.createDiv({
+      cls: "rss-dashboard-filter-menu-item rss-dashboard-highlights-toggle",
+    });
+    const highlightsCheckbox = highlightsItem.createEl("input", {
+      attr: { type: "checkbox" },
+      cls: "rss-dashboard-filter-checkbox",
+    });
     highlightsCheckbox.checked = pendingHighlightsEnabled;
-    const highlightsIconDiv = highlightsItem.createDiv({ cls: "rss-dashboard-filter-menu-icon" });
+    const highlightsIconDiv = highlightsItem.createDiv({
+      cls: "rss-dashboard-filter-menu-icon",
+    });
     setIcon(highlightsIconDiv, "highlighter");
-    highlightsItem.createDiv({ cls: "rss-dashboard-filter-menu-text", text: "Show Highlights" });
+    highlightsItem.createDiv({
+      cls: "rss-dashboard-filter-menu-text",
+      text: "Show Highlights",
+    });
     highlightsCheckbox.addEventListener("change", (e) => {
       e.stopPropagation();
       pendingHighlightsEnabled = highlightsCheckbox.checked;
@@ -321,6 +372,7 @@ export class ArticleFilterMenu {
       }
     });
 
+    // Apply button commits all staged changes at once.
     const applyBtn = menuPortal.createEl("button", { cls: "rss-dashboard-filter-apply-btn", text: "Apply" });
     applyBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -355,7 +407,10 @@ export class ArticleFilterMenu {
         targetDocument,
         "mousedown",
         (e: Event) => {
-          if (!menuPortal.contains(e.target as Node) && !toggleBtn.contains(e.target as Node)) {
+          if (
+            !menuPortal.contains(e.target as Node) &&
+            !toggleBtn.contains(e.target as Node)
+          ) {
             this.close();
           }
         }
@@ -363,6 +418,7 @@ export class ArticleFilterMenu {
     }, 0);
   }
 
+  // Commit the staged filter state in one batch event.
   private applyFilters(state: {
     pendingFilterLogic: "AND" | "OR";
     pendingStatusFilters: Set<string>;
@@ -380,7 +436,7 @@ export class ArticleFilterMenu {
       pendingTagFilters,
       pendingBypassAll,
       pendingHighlightsEnabled,
-      pendingStatusBarVisible
+      pendingStatusBarVisible,
     } = state;
 
     // Send a single batch update event to minimize re-renders and ensure atomic state change
@@ -393,26 +449,49 @@ export class ArticleFilterMenu {
         tagFilters: pendingTagFilters,
         bypassAll: pendingBypassAll,
         highlightsEnabled: pendingHighlightsEnabled,
-        statusBarVisible: pendingStatusBarVisible
-      }
+        statusBarVisible: pendingStatusBarVisible,
+      },
     });
   }
 
-  private showTagsSubMenu(parentItem: HTMLElement, parentMenu: HTMLElement, pendingTagFilters: Set<string>, allCheckbox: HTMLInputElement, pendingStatusFilters: Set<string>): void {
-    parentMenu.querySelectorAll(".rss-dashboard-tag-submenu").forEach((el) => el.remove());
-    const subMenu = parentMenu.createDiv({ cls: "rss-dashboard-filter-menu rss-dashboard-tag-submenu" });
+  // Render the nested tag submenu and keep tag selection state synchronized.
+  private showTagsSubMenu(
+    parentItem: HTMLElement,
+    parentMenu: HTMLElement,
+    pendingTagFilters: Set<string>,
+    allCheckbox: HTMLInputElement,
+    pendingStatusFilters: Set<string>
+  ): void {
+    parentMenu
+      .querySelectorAll(".rss-dashboard-tag-submenu")
+      .forEach((el) => el.remove());
+    const subMenu = parentMenu.createDiv({
+      cls: "rss-dashboard-filter-menu rss-dashboard-tag-submenu",
+    });
 
     if (this.settings.availableTags.length === 0) {
-      subMenu.createDiv({ cls: "rss-dashboard-filter-menu-item empty", text: "No tags available" });
+      subMenu.createDiv({
+        cls: "rss-dashboard-filter-menu-item empty",
+        text: "No tags available",
+      });
     }
 
     this.settings.availableTags.forEach((tag) => {
       const item = subMenu.createDiv({ cls: "rss-dashboard-filter-menu-item" });
-      const checkbox = item.createEl("input", { attr: { type: "checkbox" }, cls: "rss-dashboard-filter-checkbox" });
+      const checkbox = item.createEl("input", {
+        attr: { type: "checkbox" },
+        cls: "rss-dashboard-filter-checkbox",
+      });
       checkbox.checked = pendingTagFilters.has(tag.name);
       const colorDot = item.createDiv({ cls: "rss-dashboard-tag-color-dot" });
-      colorDot.style.setProperty("--tag-color", tag.color || "var(--interactive-accent)");
-      item.createDiv({ cls: "rss-dashboard-filter-menu-text", text: tag.name });
+      colorDot.style.setProperty(
+        "--tag-color",
+        tag.color || "var(--interactive-accent)"
+      );
+      item.createDiv({
+        cls: "rss-dashboard-filter-menu-text",
+        text: tag.name,
+      });
 
       checkbox.addEventListener("change", (e) => {
         e.stopPropagation();
@@ -433,7 +512,11 @@ export class ArticleFilterMenu {
             allCheckbox.checked = false;
           } else {
             pendingTagFilters.delete(tag.name);
-            if (pendingStatusFilters.size === 0 && pendingTagFilters.size === 0) allCheckbox.checked = true;
+            if (
+              pendingStatusFilters.size === 0 &&
+              pendingTagFilters.size === 0
+            )
+              allCheckbox.checked = true;
           }
         }
       });
@@ -450,11 +533,20 @@ export class ArticleFilterMenu {
 
     requestAnimationFrame(() => {
       const subRect = subMenu.getBoundingClientRect();
-      if (subRect.right > window.innerWidth) subMenu.style.setProperty("--submenu-left", `${parentMenuRect.left - subRect.width - 4}px`);
-      if (subRect.bottom > window.innerHeight) subMenu.style.setProperty("--submenu-top", `${window.innerHeight - subRect.height - 8}px`);
+      if (subRect.right > window.innerWidth)
+        subMenu.style.setProperty(
+          "--submenu-left",
+          `${parentMenuRect.left - subRect.width - 4}px`
+        );
+      if (subRect.bottom > window.innerHeight)
+        subMenu.style.setProperty(
+          "--submenu-top",
+          `${window.innerHeight - subRect.height - 8}px`
+        );
     });
   }
 
+  // Remove the active portal and detach any temporary listeners.
   private close(): void {
     if (this.activeFilterOutsideListenerCleanup) {
       this.activeFilterOutsideListenerCleanup();
@@ -474,6 +566,7 @@ export class ArticleFilterMenu {
     this.documentListeners = [];
   }
 
+  // Register document or window listeners so they can be cleaned up later.
   private addDocumentListener(
     target: Document | Window,
     type: string,

@@ -1259,7 +1259,49 @@ export class CustomXMLParser {
     tagName: string,
     attribute: string,
   ): string {
-    const el = element?.querySelector(tagName);
+    if (!element) return "";
+
+    let el: Element | null = null;
+
+    if (tagName.includes("\\:")) {
+      try {
+        el = element.querySelector(tagName);
+      } catch {
+        /* ignore */
+      }
+    } else if (tagName.includes(":")) {
+      const [namespace, localName] = tagName.split(":");
+
+      try {
+        el = element.querySelector(`${namespace}\\:${localName}`);
+      } catch {
+        /* ignore */
+      }
+
+      if (!el) {
+        try {
+          const elements = element.getElementsByTagNameNS("*", localName);
+          if (elements.length > 0) el = elements[0];
+        } catch {
+          /* ignore */
+        }
+      }
+
+      if (!el) {
+        try {
+          el = element.querySelector(localName);
+        } catch {
+          /* ignore */
+        }
+      }
+    } else {
+      try {
+        el = element.querySelector(tagName);
+      } catch {
+        /* ignore */
+      }
+    }
+
     return el?.getAttribute(attribute) || "";
   }
 
@@ -1479,14 +1521,10 @@ export class CustomXMLParser {
       ? { url: this.getTextContent(imageElement, "url") }
       : undefined;
 
-    const itunesImageElement = channel.querySelector("itunes\\:image");
-    const itunesImage = itunesImageElement
-      ? { url: itunesImageElement.getAttribute("href") || "" }
-      : undefined;
-
-    const feedItunesImage = itunesImageElement
-      ? itunesImageElement.getAttribute("href") || ""
-      : "";
+    const feedItunesImage =
+      this.getAttribute(channel, "itunes:image", "href") ||
+      this.getAttribute(channel, "itunes\\:image", "href");
+    const itunesImage = feedItunesImage ? { url: feedItunesImage } : undefined;
     const feedImageUrl = imageElement
       ? this.getTextContent(imageElement, "url")
       : "";
@@ -2897,6 +2935,31 @@ export class FeedParser {
     return "";
   }
 
+  private resolvePodcastCoverImage(
+    item: ParsedItem,
+    parsed: ParsedFeed,
+    baseUrl: string,
+  ): string {
+    const resolvedImage = this.extractPodcastCoverImage(
+      item,
+      parsed.image,
+      baseUrl,
+    );
+    if (resolvedImage) {
+      return resolvedImage;
+    }
+
+    if (parsed.feedItunesImage) {
+      return this.convertToAbsoluteUrl(parsed.feedItunesImage, baseUrl);
+    }
+
+    if (parsed.feedImageUrl) {
+      return this.convertToAbsoluteUrl(parsed.feedImageUrl, baseUrl);
+    }
+
+    return "";
+  }
+
   private extractSummary(description: string, maxLength = 220): string {
     if (!description) return "";
 
@@ -2965,6 +3028,7 @@ export class FeedParser {
     const newItems: FeedItem[] = [];
     const updatedItems: FeedItem[] = [];
     const seenGuids = new Set<string>();
+    let skippedByRefreshCutoffCount = 0;
 
     // Compute auto-delete cutoff so we can skip "new" items that are actually
     // old entries re-appearing in the feed after being auto-deleted.
@@ -2973,7 +3037,9 @@ export class FeedParser {
         ? newFeed.autoDeleteDuration
         : 0;
     const autoDeleteCutoffMs =
-      autoDeleteDays > 0 ? Date.now() - autoDeleteDays * 24 * 60 * 60 * 1000 : 0;
+      autoDeleteDays > 0
+        ? Date.now() - autoDeleteDays * 24 * 60 * 60 * 1000
+        : 0;
 
     for (const item of parsed.items) {
       const isAudioEnclosure = item.enclosure?.type?.startsWith("audio/");
@@ -3008,10 +3074,20 @@ export class FeedParser {
       const existingItem = existingItems.get(itemGuid);
 
       if (existingItem) {
+        if (
+          autoDeleteCutoffMs > 0 &&
+          !isProtectedItem(existingItem) &&
+          getPubDateMs(item.pubDate || existingItem.pubDate) <=
+            autoDeleteCutoffMs
+        ) {
+          skippedByRefreshCutoffCount++;
+          continue;
+        }
+
         let coverImage = existingItem.coverImage;
         if (isPodcast) {
           coverImage =
-            this.extractPodcastCoverImage(item, parsed.image, url) ||
+            this.resolvePodcastCoverImage(item, parsed, url) ||
             existingItem.coverImage;
         } else {
           coverImage =
@@ -3045,6 +3121,7 @@ export class FeedParser {
           read: existingItem.read,
           starred: existingItem.starred,
           saved: existingItem.saved,
+          savedFilePath: existingItem.savedFilePath,
           feedTitle: newFeed.title, // Update feedTitle to match the new feed title
           coverImage,
           summary:
@@ -3085,36 +3162,13 @@ export class FeedParser {
           autoDeleteCutoffMs > 0 &&
           getPubDateMs(item.pubDate) <= autoDeleteCutoffMs
         ) {
+          skippedByRefreshCutoffCount++;
           continue;
         }
 
         let coverImage = "";
         if (isPodcast) {
-          coverImage = this.extractPodcastCoverImage(item, parsed.image, url);
-          if (!coverImage) {
-            if (parsed.feedItunesImage) {
-              coverImage = this.convertToAbsoluteUrl(
-                parsed.feedItunesImage,
-                url,
-              );
-            } else if (parsed.feedImageUrl) {
-              coverImage = this.convertToAbsoluteUrl(parsed.feedImageUrl, url);
-            } else if (
-              parsed.image &&
-              typeof parsed.image === "object" &&
-              parsed.image.url
-            ) {
-              coverImage = this.convertToAbsoluteUrl(parsed.image.url, url);
-            } else if (typeof parsed.image === "string") {
-              coverImage = this.convertToAbsoluteUrl(parsed.image, url);
-            }
-          }
-          if (!coverImage) {
-            coverImage = this.extractCoverImage(
-              item.content || item.description || "",
-              url,
-            );
-          }
+          coverImage = this.resolvePodcastCoverImage(item, parsed, url);
         } else {
           coverImage =
             this.extractCoverImage(
@@ -3191,7 +3245,15 @@ export class FeedParser {
           url,
         );
         const key = canonicalizeItemIdentityUrl(rawKey);
-        if (key && !seenGuids.has(key)) {
+        if (
+          key &&
+          !seenGuids.has(key) &&
+          !(
+            autoDeleteCutoffMs > 0 &&
+            !isProtectedItem(item) &&
+            getPubDateMs(item.pubDate) <= autoDeleteCutoffMs
+          )
+        ) {
           carriedForward.push(item);
         }
       }
@@ -3200,7 +3262,21 @@ export class FeedParser {
     newFeed.items = mergeFeedHistoryItems(carriedForward, refreshedItems);
     newFeed.lastUpdated = Date.now();
 
+    const mergedItemCountBeforeRetention = newFeed.items.length;
+
     this.applyFeedLimits(newFeed);
+
+    newFeed.lastRefreshDiagnostics = {
+      fetchedItemCount: parsed.items.length,
+      mergedItemCountBeforeRetention,
+      retainedItemCount: newFeed.items.length,
+      retentionRemovedCount: Math.max(
+        0,
+        mergedItemCountBeforeRetention - newFeed.items.length,
+      ),
+      skippedByRefreshCutoffCount,
+      autoDeleteDurationDays: autoDeleteDays > 0 ? autoDeleteDays : undefined,
+    };
 
     const feedLogoCandidates = [
       parsed.feedItunesImage,
@@ -3225,7 +3301,7 @@ export class FeedParser {
         count >= Math.max(2, Math.floor(totalItems * 0.8))
       ) {
         newFeed.items.forEach((item) => {
-          if (item.coverImage === imgUrl) {
+          if (item.coverImage === imgUrl && item.mediaType !== "podcast") {
             item.coverImage = "";
           }
         });
@@ -3331,6 +3407,14 @@ export class FeedParserService {
         item.itunes?.explicit,
     );
 
+    const podcastFeedImage =
+      parsed.feedItunesImage ||
+      parsed.feedImageUrl ||
+      (parsed.image && typeof parsed.image === "object"
+        ? parsed.image.url
+        : "") ||
+      (typeof parsed.image === "string" ? parsed.image : "");
+
     const items: FeedItem[] = parsed.items.map((item: ParsedItem) => ({
       title: item.title || "",
       link: item.link || "",
@@ -3342,7 +3426,9 @@ export class FeedParserService {
       tags: [],
       feedTitle: parsed.title || "",
       feedUrl: url,
-      coverImage: item.itunes?.image?.href || item.image?.url || "",
+      coverImage: isPodcast
+        ? item.itunes?.image?.href || item.image?.url || podcastFeedImage || ""
+        : item.itunes?.image?.href || item.image?.url || "",
       mediaType: isPodcast ? "podcast" : "article",
       author: item.author || "",
       content: item.content || "",

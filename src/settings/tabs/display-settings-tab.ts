@@ -9,6 +9,7 @@
  */
 import { Setting, setIcon } from "obsidian";
 import RssDashboardPlugin from "../../../main";
+import { DEFAULT_SETTINGS } from "../../types/types";
 import {
   SIDEBAR_ICON_IDS,
   getIconById,
@@ -79,7 +80,29 @@ export function renderDisplaySettingsTab(
   containerEl: HTMLElement,
   plugin: RssDashboardPlugin,
   onRefresh: () => void,
+  targetSection?: string,
 ): void {
+  const rerenderActiveReaderView = async (): Promise<void> => {
+    const readerView = await plugin.getActiveReaderView?.();
+    if (!readerView) {
+      return;
+    }
+
+    try {
+      const viewState = readerView as unknown as {
+        applyReaderFormat?: () => void;
+      };
+      viewState.applyReaderFormat?.();
+    } catch {
+      // Best-effort refresh for settings-driven format changes.
+    }
+  };
+
+  const persistReaderFormat = async (): Promise<void> => {
+    await plugin.saveSettings();
+    await rerenderActiveReaderView();
+  };
+
   new Setting(containerEl).setName("Dashboard").setHeading();
 
   new Setting(containerEl)
@@ -734,6 +757,126 @@ export function renderDisplaySettingsTab(
     });
 
   // ── Sidebar ───────────────────────────────────────────────────────────────
+  const readerHeading = new Setting(containerEl).setName("Reader").setHeading();
+  readerHeading.settingEl.dataset.rssSettingsSection = "reader";
+  if (targetSection === "Reader") {
+    window.setTimeout(() => {
+      readerHeading.settingEl.scrollIntoView({
+        block: "center",
+        behavior: "auto",
+      });
+    }, 0);
+  }
+
+  new Setting(containerEl)
+    .setName("Font size")
+    .setDesc("Choose the reader body font size preset")
+    .addDropdown((dropdown) =>
+      dropdown
+        .addOption("80", "80%")
+        .addOption("90", "90%")
+        .addOption("100", "100%")
+        .addOption("110", "110%")
+        .addOption("120", "120%")
+        .addOption("130", "130%")
+        .addOption("150", "150%")
+        .addOption("175", "175%")
+        .addOption("200", "200%")
+        .setValue(String(plugin.settings.readerFormat.fontScalePct))
+        .onChange(async (value: string) => {
+          plugin.settings.readerFormat.fontScalePct = Number.parseInt(value, 10);
+          await persistReaderFormat();
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Line height")
+    .setDesc("Choose the reader line height preset")
+    .addDropdown((dropdown) =>
+      dropdown
+        .addOption("100", "100%")
+        .addOption("110", "110%")
+        .addOption("120", "120%")
+        .addOption("130", "130%")
+        .addOption("140", "140%")
+        .addOption("150", "150%")
+        .addOption("160", "160%")
+        .addOption("180", "180%")
+        .addOption("200", "200%")
+        .setValue(String(plugin.settings.readerFormat.lineHeightPct))
+        .onChange(async (value: string) => {
+          plugin.settings.readerFormat.lineHeightPct = Number.parseInt(value, 10);
+          await persistReaderFormat();
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Font")
+    .setDesc("Choose the reader font family")
+    .addDropdown((dropdown) =>
+      dropdown
+        .addOption("default", "Theme default")
+        .addOption("serif", "Serif")
+        .addOption("sans", "Sans")
+        .addOption("mono", "Mono")
+        .setValue(plugin.settings.readerFormat.fontFamily)
+        .onChange(async (value: string) => {
+          plugin.settings.readerFormat.fontFamily = value as
+            | "default"
+            | "serif"
+            | "sans"
+            | "mono";
+          await persistReaderFormat();
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Alignment")
+    .setDesc("Choose how reader paragraphs align")
+    .addDropdown((dropdown) =>
+      dropdown
+        .addOption("justify", "Justify")
+        .addOption("left", "Left")
+        .setValue(plugin.settings.readerFormat.textAlign)
+        .onChange(async (value: string) => {
+          plugin.settings.readerFormat.textAlign = value as "justify" | "left";
+          await persistReaderFormat();
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Paragraph spacing")
+    .setDesc("Choose the spacing between reader paragraphs")
+    .addDropdown((dropdown) =>
+      dropdown
+        .addOption("default", "Theme default")
+        .addOption("tight", "Tight")
+        .addOption("normal", "Normal")
+        .addOption("loose", "Loose")
+        .setValue(plugin.settings.readerFormat.paragraphSpacing)
+        .onChange(async (value: string) => {
+          plugin.settings.readerFormat.paragraphSpacing = value as
+            | "default"
+            | "tight"
+            | "normal"
+            | "loose";
+          await persistReaderFormat();
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Reset reader format")
+    .setDesc("Restore the reader format defaults")
+    .addButton((btn) =>
+      btn.setButtonText("Reset").onClick(() => {
+        void (async () => {
+          plugin.settings.readerFormat = { ...DEFAULT_SETTINGS.readerFormat };
+          await persistReaderFormat();
+          onRefresh();
+        })();
+      }),
+    );
+
   new Setting(containerEl).setName("Sidebar").setHeading();
 
   new Setting(containerEl)
@@ -796,6 +939,20 @@ export function renderDisplaySettingsTab(
     colorKey: keyof typeof plugin.settings.display,
     placeholder: string,
   ) => {
+    let isSyncingBadgeColor = false;
+    let badgeColorPicker: { setValue: (value: string) => void } | null = null;
+    let badgeColorInput: import("obsidian").TextComponent | null = null;
+
+    const applyBadgeColor = async (value: string): Promise<void> => {
+      (plugin.settings.display[colorKey] as string) = value;
+      await plugin.saveSettings();
+      const view = await plugin.getActiveDashboardView();
+      if (view?.sidebar) {
+        await plugin.app.workspace.revealLeaf(view.leaf);
+        view.sidebar.render();
+      }
+    };
+
     new Setting(containerEl)
       .setName(label)
       .setDesc("Enabled | color picker | hex input")
@@ -814,33 +971,31 @@ export function renderDisplaySettingsTab(
             }
           }),
       )
-      .addColorPicker((colorPicker) =>
+      .addColorPicker((colorPicker) => {
+        badgeColorPicker = colorPicker;
         colorPicker
           .setValue(plugin.settings.display[colorKey] as string)
           .onChange(async (value) => {
-            (plugin.settings.display[colorKey] as string) = value;
-            await plugin.saveSettings();
-            const view = await plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await plugin.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
-          }),
-      )
+            if (isSyncingBadgeColor) return;
+            isSyncingBadgeColor = true;
+            badgeColorInput?.setValue(value);
+            isSyncingBadgeColor = false;
+            await applyBadgeColor(value);
+          });
+      })
       .addText((text) => {
+        badgeColorInput = text;
         text
           .setPlaceholder(placeholder)
           .setValue(plugin.settings.display[colorKey] as string)
           .onChange(async (value) => {
+            if (isSyncingBadgeColor) return;
             const normalized = normalizeHexColor(value);
             if (!normalized) return;
-            (plugin.settings.display[colorKey] as string) = normalized;
-            await plugin.saveSettings();
-            const view = await plugin.getActiveDashboardView();
-            if (view?.sidebar) {
-              await plugin.app.workspace.revealLeaf(view.leaf);
-              view.sidebar.render();
-            }
+            isSyncingBadgeColor = true;
+            badgeColorPicker?.setValue(normalized);
+            isSyncingBadgeColor = false;
+            await applyBadgeColor(normalized);
           });
         text.inputEl.addClass("rss-dashboard-color-hex-input");
       });

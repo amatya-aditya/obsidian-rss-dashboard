@@ -76,8 +76,31 @@ export interface Feed {
   autoDeleteDuration?: number;
   maxItemsLimit?: number;
   scanInterval?: number;
+  excludeFromRefresh?: boolean;
   iconUrl?: string;
   keywordRules?: FeedKeywordRulesSettings;
+  lastRefreshDiagnostics?: FeedRefreshDiagnostics;
+}
+
+export type FeedRefreshStatus =
+  | "pending"
+  | "processing"
+  | "timed_out"
+  | "failed";
+
+export interface FeedRefreshState {
+  status: FeedRefreshStatus;
+  startedAt: number;
+  error?: string;
+}
+
+export interface FeedRefreshDiagnostics {
+  fetchedItemCount: number;
+  mergedItemCountBeforeRetention: number;
+  retainedItemCount: number;
+  retentionRemovedCount: number;
+  skippedByRefreshCutoffCount: number;
+  autoDeleteDurationDays?: number;
 }
 
 export interface FeedMetadata {
@@ -94,8 +117,37 @@ export interface FeedMetadata {
   autoDeleteDuration?: number;
   maxItemsLimit?: number;
   scanInterval?: number;
-  importStatus?: "pending" | "processing" | "completed" | "failed";
+  excludeFromRefresh?: boolean;
+  importStatus?:
+    | "pending"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "timed_out";
   importError?: string;
+}
+
+export interface FeedIngestionCandidate {
+  title: string;
+  url: string;
+  folder?: string;
+  author?: string;
+  mediaType?: "article" | "video" | "podcast";
+  autoDetect?: boolean;
+  customTemplate?: string;
+  customFolder?: string;
+  customTags?: string[];
+  autoDeleteDuration?: number;
+  maxItemsLimit?: number;
+  scanInterval?: number;
+  excludeFromRefresh?: boolean;
+  keywordRules?: FeedKeywordRulesSettings;
+}
+
+export interface FeedIngestionOptions {
+  mode?: "update" | "overwrite";
+  folders?: Folder[];
+  onProgress?: (completed: number, total: number) => void;
 }
 
 export interface Tag {
@@ -111,7 +163,12 @@ export interface Folder {
   pinned?: boolean;
 }
 
-export type ViewLocation = "main" | "right-sidebar" | "left-sidebar";
+export type ViewLocation =
+  | "main"
+  | "right-sidebar"
+  | "left-sidebar"
+  | "inline"
+  | "external-browser";
 
 export type PodcastTheme =
   | "obsidian"
@@ -313,12 +370,12 @@ export interface RssDashboardSettings {
     ascending: boolean;
   };
   feedSortOrder?: {
-    by: "name" | "created" | "itemCount" | "custom";
+    by: "name" | "created" | "itemCount" | "unreadCount" | "custom";
     ascending: boolean;
   };
   folderFeedSortOrders?: {
     [folderPath: string]: {
-      by: "name" | "created" | "itemCount" | "custom";
+      by: "name" | "created" | "itemCount" | "unreadCount" | "custom";
       ascending: boolean;
     };
   };
@@ -458,8 +515,9 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
  source: "{{source}}"
  link: "{{link}}"
  author: "{{author}}"
-feedTitle: "{{feedTitle}}"
-guid: "{{guid}}"
+ feedTitle: "{{feedTitle}}"
+ summary: "{{summary}}"
+ guid: "{{guid}}"
 ---
 
 # {{title}}
@@ -475,8 +533,9 @@ guid: "{{guid}}"
  source: "{{source}}"
  link: "{{link}}"
  author: "{{author}}"
-feedTitle: "{{feedTitle}}"
-guid: "{{guid}}"
+ feedTitle: "{{feedTitle}}"
+ summary: "{{summary}}"
+ guid: "{{guid}}"
 ---`,
     saveFullContent: true,
     fetchTimeout: 10,

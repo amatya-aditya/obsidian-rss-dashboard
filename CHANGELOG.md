@@ -1,3 +1,62 @@
+## [2.2.0] - May 9, 2026
+
+### Fixes (Patch)
+
+- Dashboard article-state handling is now consistent across reader navigation, filter messaging, and per-feed retention updates: selected cards stay anchored below the sticky header after split/sidebar reader opens or layout changes; empty states now explain when articles are hidden by view filters, unread/read special views, age thresholds, or retention windows instead of falling back to a generic “No articles found”; and per-feed auto-delete duration changes now refresh and re-apply retention deterministically when toggled off/on or tightened, preventing old items from lingering or reappearing incorrectly.
+
+### Features
+
+- **"Add All" Button added to Discover page**
+  - Added a new "Add All" button to the Discover page header. This button adds all feeds from the current page to the user's feed list.
+
+- **Sort feeds by unread count**
+  - Added a new option to the 'Sort' icon which organizes feeds by unread count.
+  - Two options: High to Low / Low to High
+
+- Added new "inline" reader view option to the general settings which opens the article in the same tab as the dashboard. (GH[#100](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/100))
+
+- Added a new "external browser" reader view location option in General settings so article and media opens can bypass the in-app reader and launch in the system browser. (GH[#89](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/89))
+
+- **Flexible Date Formatting for Templates** (GH[#102](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/102)):
+  - Added support for custom date formats in article templates using Moment.js.
+  - New variables: `{{dateShort}}` (renders as `YYYY-MM-DD`) and parameterized `{{date:FORMAT}}` (e.g., `{{date:YYYY/MM/DD HH:mm}}`).
+  - Improved settings UI for Article Saving with a readable, row-by-row guide of all available template variables.
+  - Full backward compatibility for `{{date}}`, `{{isoDate}}`, and `{{isoDateTime}}`.
+
+### Fixes
+
+- Fixed badge color settings not syncing between color picker and hex input controls. Color picker now updates hex input immediately, and hex input now updates color picker after validation.
+
+- Fixed a bug where the Obsidian tab title was not properly updating when switching between feeds.
+
+- Per-feed Add/Edit Feed options now support a separate Auto-refresh "Off" override in addition to "Use global setting", and the explicit Off state is preserved when adding or importing feeds.
+
+- Multi-feed refreshes now run through a bounded worker pool of 4 with a 15s per-feed timeout, keep runtime-only refresh state per URL, merge refreshed feeds back into settings during the run, and finish with one save plus a final dashboard refresh. Single-feed refresh stays on the lightweight direct path. (Old behavior: all feeds were being refreshed individually with no indication of progress or completion)
+
+- Fixed Reader View Location So It Controls Article Opening into sidebars (GH[#100](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/100))
+
+- Fixed Discover and Smallweb views incorrectly opening in the sidebar when Dashboard view location was set to a sidebar option; they now always open as a new tab in the main content area.
+
+- Adding a feed as "Favorite" now also applies the "Favorite" tag and is removed when un-favorited.
+
+- Fixed reader tag pills so tag colors now render correctly in Reader view instead of showing plain text with no colored background.
+
+- Fixed tag color edits so Reader view now refreshes its open tag DOM immediately after popover/settings color changes, matching the existing dashboard tag refresh behavior without needing to reopen the article.
+
+- Fixed podcast feeds that only expose channel-level artwork so shared feed artwork now appears correctly in podcast episodes and the player instead of being dropped during parsing/refresh.
+
+- Fixed the Manage Feeds workflow so the modal now closes after the user initiates an OPML import instead of remaining open behind the import flow.
+
+- Saved articles now persist across vault reloads (PR#106)
+
+- Saved articles no longer truncate title names
+
+### Improvements
+
+- Optimized the feed refresh process to reduce unnecessary network requests.
+
+- Added a per-feed "Exclude from refresh" option in Add/Edit Feed so selected feeds can be skipped by auto-refresh and bulk refresh actions while still allowing direct manual refresh.
+
 ## [2.2.0-beta.10] - April 2, 2026
 
 ### New Features
@@ -38,8 +97,8 @@
 - **Testing Baseline for 2.2.0**:
   - Established the first durable repo-wide automated test baseline for the plugin.
   - The pre-testing reference point was `2.1.9`, which effectively shipped without a meaningful unit test suite beyond minimal Vitest scaffolding.
-  - The repo now has **103 passing test files** and **741 passing tests**.
-  - Global coverage baseline is now **46.77% statements**, **37.32% branches**, **41.51% functions**, and **47.66% lines**.
+  - The repo now has **110 passing test files** and **820 passing tests**.
+  - Global coverage baseline is now **51.72% statements**, **41.04% branches**, **46.12% functions**, and **52.73% lines**.
   - Added broad unit and integration-style coverage across core services, views, components, settings flows, modals, and plugin lifecycle behavior.
   - Added and expanded shared test infrastructure including Obsidian API stubs, JSDOM polyfills, and purpose-built harnesses for complex UI/service surfaces.
   - Coverage thresholds are now actively enforced in `vitest.config.mjs` at **lines 40 / branches 33 / functions 34** to prevent regression.

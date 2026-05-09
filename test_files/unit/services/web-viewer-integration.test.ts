@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { sanitizeFilename } from "../../../src/services/article-saver";
 import {
   buildFeedItem,
   createWebViewerIntegrationHarness,
@@ -258,10 +259,10 @@ describe("Phase 8 - WebViewerIntegration", () => {
       );
 
       expect(file).not.toBeNull();
-      expect(h.app.vault.getAbstractFileByPath("Folder/My_File.md")).not.toBeNull();
+      expect(h.app.vault.getAbstractFileByPath("Folder/My File.md")).not.toBeNull();
       expect(logSpy).toHaveBeenCalledWith(
         "[Stub Notice]",
-        expect.stringContaining("Article saved: My_File"),
+        expect.stringContaining("Article saved: My File"),
       );
 
       h.cleanup();
@@ -294,14 +295,19 @@ describe("Phase 8 - WebViewerIntegration", () => {
   });
 
   describe("helpers", () => {
-    it("sanitizeFilename replaces illegal chars, collapses whitespace, and caps length", () => {
-      const h = createWebViewerIntegrationHarness();
-      const sanitize = (h.integration as any).sanitizeFilename.bind(h.integration);
+    it("sanitizeFilename replaces illegal chars, collapses whitespace, and preserves the full title", () => {
+      expect(sanitizeFilename('Hello / World: "Test"')).toBe("Hello World Test");
+      expect(
+        sanitizeFilename(
+          'This is a deliberately long article title with / illegal : characters " removed" and extra words',
+        ),
+      ).toBe(
+        "This is a deliberately long article title with illegal characters removed and extra words",
+      );
+    });
 
-      expect(sanitize('Hello / World: "Test"')).toBe("Hello_World_Test_");
-      expect(sanitize("a".repeat(200))).toHaveLength(100);
-
-      h.cleanup();
+    it("sanitizeFilename falls back to a safe filename when sanitization removes everything", () => {
+      expect(sanitizeFilename(' / \\\\ : * ? " < > | ')).toBe("Untitled Article");
     });
 
     it("applyTemplate replaces common placeholders", () => {
@@ -371,7 +377,7 @@ guid: "{{guid}}"
 
       const out = generateFrontmatter(item);
       expect(out).toContain('title: "My Article"');
-      expect(out).toContain("tags: [saved]");
+      expect(out).toContain("tags: [Saved]");
       expect(out).toContain('guid: "g1"');
       expect(out).toContain(new Date().toISOString());
 

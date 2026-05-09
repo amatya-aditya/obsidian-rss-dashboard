@@ -1,3 +1,4 @@
+import { readFileSync } from "fs";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { Sidebar, SidebarOptions, SidebarCallbacks } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
@@ -7,9 +8,12 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 installObsidianDomPolyfills();
 
+const SIDEBAR_CSS = readFileSync("src/styles/sidebar.css", "utf-8");
+
 describe("Sidebar Rendering", () => {
   let app: App;
   let container: HTMLElement;
+  let styleEl: HTMLStyleElement;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let plugin: any;
   let settings: RssDashboardSettings;
@@ -19,6 +23,11 @@ describe("Sidebar Rendering", () => {
   beforeEach(() => {
     app = ObsidianStubs.App.createMock();
     container = document.createElement("div");
+    document.body.appendChild(container);
+
+    styleEl = document.createElement("style");
+    styleEl.textContent = SIDEBAR_CSS;
+    document.head.appendChild(styleEl);
     
     settings = {
       feeds: [
@@ -68,6 +77,11 @@ describe("Sidebar Rendering", () => {
     };
   });
 
+  afterEach(() => {
+    styleEl.remove();
+    container.remove();
+  });
+
   it("should render successfully", () => {
     const sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
     sidebar.render();
@@ -106,6 +120,37 @@ describe("Sidebar Rendering", () => {
     
     const feed1 = container.querySelector("[data-feed-url=\"url1\"]");
     expect(feed1).not.toBeNull();
+  });
+
+  it("keeps the feed icon at a fixed size when the row is width constrained", () => {
+    settings.feeds = [
+      {
+        title: "A very long feed title that should truncate before the icon shrinks",
+        url: "url1",
+        folder: "Folder 1",
+        items: [{ read: false }],
+      } as Feed,
+    ];
+
+    const sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
+    sidebar.render();
+
+    const feedRow = container.querySelector("[data-feed-url=\"url1\"]") as HTMLElement;
+    const feedName = feedRow.querySelector(".rss-dashboard-feed-name") as HTMLElement;
+    const icon = feedRow.querySelector(".rss-dashboard-feed-icon") as HTMLElement;
+
+    expect(feedName).not.toBeNull();
+    expect(icon).not.toBeNull();
+
+    const iconStyle = window.getComputedStyle(icon);
+    const feedNameStyle = window.getComputedStyle(feedName);
+
+    expect(iconStyle.width).toBe("16px");
+    expect(iconStyle.height).toBe("16px");
+    expect(iconStyle.flexShrink).toBe("0");
+    expect(feedNameStyle.overflow).toBe("hidden");
+    expect(feedNameStyle.textOverflow).toBe("ellipsis");
+    expect(feedNameStyle.whiteSpace).toBe("nowrap");
   });
 
   it("should toggle a folder from the chevron without opening the folder", () => {

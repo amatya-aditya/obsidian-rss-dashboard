@@ -83,6 +83,15 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     tab.activateTab("Rules");
     expect((rules as any).renderRulesSettingsTab).toHaveBeenCalledTimes(1);
 
+    const display = await import("../../../src/settings/tabs/display-settings-tab");
+    tab.activateTab("Display", "Reader");
+    expect((display as any).renderDisplaySettingsTab).toHaveBeenLastCalledWith(
+      expect.any(HTMLDivElement),
+      plugin,
+      expect.any(Function),
+      "Reader",
+    );
+
     // Invalid tab name is ignored
     (rules as any).renderRulesSettingsTab.mockClear();
     tab.activateTab("Nope");

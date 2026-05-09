@@ -296,45 +296,64 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 4px;
   /* margin-bottom: 12px;
   padding-bottom: 14px; */
   /* border-bottom: 1px solid var(--background-modifier-border); */
 }
 
-/* Return Home button in Discover view */
-.rss-discover-return-home {
+/* Shared primary nav buttons in Discover sidebar header */
+.rss-discover-header .rss-dashboard-nav-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.rss-discover-header-nav-button {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  background: var(--background-modifier-hover);
+  padding: 6px;
+  min-height: 16px;
+  flex: 1 1 calc(50% - 4px);
+  min-width: 40px;
+  background: var(--interactive-normal);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  color: var(--text-normal);
+  border-radius: 8px;
+  color: var(--text-color);
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.15s ease;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
-.rss-discover-return-home:hover {
-  background: var(--background-modifier-active);
-  border-color: var(--interactive-accent);
-  color: var(--text-accent);
+.rss-discover-header-nav-button:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--text-on-accent);
 }
 
-.rss-discover-return-home:focus-visible {
+.rss-discover-header-nav-button:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
 
-.rss-discover-return-home svg {
-  width: 16px;
-  height: 16px;
+.rss-discover-header-nav-button svg {
+  width: 16px !important;
+  height: 16px !important;
+  display: block !important;
+  visibility: visible !important;
   flex-shrink: 0;
 }
 
-.rss-discover-return-home-text {
+.rss-discover-header-nav-button-text {
   white-space: nowrap;
 }
 
@@ -370,6 +389,67 @@
 .rss-discover-results-count {
   font-weight: 600;
   color: var(--text-normal);
+}
+
+.rss-discover-add-all-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary-alt);
+  color: var(--text-normal);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.rss-discover-add-all-btn:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+  transform: translateY(-1px);
+}
+
+.rss-discover-add-all-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rss-discover-add-all-btn.is-processing {
+  opacity: 1;
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+}
+
+.rss-discover-add-all-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  animation: rss-discover-add-all-spin 0.9s linear infinite;
+}
+
+.rss-discover-add-all-spinner svg {
+  width: 14px;
+  height: 14px;
+}
+
+@keyframes rss-discover-add-all-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .rss-discover-filter-controls {
@@ -1121,93 +1201,6 @@
   visibility: hidden;
 }
 
-.rss-dashboard-pagination {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 2rem 0 1rem 0;
-  flex-wrap: wrap;
-  justify-content: space-around;
-}
-
-.rss-dashboard-pagination-btn {
-  background: var(--background-secondary);
-  color: var(--text-color);
-  border-radius: 6px;
-  padding: 0.3em 0.9em;
-  font-size: 1rem;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    color 0.15s,
-    border 0.15s;
-  margin: 0 2px;
-}
-
-.rss-dashboard-pagination-btn.active,
-.rss-dashboard-pagination-btn:disabled {
-  background: var(--color-accent);
-  color: var(--text-on-accent);
-  border-color: var(--color-accent);
-  cursor: default;
-}
-
-.rss-dashboard-pagination-btn.prev,
-.rss-dashboard-pagination-btn.next {
-  font-weight: bold;
-  background: var(--background-secondary);
-  color: var(--text-color);
-  border-radius: 6px;
-}
-
-.rss-dashboard-pagination-btn.prev:disabled,
-.rss-dashboard-pagination-btn.next:disabled {
-  background: var(--background-secondary);
-  color: var(--text-color);
-  border-color: var(--color-accent);
-}
-
-.rss-dashboard-pagination-ellipsis {
-  color: var(--text-color);
-  font-size: 1.1em;
-  margin: 0 4px;
-}
-
-.rss-dashboard-pagination-results {
-  margin-left: 1.2rem;
-  color: var(--text-color);
-  font-size: 0.98em;
-}
-
-.rss-dashboard-page-size-dropdown {
-  margin-left: 1.2rem;
-  padding: 0.2em 0.8em;
-  border-radius: 6px;
-  background: var(--background-secondary);
-  color: var(--text-color);
-  font-size: 1em;
-  outline: none;
-  cursor: pointer;
-  transition: border 0.15s;
-}
-
-.rss-dashboard-pagination-mark-page-read {
-  margin-left: 0.5rem;
-}
-
-.rss-dashboard-page-size-dropdown:focus {
-  border-color: var(--color-accent);
-}
-
-.rss-dashboard-pagination-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  margin-top: 2rem;
-  margin-bottom: 2rem;
-}
-
 .feed-preview-modal {
   width: 90vw;
   height: 85vh;
@@ -1489,12 +1482,6 @@
 }
 
 @media (max-width: 1200px) {
-  .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-nav,
-  .modal.rss-mobile-discover-filters-modal .rss-discover-header {
-    /* padding-left: 16px;
-    padding-right: 16px; */
-  }
-
   .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-nav {
     margin-top: 2px;
     margin-bottom: 8px;
