@@ -1,306 +1,342 @@
-import { Notice, Setting } from "obsidian";
+import { Notice, Setting, setIcon } from "obsidian";
 import { FeedItem } from "../types/types";
-import { setIcon } from "obsidian";
-import { ensureUtf8Meta } from '../utils/platform-utils';
 import { MediaService } from "../services/media-service";
 
+interface YTPlayerEvent {
+  target: YTPlayer;
+}
+
+interface YTStateChangeEvent {
+  data: number;
+}
+
+interface YTPlayer {
+  seekTo(seconds: number, allowSeekAhead?: boolean): void;
+  getCurrentTime(): number;
+  getDuration(): number;
+  destroy(): void;
+}
+
+interface YTPlayerOptions {
+  events?: {
+    onReady?: (event: YTPlayerEvent) => void;
+    onStateChange?: (event: YTStateChangeEvent) => void;
+  };
+}
+
+interface YTNamespace {
+  Player: new (elementId: string, options: YTPlayerOptions) => YTPlayer;
+}
+
+declare global {
+  interface Window {
+    YT?: YTNamespace;
+    onYouTubeIframeAPIReady: () => void;
+  }
+}
+
 export class VideoPlayer {
-    private container: HTMLElement;
-    private currentItem: FeedItem | null = null;
-    private playerEl: HTMLElement | null = null;
-    private iframeEl: HTMLIFrameElement | null = null;
-    private onVideoSelect?: (item: FeedItem) => void;
-    
-    constructor(container: HTMLElement, onVideoSelect?: (item: FeedItem) => void) {
-        this.container = container;
-        this.onVideoSelect = onVideoSelect;
+  private container: HTMLElement;
+  private currentItem: FeedItem | null = null;
+  private playerEl: HTMLElement | null = null;
+  private iframeEl: HTMLIFrameElement | null = null;
+  private player: YTPlayer | null = null;
+  private progressInterval: number | null = null;
+  private onVideoSelect?: (item: FeedItem) => void;
+  private onPlaybackProgress?: (
+    item: FeedItem,
+    position: number,
+    duration: number,
+  ) => void;
+  private relatedVideos: FeedItem[] = [];
+
+  constructor(
+    container: HTMLElement,
+    onVideoSelect?: (item: FeedItem) => void,
+    onPlaybackProgress?: (
+      item: FeedItem,
+      position: number,
+      duration: number,
+    ) => void,
+  ) {
+    this.container = container;
+    this.onVideoSelect = onVideoSelect;
+    this.onPlaybackProgress = onPlaybackProgress;
+    this.loadYouTubeApi();
+  }
+
+  private loadYouTubeApi(): void {
+    if (typeof window === "undefined") return;
+    if (window.YT && window.YT.Player) return;
+
+    if (!document.getElementById("youtube-iframe-api")) {
+      const tag = document.createElement("script");
+      tag.id = "youtube-iframe-api";
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName("script")[0];
+      if (firstScriptTag && firstScriptTag.parentNode) {
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+      } else {
+        (
+          document.head ||
+          document.body ||
+          document.documentElement
+        ).appendChild(tag);
+      }
     }
-    
-    
-    loadVideo(item: FeedItem): void {
-        if (!item.videoId) {
-            
-            new Notice("No video ID provided");
-            return;
-        }
-        
-        try {
-            this.currentItem = item;
-            this.render();
-        } catch (error) {
-            
-            new Notice(`Error loading video: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
+  }
+
+  loadVideo(item: FeedItem): void {
+    if (!item.videoId) {
+      new Notice("No video ID provided");
+      console.debug("[Stub Notice]", "No video ID provided");
+      return;
     }
-    
-    
-    private render(): void {
-        if (!this.currentItem || !this.currentItem.videoId) return;
-        const embed = MediaService.buildYouTubeEmbed(this.currentItem.videoId);
-        
-        this.container.empty();
-        
-        
-        this.playerEl = this.container.createDiv({
-            cls: "rss-video-player",
+
+    try {
+      this.currentItem = item;
+      this.render();
+    } catch (error) {
+      const msg = `Error loading video: ${error instanceof Error ? error.message : "Unknown error"}`;
+      new Notice(msg);
+      console.debug("[Stub Notice]", msg);
+    }
+  }
+
+  private render(): void {
+    if (!this.currentItem || !this.currentItem.videoId) return;
+    const embed = MediaService.buildYouTubeEmbed(this.currentItem.videoId);
+
+    this.container.empty();
+    this.playerEl = this.container.createDiv({ cls: "rss-video-player" });
+
+    const videoContainer = this.playerEl.createDiv({
+      cls: "rss-video-container",
+    });
+    const iframeId = `yt-player-${Math.random().toString(36).substring(2, 11)}`;
+
+    this.iframeEl = document.createElement("iframe");
+    this.iframeEl.id = iframeId;
+    this.iframeEl.src = embed.embedUrl;
+    this.iframeEl.setAttribute("allow", embed.allow);
+    this.iframeEl.setAttribute("referrerpolicy", embed.referrerPolicy);
+    this.iframeEl.allowFullscreen = true;
+
+    videoContainer.appendChild(this.iframeEl);
+
+    this.initPlayer(iframeId);
+
+    const details = this.playerEl.createDiv({ cls: "rss-video-details" });
+    const titleSetting = new Setting(details)
+      .setName(this.currentItem.title)
+      .setHeading();
+    titleSetting.settingEl.addClass("rss-video-title");
+
+    const metaContainer = details.createDiv({ cls: "rss-video-meta" });
+    metaContainer.createDiv({
+      cls: "rss-video-channel",
+      text: this.currentItem.feedTitle,
+    });
+    metaContainer.createDiv({
+      cls: "rss-video-date",
+      text: new Date(this.currentItem.pubDate).toLocaleDateString(),
+    });
+
+    if (this.currentItem.description) {
+      const descriptionContainer = details.createDiv({
+        cls: "rss-video-description",
+      });
+      const sanitizeAndAppend = (html: string, target: HTMLElement): void => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+        doc.querySelectorAll("script").forEach((s) => s.remove());
+        doc.querySelectorAll("a").forEach((link) => {
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
         });
-        
-        
-        
-        
-        const videoContainer = this.playerEl.createDiv({
-            cls: "rss-video-container",
+        const fragment = document.createDocumentFragment();
+        while (doc.body.firstChild) {
+          fragment.appendChild(doc.body.firstChild);
+        }
+        target.appendChild(fragment);
+      };
+      sanitizeAndAppend(this.currentItem.description, descriptionContainer);
+    }
+
+    const linksContainer = this.playerEl.createDiv({ cls: "rss-video-links" });
+    const youtubeButton = linksContainer.createEl("a", {
+      cls: "rss-video-youtube-button",
+      href: embed.watchUrl,
+    });
+    youtubeButton.target = "_blank";
+    youtubeButton.rel = "noopener noreferrer";
+    const youtubeIcon = youtubeButton.createSpan({
+      cls: "rss-video-youtube-button-icon",
+    });
+    setIcon(youtubeIcon, "youtube");
+    youtubeButton.createSpan({ text: "Watch on YouTube" });
+
+    const tosLink = linksContainer.createEl("a", {
+      cls: "rss-video-tos-link",
+      href: "https://www.youtube.com/t/terms",
+      text: "YouTube TOS",
+    });
+    tosLink.target = "_blank";
+    tosLink.rel = "noopener noreferrer";
+
+    this.playerEl.createDiv({ cls: "rss-video-related" });
+    this.renderRelatedVideos();
+  }
+
+  private initPlayer(iframeId: string): void {
+    const checkApi = () => {
+      if (window.YT && window.YT.Player) {
+        this.player = new window.YT.Player(iframeId, {
+          events: {
+            onReady: (event: YTPlayerEvent) => {
+              if (this.currentItem?.playbackProgress?.position) {
+                event.target.seekTo(this.currentItem.playbackProgress.position);
+              }
+            },
+            onStateChange: (event: YTStateChangeEvent) => {
+              this.handleStateChange(event.data);
+            },
+          },
         });
-        
-        
-        this.iframeEl = this.container.createEl("iframe", {
+      } else {
+        setTimeout(checkApi, 100);
+      }
+    };
+    checkApi();
+  }
+
+  private handleStateChange(state: number): void {
+    if (state === 1) {
+      // PLAYING
+      this.startTracking();
+    } else {
+      this.stopTracking();
+      if (state === 2 || state === 0) {
+        // PAUSED or ENDED
+        this.saveProgress();
+      }
+    }
+  }
+
+  private startTracking(): void {
+    if (this.progressInterval) return;
+    this.progressInterval = window.setInterval(() => {
+      this.saveProgress();
+    }, 5000);
+  }
+
+  private stopTracking(): void {
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+      this.progressInterval = null;
+    }
+  }
+
+  private saveProgress(): void {
+    if (!this.player || !this.currentItem || !this.onPlaybackProgress) return;
+
+    try {
+      const position = this.player.getCurrentTime();
+      const duration = this.player.getDuration();
+      if (position >= 0 && duration > 0) {
+        this.onPlaybackProgress(this.currentItem, position, duration);
+      }
+    } catch {
+      // Player might not be ready or detached
+    }
+  }
+
+  setRelatedVideos(videos: FeedItem[]): void {
+    this.relatedVideos = videos;
+    this.renderRelatedVideos();
+  }
+
+  private renderRelatedVideos(): void {
+    const relatedContainer = this.playerEl?.querySelector(".rss-video-related");
+    if (!relatedContainer || !this.currentItem) return;
+
+    relatedContainer.empty();
+
+    const filtered = this.relatedVideos
+      .filter(
+        (v) =>
+          this.currentItem &&
+          v.guid !== this.currentItem.guid &&
+          v.videoId &&
+          v.feedUrl === this.currentItem.feedUrl,
+      )
+      .slice(0, 5);
+
+    relatedContainer.createEl("h4", { text: "From the same channel" });
+
+    if (filtered.length > 0) {
+      const relatedList = relatedContainer.createDiv({
+        cls: "rss-video-related-list",
+      });
+      filtered.forEach((video) => {
+        const videoItem = relatedList.createDiv({
+          cls: "rss-video-related-item",
+        });
+
+        if (video.videoId) {
+          const thumbnail = videoItem.createDiv({
+            cls: "rss-video-related-thumbnail",
+          });
+          thumbnail.createEl("img", {
             attr: {
-                src: embed.embedUrl,
-                allow: embed.allow,
-                referrerpolicy: embed.referrerPolicy
-            }
-        });
-        this.iframeEl.allowFullscreen = true;
-        
-        videoContainer.appendChild(this.iframeEl);
-        
-        
-        const details = this.playerEl.createDiv({
-            cls: "rss-video-details",
-        });
-        
-        const titleSetting = new Setting(details).setName(this.currentItem.title).setHeading();
-        titleSetting.settingEl.addClass("rss-video-title");
-        
-        const metaContainer = details.createDiv({
-            cls: "rss-video-meta",
-        });
-        
-        
-        metaContainer.createDiv({
-            cls: "rss-video-channel",
-            text: this.currentItem.feedTitle,
-        });
-        
-        
-        metaContainer.createDiv({
-            cls: "rss-video-date",
-            text: new Date(this.currentItem.pubDate).toLocaleDateString(),
-        });
-        
-        
-        if (this.currentItem.description) {
-            const descriptionContainer = details.createDiv({
-                cls: "rss-video-description",
-            });
-            
-            
-            const cleanHtml = (html: string): string => {
-                const htmlWithMeta = ensureUtf8Meta(html);
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(htmlWithMeta, "text/html");
-                
-                
-                doc.querySelectorAll("script").forEach(el => el.remove());
-                
-                
-                doc.querySelectorAll("a").forEach(link => {
-                    link.target = "_blank";
-                    link.rel = "noopener noreferrer";
-                });
-                
-                return new XMLSerializer().serializeToString(doc.body);
-            };
-            
-            descriptionContainer.textContent = cleanHtml(this.currentItem.description);
+              src: `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`,
+              alt: video.title,
+            },
+          });
         }
-        
-        
-        const linksContainer = this.playerEl.createDiv({
-            cls: "rss-video-links",
+
+        const videoInfo = videoItem.createDiv({
+          cls: "rss-video-related-info",
         });
-        
-        
-        const youtubeButton = linksContainer.createEl("a", {
-            cls: "rss-video-youtube-button",
-            href: embed.watchUrl,
+        videoInfo.createDiv({
+          cls: "rss-video-related-title",
+          text: video.title,
         });
-        youtubeButton.target = "_blank";
-        youtubeButton.rel = "noopener noreferrer";
-        
-        const youtubeIcon = youtubeButton.createSpan({
-            cls: "rss-video-youtube-button-icon",
+        videoInfo.createDiv({
+          cls: "rss-video-related-date",
+          text: new Date(video.pubDate).toLocaleDateString(),
         });
-        setIcon(youtubeIcon, "youtube");
-        youtubeButton.createSpan({
-            text: "Watch on YouTube",
+
+        videoItem.addEventListener("click", () => {
+          if (this.onVideoSelect) {
+            this.onVideoSelect(video);
+          } else {
+            this.loadVideo(video);
+          }
         });
-        
-        
-        const relatedContainer = this.playerEl.createDiv({
-            cls: "rss-video-related",
-        });
-        
-        relatedContainer.createEl("h4", {
-            text: "From the same channel",
-        });
-        
-        
-        const relatedVideos = this.findRelatedVideos();
-        
-        if (relatedVideos.length > 0) {
-            const relatedList = relatedContainer.createDiv({
-                cls: "rss-video-related-list",
-            });
-            
-            relatedVideos.forEach(video => {
-                const videoItem = relatedList.createDiv({
-                    cls: "rss-video-related-item",
-                });
-                
-                
-                if (video.videoId) {
-                    const thumbnail = videoItem.createDiv({
-                        cls: "rss-video-related-thumbnail",
-                    });
-                    
-                    thumbnail.createEl("img", {
-                        attr: {
-                            src: `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`,
-                            alt: video.title,
-                        },
-                    });
-                }
-                
-                
-                const videoInfo = videoItem.createDiv({
-                    cls: "rss-video-related-info",
-                });
-                
-                videoInfo.createDiv({
-                    cls: "rss-video-related-title",
-                    text: video.title,
-                });
-                
-                videoInfo.createDiv({
-                    cls: "rss-video-related-date",
-                    text: new Date(video.pubDate).toLocaleDateString(),
-                });
-                
-                
-                videoItem.addEventListener("click", () => {
-                    if (this.onVideoSelect) {
-                        this.onVideoSelect(video);
-                    } else {
-                        this.loadVideo(video);
-                    }
-                });
-            });
-        } else {
-            relatedContainer.createDiv({
-                cls: "rss-video-related-empty",
-                text: "No related videos found",
-            });
-        }
+      });
+    } else {
+      relatedContainer.createDiv({
+        cls: "rss-video-related-empty",
+        text: "No related videos found",
+      });
     }
-    
-    
-    private findRelatedVideos(): FeedItem[] {
-        if (!this.currentItem) return [];
-        
-        
-        
-        
-        return []; 
+  }
+
+  destroy(): void {
+    this.stopTracking();
+    if (this.player) {
+      try {
+        this.player.destroy();
+      } catch {
+        // Player may already be destroyed
+      }
+      this.player = null;
     }
-    
-    
-    setRelatedVideos(videos: FeedItem[]): void {
-        if (!this.currentItem) return;
-        
-        
-        const relatedVideos = videos.filter(v => 
-            this.currentItem &&
-            v.guid !== this.currentItem.guid && 
-            v.videoId && 
-            v.feedUrl === this.currentItem.feedUrl
-        ).slice(0, 5);
-        
-        
-        const relatedContainer = this.playerEl?.querySelector(".rss-video-related");
-        if (relatedContainer) {
-            
-            relatedContainer.empty();
-            
-            relatedContainer.createEl("h4", {
-                text: "From the same channel",
-            });
-            
-            if (relatedVideos.length > 0) {
-                const relatedList = relatedContainer.createDiv({
-                    cls: "rss-video-related-list",
-                });
-                
-                relatedVideos.forEach(video => {
-                    const videoItem = relatedList.createDiv({
-                        cls: "rss-video-related-item",
-                    });
-                    
-                    
-                    if (video.videoId) {
-                        const thumbnail = videoItem.createDiv({
-                            cls: "rss-video-related-thumbnail",
-                        });
-                        
-                        thumbnail.createEl("img", {
-                            attr: {
-                                src: `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`,
-                                alt: video.title,
-                            },
-                        });
-                    }
-                    
-                    
-                    const videoInfo = videoItem.createDiv({
-                        cls: "rss-video-related-info",
-                    });
-                    
-                    videoInfo.createDiv({
-                        cls: "rss-video-related-title",
-                        text: video.title,
-                    });
-                    
-                    videoInfo.createDiv({
-                        cls: "rss-video-related-date",
-                        text: new Date(video.pubDate).toLocaleDateString(),
-                    });
-                    
-                    
-                    videoItem.addEventListener("click", () => {
-                        if (this.onVideoSelect) {
-                            this.onVideoSelect(video);
-                        } else {
-                            this.loadVideo(video);
-                        }
-                    });
-                });
-            } else {
-                relatedContainer.createDiv({
-                    cls: "rss-video-related-empty",
-                    text: "No related videos found",
-                });
-            }
-        }
+    if (this.iframeEl) {
+      this.iframeEl.remove();
+      this.iframeEl = null;
     }
-    
-    
-    destroy(): void {
-        if (this.iframeEl) {
-            this.iframeEl.src = "";
-            this.iframeEl.remove();
-            this.iframeEl = null;
-        }
-        
-        this.playerEl = null;
-    }
+    this.playerEl = null;
+  }
 }

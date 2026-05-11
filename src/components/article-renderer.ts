@@ -16,6 +16,11 @@ export interface ArticleRendererOptions {
     shouldRerender?: boolean,
   ) => void;
   onOpenSavedArticle?: (file: TFile) => void;
+  onPlaybackProgress?: (
+    item: FeedItem,
+    position: number,
+    duration: number,
+  ) => void;
 }
 
 export class ArticleRenderer {
@@ -28,6 +33,11 @@ export class ArticleRenderer {
     shouldRerender?: boolean,
   ) => void;
   private onOpenSavedArticle?: (file: TFile) => void;
+  private onPlaybackProgress?: (
+    item: FeedItem,
+    position: number,
+    duration: number,
+  ) => void;
 
   private podcastPlayer: PodcastPlayer | null = null;
   private videoPlayer: VideoPlayer | null = null;
@@ -44,6 +54,7 @@ export class ArticleRenderer {
     this.onArticleSave = options.onArticleSave;
     this.onArticleUpdate = options.onArticleUpdate;
     this.onOpenSavedArticle = options.onOpenSavedArticle;
+    this.onPlaybackProgress = options.onPlaybackProgress;
   }
 
   public async render(
@@ -106,9 +117,13 @@ export class ArticleRenderer {
       cls: "rss-reader-video-container enhanced",
     });
     if (item.videoId) {
-      this.videoPlayer = new VideoPlayer(videoContainer, (selectedVideo) => {
-        void this.render(container, selectedVideo, this.relatedItems);
-      });
+      this.videoPlayer = new VideoPlayer(
+        videoContainer,
+        (selectedVideo) => {
+          void this.render(container, selectedVideo, this.relatedItems);
+        },
+        this.onPlaybackProgress,
+      );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
         this.videoPlayer.setRelatedVideos(this.relatedItems);
@@ -173,6 +188,7 @@ export class ArticleRenderer {
         this.settings.media.podcastTheme,
         undefined,
         onEpisodeSelected,
+        this.onPlaybackProgress,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {

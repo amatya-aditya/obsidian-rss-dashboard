@@ -99,9 +99,9 @@ describe("VideoPlayer", () => {
 
     const description = container.querySelector(".rss-video-description");
     expect(description).not.toBeNull();
-    expect(description?.textContent).not.toContain("<script");
-    expect(description?.textContent).toContain('target="_blank"');
-    expect(description?.textContent).toContain('rel="noopener noreferrer"');
+    expect(description?.innerHTML).not.toContain("<script");
+    expect(description?.innerHTML).toContain('target="_blank"');
+    expect(description?.innerHTML).toContain('rel="noopener noreferrer"');
   });
 
   it("renders the YouTube watch button using embed.watchUrl and sets icon dataset", () => {

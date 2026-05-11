@@ -41,6 +41,21 @@ export function renderMediaSettingsTab(
           await plugin.saveSettings();
         }),
     );
+  
+  // Policy Compliance: YouTube TOS and Privacy disclosure
+  const complianceInfo = containerEl.createDiv({
+    cls: "rss-settings-compliance-info",
+  });
+  complianceInfo.createEl("p", {
+    text: "This plugin uses the YouTube IFrame API for video playback. By using this feature, you agree to be bound by the ",
+  }).createEl("a", {
+    href: "https://www.youtube.com/t/terms",
+    text: "YouTube Terms of Service",
+  });
+  complianceInfo.createEl("p", {
+    cls: "setting-item-description",
+    text: "Playback progress for videos and podcasts is stored locally in your vault's data.json file.",
+  });
 
   // ── Podcast ───────────────────────────────────────────────────────────────
   new Setting(containerEl).setName("Podcast").setHeading();

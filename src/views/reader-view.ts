@@ -58,6 +58,11 @@ export class ReaderView extends ItemView {
   private currentReaderTitle?: string;
   private currentContentIsFullArticle = false;
   private turndownService = new TurndownService();
+  private onPlaybackProgress?: (
+    item: FeedItem,
+    position: number,
+    duration: number,
+  ) => void;
   private readToggleButton: HTMLElement | null = null;
   private starToggleButton: HTMLElement | null = null;
   private saveButton: HTMLElement | null = null;
@@ -113,12 +118,20 @@ export class ReaderView extends ItemView {
       updates: Partial<FeedItem>,
       shouldRerender?: boolean,
     ) => void,
+    options?: {
+      onPlaybackProgress?: (
+        item: FeedItem,
+        position: number,
+        duration: number,
+      ) => void;
+    },
   ) {
     super(leaf);
     this.settings = settings;
     this.articleSaver = articleSaver;
     this.onArticleSave = onArticleSave;
     this.onArticleUpdate = onArticleUpdate;
+    this.onPlaybackProgress = options?.onPlaybackProgress;
 
     try {
       const appWithPlugins = this.app as unknown as {
@@ -698,9 +711,13 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-video-container enhanced",
     });
     if (item.videoId) {
-      this.videoPlayer = new VideoPlayer(container, (selectedVideo) => {
-        void this.displayItem(selectedVideo, this.relatedItems);
-      });
+      this.videoPlayer = new VideoPlayer(
+        container,
+        (selectedVideo) => {
+          void this.displayItem(selectedVideo, this.relatedItems);
+        },
+        this.onPlaybackProgress,
+      );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
         this.videoPlayer.setRelatedVideos(this.relatedItems);
@@ -764,6 +781,7 @@ export class ReaderView extends ItemView {
         this.settings.media.podcastTheme,
         undefined,
         onEpisodeSelected,
+        this.onPlaybackProgress,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {

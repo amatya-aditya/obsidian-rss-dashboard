@@ -159,6 +159,14 @@ export class RssDashboardView extends ItemView {
       onOpenSavedArticle: (file) => {
         void this.app.workspace.getLeaf().openFile(file);
       },
+      onPlaybackProgress: (item, position, duration) => {
+        this.plugin.updatePlaybackProgress(
+          item.feedUrl,
+          item.guid,
+          position,
+          duration,
+        );
+      },
     });
 
     this.registerEvent(

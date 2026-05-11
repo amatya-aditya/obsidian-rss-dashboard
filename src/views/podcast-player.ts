@@ -12,13 +12,13 @@ export class PodcastPlayer {
     private hasAudioForCurrentItem = true;
     private playlist: FeedItem[] = [];
     private progressInterval: number | null = null;
-    private progressData: Map<string, { position: number, duration: number }> = new Map();
     private currentPlaylistIndex = 0;
     private isShuffled = false;
     private originalPlaylist: FeedItem[] = [];
     private sortOrder: 'recent' | 'oldest' = 'recent';
     private previousVolume = 1;
     private onEpisodeSelected?: (item: FeedItem, source: 'playlist' | 'nav' | 'autoplay' | 'external') => void;
+    private onPlaybackProgress?: (item: FeedItem, position: number, duration: number) => void;
 
     private playerEl: HTMLElement | null = null;
     private playButton: HTMLElement | null = null;
@@ -46,7 +46,8 @@ export class PodcastPlayer {
         app: App,
         theme?: string,
         playlist?: FeedItem[],
-        onEpisodeSelected?: (item: FeedItem, source: 'playlist' | 'nav' | 'autoplay' | 'external') => void
+        onEpisodeSelected?: (item: FeedItem, source: 'playlist' | 'nav' | 'autoplay' | 'external') => void,
+        onPlaybackProgress?: (item: FeedItem, position: number, duration: number) => void
     ) {
         this.container = container;
         this.app = app;
@@ -56,7 +57,7 @@ export class PodcastPlayer {
             this.originalPlaylist = [...playlist];
         }
         this.onEpisodeSelected = onEpisodeSelected;
-        this.loadProgressData();
+        this.onPlaybackProgress = onPlaybackProgress;
     }
     
     setPlaylist(playlist: FeedItem[]) {
@@ -105,7 +106,7 @@ export class PodcastPlayer {
             if (item.audioUrl) {
                 this.audioElement.src = item.audioUrl;
                 this.audioElement.load();
-                const savedProgress = this.progressData.get(item.guid);
+                const savedProgress = item.playbackProgress;
                 if (savedProgress && savedProgress.position > 0) {
                     this.audioElement.currentTime = savedProgress.position;
                     this.updateProgressDisplay();
@@ -600,8 +601,8 @@ export class PodcastPlayer {
                     this.loadEpisode(ep, undefined, { notify: true, source: 'playlist' });
                 };
                 
-                const progress = this.progressData.get(ep.guid);
-                if (progress && progress.position > 0) {
+                const progress = ep.playbackProgress;
+                if (progress && progress.position > 0 && progress.duration > 0) {
                     epRow.addClass("has-progress");
                     const progressPercent = (progress.position / progress.duration) * 100;
                     epRow.style.setProperty('--progress-width', `${progressPercent}%`);
@@ -861,8 +862,8 @@ export class PodcastPlayer {
                     this.loadEpisode(ep, undefined, { notify: true, source: 'playlist', autoplay: true });
                 };
 
-                const progress = this.progressData.get(ep.guid);
-                if (progress && progress.position > 0) {
+                const progress = ep.playbackProgress;
+                if (progress && progress.position > 0 && progress.duration > 0) {
                     epRow.addClass("has-progress");
                     const progressPercent = (progress.position / progress.duration) * 100;
                     epRow.style.setProperty('--progress-width', `${progressPercent}%`);
@@ -1229,54 +1230,23 @@ export class PodcastPlayer {
     
     
     private saveProgress(): void {
-        if (!this.audioElement || !this.currentItem) return;
-        
+        if (!this.audioElement || !this.currentItem || !this.onPlaybackProgress) return;
         
         if (this.audioElement.currentTime < 3) return;
-        
         
         if (this.audioElement.duration && 
             this.audioElement.currentTime > this.audioElement.duration - 3) {
             return;
         }
         
-        this.progressData.set(this.currentItem.guid, {
-            position: this.audioElement.currentTime,
-            duration: this.audioElement.duration || 0
-        });
-        
-        this.saveProgressData();
+        this.onPlaybackProgress(
+            this.currentItem,
+            this.audioElement.currentTime,
+            this.audioElement.duration || 0
+        );
     }
     
     
-    private saveProgressData(): void {
-        try {
-            const data: Record<string, { position: number, duration: number }> = {};
-            this.progressData.forEach((value, key) => {
-                data[key] = value;
-            });
-            this.app.saveLocalStorage('rss-podcast-progress', data);
-        } catch (error) {
-            console.error("Failed to save podcast progress:", error);
-        }
-    }
-    
-    
-    private loadProgressData(): void {
-        try {
-            const data: unknown = this.app.loadLocalStorage('rss-podcast-progress');
-            if (data && typeof data === 'object') {
-                const parsed = data as Record<string, { position: number, duration: number }>;
-                
-                this.progressData.clear();
-                Object.entries(parsed).forEach(([key, value]) => {
-                    this.progressData.set(key, value);
-                });
-            }
-        } catch (error) {
-            console.error("Failed to load podcast progress:", error);
-        }
-    }
     
     
     updateTheme(theme: string): void {
@@ -1296,7 +1266,6 @@ export class PodcastPlayer {
             this.audioElement.remove();
             this.audioElement = null;
         }
-        
-        this.saveProgressData();
     }
 }
+

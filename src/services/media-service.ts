@@ -494,9 +494,11 @@ export class MediaService {
   static buildYouTubeEmbed(videoId: string): YouTubeEmbedConfig {
     const normalizedVideoId = videoId.trim();
 
+    const origin = window.location.origin === "app://obsidian.md" ? "https://www.youtube.com" : window.location.origin;
+
     return {
       videoId: normalizedVideoId,
-      embedUrl: `https://www.youtube-nocookie.com/embed/${normalizedVideoId}?rel=0`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${normalizedVideoId}?rel=0&enablejsapi=1&origin=${encodeURIComponent(origin)}`,
       watchUrl: `https://www.youtube.com/watch?v=${normalizedVideoId}`,
       referrerPolicy: this.YOUTUBE_EMBED_REFERRER_POLICY,
       allow: this.YOUTUBE_EMBED_ALLOW,

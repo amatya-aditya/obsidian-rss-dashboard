@@ -21,6 +21,11 @@ export interface FeedItem {
   content?: string;
   saved?: boolean;
   savedFilePath?: string;
+  playbackProgress?: {
+    position: number;
+    duration: number;
+    lastUpdated: number;
+  };
 
   explicit?: boolean;
   image?: string;

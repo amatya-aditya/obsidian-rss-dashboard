@@ -93,9 +93,27 @@ type VaultAdapterPathAccess = {
   getBasePath?: () => string;
   getFullPath?: (path: string) => string;
 };
+type LegacyLocalStorageApi = {
+  loadLocalStorage?: (key: string) => unknown;
+  removeLocalStorage?: (key: string) => void;
+};
+type LegacyPlaybackProgressEntry = {
+  position: number;
+  duration: number;
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isLegacyPlaybackProgressEntry(
+  value: unknown,
+): value is LegacyPlaybackProgressEntry {
+  return (
+    isRecord(value) &&
+    typeof value.position === "number" &&
+    typeof value.duration === "number"
+  );
 }
 
 function isDesktopShell(value: unknown): value is DesktopShell {
@@ -147,6 +165,7 @@ export default class RssDashboardPlugin extends Plugin {
   public vaultAbsolutePath = "";
   private _beforeUnloadHandler: (() => void) | null = null;
   private hasCompletedStartupSavedArticleValidation = false;
+  private progressSaveDebounce: number | null = null;
   private static readonly FEED_REFRESH_CONCURRENCY = 4;
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
   private readonly feedStorageRepository: FeedStorageRepository;
@@ -273,6 +292,7 @@ export default class RssDashboardPlugin extends Plugin {
 
     const allArticles = this.getAllArticles();
     await this.articleSaver.fixSavedFilePaths(allArticles);
+    await this.migrateMediaProgressOnStartup();
 
     await this.validateSavedArticles();
   }
@@ -507,6 +527,16 @@ export default class RssDashboardPlugin extends Plugin {
               shouldRerender?: boolean,
             ) => {
               void this.updateArticleFromReader(item, updates, shouldRerender);
+            },
+            {
+              onPlaybackProgress: (item, position, duration) => {
+                this.updatePlaybackProgress(
+                  item.feedUrl,
+                  item.guid,
+                  position,
+                  duration,
+                );
+              },
             },
           ),
       );
@@ -1695,6 +1725,43 @@ export default class RssDashboardPlugin extends Plugin {
 
   private migrateLegacySettings(): boolean {
     return migrateSettings(this.settings);
+  }
+
+  public updatePlaybackProgress(feedUrl: string, itemGuid: string, position: number, duration: number): void {
+    const feed = this.settings.feeds.find((f) => f.url === feedUrl);
+    if (!feed) return;
+    const item = feed.items.find((i) => i.guid === itemGuid);
+    if (!item) return;
+    item.playbackProgress = { position, duration, lastUpdated: Date.now() };
+    if (this.progressSaveDebounce !== null) window.clearTimeout(this.progressSaveDebounce);
+    this.progressSaveDebounce = window.setTimeout(() => { void this.saveSettings(); this.progressSaveDebounce = null; }, 2000);
+  }
+  private async migrateMediaProgressOnStartup(): Promise<void> {
+    const appWithLocalStorage = this.app as unknown as LegacyLocalStorageApi;
+    if (typeof appWithLocalStorage.loadLocalStorage !== 'function') return;
+    const legacyProgress = appWithLocalStorage.loadLocalStorage('rss-podcast-progress');
+    if (!isRecord(legacyProgress)) return;
+    let migratedCount = 0;
+    const progressMap = legacyProgress;
+    for (const guid in progressMap) {
+      const data = progressMap[guid];
+      if (!isLegacyPlaybackProgressEntry(data)) continue;
+      for (const feed of this.settings.feeds) {
+        const item = feed.items.find((i) => i.guid === guid);
+        if (item) {
+          item.playbackProgress = { position: data.position, duration: data.duration, lastUpdated: Date.now() };
+          migratedCount++;
+          break;
+        }
+      }
+    }
+    if (migratedCount > 0) {
+      storageLog(
+        `[RSS Dashboard] Migrated ${migratedCount} media progress items.`,
+      );
+      await this.saveSettings();
+    }
+    if (typeof appWithLocalStorage.removeLocalStorage === 'function') appWithLocalStorage.removeLocalStorage('rss-podcast-progress');
   }
   async saveSettings() {
     storageLog("saveSettings invoked", {

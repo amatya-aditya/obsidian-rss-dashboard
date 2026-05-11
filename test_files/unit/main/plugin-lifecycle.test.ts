@@ -61,6 +61,11 @@ import RssDashboardPlugin from "../../../main";
 // Use App from obsidian stub (provided via Vitest alias)
 import { App, Platform } from "obsidian";
 
+// Flush all pending microtasks and macrotasks
+function flushPromises(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 // Type for mock app - use any to avoid TS errors with vi.mock
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MockApp = any;
@@ -141,8 +146,10 @@ async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
     ensureFolderExists: (folder, opts) =>
       plugin.ensureFolderExists(folder, opts),
     addStatusBarItem: () => {
-      const el = document.createElement("div");
-      el.createSpan = (opts?: any) => {
+      const el = document.createElement("div") as HTMLDivElement & {
+        createSpan: (opts?: { cls?: string }) => HTMLSpanElement;
+      };
+      el.createSpan = (opts?: { cls?: string }) => {
         const span = document.createElement("span");
         if (opts?.cls) span.className = opts.cls;
         el.appendChild(span);
@@ -457,14 +464,16 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     expect(validateSpy).not.toHaveBeenCalled();
-    expect((plugin as any).articleSaver.fixSavedFilePaths).not.toHaveBeenCalled();
+    expect(
+      (plugin as any).articleSaver.fixSavedFilePaths,
+    ).not.toHaveBeenCalled();
 
-    ((plugin.app as any).workspace).triggerLayoutReady();
-    await Promise.resolve();
+    (plugin.app as any).workspace.triggerLayoutReady();
+    await flushPromises();
 
-    expect((plugin as any).articleSaver.fixSavedFilePaths).toHaveBeenCalledTimes(
-      1,
-    );
+    expect(
+      (plugin as any).articleSaver.fixSavedFilePaths,
+    ).toHaveBeenCalledTimes(1);
     expect(validateSpy).toHaveBeenCalledTimes(1);
   });
 
