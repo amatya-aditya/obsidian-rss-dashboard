@@ -333,4 +333,135 @@ describe("FeedStorageRepository", () => {
     expect(bundle.shards).toHaveLength(1);
     expect(bundle.markdownMirrorFallbackPlanned).toBe(true);
   });
+
+  it("imports a portable bundle and restores metadata plus shard items", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "legacy-json";
+    settings.storageFolder = "Legacy Data";
+    settings.feeds = [makeFeed({ feedId: "old-feed", items: [] })];
+
+    const bundle = {
+      version: 1,
+      exportedAt: Date.now(),
+      storageMode: "vault-shards",
+      metadata: {
+        ...cloneSettings(),
+        storageMode: "vault-shards",
+        storageFolder: "Imported Data/Feeds",
+        feeds: [
+          {
+            ...makeFeed({
+              feedId: "feed-1",
+              title: "Imported Feed",
+              url: "https://example.com/imported.xml",
+              items: [],
+            }),
+          },
+        ].map((feed) => {
+          const { items: _items, ...persisted } = feed;
+          void _items;
+          return persisted;
+        }),
+      },
+      shards: [
+        {
+          version: 1,
+          feedId: "feed-1",
+          feedUrl: "https://example.com/imported.xml",
+          updatedAt: Date.now(),
+          items: [makeFeed().items[0]],
+        },
+      ],
+      markdownMirrorFallbackPlanned: true,
+    };
+
+    await repository.importPortableDataBundle(bundle, settings, saveData);
+
+    expect(settings.storageMode).toBe("vault-shards");
+    expect(settings.storageFolder).toBe("Imported Data/Feeds");
+    expect(settings.feeds).toHaveLength(1);
+    expect(settings.feeds[0].feedId).toBe("feed-1");
+    expect(settings.feeds[0].items).toHaveLength(1);
+    expect(
+      await app.vault.adapter.read("Imported Data/Feeds/feed-1.json"),
+    ).toContain('"feedId": "feed-1"');
+  });
+
+  it("rejects portable bundle imports with unsupported schema versions", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "legacy-json";
+    settings.feeds = [makeFeed({ feedId: "feed-1" })];
+
+    await expect(
+      repository.importPortableDataBundle(
+        {
+          version: 999,
+          exportedAt: Date.now(),
+          storageMode: "vault-shards",
+          metadata: {
+            ...cloneSettings(),
+            feeds: [],
+          },
+          shards: [],
+          markdownMirrorFallbackPlanned: true,
+        },
+        settings,
+        saveData,
+      ),
+    ).rejects.toThrow("Unsupported portable bundle version");
+  });
+
+  it("restores previous settings when import persistence fails", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "legacy-json";
+    settings.storageFolder = "Legacy Data";
+    settings.feeds = [makeFeed({ feedId: "legacy-feed" })];
+
+    const bundle = {
+      version: 1,
+      exportedAt: Date.now(),
+      storageMode: "vault-shards",
+      metadata: {
+        ...cloneSettings(),
+        storageMode: "vault-shards",
+        storageFolder: "Imported Data/Feeds",
+        feeds: [
+          {
+            ...makeFeed({
+              feedId: "feed-1",
+              title: "Imported Feed",
+              items: [],
+            }),
+          },
+        ].map((feed) => {
+          const { items: _items, ...persisted } = feed;
+          void _items;
+          return persisted;
+        }),
+      },
+      shards: [
+        {
+          version: 1,
+          feedId: "feed-1",
+          feedUrl: "https://example.com/feed.xml",
+          updatedAt: Date.now(),
+          items: [makeFeed().items[0]],
+        },
+      ],
+      markdownMirrorFallbackPlanned: true,
+    };
+
+    saveData
+      .mockRejectedValueOnce(new Error("save failed"))
+      .mockResolvedValue(undefined);
+
+    await expect(
+      repository.importPortableDataBundle(bundle, settings, saveData),
+    ).rejects.toThrow("save failed");
+
+    expect(settings.storageMode).toBe("legacy-json");
+    expect(settings.storageFolder).toBe("Legacy Data");
+    expect(settings.feeds[0].feedId).toBe("legacy-feed");
+    expect(settings.feeds[0].items).toHaveLength(1);
+  });
 });

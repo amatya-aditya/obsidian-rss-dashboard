@@ -9,7 +9,6 @@ import type {
 } from "../types/types";
 
 const SHARD_VERSION = 1;
-const STORAGE_LOG_PREFIX = "[RSS Dashboard][Storage]";
 
 export interface FeedStorageStatus {
   mode: RssDashboardSettings["storageMode"];
@@ -87,22 +86,58 @@ function createComparableFeedShardJson(feed: Feed): string {
   return JSON.stringify(shardWithoutTimestamp, null, 2);
 }
 
-function storageLog(message: string, details?: unknown): void {
-  if (details === undefined) {
-    console.debug(`${STORAGE_LOG_PREFIX} ${message}`);
-    return;
+function storageLog(_message: string, _details?: unknown): void {}
+
+function storageError(
+  _message: string,
+  _error: unknown,
+  _details?: unknown,
+): void {}
+
+function parsePortableDataBundle(input: unknown): PortableDataBundle {
+  if (!input || typeof input !== "object") {
+    throw new Error("Portable bundle must be a JSON object");
   }
 
-  console.debug(`${STORAGE_LOG_PREFIX} ${message}`, details);
-}
-
-function storageError(message: string, error: unknown, details?: unknown): void {
-  if (details === undefined) {
-    console.error(`${STORAGE_LOG_PREFIX} ${message}`, error);
-    return;
+  const bundle = input as Partial<PortableDataBundle>;
+  if (bundle.version !== SHARD_VERSION) {
+    throw new Error(
+      `Unsupported portable bundle version: ${String(bundle.version)} (expected ${SHARD_VERSION})`,
+    );
   }
 
-  console.error(`${STORAGE_LOG_PREFIX} ${message}`, details, error);
+  if (typeof bundle.exportedAt !== "number") {
+    throw new Error("Portable bundle is missing a valid exportedAt timestamp");
+  }
+
+  if (bundle.storageMode !== "legacy-json" && bundle.storageMode !== "vault-shards") {
+    throw new Error("Portable bundle has an invalid storageMode value");
+  }
+
+  if (!bundle.metadata || typeof bundle.metadata !== "object") {
+    throw new Error("Portable bundle is missing metadata");
+  }
+
+  if (!Array.isArray(bundle.shards)) {
+    throw new Error("Portable bundle is missing shards");
+  }
+
+  for (const shard of bundle.shards) {
+    if (!shard || typeof shard !== "object") {
+      throw new Error("Portable bundle has an invalid shard entry");
+    }
+
+    const shardLike = shard as Partial<FeedItemsShard>;
+    if (typeof shardLike.feedId !== "string" || !shardLike.feedId.trim()) {
+      throw new Error("Portable bundle shard is missing feedId");
+    }
+
+    if (!Array.isArray(shardLike.items)) {
+      throw new Error(`Portable bundle shard ${shardLike.feedId} is missing items`);
+    }
+  }
+
+  return bundle as PortableDataBundle;
 }
 
 export class FeedStorageRepository {
@@ -439,6 +474,94 @@ export class FeedStorageRepository {
         .map((feed) => createFeedShard(feed)),
       markdownMirrorFallbackPlanned: true,
     };
+  }
+
+  public validatePortableDataBundle(input: unknown): PortableDataBundle {
+    return parsePortableDataBundle(input);
+  }
+
+  public async importPortableDataBundle(
+    input: unknown,
+    settings: RssDashboardSettings,
+    saveData: (data: unknown) => Promise<void>,
+  ): Promise<void> {
+    const bundle = this.validatePortableDataBundle(input);
+    const backupBundle = this.buildPortableDataBundle(settings);
+
+    storageLog("Starting portable bundle import", {
+      sourceMode: bundle.storageMode,
+      sourceFeedCount: bundle.metadata.feeds.length,
+      sourceShardCount: bundle.shards.length,
+    });
+
+    try {
+      const shardItemsByFeedId = new Map(
+        bundle.shards.map((shard) => [shard.feedId, cloneJson(shard.items)]),
+      );
+      const importedMetadata = cloneJson(bundle.metadata);
+      const importedFeeds = importedMetadata.feeds.map((feed) => {
+        const feedItems = feed.feedId ? shardItemsByFeedId.get(feed.feedId) : undefined;
+        return {
+          ...feed,
+          items: Array.isArray(feedItems) ? feedItems : [],
+        };
+      });
+
+      const nextSettings = {
+        ...settings,
+        ...importedMetadata,
+        storageMode: bundle.storageMode,
+        storageFolder: normalizeFolderPath(importedMetadata.storageFolder),
+        feeds: importedFeeds,
+      } as RssDashboardSettings;
+
+      Object.assign(settings, cloneJson(nextSettings));
+
+      await this.persistSettings(settings, saveData, {
+        forceAllShards: true,
+        forceMetadata: true,
+      });
+
+      storageLog("Completed portable bundle import", {
+        mode: settings.storageMode,
+        folder: settings.storageFolder,
+        feedCount: settings.feeds.length,
+      });
+    } catch (error) {
+      storageError("Portable bundle import failed; restoring previous state", error);
+
+      try {
+        const backupShardItemsByFeedId = new Map(
+          backupBundle.shards.map((shard) => [shard.feedId, cloneJson(shard.items)]),
+        );
+        const rollbackSettings = {
+          ...settings,
+          ...backupBundle.metadata,
+          storageMode: backupBundle.storageMode,
+          storageFolder: normalizeFolderPath(backupBundle.metadata.storageFolder),
+          feeds: backupBundle.metadata.feeds.map((feed) => ({
+            ...feed,
+            items: feed.feedId
+              ? (backupShardItemsByFeedId.get(feed.feedId) ?? [])
+              : [],
+          })),
+        } as RssDashboardSettings;
+
+        Object.assign(settings, cloneJson(rollbackSettings));
+        await this.persistSettings(settings, saveData, {
+          forceAllShards: true,
+          forceMetadata: true,
+        });
+        storageLog("Restored previous state after failed portable bundle import");
+      } catch (rollbackError) {
+        storageError(
+          "Rollback failed after portable bundle import failure",
+          rollbackError,
+        );
+      }
+
+      throw error;
+    }
   }
 
   public getStatus(settings: RssDashboardSettings): FeedStorageStatus {

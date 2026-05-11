@@ -13,12 +13,21 @@ import {
 } from "../../../src/utils/settings-loader";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
+type ObsidianHTMLElement = HTMLElement & {
+  empty: () => void;
+  createDiv: () => HTMLDivElement;
+};
+
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 function cloneSettings(): typeof DEFAULT_SETTINGS {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+}
+
+function createContainerEl(): HTMLDivElement {
+  return (document.body as ObsidianHTMLElement).createDiv();
 }
 
 function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
@@ -47,6 +56,8 @@ function createPlugin() {
     copyUserSettingsJsonToClipboard: vi.fn(async () => {}),
     exportOpml: vi.fn(async () => {}),
     copyOpmlToClipboard: vi.fn(async () => {}),
+    exportPortableDataBundle: vi.fn(async () => {}),
+    importPortableDataBundleFromFile: vi.fn(async () => {}),
     getActiveDashboardView: vi.fn(async () => null),
     performFactoryReset: vi.fn(async () => {}),
   };
@@ -54,7 +65,7 @@ function createPlugin() {
 
 beforeEach(() => {
   installObsidianDomPolyfills();
-  document.body.empty();
+  (document.body as ObsidianHTMLElement).empty();
   vi.restoreAllMocks();
   vi.clearAllMocks();
   vi.useRealTimers();
@@ -141,14 +152,51 @@ describe("Auto Backup Helpers", () => {
   });
 
   describe("renderImportExportSettingsTab() factory reset section", () => {
+    it("renders shard data actions", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as any);
+
+      const portableSetting = getSettingByName(
+        containerEl,
+        "Shard data",
+      );
+      expect(portableSetting.textContent).toContain(
+        "cross-device migration",
+      );
+
+      const buttons = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).map((button) => button.textContent?.trim());
+      expect(buttons).toContain("Import shard data");
+      expect(buttons).toContain("Export shard data");
+    });
+
+    it("calls shard data export when Export shard data is clicked", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as any);
+
+      const exportButton = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).find(
+        (button) => button.textContent === "Export shard data",
+      ) as HTMLButtonElement;
+
+      exportButton.click();
+      expect(plugin.exportPortableDataBundle).toHaveBeenCalledTimes(1);
+    });
+
     it("renders Factory Reset after the Auto backups section", () => {
-      const containerEl = document.body.createDiv();
+      const containerEl = createContainerEl();
       const plugin = createPlugin();
 
       renderImportExportSettingsTab(containerEl, plugin as any);
 
       const settingNames = Array.from(
-        containerEl.querySelectorAll(".setting-item-name"),
+        containerEl.querySelectorAll<HTMLElement>(".setting-item-name"),
       ).map((el) => el.textContent?.trim());
 
       expect(settingNames.indexOf("Auto backups")).toBeGreaterThan(-1);
@@ -163,7 +211,7 @@ describe("Auto Backup Helpers", () => {
     });
 
     it("does not reset when the confirmation modal is cancelled", async () => {
-      const containerEl = document.body.createDiv();
+      const containerEl = createContainerEl();
       const plugin = createPlugin();
 
       const openSpy = vi
@@ -177,7 +225,7 @@ describe("Auto Backup Helpers", () => {
       renderImportExportSettingsTab(containerEl, plugin as any);
 
       const resetButton = Array.from(
-        containerEl.querySelectorAll("button"),
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
       ).find(
         (button) => button.textContent === "Factory reset",
       ) as HTMLButtonElement;
@@ -191,7 +239,7 @@ describe("Auto Backup Helpers", () => {
     });
 
     it("runs the factory reset when the confirmation modal is confirmed", async () => {
-      const containerEl = document.body.createDiv();
+      const containerEl = createContainerEl();
       const plugin = createPlugin();
 
       const openSpy = vi
@@ -205,7 +253,7 @@ describe("Auto Backup Helpers", () => {
       renderImportExportSettingsTab(containerEl, plugin as any);
 
       const resetButton = Array.from(
-        containerEl.querySelectorAll("button"),
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
       ).find(
         (button) => button.textContent === "Factory reset",
       ) as HTMLButtonElement;

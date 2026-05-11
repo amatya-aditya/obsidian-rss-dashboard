@@ -19,6 +19,16 @@ async function flushAsyncWork(cycles = 6) {
   }
 }
 
+function resetDocumentBody(): void {
+  document.body.innerHTML = "";
+}
+
+function createTestContainer(): HTMLDivElement {
+  const containerEl = document.createElement("div");
+  document.body.appendChild(containerEl);
+  return containerEl;
+}
+
 function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
   const settingEls = Array.from(containerEl.querySelectorAll(".setting-item"));
   const match = settingEls.find((el) => {
@@ -57,6 +67,7 @@ function createPlugin() {
       error instanceof ShardFolderDeletionError,
     openStorageFolderInSystem: vi.fn(async () => {}),
     repairVaultStorage: vi.fn(async () => {}),
+    importPortableDataBundleFromFile: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
   };
@@ -64,14 +75,14 @@ function createPlugin() {
 
 beforeEach(() => {
   installObsidianDomPolyfills();
-  document.body.empty();
+  resetDocumentBody();
   vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 
 describe("General settings storage section", () => {
   it("renders the experimental storage controls in the General tab", () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = createTestContainer();
     const plugin = createPlugin();
 
     renderGeneralSettingsTab(containerEl, plugin as any);
@@ -88,7 +99,7 @@ describe("General settings storage section", () => {
   });
 
   it("applies the pending legacy-to-shards storage change through the modal", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = createTestContainer();
     const plugin = createPlugin();
     vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(() => {});
     vi.spyOn(StorageTransitionModal.prototype, "waitForClose").mockResolvedValue(
@@ -109,12 +120,16 @@ describe("General settings storage section", () => {
     const repairButton = buttons.find(
       (button) => button.textContent === "Repair/Rebuild storage",
     ) as HTMLButtonElement;
+    const importButton = buttons.find(
+      (button) => button.textContent === "Import shard data",
+    ) as HTMLButtonElement;
     const exportButton = buttons.find(
-      (button) => button.textContent === "Export portable data bundle",
+      (button) => button.textContent === "Export shard data",
     ) as HTMLButtonElement;
 
     applyButton.click();
     repairButton.click();
+    importButton.click();
     exportButton.click();
 
     await Promise.resolve();
@@ -125,7 +140,7 @@ describe("General settings storage section", () => {
   });
 
   it("does not trigger migration when the storage mode dropdown changes", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = createTestContainer();
     const plugin = createPlugin();
 
     renderGeneralSettingsTab(containerEl, plugin as any);
@@ -145,7 +160,7 @@ describe("General settings storage section", () => {
   });
 
   it("exports data.json from the apply modal before migrating to shards", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = createTestContainer();
     const plugin = createPlugin();
     vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(() => {});
     vi.spyOn(StorageTransitionModal.prototype, "waitForClose").mockResolvedValue(
@@ -171,7 +186,7 @@ describe("General settings storage section", () => {
   });
 
   it("passes the delete-shard-folder choice when applying a shards-to-legacy change", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = createTestContainer();
     const plugin = createPlugin();
     plugin.settings.storageMode = "vault-shards";
     plugin.getStorageStatus = vi.fn(() => ({
@@ -207,7 +222,7 @@ describe("General settings storage section", () => {
   });
 
   it("pauses revert when shard deletion fails and can continue with apply anyway", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = createTestContainer();
     const plugin = createPlugin();
     plugin.settings.storageMode = "vault-shards";
     plugin.getStorageStatus = vi.fn(() => ({
@@ -260,7 +275,7 @@ describe("General settings storage section", () => {
   });
 
   it("can open the shard folder after delete failure before the user decides", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = createTestContainer();
     const plugin = createPlugin();
     plugin.settings.storageMode = "vault-shards";
     plugin.getStorageStatus = vi.fn(() => ({
@@ -310,7 +325,7 @@ describe("General settings storage section", () => {
   });
 
   it("updates the storage folder setting through a standard text input", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = createTestContainer();
     const plugin = createPlugin();
 
     renderGeneralSettingsTab(containerEl, plugin as any);

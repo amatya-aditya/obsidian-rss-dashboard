@@ -1,3 +1,13 @@
+## [Unreleased]
+
+### Features
+
+- New experimental **Vault Shards storage mode**: Store article history in separate per-feed files instead of one large data.json file, with easy migration between modes.
+
+- Enhanced storage controls: Manage storage mode, repair shards, and import/export data directly from General settings.
+
+- Added a user-facing setup and FAQ guide for Vault Shards storage: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
+
 ## [2.2.0] - May 9, 2026
 
 ### Fixes (Patch)

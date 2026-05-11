@@ -21,13 +21,11 @@ Implemented:
 - migration path from legacy `data.json` to shard files
 - repair/rebuild path for shard files
 - revert path from shard storage back to legacy JSON
-- portable bundle export support for desktop/mobile workflows
+- shard data import/export support for desktop/mobile workflows
 - General tab storage controls
-- storage debug logging across settings UI, plugin methods, and repository methods
 - responsive stacking for storage action buttons on smaller screens
 
 Partially implemented or still incomplete:
-- full import path for a portable bundle
 - comprehensive automated test verification in-repo
 - markdown mirror fallback mode
 - hardening around all migration edge cases
@@ -89,32 +87,19 @@ Current controls:
 - `Storage status`
 - `Migrate to vault storage`
 - `Repair/Rebuild storage`
-- `Export portable data bundle`
+- `Import shard data`
+- `Export shard data`
 
 Recent UI improvements:
 - action buttons now stack vertically on smaller screens instead of staying in one horizontal row
 - storage actions have dedicated responsive CSS
 
-## Debug Logging
-Storage debugging has been added using the prefix:
+## Logging Note
+Storage-feature console debugging has been removed to reduce noise in the Obsidian developer console.
 
-`[RSS Dashboard][Storage]`
-
-Logging now exists in:
-- General tab UI actions and dropdown changes
-- plugin-level migration / repair / revert methods
-- repository hydration / persistence / folder creation / shard write / shard delete paths
-
-Important note:
-- debug logging uses `console.debug`
-- failures use `console.error`
-- user-facing failures should also surface as Obsidian notices
-
-This should make it possible to trace:
-- whether the button click fired
-- whether the plugin method ran
-- whether repository persistence executed
-- whether folder creation or shard writes failed
+Current behavior:
+- storage failures still surface through user-facing notices
+- repository/service error handling still throws targeted errors for settings and UI flows to handle
 
 ## Known Bug: Migration Fails With "Folder Already Exists"
 
@@ -123,7 +108,7 @@ When switching from `legacy-json` to `vault-shards` and clicking migrate, the pl
 
 `Vault migration failed: folder already exists`
 
-The user also reported that switching modes previously felt like "nothing happened," which is why the debug logging was added.
+The user also reported that switching modes previously felt like "nothing happened," which is why this flow was hardened and made explicit in the settings actions.
 
 ### Confirmed Causes
 The failure comes from two implementation issues that compound each other:
@@ -231,23 +216,17 @@ Most recent reliable verification:
 3. Verify migration actually writes shard files and updates `data.json` metadata shape.
 4. Re-test revert from shards back to legacy JSON and confirm cleanup still works.
 5. Confirm General tab status text updates correctly after successful migration/revert.
-6. If needed, add a targeted unit test for idempotent folder creation and pre-existing folder migration.
+6. Keep targeted unit tests for storage transitions and shard import/export flows stable in CI.
 
-## Recommended Debugging Procedure
-After the next fix, use this flow:
-1. Open Obsidian developer console.
-2. Go to `Settings -> Community plugins -> RSS Dashboard -> General`.
-3. Set storage mode to `Experimental vault shards`.
-4. Click `Migrate to vault storage`.
-5. Inspect `[RSS Dashboard][Storage]` logs for:
-   - dropdown change
-   - migrate button click
-   - plugin migration requested
-   - repository migration start
-   - folder existence / creation result
-   - shard writes
-   - metadata save
-   - migration completion or thrown error
+## Recommended Verification Procedure
+Use this flow to validate storage behavior without relying on console debug logs:
+1. Go to `Settings -> Community plugins -> RSS Dashboard -> General`.
+2. Set storage mode to `Experimental vault shards`.
+3. Click `Migrate to vault storage`.
+4. Confirm shard files are created in the configured storage folder.
+5. Confirm metadata in plugin data is persisted without embedded `items` when shard mode is active.
+6. Trigger `Import shard data` and verify restored feeds + item history appear correctly.
+7. Revert to `legacy-json` and verify expected cleanup behavior.
 
 ## Future Direction: Markdown Fallback
 This is not implemented yet, but it should remain architecturally possible.

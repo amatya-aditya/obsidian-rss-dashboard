@@ -36,8 +36,6 @@ import type {
 } from "../../services/feed-storage-repository";
 import type { RssDashboardSettings } from "../../types/types";
 
-const STORAGE_LOG_PREFIX = "[RSS Dashboard][Storage]";
-
 interface GeneralSettingsPlugin {
   app: App;
   settingTab: { display(): void } | null;
@@ -53,6 +51,7 @@ interface GeneralSettingsPlugin {
   getStorageStatus(): FeedStorageStatus;
   migrateToVaultStorage(): Promise<void>;
   repairVaultStorage(): Promise<void>;
+  importPortableDataBundleFromFile(file: File): Promise<void>;
   exportPortableDataBundle(): Promise<void>;
   exportDataJson(): Promise<void>;
   applyFeedLimitsToAllFeeds(): Promise<void>;
@@ -64,23 +63,13 @@ interface GeneralSettingsPlugin {
   openStorageFolderInSystem(folderPath?: string): Promise<void>;
 }
 
-function storageLog(message: string, details?: unknown): void {
-  if (details === undefined) {
-    console.debug(`${STORAGE_LOG_PREFIX} ${message}`);
-    return;
-  }
+function storageLog(_message: string, _details?: unknown): void {}
 
-  console.debug(`${STORAGE_LOG_PREFIX} ${message}`, details);
-}
-
-function storageError(message: string, error: unknown, details?: unknown): void {
-  if (details === undefined) {
-    console.error(`${STORAGE_LOG_PREFIX} ${message}`, error);
-    return;
-  }
-
-  console.error(`${STORAGE_LOG_PREFIX} ${message}`, details, error);
-}
+function storageError(
+  _message: string,
+  _error: unknown,
+  _details?: unknown,
+): void {}
 
 // ── Pure preset helpers (exported for testing) ───────────────────────────────
 
@@ -469,21 +458,52 @@ export function renderGeneralSettingsTab(
       }),
     )
     .addButton((button) =>
-      button.setButtonText("Export portable data bundle").onClick(() => {
+      button.setButtonText("Import shard data").onClick(() => {
+        const input = document.body.createEl("input", {
+          attr: { type: "file", accept: ".json,.backup,application/json" },
+        });
+        input.onchange = () => {
+          void (async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            storageLog("Clicked import shard data", {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            try {
+              await plugin.importPortableDataBundleFromFile(file);
+            } catch (error) {
+              storageError("Shard data import failed", error, {
+                currentMode: plugin.settings.storageMode,
+                folder: plugin.settings.storageFolder,
+              });
+              new Notice(
+                `Shard data import failed${
+                  error instanceof Error ? `: ${error.message}` : ""
+                }`,
+              );
+            }
+          })();
+        };
+        input.click();
+      }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Export shard data").onClick(() => {
         void (async () => {
-          storageLog("Clicked export portable data bundle", {
+          storageLog("Clicked export shard data", {
             currentMode: plugin.settings.storageMode,
             folder: plugin.settings.storageFolder,
           });
           try {
             await plugin.exportPortableDataBundle();
           } catch (error) {
-            storageError("Portable bundle export failed", error, {
+            storageError("Shard data export failed", error, {
               currentMode: plugin.settings.storageMode,
               folder: plugin.settings.storageFolder,
             });
             new Notice(
-              `Portable bundle export failed${
+              `Shard data export failed${
                 error instanceof Error ? `: ${error.message}` : ""
               }`,
             );

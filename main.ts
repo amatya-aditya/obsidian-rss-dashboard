@@ -66,25 +66,13 @@ export interface FiltersUpdatedEventPayload {
   timestamp: number;
 }
 
-const STORAGE_LOG_PREFIX = "[RSS Dashboard][Storage]";
+function storageLog(_message: string, _details?: unknown): void {}
 
-function storageLog(message: string, details?: unknown): void {
-  if (details === undefined) {
-    console.debug(`${STORAGE_LOG_PREFIX} ${message}`);
-    return;
-  }
-
-  console.debug(`${STORAGE_LOG_PREFIX} ${message}`, details);
-}
-
-function storageError(message: string, error: unknown, details?: unknown): void {
-  if (details === undefined) {
-    console.error(`${STORAGE_LOG_PREFIX} ${message}`, error);
-    return;
-  }
-
-  console.error(`${STORAGE_LOG_PREFIX} ${message}`, details, error);
-}
+function storageError(
+  _message: string,
+  _error: unknown,
+  _details?: unknown,
+): void {}
 
 type DesktopRequire = (moduleName: string) => unknown;
 type DesktopShell = { openPath: (path: string) => Promise<string> };
@@ -166,6 +154,8 @@ export default class RssDashboardPlugin extends Plugin {
       settings: this.settings,
       isMobile: Platform.isMobileApp,
       getPortableDataBundle: () => this.getPortableDataBundle(),
+      importPortableDataBundle: (bundle) =>
+        this.applyPortableDataBundleImport(bundle),
     });
     this.backupService = new BackupService({
       settings: this.settings,
@@ -1246,6 +1236,44 @@ export default class RssDashboardPlugin extends Plugin {
     return this.feedStorageRepository.buildPortableDataBundle(this.settings);
   }
 
+  private async applyPortableDataBundleImport(bundle: unknown): Promise<void> {
+    storageLog("Plugin portable bundle import requested", {
+      currentMode: this.settings.storageMode,
+      folder: this.settings.storageFolder,
+      feedCount: this.settings.feeds.length,
+    });
+
+    try {
+      await this.feedStorageRepository.importPortableDataBundle(
+        bundle,
+        this.settings,
+        (data) => this.saveData(data),
+      );
+      this.migrateLegacySettings();
+      this.initializeSettingsBackedServices();
+
+      if (this.settingTab) {
+        this.settingTab.display();
+      }
+
+      await this.refreshDashboardViews();
+      const discoverView = await this.getActiveDiscoverView();
+      discoverView?.render();
+
+      storageLog("Plugin portable bundle import completed", {
+        currentMode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+        feedCount: this.settings.feeds.length,
+      });
+    } catch (error) {
+      storageError("Plugin portable bundle import failed", error, {
+        currentMode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+      });
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
   public async exportUserSettingsJson(): Promise<void> {
     return this.importExportService.exportUserSettingsJson();
   }
@@ -1256,6 +1284,10 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async exportPortableDataBundle(): Promise<void> {
     return this.importExportService.exportPortableDataBundle();
+  }
+
+  public async importPortableDataBundleFromFile(file: File): Promise<void> {
+    return this.importExportService.importPortableDataBundleFromFile(file);
   }
 
   exportOpml(): void {
@@ -1286,8 +1318,9 @@ export default class RssDashboardPlugin extends Plugin {
     });
 
     try {
-      await this.feedStorageRepository.migrateToVaultShards(this.settings, (data) =>
-        this.saveData(data),
+      await this.feedStorageRepository.migrateToVaultShards(
+        this.settings,
+        (data) => this.saveData(data),
       );
       this.initializeSettingsBackedServices();
       if (this.settingTab) {
@@ -1314,8 +1347,9 @@ export default class RssDashboardPlugin extends Plugin {
     });
 
     try {
-      await this.feedStorageRepository.repairVaultShards(this.settings, (data) =>
-        this.saveData(data),
+      await this.feedStorageRepository.repairVaultShards(
+        this.settings,
+        (data) => this.saveData(data),
       );
       if (this.settingTab) {
         this.settingTab.display();
@@ -1974,6 +2008,3 @@ export default class RssDashboardPlugin extends Plugin {
     return allArticles;
   }
 }
-
-
-
