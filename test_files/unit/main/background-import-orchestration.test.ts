@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
-import { DEFAULT_SETTINGS, type Feed } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type Feed,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 import {
   BACKGROUND_IMPORT_CONCURRENCY,
   BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS,
@@ -58,7 +62,7 @@ function createPlugin(): RssDashboardPlugin {
     feeds: [],
   };
   plugin.saveData = vi.fn().mockResolvedValue(undefined);
-  plugin.addStatusBarItem = vi.fn(() => document.body.createDiv());
+  (plugin as any).addStatusBarItem = vi.fn(() => document.createElement("div"));
   plugin.feedParser = {
     parseFeed: mockParseFeed,
     refreshAllFeeds: vi.fn(),
@@ -71,7 +75,7 @@ function createPlugin(): RssDashboardPlugin {
     getView: () => plugin.getActiveDashboardView(),
     saveSettings: () => plugin.saveSettings(),
     ensureFolderExists: vi.fn().mockResolvedValue(false),
-    addStatusBarItem: () => (plugin.addStatusBarItem as any)(),
+    addStatusBarItem: () => (plugin as any).addStatusBarItem(),
   });
 
   return plugin;
@@ -95,7 +99,7 @@ function flushPromises(): Promise<void> {
 describe("background import orchestration", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
-    document.body.empty();
+    document.body.innerHTML = "";
     vi.useRealTimers();
     vi.restoreAllMocks();
     vi.spyOn(console, "log").mockImplementation(() => {});
@@ -130,9 +134,7 @@ describe("background import orchestration", () => {
     plugin.startBackgroundImport(feeds);
     await flushPromises();
 
-    expect(mockParseFeed).toHaveBeenCalledTimes(
-      BACKGROUND_IMPORT_CONCURRENCY,
-    );
+    expect(mockParseFeed).toHaveBeenCalledTimes(BACKGROUND_IMPORT_CONCURRENCY);
 
     resolvers[0]?.();
     resolvers[1]?.();
@@ -230,5 +232,46 @@ describe("background import orchestration", () => {
     expect(sidebarOnlySpy.mock.calls.length).toBeGreaterThanOrEqual(1);
     // The final completion render must be exactly one full render
     expect(renderSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists OPML ingestion in legacy mode unless import started in shard mode", async () => {
+    const settings: RssDashboardSettings = {
+      ...DEFAULT_SETTINGS,
+      feeds: [],
+      storageMode: "legacy-json",
+    };
+
+    const savedModes: Array<string> = [];
+    const ensureFolderExists = vi.fn(async () => {
+      // Simulate an unexpected mode flip during ingest setup.
+      settings.storageMode = "vault-shards";
+      return false;
+    });
+
+    const service = new BackgroundImportService({
+      feedParser: {
+        parseFeed: mockParseFeed,
+      },
+      getSettings: () => settings,
+      getView: async () => null,
+      saveSettings: async () => {
+        savedModes.push(settings.storageMode);
+      },
+      ensureFolderExists,
+      addStatusBarItem: () => document.createElement("div"),
+    });
+
+    vi.spyOn(service, "startBackgroundImport").mockImplementation(() => {});
+
+    await service.ingestFeedsForBackgroundImport([
+      {
+        title: "Example",
+        url: "https://example.com/feed.xml",
+        folder: "RSS",
+      },
+    ]);
+
+    expect(ensureFolderExists).toHaveBeenCalled();
+    expect(savedModes).toEqual(["legacy-json"]);
   });
 });
