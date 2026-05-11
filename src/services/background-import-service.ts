@@ -68,6 +68,9 @@ export class BackgroundImportService {
   private backgroundImportInFlightUrls = new Set<string>();
   private backgroundImportProcessedCount = 0;
   private backgroundImportTotalCount = 0;
+  private backgroundImportPersistMode:
+    | RssDashboardSettings["storageMode"]
+    | null = null;
 
   constructor(deps: BackgroundImportServiceDeps) {
     this.feedParser = deps.feedParser;
@@ -99,6 +102,13 @@ export class BackgroundImportService {
       return;
     }
 
+    if (
+      !this.isBackgroundImporting &&
+      this.backgroundImportPersistMode === null
+    ) {
+      this.backgroundImportPersistMode = this.getSettings().storageMode;
+    }
+
     this.backgroundImportQueue.push(...newQueueItems);
     this.backgroundImportTotalCount += newQueueItems.length;
 
@@ -116,6 +126,7 @@ export class BackgroundImportService {
     queuedFeeds: Feed[];
   }> {
     const mode = options?.mode || "update";
+    const importPersistMode = this.getSettings().storageMode;
     const placeholders: Feed[] = [];
     let skippedCount = 0;
     const seenUrls = new Set<string>();
@@ -166,12 +177,13 @@ export class BackgroundImportService {
       );
     }
 
-    await this.saveSettings();
+    await this.saveSettingsWithMode(importPersistMode);
     const view = await this.getView();
     if (view) {
       view.refresh?.();
     }
 
+    this.backgroundImportPersistMode = importPersistMode;
     this.startBackgroundImport(placeholders);
 
     return {
@@ -236,7 +248,7 @@ export class BackgroundImportService {
         ),
       );
 
-      await this.saveSettings();
+      await this.saveSettingsWithMode(this.getPersistModeForBackgroundImport());
       const view = await this.getView();
       if (view) {
         view.render();
@@ -255,6 +267,10 @@ export class BackgroundImportService {
       this.backgroundImportProcessedCount = 0;
       this.backgroundImportTotalCount = 0;
       this.backgroundImportInFlightUrls.clear();
+
+      if (this.backgroundImportQueue.length === 0) {
+        this.backgroundImportPersistMode = null;
+      }
 
       if (this.backgroundImportQueue.length > 0) {
         void this.processBackgroundImportQueue();
@@ -301,7 +317,9 @@ export class BackgroundImportService {
       }
 
       if (this.backgroundImportProcessedCount % saveEvery === 0) {
-        await this.saveSettings();
+        await this.saveSettingsWithMode(
+          this.getPersistModeForBackgroundImport(),
+        );
       }
 
       if (
@@ -452,6 +470,29 @@ export class BackgroundImportService {
         rules: [],
       },
     };
+  }
+
+  private getPersistModeForBackgroundImport(): RssDashboardSettings["storageMode"] {
+    return this.backgroundImportPersistMode ?? this.getSettings().storageMode;
+  }
+
+  private async saveSettingsWithMode(
+    mode: RssDashboardSettings["storageMode"],
+  ): Promise<void> {
+    const settings = this.getSettings();
+    const previousMode = settings.storageMode;
+
+    if (previousMode !== mode) {
+      settings.storageMode = mode;
+    }
+
+    try {
+      await this.saveSettings();
+    } finally {
+      if (settings.storageMode !== previousMode) {
+        settings.storageMode = previousMode;
+      }
+    }
   }
 
   private resolveCandidateMediaType(
