@@ -22,6 +22,7 @@ export function createDefaultKeywordFilterRule(): KeywordFilterRule {
     applyToTitle: true,
     applyToSummary: true,
     applyToContent: true,
+    applyToLink: false,
     enabled: true,
     createdAt: Date.now(),
   };
@@ -317,6 +318,17 @@ export function renderKeywordFilterEditor(
           onChange({
             ...state,
             rules: updateRule(state.rules, index, { applyToContent: checked }),
+          }),
+      );
+      renderLocationToggle(
+        locationsRow,
+        "Link",
+        !!rule.applyToLink,
+        !rule.enabled,
+        (checked) =>
+          onChange({
+            ...state,
+            rules: updateRule(state.rules, index, { applyToLink: checked }),
           }),
       );
     });
