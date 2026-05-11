@@ -1,5 +1,5 @@
 import { Notice } from "obsidian";
-import type { RssDashboardSettings } from "../types/types";
+import type { PortableDataBundle, RssDashboardSettings } from "../types/types";
 import { OpmlManager } from "./opml-manager";
 import {
   exportBlob,
@@ -14,10 +14,16 @@ import {
 export class ImportExportService {
   private settings: RssDashboardSettings;
   private isMobile: boolean;
+  private getPortableDataBundle?: () => PortableDataBundle;
 
-  constructor(options: { settings: RssDashboardSettings; isMobile: boolean }) {
+  constructor(options: {
+    settings: RssDashboardSettings;
+    isMobile: boolean;
+    getPortableDataBundle?: () => PortableDataBundle;
+  }) {
     this.settings = options.settings;
     this.isMobile = options.isMobile;
+    this.getPortableDataBundle = options.getPortableDataBundle;
   }
 
   getUserSettingsJson(): string {
@@ -59,6 +65,23 @@ export class ImportExportService {
     );
     const filename = "feeds.opml";
     const blob = new Blob([opmlContent], { type: "text/xml" });
+    const result = await exportBlob({
+      blob,
+      filename,
+      isMobile: this.isMobile,
+    });
+    this.showExportNotice(result, filename);
+  }
+
+  async exportPortableDataBundle(): Promise<void> {
+    const filename = "rss-dashboard-portable-bundle.json";
+    const bundle = this.getPortableDataBundle?.();
+    const blob = new Blob(
+      [JSON.stringify(bundle ?? { settings: this.settings }, null, 2)],
+      {
+        type: "application/json",
+      },
+    );
     const result = await exportBlob({
       blob,
       filename,

@@ -126,6 +126,8 @@ export function loadAndNormalizeSettings(
   settings.feeds = Array.isArray(settings.feeds) ? settings.feeds : [];
 
   for (const feed of settings.feeds) {
+    feed.items = Array.isArray(feed.items) ? feed.items : [];
+
     feed.keywordRules = Object.assign(
       {},
       DEFAULT_FEED_KEYWORD_RULES,

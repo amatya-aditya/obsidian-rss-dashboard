@@ -23,6 +23,26 @@ import {
 } from "../../utils/page-size-options";
 import { ApplyMaxItemsToExistingFeedsModal } from "../modals/settings-modals";
 
+const STORAGE_LOG_PREFIX = "[RSS Dashboard][Storage]";
+
+function storageLog(message: string, details?: unknown): void {
+  if (details === undefined) {
+    console.debug(`${STORAGE_LOG_PREFIX} ${message}`);
+    return;
+  }
+
+  console.debug(`${STORAGE_LOG_PREFIX} ${message}`, details);
+}
+
+function storageError(message: string, error: unknown, details?: unknown): void {
+  if (details === undefined) {
+    console.error(`${STORAGE_LOG_PREFIX} ${message}`, error);
+    return;
+  }
+
+  console.error(`${STORAGE_LOG_PREFIX} ${message}`, details, error);
+}
+
 // ── Pure preset helpers (exported for testing) ───────────────────────────────
 
 export const MAX_ITEMS_PRESETS = [0, 10, 25, 50, 100, 200, 500, 1000];
@@ -166,6 +186,198 @@ export function renderGeneralSettingsTab(
         }
       });
     });
+
+  new Setting(containerEl).setName("Storage (experimental)").setHeading();
+
+  const renderStorageStatus = (): string => {
+    const status = plugin.getStorageStatus();
+    const migrationState = status.migrationReady
+      ? "Migration ready"
+      : status.mode === "vault-shards"
+        ? "Shards active"
+        : "Legacy JSON active";
+    return [
+      `Mode: ${status.mode}`,
+      `Folder: ${status.folder}`,
+      `Feeds: ${status.feedCount}`,
+      `Shards: ${status.shardCount}`,
+      migrationState,
+      status.lastRepairResult,
+    ].join(" • ");
+  };
+
+  new Setting(containerEl)
+    .setName("Storage mode")
+    .setDesc(
+      "Choose between the legacy monolithic data.json store and per-feed vault shard files.",
+    )
+    .addDropdown((dropdown) =>
+      dropdown
+        .addOption("legacy-json", "Legacy JSON")
+        .addOption("vault-shards", "Experimental vault shards")
+        .setValue(plugin.settings.storageMode)
+        .onChange((value) => {
+          void (async () => {
+            storageLog("Storage mode dropdown changed", {
+              requestedMode: value,
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+
+            try {
+              if (value === "vault-shards") {
+                plugin.settings.storageMode = "vault-shards";
+                await plugin.migrateToVaultStorage();
+                new Notice("Vault shard storage enabled.");
+                return;
+              }
+
+              await plugin.revertToLegacyJsonStorage();
+              new Notice("Legacy JSON storage enabled.");
+            } catch (error) {
+              storageError("Storage mode change failed", error, {
+                requestedMode: value,
+                folder: plugin.settings.storageFolder,
+              });
+              new Notice(
+                `Storage change failed${error instanceof Error ? `: ${error.message}` : ""}`,
+              );
+            }
+          })();
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Storage folder")
+    .setDesc(
+      "Vault folder for per-feed shard files. This stays in the visible vault so cross-device sync tools can access it.",
+    )
+    .addText((text) =>
+      text
+        .setPlaceholder(".rss-dashboard-data/feeds")
+        .setValue(plugin.settings.storageFolder)
+        .onChange((value) => {
+          void (async () => {
+            const nextFolder = value.trim() || ".rss-dashboard-data/feeds";
+            storageLog("Storage folder changed", {
+              previousFolder: plugin.settings.storageFolder,
+              nextFolder,
+              mode: plugin.settings.storageMode,
+            });
+
+            plugin.settings.storageFolder = nextFolder;
+            try {
+              if (plugin.settings.storageMode === "vault-shards") {
+                await plugin.repairVaultStorage();
+              } else {
+                await plugin.saveSettings();
+              }
+            } catch (error) {
+              storageError("Storage folder update failed", error, {
+                nextFolder,
+                mode: plugin.settings.storageMode,
+              });
+              new Notice(
+                `Storage folder update failed${
+                  error instanceof Error ? `: ${error.message}` : ""
+                }`,
+              );
+            }
+          })();
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Storage status")
+    .setDesc(renderStorageStatus());
+
+  const storageActions = new Setting(containerEl);
+  storageActions.settingEl.addClass("rss-dashboard-storage-actions");
+  storageActions
+    .setName("Storage actions")
+    .setDesc(
+      "Migrate or repair shard files, and export a portable bundle for desktop/mobile transfer workflows.",
+    )
+    .addButton((button) =>
+      button
+        .setButtonText("Migrate to vault storage")
+        .setCta()
+        .onClick(() => {
+          void (async () => {
+            storageLog("Clicked migrate to vault storage", {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+              feedCount: plugin.settings.feeds.length,
+            });
+            try {
+              await plugin.migrateToVaultStorage();
+              if (plugin.settingTab) {
+                plugin.settingTab.display();
+              }
+              new Notice("Vault storage migration completed.");
+            } catch (error) {
+              storageError("Migrate button action failed", error, {
+                currentMode: plugin.settings.storageMode,
+                folder: plugin.settings.storageFolder,
+              });
+              new Notice(
+                `Vault storage migration failed${
+                  error instanceof Error ? `: ${error.message}` : ""
+                }`,
+              );
+            }
+          })();
+        }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Repair/Rebuild storage").onClick(() => {
+        void (async () => {
+          storageLog("Clicked repair/rebuild storage", {
+            currentMode: plugin.settings.storageMode,
+            folder: plugin.settings.storageFolder,
+            feedCount: plugin.settings.feeds.length,
+          });
+          try {
+            await plugin.repairVaultStorage();
+            if (plugin.settingTab) {
+              plugin.settingTab.display();
+            }
+            new Notice("Storage repair completed.");
+          } catch (error) {
+            storageError("Repair button action failed", error, {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            new Notice(
+              `Storage repair failed${error instanceof Error ? `: ${error.message}` : ""}`,
+            );
+          }
+        })();
+      }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Export portable data bundle").onClick(() => {
+        void (async () => {
+          storageLog("Clicked export portable data bundle", {
+            currentMode: plugin.settings.storageMode,
+            folder: plugin.settings.storageFolder,
+          });
+          try {
+            await plugin.exportPortableDataBundle();
+          } catch (error) {
+            storageError("Portable bundle export failed", error, {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            new Notice(
+              `Portable bundle export failed${
+                error instanceof Error ? `: ${error.message}` : ""
+              }`,
+            );
+          }
+        })();
+      }),
+    );
 
   new Setting(containerEl).setName("Global feeds").setHeading();
 

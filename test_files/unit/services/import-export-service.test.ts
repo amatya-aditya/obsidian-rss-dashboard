@@ -172,4 +172,36 @@ describe("ImportExportService", () => {
       expect(parsed).toHaveProperty("feeds");
     });
   });
+
+  describe("exportPortableDataBundle", () => {
+    it("exports a portable bundle JSON payload when a provider is supplied", async () => {
+      const settings = makeSettings();
+      const svc = new ImportExportService({
+        settings,
+        isMobile: false,
+        getPortableDataBundle: () =>
+          ({
+            version: 1,
+            exportedAt: 123,
+            storageMode: "vault-shards",
+            metadata: { ...settings, feeds: [] },
+            shards: [],
+            markdownMirrorFallbackPlanned: true,
+          }) as any,
+      });
+
+      await svc.exportPortableDataBundle();
+
+      expect(exportBlob).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filename: "rss-dashboard-portable-bundle.json",
+        }),
+      );
+      const call = vi.mocked(exportBlob).mock.calls[0][0];
+      const text = await call.blob.text();
+      const parsed = JSON.parse(text);
+      expect(parsed.storageMode).toBe("vault-shards");
+      expect(parsed.markdownMirrorFallbackPlanned).toBe(true);
+    });
+  });
 });

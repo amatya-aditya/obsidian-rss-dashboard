@@ -1,4 +1,5 @@
 import {
+  App,
   Plugin,
   Notice,
   WorkspaceLeaf,
@@ -39,6 +40,10 @@ import {
 import { ArticleSaver } from "./src/services/article-saver";
 import { BackupService } from "./src/services/backup-service";
 import { FolderService } from "./src/services/folder-service";
+import {
+  FeedStorageRepository,
+  type FeedStorageStatus,
+} from "./src/services/feed-storage-repository";
 import { ImportExportService } from "./src/services/import-export-service";
 import { BackgroundImportService } from "./src/services/background-import-service";
 import { FEED_REQUEST_TIMEOUT_MS } from "./src/services/feed-timeout";
@@ -58,6 +63,26 @@ export interface FiltersUpdatedEventPayload {
   source: string;
   feedUrl?: string;
   timestamp: number;
+}
+
+const STORAGE_LOG_PREFIX = "[RSS Dashboard][Storage]";
+
+function storageLog(message: string, details?: unknown): void {
+  if (details === undefined) {
+    console.debug(`${STORAGE_LOG_PREFIX} ${message}`);
+    return;
+  }
+
+  console.debug(`${STORAGE_LOG_PREFIX} ${message}`, details);
+}
+
+function storageError(message: string, error: unknown, details?: unknown): void {
+  if (details === undefined) {
+    console.error(`${STORAGE_LOG_PREFIX} ${message}`, error);
+    return;
+  }
+
+  console.error(`${STORAGE_LOG_PREFIX} ${message}`, details, error);
 }
 
 // Re-exported for backward compatibility with callers that import from main.ts
@@ -88,6 +113,12 @@ export default class RssDashboardPlugin extends Plugin {
   private hasCompletedStartupSavedArticleValidation = false;
   private static readonly FEED_REFRESH_CONCURRENCY = 4;
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
+  private readonly feedStorageRepository: FeedStorageRepository;
+
+  constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
+    super(app, manifest);
+    this.feedStorageRepository = new FeedStorageRepository(app);
+  }
 
   private initializeSettingsBackedServices(): void {
     this.feedParser = new FeedParser(
@@ -98,6 +129,7 @@ export default class RssDashboardPlugin extends Plugin {
     this.importExportService = new ImportExportService({
       settings: this.settings,
       isMobile: Platform.isMobileApp,
+      getPortableDataBundle: () => this.getPortableDataBundle(),
     });
     this.backupService = new BackupService({
       settings: this.settings,
@@ -105,6 +137,8 @@ export default class RssDashboardPlugin extends Plugin {
       vaultAbsolutePath: this.vaultAbsolutePath,
       vault: this.app.vault,
       getUserSettingsJson: () => this.importExportService.getUserSettingsJson(),
+      getPortableDataBundleJson: () =>
+        JSON.stringify(this.getPortableDataBundle(), null, 2),
     });
     this.folderService = new FolderService(this.settings);
     this.backgroundImportService = new BackgroundImportService({
@@ -1119,6 +1153,7 @@ export default class RssDashboardPlugin extends Plugin {
           }
         }
 
+        this.initializeSettingsBackedServices();
         await this.saveSettings();
         await this.refreshDashboardViews();
         const discoverView = await this.getActiveDiscoverView();
@@ -1152,6 +1187,7 @@ export default class RssDashboardPlugin extends Plugin {
       // Keep legacy keys and nested defaults normalized after import.
       this.migrateLegacySettings();
 
+      this.initializeSettingsBackedServices();
       await this.saveSettings();
       await this.refreshDashboardViews();
       const discoverView = await this.getActiveDiscoverView();
@@ -1170,12 +1206,20 @@ export default class RssDashboardPlugin extends Plugin {
     return this.importExportService.getUserSettingsJson();
   }
 
+  public getPortableDataBundle() {
+    return this.feedStorageRepository.buildPortableDataBundle(this.settings);
+  }
+
   public async exportUserSettingsJson(): Promise<void> {
     return this.importExportService.exportUserSettingsJson();
   }
 
   public async exportDataJson(): Promise<void> {
     return this.importExportService.exportDataJson();
+  }
+
+  public async exportPortableDataBundle(): Promise<void> {
+    return this.importExportService.exportPortableDataBundle();
   }
 
   exportOpml(): void {
@@ -1192,6 +1236,90 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async copyOpmlToClipboard(): Promise<void> {
     return this.importExportService.copyOpmlToClipboard();
+  }
+
+  public getStorageStatus(): FeedStorageStatus {
+    return this.feedStorageRepository.getStatus(this.settings);
+  }
+
+  public async migrateToVaultStorage(): Promise<void> {
+    storageLog("Plugin migration requested", {
+      currentMode: this.settings.storageMode,
+      folder: this.settings.storageFolder,
+      feedCount: this.settings.feeds.length,
+    });
+
+    try {
+      await this.feedStorageRepository.migrateToVaultShards(this.settings, (data) =>
+        this.saveData(data),
+      );
+      this.initializeSettingsBackedServices();
+      if (this.settingTab) {
+        this.settingTab.display();
+      }
+      await this.refreshDashboardViews();
+      storageLog("Plugin migration completed", {
+        currentMode: this.settings.storageMode,
+      });
+    } catch (error) {
+      storageError("Plugin migration failed", error, {
+        currentMode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+      });
+      throw error;
+    }
+  }
+
+  public async repairVaultStorage(): Promise<void> {
+    storageLog("Plugin repair requested", {
+      currentMode: this.settings.storageMode,
+      folder: this.settings.storageFolder,
+      feedCount: this.settings.feeds.length,
+    });
+
+    try {
+      await this.feedStorageRepository.repairVaultShards(this.settings, (data) =>
+        this.saveData(data),
+      );
+      if (this.settingTab) {
+        this.settingTab.display();
+      }
+      storageLog("Plugin repair completed");
+    } catch (error) {
+      storageError("Plugin repair failed", error, {
+        currentMode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+      });
+      throw error;
+    }
+  }
+
+  public async revertToLegacyJsonStorage(): Promise<void> {
+    storageLog("Plugin revert requested", {
+      currentMode: this.settings.storageMode,
+      folder: this.settings.storageFolder,
+      feedCount: this.settings.feeds.length,
+    });
+
+    try {
+      await this.feedStorageRepository.revertToLegacyJson(this.settings, (data) =>
+        this.saveData(data),
+      );
+      this.initializeSettingsBackedServices();
+      if (this.settingTab) {
+        this.settingTab.display();
+      }
+      await this.refreshDashboardViews();
+      storageLog("Plugin revert completed", {
+        currentMode: this.settings.storageMode,
+      });
+    } catch (error) {
+      storageError("Plugin revert failed", error, {
+        currentMode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+      });
+      throw error;
+    }
   }
 
   // ✅ ImportExportService extracted — all 875 tests passing
@@ -1437,6 +1565,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   async loadSettings() {
     try {
+      storageLog("Loading plugin settings");
       const data = (await this.loadData()) as RssDashboardSettings | null;
       const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
       const originalSettingsJson = JSON.stringify(mergedSettings);
@@ -1446,6 +1575,15 @@ export default class RssDashboardPlugin extends Plugin {
       const didMigrateKeywordRules = this.migrateLegacySettings();
 
       await this.repairMissingFolderPathsForFeeds();
+      const hydrated = await this.feedStorageRepository.hydrateSettings(
+        this.settings,
+      );
+      storageLog("Settings hydrated", {
+        mode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+        feedCount: this.settings.feeds.length,
+        hydratedShardCount: hydrated.shardCount,
+      });
 
       const didNormalizeAndDedupeItems = dedupeAndNormalizeFeedItems(
         this.settings.feeds,
@@ -1453,12 +1591,14 @@ export default class RssDashboardPlugin extends Plugin {
 
       if (
         didMigrateKeywordRules ||
+        hydrated.didChange ||
         didNormalizeAndDedupeItems ||
         JSON.stringify(this.settings) !== originalSettingsJson
       ) {
         await this.saveSettings();
       }
     } catch (error) {
+      storageError("Error loading plugin settings", error);
       new Notice(
         `Error loading settings: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -1471,7 +1611,25 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   async saveSettings() {
-    await this.saveData(this.settings);
+    storageLog("saveSettings invoked", {
+      mode: this.settings.storageMode,
+      folder: this.settings.storageFolder,
+      feedCount: this.settings.feeds.length,
+    });
+
+    try {
+      const result = await this.feedStorageRepository.persistSettings(
+        this.settings,
+        (data) => this.saveData(data),
+      );
+      storageLog("saveSettings completed", result);
+    } catch (error) {
+      storageError("saveSettings failed", error, {
+        mode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+      });
+      throw error;
+    }
   }
 
   private isFeedExcludedFromRefresh(feed: Feed): boolean {
