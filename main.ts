@@ -1,4 +1,5 @@
 import {
+  App,
   Plugin,
   Notice,
   WorkspaceLeaf,
@@ -39,6 +40,11 @@ import {
 import { ArticleSaver } from "./src/services/article-saver";
 import { BackupService } from "./src/services/backup-service";
 import { FolderService } from "./src/services/folder-service";
+import {
+  FeedStorageRepository,
+  type FeedStorageStatus,
+  ShardFolderDeletionError,
+} from "./src/services/feed-storage-repository";
 import { ImportExportService } from "./src/services/import-export-service";
 import { BackgroundImportService } from "./src/services/background-import-service";
 import { FEED_REQUEST_TIMEOUT_MS } from "./src/services/feed-timeout";
@@ -58,6 +64,49 @@ export interface FiltersUpdatedEventPayload {
   source: string;
   feedUrl?: string;
   timestamp: number;
+}
+
+function storageLog(_message: string, _details?: unknown): void {}
+
+function storageError(
+  _message: string,
+  _error: unknown,
+  _details?: unknown,
+): void {}
+
+type DesktopRequire = (moduleName: string) => unknown;
+type DesktopShell = { openPath: (path: string) => Promise<string> };
+type PathModuleLike = { join: (...paths: string[]) => string };
+type VaultAdapterPathAccess = {
+  getBasePath?: () => string;
+  getFullPath?: (path: string) => string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isDesktopShell(value: unknown): value is DesktopShell {
+  return isRecord(value) && typeof value.openPath === "function";
+}
+
+function isPathModuleLike(value: unknown): value is PathModuleLike {
+  return isRecord(value) && typeof value.join === "function";
+}
+
+function getRequireFunction(): DesktopRequire | undefined {
+  const desktopWindow = window as Window & { require?: DesktopRequire };
+  return typeof desktopWindow.require === "function"
+    ? desktopWindow.require
+    : undefined;
+}
+
+function getShellFromModule(value: unknown): DesktopShell | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  return isDesktopShell(value.shell) ? value.shell : undefined;
 }
 
 // Re-exported for backward compatibility with callers that import from main.ts
@@ -88,6 +137,12 @@ export default class RssDashboardPlugin extends Plugin {
   private hasCompletedStartupSavedArticleValidation = false;
   private static readonly FEED_REFRESH_CONCURRENCY = 4;
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
+  private readonly feedStorageRepository: FeedStorageRepository;
+
+  constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
+    super(app, manifest);
+    this.feedStorageRepository = new FeedStorageRepository(app);
+  }
 
   private initializeSettingsBackedServices(): void {
     this.feedParser = new FeedParser(
@@ -98,6 +153,9 @@ export default class RssDashboardPlugin extends Plugin {
     this.importExportService = new ImportExportService({
       settings: this.settings,
       isMobile: Platform.isMobileApp,
+      getPortableDataBundle: () => this.getPortableDataBundle(),
+      importPortableDataBundle: (bundle) =>
+        this.applyPortableDataBundleImport(bundle),
     });
     this.backupService = new BackupService({
       settings: this.settings,
@@ -105,6 +163,8 @@ export default class RssDashboardPlugin extends Plugin {
       vaultAbsolutePath: this.vaultAbsolutePath,
       vault: this.app.vault,
       getUserSettingsJson: () => this.importExportService.getUserSettingsJson(),
+      getPortableDataBundleJson: () =>
+        JSON.stringify(this.getPortableDataBundle(), null, 2),
     });
     this.folderService = new FolderService(this.settings);
     this.backgroundImportService = new BackgroundImportService({
@@ -1119,6 +1179,7 @@ export default class RssDashboardPlugin extends Plugin {
           }
         }
 
+        this.initializeSettingsBackedServices();
         await this.saveSettings();
         await this.refreshDashboardViews();
         const discoverView = await this.getActiveDiscoverView();
@@ -1152,6 +1213,7 @@ export default class RssDashboardPlugin extends Plugin {
       // Keep legacy keys and nested defaults normalized after import.
       this.migrateLegacySettings();
 
+      this.initializeSettingsBackedServices();
       await this.saveSettings();
       await this.refreshDashboardViews();
       const discoverView = await this.getActiveDiscoverView();
@@ -1170,12 +1232,62 @@ export default class RssDashboardPlugin extends Plugin {
     return this.importExportService.getUserSettingsJson();
   }
 
+  public getPortableDataBundle() {
+    return this.feedStorageRepository.buildPortableDataBundle(this.settings);
+  }
+
+  private async applyPortableDataBundleImport(bundle: unknown): Promise<void> {
+    storageLog("Plugin portable bundle import requested", {
+      currentMode: this.settings.storageMode,
+      folder: this.settings.storageFolder,
+      feedCount: this.settings.feeds.length,
+    });
+
+    try {
+      await this.feedStorageRepository.importPortableDataBundle(
+        bundle,
+        this.settings,
+        (data) => this.saveData(data),
+      );
+      this.migrateLegacySettings();
+      this.initializeSettingsBackedServices();
+
+      if (this.settingTab) {
+        this.settingTab.display();
+      }
+
+      await this.refreshDashboardViews();
+      const discoverView = await this.getActiveDiscoverView();
+      discoverView?.render();
+
+      storageLog("Plugin portable bundle import completed", {
+        currentMode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+        feedCount: this.settings.feeds.length,
+      });
+    } catch (error) {
+      storageError("Plugin portable bundle import failed", error, {
+        currentMode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+      });
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
   public async exportUserSettingsJson(): Promise<void> {
     return this.importExportService.exportUserSettingsJson();
   }
 
   public async exportDataJson(): Promise<void> {
     return this.importExportService.exportDataJson();
+  }
+
+  public async exportPortableDataBundle(): Promise<void> {
+    return this.importExportService.exportPortableDataBundle();
+  }
+
+  public async importPortableDataBundleFromFile(file: File): Promise<void> {
+    return this.importExportService.importPortableDataBundleFromFile(file);
   }
 
   exportOpml(): void {
@@ -1194,9 +1306,146 @@ export default class RssDashboardPlugin extends Plugin {
     return this.importExportService.copyOpmlToClipboard();
   }
 
+  public getStorageStatus(): FeedStorageStatus {
+    return this.feedStorageRepository.getStatus(this.settings);
+  }
+
+  public async migrateToVaultStorage(): Promise<void> {
+    storageLog("Plugin migration requested", {
+      currentMode: this.settings.storageMode,
+      folder: this.settings.storageFolder,
+      feedCount: this.settings.feeds.length,
+    });
+
+    try {
+      await this.feedStorageRepository.migrateToVaultShards(
+        this.settings,
+        (data) => this.saveData(data),
+      );
+      this.initializeSettingsBackedServices();
+      if (this.settingTab) {
+        this.settingTab.display();
+      }
+      await this.refreshDashboardViews();
+      storageLog("Plugin migration completed", {
+        currentMode: this.settings.storageMode,
+      });
+    } catch (error) {
+      storageError("Plugin migration failed", error, {
+        currentMode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+      });
+      throw error;
+    }
+  }
+
+  public async repairVaultStorage(): Promise<void> {
+    storageLog("Plugin repair requested", {
+      currentMode: this.settings.storageMode,
+      folder: this.settings.storageFolder,
+      feedCount: this.settings.feeds.length,
+    });
+
+    try {
+      await this.feedStorageRepository.repairVaultShards(
+        this.settings,
+        (data) => this.saveData(data),
+      );
+      if (this.settingTab) {
+        this.settingTab.display();
+      }
+      storageLog("Plugin repair completed");
+    } catch (error) {
+      storageError("Plugin repair failed", error, {
+        currentMode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+      });
+      throw error;
+    }
+  }
+
+  public async revertToLegacyJsonStorage(): Promise<void> {
+    return this.revertToLegacyJsonStorageWithOptions();
+  }
+
+  public async revertToLegacyJsonStorageWithOptions(options?: {
+    deleteShardFolder?: boolean;
+  }): Promise<void> {
+    storageLog("Plugin revert requested", {
+      currentMode: this.settings.storageMode,
+      folder: this.settings.storageFolder,
+      feedCount: this.settings.feeds.length,
+      deleteShardFolder: Boolean(options?.deleteShardFolder),
+    });
+
+    try {
+      await this.feedStorageRepository.revertToLegacyJson(
+        this.settings,
+        (data) => this.saveData(data),
+        options,
+      );
+      this.initializeSettingsBackedServices();
+      if (this.settingTab) {
+        this.settingTab.display();
+      }
+      await this.refreshDashboardViews();
+      storageLog("Plugin revert completed", {
+        currentMode: this.settings.storageMode,
+      });
+    } catch (error) {
+      storageError("Plugin revert failed", error, {
+        currentMode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+      });
+      throw error;
+    }
+  }
+
   // ✅ ImportExportService extracted — all 875 tests passing
 
   // ✅ FolderService extracted — delegates to service
+  public isShardFolderDeletionError(
+    error: unknown,
+  ): error is ShardFolderDeletionError {
+    return error instanceof ShardFolderDeletionError;
+  }
+
+  public async openStorageFolderInSystem(folderPath?: string): Promise<void> {
+    const targetFolder = (folderPath ?? this.settings.storageFolder).trim();
+    if (!targetFolder) {
+      throw new Error("Storage folder path is empty.");
+    }
+
+    try {
+      const requireFn = getRequireFunction();
+      const shell =
+        getShellFromModule(requireFn?.("@electron/remote")) ??
+        getShellFromModule(requireFn?.("electron"));
+      const pathModule = requireFn?.("path");
+      const adapter = this.app.vault.adapter as VaultAdapterPathAccess;
+      const basePath =
+        typeof adapter.getBasePath === "function"
+          ? adapter.getBasePath()
+          : typeof adapter.getFullPath === "function"
+            ? adapter.getFullPath(".")
+            : "";
+
+      if (!shell || !isPathModuleLike(pathModule) || !basePath) {
+        throw new Error("Open folder is only available on desktop vaults.");
+      }
+
+      const fullPath = pathModule.join(basePath, targetFolder);
+      const openResult = await shell.openPath(fullPath);
+      if (typeof openResult === "string" && openResult.trim().length > 0) {
+        throw new Error(openResult);
+      }
+    } catch (error) {
+      throw error instanceof Error
+        ? error
+        : new Error("Failed to open shard folder.");
+    }
+  }
+
   private folderPathExists(folderPath: string): boolean {
     return this.folderService.folderPathExists(folderPath);
   }
@@ -1437,6 +1686,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   async loadSettings() {
     try {
+      storageLog("Loading plugin settings");
       const data = (await this.loadData()) as RssDashboardSettings | null;
       const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
       const originalSettingsJson = JSON.stringify(mergedSettings);
@@ -1446,6 +1696,15 @@ export default class RssDashboardPlugin extends Plugin {
       const didMigrateKeywordRules = this.migrateLegacySettings();
 
       await this.repairMissingFolderPathsForFeeds();
+      const hydrated = await this.feedStorageRepository.hydrateSettings(
+        this.settings,
+      );
+      storageLog("Settings hydrated", {
+        mode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+        feedCount: this.settings.feeds.length,
+        hydratedShardCount: hydrated.shardCount,
+      });
 
       const didNormalizeAndDedupeItems = dedupeAndNormalizeFeedItems(
         this.settings.feeds,
@@ -1453,12 +1712,14 @@ export default class RssDashboardPlugin extends Plugin {
 
       if (
         didMigrateKeywordRules ||
+        hydrated.didChange ||
         didNormalizeAndDedupeItems ||
         JSON.stringify(this.settings) !== originalSettingsJson
       ) {
         await this.saveSettings();
       }
     } catch (error) {
+      storageError("Error loading plugin settings", error);
       new Notice(
         `Error loading settings: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -1469,9 +1730,26 @@ export default class RssDashboardPlugin extends Plugin {
   private migrateLegacySettings(): boolean {
     return migrateSettings(this.settings);
   }
-
   async saveSettings() {
-    await this.saveData(this.settings);
+    storageLog("saveSettings invoked", {
+      mode: this.settings.storageMode,
+      folder: this.settings.storageFolder,
+      feedCount: this.settings.feeds.length,
+    });
+
+    try {
+      const result = await this.feedStorageRepository.persistSettings(
+        this.settings,
+        (data) => this.saveData(data),
+      );
+      storageLog("saveSettings completed", result);
+    } catch (error) {
+      storageError("saveSettings failed", error, {
+        mode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+      });
+      throw error;
+    }
   }
 
   private isFeedExcludedFromRefresh(feed: Feed): boolean {

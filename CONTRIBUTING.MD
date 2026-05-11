@@ -249,6 +249,17 @@ git branch -d release/2.3.0
 
 Pushing the stable tag triggers this repo's release workflow, which creates a GitHub release from that tag and attaches the standard Obsidian plugin assets. If you ever need to do it manually, create the GitHub release from tag `2.3.0` and upload `main.js`, `manifest.json`, and `styles.css`.
 
+### Tag Retention Policy
+
+Published release tags (including Beta tags) should be treated as immutable release history and kept in the repository after a Stable release ships.
+
+- Keep all published `x.x.x-beta.n` tags to preserve traceability for bug reports, changelog links, and bisecting regressions.
+- Do not move, retarget, or reuse an existing published tag name.
+- If a tag was created by mistake and must be removed, document the removal in the changelog or release notes.
+- Do not recreate a deleted tag name at a different commit.
+
+Having many tags in a mature open-source project is normal and preferred over rewriting release history.
+
 ---
 
 ## Versioning (SemVer)

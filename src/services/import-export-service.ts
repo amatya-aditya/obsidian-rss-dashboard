@@ -1,5 +1,5 @@
 import { Notice } from "obsidian";
-import type { RssDashboardSettings } from "../types/types";
+import type { PortableDataBundle, RssDashboardSettings } from "../types/types";
 import { OpmlManager } from "./opml-manager";
 import {
   exportBlob,
@@ -14,10 +14,19 @@ import {
 export class ImportExportService {
   private settings: RssDashboardSettings;
   private isMobile: boolean;
+  private getPortableDataBundle?: () => PortableDataBundle;
+  private importPortableDataBundle?: (bundle: unknown) => Promise<void>;
 
-  constructor(options: { settings: RssDashboardSettings; isMobile: boolean }) {
+  constructor(options: {
+    settings: RssDashboardSettings;
+    isMobile: boolean;
+    getPortableDataBundle?: () => PortableDataBundle;
+    importPortableDataBundle?: (bundle: unknown) => Promise<void>;
+  }) {
     this.settings = options.settings;
     this.isMobile = options.isMobile;
+    this.getPortableDataBundle = options.getPortableDataBundle;
+    this.importPortableDataBundle = options.importPortableDataBundle;
   }
 
   getUserSettingsJson(): string {
@@ -65,6 +74,43 @@ export class ImportExportService {
       isMobile: this.isMobile,
     });
     this.showExportNotice(result, filename);
+  }
+
+  async exportPortableDataBundle(): Promise<void> {
+    const filename = "rss-dashboard-portable-bundle.json";
+    const bundle = this.getPortableDataBundle?.();
+    const blob = new Blob(
+      [JSON.stringify(bundle ?? { settings: this.settings }, null, 2)],
+      {
+        type: "application/json",
+      },
+    );
+    const result = await exportBlob({
+      blob,
+      filename,
+      isMobile: this.isMobile,
+    });
+    this.showExportNotice(result, filename);
+  }
+
+  async importPortableDataBundleFromFile(file: File): Promise<void> {
+    const text = await file.text();
+    let parsed: unknown;
+
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      throw new Error(
+        `Invalid portable bundle JSON${error instanceof Error ? `: ${error.message}` : ""}`,
+      );
+    }
+
+    if (!this.importPortableDataBundle) {
+      throw new Error("Portable bundle import is not available in this context");
+    }
+
+    await this.importPortableDataBundle(parsed);
+    new Notice("Portable data bundle imported");
   }
 
   public showExportNotice(result: ExportBlobResult, filename: string): void {

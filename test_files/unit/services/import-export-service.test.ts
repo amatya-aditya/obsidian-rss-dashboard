@@ -172,4 +172,91 @@ describe("ImportExportService", () => {
       expect(parsed).toHaveProperty("feeds");
     });
   });
+
+  describe("exportPortableDataBundle", () => {
+    it("exports a portable bundle JSON payload when a provider is supplied", async () => {
+      const settings = makeSettings();
+      const svc = new ImportExportService({
+        settings,
+        isMobile: false,
+        getPortableDataBundle: () =>
+          ({
+            version: 1,
+            exportedAt: 123,
+            storageMode: "vault-shards",
+            metadata: { ...settings, feeds: [] },
+            shards: [],
+            markdownMirrorFallbackPlanned: true,
+          }) as any,
+      });
+
+      await svc.exportPortableDataBundle();
+
+      expect(exportBlob).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filename: "rss-dashboard-portable-bundle.json",
+        }),
+      );
+      const call = vi.mocked(exportBlob).mock.calls[0][0];
+      const text = await call.blob.text();
+      const parsed = JSON.parse(text);
+      expect(parsed.storageMode).toBe("vault-shards");
+      expect(parsed.markdownMirrorFallbackPlanned).toBe(true);
+    });
+  });
+
+  describe("importPortableDataBundleFromFile", () => {
+    it("parses bundle JSON and passes it to the import callback", async () => {
+      const importPortableDataBundle = vi.fn().mockResolvedValue(undefined);
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+        importPortableDataBundle,
+      });
+
+      const file = new File(
+        [
+          JSON.stringify({
+            version: 1,
+            exportedAt: 123,
+            storageMode: "vault-shards",
+            metadata: { feeds: [] },
+            shards: [],
+            markdownMirrorFallbackPlanned: true,
+          }),
+        ],
+        "portable-bundle.json",
+        { type: "application/json" },
+      );
+
+      await svc.importPortableDataBundleFromFile(file);
+
+      expect(importPortableDataBundle).toHaveBeenCalledTimes(1);
+      expect(importPortableDataBundle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          version: 1,
+          storageMode: "vault-shards",
+        }),
+      );
+      expect(getNoticeMessages(consoleLogSpy)).toContain(
+        "Portable data bundle imported",
+      );
+    });
+
+    it("throws a helpful error when bundle JSON is invalid", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+        importPortableDataBundle: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const file = new File(["{bad json"], "portable-bundle.json", {
+        type: "application/json",
+      });
+
+      await expect(svc.importPortableDataBundleFromFile(file)).rejects.toThrow(
+        "Invalid portable bundle JSON",
+      );
+    });
+  });
 });

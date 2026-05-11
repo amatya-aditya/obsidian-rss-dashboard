@@ -216,11 +216,13 @@
 }
 
 /* Import/Export actions should align with native Obsidian setting rows */
-.rss-dashboard-import-export-actions .setting-item-info {
+.rss-dashboard-import-export-actions .setting-item-info,
+.rss-dashboard-storage-actions .setting-item-info {
   display: none;
 }
 
-.rss-dashboard-import-export-actions .setting-item-control {
+.rss-dashboard-import-export-actions .setting-item-control,
+.rss-dashboard-storage-actions .setting-item-control {
   width: 100%;
   margin-left: 0;
   justify-content: flex-start;
@@ -978,6 +980,26 @@
 }
 
 @media (max-width: 768px) {
+  .rss-dashboard-import-export-actions.setting-item,
+  .rss-dashboard-storage-actions.setting-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .rss-dashboard-import-export-actions .setting-item-control,
+  .rss-dashboard-storage-actions .setting-item-control {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .rss-dashboard-import-export-actions .setting-item-control button,
+  .rss-dashboard-storage-actions .setting-item-control button {
+    width: 100%;
+  }
+
   .rss-keyword-filter-editor-controls {
     grid-template-columns: 1fr;
   }

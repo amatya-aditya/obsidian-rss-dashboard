@@ -8,8 +8,7 @@
  *   - MAX_ITEMS_PRESETS, isPresetMaxItems                — testable helpers
  *   - AUTO_DELETE_PRESETS, isPresetAutoDeleteDuration    — testable helpers
  */
-import { Notice, Setting } from "obsidian";
-import RssDashboardPlugin from "../../../main";
+import { App, Notice, Setting, WorkspaceLeaf } from "obsidian";
 import { setCssProps } from "../../utils/platform-utils";
 import { normalizeRefreshIntervalMinutes } from "../../utils/validation";
 import { isPresetRefreshInterval } from "../../utils/refresh-intervals";
@@ -21,7 +20,56 @@ import {
   getPageSizeOptions,
   PAGE_SIZE_OPTIONS,
 } from "../../utils/page-size-options";
-import { ApplyMaxItemsToExistingFeedsModal } from "../modals/settings-modals";
+import {
+  ApplyMaxItemsToExistingFeedsModal,
+} from "../modals/settings-modals";
+import {
+  ShardDeletionFailureModal,
+  type ShardDeletionFailureAction,
+  type StorageTransitionAction,
+  type StorageTransitionOptions,
+  StorageTransitionModal,
+} from "../modals/storage-settings-modals";
+import type {
+  FeedStorageStatus,
+  ShardFolderDeletionError,
+} from "../../services/feed-storage-repository";
+import type { RssDashboardSettings } from "../../types/types";
+
+interface GeneralSettingsPlugin {
+  app: App;
+  settingTab: { display(): void } | null;
+  settings: RssDashboardSettings;
+  saveSettings(): Promise<void>;
+  getActiveDashboardView(): Promise<
+    | {
+        leaf: WorkspaceLeaf;
+        render(): void;
+      }
+    | null
+  >;
+  getStorageStatus(): FeedStorageStatus;
+  migrateToVaultStorage(): Promise<void>;
+  repairVaultStorage(): Promise<void>;
+  importPortableDataBundleFromFile(file: File): Promise<void>;
+  exportPortableDataBundle(): Promise<void>;
+  exportDataJson(): Promise<void>;
+  applyFeedLimitsToAllFeeds(): Promise<void>;
+  refreshFeeds(): Promise<void>;
+  revertToLegacyJsonStorageWithOptions(options?: {
+    deleteShardFolder?: boolean;
+  }): Promise<void>;
+  isShardFolderDeletionError(error: unknown): error is ShardFolderDeletionError;
+  openStorageFolderInSystem(folderPath?: string): Promise<void>;
+}
+
+function storageLog(_message: string, _details?: unknown): void {}
+
+function storageError(
+  _message: string,
+  _error: unknown,
+  _details?: unknown,
+): void {}
 
 // ── Pure preset helpers (exported for testing) ───────────────────────────────
 
@@ -40,8 +88,40 @@ export function isPresetAutoDeleteDuration(value: number): boolean {
 
 export function renderGeneralSettingsTab(
   containerEl: HTMLElement,
-  plugin: RssDashboardPlugin,
+  plugin: GeneralSettingsPlugin,
 ): void {
+  const runShardDeletionFailureFlow = async (
+    storageFolder: string,
+  ): Promise<"cancel" | "apply-anyway"> => {
+    while (true) {
+      const failureModal = new ShardDeletionFailureModal(
+        plugin.app,
+        storageFolder,
+      );
+      failureModal.open();
+      const action: ShardDeletionFailureAction =
+        await failureModal.waitForClose();
+
+      if (action === "open-folder") {
+        try {
+          await plugin.openStorageFolderInSystem(storageFolder);
+        } catch (error) {
+          storageError("Open shard folder action failed", error, {
+            storageFolder,
+          });
+          new Notice(
+            `Could not open shard folder${
+              error instanceof Error ? `: ${error.message}` : ""
+            }`,
+          );
+        }
+        continue;
+      }
+
+      return action;
+    }
+  };
+
   new Setting(containerEl)
     .setName("View style")
     .setDesc("Choose between list, card, and feed view for articles")
@@ -166,6 +246,282 @@ export function renderGeneralSettingsTab(
         }
       });
     });
+
+  new Setting(containerEl).setName("Storage (experimental)").setHeading();
+  let pendingStorageMode = plugin.settings.storageMode;
+
+  const renderStorageStatus = (): string => {
+    const status = plugin.getStorageStatus();
+    const migrationState = status.migrationReady
+      ? "Migration ready"
+      : status.mode === "vault-shards"
+        ? "Shards active"
+        : "Legacy JSON active";
+    return [
+      `Mode: ${status.mode}`,
+      `Folder: ${status.folder}`,
+      `Feeds: ${status.feedCount}`,
+      `Shards: ${status.shardCount}`,
+      migrationState,
+      status.lastRepairResult,
+    ].join(" • ");
+  };
+
+  new Setting(containerEl)
+    .setName("Storage mode")
+    .setDesc(
+      "Choose between the legacy monolithic data.json store and per-feed vault shard files, then use Apply below to confirm the change.",
+    )
+    .addDropdown((dropdown) =>
+      dropdown
+        .addOption("legacy-json", "Legacy JSON")
+        .addOption("vault-shards", "Experimental vault shards")
+        .setValue(pendingStorageMode)
+        .onChange((value) => {
+          storageLog("Storage mode dropdown changed", {
+            requestedMode: value,
+            currentMode: plugin.settings.storageMode,
+            folder: plugin.settings.storageFolder,
+          });
+          pendingStorageMode = value as typeof plugin.settings.storageMode;
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Storage folder")
+    .setDesc(
+      "Vault folder for per-feed shard files. This stays in the visible vault so cross-device sync tools can access it.",
+    )
+    .addText((text) =>
+      text
+        .setPlaceholder(".rss-dashboard-data/feeds")
+        .setValue(plugin.settings.storageFolder)
+        .onChange((value) => {
+          void (async () => {
+            const nextFolder = value.trim() || ".rss-dashboard-data/feeds";
+            storageLog("Storage folder changed", {
+              previousFolder: plugin.settings.storageFolder,
+              nextFolder,
+              mode: plugin.settings.storageMode,
+            });
+
+            plugin.settings.storageFolder = nextFolder;
+            try {
+              if (plugin.settings.storageMode === "vault-shards") {
+                await plugin.repairVaultStorage();
+              } else {
+                await plugin.saveSettings();
+              }
+            } catch (error) {
+              storageError("Storage folder update failed", error, {
+                nextFolder,
+                mode: plugin.settings.storageMode,
+              });
+              new Notice(
+                `Storage folder update failed${
+                  error instanceof Error ? `: ${error.message}` : ""
+                }`,
+              );
+            }
+          })();
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Storage status")
+    .setDesc(renderStorageStatus());
+
+  const storageActions = new Setting(containerEl);
+  storageActions.settingEl.addClass("rss-dashboard-storage-actions");
+  storageActions
+    .setName("Storage actions")
+    .setDesc(
+      "Apply the selected storage mode, repair shard files, or export a portable bundle for desktop/mobile transfer workflows.",
+    )
+    .addButton((button) =>
+      button
+        .setButtonText("Apply")
+        .setCta()
+        .setTooltip("Apply the selected storage mode")
+        .onClick(() => {
+          void (async () => {
+            storageLog("Clicked apply storage mode", {
+              requestedMode: pendingStorageMode,
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+              feedCount: plugin.settings.feeds.length,
+            });
+
+            if (pendingStorageMode === plugin.settings.storageMode) {
+              new Notice("Storage mode is already active.");
+              return;
+            }
+
+            const modalOptions: StorageTransitionOptions = {
+              currentMode: plugin.settings.storageMode,
+              targetMode: pendingStorageMode,
+              storageFolder: plugin.settings.storageFolder.trim() || ".rss-dashboard-data/feeds",
+            };
+            const modal: StorageTransitionModal = new StorageTransitionModal(
+              plugin.app,
+              modalOptions,
+            );
+            modal.open();
+            const action: StorageTransitionAction = await modal.waitForClose();
+
+            if (action === "cancel") {
+              return;
+            }
+
+            try {
+              if (action === "export-data-json") {
+                await plugin.exportDataJson();
+                return;
+              }
+
+              if (pendingStorageMode === "vault-shards") {
+                await plugin.migrateToVaultStorage();
+                new Notice("Vault storage migration completed.");
+              } else {
+                if (action === "apply-delete-shards") {
+                  try {
+                    await plugin.revertToLegacyJsonStorageWithOptions({
+                      deleteShardFolder: true,
+                    });
+                  } catch (error) {
+                    if (!plugin.isShardFolderDeletionError(error)) {
+                      throw error;
+                    }
+
+                    const followUpAction = await runShardDeletionFailureFlow(
+                      plugin.settings.storageFolder,
+                    );
+                    if (followUpAction === "cancel") {
+                      return;
+                    }
+
+                    await plugin.revertToLegacyJsonStorageWithOptions({
+                      deleteShardFolder: false,
+                    });
+                  }
+                } else {
+                  await plugin.revertToLegacyJsonStorageWithOptions({
+                    deleteShardFolder: false,
+                  });
+                }
+                new Notice("Legacy JSON storage enabled.");
+              }
+
+              pendingStorageMode = plugin.settings.storageMode;
+              if (plugin.settingTab) {
+                plugin.settingTab.display();
+              }
+            } catch (error) {
+              storageError("Apply storage mode action failed", error, {
+                requestedMode: pendingStorageMode,
+                currentMode: plugin.settings.storageMode,
+                folder: plugin.settings.storageFolder,
+              });
+              new Notice(
+                `Storage mode change failed${
+                  error instanceof Error ? `: ${error.message}` : ""
+                }`,
+              );
+            }
+          })();
+        }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Repair/Rebuild storage").onClick(() => {
+        void (async () => {
+          storageLog("Clicked repair/rebuild storage", {
+            currentMode: plugin.settings.storageMode,
+            folder: plugin.settings.storageFolder,
+            feedCount: plugin.settings.feeds.length,
+          });
+          try {
+            await plugin.repairVaultStorage();
+            if (plugin.settingTab) {
+              plugin.settingTab.display();
+            }
+            new Notice("Storage repair completed.");
+          } catch (error) {
+            storageError("Repair button action failed", error, {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            new Notice(
+              `Storage repair failed${error instanceof Error ? `: ${error.message}` : ""}`,
+            );
+          }
+        })();
+      }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Import shard data").onClick(() => {
+        const input = document.body.createEl("input", {
+          attr: { type: "file", accept: ".json,.backup,application/json" },
+        });
+        input.onchange = () => {
+          void (async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            storageLog("Clicked import shard data", {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            try {
+              await plugin.importPortableDataBundleFromFile(file);
+            } catch (error) {
+              storageError("Shard data import failed", error, {
+                currentMode: plugin.settings.storageMode,
+                folder: plugin.settings.storageFolder,
+              });
+              new Notice(
+                `Shard data import failed${
+                  error instanceof Error ? `: ${error.message}` : ""
+                }`,
+              );
+            }
+          })();
+        };
+        input.click();
+      }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Export shard data").onClick(() => {
+        void (async () => {
+          storageLog("Clicked export shard data", {
+            currentMode: plugin.settings.storageMode,
+            folder: plugin.settings.storageFolder,
+          });
+          try {
+            await plugin.exportPortableDataBundle();
+          } catch (error) {
+            storageError("Shard data export failed", error, {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            new Notice(
+              `Shard data export failed${
+                error instanceof Error ? `: ${error.message}` : ""
+              }`,
+            );
+          }
+        })();
+      }),
+    );
+
+  const applyButton = Array.from(
+    storageActions.controlEl.querySelectorAll("button"),
+  ).find((button) => button.textContent === "Apply");
+  if (applyButton instanceof HTMLButtonElement) {
+    setCssProps(applyButton, {
+      "background-color": "#7c5cff",
+      color: "#ffffff",
+      border: "1px solid #6a4df0",
+    });
+  }
 
   new Setting(containerEl).setName("Global feeds").setHeading();
 

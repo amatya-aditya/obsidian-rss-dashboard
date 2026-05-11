@@ -56,6 +56,7 @@ export interface FeedItem {
 }
 
 export interface Feed {
+  feedId?: string;
   title: string;
   url: string;
   /**
@@ -339,6 +340,20 @@ export interface AutoBackupSettings {
   backupUserdata: boolean; // copies userdata.json → userdata.json.backup
 }
 
+export type FeedStorageMode = "legacy-json" | "vault-shards";
+
+export interface FeedItemsShard {
+  version: number;
+  feedId: string;
+  feedUrl: string;
+  updatedAt: number;
+  items: FeedItem[];
+}
+
+export type PersistedFeedConfig = Omit<Feed, "items"> & {
+  feedId: string;
+};
+
 export interface RssDashboardSettings {
   feeds: Feed[];
   folders: Folder[];
@@ -414,6 +429,25 @@ export interface RssDashboardSettings {
   sidebarTagFilterMode: "or" | "and" | "not";
 
   autoBackup: AutoBackupSettings;
+  storageMode: FeedStorageMode;
+  storageFolder: string;
+  storageSchemaVersion: number;
+}
+
+export type PersistedRssDashboardSettings = Omit<
+  RssDashboardSettings,
+  "feeds"
+> & {
+  feeds: PersistedFeedConfig[];
+};
+
+export interface PortableDataBundle {
+  version: number;
+  exportedAt: number;
+  storageMode: FeedStorageMode;
+  metadata: PersistedRssDashboardSettings;
+  shards: FeedItemsShard[];
+  markdownMirrorFallbackPlanned: boolean;
 }
 
 export type SettingsOnly = Omit<
@@ -620,4 +654,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     backupOpml: true,
     backupUserdata: true,
   },
+  storageMode: "legacy-json",
+  storageFolder: ".rss-dashboard-data/feeds",
+  storageSchemaVersion: 1,
 };

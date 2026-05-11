@@ -14,6 +14,7 @@ export class BackupService {
   private vaultAbsolutePath: string;
   private vault: VaultInterface;
   private getUserSettingsJsonFn: () => string;
+  private getPortableDataBundleJsonFn: () => string;
 
   constructor(options: {
     settings: RssDashboardSettings;
@@ -21,6 +22,7 @@ export class BackupService {
     vaultAbsolutePath: string;
     vault: VaultInterface;
     getUserSettingsJson?: () => string;
+    getPortableDataBundleJson?: () => string;
   }) {
     this.settings = options.settings;
     this.manifest = options.manifest;
@@ -28,6 +30,8 @@ export class BackupService {
     this.vault = options.vault;
     this.getUserSettingsJsonFn =
       options.getUserSettingsJson || (() => JSON.stringify({}));
+    this.getPortableDataBundleJsonFn =
+      options.getPortableDataBundleJson || (() => JSON.stringify({}));
   }
 
   /**
@@ -48,6 +52,13 @@ export class BackupService {
         if (await this.vault.adapter.exists(dataPath)) {
           const content = await this.vault.adapter.read(dataPath);
           await this.vault.adapter.write(`${dataPath}.backup`, content);
+        }
+
+        if (this.settings.storageMode === "vault-shards") {
+          await this.vault.adapter.write(
+            `${pluginDir}/portable-data-bundle.json.backup`,
+            this.getPortableDataBundleJsonFn(),
+          );
         }
       }
 
@@ -120,6 +131,14 @@ export class BackupService {
         const dataPath = path.join(absPluginDir, "data.json");
         if (fs.existsSync(dataPath)) {
           fs.copyFileSync(dataPath, `${dataPath}.backup`);
+        }
+
+        if (this.settings.storageMode === "vault-shards") {
+          const bundlePath = path.join(
+            absPluginDir,
+            "portable-data-bundle.json.backup",
+          );
+          fs.writeFileSync(bundlePath, this.getPortableDataBundleJsonFn(), "utf-8");
         }
       }
 

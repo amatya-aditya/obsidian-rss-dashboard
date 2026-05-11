@@ -21,6 +21,7 @@ Only the feeds you need. Stream the world's knowledge into your vault: RSS, podc
 - [Features](#features)
 - [Screenshots](#screenshots)
 - [Roadmap](#roadmap)
+- [Vault Shards Storage Guide](#vault-shards-storage-guide)
 - [Installation](#installation)
 - [Getting Started](#getting-started)
 - [Development](#development)
@@ -107,6 +108,10 @@ Community highlights:
 ## Roadmap
 
 Looking for upcoming features? The old README planned-features list now lives in [docs/plans/public-roadmap.md](docs/plans/public-roadmap.md), along with links to other public-facing plans that have not been implemented yet.
+
+## Vault Shards Storage Guide
+
+Using the new experimental storage mode? See the user-facing guide here: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
 
 ## Installation
 
