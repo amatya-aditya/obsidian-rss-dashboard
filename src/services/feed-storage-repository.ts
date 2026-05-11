@@ -25,6 +25,26 @@ export interface PersistSettingsOptions {
   forceAllShards?: boolean;
 }
 
+export interface RevertToLegacyJsonOptions {
+  deleteShardFolder?: boolean;
+}
+
+export class ShardFolderDeletionError extends Error {
+  public readonly folderPath: string;
+
+  constructor(folderPath: string, message?: string) {
+    super(message ?? `Failed to delete shard folder: ${folderPath}`);
+    this.name = "ShardFolderDeletionError";
+    this.folderPath = folderPath;
+  }
+}
+
+interface MigrationSnapshot {
+  storageMode: RssDashboardSettings["storageMode"];
+  storageFolder: string;
+  lastRepairResult: string;
+}
+
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
@@ -59,6 +79,12 @@ function createFeedShard(feed: Feed): FeedItemsShard {
     updatedAt: Date.now(),
     items: cloneJson(feed.items ?? []),
   };
+}
+
+function createComparableFeedShardJson(feed: Feed): string {
+  const { updatedAt: _updatedAt, ...shardWithoutTimestamp } = createFeedShard(feed);
+  void _updatedAt;
+  return JSON.stringify(shardWithoutTimestamp, null, 2);
 }
 
 function storageLog(message: string, details?: unknown): void {
@@ -239,15 +265,16 @@ export class FeedStorageRepository {
       currentFeedIds.add(feed.feedId);
       const shard = createFeedShard(feed);
       const shardJson = JSON.stringify(shard, null, 2);
+      const currentComparableJson = createComparableFeedShardJson(feed);
       const previousJson = this.lastPersistedShardJsonByFeedId.get(feed.feedId);
 
-      if (forceAllShards || previousJson !== shardJson) {
+      if (forceAllShards || previousJson !== currentComparableJson) {
         const shardPath = getFeedShardPath(normalizedStorageFolder, feed.feedId);
         await this.app.vault.adapter.write(
           shardPath,
           shardJson,
         );
-        this.lastPersistedShardJsonByFeedId.set(feed.feedId, shardJson);
+        this.lastPersistedShardJsonByFeedId.set(feed.feedId, currentComparableJson);
         shardWriteCount += 1;
         storageLog("Wrote feed shard", {
           feedId: feed.feedId,
@@ -327,6 +354,7 @@ export class FeedStorageRepository {
     settings: RssDashboardSettings,
     saveData: (data: unknown) => Promise<void>,
   ): Promise<void> {
+    const snapshot = this.captureMigrationSnapshot(settings);
     storageLog("Starting migration to vault shards", {
       currentMode: settings.storageMode,
       folder: normalizeFolderPath(settings.storageFolder),
@@ -334,26 +362,39 @@ export class FeedStorageRepository {
     });
     settings.storageMode = "vault-shards";
     settings.storageFolder = normalizeFolderPath(settings.storageFolder);
-    this.lastRepairResult = "Migration completed";
 
-    await this.persistSettings(settings, saveData, {
-      forceAllShards: true,
-      forceMetadata: true,
-    });
-    storageLog("Completed migration to vault shards");
+    try {
+      await this.persistSettings(settings, saveData, {
+        forceAllShards: true,
+        forceMetadata: true,
+      });
+      this.lastRepairResult = "Migration completed";
+      storageLog("Completed migration to vault shards");
+    } catch (error) {
+      this.restoreMigrationSnapshot(settings, snapshot);
+      storageError("Migration to vault shards failed; restored legacy state", error, {
+        restoredMode: settings.storageMode,
+        restoredFolder: settings.storageFolder,
+      });
+      throw error;
+    }
   }
 
   public async revertToLegacyJson(
     settings: RssDashboardSettings,
     saveData: (data: unknown) => Promise<void>,
+    options: RevertToLegacyJsonOptions = {},
   ): Promise<void> {
     const storageFolder = normalizeFolderPath(settings.storageFolder);
     storageLog("Reverting to legacy JSON storage", {
       storageFolder,
       feedCount: settings.feeds.length,
+      deleteShardFolder: Boolean(options.deleteShardFolder),
     });
 
-    await this.deleteShardFilesInFolder(storageFolder);
+    if (options.deleteShardFolder) {
+      await this.deleteShardFolder(storageFolder);
+    }
 
     settings.storageMode = "legacy-json";
     await saveData(cloneJson(settings));
@@ -444,7 +485,7 @@ export class FeedStorageRepository {
       this.lastPersistedShardJsonByFeedId = new Map(
         settings.feeds
           .filter((feed): feed is Feed & { feedId: string } => Boolean(feed.feedId))
-          .map((feed) => [feed.feedId, JSON.stringify(createFeedShard(feed), null, 2)]),
+          .map((feed) => [feed.feedId, createComparableFeedShardJson(feed)]),
       );
       this.lastStorageFolderPath = normalizeFolderPath(settings.storageFolder);
       return;
@@ -455,56 +496,153 @@ export class FeedStorageRepository {
     this.lastStorageFolderPath = null;
   }
 
+  private captureMigrationSnapshot(
+    settings: RssDashboardSettings,
+  ): MigrationSnapshot {
+    return {
+      storageMode: settings.storageMode,
+      storageFolder: settings.storageFolder,
+      lastRepairResult: this.lastRepairResult,
+    };
+  }
+
+  private restoreMigrationSnapshot(
+    settings: RssDashboardSettings,
+    snapshot: MigrationSnapshot,
+  ): void {
+    settings.storageMode = snapshot.storageMode;
+    settings.storageFolder = snapshot.storageFolder;
+    this.lastRepairResult = snapshot.lastRepairResult;
+  }
+
   private async ensureStorageFolderExists(storageFolder: string): Promise<void> {
     const normalizedFolder = normalizeFolderPath(storageFolder);
     if (!normalizedFolder) {
       return;
     }
 
-    if (this.app.vault.getAbstractFileByPath(normalizedFolder) === null) {
-      await this.app.vault.createFolder(normalizedFolder);
-      storageLog("Created storage folder", { folder: normalizedFolder });
+    const existing = this.app.vault.getAbstractFileByPath(normalizedFolder);
+    if (existing instanceof TFolder) {
+      storageLog("Storage folder already exists", { folder: normalizedFolder });
       return;
     }
 
-    storageLog("Storage folder already exists", { folder: normalizedFolder });
+    if (existing instanceof TFile) {
+      throw new Error(
+        `Storage path points to a file, not a folder: ${normalizedFolder}`,
+      );
+    }
+
+    try {
+      await this.app.vault.createFolder(normalizedFolder);
+    } catch (error) {
+      const resolved = this.app.vault.getAbstractFileByPath(normalizedFolder);
+      if (resolved instanceof TFolder) {
+        storageLog("Storage folder became available after createFolder error", {
+          folder: normalizedFolder,
+        });
+        return;
+      }
+
+      if (await this.app.vault.adapter.exists(normalizedFolder)) {
+        storageLog("Storage folder exists on adapter after createFolder error", {
+          folder: normalizedFolder,
+        });
+        return;
+      }
+
+      throw error;
+    }
+
+    const created = this.app.vault.getAbstractFileByPath(normalizedFolder);
+    if (!(created instanceof TFolder)) {
+      if (await this.app.vault.adapter.exists(normalizedFolder)) {
+        storageLog("Storage folder exists on adapter after creation", {
+          folder: normalizedFolder,
+        });
+        return;
+      }
+
+      throw new Error(`Failed to create storage folder: ${normalizedFolder}`);
+    }
+
+    storageLog("Created storage folder", { folder: normalizedFolder });
   }
 
-  private async deleteShardFilesInFolder(folderPath: string): Promise<void> {
-    const target = this.app.vault.getAbstractFileByPath(folderPath);
-    if (!(target instanceof TFolder)) {
+  private async deleteShardFolder(folderPath: string): Promise<void> {
+    const existsBeforeDelete = await this.app.vault.adapter.exists(folderPath);
+    if (!existsBeforeDelete) {
       storageLog("No shard folder found to clean", { folderPath });
       this.lastPersistedShardJsonByFeedId.clear();
       this.lastStorageFolderPath = null;
       return;
     }
 
-    const deletedCount = await this.deleteShardFilesRecursive(target);
+    try {
+      await this.app.vault.adapter.rmdir(folderPath, true);
+    } catch (error) {
+      storageError("Adapter shard folder delete failed", error, { folderPath });
+      throw new ShardFolderDeletionError(
+        folderPath,
+        error instanceof Error
+          ? `Failed to delete shard folder "${folderPath}": ${error.message}`
+          : `Failed to delete shard folder "${folderPath}"`,
+      );
+    }
+
+    if (await this.app.vault.adapter.exists(folderPath)) {
+      throw new ShardFolderDeletionError(
+        folderPath,
+        `Shard folder still exists after delete attempt: ${folderPath}`,
+      );
+    }
+
+    await this.pruneEmptyParentFolders(folderPath);
+
     this.lastPersistedShardJsonByFeedId.clear();
     this.lastStorageFolderPath = null;
-    storageLog("Deleted shard files from storage folder", {
+    storageLog("Deleted shard storage folder", {
       folderPath,
-      deletedCount,
     });
   }
 
-  private async deleteShardFilesRecursive(folder: TFolder): Promise<number> {
-    const children = [...folder.children];
-    let deletedCount = 0;
+  private async pruneEmptyParentFolders(folderPath: string): Promise<void> {
+    let currentPath = this.getParentFolderPath(folderPath);
 
-    for (const child of children) {
-      if (child instanceof TFolder) {
-        deletedCount += await this.deleteShardFilesRecursive(child);
+    while (currentPath) {
+      const exists = await this.app.vault.adapter.exists(currentPath);
+      if (!exists) {
+        currentPath = this.getParentFolderPath(currentPath);
         continue;
       }
 
-      if (child instanceof TFile && child.path.toLowerCase().endsWith(".json")) {
-        await this.app.fileManager.trashFile(child);
-        deletedCount += 1;
-        storageLog("Deleted shard file", { path: child.path });
+      const contents = await this.app.vault.adapter.list(currentPath);
+      const hasChildren =
+        contents.files.length > 0 || contents.folders.length > 0;
+      if (hasChildren) {
+        break;
       }
+
+      try {
+        await this.app.vault.adapter.rmdir(currentPath, false);
+        storageLog("Deleted empty parent storage folder", { folderPath: currentPath });
+      } catch (error) {
+        storageError("Failed to delete empty parent storage folder", error, {
+          folderPath: currentPath,
+        });
+        break;
+      }
+
+      currentPath = this.getParentFolderPath(currentPath);
+    }
+  }
+
+  private getParentFolderPath(folderPath: string): string | null {
+    const lastSlashIndex = folderPath.lastIndexOf("/");
+    if (lastSlashIndex <= 0) {
+      return null;
     }
 
-    return deletedCount;
+    return folderPath.slice(0, lastSlashIndex);
   }
 }

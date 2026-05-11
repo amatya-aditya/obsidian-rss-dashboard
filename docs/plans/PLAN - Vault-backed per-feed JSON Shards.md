@@ -125,17 +125,13 @@ When switching from `legacy-json` to `vault-shards` and clicking migrate, the pl
 
 The user also reported that switching modes previously felt like "nothing happened," which is why the debug logging was added.
 
-### Current Likely Cause
-The failure is most likely in the repository folder-creation path when the configured shard folder already exists in the vault.
+### Confirmed Causes
+The failure comes from two implementation issues that compound each other:
 
-The likely problem area is `ensureStorageFolderExists()` in `FeedStorageRepository`.
+- `ensureStorageFolderExists()` was not hardened as an idempotent folder-creation path
+- the settings flow could flip `storageMode` before migration had actually completed
 
-Current behavior appears to be too strict when the target folder already exists, or it is relying on an Obsidian create-folder path that throws instead of treating "already exists" as success.
-
-Possible scenarios:
-- the exact configured folder already exists and `createFolder()` still gets called
-- an intermediate parent path exists in a way the current check does not account for
-- a file/folder path normalization mismatch causes the existence check to miss an existing folder and then `createFolder()` throws
+That combination allowed migration to fail on an already-existing folder while also risking a half-switched in-memory state.
 
 ### Expected Correct Behavior
 Migration should treat an already-existing configured shard folder as valid and continue.
@@ -145,16 +141,22 @@ Desired behavior:
 - if folder does not exist: create it
 - if path exists but is a file: fail clearly with a targeted notice/error
 
-### Next Fix Target
-Harden `ensureStorageFolderExists()` so it is idempotent and safe for repeated migrations/repairs.
+### Implemented Fix Rules
+`ensureStorageFolderExists()` now needs to behave as an idempotent guard for migration and repair:
 
-Recommended implementation direction:
 - normalize the folder path once
 - check `getAbstractFileByPath(normalizedFolder)`
 - if `null`, create the folder
 - if `TFolder`, return success
 - if `TFile`, throw a specific error explaining that the configured storage path points to a file
-- if `createFolder()` throws "folder already exists", swallow that error and continue after verifying a folder now exists
+- if `createFolder()` throws "folder already exists", re-check the path and continue only if it now resolves to a folder
+
+The settings flow should also treat mode changes as explicit actions:
+
+- the storage mode dropdown is display/intent only and does not execute migration
+- legacy -> shards runs only from `Migrate to vault storage`
+- shards -> legacy runs only from an explicit revert action
+- failed migration leaves `storageMode` on `legacy-json`
 
 ## Other Known Behavior Notes
 

@@ -151,10 +151,62 @@ export class MockDataVault {
     this.adapter = {
       getBasePath: () => "/test/vault",
       getFullPath: (p: string) => p,
-      exists: async (path: string) => this.adapterFiles.has(path),
+      exists: async (path: string) =>
+        this.adapterFiles.has(path) || this.folders.has(path.replace(/^\/+|\/+$/g, "")),
       read: async (path: string) => this.adapterFiles.get(path) ?? "",
       write: async (path: string, content: string) => {
         this.adapterFiles.set(path, content);
+      },
+      list: async (path: string) => {
+        const cleanPath = path.replace(/^\/+|\/+$/g, "");
+        const prefix = cleanPath ? `${cleanPath}/` : "";
+
+        const files = [...this.adapterFiles.keys()].filter((filePath) => {
+          if (!prefix) {
+            return !filePath.includes("/");
+          }
+
+          return (
+            filePath.startsWith(prefix) &&
+            !filePath.slice(prefix.length).includes("/")
+          );
+        });
+
+        const folders = [...this.folders.keys()].filter((folderPath) => {
+          if (folderPath === "/" || folderPath === cleanPath) {
+            return false;
+          }
+
+          if (!prefix) {
+            return !folderPath.includes("/");
+          }
+
+          return (
+            folderPath.startsWith(prefix) &&
+            !folderPath.slice(prefix.length).includes("/")
+          );
+        });
+
+        return { files, folders };
+      },
+      rmdir: async (path: string, recursive: boolean) => {
+        const cleanPath = path.replace(/^\/+|\/+$/g, "");
+        if (!recursive && Array.from(this.adapterFiles.keys()).some((filePath) => filePath.startsWith(`${cleanPath}/`))) {
+          throw new Error("Directory not empty");
+        }
+
+        for (const filePath of [...this.adapterFiles.keys()]) {
+          if (filePath === cleanPath || filePath.startsWith(`${cleanPath}/`)) {
+            this.adapterFiles.delete(filePath);
+            this.files.delete(filePath);
+          }
+        }
+
+        for (const folderPath of [...this.folders.keys()]) {
+          if (folderPath === cleanPath || folderPath.startsWith(`${cleanPath}/`)) {
+            this.folders.delete(folderPath);
+          }
+        }
       },
     };
   }

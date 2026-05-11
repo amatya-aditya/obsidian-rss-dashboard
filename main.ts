@@ -43,6 +43,7 @@ import { FolderService } from "./src/services/folder-service";
 import {
   FeedStorageRepository,
   type FeedStorageStatus,
+  ShardFolderDeletionError,
 } from "./src/services/feed-storage-repository";
 import { ImportExportService } from "./src/services/import-export-service";
 import { BackgroundImportService } from "./src/services/background-import-service";
@@ -83,6 +84,41 @@ function storageError(message: string, error: unknown, details?: unknown): void 
   }
 
   console.error(`${STORAGE_LOG_PREFIX} ${message}`, details, error);
+}
+
+type DesktopRequire = (moduleName: string) => unknown;
+type DesktopShell = { openPath: (path: string) => Promise<string> };
+type PathModuleLike = { join: (...paths: string[]) => string };
+type VaultAdapterPathAccess = {
+  getBasePath?: () => string;
+  getFullPath?: (path: string) => string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isDesktopShell(value: unknown): value is DesktopShell {
+  return isRecord(value) && typeof value.openPath === "function";
+}
+
+function isPathModuleLike(value: unknown): value is PathModuleLike {
+  return isRecord(value) && typeof value.join === "function";
+}
+
+function getRequireFunction(): DesktopRequire | undefined {
+  const desktopWindow = window as Window & { require?: DesktopRequire };
+  return typeof desktopWindow.require === "function"
+    ? desktopWindow.require
+    : undefined;
+}
+
+function getShellFromModule(value: unknown): DesktopShell | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  return isDesktopShell(value.shell) ? value.shell : undefined;
 }
 
 // Re-exported for backward compatibility with callers that import from main.ts
@@ -1295,15 +1331,24 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async revertToLegacyJsonStorage(): Promise<void> {
+    return this.revertToLegacyJsonStorageWithOptions();
+  }
+
+  public async revertToLegacyJsonStorageWithOptions(options?: {
+    deleteShardFolder?: boolean;
+  }): Promise<void> {
     storageLog("Plugin revert requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
       feedCount: this.settings.feeds.length,
+      deleteShardFolder: Boolean(options?.deleteShardFolder),
     });
 
     try {
-      await this.feedStorageRepository.revertToLegacyJson(this.settings, (data) =>
-        this.saveData(data),
+      await this.feedStorageRepository.revertToLegacyJson(
+        this.settings,
+        (data) => this.saveData(data),
+        options,
       );
       this.initializeSettingsBackedServices();
       if (this.settingTab) {
@@ -1325,6 +1370,48 @@ export default class RssDashboardPlugin extends Plugin {
   // ✅ ImportExportService extracted — all 875 tests passing
 
   // ✅ FolderService extracted — delegates to service
+  public isShardFolderDeletionError(
+    error: unknown,
+  ): error is ShardFolderDeletionError {
+    return error instanceof ShardFolderDeletionError;
+  }
+
+  public async openStorageFolderInSystem(folderPath?: string): Promise<void> {
+    const targetFolder = (folderPath ?? this.settings.storageFolder).trim();
+    if (!targetFolder) {
+      throw new Error("Storage folder path is empty.");
+    }
+
+    try {
+      const requireFn = getRequireFunction();
+      const shell =
+        getShellFromModule(requireFn?.("@electron/remote")) ??
+        getShellFromModule(requireFn?.("electron"));
+      const pathModule = requireFn?.("path");
+      const adapter = this.app.vault.adapter as VaultAdapterPathAccess;
+      const basePath =
+        typeof adapter.getBasePath === "function"
+          ? adapter.getBasePath()
+          : typeof adapter.getFullPath === "function"
+            ? adapter.getFullPath(".")
+            : "";
+
+      if (!shell || !isPathModuleLike(pathModule) || !basePath) {
+        throw new Error("Open folder is only available on desktop vaults.");
+      }
+
+      const fullPath = pathModule.join(basePath, targetFolder);
+      const openResult = await shell.openPath(fullPath);
+      if (typeof openResult === "string" && openResult.trim().length > 0) {
+        throw new Error(openResult);
+      }
+    } catch (error) {
+      throw error instanceof Error
+        ? error
+        : new Error("Failed to open shard folder.");
+    }
+  }
+
   private folderPathExists(folderPath: string): boolean {
     return this.folderService.folderPathExists(folderPath);
   }
@@ -1609,7 +1696,6 @@ export default class RssDashboardPlugin extends Plugin {
   private migrateLegacySettings(): boolean {
     return migrateSettings(this.settings);
   }
-
   async saveSettings() {
     storageLog("saveSettings invoked", {
       mode: this.settings.storageMode,
@@ -1888,3 +1974,6 @@ export default class RssDashboardPlugin extends Plugin {
     return allArticles;
   }
 }
+
+
+

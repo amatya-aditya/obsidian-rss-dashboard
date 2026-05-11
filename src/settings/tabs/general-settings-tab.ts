@@ -8,8 +8,7 @@
  *   - MAX_ITEMS_PRESETS, isPresetMaxItems                — testable helpers
  *   - AUTO_DELETE_PRESETS, isPresetAutoDeleteDuration    — testable helpers
  */
-import { Notice, Setting } from "obsidian";
-import RssDashboardPlugin from "../../../main";
+import { App, Notice, Setting, WorkspaceLeaf } from "obsidian";
 import { setCssProps } from "../../utils/platform-utils";
 import { normalizeRefreshIntervalMinutes } from "../../utils/validation";
 import { isPresetRefreshInterval } from "../../utils/refresh-intervals";
@@ -21,9 +20,49 @@ import {
   getPageSizeOptions,
   PAGE_SIZE_OPTIONS,
 } from "../../utils/page-size-options";
-import { ApplyMaxItemsToExistingFeedsModal } from "../modals/settings-modals";
+import {
+  ApplyMaxItemsToExistingFeedsModal,
+} from "../modals/settings-modals";
+import {
+  ShardDeletionFailureModal,
+  type ShardDeletionFailureAction,
+  type StorageTransitionAction,
+  type StorageTransitionOptions,
+  StorageTransitionModal,
+} from "../modals/storage-settings-modals";
+import type {
+  FeedStorageStatus,
+  ShardFolderDeletionError,
+} from "../../services/feed-storage-repository";
+import type { RssDashboardSettings } from "../../types/types";
 
 const STORAGE_LOG_PREFIX = "[RSS Dashboard][Storage]";
+
+interface GeneralSettingsPlugin {
+  app: App;
+  settingTab: { display(): void } | null;
+  settings: RssDashboardSettings;
+  saveSettings(): Promise<void>;
+  getActiveDashboardView(): Promise<
+    | {
+        leaf: WorkspaceLeaf;
+        render(): void;
+      }
+    | null
+  >;
+  getStorageStatus(): FeedStorageStatus;
+  migrateToVaultStorage(): Promise<void>;
+  repairVaultStorage(): Promise<void>;
+  exportPortableDataBundle(): Promise<void>;
+  exportDataJson(): Promise<void>;
+  applyFeedLimitsToAllFeeds(): Promise<void>;
+  refreshFeeds(): Promise<void>;
+  revertToLegacyJsonStorageWithOptions(options?: {
+    deleteShardFolder?: boolean;
+  }): Promise<void>;
+  isShardFolderDeletionError(error: unknown): error is ShardFolderDeletionError;
+  openStorageFolderInSystem(folderPath?: string): Promise<void>;
+}
 
 function storageLog(message: string, details?: unknown): void {
   if (details === undefined) {
@@ -60,8 +99,40 @@ export function isPresetAutoDeleteDuration(value: number): boolean {
 
 export function renderGeneralSettingsTab(
   containerEl: HTMLElement,
-  plugin: RssDashboardPlugin,
+  plugin: GeneralSettingsPlugin,
 ): void {
+  const runShardDeletionFailureFlow = async (
+    storageFolder: string,
+  ): Promise<"cancel" | "apply-anyway"> => {
+    while (true) {
+      const failureModal = new ShardDeletionFailureModal(
+        plugin.app,
+        storageFolder,
+      );
+      failureModal.open();
+      const action: ShardDeletionFailureAction =
+        await failureModal.waitForClose();
+
+      if (action === "open-folder") {
+        try {
+          await plugin.openStorageFolderInSystem(storageFolder);
+        } catch (error) {
+          storageError("Open shard folder action failed", error, {
+            storageFolder,
+          });
+          new Notice(
+            `Could not open shard folder${
+              error instanceof Error ? `: ${error.message}` : ""
+            }`,
+          );
+        }
+        continue;
+      }
+
+      return action;
+    }
+  };
+
   new Setting(containerEl)
     .setName("View style")
     .setDesc("Choose between list, card, and feed view for articles")
@@ -188,6 +259,7 @@ export function renderGeneralSettingsTab(
     });
 
   new Setting(containerEl).setName("Storage (experimental)").setHeading();
+  let pendingStorageMode = plugin.settings.storageMode;
 
   const renderStorageStatus = (): string => {
     const status = plugin.getStorageStatus();
@@ -209,41 +281,20 @@ export function renderGeneralSettingsTab(
   new Setting(containerEl)
     .setName("Storage mode")
     .setDesc(
-      "Choose between the legacy monolithic data.json store and per-feed vault shard files.",
+      "Choose between the legacy monolithic data.json store and per-feed vault shard files, then use Apply below to confirm the change.",
     )
     .addDropdown((dropdown) =>
       dropdown
         .addOption("legacy-json", "Legacy JSON")
         .addOption("vault-shards", "Experimental vault shards")
-        .setValue(plugin.settings.storageMode)
+        .setValue(pendingStorageMode)
         .onChange((value) => {
-          void (async () => {
-            storageLog("Storage mode dropdown changed", {
-              requestedMode: value,
-              currentMode: plugin.settings.storageMode,
-              folder: plugin.settings.storageFolder,
-            });
-
-            try {
-              if (value === "vault-shards") {
-                plugin.settings.storageMode = "vault-shards";
-                await plugin.migrateToVaultStorage();
-                new Notice("Vault shard storage enabled.");
-                return;
-              }
-
-              await plugin.revertToLegacyJsonStorage();
-              new Notice("Legacy JSON storage enabled.");
-            } catch (error) {
-              storageError("Storage mode change failed", error, {
-                requestedMode: value,
-                folder: plugin.settings.storageFolder,
-              });
-              new Notice(
-                `Storage change failed${error instanceof Error ? `: ${error.message}` : ""}`,
-              );
-            }
-          })();
+          storageLog("Storage mode dropdown changed", {
+            requestedMode: value,
+            currentMode: plugin.settings.storageMode,
+            folder: plugin.settings.storageFolder,
+          });
+          pendingStorageMode = value as typeof plugin.settings.storageMode;
         }),
     );
 
@@ -296,32 +347,94 @@ export function renderGeneralSettingsTab(
   storageActions
     .setName("Storage actions")
     .setDesc(
-      "Migrate or repair shard files, and export a portable bundle for desktop/mobile transfer workflows.",
+      "Apply the selected storage mode, repair shard files, or export a portable bundle for desktop/mobile transfer workflows.",
     )
     .addButton((button) =>
       button
-        .setButtonText("Migrate to vault storage")
+        .setButtonText("Apply")
         .setCta()
+        .setTooltip("Apply the selected storage mode")
         .onClick(() => {
           void (async () => {
-            storageLog("Clicked migrate to vault storage", {
+            storageLog("Clicked apply storage mode", {
+              requestedMode: pendingStorageMode,
               currentMode: plugin.settings.storageMode,
               folder: plugin.settings.storageFolder,
               feedCount: plugin.settings.feeds.length,
             });
+
+            if (pendingStorageMode === plugin.settings.storageMode) {
+              new Notice("Storage mode is already active.");
+              return;
+            }
+
+            const modalOptions: StorageTransitionOptions = {
+              currentMode: plugin.settings.storageMode,
+              targetMode: pendingStorageMode,
+              storageFolder: plugin.settings.storageFolder.trim() || ".rss-dashboard-data/feeds",
+            };
+            const modal: StorageTransitionModal = new StorageTransitionModal(
+              plugin.app,
+              modalOptions,
+            );
+            modal.open();
+            const action: StorageTransitionAction = await modal.waitForClose();
+
+            if (action === "cancel") {
+              return;
+            }
+
             try {
-              await plugin.migrateToVaultStorage();
+              if (action === "export-data-json") {
+                await plugin.exportDataJson();
+                return;
+              }
+
+              if (pendingStorageMode === "vault-shards") {
+                await plugin.migrateToVaultStorage();
+                new Notice("Vault storage migration completed.");
+              } else {
+                if (action === "apply-delete-shards") {
+                  try {
+                    await plugin.revertToLegacyJsonStorageWithOptions({
+                      deleteShardFolder: true,
+                    });
+                  } catch (error) {
+                    if (!plugin.isShardFolderDeletionError(error)) {
+                      throw error;
+                    }
+
+                    const followUpAction = await runShardDeletionFailureFlow(
+                      plugin.settings.storageFolder,
+                    );
+                    if (followUpAction === "cancel") {
+                      return;
+                    }
+
+                    await plugin.revertToLegacyJsonStorageWithOptions({
+                      deleteShardFolder: false,
+                    });
+                  }
+                } else {
+                  await plugin.revertToLegacyJsonStorageWithOptions({
+                    deleteShardFolder: false,
+                  });
+                }
+                new Notice("Legacy JSON storage enabled.");
+              }
+
+              pendingStorageMode = plugin.settings.storageMode;
               if (plugin.settingTab) {
                 plugin.settingTab.display();
               }
-              new Notice("Vault storage migration completed.");
             } catch (error) {
-              storageError("Migrate button action failed", error, {
+              storageError("Apply storage mode action failed", error, {
+                requestedMode: pendingStorageMode,
                 currentMode: plugin.settings.storageMode,
                 folder: plugin.settings.storageFolder,
               });
               new Notice(
-                `Vault storage migration failed${
+                `Storage mode change failed${
                   error instanceof Error ? `: ${error.message}` : ""
                 }`,
               );
@@ -378,6 +491,17 @@ export function renderGeneralSettingsTab(
         })();
       }),
     );
+
+  const applyButton = Array.from(
+    storageActions.controlEl.querySelectorAll("button"),
+  ).find((button) => button.textContent === "Apply");
+  if (applyButton instanceof HTMLButtonElement) {
+    setCssProps(applyButton, {
+      "background-color": "#7c5cff",
+      color: "#ffffff",
+      border: "1px solid #6a4df0",
+    });
+  }
 
   new Setting(containerEl).setName("Global feeds").setHeading();
 
