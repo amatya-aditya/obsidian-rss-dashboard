@@ -152,4 +152,36 @@ describe("ReaderView restricted-content handling", () => {
     ).toBeNull();
     expect(readingContainer.textContent).toContain("Reader fallback excerpt.");
   });
+
+  it("skips full-article fetch for Bloomberg video routes even when media metadata is image-only", async () => {
+    const item = makeItem({
+      link: "https://www.bloomberg.com/news/videos/2025-05-12/sample-video",
+      mediaContentType: "image/jpeg",
+      mediaType: "article",
+    });
+
+    await readerView.onOpen();
+    await readerView.displayItem(item);
+
+    expect(fetchFullArticleContentWithOutcomeMock).not.toHaveBeenCalled();
+    expect(item.restrictedReason).toBeUndefined();
+
+    const readingContainer = (
+      readerView as unknown as { readingContainer: HTMLElement }
+    ).readingContainer;
+
+    expect(
+      readingContainer.querySelector(".rss-reader-paywall-banner"),
+    ).toBeNull();
+
+    const videoBanner = readingContainer.querySelector(
+      ".rss-reader-video-banner",
+    );
+    expect(videoBanner).not.toBeNull();
+    expect(videoBanner?.textContent).toContain("appears to be a video");
+
+    const sourceLink = videoBanner?.querySelector("a");
+    expect(sourceLink?.textContent).toContain("Open video at source");
+    expect(sourceLink?.getAttribute("href")).toBe(item.link);
+  });
 });

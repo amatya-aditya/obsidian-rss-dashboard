@@ -10,8 +10,13 @@ import {
   RESTRICTED_ARTICLE_NOTICE,
   RESTRICTED_ARTICLE_REASON,
 } from "../utils/full-article-fetch";
+import { isLikelyVideoItem } from "../utils/video-detection";
 import { PodcastPlayer } from "../views/podcast-player";
 import { VideoPlayer } from "../views/video-player";
+
+const VIDEO_ARTICLE_BANNER =
+  "This item appears to be a video. Open the source page to watch.";
+const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
 
 export interface ArticleRendererOptions {
   app: App;
@@ -321,6 +326,8 @@ export class ArticleRenderer {
 
     if (item.restrictedReason) {
       this.renderRestrictedBanner(container, item);
+    } else if (this.shouldRenderVideoSourceBanner(item)) {
+      this.renderVideoSourceBanner(container, item);
     }
   }
 
@@ -344,6 +351,33 @@ export class ArticleRenderer {
     const link = banner.createEl("a", {
       cls: "rss-reader-paywall-banner-link",
       text: RESTRICTED_ARTICLE_LINK_TEXT,
+      href: item.link,
+    });
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+  }
+
+  private shouldRenderVideoSourceBanner(item: FeedItem): boolean {
+    return isLikelyVideoItem(item) && !item.videoId && !item.videoUrl;
+  }
+
+  private renderVideoSourceBanner(container: HTMLElement, item: FeedItem): void {
+    const banner = container.createDiv({
+      cls: "rss-reader-inline-banner rss-reader-video-banner",
+    });
+    const message = banner.createDiv({
+      cls: "rss-reader-video-banner-text",
+      text: VIDEO_ARTICLE_BANNER,
+    });
+    message.setAttr("role", "note");
+
+    if (!item.link) {
+      return;
+    }
+
+    const link = banner.createEl("a", {
+      cls: "rss-reader-video-banner-link",
+      text: VIDEO_ARTICLE_LINK_TEXT,
       href: item.link,
     });
     link.target = "_blank";
@@ -528,10 +562,7 @@ export class ArticleRenderer {
   }
 
   private isVideoMediaItem(item: FeedItem): boolean {
-    return (
-      item.mediaType === "video" ||
-      item.mediaContentType?.startsWith("video/") === true
-    );
+    return isLikelyVideoItem(item);
   }
 
   private isFeedContentPreferredHost(host: string): boolean {

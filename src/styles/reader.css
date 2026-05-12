@@ -246,6 +246,47 @@
   outline-offset: 2px;
 }
 
+.rss-reader-video-banner {
+  background: color-mix(
+    in srgb,
+    var(--interactive-accent, #2f80ed) 12%,
+    var(--background-secondary)
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--interactive-accent, #2f80ed) 32%,
+      var(--background-modifier-border)
+    );
+}
+
+.rss-reader-video-banner-text {
+  flex: 1 1 260px;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 500;
+  color: var(--text-normal);
+}
+
+.rss-reader-video-banner-link {
+  color: var(--text-normal);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.rss-reader-video-banner-link:hover {
+  color: var(--text-normal);
+  text-decoration: underline;
+}
+
+.rss-reader-video-banner-link:focus-visible {
+  outline: 2px solid var(--background-modifier-border);
+  outline-offset: 2px;
+}
+
 .rss-reader-description-callout > summary {
   cursor: pointer;
   list-style: none;

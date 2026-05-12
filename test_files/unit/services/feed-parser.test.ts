@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import type { Feed, FeedItem } from "../../../src/types/types";
 import { resolveAbsoluteHttpUrl } from "../../../src/utils/url-utils";
 import * as obsidian from "obsidian";
@@ -206,6 +208,14 @@ const SUBSTACK_RSS = `<?xml version="1.0" encoding="UTF-8"?>
     </item>
   </channel>
 </rss>`;
+
+const BLOOMBERG_VIDEO_IMAGE_FIRST_RSS = readFileSync(
+  path.resolve(
+    __dirname,
+    "../fixtures/rss/bloomberg-video-image-first.xml",
+  ),
+  "utf-8",
+);
 
 // ─── Atom Fixtures ───────────────────────────────────────────────────────────
 
@@ -448,6 +458,11 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
 
   it("preserves media:content type on items", () => {
     const result = parser.parseString(RSS2_WITH_MEDIA_CONTENT_VIDEO);
+    expect(result.items[0].mediaContentType).toBe("video/mp4");
+  });
+
+  it("prefers video media type when image media:content appears first", () => {
+    const result = parser.parseString(BLOOMBERG_VIDEO_IMAGE_FIRST_RSS);
     expect(result.items[0].mediaContentType).toBe("video/mp4");
   });
 

@@ -29,6 +29,7 @@ import {
   RESTRICTED_ARTICLE_NOTICE,
   RESTRICTED_ARTICLE_REASON,
 } from "../utils/full-article-fetch";
+import { isLikelyVideoItem } from "../utils/video-detection";
 import TurndownService from "turndown";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
@@ -41,6 +42,10 @@ import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
 import { VaultFolderSuggest } from "../components/folder-suggest";
+
+const VIDEO_ARTICLE_BANNER =
+  "This item appears to be a video. Open the source page to watch.";
+const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
@@ -925,10 +930,7 @@ export class ReaderView extends ItemView {
   }
 
   private isVideoMediaItem(item: FeedItem): boolean {
-    return (
-      item.mediaType === "video" ||
-      item.mediaContentType?.startsWith("video/") === true
-    );
+    return isLikelyVideoItem(item);
   }
 
   private isFeedContentPreferredHost(host: string): boolean {
@@ -1075,6 +1077,8 @@ export class ReaderView extends ItemView {
 
     if (item.restrictedReason) {
       this.renderRestrictedBanner(item);
+    } else if (this.shouldRenderVideoSourceBanner(item)) {
+      this.renderVideoSourceBanner(item);
     }
   }
 
@@ -1098,6 +1102,33 @@ export class ReaderView extends ItemView {
     const link = banner.createEl("a", {
       cls: "rss-reader-paywall-banner-link",
       text: RESTRICTED_ARTICLE_LINK_TEXT,
+      href: item.link,
+    });
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+  }
+
+  private shouldRenderVideoSourceBanner(item: FeedItem): boolean {
+    return isLikelyVideoItem(item) && !item.videoId && !item.videoUrl;
+  }
+
+  private renderVideoSourceBanner(item: FeedItem): void {
+    const banner = this.readingContainer.createDiv({
+      cls: "rss-reader-inline-banner rss-reader-video-banner",
+    });
+    const message = banner.createDiv({
+      cls: "rss-reader-video-banner-text",
+      text: VIDEO_ARTICLE_BANNER,
+    });
+    message.setAttr("role", "note");
+
+    if (!item.link) {
+      return;
+    }
+
+    const link = banner.createEl("a", {
+      cls: "rss-reader-video-banner-link",
+      text: VIDEO_ARTICLE_LINK_TEXT,
       href: item.link,
     });
     link.target = "_blank";

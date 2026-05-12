@@ -8,6 +8,7 @@ import {
   ensureUtf8Meta,
   setCssProps,
 } from "../utils/platform-utils";
+import { isLikelyVideoItem } from "../utils/video-detection";
 import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
@@ -1334,6 +1335,18 @@ export class ArticleList {
     }
   }
 
+  private renderVideoPill(container: HTMLElement, article: FeedItem): void {
+    if (!isLikelyVideoItem(article)) {
+      return;
+    }
+
+    const pill = container.createDiv({
+      cls: "rss-dashboard-video-pill",
+      text: "Video",
+    });
+    pill.setAttribute("title", "Video content");
+  }
+
   private renderHeaderFeedIcon(container: HTMLElement, feedUrl: string): void {
     const feed = this.settings.feeds.find((f) => f.url === feedUrl);
     const mediaType = feed?.mediaType;
@@ -1698,19 +1711,25 @@ export class ArticleList {
         titleEl.textContent = article.title;
       }
 
-      if (this.showFeedSource) {
+      if (this.showFeedSource || isLikelyVideoItem(article)) {
         const articleMeta = header.createDiv({
           cls: "rss-dashboard-article-meta",
         });
-        const feedContainer = articleMeta.createDiv({
-          cls: "rss-dashboard-article-feed-container",
-        });
-        this.renderFeedIcon(feedContainer, article.feedUrl, article.mediaType);
-        feedContainer.createDiv({
-          cls: "rss-dashboard-article-feed",
-          text: article.feedTitle,
-          attr: { title: article.feedTitle },
-        });
+
+        if (this.showFeedSource) {
+          const feedContainer = articleMeta.createDiv({
+            cls: "rss-dashboard-article-feed-container",
+          });
+          this.renderFeedIcon(feedContainer, article.feedUrl, article.mediaType);
+          this.renderVideoPill(feedContainer, article);
+          feedContainer.createDiv({
+            cls: "rss-dashboard-article-feed",
+            text: article.feedTitle,
+            attr: { title: article.feedTitle },
+          });
+        } else {
+          this.renderVideoPill(articleMeta, article);
+        }
       }
 
       // 3. Clamped Summary/Content
@@ -1846,13 +1865,19 @@ export class ArticleList {
       } else {
         actionsEl.addClass("rss-dashboard-grid-actions-empty");
       }
-      if (this.showFeedSource) {
+      if (this.showFeedSource || isLikelyVideoItem(article)) {
         const sourceEl = mainGrid.createDiv("rss-dashboard-grid-source");
         const metaEl = sourceEl.createDiv("rss-dashboard-article-meta");
-        this.renderFeedIcon(metaEl, article.feedUrl, article.mediaType);
-        const sourceSpan = metaEl.createSpan("rss-dashboard-article-source");
-        sourceSpan.setText(article.feedTitle);
-        sourceSpan.setAttribute("title", article.feedTitle);
+
+        if (this.showFeedSource) {
+          this.renderFeedIcon(metaEl, article.feedUrl, article.mediaType);
+          this.renderVideoPill(metaEl, article);
+          const sourceSpan = metaEl.createSpan("rss-dashboard-article-source");
+          sourceSpan.setText(article.feedTitle);
+          sourceSpan.setAttribute("title", article.feedTitle);
+        } else {
+          this.renderVideoPill(metaEl, article);
+        }
       }
       if (showListToolbar && useBottomRow) {
         if (article.tags && article.tags.length > 0) {
@@ -1953,21 +1978,26 @@ export class ArticleList {
         cardTitleEl.textContent = article.title;
       }
 
-      if (this.showFeedSource) {
+      if (this.showFeedSource || isLikelyVideoItem(article)) {
         const articleMeta = cardHeader.createDiv({
           cls: "rss-dashboard-article-meta",
         });
 
-        const feedContainer = articleMeta.createDiv({
-          cls: "rss-dashboard-article-feed-container",
-        });
+        if (this.showFeedSource) {
+          const feedContainer = articleMeta.createDiv({
+            cls: "rss-dashboard-article-feed-container",
+          });
 
-        this.renderFeedIcon(feedContainer, article.feedUrl, article.mediaType);
-        feedContainer.createDiv({
-          cls: "rss-dashboard-article-feed",
-          text: article.feedTitle,
-          attr: { title: article.feedTitle },
-        });
+          this.renderFeedIcon(feedContainer, article.feedUrl, article.mediaType);
+          this.renderVideoPill(feedContainer, article);
+          feedContainer.createDiv({
+            cls: "rss-dashboard-article-feed",
+            text: article.feedTitle,
+            attr: { title: article.feedTitle },
+          });
+        } else {
+          this.renderVideoPill(articleMeta, article);
+        }
       }
 
       let coverImgSrc = article.coverImage;

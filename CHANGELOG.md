@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 - Added configurable metadata `data.json` location with dedicated migration controls and backup/import-export support. See: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
+- Fixed Bloomberg-style video feed items being misclassified as restricted articles by improving media type detection (including image-first `media:content` handling and conservative video-route fallback), and added regression coverage for parser, media classification, reader surfaces, and save flow to prevent false paywall notices/banners.
 
 ## [2.3.0-beta.1] - May 11, 2026
 

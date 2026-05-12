@@ -1392,11 +1392,19 @@ export class CustomXMLParser {
       return tag.startsWith("media:") || tag.includes(":media:");
     };
 
+    const getPreferredType = (types: string[]): string => {
+      const normalized = types.map((type) => type.trim().toLowerCase()).filter(Boolean);
+      const preferred = normalized.find(
+        (type) => type.startsWith("video/") || type.startsWith("audio/"),
+      );
+      return preferred || normalized[0] || "";
+    };
+
     try {
       const mediaContent = Array.from(item.querySelectorAll("media\\:content"));
-      const mediaContentType = mediaContent
-        .map((el) => (el.getAttribute("type") || "").trim().toLowerCase())
-        .find(Boolean);
+      const mediaContentType = getPreferredType(
+        mediaContent.map((el) => (el.getAttribute("type") || "").trim().toLowerCase()),
+      );
       if (mediaContentType) {
         return mediaContentType;
       }
@@ -1406,12 +1414,11 @@ export class CustomXMLParser {
 
     try {
       const all = Array.from(item.getElementsByTagNameNS("*", "*"));
-      return (
-        all
+      const namespacedTypes = all
           .filter((el) => el.localName === "content" && isMrss(el))
           .map((el) => (el.getAttribute("type") || "").trim().toLowerCase())
-          .find(Boolean) || ""
-      );
+          .filter(Boolean);
+      return getPreferredType(namespacedTypes);
     } catch {
       return "";
     }

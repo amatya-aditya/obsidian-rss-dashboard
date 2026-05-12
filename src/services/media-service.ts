@@ -1,5 +1,6 @@
 import { requestUrl, Notice } from "obsidian";
 import { Feed, Tag } from "../types/types";
+import { isKnownVideoUrl } from "../utils/video-detection";
 
 export interface YouTubeEmbedConfig {
   videoId: string;
@@ -457,9 +458,12 @@ export class MediaService {
       return this.processYouTubeFeed(feed);
     }
 
-    const hasVideo = feed.items.some((item) =>
-      item.enclosure?.type?.startsWith("video/"),
-    );
+    const isVideoItem = (item: Feed["items"][number]): boolean =>
+      item.enclosure?.type?.startsWith("video/") === true ||
+      item.mediaContentType?.startsWith("video/") === true ||
+      isKnownVideoUrl(item.link);
+
+    const hasVideo = feed.items.some((item) => isVideoItem(item));
     if (hasVideo) {
       return {
         ...feed,
@@ -472,7 +476,18 @@ export class MediaService {
               videoUrl: item.enclosure.url,
             };
           }
-          return item;
+
+          if (isVideoItem(item)) {
+            return {
+              ...item,
+              mediaType: "video",
+            };
+          }
+
+          return {
+            ...item,
+            mediaType: item.mediaType || "article",
+          };
         }),
       };
     }

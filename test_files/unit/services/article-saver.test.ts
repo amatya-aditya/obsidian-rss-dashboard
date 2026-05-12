@@ -330,6 +330,33 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     expect(saveSpy).toHaveBeenCalledWith(item, undefined, undefined);
   });
 
+  it("skips full-content fetch for Bloomberg video routes and saves available content", async () => {
+    const app = (App as any).createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    const fetchSpy = vi.spyOn(fetchHelpers, "fetchWithProxyFallbackDetailed");
+    const saveSpy = vi.spyOn(saver, "saveArticle");
+    fetchSpy.mockClear();
+    saveSpy.mockClear();
+
+    const item = createItem({
+      title: "Bloomberg Video",
+      link: "https://www.bloomberg.com/news/videos/2026-05-12/sample-video",
+      mediaType: "article",
+      mediaContentType: "image/jpeg",
+    });
+
+    await saver.saveArticleWithFullContent(item);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(saveSpy).toHaveBeenCalledWith(item, undefined, undefined);
+    expect(item.restrictedReason).toBeUndefined();
+  });
+
   it("shows restricted-content notice once and falls back when content is paywalled", async () => {
     const app = (App as any).createMock();
     const settings = createSettings({

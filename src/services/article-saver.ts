@@ -10,6 +10,7 @@ import {
 } from "../utils/full-article-fetch";
 import { ensureUtf8Meta } from "../utils/platform-utils";
 import { withSavedTagName } from "../utils/tag-utils";
+import { isLikelyVideoItem } from "../utils/video-detection";
 
 export function sanitizeFilename(name: string): string {
   const sanitized = name
@@ -447,6 +448,10 @@ export class ArticleSaver {
     customTemplate?: string,
   ): Promise<TFile | null> {
     try {
+      if (isLikelyVideoItem(item)) {
+        return await this.saveArticle(item, customFolder, customTemplate);
+      }
+
       const loadingNotice = new Notice("Fetching full article content...", 0);
 
       const fetchResult = await this.fetchArticleContentWithOutcome(item.link);
