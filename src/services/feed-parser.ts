@@ -979,6 +979,7 @@ interface ParsedItem {
   author?: string;
   content?: string;
   category?: string;
+  mediaContentType?: string;
   enclosure?: {
     url: string;
     type: string;
@@ -1380,6 +1381,42 @@ export class CustomXMLParser {
     return "";
   }
 
+  private getMediaContentType(item: Element): string {
+    const MRSS_NS = "search.yahoo.com/mrss";
+
+    const isMrss = (el: Element): boolean => {
+      const ns = (el.namespaceURI || "").toLowerCase();
+      if (ns.includes(MRSS_NS)) return true;
+
+      const tag = (el.tagName || "").toLowerCase();
+      return tag.startsWith("media:") || tag.includes(":media:");
+    };
+
+    try {
+      const mediaContent = Array.from(item.querySelectorAll("media\\:content"));
+      const mediaContentType = mediaContent
+        .map((el) => (el.getAttribute("type") || "").trim().toLowerCase())
+        .find(Boolean);
+      if (mediaContentType) {
+        return mediaContentType;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      const all = Array.from(item.getElementsByTagNameNS("*", "*"));
+      return (
+        all
+          .filter((el) => el.localName === "content" && isMrss(el))
+          .map((el) => (el.getAttribute("type") || "").trim().toLowerCase())
+          .find(Boolean) || ""
+      );
+    } catch {
+      return "";
+    }
+  }
+
   private getTextContentWithMultipleSelectors(
     element: Element | null,
     selectors: string[],
@@ -1616,6 +1653,7 @@ export class CustomXMLParser {
 
       let mediaImage = "";
       mediaImage = this.getMediaImageUrl(item);
+      const mediaContentType = this.getMediaContentType(item) || undefined;
 
       let fallbackImage = "";
       if (!itemImage && !mediaImage) {
@@ -1639,6 +1677,7 @@ export class CustomXMLParser {
           (mediaImage ? { url: mediaImage } : undefined) ||
           (fallbackImage ? { url: fallbackImage } : undefined),
         category: this.getTextContent(item, "category"),
+        mediaContentType,
         ieee,
       });
     });
@@ -2098,6 +2137,10 @@ export class CustomXMLParser {
           itemXml.match(/<media:thumbnail[^>]*url=["']([^"']+)["']/i) ||
           itemXml.match(/<media\\:thumbnail[^>]*url=["']([^"']+)["']/i);
         const mediaUrl = mediaUrlMatch?.[1]?.trim() || "";
+        const mediaTypeMatch =
+          itemXml.match(/<media:content[^>]*type=["']([^"']+)["']/i) ||
+          itemXml.match(/<media\\:content[^>]*type=["']([^"']+)["']/i);
+        const mediaContentType = mediaTypeMatch?.[1]?.trim().toLowerCase();
 
         const pubYearMatch = itemXml.match(/<pubYear[^>]*>([^<]+)<\/pubYear>/i);
         const pubYear = pubYearMatch
@@ -2162,6 +2205,7 @@ export class CustomXMLParser {
           content: itemDescription,
           image: mediaUrl ? { url: this.convertAppUrls(mediaUrl) } : undefined,
           category: itemCategory,
+          mediaContentType,
           ieee,
         });
       });
@@ -3149,6 +3193,8 @@ export class FeedParser {
           enclosure: enclosure ? enclosure : existingItem.enclosure,
           ieee: item.ieee || existingItem.ieee,
           audioUrl: audioUrl ? audioUrl : existingItem.audioUrl,
+          mediaContentType:
+            item.mediaContentType || existingItem.mediaContentType,
           mediaType: isPodcast
             ? "podcast"
             : existingItem.mediaType || "article",
@@ -3231,6 +3277,7 @@ export class FeedParser {
           enclosure: enclosure,
           ieee: item.ieee,
           audioUrl: audioUrl,
+          mediaContentType: item.mediaContentType,
         };
         newItems.push(newItem);
       }
@@ -3429,6 +3476,7 @@ export class FeedParserService {
       coverImage: isPodcast
         ? item.itunes?.image?.href || item.image?.url || podcastFeedImage || ""
         : item.itunes?.image?.href || item.image?.url || "",
+      mediaContentType: item.mediaContentType,
       mediaType: isPodcast ? "podcast" : "article",
       author: item.author || "",
       content: item.content || "",

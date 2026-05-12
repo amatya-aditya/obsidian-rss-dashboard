@@ -12,6 +12,7 @@ export interface FeedItem {
   coverImage: string;
 
   mediaType?: "article" | "video" | "podcast";
+  mediaContentType?: string;
   videoId?: string;
   videoUrl?: string;
   audioUrl?: string;
@@ -43,6 +44,12 @@ export interface FeedItem {
     season?: string;
     episode?: string;
   };
+
+  /**
+   * If present, indicates the article was restricted/paywalled and only excerpt is shown.
+   * Used to trigger inline banner in the reader.
+   */
+  restrictedReason?: string;
 
   ieee?: {
     pubYear?: string;

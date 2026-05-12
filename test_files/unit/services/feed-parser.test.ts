@@ -168,6 +168,22 @@ const RSS2_WITH_MEDIA_CONTENT_IMAGE = `<?xml version="1.0" encoding="UTF-8"?>
   </channel>
 </rss>`;
 
+const RSS2_WITH_MEDIA_CONTENT_VIDEO = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Media Video Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Has Media Video</title>
+      <link>https://example.com/videos/1</link>
+      <description>Video description</description>
+      <media:content url="https://example.com/videos/1.mp4" medium="video" type="video/mp4" />
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>media-video-1</guid>
+    </item>
+  </channel>
+</rss>`;
+
 const RSS2_EMPTY = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
@@ -430,6 +446,11 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
     );
   });
 
+  it("preserves media:content type on items", () => {
+    const result = parser.parseString(RSS2_WITH_MEDIA_CONTENT_VIDEO);
+    expect(result.items[0].mediaContentType).toBe("video/mp4");
+  });
+
   it("returns type 'rss' for RSS 2.0", () => {
     const result = parser.parseString(RSS2_BASIC);
     expect(result.type).toBe("rss");
@@ -533,16 +554,10 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml0,
       })
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml1,
       });
 
@@ -591,9 +606,6 @@ describe("FeedParser.parseFeed", () => {
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy.mockResolvedValueOnce({
       status: 200,
-      headers: {},
-      arrayBuffer: new ArrayBuffer(0),
-      json: {},
       text: xml,
     });
 
@@ -655,23 +667,14 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml,
       })
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml,
       })
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml,
       });
 
@@ -754,16 +757,10 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xmlWithOldAndRecent,
       })
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xmlWithRecentOnly,
       });
 
@@ -803,16 +800,10 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
       })
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
       });
 
@@ -856,16 +847,10 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml,
       })
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml,
       });
 
@@ -893,9 +878,6 @@ describe("FeedParserService.parseFeed", () => {
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy.mockResolvedValueOnce({
       status: 200,
-      headers: {},
-      arrayBuffer: new ArrayBuffer(0),
-      json: {},
       text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
     });
 

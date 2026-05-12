@@ -1,8 +1,15 @@
-import { App, setIcon, TFile } from "obsidian";
+import { App, Notice, setIcon, TFile } from "obsidian";
 import { FeedItem, RssDashboardSettings } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
 import { MediaService } from "../services/media-service";
-import { fetchWithProxyFallback } from "../utils/fetch-helpers";
+import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
+import {
+  fetchFullArticleContentWithOutcome,
+  RESTRICTED_ARTICLE_BANNER,
+  RESTRICTED_ARTICLE_LINK_TEXT,
+  RESTRICTED_ARTICLE_NOTICE,
+  RESTRICTED_ARTICLE_REASON,
+} from "../utils/full-article-fetch";
 import { PodcastPlayer } from "../views/podcast-player";
 import { VideoPlayer } from "../views/video-player";
 
@@ -37,6 +44,8 @@ export class ArticleRenderer {
   private currentDisplayTitle?: string;
   private currentReaderTitle?: string;
   private currentContentIsFullArticle = false;
+  private currentFullContentFailureType: FullArticleFetchFailureType = "none";
+  private lastRestrictedNoticeGuid: string | null = null;
 
   constructor(options: ArticleRendererOptions) {
     this.app = options.app;
@@ -51,6 +60,10 @@ export class ArticleRenderer {
     item: FeedItem,
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
+    if (this.currentItem?.guid !== item.guid) {
+      this.lastRestrictedNoticeGuid = null;
+    }
+
     container.empty();
     this.currentItem = item;
     this.relatedItems = relatedItems;
@@ -59,6 +72,7 @@ export class ArticleRenderer {
       ? this.formatNitterReaderTitle(item)
       : undefined;
     this.currentContentIsFullArticle = false;
+    this.currentFullContentFailureType = "none";
 
     if (item.mediaType === "video" && !item.videoId && item.link) {
       const vid = MediaService.extractYouTubeVideoId(item.link);
@@ -84,6 +98,14 @@ export class ArticleRenderer {
         : await this.fetchFullArticleContent(item.link);
       const hasFullArticleContent =
         this.hasMeaningfulArticleContent(fetchedContent);
+
+      if (hasFullArticleContent) {
+        item.restrictedReason = undefined;
+      } else if (this.lastFullArticleFetchWasRestricted()) {
+        item.restrictedReason = RESTRICTED_ARTICLE_REASON;
+        this.showRestrictedNotice(item);
+      }
+
       const displayTitle = hasFullArticleContent
         ? this.extractDisplayTitleFromHtml(fetchedContent)
         : null;
@@ -234,7 +256,6 @@ export class ArticleRenderer {
         tagElement.style.setProperty("--tag-color", tag.color);
       }
     }
-
     const heroSlot = container.createDiv({
       cls: "rss-reader-hero-slot",
     });
@@ -297,6 +318,36 @@ export class ArticleRenderer {
         descriptionHtml,
       );
     }
+
+    if (item.restrictedReason) {
+      this.renderRestrictedBanner(container, item);
+    }
+  }
+
+  private renderRestrictedBanner(container: HTMLElement, item: FeedItem): void {
+    const banner = container.createDiv({
+      cls: "rss-reader-inline-banner rss-reader-paywall-banner",
+    });
+    const message = banner.createDiv({
+      cls: "rss-reader-paywall-banner-text",
+    });
+    message.setText(
+      item.restrictedReason === RESTRICTED_ARTICLE_REASON
+        ? RESTRICTED_ARTICLE_BANNER
+        : (item.restrictedReason ?? RESTRICTED_ARTICLE_BANNER),
+    );
+
+    if (!item.link) {
+      return;
+    }
+
+    const link = banner.createEl("a", {
+      cls: "rss-reader-paywall-banner-link",
+      text: RESTRICTED_ARTICLE_LINK_TEXT,
+      href: item.link,
+    });
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
   }
 
   private populateArticleHtml(
@@ -424,15 +475,35 @@ export class ArticleRenderer {
   // --- Helper methods (extracted from ReaderView) ---
 
   private async fetchFullArticleContent(url?: string): Promise<string> {
-    if (!url) return "";
+    if (!url) {
+      this.currentFullContentFailureType = "none";
+      return "";
+    }
+
     try {
       const proxyUrl = this.settings.corsProxyEnabled
         ? this.settings.corsProxyUrl
         : undefined;
-      return await fetchWithProxyFallback(url, proxyUrl);
+      const result = await fetchFullArticleContentWithOutcome(url, proxyUrl);
+      this.currentFullContentFailureType = result.failureType;
+      return result.content;
     } catch {
+      this.currentFullContentFailureType = "network";
       return "";
     }
+  }
+
+  private showRestrictedNotice(item: FeedItem): void {
+    if (this.lastRestrictedNoticeGuid === item.guid) {
+      return;
+    }
+
+    new Notice(RESTRICTED_ARTICLE_NOTICE);
+    this.lastRestrictedNoticeGuid = item.guid;
+  }
+
+  private lastFullArticleFetchWasRestricted(): boolean {
+    return this.currentFullContentFailureType === "restricted";
   }
 
   private hasMeaningfulArticleContent(html: string): boolean {
@@ -446,6 +517,7 @@ export class ArticleRenderer {
 
   private shouldSkipFullArticleFetch(item: FeedItem): boolean {
     if (this.isTweetLikeItem(item)) return true;
+    if (this.isVideoMediaItem(item)) return true;
     if (!item.link) return false;
     try {
       const host = new URL(item.link).hostname.toLowerCase();
@@ -453,6 +525,13 @@ export class ArticleRenderer {
     } catch {
       return false;
     }
+  }
+
+  private isVideoMediaItem(item: FeedItem): boolean {
+    return (
+      item.mediaType === "video" ||
+      item.mediaContentType?.startsWith("video/") === true
+    );
   }
 
   private isFeedContentPreferredHost(host: string): boolean {

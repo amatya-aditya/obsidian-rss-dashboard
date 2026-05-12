@@ -6,6 +6,7 @@ import {
   sanitizeFilename,
 } from "../../../src/services/article-saver";
 import * as fetchHelpers from "../../../src/utils/fetch-helpers";
+import { RESTRICTED_ARTICLE_REASON } from "../../../src/utils/full-article-fetch";
 
 function createSettings(
   overrides: Partial<ArticleSavingSettings> = {},
@@ -260,9 +261,12 @@ describe("ArticleSaver.fetchFullArticleContent", () => {
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
 
     const fetchSpy = vi
-      .spyOn(fetchHelpers, "fetchWithProxyFallback")
-      .mockResolvedValueOnce("")
-      .mockResolvedValueOnce("<p>abstract</p>");
+      .spyOn(fetchHelpers, "fetchWithProxyFallbackDetailed")
+      .mockResolvedValueOnce({ content: "", failureType: "network" })
+      .mockResolvedValueOnce({
+        content: "<p>abstract</p>",
+        failureType: "none",
+      });
 
     const url = "https://journals.sagepub.com/doi/full/10.1177/00000000";
     const result = await saver.fetchFullArticleContent(url);
@@ -286,9 +290,13 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     });
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
 
-    vi.spyOn(fetchHelpers, "fetchWithProxyFallback").mockResolvedValueOnce(
-      "<article><p>Hello <strong>world</strong>.</p></article>",
-    );
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "<article><p>Hello <strong>world</strong>.</p></article>",
+      failureType: "none",
+    });
 
     const item = createItem({ title: "Full Content" });
     const file = await saver.saveArticleWithFullContent(item);
@@ -307,13 +315,50 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     });
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
 
-    vi.spyOn(fetchHelpers, "fetchWithProxyFallback").mockResolvedValueOnce("");
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "",
+      failureType: "network",
+    });
     const saveSpy = vi.spyOn(saver, "saveArticle");
 
     const item = createItem({ title: "Fallback Content" });
     await saver.saveArticleWithFullContent(item);
 
     expect(saveSpy).toHaveBeenCalledWith(item, undefined, undefined);
+  });
+
+  it("shows restricted-content notice once and falls back when content is paywalled", async () => {
+    const app = (App as any).createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "",
+      failureType: "restricted",
+    });
+
+    const item = createItem({ title: "Restricted Content" });
+    await saver.saveArticleWithFullContent(item);
+
+    expect(logSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "Full article is restricted. Showing available feed excerpt.",
+    );
+    expect(logSpy).not.toHaveBeenCalledWith(
+      "[Stub Notice]",
+      expect.stringContaining("Network error:"),
+    );
+    expect(item.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
   });
 });
 

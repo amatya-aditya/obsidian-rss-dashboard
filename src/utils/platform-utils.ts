@@ -1,5 +1,10 @@
 import { requestUrl, RequestUrlParam, setIcon } from "obsidian";
 
+export interface RobustFetchResult {
+  text: string;
+  status: number;
+}
+
 export function sleep(ms: number): Promise<void> {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
@@ -111,14 +116,28 @@ export async function robustFetch(
   url: string,
   options: Partial<RequestUrlParam> = {},
 ): Promise<string> {
+  const response = await robustFetchDetailed(url, options);
+  return response.text;
+}
+
+/**
+ * Fetch that preserves HTTP status alongside decoded text.
+ * Useful for distinguishing 401/403 responses from generic network failures.
+ */
+export async function robustFetchDetailed(
+  url: string,
+  options: Partial<RequestUrlParam> = {},
+): Promise<RobustFetchResult> {
   const response = await requestUrl({
     ...options,
     url,
     method: options.method || "GET",
   });
 
+  const status = response.status ?? 0;
+
   if (!response.arrayBuffer) {
-    return response.text || "";
+    return { text: response.text || "", status };
   }
 
   const contentType = response.headers["content-type"] || "";
@@ -134,13 +153,13 @@ export async function robustFetch(
 
   try {
     const decoder = new TextDecoder(charset);
-    return decoder.decode(response.arrayBuffer);
+    return { text: decoder.decode(response.arrayBuffer), status };
   } catch (e) {
     void e;
     // [RSS Dashboard] Failed to decode with charset ${charset}, falling back to utf-8
     // Fallback to utf-8 if specified charset fails
     const decoder = new TextDecoder("utf-8");
-    return decoder.decode(response.arrayBuffer);
+    return { text: decoder.decode(response.arrayBuffer), status };
   }
 }
 

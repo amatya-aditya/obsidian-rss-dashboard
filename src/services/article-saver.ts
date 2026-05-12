@@ -2,7 +2,12 @@ import { App, Notice, TFile, moment } from "obsidian";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
 import { ArticleSavingSettings, FeedItem } from "../types/types";
-import { fetchWithProxyFallback } from "../utils/fetch-helpers";
+import { type FullArticleFetchResult } from "../utils/fetch-helpers";
+import {
+  fetchFullArticleContentWithOutcome,
+  RESTRICTED_ARTICLE_NOTICE,
+  RESTRICTED_ARTICLE_REASON,
+} from "../utils/full-article-fetch";
 import { ensureUtf8Meta } from "../utils/platform-utils";
 import { withSavedTagName } from "../utils/tag-utils";
 
@@ -233,19 +238,14 @@ export class ArticleSaver {
   }
 
   async fetchFullArticleContent(url: string): Promise<string> {
-    // SAGEPUB-specific fallback: if the URL is a full-text journal article,
-    // attempt the abstract URL when the full-text fails.
-    const isSagepubFull =
-      url.includes("journals.sagepub.com") && url.includes("/doi/full/");
+    const result = await this.fetchArticleContentWithOutcome(url);
+    return result.content;
+  }
 
-    const result = await fetchWithProxyFallback(url, this.corsProxyUrl);
-
-    if (!result && isSagepubFull) {
-      const abstractUrl = url.replace("/doi/full/", "/doi/abs/");
-      return fetchWithProxyFallback(abstractUrl, this.corsProxyUrl);
-    }
-
-    return result;
+  private async fetchArticleContentWithOutcome(
+    url: string,
+  ): Promise<FullArticleFetchResult> {
+    return fetchFullArticleContentWithOutcome(url, this.corsProxyUrl);
   }
 
   private extractContentFromDocument(doc: Document, url: string): string {
@@ -380,9 +380,11 @@ export class ArticleSaver {
 
       return doc.body.innerHTML;
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       console.error(
         "[RSS Dashboard] Failed to convert relative URLs in ArticleSaver:",
-        error,
+        errorMessage,
       );
       return content;
     }
@@ -447,16 +449,24 @@ export class ArticleSaver {
     try {
       const loadingNotice = new Notice("Fetching full article content...", 0);
 
-      const fullContent = await this.fetchFullArticleContent(item.link);
-      if (!fullContent) {
+      const fetchResult = await this.fetchArticleContentWithOutcome(item.link);
+      if (!fetchResult.content) {
         loadingNotice.hide();
-        new Notice(
-          "Could not fetch full content. Saving with available content.",
-        );
+        if (fetchResult.failureType === "restricted") {
+          new Notice(RESTRICTED_ARTICLE_NOTICE);
+          // Mark the item for inline banner
+          item.restrictedReason = RESTRICTED_ARTICLE_REASON;
+        } else {
+          new Notice(
+            "Could not fetch full content. Saving with available content.",
+          );
+        }
         return await this.saveArticle(item, customFolder, customTemplate);
       }
 
-      const markdownContent = this.turndownService.turndown(fullContent);
+      const markdownContent = this.turndownService.turndown(
+        fetchResult.content,
+      );
       loadingNotice.hide();
 
       return await this.saveArticle(
