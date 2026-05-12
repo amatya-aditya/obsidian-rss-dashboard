@@ -5,6 +5,7 @@ import {
   WorkspaceLeaf,
   Platform,
   requireApiVersion,
+  TFolder,
 } from "obsidian";
 
 import {
@@ -114,6 +115,111 @@ export type {
   FeedIngestionCandidate,
   FeedIngestionOptions,
 } from "./src/types/types";
+
+/**
+ * Resolves the full vault path for metadata storage based on current mode.
+ * - "plugin-default": returns undefined (uses Plugin.saveData())
+ * - "vault-location": returns normalized vault folder path
+ */
+function getMetadataPath(settings: RssDashboardSettings): string | undefined {
+  if (settings.metadataStorageMode === "plugin-default") {
+    return undefined; // Use Plugin.saveData()
+  }
+
+  // Normalize path: remove leading/trailing slashes, default to .rss-dashboard-data if empty
+  let folder = settings.metadataStorageFolder.trim();
+  if (!folder) {
+    folder = ".rss-dashboard-data";
+  }
+  folder = folder.replace(/^\/+|\/+$/g, ""); // Remove leading/trailing slashes
+  return folder;
+}
+
+/**
+ * Loads metadata from the appropriate location based on mode.
+ */
+async function loadMetadata(
+  app: App,
+  mode: "plugin-default" | "vault-location",
+  folder: string,
+): Promise<RssDashboardSettings | null> {
+  if (mode === "plugin-default") {
+    return null; // Will be loaded via Plugin.loadData() in the plugin class
+  }
+
+  // Try to load from vault location
+  const metadataPath = getMetadataPath({
+    ...DEFAULT_SETTINGS,
+    metadataStorageMode: mode,
+    metadataStorageFolder: folder,
+  });
+  if (!metadataPath) {
+    return null;
+  }
+
+  try {
+    const dataFilePath = `${metadataPath}/data.json`;
+    const content = await app.vault.adapter.read(dataFilePath);
+    return JSON.parse(content) as RssDashboardSettings;
+  } catch (error) {
+    storageLog(
+      "Failed to load metadata from vault location, will fall back to plugin default",
+      error,
+    );
+    return null; // Fall back to plugin-default
+  }
+}
+
+/**
+ * Ensures metadata folder exists (idempotent).
+ * - If folder exists and is a folder: returns success
+ * - If folder doesn't exist: creates it
+ * - If path is a file: throws error
+ * - If createFolder race condition occurs: checks again and continues if now a folder
+ */
+async function ensureMetadataFolderExists(
+  app: App,
+  settings: RssDashboardSettings,
+): Promise<void> {
+  const folderPath = getMetadataPath(settings);
+  if (!folderPath) {
+    return; // Plugin-default mode, no folder needed
+  }
+
+  const normalized = folderPath.replace(/^\/+|\/+$/g, "");
+
+  try {
+    // Check if path already exists in vault cache
+    const existing = app.vault.getAbstractFileByPath(normalized);
+    if (existing) {
+      if (existing instanceof TFolder) {
+        return; // Folder already exists, idempotent success
+      } else {
+        throw new Error(
+          `Metadata storage path points to a file, not a folder: ${normalized}`,
+        );
+      }
+    }
+
+    // Also check via adapter (covers folders not yet indexed in vault cache)
+    const existsOnDisk = await app.vault.adapter.exists(normalized);
+    if (existsOnDisk) {
+      return; // Folder exists on disk (cache lag), treat as success
+    }
+
+    // Folder doesn't exist, create it
+    await app.vault.createFolder(normalized);
+  } catch (error) {
+    // Handle race condition: createFolder throws "Folder already exists" or similar
+    if (
+      error instanceof Error &&
+      error.message.toLowerCase().includes("already exists")
+    ) {
+      return; // Folder exists (race condition or cache lag), treat as success
+    }
+    throw error;
+  }
+}
 
 export default class RssDashboardPlugin extends Plugin {
   private static readonly FACTORY_RESET_LOCAL_STORAGE_KEYS = [
@@ -1687,7 +1793,24 @@ export default class RssDashboardPlugin extends Plugin {
   async loadSettings() {
     try {
       storageLog("Loading plugin settings");
-      const data = (await this.loadData()) as RssDashboardSettings | null;
+      // First, load from plugin-default location to bootstrap
+      let data = (await this.loadData()) as RssDashboardSettings | null;
+
+      // If settings indicate vault-location mode, try to load from there
+      if (data?.metadataStorageMode === "vault-location") {
+        const vaultData = await loadMetadata(
+          this.app,
+          "vault-location",
+          data.metadataStorageFolder,
+        );
+        if (vaultData) {
+          data = vaultData;
+          storageLog("Metadata loaded from vault location", {
+            folder: data.metadataStorageFolder,
+          });
+        }
+      }
+
       const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
       const originalSettingsJson = JSON.stringify(mergedSettings);
 
@@ -1730,24 +1853,162 @@ export default class RssDashboardPlugin extends Plugin {
   private migrateLegacySettings(): boolean {
     return migrateSettings(this.settings);
   }
+  /**
+   * Creates a save callback that persists metadata to the appropriate location
+   * based on the current metadataStorageMode.
+   */
+  private getMetadataSaveCallback() {
+    return async (data: RssDashboardSettings): Promise<void> => {
+      const metadataPath = getMetadataPath(this.settings);
+
+      if (metadataPath) {
+        // Vault-location mode: save to vault folder
+        try {
+          await ensureMetadataFolderExists(this.app, this.settings);
+          const dataFilePath = `${metadataPath}/data.json`;
+          const jsonContent = JSON.stringify(data, null, 2);
+          await this.app.vault.adapter.write(dataFilePath, jsonContent);
+          storageLog("Metadata saved to vault location", {
+            path: dataFilePath,
+          });
+        } catch (error) {
+          storageError("Failed to save metadata to vault location", error);
+          throw error;
+        }
+      } else {
+        // Plugin-default mode: use Plugin.saveData()
+        await this.saveData(data);
+        storageLog("Metadata saved to plugin default location");
+      }
+    };
+  }
+
   async saveSettings() {
     storageLog("saveSettings invoked", {
       mode: this.settings.storageMode,
       folder: this.settings.storageFolder,
+      metadataMode: this.settings.metadataStorageMode,
       feedCount: this.settings.feeds.length,
     });
 
     try {
+      const saveCallback = this.getMetadataSaveCallback() as (
+        data: unknown,
+      ) => Promise<void>;
       const result = await this.feedStorageRepository.persistSettings(
         this.settings,
-        (data) => this.saveData(data),
+        saveCallback,
       );
       storageLog("saveSettings completed", result);
     } catch (error) {
       storageError("saveSettings failed", error, {
         mode: this.settings.storageMode,
         folder: this.settings.storageFolder,
+        metadataMode: this.settings.metadataStorageMode,
       });
+      throw error;
+    }
+  }
+
+  /**
+   * Migrate metadata from plugin-default location to user-configured vault folder.
+   * Steps:
+   * 1. Ensure metadata folder exists (idempotent)
+   * 2. Write settings to new vault location
+   * 3. Update metadataStorageMode to "vault-location"
+   * 4. Persist updated settings
+   */
+  async migrateMetadataToVaultLocation(): Promise<void> {
+    if (this.settings.metadataStorageMode === "vault-location") {
+      new Notice("Already using vault location for metadata storage");
+      return;
+    }
+
+    try {
+      // Resolve the target path using vault-location mode (before updating mode in settings)
+      const targetSettingsForPath: RssDashboardSettings = {
+        ...this.settings,
+        metadataStorageMode: "vault-location",
+      };
+      const metadataPath = getMetadataPath(targetSettingsForPath);
+      if (!metadataPath) {
+        throw new Error("Failed to resolve metadata storage path");
+      }
+
+      // Ensure the target folder exists
+      await ensureMetadataFolderExists(this.app, targetSettingsForPath);
+
+      // Write current settings to vault location as JSON
+      const settingsJson = JSON.stringify(this.settings, null, 2);
+      const dataFilePath = `${metadataPath}/data.json`;
+      await this.app.vault.adapter.write(dataFilePath, settingsJson);
+
+      // Update mode and persist using the dual-mode save callback
+      this.settings.metadataStorageMode = "vault-location";
+      await this.saveSettings();
+
+      new Notice(`Metadata migrated to vault location: ${metadataPath}`);
+    } catch (error) {
+      storageError("Metadata migration failed", error);
+      // Revert mode on error (no partial state)
+      this.settings.metadataStorageMode = "plugin-default";
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      new Notice(`Vault migration failed: ${errorMessage}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Revert metadata from vault-location back to plugin-default location.
+   * Steps:
+   * 1. Read settings from current vault location (already in memory)
+   * 2. Write back to plugin-default location via Plugin.saveData()
+   * 3. Update metadataStorageMode to "plugin-default"
+   * 4. Optionally clean up vault-location data.json
+   */
+  async revertMetadataToPluginDefault(): Promise<void> {
+    if (this.settings.metadataStorageMode === "plugin-default") {
+      new Notice("Already using plugin default for metadata storage");
+      return;
+    }
+
+    try {
+      // Current settings are already in memory, just switch the mode
+      this.settings.metadataStorageMode = "plugin-default";
+
+      // Save using Plugin.saveData() (plugin-default location)
+      await this.saveData(this.settings);
+
+      // Optionally clean up the vault-location file
+      const oldMetadataPath = this.settings.metadataStorageFolder;
+      if (oldMetadataPath) {
+        try {
+          const dataFilePath = `${oldMetadataPath}/data.json`;
+          const file = this.app.vault.getAbstractFileByPath(dataFilePath);
+          if (file && !(file instanceof TFolder)) {
+            await this.app.fileManager.trashFile(file);
+            storageLog("Deleted old vault metadata file", {
+              path: dataFilePath,
+            });
+          }
+        } catch (cleanupError) {
+          storageLog(
+            "Cleanup of vault metadata file failed (non-fatal)",
+            cleanupError,
+          );
+        }
+      }
+
+      await this.saveSettings();
+      new Notice("Metadata reverted to plugin default location");
+    } catch (error) {
+      storageError("Metadata revert failed", error);
+      // Restore mode on error (no partial state)
+      this.settings.metadataStorageMode = "vault-location";
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      new Notice(`Revert failed: ${errorMessage}`);
       throw error;
     }
   }

@@ -46,12 +46,23 @@ export class BackupService {
     if (!pluginDir) return;
 
     try {
-      // 1. data.json
+      // 1. data.json - follow metadata storage location
       if (autoBackup.backupDataJson) {
-        const dataPath = `${pluginDir}/data.json`;
-        if (await this.vault.adapter.exists(dataPath)) {
-          const content = await this.vault.adapter.read(dataPath);
-          await this.vault.adapter.write(`${dataPath}.backup`, content);
+        // Determine where metadata is stored
+        let metadataPath: string | undefined;
+        if (this.settings.metadataStorageMode === "vault-location") {
+          metadataPath = this.settings.metadataStorageFolder;
+        } else {
+          // plugin-default mode: use plugin directory
+          metadataPath = pluginDir;
+        }
+
+        if (metadataPath) {
+          const dataPath = `${metadataPath}/data.json`;
+          if (await this.vault.adapter.exists(dataPath)) {
+            const content = await this.vault.adapter.read(dataPath);
+            await this.vault.adapter.write(`${dataPath}.backup`, content);
+          }
         }
 
         if (this.settings.storageMode === "vault-shards") {
@@ -128,9 +139,23 @@ export class BackupService {
       const absPluginDir = path.resolve(vaultRoot, pluginDir);
 
       if (autoBackup.backupDataJson) {
-        const dataPath = path.join(absPluginDir, "data.json");
-        if (fs.existsSync(dataPath)) {
-          fs.copyFileSync(dataPath, `${dataPath}.backup`);
+        // Determine where metadata is stored
+        let metadataPath: string | undefined;
+        if (this.settings.metadataStorageMode === "vault-location") {
+          metadataPath = path.resolve(
+            vaultRoot,
+            this.settings.metadataStorageFolder,
+          );
+        } else {
+          // plugin-default mode: use plugin directory
+          metadataPath = absPluginDir;
+        }
+
+        if (metadataPath) {
+          const dataPath = path.join(metadataPath, "data.json");
+          if (fs.existsSync(dataPath)) {
+            fs.copyFileSync(dataPath, `${dataPath}.backup`);
+          }
         }
 
         if (this.settings.storageMode === "vault-shards") {
@@ -138,7 +163,11 @@ export class BackupService {
             absPluginDir,
             "portable-data-bundle.json.backup",
           );
-          fs.writeFileSync(bundlePath, this.getPortableDataBundleJsonFn(), "utf-8");
+          fs.writeFileSync(
+            bundlePath,
+            this.getPortableDataBundleJsonFn(),
+            "utf-8",
+          );
         }
       }
 

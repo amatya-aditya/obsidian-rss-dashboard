@@ -81,7 +81,8 @@ function createFeedShard(feed: Feed): FeedItemsShard {
 }
 
 function createComparableFeedShardJson(feed: Feed): string {
-  const { updatedAt: _updatedAt, ...shardWithoutTimestamp } = createFeedShard(feed);
+  const { updatedAt: _updatedAt, ...shardWithoutTimestamp } =
+    createFeedShard(feed);
   void _updatedAt;
   return JSON.stringify(shardWithoutTimestamp, null, 2);
 }
@@ -110,7 +111,10 @@ function parsePortableDataBundle(input: unknown): PortableDataBundle {
     throw new Error("Portable bundle is missing a valid exportedAt timestamp");
   }
 
-  if (bundle.storageMode !== "legacy-json" && bundle.storageMode !== "vault-shards") {
+  if (
+    bundle.storageMode !== "legacy-json" &&
+    bundle.storageMode !== "vault-shards"
+  ) {
     throw new Error("Portable bundle has an invalid storageMode value");
   }
 
@@ -133,7 +137,9 @@ function parsePortableDataBundle(input: unknown): PortableDataBundle {
     }
 
     if (!Array.isArray(shardLike.items)) {
-      throw new Error(`Portable bundle shard ${shardLike.feedId} is missing items`);
+      throw new Error(
+        `Portable bundle shard ${shardLike.feedId} is missing items`,
+      );
     }
   }
 
@@ -193,7 +199,10 @@ export class FeedStorageRepository {
     }
 
     for (const feed of settings.feeds) {
-      const shardPath = getFeedShardPath(settings.storageFolder, feed.feedId ?? "");
+      const shardPath = getFeedShardPath(
+        settings.storageFolder,
+        feed.feedId ?? "",
+      );
       const shardExists = await this.app.vault.adapter.exists(shardPath);
       if (!shardExists) {
         storageLog("Shard file not found during hydration", {
@@ -304,12 +313,15 @@ export class FeedStorageRepository {
       const previousJson = this.lastPersistedShardJsonByFeedId.get(feed.feedId);
 
       if (forceAllShards || previousJson !== currentComparableJson) {
-        const shardPath = getFeedShardPath(normalizedStorageFolder, feed.feedId);
-        await this.app.vault.adapter.write(
-          shardPath,
-          shardJson,
+        const shardPath = getFeedShardPath(
+          normalizedStorageFolder,
+          feed.feedId,
         );
-        this.lastPersistedShardJsonByFeedId.set(feed.feedId, currentComparableJson);
+        await this.app.vault.adapter.write(shardPath, shardJson);
+        this.lastPersistedShardJsonByFeedId.set(
+          feed.feedId,
+          currentComparableJson,
+        );
         shardWriteCount += 1;
         storageLog("Wrote feed shard", {
           feedId: feed.feedId,
@@ -324,9 +336,8 @@ export class FeedStorageRepository {
           this.lastStorageFolderPath,
           feed.feedId,
         );
-        const previousShard = this.app.vault.getAbstractFileByPath(
-          previousShardPath,
-        );
+        const previousShard =
+          this.app.vault.getAbstractFileByPath(previousShardPath);
         if (previousShard) {
           await this.app.fileManager.trashFile(previousShard);
           storageLog("Deleted shard from previous storage folder", {
@@ -337,7 +348,9 @@ export class FeedStorageRepository {
       }
     }
 
-    for (const previousFeedId of [...this.lastPersistedShardJsonByFeedId.keys()]) {
+    for (const previousFeedId of [
+      ...this.lastPersistedShardJsonByFeedId.keys(),
+    ]) {
       if (currentFeedIds.has(previousFeedId)) {
         continue;
       }
@@ -407,10 +420,14 @@ export class FeedStorageRepository {
       storageLog("Completed migration to vault shards");
     } catch (error) {
       this.restoreMigrationSnapshot(settings, snapshot);
-      storageError("Migration to vault shards failed; restored legacy state", error, {
-        restoredMode: settings.storageMode,
-        restoredFolder: settings.storageFolder,
-      });
+      storageError(
+        "Migration to vault shards failed; restored legacy state",
+        error,
+        {
+          restoredMode: settings.storageMode,
+          restoredFolder: settings.storageFolder,
+        },
+      );
       throw error;
     }
   }
@@ -468,9 +485,14 @@ export class FeedStorageRepository {
       version: SHARD_VERSION,
       exportedAt: Date.now(),
       storageMode: settings.storageMode,
+      storageFolder: settings.storageFolder,
+      metadataStorageMode: settings.metadataStorageMode,
+      metadataStorageFolder: settings.metadataStorageFolder,
       metadata: this.createPersistedSettings(settings),
       shards: settings.feeds
-        .filter((feed): feed is Feed & { feedId: string } => Boolean(feed.feedId))
+        .filter((feed): feed is Feed & { feedId: string } =>
+          Boolean(feed.feedId),
+        )
         .map((feed) => createFeedShard(feed)),
       markdownMirrorFallbackPlanned: true,
     };
@@ -500,7 +522,9 @@ export class FeedStorageRepository {
       );
       const importedMetadata = cloneJson(bundle.metadata);
       const importedFeeds = importedMetadata.feeds.map((feed) => {
-        const feedItems = feed.feedId ? shardItemsByFeedId.get(feed.feedId) : undefined;
+        const feedItems = feed.feedId
+          ? shardItemsByFeedId.get(feed.feedId)
+          : undefined;
         return {
           ...feed,
           items: Array.isArray(feedItems) ? feedItems : [],
@@ -512,6 +536,10 @@ export class FeedStorageRepository {
         ...importedMetadata,
         storageMode: bundle.storageMode,
         storageFolder: normalizeFolderPath(importedMetadata.storageFolder),
+        metadataStorageMode:
+          bundle.metadataStorageMode ?? settings.metadataStorageMode,
+        metadataStorageFolder:
+          bundle.metadataStorageFolder ?? settings.metadataStorageFolder,
         feeds: importedFeeds,
       } as RssDashboardSettings;
 
@@ -528,17 +556,30 @@ export class FeedStorageRepository {
         feedCount: settings.feeds.length,
       });
     } catch (error) {
-      storageError("Portable bundle import failed; restoring previous state", error);
+      storageError(
+        "Portable bundle import failed; restoring previous state",
+        error,
+      );
 
       try {
         const backupShardItemsByFeedId = new Map(
-          backupBundle.shards.map((shard) => [shard.feedId, cloneJson(shard.items)]),
+          backupBundle.shards.map((shard) => [
+            shard.feedId,
+            cloneJson(shard.items),
+          ]),
         );
         const rollbackSettings = {
           ...settings,
           ...backupBundle.metadata,
           storageMode: backupBundle.storageMode,
-          storageFolder: normalizeFolderPath(backupBundle.metadata.storageFolder),
+          storageFolder: normalizeFolderPath(
+            backupBundle.metadata.storageFolder,
+          ),
+          metadataStorageMode:
+            backupBundle.metadataStorageMode ?? settings.metadataStorageMode,
+          metadataStorageFolder:
+            backupBundle.metadataStorageFolder ??
+            settings.metadataStorageFolder,
           feeds: backupBundle.metadata.feeds.map((feed) => ({
             ...feed,
             items: feed.feedId
@@ -552,7 +593,9 @@ export class FeedStorageRepository {
           forceAllShards: true,
           forceMetadata: true,
         });
-        storageLog("Restored previous state after failed portable bundle import");
+        storageLog(
+          "Restored previous state after failed portable bundle import",
+        );
       } catch (rollbackError) {
         storageError(
           "Rollback failed after portable bundle import failure",
@@ -607,14 +650,20 @@ export class FeedStorageRepository {
       );
       this.lastPersistedShardJsonByFeedId = new Map(
         settings.feeds
-          .filter((feed): feed is Feed & { feedId: string } => Boolean(feed.feedId))
+          .filter((feed): feed is Feed & { feedId: string } =>
+            Boolean(feed.feedId),
+          )
           .map((feed) => [feed.feedId, createComparableFeedShardJson(feed)]),
       );
       this.lastStorageFolderPath = normalizeFolderPath(settings.storageFolder);
       return;
     }
 
-    this.lastPersistedMetadataJson = JSON.stringify(cloneJson(settings), null, 2);
+    this.lastPersistedMetadataJson = JSON.stringify(
+      cloneJson(settings),
+      null,
+      2,
+    );
     this.lastPersistedShardJsonByFeedId.clear();
     this.lastStorageFolderPath = null;
   }
@@ -638,7 +687,9 @@ export class FeedStorageRepository {
     this.lastRepairResult = snapshot.lastRepairResult;
   }
 
-  private async ensureStorageFolderExists(storageFolder: string): Promise<void> {
+  private async ensureStorageFolderExists(
+    storageFolder: string,
+  ): Promise<void> {
     const normalizedFolder = normalizeFolderPath(storageFolder);
     if (!normalizedFolder) {
       return;
@@ -668,9 +719,12 @@ export class FeedStorageRepository {
       }
 
       if (await this.app.vault.adapter.exists(normalizedFolder)) {
-        storageLog("Storage folder exists on adapter after createFolder error", {
-          folder: normalizedFolder,
-        });
+        storageLog(
+          "Storage folder exists on adapter after createFolder error",
+          {
+            folder: normalizedFolder,
+          },
+        );
         return;
       }
 
@@ -748,7 +802,9 @@ export class FeedStorageRepository {
 
       try {
         await this.app.vault.adapter.rmdir(currentPath, false);
-        storageLog("Deleted empty parent storage folder", { folderPath: currentPath });
+        storageLog("Deleted empty parent storage folder", {
+          folderPath: currentPath,
+        });
       } catch (error) {
         storageError("Failed to delete empty parent storage folder", error, {
           folderPath: currentPath,

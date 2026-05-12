@@ -1,6 +1,8 @@
 ## [Unreleased]
 
-### Features
+- Added configurable metadata `data.json` location with dedicated migration controls and backup/import-export support. See: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
+
+## [2.3.0-beta.1] - May 11, 2026
 
 - New experimental **Vault Shards storage mode**: Store article history in separate per-feed files instead of one large data.json file, with easy migration between modes.
 

@@ -11,10 +11,16 @@ export type ShardDeletionFailureAction =
   | "apply-anyway"
   | "open-folder";
 
+export type MetadataCleanupAction = "keep" | "delete";
+
 export interface StorageTransitionOptions {
   currentMode: "legacy-json" | "vault-shards";
   targetMode: "legacy-json" | "vault-shards";
   storageFolder: string;
+}
+
+export interface MetadataCleanupOptions {
+  previousLocationLabel: string;
 }
 
 export class StorageTransitionModal extends Modal {
@@ -22,9 +28,8 @@ export class StorageTransitionModal extends Modal {
   private readonly targetMode: "legacy-json" | "vault-shards";
   private readonly storageFolder: string;
   private action: StorageTransitionAction = "cancel";
-  private resolvePromise:
-    | ((value: StorageTransitionAction) => void)
-    | null = null;
+  private resolvePromise: ((value: StorageTransitionAction) => void) | null =
+    null;
 
   constructor(app: App, options: StorageTransitionOptions) {
     super(app);
@@ -40,7 +45,10 @@ export class StorageTransitionModal extends Modal {
     this.modalEl.addClass("rss-dashboard-modal");
     this.modalEl.addClass("rss-dashboard-modal-container");
 
-    if (this.currentMode === "legacy-json" && this.targetMode === "vault-shards") {
+    if (
+      this.currentMode === "legacy-json" &&
+      this.targetMode === "vault-shards"
+    ) {
       this.renderLegacyToShardsModal(contentEl);
       return;
     }
@@ -140,9 +148,8 @@ export class StorageTransitionModal extends Modal {
 export class ShardDeletionFailureModal extends Modal {
   private readonly storageFolder: string;
   private action: ShardDeletionFailureAction = "cancel";
-  private resolvePromise:
-    | ((value: ShardDeletionFailureAction) => void)
-    | null = null;
+  private resolvePromise: ((value: ShardDeletionFailureAction) => void) | null =
+    null;
 
   constructor(app: App, storageFolder: string) {
     super(app);
@@ -197,6 +204,68 @@ export class ShardDeletionFailureModal extends Modal {
   }
 
   waitForClose(): Promise<ShardDeletionFailureAction> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}
+
+export class MetadataCleanupModal extends Modal {
+  private readonly previousLocationLabel: string;
+  private action: MetadataCleanupAction = "keep";
+  private resolvePromise: ((value: MetadataCleanupAction) => void) | null =
+    null;
+
+  constructor(app: App, options: MetadataCleanupOptions) {
+    super(app);
+    this.previousLocationLabel = options.previousLocationLabel;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    this.modalEl.addClass("rss-dashboard-modal");
+    this.modalEl.addClass("rss-dashboard-modal-container");
+
+    contentEl.createEl("h2", { text: "Delete previous metadata copy?" });
+    contentEl.createEl("p", {
+      text: "Metadata migration completed successfully.",
+    });
+    contentEl.createEl("p", {
+      text: `A previous data.json copy still exists at: ${this.previousLocationLabel}`,
+    });
+    contentEl.createEl("p", {
+      text: "Do you want to delete the previous copy, or keep it as a backup?",
+    });
+
+    const buttonsSetting = new Setting(contentEl);
+    buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
+    buttonsSetting
+      .addButton((btn) =>
+        btn.setButtonText("Keep previous copy").onClick(() => {
+          this.action = "keep";
+          this.close();
+        }),
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Delete previous copy")
+          .setWarning()
+          .onClick(() => {
+            this.action = "delete";
+            this.close();
+          }),
+      );
+  }
+
+  onClose(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    this.resolvePromise?.(this.action);
+  }
+
+  waitForClose(): Promise<MetadataCleanupAction> {
     return new Promise((resolve) => {
       this.resolvePromise = resolve;
     });

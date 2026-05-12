@@ -82,7 +82,10 @@ export async function fetchWithProxyFallback(
 
     const logMsg = `[RSS Dashboard] Direct fetch returned blocked/empty response for ${url} (${directHtml?.length ?? 0} chars). Attempting proxy...`;
     console.warn(logMsg);
-    new Notice(`Fetch blocked (${directHtml?.length ?? 0} chars), retrying via proxy`, 5000);
+    new Notice(
+      `Fetch blocked (${directHtml?.length ?? 0} chars), retrying via proxy`,
+      5000,
+    );
 
     // 2. Proxy fallback
     if (!proxyUrl || proxyUrl.trim() === "") {
@@ -104,7 +107,10 @@ export async function fetchWithProxyFallback(
     if (!proxyHtml || isBlockedResponse(proxyHtml)) {
       const msg = `[RSS Dashboard] Proxy fetch also returned blocked/empty response for ${url}.`;
       console.warn(msg);
-      new Notice(`Proxy fetch failed or was also blocked (${proxyHtml?.length ?? 0} chars)`, 5000);
+      new Notice(
+        `Proxy fetch failed or was also blocked (${proxyHtml?.length ?? 0} chars)`,
+        5000,
+      );
       return "";
     }
 
@@ -126,4 +132,3 @@ export async function fetchWithProxyFallback(
     return "";
   }
 }
-
