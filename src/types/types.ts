@@ -432,6 +432,21 @@ export interface RssDashboardSettings {
   storageMode: FeedStorageMode;
   storageFolder: string;
   storageSchemaVersion: number;
+  /**
+   * Metadata storage mode: "plugin-default" uses .obsidian/plugins/rss-dashboard/data.json,
+   * "vault-location" uses a user-configured vault folder.
+   */
+  metadataStorageMode: "plugin-default" | "vault-location";
+  /**
+   * User-configured vault folder for metadata (data.json) storage.
+   * Default: ".rss-dashboard-data"
+   * Only used when metadataStorageMode is "vault-location".
+   */
+  metadataStorageFolder: string;
+  /**
+   * Schema version for metadata storage to support future migrations.
+   */
+  metadataStorageSchemaVersion: number;
 }
 
 export type PersistedRssDashboardSettings = Omit<
@@ -445,6 +460,9 @@ export interface PortableDataBundle {
   version: number;
   exportedAt: number;
   storageMode: FeedStorageMode;
+  storageFolder?: string;
+  metadataStorageMode?: "plugin-default" | "vault-location";
+  metadataStorageFolder?: string;
   metadata: PersistedRssDashboardSettings;
   shards: FeedItemsShard[];
   markdownMirrorFallbackPlanned: boolean;
@@ -657,4 +675,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   storageMode: "legacy-json",
   storageFolder: ".rss-dashboard-data/feeds",
   storageSchemaVersion: 1,
+  metadataStorageMode: "plugin-default",
+  metadataStorageFolder: ".rss-dashboard-data",
+  metadataStorageSchemaVersion: 1,
 };

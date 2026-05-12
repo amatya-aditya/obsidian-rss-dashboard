@@ -282,4 +282,77 @@ Old articles only reappear if:
 | Refresh orchestration (batch)       | `refreshFeedBatch()` — `main.ts`                                                     |
 | Exclude from refresh                | `getRefreshableFeeds()` — `main.ts`                                                  |
 | Persist to disk                     | `saveSettings()` → `this.saveData(this.settings)` — `main.ts`                        |
+| Metadata storage (vault location)   | `loadMetadata()`, `ensureMetadataFolderExists()` — `main.ts`                         |
+| Metadata migration                  | `migrateMetadataToVaultLocation()`, `revertMetadataToPluginDefault()` — `main.ts`    |
 | View filter application             | `getFilteredArticles()` / `getUnfilteredArticles()` — `src/views/dashboard-view.ts`  |
+
+---
+
+## 9. Metadata Storage (Dual-Mode Persistence)
+
+### Overview
+
+In addition to feed item storage, the plugin can now store metadata (settings/data.json) in two locations:
+
+- **Plugin Default**: `<vault>/.obsidian/plugins/rss-dashboard/data.json` (isolated, no sync)
+- **Vault Location**: User-defined path, e.g. `<vault>/.rss-dashboard-data/data.json` (synced with vault)
+
+This allows users to sync metadata across devices while keeping it separate from feed shards.
+
+### Load and Save Flow
+
+On plugin load:
+
+1. Check `settings.metadataStorageMode`
+2. If "vault-location": Try to load from vault location first
+3. Fall back to plugin-default if vault location unavailable
+4. Merge with default settings using `Object.assign()`
+
+On settings save:
+
+1. Determine save target based on current `metadataStorageMode`
+2. If "vault-location": - Call `ensureMetadataFolderExists()` to create folder if needed (idempotent) - Write to vault location using `vault.adapter.write()`
+3. If "plugin-default": - Use `Plugin.saveData()` (Obsidian's default)
+
+### Migration and Revert
+
+**Migrate to Vault Location:**
+
+1. Ensure target folder exists (create if needed)
+2. Load current metadata from plugin-default
+3. Write to vault location
+4. Update `settings.metadataStorageMode` to "vault-location"
+5. Save settings (which now writes to vault location)
+6. On error: revert mode to "plugin-default" (no partial state)
+
+**Revert to Plugin Default:**
+
+1. Load current metadata from vault location
+2. Update `settings.metadataStorageMode` to "plugin-default"
+3. Save settings using Plugin.saveData()
+4. Optionally clean up vault location file
+5. On error: keep metadata where it is (no partial state)
+
+### Backup Integration
+
+The `BackupService` follows metadata storage location:
+
+- Async backups check `metadataStorageMode` and back up from the active location
+- Sync backups (desktop) resolve the absolute path and back up accordingly
+- Portable data bundles include `metadataStorageMode` and `metadataStorageFolder` fields
+
+### Import/Export
+
+When importing a portable data bundle:
+
+1. Extract `metadataStorageMode` and `metadataStorageFolder` from bundle
+2. Back up current metadata before import
+3. Restore metadata according to bundle's configuration
+4. On import failure: restore backup (no partial state)
+
+### Implementation Details
+
+- **File I/O**: Uses `vault.adapter` for vault-location (mobile-compatible), `Plugin.saveData()` for plugin-default
+- **Error Handling**: All state changes are transactional — revert on any error
+- **Idempotency**: Folder creation handles race conditions and existing folders
+- **Type Safety**: Uses `instanceof TFolder` checks (not `isFolder()` which doesn't exist)
