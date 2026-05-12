@@ -1,6 +1,6 @@
 # Development Docs
 
-Last updated: 2026-03-31
+Last updated: 2026-05-12
 
 Internal developer documentation for the RSS Dashboard plugin.
 
@@ -26,6 +26,10 @@ Internal developer documentation for the RSS Dashboard plugin.
   New feeds are validated through a multi-layered process that ensures technical compatibility and discoverability.
 - [Obsidian Settings Reference](./obsidian-settings-reference.md)
   This file is a prompt-friendly companion to [`node_modules/obsidian/obsidian.d.ts`](../../node_modules/obsidian/obsidian.d.ts) for building settings tabs and settings-driven UI in this plugin.
+- [Release Notes Workflow](./release-notes-workflow.md)
+  How to collect release-note entries in PRs and compile changelog updates efficiently at Beta/Stable cut time.
+- [Pull Request Template](../../.github/PULL_REQUEST_TEMPLATE.md)
+  Standard PR checklist and release-notes capture fields used during development.
 
 ### Plans
 
