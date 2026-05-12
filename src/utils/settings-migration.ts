@@ -219,3 +219,39 @@ export function migrateKeywordRulesSettings(
 
   return changed;
 }
+
+export function migrateMediaVideoTagSettings(
+  settings: Record<string, unknown>,
+): boolean {
+  let changed = false;
+
+  if (!isRecord(settings.media)) {
+    settings.media = {};
+    changed = true;
+  }
+
+  const media = settings.media as Record<string, unknown>;
+  if (typeof media.autoTagVideos !== "boolean") {
+    media.autoTagVideos = true;
+    changed = true;
+  }
+
+  const availableTags = Array.isArray(settings.availableTags)
+    ? settings.availableTags
+    : [];
+
+  const hasVideoTag = availableTags.some(
+    (tag) =>
+      isRecord(tag) &&
+      typeof tag.name === "string" &&
+      tag.name.toLowerCase() === "video",
+  );
+
+  if (!hasVideoTag) {
+    availableTags.push({ name: "Video", color: "#d04747" });
+    settings.availableTags = availableTags;
+    changed = true;
+  }
+
+  return changed;
+}

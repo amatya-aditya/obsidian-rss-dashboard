@@ -69,4 +69,92 @@ describe("MediaService.detectAndProcessFeed", () => {
       result.items.find((item) => item.guid === "article-1")?.mediaType,
     ).toBe("article");
   });
+
+  it("auto-applies Video tag to non-YouTube video feeds when enabled", () => {
+    const detected = MediaService.detectAndProcessFeed(
+      createFeed([
+        createItem({
+          guid: "video-tag-1",
+          link: "https://www.bloomberg.com/news/videos/2026-05-12/video-story",
+          mediaContentType: "image/jpeg",
+        }),
+      ]),
+    );
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [{ name: "Video", color: "#d04747" }],
+      { autoTagVideos: true },
+    );
+
+    const item = tagged.items[0];
+    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("video");
+  });
+
+  it("does not auto-apply Video tag to non-YouTube video feeds when disabled", () => {
+    const detected = MediaService.detectAndProcessFeed(
+      createFeed([
+        createItem({
+          guid: "video-tag-2",
+          link: "https://www.bloomberg.com/news/videos/2026-05-12/video-story",
+          mediaContentType: "image/jpeg",
+        }),
+      ]),
+    );
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [{ name: "Video", color: "#d04747" }],
+      { autoTagVideos: false },
+    );
+
+    const item = tagged.items[0];
+    expect(item.tags.map((tag) => tag.name.toLowerCase())).not.toContain(
+      "video",
+    );
+  });
+
+  it("tags only video items in mixed feeds", () => {
+    const detected = MediaService.detectAndProcessFeed(
+      createFeed([
+        createItem({
+          guid: "video-mixed-1",
+          link: "https://www.bloomberg.com/news/videos/2026-05-12/video-story",
+          mediaContentType: "image/jpeg",
+        }),
+        createItem({
+          guid: "article-mixed-1",
+          link: "https://www.bloomberg.com/news/articles/2026-05-12/article-story",
+          mediaContentType: "image/jpeg",
+        }),
+      ]),
+    );
+
+    expect(detected.mediaType).toBe("video");
+    expect(
+      detected.items.find((item) => item.guid === "video-mixed-1")?.mediaType,
+    ).toBe("video");
+    expect(
+      detected.items.find((item) => item.guid === "article-mixed-1")
+        ?.mediaType,
+    ).toBe("article");
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [{ name: "Video", color: "#d04747" }],
+      { autoTagVideos: true },
+    );
+
+    const videoItem = tagged.items.find((item) => item.guid === "video-mixed-1");
+    const articleItem = tagged.items.find(
+      (item) => item.guid === "article-mixed-1",
+    );
+
+    expect(videoItem?.tags.map((tag) => tag.name.toLowerCase())).toContain(
+      "video",
+    );
+    expect(articleItem?.tags.map((tag) => tag.name.toLowerCase())).not.toContain(
+      "video",
+    );
+  });
 });

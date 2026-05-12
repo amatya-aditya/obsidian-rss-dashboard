@@ -2,6 +2,8 @@
 
 - Added configurable metadata `data.json` location with dedicated migration controls and backup/import-export support. See: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
 - Fixed Bloomberg-style video feed items being misclassified as restricted articles by improving media type detection (including image-first `media:content` handling and conservative video-route fallback), and added regression coverage for parser, media classification, reader surfaces, and save flow to prevent false paywall notices/banners.
+- Replaced the list-only Video pill indicator with default Video auto-tagging for detected non-YouTube video items, added a new **Settings > Media > Auto-tag videos** toggle (enabled by default), and added migration/backfill logic to ensure existing users receive the `Video` tag plus the new toggle safely.
+- Fixed mixed feeds where article items could inherit the `Video` tag when another item in the same feed was classified as video; auto-tagging is now applied per-item based on each item's media type.
 
 ## [2.3.0-beta.1] - May 11, 2026
 

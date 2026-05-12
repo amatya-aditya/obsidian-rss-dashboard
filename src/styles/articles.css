@@ -123,22 +123,6 @@
   flex-wrap: wrap;
 }
 
-.rss-dashboard-video-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1px 7px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, #d04747 45%, var(--background-modifier-border));
-  background: color-mix(in srgb, #d04747 16%, var(--background-secondary));
-  color: var(--text-normal);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-}
-
 .rss-dashboard-article-summary {
   color: var(--text-muted);
   font-size: 0.99em;

@@ -1,5 +1,5 @@
 import { requestUrl, Notice } from "obsidian";
-import { Feed, Tag } from "../types/types";
+import { Feed, MediaSettings, Tag } from "../types/types";
 import { isKnownVideoUrl } from "../utils/video-detection";
 
 export interface YouTubeEmbedConfig {
@@ -552,14 +552,26 @@ export class MediaService {
         `;
   }
 
-  static applyMediaTags(feed: Feed, availableTags: Tag[]): Feed {
+  static applyMediaTags(
+    feed: Feed,
+    availableTags: Tag[],
+    mediaSettings?: Pick<MediaSettings, "autoTagVideos">,
+  ): Feed {
     if (!feed.mediaType || feed.mediaType === "article") {
       return feed;
     }
 
     let tagName: string | undefined;
     if (feed.mediaType === "video") {
-      tagName = this.isYouTubeFeed(feed.url) ? "youtube" : "video";
+      if (this.isYouTubeFeed(feed.url)) {
+        tagName = "youtube";
+      } else {
+        const shouldAutoTagVideos = mediaSettings?.autoTagVideos ?? true;
+        if (!shouldAutoTagVideos) {
+          return feed;
+        }
+        tagName = "video";
+      }
     } else if (feed.mediaType === "podcast") {
       tagName = "podcast";
     }
@@ -572,6 +584,17 @@ export class MediaService {
     if (!mediaTag) return feed;
 
     const updatedItems = feed.items.map((item) => {
+      const shouldTagItem =
+        (tagName === "video" || tagName === "youtube")
+          ? item.mediaType === "video"
+          : tagName === "podcast"
+            ? item.mediaType === "podcast"
+            : false;
+
+      if (!shouldTagItem) {
+        return item;
+      }
+
       if (!item.tags) item.tags = [];
       if (!item.tags.some((t) => t.name.toLowerCase() === tagName)) {
         item.tags.push({ ...mediaTag });

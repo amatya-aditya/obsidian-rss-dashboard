@@ -3373,7 +3373,11 @@ export class FeedParser {
     } else if (processedFeed.mediaType === "podcast" && !existingFeed?.folder) {
       processedFeed.folder = this.mediaSettings.defaultPodcastFolder;
     }
-    return MediaService.applyMediaTags(processedFeed, this.availableTags);
+    return MediaService.applyMediaTags(
+      processedFeed,
+      this.availableTags,
+      this.mediaSettings,
+    );
   }
 
   /**

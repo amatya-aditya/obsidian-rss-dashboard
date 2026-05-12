@@ -31,6 +31,39 @@ beforeEach(() => {
 });
 
 describe("renderMediaSettingsTab()", () => {
+  it("renders auto-tag videos as the first media option and persists toggle changes", async () => {
+    const containerEl = document.body.createDiv();
+    const settings = cloneSettings();
+    settings.media.autoTagVideos = true;
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      getActiveReaderView: vi.fn(async () => null),
+    };
+
+    renderMediaSettingsTab(containerEl, plugin as any);
+
+    const names = Array.from(
+      containerEl.querySelectorAll(".setting-item-name"),
+    ).map((el) => el.textContent?.trim());
+
+    expect(names[0]).toBe("Auto-tag videos");
+
+    const autoTagSetting = getSettingByName(containerEl, "Auto-tag videos");
+    const toggle = autoTagSetting.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
+    expect(toggle.checked).toBe(true);
+
+    toggle.click();
+    await flushPromises();
+
+    expect(plugin.settings.media.autoTagVideos).toBe(false);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
   it("persists default media folders and normalizes paths", async () => {
     const containerEl = document.body.createDiv();
     const settings = cloneSettings();
