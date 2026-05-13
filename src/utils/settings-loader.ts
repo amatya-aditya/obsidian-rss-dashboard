@@ -9,6 +9,7 @@ import {
   migrateDisplaySettings,
   migrateDefaultFilterToDashboardMultiFilters,
   migrateKeywordRulesSettings,
+  migrateMediaVideoTagSettings,
 } from "./settings-migration";
 import { canonicalizeItemIdentityUrl } from "./url-utils";
 import { normalizeRefreshIntervalMinutes } from "./validation";
@@ -161,6 +162,10 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
   const settingsUnknown = settings as unknown as Record<string, unknown>;
 
   if (migrateKeywordRulesSettings(settingsUnknown)) {
+    didChange = true;
+  }
+
+  if (migrateMediaVideoTagSettings(settingsUnknown)) {
     didChange = true;
   }
 

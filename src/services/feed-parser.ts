@@ -979,6 +979,8 @@ interface ParsedItem {
   author?: string;
   content?: string;
   category?: string;
+  mediaContentType?: string;
+  mediaContentMedium?: string;
   enclosure?: {
     url: string;
     type: string;
@@ -1380,6 +1382,112 @@ export class CustomXMLParser {
     return "";
   }
 
+  private getMediaContentType(item: Element): string {
+    const MRSS_NS = "search.yahoo.com/mrss";
+
+    const isMrss = (el: Element): boolean => {
+      const ns = (el.namespaceURI || "").toLowerCase();
+      if (ns.includes(MRSS_NS)) return true;
+
+      const tag = (el.tagName || "").toLowerCase();
+      return tag.startsWith("media:") || tag.includes(":media:");
+    };
+
+    const getPreferredType = (types: string[]): string => {
+      const normalized = types
+        .map((type) => type.trim().toLowerCase())
+        .filter(Boolean);
+      const preferred = normalized.find(
+        (type) => type.startsWith("video/") || type.startsWith("audio/"),
+      );
+      return preferred || normalized[0] || "";
+    };
+
+    try {
+      const mediaContent = Array.from(item.querySelectorAll("media\\:content"));
+      const mediaContentType = getPreferredType(
+        mediaContent.map((el) =>
+          (el.getAttribute("type") || "").trim().toLowerCase(),
+        ),
+      );
+      if (mediaContentType) {
+        return mediaContentType;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      const all = Array.from(item.getElementsByTagNameNS("*", "*"));
+      const namespacedTypes = all
+        .filter((el) => el.localName === "content" && isMrss(el))
+        .map((el) => (el.getAttribute("type") || "").trim().toLowerCase())
+        .filter(Boolean);
+      return getPreferredType(namespacedTypes);
+    } catch {
+      return "";
+    }
+  }
+
+  private getMediaContentMedium(item: Element): string {
+    const MRSS_NS = "search.yahoo.com/mrss";
+
+    const isMrss = (el: Element): boolean => {
+      const ns = (el.namespaceURI || "").toLowerCase();
+      if (ns.includes(MRSS_NS)) return true;
+
+      const tag = (el.tagName || "").toLowerCase();
+      return tag.startsWith("media:") || tag.includes(":media:");
+    };
+
+    const getPreferredMedium = (mediums: string[]): string => {
+      const normalized = mediums
+        .map((medium) => medium.trim().toLowerCase())
+        .filter(Boolean);
+      const preferred = normalized.find(
+        (medium) => medium === "video" || medium === "audio",
+      );
+      return preferred || normalized[0] || "";
+    };
+
+    const getElementMedium = (el: Element): string => {
+      const medium = (el.getAttribute("medium") || "").trim().toLowerCase();
+      if (medium) {
+        return medium;
+      }
+
+      const type = (el.getAttribute("type") || "").trim().toLowerCase();
+      if (type.startsWith("video/")) return "video";
+      if (type.startsWith("audio/")) return "audio";
+      if (type.startsWith("image/")) return "image";
+
+      return "";
+    };
+
+    try {
+      const mediaContent = Array.from(item.querySelectorAll("media\\:content"));
+      const mediaContentMedium = getPreferredMedium(
+        mediaContent.map((el) => getElementMedium(el)),
+      );
+      if (mediaContentMedium) {
+        return mediaContentMedium;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      const all = Array.from(item.getElementsByTagNameNS("*", "*"));
+      const namespacedMediums = all
+        .filter((el) => el.localName === "content" && isMrss(el))
+        .map((el) => getElementMedium(el))
+        .filter(Boolean);
+      return getPreferredMedium(namespacedMediums);
+    } catch {
+      return "";
+    }
+  }
+
   private getTextContentWithMultipleSelectors(
     element: Element | null,
     selectors: string[],
@@ -1616,6 +1724,8 @@ export class CustomXMLParser {
 
       let mediaImage = "";
       mediaImage = this.getMediaImageUrl(item);
+      const mediaContentType = this.getMediaContentType(item) || undefined;
+      const mediaContentMedium = this.getMediaContentMedium(item) || undefined;
 
       let fallbackImage = "";
       if (!itemImage && !mediaImage) {
@@ -1639,6 +1749,8 @@ export class CustomXMLParser {
           (mediaImage ? { url: mediaImage } : undefined) ||
           (fallbackImage ? { url: fallbackImage } : undefined),
         category: this.getTextContent(item, "category"),
+        mediaContentType,
+        mediaContentMedium,
         ieee,
       });
     });
@@ -2098,6 +2210,54 @@ export class CustomXMLParser {
           itemXml.match(/<media:thumbnail[^>]*url=["']([^"']+)["']/i) ||
           itemXml.match(/<media\\:thumbnail[^>]*url=["']([^"']+)["']/i);
         const mediaUrl = mediaUrlMatch?.[1]?.trim() || "";
+        const mediaContentMatches = [
+          ...itemXml.matchAll(/<media:content\b[^>]*>/gi),
+          ...itemXml.matchAll(/<media\\:content\b[^>]*>/gi),
+        ];
+        const mediaContentAttributes = mediaContentMatches.map((match) => {
+          const element = match[0];
+          const typeMatch = element.match(/type=["']([^"']+)["']/i);
+          const mediumMatch = element.match(/medium=["']([^"']+)["']/i);
+          const type = typeMatch?.[1]?.trim().toLowerCase() || "";
+          const mediumFromType = type.startsWith("video/")
+            ? "video"
+            : type.startsWith("audio/")
+              ? "audio"
+              : type.startsWith("image/")
+                ? "image"
+                : "";
+          return {
+            type,
+            medium: mediumMatch?.[1]?.trim().toLowerCase() || mediumFromType,
+          };
+        });
+
+        const pickPreferredType = (types: string[]): string => {
+          const normalized = types
+            .map((type) => type.trim().toLowerCase())
+            .filter(Boolean);
+          const preferred = normalized.find(
+            (type) => type.startsWith("video/") || type.startsWith("audio/"),
+          );
+          return preferred || normalized[0] || "";
+        };
+
+        const pickPreferredMedium = (mediums: string[]): string => {
+          const normalized = mediums
+            .map((medium) => medium.trim().toLowerCase())
+            .filter(Boolean);
+          const preferred = normalized.find(
+            (medium) => medium === "video" || medium === "audio",
+          );
+          return preferred || normalized[0] || "";
+        };
+
+        const mediaContentType = pickPreferredType(
+          mediaContentAttributes.map((entry) => entry.type),
+        );
+        const mediaContentMedium = pickPreferredMedium(
+          mediaContentAttributes.map((entry) => entry.medium),
+        );
 
         const pubYearMatch = itemXml.match(/<pubYear[^>]*>([^<]+)<\/pubYear>/i);
         const pubYear = pubYearMatch
@@ -2162,6 +2322,8 @@ export class CustomXMLParser {
           content: itemDescription,
           image: mediaUrl ? { url: this.convertAppUrls(mediaUrl) } : undefined,
           category: itemCategory,
+          mediaContentType: mediaContentType || undefined,
+          mediaContentMedium: mediaContentMedium || undefined,
           ieee,
         });
       });
@@ -3149,6 +3311,10 @@ export class FeedParser {
           enclosure: enclosure ? enclosure : existingItem.enclosure,
           ieee: item.ieee || existingItem.ieee,
           audioUrl: audioUrl ? audioUrl : existingItem.audioUrl,
+          mediaContentType:
+            item.mediaContentType || existingItem.mediaContentType,
+          mediaContentMedium:
+            item.mediaContentMedium || existingItem.mediaContentMedium,
           mediaType: isPodcast
             ? "podcast"
             : existingItem.mediaType || "article",
@@ -3231,6 +3397,8 @@ export class FeedParser {
           enclosure: enclosure,
           ieee: item.ieee,
           audioUrl: audioUrl,
+          mediaContentType: item.mediaContentType,
+          mediaContentMedium: item.mediaContentMedium,
         };
         newItems.push(newItem);
       }
@@ -3319,7 +3487,11 @@ export class FeedParser {
     } else if (processedFeed.mediaType === "podcast" && !existingFeed?.folder) {
       processedFeed.folder = this.mediaSettings.defaultPodcastFolder;
     }
-    return MediaService.applyMediaTags(processedFeed, this.availableTags);
+    return MediaService.applyMediaTags(
+      processedFeed,
+      this.availableTags,
+      this.mediaSettings,
+    );
   }
 
   /**
@@ -3429,6 +3601,7 @@ export class FeedParserService {
       coverImage: isPodcast
         ? item.itunes?.image?.href || item.image?.url || podcastFeedImage || ""
         : item.itunes?.image?.href || item.image?.url || "",
+      mediaContentType: item.mediaContentType,
       mediaType: isPodcast ? "podcast" : "article",
       author: item.author || "",
       content: item.content || "",

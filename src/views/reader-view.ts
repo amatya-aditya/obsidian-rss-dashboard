@@ -10,6 +10,7 @@ import {
   Notice,
 } from "obsidian";
 import { setIcon } from "obsidian";
+import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
 import {
   RssDashboardSettings,
   FeedItem,
@@ -21,7 +22,14 @@ import {
 import { HighlightService } from "../services/highlight-service";
 import { ArticleSaver } from "../services/article-saver";
 import { setCssProps } from "../utils/platform-utils";
-import { fetchWithProxyFallback } from "../utils/fetch-helpers";
+import {
+  fetchFullArticleContentWithOutcome,
+  RESTRICTED_ARTICLE_BANNER,
+  RESTRICTED_ARTICLE_LINK_TEXT,
+  RESTRICTED_ARTICLE_NOTICE,
+  RESTRICTED_ARTICLE_REASON,
+} from "../utils/full-article-fetch";
+import { isLikelyVideoItem } from "../utils/video-detection";
 import TurndownService from "turndown";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
@@ -34,6 +42,10 @@ import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
 import { VaultFolderSuggest } from "../components/folder-suggest";
+
+const VIDEO_ARTICLE_BANNER =
+  "This item appears to be a video. Open the source page to watch.";
+const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
@@ -63,6 +75,8 @@ export class ReaderView extends ItemView {
   private saveButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
+  private currentFullContentFailureType: FullArticleFetchFailureType = "none";
+  private lastRestrictedNoticeGuid: string | null = null;
 
   private readerFormatPortal: { close: (flushSave: boolean) => void } | null =
     null;
@@ -608,6 +622,10 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
+    if (this.currentItem?.guid !== item.guid) {
+      this.lastRestrictedNoticeGuid = null;
+    }
+
     this.closeTagsDropdown();
     if (this.readingContainer) {
       this.readingContainer.empty();
@@ -619,6 +637,7 @@ export class ReaderView extends ItemView {
       ? this.formatNitterReaderTitle(item)
       : undefined;
     this.currentContentIsFullArticle = false;
+    this.currentFullContentFailureType = "none";
     this.syncReaderTitle();
 
     // Update toggle button states
@@ -675,6 +694,14 @@ export class ReaderView extends ItemView {
         : await this.fetchFullArticleContent(item.link);
       const hasFullArticleContent =
         this.hasMeaningfulArticleContent(fetchedContent);
+
+      if (hasFullArticleContent) {
+        item.restrictedReason = undefined;
+      } else if (this.lastFullArticleFetchWasRestricted()) {
+        item.restrictedReason = RESTRICTED_ARTICLE_REASON;
+        this.showRestrictedNotice(item);
+      }
+
       const displayTitle = hasFullArticleContent
         ? this.extractDisplayTitleFromHtml(fetchedContent)
         : null;
@@ -886,6 +913,10 @@ export class ReaderView extends ItemView {
       return true;
     }
 
+    if (this.isVideoMediaItem(item)) {
+      return true;
+    }
+
     if (!item.link) {
       return false;
     }
@@ -896,6 +927,10 @@ export class ReaderView extends ItemView {
     } catch {
       return false;
     }
+  }
+
+  private isVideoMediaItem(item: FeedItem): boolean {
+    return isLikelyVideoItem(item);
   }
 
   private isFeedContentPreferredHost(host: string): boolean {
@@ -1039,6 +1074,65 @@ export class ReaderView extends ItemView {
         descriptionHtml,
       );
     }
+
+    if (item.restrictedReason) {
+      this.renderRestrictedBanner(item);
+    } else if (this.shouldRenderVideoSourceBanner(item)) {
+      this.renderVideoSourceBanner(item);
+    }
+  }
+
+  private renderRestrictedBanner(item: FeedItem): void {
+    const banner = this.readingContainer.createDiv({
+      cls: "rss-reader-inline-banner rss-reader-paywall-banner",
+    });
+    const message = banner.createDiv({
+      cls: "rss-reader-paywall-banner-text",
+    });
+    message.setText(
+      item.restrictedReason === RESTRICTED_ARTICLE_REASON
+        ? RESTRICTED_ARTICLE_BANNER
+        : (item.restrictedReason ?? RESTRICTED_ARTICLE_BANNER),
+    );
+
+    if (!item.link) {
+      return;
+    }
+
+    const link = banner.createEl("a", {
+      cls: "rss-reader-paywall-banner-link",
+      text: RESTRICTED_ARTICLE_LINK_TEXT,
+      href: item.link,
+    });
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+  }
+
+  private shouldRenderVideoSourceBanner(item: FeedItem): boolean {
+    return isLikelyVideoItem(item) && !item.videoId && !item.videoUrl;
+  }
+
+  private renderVideoSourceBanner(item: FeedItem): void {
+    const banner = this.readingContainer.createDiv({
+      cls: "rss-reader-inline-banner rss-reader-video-banner",
+    });
+    const message = banner.createDiv({
+      cls: "rss-reader-video-banner-text",
+      text: VIDEO_ARTICLE_BANNER,
+    });
+    message.setAttr("role", "note");
+
+    if (!item.link) {
+      return;
+    }
+
+    const link = banner.createEl("a", {
+      cls: "rss-reader-video-banner-link",
+      text: VIDEO_ARTICLE_LINK_TEXT,
+      href: item.link,
+    });
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
   }
 
   private populateArticleHtml(
@@ -1875,11 +1969,31 @@ export class ReaderView extends ItemView {
   }
 
   private async fetchFullArticleContent(url: string): Promise<string> {
+    if (!url) {
+      this.currentFullContentFailureType = "none";
+      return "";
+    }
+
     const proxyUrl =
       this.settings.corsProxyEnabled && this.settings.corsProxyUrl
         ? this.settings.corsProxyUrl
         : undefined;
-    return fetchWithProxyFallback(url, proxyUrl);
+    const result = await fetchFullArticleContentWithOutcome(url, proxyUrl);
+    this.currentFullContentFailureType = result.failureType;
+    return result.content;
+  }
+
+  private showRestrictedNotice(item: FeedItem): void {
+    if (this.lastRestrictedNoticeGuid === item.guid) {
+      return;
+    }
+
+    new Notice(RESTRICTED_ARTICLE_NOTICE);
+    this.lastRestrictedNoticeGuid = item.guid;
+  }
+
+  private lastFullArticleFetchWasRestricted(): boolean {
+    return this.currentFullContentFailureType === "restricted";
   }
 
   private toggleReadStatus(): void {
@@ -1917,7 +2031,9 @@ export class ReaderView extends ItemView {
       return;
     }
 
-    this.currentItem.tags = this.syncTagColorsWithSettings(this.currentItem.tags);
+    this.currentItem.tags = this.syncTagColorsWithSettings(
+      this.currentItem.tags,
+    );
     this.refreshReaderHeaderTags();
 
     if (this.podcastPlayer && this.currentItem.mediaType === "podcast") {

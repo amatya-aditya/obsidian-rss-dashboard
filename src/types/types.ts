@@ -12,6 +12,8 @@ export interface FeedItem {
   coverImage: string;
 
   mediaType?: "article" | "video" | "podcast";
+  mediaContentType?: string;
+  mediaContentMedium?: string;
   videoId?: string;
   videoUrl?: string;
   audioUrl?: string;
@@ -43,6 +45,12 @@ export interface FeedItem {
     season?: string;
     episode?: string;
   };
+
+  /**
+   * If present, indicates the article was restricted/paywalled and only excerpt is shown.
+   * Used to trigger inline banner in the reader.
+   */
+  restrictedReason?: string;
 
   ieee?: {
     pubYear?: string;
@@ -184,6 +192,7 @@ export type PodcastTheme =
   | "tokyonight";
 
 export interface MediaSettings {
+  autoTagVideos: boolean;
   defaultYouTubeFolder: string;
   defaultYouTubeTag: string;
   defaultPodcastFolder: string;
@@ -525,6 +534,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     { name: "Read later", color: "#3498db" },
     { name: "Favorite", color: "#f1c40f" },
     { name: "YouTube", color: "#ff0000" },
+    { name: "Video", color: "#d04747" },
     { name: "Podcast", color: "#8e44ad" },
   ],
   folderSortOrder: { by: "name", ascending: true },
@@ -545,6 +555,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     paragraphSpacing: "default",
   },
   media: {
+    autoTagVideos: true,
     defaultYouTubeFolder: "Videos",
     defaultYouTubeTag: "youtube",
     defaultPodcastFolder: "Podcast",

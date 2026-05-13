@@ -1862,21 +1862,50 @@ export class RssDashboardView extends ItemView {
       }
     }
 
-    const file = this.settings.articleSaving.saveFullContent
-      ? await this.saver.saveArticleWithFullContent(
-          article,
-          undefined,
-          customTemplate,
-        )
-      : await this.saver.saveArticle(article, undefined, customTemplate);
+    let file: TFile | null = null;
+    if (this.settings.articleSaving.saveFullContent) {
+      file = await this.saver.saveArticleWithFullContent(
+        article,
+        undefined,
+        customTemplate,
+      );
+      // Propagate restrictedReason if set during save
+      if (article.restrictedReason) {
+        // Update selectedArticle and inlineArticle if they match
+        if (
+          this.selectedArticle &&
+          this.selectedArticle.guid === article.guid
+        ) {
+          this.selectedArticle.restrictedReason = article.restrictedReason;
+        }
+        if (this.inlineArticle && this.inlineArticle.guid === article.guid) {
+          this.inlineArticle.restrictedReason = article.restrictedReason;
+        }
+      }
+    } else {
+      file = await this.saver.saveArticle(article, undefined, customTemplate);
+    }
 
     if (file) {
+      const shouldRerenderAfterSave = Boolean(
+        article.restrictedReason &&
+        this.inlineArticle &&
+        this.inlineArticle.guid === article.guid,
+      );
+
       await this.updateArticleStatus(
         article,
-        { saved: true, savedFilePath: file.path },
-        false,
+        {
+          saved: true,
+          savedFilePath: file.path,
+          restrictedReason: article.restrictedReason,
+        },
+        shouldRerenderAfterSave,
       );
-      this.updateArticleSaveButton(article.guid);
+
+      if (!shouldRerenderAfterSave) {
+        this.updateArticleSaveButton(article.guid);
+      }
     }
   }
 

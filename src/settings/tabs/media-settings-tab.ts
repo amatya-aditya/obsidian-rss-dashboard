@@ -14,6 +14,18 @@ export function renderMediaSettingsTab(
   containerEl: HTMLElement,
   plugin: RssDashboardPlugin,
 ): void {
+  new Setting(containerEl)
+    .setName("Auto-tag videos")
+    .setDesc("Automatically apply the Video tag to detected non-YouTube video items")
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.media.autoTagVideos ?? true)
+        .onChange(async (value) => {
+          plugin.settings.media.autoTagVideos = value;
+          await plugin.saveSettings();
+        }),
+    );
+
   // ── YouTube ───────────────────────────────────────────────────────────────
   new Setting(containerEl).setName("YouTube").setHeading();
 

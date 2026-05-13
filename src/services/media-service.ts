@@ -1,5 +1,6 @@
 import { requestUrl, Notice } from "obsidian";
-import { Feed, Tag } from "../types/types";
+import { Feed, MediaSettings, Tag } from "../types/types";
+import { isKnownVideoUrl } from "../utils/video-detection";
 
 export interface YouTubeEmbedConfig {
   videoId: string;
@@ -457,9 +458,43 @@ export class MediaService {
       return this.processYouTubeFeed(feed);
     }
 
-    const hasVideo = feed.items.some((item) =>
-      item.enclosure?.type?.startsWith("video/"),
-    );
+    const isVideoItem = (item: Feed["items"][number]): boolean => {
+      if (item.enclosure?.type?.startsWith("video/") === true) {
+        return true;
+      }
+
+      if (item.mediaContentType?.startsWith("video/") === true) {
+        return true;
+      }
+
+      if (item.mediaContentMedium === "video") {
+        return true;
+      }
+
+      if (item.enclosure?.type?.startsWith("audio/") === true) {
+        return false;
+      }
+
+      if (item.mediaContentType?.startsWith("audio/") === true) {
+        return false;
+      }
+
+      if (item.mediaContentMedium === "audio") {
+        return false;
+      }
+
+      if (item.mediaContentType?.startsWith("image/") === true) {
+        return false;
+      }
+
+      if (item.mediaContentMedium === "image") {
+        return false;
+      }
+
+      return isKnownVideoUrl(item.link);
+    };
+
+    const hasVideo = feed.items.some((item) => isVideoItem(item));
     if (hasVideo) {
       return {
         ...feed,
@@ -472,7 +507,18 @@ export class MediaService {
               videoUrl: item.enclosure.url,
             };
           }
-          return item;
+
+          if (isVideoItem(item)) {
+            return {
+              ...item,
+              mediaType: "video",
+            };
+          }
+
+          return {
+            ...item,
+            mediaType: item.mediaType || "article",
+          };
         }),
       };
     }
@@ -537,14 +583,26 @@ export class MediaService {
         `;
   }
 
-  static applyMediaTags(feed: Feed, availableTags: Tag[]): Feed {
+  static applyMediaTags(
+    feed: Feed,
+    availableTags: Tag[],
+    mediaSettings?: Pick<MediaSettings, "autoTagVideos">,
+  ): Feed {
     if (!feed.mediaType || feed.mediaType === "article") {
       return feed;
     }
 
     let tagName: string | undefined;
     if (feed.mediaType === "video") {
-      tagName = this.isYouTubeFeed(feed.url) ? "youtube" : "video";
+      if (this.isYouTubeFeed(feed.url)) {
+        tagName = "youtube";
+      } else {
+        const shouldAutoTagVideos = mediaSettings?.autoTagVideos ?? true;
+        if (!shouldAutoTagVideos) {
+          return feed;
+        }
+        tagName = "video";
+      }
     } else if (feed.mediaType === "podcast") {
       tagName = "podcast";
     }
@@ -557,6 +615,17 @@ export class MediaService {
     if (!mediaTag) return feed;
 
     const updatedItems = feed.items.map((item) => {
+      const shouldTagItem =
+        tagName === "video" || tagName === "youtube"
+          ? item.mediaType === "video"
+          : tagName === "podcast"
+            ? item.mediaType === "podcast"
+            : false;
+
+      if (!shouldTagItem) {
+        return item;
+      }
+
       if (!item.tags) item.tags = [];
       if (!item.tags.some((t) => t.name.toLowerCase() === tagName)) {
         item.tags.push({ ...mediaTag });
