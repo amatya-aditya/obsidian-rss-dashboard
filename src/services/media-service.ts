@@ -458,10 +458,41 @@ export class MediaService {
       return this.processYouTubeFeed(feed);
     }
 
-    const isVideoItem = (item: Feed["items"][number]): boolean =>
-      item.enclosure?.type?.startsWith("video/") === true ||
-      item.mediaContentType?.startsWith("video/") === true ||
-      isKnownVideoUrl(item.link);
+    const isVideoItem = (item: Feed["items"][number]): boolean => {
+      if (item.enclosure?.type?.startsWith("video/") === true) {
+        return true;
+      }
+
+      if (item.mediaContentType?.startsWith("video/") === true) {
+        return true;
+      }
+
+      if (item.mediaContentMedium === "video") {
+        return true;
+      }
+
+      if (item.enclosure?.type?.startsWith("audio/") === true) {
+        return false;
+      }
+
+      if (item.mediaContentType?.startsWith("audio/") === true) {
+        return false;
+      }
+
+      if (item.mediaContentMedium === "audio") {
+        return false;
+      }
+
+      if (item.mediaContentType?.startsWith("image/") === true) {
+        return false;
+      }
+
+      if (item.mediaContentMedium === "image") {
+        return false;
+      }
+
+      return isKnownVideoUrl(item.link);
+    };
 
     const hasVideo = feed.items.some((item) => isVideoItem(item));
     if (hasVideo) {
@@ -585,7 +616,7 @@ export class MediaService {
 
     const updatedItems = feed.items.map((item) => {
       const shouldTagItem =
-        (tagName === "video" || tagName === "youtube")
+        tagName === "video" || tagName === "youtube"
           ? item.mediaType === "video"
           : tagName === "podcast"
             ? item.mediaType === "podcast"

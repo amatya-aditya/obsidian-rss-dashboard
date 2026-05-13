@@ -186,6 +186,22 @@ const RSS2_WITH_MEDIA_CONTENT_VIDEO = `<?xml version="1.0" encoding="UTF-8"?>
   </channel>
 </rss>`;
 
+const RSS2_WITH_MEDIA_CONTENT_MEDIUM_ONLY = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Media Medium Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Has Media Medium Only</title>
+      <link>https://example.com/posts/1</link>
+      <description>Article description</description>
+      <media:content url="https://example.com/poster.jpg" medium="image" />
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>media-medium-1</guid>
+    </item>
+  </channel>
+</rss>`;
+
 const RSS2_EMPTY = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
@@ -210,10 +226,7 @@ const SUBSTACK_RSS = `<?xml version="1.0" encoding="UTF-8"?>
 </rss>`;
 
 const BLOOMBERG_VIDEO_IMAGE_FIRST_RSS = readFileSync(
-  path.resolve(
-    __dirname,
-    "../fixtures/rss/bloomberg-video-image-first.xml",
-  ),
+  path.resolve(__dirname, "../fixtures/rss/bloomberg-video-image-first.xml"),
   "utf-8",
 );
 
@@ -461,9 +474,25 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
     expect(result.items[0].mediaContentType).toBe("video/mp4");
   });
 
+  it("preserves media:content medium on items", () => {
+    const result = parser.parseString(RSS2_WITH_MEDIA_CONTENT_VIDEO);
+    expect(result.items[0].mediaContentMedium).toBe("video");
+  });
+
+  it("preserves media:content medium when type is absent", () => {
+    const result = parser.parseString(RSS2_WITH_MEDIA_CONTENT_MEDIUM_ONLY);
+    expect(result.items[0].mediaContentType).toBeUndefined();
+    expect(result.items[0].mediaContentMedium).toBe("image");
+  });
+
   it("prefers video media type when image media:content appears first", () => {
     const result = parser.parseString(BLOOMBERG_VIDEO_IMAGE_FIRST_RSS);
     expect(result.items[0].mediaContentType).toBe("video/mp4");
+  });
+
+  it("prefers video media medium when image media:content appears first", () => {
+    const result = parser.parseString(BLOOMBERG_VIDEO_IMAGE_FIRST_RSS);
+    expect(result.items[0].mediaContentMedium).toBe("video");
   });
 
   it("returns type 'rss' for RSS 2.0", () => {
@@ -533,6 +562,7 @@ describe("mergeFeedHistoryItems", () => {
 
 describe("FeedParser.parseFeed", () => {
   const mediaSettings = {
+    autoTagVideos: true,
     defaultYouTubeFolder: "Videos",
     defaultYouTubeTag: "youtube",
     defaultPodcastFolder: "Podcast",

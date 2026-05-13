@@ -32,11 +32,10 @@ function createFeed(items: FeedItem[]): Feed {
 }
 
 describe("MediaService.detectAndProcessFeed", () => {
-  it("classifies Bloomberg-style video routes as video when explicit enclosure is missing", () => {
+  it("classifies Bloomberg-style video routes as video when media metadata is missing", () => {
     const feed = createFeed([
       createItem({
         link: "https://www.bloomberg.com/news/videos/2026-05-12/sample-video",
-        mediaContentType: "image/jpeg",
       }),
     ]);
 
@@ -51,7 +50,6 @@ describe("MediaService.detectAndProcessFeed", () => {
       createItem({
         guid: "video-1",
         link: "https://www.bloomberg.com/news/videos/2026-05-12/video-story",
-        mediaContentType: "image/jpeg",
       }),
       createItem({
         guid: "article-1",
@@ -62,9 +60,9 @@ describe("MediaService.detectAndProcessFeed", () => {
     const result = MediaService.detectAndProcessFeed(feed);
 
     expect(result.mediaType).toBe("video");
-    expect(result.items.find((item) => item.guid === "video-1")?.mediaType).toBe(
-      "video",
-    );
+    expect(
+      result.items.find((item) => item.guid === "video-1")?.mediaType,
+    ).toBe("video");
     expect(
       result.items.find((item) => item.guid === "article-1")?.mediaType,
     ).toBe("article");
@@ -76,7 +74,6 @@ describe("MediaService.detectAndProcessFeed", () => {
         createItem({
           guid: "video-tag-1",
           link: "https://www.bloomberg.com/news/videos/2026-05-12/video-story",
-          mediaContentType: "image/jpeg",
         }),
       ]),
     );
@@ -97,7 +94,6 @@ describe("MediaService.detectAndProcessFeed", () => {
         createItem({
           guid: "video-tag-2",
           link: "https://www.bloomberg.com/news/videos/2026-05-12/video-story",
-          mediaContentType: "image/jpeg",
         }),
       ]),
     );
@@ -120,7 +116,6 @@ describe("MediaService.detectAndProcessFeed", () => {
         createItem({
           guid: "video-mixed-1",
           link: "https://www.bloomberg.com/news/videos/2026-05-12/video-story",
-          mediaContentType: "image/jpeg",
         }),
         createItem({
           guid: "article-mixed-1",
@@ -135,8 +130,7 @@ describe("MediaService.detectAndProcessFeed", () => {
       detected.items.find((item) => item.guid === "video-mixed-1")?.mediaType,
     ).toBe("video");
     expect(
-      detected.items.find((item) => item.guid === "article-mixed-1")
-        ?.mediaType,
+      detected.items.find((item) => item.guid === "article-mixed-1")?.mediaType,
     ).toBe("article");
 
     const tagged = MediaService.applyMediaTags(
@@ -145,7 +139,9 @@ describe("MediaService.detectAndProcessFeed", () => {
       { autoTagVideos: true },
     );
 
-    const videoItem = tagged.items.find((item) => item.guid === "video-mixed-1");
+    const videoItem = tagged.items.find(
+      (item) => item.guid === "video-mixed-1",
+    );
     const articleItem = tagged.items.find(
       (item) => item.guid === "article-mixed-1",
     );
@@ -153,8 +149,53 @@ describe("MediaService.detectAndProcessFeed", () => {
     expect(videoItem?.tags.map((tag) => tag.name.toLowerCase())).toContain(
       "video",
     );
-    expect(articleItem?.tags.map((tag) => tag.name.toLowerCase())).not.toContain(
-      "video",
-    );
+    expect(
+      articleItem?.tags.map((tag) => tag.name.toLowerCase()),
+    ).not.toContain("video");
+  });
+
+  it("does not classify explicit image media as video even when URL matches video route", () => {
+    const feed = createFeed([
+      createItem({
+        guid: "ars-image-item",
+        link: "https://arstechnica.com/tech-policy/2026/05/story-about-video-games/",
+        mediaContentType: "image/jpeg",
+      }),
+    ]);
+
+    const result = MediaService.detectAndProcessFeed(feed);
+
+    expect(result.mediaType).toBe("article");
+    expect(result.items[0].mediaType).toBe("article");
+  });
+
+  it("does not classify explicit image medium as video when URL matches video route", () => {
+    const feed = createFeed([
+      createItem({
+        guid: "ars-image-medium-item",
+        link: "https://arstechnica.com/tech-policy/2026/05/story-about-video-games/",
+        mediaContentMedium: "image",
+      }),
+    ]);
+
+    const result = MediaService.detectAndProcessFeed(feed);
+
+    expect(result.mediaType).toBe("article");
+    expect(result.items[0].mediaType).toBe("article");
+  });
+
+  it("classifies explicit video medium as video even without media content type", () => {
+    const feed = createFeed([
+      createItem({
+        guid: "video-medium-item",
+        link: "https://example.com/story/not-a-video-route",
+        mediaContentMedium: "video",
+      }),
+    ]);
+
+    const result = MediaService.detectAndProcessFeed(feed);
+
+    expect(result.mediaType).toBe("video");
+    expect(result.items[0].mediaType).toBe("video");
   });
 });

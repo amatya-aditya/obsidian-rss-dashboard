@@ -13,6 +13,7 @@ export interface FeedItem {
 
   mediaType?: "article" | "video" | "podcast";
   mediaContentType?: string;
+  mediaContentMedium?: string;
   videoId?: string;
   videoUrl?: string;
   audioUrl?: string;
