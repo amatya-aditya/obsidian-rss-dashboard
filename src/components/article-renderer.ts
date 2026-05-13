@@ -361,7 +361,10 @@ export class ArticleRenderer {
     return isLikelyVideoItem(item) && !item.videoId && !item.videoUrl;
   }
 
-  private renderVideoSourceBanner(container: HTMLElement, item: FeedItem): void {
+  private renderVideoSourceBanner(
+    container: HTMLElement,
+    item: FeedItem,
+  ): void {
     const banner = container.createDiv({
       cls: "rss-reader-inline-banner rss-reader-video-banner",
     });
@@ -528,11 +531,7 @@ export class ArticleRenderer {
   }
 
   private showRestrictedNotice(item: FeedItem): void {
-    if (this.lastRestrictedNoticeGuid === item.guid) {
-      return;
-    }
-
-    new Notice(RESTRICTED_ARTICLE_NOTICE);
+    // Toast notification removed for paywalled/restricted articles.
     this.lastRestrictedNoticeGuid = item.guid;
   }
 

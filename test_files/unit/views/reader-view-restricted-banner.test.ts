@@ -6,10 +6,7 @@ import {
   DEFAULT_SETTINGS,
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import {
-  RESTRICTED_ARTICLE_NOTICE,
-  RESTRICTED_ARTICLE_REASON,
-} from "../../../src/utils/full-article-fetch";
+import { RESTRICTED_ARTICLE_REASON } from "../../../src/utils/full-article-fetch";
 
 const fetchFullArticleContentWithOutcomeMock = vi.hoisted(() => vi.fn());
 
@@ -95,7 +92,6 @@ describe("ReaderView restricted-content handling", () => {
   });
 
   it("shows a restricted notice and banner while keeping the feed excerpt", async () => {
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const item = makeItem();
 
     await readerView.onOpen();
@@ -106,10 +102,6 @@ describe("ReaderView restricted-content handling", () => {
       undefined,
     );
     expect(item.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
-    expect(logSpy).toHaveBeenCalledWith(
-      "[Stub Notice]",
-      RESTRICTED_ARTICLE_NOTICE,
-    );
 
     const readingContainer = (
       readerView as unknown as { readingContainer: HTMLElement }

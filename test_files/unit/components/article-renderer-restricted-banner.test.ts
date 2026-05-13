@@ -6,10 +6,7 @@ import {
   DEFAULT_SETTINGS,
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import {
-  RESTRICTED_ARTICLE_NOTICE,
-  RESTRICTED_ARTICLE_REASON,
-} from "../../../src/utils/full-article-fetch";
+import { RESTRICTED_ARTICLE_REASON } from "../../../src/utils/full-article-fetch";
 
 const fetchFullArticleContentWithOutcomeMock = vi.hoisted(() => vi.fn());
 
@@ -76,7 +73,6 @@ describe("ArticleRenderer restricted-content handling", () => {
   });
 
   it("shows a restricted notice and inline banner while keeping the feed excerpt", async () => {
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const item = makeItem();
 
     await renderer.render(container, item);
@@ -86,10 +82,6 @@ describe("ArticleRenderer restricted-content handling", () => {
       undefined,
     );
     expect(item.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
-    expect(logSpy).toHaveBeenCalledWith(
-      "[Stub Notice]",
-      RESTRICTED_ARTICLE_NOTICE,
-    );
 
     const banner = container.querySelector(".rss-reader-paywall-banner");
     const content = container.querySelector(".rss-reader-article-content");
@@ -106,7 +98,8 @@ describe("ArticleRenderer restricted-content handling", () => {
     expect(banner?.textContent).toContain("Click here to double check.");
     expect(link?.getAttribute("href")).toBe(item.link);
     expect(
-      content.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING,
+      content.compareDocumentPosition(banner) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(content.textContent).toContain("Fallback excerpt from feed.");
   });
@@ -121,9 +114,7 @@ describe("ArticleRenderer restricted-content handling", () => {
 
     expect(fetchFullArticleContentWithOutcomeMock).not.toHaveBeenCalled();
     expect(item.restrictedReason).toBeUndefined();
-    expect(
-      container.querySelector(".rss-reader-paywall-banner"),
-    ).toBeNull();
+    expect(container.querySelector(".rss-reader-paywall-banner")).toBeNull();
     expect(container.textContent).toContain("Fallback excerpt from feed.");
   });
 

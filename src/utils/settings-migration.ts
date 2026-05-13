@@ -225,6 +225,7 @@ export function migrateMediaVideoTagSettings(
 ): boolean {
   let changed = false;
 
+  // Defensive: ensure settings.media is a record
   if (!isRecord(settings.media)) {
     settings.media = {};
     changed = true;
@@ -237,21 +238,26 @@ export function migrateMediaVideoTagSettings(
   }
 
   // Remove deprecated defaultYouTubeTag field
-  if ("defaultYouTubeTag" in media) {
+  if (media && typeof media === "object" && "defaultYouTubeTag" in media) {
     delete media.defaultYouTubeTag;
     changed = true;
   }
 
+  // Defensive: ensure availableTags is always an array
   const hadValidAvailableTags = Array.isArray(settings.availableTags);
-  const availableTags = hadValidAvailableTags ? settings.availableTags : [];
+  const availableTags: Array<unknown> =
+    hadValidAvailableTags && Array.isArray(settings.availableTags)
+      ? settings.availableTags
+      : [];
 
   // Remove YouTube tag if present (YouTube videos now use generic Video tag)
-  const youtubeTagIndex = availableTags.findIndex(
-    (tag) =>
+  const youtubeTagIndex = availableTags.findIndex((tag) => {
+    return (
       isRecord(tag) &&
       typeof tag.name === "string" &&
-      tag.name.toLowerCase() === "youtube",
-  );
+      tag.name.toLowerCase() === "youtube"
+    );
+  });
 
   if (youtubeTagIndex !== -1) {
     availableTags.splice(youtubeTagIndex, 1);
@@ -259,12 +265,13 @@ export function migrateMediaVideoTagSettings(
     changed = true;
   }
 
-  const hasVideoTag = availableTags.some(
-    (tag) =>
+  const hasVideoTag = availableTags.some((tag) => {
+    return (
       isRecord(tag) &&
       typeof tag.name === "string" &&
-      tag.name.toLowerCase() === "video",
-  );
+      tag.name.toLowerCase() === "video"
+    );
+  });
 
   if (!hasVideoTag) {
     availableTags.push({ name: "Video", color: "#d04747" });

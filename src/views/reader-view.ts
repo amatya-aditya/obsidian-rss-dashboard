@@ -699,7 +699,7 @@ export class ReaderView extends ItemView {
         item.restrictedReason = undefined;
       } else if (this.lastFullArticleFetchWasRestricted()) {
         item.restrictedReason = RESTRICTED_ARTICLE_REASON;
-        this.showRestrictedNotice(item);
+        // Toast notification removed for paywalled/restricted articles.
       }
 
       const displayTitle = hasFullArticleContent
