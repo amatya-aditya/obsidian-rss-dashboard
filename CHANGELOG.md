@@ -1,11 +1,18 @@
 ## [Unreleased]
 
+### Features
+
 - Added configurable metadata `data.json` location with dedicated migration controls and backup/import-export support. See: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
 - Fixed Bloomberg-style video feed items being misclassified as restricted articles by improving media type detection (including image-first `media:content` handling and conservative video-route fallback), and added regression coverage for parser, media classification, reader surfaces, and save flow to prevent false paywall notices/banners.
 - Added paywall/restricted-content detection so the Reader shows a banner when only excerpted content is available.
 - Added automatic `Video` tagging for detected non-YouTube video items, plus a new **Settings > Media > Auto-tag videos** toggle (enabled by default). Existing users are migrated/backfilled safely.
 - Added long-press support on folders in sidebar for mobile devices that performs the same right-click functionality as desktop. Resolves [GH Issue #113](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/113)
 - Added new status section in edit feed modal to show location of feed ID, feed storage type (shard or legacy), and a copy button to quickly copy the local location.
+- Added "URL" as a Rule target alongside title, summary, and content which allows filters based upon URL address (i.e. 'shorts' for YouTube Shorts) [GH PR #116 submitted by Caleb68864](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/116)
+
+### Fixes
+
+- Fixed bug where reverting from 'shard' storage back to 'legacy' caused all articles to become marked as past auto-deletion date.
 
 ## [2.3.0-beta.1] - May 11, 2026
 

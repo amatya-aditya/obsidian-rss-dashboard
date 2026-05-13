@@ -536,9 +536,6 @@ export function renderGeneralSettingsTab(
               }
 
               pendingStorageMode = plugin.settings.storageMode;
-              if (plugin.settingTab) {
-                plugin.settingTab.display();
-              }
             } catch (error) {
               storageError("Apply storage mode action failed", error, {
                 requestedMode: pendingStorageMode,

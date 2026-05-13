@@ -1488,10 +1488,10 @@ export default class RssDashboardPlugin extends Plugin {
         (data) => this.saveData(data),
       );
       this.initializeSettingsBackedServices();
+      await this.refreshDashboardViews();
       if (this.settingTab) {
         this.settingTab.display();
       }
-      await this.refreshDashboardViews();
       storageLog("Plugin migration completed", {
         currentMode: this.settings.storageMode,
       });
@@ -1550,10 +1550,10 @@ export default class RssDashboardPlugin extends Plugin {
         options,
       );
       this.initializeSettingsBackedServices();
+      await this.refreshDashboardViews();
       if (this.settingTab) {
         this.settingTab.display();
       }
-      await this.refreshDashboardViews();
       storageLog("Plugin revert completed", {
         currentMode: this.settings.storageMode,
       });

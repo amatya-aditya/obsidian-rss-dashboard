@@ -1501,6 +1501,103 @@ describe("refreshSelectedFeed()", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Test Suite: Storage transition orchestration
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("storage transition orchestration", () => {
+  let plugin: RssDashboardPlugin;
+
+  beforeEach(async () => {
+    const app = createMockApp();
+    plugin = await createPluginInstance(app);
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      storageMode: "vault-shards",
+      feeds: [sampleFeed],
+    };
+    vi.clearAllMocks();
+  });
+
+  it("revertToLegacyJsonStorageWithOptions refreshes dashboards before settings redisplay", async () => {
+    const displaySpy = vi.fn();
+    (plugin as unknown as { settingTab: { display: () => void } }).settingTab = {
+      display: displaySpy,
+    };
+
+    const repoSpy = vi
+      .spyOn(
+        (plugin as unknown as {
+          feedStorageRepository: { revertToLegacyJson: (...args: unknown[]) => Promise<void> };
+        }).feedStorageRepository,
+        "revertToLegacyJson",
+      )
+      .mockResolvedValue(undefined);
+    const initSpy = vi
+      .spyOn(
+        plugin as unknown as {
+          initializeSettingsBackedServices: () => void;
+        },
+        "initializeSettingsBackedServices",
+      )
+      .mockImplementation(() => {});
+    const refreshSpy = vi
+      .spyOn(plugin, "refreshDashboardViews")
+      .mockResolvedValue(undefined);
+
+    await plugin.revertToLegacyJsonStorageWithOptions({
+      deleteShardFolder: false,
+    });
+
+    expect(repoSpy).toHaveBeenCalledTimes(1);
+    expect(initSpy).toHaveBeenCalledTimes(1);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(displaySpy).toHaveBeenCalledTimes(1);
+    expect(refreshSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      displaySpy.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("migrateToVaultStorage refreshes dashboards before settings redisplay", async () => {
+    const displaySpy = vi.fn();
+    (plugin as unknown as { settingTab: { display: () => void } }).settingTab = {
+      display: displaySpy,
+    };
+
+    const repoSpy = vi
+      .spyOn(
+        (plugin as unknown as {
+          feedStorageRepository: {
+            migrateToVaultShards: (...args: unknown[]) => Promise<void>;
+          };
+        }).feedStorageRepository,
+        "migrateToVaultShards",
+      )
+      .mockResolvedValue(undefined);
+    const initSpy = vi
+      .spyOn(
+        plugin as unknown as {
+          initializeSettingsBackedServices: () => void;
+        },
+        "initializeSettingsBackedServices",
+      )
+      .mockImplementation(() => {});
+    const refreshSpy = vi
+      .spyOn(plugin, "refreshDashboardViews")
+      .mockResolvedValue(undefined);
+
+    await plugin.migrateToVaultStorage();
+
+    expect(repoSpy).toHaveBeenCalledTimes(1);
+    expect(initSpy).toHaveBeenCalledTimes(1);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(displaySpy).toHaveBeenCalledTimes(1);
+    expect(refreshSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      displaySpy.mock.invocationCallOrder[0],
+    );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Test Suite: saveSettings()
 // ─────────────────────────────────────────────────────────────────────────────
 
