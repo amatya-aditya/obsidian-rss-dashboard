@@ -34,7 +34,7 @@ export class KeywordFilterService {
         rule.applyToTitle ||
         rule.applyToSummary ||
         rule.applyToContent ||
-        rule.applyToLink
+        rule.applyToURL
       );
     });
   }
@@ -128,7 +128,7 @@ export class KeywordFilterService {
     if (rule.applyToContent) {
       sources.push(item.content || item.description || "");
     }
-    if (rule.applyToLink) {
+    if (rule.applyToURL) {
       sources.push(item.link || "");
     }
 

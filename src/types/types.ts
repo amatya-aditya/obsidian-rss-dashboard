@@ -327,7 +327,7 @@ export interface KeywordFilterRule {
   applyToTitle: boolean;
   applyToSummary: boolean;
   applyToContent: boolean;
-  applyToLink?: boolean;
+  applyToURL?: boolean;
   enabled: boolean;
   createdAt: number;
 }

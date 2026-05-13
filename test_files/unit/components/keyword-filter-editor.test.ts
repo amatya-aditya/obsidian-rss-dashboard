@@ -73,7 +73,7 @@ describe("renderKeywordFilterEditor", () => {
       applyToTitle: true,
       applyToSummary: true,
       applyToContent: true,
-      applyToLink: false,
+      applyToURL: false,
       enabled: true,
       createdAt: 123,
     });
@@ -153,12 +153,12 @@ describe("renderKeywordFilterEditor", () => {
     summaryLabel.click();
     expect(getState().rules[0].applyToSummary).toBe(true);
 
-    const linkLabel = Array.from(
+      const urlLabel = Array.from(
       document.body.querySelectorAll(".rss-keyword-filter-location-toggle label"),
-    ).find((el) => el.textContent === "Link") as HTMLLabelElement;
-    expect(linkLabel).toBeTruthy();
-    linkLabel.click();
-    expect(getState().rules[0].applyToLink).toBe(true);
+      ).find((el) => el.textContent === "URL") as HTMLLabelElement;
+      expect(urlLabel).toBeTruthy();
+      urlLabel.click();
+      expect(getState().rules[0].applyToURL).toBe(true);
   });
 
   it("disables rule controls when a rule is disabled and delete removes rule", () => {

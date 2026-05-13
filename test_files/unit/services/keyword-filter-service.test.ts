@@ -224,7 +224,7 @@ describe("KeywordFilterService.evaluateRules", () => {
       applyToTitle: false,
       applyToSummary: false,
       applyToContent: false,
-      applyToLink: true,
+      applyToURL: true,
     });
 
     expect(KeywordFilterService.evaluateRules(shortItem, [rule], "AND")).toBe(false);
