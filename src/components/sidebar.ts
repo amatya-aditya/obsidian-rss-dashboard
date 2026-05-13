@@ -1015,7 +1015,11 @@ export class Sidebar {
         });
     });
 
-    menu.showAtMouseEvent(event);
+    if (typeof menu.showAtMouseEvent === "function") {
+      menu.showAtMouseEvent(event);
+    } else {
+      menu.showAtPosition({ x: event.clientX, y: event.clientY });
+    }
   }
 
   private applySortOrder(
@@ -1139,140 +1143,11 @@ export class Sidebar {
     folderHeader.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const menu = new Menu();
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Add feed")
-          .setIcon("rss")
-          .onClick(() => {
-            this.showAddFeedModal(fullPath);
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Add subfolder")
-          .setIcon("folder-plus")
-          .onClick(() => {
-            this.showFolderNameModal({
-              title: "Add subfolder",
-              existingNames:
-                this.findFolderByPath(fullPath)?.subfolders.map(
-                  (f) => f.name,
-                ) ?? [],
-              onSubmit: (subfolderName) => {
-                void this.addSubfolderByPath(fullPath, subfolderName).then(() =>
-                  this.render(),
-                );
-              },
-            });
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Rename folder")
-          .setIcon("edit")
-          .onClick(() => {
-            this.showFolderNameModal({
-              title: "Rename folder",
-              defaultValue: folderName,
-              existingNames: (() => {
-                const parentPath = fullPath.includes("/")
-                  ? fullPath.split("/").slice(0, -1).join("/")
-                  : "";
-                return parentPath
-                  ? (this.findFolderByPath(parentPath)?.subfolders.map(
-                      (f) => f.name,
-                    ) ?? [])
-                  : this.settings.folders.map((f) => f.name);
-              })(),
-              onSubmit: (newName) => {
-                if (newName !== folderName) {
-                  void this.renameFolderByPath(fullPath, newName).then(() =>
-                    this.render(),
-                  );
-                }
-              },
-            });
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Sort feeds (a to z)")
-          .setIcon("sort-asc")
-          .onClick(() => {
-            void this.sortFeedsInFolder(fullPath, "name", true);
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Sort feeds (z to a)")
-          .setIcon("sort-desc")
-          .onClick(() => {
-            void this.sortFeedsInFolder(fullPath, "name", false);
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Mark all as read")
-          .setIcon("check-circle")
-          .onClick(() => {
-            const allPaths = this.getAllDescendantFolderPaths(fullPath);
-            this.settings.feeds.forEach((feed) => {
-              if (feed.folder && allPaths.includes(feed.folder)) {
-                feed.items.forEach((item) => {
-                  item.read = true;
-                });
-              }
-            });
-            void this.plugin.saveSettings().then(() => this.render());
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle(`Refresh feeds in folder`)
-          .setIcon("refresh-cw")
-          .onClick(() => {
-            void this.plugin.refreshFeedsInFolder(fullPath);
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Refresh all feeds")
-          .setIcon("refresh-cw")
-          .onClick(() => {
-            void this.plugin.refreshFeeds();
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        const isPinned = folderObj.pinned;
-        item
-          .setTitle(isPinned ? "Unpin folder" : "Pin folder")
-          .setIcon(isPinned ? "unlock" : "lock")
-          .onClick(() => {
-            folderObj.pinned = !isPinned;
-            folderObj.modifiedAt = Date.now();
-            void this.plugin.saveSettings().then(() => this.render());
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Delete folder")
-          .setIcon("trash")
-          .onClick(() => {
-            this.showConfirmModal(
-              `Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`,
-              () => {
-                const allPaths = this.getAllDescendantFolderPaths(fullPath);
-                this.settings.feeds = this.settings.feeds.filter(
-                  (feed) => !allPaths.includes(feed.folder),
-                );
-                this.removeFolderByPath(fullPath);
-                this.render();
-              },
-            );
-          });
-      });
-      menu.showAtMouseEvent(e);
+      this.showFolderContextMenu(e, folderObj, fullPath, folderName);
+    });
+
+    this.attachLongPressContextMenu(folderHeader, (event) => {
+      this.showFolderContextMenu(event, folderObj, fullPath, folderName);
     });
 
     folderHeader.addEventListener("dragstart", (e) => {
@@ -1632,13 +1507,14 @@ export class Sidebar {
       this.showFeedContextMenu(e, feed);
     });
 
-    this.attachLongPressContextMenu(feedEl, feed);
+    this.attachLongPressContextMenu(feedEl, (event) => {
+      this.showFeedContextMenu(event, feed);
+    });
 
     feedEl.addEventListener("dragstart", (e) => {
-      if (e.dataTransfer) {
-        e.dataTransfer.setData("feed-url", feed.url);
-        e.dataTransfer.effectAllowed = "move";
-      }
+      if (!e.dataTransfer) return;
+      e.dataTransfer.setData("feed-url", feed.url);
+      e.dataTransfer.effectAllowed = "move";
     });
 
     const clearFeedDropClasses = () => {
@@ -1711,7 +1587,10 @@ export class Sidebar {
     });
   }
 
-  private attachLongPressContextMenu(feedEl: HTMLElement, feed: Feed): void {
+  private attachLongPressContextMenu(
+    targetEl: HTMLElement,
+    onLongPress: (event: MouseEvent) => void,
+  ): void {
     let longPressTriggered = false;
 
     const clearTimer = () => {
@@ -1721,7 +1600,7 @@ export class Sidebar {
       }
     };
 
-    feedEl.addEventListener("pointerdown", (event: PointerEvent) => {
+    targetEl.addEventListener("pointerdown", (event: PointerEvent) => {
       if (event.pointerType === "mouse") return;
 
       longPressTriggered = false;
@@ -1734,21 +1613,166 @@ export class Sidebar {
           clientX: event.clientX,
           clientY: event.clientY,
         });
-        this.showFeedContextMenu(syntheticEvent, feed);
+        onLongPress(syntheticEvent);
       }, 500);
     });
 
-    feedEl.addEventListener("pointerup", clearTimer);
-    feedEl.addEventListener("pointercancel", clearTimer);
-    feedEl.addEventListener("pointermove", clearTimer);
+    targetEl.addEventListener("pointerup", clearTimer);
+    targetEl.addEventListener("pointercancel", clearTimer);
+    targetEl.addEventListener("pointermove", clearTimer);
 
-    feedEl.addEventListener("click", (event) => {
+    targetEl.addEventListener("click", (event) => {
       if (longPressTriggered) {
         event.preventDefault();
         event.stopPropagation();
         longPressTriggered = false;
       }
     });
+  }
+
+  private showFolderContextMenu(
+    event: MouseEvent,
+    folderObj: Folder,
+    fullPath: string,
+    folderName: string,
+  ): void {
+    const menu = new Menu();
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Add feed")
+        .setIcon("rss")
+        .onClick(() => {
+          this.showAddFeedModal(fullPath);
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Add subfolder")
+        .setIcon("folder-plus")
+        .onClick(() => {
+          this.showFolderNameModal({
+            title: "Add subfolder",
+            existingNames:
+              this.findFolderByPath(fullPath)?.subfolders.map((f) => f.name) ??
+              [],
+            onSubmit: (subfolderName) => {
+              void this.addSubfolderByPath(fullPath, subfolderName).then(() =>
+                this.render(),
+              );
+            },
+          });
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Rename folder")
+        .setIcon("edit")
+        .onClick(() => {
+          this.showFolderNameModal({
+            title: "Rename folder",
+            defaultValue: folderName,
+            existingNames: (() => {
+              const parentPath = fullPath.includes("/")
+                ? fullPath.split("/").slice(0, -1).join("/")
+                : "";
+              return parentPath
+                ? (this.findFolderByPath(parentPath)?.subfolders.map(
+                    (f) => f.name,
+                  ) ?? [])
+                : this.settings.folders.map((f) => f.name);
+            })(),
+            onSubmit: (newName) => {
+              if (newName !== folderName) {
+                void this.renameFolderByPath(fullPath, newName).then(() =>
+                  this.render(),
+                );
+              }
+            },
+          });
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Sort feeds (a to z)")
+        .setIcon("sort-asc")
+        .onClick(() => {
+          void this.sortFeedsInFolder(fullPath, "name", true);
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Sort feeds (z to a)")
+        .setIcon("sort-desc")
+        .onClick(() => {
+          void this.sortFeedsInFolder(fullPath, "name", false);
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Mark all as read")
+        .setIcon("check-circle")
+        .onClick(() => {
+          const allPaths = this.getAllDescendantFolderPaths(fullPath);
+          this.settings.feeds.forEach((feed) => {
+            if (feed.folder && allPaths.includes(feed.folder)) {
+              feed.items.forEach((item) => {
+                item.read = true;
+              });
+            }
+          });
+          void this.plugin.saveSettings().then(() => this.render());
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle(`Refresh feeds in folder`)
+        .setIcon("refresh-cw")
+        .onClick(() => {
+          void this.plugin.refreshFeedsInFolder(fullPath);
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Refresh all feeds")
+        .setIcon("refresh-cw")
+        .onClick(() => {
+          void this.plugin.refreshFeeds();
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      const isPinned = folderObj.pinned;
+      item
+        .setTitle(isPinned ? "Unpin folder" : "Pin folder")
+        .setIcon(isPinned ? "unlock" : "lock")
+        .onClick(() => {
+          folderObj.pinned = !isPinned;
+          folderObj.modifiedAt = Date.now();
+          void this.plugin.saveSettings().then(() => this.render());
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Delete folder")
+        .setIcon("trash")
+        .onClick(() => {
+          this.showConfirmModal(
+            `Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`,
+            () => {
+              const allPaths = this.getAllDescendantFolderPaths(fullPath);
+              this.settings.feeds = this.settings.feeds.filter(
+                (feed) => !allPaths.includes(feed.folder),
+              );
+              this.removeFolderByPath(fullPath);
+              this.render();
+            },
+          );
+        });
+    });
+    if (typeof menu.showAtMouseEvent === "function") {
+      menu.showAtMouseEvent(event);
+    } else {
+      menu.showAtPosition({ x: event.clientX, y: event.clientY });
+    }
   }
 
   private findFolderByPath(path: string): Folder | null {
