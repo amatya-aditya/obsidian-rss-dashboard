@@ -13,7 +13,8 @@ export async function exportBlob(args: {
   const { blob, filename, isMobile } = args;
 
   if (isMobile) {
-    const canShareFn = (navigator as unknown as { canShare?: unknown }).canShare;
+    const canShareFn = (navigator as unknown as { canShare?: unknown })
+      .canShare;
     const shareFn = (navigator as unknown as { share?: unknown }).share;
 
     if (typeof shareFn === "function" && typeof File !== "undefined") {
@@ -23,17 +24,21 @@ export async function exportBlob(args: {
         });
 
         if (typeof canShareFn === "function") {
-          const canShare = (navigator as unknown as {
-            canShare: (data: unknown) => boolean;
-          }).canShare;
+          const canShare = (
+            navigator as unknown as {
+              canShare: (data: unknown) => boolean;
+            }
+          ).canShare;
           if (!canShare({ files: [file] })) {
             throw new Error("navigator.canShare returned false");
           }
         }
 
-        await (navigator as unknown as {
-          share: (data: unknown) => Promise<void>;
-        }).share({
+        await (
+          navigator as unknown as {
+            share: (data: unknown) => Promise<void>;
+          }
+        ).share({
           files: [file],
           title: filename,
         });
@@ -88,6 +93,11 @@ export async function exportBlob(args: {
 
 export type CopyToClipboardResult = "copied" | "failed";
 
+/**
+ * Copies text to the clipboard using the modern Clipboard API.
+ * No fallback is provided for legacy browsers or insecure contexts.
+ * @returns "copied" if successful, otherwise "failed".
+ */
 export async function copyTextToClipboard(
   text: string,
 ): Promise<CopyToClipboardResult> {
@@ -97,26 +107,8 @@ export async function copyTextToClipboard(
       return "copied";
     }
   } catch {
-    // fall through to legacy fallback
+    // Clipboard API not available or failed
   }
-
-  try {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "true");
-    textarea.classList.add("rss-dashboard-clipboard-textarea");
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
-      const ok = document.execCommand("copy");
-      return ok ? "copied" : "failed";
-    } finally {
-      textarea.remove();
-    }
-  } catch {
-    return "failed";
-  }
+  // No fallback for deprecated execCommand; fail gracefully
+  return "failed";
 }

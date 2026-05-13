@@ -1,4 +1,4 @@
-import { App, Notice, setIcon, TFile } from "obsidian";
+import { App, setIcon, TFile } from "obsidian";
 import { FeedItem, RssDashboardSettings } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
 import { MediaService } from "../services/media-service";
@@ -7,7 +7,6 @@ import {
   fetchFullArticleContentWithOutcome,
   RESTRICTED_ARTICLE_BANNER,
   RESTRICTED_ARTICLE_LINK_TEXT,
-  RESTRICTED_ARTICLE_NOTICE,
   RESTRICTED_ARTICLE_REASON,
 } from "../utils/full-article-fetch";
 import { isLikelyVideoItem } from "../utils/video-detection";
