@@ -564,7 +564,6 @@ describe("FeedParser.parseFeed", () => {
   const mediaSettings = {
     autoTagVideos: true,
     defaultYouTubeFolder: "Videos",
-    defaultYouTubeTag: "youtube",
     defaultPodcastFolder: "Podcast",
     defaultPodcastTag: "podcast",
     defaultRssFolder: "RSS",

@@ -39,4 +39,43 @@ describe("migrateMediaVideoTagSettings", () => {
     );
     expect(names.filter((name) => name === "video")).toHaveLength(1);
   });
+
+  it("removes deprecated YouTube tag during migration", () => {
+    const settings: Record<string, unknown> = {
+      media: { autoTagVideos: true, defaultYouTubeTag: "youtube" },
+      availableTags: [
+        { name: "YouTube", color: "#ff0000" },
+        { name: "Video", color: "#d04747" },
+        { name: "Podcast", color: "#8e44ad" },
+      ],
+    };
+
+    const changed = migrateMediaVideoTagSettings(settings);
+
+    expect(changed).toBe(true);
+    expect(
+      (settings.media as Record<string, unknown>).defaultYouTubeTag,
+    ).toBeUndefined();
+    const tags = settings.availableTags as Array<{ name: string }>;
+    expect(tags.some((tag) => tag.name.toLowerCase() === "youtube")).toBe(
+      false,
+    );
+    expect(tags.some((tag) => tag.name.toLowerCase() === "video")).toBe(true);
+  });
+
+  it("normalizes malformed availableTags and ensures Video tag exists", () => {
+    const settings: Record<string, unknown> = {
+      media: { autoTagVideos: true },
+      availableTags: null,
+    };
+
+    const changed = migrateMediaVideoTagSettings(settings);
+
+    expect(changed).toBe(true);
+    expect(Array.isArray(settings.availableTags)).toBe(true);
+    const names = (settings.availableTags as Array<{ name: string }>).map(
+      (tag) => tag.name.toLowerCase(),
+    );
+    expect(names).toContain("video");
+  });
 });

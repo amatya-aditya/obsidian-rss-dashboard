@@ -268,4 +268,58 @@ describe("MediaService.detectAndProcessFeed", () => {
       "videos",
     );
   });
+
+  it("auto-applies Video tag to YouTube feeds when enabled", () => {
+    const youtubeFeed = createFeed([
+      createItem({
+        guid: "yt-video-1",
+        link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      }),
+    ]);
+    youtubeFeed.url =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw";
+
+    const detected = MediaService.detectAndProcessFeed(youtubeFeed);
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [{ name: "Video", color: "#d04747" }],
+      { autoTagVideos: true },
+    );
+
+    const item = tagged.items[0];
+    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("video");
+    expect(item.tags.map((tag) => tag.name.toLowerCase())).not.toContain(
+      "youtube",
+    );
+  });
+
+  it("does not throw when availableTags is invalid during video tagging", () => {
+    const youtubeFeed = createFeed([
+      createItem({
+        guid: "yt-video-invalid-tags",
+        link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      }),
+    ]);
+    youtubeFeed.url =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw";
+
+    const detected = MediaService.detectAndProcessFeed(youtubeFeed);
+
+    expect(() =>
+      MediaService.applyMediaTags(
+        detected,
+        null as unknown as Array<{ name: string; color: string }>,
+        { autoTagVideos: true },
+      ),
+    ).not.toThrow();
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      null as unknown as Array<{ name: string; color: string }>,
+      { autoTagVideos: true },
+    );
+
+    expect(tagged.items[0].tags).toEqual([]);
+  });
 });

@@ -236,9 +236,28 @@ export function migrateMediaVideoTagSettings(
     changed = true;
   }
 
-  const availableTags = Array.isArray(settings.availableTags)
-    ? settings.availableTags
-    : [];
+  // Remove deprecated defaultYouTubeTag field
+  if ("defaultYouTubeTag" in media) {
+    delete media.defaultYouTubeTag;
+    changed = true;
+  }
+
+  const hadValidAvailableTags = Array.isArray(settings.availableTags);
+  const availableTags = hadValidAvailableTags ? settings.availableTags : [];
+
+  // Remove YouTube tag if present (YouTube videos now use generic Video tag)
+  const youtubeTagIndex = availableTags.findIndex(
+    (tag) =>
+      isRecord(tag) &&
+      typeof tag.name === "string" &&
+      tag.name.toLowerCase() === "youtube",
+  );
+
+  if (youtubeTagIndex !== -1) {
+    availableTags.splice(youtubeTagIndex, 1);
+    settings.availableTags = availableTags;
+    changed = true;
+  }
 
   const hasVideoTag = availableTags.some(
     (tag) =>
@@ -249,6 +268,11 @@ export function migrateMediaVideoTagSettings(
 
   if (!hasVideoTag) {
     availableTags.push({ name: "Video", color: "#d04747" });
+    settings.availableTags = availableTags;
+    changed = true;
+  }
+
+  if (!hadValidAvailableTags) {
     settings.availableTags = availableTags;
     changed = true;
   }

@@ -601,21 +601,19 @@ export class MediaService {
     let tagCategory: "video" | "podcast" | undefined;
     if (feed.mediaType === "video") {
       tagCategory = "video";
-      if (this.isYouTubeFeed(feed.url)) {
-        tagNameCandidates = ["youtube"];
-      } else {
-        const shouldAutoTagVideos = mediaSettings?.autoTagVideos ?? true;
-        if (!shouldAutoTagVideos) {
-          return feed;
-        }
-        tagNameCandidates = ["video", "videos"];
+      const shouldAutoTagVideos = mediaSettings?.autoTagVideos ?? true;
+      if (!shouldAutoTagVideos) {
+        return feed;
       }
+      tagNameCandidates = ["video", "videos"];
     } else if (feed.mediaType === "podcast") {
       tagCategory = "podcast";
       tagNameCandidates = ["podcast"];
     }
 
     if (tagNameCandidates.length === 0 || !tagCategory) return feed;
+    if (!Array.isArray(availableTags) || availableTags.length === 0)
+      return feed;
 
     const mediaTag = availableTags.find((t) =>
       tagNameCandidates.includes(t.name.toLowerCase()),

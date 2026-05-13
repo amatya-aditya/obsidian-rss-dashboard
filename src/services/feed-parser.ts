@@ -3507,7 +3507,11 @@ export class FeedParser {
       const refreshedFeed = await this.parseFeed(feed.url, feed);
 
       return refreshedFeed;
-    } catch {
+    } catch (error) {
+      console.error(
+        `[RSS dashboard] Error parsing feed ${feed.title} (${feed.url}):`,
+        error,
+      );
       return feed;
     }
   }

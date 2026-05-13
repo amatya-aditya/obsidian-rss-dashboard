@@ -103,6 +103,9 @@ export function loadAndNormalizeSettings(
     DEFAULT_SETTINGS.media,
     settings.media ?? {},
   );
+  settings.availableTags = Array.isArray(settings.availableTags)
+    ? settings.availableTags
+    : [...DEFAULT_SETTINGS.availableTags];
   settings.display = Object.assign(
     {},
     DEFAULT_SETTINGS.display,

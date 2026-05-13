@@ -141,6 +141,22 @@ describe("settings-loader", () => {
       expect(result.savedArticlesPageSize).toBe(20);
       expect(result.starredArticlesPageSize).toBe(20);
     });
+
+    it("normalizes invalid availableTags to defaults", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const raw = {
+        availableTags: null as unknown as RssDashboardSettings["availableTags"],
+      };
+      const result = loadAndNormalizeSettings(raw);
+
+      expect(Array.isArray(result.availableTags)).toBe(true);
+      expect(result.availableTags.length).toBeGreaterThan(0);
+      expect(
+        result.availableTags.map((tag) => tag.name.toLowerCase()),
+      ).toContain("video");
+    });
   });
 
   // ── migrateSettings ──────────────────────────────────────────────────────────

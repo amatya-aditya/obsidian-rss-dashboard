@@ -194,7 +194,6 @@ export type PodcastTheme =
 export interface MediaSettings {
   autoTagVideos: boolean;
   defaultYouTubeFolder: string;
-  defaultYouTubeTag: string;
   defaultPodcastFolder: string;
   defaultPodcastTag: string;
   defaultRssFolder: string;
@@ -534,7 +533,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     { name: "Important", color: "#e74c3c" },
     { name: "Read later", color: "#3498db" },
     { name: "Favorite", color: "#f1c40f" },
-    { name: "YouTube", color: "#ff0000" },
     { name: "Video", color: "#d04747" },
     { name: "Podcast", color: "#8e44ad" },
   ],
@@ -558,7 +556,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   media: {
     autoTagVideos: true,
     defaultYouTubeFolder: "Videos",
-    defaultYouTubeTag: "youtube",
     defaultPodcastFolder: "Podcast",
     defaultPodcastTag: "podcast",
     defaultRssFolder: "RSS",
