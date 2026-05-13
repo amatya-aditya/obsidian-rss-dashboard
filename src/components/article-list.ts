@@ -3,6 +3,7 @@ import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { ArticleHeader } from "./article-header";
 import { ArticleEmptyState } from "./article-empty-state";
 import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
+import { MediaService } from "../services/media-service";
 import {
   formatDateWithRelative,
   ensureUtf8Meta,
@@ -1301,8 +1302,9 @@ export class ArticleList {
     const iconContainer = container.createDiv({
       cls: "rss-dashboard-article-feed-icon",
     });
+    const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
 
-    if (mediaType === "video") {
+    if (mediaType === "video" && isYouTubeFeed) {
       setIcon(iconContainer, "play");
       iconContainer.addClass("video");
     } else if (mediaType === "podcast") {
@@ -1337,8 +1339,9 @@ export class ArticleList {
   private renderHeaderFeedIcon(container: HTMLElement, feedUrl: string): void {
     const feed = this.settings.feeds.find((f) => f.url === feedUrl);
     const mediaType = feed?.mediaType;
+    const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
 
-    if (mediaType === "video") {
+    if (mediaType === "video" && isYouTubeFeed) {
       setIcon(container, "play");
       container.addClass("video");
     } else if (mediaType === "podcast") {

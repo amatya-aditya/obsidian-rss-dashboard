@@ -4,6 +4,7 @@ import { TABLET_LAYOUT_MAX_WIDTH } from "../utils/platform-utils";
 import { ArticleFilterMenu, FilterChangeEvent } from "./article-filter-menu";
 import { ArticleHeaderMenu } from "./article-header-menu";
 import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
+import { MediaService } from "../services/media-service";
 
 interface ArticleHeaderMenuController {
   destroy(): void;
@@ -215,20 +216,24 @@ export class ArticleHeader {
     if (existingHeaderMenu) {
       (existingHeaderMenu as { destroy: () => void }).destroy();
     }
-    this.headerMenu = new ArticleHeaderMenu(this.settings, this.articleSearchQuery, {
-      onSearch: (query) => {
-        this.syncSearch(query);
-        this.callbacks.onSearch(query);
+    this.headerMenu = new ArticleHeaderMenu(
+      this.settings,
+      this.articleSearchQuery,
+      {
+        onSearch: (query) => {
+          this.syncSearch(query);
+          this.callbacks.onSearch(query);
+        },
+        onSortChange: (value) => this.callbacks.onSortChange(value),
+        onGroupChange: (value) => this.callbacks.onGroupChange(value),
+        onFilterChange: (event) => this.callbacks.onFilterChange(event),
+        onToggleViewStyle: (style) => this.callbacks.onToggleViewStyle(style),
+        onPersistSettings: () => this.callbacks.onPersistSettings(),
+        onRefreshFeeds: () => this.callbacks.onRefreshFeeds(),
+        onMarkAllAsRead: () => this.callbacks.onMarkAllAsRead(),
+        onMarkAllAsUnread: () => this.callbacks.onMarkAllAsUnread(),
       },
-      onSortChange: (value) => this.callbacks.onSortChange(value),
-      onGroupChange: (value) => this.callbacks.onGroupChange(value),
-      onFilterChange: (event) => this.callbacks.onFilterChange(event),
-      onToggleViewStyle: (style) => this.callbacks.onToggleViewStyle(style),
-      onPersistSettings: () => this.callbacks.onPersistSettings(),
-      onRefreshFeeds: () => this.callbacks.onRefreshFeeds(),
-      onMarkAllAsRead: () => this.callbacks.onMarkAllAsRead(),
-      onMarkAllAsUnread: () => this.callbacks.onMarkAllAsUnread(),
-    });
+    );
     this.headerMenu.render(rightSection);
 
     const desktopControls = rightSection.createDiv({
@@ -521,7 +526,9 @@ export class ArticleHeader {
       this.articleSearchDesktopInput.value = val;
     const headerMenu: ArticleHeaderMenuController | null = this.headerMenu;
     if (headerMenu) {
-      (headerMenu as { setSearchQuery: (query: string) => void }).setSearchQuery(val);
+      (
+        headerMenu as { setSearchQuery: (query: string) => void }
+      ).setSearchQuery(val);
     }
   }
 
@@ -604,8 +611,9 @@ export class ArticleHeader {
   private renderHeaderFeedIcon(container: HTMLElement, feedUrl: string): void {
     const feed = this.settings.feeds.find((f) => f.url === feedUrl);
     const mediaType = feed?.mediaType;
+    const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
 
-    if (mediaType === "video") {
+    if (mediaType === "video" && isYouTubeFeed) {
       setIcon(container, "play");
       container.addClass("video");
     } else if (mediaType === "podcast") {

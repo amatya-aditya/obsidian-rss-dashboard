@@ -493,7 +493,11 @@ export class MediaService {
       }
 
       if (item.mediaContentMedium === "image") {
-        return false;
+        // Some feeds mark video entries with image medium for thumbnails.
+        // Preserve URL-route fallback for known video links.
+        if (!isKnownVideoUrl(item.link)) {
+          return false;
+        }
       }
 
       return isKnownVideoUrl(item.link);

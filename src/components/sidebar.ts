@@ -29,6 +29,7 @@ import { isValidFolderName } from "../utils/validation";
 import type RssDashboardPlugin from "../../main";
 import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
+import { MediaService } from "../services/media-service";
 import {
   moveFeedAndInsert,
   moveFeedToFolderAppend,
@@ -1436,8 +1437,11 @@ export class Sidebar {
       setIcon(feedIcon, "loader-2");
       feedIcon.addClass("processing");
       feedEl.classList.add("processing-feed");
-    } else if (feed.mediaType === "video") {
-      // Show play icon for video feeds
+    } else if (
+      feed.mediaType === "video" &&
+      MediaService.isYouTubeFeed(feed.url)
+    ) {
+      // Show play icon only for YouTube feeds.
       feedEl.classList.add("video-feed");
       setIcon(feedIcon, "play");
       feedIcon.addClass("video");

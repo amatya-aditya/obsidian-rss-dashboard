@@ -62,6 +62,7 @@ This remains reproducible even after:
 - `MediaService.applyMediaTags` assumed `availableTags` was always a valid array and called `.find(...)` directly.
 - For YouTube feeds, this threw during post-parse tagging and the refresh path returned the old feed object.
 - The refresh catch path swallowed the exception without useful context, which made the issue appear as a generic YouTube fetch failure.
+- A second classification gap affected Bloomberg-style video entries: when `media:content` used `medium="image"`, the detection logic returned `article` too early, before URL-route fallback (`/news/videos/...`) could mark the item as `video`.
 
 ### Fix Implemented
 
@@ -70,6 +71,8 @@ This remains reproducible even after:
 - Hardened media-tag migration to always leave `settings.availableTags` as a normalized array.
 - Added refresh error logging in feed parser catch block for diagnosability.
 - Added focused regression tests for malformed `availableTags` across media-service, settings-loader, and migration coverage.
+- Updated media classification precedence so `mediaContentMedium = "image"` still allows known video-route URL fallback (for example Bloomberg `/news/videos/...`).
+- Added Bloomberg regressions in both media-service unit tests and feed-parser integration tests to verify Video tag application when image metadata is present.
 
 ## Hypotheses to Investigate Next
 
@@ -97,6 +100,6 @@ This remains reproducible even after:
 
 - Status: Fixed (hotfix implemented)
 - Reproducible: Not observed after patch in focused verification
-- Test status: Focused regression suite passes (`34` tests across media-service, settings-loader, and migration)
+- Test status: Focused regression suites pass (`84` tests across media-service and feed-parser, plus prior `34` tests across media-service, settings-loader, and migration)
 
 /cc @maintainers @plugin-author

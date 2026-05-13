@@ -574,6 +574,44 @@ describe("FeedParser.parseFeed", () => {
     podcastTheme: "solarized" as const,
   };
 
+  it("applies Video tag for Bloomberg video-route items with image medium", async () => {
+    const feedUrl = "https://www.bloomberg.com/feed/podcast.xml";
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Bloomberg TV</title>
+    <link>https://www.bloomberg.com</link>
+    <item>
+      <title>Henry Wang on US-China Summit Expectations</title>
+      <link>https://www.bloomberg.com/news/videos/2026-05-13/henry-wang-on-us-china-summit-expectations-video</link>
+      <description>Video item with image medium metadata</description>
+      <media:content url="https://assets.bwbx.io/images/sample.jpg" medium="image" type="image/jpeg" />
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>https://www.bloomberg.com/news/videos/2026-05-13/henry-wang-on-us-china-summit-expectations-video</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({
+      status: 200,
+      text: xml,
+    });
+
+    const parser = new FeedParser(mediaSettings, [
+      { name: "Video", color: "#d04747" },
+    ]);
+    const parsed = await parser.parseFeed(feedUrl, null);
+
+    expect(parsed.mediaType).toBe("video");
+    expect(parsed.items[0].mediaType).toBe("video");
+    expect(parsed.items[0].tags.map((tag) => tag.name.toLowerCase())).toContain(
+      "video",
+    );
+
+    requestUrlSpy.mockRestore();
+  });
+
   it("dedupes numeric URL-fragment GUIDs across refreshes while preserving read state", async () => {
     const feedUrl = "https://example.com/feed.xml";
 

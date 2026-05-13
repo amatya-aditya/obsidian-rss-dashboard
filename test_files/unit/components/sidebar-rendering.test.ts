@@ -168,6 +168,72 @@ describe("Sidebar Rendering", () => {
     expect(feed1).not.toBeNull();
   });
 
+  it("uses favicon flow for non-YouTube video feeds instead of play icon", () => {
+    settings.display.useDomainFavicons = true;
+    settings.feeds = [
+      {
+        title: "Bloomberg Video Feed",
+        url: "https://www.bloomberg.com/feed/podcast.xml",
+        folder: "Folder 1",
+        mediaType: "video",
+        items: [{ read: false }],
+      } as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as any,
+      container,
+      plugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    const feedRow = container.querySelector(
+      '[data-feed-url="https://www.bloomberg.com/feed/podcast.xml"]',
+    ) as HTMLElement;
+    const icon = feedRow.querySelector(
+      ".rss-dashboard-feed-icon",
+    ) as HTMLElement;
+
+    expect(feedRow.classList.contains("video-feed")).toBe(false);
+    expect(icon.dataset.icon).not.toBe("play");
+  });
+
+  it("shows play icon for YouTube video feeds", () => {
+    settings.display.useDomainFavicons = true;
+    settings.feeds = [
+      {
+        title: "YouTube Feed",
+        url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC123",
+        folder: "Folder 1",
+        mediaType: "video",
+        items: [{ read: false }],
+      } as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as any,
+      container,
+      plugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    const feedRow = container.querySelector(
+      '[data-feed-url="https://www.youtube.com/feeds/videos.xml?channel_id=UC123"]',
+    ) as HTMLElement;
+    const icon = feedRow.querySelector(
+      ".rss-dashboard-feed-icon",
+    ) as HTMLElement;
+
+    expect(feedRow.classList.contains("video-feed")).toBe(true);
+    expect(icon.dataset.icon).toBe("play");
+  });
+
   it("keeps the feed icon at a fixed size when the row is width constrained", () => {
     settings.feeds = [
       {

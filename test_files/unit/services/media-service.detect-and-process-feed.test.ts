@@ -269,6 +269,31 @@ describe("MediaService.detectAndProcessFeed", () => {
     );
   });
 
+  it("classifies Bloomberg-style video routes as video when media medium is image and auto-tags Video", () => {
+    const detected = MediaService.detectAndProcessFeed(
+      createFeed([
+        createItem({
+          guid: "bloomberg-video-image-medium",
+          link: "https://www.bloomberg.com/news/videos/2026-05-13/henry-wang-on-us-china-summit-expectations-video",
+          mediaContentMedium: "image",
+        }),
+      ]),
+    );
+
+    expect(detected.mediaType).toBe("video");
+    expect(detected.items[0].mediaType).toBe("video");
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [{ name: "Video", color: "#d04747" }],
+      { autoTagVideos: true },
+    );
+
+    expect(tagged.items[0].tags.map((tag) => tag.name.toLowerCase())).toContain(
+      "video",
+    );
+  });
+
   it("auto-applies Video tag to YouTube feeds when enabled", () => {
     const youtubeFeed = createFeed([
       createItem({
