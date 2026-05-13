@@ -1,0 +1,444 @@
+# Plugin Scorecard for RSS Dashboard
+
+https://community.obsidian.md/plugins/rss-dashboard
+
+## Compliance Score
+
+- **Current Score**: 46%
+
+### Recent Compliance Progress
+
+- Removed deprecated clipboard fallback usage (`document.execCommand("copy")`) from `src/utils/export-utils.ts`.
+- Updated unit tests in `test_files/unit/utils/export-utils.test.ts` to align with modern Clipboard API behavior.
+- Re-ran lint and unit tests to validate the change and prevent regressions.
+
+This document outlines the current compliance issues and provides a structured plan for improving the plugin's overall compliance score. Each item includes a checkbox to track progress.
+
+## Health
+
+- **Status**: Excellent
+- **Details**: This plugin is actively maintained.
+
+### Hygiene
+
+- **Details**: Has readme, license, description. ✅ **Contributing guide exists** (`CONTRIBUTING.MD` in root, added ~3 weeks ago).
+
+### Maintenance
+
+- **Details**: Last commit 4 days ago. 486 commits in the past year. Last release 4 days ago.
+
+### Responsiveness
+
+- **Details**: Closed 87% of 77 issues. 3 contributors active in the past year.
+
+### Adoption
+
+- **Details**: 6.7k installations, 528 stars.
+
+## Review
+
+- **Risks**: 304 issues found by automated scans of the latest release.
+
+### Disclosures
+
+- [ ] Plugin might make requests to 184 external domains. _(See `docs/SECURITY.md` for detailed audit)_
+- [ ] **Clipboard Access**: Reads or writes the system clipboard. May expose content copied from outside Obsidian.
+- [x] **Vault Read**: Reads individual vault files via the Obsidian API (`vault.read`, `vault.cachedRead`). ✅ **Core features**: Save article, shard storage model. See `docs/SECURITY.md`.
+- [x] **Vault Write**: Creates or modifies vault files via the Obsidian API (`vault.modify`, `vault.create`, etc.). ✅ **Core features**: Save article, shard storage model. See `docs/SECURITY.md`.
+- [ ] Malware scan not available.
+- [ ] Vulnerable dependencies scan not available.
+- [ ] Obfuscation scan not available.
+- [ ] Network requests scan not available.
+- [ ] Build verification not available.
+
+### Risks
+
+1. **Unexpected undescribed directive comment**: Include descriptions to explain why the comment is necessary. (51 occurrences)
+   - [ ] main.ts:344
+   - [ ] main.ts:347
+   - [ ] main.ts:349
+   - [ ] main.ts:361
+   - [ ] main.ts:364
+   - [ ] main.ts:366
+   - [ ] main.ts:375
+   - [ ] main.ts:381
+   - [ ] main.ts:972
+   - [ ] main.ts:1001
+   - [ ] src/components/article-renderer.ts:399
+   - [ ] src/components/article-renderer.ts:403
+   - [ ] src/components/sidebar.ts:2344
+   - [ ] src/components/sidebar.ts:2346
+   - [ ] src/modals/import-opml-modal.ts:154
+   - [ ] src/modals/import-opml-modal.ts:183
+   - [ ] src/services/article-saver.ts:141
+   - [ ] src/services/backup-service.ts:106
+   - [ ] src/services/backup-service.ts:148
+   - [ ] src/services/import-export-service.ts:24
+   - [ ] src/utils/export-utils.ts:113
+   - [ ] src/views/reader-view.ts:1173
+   - [ ] src/views/reader-view.ts:1176
+   - [ ] test_files/stubs/obsidian.ts:10
+   - [ ] test_files/stubs/obsidian.ts:17
+   - [ ] test_files/stubs/obsidian.ts:144
+   - [ ] test_files/stubs/obsidian.ts:275
+   - [ ] test_files/stubs/obsidian.ts:288
+   - [ ] test_files/stubs/obsidian.ts:293
+   - [ ] test_files/stubs/obsidian.ts:368
+   - [ ] test_files/stubs/obsidian.ts:371
+   - [ ] test_files/stubs/obsidian.ts:374
+   - [ ] test_files/stubs/obsidian.ts:383
+   - [ ] test_files/stubs/obsidian.ts:391
+   - [ ] test_files/stubs/obsidian.ts:395
+   - [ ] test_files/stubs/obsidian.ts:457
+   - [ ] test_files/stubs/obsidian.ts:462
+   - [ ] test_files/stubs/obsidian.ts:476
+   - [ ] test_files/stubs/obsidian.ts:488
+   - [ ] test_files/stubs/obsidian.ts:537
+   - [ ] test_files/stubs/obsidian.ts:594
+   - [ ] test_files/stubs/obsidian.ts:638
+   - [ ] test_files/stubs/obsidian.ts:678
+   - [ ] test_files/stubs/obsidian.ts:714
+   - [ ] test_files/stubs/obsidian.ts:759
+   - [ ] test_files/stubs/obsidian.ts:873
+   - [ ] test_files/stubs/obsidian.ts:876
+   - [ ] test_files/stubs/obsidian.ts:881
+   - [ ] test_files/stubs/obsidian.ts:886
+   - [ ] test_files/unit/test-dom-polyfills.ts:147
+   - [ ] test_files/unit/test-dom-polyfills.ts:168
+
+2. **Disabling '@typescript-eslint/no-explicit-any' is not allowed**. (37 occurrences)
+   - [ ] main.ts:344
+   - [ ] main.ts:361
+   - [ ] main.ts:375
+   - [ ] main.ts:972
+   - [ ] src/components/sidebar.ts:2344
+   - [ ] src/components/sidebar.ts:2346
+   - [ ] src/modals/import-opml-modal.ts:154
+   - [ ] src/services/article-saver.ts:141
+   - [ ] src/services/backup-service.ts:106
+   - [ ] test_files/stubs/obsidian.ts:10
+   - [ ] test_files/stubs/obsidian.ts:17
+   - [ ] test_files/stubs/obsidian.ts:144
+   - [ ] test_files/stubs/obsidian.ts:275
+   - [ ] test_files/stubs/obsidian.ts:288
+   - [ ] test_files/stubs/obsidian.ts:293
+   - [ ] test_files/stubs/obsidian.ts:368
+   - [ ] test_files/stubs/obsidian.ts:371
+   - [ ] test_files/stubs/obsidian.ts:374
+   - [ ] test_files/stubs/obsidian.ts:383
+   - [ ] test_files/stubs/obsidian.ts:391
+   - [ ] test_files/stubs/obsidian.ts:395
+   - [ ] test_files/stubs/obsidian.ts:457
+   - [ ] test_files/stubs/obsidian.ts:462
+   - [ ] test_files/stubs/obsidian.ts:476
+   - [ ] test_files/stubs/obsidian.ts:488
+   - [ ] test_files/stubs/obsidian.ts:537
+   - [ ] test_files/stubs/obsidian.ts:594
+   - [ ] test_files/stubs/obsidian.ts:638
+   - [ ] test_files/stubs/obsidian.ts:678
+   - [ ] test_files/stubs/obsidian.ts:714
+   - [ ] test_files/stubs/obsidian.ts:759
+   - [ ] test_files/stubs/obsidian.ts:873
+   - [ ] test_files/stubs/obsidian.ts:876
+   - [ ] test_files/stubs/obsidian.ts:881
+   - [ ] test_files/stubs/obsidian.ts:886
+   - [ ] test_files/unit/test-dom-polyfills.ts:147
+   - [ ] test_files/unit/test-dom-polyfills.ts:168
+
+3. **Disabling '@microsoft/sdl/no-inner-html' is not allowed**. (4 occurrences)
+   - [ ] src/components/article-renderer.ts:399
+   - [ ] src/components/article-renderer.ts:403
+   - [ ] src/views/reader-view.ts:1173
+   - [ ] src/views/reader-view.ts:1176
+
+4. **Unsafe assignment to innerHTML**. (4 occurrences)
+   - [ ] src/components/article-renderer.ts:400
+   - [ ] src/components/article-renderer.ts:404
+   - [ ] src/views/reader-view.ts:1173
+   - [ ] src/views/reader-view.ts:1176
+
+5. **Disabling '@typescript-eslint/no-deprecated' is not allowed**.
+   - [x] File: `src/utils/export-utils.ts`, Line: 118 (`document.execCommand` removed; Clipboard API-only flow)
+
+### Warnings
+
+1. **Use 'activeDocument' instead of 'document' for popout window compatibility**. (98 occurrences)
+   - [ ] main.ts:1006
+   - [ ] main.ts:1039
+   - [ ] src/components/article-header.ts:414
+   - [ ] src/components/article-header.ts:450
+   - [ ] src/components/article-list.ts:463
+   - [ ] src/components/article-list.ts:496
+   - [ ] src/components/article-list.ts:797
+   - [ ] src/components/article-list.ts:1572
+   - [ ] src/components/article-list.ts:1584
+   - [ ] src/components/article-list.ts:2054
+   - [ ] src/components/folder-selector-popup.ts:104
+   - [ ] src/components/folder-selector-popup.ts:313
+   - [ ] src/components/folder-selector-popup.ts:320
+   - [ ] src/components/folder-selector-popup.ts:454
+   - [ ] src/components/folder-selector-popup.ts:455
+   - [ ] src/components/sidebar.ts:1943
+   - [ ] src/components/sidebar.ts:1983
+   - [ ] src/components/sidebar.ts:2014
+   - [ ] src/components/sidebar.ts:2025
+   - [ ] src/modals/feed-manager/feed-manager-modal.ts:601
+   - [ ] src/modals/feed-manager/supported-format-badges.ts:18
+   - [ ] src/modals/feed-manager/supported-format-badges.ts:23
+   - [ ] src/modals/feed-manager/supported-format-badges.ts:28
+   - [ ] src/modals/import-opml-modal.ts:189
+   - [ ] src/modals/import-opml-modal.ts:611
+   - [ ] src/modals/import-opml-modal.ts:765
+   - [ ] src/modals/import-opml-modal.ts:894
+   - [ ] src/modals/import-opml-modal.ts:944
+   - [ ] src/modals/import-opml-modal.ts:952
+   - [ ] src/modals/mobile-navigation-modal.ts:120
+   - [ ] src/modals/mobile-navigation-modal.ts:124
+   - [ ] src/services/background-import-service.ts:468
+   - [ ] src/services/highlight-service.ts:36
+   - [ ] src/services/highlight-service.ts:133
+   - [ ] src/services/highlight-service.ts:142
+   - [ ] src/services/highlight-service.ts:215
+   - [ ] src/services/highlight-service.ts:224
+   - [ ] src/services/web-viewer-integration.ts:56
+   - [ ] src/services/web-viewer-integration.ts:97
+   - [ ] src/services/web-viewer-integration.ts:164
+   - [ ] src/services/web-viewer-integration.ts:198
+   - [ ] src/services/web-viewer-integration.ts:211
+   - [ ] src/services/web-viewer-integration.ts:219
+   - [ ] src/services/web-viewer-integration.ts:234
+   - [ ] src/settings/tabs/display-settings-tab.ts:1101
+   - [ ] src/settings/tabs/display-settings-tab.ts:1102
+   - [ ] src/settings/tabs/display-settings-tab.ts:1104
+   - [ ] src/settings/tabs/display-settings-tab.ts:1133
+   - [ ] src/settings/tabs/display-settings-tab.ts:1141
+   - [ ] src/settings/tabs/display-settings-tab.ts:1163
+   - [ ] src/settings/tabs/import-export-settings-tab.ts:109
+   - [ ] src/settings/tabs/import-export-settings-tab.ts:170
+   - [ ] src/utils/export-utils.ts:72
+   - [ ] src/utils/export-utils.ts:75
+   - [ ] src/utils/export-utils.ts:104
+   - [ ] src/utils/export-utils.ts:108
+   - [ ] src/utils/export-utils.ts:114
+   - [ ] src/utils/safe-html.ts:93
+   - [ ] src/utils/sidebar-icon-registry.ts:88
+   - [ ] src/utils/tag-utils.ts:170
+   - [ ] src/utils/tag-utils.ts:209
+   - [ ] src/views/dashboard-view.ts:2182
+   - [ ] src/views/dashboard-view.ts:2422
+   - [ ] src/views/dashboard-view.ts:2558
+   - [ ] src/views/dashboard-view.ts:2561
+   - [ ] src/views/discover-view.ts:1801
+   - [ ] src/views/discover-view.ts:1804
+   - [ ] src/views/reader-view.ts:484
+   - [ ] src/views/reader-view.ts:556
+   - [ ] src/views/reader-view.ts:590
+   - [ ] src/views/reader-view.ts:604
+   - [ ] test_files/stubs/obsidian.ts:407
+   - [ ] test_files/stubs/obsidian.ts:444
+   - [ ] test_files/stubs/obsidian.ts:445
+   - [ ] test_files/stubs/obsidian.ts:446
+   - [ ] test_files/stubs/obsidian.ts:492
+   - [ ] test_files/stubs/obsidian.ts:496
+   - [ ] test_files/stubs/obsidian.ts:500
+   - [ ] test_files/stubs/obsidian.ts:504
+   - [ ] test_files/stubs/obsidian.ts:508
+   - [ ] test_files/stubs/obsidian.ts:544
+   - [ ] test_files/stubs/obsidian.ts:601
+   - [ ] test_files/stubs/obsidian.ts:645
+   - [ ] test_files/stubs/obsidian.ts:685
+   - [ ] test_files/stubs/obsidian.ts:721
+   - [ ] test_files/stubs/obsidian.ts:766
+   - [ ] test_files/stubs/obsidian.ts:774
+   - [ ] test_files/stubs/obsidian.ts:809
+   - [ ] test_files/stubs/obsidian.ts:844
+   - [ ] test_files/stubs/obsidian.ts:847
+   - [ ] test_files/stubs/obsidian.ts:851
+   - [ ] test_files/stubs/obsidian.ts:861
+   - [ ] test_files/unit/components/article-list-harness.ts:109
+   - [ ] test_files/unit/services/web-viewer-integration-harness.ts:56
+   - [ ] test_files/unit/test-dom-polyfills.ts:94
+   - [ ] test_files/unit/test-dom-polyfills.ts:116
+   - [ ] test_files/unit/test-dom-polyfills.ts:133
+   - [ ] test_files/unit/test-dom-polyfills.ts:151
+
+2. **Unexpected any. Specify a different type**. (21 occurrences)
+   - [ ] test_files/stubs/obsidian.ts:12
+   - [ ] test_files/stubs/obsidian.ts:378
+   - [ ] test_files/unit/components/article-list-harness.ts:57
+   - [ ] test_files/unit/components/article-list-harness.ts:58
+   - [ ] test_files/unit/components/article-list-harness.ts:61
+   - [ ] test_files/unit/components/article-list-harness.ts:62
+   - [ ] test_files/unit/services/web-viewer-integration-harness.ts:91
+   - [ ] test_files/unit/services/web-viewer-integration-harness.ts:110
+   - [ ] test_files/unit/test-dom-polyfills.ts:36
+   - [ ] test_files/unit/test-dom-polyfills.ts:37
+   - [ ] test_files/unit/test-dom-polyfills.ts:48
+   - [ ] test_files/unit/test-dom-polyfills.ts:49
+   - [ ] test_files/unit/test-dom-polyfills.ts:63
+   - [ ] test_files/unit/test-dom-polyfills.ts:64
+   - [ ] test_files/unit/test-dom-polyfills.ts:81
+   - [ ] test_files/unit/test-dom-polyfills.ts:82
+   - [ ] test_files/unit/test-dom-polyfills.ts:131
+   - [ ] test_files/unit/test-dom-polyfills.ts:132
+   - [ ] test_files/unit/test-dom-polyfills.ts:190
+
+3. **Use 'createDiv()' instead of 'document.createElement("div")'**. (18 occurrences)
+   - [ ] src/components/article-list.ts:463
+   - [ ] src/components/article-list.ts:496
+   - [ ] src/components/article-list.ts:797
+   - [ ] src/components/article-list.ts:2054
+   - [ ] src/utils/sidebar-icon-registry.ts:88
+   - [ ] test_files/stubs/obsidian.ts:407
+   - [ ] test_files/stubs/obsidian.ts:444
+   - [ ] test_files/stubs/obsidian.ts:445
+   - [ ] test_files/stubs/obsidian.ts:446
+   - [ ] test_files/stubs/obsidian.ts:492
+   - [ ] test_files/stubs/obsidian.ts:496
+   - [ ] test_files/stubs/obsidian.ts:500
+   - [ ] test_files/stubs/obsidian.ts:504
+   - [ ] test_files/stubs/obsidian.ts:508
+   - [ ] test_files/stubs/obsidian.ts:844
+   - [ ] test_files/stubs/obsidian.ts:847
+   - [ ] test_files/stubs/obsidian.ts:851
+   - [ ] test_files/unit/test-dom-polyfills.ts:94
+
+4. **Use 'activeWindow.setTimeout()' instead of 'setTimeout()' for popout window compatibility**. (10 occurrences)
+   - [ ] src/components/article-header.ts:448
+   - [ ] src/components/article-list.ts:755
+   - [ ] src/components/article-list.ts:855
+   - [ ] src/components/sidebar.ts:229
+   - [ ] src/modals/mobile-discover-filters-modal.ts:61
+   - [ ] src/settings/modals/settings-modals.ts:60
+   - [ ] src/settings/modals/settings-modals.ts:128
+   - [ ] src/utils/export-utils.ts:58
+   - [ ] src/utils/export-utils.ts:78
+   - [ ] src/views/kagi-smallweb-view.ts:416
+
+5. **Use 'createEl("input")' instead of 'document.createElement("input")'**. (8 occurrences)
+
+6. **Use 'createEl("button")' instead of 'document.createElement("button")'**. (4 occurrences)
+   - [ ] src/settings/tabs/display-settings-tab.ts:1133
+   - [ ] src/settings/tabs/display-settings-tab.ts:1141
+   - [ ] src/settings/tabs/display-settings-tab.ts:1163
+   - [ ] test_files/stubs/obsidian.ts:544
+
+7. **Use 'activeWindow.clearTimeout()' instead of 'clearTimeout()' for popout window compatibility**. (3 occurrences)
+   - [ ] src/components/article-list.ts:939
+   - [ ] src/views/kagi-smallweb-view.ts:67
+   - [ ] src/views/kagi-smallweb-view.ts:414
+
+8. **Unused parameters** (must match naming convention). (Multiple occurrences)
+   - 'match' is defined but never used (src/services/feed-parser.ts:2745, 2754, 2781)
+   - 'index' is defined but never used (src/services/feed-parser.ts:1691, src/views/podcast-player.ts:593)
+   - 'e' is defined but never used (src/views/podcast-player.ts:526, 544)
+   - 'portal' is defined but never used
+   - 'defaultFolder' is defined but never used (src/components/folder-selector-popup.ts:101)
+   - 'idx' is defined but never used (src/services/feed-parser.ts:1811)
+   - 'payload' is defined but never used (src/views/dashboard-view.ts:201)
+   - 'q' is defined but never used (src/views/dashboard-view.ts:428)
+   - 'depth' is defined but never used (src/views/discover-view.ts:906)
+
+9. **DOM API migration issues**. (Multiple occurrences)
+   - Use 'createSpan()' instead of 'document.createElement("span")' (3 occurrences)
+   - Use 'createEl("mark")' instead of 'document.createElement("mark")' (2 occurrences)
+   - Use 'createEl("a")' instead of 'document.createElement("a")' (1 occurrence)
+   - Use 'createEl("textarea")' instead of 'document.createElement("textarea")' (1 occurrence)
+   - Use 'createEl("select")' instead of 'document.createElement("select")' (1 occurrence)
+   - Use 'createEl("option")' instead of 'document.createElement("option")' (1 occurrence)
+   - Use 'createFragment()' instead of 'document.createDocumentFragment()' (1 occurrence)
+
+10. **Type checking improvements**. (5 occurrences)
+    - Use '.instanceOf(HTMLElement)' instead of 'instanceof HTMLElement' for cross-window safe type checking (2 occurrences)
+    - This assertion is unnecessary since it does not change the type of the expression (3 occurrences)
+
+11. **Dependency issue**. (1 occurrence)
+    - [ ] "builtin-modules" should be replaced with an alternative package (package.json:28)
+
+12. **Import best practices**. (1 occurrence)
+    - [ ] 'moment' import is restricted from being used. Import from 'obsidian' instead (test_files/stubs/obsidian.ts:6)
+
+## Documentation Strategy
+
+This scorecard is part of a multi-document compliance tracking system:
+
+- **`plugin-scorecard.md`** (this file): Compliance tracking dashboard with actionable checklist items
+- **`docs/SECURITY.md`** (recommended): Transparent security disclosure explaining vault access, clipboard usage, and external domains
+- **`CONTRIBUTING.MD`**: Contribution guidelines (exists in root)
+- **`.repo/compliance-tracking.md`** (repo memory): Historical record of compliance improvements over time
+
+## Suggested Improvements for This Working Document
+
+### 1. **Priority Triage System**
+
+- Add a priority column to categorize issues by impact:
+  - **Critical**: Blocks compliance or security (innerHTML, unsafe assignments)
+  - **High**: Major refactoring needed (98 activeDocument issues)
+  - **Medium**: Code quality improvements (createDiv/createEl migrations)
+  - **Low**: Code style/cleanup (unused parameters, assertions)
+
+### 2. **Progress Tracking Enhancements**
+
+- Add a summary section at the top showing:
+  - Total items: X
+  - Completed: ✓
+  - In Progress: N/A
+  - Pending: X
+- Consider creating a separate branch per category for focused PR reviews
+
+### 3. **Dependency Analysis**
+
+- Expand Disclosures section to document why each access is necessary
+- Link each clipboard/vault access to specific feature requirements
+- Consider adding risk mitigation strategies for external domain requests
+
+### 4. **Testing and Validation Strategy**
+
+- Add section for integration test coverage before/after fixes
+- Recommend test suite expansion for popout window compatibility
+- Include validation checklist for each category
+
+### 5. **Timeline and Milestones**
+
+- Break compliance improvements into phases:
+  - **Phase 1** (Critical): innerHTML/innerHtml issues
+  - **Phase 2** (High): DOM API migrations and activeDocument replacements
+  - **Phase 3** (Medium): Type safety improvements
+  - **Phase 4** (Low): Code cleanup and best practices
+
+### 6. **Contributing Guide**
+
+- Create `CONTRIBUTING.md` to close "Missing contributing guide" in Hygiene
+- Add guidelines for handling ESLint rule disabling
+- Document preferred patterns for Obsidian API usage
+
+### 7. **Batch Refactoring Script**
+
+- Consider creating a script to batch-fix common issues:
+  - Automated `document` → `activeDocument` replacements
+  - `createElement` → Obsidian `createEl()` migrations
+  - Unused parameter prefixing with `_`
+
+### 8. **External Domains Audit**
+
+- Investigate the 184 external domain requests
+- Create a security policy document explaining which requests are necessary
+- Consider adding request logging/filtering for transparency
+
+### 9. **Release Notes Template**
+
+- Add an accompanying release notes section documenting compliance fixes
+- This helps users understand security/stability improvements
+
+### 10. **GitHub Artifact Attestation**
+
+- Address "release assets are missing a GitHub artifact attestation"
+- Add CI/CD step to generate attestations during release process
+
+## Action Items for Next Steps
+
+- [ ] **Create CONTRIBUTING.md** to improve Hygiene score
+- [ ] **Start Phase 1**: Fix innerHTML and innerHtml security issues
+- [ ] **Set up Git workflow**: Use feature branches (`fix/compliance-improvement`) for organized tracking
+- [ ] **Automate formatting**: Consider ESLint --fix for DOM API migrations
+- [ ] **Document decisions**: Add JSDoc comments explaining necessary ESLint disables
