@@ -10,18 +10,32 @@ This document outlines the current compliance issues and provides a structured p
 
 ### Recent Compliance Progress
 
+#### Pass 1
+
 - Removed deprecated clipboard fallback usage (`document.execCommand("copy")`) from `src/utils/export-utils.ts`.
 - Updated unit tests in `test_files/unit/utils/export-utils.test.ts` to align with modern Clipboard API behavior.
 - Re-ran lint and unit tests to validate the change and prevent regressions.
+
+#### Pass 2
 
 - Refactored all main.ts settings access to use a centralized, well-documented internal API utility (`src/utils/settings-manager.ts`).
 - Added JSDoc to all remaining type-unsafe blocks in main.ts, explaining necessity and compliance context.
 - Updated vault adapter and Electron dialog blocks with clear documentation.
 - Removed all redundant eslint-disable comments from main.ts settings access.
 
+#### Pass 3
+
 - Replaced unsafe `innerHTML` assignments in article rendering paths with `sanitizeAndAppendHtml(...)` DOM-based injection in `src/components/article-renderer.ts` and `src/views/reader-view.ts`.
 - Removed all `@microsoft/sdl/no-inner-html` disables from production rendering paths after refactor.
 - Re-ran lint and unit tests after refactor; both passed.
+
+#### Pass 4
+
+- Updated ESLint configuration for test files: removed `test_files/**` from ignores and added a dedicated `test_files/tsconfig.json` parser override so test linting is now enforced.
+- Adjusted test-lint configuration for backlog work (test-file scope) and began active burn-down of strict TypeScript lint debt.
+- Completed typed cleanup in 11 high-churn test files (`safe-html`, `reader-view*`, `video-player`) and validated with targeted passing test runs.
+- Backlog trend this phase: **lint errors reduced from 3239 to 2686** (\-553), warnings currently **54**.
+- Audit alignment this phase: no existing checkbox item in the current scorecard was fully closed by this batch; this work establishes enforcement and materially reduces the remaining lint backlog.
 
 ## Health
 

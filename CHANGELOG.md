@@ -15,6 +15,11 @@
 - Fixed bug where reverting from 'shard' storage back to 'legacy' caused all articles to become marked as past auto-deletion date.
 - Fixed YouTube feed articles duplicating in shard storage when the same video was stored under different GUID forms (`yt:video:VIDEO_ID`, `watch?v=VIDEO_ID`, `/shorts/VIDEO_ID`). All three forms now normalize to a single canonical key so duplicates are prevented on refresh and existing duplicate pairs are auto-cleaned on load.
 
+### Development
+
+- Relaxed eslint.config.mjs to now include testing files.
+- Cleaned backlog of linting errors in testing files
+
 ## [2.3.0-beta.1] - May 11, 2026
 
 - New experimental **Vault Shards storage mode**: Store article history in separate per-feed files instead of one large data.json file, with easy migration between modes.

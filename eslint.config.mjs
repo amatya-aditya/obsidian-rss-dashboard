@@ -12,7 +12,6 @@ export default defineConfig([
       "main.js",
       "*.mjs",
       "scripts/**/*.js",
-      "test_files/**",
       ".kilo/**",
     ],
   },
@@ -25,7 +24,28 @@ export default defineConfig([
     },
   },
   {
+    files: ["test_files/**/*.ts"],
+    languageOptions: {
+      parser: tsparser,
+      parserOptions: { project: "./test_files/tsconfig.json" },
+      globals: {
+        ...globals.browser,
+      },
+    },
+    rules: {
+      "obsidianmd/ui/sentence-case": [
+        "off",
+        {
+          acronyms: ["OPML", "XML", "API"],
+          brands: ["Obsidian"],
+          allowAutoFix: true,
+        },
+      ],
+    },
+  },
+  {
     files: ["**/*.ts"],
+    ignores: ["test_files/**/*.ts"],
     languageOptions: {
       parser: tsparser,
       parserOptions: { project: "./tsconfig.json" },
