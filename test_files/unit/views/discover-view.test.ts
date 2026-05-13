@@ -102,10 +102,34 @@ async function flushPromises(): Promise<void> {
   await new Promise((resolve) => window.setTimeout(resolve, 0));
 }
 
+interface TestPlugin {
+  settings: RssDashboardSettings;
+  ingestFeedsForBackgroundImport: ReturnType<typeof vi.fn>;
+  ensureFolderExists: ReturnType<typeof vi.fn>;
+  saveSettings: ReturnType<typeof vi.fn>;
+  getActiveDashboardView: ReturnType<typeof vi.fn>;
+  activateSmallwebView: ReturnType<typeof vi.fn>;
+  activateView: ReturnType<typeof vi.fn>;
+}
+
+interface TestView {
+  feeds: FeedMetadata[];
+  filters: DiscoverFilters;
+  categoryMap: { categories: Record<string, unknown> };
+  filteredFeeds: FeedMetadata[];
+  pageSize: number;
+  currentPage: number;
+  saveFilterState: () => void;
+  filterFeeds: (resetPage?: boolean) => void;
+  loadData: () => void;
+  render: () => void;
+  containerEl: HTMLElement;
+}
+
 async function createView(opts?: {
   savedFilters?: Partial<DiscoverFilters> | null;
   followedUrls?: string[];
-}) {
+}): Promise<{ app: App; plugin: TestPlugin; view: TestView }> {
   const app = new App();
   if (opts?.savedFilters) {
     app.saveLocalStorage("rss-discover-filters", opts.savedFilters);
@@ -122,7 +146,7 @@ async function createView(opts?: {
     lastUpdated: 0,
   }));
 
-  const plugin = {
+  const plugin: TestPlugin = {
     settings,
     ingestFeedsForBackgroundImport: vi.fn(
       async (
@@ -152,12 +176,17 @@ async function createView(opts?: {
     getActiveDashboardView: vi.fn(async () => null),
     activateSmallwebView: vi.fn(async () => undefined),
     activateView: vi.fn(async () => undefined),
-  } as any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const leaf = new (WorkspaceLeaf as any)(app);
+  };
+  // WorkspaceLeaf is not generic, so cast only once here
+  const leaf = new (WorkspaceLeaf as unknown as {
+    new (app: App): WorkspaceLeaf;
+  })(app);
 
   const mod = await import("../../../src/views/discover-view");
-  const view = new mod.DiscoverView(leaf as any, plugin);
+  const view = new mod.DiscoverView(
+    leaf,
+    plugin as unknown as ConstructorParameters<typeof mod.DiscoverView>[1],
+  ) as unknown as TestView;
 
   return { app, plugin, view };
 }
@@ -180,20 +209,20 @@ describe("DiscoverView (P1-3)", () => {
     };
     const { view } = await createView({ savedFilters: saved });
 
-    (view as any).loadData();
+    view.loadData();
 
-    expect((view as any).feeds).toHaveLength(4);
-    expect((view as any).filters.query).toBe("technology");
-    expect((view as any).filters.selectedTypes).toEqual(["Blog"]);
-    expect((view as any).filters.selectedTags).toEqual(["ai"]);
+    expect(view.feeds).toHaveLength(4);
+    expect(view.filters.query).toBe("technology");
+    expect(view.filters.selectedTypes).toEqual(["Blog"]);
+    expect(view.filters.selectedTags).toEqual(["ai"]);
 
-    const categoryMap = (view as any).categoryMap;
+    const categoryMap = view.categoryMap;
     expect(categoryMap).toBeTruthy();
     expect(Object.keys(categoryMap.categories)).toEqual(
       expect.arrayContaining(["Technology", "World"]),
     );
 
-    const filtered = (view as any).filteredFeeds as FeedMetadata[];
+    const filtered = view.filteredFeeds;
     expect(filtered).toHaveLength(1);
     expect(filtered[0].title).toBe("Alpha Tech Blog");
   });
@@ -203,8 +232,8 @@ describe("DiscoverView (P1-3)", () => {
       followedUrls: ["https://gamma.example.com/rss.xml"],
     });
 
-    (view as any).feeds = FEEDS_FIXTURE;
-    (view as any).filters = {
+    view.feeds = FEEDS_FIXTURE;
+    view.filters = {
       query: "tech",
       selectedTypes: ["Podcast"],
       selectedPaths: [
@@ -217,17 +246,17 @@ describe("DiscoverView (P1-3)", () => {
       followStatus: "followed",
     } satisfies DiscoverFilters;
 
-    (view as any).filterFeeds();
-    const filtered = (view as any).filteredFeeds as FeedMetadata[];
+    view.filterFeeds();
+    const filtered = view.filteredFeeds;
     expect(filtered.map((f) => f.id)).toEqual(["3"]);
   });
 
   it("filterFeeds(false) clamps currentPage when results shrink", async () => {
     const { view } = await createView();
-    (view as any).feeds = FEEDS_FIXTURE;
-    (view as any).pageSize = 1;
-    (view as any).currentPage = 3;
-    (view as any).filters = {
+    view.feeds = FEEDS_FIXTURE;
+    view.pageSize = 1;
+    view.currentPage = 3;
+    view.filters = {
       query: "alpha",
       selectedTypes: [],
       selectedPaths: [],
@@ -235,17 +264,17 @@ describe("DiscoverView (P1-3)", () => {
       followStatus: "all",
     } satisfies DiscoverFilters;
 
-    (view as any).filterFeeds(false);
+    view.filterFeeds(false);
 
-    expect((view as any).filteredFeeds).toHaveLength(1);
-    expect((view as any).currentPage).toBe(1);
+    expect(view.filteredFeeds).toHaveLength(1);
+    expect(view.currentPage).toBe(1);
   });
 
   it("saveFilterState() writes filters to local storage", async () => {
     const { app, view } = await createView();
     const spy = vi.spyOn(app, "saveLocalStorage");
 
-    (view as any).filters = {
+    view.filters = {
       query: "x",
       selectedTypes: ["News"],
       selectedPaths: [],
@@ -253,33 +282,38 @@ describe("DiscoverView (P1-3)", () => {
       followStatus: "all",
     } satisfies DiscoverFilters;
 
-    (view as any).saveFilterState();
-    expect(spy).toHaveBeenCalledWith(
-      "rss-discover-filters",
-      (view as any).filters,
-    );
+    view.saveFilterState();
+    expect(spy).toHaveBeenCalledWith("rss-discover-filters", view.filters);
   });
 
   it("renders an Add all... button next to the results count and opens the folder picker in list-only mode", async () => {
     const { view } = await createView();
 
-    (view as any).loadData();
+    view.loadData();
     view.render();
 
     const headerLeft = view.containerEl.querySelector(
       ".rss-discover-filter-header-left",
-    ) as HTMLElement;
+    );
+    expect(headerLeft).not.toBeNull();
+    if (!headerLeft) throw new Error("headerLeft not found");
     const resultsCount = headerLeft.querySelector(
       ".rss-discover-results-count",
-    ) as HTMLElement;
-    const addAllButton = headerLeft.querySelector(
-      ".rss-discover-add-all-btn",
-    ) as HTMLButtonElement;
+    );
+    expect(resultsCount).not.toBeNull();
+    if (!resultsCount) throw new Error("resultsCount not found");
+    const addAllButton = headerLeft.querySelector(".rss-discover-add-all-btn");
+    expect(addAllButton).not.toBeNull();
+    if (!addAllButton) throw new Error("addAllButton not found");
 
     expect(resultsCount.textContent).toBe("4 feeds found");
-    expect(addAllButton.textContent).toContain("Add all...");
+    expect((addAllButton as HTMLElement).textContent).toContain("Add all...");
 
-    addAllButton.click();
+    if (typeof (addAllButton as HTMLElement).click === "function") {
+      (addAllButton as HTMLElement).click();
+    } else {
+      throw new Error("addAllButton does not have a click method");
+    }
 
     expect(folderSelectorSpy.calls).toHaveLength(1);
     expect(folderSelectorSpy.calls[0].anchorEl).toBe(addAllButton);
@@ -294,42 +328,55 @@ describe("DiscoverView (P1-3)", () => {
     );
     const { plugin, view } = await createView();
 
-    (view as any).loadData();
+    view.loadData();
     view.render();
 
     expect(sharedSidebarRenderSpy).toHaveBeenCalled();
 
-    const sidebar = view.containerEl.querySelector(
-      ".rss-discover-sidebar",
-    ) as HTMLElement;
+    const sidebar = view.containerEl.querySelector(".rss-discover-sidebar");
+    expect(sidebar).not.toBeNull();
+    if (!sidebar) throw new Error("sidebar not found");
     const sidebarSmallweb = sidebar.querySelector(
       ".rss-discover-smallweb-button",
-    ) as HTMLElement;
-    expect(sidebarSmallweb).toBeTruthy();
-    expect(sidebarSmallweb.textContent).toContain("Kagi");
+    );
+    expect(sidebarSmallweb).not.toBeNull();
+    if (!sidebarSmallweb) throw new Error("sidebarSmallweb not found");
+    expect((sidebarSmallweb as HTMLElement).textContent).toContain("Kagi");
 
     const filterHeader = view.containerEl.querySelector(
       ".rss-discover-filter-header-right",
-    ) as HTMLElement;
-    expect(filterHeader.textContent).not.toContain("Smallweb");
+    );
+    expect(filterHeader).not.toBeNull();
+    if (!filterHeader) throw new Error("filterHeader not found");
+    expect((filterHeader as HTMLElement).textContent).not.toContain("Smallweb");
 
-    sidebarSmallweb.click();
+    if (typeof (sidebarSmallweb as HTMLElement).click === "function") {
+      (sidebarSmallweb as HTMLElement).click();
+    } else {
+      throw new Error("sidebarSmallweb does not have a click method");
+    }
     expect(plugin.activateSmallwebView).toHaveBeenCalledTimes(1);
   });
 
   it("bulk add uses the full filtered feed set instead of only the current page", async () => {
     const { plugin, view } = await createView();
 
-    (view as any).loadData();
-    (view as any).pageSize = 1;
-    (view as any).currentPage = 2;
+    view.loadData();
+    view.pageSize = 1;
+    view.currentPage = 2;
     view.render();
 
     const addAllButton = view.containerEl.querySelector(
       ".rss-discover-add-all-btn",
-    ) as HTMLButtonElement;
+    );
+    expect(addAllButton).not.toBeNull();
+    if (!addAllButton) throw new Error("addAllButton not found");
 
-    addAllButton.click();
+    if (typeof (addAllButton as HTMLElement).click === "function") {
+      (addAllButton as HTMLElement).click();
+    } else {
+      throw new Error("addAllButton does not have a click method");
+    }
     folderSelectorSpy.calls[0].onSelect("Uncategorized");
     await flushPromises();
 
@@ -363,7 +410,15 @@ describe("DiscoverView (P1-3)", () => {
       ]),
       expect.objectContaining({ mode: "update" }),
     );
-    expect(plugin.ingestFeedsForBackgroundImport.mock.calls[0][0]).toHaveLength(4);
+    expect(
+      vi.mocked(plugin.ingestFeedsForBackgroundImport).mock
+        .calls[0][0] as Array<{
+        title: string;
+        url: string;
+        folder: string;
+        mediaType?: "article" | "video" | "podcast";
+      }>,
+    ).toHaveLength(4);
   });
 
   it("bulk add only adds filtered feeds and skips feeds that are already followed", async () => {
@@ -371,8 +426,8 @@ describe("DiscoverView (P1-3)", () => {
       followedUrls: ["https://beta.example.com/rss.xml"],
     });
 
-    (view as any).loadData();
-    (view as any).filters = {
+    view.loadData();
+    view.filters = {
       query: "",
       selectedTypes: [],
       selectedPaths: [
@@ -383,14 +438,20 @@ describe("DiscoverView (P1-3)", () => {
       selectedTags: [],
       followStatus: "all",
     } satisfies DiscoverFilters;
-    (view as any).filterFeeds();
+    view.filterFeeds();
     view.render();
 
     const addAllButton = view.containerEl.querySelector(
       ".rss-discover-add-all-btn",
-    ) as HTMLButtonElement;
+    );
+    expect(addAllButton).not.toBeNull();
+    if (!addAllButton) throw new Error("addAllButton not found");
 
-    addAllButton.click();
+    if (typeof (addAllButton as HTMLElement).click === "function") {
+      (addAllButton as HTMLElement).click();
+    } else {
+      throw new Error("addAllButton does not have a click method");
+    }
     folderSelectorSpy.calls[0].onSelect("Research");
     await flushPromises();
 
@@ -412,35 +473,52 @@ describe("DiscoverView (P1-3)", () => {
       ]),
       expect.objectContaining({ mode: "update" }),
     );
-    expect(plugin.ingestFeedsForBackgroundImport.mock.calls[0][0]).toHaveLength(2);
+    expect(
+      vi.mocked(plugin.ingestFeedsForBackgroundImport).mock
+        .calls[0][0] as Array<{
+        title: string;
+        url: string;
+        folder: string;
+        mediaType?: "article" | "video" | "podcast";
+      }>,
+    ).toHaveLength(2);
   });
 
   it("bulk add shows enqueue progress and then clears when ingestion resolves", async () => {
     const { plugin, view } = await createView();
     let resolveImport: ((value: unknown) => void) | undefined;
-    plugin.ingestFeedsForBackgroundImport.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveImport = resolve;
-        }),
+    plugin.ingestFeedsForBackgroundImport.mockReturnValue(
+      new Promise((resolve) => {
+        resolveImport = resolve;
+      }),
     );
 
-    (view as any).loadData();
+    view.loadData();
     view.render();
 
     const addAllButton = view.containerEl.querySelector(
       ".rss-discover-add-all-btn",
-    ) as HTMLButtonElement;
+    );
+    expect(addAllButton).not.toBeNull();
+    if (!addAllButton) throw new Error("addAllButton not found");
 
-    addAllButton.click();
+    if (typeof (addAllButton as HTMLElement).click === "function") {
+      (addAllButton as HTMLElement).click();
+    } else {
+      throw new Error("addAllButton does not have a click method");
+    }
     folderSelectorSpy.calls[0].onSelect("Uncategorized");
     await flushPromises();
 
     const processingButton = view.containerEl.querySelector(
       ".rss-discover-add-all-btn",
-    ) as HTMLButtonElement;
-    expect(processingButton.disabled).toBe(true);
-    expect(processingButton.textContent).toContain("Adding 0/4...");
+    );
+    expect(processingButton).not.toBeNull();
+    if (!processingButton) throw new Error("processingButton not found");
+    expect((processingButton as HTMLButtonElement).disabled).toBe(true);
+    expect((processingButton as HTMLElement).textContent).toContain(
+      "Adding 0/4...",
+    );
 
     resolveImport?.({
       addedCount: 3,
@@ -451,9 +529,11 @@ describe("DiscoverView (P1-3)", () => {
 
     const resetButton = view.containerEl.querySelector(
       ".rss-discover-add-all-btn",
-    ) as HTMLButtonElement;
-    expect(resetButton.disabled).toBe(false);
-    expect(resetButton.textContent).toContain("Add all...");
+    );
+    expect(resetButton).not.toBeNull();
+    if (!resetButton) throw new Error("resetButton not found");
+    expect((resetButton as HTMLButtonElement).disabled).toBe(false);
+    expect((resetButton as HTMLElement).textContent).toContain("Add all...");
   });
 
   it("bulk add summarizes added and skipped counts in a single notice", async () => {
@@ -466,17 +546,24 @@ describe("DiscoverView (P1-3)", () => {
       queuedFeeds: [],
     });
 
-    (view as any).loadData();
+    view.loadData();
     view.render();
 
     const addAllButton = view.containerEl.querySelector(
       ".rss-discover-add-all-btn",
-    ) as HTMLButtonElement;
+    );
+    expect(addAllButton).not.toBeNull();
+    if (!addAllButton) throw new Error("addAllButton not found");
 
-    addAllButton.click();
+    if (typeof (addAllButton as HTMLElement).click === "function") {
+      (addAllButton as HTMLElement).click();
+    } else {
+      throw new Error("addAllButton does not have a click method");
+    }
     folderSelectorSpy.calls[0].onSelect("Uncategorized");
     await flushPromises();
 
+    // eslint-disable-next-line no-console
     expect(console.log).toHaveBeenCalledWith(
       "[Stub Notice]",
       "Added 2 feeds. Articles will be fetched in the background. Skipped 1 already-followed feeds.",

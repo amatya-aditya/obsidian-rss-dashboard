@@ -74,6 +74,18 @@ This document outlines the current compliance issues and provides a structured p
 - Test validation: All 17 tests passing, 0 linting errors
 - Backlog trend this phase: **2020 → 1912 errors** (\-108), warnings still **54**.
 
+#### Pass 8
+
+- Targeted second highest-ROI file: `test_files/unit/views/discover-view.test.ts` — **102 → 0 errors**.
+- Fixed type assertion incompatibility between test mock (`TestPlugin`) and `RssDashboardPlugin` constructor parameter using `as unknown as ConstructorParameters<typeof mod.DiscoverView>[1]` pattern.
+- Resolved both TypeScript compatibility error and ESLint `no-unsafe-argument`/`no-explicit-any` violations in a single disciplined cast.
+- Test validation: All 10 tests passing, 0 linting errors.
+- Backlog trend this phase: **1912 → 1810 errors** (\-102), warnings still **54**.
+
+#### Pass 9 (next)
+
+- Target: `test_files/unit/views/podcast-player.test.ts` — **99** errors (highest remaining ROI).
+
 ## Health
 
 - **Status**: Excellent
