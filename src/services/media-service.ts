@@ -484,7 +484,12 @@ export class MediaService {
       }
 
       if (item.mediaContentType?.startsWith("image/") === true) {
-        return false;
+        // Some feeds (e.g. Bloomberg) attach image media:content as thumbnails
+        // even for video articles. Keep URL-based video-route detection as a
+        // fallback before classifying these as non-video.
+        if (!isKnownVideoUrl(item.link)) {
+          return false;
+        }
       }
 
       if (item.mediaContentMedium === "image") {
@@ -592,33 +597,38 @@ export class MediaService {
       return feed;
     }
 
-    let tagName: string | undefined;
+    let tagNameCandidates: string[] = [];
+    let tagCategory: "video" | "podcast" | undefined;
     if (feed.mediaType === "video") {
+      tagCategory = "video";
       if (this.isYouTubeFeed(feed.url)) {
-        tagName = "youtube";
+        tagNameCandidates = ["youtube"];
       } else {
         const shouldAutoTagVideos = mediaSettings?.autoTagVideos ?? true;
         if (!shouldAutoTagVideos) {
           return feed;
         }
-        tagName = "video";
+        tagNameCandidates = ["video", "videos"];
       }
     } else if (feed.mediaType === "podcast") {
-      tagName = "podcast";
+      tagCategory = "podcast";
+      tagNameCandidates = ["podcast"];
     }
 
-    if (!tagName) return feed;
+    if (tagNameCandidates.length === 0 || !tagCategory) return feed;
 
-    const mediaTag = availableTags.find(
-      (t) => t.name.toLowerCase() === tagName,
+    const mediaTag = availableTags.find((t) =>
+      tagNameCandidates.includes(t.name.toLowerCase()),
     );
     if (!mediaTag) return feed;
 
+    const selectedTagName = mediaTag.name.toLowerCase();
+
     const updatedItems = feed.items.map((item) => {
       const shouldTagItem =
-        tagName === "video" || tagName === "youtube"
+        tagCategory === "video"
           ? item.mediaType === "video"
-          : tagName === "podcast"
+          : tagCategory === "podcast"
             ? item.mediaType === "podcast"
             : false;
 
@@ -627,7 +637,7 @@ export class MediaService {
       }
 
       if (!item.tags) item.tags = [];
-      if (!item.tags.some((t) => t.name.toLowerCase() === tagName)) {
+      if (!item.tags.some((t) => t.name.toLowerCase() === selectedTagName)) {
         item.tags.push({ ...mediaTag });
       }
       return item;

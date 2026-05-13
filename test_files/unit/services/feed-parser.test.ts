@@ -622,6 +622,143 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy.mockRestore();
   });
 
+  it("deduplicates YouTube items whose stored GUID is a watch URL vs yt:video: Atom form", async () => {
+    // Regression test for shard duplication bug: the same YouTube video can
+    // accumulate two entries when one parsing path stores guid as the watch URL
+    // and a later Atom refresh stores guid as yt:video:ID. Both must canonicalise
+    // to the same key so the existing item is found and read-state is preserved.
+    const feedUrl =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCWFKCr40YwOZQx8FHU_ZqqQ";
+
+    const ytAtomXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015"
+      xmlns:media="http://search.yahoo.com/mrss/"
+      xmlns="http://www.w3.org/2005/Atom">
+  <link rel="self" href="${feedUrl}"/>
+  <id>yt:channel:UCWFKCr40YwOZQx8FHU_ZqqQ</id>
+  <yt:channelId>UCWFKCr40YwOZQx8FHU_ZqqQ</yt:channelId>
+  <title>Test Channel</title>
+  <entry>
+    <id>yt:video:dQw4w9WgXcQ</id>
+    <yt:videoId>dQw4w9WgXcQ</yt:videoId>
+    <title>Never Gonna Give You Up</title>
+    <link rel="alternate" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"/>
+    <author><name>Test Channel</name></author>
+    <published>2024-01-01T00:00:00+00:00</published>
+  </entry>
+</feed>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({ status: 200, text: ytAtomXml });
+
+    const parser = new FeedParser(mediaSettings, []);
+
+    // Simulate an existing feed that has the same video stored under its watch
+    // URL guid (as produced by an older parsing path or the link-fallback path).
+    const existingFeed = {
+      title: "Test Channel",
+      url: feedUrl,
+      folder: "",
+      items: [
+        {
+          title: "Never Gonna Give You Up",
+          link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          description: "",
+          content: "",
+          pubDate: "2024-01-01T00:00:00+00:00",
+          guid: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          read: true,
+          starred: false,
+          tags: [],
+          feedTitle: "Test Channel",
+          feedUrl,
+          coverImage: "",
+          saved: false,
+          mediaType: "video" as const,
+        },
+      ],
+      lastUpdated: 0,
+      mediaType: "article" as const,
+    };
+
+    const result = await parser.parseFeed(feedUrl, existingFeed);
+
+    // Must collapse to exactly one item – no duplicate.
+    expect(result.items).toHaveLength(1);
+    // User's read state must be preserved from the existing entry.
+    expect(result.items[0].read).toBe(true);
+    // GUID must be normalised to the canonical yt:video: form.
+    expect(result.items[0].guid).toBe("yt:video:dQw4w9WgXcQ");
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("deduplicates YouTube Shorts stored as a shorts URL vs yt:video: form", async () => {
+    // Same as above but for /shorts/ URLs which are common with mixed-content
+    // YouTube channels (JerryRigEverything style).
+    const feedUrl =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCWFKCr40YwOZQx8FHU_ZqqQ";
+
+    const ytAtomXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015"
+      xmlns:media="http://search.yahoo.com/mrss/"
+      xmlns="http://www.w3.org/2005/Atom">
+  <link rel="self" href="${feedUrl}"/>
+  <id>yt:channel:UCWFKCr40YwOZQx8FHU_ZqqQ</id>
+  <yt:channelId>UCWFKCr40YwOZQx8FHU_ZqqQ</yt:channelId>
+  <title>Test Channel</title>
+  <entry>
+    <id>yt:video:4slngTaicg8</id>
+    <yt:videoId>4slngTaicg8</yt:videoId>
+    <title>60% of people have a drinking problem</title>
+    <link rel="alternate" href="https://www.youtube.com/shorts/4slngTaicg8"/>
+    <author><name>JerryRigEverything</name></author>
+    <published>2026-05-12T18:11:59+00:00</published>
+  </entry>
+</feed>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({ status: 200, text: ytAtomXml });
+
+    const parser = new FeedParser(mediaSettings, []);
+
+    // Existing shard has the shorts URL as the guid (old parsing path).
+    const existingFeed = {
+      title: "Test Channel",
+      url: feedUrl,
+      folder: "",
+      items: [
+        {
+          title: "60% of people have a drinking problem",
+          link: "https://www.youtube.com/shorts/4slngTaicg8",
+          description: "",
+          content: "",
+          pubDate: "2026-05-12 18:11:59",
+          guid: "https://www.youtube.com/shorts/4slngTaicg8",
+          read: true,
+          starred: false,
+          tags: [{ name: "YouTube", color: "#ff0000" }],
+          feedTitle: "Test Channel",
+          feedUrl,
+          coverImage:
+            "https://img.youtube.com/vi/4slngTaicg8/maxresdefault.jpg",
+          saved: false,
+          mediaType: "video" as const,
+        },
+      ],
+      lastUpdated: 0,
+      mediaType: "article" as const,
+    };
+
+    const result = await parser.parseFeed(feedUrl, existingFeed);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].read).toBe(true);
+    expect(result.items[0].guid).toBe("yt:video:4slngTaicg8");
+
+    requestUrlSpy.mockRestore();
+  });
+
   it("skips new items older than autoDeleteDuration cutoff during refresh", async () => {
     const feedUrl = "https://example.com/feed.xml";
 

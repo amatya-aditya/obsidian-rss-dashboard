@@ -347,5 +347,144 @@ describe("settings-loader", () => {
 
       expect(feeds[0].items[0].guid).toBe("https://example.com/item");
     });
+
+    it("merges YouTube duplicate entries (yt:video: vs watch URL vs shorts URL) on startup", async () => {
+      // Regression test: shards can contain paired duplicates for the same
+      // YouTube video stored under different GUID forms. dedupeAndNormalizeFeedItems
+      // must collapse them to a single item using the canonical yt:video: key,
+      // merging read/starred state from both entries.
+      const { canonicalizeItemIdentityUrl } =
+        await import("../../../src/utils/url-utils");
+
+      // Mock canonicalizeItemIdentityUrl to perform YouTube normalisation so this
+      // test exercises the deduplication logic without depending on the full
+      // url-utils implementation (unit isolation).
+      const YT_VIDEO_ID_RE = /^[-_A-Za-z0-9]{11}$/;
+      (
+        canonicalizeItemIdentityUrl as ReturnType<typeof vi.fn>
+      ).mockImplementation((id: string): string => {
+        if (id.startsWith("yt:video:")) {
+          const videoId = id.slice("yt:video:".length);
+          return YT_VIDEO_ID_RE.test(videoId) ? `yt:video:${videoId}` : id;
+        }
+        try {
+          const u = new URL(id);
+          const host = u.hostname.toLowerCase();
+          if (
+            host === "www.youtube.com" ||
+            host === "youtube.com" ||
+            host === "m.youtube.com"
+          ) {
+            const v = u.searchParams.get("v");
+            if (v && YT_VIDEO_ID_RE.test(v)) return `yt:video:${v}`;
+            const m = u.pathname.match(
+              /^\/shorts\/([-_A-Za-z0-9]{11})(?:[/?#]|$)/,
+            );
+            if (m) return `yt:video:${m[1]}`;
+          }
+        } catch {
+          // not a URL
+        }
+        return id;
+      });
+
+      const { dedupeAndNormalizeFeedItems } =
+        await import("../../../src/utils/settings-loader");
+
+      const feeds: Feed[] = [
+        createFeed({
+          items: [
+            // Older entry – URL form guid, user has read this one
+            createFeedItem({
+              guid: "https://www.youtube.com/shorts/4slngTaicg8",
+              title: "60% of people have a drinking problem",
+              link: "https://www.youtube.com/shorts/4slngTaicg8",
+              read: true,
+              starred: false,
+              pubDate: "2026-05-12 18:11:59",
+            }),
+            // Duplicate entry – yt:video form from a different parsing path
+            createFeedItem({
+              guid: "yt:video:4slngTaicg8",
+              title: "60% of people have a drinking problem",
+              link: "https://www.youtube.com/shorts/4slngTaicg8",
+              read: false,
+              starred: false,
+              pubDate: "2026-05-12T18:11:59+00:00",
+            }),
+          ],
+        }),
+      ];
+
+      const changed = dedupeAndNormalizeFeedItems(feeds);
+
+      expect(changed).toBe(true);
+      expect(feeds[0].items).toHaveLength(1);
+      // Canonical guid must be the yt:video: form
+      expect(feeds[0].items[0].guid).toBe("yt:video:4slngTaicg8");
+      // read state must be merged (true | false = true)
+      expect(feeds[0].items[0].read).toBe(true);
+    });
+
+    it("merges three YouTube entries for the same video (watch, shorts, yt:video) to one", async () => {
+      // Edge case: a feed might accumulate all three GUID forms for one video.
+      const { canonicalizeItemIdentityUrl } =
+        await import("../../../src/utils/url-utils");
+
+      const YT_VIDEO_ID_RE = /^[-_A-Za-z0-9]{11}$/;
+      (
+        canonicalizeItemIdentityUrl as ReturnType<typeof vi.fn>
+      ).mockImplementation((id: string): string => {
+        if (id.startsWith("yt:video:")) {
+          const videoId = id.slice("yt:video:".length);
+          return YT_VIDEO_ID_RE.test(videoId) ? `yt:video:${videoId}` : id;
+        }
+        try {
+          const u = new URL(id);
+          const host = u.hostname.toLowerCase();
+          if (
+            host === "www.youtube.com" ||
+            host === "youtube.com" ||
+            host === "m.youtube.com"
+          ) {
+            const v = u.searchParams.get("v");
+            if (v && YT_VIDEO_ID_RE.test(v)) return `yt:video:${v}`;
+            const m = u.pathname.match(
+              /^\/shorts\/([-_A-Za-z0-9]{11})(?:[/?#]|$)/,
+            );
+            if (m) return `yt:video:${m[1]}`;
+          }
+        } catch {
+          // not a URL
+        }
+        return id;
+      });
+
+      const { dedupeAndNormalizeFeedItems } =
+        await import("../../../src/utils/settings-loader");
+
+      const feeds: Feed[] = [
+        createFeed({
+          items: [
+            createFeedItem({
+              guid: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+              starred: true,
+            }),
+            createFeedItem({
+              guid: "https://www.youtube.com/shorts/dQw4w9WgXcQ",
+              read: true,
+            }),
+            createFeedItem({ guid: "yt:video:dQw4w9WgXcQ" }),
+          ],
+        }),
+      ];
+
+      dedupeAndNormalizeFeedItems(feeds);
+
+      expect(feeds[0].items).toHaveLength(1);
+      expect(feeds[0].items[0].guid).toBe("yt:video:dQw4w9WgXcQ");
+      expect(feeds[0].items[0].read).toBe(true);
+      expect(feeds[0].items[0].starred).toBe(true);
+    });
   });
 });

@@ -88,6 +88,26 @@ describe("MediaService.detectAndProcessFeed", () => {
     expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("video");
   });
 
+  it("auto-applies existing Videos tag to non-YouTube video feeds when enabled", () => {
+    const detected = MediaService.detectAndProcessFeed(
+      createFeed([
+        createItem({
+          guid: "video-tag-plural-1",
+          link: "https://www.bloomberg.com/news/videos/2026-05-12/video-story",
+        }),
+      ]),
+    );
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [{ name: "Videos", color: "#d04747" }],
+      { autoTagVideos: true },
+    );
+
+    const item = tagged.items[0];
+    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("videos");
+  });
+
   it("does not auto-apply Video tag to non-YouTube video feeds when disabled", () => {
     const detected = MediaService.detectAndProcessFeed(
       createFeed([
@@ -197,5 +217,55 @@ describe("MediaService.detectAndProcessFeed", () => {
 
     expect(result.mediaType).toBe("video");
     expect(result.items[0].mediaType).toBe("video");
+  });
+
+  it("classifies Bloomberg-style video routes as video when media content is image and auto-tags Video", () => {
+    const detected = MediaService.detectAndProcessFeed(
+      createFeed([
+        createItem({
+          guid: "bloomberg-video-image-content",
+          link: "https://www.bloomberg.com/news/videos/2026-05-13/henry-wang-on-us-china-summit-expectations-video",
+          mediaContentType: "image/jpeg",
+        }),
+      ]),
+    );
+
+    expect(detected.mediaType).toBe("video");
+    expect(detected.items[0].mediaType).toBe("video");
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [{ name: "Video", color: "#d04747" }],
+      { autoTagVideos: true },
+    );
+
+    expect(tagged.items[0].tags.map((tag) => tag.name.toLowerCase())).toContain(
+      "video",
+    );
+  });
+
+  it("classifies Bloomberg-style video routes as video when media content is image and auto-tags existing Videos tag", () => {
+    const detected = MediaService.detectAndProcessFeed(
+      createFeed([
+        createItem({
+          guid: "bloomberg-video-image-content-plural",
+          link: "https://www.bloomberg.com/news/videos/2026-05-13/henry-wang-on-us-china-summit-expectations-video",
+          mediaContentType: "image/jpeg",
+        }),
+      ]),
+    );
+
+    expect(detected.mediaType).toBe("video");
+    expect(detected.items[0].mediaType).toBe("video");
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [{ name: "Videos", color: "#d04747" }],
+      { autoTagVideos: true },
+    );
+
+    expect(tagged.items[0].tags.map((tag) => tag.name.toLowerCase())).toContain(
+      "videos",
+    );
   });
 });
