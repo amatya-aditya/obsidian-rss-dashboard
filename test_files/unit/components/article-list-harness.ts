@@ -34,7 +34,7 @@ function cloneSettings(): RssDashboardSettings {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== "object") return false;
-  const proto = Object.getPrototypeOf(value);
+  const proto: object | null = Object.getPrototypeOf(value) as object | null;
   return proto === Object.prototype || proto === null;
 }
 
@@ -54,12 +54,13 @@ function deepMerge<T extends Record<string, unknown>>(
 }
 
 function installCssEscapePolyfill(): void {
-  if (typeof (window as any).CSS === "undefined") {
-    (window as any).CSS = {
-      escape: (s: string) => s.replace(/([^\w-])/g, "\\$1"),
-    };
-  } else if (typeof (window as any).CSS.escape === "undefined") {
-    (window as any).CSS.escape = (s: string) => s.replace(/([^\w-])/g, "\\$1");
+  type WinCSS = Window &
+    typeof globalThis & { CSS?: { escape?: (s: string) => string } };
+  const win = window as WinCSS;
+  if (win.CSS === undefined) {
+    win.CSS = { escape: (s: string) => s.replace(/([^\w-])/g, "\\$1") };
+  } else if (win.CSS.escape === undefined) {
+    win.CSS.escape = (s: string) => s.replace(/([^\w-])/g, "\\$1");
   }
 }
 
@@ -82,7 +83,9 @@ export function buildArticle(overrides: Partial<FeedItem> = {}): FeedItem {
   } as FeedItem;
 }
 
-export function createArticleListHarness(overrides: ArticleListHarnessOverrides = {}) {
+export function createArticleListHarness(
+  overrides: ArticleListHarnessOverrides = {},
+) {
   installObsidianDomPolyfills();
   installCssEscapePolyfill();
 
@@ -105,12 +108,15 @@ export function createArticleListHarness(overrides: ArticleListHarnessOverrides 
   }
 
   const createdContainer = !overrides.container;
-  const container =
-    overrides.container ?? (document.body as unknown as HTMLElement).createDiv();
+  const container: HTMLElement =
+    overrides.container ?? document.createElement("div");
 
   const settings = cloneSettings();
   if (overrides.settings) {
-    deepMerge(settings as unknown as Record<string, unknown>, overrides.settings);
+    deepMerge(
+      settings as unknown as Record<string, unknown>,
+      overrides.settings,
+    );
   }
 
   const callbacks: ArticleListCallbacks = {
@@ -129,7 +135,10 @@ export function createArticleListHarness(overrides: ArticleListHarnessOverrides 
     onPersistSettings: vi.fn(),
   } as ArticleListCallbacks;
   if (overrides.callbacks) {
-    Object.assign(callbacks as unknown as Record<string, unknown>, overrides.callbacks);
+    Object.assign(
+      callbacks as unknown as Record<string, unknown>,
+      overrides.callbacks,
+    );
   }
 
   const articles = overrides.articles ?? [];

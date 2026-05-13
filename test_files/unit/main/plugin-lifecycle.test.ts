@@ -1,4 +1,4 @@
-/**
+﻿/**
  * P0-1 Tests for Plugin Lifecycle (main.ts)
  *
  * Tests cover:
@@ -9,7 +9,11 @@
  * 5. onunload() - cleanup, backups
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import type { Feed, RssDashboardSettings } from "../../../src/types/types";
+import type {
+  Feed,
+  FeedItem,
+  RssDashboardSettings,
+} from "../../../src/types/types";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 
 // Mock functions for FeedParser - must be declared before mocks
@@ -60,19 +64,17 @@ vi.mock("../../../src/utils/settings-migration", () => ({
 import RssDashboardPlugin from "../../../main";
 
 // Use App from obsidian stub (provided via Vitest alias)
-import { App, Platform } from "obsidian";
+import { App, Platform, type PluginManifest } from "obsidian";
 
-// Type for mock app - use any to avoid TS errors with vi.mock
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type MockApp = any;
+type MockApp = App;
 
 // Create mock App using stubs
 function createMockApp(): MockApp {
-  return (App as any).createMock();
+  return App.createMock();
 }
 
 // Create mock plugin manifest
-function createMockManifest() {
+function createMockManifest(): PluginManifest {
   return {
     id: "rss-dashboard",
     name: "RSS Dashboard",
@@ -84,10 +86,27 @@ function createMockManifest() {
 }
 
 // Helper to create a plugin instance with mocks
+/** Typed accessor for private RssDashboardPlugin members accessed from tests. */
+type PluginPrivateAPI = {
+  backupService: {
+    performAutoBackups: () => Promise<void>;
+    performAutoBackupsSyncDesktop: () => boolean;
+  };
+  folderService: object;
+  backgroundImportService: { startBackgroundImport: (feeds: Feed[]) => void };
+  articleSaver: { fixSavedFilePaths: (...args: unknown[]) => Promise<unknown> };
+  validateSavedArticles: () => Promise<void>;
+  onArticleSaved: (item: FeedItem) => Promise<void>;
+  ingestFeedsForBackgroundImport: (
+    feeds: Array<{ title: string; url: string; folder: string }>,
+    opts?: { mode?: string; folders?: unknown[] },
+  ) => Promise<{ addedCount: number; skippedCount: number }>;
+};
+
 async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
-  const manifest = createMockManifest() as any;
+  const manifest = createMockManifest();
   manifest.dir = "."; // Required by onunload() tests
-  const plugin = new RssDashboardPlugin(app as any, manifest);
+  const plugin = new RssDashboardPlugin(app, manifest);
 
   // Mock loadData to return null (no saved settings)
   plugin.loadData = vi.fn().mockResolvedValue(null);
@@ -115,7 +134,7 @@ async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
   // Initialize backupService with mock
   const { BackupService } =
     await import("../../../src/services/backup-service");
-  (plugin as any).backupService = new BackupService({
+  (plugin as unknown as PluginPrivateAPI).backupService = new BackupService({
     settings: plugin.settings,
     manifest: plugin.manifest,
     vaultAbsolutePath: "",
@@ -126,32 +145,35 @@ async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
   // Initialize folderService
   const { FolderService } =
     await import("../../../src/services/folder-service");
-  (plugin as any).folderService = new FolderService(plugin.settings);
+  (plugin as unknown as PluginPrivateAPI).folderService = new FolderService(
+    plugin.settings,
+  );
 
   // Initialize backgroundImportService
   const { BackgroundImportService } =
     await import("../../../src/services/background-import-service");
-  (plugin as any).backgroundImportService = new BackgroundImportService({
-    feedParser: {
-      parseFeed: (url: string) =>
-        ((plugin as any).feedParser?.parseFeed ?? vi.fn())(url),
-    },
-    getSettings: () => plugin.settings,
-    getView: () => plugin.getActiveDashboardView(),
-    saveSettings: () => plugin.saveSettings(),
-    ensureFolderExists: (folder, opts) =>
-      plugin.ensureFolderExists(folder, opts),
-    addStatusBarItem: () => {
-      const el = document.createElement("div");
-      el.createSpan = (opts?: any) => {
-        const span = document.createElement("span");
-        if (opts?.cls) span.className = opts.cls;
-        el.appendChild(span);
-        return span;
-      };
-      return el;
-    },
-  });
+  (plugin as unknown as PluginPrivateAPI).backgroundImportService =
+    new BackgroundImportService({
+      feedParser: {
+        parseFeed: (url: string) =>
+          (mockParseFeed as (url: string) => unknown)(url),
+      },
+      getSettings: () => plugin.settings,
+      getView: () => plugin.getActiveDashboardView(),
+      saveSettings: () => plugin.saveSettings(),
+      ensureFolderExists: (folder, opts) =>
+        plugin.ensureFolderExists(folder, opts),
+      addStatusBarItem: () => {
+        const el = document.createElement("div");
+        el.createSpan = (opts?: { cls?: string }) => {
+          const span = document.createElement("span");
+          if (opts?.cls) span.className = opts.cls;
+          el.appendChild(span);
+          return span;
+        };
+        return el;
+      },
+    });
 
   return plugin;
 }
@@ -180,9 +202,9 @@ const sampleFeed: Feed = {
   mediaType: "article",
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Test Suite: loadSettings()
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("loadSettings()", () => {
   let plugin: RssDashboardPlugin;
@@ -321,9 +343,9 @@ describe("loadSettings()", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Test Suite: onload() Initialization
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("onload() initialization", () => {
   let plugin: RssDashboardPlugin;
@@ -351,6 +373,7 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: registerView should be called for all views
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.registerView).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(Function),
@@ -366,6 +389,7 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: addRibbonIcon should be called
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.addRibbonIcon).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(String),
@@ -378,6 +402,7 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: addCommand should be called for all commands
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.addCommand).toHaveBeenCalled();
     // Should have multiple commands (open-dashboard, open-discover, refresh-feeds, etc.)
     expect(
@@ -390,6 +415,7 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: registerInterval should be called with a setInterval result
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.registerInterval).toHaveBeenCalled();
   });
 
@@ -398,6 +424,7 @@ describe("onload() initialization", () => {
 
     await plugin.onload();
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.registerInterval).not.toHaveBeenCalled();
   });
 
@@ -406,6 +433,7 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: addSettingTab should be called
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.addSettingTab).toHaveBeenCalled();
   });
 
@@ -453,19 +481,24 @@ describe("onload() initialization", () => {
   });
 
   it("defers saved-article startup validation until layout is ready", async () => {
-    const validateSpy = vi.spyOn(plugin as any, "validateSavedArticles");
+    const validateSpy = vi.spyOn(
+      plugin as unknown as PluginPrivateAPI,
+      "validateSavedArticles",
+    );
 
     await plugin.onload();
 
     expect(validateSpy).not.toHaveBeenCalled();
-    expect((plugin as any).articleSaver.fixSavedFilePaths).not.toHaveBeenCalled();
+    expect(
+      (plugin as unknown as PluginPrivateAPI).articleSaver.fixSavedFilePaths,
+    ).not.toHaveBeenCalled();
 
-    ((plugin.app as any).workspace).triggerLayoutReady();
+    plugin.app.workspace.triggerLayoutReady();
     await Promise.resolve();
 
-    expect((plugin as any).articleSaver.fixSavedFilePaths).toHaveBeenCalledTimes(
-      1,
-    );
+    expect(
+      (plugin as unknown as PluginPrivateAPI).articleSaver.fixSavedFilePaths,
+    ).toHaveBeenCalledTimes(1);
     expect(validateSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -505,7 +538,7 @@ describe("onload() initialization", () => {
       savedFilePath: "Articles/Saved article.md",
     };
 
-    await (plugin as any).onArticleSaved(item);
+    await (plugin as unknown as PluginPrivateAPI).onArticleSaved(item);
 
     expect(plugin.settings.feeds[0].items[0].saved).toBe(true);
     expect(plugin.settings.feeds[0].items[0].savedFilePath).toBe(
@@ -514,9 +547,9 @@ describe("onload() initialization", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Test Suite: refreshFeeds()
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("refreshFeeds()", () => {
   let plugin: RssDashboardPlugin;
@@ -535,7 +568,7 @@ describe("refreshFeeds()", () => {
     plugin.feedParser = {
       parseFeed: mockParseFeed,
       refreshAllFeeds: mockRefreshAllFeeds,
-    } as any;
+    } as unknown as typeof plugin.feedParser;
 
     // Mock getActiveDashboardView
     plugin.getActiveDashboardView = vi.fn().mockResolvedValue({
@@ -574,7 +607,7 @@ describe("refreshFeeds()", () => {
     // Then: the fallback multi-feed path should refresh each feed individually
     expect(mockRefreshAllFeeds).toHaveBeenCalledTimes(2);
     expect(
-      mockRefreshAllFeeds.mock.calls.map((call) => call[0][0].url),
+      mockRefreshAllFeeds.mock.calls.map((call) => (call[0] as Feed[])[0].url),
     ).toEqual([
       "https://example.com/feed1.xml",
       "https://example.com/feed2.xml",
@@ -663,6 +696,7 @@ describe("refreshFeeds()", () => {
     await plugin.refreshFeeds();
 
     // Then: saveSettings should be called
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalled();
   });
 
@@ -708,9 +742,9 @@ describe("refreshFeeds()", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Test Suite: lastRefreshTimestamp settings
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("lastRefreshTimestamp in settings", () => {
   it("has lastRefreshTimestamp in DEFAULT_SETTINGS with default value 0", () => {
@@ -788,9 +822,9 @@ describe("lastRefreshTimestamp in settings", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Test Suite: refreshFeedsInFolder()
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("refreshFeedsInFolder()", () => {
   let plugin: RssDashboardPlugin;
@@ -825,7 +859,7 @@ describe("refreshFeedsInFolder()", () => {
     plugin.feedParser = {
       parseFeed: mockParseFeed,
       refreshAllFeeds: mockRefreshAllFeeds,
-    } as any;
+    } as unknown as typeof plugin.feedParser;
 
     // Mock getActiveDashboardView
     plugin.getActiveDashboardView = vi.fn().mockResolvedValue({
@@ -847,7 +881,7 @@ describe("refreshFeedsInFolder()", () => {
     // Then: the fallback multi-feed path should refresh each matching feed individually
     expect(mockRefreshAllFeeds).toHaveBeenCalledTimes(2);
     const feedsCalled = mockRefreshAllFeeds.mock.calls.map(
-      (call) => call[0][0],
+      (call) => (call[0] as Feed[])[0],
     );
     expect(feedsCalled.every((f: Feed) => f.folder.startsWith("News/"))).toBe(
       true,
@@ -889,9 +923,9 @@ describe("refreshFeedsInFolder()", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Test Suite: addFeed()
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("addFeed()", () => {
   let plugin: RssDashboardPlugin;
@@ -910,7 +944,7 @@ describe("addFeed()", () => {
     plugin.feedParser = {
       parseFeed: mockParseFeed,
       refreshAllFeeds: mockRefreshAllFeeds,
-    } as any;
+    } as unknown as typeof plugin.feedParser;
 
     // Mock getActiveDashboardView
     plugin.getActiveDashboardView = vi.fn().mockResolvedValue({
@@ -1181,6 +1215,7 @@ describe("addFeed()", () => {
     await plugin.addFeed("Save Test Feed", newUrl, "Uncategorized");
 
     // Then: saveSettings should be called
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalled();
   });
 
@@ -1199,9 +1234,9 @@ describe("addFeed()", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Test Suite: onunload() Cleanup
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("ingestFeedsForBackgroundImport()", () => {
   let plugin: RssDashboardPlugin;
@@ -1215,7 +1250,7 @@ describe("ingestFeedsForBackgroundImport()", () => {
     };
     vi.clearAllMocks();
     vi.spyOn(
-      (plugin as any).backgroundImportService,
+      (plugin as unknown as PluginPrivateAPI).backgroundImportService,
       "startBackgroundImport",
     ).mockImplementation(() => {});
     plugin.ensureFolderExists = vi.fn().mockResolvedValue(false);
@@ -1225,7 +1260,9 @@ describe("ingestFeedsForBackgroundImport()", () => {
   });
 
   it("dedupes URLs, inserts placeholders, saves once, and queues hydration", async () => {
-    const result = await (plugin as any).ingestFeedsForBackgroundImport(
+    const result = await (
+      plugin as unknown as PluginPrivateAPI
+    ).ingestFeedsForBackgroundImport(
       [
         {
           title: "New Feed",
@@ -1257,13 +1294,16 @@ describe("ingestFeedsForBackgroundImport()", () => {
       (f) => f.url === "https://example.com/new.xml",
     );
     expect(addedFeed?.items).toEqual([]);
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalledTimes(1);
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.ensureFolderExists).toHaveBeenCalledWith("Research", {
       saveSettings: false,
       refreshView: false,
     });
     expect(
-      (plugin as any).backgroundImportService.startBackgroundImport,
+      (plugin as unknown as PluginPrivateAPI).backgroundImportService
+        .startBackgroundImport,
     ).toHaveBeenCalledWith([
       expect.objectContaining({
         title: "New Feed",
@@ -1274,7 +1314,9 @@ describe("ingestFeedsForBackgroundImport()", () => {
   });
 
   it("supports overwrite mode and replaces folders when provided", async () => {
-    const result = await (plugin as any).ingestFeedsForBackgroundImport(
+    const result = await (
+      plugin as unknown as PluginPrivateAPI
+    ).ingestFeedsForBackgroundImport(
       [
         {
           title: "Only Feed",
@@ -1353,7 +1395,9 @@ describe("onunload()", () => {
 
   it("attempts sync backup on desktop", () => {
     // Given: Plugin with auto-backup settings
-    (plugin as any).backupService.performAutoBackupsSyncDesktop = vi
+    (
+      plugin as unknown as PluginPrivateAPI
+    ).backupService.performAutoBackupsSyncDesktop = vi
       .fn()
       .mockReturnValue(true);
 
@@ -1362,24 +1406,28 @@ describe("onunload()", () => {
 
     // Then: performAutoBackupsSyncDesktop should be called
     expect(
-      (plugin as any).backupService.performAutoBackupsSyncDesktop,
+      (plugin as unknown as PluginPrivateAPI).backupService
+        .performAutoBackupsSyncDesktop,
     ).toHaveBeenCalled();
   });
 
   it("falls back to async backup when sync fails", () => {
     // Given: Plugin with auto-backup settings that fails sync
-    (plugin as any).backupService.performAutoBackupsSyncDesktop = vi
+    (
+      plugin as unknown as PluginPrivateAPI
+    ).backupService.performAutoBackupsSyncDesktop = vi
       .fn()
       .mockReturnValue(false);
-    (plugin as any).backupService.performAutoBackups = vi
-      .fn()
-      .mockResolvedValue(undefined);
+    (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups =
+      vi.fn().mockResolvedValue(undefined);
 
     // When: onunload is called
     plugin.onunload();
 
     // Then: performAutoBackups should be called as fallback
-    expect((plugin as any).backupService.performAutoBackups).toHaveBeenCalled();
+    expect(
+      (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups,
+    ).toHaveBeenCalled();
   });
 
   it("does not throw when autoBackup is disabled", () => {
@@ -1395,9 +1443,9 @@ describe("onunload()", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Test Suite: performAutoBackups()
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("performAutoBackups()", () => {
   let plugin: RssDashboardPlugin;
@@ -1439,6 +1487,7 @@ describe("performAutoBackups()", () => {
     await plugin.performAutoBackups();
 
     // Then: No writes should occur
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).not.toHaveBeenCalled();
   });
 
@@ -1450,13 +1499,14 @@ describe("performAutoBackups()", () => {
     await plugin.performAutoBackups();
 
     // Then: Should not throw
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).not.toHaveBeenCalled();
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Test Suite: refreshSelectedFeed()
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("refreshSelectedFeed()", () => {
   let plugin: RssDashboardPlugin;
@@ -1475,7 +1525,7 @@ describe("refreshSelectedFeed()", () => {
     plugin.feedParser = {
       parseFeed: mockParseFeed,
       refreshAllFeeds: mockRefreshAllFeeds,
-    } as any;
+    } as unknown as typeof plugin.feedParser;
 
     // Mock getActiveDashboardView
     plugin.getActiveDashboardView = vi.fn().mockResolvedValue({
@@ -1500,9 +1550,9 @@ describe("refreshSelectedFeed()", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Test Suite: Storage transition orchestration
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("storage transition orchestration", () => {
   let plugin: RssDashboardPlugin;
@@ -1520,15 +1570,20 @@ describe("storage transition orchestration", () => {
 
   it("revertToLegacyJsonStorageWithOptions refreshes dashboards before settings redisplay", async () => {
     const displaySpy = vi.fn();
-    (plugin as unknown as { settingTab: { display: () => void } }).settingTab = {
-      display: displaySpy,
-    };
+    (plugin as unknown as { settingTab: { display: () => void } }).settingTab =
+      {
+        display: displaySpy,
+      };
 
     const repoSpy = vi
       .spyOn(
-        (plugin as unknown as {
-          feedStorageRepository: { revertToLegacyJson: (...args: unknown[]) => Promise<void> };
-        }).feedStorageRepository,
+        (
+          plugin as unknown as {
+            feedStorageRepository: {
+              revertToLegacyJson: (...args: unknown[]) => Promise<void>;
+            };
+          }
+        ).feedStorageRepository,
         "revertToLegacyJson",
       )
       .mockResolvedValue(undefined);
@@ -1559,17 +1614,20 @@ describe("storage transition orchestration", () => {
 
   it("migrateToVaultStorage refreshes dashboards before settings redisplay", async () => {
     const displaySpy = vi.fn();
-    (plugin as unknown as { settingTab: { display: () => void } }).settingTab = {
-      display: displaySpy,
-    };
+    (plugin as unknown as { settingTab: { display: () => void } }).settingTab =
+      {
+        display: displaySpy,
+      };
 
     const repoSpy = vi
       .spyOn(
-        (plugin as unknown as {
-          feedStorageRepository: {
-            migrateToVaultShards: (...args: unknown[]) => Promise<void>;
-          };
-        }).feedStorageRepository,
+        (
+          plugin as unknown as {
+            feedStorageRepository: {
+              migrateToVaultShards: (...args: unknown[]) => Promise<void>;
+            };
+          }
+        ).feedStorageRepository,
         "migrateToVaultShards",
       )
       .mockResolvedValue(undefined);
@@ -1597,9 +1655,9 @@ describe("storage transition orchestration", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Test Suite: saveSettings()
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("saveSettings()", () => {
   let plugin: RssDashboardPlugin;
@@ -1621,6 +1679,7 @@ describe("saveSettings()", () => {
     await plugin.saveSettings();
 
     // Then: saveData should be called with settings
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalledWith(plugin.settings);
   });
 
@@ -1632,6 +1691,7 @@ describe("saveSettings()", () => {
     await plugin.saveSettings();
 
     // Then: saveData should be called with modified settings
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalledWith(
       expect.objectContaining({
         refreshInterval: 120,
@@ -1640,9 +1700,9 @@ describe("saveSettings()", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Test Suite: applyFeedLimitsToAllFeeds()
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("applyFeedLimitsToAllFeeds()", () => {
   let plugin: RssDashboardPlugin;
@@ -1681,6 +1741,7 @@ describe("applyFeedLimitsToAllFeeds()", () => {
     await plugin.applyFeedLimitsToAllFeeds();
 
     // Then: settings should be saved
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalled();
   });
 

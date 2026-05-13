@@ -37,6 +37,29 @@ This document outlines the current compliance issues and provides a structured p
 - Backlog trend this phase: **lint errors reduced from 3239 to 2686** (\-553), warnings currently **54**.
 - Audit alignment this phase: no existing checkbox item in the current scorecard was fully closed by this batch; this work establishes enforcement and materially reduces the remaining lint backlog.
 
+#### Pass 5
+
+- Continued systematic ESLint backlog burn-down in test files using the "one boundary cast" pattern: replace cascading `as any` with a single `as unknown as TypedInterface` at the scope boundary.
+- Files fully cleaned (0 errors each):
+  - `test_files/unit/views/dashboard-lifecycle.test.ts` — **101 → 0 errors**, 44/44 tests passing
+  - `test_files/unit/services/article-saver.test.ts` — **119 → 0 errors**, 25/25 tests passing
+  - `test_files/unit/main/plugin-lifecycle.test.ts` — **175 → 0 errors**, 63/63 tests passing
+  - `test_files/unit/components/article-list-inplace-updates.test.ts` + `article-list-harness.ts` — **107 → 0 errors**, 7/7 tests passing
+- Key fixes: typed `DashViewTestAPI`/`PluginPrivateAPI`/`PrivateSaverAPI` interfaces; replaced `(App as any).createMock()` with direct `App.createMock()`; targeted `eslint-disable-next-line` for legitimate Vitest `unbound-method` false positives; fixed `window as any` CSS polyfill; replaced Obsidian `createDiv()` with standard `document.createElement("div")`.
+- Backlog trend this phase: **lint errors reduced from 2686 to 2020** (\-666), warnings still **54**.
+
+#### Pass 6
+
+- Confirmed Pass 5 reductions remain reflected in the latest global ESLint snapshot and retained strict test-lint enforcement workflow.
+- Refreshed ROI ranking from current `eslint-report.json` (72 files still carrying errors) and updated the execution queue to target highest-value files first.
+- Current top-offender queue (live report):
+  - `test_files/unit/modals/edit-feed-modal.test.ts` — **108** errors
+  - `test_files/unit/views/discover-view.test.ts` — **102** errors
+  - `test_files/unit/views/podcast-player.test.ts` — **99** errors
+  - `test_files/unit/utils/filter-statusbar-counts.test.ts` — **93** errors
+  - `test_files/unit/modals/import-opml-modal.test.ts` — **71** errors
+- Backlog status at this checkpoint: **2020 errors**, **54 warnings**.
+
 ## Health
 
 - **Status**: Excellent

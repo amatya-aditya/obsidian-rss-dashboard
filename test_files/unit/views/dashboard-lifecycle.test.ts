@@ -5,6 +5,7 @@ import {
   DEFAULT_SETTINGS,
   type Feed,
   type FeedItem,
+  type HighlightWord,
   type RssDashboardSettings,
 } from "../../../src/types/types";
 
@@ -113,10 +114,39 @@ function makeFeed(
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type DashView = any;
+/** Typed accessor for private RssDashboardView members accessed from tests. */
+interface DashViewTestAPI {
+  render: () => void;
+  currentFolder: string | null;
+  currentFeed: Feed | null;
+  selectedTags: string[];
+  getFilteredArticles(): FeedItem[];
+  getUnfilteredArticles(): FeedItem[];
+  getArticlesTitle(): string;
+  computeHighlightMatchCounts(articles: FeedItem[]): void;
+  highlightMatchCounts: Array<{ word: HighlightWord; count: number }>;
+  handleTagToggle(tag: string): void;
+  handleClearTags(): void;
+  collapsedFolders: string[];
+  handleToggleFolderCollapse(folder: string, shouldRerender?: boolean): void;
+  handleBatchToggleFolders(
+    foldersToCollapse: string[],
+    foldersToExpand: string[],
+  ): void;
+  handleDeleteFeed(feed: Feed): void;
+  handleDeleteFolder(folder: string): void;
+  syncCurrentFeedReference(): void;
+  getAllDescendantFolders(folderPath: string): string[];
+  syncDashboardMultiFiltersFromSettings(): void;
+  activeStatusFilters: Set<string>;
+  activeTagFilters: Set<string>;
+  filterLogic: "AND" | "OR";
+  handleFolderClick(folder: string | null): void;
+}
 
-async function makeView(settings: RssDashboardSettings): Promise<DashView> {
+async function makeView(
+  settings: RssDashboardSettings,
+): Promise<DashViewTestAPI> {
   const { RssDashboardView } =
     await import("../../../src/views/dashboard-view");
   const app = new App();
@@ -124,7 +154,7 @@ async function makeView(settings: RssDashboardSettings): Promise<DashView> {
   const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
   const view = new RssDashboardView(leaf, plugin as never);
   view.render = vi.fn();
-  return view;
+  return view as unknown as DashViewTestAPI;
 }
 
 describe("Dashboard lifecycle", () => {
