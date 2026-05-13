@@ -151,7 +151,7 @@ export class ImportOpmlModal extends Modal {
      * crash on mobile where these APIs are absent.
      */
     try {
-      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
+      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument -- Electron remote dialog API for native file picker on desktop; not in standard Obsidian types */
       const remote =
         (window as any).require?.("@electron/remote") ||
         (window as any).require?.("electron")?.remote;

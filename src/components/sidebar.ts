@@ -2369,9 +2369,9 @@ export class Sidebar {
 
         case "settings": {
           const action = () => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- Obsidian internal app.setting API is untyped; optional chaining prevents crashes
             (this.app as any).setting?.open?.();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- Obsidian internal app.setting API is untyped; optional chaining prevents crashes
             (this.app as any).setting?.openTabById?.(this.plugin.manifest.id);
           };
           this.iconActions.set("settings", action);

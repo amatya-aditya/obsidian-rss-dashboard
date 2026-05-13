@@ -1264,10 +1264,10 @@ export class ReaderView extends ItemView {
       this.settings.highlights.highlightInContent
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
-      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
+      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html -- html is sanitized RSS content; HighlightService processes the result
       highlightService.highlightElement(container);
     } else {
-      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
+      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html -- html is sanitized RSS content; HighlightService processes the result
     }
 
     // Add classes to images for styling

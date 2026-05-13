@@ -125,7 +125,7 @@ export class BackupService {
     if (!pluginDir) return false;
 
     try {
-      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Electron native fs/path modules required for desktop auto-backup; not in standard Obsidian types */
       const req = (window as any).require;
       if (!req) return false;
 
