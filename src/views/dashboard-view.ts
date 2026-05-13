@@ -1321,6 +1321,9 @@ export class RssDashboardView extends ItemView {
     if (rule.applyToContent) {
       parts.push("content");
     }
+    if (rule.applyToLink) {
+      parts.push("link");
+    }
     return parts.join(", ");
   }
 

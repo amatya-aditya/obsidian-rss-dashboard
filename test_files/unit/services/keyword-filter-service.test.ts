@@ -206,6 +206,30 @@ describe("KeywordFilterService.evaluateRules", () => {
     expect(KeywordFilterService.evaluateRules(item, [ruleContent], "AND")).toBe(true);
     expect(KeywordFilterService.evaluateRules(item, [ruleTitle], "AND")).toBe(false);
   });
+
+  it("can match against article links for URL-based feed filtering", () => {
+    const shortItem = createItem({
+      title: "Regular-looking title",
+      link: "https://www.youtube.com/shorts/6PkQMo39mbI",
+      description: "no marker here",
+    });
+    const watchItem = createItem({
+      title: "Regular-looking title",
+      link: "https://www.youtube.com/watch?v=rVepNd1TUew",
+      description: "no marker here",
+    });
+    const rule = createRule({
+      type: "exclude",
+      keyword: "/shorts/",
+      applyToTitle: false,
+      applyToSummary: false,
+      applyToContent: false,
+      applyToLink: true,
+    });
+
+    expect(KeywordFilterService.evaluateRules(shortItem, [rule], "AND")).toBe(false);
+    expect(KeywordFilterService.evaluateRules(watchItem, [rule], "AND")).toBe(true);
+  });
 });
 
 describe("KeywordFilterService.evaluateForArticle", () => {
