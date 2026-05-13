@@ -60,6 +60,20 @@ This document outlines the current compliance issues and provides a structured p
   - `test_files/unit/modals/import-opml-modal.test.ts` — **71** errors
 - Backlog status at this checkpoint: **2020 errors**, **54 warnings**.
 
+#### Pass 7
+
+- Targeted single highest-ROI file: `test_files/unit/modals/edit-feed-modal.test.ts` — **108 → 0 errors**.
+- Created typed fixture interfaces at file scope:
+  - `ArticleTestFixture` — typed return for `makeArticle()` helper (minimal FeedItem-like structure for test mocking)
+  - `PluginTestFixture` — shape for plugin mock objects used in EditFeedModal tests
+- Refactored all test fixture casts using "one boundary cast" pattern:
+  - Updated `makeArticle()` to return `ArticleTestFixture` instead of `as any` (eliminates unsafeReturn + unexpectedAny)
+  - Replaced 17 test cases' plugin literals: `plugin as any` → `plugin as unknown as PluginTestFixture` (consolidates ~40+ unsafeAssignment errors into 1 boundary cast per test)
+  - Replaced all Feed object casts: `} as any` → `} as unknown as Feed` (proper boundary type for partial Feed objects)
+  - Removed redundant app/feed casts on constructor calls (already properly typed at assignment)
+- Test validation: All 17 tests passing, 0 linting errors
+- Backlog trend this phase: **2020 → 1912 errors** (\-108), warnings still **54**.
+
 ## Health
 
 - **Status**: Excellent
