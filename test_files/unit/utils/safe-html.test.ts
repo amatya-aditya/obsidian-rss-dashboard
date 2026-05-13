@@ -85,6 +85,17 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
     expect(container.textContent).toBe("Text");
   });
 
+  it("preserves non-blocked structural tags in rich mode", () => {
+    const container = document.body.createDiv();
+
+    sanitizeAndAppendHtml(container, `<div class="outer"><span>Text</span></div>`, {
+      mode: "rich",
+    });
+
+    expect(container.querySelector("div.outer")).toBeTruthy();
+    expect(container.querySelector("span")?.textContent).toBe("Text");
+  });
+
   it("strips event handler attributes and constrains safe links", () => {
     const container = document.body.createDiv();
 
@@ -117,7 +128,12 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
     );
 
     const anchors = Array.from(container.querySelectorAll("a"));
-    expect(anchors.map((a) => a.textContent)).toEqual(["js", "js2", "empty", "ftp"]);
+    expect(anchors.map((a) => a.textContent)).toEqual([
+      "js",
+      "js2",
+      "empty",
+      "ftp",
+    ]);
 
     anchors.forEach((a) => {
       expect(a.getAttribute("href")).toBeNull();
@@ -185,4 +201,3 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
     expect(hasComment).toBe(false);
   });
 });
-

@@ -10,6 +10,7 @@ import {
   Notice,
 } from "obsidian";
 import { setIcon } from "obsidian";
+import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
 import {
   RssDashboardSettings,
@@ -1264,10 +1265,10 @@ export class ReaderView extends ItemView {
       this.settings.highlights.highlightInContent
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
-      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html -- html is sanitized RSS content; HighlightService processes the result
+      sanitizeAndAppendHtml(container, html, { mode: "rich" });
       highlightService.highlightElement(container);
     } else {
-      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html -- html is sanitized RSS content; HighlightService processes the result
+      sanitizeAndAppendHtml(container, html, { mode: "rich" });
     }
 
     // Add classes to images for styling

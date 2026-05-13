@@ -1,4 +1,5 @@
 import { App, setIcon, TFile } from "obsidian";
+import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { FeedItem, RssDashboardSettings } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
 import { MediaService } from "../services/media-service";
@@ -483,12 +484,10 @@ export class ArticleRenderer {
       this.settings.highlights.highlightInContent
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
-      // eslint-disable-next-line @microsoft/sdl/no-inner-html -- html is sanitized RSS article content rendered via HighlightService
-      container.innerHTML = html;
+      sanitizeAndAppendHtml(container, html, { mode: "rich" });
       highlightService.highlightElement(container);
     } else {
-      // eslint-disable-next-line @microsoft/sdl/no-inner-html -- html is sanitized RSS article content rendered via HighlightService
-      container.innerHTML = html;
+      sanitizeAndAppendHtml(container, html, { mode: "rich" });
     }
 
     container

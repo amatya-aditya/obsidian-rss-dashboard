@@ -19,6 +19,10 @@ This document outlines the current compliance issues and provides a structured p
 - Updated vault adapter and Electron dialog blocks with clear documentation.
 - Removed all redundant eslint-disable comments from main.ts settings access.
 
+- Replaced unsafe `innerHTML` assignments in article rendering paths with `sanitizeAndAppendHtml(...)` DOM-based injection in `src/components/article-renderer.ts` and `src/views/reader-view.ts`.
+- Removed all `@microsoft/sdl/no-inner-html` disables from production rendering paths after refactor.
+- Re-ran lint and unit tests after refactor; both passed.
+
 ## Health
 
 - **Status**: Excellent
@@ -137,17 +141,17 @@ This document outlines the current compliance issues and provides a structured p
    - [x] test_files/unit/test-dom-polyfills.ts:168 — Added description for polyfill permissive type
    - **Completed May 13, 2026**: All 37 occurrences now have descriptive comments per Obsidian scanner requirements
 
-3. **Disabling '@microsoft/sdl/no-inner-html' is not allowed**. (4 occurrences)
-   - [x] src/components/article-renderer.ts:486 — Added inline description for sanitized HTML rendering
-   - [x] src/components/article-renderer.ts:490 — Added inline description for sanitized HTML rendering
-   - [x] src/views/reader-view.ts:1267 — Added inline description for sanitized HTML rendering
-   - [x] src/views/reader-view.ts:1270 — Added inline description for sanitized HTML rendering
+3. **Disabling '@microsoft/sdl/no-inner-html' is not allowed**. (Previously 4 occurrences)
+   - [x] src/components/article-renderer.ts — Refactored to safe DOM injection; disable comments removed
+   - [x] src/views/reader-view.ts — Refactored to safe DOM injection; disable comments removed
+   - **Completed May 13, 2026**: 0 remaining disable occurrences in production rendering paths
 
 4. **Unsafe assignment to innerHTML**. (4 occurrences)
-   - [ ] src/components/article-renderer.ts:400
-   - [ ] src/components/article-renderer.ts:404
-   - [ ] src/views/reader-view.ts:1173
-   - [ ] src/views/reader-view.ts:1176
+   - [x] src/components/article-renderer.ts:400 — Replaced with `sanitizeAndAppendHtml(container, html)`
+   - [x] src/components/article-renderer.ts:404 — Replaced with `sanitizeAndAppendHtml(container, html)`
+   - [x] src/views/reader-view.ts:1173 — Replaced with `sanitizeAndAppendHtml(container, html)`
+   - [x] src/views/reader-view.ts:1176 — Replaced with `sanitizeAndAppendHtml(container, html)`
+   - **Completed May 13, 2026**: Risk #4 remediated in scoped production files
 
 5. **Disabling '@typescript-eslint/no-deprecated' is not allowed**.
    - [x] File: `src/utils/export-utils.ts`, Line: 118 (`document.execCommand` removed; Clipboard API-only flow)
@@ -429,8 +433,8 @@ This scorecard is part of a multi-document compliance tracking system:
 
 ## Action Items for Next Steps
 
-- [ ] **Create CONTRIBUTING.md** to improve Hygiene score
-- [ ] **Start Phase 1**: Fix innerHTML and innerHtml security issues
+- [x] **Create CONTRIBUTING.md** to improve Hygiene score
+- [x] **Start Phase 1**: Fix innerHTML and innerHtml security issues
 - [ ] **Set up Git workflow**: Use feature branches (`fix/compliance-improvement`) for organized tracking
 - [ ] **Automate formatting**: Consider ESLint --fix for DOM API migrations
 - [ ] **Document decisions**: Add JSDoc comments explaining necessary ESLint disables
