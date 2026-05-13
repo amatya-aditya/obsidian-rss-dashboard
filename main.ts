@@ -43,6 +43,7 @@ import { BackupService } from "./src/services/backup-service";
 import { FolderService } from "./src/services/folder-service";
 import {
   FeedStorageRepository,
+  type FeedLocalStorageAddress,
   type FeedStorageStatus,
   ShardFolderDeletionError,
 } from "./src/services/feed-storage-repository";
@@ -1414,6 +1415,64 @@ export default class RssDashboardPlugin extends Plugin {
 
   public getStorageStatus(): FeedStorageStatus {
     return this.feedStorageRepository.getStatus(this.settings);
+  }
+
+  public getFeedLocalStorageAddress(feed: Feed): FeedLocalStorageAddress {
+    const resolved = this.feedStorageRepository.getFeedLocalStorageAddress(
+      this.settings,
+      feed,
+    );
+
+    if (resolved.mode !== "legacy-json") {
+      return resolved;
+    }
+
+    const metadataFolder =
+      getMetadataPath(this.settings) ?? this.manifest.dir ?? "";
+    const metadataFolderTrimmed = metadataFolder.replace(/[\\/]+$/g, "");
+    const relativeDataPath = metadataFolderTrimmed
+      ? `${metadataFolderTrimmed}/data.json`
+      : "data.json";
+
+    return {
+      ...resolved,
+      address:
+        this.resolveVaultRelativePathToOsPath(relativeDataPath) ??
+        relativeDataPath,
+    };
+  }
+
+  private resolveVaultRelativePathToOsPath(
+    vaultRelativePath: string,
+  ): string | null {
+    const targetPath = vaultRelativePath.trim();
+    if (!targetPath) {
+      return null;
+    }
+
+    const adapter = this.app.vault.adapter as VaultAdapterPathAccess;
+
+    if (typeof adapter.getFullPath === "function") {
+      const resolved = adapter.getFullPath(targetPath);
+      if (typeof resolved === "string" && resolved.trim().length > 0) {
+        return resolved;
+      }
+    }
+
+    const requireFn = getRequireFunction();
+    const pathModule = requireFn?.("path");
+    const basePath =
+      typeof adapter.getBasePath === "function" ? adapter.getBasePath() : "";
+
+    if (
+      !basePath ||
+      typeof basePath !== "string" ||
+      !isPathModuleLike(pathModule)
+    ) {
+      return null;
+    }
+
+    return pathModule.join(basePath, targetPath);
   }
 
   public async migrateToVaultStorage(): Promise<void> {

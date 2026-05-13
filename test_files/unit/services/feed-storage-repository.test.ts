@@ -47,6 +47,49 @@ describe("FeedStorageRepository", () => {
     saveData = vi.fn().mockResolvedValue(undefined);
   });
 
+  it("returns data.json as the feed local address in legacy mode", () => {
+    const settings = cloneSettings();
+    settings.storageMode = "legacy-json";
+
+    const address = repository.getFeedLocalStorageAddress(settings, makeFeed());
+
+    expect(address).toEqual({
+      mode: "legacy-json",
+      address: "data.json",
+    });
+  });
+
+  it("returns the normalized shard path as the feed local address in shard mode", () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards";
+    settings.storageFolder = "/RSS Data/Feeds/";
+
+    const address = repository.getFeedLocalStorageAddress(
+      settings,
+      makeFeed({ feedId: "feed-1" }),
+    );
+
+    expect(address).toEqual({
+      mode: "vault-shards",
+      address: "RSS Data/Feeds/feed-1.json",
+    });
+  });
+
+  it("returns an empty address in shard mode when a feed has no feed ID yet", () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards";
+
+    const address = repository.getFeedLocalStorageAddress(
+      settings,
+      makeFeed({ feedId: "" }),
+    );
+
+    expect(address).toEqual({
+      mode: "vault-shards",
+      address: "",
+    });
+  });
+
   it("hydrates feed items from vault shards when shard storage is enabled", async () => {
     const settings = cloneSettings();
     settings.storageMode = "vault-shards";

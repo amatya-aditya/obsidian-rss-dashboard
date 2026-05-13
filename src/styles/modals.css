@@ -392,6 +392,53 @@
   background: var(--background-modifier-hover, #f0f0f0);
   color: var(--interactive-accent, #3498db);
 }
+
+.rss-dashboard-modal .rss-edit-feed-storage-address-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.rss-dashboard-modal .rss-edit-feed-storage-address-text {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rss-dashboard-modal .rss-edit-feed-storage-status {
+  font-size: 0.95em;
+  color: var(--text-normal);
+}
+
+.rss-dashboard-modal .rss-edit-feed-storage-feed-id {
+  font-size: 0.9em;
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+}
+
+.rss-dashboard-modal .rss-edit-feed-storage-copy-button {
+  --icon-size: 18px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+}
+
+.rss-dashboard-modal .rss-edit-feed-storage-copy-button:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.rss-dashboard-modal .rss-edit-feed-storage-copy-button:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
 .add-tag-modal .tag-input-row.full-inline-row {
   display: flex;
   align-items: center;

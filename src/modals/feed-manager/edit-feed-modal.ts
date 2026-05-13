@@ -1,4 +1,4 @@
-﻿import { Modal, App, Setting, Notice } from "obsidian";
+﻿import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
 import type {
   Feed,
@@ -20,6 +20,7 @@ import {
   resolveAndLoadPreview,
 } from "./feed-preview-loader";
 import { MediaService } from "../../services/media-service";
+import { copyTextToClipboard } from "../../utils/export-utils";
 
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
@@ -241,6 +242,77 @@ export class EditFeedModal extends Modal {
         new FolderSuggest(this.app, folderInput, this.plugin.settings.folders);
       });
     decorateFolderSelectorInput(folderSetting, folderInput);
+
+    const localStorageAddressResult =
+      this.plugin.getFeedLocalStorageAddress?.(this.feed) ?? {
+        mode: this.plugin.settings.storageMode,
+        address: "data.json",
+      };
+    const hasResolvedLocalAddress = localStorageAddressResult.address.length > 0;
+    const storageDescription = "Shows where this feed is stored.";
+    const feedIdText = this.feed.feedId?.trim()
+      ? this.feed.feedId
+      : "Not assigned";
+    const storageStatusText =
+      localStorageAddressResult.mode === "vault-shards"
+        ? hasResolvedLocalAddress
+          ? "Stored in shard storage"
+          : "Shard storage selected (address unavailable)"
+        : "Stored in legacy data.json";
+
+    const localAddressSetting = new Setting(contentEl)
+      .setName("Local storage address")
+      .setDesc(storageDescription);
+    const localAddressRow = localAddressSetting.controlEl.createDiv({
+      cls: "rss-edit-feed-storage-address-row",
+    });
+    const localAddressTextGroup = localAddressRow.createDiv({
+      cls: "rss-edit-feed-storage-address-text",
+    });
+    localAddressTextGroup.createDiv({
+      cls: "rss-edit-feed-storage-status",
+      text: storageStatusText,
+    });
+    localAddressTextGroup.createDiv({
+      cls: "rss-edit-feed-storage-feed-id",
+      text: `Feed ID: ${feedIdText}`,
+    });
+
+    const copyStorageAddressButton = localAddressRow.createDiv({
+      cls: "clickable-icon rss-edit-feed-storage-copy-button",
+      attr: {
+        role: "button",
+        tabindex: "0",
+        title: "Copy local storage address",
+        "aria-label": "Copy local storage address",
+      },
+    });
+    setIcon(copyStorageAddressButton, "copy");
+
+    const copyLocalAddress = () => {
+      if (!hasResolvedLocalAddress) {
+        new Notice("Storage address unavailable for this feed.");
+        return;
+      }
+
+      void (async () => {
+        const result = await copyTextToClipboard(localStorageAddressResult.address);
+        if (result === "copied") {
+          new Notice("Copied local storage address.");
+          return;
+        }
+
+        new Notice("Failed to copy local storage address.");
+      })();
+    };
+
+    copyStorageAddressButton.addEventListener("click", copyLocalAddress);
+    copyStorageAddressButton.addEventListener("keydown", (evt: KeyboardEvent) => {
+      if (evt.key === "Enter" || evt.key === " ") {
+        evt.preventDefault();
+        copyLocalAddress();
+      }
+    });
 
     const perFeedControlsDetails = contentEl.createEl("details", {
       cls: "rss-keyword-filter-details rss-per-feed-controls-details",

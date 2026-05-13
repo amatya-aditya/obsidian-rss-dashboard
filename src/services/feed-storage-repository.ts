@@ -19,6 +19,11 @@ export interface FeedStorageStatus {
   lastRepairResult: string;
 }
 
+export interface FeedLocalStorageAddress {
+  mode: RssDashboardSettings["storageMode"];
+  address: string;
+}
+
 export interface PersistSettingsOptions {
   forceMetadata?: boolean;
   forceAllShards?: boolean;
@@ -172,6 +177,26 @@ export class FeedStorageRepository {
     }
 
     return didChange;
+  }
+
+  public getFeedLocalStorageAddress(
+    settings: RssDashboardSettings,
+    feed: Feed,
+  ): FeedLocalStorageAddress {
+    if (settings.storageMode !== "vault-shards") {
+      return {
+        mode: "legacy-json",
+        address: "data.json",
+      };
+    }
+
+    const feedId = (feed.feedId ?? "").trim();
+    return {
+      mode: "vault-shards",
+      address: feedId
+        ? getFeedShardPath(settings.storageFolder, feedId)
+        : "",
+    };
   }
 
   public async hydrateSettings(

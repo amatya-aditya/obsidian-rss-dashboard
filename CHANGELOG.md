@@ -5,6 +5,7 @@
 - Added paywall/restricted-content detection so the Reader shows a banner when only excerpted content is available.
 - Added automatic `Video` tagging for detected non-YouTube video items, plus a new **Settings > Media > Auto-tag videos** toggle (enabled by default). Existing users are migrated/backfilled safely.
 - Added long-press support on folders in sidebar for mobile devices that performs the same right-click functionality as desktop. Resolves [GH Issue #113](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/113)
+- Added new status section in edit feed modal to show location of feed ID, feed storage type (shard or legacy), and a copy button to quickly copy the local location.
 
 ## [2.3.0-beta.1] - May 11, 2026
 

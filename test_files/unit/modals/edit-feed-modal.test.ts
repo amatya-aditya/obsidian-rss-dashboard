@@ -80,6 +80,32 @@ function getToggleBySettingName(
   return toggleEl;
 }
 
+function getLocalStorageStatus(containerEl: HTMLElement): HTMLElement {
+  const statusEl = containerEl.querySelector(".rss-edit-feed-storage-status");
+  if (!(statusEl instanceof HTMLElement)) {
+    throw new Error("Local storage status not found");
+  }
+  return statusEl;
+}
+
+function getLocalStorageFeedId(containerEl: HTMLElement): HTMLElement {
+  const feedIdEl = containerEl.querySelector(".rss-edit-feed-storage-feed-id");
+  if (!(feedIdEl instanceof HTMLElement)) {
+    throw new Error("Local storage feed ID text not found");
+  }
+  return feedIdEl;
+}
+
+function getLocalStorageCopyButton(containerEl: HTMLElement): HTMLElement {
+  const buttonEl = containerEl.querySelector(
+    ".rss-edit-feed-storage-copy-button",
+  );
+  if (!(buttonEl instanceof HTMLElement)) {
+    throw new Error("Local storage copy button not found");
+  }
+  return buttonEl;
+}
+
 function makeArticle(
   guid: string,
   pubDate: string,
@@ -137,6 +163,101 @@ beforeEach(() => {
 });
 
 describe("EditFeedModal", () => {
+  it("renders storage status text and feed ID for shard mode", () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+      feedId: "feed-123",
+    } as any;
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        storageMode: "vault-shards",
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      getFeedLocalStorageAddress: vi.fn(() => ({
+        mode: "vault-shards",
+        address: "RSS Data/Feeds/feed-123.json",
+      })),
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
+    modal.open();
+
+    expect(getLocalStorageStatus(modal.contentEl).textContent).toBe(
+      "Stored in shard storage",
+    );
+    expect(getLocalStorageFeedId(modal.contentEl).textContent).toBe(
+      "Feed ID: feed-123",
+    );
+  });
+
+  it("copies the resolved local storage address when the copy icon is clicked", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+      feedId: "feed-123",
+    } as any;
+    const writeTextSpy = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: writeTextSpy },
+      configurable: true,
+    });
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        storageMode: "vault-shards",
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      getFeedLocalStorageAddress: vi.fn(() => ({
+        mode: "vault-shards",
+        address: "RSS Data/Feeds/feed-123.json",
+      })),
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app as any,
+      plugin as any,
+      feed as any,
+      vi.fn(),
+    );
+    modal.open();
+
+    getLocalStorageCopyButton(modal.contentEl).click();
+    await flushPromises();
+
+    expect(writeTextSpy).toHaveBeenCalledWith("RSS Data/Feeds/feed-123.json");
+  });
+
   it("opens with the per-feed controls expanded and highlighted when requested", () => {
     const app = createMockApp();
     const feed: Feed = {
