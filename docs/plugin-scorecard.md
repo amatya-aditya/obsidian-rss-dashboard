@@ -52,12 +52,12 @@ This document outlines the current compliance issues and provides a structured p
 
 - Confirmed Pass 5 reductions remain reflected in the latest global ESLint snapshot and retained strict test-lint enforcement workflow.
 - Refreshed ROI ranking from current `eslint-report.json` (72 files still carrying errors) and updated the execution queue to target highest-value files first.
-- Current top-offender queue (live report):
-  - `test_files/unit/modals/edit-feed-modal.test.ts` — **108** errors
-  - `test_files/unit/views/discover-view.test.ts` — **102** errors
-  - `test_files/unit/views/podcast-player.test.ts` — **99** errors
-  - `test_files/unit/utils/filter-statusbar-counts.test.ts` — **93** errors
-  - `test_files/unit/modals/import-opml-modal.test.ts` — **71** errors
+- Current top-offender queue (live report at start of Pass 6):
+   - `test_files/unit/modals/edit-feed-modal.test.ts` — **108** errors
+   - `test_files/unit/views/discover-view.test.ts` — **102** errors
+   - `test_files/unit/views/podcast-player.test.ts` — **99** errors
+   - `test_files/unit/utils/filter-statusbar-counts.test.ts` — **93** errors
+   - `test_files/unit/modals/import-opml-modal.test.ts` — **71** errors
 - Backlog status at this checkpoint: **2020 errors**, **54 warnings**.
 
 #### Pass 7
@@ -82,9 +82,21 @@ This document outlines the current compliance issues and provides a structured p
 - Test validation: All 10 tests passing, 0 linting errors.
 - Backlog trend this phase: **1912 → 1810 errors** (\-102), warnings still **54**.
 
-#### Pass 9 (next)
+#### Pass 9
 
-- Target: `test_files/unit/views/podcast-player.test.ts` — **99** errors (highest remaining ROI).
+- Targeted highest remaining ROI file: `test_files/unit/views/podcast-player.test.ts` — **99 → 0 errors**.
+- Replaced all `document.body.createDiv()` calls with `document.createElement("div")` and explicit type annotation `HTMLDivElement` since ESLint could not infer the return type from the polyfill.
+- This follows the pattern established in Pass 5 for similar polyfill-incompatible DOM method calls.
+- Test validation: All 7 tests passing, 0 linting errors.
+- Backlog trend this phase: **1810 → 1711 errors** (\-99), warnings still **54**.
+
+#### Pass 10 (next)
+
+- Target: `test_files/unit/utils/filter-statusbar-counts.test.ts` — **93** errors (highest remaining ROI).
+- Current queue after Pass 9:
+  - `test_files/unit/utils/filter-statusbar-counts.test.ts` — **93** errors (next)
+  - `test_files/unit/modals/import-opml-modal.test.ts` — **71** errors
+  - `test_files/unit/modals/add-feed-modal.test.ts` — **58** errors
 
 ## Health
 
