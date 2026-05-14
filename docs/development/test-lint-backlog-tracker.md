@@ -1,6 +1,6 @@
 # Test-Lint Backlog Tracker
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 
 This document tracks the test-file ESLint debt burn-down that branched from the audit scorecard after Pass 4.
 
@@ -161,79 +161,90 @@ Out of scope:
 - Test validation: All 7 tests passing, 0 linting errors.
 - Backlog trend this phase: **1321 → 1256 errors** (\-65), warnings still **54**.
 
+### Pass 17
+
+- Targeted `test_files/unit/services/backup-service.test.ts` — **64 → 0 errors**.
+- Added `TestVault` and `TestManifest` typed interfaces for mock boundaries.
+- Replaced `mockVault: any` and `mockManifest: any` with typed interface declarations.
+- Replaced all `settings as any` with proper boundary casts using `AutoBackupSettings` type.
+- Fixed `(window as any).require` patterns with typed `unknown` boundary casts.
+- Replaced hardcoded `.obsidian/plugins/` paths with `configDir/plugins/` to satisfy `obsidianmd/hardcoded-config-path` rule.
+- Added `// eslint-disable-next-line @typescript-eslint/unbound-method` for Vitest mock assertion patterns.
+- Added `// eslint-disable-next-line @typescript-eslint/no-unsafe-call` for `mockImplementation` on vi.fn().
+- Test validation: All 8 tests passing, 0 linting errors.
+- Backlog trend this phase: **1256 → 1192 errors** (\-64), warnings still **54**.
+
 ## Working Backlog Queue (Ranked)
 
 Use this ordered list for each subsequent pass. Work top-to-bottom unless a file is blocked by dependency context.
 
 Source artifact:
 
-- `test_lint_backlog_ranked.json` (sorted queue generated during Pass 16)
+- `test_lint_backlog_ranked.json` (sorted queue generated during Pass 17)
 
 | Rank | File                                                                    | Errors | Warnings |
 | ---- | ----------------------------------------------------------------------- | -----: | -------: |
-| 1    | `test_files/unit/services/backup-service.test.ts`                       |     64 |        0 |
-| 2    | `test_files/unit/components/discover-sidebar.test.ts`                   |     62 |        0 |
-| 3    | `test_files/unit/views/dashboard-reader-location.test.ts`               |     59 |        0 |
-| 4    | `test_files/unit/main/feed-refresh-pipeline.test.ts`                    |     55 |        0 |
-| 5    | `test_files/unit/services/web-viewer-integration.test.ts`               |     51 |        0 |
-| 6    | `test_files/unit/main/activate-view-leaf-selection.test.ts`             |     47 |        1 |
-| 7    | `test_files/unit/components/sidebar-core.test.ts`                       |     41 |        0 |
-| 8    | `test_files/unit/components/article-header.test.ts`                     |     37 |        0 |
-| 9    | `test_files/unit/components/sidebar-rendering.test.ts`                  |     36 |        1 |
-| 10   | `test_files/unit/components/supported-format-badges.test.ts`            |     36 |        0 |
-| 11   | `test_files/unit/utils/tag-utils.test.ts`                               |     36 |        0 |
-| 12   | `test_files/unit/modals/mobile-navigation-modal.test.ts`                |     35 |        0 |
-| 13   | `test_files/unit/services/apple-podcasts-service.test.ts`               |     32 |        0 |
-| 14   | `test_files/unit/views/dashboard-card-layout-filter-batch.test.ts`      |     32 |        0 |
-| 15   | `test_files/unit/settings/settings-tab-orchestrator.test.ts`            |     29 |        0 |
-| 16   | `test_files/unit/components/article-renderer-summary-dedupe.test.ts`    |     28 |        0 |
-| 17   | `test_files/unit/settings/tags-settings-tab.test.ts`                    |     28 |        0 |
-| 18   | `test_files/unit/settings/media-settings-tab.test.ts`                   |     27 |        0 |
-| 19   | `test_files/unit/main/background-import-orchestration.test.ts`          |     26 |        0 |
-| 20   | `test_files/unit/utils/settings-loader.test.ts`                         |     26 |        0 |
-| 21   | `test_files/unit/components/article-header-menu.test.ts`                |     25 |        0 |
-| 22   | `test_files/unit/settings/display-reader-settings-tab.test.ts`          |     25 |        0 |
-| 23   | `test_files/unit/test-dom-polyfills.ts`                                 |     24 |        0 |
-| 24   | `test_files/unit/components/tags-dropdown-portal-regression.test.ts`    |     23 |        0 |
-| 25   | `test_files/unit/settings/storage-settings-general-tab.test.ts`         |     23 |        0 |
-| 26   | `test_files/unit/views/dashboard-header-title-batching.test.ts`         |     22 |        0 |
-| 27   | `test_files/unit/modals/feed-manager-modal.test.ts`                     |     19 |        0 |
-| 28   | `test_files/unit/settings/startup-filters-settings-positioning.test.ts` |     19 |        0 |
-| 29   | `test_files/unit/components/article-filter-menu.test.ts`                |     18 |        0 |
-| 30   | `test_files/unit/modals/feed-preview-modal.test.ts`                     |     18 |        0 |
-| 31   | `test_files/unit/settings/about-settings-tab.test.ts`                   |     18 |        0 |
-| 32   | `test_files/unit/utils/platform-utils.test.ts`                          |     18 |        0 |
-| 33   | `test_files/unit/modals/mobile-discover-filters-modal.test.ts`          |     16 |        0 |
-| 34   | `test_files/unit/settings/rules-settings-tab.test.ts`                   |     16 |        0 |
-| 35   | `test_files/unit/views/dashboard-title-filter-summary.test.ts`          |     16 |        0 |
-| 36   | `test_files/unit/main/settings-open-navigation.test.ts`                |     15 |        0 |
-| 37   | `test_files/unit/services/import-export-service.test.ts`                |     15 |        0 |
-| 38   | `test_files/unit/components/article-list-characterization.test.ts`      |     14 |        0 |
-| 39   | `test_files/unit/services/import-export-service-metadata.test.ts`       |     14 |        6 |
-| 40   | `test_files/unit/services/feed-storage-repository.test.ts`              |     13 |        0 |
-| 41   | `test_files/unit/components/reader-format-portal.test.ts`               |     11 |        0 |
-| 42   | `test_files/unit/settings/import-export-settings-tab.test.ts`           |     11 |        0 |
-| 43   | `test_files/unit/services/sidebar-ordering-controller.test.ts`          |     10 |        0 |
-| 44   | `test_files/stubs/obsidian.ts`                                          |      8 |        4 |
-| 45   | `test_files/unit/views/dashboard-restricted-save-rerender.test.ts`      |      8 |        0 |
-| 46   | `test_files/unit/components/sidebar-scrolling.test.ts`                  |      7 |        0 |
-| 47   | `test_files/unit/services/web-viewer-integration-harness.ts`            |      6 |        0 |
-| 48   | `test_files/unit/components/keyword-filter-editor.test.ts`              |      4 |        0 |
-| 49   | `test_files/unit/modals/sidebar-addfeed-opens-modal.test.ts`            |      4 |        0 |
-| 50   | `test_files/unit/utils/export-utils.test.ts`                            |      4 |        0 |
-| 51   | `test_files/unit/services/feed-parser.test.ts`                          |      3 |        0 |
-| 52   | `test_files/unit/services/fetch-helpers.test.ts`                        |      3 |        0 |
-| 53   | `test_files/unit/services/opml-manager.test.ts`                         |      3 |        0 |
-| 54   | `test_files/unit/settings/metadata-storage-settings-tab.test.ts`        |      3 |       34 |
-| 55   | `test_files/unit/modals/import-success-modal.test.ts`                   |      2 |        0 |
-| 56   | `test_files/unit/services/highlight-service.test.ts`                    |      2 |        1 |
-| 57   | `test_files/unit/services/keyword-filter-service.test.ts`               |      2 |        0 |
-| 58   | `test_files/unit/services/metadata-storage-repository.test.ts`        |      2 |        4 |
-| 59   | `test_files/unit/views/dashboard-filter-persistence.test.ts`            |      2 |        0 |
-| 60   | `test_files/unit/views/dashboard-pagination.test.ts`                    |      1 |        1 |
-| 61   | `test_files/unit/components/article-list-empty-state.test.ts`           |      1 |        0 |
-| 62   | `test_files/unit/components/sidebar-icon-registry.test.ts`              |      1 |        0 |
-| 63   | `test_files/unit/services/feed-import-defaults.test.ts`                 |      0 |        2 |
+| 1    | `test_files/unit/components/discover-sidebar.test.ts`                   |     62 |        0 |
+| 2    | `test_files/unit/views/dashboard-reader-location.test.ts`               |     59 |        0 |
+| 3    | `test_files/unit/main/feed-refresh-pipeline.test.ts`                    |     55 |        0 |
+| 4    | `test_files/unit/services/web-viewer-integration.test.ts`               |     51 |        0 |
+| 5    | `test_files/unit/main/activate-view-leaf-selection.test.ts`             |     47 |        1 |
+| 6    | `test_files/unit/components/sidebar-core.test.ts`                       |     41 |        0 |
+| 7    | `test_files/unit/components/article-header.test.ts`                     |     37 |        0 |
+| 8    | `test_files/unit/components/sidebar-rendering.test.ts`                  |     36 |        1 |
+| 9    | `test_files/unit/components/supported-format-badges.test.ts`            |     36 |        0 |
+| 10   | `test_files/unit/utils/tag-utils.test.ts`                               |     36 |        0 |
+| 11   | `test_files/unit/modals/mobile-navigation-modal.test.ts`                |     35 |        0 |
+| 12   | `test_files/unit/services/apple-podcasts-service.test.ts`               |     32 |        0 |
+| 13   | `test_files/unit/views/dashboard-card-layout-filter-batch.test.ts`      |     32 |        0 |
+| 14   | `test_files/unit/settings/settings-tab-orchestrator.test.ts`            |     29 |        0 |
+| 15   | `test_files/unit/components/article-renderer-summary-dedupe.test.ts`    |     28 |        0 |
+| 16   | `test_files/unit/settings/tags-settings-tab.test.ts`                    |     28 |        0 |
+| 17   | `test_files/unit/settings/media-settings-tab.test.ts`                   |     27 |        0 |
+| 18   | `test_files/unit/main/background-import-orchestration.test.ts`          |     26 |        0 |
+| 19   | `test_files/unit/utils/settings-loader.test.ts`                         |     26 |        0 |
+| 20   | `test_files/unit/components/article-header-menu.test.ts`                |     25 |        0 |
+| 21   | `test_files/unit/settings/display-reader-settings-tab.test.ts`          |     25 |        0 |
+| 22   | `test_files/unit/test-dom-polyfills.ts`                                 |     24 |        0 |
+| 23   | `test_files/unit/components/tags-dropdown-portal-regression.test.ts`    |     23 |        0 |
+| 24   | `test_files/unit/settings/storage-settings-general-tab.test.ts`         |     23 |        0 |
+| 25   | `test_files/unit/views/dashboard-header-title-batching.test.ts`         |     22 |        0 |
+| 26   | `test_files/unit/modals/feed-manager-modal.test.ts`                     |     19 |        0 |
+| 27   | `test_files/unit/settings/startup-filters-settings-positioning.test.ts` |     19 |        0 |
+| 28   | `test_files/unit/components/article-filter-menu.test.ts`                |     18 |        0 |
+| 29   | `test_files/unit/modals/feed-preview-modal.test.ts`                     |     18 |        0 |
+| 30   | `test_files/unit/settings/about-settings-tab.test.ts`                   |     18 |        0 |
+| 31   | `test_files/unit/utils/platform-utils.test.ts`                          |     18 |        0 |
+| 32   | `test_files/unit/modals/mobile-discover-filters-modal.test.ts`          |     16 |        0 |
+| 33   | `test_files/unit/settings/rules-settings-tab.test.ts`                   |     16 |        0 |
+| 34   | `test_files/unit/views/dashboard-title-filter-summary.test.ts`          |     16 |        0 |
+| 35   | `test_files/unit/main/settings-open-navigation.test.ts`                |     15 |        0 |
+| 36   | `test_files/unit/services/import-export-service.test.ts`                |     15 |        0 |
+| 37   | `test_files/unit/components/article-list-characterization.test.ts`      |     14 |        0 |
+| 38   | `test_files/unit/services/import-export-service-metadata.test.ts`       |     14 |        6 |
+| 39   | `test_files/unit/services/feed-storage-repository.test.ts`              |     13 |        0 |
+| 40   | `test_files/unit/components/reader-format-portal.test.ts`               |     11 |        0 |
+| 41   | `test_files/unit/settings/import-export-settings-tab.test.ts`           |     11 |        0 |
+| 42   | `test_files/unit/services/sidebar-ordering-controller.test.ts`          |     10 |        0 |
+| 43   | `test_files/stubs/obsidian.ts`                                          |      8 |        4 |
+| 44   | `test_files/unit/views/dashboard-restricted-save-rerender.test.ts`      |      8 |        0 |
+| 45   | `test_files/unit/components/sidebar-scrolling.test.ts`                  |      7 |        0 |
+| 46   | `test_files/unit/services/web-viewer-integration-harness.ts`            |      6 |        0 |
+| 47   | `test_files/unit/components/keyword-filter-editor.test.ts`              |      4 |        0 |
+| 48   | `test_files/unit/modals/sidebar-addfeed-opens-modal.test.ts`            |      4 |        0 |
+| 49   | `test_files/unit/utils/export-utils.test.ts`                            |      4 |        0 |
+| 50   | `test_files/unit/services/feed-parser.test.ts`                          |      3 |        0 |
+| 51   | `test_files/unit/services/fetch-helpers.test.ts`                        |      3 |        0 |
+| 52   | `test_files/unit/services/opml-manager.test.ts`                         |      3 |        0 |
+| 53   | `test_files/unit/settings/metadata-storage-settings-tab.test.ts`        |      3 |       34 |
+| 54   | `test_files/unit/modals/import-success-modal.test.ts`                   |      2 |        0 |
+| 55   | `test_files/unit/services/highlight-service.test.ts`                    |      2 |        1 |
+| 56   | `test_files/unit/services/keyword-filter-service.test.ts`               |      2 |        0 |
+| 57   | `test_files/unit/services/metadata-storage-repository.test.ts`        |      2 |        4 |
+| 58   | `test_files/unit/views/dashboard-filter-persistence.test.ts`            |      2 |        0 |
+| 59   | `test_files/unit/components/article-list-empty-state.test.ts`           |      1 |        0 |
+| 60   | `test_files/unit/components/sidebar-icon-registry.test.ts`              |      1 |        0 |
+| 61   | `test_files/unit/views/dashboard-pagination.test.ts`                    |      1 |        1 |
 
 ## Cross-Impact on Audit Scorecard
 
