@@ -12,7 +12,7 @@
  * `readerViewLocation` from `viewLocation`; `activateDiscoverView()` and
  * `activateSmallwebView()` were left still following the dashboard setting.
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import type { RssDashboardSettings } from "../../../src/types/types";
 import { App, PluginManifest } from "obsidian";
 import type { FolderService } from "../../../src/services/folder-service";
@@ -75,15 +75,25 @@ interface TestApp extends App {
 }
 
 /** Typed interface for the plugin surface under test */
-interface TestPlugin extends RssDashboardPlugin {
+interface TestPlugin extends Partial<RssDashboardPlugin> {
+  settings: RssDashboardSettings;
   folderService: FolderService;
-  loadData: ReturnType<typeof vi.fn>;
-  saveData: ReturnType<typeof vi.fn>;
-  registerView: ReturnType<typeof vi.fn>;
-  addRibbonIcon: ReturnType<typeof vi.fn>;
-  addCommand: ReturnType<typeof vi.fn>;
-  addSettingTab: ReturnType<typeof vi.fn>;
-  registerInterval: ReturnType<typeof vi.fn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  loadData: Mock<() => Promise<any>>;
+  saveData: Mock<() => Promise<void>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  registerView: Mock<(type: string, viewCreator: (leaf: any) => any) => void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addRibbonIcon: Mock<(icon: string, title: string, callback: (evt: any) => any) => any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addCommand: Mock<(command: any) => void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addSettingTab: Mock<(settingTab: any) => void>;
+  registerInterval: Mock<(id: number) => number>;
+  activateDiscoverView: () => Promise<void>;
+  activateSmallwebView: () => Promise<void>;
+  activateView: () => Promise<void>;
+  loadSettings: () => Promise<void>;
 }
 
 /** A minimal leaf stub that satisfies the `setViewState` contract. */
