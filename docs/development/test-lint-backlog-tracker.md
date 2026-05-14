@@ -252,6 +252,16 @@ Out of scope:
 - Backlog trend: **750 → 737 errors (-13)**.
 - Warnings total: **13** (no change).
 
+### Pass 46
+
+- Targeted files:
+  - `test_files/stubs/obsidian.ts` — **8 → 0 errors**
+  - `test_files/unit/views/dashboard-restricted-save-rerender.test.ts` — **8 → 0 errors**
+  - `test_files/unit/components/sidebar-scrolling.test.ts` — **7 → 0 errors**
+  - `test_files/unit/modals/sidebar-addfeed-opens-modal.test.ts` — **4 → 0 errors**
+  - `test_files/unit/components/keyword-filter-editor.test.ts` — **4 → 0 errors**
+- Backlog trend this phase: **737 → 674 errors** (−63), warnings **13 → 2** (−11).
+
 ## Working Backlog Queue (Ranked)
 
 Use this ordered list for each subsequent pass. Work top-to-bottom unless a file is blocked by dependency context.
@@ -262,11 +272,6 @@ Source artifact:
 
 | Rank | File                                                                    | Errors | Warnings |
 | ---- | ----------------------------------------------------------------------- | -----: | -------: |
-| 1    | `test_files/unit/components/supported-format-badges.test.ts`            |     36 |        0 |
-| 2    | `test_files/unit/utils/tag-utils.test.ts`                               |     36 |        0 |
-| 3    | `test_files/unit/components/sidebar-rendering.test.ts`                  |     36 |        1 |
-| 4    | `test_files/unit/modals/mobile-navigation-modal.test.ts`                |     35 |        0 |
-| 5    | `test_files/unit/views/dashboard-card-layout-filter-batch.test.ts`      |     32 |        0 |
 | 6    | `test_files/unit/services/apple-podcasts-service.test.ts`               |     32 |        0 |
 | 7    | `test_files/unit/settings/settings-tab-orchestrator.test.ts`            |     29 |        0 |
 | 8    | `test_files/unit/settings/tags-settings-tab.test.ts`                    |     28 |        0 |
@@ -293,17 +298,3 @@ Source artifact:
 | 29   | `test_files/unit/services/import-export-service.test.ts`                |     15 |        0 |
 | 30   | `test_files/unit/services/import-export-service-metadata.test.ts`       |     14 |        6 |
 | 31   | `test_files/unit/components/article-list-characterization.test.ts`      |     14 |        0 |
-| 36   | `test_files/stubs/obsidian.ts`                                          |      8 |        4 |
-
-
-## Cross-Impact on Audit Scorecard
-
-Record entries here when test-lint work directly closes a scorecard warning/risk item.
-
-- No direct scorecard warning/risk item has been marked fully closed from Pass 5-14 test-lint work yet.
-
-## Related Docs
-
-- `docs/plugin-scorecard.md` (audit-aligned scorecard)
-- `docs/development/compliance-patterns.md` (approved implementation patterns)
-- `CONTRIBUTING.MD` (compliance declarations and pre-PR checks)
