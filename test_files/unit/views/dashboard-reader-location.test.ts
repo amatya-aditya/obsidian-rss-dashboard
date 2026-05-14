@@ -84,6 +84,20 @@ type MockReaderView = {
   isPodcastPlaying: ReturnType<typeof vi.fn>;
 };
 
+type TestDashboardView = {
+  app: App;
+  render: ReturnType<typeof vi.fn>;
+  inlineArticle: import("../../../src/types/types").FeedItem | null;
+  handleArticleClick: (item: import("../../../src/types/types").FeedItem) => Promise<void>;
+  handleOpenInReaderView: (item: import("../../../src/types/types").FeedItem) => Promise<void>;
+  handleFeedClick: (feed: import("../../../src/types/types").Feed) => Promise<void>;
+  articleList: {
+    setSelectedArticle: ReturnType<typeof vi.fn>;
+    scheduleCardTopAnchorOnResize: ReturnType<typeof vi.fn>;
+    scrollSelectedCardToTop: ReturnType<typeof vi.fn>;
+  };
+};
+
 vi.mock("../../../src/services/article-saver", () => ({
   ArticleSaver: class ArticleSaverMock {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -142,10 +156,9 @@ function createReaderLeaf(app: App, id: string): MockLeaf {
 }
 
 async function createDashboardView(
-  settings: RssDashboardSettings,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  workspaceOverrides: Record<string, any> = {},
-) {
+   settings: RssDashboardSettings,
+   workspaceOverrides: Record<string, unknown> = {},
+): Promise<{ app: App; plugin: unknown; view: TestDashboardView; dashboardLeaf: unknown }> {
   const { RssDashboardView } =
     await import("../../../src/views/dashboard-view");
   const app = new App();
@@ -160,9 +173,12 @@ async function createDashboardView(
     app,
     updateHeader: vi.fn(),
   } as unknown as import("obsidian").WorkspaceLeaf;
-  const view = new RssDashboardView(dashboardLeaf, plugin as never);
+  const view = new RssDashboardView(
+    dashboardLeaf,
+    plugin as unknown as ConstructorParameters<typeof RssDashboardView>[1],
+  );
   view.render = vi.fn();
-  return { app, plugin, view, dashboardLeaf };
+  return { app, plugin, view: view as unknown as TestDashboardView, dashboardLeaf };
 }
 
 describe("Dashboard reader location", () => {
@@ -186,7 +202,7 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await (view as any).handleArticleClick(feed.items[0]);
+    await view.handleArticleClick(feed.items[0]);
 
     expect(
       view.app.workspace.getLeaf as ReturnType<typeof vi.fn>,
@@ -229,13 +245,13 @@ describe("Dashboard reader location", () => {
     const scheduleCardTopAnchorOnResize = vi.fn();
     const scrollSelectedCardToTop = vi.fn();
 
-    (view as any).articleList = {
+    view.articleList = {
       setSelectedArticle,
       scheduleCardTopAnchorOnResize,
       scrollSelectedCardToTop,
     };
 
-    await (view as any).handleArticleClick(feed.items[0]);
+    await view.handleArticleClick(feed.items[0]);
 
     expect(setSelectedArticle).toHaveBeenCalledTimes(1);
     expect(setSelectedArticle).toHaveBeenCalledWith(feed.items[0]);
@@ -268,7 +284,7 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await (view as any).handleArticleClick(feed.items[0]);
+    await view.handleArticleClick(feed.items[0]);
 
     expect(
       view.app.workspace.getLeaf as ReturnType<typeof vi.fn>,
@@ -302,7 +318,7 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await (view as any).handleArticleClick(feed.items[0]);
+    await view.handleArticleClick(feed.items[0]);
 
     expect(
       view.app.workspace.getRightLeaf as ReturnType<typeof vi.fn>,
@@ -329,7 +345,7 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await (view as any).handleArticleClick(feed.items[0]);
+    await view.handleArticleClick(feed.items[0]);
 
     expect(
       view.app.workspace.getLeftLeaf as ReturnType<typeof vi.fn>,
@@ -355,7 +371,7 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await (view as any).handleArticleClick(feed.items[0]);
+    await view.handleArticleClick(feed.items[0]);
 
     expect(rightLeaf.setViewState).toHaveBeenCalledTimes(1);
     expect(leftLeaf.setViewState).not.toHaveBeenCalled();
@@ -375,7 +391,7 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await (view as any).handleOpenInReaderView(feed.items[0]);
+    await view.handleOpenInReaderView(feed.items[0]);
 
     expect(
       view.app.workspace.getRightLeaf as ReturnType<typeof vi.fn>,
@@ -399,7 +415,7 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await (view as any).handleArticleClick(feed.items[0]);
+    await view.handleArticleClick(feed.items[0]);
 
     expect(windowOpenSpy).toHaveBeenCalledWith(feed.items[0].link, "_blank");
     expect(
@@ -411,7 +427,7 @@ describe("Dashboard reader location", () => {
     expect(
       view.app.workspace.getLeftLeaf as ReturnType<typeof vi.fn>,
     ).not.toHaveBeenCalled();
-    expect((view as any).inlineArticle).toBe(null);
+    expect(view.inlineArticle).toBe(null);
 
     windowOpenSpy.mockRestore();
   });
@@ -432,7 +448,7 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await (view as any).handleOpenInReaderView(feed.items[0]);
+    await view.handleOpenInReaderView(feed.items[0]);
 
     expect(windowOpenSpy).toHaveBeenCalledWith(feed.items[0].link, "_blank");
     expect(
@@ -444,7 +460,7 @@ describe("Dashboard reader location", () => {
     expect(
       view.app.workspace.getLeftLeaf as ReturnType<typeof vi.fn>,
     ).not.toHaveBeenCalled();
-    expect((view as any).inlineArticle).toBe(null);
+    expect(view.inlineArticle).toBe(null);
 
     windowOpenSpy.mockRestore();
   });
@@ -467,7 +483,7 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await (view as any).handleOpenInReaderView(feed.items[0]);
+    await view.handleOpenInReaderView(feed.items[0]);
 
     expect(leftLeaf.setViewState).toHaveBeenCalledTimes(1);
     expect(windowOpenSpy).not.toHaveBeenCalled();
@@ -492,7 +508,7 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await (view as any).handleArticleClick(feed.items[0]);
+    await view.handleArticleClick(feed.items[0]);
 
     expect(rightLeaf.setViewState).toHaveBeenCalledTimes(1);
     expect(existingReaderLeaf.setViewState).not.toHaveBeenCalled();
@@ -512,7 +528,7 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await (view as any).handleArticleClick(feed.items[0]);
+    await view.handleArticleClick(feed.items[0]);
 
     // Should NOT open any leaf
     expect(
@@ -526,7 +542,7 @@ describe("Dashboard reader location", () => {
     ).not.toHaveBeenCalled();
 
     // Check state and re-render was triggered
-    expect((view as any).inlineArticle).toBe(feed.items[0]);
+    expect(view.inlineArticle).toBe(feed.items[0]);
     expect(view.render).toHaveBeenCalled();
   });
 
@@ -544,9 +560,9 @@ describe("Dashboard reader location", () => {
       revealLeaf: vi.fn(async () => {}),
     });
 
-    await (view as any).handleOpenInReaderView(feed.items[0]);
+    await view.handleOpenInReaderView(feed.items[0]);
 
-    expect((view as any).inlineArticle).toBe(feed.items[0]);
+    expect(view.inlineArticle).toBe(feed.items[0]);
     expect(view.render).toHaveBeenCalled();
   });
 
@@ -557,13 +573,13 @@ describe("Dashboard reader location", () => {
     settings.readerViewLocation = "inline";
     const { view } = await createDashboardView(settings);
 
-    (view as any).inlineArticle = feed.items[0];
+    view.inlineArticle = feed.items[0];
 
     // Trigger sidebar navigation (same as handleFeedClick)
-    await (view as any).handleFeedClick(feed);
+    await view.handleFeedClick(feed);
 
     // Should clear inline article and render regular list
-    expect((view as any).inlineArticle).toBe(null);
+    expect(view.inlineArticle).toBe(null);
     expect(view.render).toHaveBeenCalled();
   });
 });
