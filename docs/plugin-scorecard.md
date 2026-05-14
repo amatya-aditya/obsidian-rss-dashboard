@@ -90,12 +90,21 @@ This document outlines the current compliance issues and provides a structured p
 - Test validation: All 7 tests passing, 0 linting errors.
 - Backlog trend this phase: **1810 → 1711 errors** (\-99), warnings still **54**.
 
-#### Pass 10 (next)
+#### Pass 10
 
-- Target: `test_files/unit/utils/filter-statusbar-counts.test.ts` — **93** errors (highest remaining ROI).
-- Current queue after Pass 9:
-  - `test_files/unit/utils/filter-statusbar-counts.test.ts` — **93** errors (next)
-  - `test_files/unit/modals/import-opml-modal.test.ts` — **71** errors
+- Targeted `test_files/unit/utils/filter-statusbar-counts.test.ts` — **93 → 0 errors**.
+- Added `TestPlugin` and `TestView` interfaces for typed mock boundaries.
+- Replaced `plugin as never` with proper boundary cast using `ConstructorParameters<typeof RssDashboardView>[1]`.
+- Replaced `document.body.createDiv()` with `document.createElement("div")` and explicit `HTMLDivElement` type annotation.
+- Replaced all `(view as any)` patterns with typed `TestView` interface access using optional call syntax (`view.methodName!`).
+- Test validation: All 5 tests passing, 0 linting errors.
+- Backlog trend this phase: **1711 → 1618 errors** (\-93), warnings still **54**.
+
+#### Pass 11 (next)
+
+- Target: `test_files/unit/modals/import-opml-modal.test.ts` — **71** errors
+- Current queue after Pass 10:
+  - `test_files/unit/modals/import-opml-modal.test.ts` — **71** errors (next)
   - `test_files/unit/modals/add-feed-modal.test.ts` — **58** errors
 
 ## Health
