@@ -100,12 +100,22 @@ This document outlines the current compliance issues and provides a structured p
 - Test validation: All 5 tests passing, 0 linting errors.
 - Backlog trend this phase: **1711 → 1618 errors** (\-93), warnings still **54**.
 
-#### Pass 11 (next)
+#### Pass 11
 
-- Target: `test_files/unit/modals/import-opml-modal.test.ts` — **71** errors
-- Current queue after Pass 10:
-  - `test_files/unit/modals/import-opml-modal.test.ts` — **71** errors (next)
-  - `test_files/unit/modals/add-feed-modal.test.ts` — **58** errors
+- Targeted `test_files/unit/modals/import-opml-modal.test.ts` — **71 → 0 errors**.
+- Changed `MockApp` type from complex `ReturnType` pattern to simple `obsidian.App`.
+- Simplified `createMockApp()` to use direct `new obsidian.App()` instead of `App.createMock()`.
+- Removed `app` property from `TestPlugin` interface (not needed by modal constructor).
+- Replaced all `plugin as any` with proper boundary cast `plugin as unknown as ConstructorParameters<typeof ImportOpmlModal>[1]`.
+- Fixed `expect.objectContaining({ folders: expect.arrayContaining(...) })` unsafe assignment using inline typed object with `as unknown as object` cast.
+- Test validation: All 7 tests passing, 0 linting errors.
+- Backlog trend this phase: **1618 → 1547 errors** (\-71), warnings still **54**.
+
+#### Pass 12 (next)
+
+- Target: `test_files/unit/modals/add-feed-modal.test.ts` — **58** errors
+- Current queue after Pass 11:
+  - `test_files/unit/modals/add-feed-modal.test.ts` — **58** errors (next)
 
 ## Health
 
