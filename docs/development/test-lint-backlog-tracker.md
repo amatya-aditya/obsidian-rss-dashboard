@@ -142,20 +142,28 @@ Out of scope:
 - Test validation: All 30 tests passing, 0 linting errors.
 - Backlog trend this phase: **1451 → 1386 errors** (\-65), warnings still **54**.
 
+### Pass 15
+
+- Targeted `test_files/unit/components/folder-selector-popup.test.ts` — **65 → 0 errors**.
+- Added `TestPlugin` type alias using `ConstructorParameters<typeof FolderSelectorPopup>[0]` for typed mock boundary.
+- Replaced `createPluginStub()` return type from `any` to `TestPlugin` with single boundary cast.
+- Replaced all `document.body.createDiv()` calls with `document.createElement("div")` (native DOM method with proper typing).
+- Added `document.body.appendChild(outside)` in outside-click test to ensure click handler registration.
+- Test validation: All 9 tests passing, 0 linting errors.
+- Backlog trend this phase: **1386 → 1321 errors** (\-65), warnings still **54**.
+
 ## Working Backlog Queue (Ranked)
 
 Use this ordered list for each subsequent pass. Work top-to-bottom unless a file is blocked by dependency context.
 
 Source artifact:
 
-- `test_lint_backlog_ranked.json` (sorted queue generated during Pass 13)
+- `test_lint_backlog_ranked.json` (sorted queue generated during Pass 15)
 
 | Rank | File                                                                    | Errors | Warnings |
 | ---- | ----------------------------------------------------------------------- | -----: | -------: |
-| 1    | `test_files/unit/components/article-list.test.ts`                       |     65 |        0 |
-| 2    | `test_files/unit/components/folder-selector-popup.test.ts`              |     65 |        0 |
-| 3    | `test_files/unit/settings/article-saving-settings-tab.test.ts`          |     65 |        0 |
-| 4    | `test_files/unit/services/backup-service.test.ts`                       |     64 |        0 |
+| 1    | `test_files/unit/settings/article-saving-settings-tab.test.ts`          |     65 |        0 |
+| 2    | `test_files/unit/services/backup-service.test.ts`                       |     64 |        0 |
 | 5    | `test_files/unit/components/discover-sidebar.test.ts`                   |     62 |        0 |
 | 6    | `test_files/unit/views/dashboard-reader-location.test.ts`               |     59 |        0 |
 | 7    | `test_files/unit/main/feed-refresh-pipeline.test.ts`                    |     55 |        0 |
