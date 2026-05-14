@@ -41,9 +41,9 @@ describe("SIDEBAR_ICONS registry", () => {
       expect(typeof icon.label).toBe("string");
       expect(icon.label.length).toBeGreaterThan(0);
       expect(typeof icon.lucideIcon).toBe("string");
-      expect((icon.lucideIcon as string).length).toBeGreaterThan(0);
+      expect(icon.lucideIcon.length).toBeGreaterThan(0);
       expect(typeof icon.settingKey).toBe("string");
-      expect((icon.settingKey as string).length).toBeGreaterThan(0);
+      expect(icon.settingKey.length).toBeGreaterThan(0);
     }
   });
 

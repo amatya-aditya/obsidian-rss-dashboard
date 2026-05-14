@@ -1,6 +1,6 @@
 # Test-Lint Backlog Tracker
 
-Last updated: 2026-05-14 (Pass 22 completed)
+Last updated: 2026-05-14 (Pass 24 completed)
 
 This document tracks the test-file ESLint debt burn-down that branched from the audit scorecard after Pass 4.
 
@@ -238,6 +238,13 @@ Out of scope:
 - Test validation: All 18 tests passing, 0 linting errors.
 - Backlog trend this phase: **912 → 871 errors** (-41), warnings still **53**.
 
+### Pass 24
+
+- Targeted `test_files/unit/components/sidebar-icon-registry.test.ts` — **1 → 0 errors**.
+- Removed unnecessary type assertions `(icon.lucideIcon as string)` and `(icon.settingKey as string)` since the property types are already inferred as `string`.
+- Test validation: All 14 tests passing, 0 linting errors.
+- Backlog trend this phase: **871 → 870 errors** (-1), warnings still **53**.
+
 ## Working Backlog Queue (Ranked)
 
 
@@ -245,7 +252,7 @@ Use this ordered list for each subsequent pass. Work top-to-bottom unless a file
 
 Source artifact:
 
-- `test_lint_backlog_ranked.json` (sorted queue generated during Pass 23)
+- `test_lint_backlog_ranked.json` (sorted queue generated during Pass 24)
 
 | Rank | File                                                                    | Errors | Warnings |
 | ---- | ----------------------------------------------------------------------- | -----: | -------: |
@@ -302,7 +309,6 @@ Source artifact:
 | 51   | `test_files/unit/modals/import-success-modal.test.ts`                   |      2 |        0 |
 | 52   | `test_files/unit/components/article-list-empty-state.test.ts`           |      1 |        0 |
 | 53   | `test_files/unit/views/dashboard-pagination.test.ts`                    |      1 |        1 |
-| 54   | `test_files/unit/components/sidebar-icon-registry.test.ts`              |      1 |        0 |
 
 
 ## Cross-Impact on Audit Scorecard
