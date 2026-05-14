@@ -1,104 +1,116 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ArticleList } from "../../../src/components/article-list";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { FeedItem, RssDashboardSettings } from "../../../src/types/types";
+import { FeedItem, RssDashboardSettings, Tag } from "../../../src/types/types";
 
-// Mock requestAnimationFrame to run synchronously
+type ArticleListCallbacks = ConstructorParameters<typeof ArticleList>[6];
+
+interface TestCSS {
+  escape: (s: string) => string;
+}
+
+interface TestWindow extends Window {
+  CSS?: TestCSS;
+}
+
+const getWindowCSS = (): TestCSS => {
+  const win = window as TestWindow;
+  if (win.CSS === undefined) {
+    const css: TestCSS = { escape: (s: string) => s.replace(/([^\w-])/g, "\\$1") };
+    win.CSS = css;
+    return css;
+  }
+  if (win.CSS.escape === undefined) {
+    win.CSS.escape = (s: string) => s.replace(/([^\w-])/g, "\\$1");
+  }
+  return win.CSS;
+};
+
 const originalRAF = window.requestAnimationFrame;
 const mockRAF = (cb: FrameRequestCallback) => {
   cb(0);
   return 0;
 };
 
-// Mock ResizeObserver
 class ResizeObserverMock {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+   observe() {}
+   unobserve() {}
+   disconnect() {}
 }
-window.ResizeObserver = ResizeObserverMock as any;
-
-// Mock CSS.escape (jsdom doesn't have it)
-if (typeof (window as any).CSS === "undefined") {
-  (window as any).CSS = {
-    escape: (s: string) => s.replace(/([^\w-])/g, "\\$1"),
-  };
-} else if (typeof (window as any).CSS.escape === "undefined") {
-  (window as any).CSS.escape = (s: string) => s.replace(/([^\w-])/g, "\\$1");
-}
+(window as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 
 describe("ArticleList Component", () => {
-  let container: HTMLElement;
-  let settings: RssDashboardSettings;
-  let mockCallbacks: any;
-  let articles: FeedItem[];
+   let container: HTMLElement;
+   let settings: RssDashboardSettings;
+   let mockCallbacks: ArticleListCallbacks;
+   let articles: FeedItem[];
 
-  beforeEach(() => {
-    installObsidianDomPolyfills();
-    window.requestAnimationFrame = mockRAF;
-    container = document.createElement("div");
-    document.body.appendChild(container);
+   beforeEach(() => {
+     installObsidianDomPolyfills();
+     getWindowCSS();
+     window.requestAnimationFrame = mockRAF;
+     container = document.createElement("div");
+     document.body.appendChild(container);
 
-    // Mock scrollIntoView since jsdom doesn't implement it
-    Element.prototype.scrollIntoView = vi.fn();
+     Element.prototype.scrollIntoView = vi.fn();
 
-    settings = {
-      viewStyle: "list",
-      articleGroupBy: "none",
-      articleSort: "newest",
-      display: {
-        cardColumnsPerRow: 3,
-        cardSpacing: 15,
-        mobileShowListToolbar: true,
-        mobileShowCardToolbar: true,
-      },
-      articleFilter: {
-        type: "none",
-        value: 0,
-      },
-      articleSaving: {
-        saveFullContent: false,
-      },
-    } as any;
+     settings = {
+       viewStyle: "list",
+       articleGroupBy: "none",
+       articleSort: "newest",
+       display: {
+         cardColumnsPerRow: 3,
+         cardSpacing: 15,
+         mobileShowListToolbar: true,
+         mobileShowCardToolbar: true,
+       },
+       articleFilter: {
+         type: "none",
+         value: 0,
+       },
+       articleSaving: {
+         saveFullContent: false,
+       },
+     };
 
-    articles = [
-      {
-        guid: "1",
-        title: "Article 1",
-        link: "link1",
-        pubDate: new Date().toISOString(),
-        read: false,
-        tags: [],
-      },
-      {
-        guid: "2",
-        title: "Article 2",
-        link: "link2",
-        pubDate: new Date().toISOString(),
-        read: false,
-        tags: [],
-      },
-    ] as any;
+     articles = [
+       {
+         guid: "1",
+         title: "Article 1",
+         link: "link1",
+         pubDate: new Date().toISOString(),
+         read: false,
+         tags: [],
+       },
+       {
+         guid: "2",
+         title: "Article 2",
+         link: "link2",
+         pubDate: new Date().toISOString(),
+         read: false,
+         tags: [],
+       },
+     ];
 
-    mockCallbacks = {
-      onArticleClick: vi.fn(),
-      onToggleViewStyle: vi.fn(),
-      onRefreshFeeds: vi.fn(),
-      onOpenViewFilters: vi.fn(),
-      onOpenPerFeedSettings: vi.fn(),
-      onArticleUpdate: vi.fn(),
-      onArticleSave: vi.fn(),
-      onOpenSavedArticle: vi.fn(),
-      onOpenInReaderView: vi.fn(),
-      onToggleSidebar: vi.fn(),
-      onSortChange: vi.fn(),
-      onGroupChange: vi.fn(),
-      onFilterChange: vi.fn(),
-      onPageChange: vi.fn(),
-      onPageSizeChange: vi.fn(),
-      onPersistSettings: vi.fn(),
-      onSearch: vi.fn(),
-    };
+     mockCallbacks = {
+       onArticleClick: vi.fn(),
+       onToggleViewStyle: vi.fn(),
+       onRefreshFeeds: vi.fn(async () => {}),
+       onOpenViewFilters: vi.fn(),
+       onOpenPerFeedSettings: vi.fn(),
+       onArticleUpdate: vi.fn(),
+       onArticleSave: vi.fn(),
+       onOpenSavedArticle: vi.fn(),
+       onOpenInReaderView: vi.fn(),
+       onToggleSidebar: vi.fn(),
+       onSortChange: vi.fn(),
+       onGroupChange: vi.fn(),
+       onFilterChange: vi.fn(),
+       onPageChange: vi.fn(),
+       onPageSizeChange: vi.fn(),
+       onPersistSettings: vi.fn(),
+       onSearch: vi.fn(),
+     } as ArticleListCallbacks;
   });
 
   afterEach(() => {
@@ -299,6 +311,7 @@ describe("ArticleList Component", () => {
       articleList.render();
 
       const selectedEl = container.querySelector("#article-2");
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(selectedEl?.scrollIntoView).toHaveBeenCalledWith({
         block: "nearest",
         behavior: "auto",
@@ -332,7 +345,7 @@ describe("ArticleList Component", () => {
 
       const rectSpy = vi
         .spyOn(Element.prototype, "getBoundingClientRect")
-        .mockImplementation(function mockGetBoundingClientRect(this: Element) {
+        .mockImplementation(function (this: Element) {
           if (this === container) {
             return makeRect(100, 500) as DOMRect;
           }
@@ -379,6 +392,7 @@ describe("ArticleList Component", () => {
       ) as HTMLElement;
       articleList.setSelectedArticle(articles[1]);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(secondArticleEl.scrollIntoView).toHaveBeenCalledWith({
         block: "nearest",
         behavior: "auto",
@@ -412,7 +426,7 @@ describe("ArticleList Component", () => {
 
       const rectSpy = vi
         .spyOn(Element.prototype, "getBoundingClientRect")
-        .mockImplementation(function mockGetBoundingClientRect(this: Element) {
+        .mockImplementation(function (this: Element) {
           if (this === container) {
             return makeRect(100, 500) as DOMRect;
           }
@@ -542,11 +556,11 @@ describe("ArticleList Component", () => {
       window.ResizeObserver =
         TestResizeObserver as unknown as typeof ResizeObserver;
 
-      articleList.scheduleCardTopAnchorOnResize();
+articleList.scheduleCardTopAnchorOnResize();
 
-      expect(observedEl).toBe(container);
-      expect((articleList as any).pendingCardTopAnchor).toBe(true);
-    });
+       expect(observedEl).toBe(container);
+       expect(articleList.pendingCardTopAnchor).toBe(true);
+     });
 
     it("top-anchors the selected card and disconnects the observer when a resize fires", () => {
       settings.viewStyle = "card";
@@ -588,53 +602,53 @@ describe("ArticleList Component", () => {
       // Simulate the ResizeObserver firing (rAF runs synchronously in tests)
       capturedCallback!([], {} as ResizeObserver);
 
-      expect(container.scrollTop).toBe(200);
-      expect(disconnected).toBe(true);
-      expect((articleList as any).pendingCardTopAnchor).toBe(false);
+expect(container.scrollTop).toBe(200);
+       expect(disconnected).toBe(true);
+       expect(articleList.pendingCardTopAnchor).toBe(false);
 
-      rectSpy.mockRestore();
-    });
+       rectSpy.mockRestore();
+     });
 
-    it("triggers the fallback relock via timeout if the observer never fires", () => {
-      vi.useFakeTimers();
-      settings.viewStyle = "card";
-      const articleList = makeArticleList();
-      articleList.render();
-      articleList.setSelectedArticle(articles[1]);
+     it("triggers the fallback relock via timeout if the observer never fires", () => {
+       vi.useFakeTimers();
+       settings.viewStyle = "card";
+       const articleList = makeArticleList();
+       articleList.render();
+       articleList.setSelectedArticle(articles[1]);
 
-      let disconnected = false;
+       let disconnected = false;
 
-      class TestResizeObserver {
-        constructor(_cb: ResizeObserverCallback) {}
-        observe() {}
-        unobserve() {}
-        disconnect() {
-          disconnected = true;
-        }
-      }
-      window.ResizeObserver =
-        TestResizeObserver as unknown as typeof ResizeObserver;
+       class TestResizeObserver {
+         constructor(_cb: ResizeObserverCallback) {}
+         observe() {}
+         unobserve() {}
+         disconnect() {
+           disconnected = true;
+         }
+       }
+       window.ResizeObserver =
+         TestResizeObserver as unknown as typeof ResizeObserver;
 
-      Object.defineProperty(container, "scrollTop", {
-        value: 0,
-        writable: true,
-        configurable: true,
-      });
-      const rectSpy = vi
-        .spyOn(Element.prototype, "getBoundingClientRect")
-        .mockImplementation(function (this: Element) {
-          if (this === container) return makeRect(0, 400) as DOMRect;
-          if (this instanceof HTMLElement && this.id === "article-2")
-            return makeRect(200, 260) as DOMRect;
-          return makeRect(0, 0) as DOMRect;
-        });
+       Object.defineProperty(container, "scrollTop", {
+         value: 0,
+         writable: true,
+         configurable: true,
+       });
+       const rectSpy = vi
+         .spyOn(Element.prototype, "getBoundingClientRect")
+         .mockImplementation(function (this: Element) {
+           if (this === container) return makeRect(0, 400) as DOMRect;
+           if (this instanceof HTMLElement && this.id === "article-2")
+             return makeRect(200, 260) as DOMRect;
+           return makeRect(0, 0) as DOMRect;
+         });
 
-      articleList.scheduleCardTopAnchorOnResize();
-      vi.advanceTimersByTime(500);
+articleList.scheduleCardTopAnchorOnResize();
+       vi.advanceTimersByTime(500);
 
-      expect(container.scrollTop).toBe(200);
-      expect(disconnected).toBe(true);
-      expect((articleList as any).pendingCardTopAnchor).toBe(false);
+       expect(container.scrollTop).toBe(200);
+       expect(disconnected).toBe(true);
+       expect(articleList.pendingCardTopAnchor).toBe(false);
 
       rectSpy.mockRestore();
       vi.useRealTimers();
@@ -728,13 +742,13 @@ describe("ArticleList Component", () => {
           return makeRect(0, 0) as DOMRect;
         });
 
-      articleList.scrollSelectedCardToTop();
+articleList.scrollSelectedCardToTop();
 
-      expect(container.scrollTop).toBe(200);
-      expect((articleList as any).pendingCardTopAnchor).toBe(false);
+       expect(container.scrollTop).toBe(200);
+       expect(articleList.pendingCardTopAnchor).toBe(false);
 
-      rectSpy.mockRestore();
-    });
+       rectSpy.mockRestore();
+     });
 
     it("anchors selected card below sticky articles header overlap", () => {
       settings.viewStyle = "card";
@@ -785,17 +799,19 @@ describe("ArticleList Component", () => {
       const keywordRow = document.createElement("div");
       const highlightRow = document.createElement("div");
       const viewingRow = document.createElement("div");
-      statusBarEl.className = "rss-dashboard-filter-subheader";
-      statusBarContentEl.className = "rss-dashboard-filter-subheader-content";
-      keywordRow.className = "rss-dashboard-filter-stats-row";
-      highlightRow.className = "rss-dashboard-highlight-stats";
-      viewingRow.className =
-        "rss-dashboard-filter-stats-row rss-dashboard-viewing-filter-stats-row";
-      statusBarEl.style.paddingTop = "8px";
-      statusBarEl.style.paddingBottom = "8px";
-      statusBarEl.style.borderTop = "1px solid transparent";
-      statusBarEl.style.borderBottom = "1px solid transparent";
-      statusBarEl.style.marginBottom = "14px";
+statusBarEl.className = "rss-dashboard-filter-subheader";
+       statusBarContentEl.className = "rss-dashboard-filter-subheader-content";
+       keywordRow.className = "rss-dashboard-filter-stats-row";
+       highlightRow.className = "rss-dashboard-highlight-stats";
+       viewingRow.className =
+         "rss-dashboard-filter-stats-row rss-dashboard-viewing-filter-stats-row";
+       Object.assign(statusBarEl.style, {
+         paddingTop: "8px",
+         paddingBottom: "8px",
+         borderTop: "1px solid transparent",
+         borderBottom: "1px solid transparent",
+         marginBottom: "14px",
+       });
       statusBarContentEl.appendChild(keywordRow);
       statusBarContentEl.appendChild(highlightRow);
       statusBarContentEl.appendChild(viewingRow);
@@ -933,7 +949,7 @@ describe("ArticleList Component", () => {
   describe("Card Spacing Layout", () => {
     it("updates the card gap variable without re-running tag layout on live spacing changes", () => {
       settings.viewStyle = "card";
-      articles[0].tags = [{ name: "Tag1", color: "#8b5cf6" }] as any;
+      articles[0].tags = [{ name: "Tag1", color: "#8b5cf6" }] as unknown as Tag[];
 
       const articleList = new ArticleList(
         container,
@@ -954,7 +970,9 @@ describe("ArticleList Component", () => {
 
       articleList.render();
 
-      const scheduleSpy = vi.spyOn(articleList as any, "scheduleCardTagLayout");
+      const scheduleSpy = vi.spyOn(articleList, "scheduleCardTagLayout" as never);
+
+      articleList.updateCardSpacingLayout(22);
 
       articleList.updateCardSpacingLayout(22);
 
@@ -969,7 +987,7 @@ describe("ArticleList Component", () => {
 
     it("refreshes visible card tag layout when explicitly requested", () => {
       settings.viewStyle = "card";
-      articles[0].tags = [{ name: "Tag1", color: "#8b5cf6" }] as any;
+      articles[0].tags = [{ name: "Tag1", color: "#8b5cf6" }] as unknown as Tag[];
 
       const articleList = new ArticleList(
         container,
@@ -990,7 +1008,7 @@ describe("ArticleList Component", () => {
 
       articleList.render();
 
-      const scheduleSpy = vi.spyOn(articleList as any, "scheduleCardTagLayout");
+      const scheduleSpy = vi.spyOn(articleList, "scheduleCardTagLayout" as never);
 
       articleList.refreshCardTagLayout();
 
@@ -1158,8 +1176,8 @@ describe("ArticleList Component", () => {
       );
 
       const renderSpy = vi.spyOn(
-        ArticleList.prototype as any,
-        "renderSingleRowCardTagChips",
+        ArticleList.prototype,
+        "renderSingleRowCardTagChips" as never,
       );
 
       articleList.render();
@@ -1201,7 +1219,9 @@ describe("ArticleList Component", () => {
       const item = container.querySelector(
         ".rss-dashboard-feed-item",
       ) as HTMLElement;
-      (articleList as any).syncArticleTags(item, articles[0]);
+      // Access private method for test verification - bind this properly
+      const syncMethod = (articleList as { syncArticleTags?: (el: HTMLElement, article: FeedItem) => void }).syncArticleTags;
+      if (syncMethod) syncMethod.call(articleList, item, articles[0]);
 
       // Check if it's in the toolbar (incorrect) or tags region (correct)
       const toolbarTags = item.querySelector(
