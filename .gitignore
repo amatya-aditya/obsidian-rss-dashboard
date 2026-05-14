@@ -35,3 +35,5 @@ tree.txt
 docs/development/test_lint_backlog_ranked.json
 eslint_test_report.json
 test_lint_backlog_ranked.json
+eslint_test_report_utf8.json
+lint_target.json

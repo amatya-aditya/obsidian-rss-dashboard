@@ -235,7 +235,7 @@ export default class RssDashboardPlugin extends Plugin {
   feedParser!: FeedParser;
   articleSaver!: ArticleSaver;
   private backupService!: BackupService;
-  private folderService!: FolderService;
+  protected folderService!: FolderService;
   private importExportService!: ImportExportService;
   private backgroundImportService!: BackgroundImportService;
   public activeRefreshState = new Map<string, FeedRefreshState>();
