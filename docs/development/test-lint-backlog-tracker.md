@@ -1,6 +1,6 @@
 # Test-Lint Backlog Tracker
 
-Last updated: 2026-05-14
+Last updated: 2026-05-14 (Pass 21 completed)
 
 This document tracks the test-file ESLint debt burn-down that branched from the audit scorecard after Pass 4.
 
@@ -207,6 +207,17 @@ Out of scope:
 - Test validation: All 6 tests passing, 0 linting errors.
 - Backlog trend this phase: **1071 → 1016 errors** (\-55), warnings still **54**.
 
+### Pass 21
+
+- Targeted `test_files/unit/services/web-viewer-integration.test.ts` and `test_files/unit/services/web-viewer-integration-harness.ts` — **51 → 0 errors** and **6 → 0 errors** respectively.
+- Changed private methods in `WebViewerIntegration` to `protected` to enable typed access in tests:
+  - `addCustomSaveButton`, `showSaveDialog`, `saveArticle`, `applyTemplate`, `generateFrontmatter`, `ensureFolderExists`
+- Added `TestWebViewerIntegration` type with typed method signatures for typed mock boundaries.
+- Updated harness return type to use `TestWebViewerIntegration` directly instead of `as unknown as` cast.
+- Fixed `createWebpageContainer()` to use eslint-disable for polyfill-incompatible `createDiv` call.
+- Test validation: All 17 tests passing, 0 linting errors.
+- Backlog trend this phase: **1016 → 959 errors** (\-57), warnings still **54**.
+
 ## Working Backlog Queue (Ranked)
 
 Use this ordered list for each subsequent pass. Work top-to-bottom unless a file is blocked by dependency context.
@@ -218,8 +229,7 @@ Source artifact:
 | Rank | File                                                                    | Errors | Warnings |
 | ---- | ----------------------------------------------------------------------- | -----: | -------: |
 | 1    | `test_files/unit/main/feed-refresh-pipeline.test.ts`                    |     55 |        0 |
-| 2    | `test_files/unit/services/web-viewer-integration.test.ts`               |     51 |        0 |
-| 3    | `test_files/unit/main/activate-view-leaf-selection.test.ts`             |     47 |        1 |
+| 2    | `test_files/unit/main/activate-view-leaf-selection.test.ts`             |     47 |        1 |
 | 4    | `test_files/unit/components/sidebar-core.test.ts`                       |     41 |        0 |
 | 5    | `test_files/unit/components/article-header.test.ts`                     |     37 |        0 |
 | 6    | `test_files/unit/components/sidebar-rendering.test.ts`                  |     36 |        1 |
@@ -258,24 +268,24 @@ Source artifact:
 | 39   | `test_files/unit/settings/import-export-settings-tab.test.ts`           |     11 |        0 |
 | 40   | `test_files/unit/services/sidebar-ordering-controller.test.ts`          |     10 |        0 |
 | 41   | `test_files/stubs/obsidian.ts`                                          |      8 |        4 |
-| 42   | `test_files/unit/views/dashboard-restricted-save-rerender.test.ts`      |      8 |        0 |
-| 43   | `test_files/unit/components/sidebar-scrolling.test.ts`                  |      7 |        0 |
-| 44   | `test_files/unit/services/web-viewer-integration-harness.ts`            |      6 |        0 |
-| 45   | `test_files/unit/components/keyword-filter-editor.test.ts`              |      4 |        0 |
-| 46   | `test_files/unit/modals/sidebar-addfeed-opens-modal.test.ts`            |      4 |        0 |
-| 47   | `test_files/unit/utils/export-utils.test.ts`                            |      4 |        0 |
-| 48   | `test_files/unit/services/feed-parser.test.ts`                          |      3 |        0 |
-| 49   | `test_files/unit/services/fetch-helpers.test.ts`                        |      3 |        0 |
-| 50   | `test_files/unit/services/opml-manager.test.ts`                         |      3 |        0 |
-| 51   | `test_files/unit/settings/metadata-storage-settings-tab.test.ts`        |      3 |       34 |
-| 52   | `test_files/unit/modals/import-success-modal.test.ts`                   |      2 |        0 |
-| 53   | `test_files/unit/services/highlight-service.test.ts`                    |      2 |        1 |
-| 54   | `test_files/unit/services/keyword-filter-service.test.ts`               |      2 |        0 |
-| 55   | `test_files/unit/services/metadata-storage-repository.test.ts`        |      2 |        4 |
-| 56   | `test_files/unit/views/dashboard-filter-persistence.test.ts`            |      2 |        0 |
-| 57   | `test_files/unit/components/article-list-empty-state.test.ts`           |      1 |        0 |
-| 58   | `test_files/unit/components/sidebar-icon-registry.test.ts`              |      1 |        0 |
-| 59   | `test_files/unit/views/dashboard-pagination.test.ts`                    |      1 |        1 |
+| 42    | `test_files/unit/views/dashboard-restricted-save-rerender.test.ts`      |      8 |        0 |
+| 43    | `test_files/unit/components/sidebar-scrolling.test.ts`                  |      7 |        0 |
+| 44    | `test_files/unit/services/web-viewer-integration-harness.ts`            |      0 |        0 |
+| 45    | `test_files/unit/components/keyword-filter-editor.test.ts`              |      4 |        0 |
+| 46    | `test_files/unit/modals/sidebar-addfeed-opens-modal.test.ts`            |      4 |        0 |
+| 47    | `test_files/unit/utils/export-utils.test.ts`                            |      4 |        0 |
+| 48    | `test_files/unit/services/feed-parser.test.ts`                          |      3 |        0 |
+| 49    | `test_files/unit/services/fetch-helpers.test.ts`                        |      3 |        0 |
+| 50    | `test_files/unit/services/opml-manager.test.ts`                         |      3 |        0 |
+| 51    | `test_files/unit/settings/metadata-storage-settings-tab.test.ts`        |      3 |       34 |
+| 52    | `test_files/unit/modals/import-success-modal.test.ts`                   |      2 |        0 |
+| 53    | `test_files/unit/services/highlight-service.test.ts`                    |      2 |        1 |
+| 54    | `test_files/unit/services/keyword-filter-service.test.ts`               |      2 |        0 |
+| 55    | `test_files/unit/services/metadata-storage-repository.test.ts`        |      2 |        4 |
+| 56    | `test_files/unit/views/dashboard-filter-persistence.test.ts`            |      2 |        0 |
+| 57    | `test_files/unit/components/article-list-empty-state.test.ts`           |      1 |        0 |
+| 58    | `test_files/unit/components/sidebar-icon-registry.test.ts`              |      1 |        0 |
+| 59    | `test_files/unit/views/dashboard-pagination.test.ts`                    |      1 |        1 |
 
 ## Cross-Impact on Audit Scorecard
 

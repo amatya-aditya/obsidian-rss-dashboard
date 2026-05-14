@@ -52,7 +52,7 @@ export class WebViewerIntegration {
     return false;
   }
 
-  private addCustomSaveButton(): void {
+  protected addCustomSaveButton(): void {
     const webViewerContainer = document.querySelector(".webpage-container");
     if (!webViewerContainer) return;
 
@@ -86,7 +86,7 @@ export class WebViewerIntegration {
     controlBar.appendChild(saveButton);
   }
 
-  private showSaveDialog(): void {
+  protected showSaveDialog(): void {
     const webViewerPlugin = this.app.plugins.plugins["webpage-html-export"];
     if (!webViewerPlugin) return;
 
@@ -239,7 +239,7 @@ export class WebViewerIntegration {
     });
   }
 
-  private async saveArticle(
+  protected async saveArticle(
     item: FeedItem,
     folder: string,
     template: string,
@@ -272,7 +272,7 @@ export class WebViewerIntegration {
     return file;
   }
 
-  private generateFrontmatter(item: FeedItem): string {
+  protected generateFrontmatter(item: FeedItem): string {
     let frontmatter = this.settings.frontmatterTemplate;
 
     if (!frontmatter) {
@@ -336,7 +336,7 @@ guid: "{{guid}}"
     return frontmatter.endsWith("\n") ? frontmatter : `${frontmatter}\n`;
   }
 
-  private applyTemplate(item: FeedItem, template: string): string {
+  protected applyTemplate(item: FeedItem, template: string): string {
     const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
     const isoDateTime = Number.isNaN(pubDate.getTime())
       ? new Date().toISOString()
@@ -360,7 +360,7 @@ guid: "{{guid}}"
       .replace(/{{content}}/g, item.description);
   }
 
-  private async ensureFolderExists(folderPath: string): Promise<void> {
+  protected async ensureFolderExists(folderPath: string): Promise<void> {
     if (!folderPath || folderPath.trim() === "") {
       return;
     }

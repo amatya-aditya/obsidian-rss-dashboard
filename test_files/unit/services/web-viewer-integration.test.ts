@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { sanitizeFilename } from "../../../src/services/article-saver";
+import type { FeedItem } from "../../../src/types/types";
 import {
   buildFeedItem,
   createWebViewerIntegrationHarness,
@@ -49,9 +50,10 @@ describe("Phase 8 - WebViewerIntegration", () => {
         webViewerPlugin: { openWebpage },
       });
 
-      const addSpy = vi
-        .spyOn(h.integration as any, "addCustomSaveButton")
-        .mockImplementation(() => {});
+      const integration = h.integration as unknown as {
+        addCustomSaveButton: () => void;
+      };
+      const addSpy = vi.spyOn(integration, "addCustomSaveButton").mockImplementation(() => {});
 
       await expect(
         h.integration.openInWebViewer("https://example.com", "My Title"),
@@ -97,7 +99,7 @@ describe("Phase 8 - WebViewerIntegration", () => {
     it("creates a .webpage-control-bar inside .webpage-container when missing", () => {
       const h = createWebViewerIntegrationHarness();
 
-      (h.integration as any).addCustomSaveButton();
+      h.integration.addCustomSaveButton();
 
       const controlBar = h.webpageContainer?.querySelector(".webpage-control-bar");
       expect(controlBar).not.toBeNull();
@@ -109,8 +111,8 @@ describe("Phase 8 - WebViewerIntegration", () => {
     it("adds a single .rss-custom-save-button and is idempotent on repeated calls", () => {
       const h = createWebViewerIntegrationHarness();
 
-      (h.integration as any).addCustomSaveButton();
-      (h.integration as any).addCustomSaveButton();
+      h.integration.addCustomSaveButton();
+      h.integration.addCustomSaveButton();
 
       expect(
         h.webpageContainer?.querySelectorAll(".rss-custom-save-button").length,
@@ -121,12 +123,12 @@ describe("Phase 8 - WebViewerIntegration", () => {
 
     it("clicking the button calls showSaveDialog()", () => {
       const h = createWebViewerIntegrationHarness();
+      const integration = h.integration as unknown as {
+        showSaveDialog: () => void;
+      };
+      const showSpy = vi.spyOn(integration, "showSaveDialog").mockImplementation(() => {});
 
-      const showSpy = vi
-        .spyOn(h.integration as any, "showSaveDialog")
-        .mockImplementation(() => {});
-
-      (h.integration as any).addCustomSaveButton();
+      h.integration.addCustomSaveButton();
 
       const btn = h.webpageContainer?.querySelector<HTMLButtonElement>(
         ".rss-custom-save-button",
@@ -144,7 +146,7 @@ describe("Phase 8 - WebViewerIntegration", () => {
     it("does nothing when the Web Viewer plugin is missing", () => {
       const h = createWebViewerIntegrationHarness({ webViewerPlugin: null });
 
-      (h.integration as any).showSaveDialog();
+      h.integration.showSaveDialog();
       expect(document.querySelector(".rss-dashboard-modal")).toBeNull();
 
       h.cleanup();
@@ -162,7 +164,7 @@ describe("Phase 8 - WebViewerIntegration", () => {
         settings: { defaultFolder: "My Folder/", includeFrontmatter: false },
       });
 
-      (h.integration as any).showSaveDialog();
+      h.integration.showSaveDialog();
 
       const modal = document.querySelector<HTMLElement>(".rss-dashboard-modal");
       expect(modal).not.toBeNull();
@@ -203,11 +205,17 @@ describe("Phase 8 - WebViewerIntegration", () => {
         settings: { defaultFolder: "SaveHere/", includeFrontmatter: true },
       });
 
-      const saveSpy = vi
-        .spyOn(h.integration as any, "saveArticle")
-        .mockResolvedValue(null);
+      const integration = h.integration as unknown as {
+        saveArticle: (
+          item: { title: string },
+          folder: string,
+          template: string,
+          includeFrontmatter: boolean,
+        ) => Promise<unknown>;
+      };
+      const saveSpy = vi.spyOn(integration, "saveArticle").mockResolvedValue(null);
 
-      (h.integration as any).showSaveDialog();
+      h.integration.showSaveDialog();
 
       const modal = document.querySelector<HTMLElement>(".rss-dashboard-modal");
       const saveButton = Array.from(
@@ -217,7 +225,6 @@ describe("Phase 8 - WebViewerIntegration", () => {
 
       saveButton?.click();
 
-      // showSaveDialog fires-and-forgets an async IIFE; flush a couple microtasks.
       await Promise.resolve();
       await Promise.resolve();
 
@@ -244,12 +251,15 @@ describe("Phase 8 - WebViewerIntegration", () => {
         description: "<p>Body</p>",
       });
 
-      const saveArticle = (h.integration as any).saveArticle.bind(h.integration) as (
-        item: any,
-        folder: string,
-        template: string,
-        includeFrontmatter: boolean,
-      ) => Promise<any>;
+      const integration = h.integration as unknown as {
+        saveArticle: (
+          item: FeedItem,
+          folder: string,
+          template: string,
+          includeFrontmatter: boolean,
+        ) => Promise<unknown>;
+      };
+      const saveArticle = integration.saveArticle.bind(h.integration);
 
       const file = await saveArticle(
         item,
@@ -276,12 +286,15 @@ describe("Phase 8 - WebViewerIntegration", () => {
 
       await h.app.vault.create("Folder/Dupe.md", "existing");
 
-      const saveArticle = (h.integration as any).saveArticle.bind(h.integration) as (
-        item: any,
-        folder: string,
-        template: string,
-        includeFrontmatter: boolean,
-      ) => Promise<any>;
+      const integration = h.integration as unknown as {
+        saveArticle: (
+          item: FeedItem,
+          folder: string,
+          template: string,
+          includeFrontmatter: boolean,
+        ) => Promise<unknown>;
+      };
+      const saveArticle = integration.saveArticle.bind(h.integration);
 
       const file = await saveArticle(item, "Folder", "{{title}}", false);
       expect(file).toBeNull();
@@ -315,7 +328,10 @@ describe("Phase 8 - WebViewerIntegration", () => {
       vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));
 
       const h = createWebViewerIntegrationHarness();
-      const applyTemplate = (h.integration as any).applyTemplate.bind(h.integration);
+      const integration = h.integration as unknown as {
+        applyTemplate: (item: { title: string; link: string; author?: string; feedTitle: string; summary?: string; description?: string; pubDate: string }, template: string) => string;
+      };
+      const applyTemplate = integration.applyTemplate.bind(h.integration);
 
       const item = buildFeedItem({
         title: "T",
@@ -348,10 +364,10 @@ describe("Phase 8 - WebViewerIntegration", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));
 
-      const h = createWebViewerIntegrationHarness({
-        settings: {
-          addSavedTag: true,
-          frontmatterTemplate: `---
+const h = createWebViewerIntegrationHarness({
+          settings: {
+            addSavedTag: true,
+            frontmatterTemplate: `---
 title: "{{title}}"
 date: "{{date}}"
 iso: "{{isoDateTime}}"
@@ -359,11 +375,12 @@ tags: [{{tags}}]
 guid: "{{guid}}"
 ---
 `,
-        },
-      });
-      const generateFrontmatter = (h.integration as any).generateFrontmatter.bind(
-        h.integration,
-      );
+          },
+        });
+        const integration = h.integration as unknown as {
+          generateFrontmatter: (item: { title: string; guid: string; link: string; author?: string; feedTitle: string; tags: { name: string; color: string }[]; pubDate: string }) => string;
+        };
+        const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
 
       const item = buildFeedItem({
         title: "My Article",
@@ -386,9 +403,10 @@ guid: "{{guid}}"
 
     it("ensureFolderExists creates folder only when missing", async () => {
       const h = createWebViewerIntegrationHarness();
-      const ensureFolderExists = (h.integration as any).ensureFolderExists.bind(
-        h.integration,
-      ) as (path: string) => Promise<void>;
+      const integration = h.integration as unknown as {
+        ensureFolderExists: (path: string) => Promise<void>;
+      };
+      const ensureFolderExists = integration.ensureFolderExists.bind(h.integration);
 
       const createFolderSpy = vi.spyOn(h.app.vault, "createFolder");
       await ensureFolderExists("");
