@@ -5,7 +5,16 @@ import { DEFAULT_SETTINGS, type Feed, type FeedItem } from "../../../src/types/t
 
 let consoleLogSpy: ReturnType<typeof vi.spyOn>;
 
-function createMockManifest(): any {
+interface TestManifest {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  dir: string;
+}
+
+function createMockManifest(): TestManifest {
   return {
     id: "rss-dashboard",
     name: "RSS Dashboard",
@@ -45,9 +54,22 @@ function createFeed(overrides: Partial<Feed> = {}): Feed {
   };
 }
 
-function createPluginWithSettings(feeds: Feed[]): RssDashboardPlugin {
-  const app = (App as any).createMock();
-  const plugin = new RssDashboardPlugin(app as any, createMockManifest());
+interface TestFeedParser {
+  refreshFeed: ReturnType<typeof vi.fn>;
+  refreshAllFeeds: ReturnType<typeof vi.fn>;
+}
+
+interface TestPlugin {
+  settings: typeof DEFAULT_SETTINGS;
+  saveData: () => Promise<void>;
+  feedParser: TestFeedParser;
+  refreshFeeds: (selectedFeeds?: Feed[]) => Promise<void>;
+  activeRefreshState: Map<string, unknown>;
+}
+
+function createPluginWithSettings(feeds: Feed[]): TestPlugin {
+  const app = new App();
+  const plugin = new RssDashboardPlugin(app as unknown as ConstructorParameters<typeof RssDashboardPlugin>[0], createMockManifest() as unknown as ConstructorParameters<typeof RssDashboardPlugin>[1]);
 
   plugin.settings = {
     ...DEFAULT_SETTINGS,
@@ -59,13 +81,14 @@ function createPluginWithSettings(feeds: Feed[]): RssDashboardPlugin {
   plugin.feedParser = {
     refreshFeed: vi.fn(),
     refreshAllFeeds: vi.fn(),
-  } as any;
+  };
 
-  return plugin;
+  return plugin as unknown as TestPlugin;
 }
 
-function getNoticeMessages(consoleLogSpy: ReturnType<typeof vi.spyOn>): string[] {
-  return consoleLogSpy.mock.calls
+function getNoticeMessages(spy: ReturnType<typeof vi.spyOn>): string[] {
+  const calls = (spy as unknown as { mock: { calls: Array<Array<unknown>> } }).mock.calls;
+  return calls
     .filter((call) => call[0] === "[Stub Notice]")
     .map((call) => String(call[1]));
 }
@@ -140,16 +163,16 @@ describe("refreshFeeds() pipeline behavior", () => {
       items: [createItem({ guid: "e-1", feedTitle: "Feed E", feedUrl: "https://example.com/e.xml" })],
     };
 
-    const validateSpy = vi.spyOn(plugin as any, "validateSavedArticles");
+    const validateSpy = vi.spyOn(plugin as never, "validateSavedArticles");
     const viewRefreshSpy = vi.fn();
     const sidebarRefreshSpy = vi.fn();
     vi.spyOn(plugin, "getActiveDashboardView").mockResolvedValue({
       refreshSidebarOnly: sidebarRefreshSpy,
       refresh: viewRefreshSpy,
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof RssDashboardPlugin.prototype.getActiveDashboardView>>);
 
     const resolvers: Array<() => void> = [];
-    (plugin.feedParser.refreshFeed as any).mockImplementation((feed: Feed) => {
+    (plugin.feedParser.refreshFeed as unknown as { mockImplementation: (fn: (feed: Feed) => Promise<Feed>) => void }).mockImplementation((feed: Feed) => {
       if (feed.url === feedE.url) {
         return Promise.resolve(updatedE);
       }
@@ -177,7 +200,7 @@ describe("refreshFeeds() pipeline behavior", () => {
     const refreshPromise = plugin.refreshFeeds();
     await Promise.resolve();
 
-    expect((plugin.feedParser.refreshFeed as any).mock.calls.map(([feed]: [Feed]) => feed.url)).toEqual([
+    expect((plugin.feedParser.refreshFeed as unknown as { mock: { calls: unknown[][] } }).mock.calls.map(([feed]: [Feed]) => feed.url)).toEqual([
       "https://example.com/a.xml",
       "https://example.com/b.xml",
       "https://example.com/c.xml",
@@ -188,7 +211,7 @@ describe("refreshFeeds() pipeline behavior", () => {
 
     await vi.advanceTimersByTimeAsync(251);
     resolvers[0]?.();
-    await vi.runAllTicks();
+    vi.runAllTicks();
     await Promise.resolve();
 
     resolvers[1]?.();
@@ -204,7 +227,7 @@ describe("refreshFeeds() pipeline behavior", () => {
     expect(plugin.settings.feeds[2].lastUpdated).toBe(777);
     expect(plugin.settings.feeds[3].lastUpdated).toBe(666);
     expect(plugin.settings.feeds[4].lastUpdated).toBe(555);
-    expect((plugin.feedParser.refreshFeed as any).mock.calls.map(([feed]: [Feed]) => feed.url)).toEqual([
+    expect((plugin.feedParser.refreshFeed as unknown as { mock: { calls: unknown[][] } }).mock.calls.map(([feed]: [Feed]) => feed.url)).toEqual([
       "https://example.com/a.xml",
       "https://example.com/b.xml",
       "https://example.com/c.xml",
@@ -241,7 +264,7 @@ describe("refreshFeeds() pipeline behavior", () => {
       ...feedB,
       lastUpdated: 777,
     };
-    (plugin.feedParser.refreshFeed as any).mockResolvedValue(updatedB);
+    (plugin.feedParser.refreshFeed as unknown as { mockResolvedValue: (value: Feed) => void }).mockResolvedValue(updatedB);
 
     vi.spyOn(plugin, "getActiveDashboardView").mockResolvedValue(null);
 
@@ -276,9 +299,9 @@ describe("refreshFeeds() pipeline behavior", () => {
     vi.spyOn(plugin, "getActiveDashboardView").mockResolvedValue({
       refreshSidebarOnly: sidebarRefreshSpy,
       refresh: viewRefreshSpy,
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof RssDashboardPlugin.prototype.getActiveDashboardView>>);
 
-    (plugin.feedParser.refreshFeed as any).mockImplementation((feed: Feed) => {
+    (plugin.feedParser.refreshFeed as unknown as { mockImplementation: (fn: (feed: Feed) => Promise<Feed>) => void }).mockImplementation((feed: Feed) => {
       if (feed.url === feedA.url) {
         return new Promise<Feed>(() => undefined);
       }
@@ -309,7 +332,7 @@ describe("refreshFeeds() pipeline behavior", () => {
   it("swallows direct refresh errors and shows an error Notice", async () => {
     const plugin = createPluginWithSettings([createFeed()]);
 
-    (plugin.feedParser.refreshFeed as any).mockRejectedValue(
+    (plugin.feedParser.refreshFeed as unknown as { mockRejectedValue: (error: Error) => void }).mockRejectedValue(
       new Error("network down"),
     );
 
@@ -334,7 +357,7 @@ describe("refreshFeeds() pipeline behavior", () => {
 
   it("skips refresh when feedParser is not initialized yet", async () => {
     const plugin = createPluginWithSettings([createFeed()]);
-    plugin.feedParser = undefined as any;
+    plugin.feedParser = undefined as unknown as TestFeedParser;
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     await expect(plugin.refreshFeeds()).resolves.toBeUndefined();

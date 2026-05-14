@@ -197,6 +197,16 @@ Out of scope:
 - Test validation: All 14 tests passing, 0 linting errors.
 - Backlog trend this phase: **1130 → 1071 errors** (\-59), warnings still **54**.
 
+### Pass 20
+
+- Targeted `test_files/unit/main/feed-refresh-pipeline.test.ts` — **55 → 0 errors**.
+- Replaced `app as any` and `createMockManifest() as any` with proper boundary casts using `ConstructorParameters<typeof RssDashboardPlugin>`.
+- Replaced `(spy as any).mock.calls` with typed boundary cast using `as unknown as { mock: { calls: Array<Array<unknown>> } }`.
+- Replaced all `plugin.feedParser.refreshFeed as any` patterns with `as unknown as { mockImplementation, mockResolvedValue, mockRejectedValue }` boundary casts.
+- Removed unused `eslint-disable-next-line @typescript-eslint/unbound-method` directives for lines where no violations existed.
+- Test validation: All 6 tests passing, 0 linting errors.
+- Backlog trend this phase: **1071 → 1016 errors** (\-55), warnings still **54**.
+
 ## Working Backlog Queue (Ranked)
 
 Use this ordered list for each subsequent pass. Work top-to-bottom unless a file is blocked by dependency context.
