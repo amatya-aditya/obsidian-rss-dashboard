@@ -17,7 +17,7 @@ function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
 
-function makeFeed(title: string, url: string, folder: any = ""): Feed {
+function makeFeed(title: string, url: string, folder: unknown = ""): Feed {
   return { title, url, folder, items: [], lastUpdated: 0 } as Feed;
 }
 

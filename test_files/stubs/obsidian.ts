@@ -3,13 +3,14 @@
 // =============================================================================
 // =============================================================================
 
+// eslint-disable-next-line no-restricted-imports -- obsidian stub explicitly re-exports moment for tests
 import moment from "moment";
 export { moment };
 
 // Stub for HTTP requests - configure mock in test
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
+ 
 export async function requestUrl(
-  _param?: any,
+  _param?: unknown,
 ): Promise<{ status: number; text: string }> {
   throw new Error("requestUrl stub - configure mock in test if needed");
 }
@@ -351,7 +352,7 @@ export class MockWorkspace {
     return {};
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
+   
   offref(_ref: unknown): void {}
 }
 
@@ -432,12 +433,12 @@ export class Plugin {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addCommand(_command: any): void {}
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
+   
   addRibbonIcon(
     _icon: string,
     _title: string,
-    _callback: (...args: any[]) => any,
-  ): any {
+    _callback: (...args: unknown[]) => unknown,
+  ): unknown {
     return {};
   }
 
@@ -478,7 +479,7 @@ export class PluginSettingTab {
 
 export class Notice {
   constructor(message: string, _timeout?: number) {
-    console.log("[Stub Notice]", message);
+    console.debug("[Stub Notice]", message);
   }
 
   hide(): void {}
@@ -639,7 +640,7 @@ export class Setting {
 
       _triggerClick(evt?: MouseEvent): void {
         if (this.clickHandler) {
-          this.clickHandler(evt ?? (new MouseEvent("click") as MouseEvent));
+          this.clickHandler(evt ?? (new MouseEvent("click")));
         } else {
           this.buttonEl.click();
         }
@@ -931,15 +932,13 @@ export class Modal {
 }
 
 export class AbstractInputSuggest<T> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected app: any;
+  protected app: App;
   protected inputEl: HTMLInputElement;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  constructor(app: any, inputEl: HTMLInputElement) {
+  constructor(app: App, inputEl: HTMLInputElement) {
     this.app = app;
     this.inputEl = inputEl;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   protected getSuggestions(_query: string): T[] {
     return [];
   }

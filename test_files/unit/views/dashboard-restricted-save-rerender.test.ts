@@ -17,53 +17,42 @@ vi.mock("../../../src/utils/platform-utils", () => ({
 
 vi.mock("../../../src/components/article-list", () => ({
   ArticleList: class ArticleListMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
+    constructor(..._args: unknown[]) {}
     render(): void {}
     destroy(): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    refilter(..._args: any[]): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setSelectedArticle(..._args: any[]): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    hasArticle(..._args: any[]): boolean {
+    refilter(..._args: unknown[]): void {}
+    setSelectedArticle(..._args: unknown[]): void {}
+    hasArticle(..._args: unknown[]): boolean {
       return false;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    insertArticleInPlace(..._args: any[]): boolean {
+    insertArticleInPlace(..._args: unknown[]): boolean {
       return false;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    removeArticleInPlace(..._args: any[]): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    updateArticleInPlace(..._args: any[]): void {}
+    removeArticleInPlace(..._args: unknown[]): void {}
+    updateArticleInPlace(..._args: unknown[]): void {}
   },
 }));
 
 vi.mock("../../../src/components/sidebar", () => ({
   Sidebar: class SidebarMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
+    constructor(..._args: unknown[]) {}
     render(): void {}
     clearFolderPathCache(): void {}
     destroy(): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    showEditFeedModal(..._args: any[]): void {}
+    showEditFeedModal(..._args: unknown[]): void {}
   },
 }));
 
 vi.mock("../../../src/modals/feed-manager-modal", () => ({
   FeedManagerModal: class FeedManagerModalMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
+    constructor(..._args: unknown[]) {}
     open(): void {}
   },
 }));
 
 vi.mock("../../../src/modals/mobile-navigation-modal", () => ({
   MobileNavigationModal: class MobileNavigationModalMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
+    constructor(..._args: unknown[]) {}
     open(): void {}
     close(): void {}
   },
@@ -76,10 +65,8 @@ vi.mock("../../../src/views/reader-view", () => ({
 
 vi.mock("../../../src/services/article-saver", () => ({
   ArticleSaver: class ArticleSaverMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    verifyAllSavedArticles(..._args: any[]): void {}
+    constructor(..._args: unknown[]) {}
+    verifyAllSavedArticles(..._args: unknown[]): void {}
   },
 }));
 
@@ -110,7 +97,20 @@ function makeFeed(url: string, items: Partial<FeedItem>[] = []): Feed {
   };
 }
 
-async function makeView(settings: RssDashboardSettings): Promise<any> {
+import type { RssDashboardView } from "../../../src/views/dashboard-view";
+
+interface DashboardViewInternal {
+  inlineArticle: FeedItem | null;
+  selectedArticle: FeedItem | null;
+  saver: {
+    saveArticleWithFullContent: ReturnType<typeof vi.fn>;
+    saveArticle: ReturnType<typeof vi.fn>;
+  };
+  handleArticleSave(article: FeedItem): Promise<void>;
+  render: ReturnType<typeof vi.fn>;
+}
+
+async function makeView(settings: RssDashboardSettings): Promise<DashboardViewInternal> {
   const { RssDashboardView } =
     await import("../../../src/views/dashboard-view");
   const app = new App();
@@ -120,7 +120,7 @@ async function makeView(settings: RssDashboardSettings): Promise<any> {
     updateArticle: vi.fn(async () => {}),
   };
   const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
-  const view = new RssDashboardView(leaf, plugin as never);
+  const view = new RssDashboardView(leaf, plugin as never) as unknown as DashboardViewInternal;
   view.render = vi.fn();
   return view;
 }

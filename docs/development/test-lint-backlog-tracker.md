@@ -1,6 +1,6 @@
 # Test-Lint Backlog Tracker
 
-Last updated: 2026-05-14 (Pass 34 completed)
+Last updated: 2026-05-14 (Pass 45 completed)
 
 This document tracks the test-file ESLint debt burn-down that branched from the audit scorecard after Pass 4.
 
@@ -187,6 +187,70 @@ Out of scope:
 - Targeted `test_files/unit/services/fetch-helpers.test.ts` — **3 → 0 errors**.
 - Backlog trend: **818 → 815 errors** (-3).
 
+### Pass 35
+
+- Targeted `test_files/unit/settings/metadata-storage-settings-tab.test.ts` — **3 → 0 errors**.
+- Backlog trend: **815 → 812 errors** (-3).
+- Warnings total: **47 → 13** (-34).
+
+### Pass 36
+
+- Targeted `test_files/unit/services/opml-manager.test.ts` — **3 → 0 errors**.
+- Backlog trend: **812 → 809 errors (-3)**.
+
+### Pass 37
+
+- Targeted `test_files/unit/utils/export-utils.test.ts` — **4 → 0 errors**.
+- Backlog trend: **809 → 805 errors (-4)**.
+- Warnings total: **13** (no change).
+
+### Pass 38
+
+- Targeted `test_files/unit/components/keyword-filter-editor.test.ts` — **4 → 0 errors**.
+- Backlog trend: **805 → 801 errors (-4)**.
+- Warnings total: **13** (no change).
+
+### Pass 39
+
+- Targeted `test_files/unit/modals/sidebar-addfeed-opens-modal.test.ts` — **4 → 0 errors**.
+- Backlog trend: **801 → 797 errors (-4)**.
+- Warnings total: **13** (no change).
+
+### Pass 40
+
+- Targeted `test_files/unit/components/sidebar-scrolling.test.ts` — **7 → 0 errors**.
+- Backlog trend: **797 → 790 errors (-7)**.
+- Warnings total: **13** (no change).
+
+### Pass 41
+
+- Targeted `test_files/unit/views/dashboard-restricted-save-rerender.test.ts` — **8 → 0 errors**.
+- Backlog trend: **790 → 782 errors (-8)**.
+- Warnings total: **13** (no change).
+
+### Pass 42
+
+- Targeted `test_files/unit/services/sidebar-ordering-controller.test.ts` — **10 → 0 errors**.
+- Backlog trend: **782 → 772 errors (-10)**.
+- Warnings total: **13** (no change).
+
+### Pass 43
+
+- Targeted `test_files/unit/components/reader-format-portal.test.ts` — **11 → 0 errors**.
+- Backlog trend: **772 → 761 errors (-11)**.
+- Warnings total: **13** (no change).
+
+### Pass 44
+
+- Targeted `test_files/unit/settings/import-export-settings-tab.test.ts` — **11 → 0 errors**.
+- Backlog trend: **761 → 750 errors (-11)**.
+- Warnings total: **13** (no change).
+
+### Pass 45
+
+- Targeted `test_files/unit/services/feed-storage-repository.test.ts` — **13 → 0 errors**.
+- Backlog trend: **750 → 737 errors (-13)**.
+- Warnings total: **13** (no change).
 
 ## Working Backlog Queue (Ranked)
 
@@ -229,18 +293,7 @@ Source artifact:
 | 29   | `test_files/unit/services/import-export-service.test.ts`                |     15 |        0 |
 | 30   | `test_files/unit/services/import-export-service-metadata.test.ts`       |     14 |        6 |
 | 31   | `test_files/unit/components/article-list-characterization.test.ts`      |     14 |        0 |
-| 32   | `test_files/unit/services/feed-storage-repository.test.ts`              |     13 |        0 |
-| 33   | `test_files/unit/settings/import-export-settings-tab.test.ts`           |     11 |        0 |
-| 34   | `test_files/unit/components/reader-format-portal.test.ts`               |     11 |        0 |
-| 35   | `test_files/unit/services/sidebar-ordering-controller.test.ts`          |     10 |        0 |
 | 36   | `test_files/stubs/obsidian.ts`                                          |      8 |        4 |
-| 37   | `test_files/unit/views/dashboard-restricted-save-rerender.test.ts`      |      8 |        0 |
-| 38   | `test_files/unit/components/sidebar-scrolling.test.ts`                  |      7 |        0 |
-| 39   | `test_files/unit/modals/sidebar-addfeed-opens-modal.test.ts`            |      4 |        0 |
-| 40   | `test_files/unit/components/keyword-filter-editor.test.ts`              |      4 |        0 |
-| 41   | `test_files/unit/utils/export-utils.test.ts`                            |      4 |        0 |
-| 42   | `test_files/unit/services/opml-manager.test.ts`                         |      3 |        0 |
-| 43   | `test_files/unit/settings/metadata-storage-settings-tab.test.ts`        |      3 |       34 |
 
 
 ## Cross-Impact on Audit Scorecard

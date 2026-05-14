@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildArticle, createArticleListHarness } from "./article-list-harness";
 
+interface TestableArticleList {
+  filterArticlesBySearch(query: string): void;
+  articleSearchQuery: string;
+}
+
 describe("Phase 7 - ArticleList characterization", () => {
   afterEach(() => {
     document.body.empty();
@@ -63,7 +68,7 @@ describe("Phase 7 - ArticleList characterization", () => {
 
     h.list.render();
 
-    (h.list as any).filterArticlesBySearch("hello");
+    (h.list as unknown as TestableArticleList).filterArticlesBySearch("hello");
     expect(
       h.getArticleEl("1")?.classList.contains("rss-dashboard-search-hidden"),
     ).toBe(false);
@@ -71,7 +76,7 @@ describe("Phase 7 - ArticleList characterization", () => {
       h.getArticleEl("2")?.classList.contains("rss-dashboard-search-hidden"),
     ).toBe(true);
 
-    (h.list as any).filterArticlesBySearch("");
+    (h.list as unknown as TestableArticleList).filterArticlesBySearch("");
     expect(
       h.getArticleEl("2")?.classList.contains("rss-dashboard-search-hidden"),
     ).toBe(false);
@@ -101,7 +106,7 @@ describe("Phase 7 - ArticleList characterization", () => {
       true,
     );
 
-    (h.list as any).filterArticlesBySearch("hello");
+    (h.list as unknown as TestableArticleList).filterArticlesBySearch("hello");
     expect(
       h.getArticleEl("1")?.classList.contains("rss-dashboard-search-hidden"),
     ).toBe(false);
@@ -109,7 +114,7 @@ describe("Phase 7 - ArticleList characterization", () => {
       h.getArticleEl("2")?.classList.contains("rss-dashboard-search-hidden"),
     ).toBe(true);
 
-    (h.list as any).filterArticlesBySearch("");
+    (h.list as unknown as TestableArticleList).filterArticlesBySearch("");
     expect(
       h.getArticleEl("2")?.classList.contains("rss-dashboard-search-hidden"),
     ).toBe(false);
@@ -133,7 +138,7 @@ describe("Phase 7 - ArticleList characterization", () => {
     h.list.render();
 
     // Characterize current behavior: search query is treated as pre-normalized (lowercased).
-    (h.list as any).articleSearchQuery = "hide";
+    (h.list as unknown as TestableArticleList).articleSearchQuery = "hide";
 
     h.list.refilter(new Set(), new Set(), "OR", h.articles, 1, 1, 10, 2);
 

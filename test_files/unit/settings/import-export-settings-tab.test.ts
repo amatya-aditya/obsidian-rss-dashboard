@@ -156,7 +156,7 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as any);
+      renderImportExportSettingsTab(containerEl, plugin as unknown);
 
       const portableSetting = getSettingByName(
         containerEl,
@@ -177,7 +177,7 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as any);
+      renderImportExportSettingsTab(containerEl, plugin as unknown);
 
       const exportButton = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
@@ -193,7 +193,7 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as any);
+      renderImportExportSettingsTab(containerEl, plugin as unknown);
 
       const settingNames = Array.from(
         containerEl.querySelectorAll<HTMLElement>(".setting-item-name"),
@@ -222,7 +222,7 @@ describe("Auto Backup Helpers", () => {
         "waitForClose",
       ).mockResolvedValue(false);
 
-      renderImportExportSettingsTab(containerEl, plugin as any);
+      renderImportExportSettingsTab(containerEl, plugin as unknown);
 
       const resetButton = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
@@ -250,7 +250,7 @@ describe("Auto Backup Helpers", () => {
         "waitForClose",
       ).mockResolvedValue(true);
 
-      renderImportExportSettingsTab(containerEl, plugin as any);
+      renderImportExportSettingsTab(containerEl, plugin as unknown);
 
       const resetButton = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),

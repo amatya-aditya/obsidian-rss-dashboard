@@ -7,6 +7,15 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 
+interface VaultAdapterStub {
+  write(path: string, content: string): Promise<void>;
+  read(path: string): Promise<string>;
+}
+
+function vaultAdapter(app: App): VaultAdapterStub {
+  return app.vault.adapter as unknown as VaultAdapterStub;
+}
+
 function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
@@ -39,12 +48,12 @@ function makeFeed(overrides?: Partial<Feed>): Feed {
 describe("FeedStorageRepository", () => {
   let app: App;
   let repository: FeedStorageRepository;
-  let saveData: ReturnType<typeof vi.fn>;
+  let saveData: import("vitest").Mock<(...args: unknown[]) => Promise<void>>;
 
   beforeEach(() => {
     app = App.createMock();
     repository = new FeedStorageRepository(app);
-    saveData = vi.fn().mockResolvedValue(undefined);
+    saveData = vi.fn<(...args: unknown[]) => Promise<void>>().mockResolvedValue(undefined);
   });
 
   it("returns data.json as the feed local address in legacy mode", () => {
@@ -101,7 +110,7 @@ describe("FeedStorageRepository", () => {
       }),
     ];
 
-    await app.vault.adapter.write(
+    await vaultAdapter(app).write(
       "RSS Data/Feeds/feed-1.json",
       JSON.stringify({
         version: 1,
@@ -182,7 +191,7 @@ describe("FeedStorageRepository", () => {
         storageMode: "vault-shards",
         feeds: [
           expect.not.objectContaining({
-            items: expect.anything(),
+            items: expect.anything() as unknown,
           }),
         ],
       }),
@@ -201,7 +210,7 @@ describe("FeedStorageRepository", () => {
 
     expect(settings.storageMode).toBe("vault-shards");
     expect(app.vault.getAbstractFileByPath("RSS Data/Feeds")).toBeTruthy();
-    expect(await app.vault.adapter.read("RSS Data/Feeds/feed-1.json")).toContain(
+    expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
       "\"feedId\": \"feed-1\"",
     );
   });
@@ -224,7 +233,7 @@ describe("FeedStorageRepository", () => {
 
     expect(createFolderSpy).toHaveBeenCalledWith("RSS Data/Feeds");
     expect(settings.storageMode).toBe("vault-shards");
-    expect(await app.vault.adapter.read("RSS Data/Feeds/feed-1.json")).toContain(
+    expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
       "\"feedId\": \"feed-1\"",
     );
   });
@@ -239,12 +248,13 @@ describe("FeedStorageRepository", () => {
     vi.spyOn(app.vault, "createFolder").mockRejectedValueOnce(
       new Error("Folder already exists"),
     );
-    vi.spyOn(app.vault.adapter, "exists").mockImplementation(async (path: string) => {
+    const adapterWithExists = app.vault.adapter as unknown as { exists: (p: string) => Promise<boolean> };
+    vi.spyOn(adapterWithExists, "exists").mockImplementation((path: string) => {
       if (path === "RSS Data/Feeds") {
-        return true;
+        return Promise.resolve(true);
       }
 
-      return false;
+      return Promise.resolve(false);
     });
 
     await repository.migrateToVaultShards(settings, saveData);
@@ -311,7 +321,7 @@ describe("FeedStorageRepository", () => {
 
     expect(settings.storageMode).toBe("legacy-json");
     expect(app.vault.getAbstractFileByPath("RSS Data/Feeds")).toBeTruthy();
-    expect(await app.vault.adapter.read("RSS Data/Feeds/feed-1.json")).toContain(
+    expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
       "\"items\":[]",
     );
   });
@@ -345,12 +355,13 @@ describe("FeedStorageRepository", () => {
 
     await app.vault.createFolder("RSS Data/Feeds");
     vi.spyOn(app.vault.adapter, "rmdir").mockResolvedValueOnce(undefined);
-    vi.spyOn(app.vault.adapter, "exists").mockImplementation(async (path: string) => {
+    const adapterWithExists2 = app.vault.adapter as unknown as { exists: (p: string) => Promise<boolean> };
+    vi.spyOn(adapterWithExists2, "exists").mockImplementation((path: string) => {
       if (path === "RSS Data/Feeds") {
-        return true;
+        return Promise.resolve(true);
       }
 
-      return false;
+      return Promise.resolve(false);
     });
 
     await expect(
@@ -426,7 +437,7 @@ describe("FeedStorageRepository", () => {
     expect(settings.feeds[0].feedId).toBe("feed-1");
     expect(settings.feeds[0].items).toHaveLength(1);
     expect(
-      await app.vault.adapter.read("Imported Data/Feeds/feed-1.json"),
+      await vaultAdapter(app).read("Imported Data/Feeds/feed-1.json"),
     ).toContain('"feedId": "feed-1"');
   });
 

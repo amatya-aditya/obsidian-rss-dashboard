@@ -42,10 +42,10 @@ describe("export-utils", () => {
 
     expect(result).toBe("shared");
     expect(shareMock).toHaveBeenCalledTimes(1);
-    const data = shareMock.mock.calls[0][0];
+    const data = shareMock.mock.calls[0][0] as unknown as { files: File[] };
     expect(Array.isArray(data.files)).toBe(true);
-    expect(data.files?.[0]).toBeInstanceOf(File);
-    expect(data.files?.[0]?.name).toBe("data.json");
+    expect(data.files[0]).toBeInstanceOf(File);
+    expect(data.files[0].name).toBe("data.json");
     expect(createObjectURLMock).not.toHaveBeenCalled();
 
     if (originalCreateObjectURLDesc) {
