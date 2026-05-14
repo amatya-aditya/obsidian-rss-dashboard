@@ -36,86 +36,8 @@ This document outlines the current compliance issues and provides a structured p
 - Completed typed cleanup in 11 high-churn test files (`safe-html`, `reader-view*`, `video-player`) and validated with targeted passing test runs.
 - Backlog trend this phase: **lint errors reduced from 3239 to 2686** (\-553), warnings currently **54**.
 - Audit alignment this phase: no existing checkbox item in the current scorecard was fully closed by this batch; this work establishes enforcement and materially reduces the remaining lint backlog.
-
-#### Pass 5
-
-- Continued systematic ESLint backlog burn-down in test files using the "one boundary cast" pattern: replace cascading `as any` with a single `as unknown as TypedInterface` at the scope boundary.
-- Files fully cleaned (0 errors each):
-  - `test_files/unit/views/dashboard-lifecycle.test.ts` — **101 → 0 errors**, 44/44 tests passing
-  - `test_files/unit/services/article-saver.test.ts` — **119 → 0 errors**, 25/25 tests passing
-  - `test_files/unit/main/plugin-lifecycle.test.ts` — **175 → 0 errors**, 63/63 tests passing
-  - `test_files/unit/components/article-list-inplace-updates.test.ts` + `article-list-harness.ts` — **107 → 0 errors**, 7/7 tests passing
-- Key fixes: typed `DashViewTestAPI`/`PluginPrivateAPI`/`PrivateSaverAPI` interfaces; replaced `(App as any).createMock()` with direct `App.createMock()`; targeted `eslint-disable-next-line` for legitimate Vitest `unbound-method` false positives; fixed `window as any` CSS polyfill; replaced Obsidian `createDiv()` with standard `document.createElement("div")`.
-- Backlog trend this phase: **lint errors reduced from 2686 to 2020** (\-666), warnings still **54**.
-
-#### Pass 6
-
-- Confirmed Pass 5 reductions remain reflected in the latest global ESLint snapshot and retained strict test-lint enforcement workflow.
-- Refreshed ROI ranking from current `eslint-report.json` (72 files still carrying errors) and updated the execution queue to target highest-value files first.
-- Current top-offender queue (live report at start of Pass 6):
-   - `test_files/unit/modals/edit-feed-modal.test.ts` — **108** errors
-   - `test_files/unit/views/discover-view.test.ts` — **102** errors
-   - `test_files/unit/views/podcast-player.test.ts` — **99** errors
-   - `test_files/unit/utils/filter-statusbar-counts.test.ts` — **93** errors
-   - `test_files/unit/modals/import-opml-modal.test.ts` — **71** errors
-- Backlog status at this checkpoint: **2020 errors**, **54 warnings**.
-
-#### Pass 7
-
-- Targeted single highest-ROI file: `test_files/unit/modals/edit-feed-modal.test.ts` — **108 → 0 errors**.
-- Created typed fixture interfaces at file scope:
-  - `ArticleTestFixture` — typed return for `makeArticle()` helper (minimal FeedItem-like structure for test mocking)
-  - `PluginTestFixture` — shape for plugin mock objects used in EditFeedModal tests
-- Refactored all test fixture casts using "one boundary cast" pattern:
-  - Updated `makeArticle()` to return `ArticleTestFixture` instead of `as any` (eliminates unsafeReturn + unexpectedAny)
-  - Replaced 17 test cases' plugin literals: `plugin as any` → `plugin as unknown as PluginTestFixture` (consolidates ~40+ unsafeAssignment errors into 1 boundary cast per test)
-  - Replaced all Feed object casts: `} as any` → `} as unknown as Feed` (proper boundary type for partial Feed objects)
-  - Removed redundant app/feed casts on constructor calls (already properly typed at assignment)
-- Test validation: All 17 tests passing, 0 linting errors
-- Backlog trend this phase: **2020 → 1912 errors** (\-108), warnings still **54**.
-
-#### Pass 8
-
-- Targeted second highest-ROI file: `test_files/unit/views/discover-view.test.ts` — **102 → 0 errors**.
-- Fixed type assertion incompatibility between test mock (`TestPlugin`) and `RssDashboardPlugin` constructor parameter using `as unknown as ConstructorParameters<typeof mod.DiscoverView>[1]` pattern.
-- Resolved both TypeScript compatibility error and ESLint `no-unsafe-argument`/`no-explicit-any` violations in a single disciplined cast.
-- Test validation: All 10 tests passing, 0 linting errors.
-- Backlog trend this phase: **1912 → 1810 errors** (\-102), warnings still **54**.
-
-#### Pass 9
-
-- Targeted highest remaining ROI file: `test_files/unit/views/podcast-player.test.ts` — **99 → 0 errors**.
-- Replaced all `document.body.createDiv()` calls with `document.createElement("div")` and explicit type annotation `HTMLDivElement` since ESLint could not infer the return type from the polyfill.
-- This follows the pattern established in Pass 5 for similar polyfill-incompatible DOM method calls.
-- Test validation: All 7 tests passing, 0 linting errors.
-- Backlog trend this phase: **1810 → 1711 errors** (\-99), warnings still **54**.
-
-#### Pass 10
-
-- Targeted `test_files/unit/utils/filter-statusbar-counts.test.ts` — **93 → 0 errors**.
-- Added `TestPlugin` and `TestView` interfaces for typed mock boundaries.
-- Replaced `plugin as never` with proper boundary cast using `ConstructorParameters<typeof RssDashboardView>[1]`.
-- Replaced `document.body.createDiv()` with `document.createElement("div")` and explicit `HTMLDivElement` type annotation.
-- Replaced all `(view as any)` patterns with typed `TestView` interface access using optional call syntax (`view.methodName!`).
-- Test validation: All 5 tests passing, 0 linting errors.
-- Backlog trend this phase: **1711 → 1618 errors** (\-93), warnings still **54**.
-
-#### Pass 11
-
-- Targeted `test_files/unit/modals/import-opml-modal.test.ts` — **71 → 0 errors**.
-- Changed `MockApp` type from complex `ReturnType` pattern to simple `obsidian.App`.
-- Simplified `createMockApp()` to use direct `new obsidian.App()` instead of `App.createMock()`.
-- Removed `app` property from `TestPlugin` interface (not needed by modal constructor).
-- Replaced all `plugin as any` with proper boundary cast `plugin as unknown as ConstructorParameters<typeof ImportOpmlModal>[1]`.
-- Fixed `expect.objectContaining({ folders: expect.arrayContaining(...) })` unsafe assignment using inline typed object with `as unknown as object` cast.
-- Test validation: All 7 tests passing, 0 linting errors.
-- Backlog trend this phase: **1618 → 1547 errors** (\-71), warnings still **54**.
-
-#### Pass 12 (next)
-
-- Target: `test_files/unit/modals/add-feed-modal.test.ts` — **58** errors
-- Current queue after Pass 11:
-  - `test_files/unit/modals/add-feed-modal.test.ts` — **58** errors (next)
+- Ongoing test-file backlog progress after this pass is tracked in `docs/development/test-lint-backlog-tracker.md`.
+- This scorecard now captures direct audit-aligned remediation and any confirmed cross-impact from test-lint work.
 
 ## Health
 
@@ -454,8 +376,15 @@ This scorecard is part of a multi-document compliance tracking system:
 
 - **`plugin-scorecard.md`** (this file): Compliance tracking dashboard with actionable checklist items
 - **`docs/SECURITY.md`** (recommended): Transparent security disclosure explaining vault access, clipboard usage, and external domains
-- **`CONTRIBUTING.MD`**: Contribution guidelines (exists in root)
+- **`CONTRIBUTING.MD`**: Canonical contributor policy, including **Compliance Declarations (Audit Guardrails)**
+- **`docs/development/compliance-patterns.md`**: Approved implementation patterns and anti-pattern replacements
+- **`docs/development/test-lint-backlog-tracker.md`**: Ongoing test-file lint debt progress (separate from audit checklist ownership)
+- **`.instructions.md`**: AI-first quick policy card so generated patches follow the same declarations
 - **`.repo/compliance-tracking.md`** (repo memory): Historical record of compliance improvements over time
+
+### Policy Anchor
+
+To avoid repeated audit regressions, treat `CONTRIBUTING.MD` as the source of truth for compliance declarations and use `docs/development/compliance-patterns.md` for implementation details.
 
 ## Suggested Improvements for This Working Document
 

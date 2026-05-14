@@ -177,6 +177,10 @@ Using the new experimental storage mode? See the user-facing guide here: [docs/s
 
 ## Development
 
+Before opening a PR, read the contributor policy in [CONTRIBUTING.MD](CONTRIBUTING.MD), especially the **Compliance Declarations (Audit Guardrails)** section.
+
+For implementation examples and approved patterns used in recent compliance passes, see [docs/development/compliance-patterns.md](docs/development/compliance-patterns.md).
+
 ### Local Setup
 
 This repo targets Node 22 for local development and CI. Both `.nvmrc` and `.node-version` are pinned to `22`.

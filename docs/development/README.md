@@ -18,6 +18,10 @@ Internal developer documentation for the RSS Dashboard plugin.
 
 ### Development
 
+- [Compliance Patterns and Audit Guardrails](./compliance-patterns.md)
+  Canonical implementation patterns for audit-sensitive code paths: safe HTML rendering, lint-disable rationale, boundary typing, popout-safe APIs, and DOM helper conventions.
+- [Test-Lint Backlog Tracker](./test-lint-backlog-tracker.md)
+  Pass-by-pass tracker for test-file ESLint debt reduction that branched from audit scorecard work after Pass 4.
 - [Feed Data Lifecycle: Fetch, Merge, Retention, and Persistence](./data-flow.md)
   Full walkthrough of how a feed item moves from remote fetch through local merge (three paths), two-pass retention, disk persistence, and dashboard display — including flowcharts for each stage.
 - [Defuddle evaluation (vs current article/podcast parsing)](./defuddle-evaluation.md)

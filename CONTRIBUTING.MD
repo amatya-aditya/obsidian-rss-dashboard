@@ -1,6 +1,6 @@
 # Git Branching Strategy
 
-Last updated: 2026-04-22
+Last updated: 2026-05-13
 
 ## Overview
 
@@ -152,6 +152,49 @@ Current global coverage snapshot (from `npm run test:unit -- --coverage`):
 - **Recommended**: Keep the test runner open in watch mode (`npx vitest`) while developing.
 - **Organization**: Please organize new tests into domain folders (e.g., `services/`, `views/`, `utils/`) matching the `src/` directory to prevent clutter in the root `test_files/unit/` folder.
 - For deeper context and current priorities, see `docs/development/test_coverage/test-coverage-improvement-plan.md` and `docs/development/refactorability-testing.md`.
+
+## Compliance Declarations (Audit Guardrails)
+
+To prevent repeat audit regressions, every PR must follow these declarations. Treat these as codebase policy, not suggestions.
+
+### Non-Negotiable Rules
+
+1. **No unsafe HTML rendering in production code**
+   - Do not use direct `innerHTML` assignment for feed/article content paths.
+   - Use approved safe rendering utilities (for example, `sanitizeAndAppendHtml(...)`) used in current rendering flows.
+
+2. **No undocumented lint disables**
+   - If an `eslint-disable` is absolutely required, include an inline reason that explains the necessity and scope.
+   - Prefer refactoring over disabling whenever possible.
+
+3. **Avoid `any` sprawl; use boundary typing**
+   - Do not spread `as any` through implementation or tests.
+   - Use a single boundary cast pattern (`as unknown as TypedInterface`) at the adapter boundary, then keep downstream code typed.
+
+4. **Use popout-safe window/document APIs in production UI paths**
+   - Prefer `activeDocument` instead of global `document` where required for popout compatibility.
+   - Prefer `activeWindow.setTimeout(...)` / `activeWindow.clearTimeout(...)` over global timer functions in UI flows.
+
+5. **Follow Obsidian DOM helper conventions in production code**
+   - Prefer framework helpers such as `createDiv()`, `createEl(...)`, `createSpan()`, and `createFragment()` where applicable.
+   - Keep test-only polyfill exceptions scoped to test files and documented.
+
+6. **Prefer Obsidian-safe imports and APIs**
+   - Follow existing import restrictions and approved API surfaces (for example, import guidance around `moment`).
+
+### AI-Assisted Contributions
+
+- AI-generated patches must satisfy the same declarations as hand-written code.
+- If generated output conflicts with these rules, correct the patch before opening a PR.
+- Keep fixes policy-aligned, minimal, and test-backed.
+
+### Required Before PR
+
+- Run `npm run lint` and address violations in changed files.
+- Run `npm run test:unit` (or targeted tests with rationale) and confirm passing status.
+- If you add or change lint suppressions, verify each has a specific inline explanation.
+- Check `docs/plugin-scorecard.md` for current high-priority compliance backlog items relevant to your changes.
+- For implementation patterns and examples, use `docs/development/compliance-patterns.md`.
 
 ---
 
