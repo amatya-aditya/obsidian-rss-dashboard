@@ -22,7 +22,7 @@ function createItem(overrides: Partial<FeedItem> = {}): FeedItem {
     feedUrl: "https://example.com/feed.xml",
     coverImage: "",
     ...overrides,
-  };
+  } as FeedItem;
 }
 
 function createRule(overrides: Partial<KeywordFilterRule> = {}): KeywordFilterRule {
@@ -35,8 +35,9 @@ function createRule(overrides: Partial<KeywordFilterRule> = {}): KeywordFilterRu
     applyToTitle: true,
     applyToSummary: false,
     applyToContent: false,
+    createdAt: Date.now(),
     ...overrides,
-  };
+  } as KeywordFilterRule;
 }
 
 function createGlobalRules(
@@ -47,7 +48,7 @@ function createGlobalRules(
     bypassAll: false,
     rules: [],
     ...overrides,
-  };
+  } as GlobalKeywordRulesSettings;
 }
 
 function createFeedKeywordRules(
@@ -58,7 +59,7 @@ function createFeedKeywordRules(
     overrideGlobalRules: false,
     rules: [],
     ...overrides,
-  };
+  } as FeedKeywordRulesSettings;
 }
 
 function createFeed(overrides: Partial<Feed> = {}): Feed {
@@ -69,7 +70,7 @@ function createFeed(overrides: Partial<Feed> = {}): Feed {
     items: [],
     lastUpdated: 1,
     ...overrides,
-  };
+  } as Feed;
 }
 
 describe("KeywordFilterService.getActiveRules / hasActiveRules", () => {
@@ -259,7 +260,7 @@ describe("KeywordFilterService.evaluateForArticle", () => {
       keywordRules: createFeedKeywordRules({
         overrideGlobalRules: true,
         rules: [createRule({ type: "include", keyword: "alpha" })],
-      }) as any,
+      }),
     });
     const globalRules = createGlobalRules({
       rules: [createRule({ type: "include", keyword: "beta" })],

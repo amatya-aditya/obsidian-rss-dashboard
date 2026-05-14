@@ -1,6 +1,6 @@
 # Test-Lint Backlog Tracker
 
-Last updated: 2026-05-14 (Pass 26 completed)
+Last updated: 2026-05-14 (Pass 34 completed)
 
 This document tracks the test-file ESLint debt burn-down that branched from the audit scorecard after Pass 4.
 
@@ -149,6 +149,45 @@ Out of scope:
 - Targeted `test_files/unit/components/article-list-empty-state.test.ts` — **1 → 0 errors**.
 - Backlog trend this phase: **833 → 832 errors** (-1), warnings still **53**.
 
+### Pass 27
+
+- Targeted `test_files/unit/views/dashboard-pagination.test.ts` — **1 → 0 errors**.
+- Backlog trend: **832 → 831 errors** (-1).
+- Warnings total: **53 → 52** (-1).
+
+### Pass 28
+
+- Targeted `test_files/unit/modals/import-success-modal.test.ts` — **2 → 0 errors**.
+- Backlog trend: **831 → 829 errors** (-2).
+
+### Pass 29
+
+- Targeted `test_files/unit/services/metadata-storage-repository.test.ts` — **2 → 0 errors**.
+- Backlog trend: **829 → 827 errors** (-2).
+- Warnings total: **52 → 48** (-4).
+
+### Pass 31
+
+- Targeted `test_files/unit/services/highlight-service.test.ts` — **2 → 0 errors**.
+- Backlog trend: **825 → 823 errors** (-2).
+- Warnings total: **48 → 47** (-1).
+
+### Pass 32
+ 
+- Targeted `test_files/unit/views/dashboard-filter-persistence.test.ts` — **2 → 0 errors**.
+- Backlog trend: **823 → 821 errors** (-2).
+
+### Pass 33
+
+- Targeted `test_files/unit/services/feed-parser.test.ts` — **3 → 0 errors**.
+- Backlog trend: **821 → 818 errors** (-3).
+
+### Pass 34
+
+- Targeted `test_files/unit/services/fetch-helpers.test.ts` — **3 → 0 errors**.
+- Backlog trend: **818 → 815 errors** (-3).
+
+
 ## Working Backlog Queue (Ranked)
 
 Use this ordered list for each subsequent pass. Work top-to-bottom unless a file is blocked by dependency context.
@@ -202,16 +241,7 @@ Source artifact:
 | 41   | `test_files/unit/utils/export-utils.test.ts`                            |      4 |        0 |
 | 42   | `test_files/unit/services/opml-manager.test.ts`                         |      3 |        0 |
 | 43   | `test_files/unit/settings/metadata-storage-settings-tab.test.ts`        |      3 |       34 |
-| 44   | `test_files/unit/services/fetch-helpers.test.ts`                        |      3 |        0 |
-| 45   | `test_files/unit/services/feed-parser.test.ts`                          |      3 |        0 |
-| 46   | `test_files/unit/views/dashboard-filter-persistence.test.ts`            |      2 |        0 |
-| 47   | `test_files/unit/services/highlight-service.test.ts`                    |      2 |        1 |
-| 48   | `test_files/unit/services/keyword-filter-service.test.ts`               |      2 |        0 |
-| 49   | `test_files/unit/services/metadata-storage-repository.test.ts`          |      2 |        4 |
-| 50   | `test_files/unit/modals/import-success-modal.test.ts`                   |      2 |        0 |
-| 51   | `test_files/unit/views/dashboard-pagination.test.ts`                    |      1 |        1 |
-| 52   | `test_files/unit/components/article-list-empty-state.test.ts`           |      0 |        0 |
-| 53   | `test_files/unit/services/feed-import-defaults.test.ts`                 |      0 |        2 |
+
 
 ## Cross-Impact on Audit Scorecard
 

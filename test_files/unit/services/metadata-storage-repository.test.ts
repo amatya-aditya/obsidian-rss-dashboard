@@ -1,28 +1,20 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { App, TFolder, TFile } from "obsidian";
+import { describe, it, expect, beforeEach } from "vitest";
+import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import type { RssDashboardSettings } from "../../../src/types/types";
 
 describe("Metadata Storage Repository - Dual-Mode Persistence", () => {
-  let app: App;
   let settings: RssDashboardSettings;
 
   beforeEach(() => {
-    app = App.createMock();
     settings = {
-      feeds: [],
-      folders: [],
-      tags: [],
-      rules: [],
-      highlightWords: [],
-      autoRefreshIntervalMinutes: 60,
+      ...DEFAULT_SETTINGS,
       storageMode: "legacy-json",
       storageFolder: ".rss-dashboard-data/feeds",
       storageSchemaVersion: 1,
       metadataStorageMode: "plugin-default",
       metadataStorageFolder: ".rss-dashboard-data",
       metadataStorageSchemaVersion: 1,
-      // ... other default settings
-    } as any;
+    };
   });
 
   describe("getMetadataPath()", () => {
@@ -124,8 +116,6 @@ describe("Metadata Storage Repository - Dual-Mode Persistence", () => {
     });
 
     it("calls saveData callback after mode switch to persist metadata", async () => {
-      const saveDataCallback = vi.fn().mockResolvedValue(undefined);
-
       // Expected: saveDataCallback is called with updated settings including mode
       // Actual: method does not exist
       expect(true).toBe(true); // Placeholder

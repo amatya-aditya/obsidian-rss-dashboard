@@ -1,6 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import type { Feed, FeedItem } from "../../../src/types/types";
 import { resolveAbsoluteHttpUrl } from "../../../src/utils/url-utils";
 import * as obsidian from "obsidian";
@@ -225,10 +223,26 @@ const SUBSTACK_RSS = `<?xml version="1.0" encoding="UTF-8"?>
   </channel>
 </rss>`;
 
-const BLOOMBERG_VIDEO_IMAGE_FIRST_RSS = readFileSync(
-  path.resolve(__dirname, "../fixtures/rss/bloomberg-video-image-first.xml"),
-  "utf-8",
-);
+const BLOOMBERG_VIDEO_IMAGE_FIRST_RSS = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Bloomberg Tech Video Feed</title>
+    <link>https://www.bloomberg.com</link>
+    <item>
+      <title><![CDATA[Chip Stocks Down on Momentum and Not CPI, Bokeh's Forrest Says]]></title>
+      <description><![CDATA[Kim Forrest, Bokeh Capital Partners chief investment officer, says Tuesday's selloff is just a pause in momentum for skyrocketing chip stocks, not a shock from a hotter-than-estimated inflation report. She speaks with Ed Ludlow and Caroline Hyde on "Bloomberg Tech." (Source: Bloomberg)]]></description>
+      <link>https://www.bloomberg.com/news/videos/2026-05-12/chip-stocks-down-on-momentum-not-cpi-bokeh-s-forrest-video</link>
+      <guid isPermaLink="true">https://www.bloomberg.com/news/videos/2026-05-12/chip-stocks-down-on-momentum-not-cpi-bokeh-s-forrest-video</guid>
+      <pubDate>Tue, 12 May 2026 16:24:55 GMT</pubDate>
+      <category domain="stock-symbol"><![CDATA[NMS:INTC]]></category>
+      <media:content url="https://assets.bwbx.io/images/users/iqjWHBFdfxIU/i8GIl8UI8oTY/v3/1200x-1.jpg" type="image/jpeg">
+        <media:thumbnail url="https://assets.bwbx.io/images/users/iqjWHBFdfxIU/i8GIl8UI8oTY/v3/1200x-1.jpg" />
+        <media:description />
+      </media:content>
+      <media:content url="https://www.bloomberg.com/news/videos/2026-05-12/chip-stocks-down-on-momentum-not-cpi-bokeh-s-forrest-video.mp4" type="video/mp4" />
+    </item>
+  </channel>
+</rss>`;
 
 // ─── Atom Fixtures ───────────────────────────────────────────────────────────
 
