@@ -10,6 +10,7 @@ import {
   Notice,
 } from "obsidian";
 import { setIcon } from "obsidian";
+import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
 import {
   RssDashboardSettings,
@@ -372,7 +373,7 @@ export class ReaderView extends ItemView {
                     new Notice("Could not find this show in apple podcasts.");
                     return;
                   }
-                  window.open(appleUrl, "_blank");
+                  activeWindow.open(appleUrl, "_blank");
                 })();
               });
               return;
@@ -380,7 +381,7 @@ export class ReaderView extends ItemView {
 
             const url = destination.url;
             if (url) {
-              menuItem.onClick(() => window.open(url, "_blank"));
+              menuItem.onClick(() => activeWindow.open(url, "_blank"));
             } else {
               menuItem.setDisabled(true);
             }
@@ -393,7 +394,7 @@ export class ReaderView extends ItemView {
 
       const url = resolveItemExternalUrl(item);
       if (!url) return;
-      window.open(url, "_blank");
+      activeWindow.open(url, "_blank");
     });
 
     this.readingContainer = this.contentEl.createDiv({
@@ -413,7 +414,7 @@ export class ReaderView extends ItemView {
     }
 
     if (this.readerFormatSaveTimeout !== null) {
-      window.clearTimeout(this.readerFormatSaveTimeout);
+      activeWindow.clearTimeout(this.readerFormatSaveTimeout);
       this.readerFormatSaveTimeout = null;
     }
 
@@ -495,7 +496,7 @@ export class ReaderView extends ItemView {
 
   private showCustomSaveModal(item: FeedItem): void {
     const displayTitle = this.currentDisplayTitle;
-    const modal = document.body.createDiv({
+    const modal = activeDocument.body.createDiv({
       cls: "rss-dashboard-modal rss-dashboard-modal-container",
     });
 
@@ -567,7 +568,7 @@ export class ReaderView extends ItemView {
       text: "Cancel",
     });
     cancelButton.addEventListener("click", () => {
-      document.body.removeChild(modal);
+      activeDocument.body.removeChild(modal);
     });
 
     const saveButton = buttonContainer.createEl("button", {
@@ -601,7 +602,7 @@ export class ReaderView extends ItemView {
           this.updateSavedLabel(true);
         }
 
-        document.body.removeChild(modal);
+        activeDocument.body.removeChild(modal);
       })();
     });
 
@@ -615,7 +616,7 @@ export class ReaderView extends ItemView {
     modalContent.appendChild(buttonContainer);
 
     modal.appendChild(modalContent);
-    document.body.appendChild(modal);
+    activeDocument.body.appendChild(modal);
   }
 
   async displayItem(
@@ -1264,10 +1265,10 @@ export class ReaderView extends ItemView {
       this.settings.highlights.highlightInContent
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
-      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
+      sanitizeAndAppendHtml(container, html, { mode: "rich" });
       highlightService.highlightElement(container);
     } else {
-      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
+      sanitizeAndAppendHtml(container, html, { mode: "rich" });
     }
 
     // Add classes to images for styling
@@ -1480,7 +1481,7 @@ export class ReaderView extends ItemView {
       return (match ? match[1] : "").trim();
     };
 
-    const statsEl = doc.createElement("div");
+    const statsEl = doc.createDiv();
     statsEl.className = "rss-nitter-stats";
 
     const pills: Array<{ key: string; icon: string; count: string }> = [
@@ -1495,15 +1496,15 @@ export class ReaderView extends ItemView {
     ];
 
     for (const pill of pills) {
-      const pillEl = doc.createElement("span");
+      const pillEl = doc.createSpan();
       pillEl.className = "rss-nitter-stat";
       pillEl.setAttribute("data-stat", pill.key);
 
-      const iconEl = doc.createElement("span");
+      const iconEl = doc.createSpan();
       iconEl.className = "rss-nitter-stat-icon";
       iconEl.setAttribute("data-rss-icon", pill.icon);
 
-      const countEl = doc.createElement("span");
+      const countEl = doc.createSpan();
       countEl.className = "rss-nitter-stat-count";
       countEl.textContent = pill.count;
 
@@ -2300,7 +2301,8 @@ export class ReaderView extends ItemView {
   private toggleReaderFormatDropdown(event: MouseEvent): void {
     event.stopPropagation();
     const anchor = event.currentTarget;
-    if (!(anchor instanceof HTMLElement)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- activeWindow.instanceOf is an Obsidian-specific API not in standard types
+    if (!(activeWindow as any).instanceOf(anchor, HTMLElement)) {
       return;
     }
 
@@ -2312,7 +2314,7 @@ export class ReaderView extends ItemView {
 
     const format = this.getReaderFormat();
     const portal = createReaderFormatPortal({
-      anchor,
+      anchor: anchor as HTMLElement,
       format,
       defaults: DEFAULT_SETTINGS.readerFormat,
       applyFormat: () => this.applyReaderFormat(),
@@ -2333,10 +2335,10 @@ export class ReaderView extends ItemView {
 
   private scheduleReaderFormatSave(): void {
     if (this.readerFormatSaveTimeout !== null) {
-      window.clearTimeout(this.readerFormatSaveTimeout);
+      activeWindow.clearTimeout(this.readerFormatSaveTimeout);
     }
 
-    this.readerFormatSaveTimeout = window.setTimeout(() => {
+    this.readerFormatSaveTimeout = activeWindow.setTimeout(() => {
       void this.flushReaderFormatSave();
     }, 300);
   }
@@ -2422,7 +2424,7 @@ export class ReaderView extends ItemView {
 
   private async flushReaderFormatSave(): Promise<void> {
     if (this.readerFormatSaveTimeout !== null) {
-      window.clearTimeout(this.readerFormatSaveTimeout);
+      activeWindow.clearTimeout(this.readerFormatSaveTimeout);
       this.readerFormatSaveTimeout = null;
     }
 

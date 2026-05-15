@@ -3,18 +3,19 @@
 // =============================================================================
 // =============================================================================
 
+// eslint-disable-next-line no-restricted-imports -- obsidian stub explicitly re-exports moment for tests
 import moment from "moment";
 export { moment };
 
 // Stub for HTTP requests - configure mock in test
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export async function requestUrl(
-  _param?: any,
+  _param?: unknown,
 ): Promise<{ status: number; text: string }> {
   throw new Error("requestUrl stub - configure mock in test if needed");
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
 export const RequestUrlParam: any = {};
 
 export const Platform = {
@@ -141,7 +142,7 @@ export class MockDataVault {
   private adapterFiles: Map<string, string> = new Map();
 
   // Mirror Obsidian's `vault.adapter` surface area used by this repo
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   adapter: any;
 
   constructor() {
@@ -152,7 +153,8 @@ export class MockDataVault {
       getBasePath: () => "/test/vault",
       getFullPath: (p: string) => p,
       exists: async (path: string) =>
-        this.adapterFiles.has(path) || this.folders.has(path.replace(/^\/+|\/+$/g, "")),
+        this.adapterFiles.has(path) ||
+        this.folders.has(path.replace(/^\/+|\/+$/g, "")),
       read: async (path: string) => this.adapterFiles.get(path) ?? "",
       write: async (path: string, content: string) => {
         this.adapterFiles.set(path, content);
@@ -191,7 +193,12 @@ export class MockDataVault {
       },
       rmdir: async (path: string, recursive: boolean) => {
         const cleanPath = path.replace(/^\/+|\/+$/g, "");
-        if (!recursive && Array.from(this.adapterFiles.keys()).some((filePath) => filePath.startsWith(`${cleanPath}/`))) {
+        if (
+          !recursive &&
+          Array.from(this.adapterFiles.keys()).some((filePath) =>
+            filePath.startsWith(`${cleanPath}/`),
+          )
+        ) {
           throw new Error("Directory not empty");
         }
 
@@ -203,7 +210,10 @@ export class MockDataVault {
         }
 
         for (const folderPath of [...this.folders.keys()]) {
-          if (folderPath === cleanPath || folderPath.startsWith(`${cleanPath}/`)) {
+          if (
+            folderPath === cleanPath ||
+            folderPath.startsWith(`${cleanPath}/`)
+          ) {
             this.folders.delete(folderPath);
           }
         }
@@ -324,7 +334,7 @@ export class MockWorkspace {
   }
 
   // Minimal surface used by settings tabs to focus a view.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   async revealLeaf(_leaf: any): Promise<void> {}
 
   onLayoutReady(callback: () => void): void {
@@ -337,12 +347,12 @@ export class MockWorkspace {
     callbacks.forEach((callback) => callback());
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   on(_name: string, _callback: (...args: any[]) => unknown): unknown {
     return {};
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   offref(_ref: unknown): void {}
 }
 
@@ -417,22 +427,22 @@ export class Plugin {
   async onload(): Promise<void> {}
   onunload(): void {}
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   registerView(_type: string, _creator: (leaf: any) => any): void {}
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addCommand(_command: any): void {}
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   addRibbonIcon(
     _icon: string,
     _title: string,
-    _callback: (...args: any[]) => any,
-  ): any {
+    _callback: (...args: unknown[]) => unknown,
+  ): unknown {
     return {};
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addSettingTab(_tab: any): void {}
 
   registerInterval(id: number): number {
@@ -440,11 +450,11 @@ export class Plugin {
   }
 
   // Data API (overridden in tests when needed)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   async loadData(): Promise<any> {
     return null;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   async saveData(_data: any): Promise<void> {}
 }
 
@@ -469,7 +479,7 @@ export class PluginSettingTab {
 
 export class Notice {
   constructor(message: string, _timeout?: number) {
-    console.log("[Stub Notice]", message);
+    console.debug("[Stub Notice]", message);
   }
 
   hide(): void {}
@@ -506,12 +516,12 @@ export class ItemView {
     return Promise.resolve();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   registerEvent(_evt: any): void {}
 }
 
 export class Menu {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addItem(_cb: (item: MenuItem) => any): this {
     return this;
   }
@@ -525,7 +535,7 @@ export class MenuItem {
   setIcon(): this {
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   onClick(_cb: (evt: any) => any): this {
     return this;
   }
@@ -537,7 +547,7 @@ export class Setting {
   descEl: HTMLDivElement;
   controlEl: HTMLDivElement;
   // Obsidian stores created components here; many settings tabs access it.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   components: any[] = [];
 
   constructor(containerEl: HTMLElement) {
@@ -586,7 +596,7 @@ export class Setting {
   setDisabled(_disabled?: boolean): this {
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addButton(cb: (component: any) => any): this {
     class ButtonComponent {
       buttonEl: HTMLButtonElement;
@@ -630,7 +640,7 @@ export class Setting {
 
       _triggerClick(evt?: MouseEvent): void {
         if (this.clickHandler) {
-          this.clickHandler(evt ?? (new MouseEvent("click") as MouseEvent));
+          this.clickHandler(evt ?? (new MouseEvent("click")));
         } else {
           this.buttonEl.click();
         }
@@ -643,7 +653,7 @@ export class Setting {
     return this;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addSlider(cb: (component: any) => any): this {
     class SliderComponent {
       sliderEl: HTMLInputElement;
@@ -687,7 +697,7 @@ export class Setting {
     return this;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addColorPicker(cb: (component: any) => any): this {
     class ColorComponent {
       inputEl: HTMLInputElement;
@@ -727,7 +737,7 @@ export class Setting {
     cb(component);
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addToggle(cb: (component: any) => any): this {
     class ToggleComponent {
       toggleEl: HTMLInputElement;
@@ -763,7 +773,7 @@ export class Setting {
     cb(component);
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addText(cb: (component: any) => any): this {
     class TextComponent {
       inputEl: HTMLInputElement;
@@ -922,15 +932,13 @@ export class Modal {
 }
 
 export class AbstractInputSuggest<T> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected app: any;
+  protected app: App;
   protected inputEl: HTMLInputElement;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  constructor(app: any, inputEl: HTMLInputElement) {
+  constructor(app: App, inputEl: HTMLInputElement) {
     this.app = app;
     this.inputEl = inputEl;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   protected getSuggestions(_query: string): T[] {
     return [];
   }

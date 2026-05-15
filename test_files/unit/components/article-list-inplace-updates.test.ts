@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildArticle, createArticleListHarness } from "./article-list-harness";
+import type { RssDashboardSettings } from "../../../src/types/types";
 
 describe("Phase 7 - ArticleList in-place updates", () => {
   afterEach(() => {
@@ -16,7 +17,7 @@ describe("Phase 7 - ArticleList in-place updates", () => {
         articleSort: "newest",
         display: {
           mobileListToolbarStyle: "left-grid",
-        } as any,
+        } as unknown as RssDashboardSettings["display"],
       },
       articles: [
         buildArticle({
@@ -173,7 +174,7 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     btn?.click();
 
     expect(h.articles.every((a) => a.read)).toBe(true);
-    expect((h.callbacks as any).onPersistSettings).toHaveBeenCalled();
+    expect(h.callbacks.onPersistSettings).toHaveBeenCalled();
     expect(h.getArticleEl("1")?.classList.contains("read")).toBe(true);
     expect(h.getArticleEl("2")?.classList.contains("read")).toBe(true);
 
@@ -306,7 +307,7 @@ describe("Phase 7 - ArticleList in-place updates", () => {
       true,
       true,
     ]);
-    expect((h.callbacks as any).onPersistSettings).toHaveBeenCalledTimes(1);
+    expect(h.callbacks.onPersistSettings).toHaveBeenCalledTimes(1);
     expect(h.getArticleEl("1")?.classList.contains("read")).toBe(true);
     expect(h.getArticleEl("2")?.classList.contains("read")).toBe(true);
     expect(h.getArticleEl("3")?.classList.contains("read")).toBe(true);

@@ -1,4 +1,5 @@
-import { App, Notice, setIcon, TFile } from "obsidian";
+import { App, setIcon, TFile } from "obsidian";
+import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { FeedItem, RssDashboardSettings } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
 import { MediaService } from "../services/media-service";
@@ -7,7 +8,6 @@ import {
   fetchFullArticleContentWithOutcome,
   RESTRICTED_ARTICLE_BANNER,
   RESTRICTED_ARTICLE_LINK_TEXT,
-  RESTRICTED_ARTICLE_NOTICE,
   RESTRICTED_ARTICLE_REASON,
 } from "../utils/full-article-fetch";
 import { isLikelyVideoItem } from "../utils/video-detection";
@@ -484,12 +484,10 @@ export class ArticleRenderer {
       this.settings.highlights.highlightInContent
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
-      // eslint-disable-next-line @microsoft/sdl/no-inner-html
-      container.innerHTML = html;
+      sanitizeAndAppendHtml(container, html, { mode: "rich" });
       highlightService.highlightElement(container);
     } else {
-      // eslint-disable-next-line @microsoft/sdl/no-inner-html
-      container.innerHTML = html;
+      sanitizeAndAppendHtml(container, html, { mode: "rich" });
     }
 
     container
@@ -1081,7 +1079,7 @@ export class ArticleRenderer {
       );
     };
 
-    const statsEl = doc.createElement("div");
+    const statsEl = doc.createDiv();
     statsEl.className = "rss-nitter-stats";
     [
       { k: "comment", i: "message-circle" },
@@ -1089,13 +1087,13 @@ export class ArticleRenderer {
       { k: "heart", i: "heart" },
       { k: "views", i: "bar-chart-2" },
     ].forEach((p) => {
-      const pill = doc.createElement("span");
+      const pill = doc.createSpan();
       pill.className = "rss-nitter-stat";
       pill.setAttribute("data-stat", p.k);
-      const icon = doc.createElement("span");
+      const icon = doc.createSpan();
       icon.className = "rss-nitter-stat-icon";
       icon.setAttribute("data-rss-icon", p.i);
-      const count = doc.createElement("span");
+      const count = doc.createSpan();
       count.className = "rss-nitter-stat-count";
       count.textContent = extractCount(`icon-${p.k}`);
       pill.appendChild(icon);

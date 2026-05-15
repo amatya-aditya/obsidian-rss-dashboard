@@ -12,6 +12,7 @@ import {
   buildFactoryResetSettings,
 } from "../../../src/utils/settings-loader";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import type RssDashboardPlugin from "../../../main";
 
 type ObsidianHTMLElement = HTMLElement & {
   empty: () => void;
@@ -23,7 +24,7 @@ function flushPromises(): Promise<void> {
 }
 
 function cloneSettings(): typeof DEFAULT_SETTINGS {
-  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as typeof DEFAULT_SETTINGS;
 }
 
 function createContainerEl(): HTMLDivElement {
@@ -156,7 +157,7 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as any);
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
 
       const portableSetting = getSettingByName(
         containerEl,
@@ -177,7 +178,7 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as any);
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
 
       const exportButton = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
@@ -193,7 +194,7 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as any);
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
 
       const settingNames = Array.from(
         containerEl.querySelectorAll<HTMLElement>(".setting-item-name"),
@@ -222,7 +223,7 @@ describe("Auto Backup Helpers", () => {
         "waitForClose",
       ).mockResolvedValue(false);
 
-      renderImportExportSettingsTab(containerEl, plugin as any);
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
 
       const resetButton = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
@@ -250,7 +251,7 @@ describe("Auto Backup Helpers", () => {
         "waitForClose",
       ).mockResolvedValue(true);
 
-      renderImportExportSettingsTab(containerEl, plugin as any);
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
 
       const resetButton = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),

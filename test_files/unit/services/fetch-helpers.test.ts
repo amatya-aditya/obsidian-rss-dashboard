@@ -202,7 +202,7 @@ describe("fetchWithProxyFallback", () => {
 
     expect(robustFetchMock).toHaveBeenCalledTimes(2);
     // Verify the second call used the proxy URL
-    const proxyCall = robustFetchMock.mock.calls[1][0] as string;
+    const proxyCall = robustFetchMock.mock.calls[1][0];
     expect(proxyCall).toContain("https://proxy.example.com/?url=");
     expect(proxyCall).toContain(
       encodeURIComponent("https://psychologytoday.com/article"),
@@ -278,7 +278,7 @@ describe("fetchWithProxyFallback", () => {
 
     await fetchWithProxyFallback(articleUrl, proxyBase);
 
-    const proxyCall = robustFetchMock.mock.calls[1][0] as string;
+    const proxyCall = robustFetchMock.mock.calls[1][0];
     expect(proxyCall).toBe(proxyBase + encodeURIComponent(articleUrl));
   });
 
@@ -291,7 +291,7 @@ describe("fetchWithProxyFallback", () => {
       "https://proxy.example.com/?url=/", // trailing slash
     );
 
-    const proxyCall = robustFetchMock.mock.calls[1][0] as string;
+    const proxyCall = robustFetchMock.mock.calls[1][0];
     // The trailing slash should be removed before appending the encoded URL
     expect(proxyCall.startsWith("https://proxy.example.com/?url=")).toBe(true);
     expect(proxyCall).not.toContain("/?url=/https%3A");

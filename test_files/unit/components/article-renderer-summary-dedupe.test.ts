@@ -10,14 +10,15 @@
  * Control tests (marked with "CONTROL:") must PASS both before and after.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import { ArticleRenderer } from "../../../src/components/article-renderer";
 import {
-  FeedItem,
-  RssDashboardSettings,
+  type FeedItem,
+  type RssDashboardSettings,
   DEFAULT_SETTINGS,
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import * as obsidian from "obsidian";
 
 installObsidianDomPolyfills();
 
@@ -41,28 +42,33 @@ function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
   };
 }
 
+interface ArticleRendererWithPrivate {
+  render(container: HTMLElement, item: FeedItem): Promise<void>;
+  fetchFullArticleContent: Mock<(url?: string) => Promise<string>>;
+}
+
 describe("ArticleRenderer – summary de-duplication", () => {
-  let renderer: any;
+  let renderer: ArticleRenderer;
   let container: HTMLElement;
 
   beforeEach(() => {
     const mockApp = {
       workspace: { getLeavesOfType: vi.fn().mockReturnValue([]) },
       vault: { getAbstractFileByPath: vi.fn() },
-    };
+    } as unknown as obsidian.App;
 
     renderer = new ArticleRenderer({
-      app: mockApp as any,
+      app: mockApp,
       settings: { ...DEFAULT_SETTINGS } as RssDashboardSettings,
       onArticleSave: vi.fn(),
       onArticleUpdate: vi.fn(),
     });
 
     // Prevent outbound HTTP — content comes from item fields only
-    (renderer as any).fetchFullArticleContent = vi.fn().mockResolvedValue("");
+    const rendererInternal = (renderer as unknown) as ArticleRendererWithPrivate;
+    rendererInternal.fetchFullArticleContent = vi.fn().mockResolvedValue("");
 
-    container = document.createElement("div");
-    document.body.appendChild(container);
+    container = document.body.appendChild(document.createElement("div"));
   });
 
   // ------------------------------------------------------------------ RED ---
@@ -128,19 +134,20 @@ describe("ArticleRenderer – summary de-duplication", () => {
       link: "https://arstechnica.com/tech-policy/2026/04/example/",
     });
 
-    (renderer as any).fetchFullArticleContent = vi
+    const rendererInternal = (renderer as unknown) as ArticleRendererWithPrivate;
+    rendererInternal.fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue(fetchedHtml);
 
     await renderer.render(container, item);
 
     const callout = container.querySelector(".rss-reader-description-callout");
-    const heroImg = container.querySelector(
+    const heroImg = container.querySelector<HTMLImageElement>(
       ".rss-reader-hero-slot img",
-    ) as HTMLImageElement | null;
-    const body = container.querySelector(
+    );
+    const body = container.querySelector<HTMLElement>(
       ".rss-reader-article-content",
-    ) as HTMLElement | null;
+    );
 
     expect(callout).toBeTruthy();
     expect(heroImg).toBeTruthy();
@@ -150,6 +157,7 @@ describe("ArticleRenderer – summary de-duplication", () => {
     expect(body?.textContent || "").not.toContain(summarySentence);
     expect(body?.textContent || "").toContain(realBodySnippet);
   });
+
 
   // --------------------------------------------------------------- CONTROL ---
 
@@ -224,13 +232,14 @@ describe("ArticleRenderer – summary de-duplication", () => {
       link: "https://arstechnica.com/ai/2026/04/google-unveils-two-new-tpus-designed-for-the-agentic-era/",
     });
 
-    (renderer as any).fetchFullArticleContent = vi
+    const rendererInternal = (renderer as unknown) as ArticleRendererWithPrivate;
+    rendererInternal.fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue(fetchedHtml);
 
     await renderer.render(container, item);
 
-    const body = container.querySelector(
+    const body = container.querySelector<HTMLElement>(
       ".rss-reader-article-content",
     ) as HTMLElement;
     const callout = container.querySelector(".rss-reader-description-callout");
@@ -247,3 +256,4 @@ describe("ArticleRenderer – summary de-duplication", () => {
     expect(callout).toBeTruthy();
   });
 });
+

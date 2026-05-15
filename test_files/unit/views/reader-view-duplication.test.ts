@@ -12,20 +12,39 @@ installObsidianDomPolyfills();
 
 // Mocking Obsidian components
 class MockLeaf {
-  app: any;
-  view: any;
-  constructor(app: any) {
+  app: unknown;
+  view: unknown;
+  constructor(app: unknown) {
     this.app = app;
   }
   detach = vi.fn();
 }
 
+type ReaderViewHarness = {
+  contentEl: HTMLElement;
+  readingContainer: HTMLElement;
+  fetchFullArticleContent: ReturnType<typeof vi.fn>;
+};
+
+function getHarness(view: ReaderView): ReaderViewHarness {
+  return view as unknown as ReaderViewHarness;
+}
+
 describe("ReaderView Image Duplication", () => {
-  let readerView: any;
-  let mockApp: any;
-  let mockLeaf: any;
+  let readerView: ReaderView;
+  let mockApp: {
+    workspace: {
+      getLeavesOfType: ReturnType<typeof vi.fn>;
+      setActiveLeaf: ReturnType<typeof vi.fn>;
+      revealLeaf: ReturnType<typeof vi.fn>;
+    };
+    vault: {
+      getAbstractFileByPath: ReturnType<typeof vi.fn>;
+    };
+  };
+  let mockLeaf: MockLeaf;
   let mockSettings: RssDashboardSettings;
-  let mockArticleSaver: any;
+  let mockArticleSaver: { saveArticle: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     mockApp = {
@@ -43,15 +62,15 @@ describe("ReaderView Image Duplication", () => {
     mockArticleSaver = { saveArticle: vi.fn() };
 
     readerView = new ReaderView(
-      mockLeaf as any,
+      mockLeaf as never,
       mockSettings,
-      mockArticleSaver,
+      mockArticleSaver as never,
       vi.fn(),
       vi.fn(),
     );
 
     // Initialize contentEl since it's used in onOpen
-    (readerView as any).contentEl = document.createElement("div");
+    getHarness(readerView).contentEl = document.createElement("div");
   });
 
   it("should extract hero image and remove it from content (Reproduction)", async () => {
@@ -81,19 +100,21 @@ describe("ReaderView Image Duplication", () => {
     // Note: displayItem calls populateArticleHtml
     await readerView.displayItem(item);
 
-    const readingContainer = (readerView as any).readingContainer;
-    const heroSlot = readingContainer.querySelector(".rss-reader-hero-slot");
-    const articleContent = readingContainer.querySelector(
+    const readingContainer = getHarness(readerView).readingContainer;
+    const heroSlot = readingContainer.querySelector<HTMLElement>(
+      ".rss-reader-hero-slot",
+    );
+    const articleContent = readingContainer.querySelector<HTMLElement>(
       ".rss-reader-article-content",
     );
 
     // Check hero slot
-    const heroImg = heroSlot.querySelector("img");
+    const heroImg = heroSlot?.querySelector<HTMLImageElement>("img");
     expect(heroImg).toBeTruthy();
-    expect(heroImg.src).toBe("https://example.com/hero.jpg");
+    expect(heroImg?.src).toBe("https://example.com/hero.jpg");
 
     // Check article content - BUG: Currently it contains the image too
-    const contentImg = articleContent.querySelector("img");
+    const contentImg = articleContent?.querySelector("img");
 
     // This is the expected behavior AFTER fix.
     // For now, I'm documenting the current failing state by making it a test that should pass after fix.
@@ -125,7 +146,7 @@ describe("ReaderView Image Duplication", () => {
     await readerView.onOpen();
     await readerView.displayItem(item);
 
-    const readingContainer = (readerView as any).readingContainer;
+    const readingContainer = getHarness(readerView).readingContainer;
 
     // Count all images in the reading container (excluding hero slot)
     const contentImages = readingContainer.querySelectorAll(
@@ -144,7 +165,7 @@ describe("ReaderView Image Duplication", () => {
 // ---------------------------------------------------------------------------
 
 describe("ReaderView – summary de-duplication", () => {
-  let readerView: any;
+  let readerView: ReaderView;
   let mockSettings: RssDashboardSettings;
 
   beforeEach(async () => {
@@ -161,16 +182,18 @@ describe("ReaderView – summary de-duplication", () => {
     mockSettings = { ...DEFAULT_SETTINGS, useWebViewer: false };
 
     readerView = new ReaderView(
-      mockLeaf as any,
+      mockLeaf as never,
       mockSettings,
-      { saveArticle: vi.fn() } as any,
+      { saveArticle: vi.fn() } as never,
       vi.fn(),
       vi.fn(),
     );
 
-    (readerView as any).contentEl = document.createElement("div");
+    getHarness(readerView).contentEl = document.createElement("div");
     // Prevent outbound HTTP — content comes from item fields only
-    (readerView as any).fetchFullArticleContent = vi.fn().mockResolvedValue("");
+    getHarness(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue("");
     await readerView.onOpen();
   });
 
@@ -204,7 +227,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     await readerView.displayItem(item);
 
-    const rc = (readerView as any).readingContainer as HTMLElement;
+    const rc = getHarness(readerView).readingContainer;
     const callout = rc.querySelector(".rss-reader-description-callout");
     expect(callout).toBeNull();
   });
@@ -217,7 +240,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     await readerView.displayItem(item);
 
-    const rc = (readerView as any).readingContainer as HTMLElement;
+    const rc = getHarness(readerView).readingContainer;
     const callout = rc.querySelector(".rss-reader-description-callout");
     expect(callout).toBeNull();
   });
@@ -244,20 +267,18 @@ describe("ReaderView – summary de-duplication", () => {
       link: "https://arstechnica.com/tech-policy/2026/04/example/",
     });
 
-    (readerView as any).fetchFullArticleContent = vi
+    getHarness(readerView).fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue(fetchedHtml);
 
     await readerView.displayItem(item);
 
-    const rc = (readerView as any).readingContainer as HTMLElement;
+    const rc = getHarness(readerView).readingContainer;
     const callout = rc.querySelector(".rss-reader-description-callout");
-    const heroImg = rc.querySelector(
+    const heroImg = rc.querySelector<HTMLImageElement>(
       ".rss-reader-hero-slot img",
-    ) as HTMLImageElement | null;
-    const body = rc.querySelector(
-      ".rss-reader-article-content",
-    ) as HTMLElement | null;
+    );
+    const body = rc.querySelector<HTMLElement>(".rss-reader-article-content");
 
     expect(callout).toBeTruthy();
     expect(heroImg).toBeTruthy();
@@ -279,7 +300,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     await readerView.displayItem(item);
 
-    const rc = (readerView as any).readingContainer as HTMLElement;
+    const rc = getHarness(readerView).readingContainer;
     const callout = rc.querySelector(".rss-reader-description-callout");
     const body = rc.querySelector(".rss-reader-article-content");
     expect(callout).toBeTruthy();
@@ -292,7 +313,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     await readerView.displayItem(item);
 
-    const rc = (readerView as any).readingContainer as HTMLElement;
+    const rc = getHarness(readerView).readingContainer;
     const callout = rc.querySelector(".rss-reader-description-callout");
     expect(callout).toBeNull();
   });
@@ -327,14 +348,20 @@ describe("ReaderView – summary de-duplication", () => {
       link: "https://arstechnica.com/tech-policy/2026/04/example/",
     });
 
-    (readerView as any).fetchFullArticleContent = vi
+    getHarness(readerView).fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue(fetchedHtml);
     await readerView.displayItem(item);
 
-    const body = (readerView as any).readingContainer.querySelector(
+    const body = getHarness(
+      readerView,
+    ).readingContainer.querySelector<HTMLElement>(
       ".rss-reader-article-content",
-    ) as HTMLElement;
+    );
+    expect(body).not.toBeNull();
+    if (!body) {
+      throw new Error("Expected .rss-reader-article-content to exist");
+    }
     expect(body.querySelector("svg")).toBeNull();
     expect(body.textContent).toContain("Sam was broke");
   });
@@ -369,15 +396,15 @@ describe("ReaderView – summary de-duplication", () => {
       link: "https://arstechnica.com/tech-policy/2026/04/example/",
     });
 
-    (readerView as any).fetchFullArticleContent = vi
+    getHarness(readerView).fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue(fetchedHtml);
     await readerView.displayItem(item);
 
-    const body = (readerView as any).readingContainer.querySelector(
+    const body = getHarness(readerView).readingContainer.querySelector(
       ".rss-reader-article-content",
     ) as HTMLElement;
-    const callout = (readerView as any).readingContainer.querySelector(
+    const callout = getHarness(readerView).readingContainer.querySelector(
       ".rss-reader-description-callout",
     );
 
@@ -435,12 +462,12 @@ describe("ReaderView – summary de-duplication", () => {
       link: "https://arstechnica.com/ai/2026/04/google-unveils-two-new-tpus-designed-for-the-agentic-era/",
     });
 
-    (readerView as any).fetchFullArticleContent = vi
+    getHarness(readerView).fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue(fetchedHtml);
     await readerView.displayItem(item);
 
-    const rc = (readerView as any).readingContainer as HTMLElement;
+    const rc = getHarness(readerView).readingContainer;
     const body = rc.querySelector(".rss-reader-article-content") as HTMLElement;
     const callout = rc.querySelector(".rss-reader-description-callout");
 

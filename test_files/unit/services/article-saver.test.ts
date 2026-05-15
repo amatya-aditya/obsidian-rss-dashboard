@@ -42,9 +42,8 @@ function createItem(overrides: Partial<FeedItem> = {}): FeedItem {
 }
 
 beforeEach(() => {
-  vi.spyOn(console, "log").mockImplementation(() => {});
-  vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "debug").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -66,7 +65,7 @@ describe("sanitizeFilename", () => {
 
 describe("ArticleSaver.saveArticle", () => {
   it("writes to a normalized folder path and applies template/frontmatter substitutions", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings({
       addSavedTag: true,
       includeFrontmatter: true,
@@ -109,7 +108,7 @@ describe("ArticleSaver.saveArticle", () => {
   });
 
   it("trashes an existing file at the same path before creating a new one", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings({
       defaultFolder: "Articles",
       defaultTemplate: "{{content}}",
@@ -128,7 +127,7 @@ describe("ArticleSaver.saveArticle", () => {
   });
 
   it("returns null and does not mark the item saved when writing fails", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings({
       defaultTemplate: "{{content}}",
     });
@@ -145,7 +144,7 @@ describe("ArticleSaver.saveArticle", () => {
   });
 
   it("uses the full sanitized title in the saved file path", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings({
       defaultFolder: "Articles",
       defaultTemplate: "{{content}}",
@@ -169,7 +168,7 @@ describe("ArticleSaver.saveArticle", () => {
   });
 
   it("uses a fallback filename when the title sanitizes to empty", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings({
       defaultFolder: "Articles",
       defaultTemplate: "{{content}}",
@@ -188,52 +187,65 @@ describe("ArticleSaver.saveArticle", () => {
   });
 });
 
+/** Typed accessor for private ArticleSaver methods tested in isolation. */
+type PrivateSaverAPI = {
+  replaceDatePlaceholders(template: string, date: Date): string;
+};
+
 describe("ArticleSaver.replaceDatePlaceholders", () => {
   it("replaces {{date}} with long format", () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
     const date = new Date("2024-04-21T12:00:00Z");
 
     const input = "Date: {{date}}";
-    const result = (saver as any).replaceDatePlaceholders(input, date);
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, date);
 
     // toLocaleDateString depends on environment, but we expect the long format
     expect(result).toContain("April 21, 2024");
   });
 
   it("replaces {{dateShort}} with YYYY-MM-DD", () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
     const date = new Date("2024-04-21T12:00:00Z");
 
     const input = "Short: {{dateShort}}";
-    const result = (saver as any).replaceDatePlaceholders(input, date);
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, date);
 
     expect(result).toBe("Short: 2024-04-21");
   });
 
   it("replaces {{isoDate}} with ISO string", () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
     const date = new Date("2024-04-21T12:00:00Z");
 
     const input = "ISO: {{isoDate}}";
-    const result = (saver as any).replaceDatePlaceholders(input, date);
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, date);
 
     expect(result).toBe("ISO: 2024-04-21T12:00:00.000Z");
   });
 
   it("replaces parameterized {{date:FORMAT}} using moment", () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
     const date = new Date("2024-04-21T12:00:00Z");
 
     const input = "Custom: {{date:YYYY/MM/DD}} Time: {{date:HH:mm}}";
-    const result = (saver as any).replaceDatePlaceholders(input, date);
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, date);
 
     const expectedDate = moment(date).format("YYYY/MM/DD");
     const expectedTime = moment(date).format("HH:mm");
@@ -241,13 +253,15 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
   });
 
   it("handles complex moment formats", () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
     const date = new Date("2024-04-21T12:00:00Z");
 
     const input = "{{date:dddd, MMMM Do YYYY}}";
-    const result = (saver as any).replaceDatePlaceholders(input, date);
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, date);
 
     const expected = moment(date).format("dddd, MMMM Do YYYY");
     expect(result).toBe(expected);
@@ -256,7 +270,7 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
 
 describe("ArticleSaver.fetchFullArticleContent", () => {
   it("retries sagepub full-text URLs via /doi/abs/ when the full-text fetch returns empty", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
 
@@ -283,7 +297,7 @@ describe("ArticleSaver.fetchFullArticleContent", () => {
 
 describe("ArticleSaver.saveArticleWithFullContent", () => {
   it("converts fetched HTML to markdown and saves it", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings({
       defaultTemplate: "{{content}}",
       includeFrontmatter: false,
@@ -302,13 +316,14 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     const file = await saver.saveArticleWithFullContent(item);
 
     expect(file).toBeInstanceOf(TFile);
-    const written = await app.vault.read(file as TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
     expect(written).toContain("Hello");
     expect(written).toContain("world");
   });
 
   it("falls back to saveArticle when full content is unavailable", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings({
       defaultTemplate: "{{content}}",
       includeFrontmatter: false,
@@ -331,7 +346,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
   });
 
   it("skips full-content fetch for Bloomberg video routes and saves available content", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings({
       defaultTemplate: "{{content}}",
       includeFrontmatter: false,
@@ -358,14 +373,14 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
   });
 
   it("shows restricted-content notice once and falls back when content is paywalled", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings({
       defaultTemplate: "{{content}}",
       includeFrontmatter: false,
     });
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
     vi.spyOn(
       fetchHelpers,
       "fetchWithProxyFallbackDetailed",
@@ -391,7 +406,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
 
 describe("ArticleSaver.verifySavedArticle", () => {
   it("returns true when the saved file exists in the vault", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
 
@@ -408,7 +423,7 @@ describe("ArticleSaver.verifySavedArticle", () => {
   });
 
   it("clears saved state and removes the saved tag when the file is missing", () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
 
@@ -429,7 +444,7 @@ describe("ArticleSaver.verifySavedArticle", () => {
 
 describe("ArticleSaver.fixSavedFilePaths", () => {
   it("normalizes paths when the normalized path exists", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
 
@@ -447,7 +462,7 @@ describe("ArticleSaver.fixSavedFilePaths", () => {
   });
 
   it("renames files when the old path exists but the normalized path does not", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings({ defaultFolder: "/Normalized/" });
     const saver = new ArticleSaver(app, settings);
 
@@ -471,7 +486,7 @@ describe("ArticleSaver.fixSavedFilePaths", () => {
   });
 
   it("clears saved state when the savedFilePath is missing or not a file", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
 
@@ -493,7 +508,7 @@ describe("ArticleSaver.fixSavedFilePaths", () => {
 
 describe("ArticleSaver saved file lookups", () => {
   it("prefers savedFilePath when the title-based filename no longer matches", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings({ defaultFolder: "Articles" });
     const saver = new ArticleSaver(app, settings);
 
@@ -510,7 +525,7 @@ describe("ArticleSaver saved file lookups", () => {
   });
 
   it("falls back to the normalized default-folder path for legacy items", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings({ defaultFolder: "/Articles/" });
     const saver = new ArticleSaver(app, settings);
 
@@ -526,7 +541,7 @@ describe("ArticleSaver saved file lookups", () => {
   });
 
   it("finds a saved file by savedFilePath even when the default folder differs", async () => {
-    const app = (App as any).createMock();
+    const app = App.createMock();
     const settings = createSettings({ defaultFolder: "RSS articles" });
     const saver = new ArticleSaver(app, settings);
 

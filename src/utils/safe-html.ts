@@ -9,7 +9,7 @@ const BLOCKED_TAGS = new Set([
   "base",
 ]);
 
-const ALLOWED_TAGS = new Set([
+const STRICT_ALLOWED_TAGS = new Set([
   "p",
   "br",
   "ul",
@@ -22,6 +22,10 @@ const ALLOWED_TAGS = new Set([
   "blockquote",
   "a",
 ]);
+
+export interface SafeHtmlOptions {
+  mode?: "strict" | "rich";
+}
 
 function isSafeHref(href: string): boolean {
   const trimmed = (href || "").trim();
@@ -37,10 +41,107 @@ function isSafeHref(href: string): boolean {
   return false;
 }
 
+function isSafeSrc(src: string): boolean {
+  const trimmed = (src || "").trim();
+  if (!trimmed) return false;
+
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith("javascript:")) return false;
+  if (lower.startsWith("vbscript:")) return false;
+
+  if (lower.startsWith("http://")) return true;
+  if (lower.startsWith("https://")) return true;
+  if (lower.startsWith("data:image/")) return true;
+
+  return false;
+}
+
+function sanitizeSrcset(srcset: string): string {
+  const entries = srcset
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const safeEntries: string[] = [];
+
+  for (const entry of entries) {
+    const firstSpace = entry.search(/\s/);
+    const url = firstSpace === -1 ? entry : entry.slice(0, firstSpace);
+    const descriptor = firstSpace === -1 ? "" : entry.slice(firstSpace).trim();
+
+    if (!isSafeSrc(url)) {
+      continue;
+    }
+
+    safeEntries.push(descriptor ? `${url} ${descriptor}` : url);
+  }
+
+  return safeEntries.join(", ");
+}
+
+function copySafeAttributes(fromEl: HTMLElement, toEl: HTMLElement): void {
+  Array.from(fromEl.attributes).forEach((attr) => {
+    const name = attr.name.toLowerCase();
+    const value = attr.value || "";
+
+    if (name.startsWith("on")) {
+      return;
+    }
+
+    if (name === "style") {
+      return;
+    }
+
+    if (name === "href") {
+      if (isSafeHref(value)) {
+        toEl.setAttribute("href", value.trim());
+      }
+      return;
+    }
+
+    if (name === "src" || name === "poster") {
+      if (isSafeSrc(value)) {
+        toEl.setAttribute(name, value.trim());
+      }
+      return;
+    }
+
+    if (name === "srcset") {
+      const safeSrcset = sanitizeSrcset(value);
+      if (safeSrcset) {
+        toEl.setAttribute("srcset", safeSrcset);
+      }
+      return;
+    }
+
+    toEl.setAttribute(attr.name, attr.value);
+  });
+
+  if (toEl.tagName.toLowerCase() === "a" && toEl.getAttribute("href")) {
+    toEl.setAttribute("target", "_blank");
+    toEl.setAttribute("rel", "noopener noreferrer");
+  }
+}
+
+function copyStrictAttributes(fromEl: HTMLElement, toEl: HTMLElement): void {
+  if (toEl.tagName.toLowerCase() !== "a") {
+    return;
+  }
+
+  const href = fromEl.getAttribute("href") || "";
+  if (!isSafeHref(href)) {
+    return;
+  }
+
+  toEl.setAttribute("href", href.trim());
+  toEl.setAttribute("target", "_blank");
+  toEl.setAttribute("rel", "noopener noreferrer");
+}
+
 function sanitizeAndAppendNode(
   ownerDoc: Document,
   parent: HTMLElement,
   node: Node,
+  mode: "strict" | "rich",
 ): void {
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent || "";
@@ -56,26 +157,22 @@ function sanitizeAndAppendNode(
     return;
   }
 
-  if (!ALLOWED_TAGS.has(tag)) {
+  if (mode === "strict" && !STRICT_ALLOWED_TAGS.has(tag)) {
     Array.from(el.childNodes).forEach((child) =>
-      sanitizeAndAppendNode(ownerDoc, parent, child),
+      sanitizeAndAppendNode(ownerDoc, parent, child, mode),
     );
     return;
   }
 
-  const next = ownerDoc.createElement(tag);
-
-  if (tag === "a") {
-    const href = el.getAttribute("href") || "";
-    if (isSafeHref(href)) {
-      next.setAttribute("href", href.trim());
-      next.setAttribute("target", "_blank");
-      next.setAttribute("rel", "noopener noreferrer");
-    }
+  const next = ownerDoc.createEl(tag as keyof HTMLElementTagNameMap);
+  if (mode === "rich") {
+    copySafeAttributes(el, next);
+  } else {
+    copyStrictAttributes(el, next);
   }
 
   Array.from(el.childNodes).forEach((child) =>
-    sanitizeAndAppendNode(ownerDoc, next, child),
+    sanitizeAndAppendNode(ownerDoc, next, child, mode),
   );
 
   parent.appendChild(next);
@@ -84,24 +181,17 @@ function sanitizeAndAppendNode(
 export function sanitizeAndAppendHtml(
   container: HTMLElement,
   rawHtml: string,
+  options: SafeHtmlOptions = {},
 ): void {
   const html = (rawHtml || "").trim();
   if (!html) return;
+  const mode = options.mode ?? "strict";
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
   const ownerDoc = container.ownerDocument || document;
 
-  Array.from(doc.body.querySelectorAll("*")).forEach((element) => {
-    Array.from(element.attributes).forEach((attr) => {
-      const name = attr.name.toLowerCase();
-      if (name.startsWith("on")) {
-        element.removeAttribute(attr.name);
-      }
-    });
-  });
-
   Array.from(doc.body.childNodes).forEach((node) =>
-    sanitizeAndAppendNode(ownerDoc, container, node),
+    sanitizeAndAppendNode(ownerDoc, container, node, mode),
   );
 }

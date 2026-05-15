@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
-import { renderGeneralSettingsTab } from "../../../src/settings/tabs/general-settings-tab";
+import { renderGeneralSettingsTab, type GeneralSettingsPlugin } from "../../../src/settings/tabs/general-settings-tab";
 import {
   ShardDeletionFailureModal,
   StorageTransitionModal,
 } from "../../../src/settings/modals/storage-settings-modals";
-import { ShardFolderDeletionError } from "../../../src/services/feed-storage-repository";
-import { DEFAULT_SETTINGS } from "../../../src/types/types";
+import { ShardFolderDeletionError, type FeedStorageStatus } from "../../../src/services/feed-storage-repository";
+import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
-function cloneSettings() {
-  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+function cloneSettings(): RssDashboardSettings {
+  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
 
 async function flushAsyncWork(cycles = 6) {
@@ -45,15 +45,15 @@ function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
 
 function createPlugin() {
   return {
-    app: obsidian.App.createMock(),
+    app: obsidian.App.createMock() as unknown as obsidian.App,
     settingTab: {
       display: vi.fn(),
     },
     settings: cloneSettings(),
     saveSettings: vi.fn(async () => {}),
     getActiveDashboardView: vi.fn(async () => null),
-    getStorageStatus: vi.fn(() => ({
-      mode: "legacy-json",
+    getStorageStatus: vi.fn((): FeedStorageStatus => ({
+      mode: "legacy-json" as const,
       folder: ".rss-dashboard-data/feeds",
       shardCount: 0,
       feedCount: 0,
@@ -63,13 +63,17 @@ function createPlugin() {
     migrateToVaultStorage: vi.fn(async () => {}),
     revertToLegacyJsonStorage: vi.fn(async () => {}),
     revertToLegacyJsonStorageWithOptions: vi.fn(async () => {}),
-    isShardFolderDeletionError: (error: unknown) =>
+    isShardFolderDeletionError: (error: unknown): error is ShardFolderDeletionError =>
       error instanceof ShardFolderDeletionError,
     openStorageFolderInSystem: vi.fn(async () => {}),
     repairVaultStorage: vi.fn(async () => {}),
     importPortableDataBundleFromFile: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
+    migrateMetadataToVaultLocation: vi.fn(async () => {}),
+    revertMetadataToPluginDefault: vi.fn(async () => {}),
+    applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
+    refreshFeeds: vi.fn(async () => {}),
   };
 }
 
@@ -85,7 +89,7 @@ describe("General settings storage section", () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
 
-    renderGeneralSettingsTab(containerEl, plugin as any);
+    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
 
     expect(getSettingByName(containerEl, "Storage mode").textContent).toContain(
       "legacy monolithic data.json store",
@@ -106,7 +110,7 @@ describe("General settings storage section", () => {
       "apply",
     );
 
-    renderGeneralSettingsTab(containerEl, plugin as any);
+    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
     const select = storageModeSetting.querySelector("select") as HTMLSelectElement;
@@ -143,7 +147,7 @@ describe("General settings storage section", () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
 
-    renderGeneralSettingsTab(containerEl, plugin as any);
+    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
     const select = storageModeSetting.querySelector("select") as HTMLSelectElement;
@@ -167,7 +171,7 @@ describe("General settings storage section", () => {
       "export-data-json",
     );
 
-    renderGeneralSettingsTab(containerEl, plugin as any);
+    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
     const select = storageModeSetting.querySelector("select") as HTMLSelectElement;
@@ -190,7 +194,7 @@ describe("General settings storage section", () => {
     const plugin = createPlugin();
     plugin.settings.storageMode = "vault-shards";
     plugin.getStorageStatus = vi.fn(() => ({
-      mode: "vault-shards",
+      mode: "vault-shards" as const,
       folder: ".rss-dashboard-data/feeds",
       shardCount: 3,
       feedCount: 3,
@@ -202,7 +206,7 @@ describe("General settings storage section", () => {
       "apply-delete-shards",
     );
 
-    renderGeneralSettingsTab(containerEl, plugin as any);
+    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
     const select = storageModeSetting.querySelector("select") as HTMLSelectElement;
@@ -226,7 +230,7 @@ describe("General settings storage section", () => {
     const plugin = createPlugin();
     plugin.settings.storageMode = "vault-shards";
     plugin.getStorageStatus = vi.fn(() => ({
-      mode: "vault-shards",
+      mode: "vault-shards" as const,
       folder: ".rss-dashboard-data/feeds",
       shardCount: 3,
       feedCount: 3,
@@ -252,7 +256,7 @@ describe("General settings storage section", () => {
       "apply-anyway",
     );
 
-    renderGeneralSettingsTab(containerEl, plugin as any);
+    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
     const select = storageModeSetting.querySelector("select") as HTMLSelectElement;
@@ -279,7 +283,7 @@ describe("General settings storage section", () => {
     const plugin = createPlugin();
     plugin.settings.storageMode = "vault-shards";
     plugin.getStorageStatus = vi.fn(() => ({
-      mode: "vault-shards",
+      mode: "vault-shards" as const,
       folder: ".rss-dashboard-data/feeds",
       shardCount: 3,
       feedCount: 3,
@@ -304,7 +308,7 @@ describe("General settings storage section", () => {
       .mockResolvedValueOnce("open-folder")
       .mockResolvedValueOnce("cancel");
 
-    renderGeneralSettingsTab(containerEl, plugin as any);
+    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
     const select = storageModeSetting.querySelector("select") as HTMLSelectElement;
@@ -328,7 +332,7 @@ describe("General settings storage section", () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
 
-    renderGeneralSettingsTab(containerEl, plugin as any);
+    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
 
     const storageFolderSetting = getSettingByName(containerEl, "Storage folder");
     const input = storageFolderSetting.querySelector("input") as HTMLInputElement;

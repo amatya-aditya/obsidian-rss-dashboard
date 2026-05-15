@@ -34,7 +34,8 @@ describe("PodcastPlayer", () => {
 
   describe("sorting", () => {
     it("does not recreate the audio element when sorting the playlist", () => {
-      const container = document.body.createDiv();
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
 
@@ -64,7 +65,8 @@ describe("PodcastPlayer", () => {
 
   describe("live tag updates", () => {
     it("refreshTags + refreshPlaylistTags update player strip and playlist row", () => {
-      const container = document.body.createDiv();
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
 
@@ -113,7 +115,8 @@ describe("PodcastPlayer", () => {
 
   describe("episode details section", () => {
     it("renders the collapsible details section when notes exist", () => {
-      const container = document.body.createDiv();
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
 
@@ -129,7 +132,8 @@ describe("PodcastPlayer", () => {
     });
 
     it("prefers content over description when meaningfully different", () => {
-      const container = document.body.createDiv();
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
 
@@ -148,7 +152,8 @@ describe("PodcastPlayer", () => {
     });
 
     it("sanitizes show notes (removes scripts/events, blocks javascript: links)", () => {
-      const container = document.body.createDiv();
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
 
@@ -188,7 +193,8 @@ describe("PodcastPlayer", () => {
     });
 
     it("renders metadata rows only when fields exist", () => {
-      const container = document.body.createDiv();
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
 
@@ -235,7 +241,8 @@ describe("PodcastPlayer", () => {
 
   describe("autoplay", () => {
     it("updates play button icon to pause when autoplay advances", async () => {
-      const container = document.body.createDiv();
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
 

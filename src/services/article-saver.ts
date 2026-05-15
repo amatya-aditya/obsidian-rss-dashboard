@@ -144,7 +144,7 @@ export class ArticleSaver {
   }
 
   private formatMoment(date: Date, formatStr: string): string {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any -- moment imported from obsidian lacks TypeScript overload for function-call syntax
     return (moment as any)(date).format(formatStr);
   }
 

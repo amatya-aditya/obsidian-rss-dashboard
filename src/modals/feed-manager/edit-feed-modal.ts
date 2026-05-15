@@ -1,4 +1,4 @@
-﻿import { Modal, App, Setting, Notice, setIcon } from "obsidian";
+import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
 import type {
   Feed,
@@ -111,7 +111,7 @@ export class EditFeedModal extends Modal {
         });
         urlInput.addEventListener("blur", normalizeNitterUrl);
         urlInput.addEventListener("paste", () => {
-          window.setTimeout(normalizeNitterUrl, 0);
+          activeWindow.setTimeout(normalizeNitterUrl, 0);
         });
       })
       .addButton((btn) => {
@@ -327,7 +327,7 @@ export class EditFeedModal extends Modal {
 
     const highlightElement = (el: HTMLElement, className: string): void => {
       el.addClass(className);
-      window.setTimeout(() => {
+      activeWindow.setTimeout(() => {
         el.removeClass(className);
       }, PER_FEED_HIGHLIGHT_DURATION_MS);
     };
@@ -698,7 +698,7 @@ export class EditFeedModal extends Modal {
     };
     cancelBtn.onclick = () => this.close();
 
-    window.setTimeout(() => {
+    activeWindow.setTimeout(() => {
       titleInput?.focus();
       titleInput?.select();
     }, 0);

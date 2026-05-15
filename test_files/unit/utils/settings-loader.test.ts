@@ -169,8 +169,8 @@ describe("settings-loader", () => {
       const settings = {
         ...DEFAULT_SETTINGS,
         savePath: "/vault/Articles",
-      } as any;
-      migrateSettings(settings);
+      } as unknown as RssDashboardSettings & Record<string, unknown>;
+      migrateSettings(settings as unknown as RssDashboardSettings);
 
       expect(settings.articleSaving.defaultFolder).toBe("/vault/Articles");
       expect(settings.savePath).toBeUndefined();
@@ -183,8 +183,8 @@ describe("settings-loader", () => {
       const settings = {
         ...DEFAULT_SETTINGS,
         template: "# {{title}}",
-      } as any;
-      migrateSettings(settings);
+      } as unknown as RssDashboardSettings & Record<string, unknown>;
+      migrateSettings(settings as unknown as RssDashboardSettings);
 
       expect(settings.articleSaving.defaultTemplate).toBe("# {{title}}");
       expect(settings.template).toBeUndefined();
@@ -201,8 +201,8 @@ describe("settings-loader", () => {
           ...DEFAULT_SETTINGS.articleSaving,
           addSavedTag: undefined,
         },
-      } as any;
-      migrateSettings(settings);
+      } as unknown as RssDashboardSettings & Record<string, unknown>;
+      migrateSettings(settings as unknown as RssDashboardSettings);
 
       expect(settings.articleSaving.addSavedTag).toBe(true);
       expect(settings.addSavedTag).toBeUndefined();
@@ -215,7 +215,7 @@ describe("settings-loader", () => {
       const settings = {
         ...DEFAULT_SETTINGS,
         dashboardMultiFilters: undefined,
-      } as any;
+      } as unknown as RssDashboardSettings;
       migrateSettings(settings);
 
       expect(settings.dashboardMultiFilters).toEqual(
@@ -234,7 +234,7 @@ describe("settings-loader", () => {
           tagFilters: [],
           logic: "INVALID",
         },
-      } as any;
+      } as unknown as RssDashboardSettings;
       migrateSettings(settings);
 
       expect(settings.dashboardMultiFilters.logic).toBe("OR");
@@ -303,7 +303,7 @@ describe("settings-loader", () => {
       dedupeAndNormalizeFeedItems(feeds);
 
       const tags = feeds[0].items[0].tags ?? [];
-      const tagNames = tags.map((t: any) => t.name);
+      const tagNames = tags.map((t: { name: string }) => t.name);
       expect(tagNames).toContain("tech");
       expect(tagNames).toContain("news");
       expect(tagNames.filter((n: string) => n === "tech")).toHaveLength(1);

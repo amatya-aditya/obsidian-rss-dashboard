@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type {
+import {
+  DEFAULT_SETTINGS,
+  type Feed,
+  type FeedItem,
+  type FeedItemsShard,
   RssDashboardSettings,
   PortableDataBundle,
 } from "../../../src/types/types";
@@ -16,35 +20,61 @@ vi.mock("../../../src/services/opml-manager", () => ({
   },
 }));
 
-import { exportBlob } from "../../../src/utils/export-utils";
-
 // Note: These tests assume ImportExportService will be updated to handle metadata storage config
 // Tests written before implementation (Red cycle)
 
 function makeSettings(): RssDashboardSettings {
+  const settings = JSON.parse(
+    JSON.stringify(DEFAULT_SETTINGS),
+  ) as RssDashboardSettings;
+
+  settings.feeds = [
+    {
+      title: "Test Feed",
+      url: "https://example.com/feed.xml",
+      folder: "RSS",
+      items: [],
+      lastUpdated: 0,
+      feedId: "feed-1",
+    },
+  ];
+  settings.storageMode = "vault-shards";
+  settings.storageFolder = ".rss-dashboard-data/feeds";
+  settings.storageSchemaVersion = 1;
+  settings.metadataStorageMode = "vault-location";
+  settings.metadataStorageFolder = ".rss-dashboard-data";
+  settings.metadataStorageSchemaVersion = 1;
+
+  return settings;
+}
+
+function makeFeedItem(overrides: Partial<FeedItem> = {}): FeedItem {
   return {
-    feeds: [
-      {
-        title: "Test Feed",
-        url: "https://example.com/feed.xml",
-        folder: "RSS",
-        items: [],
-        lastUpdated: 0,
-        feedId: "feed-1",
-      },
-    ],
-    folders: ["RSS"],
+    title: "Item",
+    link: "https://example.com/article-1",
+    description: "Excerpt",
+    pubDate: new Date().toISOString(),
+    guid: "guid-1",
+    read: false,
+    starred: false,
     tags: [],
-    rules: [],
-    highlightWords: [],
-    autoRefreshIntervalMinutes: 60,
-    storageMode: "vault-shards" as const,
-    storageFolder: ".rss-dashboard-data/feeds",
-    storageSchemaVersion: 1,
-    metadataStorageMode: "vault-location" as const,
-    metadataStorageFolder: ".rss-dashboard-data",
-    metadataStorageSchemaVersion: 1,
-  } as any;
+    feedTitle: "Test Feed",
+    feedUrl: "https://example.com/feed.xml",
+    coverImage: "",
+    ...overrides,
+  };
+}
+
+function makeFeed(overrides: Partial<Feed> = {}): Feed {
+  return {
+    title: "Test Feed",
+    url: "https://example.com/feed.xml",
+    folder: "RSS",
+    items: [],
+    lastUpdated: 0,
+    feedId: "feed-1",
+    ...overrides,
+  };
 }
 
 function makePortableBundle(): PortableDataBundle {
@@ -120,11 +150,7 @@ describe("ImportExportService - Metadata Storage Config", () => {
           title: "Test Feed",
           url: "https://example.com/feed.xml",
           folder: "RSS",
-          items: [
-            {
-              /* large array of items */
-            },
-          ] as any,
+          items: [makeFeedItem()],
           lastUpdated: 0,
           feedId: "feed-1",
         },
@@ -137,6 +163,7 @@ describe("ImportExportService - Metadata Storage Config", () => {
 
     it("creates filename as 'rss-dashboard-portable-bundle.json'", async () => {
       const settings = makeSettings();
+      void settings;
 
       // Expected: exportBlob called with filename ending in "portable-bundle.json"
       // Actual: not implemented
@@ -177,8 +204,8 @@ describe("ImportExportService - Metadata Storage Config", () => {
 
     it("falls back to default metadata location if bundle has missing config", async () => {
       const bundle = makePortableBundle();
-      delete (bundle as any).metadataStorageMode;
-      delete (bundle as any).metadataStorageFolder;
+      delete bundle.metadataStorageMode;
+      delete bundle.metadataStorageFolder;
 
       // Expected: imported settings use default ("plugin-default", ".rss-dashboard-data")
       // Actual: not implemented
@@ -210,6 +237,7 @@ describe("ImportExportService - Metadata Storage Config", () => {
 
     it("tags backup bundle with timestamp for recovery", async () => {
       const settings = makeSettings();
+      void settings;
 
       // Expected: bundle includes exportedAt timestamp
       // Actual: not implemented
@@ -220,6 +248,7 @@ describe("ImportExportService - Metadata Storage Config", () => {
   describe("Mobile Compatibility - Import/Export Metadata", () => {
     it("uses vault.adapter for file operations (no Electron fs)", async () => {
       const settings = makeSettings();
+      void settings;
 
       // Expected: no window.require or fs module usage
       // Actual: not implemented
@@ -237,6 +266,7 @@ describe("ImportExportService - Metadata Storage Config", () => {
 
     it("generates downloadable bundle JSON for cross-device import", async () => {
       const settings = makeSettings();
+      void settings;
 
       // Expected: bundle can be exported and shared to another device/vault
       // Actual: not implemented
@@ -262,7 +292,7 @@ describe("ImportExportService - Metadata Storage Config", () => {
 
     it("detects version mismatch in imported bundle metadata config", async () => {
       const bundle = makePortableBundle();
-      (bundle as any).metadataStorageSchemaVersion = 99; // Future version
+      bundle.metadata.metadataStorageSchemaVersion = 99; // Future version
 
       // Expected: warning shown, defaults to safe mode
       // Actual: not implemented
@@ -272,11 +302,22 @@ describe("ImportExportService - Metadata Storage Config", () => {
     it("merges imported metadata config with existing feeds gracefully", async () => {
       const existing = makeSettings();
       existing.feeds = [
-        { title: "Existing", url: "https://existing.com/feed.xml" },
-      ] as any;
+        makeFeed({
+          title: "Existing",
+          url: "https://existing.com/feed.xml",
+        }),
+      ];
 
       const newBundle = makePortableBundle();
-      newBundle.shards = [{ feedId: "new-1" }] as any;
+      newBundle.shards = [
+        {
+          version: 1,
+          feedId: "new-1",
+          feedUrl: "https://new.example/feed.xml",
+          updatedAt: Date.now(),
+          items: [],
+        } satisfies FeedItemsShard,
+      ];
 
       // Expected: existing feeds preserved, new shards added
       // Actual: not implemented
@@ -287,6 +328,7 @@ describe("ImportExportService - Metadata Storage Config", () => {
   describe("Error Recovery - Metadata Import", () => {
     it("rolls back metadata config if import fails partway through", async () => {
       const bundle = makePortableBundle();
+      void bundle;
 
       // Setup: import will fail when trying to validate folder paths
       // Expected: settings reverted to pre-import state

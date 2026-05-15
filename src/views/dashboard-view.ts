@@ -180,9 +180,9 @@ export class RssDashboardView extends ItemView {
     this.registerEvent(
       this.app.vault.on("modify", () => {
         if (this.verificationTimeout) {
-          window.clearTimeout(this.verificationTimeout);
+          activeWindow.clearTimeout(this.verificationTimeout);
         }
-        this.verificationTimeout = window.setTimeout(() => {
+        this.verificationTimeout = activeWindow.setTimeout(() => {
           void this.verifySavedArticles();
         }, 300000);
       }),
@@ -198,7 +198,7 @@ export class RssDashboardView extends ItemView {
         }
       ).on(
         "rss-dashboard:filters-updated",
-        (payload: FiltersUpdatedEventPayload) => {
+        (_payload: FiltersUpdatedEventPayload) => {
           this.syncCurrentFeedReference();
           this.syncDashboardMultiFiltersFromSettings();
           this.render();
@@ -244,9 +244,9 @@ export class RssDashboardView extends ItemView {
     );
 
     this.lastViewportMobileSidebarMode = this.shouldUseMobileSidebarMode(
-      window.innerWidth,
+      activeWindow.innerWidth,
     );
-    this.registerDomEvent(window, "resize", () => {
+    this.registerDomEvent(activeWindow, "resize", () => {
       this.handleViewportResizeModeTransition();
     });
 
@@ -323,7 +323,7 @@ export class RssDashboardView extends ItemView {
     this.syncDashboardMultiFiltersFromSettings();
     this.verifySavedArticles();
 
-    if (!this.shouldUseMobileSidebarMode(window.innerWidth)) {
+    if (!this.shouldUseMobileSidebarMode(activeWindow.innerWidth)) {
       this.closeMobileSidebarModal();
     }
 
@@ -425,7 +425,7 @@ export class RssDashboardView extends ItemView {
         },
         onToggleViewStyle: this.handleToggleViewStyle.bind(this),
         onRefreshFeeds: this.handleRefreshFeeds.bind(this),
-        onSearch: (q: string) => {
+        onSearch: (_q: string) => {
           // State is handled by ArticleList locally, but we could sync it here if needed
         },
         onOpenViewFilters: () => {
@@ -1437,7 +1437,7 @@ export class RssDashboardView extends ItemView {
     }
     void this.render();
     if (this.sidebarContainer) {
-      window.setTimeout(() => {
+      activeWindow.setTimeout(() => {
         const foldersSection = this.sidebarContainer?.querySelector(
           ".rss-dashboard-feed-folders-section",
         );
@@ -1700,7 +1700,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private handleViewportResizeModeTransition(): void {
-    const currentMode = this.shouldUseMobileSidebarMode(window.innerWidth);
+    const currentMode = this.shouldUseMobileSidebarMode(activeWindow.innerWidth);
 
     if (this.lastViewportMobileSidebarMode === null) {
       this.lastViewportMobileSidebarMode = currentMode;
@@ -1814,7 +1814,7 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
-    window.open(url, "_blank");
+    activeWindow.open(url, "_blank");
   }
 
   private getRelatedItems(article: FeedItem): FeedItem[] {
@@ -2211,7 +2211,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private openViewingFiltersMenu(): void {
-    const root = this.containerEl ?? document.body;
+    const root = this.containerEl ?? activeDocument.body;
 
     const trigger =
       root.querySelector<HTMLElement>(
@@ -2451,7 +2451,7 @@ export class RssDashboardView extends ItemView {
   }
 
   public updateArticleSaveButton(articleGuid: string): void {
-    const articleEl = document.getElementById(`article-${articleGuid}`);
+    const articleEl = activeDocument.getElementById(`article-${articleGuid}`);
     if (articleEl) {
       const saveButton = articleEl.querySelector(".rss-dashboard-save-toggle");
       if (saveButton) {
@@ -2532,10 +2532,10 @@ export class RssDashboardView extends ItemView {
     this.lastViewportMobileSidebarMode = null;
 
     if (this.verificationTimeout) {
-      window.clearTimeout(this.verificationTimeout);
+      activeWindow.clearTimeout(this.verificationTimeout);
     }
     if (this.dashboardMultiFiltersSaveTimeout !== null) {
-      window.clearTimeout(this.dashboardMultiFiltersSaveTimeout);
+      activeWindow.clearTimeout(this.dashboardMultiFiltersSaveTimeout);
       this.dashboardMultiFiltersSaveTimeout = null;
     }
     this.clearCardLayoutRefreshTimeout();
@@ -2934,12 +2934,12 @@ export class RssDashboardView extends ItemView {
     }
 
     if (this.headerTitleRefreshTimeout !== null) {
-      window.clearTimeout(this.headerTitleRefreshTimeout);
+      activeWindow.clearTimeout(this.headerTitleRefreshTimeout);
     }
 
     // Apply triggers multiple handleFilterChange() calls back-to-back. Coalesce
     // them into a single header title update after the batch completes.
-    this.headerTitleRefreshTimeout = window.setTimeout(() => {
+    this.headerTitleRefreshTimeout = activeWindow.setTimeout(() => {
       this.headerTitleRefreshTimeout = null;
       if (!this.articleList) {
         return;
@@ -2961,10 +2961,10 @@ export class RssDashboardView extends ItemView {
 
     this.dashboardMultiFiltersDirty = true;
     if (this.dashboardMultiFiltersSaveTimeout !== null) {
-      window.clearTimeout(this.dashboardMultiFiltersSaveTimeout);
+      activeWindow.clearTimeout(this.dashboardMultiFiltersSaveTimeout);
     }
 
-    this.dashboardMultiFiltersSaveTimeout = window.setTimeout(() => {
+    this.dashboardMultiFiltersSaveTimeout = activeWindow.setTimeout(() => {
       this.dashboardMultiFiltersSaveTimeout = null;
       if (!this.dashboardMultiFiltersDirty) {
         return;
@@ -2976,7 +2976,7 @@ export class RssDashboardView extends ItemView {
 
   private scheduleCardLayoutRefresh(): void {
     this.clearCardLayoutRefreshTimeout();
-    this.cardLayoutRefreshTimeout = window.setTimeout(() => {
+    this.cardLayoutRefreshTimeout = activeWindow.setTimeout(() => {
       this.cardLayoutRefreshTimeout = null;
       this.articleList?.refreshCardTagLayout();
     }, RssDashboardView.CARD_LAYOUT_RELAYOUT_DELAY_MS);
@@ -2984,7 +2984,7 @@ export class RssDashboardView extends ItemView {
 
   private clearCardLayoutRefreshTimeout(): void {
     if (this.cardLayoutRefreshTimeout !== null) {
-      window.clearTimeout(this.cardLayoutRefreshTimeout);
+      activeWindow.clearTimeout(this.cardLayoutRefreshTimeout);
       this.cardLayoutRefreshTimeout = null;
     }
   }
@@ -2992,12 +2992,12 @@ export class RssDashboardView extends ItemView {
   private async waitForAnimationFrames(count = 1): Promise<void> {
     for (let index = 0; index < count; index += 1) {
       await new Promise<void>((resolve) => {
-        if (typeof window.requestAnimationFrame === "function") {
-          window.requestAnimationFrame(() => resolve());
+        if (typeof activeWindow.requestAnimationFrame === "function") {
+          activeWindow.requestAnimationFrame(() => resolve());
           return;
         }
 
-        window.setTimeout(resolve, 0);
+        activeWindow.setTimeout(resolve, 0);
       });
     }
   }
@@ -3143,7 +3143,7 @@ export class RssDashboardView extends ItemView {
 
   private scheduleCardLayoutSave(): void {
     this.clearCardLayoutSaveTimeout();
-    this.cardLayoutSaveTimeout = window.setTimeout(() => {
+    this.cardLayoutSaveTimeout = activeWindow.setTimeout(() => {
       this.cardLayoutSaveTimeout = null;
       void this.plugin.saveSettings();
     }, RssDashboardView.CARD_LAYOUT_SAVE_DELAY_MS);
@@ -3151,7 +3151,7 @@ export class RssDashboardView extends ItemView {
 
   private clearCardLayoutSaveTimeout(): void {
     if (this.cardLayoutSaveTimeout !== null) {
-      window.clearTimeout(this.cardLayoutSaveTimeout);
+      activeWindow.clearTimeout(this.cardLayoutSaveTimeout);
       this.cardLayoutSaveTimeout = null;
     }
   }

@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { FeedManagerModal } from "../../../src/modals/feed-manager/feed-manager-modal";
 import { ImportOpmlModal } from "../../../src/modals/import-opml-modal";
-import { DEFAULT_SETTINGS } from "../../../src/types/types";
+import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import type RssDashboardPlugin from "../../../main";
 
-function cloneSettings(): typeof DEFAULT_SETTINGS {
-  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+function cloneSettings(): RssDashboardSettings {
+  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
 
 function flushPromises(): Promise<void> {
@@ -53,7 +54,10 @@ describe("FeedManagerModal", () => {
       addFeed: vi.fn(async () => true),
     };
 
-    const modal = new FeedManagerModal(app as any, plugin as any);
+    const modal = new FeedManagerModal(
+      app as unknown as obsidian.App,
+      plugin as unknown as RssDashboardPlugin,
+    );
     modal.open();
 
     const titles = Array.from(
@@ -85,10 +89,17 @@ describe("FeedManagerModal", () => {
       addFeed: vi.fn(async () => true),
     };
 
-    const modal = new FeedManagerModal(app as any, plugin as any);
+    interface FeedManagerModalWithPrivates {
+      deleteFeed: (feed: unknown) => Promise<void>;
+    }
+
+    const modal = new FeedManagerModal(
+      app as unknown as obsidian.App,
+      plugin as unknown as RssDashboardPlugin,
+    );
     modal.open();
 
-    await (modal as any).deleteFeed(settings.feeds[0]);
+    await (modal as unknown as FeedManagerModalWithPrivates).deleteFeed(settings.feeds[0]);
     await flushPromises();
 
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
@@ -109,10 +120,13 @@ describe("FeedManagerModal", () => {
     const openSpy = vi
       .spyOn(ImportOpmlModal.prototype, "open")
       .mockImplementation(function (this: ImportOpmlModal) {
-        (this as any).onImportStarted?.();
+        (this as unknown as { onImportStarted?: () => void }).onImportStarted?.();
       });
 
-    const modal = new FeedManagerModal(app as any, plugin as any);
+    const modal = new FeedManagerModal(
+      app as unknown as obsidian.App,
+      plugin as unknown as RssDashboardPlugin,
+    );
     const closeSpy = vi.spyOn(modal, "close");
     modal.open();
 

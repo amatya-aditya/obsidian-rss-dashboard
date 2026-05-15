@@ -10,15 +10,24 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 installObsidianDomPolyfills();
 
 class MockLeaf {
-  app: any;
-  view: any;
+  app: unknown;
+  view: unknown;
 
-  constructor(app: any) {
+  constructor(app: unknown) {
     this.app = app;
   }
 
   detach = vi.fn();
   updateHeader = vi.fn();
+}
+
+type ReaderViewInternals = {
+  contentEl: HTMLElement;
+  fetchFullArticleContent: ReturnType<typeof vi.fn>;
+};
+
+function getInternals(view: ReaderView): ReaderViewInternals {
+  return view as unknown as ReaderViewInternals;
 }
 
 function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
@@ -62,14 +71,14 @@ describe("ReaderView tab title sync", () => {
     mockSettings = { ...DEFAULT_SETTINGS, useWebViewer: false };
 
     readerView = new ReaderView(
-      mockLeaf as any,
+      mockLeaf as never,
       mockSettings,
-      { saveArticle: vi.fn() } as any,
+      { saveArticle: vi.fn() } as never,
       vi.fn(),
       vi.fn(),
     );
 
-    (readerView as any).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = document.createElement("div");
     await readerView.onOpen();
   });
 
@@ -81,7 +90,7 @@ describe("ReaderView tab title sync", () => {
       guid: "guid-b",
     });
 
-    (readerView as any).fetchFullArticleContent = vi
+    getInternals(readerView).fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue("");
 
@@ -102,7 +111,8 @@ describe("ReaderView tab title sync", () => {
       guid: "guid-full",
     });
 
-    (readerView as any).fetchFullArticleContent = vi.fn().mockResolvedValue(`
+    getInternals(readerView).fetchFullArticleContent = vi.fn()
+      .mockResolvedValue(`
       <h1>Fetched Full Article Title</h1>
       <p>${"x".repeat(260)}</p>
     `);

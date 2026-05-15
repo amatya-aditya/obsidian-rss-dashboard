@@ -8,6 +8,8 @@ import {
   TFolder,
 } from "obsidian";
 
+import { getSettingManager } from "./src/utils/settings-manager";
+
 import {
   RssDashboardSettings,
   DEFAULT_SETTINGS,
@@ -233,7 +235,7 @@ export default class RssDashboardPlugin extends Plugin {
   feedParser!: FeedParser;
   articleSaver!: ArticleSaver;
   private backupService!: BackupService;
-  private folderService!: FolderService;
+  protected folderService!: FolderService;
   private importExportService!: ImportExportService;
   private backgroundImportService!: BackgroundImportService;
   public activeRefreshState = new Map<string, FeedRefreshState>();
@@ -507,13 +509,16 @@ export default class RssDashboardPlugin extends Plugin {
     new Notice("RSS Dashboard restored to factory defaults.");
   }
 
+  /**
+   * Opens the plugin's settings tab to the "Tags" section.
+   *
+   * Uses an internal Obsidian API (app.setting) as there is no public API for this.
+   * If Obsidian adds a public API, migrate this logic to use it.
+   */
   public async openTagsSettings(): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-    const setting = (this.app as any).setting;
+    const setting = getSettingManager(this.app);
     if (setting) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       setting.open();
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       setting.openTabById(this.manifest.id);
       if (this.settingTab) {
         this.settingTab.activateTab("Tags");
@@ -521,16 +526,19 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  /**
+   * Opens the plugin's settings tab to a specific section.
+   *
+   * Uses an internal Obsidian API (app.setting) as there is no public API for this.
+   * If Obsidian adds a public API, migrate this logic to use it.
+   */
   public async openSettingsToTab(
     tabName: string,
     sectionName?: string,
   ): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-    const setting = (this.app as any).setting;
+    const setting = getSettingManager(this.app);
     if (setting) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       setting.open();
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       setting.openTabById(this.manifest.id);
       if (this.settingTab) {
         this.settingTab.activateTab(tabName, sectionName);
@@ -538,6 +546,12 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  /**
+   * Detects vault storage adapter at runtime for cross-platform path resolution.
+   *
+   * This block uses type-unsafe access because Obsidian's adapter API is not fully typed.
+   * The eslint-disable is scoped to this block and is required for compatibility with all platforms.
+   */
   async onload() {
     /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
     const adapter = this.app.vault.adapter as any;
@@ -712,7 +726,7 @@ export default class RssDashboardPlugin extends Plugin {
       const autoRefreshIntervalMs = this.getAutoRefreshIntervalMs();
       if (autoRefreshIntervalMs !== null) {
         this.registerInterval(
-          window.setInterval(() => {
+          activeWindow.setInterval(() => {
             void this.refreshFeeds();
           }, autoRefreshIntervalMs),
         );
@@ -1170,7 +1184,7 @@ export default class RssDashboardPlugin extends Plugin {
       // Ignore errors and fallback
     }
 
-    const input = document.body.createEl("input", {
+    const input = activeDocument.body.createEl("input", {
       attr: { type: "file", accept: ".opml,.xml" },
     });
     input.onchange = () => {
@@ -1203,7 +1217,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public importUserSettingsJson(): void {
-    const input = document.body.createEl("input", {
+    const input = activeDocument.body.createEl("input", {
       attr: {
         type: "file",
         accept: ".json,.backup,application/json",
@@ -2247,7 +2261,7 @@ export default class RssDashboardPlugin extends Plugin {
     return await Promise.race([
       this.refreshFeedDirect(feed),
       new Promise<Feed>((_, reject) => {
-        window.setTimeout(
+        activeWindow.setTimeout(
           () => reject(new Error("Timed out")),
           FEED_REQUEST_TIMEOUT_MS,
         );

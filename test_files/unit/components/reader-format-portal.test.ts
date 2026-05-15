@@ -5,6 +5,10 @@ import type { ReaderFormatSettings } from "../../../src/types/types";
 
 installObsidianDomPolyfills();
 
+type ObsidianHTMLElement = HTMLElement & {
+  createDiv: (cls?: string) => HTMLDivElement;
+};
+
 function setMatchMedia(matches: boolean): void {
   window.matchMedia = ((query: string) => {
     return {
@@ -52,7 +56,7 @@ describe("createReaderFormatPortal", () => {
   it("creates a desktop portal and fires change callbacks", () => {
     setMatchMedia(false);
 
-    const anchor = document.body.createDiv();
+    const anchor = (document.body as ObsidianHTMLElement).createDiv();
     const format = createFormat({ textAlign: "justify" });
     const defaults = createFormat();
 
@@ -107,7 +111,7 @@ describe("createReaderFormatPortal", () => {
 
     const fontFamilyButtons = Array.from(
       portal?.querySelectorAll(".rss-reader-format-font-button") ?? [],
-    ) as HTMLButtonElement[];
+    ) as unknown as HTMLElement[];
     expect(fontFamilyButtons.map((button) => button.textContent?.trim())).toEqual([
       "Theme default",
       "Serif",
@@ -138,7 +142,7 @@ describe("createReaderFormatPortal", () => {
   it("resets the quick controls back to defaults", () => {
     setMatchMedia(false);
 
-    const anchor = document.body.createDiv();
+    const anchor = (document.body as ObsidianHTMLElement).createDiv();
     const format = createFormat({
       fontScalePct: 150,
       lineHeightPct: 180,
@@ -187,7 +191,7 @@ describe("createReaderFormatPortal", () => {
   it("creates a mobile sheet with backdrop and closes on backdrop click", () => {
     setMatchMedia(true);
 
-    const anchor = document.body.createDiv();
+    const anchor = (document.body as ObsidianHTMLElement).createDiv();
     const format = createFormat();
     const defaults = createFormat();
     const flushSave = vi.fn();
@@ -205,12 +209,11 @@ describe("createReaderFormatPortal", () => {
     expect(document.body.querySelector(".rss-reader-format-dropdown-portal")).toBeTruthy();
     const backdrop = document.body.querySelector(
       ".rss-reader-format-sheet-backdrop",
-    ) as HTMLElement | null;
+    );
     expect(backdrop).toBeTruthy();
 
-    backdrop?.dispatchEvent(new MouseEvent("click"));
+    (backdrop as HTMLElement)?.dispatchEvent(new MouseEvent("click"));
     expect(flushSave).toHaveBeenCalled();
     expect(document.body.querySelector(".rss-reader-format-dropdown-portal")).toBeNull();
   });
 });
-

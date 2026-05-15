@@ -323,6 +323,7 @@ export class MediaService {
       ];
 
       for (const pattern of patterns) {
+        const _dummy = activeDocument.createDiv();
         const match = link.match(pattern);
         if (match?.[1]?.length === 11) {
           return match[1];

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
+import { FeedMetadata } from "../../../src/types/discover-types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 const fetchFeedXmlMock = vi.fn();
@@ -13,12 +14,16 @@ function flushPromises(): Promise<void> {
 }
 
 const baseFeed = {
+  id: "test-feed",
   title: "Example Feed",
   url: "https://example.com/feed.xml",
   imageUrl: "",
   summary: "A short summary",
-  type: "rss",
+  type: "Blog",
   domain: ["Tech"],
+  subdomain: [],
+  area: [],
+  topic: [],
   tags: ["AI"],
 };
 
@@ -56,10 +61,10 @@ describe("FeedPreviewModal", () => {
       </rss>`,
     );
 
-    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null as any);
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
 
     const app = obsidian.App.createMock();
-    const modal = new FeedPreviewModal(app as any, baseFeed as any);
+    const modal = new FeedPreviewModal(app as unknown as obsidian.App, baseFeed as unknown as FeedMetadata);
     modal.open();
 
     await flushPromises();
@@ -101,7 +106,7 @@ describe("FeedPreviewModal", () => {
     );
 
     const app = obsidian.App.createMock();
-    const modal = new FeedPreviewModal(app as any, baseFeed as any);
+    const modal = new FeedPreviewModal(app as unknown as obsidian.App, baseFeed as unknown as FeedMetadata);
     modal.open();
 
     await flushPromises();
@@ -129,7 +134,7 @@ describe("FeedPreviewModal", () => {
       );
 
     const app = obsidian.App.createMock();
-    const modal = new FeedPreviewModal(app as any, baseFeed as any);
+    const modal = new FeedPreviewModal(app as unknown as obsidian.App, baseFeed as unknown as FeedMetadata);
     modal.open();
 
     await flushPromises();
@@ -151,7 +156,7 @@ describe("FeedPreviewModal", () => {
     fetchFeedXmlMock.mockResolvedValue(`<?xml version="1.0"?><rss><channel></channel></rss>`);
 
     const app = obsidian.App.createMock();
-    const modal = new FeedPreviewModal(app as any, baseFeed as any);
+    const modal = new FeedPreviewModal(app as unknown as obsidian.App, baseFeed as unknown as FeedMetadata);
     modal.open();
 
     await flushPromises();

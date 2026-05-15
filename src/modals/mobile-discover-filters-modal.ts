@@ -58,7 +58,7 @@ export class MobileDiscoverFiltersModal extends Modal {
         onActivateView: () => {
           this.close();
           void this.plugin.activateView().then(() => {
-            setTimeout(() => {
+            activeWindow.setTimeout(() => {
               void this.plugin
                 .getActiveDashboardView()
                 .then((dashboardView) => {

@@ -373,7 +373,7 @@ export class BackgroundImportService {
       return await Promise.race([
         this.feedParser.parseFeed(url),
         new Promise<Feed>((_, reject) => {
-          timeoutId = window.setTimeout(
+          timeoutId = activeWindow.setTimeout(
             () => reject(new Error("Timed out")),
             BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS,
           );
@@ -381,7 +381,7 @@ export class BackgroundImportService {
       ]);
     } finally {
       if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
+        activeWindow.clearTimeout(timeoutId);
       }
     }
   }
@@ -506,7 +506,7 @@ export class BackgroundImportService {
     onMinimize: () => void,
     onAbort: () => void,
   ): HTMLElement {
-    const modal = document.body.createDiv({
+    const modal = activeDocument.body.createDiv({
       cls: "rss-dashboard-modal rss-dashboard-modal-container rss-dashboard-import-modal",
     });
 

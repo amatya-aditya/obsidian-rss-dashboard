@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
+import type RssDashboardPlugin from "../../../main";
+
+type ObsidianHTMLElement = HTMLElement & {
+  empty: () => void;
+  createDiv: (args?: unknown) => HTMLDivElement;
+};
 
 function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
@@ -20,7 +26,7 @@ function stubRect(rect: {
 describe("Startup filters settings popover positioning (integration)", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
-    document.body.empty();
+    (document.body as ObsidianHTMLElement).empty();
   });
 
   it("opens above when anchor is near bottom and follows scroll reposition", async () => {
@@ -28,14 +34,14 @@ describe("Startup filters settings popover positioning (integration)", () => {
     // Drive rAF through timers for deterministic tests.
     vi.stubGlobal(
       "requestAnimationFrame",
-      (cb: FrameRequestCallback) => window.setTimeout(() => cb(0), 0) as any,
+      (cb: FrameRequestCallback) => window.setTimeout(() => cb(0), 0) as unknown as number,
     );
 
     const { renderDisplaySettingsTab } = await import(
       "../../../src/settings/tabs/display-settings-tab"
     );
 
-    const container = document.body.createDiv();
+    const container = (document.body as ObsidianHTMLElement).createDiv();
     const settings = cloneSettings();
 
     // Minimal plugin mock
@@ -47,7 +53,7 @@ describe("Startup filters settings popover positioning (integration)", () => {
       app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
     };
 
-    renderDisplaySettingsTab(container, plugin as never, () => {});
+    renderDisplaySettingsTab(container, plugin as unknown as RssDashboardPlugin, () => {});
 
     const buttons = Array.from(container.querySelectorAll("button"));
     const startupBtn = buttons.find((b) => (b.textContent ?? "") === "All");
@@ -69,8 +75,9 @@ describe("Startup filters settings popover positioning (integration)", () => {
       stubRect(anchorRect);
 
     // Stub menu/submenu rects in jsdom (layout is 0 otherwise)
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
-    HTMLElement.prototype.getBoundingClientRect = function () {
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
       if (this.classList.contains("rss-dashboard-startup-filters-menu-portal")) {
         return stubRect({
           top: 0,
@@ -128,14 +135,14 @@ describe("Startup filters settings popover positioning (integration)", () => {
     vi.useFakeTimers();
     vi.stubGlobal(
       "requestAnimationFrame",
-      (cb: FrameRequestCallback) => window.setTimeout(() => cb(0), 0) as any,
+      (cb: FrameRequestCallback) => window.setTimeout(() => cb(0), 0) as unknown as number,
     );
 
     const { renderDisplaySettingsTab } = await import(
       "../../../src/settings/tabs/display-settings-tab"
     );
 
-    const container = document.body.createDiv();
+    const container = (document.body as ObsidianHTMLElement).createDiv();
     const settings = cloneSettings();
     settings.availableTags = [{ name: "A", color: "#111111" }];
 
@@ -147,11 +154,11 @@ describe("Startup filters settings popover positioning (integration)", () => {
       app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
     };
 
-    renderDisplaySettingsTab(container, plugin as never, () => {});
+    renderDisplaySettingsTab(container, plugin as unknown as RssDashboardPlugin, () => {});
 
     const startupBtn = Array.from(container.querySelectorAll("button")).find(
       (b) => (b.textContent ?? "") === "All",
-    ) as HTMLButtonElement | undefined;
+    );
     expect(startupBtn).toBeTruthy();
 
     Object.defineProperty(window, "innerHeight", { value: 260, configurable: true });
@@ -167,8 +174,9 @@ describe("Startup filters settings popover positioning (integration)", () => {
         height: 30,
       });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
-    HTMLElement.prototype.getBoundingClientRect = function () {
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
       if (this.classList.contains("rss-dashboard-startup-filters-menu-portal")) {
         return stubRect({
           top: 0,
@@ -221,4 +229,3 @@ describe("Startup filters settings popover positioning (integration)", () => {
     vi.useRealTimers();
   });
 });
-

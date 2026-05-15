@@ -1800,7 +1800,7 @@ export class CustomXMLParser {
 
     const itemElements = Array.from(doc.getElementsByTagName("item"));
 
-    itemElements.forEach((item, index) => {
+    itemElements.forEach((item, _index) => {
       const guid =
         item.getAttribute("rdf:about") ||
         this.getTextContent(item, "guid") ||
@@ -1920,7 +1920,7 @@ export class CustomXMLParser {
     const items: ParsedItem[] = [];
     const entryElements = Array.from(feed.getElementsByTagName("entry"));
 
-    entryElements.forEach((entry, idx) => {
+    entryElements.forEach((entry, _idx) => {
       const title = this.getTextContent(entry, "title");
       let link = this.getAtomEntryLink(entry);
       link = this.transformSageUrl(link);

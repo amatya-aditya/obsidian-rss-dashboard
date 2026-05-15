@@ -21,8 +21,13 @@ function createRule(overrides: Partial<KeywordFilterRule> = {}): KeywordFilterRu
   };
 }
 
+type ObsidianHTMLElement = HTMLElement & {
+  createDiv(opts?: string | { cls?: string; text?: string; attr?: Record<string, string> }): HTMLDivElement;
+  empty(): void;
+};
+
 function setupEditor(initial: KeywordFilterEditorState, opts?: { showOverrideToggle?: boolean }) {
-  const containerEl = document.body.createDiv();
+  const containerEl = (document.body as unknown as ObsidianHTMLElement).createDiv();
   let state: KeywordFilterEditorState = initial;
   const onChange = vi.fn((next: KeywordFilterEditorState) => {
     state = next;

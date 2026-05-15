@@ -6,7 +6,7 @@ export interface RobustFetchResult {
 }
 
 export function sleep(ms: number): Promise<void> {
-  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+  return new Promise<void>((resolve) => activeWindow.setTimeout(resolve, ms));
 }
 
 export function formatRelativeTime(date: Date | string): string {
@@ -285,7 +285,7 @@ function getViewportWidth(viewportWidth?: number): number {
   if (typeof window === "undefined") {
     return TABLET_LAYOUT_MAX_WIDTH + 1;
   }
-  return window.innerWidth;
+  return activeWindow.innerWidth;
 }
 
 export function isPhoneViewport(viewportWidth?: number): boolean {

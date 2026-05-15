@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
-import { DEFAULT_SETTINGS } from "../../../src/types/types";
+import { type RssDashboardSettings, type PodcastTheme, DEFAULT_SETTINGS } from "../../../src/types/types";
 import { renderMediaSettingsTab } from "../../../src/settings/tabs/media-settings-tab";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import type RssDashboardPlugin from "../../../main";
 
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -20,8 +22,8 @@ function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
   return match as HTMLElement;
 }
 
-function cloneSettings(): typeof DEFAULT_SETTINGS {
-  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+function cloneSettings(): RssDashboardSettings {
+  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
 
 beforeEach(() => {
@@ -32,7 +34,7 @@ beforeEach(() => {
 
 describe("renderMediaSettingsTab()", () => {
   it("renders auto-tag videos as the first media option and persists toggle changes", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.body.appendChild(document.createElement("div"));
     const settings = cloneSettings();
     settings.media.autoTagVideos = true;
 
@@ -41,9 +43,9 @@ describe("renderMediaSettingsTab()", () => {
       settings,
       saveSettings: vi.fn(async () => {}),
       getActiveReaderView: vi.fn(async () => null),
-    };
+    } as unknown as RssDashboardPlugin;
 
-    renderMediaSettingsTab(containerEl, plugin as any);
+    renderMediaSettingsTab(containerEl, plugin);
 
     const names = Array.from(
       containerEl.querySelectorAll(".setting-item-name"),
@@ -61,11 +63,11 @@ describe("renderMediaSettingsTab()", () => {
     await flushPromises();
 
     expect(plugin.settings.media.autoTagVideos).toBe(false);
-    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
   it("persists default media folders and normalizes paths", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.body.appendChild(document.createElement("div"));
     const settings = cloneSettings();
     settings.media.defaultYouTubeFolder = "YouTube";
 
@@ -73,11 +75,11 @@ describe("renderMediaSettingsTab()", () => {
       app: obsidian.App.createMock(),
       settings,
       saveSettings: vi.fn(async () => {}),
-    };
+    } as unknown as RssDashboardPlugin;
 
     vi.spyOn(obsidian, "normalizePath").mockImplementation((p: string) => `norm:${p}`);
 
-    renderMediaSettingsTab(containerEl, plugin as any);
+    renderMediaSettingsTab(containerEl, plugin);
 
     const youtubeSetting = getSettingByName(containerEl, "Default YouTube folder");
     const input = youtubeSetting.querySelector('input[type="text"]') as HTMLInputElement;
@@ -88,13 +90,13 @@ describe("renderMediaSettingsTab()", () => {
     await flushPromises();
 
     expect(plugin.settings.media.defaultYouTubeFolder).toBe("norm:Media/YouTube");
-    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
   it("updates podcast theme and refreshes reader view when available", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.body.appendChild(document.createElement("div"));
     const settings = cloneSettings();
-    settings.media.podcastTheme = "obsidian" as any;
+    settings.media.podcastTheme = "obsidian" as PodcastTheme;
 
     const updatePodcastTheme = vi.fn();
     const plugin = {
@@ -102,9 +104,9 @@ describe("renderMediaSettingsTab()", () => {
       settings,
       saveSettings: vi.fn(async () => {}),
       getActiveReaderView: vi.fn(async () => ({ updatePodcastTheme })),
-    };
+    } as unknown as RssDashboardPlugin;
 
-    renderMediaSettingsTab(containerEl, plugin as any);
+    renderMediaSettingsTab(containerEl, plugin);
 
     const themeSetting = getSettingByName(containerEl, "Player theme");
     const select = themeSetting.querySelector("select") as HTMLSelectElement;
@@ -113,8 +115,9 @@ describe("renderMediaSettingsTab()", () => {
     await flushPromises();
 
     expect(plugin.settings.media.podcastTheme).toBe("nord");
-    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
     expect(updatePodcastTheme).toHaveBeenCalledWith("nord");
   });
 });
+
 

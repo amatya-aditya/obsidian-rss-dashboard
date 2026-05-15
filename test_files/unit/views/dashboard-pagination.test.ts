@@ -8,7 +8,7 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 
-let latestArticleListArgs: any[] = [];
+let latestArticleListArgs: unknown[] = [];
 let latestArticleListInstance: {
   render: ReturnType<typeof vi.fn>;
   destroy: ReturnType<typeof vi.fn>;
@@ -262,7 +262,7 @@ describe("Dashboard pagination", () => {
       openTagsSettings: vi.fn(async () => {}),
     };
 
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);
@@ -325,7 +325,7 @@ describe("Dashboard pagination", () => {
       openTagsSettings: vi.fn(async () => {}),
     };
 
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);
@@ -378,9 +378,8 @@ describe("Dashboard pagination", () => {
 
     const feedUrl = "https://example.com/feed.xml";
     const items = makeFeedItems(12, "BBC News", feedUrl).map((item) => {
-      const { feedUrl: _feedUrl, ...rest } = item as FeedItem & {
-        feedUrl?: string;
-      };
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { feedUrl: _, ...rest } = item;
       return rest as FeedItem;
     });
     const feed: Feed = {
@@ -398,7 +397,7 @@ describe("Dashboard pagination", () => {
       openTagsSettings: vi.fn(async () => {}),
     };
 
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);
@@ -460,7 +459,7 @@ describe("Dashboard pagination", () => {
       openTagsSettings: vi.fn(async () => {}),
     };
 
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);

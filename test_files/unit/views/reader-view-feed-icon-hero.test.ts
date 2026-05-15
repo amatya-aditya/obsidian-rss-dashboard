@@ -10,16 +10,26 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 installObsidianDomPolyfills();
 
 class MockLeaf {
-  app: any;
-  view: any;
-  constructor(app: any) {
+  app: unknown;
+  view: unknown;
+  constructor(app: unknown) {
     this.app = app;
   }
   detach = vi.fn();
 }
 
+type ReaderViewInternals = {
+  contentEl: HTMLElement;
+  readingContainer: HTMLElement;
+  fetchFullArticleContent: ReturnType<typeof vi.fn>;
+};
+
+function getInternals(view: ReaderView): ReaderViewInternals {
+  return view as unknown as ReaderViewInternals;
+}
+
 describe("ReaderView hero image ignores feed icon", () => {
-  let readerView: any;
+  let readerView: ReaderView;
   let mockSettings: RssDashboardSettings;
 
   beforeEach(async () => {
@@ -48,14 +58,14 @@ describe("ReaderView hero image ignores feed icon", () => {
 
     const mockLeaf = new MockLeaf(mockApp);
     readerView = new ReaderView(
-      mockLeaf as any,
+      mockLeaf as never,
       mockSettings,
-      { saveArticle: vi.fn() } as any,
+      { saveArticle: vi.fn() } as never,
       vi.fn(),
       vi.fn(),
     );
 
-    (readerView as any).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = document.createElement("div");
     await readerView.onOpen();
   });
 
@@ -77,12 +87,13 @@ describe("ReaderView hero image ignores feed icon", () => {
       saved: false,
     };
 
-    (readerView as any).fetchFullArticleContent = vi.fn().mockResolvedValue("");
+    getInternals(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue("");
     await readerView.displayItem(item);
 
-    const container = (readerView as any).readingContainer as HTMLElement;
-    const hero = container.querySelector(".rss-reader-hero-slot");
+    const container = getInternals(readerView).readingContainer;
+    const hero = container.querySelector<HTMLElement>(".rss-reader-hero-slot");
     expect(hero?.querySelector("img")).toBeNull();
   });
 });
-

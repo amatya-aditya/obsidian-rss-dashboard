@@ -51,7 +51,7 @@ describe("OpmlManager.parseOpmlMetadata", () => {
 
   it("throws on invalid XML", () => {
     const invalid = "<opml><body><outline></body></opml>";
-    expect(() => OpmlManager.parseOpmlMetadata(invalid)).toThrowError("Invalid OPML format");
+    expect(() => OpmlManager.parseOpmlMetadata(invalid)).toThrow("Invalid OPML format");
   });
 
   it("preprocesses unescaped ampersands so parsing does not fail", () => {
@@ -99,7 +99,7 @@ describe("OpmlManager.parseOpml", () => {
 
   it("throws on invalid XML", () => {
     const invalid = "<opml><body><outline></body></opml>";
-    expect(() => OpmlManager.parseOpml(invalid)).toThrowError("Invalid OPML format");
+    expect(() => OpmlManager.parseOpml(invalid)).toThrow("Invalid OPML format");
   });
 });
 
@@ -130,7 +130,7 @@ describe("OpmlManager.importOpml", () => {
   });
 
   it("wraps parse failures with a stable import error", () => {
-    expect(() => OpmlManager.importOpml("not xml", [], [])).toThrowError(
+    expect(() => OpmlManager.importOpml("not xml", [], [])).toThrow(
       "Failed to import OPML: Invalid format",
     );
   });

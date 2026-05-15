@@ -17,6 +17,21 @@ export interface WebViewerIntegrationHarnessOverrides {
   webpageContainer?: HTMLElement | null;
 }
 
+export type TestWebViewerIntegration = WebViewerIntegration & {
+  openInWebViewer(url: string, title: string): Promise<boolean>;
+  addCustomSaveButton(): void;
+  showSaveDialog(): void;
+  saveArticle(
+    item: FeedItem,
+    folder: string,
+    template: string,
+    includeFrontmatter: boolean,
+  ): Promise<TFile | null>;
+  applyTemplate(item: FeedItem, template: string): string;
+  generateFrontmatter(item: FeedItem): string;
+  ensureFolderExists(path: string): Promise<void>;
+};
+
 function cloneDefaultSettings(): ArticleSavingSettings {
   return {
     addSavedTag: true,
@@ -53,6 +68,8 @@ export function buildFeedItem(overrides: Partial<FeedItem> = {}): FeedItem {
 
 export function createWebpageContainer(): HTMLElement {
   installObsidianDomPolyfills();
+  // document.body has createDiv added by installObsidianDomPolyfills
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return
   return (document.body as unknown as HTMLElement).createDiv({
     cls: "webpage-container",
   });
@@ -60,10 +77,18 @@ export function createWebpageContainer(): HTMLElement {
 
 export function createWebViewerIntegrationHarness(
   overrides: WebViewerIntegrationHarnessOverrides = {},
-) {
+): {
+  app: App & { plugins: { plugins: Record<string, unknown> } };
+  settings: ArticleSavingSettings;
+  webViewerPlugin: WebViewerPluginStub | null;
+  webpageContainer: HTMLElement | null;
+  integration: TestWebViewerIntegration;
+  getFile: (path: string) => TFile | null;
+  cleanup: () => void;
+} {
   installObsidianDomPolyfills();
 
-  const app = new App() as unknown as App & {
+  const app = new App() as App & {
     plugins: { plugins: Record<string, unknown> };
   };
 
@@ -88,7 +113,7 @@ export function createWebViewerIntegrationHarness(
     Object.assign(settings, overrides.settings);
   }
 
-  const integration = new WebViewerIntegration(app as any, settings);
+  const integration = new WebViewerIntegration(app as App & { plugins: { plugins: Record<string, unknown> } }, settings);
 
   const createdContainer = overrides.webpageContainer === undefined;
   const webpageContainer =
@@ -105,9 +130,8 @@ export function createWebViewerIntegrationHarness(
     settings,
     webViewerPlugin,
     webpageContainer,
-    integration,
-    // Helpers for tests that need to inspect vault effects.
-    getFile: (path: string): TFile | null => app.vault.getAbstractFileByPath(path) as any,
+    integration: integration as unknown as TestWebViewerIntegration,
+    getFile: (path: string): TFile | null => app.vault.getAbstractFileByPath(path) as TFile | null,
     cleanup,
   };
 }

@@ -309,7 +309,7 @@ export function renderDisplaySettingsTab(
       const openMenu = () => {
         const targetDocument = btn.buttonEl.ownerDocument;
         const targetBody = targetDocument.body;
-        const targetWindow = targetDocument.defaultView || window;
+        const targetWindow = targetDocument.defaultView || activeWindow;
         const margin = 8;
 
         // Remove any existing menus from stale state.
@@ -760,7 +760,7 @@ export function renderDisplaySettingsTab(
   const readerHeading = new Setting(containerEl).setName("Reader").setHeading();
   readerHeading.settingEl.dataset.rssSettingsSection = "reader";
   if (targetSection === "Reader") {
-    window.setTimeout(() => {
+    activeWindow.setTimeout(() => {
       readerHeading.settingEl.scrollIntoView({
         block: "center",
         behavior: "auto",
@@ -1130,7 +1130,7 @@ export function renderDisplaySettingsTab(
       iconSetting.settingEl.addClass("rss-dashboard-icon-visibility-row");
       iconSetting.settingEl.setAttribute("data-icon-id", id);
 
-      const dragHandle = document.createElement("button");
+      const dragHandle = activeDocument.createElement("button");
       dragHandle.type = "button";
       dragHandle.addClass("rss-dashboard-icon-drag-handle");
       dragHandle.setAttribute("draggable", "true");
@@ -1138,7 +1138,7 @@ export function renderDisplaySettingsTab(
       setIcon(dragHandle, "grip-vertical");
       iconSetting.nameEl.prepend(dragHandle);
 
-      const upBtn = document.createElement("button");
+      const upBtn = activeDocument.createElement("button");
       upBtn.addClass("rss-dashboard-icon-order-btn");
       upBtn.setAttribute("aria-label", `Move ${icon.label} up`);
       upBtn.textContent = "↑";
@@ -1160,7 +1160,7 @@ export function renderDisplaySettingsTab(
         }
       });
 
-      const downBtn = document.createElement("button");
+      const downBtn = activeDocument.createElement("button");
       downBtn.addClass("rss-dashboard-icon-order-btn");
       downBtn.setAttribute("aria-label", `Move ${icon.label} down`);
       downBtn.textContent = "↓";

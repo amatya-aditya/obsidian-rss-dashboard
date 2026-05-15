@@ -8,14 +8,20 @@
  * Each test covers a critical backup scenario without any service code existing yet.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { RssDashboardSettings } from "../../../src/types/types";
+import type { AutoBackupSettings } from "../../../src/types/types";
+import type { VaultInterface } from "../../../src/types/vault-interface";
 
-// Will mock BackupService once it exists
+type TestVault = VaultInterface;
+
+type TestManifest = {
+  dir: string;
+};
+
 vi.mock("../../../src/services/backup-service", { spy: true });
 
 describe("BackupService", () => {
-  let mockVault: any;
-  let mockManifest: any;
+  let mockVault: TestVault;
+  let mockManifest: TestManifest;
   let vaultAbsolutePath: string;
 
   beforeEach(() => {
@@ -30,7 +36,7 @@ describe("BackupService", () => {
     };
 
     mockManifest = {
-      dir: ".obsidian/plugins/obsidian-rss-dashboard",
+      dir: "configDir/plugins/obsidian-rss-dashboard",
     };
 
     vaultAbsolutePath = "/path/to/vault";
@@ -42,9 +48,9 @@ describe("BackupService", () => {
         await import("../../../src/services/backup-service");
       const settings = {
         autoBackup: null,
-      } as unknown as Partial<RssDashboardSettings>;
+      } as unknown as { autoBackup: null | AutoBackupSettings };
       const service = new BackupService({
-        settings: settings as any,
+        settings: settings as unknown as { autoBackup: AutoBackupSettings },
         manifest: mockManifest,
         vaultAbsolutePath,
         vault: mockVault,
@@ -53,6 +59,7 @@ describe("BackupService", () => {
 
       await service.performAutoBackups();
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockVault.adapter.write).not.toHaveBeenCalled();
     });
 
@@ -65,9 +72,9 @@ describe("BackupService", () => {
           backupOpml: false,
           backupUserdata: false,
         },
-      } as Partial<RssDashboardSettings>;
+      } as unknown as { autoBackup: AutoBackupSettings };
       const service = new BackupService({
-        settings: settings as any,
+        settings: settings as unknown as { autoBackup: AutoBackupSettings },
         manifest: mockManifest,
         vaultAbsolutePath,
         vault: mockVault,
@@ -75,11 +82,13 @@ describe("BackupService", () => {
 
       await service.performAutoBackups();
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockVault.adapter.read).toHaveBeenCalledWith(
-        ".obsidian/plugins/obsidian-rss-dashboard/data.json",
+        "configDir/plugins/obsidian-rss-dashboard/data.json",
       );
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockVault.adapter.write).toHaveBeenCalledWith(
-        ".obsidian/plugins/obsidian-rss-dashboard/data.json.backup",
+        "configDir/plugins/obsidian-rss-dashboard/data.json.backup",
         expect.any(String),
       );
     });
@@ -94,9 +103,9 @@ describe("BackupService", () => {
           backupOpml: false,
           backupUserdata: false,
         },
-      } as Partial<RssDashboardSettings>;
+      } as unknown as { storageMode: string; autoBackup: AutoBackupSettings };
       const service = new BackupService({
-        settings: settings as any,
+        settings: settings as unknown as { autoBackup: AutoBackupSettings },
         manifest: mockManifest,
         vaultAbsolutePath,
         vault: mockVault,
@@ -105,8 +114,9 @@ describe("BackupService", () => {
 
       await service.performAutoBackups();
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockVault.adapter.write).toHaveBeenCalledWith(
-        ".obsidian/plugins/obsidian-rss-dashboard/portable-data-bundle.json.backup",
+        "configDir/plugins/obsidian-rss-dashboard/portable-data-bundle.json.backup",
         JSON.stringify({ bundle: true }),
       );
     });
@@ -122,9 +132,9 @@ describe("BackupService", () => {
           backupOpml: true,
           backupUserdata: false,
         },
-      } as Partial<RssDashboardSettings>;
+      } as unknown as { autoBackup: AutoBackupSettings };
       const service = new BackupService({
-        settings: settings as any,
+        settings: settings as unknown as { autoBackup: AutoBackupSettings },
         manifest: mockManifest,
         vaultAbsolutePath,
         vault: mockVault,
@@ -132,8 +142,9 @@ describe("BackupService", () => {
 
       await service.performAutoBackups();
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockVault.adapter.write).toHaveBeenCalledWith(
-        ".obsidian/plugins/obsidian-rss-dashboard/feeds.opml.backup",
+        "configDir/plugins/obsidian-rss-dashboard/feeds.opml.backup",
         expect.stringContaining("<?xml"),
       );
     });
@@ -147,24 +158,26 @@ describe("BackupService", () => {
           backupOpml: false,
           backupUserdata: true,
         },
-      } as Partial<RssDashboardSettings>;
+      } as unknown as { autoBackup: AutoBackupSettings };
       const service = new BackupService({
-        settings: settings as any,
+        settings: settings as unknown as { autoBackup: AutoBackupSettings },
         manifest: mockManifest,
         vaultAbsolutePath,
         vault: mockVault,
       });
 
-      // Mock that usersettings.json exists
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       mockVault.adapter.exists.mockImplementation((path: string) =>
         Promise.resolve(path.includes("usersettings.json")),
       );
 
       await service.performAutoBackups();
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockVault.adapter.read).toHaveBeenCalledWith(
         expect.stringContaining("usersettings.json"),
       );
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockVault.adapter.write).toHaveBeenCalledWith(
         expect.stringContaining("backup"),
         expect.any(String),
@@ -178,9 +191,9 @@ describe("BackupService", () => {
         await import("../../../src/services/backup-service");
       const settings = {
         autoBackup: null,
-      } as unknown as Partial<RssDashboardSettings>;
+      } as unknown as { autoBackup: null | AutoBackupSettings };
       const service = new BackupService({
-        settings: settings as any,
+        settings: settings as unknown as { autoBackup: AutoBackupSettings },
         manifest: mockManifest,
         vaultAbsolutePath,
         vault: mockVault,
@@ -195,8 +208,8 @@ describe("BackupService", () => {
       const { BackupService } =
         await import("../../../src/services/backup-service");
       // Simulate window.require being unavailable
-      const originalRequire = (window as any).require;
-      (window as any).require = undefined;
+      const originalRequire = (window as unknown as { require?: unknown }).require;
+      (window as unknown as { require?: unknown }).require = undefined;
 
       const settings = {
         autoBackup: {
@@ -204,9 +217,9 @@ describe("BackupService", () => {
           backupOpml: true,
           backupUserdata: true,
         },
-      } as Partial<RssDashboardSettings>;
+      } as unknown as { autoBackup: AutoBackupSettings };
       const service = new BackupService({
-        settings: settings as any,
+        settings: settings as unknown as { autoBackup: AutoBackupSettings },
         manifest: mockManifest,
         vaultAbsolutePath,
         vault: mockVault,
@@ -217,7 +230,7 @@ describe("BackupService", () => {
       expect(result).toBe(false);
 
       // Restore
-      (window as any).require = originalRequire;
+      (window as unknown as { require?: unknown }).require = originalRequire;
     });
 
     it("returns true and copies files via fs.copyFileSync on success", async () => {
@@ -231,12 +244,12 @@ describe("BackupService", () => {
         writeFileSync: vi.fn(),
       };
       const mockPath = {
-        resolve: vi.fn((...args) => args.join("/")),
-        join: vi.fn((...args) => args.join("/")),
+        resolve: vi.fn((...args: string[]) => args.join("/")),
+        join: vi.fn((...args: string[]) => args.join("/")),
       };
 
-      const originalRequire = (window as any).require;
-      (window as any).require = vi.fn((moduleName: string) => {
+      const originalRequire = (window as unknown as { require?: unknown }).require;
+      (window as unknown as { require?: unknown }).require = vi.fn((moduleName: string) => {
         if (moduleName === "fs") return mockFs;
         if (moduleName === "path") return mockPath;
         return null;
@@ -250,9 +263,9 @@ describe("BackupService", () => {
           backupOpml: true,
           backupUserdata: true,
         },
-      } as Partial<RssDashboardSettings>;
+      } as unknown as { autoBackup: AutoBackupSettings };
       const service = new BackupService({
-        settings: settings as any,
+        settings: settings as unknown as { autoBackup: AutoBackupSettings },
         manifest: mockManifest,
         vaultAbsolutePath,
         vault: mockVault,
@@ -264,7 +277,7 @@ describe("BackupService", () => {
       expect(mockFs.copyFileSync).toHaveBeenCalled();
 
       // Restore
-      (window as any).require = originalRequire;
+      (window as unknown as { require?: unknown }).require = originalRequire;
     });
   });
 });

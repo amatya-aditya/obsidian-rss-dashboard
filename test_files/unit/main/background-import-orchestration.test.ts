@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { App } from "obsidian";
+import { App, type PluginManifest } from "obsidian";
 import {
   DEFAULT_SETTINGS,
   type Feed,
@@ -12,6 +13,7 @@ import {
 } from "../../../src/services/feed-timeout";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { BackgroundImportService } from "../../../src/services/background-import-service";
+import RssDashboardPlugin from "../../../main";
 
 const mockParseFeed = vi.fn();
 
@@ -19,8 +21,7 @@ vi.mock("../../../src/services/feed-parser", () => ({
   FeedParser: class FeedParser {
     parseFeed = mockParseFeed;
     refreshAllFeeds = vi.fn();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(_media?: any, _availableTags?: any) {}
+    constructor(_media?: unknown, _availableTags?: unknown) {}
   },
   applyFeedRetentionLimits: vi.fn((feed: Feed) => feed),
   formatFeedParseNoticeMessage: vi.fn((error: Error) => error.message),
@@ -30,8 +31,7 @@ vi.mock("../../../src/services/feed-parser", () => ({
 vi.mock("../../../src/services/article-saver", () => ({
   ArticleSaver: class ArticleSaver {
     fixSavedFilePaths = vi.fn().mockResolvedValue(undefined);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(_app?: any, _settings?: any) {}
+    constructor(_app?: unknown, _settings?: unknown) {}
   },
 }));
 
@@ -42,41 +42,49 @@ vi.mock("../../../src/utils/settings-migration", () => ({
   migrateMediaVideoTagSettings: vi.fn().mockReturnValue(false),
 }));
 
-import RssDashboardPlugin from "../../../main";
+interface PluginWithInternal {
+  isBackgroundImporting: boolean;
+  backgroundImportService: BackgroundImportService;
+  addStatusBarItem(): HTMLElement;
+  feedParser: {
+    parseFeed: typeof mockParseFeed;
+    refreshAllFeeds: ReturnType<typeof vi.fn>;
+  };
+}
 
 function createPlugin(): RssDashboardPlugin {
-  const app = (App as any).createMock();
-  const plugin = new RssDashboardPlugin(
-    app as any,
-    {
-      id: "rss-dashboard",
-      name: "RSS Dashboard",
-      version: "1.0.0",
-      author: "Test",
-      description: "Test plugin",
-      dir: ".",
-    } as any,
-  );
+  const app = (App as unknown as { createMock(): App }).createMock();
+  const manifest: PluginManifest = {
+    id: "rss-dashboard",
+    name: "RSS Dashboard",
+    version: "1.0.0",
+    author: "Test",
+    description: "Test plugin",
+    dir: ".",
+  };
+  const plugin = new RssDashboardPlugin(app, manifest);
 
   plugin.settings = {
     ...DEFAULT_SETTINGS,
     feeds: [],
   };
   plugin.saveData = vi.fn().mockResolvedValue(undefined);
-  (plugin as any).addStatusBarItem = vi.fn(() => document.createElement("div"));
-  plugin.feedParser = {
+  
+  const pluginInternal = plugin as unknown as PluginWithInternal;
+  pluginInternal.addStatusBarItem = vi.fn(() => document.createElement("div"));
+  pluginInternal.feedParser = {
     parseFeed: mockParseFeed,
     refreshAllFeeds: vi.fn(),
-  } as any;
+  };
 
   // Initialize BackgroundImportService (normally done in onload)
-  (plugin as any).backgroundImportService = new BackgroundImportService({
-    feedParser: plugin.feedParser,
+  pluginInternal.backgroundImportService = new BackgroundImportService({
+    feedParser: pluginInternal.feedParser,
     getSettings: () => plugin.settings,
     getView: () => plugin.getActiveDashboardView(),
     saveSettings: () => plugin.saveSettings(),
     ensureFolderExists: vi.fn().mockResolvedValue(false),
-    addStatusBarItem: () => (plugin as any).addStatusBarItem(),
+    addStatusBarItem: () => pluginInternal.addStatusBarItem(),
   });
 
   return plugin;
@@ -160,7 +168,7 @@ describe("background import orchestration", () => {
     plugin.getActiveDashboardView = vi.fn().mockResolvedValue({
       render: renderSpy,
       refreshSidebarOnly: sidebarOnlySpy,
-    } as any);
+    });
 
     mockParseFeed.mockImplementation((url: string) => {
       if (url.includes("stall")) {
@@ -192,7 +200,7 @@ describe("background import orchestration", () => {
     expect(renderSpy).toHaveBeenCalledTimes(1);
     // No mid-import full renders; sidebar-only path used for progress
     expect(sidebarOnlySpy).not.toHaveBeenCalled();
-    expect((plugin as any).isBackgroundImporting).toBe(false);
+    expect((plugin as unknown as PluginWithInternal).isBackgroundImporting).toBe(false);
   });
 
   it("uses refreshSidebarOnly for mid-import progress renders and render() only once at completion", async () => {
@@ -202,7 +210,7 @@ describe("background import orchestration", () => {
     plugin.getActiveDashboardView = vi.fn().mockResolvedValue({
       render: renderSpy,
       refreshSidebarOnly: sidebarOnlySpy,
-    } as any);
+    });
 
     // 5 feeds: renderEvery=3 for counts < 1000, so one mid-import sidebar
     // refresh fires after feed 3, and render() fires once at completion.
@@ -224,7 +232,7 @@ describe("background import orchestration", () => {
     // Wait for the fire-and-forget import to fully complete
     await vi.waitFor(
       () => {
-        expect((plugin as any).isBackgroundImporting).toBe(false);
+        expect((plugin as unknown as PluginWithInternal).isBackgroundImporting).toBe(false);
       },
       { timeout: 3000 },
     );
@@ -252,7 +260,7 @@ describe("background import orchestration", () => {
     const service = new BackgroundImportService({
       feedParser: {
         parseFeed: mockParseFeed,
-      },
+      } as unknown as { parseFeed(url: string): Promise<Feed> },
       getSettings: () => settings,
       getView: async () => null,
       saveSettings: async () => {
@@ -276,3 +284,4 @@ describe("background import orchestration", () => {
     expect(savedModes).toEqual(["legacy-json"]);
   });
 });
+
