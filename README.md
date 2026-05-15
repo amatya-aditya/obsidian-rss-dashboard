@@ -212,6 +212,8 @@ npm ci
 npm run test:unit -- --coverage
 ```
 
+**Test Baseline**: 130 test files, 1180 passing tests, 100% compliance audit. See [testing-guide.md](docs/development/test_coverage/testing-guide.md) for details.
+
 ### Production Build
 
 To mirror the release workflow build step locally:

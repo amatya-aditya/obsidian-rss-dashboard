@@ -17,11 +17,24 @@
 
 ### Development
 
+- **Compliance Audit: 45% → 100% Complete** ✅
+  - Completed all items on the Obsidian Community Plugin audit scorecard.
+  - Resolved all 37 "Disabling '@typescript-eslint/no-explicit-any'" occurrences by adding descriptive audit guardrail comments throughout the codebase.
+  - Eliminated all unsafe `innerHTML` assignments in production rendering paths (replaced with `sanitizeAndAppendHtml`).
+  - Migrated all global DOM API references to Obsidian's scoped `activeWindow` and `activeDocument` contexts (100+ occurrences) for popout window compatibility.
+  - Replaced third-party `builtin-modules` dependency with native `module.builtinModules`.
+  - Removed all deprecated Clipboard API fallbacks.
+  - Final validation: ESLint clean (0 errors, 0 warnings), 130/130 test files passing (1180 tests).
+  - See: [docs/plugin-scorecard.md](docs/plugin-scorecard.md)
+
 - Relaxed eslint.config.mjs to now include testing files.
-- Cleaned backlog of linting errors in testing files
+- Completed full burn-down of test-file ESLint backlog (2686 errors → 0 errors across 130 test files).
+- Resolved all type-safety debt in test suite with boundary-cast pattern and strict interface definitions.
+- Aligned `Notice` stub behavior with modern Obsidian API to resolve 21 unit test regressions.
 - Added a new `Compliance Declarations (Audit Guardrails)` policy section to `CONTRIBUTING.MD` with required pre-PR compliance checks.
 - Added `docs/development/compliance-patterns.md` as the canonical implementation reference for audit-sensitive patterns (safe HTML rendering, boundary typing, popout-safe APIs, and DOM helper conventions).
 - Added root `.instructions.md` and linked policy references in README/development docs/scorecard so AI-assisted and human contributions follow the same compliance guardrails.
+- See: [docs/development/test-lint-backlog-tracker.md](docs/development/test-lint-backlog-tracker.md) for detailed test-file lint debt burn-down progress (54 passes, 2686 → 0 errors).
 
 ## [2.3.0-beta.1] - May 11, 2026
 
