@@ -1,4 +1,121 @@
 export function installObsidianDomPolyfills(): void {
+  const globalScope = globalThis as typeof globalThis & {
+    activeWindow?: (Window & typeof globalThis) & {
+      instanceOf?: (
+        value: unknown,
+        ctor: new (...args: never[]) => unknown,
+      ) => boolean;
+    };
+    activeDocument?: Document;
+  };
+
+  // Obsidian exposes these as globals; define them in jsdom test runs.
+  if (!globalScope.activeWindow) {
+    globalScope.activeWindow = window;
+  }
+  if (typeof globalScope.activeWindow.instanceOf !== "function") {
+    globalScope.activeWindow.instanceOf = (
+      value: unknown,
+      ctor: new (...args: never[]) => unknown,
+    ): boolean => value instanceof ctor;
+  }
+  if (!globalScope.activeDocument) {
+    globalScope.activeDocument = document;
+  }
+
+  const documentProto = Document.prototype as unknown as Record<
+    string,
+    unknown
+  >;
+
+  if (typeof documentProto.createEl !== "function") {
+    documentProto.createEl = function createEl<
+      K extends keyof HTMLElementTagNameMap,
+    >(
+      this: Document,
+      tag: K,
+      opts?: {
+        cls?: string;
+        text?: string;
+        attr?: Record<string, string>;
+        // Keep permissive to mirror Obsidian's helper behavior in tests.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- permissive type for polyfill matching runtime Obsidian createEl behaviour
+        [key: string]: any;
+      },
+    ): HTMLElementTagNameMap[K] {
+      const el = this.createElement(tag);
+      if (opts?.cls) el.className = opts.cls;
+      if (opts?.text !== undefined) el.textContent = opts.text;
+      if (opts?.attr) {
+        Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
+      }
+      if (opts) {
+        Object.entries(opts).forEach(([key, value]) => {
+          if (key === "cls" || key === "text" || key === "attr") return;
+          if (tag === "input" && key === "type" && typeof value === "string") {
+            (el as unknown as HTMLInputElement).type = value;
+            return;
+          }
+          if (key in el) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- permissive type for polyfill matching runtime Obsidian createEl behaviour
+            (el as any)[key] = value;
+          }
+        });
+      }
+      return el;
+    };
+  }
+
+  if (typeof documentProto.createDiv !== "function") {
+    documentProto.createDiv = function createDiv(
+      this: Document,
+      opts?:
+        | string
+        | { cls?: string; text?: string; attr?: Record<string, string> },
+    ): HTMLDivElement {
+      const el = this.createElement("div");
+      if (typeof opts === "string") {
+        el.className = opts;
+      } else {
+        if (opts?.cls) el.className = opts.cls;
+        if (opts?.text !== undefined) el.textContent = opts.text;
+        if (opts?.attr) {
+          Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
+        }
+      }
+      return el;
+    };
+  }
+
+  if (typeof documentProto.createSpan !== "function") {
+    documentProto.createSpan = function createSpan(
+      this: Document,
+      opts?:
+        | string
+        | { cls?: string; text?: string; attr?: Record<string, string> },
+    ): HTMLSpanElement {
+      const el = this.createElement("span");
+      if (typeof opts === "string") {
+        el.className = opts;
+      } else {
+        if (opts?.cls) el.className = opts.cls;
+        if (opts?.text !== undefined) el.textContent = opts.text;
+        if (opts?.attr) {
+          Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
+        }
+      }
+      return el;
+    };
+  }
+
+  if (typeof documentProto.createFragment !== "function") {
+    documentProto.createFragment = function createFragment(
+      this: Document,
+    ): DocumentFragment {
+      return this.createDocumentFragment();
+    };
+  }
+
   const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
 
   if (typeof window.matchMedia !== "function") {
@@ -208,7 +325,8 @@ export function installObsidianDomPolyfills(): void {
       unobserve(): void {}
       disconnect(): void {}
     }
-    window.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+    window.ResizeObserver =
+      MockResizeObserver as unknown as typeof ResizeObserver;
   }
 }
 

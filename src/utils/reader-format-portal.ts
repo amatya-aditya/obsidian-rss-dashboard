@@ -28,7 +28,7 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
 
   const targetDocument = anchor.ownerDocument;
   const targetBody = targetDocument.body;
-  const targetWindow = targetDocument.defaultView || window;
+  const targetWindow = targetDocument.defaultView || activeWindow;
   const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
 
   targetDocument

@@ -72,7 +72,7 @@ export class ArticleFilterMenu {
   public show(toggleBtn: HTMLElement): void {
     const targetDocument = toggleBtn.ownerDocument;
     const targetBody = targetDocument.body;
-    const targetWindow = targetDocument.defaultView || window;
+    const targetWindow = targetDocument.defaultView || activeWindow;
 
     // Toggle close when clicking the same trigger.
     if (this.activePortal && this.activeFilterToggleBtn === toggleBtn) {
@@ -531,17 +531,17 @@ export class ArticleFilterMenu {
     subMenu.style.setProperty("--submenu-top", `${subTop}px`);
     subMenu.style.setProperty("--submenu-left", `${subLeft}px`);
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       const subRect = subMenu.getBoundingClientRect();
-      if (subRect.right > window.innerWidth)
+      if (subRect.right > activeWindow.innerWidth)
         subMenu.style.setProperty(
           "--submenu-left",
-          `${parentMenuRect.left - subRect.width - 4}px`
+          `${parentMenuRect.left - subRect.width - 4}px`,
         );
-      if (subRect.bottom > window.innerHeight)
+      if (subRect.bottom > activeWindow.innerHeight)
         subMenu.style.setProperty(
           "--submenu-top",
-          `${window.innerHeight - subRect.height - 8}px`
+          `${activeWindow.innerHeight - subRect.height - 8}px`,
         );
     });
   }

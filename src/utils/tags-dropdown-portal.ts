@@ -31,7 +31,7 @@ export function createTagsDropdownPortal(
 
   const targetDocument = anchor.ownerDocument;
   const targetBody = targetDocument.body;
-  const targetWindow = targetDocument.defaultView || window;
+  const targetWindow = targetDocument.defaultView || activeWindow;
   const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
 
   targetDocument
@@ -192,7 +192,7 @@ export function createTagsDropdownPortal(
 
       onTagAssignmentChange(tag, isChecked);
 
-      window.setTimeout(() => {
+      activeWindow.setTimeout(() => {
         tagItem.classList.remove("rss-dashboard-tag-item-processing");
       }, 200);
     });
@@ -214,7 +214,7 @@ export function createTagsDropdownPortal(
 
       onTagAssignmentChange(tag, isChecked);
 
-      window.setTimeout(() => {
+      activeWindow.setTimeout(() => {
         tagItem.classList.remove("rss-dashboard-tag-item-processing");
       }, 200);
     });
@@ -330,7 +330,7 @@ export function createTagsDropdownPortal(
       appendTagItem(newTag, true);
 
       nameInput.value = "";
-      requestAnimationFrame(() => nameInput.focus());
+      activeWindow.requestAnimationFrame(() => nameInput.focus());
       new Notice(`Tag "${tagName}" added`);
     };
 

@@ -726,7 +726,7 @@ export default class RssDashboardPlugin extends Plugin {
       const autoRefreshIntervalMs = this.getAutoRefreshIntervalMs();
       if (autoRefreshIntervalMs !== null) {
         this.registerInterval(
-          window.setInterval(() => {
+          activeWindow.setInterval(() => {
             void this.refreshFeeds();
           }, autoRefreshIntervalMs),
         );
@@ -1184,7 +1184,7 @@ export default class RssDashboardPlugin extends Plugin {
       // Ignore errors and fallback
     }
 
-    const input = document.body.createEl("input", {
+    const input = activeDocument.body.createEl("input", {
       attr: { type: "file", accept: ".opml,.xml" },
     });
     input.onchange = () => {
@@ -1217,7 +1217,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public importUserSettingsJson(): void {
-    const input = document.body.createEl("input", {
+    const input = activeDocument.body.createEl("input", {
       attr: {
         type: "file",
         accept: ".json,.backup,application/json",
@@ -2261,7 +2261,7 @@ export default class RssDashboardPlugin extends Plugin {
     return await Promise.race([
       this.refreshFeedDirect(feed),
       new Promise<Feed>((_, reject) => {
-        window.setTimeout(
+        activeWindow.setTimeout(
           () => reject(new Error("Timed out")),
           FEED_REQUEST_TIMEOUT_MS,
         );

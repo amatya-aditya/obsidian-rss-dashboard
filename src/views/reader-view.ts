@@ -373,7 +373,7 @@ export class ReaderView extends ItemView {
                     new Notice("Could not find this show in apple podcasts.");
                     return;
                   }
-                  window.open(appleUrl, "_blank");
+                  activeWindow.open(appleUrl, "_blank");
                 })();
               });
               return;
@@ -381,7 +381,7 @@ export class ReaderView extends ItemView {
 
             const url = destination.url;
             if (url) {
-              menuItem.onClick(() => window.open(url, "_blank"));
+              menuItem.onClick(() => activeWindow.open(url, "_blank"));
             } else {
               menuItem.setDisabled(true);
             }
@@ -394,7 +394,7 @@ export class ReaderView extends ItemView {
 
       const url = resolveItemExternalUrl(item);
       if (!url) return;
-      window.open(url, "_blank");
+      activeWindow.open(url, "_blank");
     });
 
     this.readingContainer = this.contentEl.createDiv({
@@ -414,7 +414,7 @@ export class ReaderView extends ItemView {
     }
 
     if (this.readerFormatSaveTimeout !== null) {
-      window.clearTimeout(this.readerFormatSaveTimeout);
+      activeWindow.clearTimeout(this.readerFormatSaveTimeout);
       this.readerFormatSaveTimeout = null;
     }
 
@@ -496,7 +496,7 @@ export class ReaderView extends ItemView {
 
   private showCustomSaveModal(item: FeedItem): void {
     const displayTitle = this.currentDisplayTitle;
-    const modal = document.body.createDiv({
+    const modal = activeDocument.body.createDiv({
       cls: "rss-dashboard-modal rss-dashboard-modal-container",
     });
 
@@ -568,7 +568,7 @@ export class ReaderView extends ItemView {
       text: "Cancel",
     });
     cancelButton.addEventListener("click", () => {
-      document.body.removeChild(modal);
+      activeDocument.body.removeChild(modal);
     });
 
     const saveButton = buttonContainer.createEl("button", {
@@ -602,7 +602,7 @@ export class ReaderView extends ItemView {
           this.updateSavedLabel(true);
         }
 
-        document.body.removeChild(modal);
+        activeDocument.body.removeChild(modal);
       })();
     });
 
@@ -616,7 +616,7 @@ export class ReaderView extends ItemView {
     modalContent.appendChild(buttonContainer);
 
     modal.appendChild(modalContent);
-    document.body.appendChild(modal);
+    activeDocument.body.appendChild(modal);
   }
 
   async displayItem(
@@ -2334,10 +2334,10 @@ export class ReaderView extends ItemView {
 
   private scheduleReaderFormatSave(): void {
     if (this.readerFormatSaveTimeout !== null) {
-      window.clearTimeout(this.readerFormatSaveTimeout);
+      activeWindow.clearTimeout(this.readerFormatSaveTimeout);
     }
 
-    this.readerFormatSaveTimeout = window.setTimeout(() => {
+    this.readerFormatSaveTimeout = activeWindow.setTimeout(() => {
       void this.flushReaderFormatSave();
     }, 300);
   }
@@ -2423,7 +2423,7 @@ export class ReaderView extends ItemView {
 
   private async flushReaderFormatSave(): Promise<void> {
     if (this.readerFormatSaveTimeout !== null) {
-      window.clearTimeout(this.readerFormatSaveTimeout);
+      activeWindow.clearTimeout(this.readerFormatSaveTimeout);
       this.readerFormatSaveTimeout = null;
     }
 

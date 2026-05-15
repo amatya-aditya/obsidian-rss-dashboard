@@ -84,7 +84,7 @@ export class ArticleList {
   private tagsDropdownCleanup: (() => void) | null = null;
 
   private documentListeners: Array<{
-    target: Document;
+    target: Document | Window;
     type: string;
     listener: EventListenerOrEventListenerObject;
   }> = [];
@@ -187,7 +187,7 @@ export class ArticleList {
       this.resizeObserver = null;
     }
     if (this.cardLayoutFrame !== null) {
-      cancelAnimationFrame(this.cardLayoutFrame);
+      activeWindow.cancelAnimationFrame(this.cardLayoutFrame);
       this.cardLayoutFrame = null;
     }
     if (this.header) {
@@ -204,7 +204,7 @@ export class ArticleList {
   }
 
   private isMobileViewport(): boolean {
-    return window.matchMedia("(max-width: 768px)").matches;
+    return activeWindow.matchMedia("(max-width: 768px)").matches;
   }
 
   private shouldShowToolbarForView(view: "list" | "card" | "feed"): boolean {
@@ -314,10 +314,10 @@ export class ArticleList {
     }
 
     if (this.cardLayoutFrame !== null) {
-      cancelAnimationFrame(this.cardLayoutFrame);
+      activeWindow.cancelAnimationFrame(this.cardLayoutFrame);
     }
 
-    this.cardLayoutFrame = requestAnimationFrame(() => {
+    this.cardLayoutFrame = activeWindow.requestAnimationFrame(() => {
       this.cardLayoutFrame = null;
       this.layoutCardTagRows(root);
     });
@@ -461,7 +461,7 @@ export class ArticleList {
       ".rss-dashboard-card-tags-region",
     );
     if (!tagsRegion) {
-      tagsRegion = document.createElement("div");
+      tagsRegion = activeDocument.createElement("div");
       tagsRegion.className = "rss-dashboard-card-tags-region";
       const cardFooter = articleEl.querySelector<HTMLElement>(
         ".rss-dashboard-card-footer",
@@ -494,7 +494,7 @@ export class ArticleList {
       ".rss-dashboard-feed-tags-region",
     );
     if (!tagsRegion) {
-      tagsRegion = document.createElement("div");
+      tagsRegion = activeDocument.createElement("div");
       tagsRegion.className = "rss-dashboard-feed-tags-region";
       const feedFooter = articleEl.querySelector<HTMLElement>(
         ".rss-dashboard-feed-footer",
@@ -519,7 +519,7 @@ export class ArticleList {
   }
 
   private addDocumentListener(
-    target: Document,
+    target: Document | Window,
     type: string,
     listener: EventListenerOrEventListenerObject,
   ) {
@@ -552,7 +552,7 @@ export class ArticleList {
       this.filterArticlesBySearch(this.articleSearchQuery);
     }
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       const shouldForceCardTopAnchor =
         this.pendingCardTopAnchor && this.settings.viewStyle === "card";
 
@@ -742,7 +742,7 @@ export class ArticleList {
         "opacity 150ms ease, max-height 200ms ease 100ms, margin 200ms ease 100ms, padding 200ms ease 100ms",
     });
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       setCssProps(targetEl, {
         opacity: "0",
         "max-height": "0",
@@ -753,7 +753,7 @@ export class ArticleList {
       });
     });
 
-    setTimeout(() => {
+    activeWindow.setTimeout(() => {
       targetEl.remove();
       if (listEl) listEl.scrollTop = scrollPos;
     }, 320);
@@ -795,7 +795,7 @@ export class ArticleList {
     }
 
     const insertIdx = this.findSortedInsertIndex(article, sortOrder);
-    const temp = document.createElement("div");
+    const temp = activeDocument.createElement("div");
 
     if (this.settings.viewStyle === "list") {
       this.renderListView(temp, [article]);
@@ -840,7 +840,7 @@ export class ArticleList {
       "padding-bottom": "0",
     });
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       setCssProps(newEl, {
         transition:
           "opacity 150ms ease, max-height 200ms ease 100ms, margin 200ms ease 100ms, padding 200ms ease 100ms",
@@ -853,7 +853,7 @@ export class ArticleList {
       });
     });
 
-    setTimeout(() => {
+    activeWindow.setTimeout(() => {
       setCssProps(newEl, {
         overflow: "",
         "max-height": "",
@@ -929,15 +929,15 @@ export class ArticleList {
       }
     };
 
-    const fallbackId = window.setTimeout(applyRelock, 500);
+    const fallbackId = activeWindow.setTimeout(applyRelock, 500);
 
     this.resizeObserver = new ResizeObserver(() => {
       if (this.cardLayoutFrame !== null) {
-        cancelAnimationFrame(this.cardLayoutFrame);
+        activeWindow.cancelAnimationFrame(this.cardLayoutFrame);
       }
-      this.cardLayoutFrame = requestAnimationFrame(() => {
+      this.cardLayoutFrame = activeWindow.requestAnimationFrame(() => {
         this.cardLayoutFrame = null;
-        clearTimeout(fallbackId);
+        activeWindow.clearTimeout(fallbackId);
         applyRelock();
       });
     });
@@ -1572,23 +1572,23 @@ export class ArticleList {
           ?.querySelector(`[id="article-${article.guid}"]`) as HTMLElement;
       }
       if (!articleEl) {
-        articleEl = document.getElementById(
+        articleEl = activeDocument.getElementById(
           `article-${article.guid}`,
         ) as HTMLElement;
       }
       if (articleEl) {
         articleEl.classList.add("rss-dashboard-tag-change-feedback");
-        window.setTimeout(() => {
+        activeWindow.setTimeout(() => {
           articleEl.classList.remove("rss-dashboard-tag-change-feedback");
         }, 200);
         this.syncArticleTags(articleEl, article);
         void articleEl.offsetHeight;
       } else {
-        const tempIndicator = document.body.createDiv({
+        const tempIndicator = activeDocument.body.createDiv({
           cls: "rss-dashboard-tag-change-notification",
           text: `Tag "${tag.name}" ${checked ? "added" : "removed"}`,
         });
-        window.setTimeout(() => {
+        activeWindow.setTimeout(() => {
           if (tempIndicator.parentNode) {
             tempIndicator.parentNode.removeChild(tempIndicator);
           }
@@ -2054,7 +2054,7 @@ export class ArticleList {
       }
 
       if (hasTags) {
-        const tagsRegion = document.createElement("div");
+        const tagsRegion = activeDocument.createElement("div");
         tagsRegion.className = "rss-dashboard-card-tags-region";
         const tagsContainer = tagsRegion.createDiv({
           cls: "rss-dashboard-article-tags",
@@ -2260,7 +2260,7 @@ export class ArticleList {
         .setTitle("Open in browser")
         .setIcon("external-link")
         .onClick(() => {
-          window.open(article.link, "_blank");
+          activeWindow.open(article.link, "_blank");
         });
     });
 

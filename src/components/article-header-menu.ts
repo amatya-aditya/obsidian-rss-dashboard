@@ -436,7 +436,7 @@ export class ArticleHeaderMenu {
     });
 
     this.positionPortal(trigger, portal);
-    const targetWindow = targetDocument.defaultView || window;
+    const targetWindow = targetDocument.defaultView || activeWindow;
     targetWindow.setTimeout(() => {
       this.activePortalCleanup = this.addDocumentListener(
         targetDocument,
@@ -494,7 +494,7 @@ export class ArticleHeaderMenu {
     const rect = trigger.getBoundingClientRect();
     portal.style.top = `${rect.bottom + 5}px`;
     portal.style.left = `${rect.left}px`;
-    const targetWindow = trigger.ownerDocument.defaultView || window;
+    const targetWindow = trigger.ownerDocument.defaultView || activeWindow;
     targetWindow.requestAnimationFrame(() => {
       const pRect = portal.getBoundingClientRect();
       const margin = 8;

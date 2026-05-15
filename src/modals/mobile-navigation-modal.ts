@@ -117,11 +117,11 @@ export class MobileNavigationModal extends Modal {
       this.handleResizeStart(e);
     });
 
-    document.addEventListener("mousemove", (e) => {
+    activeDocument.addEventListener("mousemove", (e) => {
       this.handleResizeMove(e);
     });
 
-    document.addEventListener("mouseup", () => {
+    activeDocument.addEventListener("mouseup", () => {
       this.handleResizeEnd();
     });
   }
@@ -137,7 +137,7 @@ export class MobileNavigationModal extends Modal {
     if (!this.isResizing) return;
 
     // For modal, calculate width from right edge
-    const windowWidth = window.innerWidth;
+    const windowWidth = activeWindow.innerWidth;
     let newWidth = windowWidth - e.clientX;
 
     // Apply constraints
@@ -161,7 +161,7 @@ export class MobileNavigationModal extends Modal {
   }
 
   private applyModalWidth(): void {
-    const maxAllowedWidth = Math.floor(window.innerWidth * 0.8);
+    const maxAllowedWidth = Math.floor(activeWindow.innerWidth * 0.8);
     const width = Math.max(240, Math.min(this.modalWidth, maxAllowedWidth));
     this.modalEl.style.width = `${width}px`;
     this.modalEl.style.maxWidth = `${width}px`;

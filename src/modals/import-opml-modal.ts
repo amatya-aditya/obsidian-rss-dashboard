@@ -186,7 +186,7 @@ export class ImportOpmlModal extends Modal {
     }
 
     // Fallback for mobile / web: standard HTML file input
-    const input = document.body.createEl("input", {
+    const input = activeDocument.body.createEl("input", {
       attr: { type: "file", accept: ".opml,.xml" },
     });
     input.onchange = async () => {
@@ -498,7 +498,7 @@ export class ImportOpmlModal extends Modal {
     setIcon(external, "external-link");
 
     const open = () => {
-      const opened = window.open(
+      const opened = activeWindow.open(
         ImportOpmlModal.OPML_CLEANER_URL,
         "_blank",
         "noopener,noreferrer",
@@ -608,7 +608,7 @@ export class ImportOpmlModal extends Modal {
     setIcon(edit, "pencil");
 
     const startEdit = () => {
-      const input = document.createElement("input");
+      const input = activeDocument.createElement("input");
       input.className = "import-preview-edit-input";
       input.value = node.name;
       nameText.replaceWith(input);
@@ -762,7 +762,7 @@ export class ImportOpmlModal extends Modal {
     setIcon(edit, "pencil");
 
     const startEdit = () => {
-      const input = document.createElement("input");
+      const input = activeDocument.createElement("input");
       input.className = "import-preview-edit-input";
       input.value = feed.title;
       titleText.replaceWith(input);
@@ -891,7 +891,7 @@ export class ImportOpmlModal extends Modal {
 
   private showOverwriteWarning() {
     // Create overlay modal that appears ON TOP of the import modal
-    const overlay = document.body.createDiv({
+    const overlay = activeDocument.body.createDiv({
       cls: "rss-dashboard-modal-overlay",
     });
 
@@ -941,7 +941,7 @@ export class ImportOpmlModal extends Modal {
       text: "Cancel",
     });
     cancelButton.onclick = () => {
-      document.body.removeChild(overlay);
+      activeDocument.body.removeChild(overlay);
     };
 
     const confirmButton = buttonContainer.createEl("button", {
@@ -949,7 +949,7 @@ export class ImportOpmlModal extends Modal {
       cls: "rss-dashboard-danger-button",
     });
     confirmButton.onclick = () => {
-      document.body.removeChild(overlay);
+      activeDocument.body.removeChild(overlay);
       void this.executeImport();
     };
   }

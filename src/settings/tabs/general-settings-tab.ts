@@ -579,7 +579,7 @@ export function renderGeneralSettingsTab(
     )
     .addButton((button) =>
       button.setButtonText("Import shard data").onClick(() => {
-        const input = document.body.createEl("input", {
+        const input = activeDocument.body.createEl("input", {
           attr: { type: "file", accept: ".json,.backup,application/json" },
         });
         input.onchange = () => {
@@ -768,9 +768,9 @@ export function renderGeneralSettingsTab(
     pendingMaxItemsChange = { oldValue, newValue };
     if (maxItemsPromptOpen) return;
     if (maxItemsPromptTimer) {
-      window.clearTimeout(maxItemsPromptTimer);
+      activeWindow.clearTimeout(maxItemsPromptTimer);
     }
-    maxItemsPromptTimer = window.setTimeout(() => {
+    maxItemsPromptTimer = activeWindow.setTimeout(() => {
       maxItemsPromptTimer = null;
       if (maxItemsPromptOpen) return;
       const change = pendingMaxItemsChange;

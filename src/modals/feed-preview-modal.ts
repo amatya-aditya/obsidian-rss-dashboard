@@ -274,7 +274,7 @@ export class FeedPreviewModal extends Modal {
             cls: "feed-preview-article-title" 
         });
         title.addEventListener('click', () => {
-            window.open(article.link, '_blank');
+            activeWindow.open(article.link, '_blank');
         });
 
         if (article.description) {

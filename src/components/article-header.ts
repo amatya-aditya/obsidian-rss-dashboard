@@ -416,7 +416,7 @@ export class ArticleHeader {
     icons?: Record<string, string>,
   ) {
     this.closeActivePortal();
-    const portal = document.body.createDiv({
+    const portal = activeDocument.body.createDiv({
       cls: "rss-dashboard-filter-menu rss-dashboard-themed-menu-portal",
     });
     this.activePortal = portal;
@@ -450,9 +450,9 @@ export class ArticleHeader {
     });
 
     this.positionPortal(trigger, portal);
-    setTimeout(() => {
+    activeWindow.setTimeout(() => {
       this.activePortalCleanup = this.addDocumentListener(
-        document,
+        activeDocument,
         "mousedown",
         (e: Event) => {
           const mouseEvent = e as MouseEvent;
@@ -512,10 +512,10 @@ export class ArticleHeader {
     const rect = trigger.getBoundingClientRect();
     portal.style.top = `${rect.bottom + 5}px`;
     portal.style.left = `${rect.left}px`;
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       const pRect = portal.getBoundingClientRect();
       const margin = 8;
-      const maxLeft = window.innerWidth - pRect.width - margin;
+      const maxLeft = activeWindow.innerWidth - pRect.width - margin;
       portal.style.left = `${Math.max(margin, Math.min(rect.left, maxLeft))}px`;
     });
   }

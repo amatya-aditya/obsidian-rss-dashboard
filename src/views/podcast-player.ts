@@ -534,11 +534,11 @@ export class PodcastPlayer {
                 };
                 const upHandler = () => {
                     isDragging = false;
-                    window.removeEventListener('mousemove', moveHandler);
-                    window.removeEventListener('mouseup', upHandler);
+                    activeWindow.removeEventListener('mousemove', moveHandler);
+                    activeWindow.removeEventListener('mouseup', upHandler);
                 };
-                window.addEventListener('mousemove', moveHandler);
-                window.addEventListener('mouseup', upHandler);
+                activeWindow.addEventListener('mousemove', moveHandler);
+                activeWindow.addEventListener('mouseup', upHandler);
             });
 
             progressBar.addEventListener('touchstart', (e) => {
@@ -552,11 +552,11 @@ export class PodcastPlayer {
                 };
                 const upHandler = () => {
                     isDragging = false;
-                    window.removeEventListener('touchmove', moveHandler);
-                    window.removeEventListener('touchend', upHandler);
+                    activeWindow.removeEventListener('touchmove', moveHandler);
+                    activeWindow.removeEventListener('touchend', upHandler);
                 };
-                window.addEventListener('touchmove', moveHandler);
-                window.addEventListener('touchend', upHandler);
+                activeWindow.addEventListener('touchmove', moveHandler);
+                activeWindow.addEventListener('touchend', upHandler);
             });
         }
         
@@ -1070,12 +1070,12 @@ export class PodcastPlayer {
             const durationMs = minutes * 60 * 1000;
             this.sleepTimerEndTime = Date.now() + durationMs;
             
-            this.sleepTimerId = window.setInterval(() => {
+            this.sleepTimerId = activeWindow.setInterval(() => {
                 const remaining = (this.sleepTimerEndTime || 0) - Date.now();
                 if (remaining <= 0) {
                     this.audioElement?.pause();
                     if (this.sleepTimerId) {
-                        window.clearInterval(this.sleepTimerId);
+                        activeWindow.clearInterval(this.sleepTimerId);
                         this.sleepTimerId = null;
                     }
                     this.updateSleepTimerDisplay();
@@ -1092,7 +1092,7 @@ export class PodcastPlayer {
 
     private clearSleepTimer(): void {
         if (this.sleepTimerId) {
-            window.clearInterval(this.sleepTimerId);
+            activeWindow.clearInterval(this.sleepTimerId);
             this.sleepTimerId = null;
         }
         this.sleepTimerEndTime = null;
@@ -1168,10 +1168,10 @@ export class PodcastPlayer {
     
     private startProgressTracking(): void {
         if (this.progressInterval) {
-            window.clearInterval(this.progressInterval);
+            activeWindow.clearInterval(this.progressInterval);
         }
         
-        this.progressInterval = window.setInterval(() => {
+        this.progressInterval = activeWindow.setInterval(() => {
             this.updateProgressDisplay();
             
             if (this.audioElement && this.currentItem) {
@@ -1183,7 +1183,7 @@ export class PodcastPlayer {
     
     private stopProgressTracking(): void {
         if (this.progressInterval) {
-            window.clearInterval(this.progressInterval);
+            activeWindow.clearInterval(this.progressInterval);
             this.progressInterval = null;
         }
     }

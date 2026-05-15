@@ -227,7 +227,7 @@ class FolderNameModal extends Modal {
 
     // Single focus+select; Obsidian's Modal handles focus isolation.
     // ⚠️ Do NOT add rAF re-focus, blur recovery, or stopPropagation.
-    setTimeout(() => {
+    activeWindow.setTimeout(() => {
       if (this.contentEl.isConnected) {
         nameInput.focus();
         nameInput.select();
@@ -516,11 +516,11 @@ export class Sidebar {
       this.resizeObserver.observe(this.container);
     }
     // Update scroll fade indicators after layout settles
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       this.updateIconRowFades();
     });
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       this.container.scrollTop = scrollPosition;
       const newFoldersSection = this.container.querySelector(
         ".rss-dashboard-feed-folders-section",
@@ -901,7 +901,7 @@ export class Sidebar {
       });
 
       // Auto-focus the input
-      requestAnimationFrame(() => {
+      activeWindow.requestAnimationFrame(() => {
         input.focus();
       });
     } else {
@@ -1599,7 +1599,7 @@ export class Sidebar {
 
     const clearTimer = () => {
       if (this.longPressTimer !== null) {
-        window.clearTimeout(this.longPressTimer);
+        activeWindow.clearTimeout(this.longPressTimer);
         this.longPressTimer = null;
       }
     };
@@ -1609,7 +1609,7 @@ export class Sidebar {
 
       longPressTriggered = false;
       clearTimer();
-      this.longPressTimer = window.setTimeout(() => {
+      this.longPressTimer = activeWindow.setTimeout(() => {
         longPressTriggered = true;
         const syntheticEvent = new MouseEvent("contextmenu", {
           bubbles: true,
@@ -1964,11 +1964,11 @@ export class Sidebar {
     cancelButton.onclick = () => confirmModal.close();
 
     confirmModal.open();
-    window.setTimeout(() => okButton.focus(), 50);
+    activeWindow.setTimeout(() => okButton.focus(), 50);
   }
 
   public showAddTagModal(): void {
-    const modal = document.body.createDiv({
+    const modal = activeDocument.body.createDiv({
       cls: "rss-dashboard-modal rss-dashboard-modal-container",
     });
 
@@ -2008,7 +2008,7 @@ export class Sidebar {
       text: "Cancel",
     });
     cancelButton.addEventListener("click", () => {
-      document.body.removeChild(modal);
+      modal.remove();
     });
 
     const addButton = buttonContainer.createEl("button", {
@@ -2039,7 +2039,7 @@ export class Sidebar {
 
         this.render();
 
-        document.body.removeChild(modal);
+        modal.remove();
 
         new Notice(`Tag "${tagName}" added successfully!`);
       } else {
@@ -2050,9 +2050,9 @@ export class Sidebar {
     formContainer.appendChild(buttonContainer);
 
     modal.appendChild(modalContent);
-    document.body.appendChild(modal);
+    activeDocument.body.appendChild(modal);
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       nameInput.focus();
     });
   }
@@ -2296,7 +2296,7 @@ export class Sidebar {
             this.isSearchExpanded = !this.isSearchExpanded;
             this.render();
             if (this.isSearchExpanded) {
-              requestAnimationFrame(() => {
+              activeWindow.requestAnimationFrame(() => {
                 const searchInput =
                   this.container.querySelector<HTMLInputElement>(
                     ".rss-dashboard-search-input",
@@ -2358,7 +2358,7 @@ export class Sidebar {
           const action = () => {
             cachedCollapseAllPaths = null;
             this.toggleAllFolders();
-            window.setTimeout(updateCollapseAllIcon, 0);
+            activeWindow.setTimeout(updateCollapseAllIcon, 0);
           };
           this.iconActions.set("collapseAll", action);
           btn = createToolbarButton(iconConfig, action);
@@ -2401,7 +2401,7 @@ export class Sidebar {
         cls: "rss-dashboard-coachmark",
         text: "Add your first feed here",
       });
-      window.setTimeout(() => {
+      activeWindow.setTimeout(() => {
         if (!this.app.loadLocalStorage("rss-first-launch-coachmark-shown")) {
           this.app.saveLocalStorage("rss-first-launch-coachmark-shown", "true");
           if (coachmark.parentNode) coachmark.remove();
@@ -2627,7 +2627,7 @@ export class Sidebar {
       () => {
         this.searchQuery = "";
         if (searchTimeout) {
-          window.clearTimeout(searchTimeout);
+          activeWindow.clearTimeout(searchTimeout);
         }
         this.filterFeedsAndFolders("");
         searchInput.focus();
@@ -2643,8 +2643,8 @@ export class Sidebar {
       searchInput.select();
 
       // On mobile, ensure the input is visible above the keyboard
-      if (window.innerWidth <= 768) {
-        window.setTimeout(() => {
+      if (activeWindow.innerWidth <= 768) {
+        activeWindow.setTimeout(() => {
           searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 100);
       }
@@ -2655,17 +2655,17 @@ export class Sidebar {
       this.searchQuery = rawQuery;
       const query = rawQuery.toLowerCase().trim();
       if (searchTimeout) {
-        window.clearTimeout(searchTimeout);
+        activeWindow.clearTimeout(searchTimeout);
       }
-      searchTimeout = window.setTimeout(() => {
+      searchTimeout = activeWindow.setTimeout(() => {
         this.filterFeedsAndFolders(query);
       }, 150);
     });
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       searchInput.focus();
-      if (window.innerWidth <= 768) {
-        window.setTimeout(() => {
+      if (activeWindow.innerWidth <= 768) {
+        activeWindow.setTimeout(() => {
           searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 100);
       }
@@ -2790,7 +2790,7 @@ export class Sidebar {
       cachedFolderPaths = null;
       this.toggleAllFolders();
 
-      window.setTimeout(() => updateCollapseIcon(), 0);
+      activeWindow.setTimeout(() => updateCollapseIcon(), 0);
     });
 
     const searchButton = sidebarToolbar.createDiv({
@@ -2813,7 +2813,7 @@ export class Sidebar {
       this.render();
 
       if (this.isSearchExpanded) {
-        requestAnimationFrame(() => {
+        activeWindow.requestAnimationFrame(() => {
           const searchInput = this.container.querySelector<HTMLInputElement>(
             ".rss-dashboard-search-input",
           );

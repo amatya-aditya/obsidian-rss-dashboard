@@ -36,7 +36,7 @@ export class WebViewerIntegration {
       try {
         await webViewerPlugin.openWebpage(url, title);
 
-        window.setTimeout(() => {
+        activeWindow.setTimeout(() => {
           this.addCustomSaveButton();
         }, 1000);
 
@@ -53,7 +53,7 @@ export class WebViewerIntegration {
   }
 
   protected addCustomSaveButton(): void {
-    const webViewerContainer = document.querySelector(".webpage-container");
+    const webViewerContainer = activeDocument.querySelector(".webpage-container");
     if (!webViewerContainer) return;
 
     if (webViewerContainer.querySelector(".rss-custom-save-button")) return;
@@ -94,7 +94,7 @@ export class WebViewerIntegration {
     const url = webViewerPlugin.currentUrl || "";
     const content = webViewerPlugin.cleanedHtml || "";
 
-    const modal = document.body.createDiv({
+    const modal = activeDocument.body.createDiv({
       cls: "rss-dashboard-modal",
     });
 
@@ -161,7 +161,7 @@ export class WebViewerIntegration {
       text: "Cancel",
     });
     cancelButton.addEventListener("click", () => {
-      document.body.removeChild(modal);
+      activeDocument.body.removeChild(modal);
     });
 
     const saveButton = buttonContainer.createEl("button", {
@@ -195,7 +195,7 @@ export class WebViewerIntegration {
             includeFrontmatter,
           );
 
-          document.body.removeChild(modal);
+          activeDocument.body.removeChild(modal);
         } catch (error) {
           const message =
             error instanceof Error ? error.message : String(error);
@@ -208,7 +208,7 @@ export class WebViewerIntegration {
       if (e.key === "Enter") {
         templateInput.focus();
       } else if (e.key === "Escape") {
-        document.body.removeChild(modal);
+        activeDocument.body.removeChild(modal);
       }
     });
     templateInput.addEventListener("keydown", (e) => {
@@ -216,7 +216,7 @@ export class WebViewerIntegration {
         saveButton.click();
         e.preventDefault();
       } else if (e.key === "Escape") {
-        document.body.removeChild(modal);
+        activeDocument.body.removeChild(modal);
       }
     });
 
@@ -231,9 +231,9 @@ export class WebViewerIntegration {
     modalContent.appendChild(buttonContainer);
 
     modal.appendChild(modalContent);
-    document.body.appendChild(modal);
+    activeDocument.body.appendChild(modal);
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       folderInput.focus();
       folderInput.select();
     });
