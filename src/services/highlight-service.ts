@@ -33,7 +33,7 @@ export class HighlightService {
     }
 
     // Use TreeWalker to find all text nodes
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+    const walker = activeDocument.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
       acceptNode: (node: Node) => {
         const parent = node.parentElement;
         if (!parent) return NodeFilter.FILTER_REJECT;
@@ -130,7 +130,7 @@ export class HighlightService {
     const fragments = this.buildFragments(text, matches);
     for (const fragment of fragments) {
       if (fragment.isMatch) {
-        const mark = document.createElement("mark");
+        const mark = activeDocument.createElement("mark");
         mark.className = "rss-highlight";
         mark.style.setProperty(
           "--highlight-color",
@@ -139,7 +139,7 @@ export class HighlightService {
         mark.textContent = fragment.text;
         element.appendChild(mark);
       } else {
-        element.appendChild(document.createTextNode(fragment.text));
+        element.appendChild(activeDocument.createTextNode(fragment.text));
       }
     }
   }
@@ -212,7 +212,7 @@ export class HighlightService {
     const newNodes: Node[] = [];
     for (const fragment of fragments) {
       if (fragment.isMatch) {
-        const mark = document.createElement("mark");
+        const mark = activeDocument.createElement("mark");
         mark.className = "rss-highlight";
         mark.style.setProperty(
           "--highlight-color",
@@ -221,7 +221,7 @@ export class HighlightService {
         mark.textContent = fragment.text;
         newNodes.push(mark);
       } else {
-        newNodes.push(document.createTextNode(fragment.text));
+        newNodes.push(activeDocument.createTextNode(fragment.text));
       }
     }
 

@@ -60,7 +60,7 @@ export class FolderSelectorPopup {
 
     // Focus input after popup is rendered (only if not in list-only mode)
     if (!this.listOnly) {
-      window.setTimeout(() => {
+      activeWindow.setTimeout(() => {
         this.inputEl?.focus();
       }, 0);
     }
@@ -98,17 +98,17 @@ export class FolderSelectorPopup {
    */
   private createPopup(
     anchorEl: HTMLElement,
-    defaultFolder?: string,
+    _defaultFolder?: string,
     initialQuery?: string,
   ): HTMLElement {
-    const popup = document.body.createDiv({
+    const popup = activeDocument.body.createDiv({
       cls: "rss-folder-selector-popup",
     });
 
     // Calculate position
     const rect = anchorEl.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    const viewportWidth = activeWindow.innerWidth;
+    const viewportHeight = activeWindow.innerHeight;
 
     // Default position: below the anchor
     let left = rect.left;
@@ -288,7 +288,7 @@ export class FolderSelectorPopup {
           // Show visual feedback for invalid characters
           this.inputEl!.addClass("rss-folder-selector-input-invalid");
           this.inputEl!.value = sanitized;
-          window.setTimeout(() => {
+          activeWindow.setTimeout(() => {
             this.inputEl?.removeClass("rss-folder-selector-input-invalid");
           }, 500);
         }
@@ -309,15 +309,15 @@ export class FolderSelectorPopup {
         this.close();
       }
     };
-    window.setTimeout(() => {
-      document.addEventListener("click", this.clickOutsideHandler);
+    activeWindow.setTimeout(() => {
+      activeDocument.addEventListener("click", this.clickOutsideHandler);
     }, 0);
 
     // Keyboard navigation
     this.keydownHandler = (e: KeyboardEvent) => {
       this.handleKeydown(e);
     };
-    document.addEventListener("keydown", this.keydownHandler);
+    activeDocument.addEventListener("keydown", this.keydownHandler);
   }
 
   /**
@@ -451,8 +451,8 @@ export class FolderSelectorPopup {
     if (this.isDestroyed) return;
     this.isDestroyed = true;
 
-    document.removeEventListener("click", this.clickOutsideHandler);
-    document.removeEventListener("keydown", this.keydownHandler);
+    activeDocument.removeEventListener("click", this.clickOutsideHandler);
+    activeDocument.removeEventListener("keydown", this.keydownHandler);
     this.popupEl.remove();
     this.onClose?.();
   }

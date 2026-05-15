@@ -21,8 +21,13 @@ function createRule(overrides: Partial<KeywordFilterRule> = {}): KeywordFilterRu
   };
 }
 
+type ObsidianHTMLElement = HTMLElement & {
+  createDiv(opts?: string | { cls?: string; text?: string; attr?: Record<string, string> }): HTMLDivElement;
+  empty(): void;
+};
+
 function setupEditor(initial: KeywordFilterEditorState, opts?: { showOverrideToggle?: boolean }) {
-  const containerEl = document.body.createDiv();
+  const containerEl = (document.body as unknown as ObsidianHTMLElement).createDiv();
   let state: KeywordFilterEditorState = initial;
   const onChange = vi.fn((next: KeywordFilterEditorState) => {
     state = next;
@@ -73,6 +78,7 @@ describe("renderKeywordFilterEditor", () => {
       applyToTitle: true,
       applyToSummary: true,
       applyToContent: true,
+      applyToURL: false,
       enabled: true,
       createdAt: 123,
     });
@@ -151,6 +157,13 @@ describe("renderKeywordFilterEditor", () => {
     expect(summaryLabel).toBeTruthy();
     summaryLabel.click();
     expect(getState().rules[0].applyToSummary).toBe(true);
+
+      const urlLabel = Array.from(
+      document.body.querySelectorAll(".rss-keyword-filter-location-toggle label"),
+      ).find((el) => el.textContent === "URL") as HTMLLabelElement;
+      expect(urlLabel).toBeTruthy();
+      urlLabel.click();
+      expect(getState().rules[0].applyToURL).toBe(true);
   });
 
   it("disables rule controls when a rule is disabled and delete removes rule", () => {

@@ -1,19 +1,19 @@
 # RSS Dashboard Testing Guide
 
-Last updated: 2026-05-09
+Last updated: 2026-05-15
 
 ## 1. Current Test Status
 
 ### Release Context
 
-- Shipping version: `2.2.0`
+- Shipping version: `2.2.0` (updated with compliance audit completion)
 - Latest prior release: `2.1.9`
-- `2.2.0` is the first release intended to ship with a durable repo-wide unit test baseline.
+- `2.2.0` is the first release intended to ship with a durable repo-wide unit test baseline and full audit compliance.
 
 ### Current Baseline (latest verification snapshot)
 
-- **Test Files:** 120
-- **Passing Tests:** 1019 / 1019 (100%)
+- **Test Files:** 130 ✅
+- **Passing Tests:** 1180 / 1180 (100%) ✅
 - **Statements:** 54.66% (9132/16707)
 - **Branches:** 45.5% (4276/9400)
 - **Functions:** 49.58% (1412/2848)
@@ -24,9 +24,9 @@ _Note: Coverage is enforced via Vitest thresholds in `vitest.config.mjs` and sho
 
 ### Recent Milestones
 
-- **Phase 8 completed:** `web-viewer-integration.ts` reached strong coverage with dedicated harness-backed tests.
-- **Latest verification refresh:** the repo baseline now stands at 120 passing test files and 1019 passing tests.
-- **Closeout status:** active planning artifacts were reduced to the testing guide, the long-form improvement plan, and the final closeout checklist. Older phase handoffs were moved to `docs/development/test_coverage/archive/`.
+- **Test suite expansion:** Grew from 120 to 130 test files (+10 files) with 1180 total tests (+161 tests).
+- **Latest verification refresh:** the repo baseline now stands at 130 passing test files and 1180 passing tests, with zero ESLint errors/warnings in the entire test suite.
+- **Closeout status:** active planning artifacts were reduced to the testing guide, the test-lint-backlog-tracker (detailed history), and the compliance scorecard. Older phase handoffs were moved to `docs/development/test_coverage/archive/`.
 
 ## 2. Test-Driven Development (TDD)
 

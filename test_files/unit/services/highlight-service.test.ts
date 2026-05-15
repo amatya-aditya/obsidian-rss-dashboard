@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { HighlightService } from "../../../src/services/highlight-service";
 import { HighlightSettings } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
@@ -89,7 +89,13 @@ describe("HighlightService", () => {
   describe("highlightElement (TreeWalker DOM Traversal)", () => {
     it("should traverse and highlight text nodes within DOM", () => {
       const container = document.createElement("div");
-      container.innerHTML = `<p>This is extremely <span>important</span> stuff.</p>`;
+      const p = document.createElement("p");
+      p.appendChild(document.createTextNode("This is extremely "));
+      const span = document.createElement("span");
+      span.textContent = "important";
+      p.appendChild(span);
+      p.appendChild(document.createTextNode(" stuff."));
+      container.appendChild(p);
       service.highlightElement(container);
 
       const marks = container.querySelectorAll("mark");
@@ -102,11 +108,14 @@ describe("HighlightService", () => {
       const container = document.createElement("div");
       
       // We know "shouldSkipElement" ignores code, pre, script, etc.
-      container.innerHTML = `
-        <div>important</div>
-        <pre>important pre</pre>
-        <code>let important = true;</code>
-      `;
+      container.innerHTML = ""; // Clear
+      const div = document.createElement("div");
+      div.textContent = "important";
+      const pre = document.createElement("pre");
+      pre.textContent = "important pre";
+      const code = document.createElement("code");
+      code.textContent = "let important = true;";
+      container.append(div, pre, code);
       
       service.highlightElement(container);
       const marks = container.querySelectorAll("mark");
@@ -114,11 +123,8 @@ describe("HighlightService", () => {
       expect(marks.length).toBe(1);
       
       // Let's verify skipped elements stayed the same
-      const pre = container.querySelector("pre");
-      expect(pre?.innerHTML).toBe("important pre");
-      
-      const code = container.querySelector("code");
-      expect(code?.innerHTML).toBe("let important = true;");
+      expect(pre.innerHTML).toBe("important pre");
+      expect(code.innerHTML).toBe("let important = true;");
     });
   });
 

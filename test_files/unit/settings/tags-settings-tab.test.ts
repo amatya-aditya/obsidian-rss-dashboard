@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
-import { DEFAULT_SETTINGS } from "../../../src/types/types";
+import { type RssDashboardSettings, type Feed, DEFAULT_SETTINGS } from "../../../src/types/types";
 import { renderTagsSettingsTab } from "../../../src/settings/tabs/tags-settings-tab";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import type RssDashboardPlugin from "../../../main";
 
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -20,8 +22,8 @@ function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
   return match as HTMLElement;
 }
 
-function cloneSettings(): typeof DEFAULT_SETTINGS {
-  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+function cloneSettings(): RssDashboardSettings {
+  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
 
 beforeEach(() => {
@@ -32,7 +34,7 @@ beforeEach(() => {
 
 describe("renderTagsSettingsTab()", () => {
   it("persists color changes, updates applied tags, and refreshes open tag views", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.body.appendChild(document.createElement("div"));
     const settings = cloneSettings();
     settings.availableTags = [{ name: "tag1", color: "#000000" }];
     settings.feeds = [
@@ -52,22 +54,25 @@ describe("renderTagsSettingsTab()", () => {
             feedUrl: "https://example.com/feed.xml",
             feedTitle: "Feed 1",
             tags: [{ name: "tag1", color: "#000000" }],
+            saved: false,
+            starred: false,
           },
         ],
-      } as any,
+      } as unknown as Feed,
     ];
 
     const trigger = vi.fn();
+    const mockApp = obsidian.App.createMock();
+    (mockApp.workspace as unknown as { trigger: typeof trigger }).trigger = trigger;
+
     const plugin = {
-      app: obsidian.App.createMock(),
+      app: mockApp,
       settings,
       saveSettings: vi.fn(async () => {}),
       refreshOpenTagColorViews: vi.fn(async () => {}),
-    };
+    } as unknown as RssDashboardPlugin;
 
-    (plugin.app.workspace as any).trigger = trigger;
-
-    renderTagsSettingsTab(containerEl, plugin as any, vi.fn());
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
 
     const tagSetting = getSettingByName(containerEl, "tag1");
     const picker = tagSetting.querySelector(
@@ -79,13 +84,13 @@ describe("renderTagsSettingsTab()", () => {
 
     expect(plugin.settings.availableTags[0].color).toBe("#ff0000");
     expect(plugin.settings.feeds[0].items[0].tags?.[0].color).toBe("#ff0000");
-    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
-    expect(plugin.refreshOpenTagColorViews).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(plugin.refreshOpenTagColorViews)).toHaveBeenCalledTimes(1);
     expect(trigger).toHaveBeenCalledWith("rss-dashboard:tags-mutated");
   });
 
   it("deletes an existing tag and refreshes", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.body.appendChild(document.createElement("div"));
     const settings = cloneSettings();
     settings.availableTags = [{ name: "tag1", color: "#000000" }];
     const onRefresh = vi.fn();
@@ -95,9 +100,9 @@ describe("renderTagsSettingsTab()", () => {
       settings,
       saveSettings: vi.fn(async () => {}),
       getActiveDashboardView: vi.fn(async () => null),
-    };
+    } as unknown as RssDashboardPlugin;
 
-    renderTagsSettingsTab(containerEl, plugin as any, onRefresh);
+    renderTagsSettingsTab(containerEl, plugin, onRefresh);
 
     const deleteBtn = containerEl.querySelector(
       'button[data-icon="trash"]',
@@ -106,12 +111,12 @@ describe("renderTagsSettingsTab()", () => {
     await flushPromises();
 
     expect(plugin.settings.availableTags).toHaveLength(0);
-    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
   it("adds a new tag and refreshes", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.body.appendChild(document.createElement("div"));
     const settings = cloneSettings();
     settings.availableTags = [];
     const onRefresh = vi.fn();
@@ -121,9 +126,9 @@ describe("renderTagsSettingsTab()", () => {
       settings,
       saveSettings: vi.fn(async () => {}),
       getActiveDashboardView: vi.fn(async () => null),
-    };
+    } as unknown as RssDashboardPlugin;
 
-    renderTagsSettingsTab(containerEl, plugin as any, onRefresh);
+    renderTagsSettingsTab(containerEl, plugin, onRefresh);
 
     const tagNameSetting = getSettingByName(containerEl, "Tag name");
     const nameInput = tagNameSetting.querySelector(
@@ -150,7 +155,8 @@ describe("renderTagsSettingsTab()", () => {
       name: "newTag",
       color: "#123456",
     });
-    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 });
+

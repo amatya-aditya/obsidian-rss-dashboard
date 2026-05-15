@@ -6,18 +6,37 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 installObsidianDomPolyfills();
 
 class MockLeaf {
-  app: any;
-  view: any;
-  constructor(app: any) {
+  app: unknown;
+  view: unknown;
+  constructor(app: unknown) {
     this.app = app;
   }
   detach = vi.fn();
 }
 
+type ReaderViewInternals = {
+  contentEl: HTMLElement;
+  podcastPlayer: { destroy: ReturnType<typeof vi.fn> } | null;
+  videoPlayer: { destroy: ReturnType<typeof vi.fn> } | null;
+};
+
+function getInternals(view: ReaderView): ReaderViewInternals {
+  return view as unknown as ReaderViewInternals;
+}
+
 describe("ReaderView onClose cleanup", () => {
-  let readerView: any;
-  let mockApp: any;
-  let mockLeaf: any;
+  let readerView: ReaderView;
+  let mockApp: {
+    workspace: {
+      getLeavesOfType: ReturnType<typeof vi.fn>;
+      setActiveLeaf: ReturnType<typeof vi.fn>;
+      revealLeaf: ReturnType<typeof vi.fn>;
+    };
+    vault: {
+      getAbstractFileByPath: ReturnType<typeof vi.fn>;
+    };
+  };
+  let mockLeaf: MockLeaf;
 
   beforeEach(async () => {
     mockApp = {
@@ -33,36 +52,40 @@ describe("ReaderView onClose cleanup", () => {
     mockLeaf = new MockLeaf(mockApp);
 
     readerView = new ReaderView(
-      mockLeaf as any,
+      mockLeaf as never,
       { ...DEFAULT_SETTINGS, useWebViewer: false },
-      ({ saveArticle: vi.fn() } as any),
+      { saveArticle: vi.fn() } as never,
       vi.fn(),
       vi.fn(),
     );
 
-    (readerView as any).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = document.createElement("div");
     await readerView.onOpen();
   });
 
   it("destroys players and closes reader format portal", async () => {
     // Open the portal via UI click
-    const btn = (readerView as any).contentEl.querySelector(
+    const btn = getInternals(readerView).contentEl.querySelector<HTMLElement>(
       ".rss-reader-format-button",
-    ) as HTMLElement | null;
+    );
     expect(btn).toBeTruthy();
     btn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
-    expect(document.body.querySelector(".rss-reader-format-dropdown-portal")).toBeTruthy();
+    expect(
+      document.body.querySelector(".rss-reader-format-dropdown-portal"),
+    ).toBeTruthy();
 
     const podcastPlayer = { destroy: vi.fn() };
     const videoPlayer = { destroy: vi.fn() };
-    (readerView as any).podcastPlayer = podcastPlayer;
-    (readerView as any).videoPlayer = videoPlayer;
+    getInternals(readerView).podcastPlayer = podcastPlayer;
+    getInternals(readerView).videoPlayer = videoPlayer;
 
     await readerView.onClose();
 
     expect(podcastPlayer.destroy).toHaveBeenCalled();
     expect(videoPlayer.destroy).toHaveBeenCalled();
-    expect(document.body.querySelector(".rss-reader-format-dropdown-portal")).toBeNull();
+    expect(
+      document.body.querySelector(".rss-reader-format-dropdown-portal"),
+    ).toBeNull();
   });
 });

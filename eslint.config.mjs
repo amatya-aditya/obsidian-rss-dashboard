@@ -12,7 +12,6 @@ export default defineConfig([
       "main.js",
       "*.mjs",
       "scripts/**/*.js",
-      "test_files/**",
       ".kilo/**",
     ],
   },
@@ -25,12 +24,37 @@ export default defineConfig([
     },
   },
   {
+    files: ["test_files/**/*.ts"],
+    languageOptions: {
+      parser: tsparser,
+      parserOptions: { project: "./test_files/tsconfig.json" },
+      globals: {
+        ...globals.browser,
+        activeWindow: "readonly",
+        activeDocument: "readonly",
+      },
+    },
+    rules: {
+      "obsidianmd/ui/sentence-case": [
+        "off",
+        {
+          acronyms: ["OPML", "XML", "API"],
+          brands: ["Obsidian"],
+          allowAutoFix: true,
+        },
+      ],
+    },
+  },
+  {
     files: ["**/*.ts"],
+    ignores: ["test_files/**/*.ts"],
     languageOptions: {
       parser: tsparser,
       parserOptions: { project: "./tsconfig.json" },
       globals: {
         ...globals.browser,
+        activeWindow: "readonly",
+        activeDocument: "readonly",
       },
     },
 
@@ -80,12 +104,15 @@ export default defineConfig([
       //   // WARNINGS - Good to fix but not blocking
       //   // ============================================
 
-      //   // Unused variables - prefix with _ to ignore
-      //   "@typescript-eslint/no-unused-vars": ["warn", {
-      //     "argsIgnorePattern": "^_",
-      //     "varsIgnorePattern": "^_",
-      //     "caughtErrorsIgnorePattern": "^_"
-      //   }],
+      // Unused variables - prefix with _ to ignore
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
 
       //   // Unused expressions
       //   "@typescript-eslint/no-unused-expressions": "warn",

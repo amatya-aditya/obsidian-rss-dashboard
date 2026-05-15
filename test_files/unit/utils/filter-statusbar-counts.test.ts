@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import {
   DEFAULT_SETTINGS,
@@ -71,6 +70,41 @@ function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
 
+interface TestPlugin {
+  settings: RssDashboardSettings;
+  saveSettings: ReturnType<typeof vi.fn>;
+  openSettingsToTab?: ReturnType<typeof vi.fn>;
+}
+
+interface TestView {
+  activeStatusFilters: Set<string>;
+  activeTagFilters: Set<string>;
+  filterLogic?: "AND" | "OR";
+  dashboardMultiFilterCounts?: { shown: number; filteredOut: number; total: number };
+  keywordFilterStats?: {
+    articlesRetrieved: number;
+    globalExcluded: number;
+    feedExcluded: number;
+    finalVisible: number;
+    bypassActive: boolean;
+    filtersActive: boolean;
+  };
+  highlightMatchCounts?: Array<{ word: { word: string }; count: number }>;
+  schedulePersistDashboardMultiFilters?: ReturnType<typeof vi.fn>;
+  getFilteredArticles?: ReturnType<typeof vi.fn>;
+  articleList?: {
+    refilter?: ReturnType<typeof vi.fn>;
+    removeArticleInPlace?: ReturnType<typeof vi.fn>;
+    hasArticle?: ReturnType<typeof vi.fn>;
+    updateArticleInPlace?: ReturnType<typeof vi.fn>;
+  };
+  refreshFilterStatusBarOnly?: ReturnType<typeof vi.fn>;
+  handleFilterChange?: (opts: { type: string; value: unknown; checked: boolean }) => void;
+  computeDashboardMultiFilterCounts?: (items: FeedItem[]) => { shown: number; filteredOut: number; total: number };
+  renderFilterSubheader?: (container: HTMLElement) => void;
+  syncArticleListAfterUpdate?: (article: FeedItem) => void;
+}
+
 function makeItem(overrides: Partial<FeedItem>): FeedItem {
   return {
     title: overrides.title ?? "Title",
@@ -101,19 +135,21 @@ describe("Filter Status Bar counts (TDD)", () => {
   it("computes shown/filtered-out/total for dashboard multi-filters", async () => {
     const { RssDashboardView } = await import("../../../src/views/dashboard-view");
 
-    const app = new App();
     const settings = cloneSettings();
-    const plugin = {
+    const plugin: TestPlugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
     };
 
-    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin as never);
+    const leaf = {} as unknown as import("obsidian").WorkspaceLeaf;
+    const view = new RssDashboardView(
+      leaf,
+      plugin as unknown as ConstructorParameters<typeof RssDashboardView>[1],
+    ) as unknown as TestView;
 
-    (view as any).activeStatusFilters = new Set(["unread"]);
-    (view as any).activeTagFilters = new Set();
-    (view as any).filterLogic = "OR";
+    view.activeStatusFilters = new Set(["unread"]);
+    view.activeTagFilters = new Set();
+    view.filterLogic = "OR";
 
     const items: FeedItem[] = [
       makeItem({ read: false, guid: "a" }),
@@ -122,32 +158,34 @@ describe("Filter Status Bar counts (TDD)", () => {
       makeItem({ read: true, guid: "d" }),
     ];
 
-    const result = (view as any).computeDashboardMultiFilterCounts(items);
+    const result = view.computeDashboardMultiFilterCounts!(items);
     expect(result).toEqual({ shown: 3, total: 4, filteredOut: 1 });
   });
 
   it("renders viewing-filter counts when dashboard multi-filters are active", async () => {
     const { RssDashboardView } = await import("../../../src/views/dashboard-view");
 
-    const app = new App();
     const settings = cloneSettings();
-    const plugin = {
+    const plugin: TestPlugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
       openSettingsToTab: vi.fn(async () => {}),
     };
 
-    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin as never);
+    const leaf = {} as unknown as import("obsidian").WorkspaceLeaf;
+    const view = new RssDashboardView(
+      leaf,
+      plugin as unknown as ConstructorParameters<typeof RssDashboardView>[1],
+    ) as unknown as TestView;
 
-    (view as any).activeStatusFilters = new Set(["unread"]);
-    (view as any).activeTagFilters = new Set();
-    (view as any).dashboardMultiFilterCounts = {
+    view.activeStatusFilters = new Set(["unread"]);
+    view.activeTagFilters = new Set();
+    view.dashboardMultiFilterCounts = {
       shown: 3,
       filteredOut: 1,
       total: 4,
     };
-    (view as any).keywordFilterStats = {
+    view.keywordFilterStats = {
       articlesRetrieved: 0,
       globalExcluded: 0,
       feedExcluded: 0,
@@ -155,10 +193,11 @@ describe("Filter Status Bar counts (TDD)", () => {
       bypassActive: false,
       filtersActive: false,
     };
-    (view as any).highlightMatchCounts = [];
+    view.highlightMatchCounts = [];
 
-    const container = document.body.createDiv();
-    (view as any).renderFilterSubheader(container);
+    const container: HTMLDivElement = document.createElement("div");
+    document.body.appendChild(container);
+    view.renderFilterSubheader!(container);
 
     const subheader = container.querySelector(".rss-dashboard-filter-subheader");
     expect(subheader).toBeTruthy();
@@ -175,25 +214,27 @@ describe("Filter Status Bar counts (TDD)", () => {
   it("renders the no-filters message when dashboard multi-filters are enabled but empty", async () => {
     const { RssDashboardView } = await import("../../../src/views/dashboard-view");
 
-    const app = new App();
     const settings = cloneSettings();
-    const plugin = {
+    const plugin: TestPlugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
       openSettingsToTab: vi.fn(async () => {}),
     };
 
-    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin as never);
+    const leaf = {} as unknown as import("obsidian").WorkspaceLeaf;
+    const view = new RssDashboardView(
+      leaf,
+      plugin as unknown as ConstructorParameters<typeof RssDashboardView>[1],
+    ) as unknown as TestView;
 
-    (view as any).activeStatusFilters = new Set();
-    (view as any).activeTagFilters = new Set();
-    (view as any).dashboardMultiFilterCounts = {
+    view.activeStatusFilters = new Set();
+    view.activeTagFilters = new Set();
+    view.dashboardMultiFilterCounts = {
       shown: 4,
       filteredOut: 0,
       total: 4,
     };
-    (view as any).keywordFilterStats = {
+    view.keywordFilterStats = {
       articlesRetrieved: 0,
       globalExcluded: 0,
       feedExcluded: 0,
@@ -201,10 +242,11 @@ describe("Filter Status Bar counts (TDD)", () => {
       bypassActive: false,
       filtersActive: false,
     };
-    (view as any).highlightMatchCounts = [];
+    view.highlightMatchCounts = [];
 
-    const container = document.body.createDiv();
-    (view as any).renderFilterSubheader(container);
+    const container: HTMLDivElement = document.createElement("div");
+    document.body.appendChild(container);
+    view.renderFilterSubheader!(container);
 
     const subheader = container.querySelector(".rss-dashboard-filter-subheader");
     expect(subheader).toBeTruthy();
@@ -221,45 +263,49 @@ describe("Filter Status Bar counts (TDD)", () => {
   it("filter-menu apply path refreshes the status bar", async () => {
     const { RssDashboardView } = await import("../../../src/views/dashboard-view");
 
-    const app = new App();
     const settings = cloneSettings();
-    const plugin = {
+    const plugin: TestPlugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
     };
 
-    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin as never);
+    const leaf = {} as unknown as import("obsidian").WorkspaceLeaf;
+    const view = new RssDashboardView(
+      leaf,
+      plugin as unknown as ConstructorParameters<typeof RssDashboardView>[1],
+    ) as unknown as TestView;
 
-    (view as any).schedulePersistDashboardMultiFilters = vi.fn();
-    (view as any).getFilteredArticles = vi.fn(() => []);
-    (view as any).articleList = { refilter: vi.fn() };
-    (view as any).refreshFilterStatusBarOnly = vi.fn();
+    view.schedulePersistDashboardMultiFilters = vi.fn();
+    view.getFilteredArticles = vi.fn(() => []);
+    view.articleList = { refilter: vi.fn() };
+    view.refreshFilterStatusBarOnly = vi.fn();
 
-    (view as any).handleFilterChange({ type: "unread", value: null, checked: true });
+    view.handleFilterChange!({ type: "unread", value: null, checked: true });
 
-    expect((view as any).refreshFilterStatusBarOnly).toHaveBeenCalledTimes(1);
+    expect(view.refreshFilterStatusBarOnly).toHaveBeenCalledTimes(1);
   });
 
   it("in-place read toggle refreshes the status bar (regression)", async () => {
     const { RssDashboardView } = await import("../../../src/views/dashboard-view");
 
-    const app = new App();
     const settings = cloneSettings();
-    const plugin = {
+    const plugin: TestPlugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
     };
 
-    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin as never);
+    const leaf = {} as unknown as import("obsidian").WorkspaceLeaf;
+    const view = new RssDashboardView(
+      leaf,
+      plugin as unknown as ConstructorParameters<typeof RssDashboardView>[1],
+    ) as unknown as TestView;
 
-    (view as any).activeStatusFilters = new Set(["unread"]);
-    (view as any).activeTagFilters = new Set();
-    (view as any).filterLogic = "OR";
+    view.activeStatusFilters = new Set(["unread"]);
+    view.activeTagFilters = new Set();
+    view.filterLogic = "OR";
 
-    (view as any).refreshFilterStatusBarOnly = vi.fn();
-    (view as any).articleList = {
+    view.refreshFilterStatusBarOnly = vi.fn();
+    view.articleList = {
       removeArticleInPlace: vi.fn(),
       hasArticle: vi.fn(() => true),
       updateArticleInPlace: vi.fn(),
@@ -267,17 +313,17 @@ describe("Filter Status Bar counts (TDD)", () => {
 
     const article = makeItem({ read: false, guid: "sync-1" });
 
-    (view as any).syncArticleListAfterUpdate(article);
-    expect((view as any).articleList.updateArticleInPlace).toHaveBeenCalledTimes(
+    view.syncArticleListAfterUpdate!(article);
+    expect(view.articleList.updateArticleInPlace).toHaveBeenCalledTimes(
       1,
     );
-    expect((view as any).refreshFilterStatusBarOnly).toHaveBeenCalledTimes(1);
+    expect(view.refreshFilterStatusBarOnly).toHaveBeenCalledTimes(1);
 
     article.read = true;
-    (view as any).syncArticleListAfterUpdate(article);
-    expect((view as any).articleList.removeArticleInPlace).toHaveBeenCalledWith(
+    view.syncArticleListAfterUpdate!(article);
+    expect(view.articleList.removeArticleInPlace).toHaveBeenCalledWith(
       "sync-1",
     );
-    expect((view as any).refreshFilterStatusBarOnly).toHaveBeenCalledTimes(2);
+    expect(view.refreshFilterStatusBarOnly).toHaveBeenCalledTimes(2);
   });
 });

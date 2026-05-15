@@ -7,14 +7,17 @@ import type {
 } from "../../../src/types/discover-types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
+type TestPlugin = ConstructorParameters<typeof DiscoverSidebar>[2];
+
 vi.mock("../../../src/utils/platform-utils", () => ({
   attachInputClearButton: (
-    wrapper: HTMLElement,
+    wrapper: HTMLDivElement,
     _input: HTMLInputElement,
     onClear: () => void,
   ) => {
-    const button = wrapper.createEl("button", { text: "Clear" });
-    button.addClass("rss-test-clear-button");
+    const button = wrapper.appendChild(document.createElement("button"));
+    button.text = "Clear";
+    button.className = "rss-test-clear-button";
     button.addEventListener("click", () => onClear());
   },
 }));
@@ -56,7 +59,7 @@ function setupSidebar(opts?: {
   onCloseMobileSidebar?: () => void;
 }) {
   const app = new App();
-  const container = document.body.createDiv();
+  const container = document.createElement("div");
 
   const callbacks = {
     onFilterChange: vi.fn(),
@@ -72,7 +75,7 @@ function setupSidebar(opts?: {
   const sidebar = new DiscoverSidebar(
     app,
     container,
-    {} as any,
+    {} as unknown as TestPlugin,
     filters,
     feeds,
     opts?.activeSection ?? "types",
@@ -106,7 +109,7 @@ describe("DiscoverSidebar", () => {
     const getNavButton = (text: string) =>
       Array.from(nav.querySelectorAll("button")).find(
         (b) => b.textContent === text,
-      ) as HTMLButtonElement | undefined;
+      );
 
     const typesBtn = getNavButton("Types")!;
     const categoriesBtn = getNavButton("Categories")!;
@@ -210,7 +213,7 @@ describe("DiscoverSidebar", () => {
     const feeds = [
       createFeed({ id: "n", type: "News", tags: ["tag-a", "tag-b"] }),
       createFeed({ id: "p", type: "Podcast", tags: ["tag-b"] }),
-      createFeed({ id: "e", type: "" as any, tags: [] }), // empty type should be skipped
+      createFeed({ id: "e", type: "", tags: [] }), // empty type should be skipped
     ];
 
     const { container, callbacks } = setupSidebar({
@@ -248,12 +251,11 @@ describe("DiscoverSidebar", () => {
     expect(filters.selectedTypes).not.toContain("News");
 
     // Switch to Tags and toggle one
-    (
-      Array.from(
-        container.querySelectorAll(".rss-discover-sidebar-nav button"),
-      ) as HTMLButtonElement[]
-    )
-      .find((b) => b.textContent === "Tags")!
+    const tagsButtons = Array.from(
+      container.querySelectorAll(".rss-discover-sidebar-nav button"),
+    );
+    tagsButtons
+      .find((b): b is HTMLButtonElement => b.textContent === "Tags")!
       .click();
 
     const findTagRow = (tag: string) =>

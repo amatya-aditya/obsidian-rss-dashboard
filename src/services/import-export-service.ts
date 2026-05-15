@@ -30,7 +30,7 @@ export class ImportExportService {
   }
 
   getUserSettingsJson(): string {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- feeds/folders/availableTags intentionally excluded from settings-only export via destructuring
     const { feeds, folders, availableTags, ...settingsOnly } = this.settings;
     return JSON.stringify(settingsOnly, null, 2);
   }
@@ -106,7 +106,9 @@ export class ImportExportService {
     }
 
     if (!this.importPortableDataBundle) {
-      throw new Error("Portable bundle import is not available in this context");
+      throw new Error(
+        "Portable bundle import is not available in this context",
+      );
     }
 
     await this.importPortableDataBundle(parsed);

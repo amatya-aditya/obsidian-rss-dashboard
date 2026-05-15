@@ -1,6 +1,43 @@
-## [Unreleased]
+## [2.3.0-beta.2] - May 15, 2026
 
 ### Features
+
+- Added configurable metadata `data.json` location with dedicated migration controls and backup/import-export support. See: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
+- Fixed Bloomberg-style video feed items being misclassified as restricted articles by improving media type detection (including image-first `media:content` handling and conservative video-route fallback), and added regression coverage for parser, media classification, reader surfaces, and save flow to prevent false paywall notices/banners.
+- Added paywall/restricted-content detection so the Reader shows a banner when only excerpted content is available.
+- Added automatic `Video` tagging for detected non-YouTube video items, plus a new **Settings > Media > Auto-tag videos** toggle (enabled by default). Existing users are migrated/backfilled safely.
+- Added long-press support on folders in sidebar for mobile devices that performs the same right-click functionality as desktop. Resolves [GH Issue #113](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/113)
+- Added new status section in edit feed modal to show location of feed ID, feed storage type (shard or legacy), and a copy button to quickly copy the local location.
+- Added "URL" as a Rule target alongside title, summary, and content which allows filters based upon URL address (i.e. 'shorts' for YouTube Shorts) [GH PR #116 submitted by Caleb68864](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/116)
+- Added new Display setting to change from Relative timestamps (Today, 1 day ago, 1 week ago etc) to Absolute timestamps (e.g. May 15, 2026) [GH Issue #115 submitted by Thehone1](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/115)
+
+### Fixes
+
+- Fixed bug where reverting from 'shard' storage back to 'legacy' caused all articles to become marked as past auto-deletion date.
+- Fixed YouTube feed articles duplicating in shard storage when the same video was stored under different GUID forms (`yt:video:VIDEO_ID`, `watch?v=VIDEO_ID`, `/shorts/VIDEO_ID`). All three forms now normalize to a single canonical key so duplicates are prevented on refresh and existing duplicate pairs are auto-cleaned on load.
+
+### Development
+
+- **Compliance Audit: 45% → 100% Complete** ✅
+  - Completed all items on the Obsidian Community Plugin audit scorecard.
+  - Resolved all 37 "Disabling '@typescript-eslint/no-explicit-any'" occurrences by adding descriptive audit guardrail comments throughout the codebase.
+  - Eliminated all unsafe `innerHTML` assignments in production rendering paths (replaced with `sanitizeAndAppendHtml`).
+  - Migrated all global DOM API references to Obsidian's scoped `activeWindow` and `activeDocument` contexts (100+ occurrences) for popout window compatibility.
+  - Replaced third-party `builtin-modules` dependency with native `module.builtinModules`.
+  - Removed all deprecated Clipboard API fallbacks.
+  - Final validation: ESLint clean (0 errors, 0 warnings), 130/130 test files passing (1180 tests).
+  - See: [docs/plugin-scorecard.md](docs/plugin-scorecard.md)
+
+- Relaxed eslint.config.mjs to now include testing files.
+- Completed full burn-down of test-file ESLint backlog (2686 errors → 0 errors across 130 test files).
+- Resolved all type-safety debt in test suite with boundary-cast pattern and strict interface definitions.
+- Aligned `Notice` stub behavior with modern Obsidian API to resolve 21 unit test regressions.
+- Added a new `Compliance Declarations (Audit Guardrails)` policy section to `CONTRIBUTING.MD` with required pre-PR compliance checks.
+- Added `docs/development/compliance-patterns.md` as the canonical implementation reference for audit-sensitive patterns (safe HTML rendering, boundary typing, popout-safe APIs, and DOM helper conventions).
+- Added root `.instructions.md` and linked policy references in README/development docs/scorecard so AI-assisted and human contributions follow the same compliance guardrails.
+- See: [docs/development/test-lint-backlog-tracker.md](docs/development/test-lint-backlog-tracker.md) for detailed test-file lint debt burn-down progress (54 passes, 2686 → 0 errors).
+
+## [2.3.0-beta.1] - May 11, 2026
 
 - New experimental **Vault Shards storage mode**: Store article history in separate per-feed files instead of one large data.json file, with easy migration between modes.
 

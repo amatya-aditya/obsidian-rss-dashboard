@@ -8,21 +8,70 @@ export function isOpenableHttpUrl(rawUrl: string): boolean {
 }
 
 /**
+ * YouTube video IDs are 11-character base64url strings ([-_A-Za-z0-9]{11}).
+ */
+const YT_VIDEO_ID_RE = /^[-_A-Za-z0-9]{11}$/;
+
+/**
+ * Extract a YouTube video ID from any known identity form:
+ *   - yt:video:VIDEO_ID          (YouTube Atom feed <id> element)
+ *   - https://www.youtube.com/watch?v=VIDEO_ID
+ *   - https://www.youtube.com/shorts/VIDEO_ID
+ *   - https://youtu.be/VIDEO_ID
+ *
+ * Returns the 11-char video ID string, or null if not a recognised YouTube identity.
+ */
+function extractYouTubeVideoId(rawId: string): string | null {
+  if (rawId.startsWith("yt:video:")) {
+    const id = rawId.slice("yt:video:".length);
+    return YT_VIDEO_ID_RE.test(id) ? id : null;
+  }
+  try {
+    const u = new URL(rawId);
+    const host = u.hostname.toLowerCase();
+    if (
+      host === "www.youtube.com" ||
+      host === "youtube.com" ||
+      host === "m.youtube.com"
+    ) {
+      const v = u.searchParams.get("v");
+      if (v && YT_VIDEO_ID_RE.test(v)) return v;
+      const shortsMatch = u.pathname.match(
+        /^\/shorts\/([-_A-Za-z0-9]{11})(?:[/?#]|$)/,
+      );
+      if (shortsMatch) return shortsMatch[1];
+    }
+    if (host === "youtu.be") {
+      const pathId = u.pathname.slice(1).split(/[/?#]/)[0];
+      if (YT_VIDEO_ID_RE.test(pathId)) return pathId;
+    }
+  } catch {
+    // not a URL – fall through
+  }
+  return null;
+}
+
+/**
  * Canonicalize a URL-like guid used to identify feed items.
  *
- * Some feeds (e.g. BBC) use a numeric URL fragment (`#0`, `#1`, ...) that can
- * change between refreshes for the same article, causing duplicate items to
- * accumulate if we treat it as part of identity.
- *
- * Rules:
- * - Only affects valid http(s) URLs
- * - Only strips numeric fragments like `#0`, `#1`, ...
- * - Leaves everything else (including query params and non-numeric fragments) unchanged
+ * Rules (applied in order):
+ * 1. YouTube identity forms (yt:video:ID, watch?v=ID, shorts/ID, youtu.be/ID)
+ *    are all normalised to `yt:video:VIDEO_ID` so the same video never
+ *    accumulates duplicate entries when YouTube's <id> format changes between
+ *    refreshes or parsing paths.
+ * 2. Some feeds (e.g. BBC) use a numeric URL fragment (`#0`, `#1`, ...) that
+ *    can change between refreshes; the fragment is stripped.
+ * 3. Everything else is returned unchanged.
  */
 export function canonicalizeItemIdentityUrl(rawId: string): string {
   const trimmed = (rawId ?? "").trim();
   if (!trimmed) return trimmed;
 
+  // Rule 1 – YouTube identity normalisation
+  const ytVideoId = extractYouTubeVideoId(trimmed);
+  if (ytVideoId) return `yt:video:${ytVideoId}`;
+
+  // Rule 2 – strip numeric URL fragments (BBC-style)
   try {
     const parsedUrl = new URL(trimmed);
     if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {

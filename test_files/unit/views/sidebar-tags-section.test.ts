@@ -32,7 +32,7 @@ type TagFilterMode = "or" | "and" | "not";
 function filterBySelectedTags(
   items: FeedItem[],
   selectedTags: string[],
-  mode: TagFilterMode
+  mode: TagFilterMode,
 ): FeedItem[] {
   if (selectedTags.length === 0) return items;
 
@@ -62,14 +62,12 @@ function toggleTag(selectedTags: string[], tag: string): string[] {
 
 function validateNewTag(
   name: string,
-  existingTags: Tag[]
+  existingTags: Tag[],
 ): { valid: boolean; error?: string } {
   const trimmed = name.trim();
   if (!trimmed) return { valid: false, error: "Tag name cannot be empty." };
   if (
-    existingTags.some(
-      (t) => t.name.toLowerCase() === trimmed.toLowerCase()
-    )
+    existingTags.some((t) => t.name.toLowerCase() === trimmed.toLowerCase())
   ) {
     return { valid: false, error: "A tag with this name already exists." };
   }
@@ -89,11 +87,21 @@ describe("Sidebar Tags Section — filtering logic", () => {
   const itemPodcast = makeItem([tagPodcast], { title: "Podcast only" });
   const itemNone = makeItem([], { title: "No tags" });
 
-  const allItems = [itemYoutube, itemImportant, itemBoth, itemPodcast, itemNone];
+  const allItems = [
+    itemYoutube,
+    itemImportant,
+    itemBoth,
+    itemPodcast,
+    itemNone,
+  ];
 
   describe("OR mode", () => {
     it("returns articles matching any selected tag", () => {
-      const result = filterBySelectedTags(allItems, ["youtube", "important"], "or");
+      const result = filterBySelectedTags(
+        allItems,
+        ["youtube", "important"],
+        "or",
+      );
       expect(result).toContain(itemYoutube);
       expect(result).toContain(itemImportant);
       expect(result).toContain(itemBoth);
@@ -117,7 +125,11 @@ describe("Sidebar Tags Section — filtering logic", () => {
 
   describe("AND mode", () => {
     it("returns only articles that have ALL selected tags", () => {
-      const result = filterBySelectedTags(allItems, ["youtube", "important"], "and");
+      const result = filterBySelectedTags(
+        allItems,
+        ["youtube", "important"],
+        "and",
+      );
       expect(result).toHaveLength(1);
       expect(result).toContain(itemBoth);
     });
@@ -130,7 +142,11 @@ describe("Sidebar Tags Section — filtering logic", () => {
     });
 
     it("returns empty array when no items have all selected tags", () => {
-      const result = filterBySelectedTags(allItems, ["youtube", "podcast"], "and");
+      const result = filterBySelectedTags(
+        allItems,
+        ["youtube", "podcast"],
+        "and",
+      );
       expect(result).toHaveLength(0);
     });
 
@@ -151,7 +167,11 @@ describe("Sidebar Tags Section — filtering logic", () => {
     });
 
     it("excludes articles matching any of multiple selected tags", () => {
-      const result = filterBySelectedTags(allItems, ["youtube", "important"], "not");
+      const result = filterBySelectedTags(
+        allItems,
+        ["youtube", "important"],
+        "not",
+      );
       expect(result).not.toContain(itemYoutube);
       expect(result).not.toContain(itemImportant);
       expect(result).not.toContain(itemBoth);
@@ -213,10 +233,7 @@ describe("Sidebar Tags Section — clearing tags", () => {
 });
 
 describe("Sidebar Tags Section — tag creation validation", () => {
-  const existingTags: Tag[] = [
-    makeTag("youtube"),
-    makeTag("important"),
-  ];
+  const existingTags: Tag[] = [makeTag("video"), makeTag("important")];
 
   it("rejects empty tag name", () => {
     const result = validateNewTag("", existingTags);
@@ -230,7 +247,7 @@ describe("Sidebar Tags Section — tag creation validation", () => {
   });
 
   it("rejects duplicate tag name (case-insensitive)", () => {
-    const result = validateNewTag("YouTube", existingTags);
+    const result = validateNewTag("Video", existingTags);
     expect(result.valid).toBe(false);
     expect(result.error).toMatch(/already exists/i);
   });

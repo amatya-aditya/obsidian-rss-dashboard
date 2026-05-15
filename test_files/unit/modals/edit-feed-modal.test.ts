@@ -9,6 +9,45 @@ type MockApp = ReturnType<
   (typeof obsidian.App & { createMock(): unknown })["createMock"]
 >;
 
+/**
+ * Test fixture for article/item objects created by makeArticle().
+ * Represents a minimal FeedItem-like structure for test mocking.
+ */
+type ArticleTestFixture = {
+  title: string;
+  link: string;
+  description: string;
+  pubDate: string;
+  guid: string;
+  feedTitle: string;
+  read: boolean;
+  saved: boolean;
+  starred: boolean;
+  tags: unknown[];
+  [key: string]: unknown;
+};
+
+/**
+ * Test fixture for plugin mock objects.
+ * Represents the partial plugin interface used in EditFeedModal tests.
+ */
+type PluginTestFixture = {
+  app: MockApp;
+  settings: {
+    folders: unknown[];
+    maxItems: number;
+    storageMode?: string;
+    corsProxyEnabled: boolean;
+    corsProxyUrl: string;
+    articleSaving: { savedTemplates: unknown[] };
+  };
+  getFeedLocalStorageAddress?: (feed: Feed) => unknown;
+  ensureFolderExists: (path: string) => Promise<void>;
+  saveSettings: () => Promise<void>;
+  notifyFiltersUpdated: () => void;
+  refreshSelectedFeed?: (feed: Feed) => Promise<void>;
+};
+
 function createMockApp(): MockApp {
   return (
     obsidian.App as typeof obsidian.App & { createMock(): MockApp }
@@ -80,11 +119,37 @@ function getToggleBySettingName(
   return toggleEl;
 }
 
+function getLocalStorageStatus(containerEl: HTMLElement): HTMLElement {
+  const statusEl = containerEl.querySelector(".rss-edit-feed-storage-status");
+  if (!(statusEl instanceof HTMLElement)) {
+    throw new Error("Local storage status not found");
+  }
+  return statusEl;
+}
+
+function getLocalStorageFeedId(containerEl: HTMLElement): HTMLElement {
+  const feedIdEl = containerEl.querySelector(".rss-edit-feed-storage-feed-id");
+  if (!(feedIdEl instanceof HTMLElement)) {
+    throw new Error("Local storage feed ID text not found");
+  }
+  return feedIdEl;
+}
+
+function getLocalStorageCopyButton(containerEl: HTMLElement): HTMLElement {
+  const buttonEl = containerEl.querySelector(
+    ".rss-edit-feed-storage-copy-button",
+  );
+  if (!(buttonEl instanceof HTMLElement)) {
+    throw new Error("Local storage copy button not found");
+  }
+  return buttonEl;
+}
+
 function makeArticle(
   guid: string,
   pubDate: string,
   overrides: Record<string, unknown> = {},
-) {
+): ArticleTestFixture {
   return {
     title: guid,
     link: `https://example.com/${guid}`,
@@ -97,7 +162,7 @@ function makeArticle(
     starred: false,
     tags: [],
     ...overrides,
-  } as any;
+  } as ArticleTestFixture;
 }
 
 const AUTO_DELETE_TEST_NOW_MS = Date.parse("2026-05-01T00:00:00Z");
@@ -137,6 +202,101 @@ beforeEach(() => {
 });
 
 describe("EditFeedModal", () => {
+  it("renders storage status text and feed ID for shard mode", () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+      feedId: "feed-123",
+    } as unknown as Feed;
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        storageMode: "vault-shards",
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      getFeedLocalStorageAddress: vi.fn(() => ({
+        mode: "vault-shards",
+        address: "RSS Data/Feeds/feed-123.json",
+      })),
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    expect(getLocalStorageStatus(modal.contentEl).textContent).toBe(
+      "Stored in shard storage",
+    );
+    expect(getLocalStorageFeedId(modal.contentEl).textContent).toBe(
+      "Feed ID: feed-123",
+    );
+  });
+
+  it("copies the resolved local storage address when the copy icon is clicked", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+      feedId: "feed-123",
+    } as unknown as Feed;
+    const writeTextSpy = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: writeTextSpy },
+      configurable: true,
+    });
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        storageMode: "vault-shards",
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      getFeedLocalStorageAddress: vi.fn(() => ({
+        mode: "vault-shards",
+        address: "RSS Data/Feeds/feed-123.json",
+      })),
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    getLocalStorageCopyButton(modal.contentEl).click();
+    await flushPromises();
+
+    expect(writeTextSpy).toHaveBeenCalledWith("RSS Data/Feeds/feed-123.json");
+  });
+
   it("opens with the per-feed controls expanded and highlighted when requested", () => {
     const app = createMockApp();
     const feed: Feed = {
@@ -145,7 +305,7 @@ describe("EditFeedModal", () => {
       folder: "Tech",
       items: [],
       lastUpdated: 0,
-    } as any;
+    } as unknown as Feed;
 
     const plugin = {
       app,
@@ -162,9 +322,9 @@ describe("EditFeedModal", () => {
     };
 
     const modal = new EditFeedModal(
-      app as any,
-      plugin as any,
-      feed as any,
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
       vi.fn(),
       { expandSection: "per-feed", highlightSection: "per-feed" },
     );
@@ -198,7 +358,7 @@ describe("EditFeedModal", () => {
       items: [],
       lastUpdated: 0,
       scanInterval: -1,
-    } as any;
+    } as unknown as Feed;
 
     const plugin = {
       app,
@@ -215,9 +375,9 @@ describe("EditFeedModal", () => {
     };
 
     const modal = new EditFeedModal(
-      app as any,
-      plugin as any,
-      feed as any,
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
       vi.fn(),
     );
     modal.open();
@@ -244,7 +404,7 @@ describe("EditFeedModal", () => {
       items: [],
       lastUpdated: 0,
       scanInterval: 15,
-    } as any;
+    } as unknown as Feed;
 
     const plugin = {
       app,
@@ -261,9 +421,9 @@ describe("EditFeedModal", () => {
     };
 
     const modal = new EditFeedModal(
-      app as any,
-      plugin as any,
-      feed as any,
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
       vi.fn(),
     );
     modal.open();
@@ -291,7 +451,7 @@ describe("EditFeedModal", () => {
       items: [],
       lastUpdated: 0,
       excludeFromRefresh: false,
-    } as any;
+    } as unknown as Feed;
 
     const plugin = {
       app,
@@ -308,9 +468,9 @@ describe("EditFeedModal", () => {
     };
 
     const modal = new EditFeedModal(
-      app as any,
-      plugin as any,
-      feed as any,
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
       vi.fn(),
     );
     modal.open();
@@ -338,7 +498,7 @@ describe("EditFeedModal", () => {
       items: [],
       lastUpdated: 0,
       autoDeleteDuration: 0,
-    } as any;
+    } as unknown as Feed;
 
     const plugin = {
       app,
@@ -355,9 +515,9 @@ describe("EditFeedModal", () => {
     };
 
     const modal = new EditFeedModal(
-      app as any,
-      plugin as any,
-      feed as any,
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
       vi.fn(),
     );
     modal.open();
@@ -385,7 +545,7 @@ describe("EditFeedModal", () => {
       items: [],
       lastUpdated: 0,
       autoDeleteDuration: 30,
-    } as any;
+    } as unknown as Feed;
 
     const plugin = {
       app,
@@ -402,9 +562,9 @@ describe("EditFeedModal", () => {
     };
 
     const modal = new EditFeedModal(
-      app as any,
-      plugin as any,
-      feed as any,
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
       vi.fn(),
     );
     modal.open();
@@ -432,7 +592,7 @@ describe("EditFeedModal", () => {
       items: [],
       lastUpdated: 0,
       autoDeleteDuration: 30,
-    } as any;
+    } as unknown as Feed;
 
     const plugin = {
       app,
@@ -449,9 +609,9 @@ describe("EditFeedModal", () => {
     };
 
     const modal = new EditFeedModal(
-      app as any,
-      plugin as any,
-      feed as any,
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
       vi.fn(),
     );
     modal.open();
@@ -481,7 +641,7 @@ describe("EditFeedModal", () => {
       items: [],
       lastUpdated: 0,
       autoDeleteDuration: 0,
-    } as any;
+    } as unknown as Feed;
 
     const plugin = {
       app,
@@ -498,9 +658,9 @@ describe("EditFeedModal", () => {
     };
 
     const modal = new EditFeedModal(
-      app as any,
-      plugin as any,
-      feed as any,
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
       vi.fn(),
     );
     modal.open();
@@ -595,7 +755,7 @@ describe("EditFeedModal", () => {
         lastUpdated: 0,
         autoDeleteDuration: initialDuration,
         maxItemsLimit: 0,
-      } as any;
+      } as unknown as Feed;
 
       const refreshSelectedFeed = vi.fn(async (targetFeed: Feed) => {
         targetFeed.items = getItemsForDuration(
@@ -619,9 +779,9 @@ describe("EditFeedModal", () => {
       };
 
       const modal = new EditFeedModal(
-        app as any,
-        plugin as any,
-        feed as any,
+        app,
+        plugin as unknown as PluginTestFixture,
+        feed,
         vi.fn(),
       );
       modal.open();
@@ -674,7 +834,7 @@ describe("EditFeedModal", () => {
           link: "https://example.com",
           pubDate: "2020-01-01",
           feedTitle: "Old title",
-        } as any,
+        } as unknown as ArticleTestFixture,
       ],
       lastUpdated: 0,
     };
@@ -695,9 +855,9 @@ describe("EditFeedModal", () => {
 
     const onSave = vi.fn();
     const modal = new EditFeedModal(
-      app as any,
-      plugin as any,
-      feed as any,
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
       onSave,
     );
     const closeSpy = vi.spyOn(modal, "close");
@@ -736,7 +896,7 @@ describe("EditFeedModal", () => {
       folder: "",
       items: [],
       lastUpdated: 0,
-    } as any;
+    } as unknown as Feed;
 
     const plugin = {
       app,
@@ -751,9 +911,9 @@ describe("EditFeedModal", () => {
     };
 
     const modal = new EditFeedModal(
-      app as any,
-      plugin as any,
-      feed as any,
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
       vi.fn(),
     );
     const closeSpy = vi.spyOn(modal, "close");

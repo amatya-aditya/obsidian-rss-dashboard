@@ -2,18 +2,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ArticleHeader } from "../../../src/components/article-header";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
+type TestSettings = ConstructorParameters<typeof ArticleHeader>[1];
+type TestCallbacks = ConstructorParameters<typeof ArticleHeader>[8];
+
 // Mock ResizeObserver
 class ResizeObserverMock {
   observe() {}
   unobserve() {}
   disconnect() {}
 }
-window.ResizeObserver = ResizeObserverMock as any;
+window.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 
 describe("ArticleHeader Component", () => {
   let container: HTMLElement;
-  let settings: any;
-  let mockCallbacks: any;
+  let settings: TestSettings;
+  let mockCallbacks: TestCallbacks & Record<string, ReturnType<typeof vi.fn>>;
 
   beforeEach(() => {
     installObsidianDomPolyfills();
@@ -34,7 +37,7 @@ describe("ArticleHeader Component", () => {
         cardColumnsPerRow: 0,
         cardSpacing: 15,
       }
-    };
+    } as unknown as TestSettings;
 
     mockCallbacks = {
       onToggleSidebar: vi.fn(),
@@ -47,7 +50,7 @@ describe("ArticleHeader Component", () => {
       onRefreshFeeds: vi.fn(),
       onMarkAllAsRead: vi.fn(),
       onMarkAllAsUnread: vi.fn(),
-    };
+    } as unknown as TestCallbacks & Record<string, ReturnType<typeof vi.fn>>;
   });
 
   afterEach(() => {
@@ -326,8 +329,8 @@ describe("ArticleHeader Component", () => {
     hamburgerBtn.click();
 
     const buttons = Array.from(
-      container.querySelectorAll(".rss-dashboard-mark-all-button")
-    ) as HTMLButtonElement[];
+      container.querySelectorAll<HTMLButtonElement>(".rss-dashboard-mark-all-button")
+    );
 
     buttons[0].click();
     buttons[1].click();
@@ -380,7 +383,7 @@ describe("ArticleHeader Component", () => {
         type: "batch",
         batch: expect.objectContaining({
           cardColumnsPerRow: 3,
-        }),
+        }) as unknown as Record<string, unknown>,
       })
     );
     expect(mockCallbacks.onFilterChange).toHaveBeenCalledWith(

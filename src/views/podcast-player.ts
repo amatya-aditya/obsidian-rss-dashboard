@@ -504,10 +504,11 @@ export class PodcastPlayer {
             const getSeekTime = (e: MouseEvent | TouchEvent) => {
                 const rect = progressBar.getBoundingClientRect();
                 let clientX: number;
-                if (e instanceof MouseEvent) {
-                    clientX = e.clientX;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- activeWindow.instanceOf is an Obsidian-specific API not in standard types
+                if ((activeWindow as any).instanceOf(e, MouseEvent)) {
+                    clientX = (e as MouseEvent).clientX;
                 } else {
-                    clientX = e.touches[0].clientX;
+                    clientX = (e as TouchEvent).touches[0].clientX;
                 }
                 const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
                 if (this.audioElement && this.audioElement.duration) {
@@ -523,7 +524,7 @@ export class PodcastPlayer {
                 this.updateProgressDisplay();
             });
 
-            progressBar.addEventListener('mousedown', (e) => {
+            progressBar.addEventListener('mousedown', (_e) => {
                 if (!this.audioElement || !this.audioElement.duration) return;
                 isDragging = true;
                 const moveHandler = (moveEvent: MouseEvent) => {
@@ -534,14 +535,14 @@ export class PodcastPlayer {
                 };
                 const upHandler = () => {
                     isDragging = false;
-                    window.removeEventListener('mousemove', moveHandler);
-                    window.removeEventListener('mouseup', upHandler);
+                    activeWindow.removeEventListener('mousemove', moveHandler);
+                    activeWindow.removeEventListener('mouseup', upHandler);
                 };
-                window.addEventListener('mousemove', moveHandler);
-                window.addEventListener('mouseup', upHandler);
+                activeWindow.addEventListener('mousemove', moveHandler);
+                activeWindow.addEventListener('mouseup', upHandler);
             });
 
-            progressBar.addEventListener('touchstart', (e) => {
+            progressBar.addEventListener('touchstart', (_e) => {
                 if (!this.audioElement || !this.audioElement.duration) return;
                 isDragging = true;
                 const moveHandler = (moveEvent: TouchEvent) => {
@@ -552,11 +553,11 @@ export class PodcastPlayer {
                 };
                 const upHandler = () => {
                     isDragging = false;
-                    window.removeEventListener('touchmove', moveHandler);
-                    window.removeEventListener('touchend', upHandler);
+                    activeWindow.removeEventListener('touchmove', moveHandler);
+                    activeWindow.removeEventListener('touchend', upHandler);
                 };
-                window.addEventListener('touchmove', moveHandler);
-                window.addEventListener('touchend', upHandler);
+                activeWindow.addEventListener('touchmove', moveHandler);
+                activeWindow.addEventListener('touchend', upHandler);
             });
         }
         
@@ -590,7 +591,7 @@ export class PodcastPlayer {
             
             const playlistList = playlistSection.createDiv({ cls: "playlist-list" });
             
-            this.playlist.forEach((ep, index) => {
+            this.playlist.forEach((ep, _index) => {
                 const epRow = playlistList.createDiv({ cls: "playlist-episode-row" });
                 epRow.setAttribute("data-episode-guid", ep.guid);
                  
@@ -1070,12 +1071,12 @@ export class PodcastPlayer {
             const durationMs = minutes * 60 * 1000;
             this.sleepTimerEndTime = Date.now() + durationMs;
             
-            this.sleepTimerId = window.setInterval(() => {
+            this.sleepTimerId = activeWindow.setInterval(() => {
                 const remaining = (this.sleepTimerEndTime || 0) - Date.now();
                 if (remaining <= 0) {
                     this.audioElement?.pause();
                     if (this.sleepTimerId) {
-                        window.clearInterval(this.sleepTimerId);
+                        activeWindow.clearInterval(this.sleepTimerId);
                         this.sleepTimerId = null;
                     }
                     this.updateSleepTimerDisplay();
@@ -1092,7 +1093,7 @@ export class PodcastPlayer {
 
     private clearSleepTimer(): void {
         if (this.sleepTimerId) {
-            window.clearInterval(this.sleepTimerId);
+            activeWindow.clearInterval(this.sleepTimerId);
             this.sleepTimerId = null;
         }
         this.sleepTimerEndTime = null;
@@ -1168,10 +1169,10 @@ export class PodcastPlayer {
     
     private startProgressTracking(): void {
         if (this.progressInterval) {
-            window.clearInterval(this.progressInterval);
+            activeWindow.clearInterval(this.progressInterval);
         }
         
-        this.progressInterval = window.setInterval(() => {
+        this.progressInterval = activeWindow.setInterval(() => {
             this.updateProgressDisplay();
             
             if (this.audioElement && this.currentItem) {
@@ -1183,7 +1184,7 @@ export class PodcastPlayer {
     
     private stopProgressTracking(): void {
         if (this.progressInterval) {
-            window.clearInterval(this.progressInterval);
+            activeWindow.clearInterval(this.progressInterval);
             this.progressInterval = null;
         }
     }

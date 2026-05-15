@@ -1,23 +1,45 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ReaderView } from "../../../src/views/reader-view";
-import { FeedItem, RssDashboardSettings, DEFAULT_SETTINGS } from "../../../src/types/types";
+import {
+  FeedItem,
+  RssDashboardSettings,
+  DEFAULT_SETTINGS,
+} from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 installObsidianDomPolyfills();
 
 class MockLeaf {
-  app: any;
-  view: any;
-  constructor(app: any) {
+  app: unknown;
+  view: unknown;
+  constructor(app: unknown) {
     this.app = app;
   }
   detach = vi.fn();
 }
 
+type ReaderViewInternals = {
+  contentEl: HTMLElement;
+  readingContainer: HTMLElement;
+};
+
+function getInternals(view: ReaderView): ReaderViewInternals {
+  return view as unknown as ReaderViewInternals;
+}
+
 describe("ReaderView tooltip attribute stripping", () => {
-  let readerView: any;
-  let mockApp: any;
-  let mockLeaf: any;
+  let readerView: ReaderView;
+  let mockApp: {
+    workspace: {
+      getLeavesOfType: ReturnType<typeof vi.fn>;
+      setActiveLeaf: ReturnType<typeof vi.fn>;
+      revealLeaf: ReturnType<typeof vi.fn>;
+    };
+    vault: {
+      getAbstractFileByPath: ReturnType<typeof vi.fn>;
+    };
+  };
+  let mockLeaf: MockLeaf;
   let mockSettings: RssDashboardSettings;
 
   beforeEach(async () => {
@@ -35,14 +57,14 @@ describe("ReaderView tooltip attribute stripping", () => {
     mockSettings = { ...DEFAULT_SETTINGS, useWebViewer: false };
 
     readerView = new ReaderView(
-      mockLeaf as any,
+      mockLeaf as never,
       mockSettings,
-      { saveArticle: vi.fn() } as any,
+      { saveArticle: vi.fn() } as never,
       vi.fn(),
       vi.fn(),
     );
 
-    (readerView as any).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = document.createElement("div");
     await readerView.onOpen();
   });
 
@@ -51,9 +73,9 @@ describe("ReaderView tooltip attribute stripping", () => {
       title: "Tooltip Sanitization Test",
       link: "https://aeon.co/test-article",
       description:
-        "<nav aria-label=\"Breadcrumbs\"><a href=\"/crumbs\" data-tooltip=\"Breadcrumbs\">crumbs</a></nav>",
+        '<nav aria-label="Breadcrumbs"><a href="/crumbs" data-tooltip="Breadcrumbs">crumbs</a></nav>',
       content:
-        "<main aria-label=\"Article body\" data-tooltip-position=\"top\" data-tooltip-delay=\"1\"><p>Hello</p></main>",
+        '<main aria-label="Article body" data-tooltip-position="top" data-tooltip-delay="1"><p>Hello</p></main>',
       pubDate: new Date().toISOString(),
       guid: "tooltip-1",
       read: false,
@@ -68,13 +90,13 @@ describe("ReaderView tooltip attribute stripping", () => {
 
     await readerView.displayItem(item);
 
-    const readingContainer = (readerView as any).readingContainer as HTMLElement;
-    const articleContent = readingContainer.querySelector(
+    const readingContainer = getInternals(readerView).readingContainer;
+    const articleContent = readingContainer.querySelector<HTMLElement>(
       ".rss-reader-article-content",
-    ) as HTMLElement | null;
-    const descriptionContent = readingContainer.querySelector(
+    );
+    const descriptionContent = readingContainer.querySelector<HTMLElement>(
       ".rss-reader-description",
-    ) as HTMLElement | null;
+    );
 
     expect(articleContent).toBeTruthy();
     expect(descriptionContent).toBeTruthy();
@@ -87,7 +109,10 @@ describe("ReaderView tooltip attribute stripping", () => {
     expect(articleContent?.querySelector("[data-tooltip-position]")).toBeNull();
     expect(articleContent?.querySelector("[data-tooltip-delay]")).toBeNull();
 
-    const descriptionLink = descriptionContent?.querySelector("a") as HTMLAnchorElement | null;
-    expect(descriptionLink?.getAttribute("href")).toBe("https://aeon.co/crumbs");
+    const descriptionLink =
+      descriptionContent?.querySelector<HTMLAnchorElement>("a");
+    expect(descriptionLink?.getAttribute("href")).toBe(
+      "https://aeon.co/crumbs",
+    );
   });
 });

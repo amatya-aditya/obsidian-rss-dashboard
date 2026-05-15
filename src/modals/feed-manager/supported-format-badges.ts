@@ -15,17 +15,17 @@ export function renderSupportedFormatBadges(containerEl: HTMLElement): {
   const rssBadge = formatsEl.createSpan({ cls: "format-badge rss" });
   const rssIcon = rssBadge.createSpan({ cls: "format-badge-icon" });
   setIcon(rssIcon, "rss");
-  rssBadge.appendChild(document.createTextNode(" RSS"));
+  rssBadge.appendChild(activeDocument.createTextNode(" RSS"));
 
   const podcastBadge = formatsEl.createSpan({ cls: "format-badge podcast" });
   const podcastIcon = podcastBadge.createSpan({ cls: "format-badge-icon" });
   setIcon(podcastIcon, "headphones");
-  podcastBadge.appendChild(document.createTextNode(" Apple Podcasts"));
+  podcastBadge.appendChild(activeDocument.createTextNode(" Apple Podcasts"));
 
   const youtubeBadge = formatsEl.createSpan({ cls: "format-badge youtube" });
   const youtubeIcon = youtubeBadge.createSpan({ cls: "format-badge-icon" });
   setIcon(youtubeIcon, "youtube");
-  youtubeBadge.appendChild(document.createTextNode(" YouTube"));
+  youtubeBadge.appendChild(activeDocument.createTextNode(" YouTube"));
 
   const clearActiveBadge = () => {
     rssBadge.removeClass("active");

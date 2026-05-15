@@ -29,6 +29,7 @@ This document defines the UI design rules for the plugin so visual changes are c
 - `src/styles/discover.css`
 - `src/styles/modals.css`
 - `src/styles/controls.css`
+- `src/styles/reader.css`
 - `src/styles/sidebar.css`
 
 If this spec conflicts with existing CSS, update CSS to match this spec unless there is a documented exception.
@@ -103,6 +104,14 @@ Current governed surfaces:
   - Canonical selector / owner: `.rss-discover-filter-header`, `.rss-discover-filter-controls`, `.rss-discover-filter-container`
   - Purpose: search, sort, filter, and bulk action grouping
   - Visual hierarchy role: supportive control surface
+- Reader restricted banner
+  - Canonical selector / owner: `.rss-reader-inline-banner.rss-reader-paywall-banner` in `src/styles/reader.css`
+  - Purpose: explain restricted or paywalled article text and provide a plain source-verification link
+  - Visual hierarchy role: supportive status surface
+
+Reader restricted banner styling note:
+- Keep this surface as a simple colored status banner.
+- Do not use interactive accent treatments (accent stripes, accent-pill links, or accent hover states) for this banner.
 
 ## Navigation Hierarchy
 
@@ -234,19 +243,19 @@ Accent button pairing rule:
 
 ## Token Mapping
 
-| Token | Intended purpose | Common usage examples | Avoid / non-goals |
-| --- | --- | --- | --- |
-| `--interactive-accent` | Default interactive accent fill and emphasis color | Primary CTA states, pills, active controls, focus-adjacent emphasis | Do not use as a neutral hover replacement for every control |
-| `--color-accent` | Theme accent for high-emphasis nav or legacy accent surfaces | Primary nav active fills, accent-forward tabs, established legacy surfaces | Do not introduce for new generic buttons when `--interactive-accent` fits |
-| `--text-on-accent` | Contrast-safe text/icon color on accent surfaces | Text and icons on `--interactive-accent` or `--color-accent` backgrounds | Do not use on neutral or transparent surfaces |
-| `--text-normal` | Primary readable text color | Headers, labels, body copy, neutral button text | Do not use to imply inactive or disabled states |
-| `--text-muted` | Secondary or lower-emphasis text/icon color | Metadata, helper text, inactive icons, secondary labels | Do not use when the control needs primary emphasis |
-| `--text-accent` | Accent-colored text without filled background | Links, active text-only treatments, underline-tab text emphasis | Do not substitute for filled CTA styling |
-| `--background-primary` | Base app and input background | Primary panes, inputs, modal bodies | Do not use when a raised neutral surface is intended |
-| `--background-secondary` | Raised neutral control/card background | Cards, grouped controls, secondary surfaces | Do not use to indicate active selection by itself |
-| `--background-modifier-border` | Neutral border and divider token | Dividers, outlines, subtle separators, skeleton fills | Do not use as a focus ring substitute |
-| `--background-modifier-hover` | Neutral hover surface treatment | Hover fill for neutral buttons and selectable rows | Do not use for selected-state persistence |
-| `--interactive-accent-hover` | Hover-state accent variant where needed | Accent CTA hover or stronger accent affordance | Do not add unless the component already distinguishes accent hover from accent rest |
+| Token                          | Intended purpose                                             | Common usage examples                                                      | Avoid / non-goals                                                                   |
+| ------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `--interactive-accent`         | Default interactive accent fill and emphasis color           | Primary CTA states, pills, active controls, focus-adjacent emphasis        | Do not use as a neutral hover replacement for every control                         |
+| `--color-accent`               | Theme accent for high-emphasis nav or legacy accent surfaces | Primary nav active fills, accent-forward tabs, established legacy surfaces | Do not introduce for new generic buttons when `--interactive-accent` fits           |
+| `--text-on-accent`             | Contrast-safe text/icon color on accent surfaces             | Text and icons on `--interactive-accent` or `--color-accent` backgrounds   | Do not use on neutral or transparent surfaces                                       |
+| `--text-normal`                | Primary readable text color                                  | Headers, labels, body copy, neutral button text                            | Do not use to imply inactive or disabled states                                     |
+| `--text-muted`                 | Secondary or lower-emphasis text/icon color                  | Metadata, helper text, inactive icons, secondary labels                    | Do not use when the control needs primary emphasis                                  |
+| `--text-accent`                | Accent-colored text without filled background                | Links, active text-only treatments, underline-tab text emphasis            | Do not substitute for filled CTA styling                                            |
+| `--background-primary`         | Base app and input background                                | Primary panes, inputs, modal bodies                                        | Do not use when a raised neutral surface is intended                                |
+| `--background-secondary`       | Raised neutral control/card background                       | Cards, grouped controls, secondary surfaces                                | Do not use to indicate active selection by itself                                   |
+| `--background-modifier-border` | Neutral border and divider token                             | Dividers, outlines, subtle separators, skeleton fills                      | Do not use as a focus ring substitute                                               |
+| `--background-modifier-hover`  | Neutral hover surface treatment                              | Hover fill for neutral buttons and selectable rows                         | Do not use for selected-state persistence                                           |
+| `--interactive-accent-hover`   | Hover-state accent variant where needed                      | Accent CTA hover or stronger accent affordance                             | Do not add unless the component already distinguishes accent hover from accent rest |
 
 ### Token Precedence
 
@@ -264,14 +273,14 @@ Rules:
 
 ## Interaction State Matrix
 
-| Control type | Default | Hover | Active / selected | Focus-visible | Disabled | Loading |
-| --- | --- | --- | --- | --- | --- | --- |
-| Primary nav buttons | Neutral or subdued fill with semibold label | May increase fill or border emphasis without outranking active peer | Filled accent surface with `--text-on-accent` | Visible outline using accent-compatible token | Reduced emphasis, no fake active fill | Preserve width; spinner/icon swaps must not shift layout noticeably |
-| Secondary tabs | Transparent, text-first tab styling | Text emphasis only, no full fill | Accent text plus underline indicator | Visible outline that does not erase underline semantics | Reduced contrast but still readable | Rare; avoid unless content mode switch truly waits on async state |
-| Neutral buttons | Neutral fill, border, `--text-normal` | `--background-modifier-hover` and optional accent border | May use subtle pressed or selected styling, but should not mimic CTA fill | Visible outline | Opacity and cursor changes without disappearing text | Preserve button label and width while showing progress if async |
-| Accent buttons | Accent fill plus `--text-on-accent` | Hover brightness or accent-hover refinement | Same family as hover; active state may darken slightly | Accent-compatible outline with clear separation from fill edge | Lower emphasis but keep contrast legible | Spinner allowed; keep text readable or reserve width |
-| Destructive buttons | Distinct destructive treatment with readable text | Stronger destructive hover, no ambiguity with neutral controls | Persistent destructive emphasis only when the state is truly destructive/armed | Visible outline maintained on destructive fills | Lower emphasis, no misleading active danger state | Preserve destructive intent while preventing duplicate actions |
-| Clickable-icon controls | Compact hit area with scoped icon rendering | Background or icon-color emphasis only | Optional selected state if the icon represents a toggle | Required keyboard-visible outline | Reduced opacity and no pointer affordance | Avoid swapping icon size; loading may use spin only if motion is necessary |
+| Control type            | Default                                           | Hover                                                               | Active / selected                                                              | Focus-visible                                                  | Disabled                                             | Loading                                                                    |
+| ----------------------- | ------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| Primary nav buttons     | Neutral or subdued fill with semibold label       | May increase fill or border emphasis without outranking active peer | Filled accent surface with `--text-on-accent`                                  | Visible outline using accent-compatible token                  | Reduced emphasis, no fake active fill                | Preserve width; spinner/icon swaps must not shift layout noticeably        |
+| Secondary tabs          | Transparent, text-first tab styling               | Text emphasis only, no full fill                                    | Accent text plus underline indicator                                           | Visible outline that does not erase underline semantics        | Reduced contrast but still readable                  | Rare; avoid unless content mode switch truly waits on async state          |
+| Neutral buttons         | Neutral fill, border, `--text-normal`             | `--background-modifier-hover` and optional accent border            | May use subtle pressed or selected styling, but should not mimic CTA fill      | Visible outline                                                | Opacity and cursor changes without disappearing text | Preserve button label and width while showing progress if async            |
+| Accent buttons          | Accent fill plus `--text-on-accent`               | Hover brightness or accent-hover refinement                         | Same family as hover; active state may darken slightly                         | Accent-compatible outline with clear separation from fill edge | Lower emphasis but keep contrast legible             | Spinner allowed; keep text readable or reserve width                       |
+| Destructive buttons     | Distinct destructive treatment with readable text | Stronger destructive hover, no ambiguity with neutral controls      | Persistent destructive emphasis only when the state is truly destructive/armed | Visible outline maintained on destructive fills                | Lower emphasis, no misleading active danger state    | Preserve destructive intent while preventing duplicate actions             |
+| Clickable-icon controls | Compact hit area with scoped icon rendering       | Background or icon-color emphasis only                              | Optional selected state if the icon represents a toggle                        | Required keyboard-visible outline                              | Reduced opacity and no pointer affordance            | Avoid swapping icon size; loading may use spin only if motion is necessary |
 
 ## Typography and Density
 

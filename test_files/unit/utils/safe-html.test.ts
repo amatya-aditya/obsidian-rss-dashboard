@@ -2,20 +2,35 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sanitizeAndAppendHtml } from "../../../src/utils/safe-html";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
+type ObsidianBody = HTMLElement & {
+  empty: () => void;
+  createDiv: () => HTMLDivElement;
+};
+
+function getObsidianBody(): ObsidianBody {
+  return document.body as ObsidianBody;
+}
+
+function createContainer(): HTMLDivElement {
+  return getObsidianBody().createDiv();
+}
+
 function normalizeWhitespace(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
 beforeEach(() => {
   installObsidianDomPolyfills();
-  document.body.empty();
+  getObsidianBody().empty();
   vi.restoreAllMocks();
 });
 
 describe("safe-html.sanitizeAndAppendHtml", () => {
   it("no-ops on empty/whitespace-only input (container remains unchanged)", () => {
-    const container = document.body.createDiv();
-    container.innerHTML = "<p>existing</p>";
+    const container = createContainer();
+    const existing = document.createElement("p");
+    existing.textContent = "existing";
+    container.appendChild(existing);
 
     sanitizeAndAppendHtml(container, "   \n\t  ");
 
@@ -23,7 +38,7 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
   });
 
   it("removes blocked tags entirely", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
 
     sanitizeAndAppendHtml(
       container,
@@ -52,7 +67,7 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
   });
 
   it("preserves allowed tags and text structure", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
 
     sanitizeAndAppendHtml(
       container,
@@ -76,7 +91,7 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
   });
 
   it("unwraps disallowed tags (children preserved, wrapper tags removed)", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
 
     sanitizeAndAppendHtml(container, `<div><span>Text</span></div>`);
 
@@ -85,8 +100,23 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
     expect(container.textContent).toBe("Text");
   });
 
+  it("preserves non-blocked structural tags in rich mode", () => {
+    const container = createContainer();
+
+    sanitizeAndAppendHtml(
+      container,
+      `<div class="outer"><span>Text</span></div>`,
+      {
+        mode: "rich",
+      },
+    );
+
+    expect(container.querySelector("div.outer")).toBeTruthy();
+    expect(container.querySelector("span")?.textContent).toBe("Text");
+  });
+
   it("strips event handler attributes and constrains safe links", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
 
     sanitizeAndAppendHtml(
       container,
@@ -102,7 +132,7 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
   });
 
   it("drops unsafe hrefs but preserves anchor text", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
 
     sanitizeAndAppendHtml(
       container,
@@ -116,8 +146,15 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
       `,
     );
 
-    const anchors = Array.from(container.querySelectorAll("a"));
-    expect(anchors.map((a) => a.textContent)).toEqual(["js", "js2", "empty", "ftp"]);
+    const anchors = Array.from(
+      container.querySelectorAll<HTMLAnchorElement>("a"),
+    );
+    expect(anchors.map((a) => a.textContent)).toEqual([
+      "js",
+      "js2",
+      "empty",
+      "ftp",
+    ]);
 
     anchors.forEach((a) => {
       expect(a.getAttribute("href")).toBeNull();
@@ -127,7 +164,7 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
   });
 
   it("allows http/https/mailto links and applies target+rel", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
 
     sanitizeAndAppendHtml(
       container,
@@ -138,7 +175,9 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
       `,
     );
 
-    const anchors = Array.from(container.querySelectorAll("a"));
+    const anchors = Array.from(
+      container.querySelectorAll<HTMLAnchorElement>("a"),
+    );
     expect(anchors).toHaveLength(3);
     expect(anchors.map((a) => a.getAttribute("href"))).toEqual([
       "http://example.com",
@@ -152,7 +191,7 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
   });
 
   it("sanitizes mixed nested structures deterministically and ignores non-element nodes", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
 
     sanitizeAndAppendHtml(
       container,
@@ -185,4 +224,3 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
     expect(hasComment).toBe(false);
   });
 });
-

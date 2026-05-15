@@ -1,19 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
+import { SidebarOptions, SidebarCallbacks } from "../../../src/components/sidebar";
+import { RssDashboardSettings, Feed } from "../../../src/types/types";
+import type RssDashboardPlugin from "../../../main";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
-let lastSidebarInstance: any | null = null;
+interface MockSidebar {
+  callbacks: SidebarCallbacks;
+  rendered: boolean;
+  destroyed: boolean;
+}
+let lastSidebarInstance: MockSidebar | null = null;
 
 vi.mock("../../../src/components/sidebar", () => {
   class Sidebar {
-    callbacks: any;
+    callbacks: SidebarCallbacks;
     rendered = false;
     destroyed = false;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(_app: any, _container: any, _plugin: any, _settings: any, _options: any, callbacks: any) {
+    constructor(_app: unknown, _container: unknown, _plugin: unknown, _settings: unknown, _options: unknown, callbacks: SidebarCallbacks) {
       this.callbacks = callbacks;
-      lastSidebarInstance = this;
+      lastSidebarInstance = this as unknown as MockSidebar;
     }
 
     render(): void {
@@ -35,7 +42,10 @@ function flushPromises(): Promise<void> {
 describe("MobileNavigationModal", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
-    document.body.empty();
+    interface ObsidianElement extends HTMLElement {
+      empty(): void;
+    }
+    (document.body as unknown as ObsidianElement).empty();
     Object.defineProperty(window, "innerWidth", { value: 1400, configurable: true });
     lastSidebarInstance = null;
     vi.restoreAllMocks();
@@ -46,7 +56,7 @@ describe("MobileNavigationModal", () => {
 
     const app = obsidian.App.createMock();
     const plugin = { saveSettings: vi.fn(async () => {}) };
-    const settings = { sidebarWidth: 280 } as any;
+    const settings = { sidebarWidth: 280 } as unknown as RssDashboardSettings;
     const callbacks = {
       onFolderClick: vi.fn(),
       onFeedClick: vi.fn(),
@@ -54,9 +64,9 @@ describe("MobileNavigationModal", () => {
       onClearTags: vi.fn(),
       onTagFilterModeChange: vi.fn(),
       onCloseMobileSidebar: vi.fn(),
-    };
+    } as unknown as SidebarCallbacks;
 
-    const modal = new MobileNavigationModal(app as any, plugin as any, settings, {} as any, callbacks as any);
+    const modal = new MobileNavigationModal(app as unknown as obsidian.App, plugin as unknown as RssDashboardPlugin, settings, {} as SidebarOptions, callbacks);
 
     const closeBtn = document.createElement("button");
     closeBtn.className = "modal-close-button";
@@ -69,17 +79,23 @@ describe("MobileNavigationModal", () => {
     expect(lastSidebarInstance?.rendered).toBe(true);
     expect(modal.modalEl.style.width).toBe("280px");
 
-    lastSidebarInstance.callbacks.onTagToggle("AI");
+    lastSidebarInstance!.callbacks.onTagToggle("AI");
     expect(callbacks.onTagToggle).toHaveBeenCalledWith("AI");
     expect(modal.containerEl.isConnected).toBe(true);
 
-    lastSidebarInstance.callbacks.onFeedClick({ url: "x" });
+    lastSidebarInstance!.callbacks.onFeedClick({
+      title: "Test Feed",
+      url: "x",
+      folder: "",
+      items: [],
+      lastUpdated: Date.now(),
+    } as Feed);
     expect(callbacks.onFeedClick).toHaveBeenCalledTimes(1);
     expect(modal.containerEl.isConnected).toBe(false);
 
     // Re-open to validate folder click behavior too
     modal.open();
-    lastSidebarInstance.callbacks.onFolderClick("Tech");
+    lastSidebarInstance!.callbacks.onFolderClick("Tech");
     expect(callbacks.onFolderClick).toHaveBeenCalledWith("Tech");
     expect(modal.containerEl.isConnected).toBe(false);
   });
@@ -89,7 +105,7 @@ describe("MobileNavigationModal", () => {
 
     const app = obsidian.App.createMock();
     const plugin = { saveSettings: vi.fn(async () => {}) };
-    const settings = { sidebarWidth: 280 } as any;
+    const settings = { sidebarWidth: 280 } as unknown as RssDashboardSettings;
     const callbacks = {
       onFolderClick: vi.fn(),
       onFeedClick: vi.fn(),
@@ -97,9 +113,9 @@ describe("MobileNavigationModal", () => {
       onClearTags: vi.fn(),
       onTagFilterModeChange: vi.fn(),
       onCloseMobileSidebar: vi.fn(),
-    };
+    } as unknown as SidebarCallbacks;
 
-    const modal = new MobileNavigationModal(app as any, plugin as any, settings, {} as any, callbacks as any);
+    const modal = new MobileNavigationModal(app as unknown as obsidian.App, plugin as unknown as RssDashboardPlugin, settings, {} as SidebarOptions, callbacks);
     modal.open();
 
     const handle = modal.contentEl.querySelector(

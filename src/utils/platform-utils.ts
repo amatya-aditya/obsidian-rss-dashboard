@@ -1,7 +1,12 @@
 import { requestUrl, RequestUrlParam, setIcon } from "obsidian";
 
+export interface RobustFetchResult {
+  text: string;
+  status: number;
+}
+
 export function sleep(ms: number): Promise<void> {
-  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+  return new Promise<void>((resolve) => activeWindow.setTimeout(resolve, ms));
 }
 
 export function formatRelativeTime(date: Date | string): string {
@@ -96,6 +101,25 @@ export function formatDateWithRelative(date: Date | string): {
   };
 }
 
+/**
+ * Returns { text, title } for an article date, respecting the display preference.
+ * "relative" (default) -> text = relative, title = absolute
+ * "absolute"           -> text = absolute, title = relative
+ *
+ * NOTE: Do NOT use this for group-by keys if you need consistent grouping —
+ * use formatDateWithRelative() directly for that.
+ */
+export function formatArticleDate(
+  date: Date | string,
+  style: "relative" | "absolute" = "relative",
+): { text: string; title: string } {
+  const base = formatDateWithRelative(date);
+  if (style === "absolute") {
+    return { text: base.title, title: base.text };
+  }
+  return base;
+}
+
 export function ensureUtf8Meta(html: string): string {
   if (!/^\s*<meta[^>]+charset=/i.test(html)) {
     return '<meta charset="UTF-8">' + html;
@@ -111,14 +135,28 @@ export async function robustFetch(
   url: string,
   options: Partial<RequestUrlParam> = {},
 ): Promise<string> {
+  const response = await robustFetchDetailed(url, options);
+  return response.text;
+}
+
+/**
+ * Fetch that preserves HTTP status alongside decoded text.
+ * Useful for distinguishing 401/403 responses from generic network failures.
+ */
+export async function robustFetchDetailed(
+  url: string,
+  options: Partial<RequestUrlParam> = {},
+): Promise<RobustFetchResult> {
   const response = await requestUrl({
     ...options,
     url,
     method: options.method || "GET",
   });
 
+  const status = response.status ?? 0;
+
   if (!response.arrayBuffer) {
-    return response.text || "";
+    return { text: response.text || "", status };
   }
 
   const contentType = response.headers["content-type"] || "";
@@ -134,13 +172,13 @@ export async function robustFetch(
 
   try {
     const decoder = new TextDecoder(charset);
-    return decoder.decode(response.arrayBuffer);
+    return { text: decoder.decode(response.arrayBuffer), status };
   } catch (e) {
     void e;
     // [RSS Dashboard] Failed to decode with charset ${charset}, falling back to utf-8
     // Fallback to utf-8 if specified charset fails
     const decoder = new TextDecoder("utf-8");
-    return decoder.decode(response.arrayBuffer);
+    return { text: decoder.decode(response.arrayBuffer), status };
   }
 }
 
@@ -266,7 +304,7 @@ function getViewportWidth(viewportWidth?: number): number {
   if (typeof window === "undefined") {
     return TABLET_LAYOUT_MAX_WIDTH + 1;
   }
-  return window.innerWidth;
+  return activeWindow.innerWidth;
 }
 
 export function isPhoneViewport(viewportWidth?: number): boolean {

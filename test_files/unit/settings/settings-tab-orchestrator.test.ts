@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import type RssDashboardPlugin from "../../../main";
 
 vi.mock("../../../src/settings/tabs/general-settings-tab", () => ({
   renderGeneralSettingsTab: vi.fn(),
@@ -45,10 +46,10 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const general = await import("../../../src/settings/tabs/general-settings-tab");
 
     const app = obsidian.App.createMock();
-    const plugin: any = { app };
+    const plugin = { app } as unknown as RssDashboardPlugin;
     const tab = new RssDashboardSettingTab(app, plugin);
 
-    tab.containerEl = document.body.createDiv();
+    tab.containerEl = document.body.appendChild(document.createElement("div"));
     tab.display();
 
     const tabButtons = Array.from(
@@ -57,7 +58,7 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     expect(tabButtons).toHaveLength(9);
     expect(tabButtons[0].textContent).toBe("General");
 
-    expect((general as any).renderGeneralSettingsTab).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(1);
   });
 
   it("switches tabs on button click and via activateTab()", async () => {
@@ -68,9 +69,9 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const about = await import("../../../src/settings/tabs/about-settings-tab");
 
     const app = obsidian.App.createMock();
-    const plugin: any = { app };
+    const plugin = { app } as unknown as RssDashboardPlugin;
     const tab = new RssDashboardSettingTab(app, plugin);
-    tab.containerEl = document.body.createDiv();
+    tab.containerEl = document.body.appendChild(document.createElement("div"));
 
     tab.display();
 
@@ -78,14 +79,14 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
       tab.containerEl.querySelectorAll("button"),
     ).find((b) => b.textContent === "About") as HTMLButtonElement;
     aboutBtn.click();
-    expect((about as any).renderAboutTab).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(about.renderAboutTab)).toHaveBeenCalledTimes(1);
 
     tab.activateTab("Rules");
-    expect((rules as any).renderRulesSettingsTab).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(rules.renderRulesSettingsTab)).toHaveBeenCalledTimes(1);
 
     const display = await import("../../../src/settings/tabs/display-settings-tab");
     tab.activateTab("Display", "Reader");
-    expect((display as any).renderDisplaySettingsTab).toHaveBeenLastCalledWith(
+    expect(vi.mocked(display.renderDisplaySettingsTab)).toHaveBeenLastCalledWith(
       expect.any(HTMLDivElement),
       plugin,
       expect.any(Function),
@@ -93,9 +94,9 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     );
 
     // Invalid tab name is ignored
-    (rules as any).renderRulesSettingsTab.mockClear();
+    vi.mocked(rules.renderRulesSettingsTab).mockClear();
     tab.activateTab("Nope");
-    expect((rules as any).renderRulesSettingsTab).toHaveBeenCalledTimes(0);
+    expect(vi.mocked(rules.renderRulesSettingsTab)).toHaveBeenCalledTimes(0);
   });
 
   it("responds to 'rss-settings-refresh' event by re-rendering", async () => {
@@ -105,12 +106,12 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const general = await import("../../../src/settings/tabs/general-settings-tab");
 
     const app = obsidian.App.createMock();
-    const plugin: any = { app };
+    const plugin = { app } as unknown as RssDashboardPlugin;
     const tab = new RssDashboardSettingTab(app, plugin);
-    tab.containerEl = document.body.createDiv();
+    tab.containerEl = document.body.appendChild(document.createElement("div"));
 
     tab.display();
-    expect((general as any).renderGeneralSettingsTab).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(1);
 
     const contentEl = tab.containerEl.querySelector(
       ".rss-dashboard-settings-tab-content",
@@ -118,6 +119,7 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     expect(contentEl).toBeTruthy();
 
     contentEl.dispatchEvent(new CustomEvent("rss-settings-refresh"));
-    expect((general as any).renderGeneralSettingsTab).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(2);
   });
 });
+

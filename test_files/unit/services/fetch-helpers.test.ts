@@ -11,13 +11,15 @@ import {
   vi,
   beforeEach,
   afterEach,
-  SpyInstance,
+  type MockInstance,
 } from "vitest";
 import * as platformUtils from "../../../src/utils/platform-utils";
-import { robustFetch } from "../../../src/utils/platform-utils";
+import { robustFetchDetailed } from "../../../src/utils/platform-utils";
 import {
   isBlockedResponse,
+  isRestrictedSignal,
   fetchWithProxyFallback,
+  fetchWithProxyFallbackDetailed,
 } from "../../../src/utils/fetch-helpers";
 
 // ── isBlockedResponse — unit tests ──────────────────────────────────────────
@@ -102,6 +104,24 @@ ${"<p>placeholder content to make this long enough to pass length check</p>".rep
   });
 });
 
+describe("isRestrictedSignal", () => {
+  it("returns true for 401 phrases", () => {
+    expect(isRestrictedSignal("request failed 401 Unauthorized")).toBe(true);
+  });
+
+  it("returns true for paywall phrasing", () => {
+    expect(
+      isRestrictedSignal("Subscription required. Subscribe to continue."),
+    ).toBe(true);
+  });
+
+  it("returns false for generic network failures", () => {
+    expect(isRestrictedSignal("socket timeout while fetching article")).toBe(
+      false,
+    );
+  });
+});
+
 // ── fetchWithProxyFallback — integration tests ───────────────────────────────
 
 // We spy on platformUtils.robustFetch so tests never make real network calls.
@@ -120,6 +140,8 @@ const ARTICLE_HTML = `<!DOCTYPE html><html><head><title>Test Article</title></he
   </article>
 </body></html>`;
 
+const ARTICLE_RESPONSE = { text: ARTICLE_HTML, status: 200 };
+
 const CLOUDFLARE_HTML = `<!DOCTYPE html><html><head><title>Just a moment...</title></head>
 <body>
   <div class="cf-challenge">Please wait while we verify your browser.</div>
@@ -127,15 +149,14 @@ const CLOUDFLARE_HTML = `<!DOCTYPE html><html><head><title>Just a moment...</tit
   ${"<p>padding</p>".repeat(10)}
 </body></html>`;
 
+const CLOUDFLARE_RESPONSE = { text: CLOUDFLARE_HTML, status: 403 };
+
 describe("fetchWithProxyFallback", () => {
-  let robustFetchMock: SpyInstance<
-    Parameters<typeof robustFetch>,
-    ReturnType<typeof robustFetch>
-  >;
+  let robustFetchMock: MockInstance<typeof robustFetchDetailed>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    robustFetchMock = vi.spyOn(platformUtils, "robustFetch");
+    robustFetchMock = vi.spyOn(platformUtils, "robustFetchDetailed");
   });
 
   afterEach(() => {
@@ -143,7 +164,7 @@ describe("fetchWithProxyFallback", () => {
   });
 
   it("returns parsed Readability content on successful direct fetch", async () => {
-    robustFetchMock.mockResolvedValueOnce(ARTICLE_HTML);
+    robustFetchMock.mockResolvedValueOnce(ARTICLE_RESPONSE);
 
     const result = await fetchWithProxyFallback("https://example.com/article");
 
@@ -157,7 +178,7 @@ describe("fetchWithProxyFallback", () => {
   });
 
   it("does not use proxy when direct fetch succeeds", async () => {
-    robustFetchMock.mockResolvedValueOnce(ARTICLE_HTML);
+    robustFetchMock.mockResolvedValueOnce(ARTICLE_RESPONSE);
 
     await fetchWithProxyFallback(
       "https://example.com/article",
@@ -170,9 +191,9 @@ describe("fetchWithProxyFallback", () => {
 
   it("retries via proxy when direct fetch returns a Cloudflare block page", async () => {
     // First call (direct) → Cloudflare block
-    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_HTML);
+    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_RESPONSE);
     // Second call (proxy) → real content
-    robustFetchMock.mockResolvedValueOnce(ARTICLE_HTML);
+    robustFetchMock.mockResolvedValueOnce(ARTICLE_RESPONSE);
 
     const result = await fetchWithProxyFallback(
       "https://psychologytoday.com/article",
@@ -181,7 +202,7 @@ describe("fetchWithProxyFallback", () => {
 
     expect(robustFetchMock).toHaveBeenCalledTimes(2);
     // Verify the second call used the proxy URL
-    const proxyCall = robustFetchMock.mock.calls[1][0] as string;
+    const proxyCall = robustFetchMock.mock.calls[1][0];
     expect(proxyCall).toContain("https://proxy.example.com/?url=");
     expect(proxyCall).toContain(
       encodeURIComponent("https://psychologytoday.com/article"),
@@ -191,7 +212,7 @@ describe("fetchWithProxyFallback", () => {
   });
 
   it("returns empty string when direct fetch returns empty and no proxy is configured", async () => {
-    robustFetchMock.mockResolvedValueOnce("");
+    robustFetchMock.mockResolvedValueOnce({ text: "", status: 200 });
 
     const result = await fetchWithProxyFallback("https://example.com/article");
 
@@ -200,7 +221,7 @@ describe("fetchWithProxyFallback", () => {
   });
 
   it("returns empty string when direct fetch returns empty and corsProxyUrl is empty string", async () => {
-    robustFetchMock.mockResolvedValueOnce("");
+    robustFetchMock.mockResolvedValueOnce({ text: "", status: 200 });
 
     const result = await fetchWithProxyFallback(
       "https://example.com/article",
@@ -212,8 +233,8 @@ describe("fetchWithProxyFallback", () => {
   });
 
   it("returns empty string when both direct fetch and proxy return blocked content", async () => {
-    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_HTML); // direct
-    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_HTML); // proxy
+    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_RESPONSE); // direct
+    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_RESPONSE); // proxy
 
     const result = await fetchWithProxyFallback(
       "https://example.com/article",
@@ -232,31 +253,105 @@ describe("fetchWithProxyFallback", () => {
     expect(result).toBe("");
   });
 
+  it("does not emit intermediate Notice logs during retry flow", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_RESPONSE);
+    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_RESPONSE);
+
+    await fetchWithProxyFallback(
+      "https://example.com/article",
+      "https://proxy.example.com/?url=",
+    );
+
+    expect(logSpy).not.toHaveBeenCalledWith(
+      "[Stub Notice]",
+      expect.any(String),
+    );
+  });
+
   it("correctly encodes the article URL when appending to proxy base URL", async () => {
-    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_HTML); // direct blocked
-    robustFetchMock.mockResolvedValueOnce(ARTICLE_HTML); // proxy succeeds
+    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_RESPONSE); // direct blocked
+    robustFetchMock.mockResolvedValueOnce(ARTICLE_RESPONSE); // proxy succeeds
 
     const articleUrl = "https://example.com/article?id=123&ref=rss";
     const proxyBase = "https://api.allorigins.win/raw?url=";
 
     await fetchWithProxyFallback(articleUrl, proxyBase);
 
-    const proxyCall = robustFetchMock.mock.calls[1][0] as string;
+    const proxyCall = robustFetchMock.mock.calls[1][0];
     expect(proxyCall).toBe(proxyBase + encodeURIComponent(articleUrl));
   });
 
   it("trims trailing slash from proxy URL before appending article URL", async () => {
-    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_HTML);
-    robustFetchMock.mockResolvedValueOnce(ARTICLE_HTML);
+    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_RESPONSE);
+    robustFetchMock.mockResolvedValueOnce(ARTICLE_RESPONSE);
 
     await fetchWithProxyFallback(
       "https://example.com/article",
       "https://proxy.example.com/?url=/", // trailing slash
     );
 
-    const proxyCall = robustFetchMock.mock.calls[1][0] as string;
+    const proxyCall = robustFetchMock.mock.calls[1][0];
     // The trailing slash should be removed before appending the encoded URL
     expect(proxyCall.startsWith("https://proxy.example.com/?url=")).toBe(true);
     expect(proxyCall).not.toContain("/?url=/https%3A");
+  });
+});
+
+describe("fetchWithProxyFallbackDetailed", () => {
+  let robustFetchMock: MockInstance<typeof robustFetchDetailed>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    robustFetchMock = vi.spyOn(platformUtils, "robustFetchDetailed");
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("classifies blocked paywall content as restricted", async () => {
+    const restrictedHtml = `<html><body>403 forbidden. subscription required. ${"x".repeat(220)}</body></html>`;
+    robustFetchMock.mockResolvedValueOnce({ text: restrictedHtml, status: 403 });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      "https://example.com/restricted",
+    );
+
+    expect(result).toEqual({ content: "", failureType: "restricted" });
+  });
+
+  it("classifies thrown 401 errors as restricted", async () => {
+    robustFetchMock.mockRejectedValueOnce(new Error("request failed 401"));
+
+    const result = await fetchWithProxyFallbackDetailed(
+      "https://example.com/restricted",
+      "https://proxy.example.com/?url=",
+    );
+
+    expect(result).toEqual({ content: "", failureType: "restricted" });
+  });
+
+  it("keeps generic network failures as network", async () => {
+    robustFetchMock.mockRejectedValueOnce(new Error("socket timeout"));
+
+    const result = await fetchWithProxyFallbackDetailed(
+      "https://example.com/article",
+    );
+
+    expect(result).toEqual({ content: "", failureType: "network" });
+  });
+
+  it("classifies a 403 status response as restricted", async () => {
+    robustFetchMock.mockResolvedValueOnce({
+      text: "",
+      status: 403,
+    });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      "https://bloomberg.com/article",
+    );
+
+    expect(result).toEqual({ content: "", failureType: "restricted" });
   });
 });

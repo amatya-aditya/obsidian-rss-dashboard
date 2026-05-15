@@ -3,6 +3,12 @@ import { DEFAULT_SETTINGS, type FeedItem, type RssDashboardSettings } from "../.
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { beforeEach, describe, expect, it } from "vitest";
 
+/** Exposes private ArticleList members used by these regression tests. */
+interface ArticleListWithPrivate {
+  createPortalDropdown(anchor: HTMLElement, article: FeedItem, onUpdate: () => void): void;
+  tagsDropdownCleanup: (() => void) | null;
+}
+
 function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
@@ -30,7 +36,8 @@ describe("Tags dropdown portal (regression)", () => {
   });
 
   it("renders portal items for all available tags", () => {
-    const container = document.body.createDiv();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
     const settings = cloneSettings();
     settings.availableTags = [
       { name: "A", color: "#111111" },
@@ -68,8 +75,9 @@ describe("Tags dropdown portal (regression)", () => {
       "AND",
     );
 
-    const anchorEl = document.body.createDiv();
-    (list as any).createPortalDropdown(anchorEl, article, () => {});
+    const anchorEl = document.createElement("div");
+    document.body.appendChild(anchorEl);
+    (list as unknown as ArticleListWithPrivate).createPortalDropdown(anchorEl, article, () => {});
 
     const portal = document.body.querySelector(
       ".rss-dashboard-tags-dropdown-content-portal",
@@ -82,12 +90,13 @@ describe("Tags dropdown portal (regression)", () => {
       document.body.querySelector(".rss-dashboard-tag-inline-add-row"),
     ).not.toBeNull();
 
-    const cleanup = (list as any).tagsDropdownCleanup as (() => void) | null;
+    const cleanup = (list as unknown as ArticleListWithPrivate).tagsDropdownCleanup;
     cleanup?.();
   });
 
   it("opening tags portal must not remove Reader format portal", () => {
-    const container = document.body.createDiv();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
     const settings = cloneSettings();
     settings.availableTags = [{ name: "A", color: "#111111" }];
 
@@ -122,17 +131,18 @@ describe("Tags dropdown portal (regression)", () => {
       "AND",
     );
 
-    const formatPortal = document.body.createDiv({
-      cls: "rss-dashboard-tags-dropdown-content-portal rss-reader-format-dropdown-portal",
-    });
+    const formatPortal = document.createElement("div");
+    formatPortal.className = "rss-dashboard-tags-dropdown-content-portal rss-reader-format-dropdown-portal";
+    document.body.appendChild(formatPortal);
 
-    const anchorEl = document.body.createDiv();
-    (list as any).createPortalDropdown(anchorEl, article, () => {});
+    const anchorEl = document.createElement("div");
+    document.body.appendChild(anchorEl);
+    (list as unknown as ArticleListWithPrivate).createPortalDropdown(anchorEl, article, () => {});
 
     // Regression: tags portal cleanup should not remove reader format portal.
     expect(document.body.contains(formatPortal)).toBe(true);
 
-    const cleanup = (list as any).tagsDropdownCleanup as (() => void) | null;
+    const cleanup = (list as unknown as ArticleListWithPrivate).tagsDropdownCleanup;
     cleanup?.();
   });
 });

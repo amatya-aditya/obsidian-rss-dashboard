@@ -106,7 +106,7 @@ export function renderImportExportSettingsTab(
         .setIcon("upload")
         .setButtonText("Import data.json")
         .onClick(() => {
-          const input = document.body.createEl("input", {
+          const input = activeDocument.body.createEl("input", {
             attr: { type: "file", accept: ".json,.backup,application/json" },
           });
           input.onchange = () => {
@@ -169,7 +169,7 @@ export function renderImportExportSettingsTab(
         .setIcon("upload")
         .setButtonText("Import shard data")
         .onClick(() => {
-          const input = document.body.createEl("input", {
+          const input = activeDocument.body.createEl("input", {
             attr: { type: "file", accept: ".json,.backup,application/json" },
           });
           input.onchange = () => {
@@ -216,7 +216,7 @@ export function renderImportExportSettingsTab(
         .setIcon("upload")
         .setButtonText("Import usersettings.json")
         .onClick(() => {
-          const input = document.body.createEl("input", {
+          const input = activeDocument.body.createEl("input", {
             attr: { type: "file", accept: ".json,.backup,application/json" },
           });
           input.onchange = () => {

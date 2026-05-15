@@ -12,6 +12,8 @@ export interface FeedItem {
   coverImage: string;
 
   mediaType?: "article" | "video" | "podcast";
+  mediaContentType?: string;
+  mediaContentMedium?: string;
   videoId?: string;
   videoUrl?: string;
   audioUrl?: string;
@@ -43,6 +45,12 @@ export interface FeedItem {
     season?: string;
     episode?: string;
   };
+
+  /**
+   * If present, indicates the article was restricted/paywalled and only excerpt is shown.
+   * Used to trigger inline banner in the reader.
+   */
+  restrictedReason?: string;
 
   ieee?: {
     pubYear?: string;
@@ -184,8 +192,8 @@ export type PodcastTheme =
   | "tokyonight";
 
 export interface MediaSettings {
+  autoTagVideos: boolean;
   defaultYouTubeFolder: string;
-  defaultYouTubeTag: string;
   defaultPodcastFolder: string;
   defaultPodcastTag: string;
   defaultRssFolder: string;
@@ -266,6 +274,7 @@ export interface DisplaySettings {
   hideIconDivider: boolean;
   hideToolbarEntirely: boolean;
   iconOrder: string[];
+  articleDateStyle: "relative" | "absolute";
 }
 
 export interface SidebarIconConfig {
@@ -318,6 +327,7 @@ export interface KeywordFilterRule {
   applyToTitle: boolean;
   applyToSummary: boolean;
   applyToContent: boolean;
+  applyToURL?: boolean;
   enabled: boolean;
   createdAt: number;
 }
@@ -432,6 +442,21 @@ export interface RssDashboardSettings {
   storageMode: FeedStorageMode;
   storageFolder: string;
   storageSchemaVersion: number;
+  /**
+   * Metadata storage mode: "plugin-default" uses .obsidian/plugins/rss-dashboard/data.json,
+   * "vault-location" uses a user-configured vault folder.
+   */
+  metadataStorageMode: "plugin-default" | "vault-location";
+  /**
+   * User-configured vault folder for metadata (data.json) storage.
+   * Default: ".rss-dashboard-data"
+   * Only used when metadataStorageMode is "vault-location".
+   */
+  metadataStorageFolder: string;
+  /**
+   * Schema version for metadata storage to support future migrations.
+   */
+  metadataStorageSchemaVersion: number;
 }
 
 export type PersistedRssDashboardSettings = Omit<
@@ -445,6 +470,9 @@ export interface PortableDataBundle {
   version: number;
   exportedAt: number;
   storageMode: FeedStorageMode;
+  storageFolder?: string;
+  metadataStorageMode?: "plugin-default" | "vault-location";
+  metadataStorageFolder?: string;
   metadata: PersistedRssDashboardSettings;
   shards: FeedItemsShard[];
   markdownMirrorFallbackPlanned: boolean;
@@ -506,7 +534,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     { name: "Important", color: "#e74c3c" },
     { name: "Read later", color: "#3498db" },
     { name: "Favorite", color: "#f1c40f" },
-    { name: "YouTube", color: "#ff0000" },
+    { name: "Video", color: "#d04747" },
     { name: "Podcast", color: "#8e44ad" },
   ],
   folderSortOrder: { by: "name", ascending: true },
@@ -527,8 +555,8 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     paragraphSpacing: "default",
   },
   media: {
+    autoTagVideos: true,
     defaultYouTubeFolder: "Videos",
-    defaultYouTubeTag: "youtube",
     defaultPodcastFolder: "Podcast",
     defaultPodcastTag: "podcast",
     defaultRssFolder: "RSS",
@@ -629,6 +657,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
       "collapseAll",
       "settings",
     ],
+    articleDateStyle: "relative",
   },
   highlights: {
     enabled: false,
@@ -657,4 +686,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   storageMode: "legacy-json",
   storageFolder: ".rss-dashboard-data/feeds",
   storageSchemaVersion: 1,
+  metadataStorageMode: "plugin-default",
+  metadataStorageFolder: ".rss-dashboard-data",
+  metadataStorageSchemaVersion: 1,
 };

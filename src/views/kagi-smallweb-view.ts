@@ -1,4 +1,4 @@
-﻿import { ItemView, WorkspaceLeaf, Notice, setIcon, requestUrl } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, setIcon, requestUrl } from "obsidian";
 import { Feed } from "../types/types";
 import type RssDashboardPlugin from "../../main";
 import { setCssProps, attachInputClearButton } from "../utils/platform-utils";
@@ -34,8 +34,7 @@ export class KagiSmallwebView extends ItemView {
   private smallwebIsLoading = false;
   private smallwebError: string | null = null;
   private smallwebSearchQuery = "";
-  private smallwebSearchDebounceTimer: ReturnType<typeof setTimeout> | null =
-    null;
+  private smallwebSearchDebounceTimer: number | null = null;
   private smallwebFeedUpdatedAt: Date | null = null;
 
   constructor(
@@ -64,7 +63,7 @@ export class KagiSmallwebView extends ItemView {
 
   async onClose(): Promise<void> {
     if (this.smallwebSearchDebounceTimer) {
-      clearTimeout(this.smallwebSearchDebounceTimer);
+      activeWindow.clearTimeout(this.smallwebSearchDebounceTimer);
     }
     await super.onClose();
   }
@@ -411,9 +410,9 @@ export class KagiSmallwebView extends ItemView {
 
   private debouncedSmallwebSearch(query: string): void {
     if (this.smallwebSearchDebounceTimer) {
-      clearTimeout(this.smallwebSearchDebounceTimer);
+      activeWindow.clearTimeout(this.smallwebSearchDebounceTimer);
     }
-    this.smallwebSearchDebounceTimer = setTimeout(() => {
+    this.smallwebSearchDebounceTimer = activeWindow.setTimeout(() => {
       this.smallwebSearchQuery = query;
       this.filterSmallwebEntries();
       this.render();
@@ -520,10 +519,10 @@ export class KagiSmallwebView extends ItemView {
     previewBtn.addEventListener("click", () => {
       if (this.plugin.settings.useWebViewer) {
         // Open in sidebar using internal browser
-        window.open(entry.postUrl, "_blank", "noopener,noreferrer");
+        activeWindow.open(entry.postUrl, "_blank", "noopener,noreferrer");
       } else {
         // Open in external browser
-        window.open(entry.postUrl, "_blank");
+        activeWindow.open(entry.postUrl, "_blank");
       }
     });
 

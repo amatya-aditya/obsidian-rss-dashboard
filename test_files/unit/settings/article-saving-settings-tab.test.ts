@@ -9,6 +9,21 @@ function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+interface TestPlugin {
+  app: obsidian.App;
+  settings: {
+    articleSaving: {
+      defaultFolder: string;
+      addSavedTag: boolean;
+      saveFullContent: boolean;
+      fetchTimeout: number | undefined;
+      defaultTemplate: string;
+      savedTemplates: SavedTemplate[] | undefined;
+    };
+  };
+  saveSettings: ReturnType<typeof vi.fn>;
+}
+
 function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
   const settingEls = Array.from(containerEl.querySelectorAll(".setting-item"));
   const match = settingEls.find((el) => {
@@ -28,9 +43,9 @@ function createPlugin(overrides?: {
   fetchTimeout?: number | undefined;
   defaultTemplate?: string;
   savedTemplates?: SavedTemplate[] | undefined;
-}) {
+}): TestPlugin {
   const app = obsidian.App.createMock();
-  const plugin = {
+  const plugin: TestPlugin = {
     app,
     settings: {
       articleSaving: {
@@ -55,7 +70,7 @@ beforeEach(() => {
 
 describe("renderArticleSavingSettingsTab()", () => {
   it("persists save path via normalizePath() and saveSettings()", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.createElement("div");
     const plugin = createPlugin({ defaultFolder: "Old" });
     const onRefresh = vi.fn();
 
@@ -63,7 +78,7 @@ describe("renderArticleSavingSettingsTab()", () => {
 
     renderArticleSavingSettingsTab(
       containerEl,
-      plugin as any,
+      plugin,
       onRefresh,
     );
 
@@ -80,11 +95,11 @@ describe("renderArticleSavingSettingsTab()", () => {
   });
 
   it("persists toggles (addSavedTag, saveFullContent)", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.createElement("div");
     const plugin = createPlugin({ addSavedTag: false, saveFullContent: false });
     const onRefresh = vi.fn();
 
-    renderArticleSavingSettingsTab(containerEl, plugin as any, onRefresh);
+    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
     const savedTagSetting = getSettingByName(containerEl, "Add 'saved' tag");
     const savedTagToggle = savedTagSetting.querySelector(
@@ -109,11 +124,11 @@ describe("renderArticleSavingSettingsTab()", () => {
   });
 
   it("defaults fetchTimeout to 10 and persists slider changes", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.createElement("div");
     const plugin = createPlugin({ fetchTimeout: undefined });
     const onRefresh = vi.fn();
 
-    renderArticleSavingSettingsTab(containerEl, plugin as any, onRefresh);
+    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
     const settingEl = getSettingByName(containerEl, "Fetch timeout");
     const slider = settingEl.querySelector('input[type="range"]') as HTMLInputElement;
@@ -128,13 +143,13 @@ describe("renderArticleSavingSettingsTab()", () => {
   });
 
   it("updates defaultTemplate on textarea change; reset restores DEFAULT_SETTINGS + Notice", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.createElement("div");
     const plugin = createPlugin({ defaultTemplate: "A" });
     const onRefresh = vi.fn();
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
-    renderArticleSavingSettingsTab(containerEl, plugin as any, onRefresh);
+    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
     const textarea = containerEl.querySelector(
       ".rss-dashboard-template-input",
@@ -156,7 +171,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     ) as HTMLButtonElement;
     expect(resetBtn).toBeTruthy();
 
-    await (resetBtn as any).onclick();
+    await resetBtn.onclick();
 
     expect(textarea.value).toBe(DEFAULT_SETTINGS.articleSaving.defaultTemplate);
     expect(plugin.settings.articleSaving.defaultTemplate).toBe(
@@ -167,19 +182,19 @@ describe("renderArticleSavingSettingsTab()", () => {
   });
 
   it("renders empty saved templates note; save-as-template appends, saves, notices, and refreshes", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.createElement("div");
     const plugin = createPlugin({
       defaultTemplate: "CURR",
       savedTemplates: undefined,
     });
     const onRefresh = vi.fn();
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
     const openSpy = vi.spyOn(TemplateNameModal.prototype, "open").mockImplementation(() => {});
     vi.spyOn(TemplateNameModal.prototype, "waitForClose").mockResolvedValue("My template");
     vi.spyOn(Date, "now").mockReturnValue(111);
 
-    renderArticleSavingSettingsTab(containerEl, plugin as any, onRefresh);
+    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
     expect(
       containerEl.querySelector(".rss-dashboard-settings-note")?.textContent,
@@ -190,7 +205,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     ) as HTMLButtonElement;
     expect(saveAsBtn).toBeTruthy();
 
-    await (saveAsBtn as any).onclick();
+    await saveAsBtn.onclick();
 
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(plugin.settings.articleSaving.savedTemplates).toHaveLength(1);
@@ -208,20 +223,20 @@ describe("renderArticleSavingSettingsTab()", () => {
   });
 
   it("save-as-template does nothing when modal returns null/empty", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.createElement("div");
     const plugin = createPlugin({ defaultTemplate: "CURR", savedTemplates: [] });
     const onRefresh = vi.fn();
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
     vi.spyOn(TemplateNameModal.prototype, "waitForClose").mockResolvedValue(null);
 
-    renderArticleSavingSettingsTab(containerEl, plugin as any, onRefresh);
+    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
     const saveAsBtn = Array.from(containerEl.querySelectorAll("button")).find(
       (b) => b.textContent === "Save as template",
     ) as HTMLButtonElement;
 
-    await (saveAsBtn as any).onclick();
+    await saveAsBtn.onclick();
 
     expect(plugin.settings.articleSaving.savedTemplates).toHaveLength(0);
     expect(plugin.saveSettings).toHaveBeenCalledTimes(0);
@@ -230,15 +245,15 @@ describe("renderArticleSavingSettingsTab()", () => {
   });
 
   it("supports saved template actions: Load, Update, Delete", async () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.createElement("div");
     const plugin = createPlugin({
       defaultTemplate: "EDITOR",
       savedTemplates: [{ id: "t1", name: "One", template: "SAVED" }],
     });
     const onRefresh = vi.fn();
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
-    renderArticleSavingSettingsTab(containerEl, plugin as any, onRefresh);
+    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
     const textarea = containerEl.querySelector(
       ".rss-dashboard-template-input",

@@ -9,6 +9,7 @@ import {
   migrateDisplaySettings,
   migrateDefaultFilterToDashboardMultiFilters,
   migrateKeywordRulesSettings,
+  migrateMediaVideoTagSettings,
 } from "./settings-migration";
 import { canonicalizeItemIdentityUrl } from "./url-utils";
 import { normalizeRefreshIntervalMinutes } from "./validation";
@@ -102,6 +103,9 @@ export function loadAndNormalizeSettings(
     DEFAULT_SETTINGS.media,
     settings.media ?? {},
   );
+  settings.availableTags = Array.isArray(settings.availableTags)
+    ? settings.availableTags
+    : [...DEFAULT_SETTINGS.availableTags];
   settings.display = Object.assign(
     {},
     DEFAULT_SETTINGS.display,
@@ -161,6 +165,10 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
   const settingsUnknown = settings as unknown as Record<string, unknown>;
 
   if (migrateKeywordRulesSettings(settingsUnknown)) {
+    didChange = true;
+  }
+
+  if (migrateMediaVideoTagSettings(settingsUnknown)) {
     didChange = true;
   }
 
