@@ -143,7 +143,7 @@ export class ImportOpmlModal extends Modal {
 
   private openFilePicker() {
     /**
-     * NOTE for future developers: The following block uses Electron's native dialog via 'window.require'
+     * NOTE for future developers: The following block uses Electron's native dialog via 'activeWindow.require'
      * to support multiple file extension filters simultaneously (e.g., .opml, .xml) on Windows.
      * This is a known desktop-only pattern in Obsidian. We use 'any' casts and disable ESLint
      * rules here because these Electron-specific APIs are not in the standard Obsidian type
@@ -153,8 +153,8 @@ export class ImportOpmlModal extends Modal {
     try {
       /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument -- Electron remote dialog API for native file picker on desktop; not in standard Obsidian types */
       const remote =
-        (window as any).require?.("@electron/remote") ||
-        (window as any).require?.("electron")?.remote;
+        (activeWindow as any).require?.("@electron/remote") ||
+        (activeWindow as any).require?.("electron")?.remote;
       if (remote && remote.dialog) {
         const filePaths = remote.dialog.showOpenDialogSync({
           title: "Import feeds from OPML or XML",
@@ -608,7 +608,7 @@ export class ImportOpmlModal extends Modal {
     setIcon(edit, "pencil");
 
     const startEdit = () => {
-      const input = activeDocument.createElement("input");
+      const input = activeDocument.createEl("input");
       input.className = "import-preview-edit-input";
       input.value = node.name;
       nameText.replaceWith(input);
@@ -762,7 +762,7 @@ export class ImportOpmlModal extends Modal {
     setIcon(edit, "pencil");
 
     const startEdit = () => {
-      const input = activeDocument.createElement("input");
+      const input = activeDocument.createEl("input");
       input.className = "import-preview-edit-input";
       input.value = feed.title;
       titleText.replaceWith(input);

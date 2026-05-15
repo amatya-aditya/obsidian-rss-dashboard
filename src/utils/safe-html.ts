@@ -164,7 +164,7 @@ function sanitizeAndAppendNode(
     return;
   }
 
-  const next = ownerDoc.createElement(tag);
+  const next = ownerDoc.createEl(tag as keyof HTMLElementTagNameMap);
   if (mode === "rich") {
     copySafeAttributes(el, next);
   } else {

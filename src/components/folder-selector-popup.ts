@@ -98,7 +98,7 @@ export class FolderSelectorPopup {
    */
   private createPopup(
     anchorEl: HTMLElement,
-    defaultFolder?: string,
+    _defaultFolder?: string,
     initialQuery?: string,
   ): HTMLElement {
     const popup = activeDocument.body.createDiv({

@@ -3520,9 +3520,10 @@ export class Sidebar {
         folderFeedContainer?.children ?? [],
       ).some(
         (child) =>
-          child instanceof HTMLElement &&
-          child.classList.contains("rss-dashboard-feed-folder") &&
-          folderVisible.get(child) === true,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- activeWindow.instanceOf is an Obsidian-specific API not in standard types
+          (activeWindow as any).instanceOf(child, HTMLElement) &&
+          (child as HTMLElement).classList.contains("rss-dashboard-feed-folder") &&
+          folderVisible.get(child as HTMLElement) === true,
       );
 
       const shouldShow = directMatch || hasVisibleFeeds || hasVisibleSubfolder;

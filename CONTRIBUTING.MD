@@ -244,7 +244,11 @@ Pushing the Beta tag triggers this repo's GitHub Actions release workflow, which
 - `manifest.json`
 - `styles.css`
 
+The release workflow also emits GitHub artifact attestations for `main.js` and `styles.css` so release assets have verifiable build provenance.
+
 If the workflow is unavailable for any reason, create the GitHub release manually from the same tag and upload those files yourself.
+
+Note: manual uploads do not create GitHub artifact attestations. For compliance, re-run the release workflow from the tag so attestations are generated in GitHub Actions.
 
 Use `--set-upstream` on the first push of a new release branch so your local branch tracks `origin/release/...` and tools like VS Code stop showing `Publish Branch`.
 
@@ -291,6 +295,8 @@ git branch -d release/2.3.0
 ```
 
 Pushing the stable tag triggers this repo's release workflow, which creates a GitHub release from that tag and attaches the standard Obsidian plugin assets. If you ever need to do it manually, create the GitHub release from tag `2.3.0` and upload `main.js`, `manifest.json`, and `styles.css`.
+
+Stable releases should be published through the workflow path so attestation records exist for `main.js` and `styles.css`.
 
 ### Tag Retention Policy
 

@@ -200,9 +200,10 @@ export function createTagsDropdownPortal(
     tagItem.addEventListener("click", (e) => {
       if (
         e.target === tagCheckbox ||
-        (e.target instanceof Element &&
-          (e.target.closest(".rss-dashboard-tag-edit-button") ||
-            e.target.closest(".rss-dashboard-tag-delete-button")))
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- activeWindow.instanceOf is an Obsidian-specific API not in standard types
+        ((activeWindow as any).instanceOf(e.target, Element) &&
+          ((e.target as Element).closest(".rss-dashboard-tag-edit-button") ||
+            (e.target as Element).closest(".rss-dashboard-tag-delete-button")))
       ) {
         return;
       }

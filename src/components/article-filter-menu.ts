@@ -37,13 +37,6 @@ export class ArticleFilterMenu {
   private filterLogic: "AND" | "OR";
   private callbacks: ArticleFilterCallbacks;
 
-  /**
-   * Renders the filter menu UI into a portal (document.body).
-   * Uses a custom menu structure to avoid native Obsidian menu limitations
-   * while maintaining the look and feel of the app.
-   */
-  private renderMenu(portal: HTMLElement): void {
-  }
 
   private activePortal: HTMLElement | null = null;
   private activeFilterOutsideListenerCleanup: (() => void) | null = null;

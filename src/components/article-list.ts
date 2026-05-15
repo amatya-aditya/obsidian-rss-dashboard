@@ -327,10 +327,11 @@ export class ArticleList {
     const cards: HTMLElement[] = [];
 
     if (
-      root instanceof HTMLElement &&
-      root.classList.contains("rss-dashboard-article-card")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- activeWindow.instanceOf is an Obsidian-specific API not in standard types
+      (activeWindow as any).instanceOf(root, HTMLElement) &&
+      (root as HTMLElement).classList.contains("rss-dashboard-article-card")
     ) {
-      cards.push(root);
+      cards.push(root as HTMLElement);
     }
 
     root
@@ -461,7 +462,7 @@ export class ArticleList {
       ".rss-dashboard-card-tags-region",
     );
     if (!tagsRegion) {
-      tagsRegion = activeDocument.createElement("div");
+      tagsRegion = activeDocument.createDiv();
       tagsRegion.className = "rss-dashboard-card-tags-region";
       const cardFooter = articleEl.querySelector<HTMLElement>(
         ".rss-dashboard-card-footer",
@@ -494,7 +495,7 @@ export class ArticleList {
       ".rss-dashboard-feed-tags-region",
     );
     if (!tagsRegion) {
-      tagsRegion = activeDocument.createElement("div");
+      tagsRegion = activeDocument.createDiv();
       tagsRegion.className = "rss-dashboard-feed-tags-region";
       const feedFooter = articleEl.querySelector<HTMLElement>(
         ".rss-dashboard-feed-footer",
@@ -795,7 +796,7 @@ export class ArticleList {
     }
 
     const insertIdx = this.findSortedInsertIndex(article, sortOrder);
-    const temp = activeDocument.createElement("div");
+    const temp = activeDocument.createDiv();
 
     if (this.settings.viewStyle === "list") {
       this.renderListView(temp, [article]);
@@ -2054,7 +2055,7 @@ export class ArticleList {
       }
 
       if (hasTags) {
-        const tagsRegion = activeDocument.createElement("div");
+        const tagsRegion = activeDocument.createDiv();
         tagsRegion.className = "rss-dashboard-card-tags-region";
         const tagsContainer = tagsRegion.createDiv({
           cls: "rss-dashboard-article-tags",

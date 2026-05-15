@@ -74,7 +74,7 @@ export async function exportBlob(args: {
   try {
     const url = URL.createObjectURL(blob);
     try {
-      const a = activeDocument.createElement("a");
+      const a = activeDocument.createEl("a");
       a.href = url;
       a.download = filename;
       activeDocument.body.appendChild(a);

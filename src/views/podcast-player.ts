@@ -504,10 +504,11 @@ export class PodcastPlayer {
             const getSeekTime = (e: MouseEvent | TouchEvent) => {
                 const rect = progressBar.getBoundingClientRect();
                 let clientX: number;
-                if (e instanceof MouseEvent) {
-                    clientX = e.clientX;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- activeWindow.instanceOf is an Obsidian-specific API not in standard types
+                if ((activeWindow as any).instanceOf(e, MouseEvent)) {
+                    clientX = (e as MouseEvent).clientX;
                 } else {
-                    clientX = e.touches[0].clientX;
+                    clientX = (e as TouchEvent).touches[0].clientX;
                 }
                 const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
                 if (this.audioElement && this.audioElement.duration) {
@@ -523,7 +524,7 @@ export class PodcastPlayer {
                 this.updateProgressDisplay();
             });
 
-            progressBar.addEventListener('mousedown', (e) => {
+            progressBar.addEventListener('mousedown', (_e) => {
                 if (!this.audioElement || !this.audioElement.duration) return;
                 isDragging = true;
                 const moveHandler = (moveEvent: MouseEvent) => {
@@ -541,7 +542,7 @@ export class PodcastPlayer {
                 activeWindow.addEventListener('mouseup', upHandler);
             });
 
-            progressBar.addEventListener('touchstart', (e) => {
+            progressBar.addEventListener('touchstart', (_e) => {
                 if (!this.audioElement || !this.audioElement.duration) return;
                 isDragging = true;
                 const moveHandler = (moveEvent: TouchEvent) => {
@@ -590,7 +591,7 @@ export class PodcastPlayer {
             
             const playlistList = playlistSection.createDiv({ cls: "playlist-list" });
             
-            this.playlist.forEach((ep, index) => {
+            this.playlist.forEach((ep, _index) => {
                 const epRow = playlistList.createDiv({ cls: "playlist-episode-row" });
                 epRow.setAttribute("data-episode-guid", ep.guid);
                  

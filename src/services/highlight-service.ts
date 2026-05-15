@@ -130,7 +130,7 @@ export class HighlightService {
     const fragments = this.buildFragments(text, matches);
     for (const fragment of fragments) {
       if (fragment.isMatch) {
-        const mark = activeDocument.createElement("mark");
+        const mark = activeDocument.createEl("mark");
         mark.className = "rss-highlight";
         mark.style.setProperty(
           "--highlight-color",
@@ -212,7 +212,7 @@ export class HighlightService {
     const newNodes: Node[] = [];
     for (const fragment of fragments) {
       if (fragment.isMatch) {
-        const mark = activeDocument.createElement("mark");
+        const mark = activeDocument.createEl("mark");
         mark.className = "rss-highlight";
         mark.style.setProperty(
           "--highlight-color",

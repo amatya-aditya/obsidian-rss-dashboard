@@ -1481,7 +1481,7 @@ export class ReaderView extends ItemView {
       return (match ? match[1] : "").trim();
     };
 
-    const statsEl = doc.createElement("div");
+    const statsEl = doc.createDiv();
     statsEl.className = "rss-nitter-stats";
 
     const pills: Array<{ key: string; icon: string; count: string }> = [
@@ -1496,15 +1496,15 @@ export class ReaderView extends ItemView {
     ];
 
     for (const pill of pills) {
-      const pillEl = doc.createElement("span");
+      const pillEl = doc.createSpan();
       pillEl.className = "rss-nitter-stat";
       pillEl.setAttribute("data-stat", pill.key);
 
-      const iconEl = doc.createElement("span");
+      const iconEl = doc.createSpan();
       iconEl.className = "rss-nitter-stat-icon";
       iconEl.setAttribute("data-rss-icon", pill.icon);
 
-      const countEl = doc.createElement("span");
+      const countEl = doc.createSpan();
       countEl.className = "rss-nitter-stat-count";
       countEl.textContent = pill.count;
 
@@ -2301,7 +2301,8 @@ export class ReaderView extends ItemView {
   private toggleReaderFormatDropdown(event: MouseEvent): void {
     event.stopPropagation();
     const anchor = event.currentTarget;
-    if (!(anchor instanceof HTMLElement)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- activeWindow.instanceOf is an Obsidian-specific API not in standard types
+    if (!(activeWindow as any).instanceOf(anchor, HTMLElement)) {
       return;
     }
 
@@ -2313,7 +2314,7 @@ export class ReaderView extends ItemView {
 
     const format = this.getReaderFormat();
     const portal = createReaderFormatPortal({
-      anchor,
+      anchor: anchor as HTMLElement,
       format,
       defaults: DEFAULT_SETTINGS.readerFormat,
       applyFormat: () => this.applyReaderFormat(),

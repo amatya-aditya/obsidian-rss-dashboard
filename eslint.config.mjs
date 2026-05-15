@@ -30,6 +30,8 @@ export default defineConfig([
       parserOptions: { project: "./test_files/tsconfig.json" },
       globals: {
         ...globals.browser,
+        activeWindow: "readonly",
+        activeDocument: "readonly",
       },
     },
     rules: {
@@ -51,6 +53,8 @@ export default defineConfig([
       parserOptions: { project: "./tsconfig.json" },
       globals: {
         ...globals.browser,
+        activeWindow: "readonly",
+        activeDocument: "readonly",
       },
     },
 
@@ -100,12 +104,15 @@ export default defineConfig([
       //   // WARNINGS - Good to fix but not blocking
       //   // ============================================
 
-      //   // Unused variables - prefix with _ to ignore
-      //   "@typescript-eslint/no-unused-vars": ["warn", {
-      //     "argsIgnorePattern": "^_",
-      //     "varsIgnorePattern": "^_",
-      //     "caughtErrorsIgnorePattern": "^_"
-      //   }],
+      // Unused variables - prefix with _ to ignore
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
 
       //   // Unused expressions
       //   "@typescript-eslint/no-unused-expressions": "warn",

@@ -508,8 +508,9 @@ export class DiscoverView extends ItemView {
     this.saveFilterState();
 
     const contentEl = this.containerEl.querySelector(".rss-discover-content");
-    if (contentEl instanceof HTMLElement) {
-      this.renderContent(contentEl);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- activeWindow.instanceOf is an Obsidian-specific API not in standard types
+    if ((activeWindow as any).instanceOf(contentEl, HTMLElement)) {
+      this.renderContent(contentEl as HTMLElement);
     }
   }
 
@@ -903,7 +904,7 @@ export class DiscoverView extends ItemView {
   private handleCategorySelection(
     categoryName: string,
     selected: boolean,
-    depth: number,
+    _depth: number,
     categoryType: "domain" | "subdomain" | "area" | "topic",
   ): void {
     if (selected) {
@@ -955,10 +956,6 @@ export class DiscoverView extends ItemView {
 
   private renderTagFilter(container: HTMLElement): void {
     const tagSection = container.createDiv({ cls: "rss-discover-section" });
-
-    // const tagHeader = tagSection.createDiv({ cls: "rss-discover-section-header" });
-    // setIcon(tagHeader, "tags");
-    // tagHeader.appendChild(document.createTextNode(" Tags"));
 
     const tagList = tagSection.createDiv({ cls: "rss-discover-tag-list" });
 

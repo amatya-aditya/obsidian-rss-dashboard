@@ -198,7 +198,7 @@ export class RssDashboardView extends ItemView {
         }
       ).on(
         "rss-dashboard:filters-updated",
-        (payload: FiltersUpdatedEventPayload) => {
+        (_payload: FiltersUpdatedEventPayload) => {
           this.syncCurrentFeedReference();
           this.syncDashboardMultiFiltersFromSettings();
           this.render();
@@ -425,7 +425,7 @@ export class RssDashboardView extends ItemView {
         },
         onToggleViewStyle: this.handleToggleViewStyle.bind(this),
         onRefreshFeeds: this.handleRefreshFeeds.bind(this),
-        onSearch: (q: string) => {
+        onSearch: (_q: string) => {
           // State is handled by ArticleList locally, but we could sync it here if needed
         },
         onOpenViewFilters: () => {
