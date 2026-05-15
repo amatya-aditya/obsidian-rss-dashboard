@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import * as obsidian from "obsidian";
 import {
   clearApplePodcastsUrlCacheForTests,
@@ -13,6 +14,14 @@ interface ItunesSearchResult {
   collectionName?: string;
 }
 
+interface MockResponse {
+  status: number;
+  headers: Record<string, string>;
+  arrayBuffer: ArrayBuffer;
+  json: unknown;
+  text: string;
+}
+
 // Helper to create iTunes search response
 function createSearchResponse(results: ItunesSearchResult[]): string {
   return JSON.stringify({
@@ -22,7 +31,7 @@ function createSearchResponse(results: ItunesSearchResult[]): string {
 }
 
 describe("apple-podcasts-service", () => {
-  let requestUrlSpy: ReturnType<typeof vi.spyOn>;
+  let requestUrlSpy: Mock;
 
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -47,7 +56,7 @@ describe("apple-podcasts-service", () => {
               "https://podcasts.apple.com/us/podcast/test-podcast/id12345",
           },
         ]),
-      });
+      } as unknown as MockResponse);
 
       const result = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
 
@@ -73,7 +82,7 @@ describe("apple-podcasts-service", () => {
               "https://podcasts.apple.com/us/podcast/test-podcast/id12345",
           },
         ]),
-      });
+      } as unknown as MockResponse);
 
       const result = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
 
@@ -97,7 +106,7 @@ describe("apple-podcasts-service", () => {
             // No collectionViewUrl or trackViewUrl
           },
         ]),
-      });
+      } as unknown as MockResponse);
 
       const result = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
 
@@ -120,7 +129,7 @@ describe("apple-podcasts-service", () => {
               "https://podcasts.apple.com/us/podcast/test-podcast/id12345",
           },
         ]),
-      });
+      } as unknown as MockResponse);
 
       const result = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
 
@@ -145,7 +154,7 @@ describe("apple-podcasts-service", () => {
               "https://podcasts.apple.com/us/podcast/other/id99999",
           },
         ]),
-      });
+      } as unknown as MockResponse);
 
       const result = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
 
@@ -168,7 +177,7 @@ describe("apple-podcasts-service", () => {
               "https://podcasts.apple.com/us/podcast/test-podcast/id12345",
           },
         ]),
-      });
+      } as unknown as MockResponse);
 
       const result = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
 
@@ -188,7 +197,7 @@ describe("apple-podcasts-service", () => {
           resultCount: 0,
           results: [],
         }),
-      });
+      } as unknown as MockResponse);
 
       const result = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
 
@@ -208,7 +217,7 @@ describe("apple-podcasts-service", () => {
           resultCount: 1,
           results: "not an array",
         }),
-      });
+      } as unknown as MockResponse);
 
       const result = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
 
@@ -231,7 +240,7 @@ describe("apple-podcasts-service", () => {
               "https://podcasts.apple.com/us/podcast/test-podcast/id12345",
           },
         ]),
-      });
+      } as unknown as MockResponse);
 
       const result1 = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
       const result2 = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
@@ -261,7 +270,7 @@ describe("apple-podcasts-service", () => {
               "https://podcasts.apple.com/us/podcast/other/id99999",
           },
         ]),
-      });
+      } as unknown as MockResponse);
 
       const result1 = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
       const result2 = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
@@ -297,7 +306,7 @@ describe("apple-podcasts-service", () => {
         arrayBuffer: new ArrayBuffer(0),
         json: {},
         text: "Internal Server Error",
-      });
+      } as unknown as MockResponse);
 
       const result = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
 
@@ -321,7 +330,7 @@ describe("apple-podcasts-service", () => {
               "https://podcasts.apple.com/us/podcast/test-podcast-1/id12345",
           },
         ]),
-      });
+      } as unknown as MockResponse);
 
       const result1 = await resolveApplePodcastsShowUrl(feedUrl1, feedTitle);
 
@@ -338,7 +347,7 @@ describe("apple-podcasts-service", () => {
               "https://podcasts.apple.com/us/podcast/test-podcast-2/id67890",
           },
         ]),
-      });
+      } as unknown as MockResponse);
 
       const result2 = await resolveApplePodcastsShowUrl(feedUrl2, feedTitle);
 
@@ -382,7 +391,7 @@ describe("apple-podcasts-service", () => {
               "https://podcasts.apple.com/us/podcast/unrelated-3/id33333",
           },
         ]),
-      });
+      } as unknown as MockResponse);
 
       const result = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
 
@@ -407,7 +416,7 @@ describe("apple-podcasts-service", () => {
               "https://podcasts.apple.com/us/podcast/test-podcast/id12345",
           },
         ]),
-      });
+      } as unknown as MockResponse);
 
       const result = await resolveApplePodcastsShowUrl(feedUrl, feedTitle);
 

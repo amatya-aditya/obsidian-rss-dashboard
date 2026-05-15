@@ -14,7 +14,10 @@ import {
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
 }
 
 function encodeLatin1(text: string): Uint8Array {
@@ -124,13 +127,16 @@ describe("platform-utils.robustFetch", () => {
 
 describe("platform-utils.attachInputClearButton", () => {
   it("toggles visibility on input events and clears on click", () => {
-    const wrapper = document.body.createDiv();
-    const input = wrapper.createEl("input", { type: "text" });
+    const wrapper = document.createElement("div");
+    document.body.appendChild(wrapper);
+    const input = document.createElement("input");
+    input.type = "text";
+    wrapper.appendChild(input);
     const onClear = vi.fn();
 
     const clearButton = attachInputClearButton(
       wrapper,
-      input as HTMLInputElement,
+      input,
       onClear,
     );
 
@@ -138,19 +144,22 @@ describe("platform-utils.attachInputClearButton", () => {
     expect(clearButton.classList.contains("rss-discover-search-clear")).toBe(true);
     expect(clearButton.classList.contains("rss-discover-search-clear-hidden")).toBe(true);
 
-    (input as HTMLInputElement).value = "abc";
+    input.value = "abc";
     input.dispatchEvent(new Event("input"));
     expect(clearButton.classList.contains("rss-discover-search-clear-hidden")).toBe(false);
 
     clearButton.click();
-    expect((input as HTMLInputElement).value).toBe("");
+    expect(input.value).toBe("");
     expect(clearButton.classList.contains("rss-discover-search-clear-hidden")).toBe(true);
     expect(onClear).toHaveBeenCalledTimes(1);
   });
 
   it("supports keyboard activation via Enter and Space", () => {
-    const wrapper = document.body.createDiv();
-    const input = wrapper.createEl("input", { type: "text" }) as HTMLInputElement;
+    const wrapper = document.createElement("div");
+    document.body.appendChild(wrapper);
+    const input = document.createElement("input");
+    input.type = "text";
+    wrapper.appendChild(input);
     input.value = "abc";
 
     const onClear = vi.fn();
@@ -175,8 +184,11 @@ describe("platform-utils.attachInputClearButton", () => {
   });
 
   it("honors useButtonElement and custom classes", () => {
-    const wrapper = document.body.createDiv();
-    const input = wrapper.createEl("input", { type: "text" }) as HTMLInputElement;
+    const wrapper = document.createElement("div");
+    document.body.appendChild(wrapper);
+    const input = document.createElement("input");
+    input.type = "text";
+    wrapper.appendChild(input);
     input.value = "abc";
 
     const onClear = vi.fn();

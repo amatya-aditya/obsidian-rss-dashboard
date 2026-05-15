@@ -65,6 +65,13 @@ function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
 
+interface TestDashboardView {
+  activeStatusFilters: Set<string>;
+  activeTagFilters: Set<string>;
+  filterLogic: "AND" | "OR";
+  getArticlesTitleInfo(): { title: string; tooltip: string | null };
+}
+
 describe("Dashboard title filter summary", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
@@ -82,15 +89,13 @@ describe("Dashboard title filter summary", () => {
     };
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);
+    const testView = view as unknown as TestDashboardView;
 
-    (view as any).activeStatusFilters = new Set(["unread", "podcasts", "tagged"]);
-    (view as any).activeTagFilters = new Set(["Work", "Home"]);
-    (view as any).filterLogic = "OR";
+    testView.activeStatusFilters = new Set(["unread", "podcasts", "tagged"]);
+    testView.activeTagFilters = new Set(["Work", "Home"]);
+    testView.filterLogic = "OR";
 
-    const info = (view as any).getArticlesTitleInfo() as {
-      title: string;
-      tooltip: string | null;
-    };
+    const info = testView.getArticlesTitleInfo();
 
     expect(info.title).toBe("All Unread or Podcasts or Tags: Home, Work items");
     expect(info.tooltip).toBe(
@@ -109,14 +114,12 @@ describe("Dashboard title filter summary", () => {
     };
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);
+    const testView = view as unknown as TestDashboardView;
 
-    (view as any).activeStatusFilters = new Set();
-    (view as any).activeTagFilters = new Set();
+    testView.activeStatusFilters = new Set();
+    testView.activeTagFilters = new Set();
 
-    const info = (view as any).getArticlesTitleInfo() as {
-      title: string;
-      tooltip: string | null;
-    };
+    const info = testView.getArticlesTitleInfo();
 
     expect(info).toEqual({ title: "All articles", tooltip: null });
   });

@@ -2,16 +2,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
-let lastDiscoverSidebarInstance: any | null = null;
+interface MockSidebar {
+  rendered: boolean;
+  callbacks: { onFilterChange: () => void; onCloseMobileSidebar: () => void; };
+}
+
+let lastDiscoverSidebarInstance: MockSidebar | null = null;
 
 vi.mock("../../../src/components/discover-sidebar", () => {
   class DiscoverSidebar {
-    callbacks: any;
+    callbacks: { onFilterChange: () => void; onCloseMobileSidebar: () => void; };
     rendered = false;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(_app: any, _container: any, _plugin: any, _filters: any, _feeds: any, _section: any, callbacks: any) {
+    constructor(_app: unknown, _container: unknown, _plugin: unknown, _filters: unknown, _feeds: unknown, _section: unknown, callbacks: { onFilterChange: () => void; onCloseMobileSidebar: () => void; }) {
       this.callbacks = callbacks;
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
       lastDiscoverSidebarInstance = this;
     }
 
@@ -45,9 +50,9 @@ describe("MobileDiscoverFiltersModal", () => {
     const onFilterChange = vi.fn();
 
     const modal = new MobileDiscoverFiltersModal(
-      app as any,
-      plugin as any,
-      { query: "", types: [], categories: [], tags: [], tagMode: "any" } as any,
+      app as unknown as obsidian.App,
+      plugin as unknown as import("../../../main").default,
+      { query: "", types: [], categories: [], tags: [], tagMode: "any" } as unknown as import("../../../src/types/discover-types").DiscoverFilters,
       [],
       "types",
       onFilterChange,
@@ -63,11 +68,10 @@ describe("MobileDiscoverFiltersModal", () => {
     expect(modal.modalEl.querySelector(".modal-close-button")).toBeFalsy();
     expect(lastDiscoverSidebarInstance?.rendered).toBe(true);
 
-    lastDiscoverSidebarInstance.callbacks.onFilterChange();
+    lastDiscoverSidebarInstance?.callbacks.onFilterChange();
     expect(onFilterChange).toHaveBeenCalledTimes(1);
 
-    lastDiscoverSidebarInstance.callbacks.onCloseMobileSidebar();
+    lastDiscoverSidebarInstance?.callbacks.onCloseMobileSidebar();
     expect(modal.containerEl.isConnected).toBe(false);
   });
 });
-

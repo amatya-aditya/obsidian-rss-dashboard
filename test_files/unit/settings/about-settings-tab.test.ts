@@ -11,7 +11,8 @@ beforeEach(() => {
 
 describe("renderAboutTab()", () => {
   it("renders name/version and link buttons with safe attrs", () => {
-    const containerEl = document.body.createDiv();
+    const containerEl = document.createElement("div");
+    document.body.appendChild(containerEl);
     const plugin = {
       manifest: {
         name: "RSS Dashboard",
@@ -19,7 +20,7 @@ describe("renderAboutTab()", () => {
       },
     };
 
-    renderAboutTab(containerEl, plugin as any);
+    renderAboutTab(containerEl, plugin as unknown as import("../../../main").default);
 
     expect(
       containerEl.querySelector(".rss-dashboard-about-title")?.textContent,

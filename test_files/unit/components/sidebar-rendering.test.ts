@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-nodejs-modules
 import { readFileSync } from "fs";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
@@ -7,7 +8,8 @@ import {
 } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
-import { RssDashboardSettings, Folder, Feed } from "../../../src/types/types";
+import { RssDashboardSettings, Feed, Folder } from "../../../src/types/types";
+import type RssDashboardPlugin from "../../../main";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 installObsidianDomPolyfills();
@@ -18,8 +20,12 @@ describe("Sidebar Rendering", () => {
   let app: App;
   let container: HTMLElement;
   let styleEl: HTMLStyleElement;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let plugin: any;
+  interface MockPlugin {
+    settings: RssDashboardSettings;
+    saveSettings: ReturnType<typeof vi.fn>;
+    backgroundImportQueue?: unknown[];
+  }
+  let plugin: MockPlugin;
   let settings: RssDashboardSettings;
   let options: SidebarOptions;
   let callbacks: SidebarCallbacks;
@@ -29,6 +35,7 @@ describe("Sidebar Rendering", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
+    // eslint-disable-next-line obsidianmd/no-forbidden-elements
     styleEl = document.createElement("style");
     styleEl.textContent = SIDEBAR_CSS;
     document.head.appendChild(styleEl);
@@ -98,7 +105,7 @@ describe("Sidebar Rendering", () => {
     const sidebar = new Sidebar(
       app as any,
       container,
-      plugin,
+      plugin as unknown as RssDashboardPlugin,
       settings,
       options,
       callbacks,
@@ -115,7 +122,7 @@ describe("Sidebar Rendering", () => {
     const sidebar = new Sidebar(
       app as any,
       container,
-      plugin,
+      plugin as unknown as RssDashboardPlugin,
       settings,
       options,
       callbacks,
@@ -133,7 +140,7 @@ describe("Sidebar Rendering", () => {
     const sidebar = new Sidebar(
       app as any,
       container,
-      plugin,
+      plugin as unknown as RssDashboardPlugin,
       settings,
       options,
       callbacks,
@@ -149,7 +156,7 @@ describe("Sidebar Rendering", () => {
     const sidebar = new Sidebar(
       app as any,
       container,
-      plugin,
+      plugin as unknown as RssDashboardPlugin,
       settings,
       options,
       callbacks,
@@ -183,7 +190,7 @@ describe("Sidebar Rendering", () => {
     const sidebar = new Sidebar(
       app as any,
       container,
-      plugin,
+      plugin as unknown as RssDashboardPlugin,
       settings,
       options,
       callbacks,
@@ -216,7 +223,7 @@ describe("Sidebar Rendering", () => {
     const sidebar = new Sidebar(
       app as any,
       container,
-      plugin,
+      plugin as unknown as RssDashboardPlugin,
       settings,
       options,
       callbacks,
@@ -248,7 +255,7 @@ describe("Sidebar Rendering", () => {
     const sidebar = new Sidebar(
       app as any,
       container,
-      plugin,
+      plugin as unknown as RssDashboardPlugin,
       settings,
       options,
       callbacks,
@@ -283,7 +290,7 @@ describe("Sidebar Rendering", () => {
     const sidebar = new Sidebar(
       app as any,
       container,
-      plugin,
+      plugin as unknown as RssDashboardPlugin,
       settings,
       options,
       callbacks,
@@ -321,13 +328,23 @@ describe("Sidebar Rendering", () => {
       const sidebar = new Sidebar(
         app as any,
         container,
-        plugin,
+        plugin as unknown as RssDashboardPlugin,
         settings,
         options,
         callbacks,
       );
       const showFolderContextMenuSpy = vi
-        .spyOn(sidebar as any, "showFolderContextMenu")
+        .spyOn(
+          sidebar as unknown as {
+            showFolderContextMenu: (
+              event: MouseEvent,
+              folderObj: Folder,
+              fullPath: string,
+              folderName: string,
+            ) => void;
+          },
+          "showFolderContextMenu",
+        )
         .mockImplementation(() => undefined);
 
       sidebar.render();
@@ -356,12 +373,12 @@ describe("Sidebar Rendering", () => {
     const sidebar = new Sidebar(
       app as any,
       container,
-      plugin,
+      plugin as unknown as RssDashboardPlugin,
       settings,
       options,
       callbacks,
     );
-    sidebar["isTagsExpanded"] = true;
+    (sidebar as unknown as { isTagsExpanded: boolean })["isTagsExpanded"] = true;
     sidebar.render();
 
     const tagsSection = container.querySelector(
@@ -378,12 +395,12 @@ describe("Sidebar Rendering", () => {
     const sidebar = new Sidebar(
       app as any,
       container,
-      plugin,
+      plugin as unknown as RssDashboardPlugin,
       settings,
       options,
       callbacks,
     );
-    sidebar["isTagsExpanded"] = true;
+    (sidebar as unknown as { isTagsExpanded: boolean })["isTagsExpanded"] = true;
     sidebar.render();
 
     const tag1 = container.querySelector(
