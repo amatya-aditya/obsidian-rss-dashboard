@@ -389,22 +389,33 @@ Use this ordered list for each subsequent pass. Work top-to-bottom unless a file
   - **130/130 files passing**, **1180/1180 tests passing**, **0 failed**.
 - Lint backlog unchanged in this pass: **87 errors**, **0 warnings**.
 
-## Current Status (2026-05-14, post-Pass 53)
+### Pass 54
 
-- **Total Test Files with Errors:** 5
-- **Total Errors:** 87
+- Targeted the last 5 remaining test files from the ranked backlog (bottom of list).
+- Files fully cleaned (0 errors each):
+  - `test_files/unit/settings/storage-settings-general-tab.test.ts` — **23 → 0 errors**
+  - `test_files/unit/views/dashboard-header-title-batching.test.ts` — **22 → 0 errors**
+  - `test_files/unit/components/sidebar-rendering.test.ts` — **22 → 0 errors**
+  - `test_files/unit/modals/feed-manager-modal.test.ts` — **19 → 0 errors**
+  - `test_files/unit/services/sidebar-ordering-controller.test.ts` — **1 → 0 errors**
+- **Net Reduction:** **87 errors**.
+- **Backlog trend this phase:** **87 → 0 errors** (−87).
+- **Validation:**
+  - All 5 files now report 0 ESLint errors.
+  - Global `npx eslint "test_files"` confirms **0 errors** across the entire test suite.
+  - Global `npx vitest` confirms **130/130 files passing** (1180 tests).
+  - Targeted `npx tsc` for the 5 files confirmed **0 type errors**. (Note: some unrelated global TSC errors persist in other files/core).
+
+## Current Status (2026-05-15)
+
+- **Total Test Files with Errors:** 0
+- **Total Errors:** 0
 - **Total Warnings:** 0
-- **Unit Test Failures:** 0 (full suite passing: 130 files, 1180 tests).
+- **Unit Test Failures:** 0
 
 ## Working Backlog Queue (Ranked)
 
-| Rank | File                                                            | Errors | Warnings |
-| ---- | --------------------------------------------------------------- | -----: | -------: |
-| 1    | `test_files/unit/settings/storage-settings-general-tab.test.ts` |     23 |        0 |
-| 2    | `test_files/unit/views/dashboard-header-title-batching.test.ts` |     22 |        0 |
-| 3    | `test_files/unit/components/sidebar-rendering.test.ts`          |     22 |        0 |
-| 4    | `test_files/unit/modals/feed-manager-modal.test.ts`             |     19 |        0 |
-| 5    | `test_files/unit/services/sidebar-ordering-controller.test.ts`  |      1 |        0 |
+_Backlog fully remediated. No remaining files with ESLint errors._
 
 Use this ordered list for each subsequent pass. Work top-to-bottom unless a file is blocked by dependency context.
 

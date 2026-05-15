@@ -103,7 +103,7 @@ describe("Sidebar Rendering", () => {
 
   it("should render successfully", () => {
     const sidebar = new Sidebar(
-      app as any,
+      app as unknown as import("obsidian").App,
       container,
       plugin as unknown as RssDashboardPlugin,
       settings,
@@ -120,7 +120,7 @@ describe("Sidebar Rendering", () => {
 
   it("should render the All Feeds button", () => {
     const sidebar = new Sidebar(
-      app as any,
+      app as unknown as import("obsidian").App,
       container,
       plugin as unknown as RssDashboardPlugin,
       settings,
@@ -138,7 +138,7 @@ describe("Sidebar Rendering", () => {
 
   it("should show unread badge for All Feeds if at least one unread item exists", () => {
     const sidebar = new Sidebar(
-      app as any,
+      app as unknown as import("obsidian").App,
       container,
       plugin as unknown as RssDashboardPlugin,
       settings,
@@ -154,7 +154,7 @@ describe("Sidebar Rendering", () => {
 
   it("should render folders and feeds", () => {
     const sidebar = new Sidebar(
-      app as any,
+      app as unknown as import("obsidian").App,
       container,
       plugin as unknown as RssDashboardPlugin,
       settings,
@@ -188,7 +188,7 @@ describe("Sidebar Rendering", () => {
     ];
 
     const sidebar = new Sidebar(
-      app as any,
+      app as unknown as import("obsidian").App,
       container,
       plugin as unknown as RssDashboardPlugin,
       settings,
@@ -221,7 +221,7 @@ describe("Sidebar Rendering", () => {
     ];
 
     const sidebar = new Sidebar(
-      app as any,
+      app as unknown as import("obsidian").App,
       container,
       plugin as unknown as RssDashboardPlugin,
       settings,
@@ -253,7 +253,7 @@ describe("Sidebar Rendering", () => {
     ];
 
     const sidebar = new Sidebar(
-      app as any,
+      app as unknown as import("obsidian").App,
       container,
       plugin as unknown as RssDashboardPlugin,
       settings,
@@ -288,7 +288,7 @@ describe("Sidebar Rendering", () => {
 
   it("should toggle a folder from the chevron without opening the folder", () => {
     const sidebar = new Sidebar(
-      app as any,
+      app as unknown as import("obsidian").App,
       container,
       plugin as unknown as RssDashboardPlugin,
       settings,
@@ -326,7 +326,7 @@ describe("Sidebar Rendering", () => {
 
     try {
       const sidebar = new Sidebar(
-        app as any,
+        app as unknown as import("obsidian").App,
         container,
         plugin as unknown as RssDashboardPlugin,
         settings,
@@ -371,7 +371,7 @@ describe("Sidebar Rendering", () => {
 
   it("should render the tags section when tags are expanded", () => {
     const sidebar = new Sidebar(
-      app as any,
+      app as unknown as import("obsidian").App,
       container,
       plugin as unknown as RssDashboardPlugin,
       settings,
@@ -393,7 +393,7 @@ describe("Sidebar Rendering", () => {
 
   it("should call onTagToggle when a tag is clicked", () => {
     const sidebar = new Sidebar(
-      app as any,
+      app as unknown as import("obsidian").App,
       container,
       plugin as unknown as RssDashboardPlugin,
       settings,

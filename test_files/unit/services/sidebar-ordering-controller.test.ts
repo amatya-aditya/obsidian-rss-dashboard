@@ -30,8 +30,8 @@ describe("sidebar-ordering-controller helpers", () => {
     const settings = cloneSettings();
     delete settings.folderFeedSortOrders;
 
-    setFolderFeedSortCustom(settings, undefined as unknown as string);
-    const updatedSettings = settings as RssDashboardSettings;
+    setFolderFeedSortCustom(settings, "" as string);
+    const updatedSettings = settings;
     expect(updatedSettings.folderFeedSortOrders).toBeTruthy();
     expect(updatedSettings.folderFeedSortOrders?.[""]?.by).toBe("custom");
   });

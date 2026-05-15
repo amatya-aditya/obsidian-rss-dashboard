@@ -36,7 +36,7 @@ import type {
 } from "../../services/feed-storage-repository";
 import type { RssDashboardSettings } from "../../types/types";
 
-interface GeneralSettingsPlugin {
+export interface GeneralSettingsPlugin {
   app: App;
   settingTab: { display(): void } | null;
   settings: RssDashboardSettings;
