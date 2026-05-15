@@ -33,8 +33,8 @@ export function installObsidianDomPolyfills(): void {
     };
   }
 
-  if (typeof (proto as any).setText !== "function") {
-    (proto as any).setText = function (this: HTMLElement, text: string): void {
+  if (typeof proto["setText"] !== "function") {
+    proto["setText"] = function setText(this: HTMLElement, text: string): void {
       this.textContent = text;
     };
   }
@@ -48,8 +48,8 @@ export function installObsidianDomPolyfills(): void {
     };
   }
 
-  if (typeof (proto as any).addClasses !== "function") {
-    (proto as any).addClasses = function addClasses(
+  if (typeof proto["addClasses"] !== "function") {
+    proto["addClasses"] = function addClasses(
       this: HTMLElement,
       classes: string[],
     ): void {
@@ -66,8 +66,8 @@ export function installObsidianDomPolyfills(): void {
     };
   }
 
-  if (typeof (proto as any).hasClass !== "function") {
-    (proto as any).hasClass = function (
+  if (typeof proto["hasClass"] !== "function") {
+    proto["hasClass"] = function hasClass(
       this: HTMLElement,
       cls: string,
     ): boolean {
@@ -95,8 +95,8 @@ export function installObsidianDomPolyfills(): void {
     };
   }
 
-  if (typeof (proto as any).getAttr !== "function") {
-    (proto as any).getAttr = function (
+  if (typeof proto["getAttr"] !== "function") {
+    proto["getAttr"] = function getAttr(
       this: HTMLElement,
       key: string,
     ): string | null {
@@ -148,8 +148,8 @@ export function installObsidianDomPolyfills(): void {
     };
   }
 
-  if (typeof (proto as any).appendText !== "function") {
-    (proto as any).appendText = function appendText(
+  if (typeof proto["appendText"] !== "function") {
+    proto["appendText"] = function appendText(
       this: HTMLElement,
       text: string,
     ): void {
@@ -186,7 +186,7 @@ export function installObsidianDomPolyfills(): void {
           }
           // Pass through common properties like value/placeholder/disabled/etc.
           if (key in el) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- permissive type for polyfill matching runtime Obsidian createEl behaviour
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- permissive type for polyfill matching runtime Obsidian createEl behaviour
             (el as any)[key] = value;
           }
         });
@@ -208,7 +208,7 @@ export function installObsidianDomPolyfills(): void {
       unobserve(): void {}
       disconnect(): void {}
     }
-    (window as any).ResizeObserver = MockResizeObserver;
+    window.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
   }
 }
 

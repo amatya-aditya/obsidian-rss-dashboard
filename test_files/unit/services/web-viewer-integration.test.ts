@@ -72,7 +72,7 @@ describe("Phase 8 - WebViewerIntegration", () => {
 
     it("returns false when openWebpage throws and emits a Notice", async () => {
       vi.useFakeTimers();
-      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
       const h = createWebViewerIntegrationHarness({
         webViewerPlugin: {
@@ -238,7 +238,7 @@ describe("Phase 8 - WebViewerIntegration", () => {
 
   describe("saveArticle", () => {
     it("creates a markdown file and emits a success Notice", async () => {
-      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
       const h = createWebViewerIntegrationHarness({
         settings: { frontmatterTemplate: "", addSavedTag: true },
@@ -279,7 +279,7 @@ describe("Phase 8 - WebViewerIntegration", () => {
     });
 
     it("returns null and emits a Notice when the file already exists", async () => {
-      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
       const h = createWebViewerIntegrationHarness();
       const item = buildFeedItem({ title: "Dupe" });

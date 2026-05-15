@@ -262,7 +262,7 @@ describe("Dashboard pagination", () => {
       openTagsSettings: vi.fn(async () => {}),
     };
 
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);
@@ -325,7 +325,7 @@ describe("Dashboard pagination", () => {
       openTagsSettings: vi.fn(async () => {}),
     };
 
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);
@@ -397,7 +397,7 @@ describe("Dashboard pagination", () => {
       openTagsSettings: vi.fn(async () => {}),
     };
 
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);
@@ -459,7 +459,7 @@ describe("Dashboard pagination", () => {
       openTagsSettings: vi.fn(async () => {}),
     };
 
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);

@@ -147,7 +147,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     const plugin = createPlugin({ defaultTemplate: "A" });
     const onRefresh = vi.fn();
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
@@ -189,7 +189,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     });
     const onRefresh = vi.fn();
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
     const openSpy = vi.spyOn(TemplateNameModal.prototype, "open").mockImplementation(() => {});
     vi.spyOn(TemplateNameModal.prototype, "waitForClose").mockResolvedValue("My template");
     vi.spyOn(Date, "now").mockReturnValue(111);
@@ -227,7 +227,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     const plugin = createPlugin({ defaultTemplate: "CURR", savedTemplates: [] });
     const onRefresh = vi.fn();
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
     vi.spyOn(TemplateNameModal.prototype, "waitForClose").mockResolvedValue(null);
 
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
@@ -251,7 +251,7 @@ describe("renderArticleSavingSettingsTab()", () => {
       savedTemplates: [{ id: "t1", name: "One", template: "SAVED" }],
     });
     const onRefresh = vi.fn();
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 

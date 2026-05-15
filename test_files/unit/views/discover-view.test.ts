@@ -197,7 +197,7 @@ describe("DiscoverView (P1-3)", () => {
     document.body.empty();
     folderSelectorSpy.calls = [];
     vi.restoreAllMocks();
-    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "debug").mockImplementation(() => {});
   });
 
   it("loadData() loads feeds, generates category map, and restores saved filters", async () => {
@@ -563,8 +563,7 @@ describe("DiscoverView (P1-3)", () => {
     folderSelectorSpy.calls[0].onSelect("Uncategorized");
     await flushPromises();
 
-    // eslint-disable-next-line no-console
-    expect(console.log).toHaveBeenCalledWith(
+    expect(console.debug).toHaveBeenCalledWith(
       "[Stub Notice]",
       "Added 2 feeds. Articles will be fetched in the background. Skipped 1 already-followed feeds.",
     );

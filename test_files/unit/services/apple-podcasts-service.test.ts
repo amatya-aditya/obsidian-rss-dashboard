@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import * as obsidian from "obsidian";
 import {

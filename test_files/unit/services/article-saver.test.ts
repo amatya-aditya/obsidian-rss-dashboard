@@ -42,9 +42,8 @@ function createItem(overrides: Partial<FeedItem> = {}): FeedItem {
 }
 
 beforeEach(() => {
-  vi.spyOn(console, "log").mockImplementation(() => {});
-  vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "debug").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -381,7 +380,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     });
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
     vi.spyOn(
       fetchHelpers,
       "fetchWithProxyFallbackDetailed",

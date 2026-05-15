@@ -61,29 +61,36 @@ interface TestFeedParser {
 
 interface TestPlugin {
   settings: typeof DEFAULT_SETTINGS;
-  saveData: () => Promise<void>;
+  saveData: ReturnType<typeof vi.fn>;
   feedParser: TestFeedParser;
   refreshFeeds: (selectedFeeds?: Feed[]) => Promise<void>;
   activeRefreshState: Map<string, unknown>;
+  getActiveDashboardView: ReturnType<typeof vi.fn>;
+  validateSavedArticles: ReturnType<typeof vi.fn>;
 }
 
 function createPluginWithSettings(feeds: Feed[]): TestPlugin {
   const app = new App();
   const plugin = new RssDashboardPlugin(app as unknown as ConstructorParameters<typeof RssDashboardPlugin>[0], createMockManifest() as unknown as ConstructorParameters<typeof RssDashboardPlugin>[1]);
 
-  plugin.settings = {
+  const testPlugin = plugin as unknown as TestPlugin;
+
+  testPlugin.settings = {
     ...DEFAULT_SETTINGS,
     feeds,
   };
 
-  plugin.saveData = vi.fn().mockResolvedValue(undefined);
+  testPlugin.saveData = vi.fn().mockResolvedValue(undefined);
 
-  plugin.feedParser = {
+  testPlugin.feedParser = {
     refreshFeed: vi.fn(),
     refreshAllFeeds: vi.fn(),
   };
 
-  return plugin as unknown as TestPlugin;
+  testPlugin.getActiveDashboardView = vi.fn();
+  testPlugin.validateSavedArticles = vi.fn();
+
+  return testPlugin;
 }
 
 function getNoticeMessages(spy: ReturnType<typeof vi.spyOn>): string[] {
@@ -95,9 +102,8 @@ function getNoticeMessages(spy: ReturnType<typeof vi.spyOn>): string[] {
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
-  vi.spyOn(console, "debug").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -163,7 +169,7 @@ describe("refreshFeeds() pipeline behavior", () => {
       items: [createItem({ guid: "e-1", feedTitle: "Feed E", feedUrl: "https://example.com/e.xml" })],
     };
 
-    const validateSpy = vi.spyOn(plugin as never, "validateSavedArticles");
+    const validateSpy = vi.spyOn(plugin, "validateSavedArticles");
     const viewRefreshSpy = vi.fn();
     const sidebarRefreshSpy = vi.fn();
     vi.spyOn(plugin, "getActiveDashboardView").mockResolvedValue({
@@ -200,7 +206,7 @@ describe("refreshFeeds() pipeline behavior", () => {
     const refreshPromise = plugin.refreshFeeds();
     await Promise.resolve();
 
-    expect((plugin.feedParser.refreshFeed as unknown as { mock: { calls: unknown[][] } }).mock.calls.map(([feed]: [Feed]) => feed.url)).toEqual([
+    expect(plugin.feedParser.refreshFeed.mock.calls.map((call: unknown[]) => (call[0] as Feed).url)).toEqual([
       "https://example.com/a.xml",
       "https://example.com/b.xml",
       "https://example.com/c.xml",
@@ -227,7 +233,7 @@ describe("refreshFeeds() pipeline behavior", () => {
     expect(plugin.settings.feeds[2].lastUpdated).toBe(777);
     expect(plugin.settings.feeds[3].lastUpdated).toBe(666);
     expect(plugin.settings.feeds[4].lastUpdated).toBe(555);
-    expect((plugin.feedParser.refreshFeed as unknown as { mock: { calls: unknown[][] } }).mock.calls.map(([feed]: [Feed]) => feed.url)).toEqual([
+    expect(plugin.feedParser.refreshFeed.mock.calls.map((call: unknown[]) => (call[0] as Feed).url)).toEqual([
       "https://example.com/a.xml",
       "https://example.com/b.xml",
       "https://example.com/c.xml",

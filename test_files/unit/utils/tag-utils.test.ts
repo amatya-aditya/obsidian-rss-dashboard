@@ -66,7 +66,7 @@ describe("tag-utils.updateTagInSettings", () => {
 
 describe("tag-utils.showEditTagModal", () => {
   it("validates empty and duplicate names, then saves and closes", async () => {
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     const settings = makeSettings([
       { name: "Tech", color: "#111111" },

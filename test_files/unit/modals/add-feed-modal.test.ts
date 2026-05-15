@@ -194,7 +194,7 @@ describe("AddFeedModal", () => {
     const app = createMockApp();
     const onAdd: OnAddFn = vi.fn(async () => true);
     const onSave = vi.fn();
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     const modal = new AddFeedModal(app, [], onAdd, onSave);
     modal.open();

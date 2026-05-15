@@ -145,7 +145,7 @@ describe("ImportOpmlModal", () => {
       })),
     } as unknown as TestPlugin;
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     const modal = new ImportOpmlModal(app, plugin as unknown as ConstructorParameters<typeof ImportOpmlModal>[1]);
     (modal as unknown as TestModal).open();

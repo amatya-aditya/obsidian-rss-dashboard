@@ -60,7 +60,7 @@ describe("VideoPlayer", () => {
     const container = createContainer({ text: "keep" });
     const player = new VideoPlayer(container);
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     player.loadVideo(baseItem({ videoId: undefined }));
 
@@ -275,7 +275,7 @@ describe("VideoPlayer", () => {
       throw new Error("boom");
     });
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     player.loadVideo(baseItem());
 

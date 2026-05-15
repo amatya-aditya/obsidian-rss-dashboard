@@ -97,8 +97,6 @@ function makeFeed(url: string, items: Partial<FeedItem>[] = []): Feed {
   };
 }
 
-import type { RssDashboardView } from "../../../src/views/dashboard-view";
-
 interface DashboardViewInternal {
   inlineArticle: FeedItem | null;
   selectedArticle: FeedItem | null;
@@ -110,7 +108,9 @@ interface DashboardViewInternal {
   render: ReturnType<typeof vi.fn>;
 }
 
-async function makeView(settings: RssDashboardSettings): Promise<DashboardViewInternal> {
+async function makeView(
+  settings: RssDashboardSettings,
+): Promise<DashboardViewInternal> {
   const { RssDashboardView } =
     await import("../../../src/views/dashboard-view");
   const app = new App();
@@ -120,7 +120,10 @@ async function makeView(settings: RssDashboardSettings): Promise<DashboardViewIn
     updateArticle: vi.fn(async () => {}),
   };
   const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
-  const view = new RssDashboardView(leaf, plugin as never) as unknown as DashboardViewInternal;
+  const view = new RssDashboardView(
+    leaf,
+    plugin as never,
+  ) as unknown as DashboardViewInternal;
   view.render = vi.fn();
   return view;
 }
