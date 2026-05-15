@@ -6,6 +6,7 @@ import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
 import { MediaService } from "../services/media-service";
 import {
   formatDateWithRelative,
+  formatArticleDate,
   ensureUtf8Meta,
   setCssProps,
 } from "../utils/platform-utils";
@@ -1760,7 +1761,7 @@ export class ArticleList {
       const dateEl = actionToolbar.createDiv({
         cls: "rss-dashboard-article-date",
       });
-      const dateInfo = formatDateWithRelative(article.pubDate);
+      const dateInfo = formatArticleDate(article.pubDate, this.settings.display.articleDateStyle ?? "relative");
       dateEl.textContent = dateInfo.text;
       dateEl.setAttribute("title", dateInfo.title);
 
@@ -1818,7 +1819,7 @@ export class ArticleList {
       } else {
         titleEl.textContent = article.title;
       }
-      const dateInfo = formatDateWithRelative(article.pubDate);
+      const dateInfo = formatArticleDate(article.pubDate, this.settings.display.articleDateStyle ?? "relative");
       if (!useBottomRow) {
         const timeEl = mainGrid.createDiv("rss-dashboard-grid-time");
         const dateEl = timeEl.createSpan("rss-dashboard-article-date");
@@ -2055,13 +2056,11 @@ export class ArticleList {
       }
 
       if (hasTags) {
-        const tagsRegion = activeDocument.createDiv();
-        tagsRegion.className = "rss-dashboard-card-tags-region";
+        const tagsRegion = card.createDiv({ cls: "rss-dashboard-card-tags-region" });
         const tagsContainer = tagsRegion.createDiv({
           cls: "rss-dashboard-article-tags",
         });
         this.renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
-        card.appendChild(tagsRegion);
       }
 
       if (this.shouldShowToolbarForView("card")) {
@@ -2076,7 +2075,7 @@ export class ArticleList {
         const dateEl = actionToolbar.createDiv({
           cls: "rss-dashboard-article-date",
         });
-        const dateInfo = formatDateWithRelative(article.pubDate);
+        const dateInfo = formatArticleDate(article.pubDate, this.settings.display.articleDateStyle ?? "relative");
         dateEl.textContent = dateInfo.text;
         dateEl.setAttribute("title", dateInfo.title);
       }

@@ -9,6 +9,7 @@
 - Added long-press support on folders in sidebar for mobile devices that performs the same right-click functionality as desktop. Resolves [GH Issue #113](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/113)
 - Added new status section in edit feed modal to show location of feed ID, feed storage type (shard or legacy), and a copy button to quickly copy the local location.
 - Added "URL" as a Rule target alongside title, summary, and content which allows filters based upon URL address (i.e. 'shorts' for YouTube Shorts) [GH PR #116 submitted by Caleb68864](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/116)
+- Added new Display setting to change from Relative timestamps (Today, 1 day ago, 1 week ago etc) to Absolute timestamps (e.g. May 15, 2026) [GH Issue #115 submitted by Thehone1](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/115)
 
 ### Fixes
 

@@ -85,7 +85,7 @@ export function createToolbarButton(
   icon: SidebarIconConfig,
   onClick: () => void,
 ): HTMLElement {
-  const btn = activeDocument.createDiv();
+  const btn = activeDocument.createElement("div");
   btn.className = "clickable-icon";
   btn.setAttribute("role", "button");
   btn.setAttribute("tabindex", "0");

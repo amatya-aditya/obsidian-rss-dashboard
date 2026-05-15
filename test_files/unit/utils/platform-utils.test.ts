@@ -3,6 +3,8 @@ import * as Obsidian from "obsidian";
 import {
   attachInputClearButton,
   ensureUtf8Meta,
+  formatDateWithRelative,
+  formatArticleDate,
   formatRelativeTime,
   getViewportTier,
   isPhoneViewport,
@@ -243,6 +245,42 @@ describe("platform-utils.misc", () => {
     expect(getViewportTier(500)).toBe("phone");
     expect(getViewportTier(900)).toBe("tablet");
     expect(getViewportTier(1600)).toBe("desktop");
+  });
+
+  it("formatDateWithRelative returns relative text and absolute title", () => {
+    vi.useFakeTimers();
+    // 2026-05-15T12:00:00
+    vi.setSystemTime(new Date("2026-05-15T12:00:00Z"));
+
+    const date = new Date("2026-05-15T10:00:00Z");
+    const result = formatDateWithRelative(date);
+
+    expect(result.text).toBe("Today");
+    // toLocaleDateString output can vary by environment, but we expect a string containing the date
+    expect(result.title).toContain("2026");
+    expect(result.title).toContain("May");
+
+    vi.useRealTimers();
+  });
+
+  it("formatArticleDate respects relative/absolute styles", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-15T12:00:00Z"));
+
+    const date = new Date("2026-05-15T10:00:00Z");
+
+    // Case 1: Relative (default)
+    const relativeResult = formatArticleDate(date, "relative");
+    expect(relativeResult.text).toBe("Today");
+    expect(relativeResult.title).toContain("2026");
+
+    // Case 2: Absolute
+    const absoluteResult = formatArticleDate(date, "absolute");
+    expect(absoluteResult.text).toContain("2026");
+    expect(absoluteResult.text).toContain("May");
+    expect(absoluteResult.title).toBe("Today");
+
+    vi.useRealTimers();
   });
 });
 

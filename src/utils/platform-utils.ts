@@ -101,6 +101,25 @@ export function formatDateWithRelative(date: Date | string): {
   };
 }
 
+/**
+ * Returns { text, title } for an article date, respecting the display preference.
+ * "relative" (default) -> text = relative, title = absolute
+ * "absolute"           -> text = absolute, title = relative
+ *
+ * NOTE: Do NOT use this for group-by keys if you need consistent grouping —
+ * use formatDateWithRelative() directly for that.
+ */
+export function formatArticleDate(
+  date: Date | string,
+  style: "relative" | "absolute" = "relative",
+): { text: string; title: string } {
+  const base = formatDateWithRelative(date);
+  if (style === "absolute") {
+    return { text: base.title, title: base.text };
+  }
+  return base;
+}
+
 export function ensureUtf8Meta(html: string): string {
   if (!/^\s*<meta[^>]+charset=/i.test(html)) {
     return '<meta charset="UTF-8">' + html;

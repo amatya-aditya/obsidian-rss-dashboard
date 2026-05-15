@@ -283,6 +283,27 @@ export function renderDisplaySettingsTab(
         }),
     );
 
+  new Setting(containerEl)
+    .setName("Article date display")
+    .setDesc(
+      "Choose whether article dates are shown as relative ('2 days ago') or absolute ('May 9, 2026').",
+    )
+    .addDropdown((dropdown) =>
+      dropdown
+        .addOption("relative", "Relative (e.g. '2 days ago')")
+        .addOption("absolute", "Absolute (e.g. 'May 9, 2026, 11:39 AM')")
+        .setValue(plugin.settings.display.articleDateStyle ?? "relative")
+        .onChange(async (value: string) => {
+          plugin.settings.display.articleDateStyle = value as "relative" | "absolute";
+          await plugin.saveSettings();
+          const view = await plugin.getActiveDashboardView();
+          if (view) {
+            await plugin.app.workspace.revealLeaf(view.leaf);
+            view.render();
+          }
+        }),
+    );
+
   const formatStartupFiltersButton = (): { text: string; tooltip: string | null } => {
     const mf = plugin.settings.dashboardMultiFilters;
     return formatDashboardMultiFiltersSummaryCompact({

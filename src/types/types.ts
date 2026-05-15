@@ -274,6 +274,7 @@ export interface DisplaySettings {
   hideIconDivider: boolean;
   hideToolbarEntirely: boolean;
   iconOrder: string[];
+  articleDateStyle: "relative" | "absolute";
 }
 
 export interface SidebarIconConfig {
@@ -656,6 +657,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
       "collapseAll",
       "settings",
     ],
+    articleDateStyle: "relative",
   },
   highlights: {
     enabled: false,

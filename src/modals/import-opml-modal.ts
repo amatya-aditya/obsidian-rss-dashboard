@@ -608,7 +608,7 @@ export class ImportOpmlModal extends Modal {
     setIcon(edit, "pencil");
 
     const startEdit = () => {
-      const input = activeDocument.createEl("input");
+      const input = activeDocument.createElement("input");
       input.className = "import-preview-edit-input";
       input.value = node.name;
       nameText.replaceWith(input);
@@ -762,7 +762,7 @@ export class ImportOpmlModal extends Modal {
     setIcon(edit, "pencil");
 
     const startEdit = () => {
-      const input = activeDocument.createEl("input");
+      const input = activeDocument.createElement("input");
       input.className = "import-preview-edit-input";
       input.value = feed.title;
       titleText.replaceWith(input);
