@@ -1,3 +1,12 @@
+## Unreleased - May 17, 2026
+
+### Features
+
+#### New: Keyboard Shortcuts
+
+- Implemented a new keyboard shortcuts system to enhance navigation and productivity.
+- To quickly access the keyboard shortcuts help file, press `?` (Shift + /) within the app. This will display a comprehensive list of available shortcuts and their functions.
+
 ## [2.3.0-beta.2] - May 15, 2026
 
 ### Features
