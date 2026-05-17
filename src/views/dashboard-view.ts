@@ -6,6 +6,7 @@ import {
   requireApiVersion,
   Platform,
   setIcon,
+  Scope,
   type EventRef,
 } from "obsidian";
 import {
@@ -28,6 +29,7 @@ import { ArticleRenderer } from "../components/article-renderer";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
 import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
+import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { KeywordFilterService } from "../services/keyword-filter-service";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 import { formatDashboardMultiFiltersTitle } from "../utils/filter-title-format";
@@ -35,6 +37,7 @@ import { computePagination } from "../utils/pagination-utils";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { buildArticleEmptyStateContext } from "../utils/filter-detection";
+import { setupDashboardHotkeys } from "../hotkeys/dashboard-hotkeys";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -130,6 +133,9 @@ export class RssDashboardView extends ItemView {
     // Always open the dashboard in All Feeds view. Any startup filtering is
     // applied via dashboard multi-filters instead of hard switching views.
     this.currentFolder = null;
+
+    this.scope = new Scope(this.app?.scope || undefined);
+    this.setupScope();
   }
 
   getViewType(): string {
@@ -142,6 +148,357 @@ export class RssDashboardView extends ItemView {
 
   getIcon(): string {
     return "rss";
+  }
+
+  private setupScope() {
+    if (this.scope) {
+      setupDashboardHotkeys(this.scope, this);
+    }
+  }
+
+  /**
+   * Action: Refresh feeds.
+   * @internal
+   */
+  public async actionRefreshFeeds(): Promise<void> {
+    await this.handleRefreshFeeds();
+  }
+
+  /**
+   * Action: Navigate to next article.
+   * @internal
+   */
+  public actionNavigateNext(): void {
+    const allFilteredArticles = this.getFilteredArticles();
+    const pageSize = this.getCurrentPageSize();
+    const totalArticles = allFilteredArticles.length;
+    if (totalArticles === 0) return;
+
+    const currentPage = this.getCurrentPage();
+    const pagination = computePagination({
+      totalItems: totalArticles,
+      pageSize,
+      requestedPage: currentPage,
+    });
+    const articlesForPage = allFilteredArticles.slice(
+      pagination.startIdx,
+      pagination.endIdx,
+    );
+
+    if (articlesForPage.length === 0) return;
+
+    let nextIndex = 0;
+    if (this.selectedArticle) {
+      const currentIndex = articlesForPage.findIndex(
+        (a) => a.guid === this.selectedArticle?.guid,
+      );
+      if (currentIndex !== -1) {
+        if (currentIndex < articlesForPage.length - 1) {
+          nextIndex = currentIndex + 1;
+        } else {
+          // Last item on current page, go to next page if available
+          if (currentPage < pagination.totalPages) {
+            this.handlePageChange(currentPage + 1);
+            // After page change, wait for render to select the first item on new page
+            activeWindow.requestAnimationFrame(() => {
+              const newFiltered = this.getFilteredArticles();
+              const newPagination = computePagination({
+                totalItems: newFiltered.length,
+                pageSize,
+                requestedPage: currentPage + 1,
+              });
+              const newArticles = newFiltered.slice(
+                newPagination.startIdx,
+                newPagination.endIdx,
+              );
+              if (newArticles.length > 0) {
+                void this.handleArticleClick(newArticles[0]);
+              }
+            });
+            return;
+          } else {
+            // Already on last page, stay on last item
+            return;
+          }
+        }
+      }
+    }
+
+    const nextArticle = articlesForPage[nextIndex];
+    void this.handleArticleClick(nextArticle);
+  }
+
+  /**
+   * Action: Navigate to previous article.
+   * @internal
+   */
+  public actionNavigatePrevious(): void {
+    const allFilteredArticles = this.getFilteredArticles();
+    const pageSize = this.getCurrentPageSize();
+    const totalArticles = allFilteredArticles.length;
+    if (totalArticles === 0) return;
+
+    const currentPage = this.getCurrentPage();
+    const pagination = computePagination({
+      totalItems: totalArticles,
+      pageSize,
+      requestedPage: currentPage,
+    });
+    const articlesForPage = allFilteredArticles.slice(
+      pagination.startIdx,
+      pagination.endIdx,
+    );
+
+    if (articlesForPage.length === 0) return;
+
+    let prevIndex = articlesForPage.length - 1;
+    if (this.selectedArticle) {
+      const currentIndex = articlesForPage.findIndex(
+        (a) => a.guid === this.selectedArticle?.guid,
+      );
+      if (currentIndex !== -1) {
+        if (currentIndex > 0) {
+          prevIndex = currentIndex - 1;
+        } else {
+          // First item on current page, go to previous page if available
+          if (currentPage > 1) {
+            this.handlePageChange(currentPage - 1);
+            activeWindow.requestAnimationFrame(() => {
+              const newFiltered = this.getFilteredArticles();
+              const newPagination = computePagination({
+                totalItems: newFiltered.length,
+                pageSize,
+                requestedPage: currentPage - 1,
+              });
+              const newArticles = newFiltered.slice(
+                newPagination.startIdx,
+                newPagination.endIdx,
+              );
+              if (newArticles.length > 0) {
+                void this.handleArticleClick(
+                  newArticles[newArticles.length - 1],
+                );
+              }
+            });
+            return;
+          } else {
+            // Already on first page, stay on first item
+            return;
+          }
+        }
+      }
+    }
+
+    const prevArticle = articlesForPage[prevIndex];
+    void this.handleArticleClick(prevArticle);
+  }
+
+  /**
+   * Action: Navigate arrow keys in card view.
+   * @internal
+   */
+  public actionNavigateCard(
+    direction: "left" | "right" | "up" | "down",
+  ): void {
+    if (this.settings.viewStyle !== "card") return;
+
+    const allFilteredArticles = this.getFilteredArticles();
+    const pageSize = this.getCurrentPageSize();
+    const totalArticles = allFilteredArticles.length;
+    if (totalArticles === 0) return;
+
+    const currentPage = this.getCurrentPage();
+    const pagination = computePagination({
+      totalItems: totalArticles,
+      pageSize,
+      requestedPage: currentPage,
+    });
+    const articlesForPage = allFilteredArticles.slice(
+      pagination.startIdx,
+      pagination.endIdx,
+    );
+
+    if (articlesForPage.length === 0) return;
+
+    let targetIndex = 0;
+    const cols = Math.max(1, this.settings.display.cardColumnsPerRow || 3);
+
+    if (this.selectedArticle) {
+      const currentIndex = articlesForPage.findIndex(
+        (a) => a.guid === this.selectedArticle?.guid,
+      );
+      if (currentIndex !== -1) {
+        switch (direction) {
+          case "left":
+            if (currentIndex > 0) {
+              targetIndex = currentIndex - 1;
+            } else {
+              return;
+            }
+            break;
+          case "right":
+            if (currentIndex < articlesForPage.length - 1) {
+              targetIndex = currentIndex + 1;
+            } else {
+              return;
+            }
+            break;
+          case "up":
+            if (currentIndex >= cols) {
+              targetIndex = currentIndex - cols;
+            } else {
+              return;
+            }
+            break;
+          case "down":
+            if (currentIndex + cols < articlesForPage.length) {
+              targetIndex = currentIndex + cols;
+            } else {
+              return;
+            }
+            break;
+        }
+      }
+    }
+
+    const targetArticle = articlesForPage[targetIndex];
+    void this.handleArticleClick(targetArticle);
+  }
+
+  /**
+   * Action: Open/Close (select and display) the currently selected article.
+   * @internal
+   */
+  public actionToggleArticleOpen(): void {
+    if (this.selectedArticle) {
+      void this.handleArticleClick(this.selectedArticle);
+    }
+  }
+
+  /**
+   * Action: Toggle read/unread status of selected article.
+   * @internal
+   */
+  public async actionToggleReadStatus(): Promise<void> {
+    if (this.selectedArticle) {
+      this.selectedArticle.read = !this.selectedArticle.read;
+      await this.handleArticleUpdate(
+        this.selectedArticle,
+        { read: this.selectedArticle.read },
+        false,
+      );
+    }
+  }
+
+  /**
+   * Action: Toggle star status of selected article.
+   * @internal
+   */
+  public async actionToggleStarStatus(): Promise<void> {
+    if (this.selectedArticle) {
+      this.selectedArticle.starred = !this.selectedArticle.starred;
+      await this.handleArticleUpdate(
+        this.selectedArticle,
+        { starred: this.selectedArticle.starred },
+        false,
+      );
+    }
+  }
+
+  /**
+   * Action: Toggle tags dropdown menu.
+   * @internal
+   */
+  public actionToggleTagsMenu(): void {
+    if (this.selectedArticle) {
+      const articleEl = this.containerEl.querySelector(
+        `#article-${CSS.escape(this.selectedArticle.guid)}`,
+      );
+      if (articleEl) {
+        const tagsToggle = articleEl.querySelector<HTMLElement>(
+          ".rss-dashboard-tags-toggle",
+        );
+        if (tagsToggle) {
+          tagsToggle.click();
+        }
+      }
+    }
+  }
+
+  /**
+   * Action: Save selected article.
+   * @internal
+   */
+  public async actionSaveSelectedArticle(): Promise<void> {
+    if (this.selectedArticle) {
+      if (this.selectedArticle.saved) {
+        await this.handleOpenSavedArticle(this.selectedArticle);
+      } else {
+        await this.handleArticleSave(this.selectedArticle);
+      }
+    }
+  }
+
+
+  /**
+   * Action: Mark all filtered articles as read.
+   * @internal
+   */
+  public actionMarkAllAsRead(): void {
+    const articles = this.getFilteredArticles();
+    let count = 0;
+    articles.forEach((item) => {
+      if (!item.read) {
+        item.read = true;
+        count++;
+      }
+    });
+
+    if (count > 0) {
+      void this.plugin.saveSettings();
+      void this.render();
+      new Notice(`Marked ${count} items as read`);
+    } else {
+      new Notice("No unread items in current view");
+    }
+  }
+
+  /**
+   * Action: Set status filters on the dashboard.
+   * @internal
+   */
+  public actionSetStatusFilter(status: "all" | "unread" | "read"): void {
+    const statusFilters = new Set<string>();
+    if (status === "unread") {
+      statusFilters.add("unread");
+    } else if (status === "read") {
+      statusFilters.add("read");
+    }
+
+    this.handleFilterChange({
+      type: "batch",
+      value: null,
+      batch: {
+        statusFilters,
+        tagFilters: new Set<string>(),
+      },
+    });
+  }
+
+  /**
+   * Action: Change dashboard view style/layout.
+   * @internal
+   */
+  public actionSetViewStyle(style: "list" | "card" | "feed"): void {
+    this.handleToggleViewStyle(style);
+  }
+
+  /**
+   * Action: Open keyboard shortcuts help modal.
+   * @internal
+   */
+  public actionOpenShortcutHelp(): void {
+    new ShortcutHelpModal(this.app).open();
   }
 
   // --- Render pipeline ---
@@ -249,6 +606,28 @@ export class RssDashboardView extends ItemView {
     this.registerDomEvent(activeWindow, "resize", () => {
       this.handleViewportResizeModeTransition();
     });
+
+    // Make the view container focusable so keyboard events are routed through
+    // Obsidian's scope system when this view is active.
+    this.containerEl.tabIndex = -1;
+    this.registerDomEvent(this.containerEl, "click", (evt) => {
+      // Only grab focus back to the container if the click was not on an
+      // interactive element (input, button, select, textarea, link, etc.).
+      const target = evt.target as HTMLElement;
+      const interactive = target.closest(
+        'input, button, select, textarea, a, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!interactive) {
+        this.containerEl.focus({ preventScroll: true });
+      }
+    });
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", (leaf) => {
+        if (leaf === this.leaf) {
+          this.containerEl.focus({ preventScroll: true });
+        }
+      }),
+    );
 
     const container = this.containerEl.children[1];
     container.addClass("rss-dashboard-container");
@@ -478,22 +857,7 @@ export class RssDashboardView extends ItemView {
           await this.plugin.saveSettings();
         },
         onMarkAllAsRead: () => {
-          const articles = this.getFilteredArticles();
-          let count = 0;
-          articles.forEach((item) => {
-            if (!item.read) {
-              item.read = true;
-              count++;
-            }
-          });
-
-          if (count > 0) {
-            void this.plugin.saveSettings();
-            void this.render();
-            new Notice(`Marked ${count} items as read`);
-          } else {
-            new Notice("No unread items in current view");
-          }
+          this.actionMarkAllAsRead();
         },
         onMarkAllAsUnread: () => {
           const articles = this.getFilteredArticles();
@@ -1771,13 +2135,22 @@ export class RssDashboardView extends ItemView {
 
   private async openArticleInNewTab(article: FeedItem): Promise<WorkspaceLeaf> {
     const { workspace } = this.app;
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    const activeLeaf = workspace.activeLeaf;
+    const shouldPreserveFocus = activeLeaf === this.leaf;
+
     const leaf = workspace.getLeaf(Platform.isMobile ? "tab" : "split");
     if (leaf) {
       await leaf.setViewState({
         type: RSS_READER_VIEW_TYPE,
-        active: true,
+        active: !shouldPreserveFocus,
       });
       await workspace.revealLeaf(leaf);
+
+      if (shouldPreserveFocus) {
+        workspace.setActiveLeaf(this.leaf, { focus: true });
+      }
+
       if (leaf.view instanceof ReaderView) {
         const view = leaf.view;
         view.setReturnLeaf(this.leaf);
@@ -1793,11 +2166,20 @@ export class RssDashboardView extends ItemView {
     leaf: WorkspaceLeaf,
   ): Promise<void> {
     if (leaf) {
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      const activeLeaf = this.app.workspace.activeLeaf;
+      const shouldPreserveFocus = activeLeaf === this.leaf;
+
       await leaf.setViewState({
         type: RSS_READER_VIEW_TYPE,
-        active: true,
+        active: !shouldPreserveFocus,
       });
       await this.app.workspace.revealLeaf(leaf);
+
+      if (shouldPreserveFocus) {
+        this.app.workspace.setActiveLeaf(this.leaf, { focus: true });
+      }
+
       if (leaf.view instanceof ReaderView) {
         const view = leaf.view;
         view.setReturnLeaf(this.leaf);

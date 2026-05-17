@@ -34,9 +34,10 @@ interface ArticleListCallbacks {
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
   ) => void;
-  onArticleSave: (article: FeedItem) => void;
-  onOpenSavedArticle?: (article: FeedItem) => void;
+  onArticleSave?: (article: FeedItem) => Promise<void> | void;
+  onOpenSavedArticle?: (article: FeedItem) => Promise<void> | void;
   onOpenInReaderView?: (article: FeedItem) => void;
+  onOpenInBrowser?: (article: FeedItem) => void;
   onToggleSidebar: () => void;
   onSortChange: (value: "newest" | "oldest") => void;
   onGroupChange: (value: "none" | "feed" | "date" | "folder") => void;
@@ -1430,11 +1431,13 @@ export class ArticleList {
       saveButton.textContent = "S";
     }
 
-    const toggleSave = (e: Event) => {
+    const toggleSave = async (e: Event) => {
       e.stopPropagation();
+      e.preventDefault();
+      
       if (article.saved) {
         if (this.callbacks.onOpenSavedArticle) {
-          this.callbacks.onOpenSavedArticle(article);
+          await this.callbacks.onOpenSavedArticle(article);
         } else {
           new Notice("Article already saved. Look in your notes.");
         }
@@ -1442,25 +1445,35 @@ export class ArticleList {
         if (saveButton.classList.contains("saving")) {
           return;
         }
+        
         saveButton.classList.add("saving");
         saveButton.setAttribute("title", "Saving article...");
-        this.callbacks.onArticleSave(article);
-        article.saved = true;
-        saveButton.classList.add("saved");
-        setIcon(saveButton, "save");
-        if (!saveButton.querySelector("svg")) {
-          saveButton.textContent = "S";
+        
+        try {
+          await this.callbacks.onArticleSave(article);
+          article.saved = true;
+          saveButton.classList.add("saved");
+          setIcon(saveButton, "save");
+          if (!saveButton.querySelector("svg")) {
+            saveButton.textContent = "S";
+          }
+          saveButton.setAttribute("title", "Click to open saved article");
+        } catch (error) {
+          console.error("Failed to save article via card button:", error);
+          new Notice("Failed to save article.");
+        } finally {
+          saveButton.classList.remove("saving");
         }
-        saveButton.classList.remove("saving");
-        saveButton.setAttribute("title", "Click to open saved article");
       }
     };
 
-    saveButton.addEventListener("click", toggleSave);
+    saveButton.addEventListener("click", (e) => {
+      void toggleSave(e);
+    });
     saveButton.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        toggleSave(e);
+        void toggleSave(e);
       }
     });
   }
@@ -2312,7 +2325,9 @@ export class ArticleList {
           )
           .setIcon("save")
           .onClick(() => {
-            this.callbacks.onArticleSave(article);
+            if (this.callbacks.onArticleSave) {
+              void this.callbacks.onArticleSave(article);
+            }
           });
       });
     }

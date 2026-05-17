@@ -518,6 +518,11 @@ export class ItemView {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   registerEvent(_evt: any): void {}
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
+  registerDomEvent(el: any, type: string, callback: (evt: any) => any, options?: any): void {
+    el.addEventListener(type, callback, options);
+  }
 }
 
 export class Menu {
@@ -946,4 +951,16 @@ export class AbstractInputSuggest<T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   selectSuggestion(_value: T, _evt: any): void {}
   close(): void {}
+}
+export class Scope {
+  public handlers: Array<{modifiers: string[] | null, key: string | null, func: Function}> = [];
+  constructor(public parent?: Scope) {}
+  register(modifiers: string[] | null, key: string | null, func: Function) {
+    const handler = { modifiers, key, func };
+    this.handlers.push(handler);
+    return handler;
+  }
+  unregister(handler: any) {
+    this.handlers = this.handlers.filter(h => h !== handler);
+  }
 }

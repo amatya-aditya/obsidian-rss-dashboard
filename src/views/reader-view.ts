@@ -9,7 +9,7 @@ import {
   TFile,
   Notice,
 } from "obsidian";
-import { setIcon } from "obsidian";
+import { setIcon, Scope } from "obsidian";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
 import {
@@ -41,8 +41,10 @@ import { resolveApplePodcastsShowUrl } from "../services/apple-podcasts-service"
 import { createReaderFormatPortal } from "../utils/reader-format-portal";
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
-import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
+import { RSS_DASHBOARD_VIEW_TYPE, RssDashboardView } from "./dashboard-view";
 import { VaultFolderSuggest } from "../components/folder-suggest";
+import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
+import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
 
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
@@ -135,6 +137,9 @@ export class ReaderView extends ItemView {
     this.onArticleSave = onArticleSave;
     this.onArticleUpdate = onArticleUpdate;
 
+    this.scope = new Scope(this.app.scope);
+    this.setupScope();
+
     try {
       const appWithPlugins = this.app as unknown as {
         plugins?: { plugins?: Record<string, unknown> };
@@ -164,6 +169,192 @@ export class ReaderView extends ItemView {
     } catch {
       // Web viewer integration not available
     }
+  }
+
+  private setupScope() {
+    if (this.scope) {
+      setupReaderHotkeys(this.scope, this);
+    }
+  }
+
+  /**
+   * Action: Zoom/Increase reader font size.
+   * @internal
+   */
+  public actionZoomIn(): void {
+    const steps = [80, 90, 100, 110, 120, 130, 150, 175, 200];
+    const format = this.getReaderFormat();
+    const currentIndex = steps.indexOf(format.fontScalePct);
+    const nextIndex = Math.min(steps.length - 1, (currentIndex >= 0 ? currentIndex : 2) + 1);
+    format.fontScalePct = steps[nextIndex];
+    this.applyReaderFormat();
+    void this.flushReaderFormatSave();
+  }
+
+  /**
+   * Action: Zoom/Decrease reader font size.
+   * @internal
+   */
+  public actionZoomOut(): void {
+    const steps = [80, 90, 100, 110, 120, 130, 150, 175, 200];
+    const format = this.getReaderFormat();
+    const currentIndex = steps.indexOf(format.fontScalePct);
+    const nextIndex = Math.max(0, (currentIndex >= 0 ? currentIndex : 2) - 1);
+    format.fontScalePct = steps[nextIndex];
+    this.applyReaderFormat();
+    void this.flushReaderFormatSave();
+  }
+
+  /**
+   * Action: Reset reader font size.
+   * @internal
+   */
+  public actionZoomReset(): void {
+    const format = this.getReaderFormat();
+    format.fontScalePct = 100;
+    this.applyReaderFormat();
+    void this.flushReaderFormatSave();
+  }
+
+  private getDashboardView(): RssDashboardView | null {
+    const dashboardLeaves =
+      this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+    const leaf =
+      this.returnLeaf && dashboardLeaves.includes(this.returnLeaf)
+        ? this.returnLeaf
+        : (dashboardLeaves[0] ?? null);
+    if (leaf && leaf.view instanceof RssDashboardView) {
+      return leaf.view;
+    }
+    return null;
+  }
+
+  /**
+   * Action: Navigate to next article from reader.
+   * @internal
+   */
+  public actionNavigateNext(): void {
+    const dashboardView = this.getDashboardView();
+    if (dashboardView) {
+      dashboardView.actionNavigateNext();
+    }
+  }
+
+  /**
+   * Action: Navigate to previous article from reader.
+   * @internal
+   */
+  public actionNavigatePrevious(): void {
+    const dashboardView = this.getDashboardView();
+    if (dashboardView) {
+      dashboardView.actionNavigatePrevious();
+    }
+  }
+
+  /**
+   * Action: Close the article and go back to dashboard.
+   * @internal
+   */
+  public actionToggleArticleOpen(): void {
+    void this.navigateBackToDashboard();
+  }
+
+  /**
+   * Action: Toggle read/unread status of the current article.
+   * @internal
+   */
+  public actionToggleReadStatus(): void {
+    if (this.currentItem) {
+      this.toggleReadStatus();
+    }
+  }
+
+  /**
+   * Action: Toggle star status of the current article.
+   * @internal
+   */
+  public actionToggleStarStatus(): void {
+    if (this.currentItem) {
+      this.toggleStarStatus();
+    }
+  }
+
+  /**
+   * Action: Toggle tags dropdown menu.
+   * @internal
+   */
+  public actionToggleTagsMenu(): void {
+    const tagsButton = this.contentEl.querySelector<HTMLElement>(
+      ".rss-dashboard-tags-toggle",
+    );
+    if (tagsButton) {
+      this.toggleTagsDropdown(tagsButton);
+    }
+  }
+
+  /**
+   * Action: Save current article.
+   * @internal
+   */
+  public async actionSaveCurrentArticle(): Promise<void> {
+    if (!this.currentItem) {
+      return;
+    }
+    if (this.currentItem.saved) {
+      const file = this.app.vault.getAbstractFileByPath(
+        this.currentItem.savedFilePath || "",
+      );
+      if (file instanceof TFile) {
+        await this.leaf.openFile(file);
+      }
+      return;
+    }
+
+    const htmlToSave =
+      this.currentFullContent && this.currentContentIsFullArticle
+        ? this.stripNavigationChromeFromHtml(
+            this.stripTopHeadlineFromHtml(this.currentFullContent),
+          )
+        : this.currentFullContent || this.currentItem.description || "";
+    const markdownContent = this.turndownService.turndown(htmlToSave);
+    const displayTitle = this.currentDisplayTitle;
+    const saveItem = displayTitle
+      ? { ...this.currentItem, title: displayTitle }
+      : this.currentItem;
+    const customTemplate = this.getCustomTemplateForArticle(this.currentItem);
+    const file = await this.articleSaver.saveArticle(
+      saveItem,
+      undefined,
+      customTemplate,
+      markdownContent,
+    );
+    if (file) {
+      this.currentItem.saved = true;
+      this.currentItem.savedFilePath = file.path;
+      this.onArticleSave(this.currentItem);
+
+      this.updateSavedLabel(true);
+    }
+  }
+
+
+  /**
+   * Action: Mark all filtered articles as read on the dashboard.
+   * @internal
+   */
+  public actionMarkAllAsRead(): void {
+    const dashboardView = this.getDashboardView();
+    if (dashboardView) {
+      dashboardView.actionMarkAllAsRead();
+    }
+  }
+
+  /**
+   * Action: Open keyboard shortcuts help modal.
+   * @internal
+   */
+  public actionOpenShortcutHelp(): void {
+    new ShortcutHelpModal(this.app).open();
   }
 
   getViewType(): string {
@@ -216,6 +407,30 @@ export class ReaderView extends ItemView {
   onOpen(): Promise<void> {
     this.contentEl.empty();
     this.contentEl.addClass("rss-reader-view");
+
+    // Make the view container focusable so keyboard events are routed through
+    // Obsidian's scope system when this view is active.
+    this.containerEl.tabIndex = -1;
+    this.registerDomEvent(this.containerEl, "click", (evt) => {
+      // Only grab focus back to the container if the click was not on an
+      // interactive element (input, button, select, textarea, link, etc.).
+      const target = evt.target as HTMLElement;
+      const interactive = target.closest(
+        'input, button, select, textarea, a, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!interactive) {
+        this.containerEl.focus({ preventScroll: true });
+      }
+    });
+    if (typeof this.app.workspace.on === "function") {
+      this.registerEvent(
+        this.app.workspace.on("active-leaf-change", (leaf) => {
+          if (leaf === this.leaf) {
+            this.containerEl.focus({ preventScroll: true });
+          }
+        }),
+      );
+    }
 
     const header = this.contentEl.createDiv({ cls: "rss-reader-header" });
 
@@ -315,11 +530,24 @@ export class ReaderView extends ItemView {
     // Reader formatting button
     const readerFormatButton = actions.createDiv({
       cls: "rss-reader-action-button rss-reader-format-button",
-      attr: { title: "Reader settings" },
+      attr: {
+        title: "Reader settings",
+        "aria-label": "Reader settings",
+        role: "button",
+        tabindex: "0"
+      },
     });
     setIcon(readerFormatButton, "type");
     readerFormatButton.addEventListener("click", (e) => {
-      this.toggleReaderFormatDropdown(e as MouseEvent);
+      e.stopPropagation();
+      this.toggleReaderFormatDropdown(readerFormatButton);
+    });
+    readerFormatButton.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        this.toggleReaderFormatDropdown(readerFormatButton);
+      }
     });
 
     // Open in browser button
@@ -2298,14 +2526,7 @@ export class ReaderView extends ItemView {
     this.contentEl.dataset.rssReaderParagraph = format.paragraphSpacing;
   }
 
-  private toggleReaderFormatDropdown(event: MouseEvent): void {
-    event.stopPropagation();
-    const anchor = event.currentTarget;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- activeWindow.instanceOf is an Obsidian-specific API not in standard types
-    if (!(activeWindow as any).instanceOf(anchor, HTMLElement)) {
-      return;
-    }
-
+  private toggleReaderFormatDropdown(anchor: HTMLElement): void {
     if (this.readerFormatPortal) {
       this.readerFormatPortal.close(true);
       this.readerFormatPortal = null;
@@ -2314,7 +2535,7 @@ export class ReaderView extends ItemView {
 
     const format = this.getReaderFormat();
     const portal = createReaderFormatPortal({
-      anchor: anchor as HTMLElement,
+      anchor: anchor,
       format,
       defaults: DEFAULT_SETTINGS.readerFormat,
       applyFormat: () => this.applyReaderFormat(),
