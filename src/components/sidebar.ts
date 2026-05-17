@@ -1100,15 +1100,11 @@ export class Sidebar {
       },
     });
     folderHeader.setAttr("tabindex", "-1");
-    this.registerSidebarRow(
-      { type: "folder", path: fullPath },
-      folderHeader,
-      {
-        folderPath: fullPath,
-        folderName,
-        expandable: isExpandable,
-      },
-    );
+    this.registerSidebarRow({ type: "folder", path: fullPath }, folderHeader, {
+      folderPath: fullPath,
+      folderName,
+      expandable: isExpandable,
+    });
 
     const toggleButton = folderHeader.createDiv({
       cls: "rss-dashboard-feed-folder-toggle",
@@ -1977,12 +1973,13 @@ export class Sidebar {
     }
 
     if (row.target.type === "folder" && row.folderPath && row.folderName) {
+      const { folderPath, folderName } = row;
       this.showFolderNameModal({
         title: "Rename folder",
-        defaultValue: row.folderName,
+        defaultValue: folderName,
         existingNames: (() => {
-          const parentPath = row.folderPath!.includes("/")
-            ? row.folderPath!.split("/").slice(0, -1).join("/")
+          const parentPath = folderPath.includes("/")
+            ? folderPath.split("/").slice(0, -1).join("/")
             : "";
           return parentPath
             ? (this.findFolderByPath(parentPath)?.subfolders.map(
@@ -3851,7 +3848,9 @@ export class Sidebar {
         (child) =>
           // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- activeWindow.instanceOf is an Obsidian-specific API not in standard types
           (activeWindow as any).instanceOf(child, HTMLElement) &&
-          (child as HTMLElement).classList.contains("rss-dashboard-feed-folder") &&
+          (child as HTMLElement).classList.contains(
+            "rss-dashboard-feed-folder",
+          ) &&
           folderVisible.get(child as HTMLElement) === true,
       );
 

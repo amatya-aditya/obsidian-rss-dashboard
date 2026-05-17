@@ -51,7 +51,9 @@ describe("ReaderView dashboard refocus", () => {
 
   async function flushAsyncFocusHandoff(): Promise<void> {
     await Promise.resolve();
-    await new Promise((resolve) => activeWindow.requestAnimationFrame(() => resolve(undefined)));
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
   }
 
   it("prefers returnLeaf when it is still an active dashboard leaf", async () => {
