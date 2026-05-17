@@ -13,6 +13,34 @@ export function setupDashboardHotkeys(scope: Scope, view: RssDashboardView): voi
     return true;
   });
 
+  // Next article ('j')
+  scope.register([], "j", (evt) => {
+    evt.preventDefault();
+    view.actionNavigateNext();
+    return true;
+  });
+
+  // Next article ('Space')
+  scope.register([], " ", (evt) => {
+    evt.preventDefault();
+    view.actionNavigateNext();
+    return true;
+  });
+
+  // Previous article ('k')
+  scope.register([], "k", (evt) => {
+    evt.preventDefault();
+    view.actionNavigatePrevious();
+    return true;
+  });
+
+  // Previous article ('Shift + Space')
+  scope.register(["Shift"], " ", (evt) => {
+    evt.preventDefault();
+    view.actionNavigatePrevious();
+    return true;
+  });
+
   // Card Navigation ('ArrowLeft')
   scope.register([], "ArrowLeft", (evt) => {
     evt.preventDefault();

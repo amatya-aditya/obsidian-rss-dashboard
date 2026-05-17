@@ -56,6 +56,10 @@ export class ShortcutHelpModal extends Modal {
     ]);
 
     this.renderSection(body, "Reader View", [
+      { key: "ArrowUp / ArrowDown", desc: "Scroll article up/down" },
+      { key: "ArrowLeft / ArrowRight", desc: "Scroll article left/right" },
+      { key: "PageUp / PageDown", desc: "Scroll by one page" },
+      { key: "Home / End", desc: "Jump to start/end of article" },
       { key: "= / +", desc: "Increase font size" },
       { key: "- / _", desc: "Decrease font size" },
       { key: "0", desc: "Reset font size" },
@@ -66,9 +70,9 @@ export class ShortcutHelpModal extends Modal {
       { key: "o / Enter", desc: "Open article in reader pane" },
       { key: "k", desc: "Close reader pane" },
       { key: "Shift + d", desc: "Focus dashboard view" },
-      { key: "J", desc: "Previous article in reader pane" },
-      { key: "L", desc: "Next article in reader pane" },
-      { key: "m", desc: "Mark as read/unread toggle" },
+      { key: "j", desc: "Open prior article in feed" },
+      { key: "l", desc: "Open next article in feed" },
+      { key: "m", desc: "Mark article read/unread toggle" },
       { key: "Shift + a", desc: "Mark all as read" },
       { key: "f", desc: "Star/Unstar article" },
       { key: "t", desc: "Add tags to article" },

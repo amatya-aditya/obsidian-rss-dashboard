@@ -30,57 +30,61 @@ These single-key shortcuts are safe because they are scoped to our custom views.
 
 ### General Navigation
 
-- Open Help Dialog — `h`
-- Close Dialog / Clear Selection — `Esc`
-- Refresh Feed — `r`
+- Open Help Dialog - `h`
+- Close Dialog / Clear Selection - `Esc`
+- Refresh Feed - `r`
 
 ### Dashboard View
 
-- All articles — `Shift + 1`
-- Unread articles — `Shift + 2`
-- Read articles — `Shift + 3`
-- List view — `1`
-- Card view — `2`
-- Feed view — `3`
+- All articles - `Shift + 1`
+- Unread articles - `Shift + 2`
+- Read articles - `Shift + 3`
+- List view - `1`
+- Card view - `2`
+- Feed view - `3`
 
 ### Reader View
 
-- Increase font size — `+`
-- Decrease font size — `-`
-- Reset font size — `0`
+- Scroll up/down - `ArrowUp` / `ArrowDown`
+- Scroll left/right - `ArrowLeft` / `ArrowRight`
+- Page up/down - `PageUp` / `PageDown`
+- Jump to start/end of article - `Home` / `End`
+- Increase font size - `+`
+- Decrease font size - `-`
+- Reset font size - `0`
 
 ### Article Manipulation
 
-- Next article — `j` or `Space`
-- Previous article — `k` or `Shift + Space`
-- Card view navigation — `← → ↑ ↓`
-- Open/Close article — `o` or `Enter`
-- Mark as read/unread toggle — `m`
-- Mark all as read — `Shift + a`
-- Star/Unstar article — `f`
-- Add tags to article — `t`
-- Save full content to notes — `s`
+- Next article - `j` or `Space`
+- Previous article - `k` or `Shift + Space`
+- Card view navigation - `Left/Right/Up/Down`
+- Open/Close article - `o` or `Enter`
+- Mark as read/unread toggle - `m`
+- Mark all as read - `Shift + a`
+- Star/Unstar article - `f`
+- Add tags to article - `t`
+- Save full content to notes - `s`
 
 ### Sidebar Navigation
 
-- Next item — `Shift + j`
-- Previous item — `Shift + k`
-- Focus next item — `Shift + n`
-- Focus previous item — `Shift + p`
-- Open focused item — `Shift + o`
-- Open/Collapse folder — `Shift + x`
-- Delete folder/feed — `Shift + d`
-- Rename folder/feed — `Shift + r`
+- Next item - `Shift + j`
+- Previous item - `Shift + k`
+- Focus next item - `Shift + n`
+- Focus previous item - `Shift + p`
+- Open focused item - `Shift + o`
+- Open/Collapse folder - `Shift + x`
+- Delete folder/feed - `Shift + d`
+- Rename folder/feed - `Shift + r`
 
 ### Section Navigation
 
 _(Note: Multi-chord key sequences like "g then d" are replaced with Shift modifiers to ensure compatibility with standard Obsidian hotkey handling)._
 
-- Go to Dashboard — `Shift + d`
-- Go to All articles — `Shift + v`
-- Go to Starred — `Shift + s`
-- Go to feed — `Shift + u`
-- Go to folder/tag — `Shift + t`
+- Go to Dashboard - `Shift + d`
+- Go to All articles - `Shift + v`
+- Go to Starred - `Shift + s`
+- Go to feed - `Shift + u`
+- Go to folder/tag - `Shift + t`
 
 ---
 

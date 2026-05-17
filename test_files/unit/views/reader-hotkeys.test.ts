@@ -3,6 +3,14 @@ import { Scope } from "obsidian";
 import { setupReaderHotkeys } from "../../../src/hotkeys/reader-hotkeys";
 
 type ReaderHotkeyViewStub = {
+  actionScrollUp: ReturnType<typeof vi.fn>;
+  actionScrollDown: ReturnType<typeof vi.fn>;
+  actionScrollLeft: ReturnType<typeof vi.fn>;
+  actionScrollRight: ReturnType<typeof vi.fn>;
+  actionPageUp: ReturnType<typeof vi.fn>;
+  actionPageDown: ReturnType<typeof vi.fn>;
+  actionScrollToStart: ReturnType<typeof vi.fn>;
+  actionScrollToEnd: ReturnType<typeof vi.fn>;
   actionZoomIn: ReturnType<typeof vi.fn>;
   actionZoomOut: ReturnType<typeof vi.fn>;
   actionZoomReset: ReturnType<typeof vi.fn>;
@@ -21,7 +29,7 @@ type ReaderHotkeyViewStub = {
 type ScopeHandler = {
   modifiers: string[] | null;
   key: string | null;
-  func: (evt: KeyboardEvent) => boolean;
+  func: (this: void, evt: KeyboardEvent) => boolean;
 };
 
 describe("Reader hotkeys", () => {
@@ -31,6 +39,14 @@ describe("Reader hotkeys", () => {
   beforeEach(() => {
     scope = new Scope();
     view = {
+      actionScrollUp: vi.fn(),
+      actionScrollDown: vi.fn(),
+      actionScrollLeft: vi.fn(),
+      actionScrollRight: vi.fn(),
+      actionPageUp: vi.fn(),
+      actionPageDown: vi.fn(),
+      actionScrollToStart: vi.fn(),
+      actionScrollToEnd: vi.fn(),
       actionZoomIn: vi.fn(),
       actionZoomOut: vi.fn(),
       actionZoomReset: vi.fn(),
@@ -113,7 +129,8 @@ describe("Reader hotkeys", () => {
         (!handler.modifiers || handler.modifiers.length === 0),
     );
 
-    const event = { preventDefault: vi.fn() } as unknown as KeyboardEvent;
+    const preventDefault = vi.fn();
+    const event = { preventDefault } as unknown as KeyboardEvent;
 
     expect(baseZoomIn?.func(event)).toBe(true);
     expect(shiftedZoomIn?.func(event)).toBe(true);
@@ -121,10 +138,10 @@ describe("Reader hotkeys", () => {
     expect(shiftedZoomOut?.func(event)).toBe(true);
     expect(zoomReset?.func(event)).toBe(true);
 
-    expect(view.actionZoomIn).toHaveBeenCalledTimes(2);
-    expect(view.actionZoomOut).toHaveBeenCalledTimes(2);
-    expect(view.actionZoomReset).toHaveBeenCalledTimes(1);
-    expect(event.preventDefault).toHaveBeenCalledTimes(5);
+    expect(view.actionZoomIn.mock.calls).toHaveLength(2);
+    expect(view.actionZoomOut.mock.calls).toHaveLength(2);
+    expect(view.actionZoomReset.mock.calls).toHaveLength(1);
+    expect(preventDefault.mock.calls).toHaveLength(5);
   });
 
   it("registers and routes Shift+d to dashboard refocus", () => {
@@ -134,11 +151,60 @@ describe("Reader hotkeys", () => {
     const focusDashboard = handlers.find(
       (handler) => handler.key === "d" && handler.modifiers?.includes("Shift"),
     );
-    const event = { preventDefault: vi.fn() } as unknown as KeyboardEvent;
+    const preventDefault = vi.fn();
+    const event = { preventDefault } as unknown as KeyboardEvent;
 
     expect(focusDashboard).toBeDefined();
     expect(focusDashboard?.func(event)).toBe(true);
-    expect(view.actionFocusDashboard).toHaveBeenCalledTimes(1);
-    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+    expect(view.actionFocusDashboard.mock.calls).toHaveLength(1);
+    expect(preventDefault.mock.calls).toHaveLength(1);
+  });
+
+  it("registers and routes reader scrolling keys", () => {
+    setupReaderHotkeys(scope, view as never);
+
+    const handlers = (scope as unknown as { handlers: ScopeHandler[] }).handlers;
+    const preventDefault = vi.fn();
+    const event = { preventDefault } as unknown as KeyboardEvent;
+
+    const bindings: Array<{
+      key: string;
+      action: keyof Pick<
+        ReaderHotkeyViewStub,
+        | "actionScrollUp"
+        | "actionScrollDown"
+        | "actionScrollLeft"
+        | "actionScrollRight"
+        | "actionPageUp"
+        | "actionPageDown"
+        | "actionScrollToStart"
+        | "actionScrollToEnd"
+      >;
+    }> = [
+      { key: "ArrowUp", action: "actionScrollUp" },
+      { key: "ArrowDown", action: "actionScrollDown" },
+      { key: "ArrowLeft", action: "actionScrollLeft" },
+      { key: "ArrowRight", action: "actionScrollRight" },
+      { key: "PageUp", action: "actionPageUp" },
+      { key: "PageDown", action: "actionPageDown" },
+      { key: "Home", action: "actionScrollToStart" },
+      { key: "End", action: "actionScrollToEnd" },
+    ];
+
+    bindings.forEach(({ key, action }) => {
+      const handler = handlers.find(
+        (registeredHandler) =>
+          registeredHandler.key === key &&
+          (!registeredHandler.modifiers ||
+            registeredHandler.modifiers.length === 0),
+      );
+
+      expect(handler).toBeDefined();
+      expect(handler?.func(event)).toBe(true);
+      const actionMock = view[action];
+      expect(actionMock.mock.calls).toHaveLength(1);
+    });
+
+    expect(preventDefault.mock.calls).toHaveLength(bindings.length);
   });
 });

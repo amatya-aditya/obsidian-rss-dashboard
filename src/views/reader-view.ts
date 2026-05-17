@@ -239,6 +239,133 @@ export class ReaderView extends ItemView {
     void this.flushReaderFormatSave();
   }
 
+  private getReaderScrollContainer(): HTMLElement | null {
+    return this.readingContainer ?? null;
+  }
+
+  private getReaderLineScrollAmount(): number {
+    const container = this.getReaderScrollContainer();
+    if (!container) {
+      return 40;
+    }
+
+    const computedStyle = activeWindow.getComputedStyle(container);
+    const lineHeight = Number.parseFloat(computedStyle.lineHeight);
+    if (Number.isFinite(lineHeight)) {
+      return Math.max(24, Math.round(lineHeight * 2));
+    }
+
+    const fontSize = Number.parseFloat(computedStyle.fontSize);
+    if (Number.isFinite(fontSize)) {
+      return Math.max(24, Math.round(fontSize * 2.5));
+    }
+
+    return 40;
+  }
+
+  private getReaderPageScrollAmount(): number {
+    const container = this.getReaderScrollContainer();
+    if (!container) {
+      return 0;
+    }
+
+    return Math.max(0, Math.round(container.clientHeight * 0.9));
+  }
+
+  private scrollReaderBy(top: number, left = 0): void {
+    const container = this.getReaderScrollContainer();
+    if (!container) {
+      return;
+    }
+
+    container.scrollBy({
+      top,
+      left,
+      behavior: "auto",
+    });
+  }
+
+  private scrollReaderTo(top: number): void {
+    const container = this.getReaderScrollContainer();
+    if (!container) {
+      return;
+    }
+
+    container.scrollTo({
+      top,
+      behavior: "auto",
+    });
+  }
+
+  /**
+   * Action: Scroll reader up by a small line-style increment.
+   * @internal
+   */
+  public actionScrollUp(): void {
+    this.scrollReaderBy(-this.getReaderLineScrollAmount());
+  }
+
+  /**
+   * Action: Scroll reader down by a small line-style increment.
+   * @internal
+   */
+  public actionScrollDown(): void {
+    this.scrollReaderBy(this.getReaderLineScrollAmount());
+  }
+
+  /**
+   * Action: Scroll reader left by a small increment.
+   * @internal
+   */
+  public actionScrollLeft(): void {
+    this.scrollReaderBy(0, -this.getReaderLineScrollAmount());
+  }
+
+  /**
+   * Action: Scroll reader right by a small increment.
+   * @internal
+   */
+  public actionScrollRight(): void {
+    this.scrollReaderBy(0, this.getReaderLineScrollAmount());
+  }
+
+  /**
+   * Action: Scroll reader up by nearly one page.
+   * @internal
+   */
+  public actionPageUp(): void {
+    this.scrollReaderBy(-this.getReaderPageScrollAmount());
+  }
+
+  /**
+   * Action: Scroll reader down by nearly one page.
+   * @internal
+   */
+  public actionPageDown(): void {
+    this.scrollReaderBy(this.getReaderPageScrollAmount());
+  }
+
+  /**
+   * Action: Jump to the top of the current article.
+   * @internal
+   */
+  public actionScrollToStart(): void {
+    this.scrollReaderTo(0);
+  }
+
+  /**
+   * Action: Jump to the bottom of the current article.
+   * @internal
+   */
+  public actionScrollToEnd(): void {
+    const container = this.getReaderScrollContainer();
+    if (!container) {
+      return;
+    }
+
+    this.scrollReaderTo(container.scrollHeight);
+  }
+
   private getDashboardView(): RssDashboardView | null {
     const leaf = this.getDashboardLeaf();
     if (leaf && leaf.view instanceof RssDashboardView) {

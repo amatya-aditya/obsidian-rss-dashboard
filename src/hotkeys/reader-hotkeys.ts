@@ -6,6 +6,55 @@ import type { ReaderView } from "../views/reader-view";
  * Decouples the hotkey routing logic from the monolithic reader view.
  */
 export function setupReaderHotkeys(scope: Scope, view: ReaderView): void {
+  // Reader scrolling
+  scope.register([], "ArrowUp", (evt) => {
+    evt.preventDefault();
+    view.actionScrollUp();
+    return true;
+  });
+
+  scope.register([], "ArrowDown", (evt) => {
+    evt.preventDefault();
+    view.actionScrollDown();
+    return true;
+  });
+
+  scope.register([], "ArrowLeft", (evt) => {
+    evt.preventDefault();
+    view.actionScrollLeft();
+    return true;
+  });
+
+  scope.register([], "ArrowRight", (evt) => {
+    evt.preventDefault();
+    view.actionScrollRight();
+    return true;
+  });
+
+  scope.register([], "PageUp", (evt) => {
+    evt.preventDefault();
+    view.actionPageUp();
+    return true;
+  });
+
+  scope.register([], "PageDown", (evt) => {
+    evt.preventDefault();
+    view.actionPageDown();
+    return true;
+  });
+
+  scope.register([], "Home", (evt) => {
+    evt.preventDefault();
+    view.actionScrollToStart();
+    return true;
+  });
+
+  scope.register([], "End", (evt) => {
+    evt.preventDefault();
+    view.actionScrollToEnd();
+    return true;
+  });
+
   // Zoom In ('=' / '+')
   const zoomInHandler = (evt: KeyboardEvent) => {
     evt.preventDefault();
@@ -94,7 +143,6 @@ export function setupReaderHotkeys(scope: Scope, view: ReaderView): void {
     void view.actionSaveCurrentArticle();
     return true;
   });
-
 
   // Open Shortcut Help ('Shift + ?')
   scope.register(["Shift"], "?", (evt) => {
