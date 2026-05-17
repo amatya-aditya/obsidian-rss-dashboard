@@ -27,6 +27,7 @@ describe("ShortcutHelpModal", () => {
     const textContent = content.textContent;
     expect(textContent).toContain("General Navigation");
     expect(textContent).toContain("Open Help Dialog");
+    expect(textContent).toContain("Focus dashboard view");
     
     modal.onClose();
   });

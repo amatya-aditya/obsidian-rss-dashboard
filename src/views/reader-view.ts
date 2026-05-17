@@ -89,20 +89,43 @@ export class ReaderView extends ItemView {
     this.returnLeaf = leaf;
   }
 
-  private async navigateBackToDashboard(): Promise<void> {
+  public focusReaderView(): void {
+    this.app.workspace.setActiveLeaf(this.leaf, { focus: true });
+    activeWindow.requestAnimationFrame(() => {
+      this.containerEl.focus({ preventScroll: true });
+    });
+  }
+
+  private getDashboardLeaf(): WorkspaceLeaf | null {
     const dashboardLeaves = this.app.workspace.getLeavesOfType(
       RSS_DASHBOARD_VIEW_TYPE,
     );
-    const targetLeaf =
+    return (
       this.returnLeaf && dashboardLeaves.includes(this.returnLeaf)
         ? this.returnLeaf
-        : (dashboardLeaves[0] ?? null);
+        : (dashboardLeaves[0] ?? null)
+    );
+  }
 
+  private async focusDashboardLeaf(): Promise<void> {
+    const targetLeaf = this.getDashboardLeaf();
     if (targetLeaf) {
-      this.app.workspace.setActiveLeaf(targetLeaf, { focus: true });
       await this.app.workspace.revealLeaf(targetLeaf);
-    }
+      this.app.workspace.setActiveLeaf(targetLeaf, { focus: true });
 
+      const dashboardContainer = (
+        targetLeaf.view as { containerEl?: HTMLElement } | undefined
+      )?.containerEl;
+      if (dashboardContainer) {
+        activeWindow.requestAnimationFrame(() => {
+          dashboardContainer.focus({ preventScroll: true });
+        });
+      }
+    }
+  }
+
+  private async navigateBackToDashboard(): Promise<void> {
+    await this.focusDashboardLeaf();
     this.closeTagsDropdown();
     this.leaf.detach();
   }
@@ -217,12 +240,7 @@ export class ReaderView extends ItemView {
   }
 
   private getDashboardView(): RssDashboardView | null {
-    const dashboardLeaves =
-      this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
-    const leaf =
-      this.returnLeaf && dashboardLeaves.includes(this.returnLeaf)
-        ? this.returnLeaf
-        : (dashboardLeaves[0] ?? null);
+    const leaf = this.getDashboardLeaf();
     if (leaf && leaf.view instanceof RssDashboardView) {
       return leaf.view;
     }
@@ -236,7 +254,7 @@ export class ReaderView extends ItemView {
   public actionNavigateNext(): void {
     const dashboardView = this.getDashboardView();
     if (dashboardView) {
-      dashboardView.actionNavigateNext();
+      dashboardView.actionNavigateNext({ open: true });
     }
   }
 
@@ -247,8 +265,16 @@ export class ReaderView extends ItemView {
   public actionNavigatePrevious(): void {
     const dashboardView = this.getDashboardView();
     if (dashboardView) {
-      dashboardView.actionNavigatePrevious();
+      dashboardView.actionNavigatePrevious({ open: true });
     }
+  }
+
+  /**
+   * Action: Refocus the dashboard leaf while keeping the reader open.
+   * @internal
+   */
+  public actionFocusDashboard(): void {
+    void this.focusDashboardLeaf();
   }
 
   /**

@@ -6,18 +6,16 @@ import type { ReaderView } from "../views/reader-view";
  * Decouples the hotkey routing logic from the monolithic reader view.
  */
 export function setupReaderHotkeys(scope: Scope, view: ReaderView): void {
-  // Zoom In ('+')
+  // Zoom In ('=' / '+')
   const zoomInHandler = (evt: KeyboardEvent) => {
     evt.preventDefault();
     view.actionZoomIn();
     return true;
   };
-  scope.register([], "+", zoomInHandler);
-  scope.register(["Shift"], "+", zoomInHandler);
   scope.register([], "=", zoomInHandler);
   scope.register(["Shift"], "=", zoomInHandler);
 
-  // Zoom Out ('-')
+  // Zoom Out ('-' / '_')
   const zoomOutHandler = (evt: KeyboardEvent) => {
     evt.preventDefault();
     view.actionZoomOut();
@@ -33,45 +31,32 @@ export function setupReaderHotkeys(scope: Scope, view: ReaderView): void {
     return true;
   });
 
-  // Next article ('j')
-  scope.register([], "j", (evt) => {
-    evt.preventDefault();
-    view.actionNavigateNext();
-    return true;
-  });
-
-  // Next article ('Space')
-  scope.register([], " ", (evt) => {
-    evt.preventDefault();
-    view.actionNavigateNext();
-    return true;
-  });
-
-  // Previous article ('k')
+  // Close article ('k')
   scope.register([], "k", (evt) => {
     evt.preventDefault();
-    view.actionNavigatePrevious();
-    return true;
-  });
-
-  // Previous article ('Shift + Space')
-  scope.register(["Shift"], " ", (evt) => {
-    evt.preventDefault();
-    view.actionNavigatePrevious();
-    return true;
-  });
-
-  // Open/Close article ('o')
-  scope.register([], "o", (evt) => {
-    evt.preventDefault();
     view.actionToggleArticleOpen();
     return true;
   });
 
-  // Open/Close article ('Enter')
-  scope.register([], "Enter", (evt) => {
+  // Focus dashboard ('Shift + d')
+  scope.register(["Shift"], "d", (evt) => {
     evt.preventDefault();
-    view.actionToggleArticleOpen();
+    view.actionFocusDashboard();
+    return true;
+  });
+
+  // Previous article ('j')
+  scope.register([], "j", (evt) => {
+    evt.preventDefault();
+    view.actionNavigatePrevious();
+    return true;
+  });
+
+  // Next article ('l')
+
+  scope.register([], "l", (evt) => {
+    evt.preventDefault();
+    view.actionNavigateNext();
     return true;
   });
 

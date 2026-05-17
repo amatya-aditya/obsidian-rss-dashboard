@@ -81,12 +81,6 @@ describe("ReaderView Hotkeys", () => {
     const viewScope = (view as unknown as { scope: Scope }).scope;
     const scopeHandlers = (viewScope as unknown as { handlers: { key: string, modifiers: string[] }[] }).handlers;
 
-    const zoomInHandler = scopeHandlers.find((h) => h.key === "+" && (!h.modifiers || h.modifiers.length === 0));
-    expect(zoomInHandler).toBeDefined();
-
-    const zoomInShiftPlus = scopeHandlers.find((h) => h.key === "+" && h.modifiers?.includes("Shift"));
-    expect(zoomInShiftPlus).toBeDefined();
-
     const zoomInEquals = scopeHandlers.find((h) => h.key === "=" && (!h.modifiers || h.modifiers.length === 0));
     expect(zoomInEquals).toBeDefined();
 
@@ -105,24 +99,14 @@ describe("ReaderView Hotkeys", () => {
     const helpHandler = scopeHandlers.find((h) => h.key === "?" && h.modifiers?.includes("Shift"));
     expect(helpHandler).toBeDefined();
 
-    // New Article Manipulation Hotkeys
     const jHandler = scopeHandlers.find((h) => h.key === "j" && (!h.modifiers || h.modifiers.length === 0));
     expect(jHandler).toBeDefined();
-
-    const spaceHandler = scopeHandlers.find((h) => h.key === " " && (!h.modifiers || h.modifiers.length === 0));
-    expect(spaceHandler).toBeDefined();
 
     const kHandler = scopeHandlers.find((h) => h.key === "k" && (!h.modifiers || h.modifiers.length === 0));
     expect(kHandler).toBeDefined();
 
-    const shiftSpaceHandler = scopeHandlers.find((h) => h.key === " " && h.modifiers?.includes("Shift"));
-    expect(shiftSpaceHandler).toBeDefined();
-
-    const oHandler = scopeHandlers.find((h) => h.key === "o" && (!h.modifiers || h.modifiers.length === 0));
-    expect(oHandler).toBeDefined();
-
-    const enterHandler = scopeHandlers.find((h) => h.key === "Enter" && (!h.modifiers || h.modifiers.length === 0));
-    expect(enterHandler).toBeDefined();
+    const shiftDHandler = scopeHandlers.find((h) => h.key === "d" && h.modifiers?.includes("Shift"));
+    expect(shiftDHandler).toBeDefined();
 
     const mHandler = scopeHandlers.find((h) => h.key === "m" && (!h.modifiers || h.modifiers.length === 0));
     expect(mHandler).toBeDefined();

@@ -13,7 +13,10 @@ export class ShortcutHelpModal extends Modal {
     this.modalEl.addClass("shortcut-help-modal");
 
     const header = contentEl.createDiv({ cls: "rss-dashboard-header" });
-    header.createDiv({ cls: "rss-dashboard-header-title", text: "Keyboard Shortcuts" });
+    header.createDiv({
+      cls: "rss-dashboard-header-title",
+      text: "Keyboard Shortcuts",
+    });
 
     const closeBtn = header.createDiv({
       cls: "rss-dashboard-header-close-button clickable-icon",
@@ -53,16 +56,18 @@ export class ShortcutHelpModal extends Modal {
     ]);
 
     this.renderSection(body, "Reader View", [
-      { key: "+", desc: "Increase font size" },
-      { key: "-", desc: "Decrease font size" },
+      { key: "= / +", desc: "Increase font size" },
+      { key: "- / _", desc: "Decrease font size" },
       { key: "0", desc: "Reset font size" },
     ]);
 
     this.renderSection(body, "Article Manipulation", [
-      { key: "j / Space", desc: "Next article" },
-      { key: "k / Shift + Space", desc: "Previous article" },
-      { key: "← → ↑ ↓", desc: "Card view navigation" },
-      { key: "o / Enter", desc: "Open/Close article" },
+      { key: "Arrow keys", desc: "Card view navigation" },
+      { key: "o / Enter", desc: "Open article in reader pane" },
+      { key: "k", desc: "Close reader pane" },
+      { key: "Shift + d", desc: "Focus dashboard view" },
+      { key: "J", desc: "Previous article in reader pane" },
+      { key: "L", desc: "Next article in reader pane" },
       { key: "m", desc: "Mark as read/unread toggle" },
       { key: "Shift + a", desc: "Mark all as read" },
       { key: "f", desc: "Star/Unstar article" },
@@ -82,15 +87,21 @@ export class ShortcutHelpModal extends Modal {
     ]);
   }
 
-  private renderSection(container: HTMLElement, title: string, items: Array<{key: string, desc: string}>) {
+  private renderSection(
+    container: HTMLElement,
+    title: string,
+    items: Array<{ key: string; desc: string }>,
+  ) {
     const section = container.createDiv({ cls: "rss-shortcut-section" });
     section.createEl("h3", { text: title });
 
     const grid = section.createDiv({ cls: "rss-shortcut-grid" });
-    items.forEach(item => {
+    items.forEach((item) => {
       const row = grid.createDiv({ cls: "rss-shortcut-row" });
       row.createDiv({ cls: "rss-shortcut-desc", text: item.desc });
-      const keyContainer = row.createDiv({ cls: "rss-shortcut-key-container" });
+      const keyContainer = row.createDiv({
+        cls: "rss-shortcut-key-container",
+      });
       keyContainer.createEl("kbd", { text: item.key });
     });
   }

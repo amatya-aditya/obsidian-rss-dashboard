@@ -895,6 +895,93 @@ export class ArticleList {
     }
   }
 
+  public getCardNavigationTargetGuid(
+    currentGuid: string,
+    direction: "left" | "right" | "up" | "down",
+  ): string | null {
+    const cards = Array.from(
+      this.container.querySelectorAll<HTMLElement>(".rss-dashboard-article-card"),
+    );
+    if (cards.length === 0) {
+      return null;
+    }
+
+    const currentIndex = cards.findIndex(
+      (card) => card.dataset.articleGuid === currentGuid,
+    );
+    if (currentIndex === -1) {
+      return cards[0].dataset.articleGuid ?? null;
+    }
+
+    const rowTolerance = 6;
+    const positionedCards = cards
+      .map((card) => ({
+        guid: card.dataset.articleGuid ?? null,
+        rect: card.getBoundingClientRect(),
+      }))
+      .filter(
+        (
+          entry,
+        ): entry is { guid: string; rect: DOMRect } => entry.guid !== null,
+      );
+    const rows: Array<Array<{ guid: string; rect: DOMRect }>> = [];
+    positionedCards.forEach((entry) => {
+      const existingRow = rows.find(
+        (row) => Math.abs(row[0].rect.top - entry.rect.top) <= rowTolerance,
+      );
+      if (existingRow) {
+        existingRow.push(entry);
+        return;
+      }
+      rows.push([entry]);
+    });
+    rows.forEach((row) =>
+      row.sort((a, b) => a.rect.left - b.rect.left),
+    );
+    rows.sort((a, b) => a[0].rect.top - b[0].rect.top);
+
+    const currentRowIndex = rows.findIndex((row) =>
+      row.some((entry) => entry.guid === currentGuid),
+    );
+    if (currentRowIndex === -1) {
+      return null;
+    }
+
+    const currentRow = rows[currentRowIndex];
+    const currentColumnIndex = currentRow.findIndex(
+      (entry) => entry.guid === currentGuid,
+    );
+    if (currentColumnIndex === -1) {
+      return null;
+    }
+
+    if (direction === "left") {
+      return currentColumnIndex > 0
+        ? currentRow[currentColumnIndex - 1].guid
+        : null;
+    }
+
+    if (direction === "right") {
+      return currentColumnIndex < currentRow.length - 1
+        ? currentRow[currentColumnIndex + 1].guid
+        : null;
+    }
+
+    const targetRowIndex =
+      direction === "up" ? currentRowIndex - 1 : currentRowIndex + 1;
+    if (targetRowIndex < 0 || targetRowIndex >= rows.length) {
+      return null;
+    }
+
+    const targetRow = rows[targetRowIndex];
+    const targetColumnIndex = Math.min(
+      currentColumnIndex,
+      targetRow.length - 1,
+    );
+
+    return targetRow[targetColumnIndex]?.guid ?? null;
+  }
+
   /**
    * Arm a one-shot ResizeObserver relock for card-view top-anchoring.
    *
@@ -2249,7 +2336,7 @@ export class ArticleList {
           .setIcon("file-text")
           .onClick(() => {
             if (this.callbacks.onOpenSavedArticle) {
-              this.callbacks.onOpenSavedArticle(article);
+              void this.callbacks.onOpenSavedArticle(article);
             }
           });
       });
@@ -2260,7 +2347,7 @@ export class ArticleList {
           .setIcon("book-open")
           .onClick(() => {
             if (this.callbacks.onOpenInReaderView) {
-              this.callbacks.onOpenInReaderView(article);
+              void this.callbacks.onOpenInReaderView(article);
             }
           });
       });

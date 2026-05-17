@@ -168,7 +168,7 @@ export class RssDashboardView extends ItemView {
    * Action: Navigate to next article.
    * @internal
    */
-  public actionNavigateNext(): void {
+  public actionNavigateNext(options?: { open?: boolean }): void {
     const allFilteredArticles = this.getFilteredArticles();
     const pageSize = this.getCurrentPageSize();
     const totalArticles = allFilteredArticles.length;
@@ -212,7 +212,9 @@ export class RssDashboardView extends ItemView {
                 newPagination.endIdx,
               );
               if (newArticles.length > 0) {
-                void this.handleArticleClick(newArticles[0]);
+                void this.selectArticle(newArticles[0], {
+                  open: options?.open,
+                });
               }
             });
             return;
@@ -225,14 +227,14 @@ export class RssDashboardView extends ItemView {
     }
 
     const nextArticle = articlesForPage[nextIndex];
-    void this.handleArticleClick(nextArticle);
+    void this.selectArticle(nextArticle, { open: options?.open });
   }
 
   /**
    * Action: Navigate to previous article.
    * @internal
    */
-  public actionNavigatePrevious(): void {
+  public actionNavigatePrevious(options?: { open?: boolean }): void {
     const allFilteredArticles = this.getFilteredArticles();
     const pageSize = this.getCurrentPageSize();
     const totalArticles = allFilteredArticles.length;
@@ -275,9 +277,9 @@ export class RssDashboardView extends ItemView {
                 newPagination.endIdx,
               );
               if (newArticles.length > 0) {
-                void this.handleArticleClick(
-                  newArticles[newArticles.length - 1],
-                );
+                void this.selectArticle(newArticles[newArticles.length - 1], {
+                  open: options?.open,
+                });
               }
             });
             return;
@@ -290,7 +292,7 @@ export class RssDashboardView extends ItemView {
     }
 
     const prevArticle = articlesForPage[prevIndex];
-    void this.handleArticleClick(prevArticle);
+    void this.selectArticle(prevArticle, { open: options?.open });
   }
 
   /**
@@ -320,49 +322,27 @@ export class RssDashboardView extends ItemView {
 
     if (articlesForPage.length === 0) return;
 
-    let targetIndex = 0;
-    const cols = Math.max(1, this.settings.display.cardColumnsPerRow || 3);
-
-    if (this.selectedArticle) {
-      const currentIndex = articlesForPage.findIndex(
-        (a) => a.guid === this.selectedArticle?.guid,
-      );
-      if (currentIndex !== -1) {
-        switch (direction) {
-          case "left":
-            if (currentIndex > 0) {
-              targetIndex = currentIndex - 1;
-            } else {
-              return;
-            }
-            break;
-          case "right":
-            if (currentIndex < articlesForPage.length - 1) {
-              targetIndex = currentIndex + 1;
-            } else {
-              return;
-            }
-            break;
-          case "up":
-            if (currentIndex >= cols) {
-              targetIndex = currentIndex - cols;
-            } else {
-              return;
-            }
-            break;
-          case "down":
-            if (currentIndex + cols < articlesForPage.length) {
-              targetIndex = currentIndex + cols;
-            } else {
-              return;
-            }
-            break;
-        }
-      }
+    if (!this.selectedArticle) {
+      void this.selectArticle(articlesForPage[0]);
+      return;
     }
 
-    const targetArticle = articlesForPage[targetIndex];
-    void this.handleArticleClick(targetArticle);
+    const targetGuid = this.articleList?.getCardNavigationTargetGuid(
+      this.selectedArticle.guid,
+      direction,
+    );
+    if (!targetGuid) {
+      return;
+    }
+
+    const targetArticle = articlesForPage.find(
+      (article) => article.guid === targetGuid,
+    );
+    if (!targetArticle) {
+      return;
+    }
+
+    void this.selectArticle(targetArticle);
   }
 
   /**
@@ -371,7 +351,7 @@ export class RssDashboardView extends ItemView {
    */
   public actionToggleArticleOpen(): void {
     if (this.selectedArticle) {
-      void this.handleArticleClick(this.selectedArticle);
+      void this.selectArticle(this.selectedArticle, { open: true });
     }
   }
 
@@ -2095,16 +2075,29 @@ export class RssDashboardView extends ItemView {
   }
 
   // --- Article open/save actions ---
+  private async selectArticle(
+    article: FeedItem,
+    options?: { open?: boolean },
+  ): Promise<void> {
+    this.selectedArticle = article;
+    this.articleList?.setSelectedArticle(article);
+
+    if (options?.open) {
+      await this.openSelectedArticle(article);
+    }
+  }
+
   private async handleArticleClick(article: FeedItem): Promise<void> {
+    await this.selectArticle(article, { open: true });
+  }
+
+  private async openSelectedArticle(article: FeedItem): Promise<void> {
     const readerLocation = this.getReaderViewLocation();
     const shouldForceCardTopAnchor =
       this.settings.viewStyle === "card" &&
       (readerLocation === "left-sidebar" ||
         readerLocation === "right-sidebar" ||
         (readerLocation === "main" && !Platform.isMobile));
-
-    this.selectedArticle = article;
-    this.articleList?.setSelectedArticle(article);
 
     if (!article.read && this.settings.display.autoMarkReadOnOpen) {
       await this.updateArticleStatus(article, { read: true }, false);
@@ -2135,27 +2128,21 @@ export class RssDashboardView extends ItemView {
 
   private async openArticleInNewTab(article: FeedItem): Promise<WorkspaceLeaf> {
     const { workspace } = this.app;
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
-    const activeLeaf = workspace.activeLeaf;
-    const shouldPreserveFocus = activeLeaf === this.leaf;
-
     const leaf = workspace.getLeaf(Platform.isMobile ? "tab" : "split");
     if (leaf) {
       await leaf.setViewState({
         type: RSS_READER_VIEW_TYPE,
-        active: !shouldPreserveFocus,
+        active: true,
       });
       await workspace.revealLeaf(leaf);
-
-      if (shouldPreserveFocus) {
-        workspace.setActiveLeaf(this.leaf, { focus: true });
-      }
+      workspace.setActiveLeaf(leaf, { focus: true });
 
       if (leaf.view instanceof ReaderView) {
         const view = leaf.view;
         view.setReturnLeaf(this.leaf);
         const relatedItems = this.getRelatedItems(article);
         await view.displayItem(article, relatedItems);
+        view.focusReaderView();
       }
     }
     return leaf;
@@ -2166,25 +2153,19 @@ export class RssDashboardView extends ItemView {
     leaf: WorkspaceLeaf,
   ): Promise<void> {
     if (leaf) {
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
-      const activeLeaf = this.app.workspace.activeLeaf;
-      const shouldPreserveFocus = activeLeaf === this.leaf;
-
       await leaf.setViewState({
         type: RSS_READER_VIEW_TYPE,
-        active: !shouldPreserveFocus,
+        active: true,
       });
       await this.app.workspace.revealLeaf(leaf);
-
-      if (shouldPreserveFocus) {
-        this.app.workspace.setActiveLeaf(this.leaf, { focus: true });
-      }
+      this.app.workspace.setActiveLeaf(leaf, { focus: true });
 
       if (leaf.view instanceof ReaderView) {
         const view = leaf.view;
         view.setReturnLeaf(this.leaf);
         const relatedItems = this.getRelatedItems(article);
         await view.displayItem(article, relatedItems);
+        view.focusReaderView();
       }
     }
   }
