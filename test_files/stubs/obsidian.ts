@@ -7,8 +7,6 @@
 import moment from "moment";
 export { moment };
 
-// Stub for HTTP requests - configure mock in test
-
 export async function requestUrl(
   _param?: unknown,
 ): Promise<{ status: number; text: string }> {
@@ -517,7 +515,6 @@ export class ItemView {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   registerEvent(_evt: any): void {}
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   registerDomEvent(
     el: HTMLElement,
     type: string,
