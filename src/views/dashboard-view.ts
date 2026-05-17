@@ -41,6 +41,20 @@ import { setupDashboardHotkeys } from "../hotkeys/dashboard-hotkeys";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
+type SidebarKeyboardController = {
+  focusSidebar: () => void;
+  hasKeyboardFocus: () => boolean;
+  moveFocusToNextItem: () => void;
+  moveFocusToPreviousItem: () => void;
+  jumpToNextFolder: () => void;
+  jumpToPreviousFolder: () => void;
+  openFocusedItem: () => void;
+  blurSidebarFocus: () => void;
+  toggleFocusedFolderCollapse: () => void;
+  deleteFocusedItem: () => void;
+  renameFocusedItem: () => void;
+};
+
 export class RssDashboardView extends ItemView {
   private static readonly CARD_LAYOUT_RELAYOUT_DELAY_MS = 90;
   private static readonly CARD_LAYOUT_SAVE_DELAY_MS = 120;
@@ -164,11 +178,83 @@ export class RssDashboardView extends ItemView {
     await this.handleRefreshFeeds();
   }
 
+  private getSidebarKeyboardController(): SidebarKeyboardController | null {
+    return (
+      (this.sidebar as unknown as SidebarKeyboardController | undefined) ?? null
+    );
+  }
+
+  public actionFocusSidebar(): void {
+    this.getSidebarKeyboardController()?.focusSidebar();
+  }
+
+  public actionFocusReader(): void {
+    const readerLeaf =
+      this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE)[0] ?? null;
+    if (!readerLeaf) {
+      new Notice("No reader pane is currently open.");
+      return;
+    }
+
+    if (readerLeaf.view instanceof ReaderView) {
+      readerLeaf.view.focusReaderView();
+      return;
+    }
+
+    this.app.workspace.setActiveLeaf(readerLeaf, { focus: true });
+  }
+
+  public isSidebarFocused(): boolean {
+    return this.getSidebarKeyboardController()?.hasKeyboardFocus() ?? false;
+  }
+
+  public actionSidebarMoveNext(): void {
+    this.getSidebarKeyboardController()?.moveFocusToNextItem();
+  }
+
+  public actionSidebarMovePrevious(): void {
+    this.getSidebarKeyboardController()?.moveFocusToPreviousItem();
+  }
+
+  public actionSidebarJumpNextFolder(): void {
+    this.getSidebarKeyboardController()?.jumpToNextFolder();
+  }
+
+  public actionSidebarJumpPreviousFolder(): void {
+    this.getSidebarKeyboardController()?.jumpToPreviousFolder();
+  }
+
+  public actionSidebarOpenFocused(): void {
+    this.getSidebarKeyboardController()?.openFocusedItem();
+    this.actionFocusDashboard();
+  }
+
+  public actionFocusDashboard(): void {
+    this.app.workspace.setActiveLeaf(this.leaf, { focus: true });
+    this.getSidebarKeyboardController()?.blurSidebarFocus();
+    activeWindow.requestAnimationFrame(() => {
+      this.containerEl.focus({ preventScroll: true });
+    });
+  }
+
+  public actionSidebarToggleFocusedFolder(): void {
+    this.getSidebarKeyboardController()?.toggleFocusedFolderCollapse();
+  }
+
+  public actionSidebarDeleteFocused(): void {
+    this.getSidebarKeyboardController()?.deleteFocusedItem();
+  }
+
+  public actionSidebarRenameFocused(): void {
+    this.getSidebarKeyboardController()?.renameFocusedItem();
+  }
+
   /**
    * Action: Navigate to next article.
    * @internal
    */
   public actionNavigateNext(options?: { open?: boolean }): void {
+    this.getSidebarKeyboardController()?.blurSidebarFocus();
     const allFilteredArticles = this.getFilteredArticles();
     const pageSize = this.getCurrentPageSize();
     const totalArticles = allFilteredArticles.length;
@@ -235,6 +321,7 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionNavigatePrevious(options?: { open?: boolean }): void {
+    this.getSidebarKeyboardController()?.blurSidebarFocus();
     const allFilteredArticles = this.getFilteredArticles();
     const pageSize = this.getCurrentPageSize();
     const totalArticles = allFilteredArticles.length;
@@ -299,9 +386,8 @@ export class RssDashboardView extends ItemView {
    * Action: Navigate arrow keys in card view.
    * @internal
    */
-  public actionNavigateCard(
-    direction: "left" | "right" | "up" | "down",
-  ): void {
+  public actionNavigateCard(direction: "left" | "right" | "up" | "down"): void {
+    this.getSidebarKeyboardController()?.blurSidebarFocus();
     if (this.settings.viewStyle !== "card") return;
 
     const allFilteredArticles = this.getFilteredArticles();
@@ -350,6 +436,7 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionToggleArticleOpen(): void {
+    this.getSidebarKeyboardController()?.blurSidebarFocus();
     if (this.selectedArticle) {
       void this.selectArticle(this.selectedArticle, { open: true });
     }
@@ -419,7 +506,6 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-
   /**
    * Action: Mark all filtered articles as read.
    * @internal
@@ -478,7 +564,7 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionOpenShortcutHelp(): void {
-    new ShortcutHelpModal(this.app).open();
+    new ShortcutHelpModal(this.app, this.settings).open();
   }
 
   // --- Render pipeline ---
@@ -594,6 +680,9 @@ export class RssDashboardView extends ItemView {
       // Only grab focus back to the container if the click was not on an
       // interactive element (input, button, select, textarea, link, etc.).
       const target = evt.target as HTMLElement;
+      if (!target.closest(".rss-dashboard-sidebar")) {
+        this.getSidebarKeyboardController()?.blurSidebarFocus();
+      }
       const interactive = target.closest(
         'input, button, select, textarea, a, [tabindex]:not([tabindex="-1"])',
       );
@@ -2044,7 +2133,9 @@ export class RssDashboardView extends ItemView {
   }
 
   private handleViewportResizeModeTransition(): void {
-    const currentMode = this.shouldUseMobileSidebarMode(activeWindow.innerWidth);
+    const currentMode = this.shouldUseMobileSidebarMode(
+      activeWindow.innerWidth,
+    );
 
     if (this.lastViewportMobileSidebarMode === null) {
       this.lastViewportMobileSidebarMode = currentMode;

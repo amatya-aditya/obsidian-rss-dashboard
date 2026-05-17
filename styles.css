@@ -528,6 +528,18 @@
 .rss-dashboard-feed-folder-header.active .rss-dashboard-feed-folder-toggle {
   color: var(--text-accent);
 }
+.rss-dashboard-feed-folder-header.rss-dashboard-sidebar-row-focused,
+.rss-dashboard-feed.rss-dashboard-sidebar-row-focused,
+.rss-dashboard-all-feeds-button.rss-dashboard-sidebar-row-focused {
+  outline: 2px solid var(--interactive-accent-hover);
+  outline-offset: -2px;
+  background-color: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary));
+}
+.rss-dashboard-feed-folder-header.rss-dashboard-sidebar-row-focused .rss-dashboard-feed-folder-name,
+.rss-dashboard-feed.rss-dashboard-sidebar-row-focused .rss-dashboard-feed-name,
+.rss-dashboard-all-feeds-button.rss-dashboard-sidebar-row-focused .rss-dashboard-all-feeds-label {
+  color: var(--text-accent);
+}
 .rss-dashboard-feed-folder-name {
   min-width: 0;
   flex-grow: 1;

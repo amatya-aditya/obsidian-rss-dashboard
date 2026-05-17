@@ -43,6 +43,14 @@ type TestSidebar = {
   destroy: () => void;
   render: () => void;
   clearFolderPathCache: () => void;
+  focusSidebar: () => void;
+  hasKeyboardFocus: () => boolean;
+  moveFocusToNextItem: () => void;
+  moveFocusToPreviousItem: () => void;
+  jumpToNextFolder: () => void;
+  jumpToPreviousFolder: () => void;
+  openFocusedItem: () => void;
+  focusedSidebarTarget: { type: string; path?: string; url?: string } | null;
 };
 
 describe("Sidebar Core", () => {
@@ -275,6 +283,126 @@ describe("Sidebar Core", () => {
       sidebar.destroy();
       expect(mockObserver.disconnect).toHaveBeenCalled();
       expect(ts.resizeObserver).toBeNull();
+    });
+  });
+
+  describe("sidebar keyboard navigation", () => {
+    beforeEach(() => {
+      document.body.appendChild(container);
+      settings.folders = [
+        { name: "Folder 1", subfolders: [] },
+        { name: "Folder 2", subfolders: [] },
+      ] as Folder[];
+      settings.feeds = [
+        {
+          title: "Feed 1",
+          url: "https://example.com/feed-1.xml",
+          folder: "Folder 1",
+          items: [{ read: false }],
+        } as Feed,
+        {
+          title: "Feed 2",
+          url: "https://example.com/feed-2.xml",
+          folder: "Folder 2",
+          items: [{ read: false }],
+        } as Feed,
+      ];
+    });
+
+    it("focuses the current feed by default and scrolls it into view", () => {
+      options.currentFeed = settings.feeds[1];
+      const scrollIntoViewSpy = vi.spyOn(Element.prototype, "scrollIntoView");
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+
+      sidebar.render();
+      const ts = sidebar as unknown as TestSidebar;
+      ts.focusSidebar();
+
+      expect(ts.hasKeyboardFocus()).toBe(true);
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "feed",
+        url: "https://example.com/feed-2.xml",
+      });
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith({
+        block: "nearest",
+        behavior: "auto",
+      });
+    });
+
+    it("moves up and down visible rows and opens the focused feed", () => {
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+
+      sidebar.render();
+      const ts = sidebar as unknown as TestSidebar;
+      ts.focusSidebar();
+      ts.moveFocusToNextItem();
+      ts.moveFocusToNextItem();
+      ts.openFocusedItem();
+
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "feed",
+        url: "https://example.com/feed-1.xml",
+      });
+      expect(callbacks.onFeedClick).toHaveBeenCalledWith(settings.feeds[0]);
+
+      ts.moveFocusToPreviousItem();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 1",
+      });
+    });
+
+    it("jumps between folders from both folder and feed rows", () => {
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+
+      sidebar.render();
+      const ts = sidebar as unknown as TestSidebar;
+      ts.focusSidebar();
+      ts.jumpToNextFolder();
+
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 1",
+      });
+
+      ts.moveFocusToNextItem();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "feed",
+        url: "https://example.com/feed-1.xml",
+      });
+
+      ts.jumpToNextFolder();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 2",
+      });
+
+      ts.jumpToPreviousFolder();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 1",
+      });
     });
   });
 

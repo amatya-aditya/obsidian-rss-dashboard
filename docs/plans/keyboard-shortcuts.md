@@ -36,6 +36,8 @@ These single-key shortcuts are safe because they are scoped to our custom views.
 
 ### Dashboard View
 
+- Focus sidebar - `Shift + s`
+- Focus reader view - `Shift + r`
 - All articles - `Shift + 1`
 - Unread articles - `Shift + 2`
 - Read articles - `Shift + 3`
@@ -45,6 +47,9 @@ These single-key shortcuts are safe because they are scoped to our custom views.
 
 ### Reader View
 
+- Focus dashboard view - `Shift + d`
+- Focus sidebar - `Shift + s`
+- Focus reader view - `Shift + r`
 - Scroll up/down - `ArrowUp` / `ArrowDown`
 - Scroll left/right - `ArrowLeft` / `ArrowRight`
 - Page up/down - `PageUp` / `PageDown`
@@ -67,11 +72,11 @@ These single-key shortcuts are safe because they are scoped to our custom views.
 
 ### Sidebar Navigation
 
-- Next item - `Shift + j`
-- Previous item - `Shift + k`
-- Focus next item - `Shift + n`
-- Focus previous item - `Shift + p`
-- Open focused item - `Shift + o`
+- Next item - `Shift + l`
+- Previous item - `Shift + j`
+- Move focused item - `ArrowUp` / `ArrowDown`
+- Jump between folders - `ArrowLeft` / `ArrowRight`
+- Open focused item - `Shift + o` or `Shift + Enter`
 - Open/Collapse folder - `Shift + x`
 - Delete folder/feed - `Shift + d`
 - Rename folder/feed - `Shift + r`
@@ -82,7 +87,6 @@ _(Note: Multi-chord key sequences like "g then d" are replaced with Shift modifi
 
 - Go to Dashboard - `Shift + d`
 - Go to All articles - `Shift + v`
-- Go to Starred - `Shift + s`
 - Go to feed - `Shift + u`
 - Go to folder/tag - `Shift + t`
 

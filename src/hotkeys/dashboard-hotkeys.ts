@@ -6,6 +6,23 @@ import type { RssDashboardView } from "../views/dashboard-view";
  * Decouples the hotkey routing logic from the monolithic dashboard view.
  */
 export function setupDashboardHotkeys(scope: Scope, view: RssDashboardView): void {
+  // Pane focus
+  scope.register(["Shift"], "s", (evt) => {
+    evt.preventDefault();
+    view.actionFocusSidebar();
+    return true;
+  });
+
+  scope.register(["Shift"], "r", (evt) => {
+    evt.preventDefault();
+    if (view.isSidebarFocused()) {
+      view.actionSidebarRenameFocused();
+    } else {
+      view.actionFocusReader();
+    }
+    return true;
+  });
+
   // Refresh feed ('r')
   scope.register([], "r", (evt) => {
     evt.preventDefault();
@@ -44,28 +61,44 @@ export function setupDashboardHotkeys(scope: Scope, view: RssDashboardView): voi
   // Card Navigation ('ArrowLeft')
   scope.register([], "ArrowLeft", (evt) => {
     evt.preventDefault();
-    view.actionNavigateCard("left");
+    if (view.isSidebarFocused()) {
+      view.actionSidebarJumpPreviousFolder();
+    } else {
+      view.actionNavigateCard("left");
+    }
     return true;
   });
 
   // Card Navigation ('ArrowRight')
   scope.register([], "ArrowRight", (evt) => {
     evt.preventDefault();
-    view.actionNavigateCard("right");
+    if (view.isSidebarFocused()) {
+      view.actionSidebarJumpNextFolder();
+    } else {
+      view.actionNavigateCard("right");
+    }
     return true;
   });
 
   // Card Navigation ('ArrowUp')
   scope.register([], "ArrowUp", (evt) => {
     evt.preventDefault();
-    view.actionNavigateCard("up");
+    if (view.isSidebarFocused()) {
+      view.actionSidebarMovePrevious();
+    } else {
+      view.actionNavigateCard("up");
+    }
     return true;
   });
 
   // Card Navigation ('ArrowDown')
   scope.register([], "ArrowDown", (evt) => {
     evt.preventDefault();
-    view.actionNavigateCard("down");
+    if (view.isSidebarFocused()) {
+      view.actionSidebarMoveNext();
+    } else {
+      view.actionNavigateCard("down");
+    }
     return true;
   });
 
@@ -79,7 +112,11 @@ export function setupDashboardHotkeys(scope: Scope, view: RssDashboardView): voi
   // Open/Close article ('Enter')
   scope.register([], "Enter", (evt) => {
     evt.preventDefault();
-    view.actionToggleArticleOpen();
+    if (view.isSidebarFocused()) {
+      view.actionSidebarOpenFocused();
+    } else {
+      view.actionToggleArticleOpen();
+    }
     return true;
   });
 
@@ -115,6 +152,42 @@ export function setupDashboardHotkeys(scope: Scope, view: RssDashboardView): voi
   scope.register([], "s", (evt) => {
     evt.preventDefault();
     void view.actionSaveSelectedArticle();
+    return true;
+  });
+
+  scope.register(["Shift"], "j", (evt) => {
+    evt.preventDefault();
+    view.actionSidebarMovePrevious();
+    return true;
+  });
+
+  scope.register(["Shift"], "l", (evt) => {
+    evt.preventDefault();
+    view.actionSidebarMoveNext();
+    return true;
+  });
+
+  scope.register(["Shift"], "o", (evt) => {
+    evt.preventDefault();
+    view.actionSidebarOpenFocused();
+    return true;
+  });
+
+  scope.register(["Shift"], "Enter", (evt) => {
+    evt.preventDefault();
+    view.actionSidebarOpenFocused();
+    return true;
+  });
+
+  scope.register(["Shift"], "x", (evt) => {
+    evt.preventDefault();
+    view.actionSidebarToggleFocusedFolder();
+    return true;
+  });
+
+  scope.register(["Shift"], "d", (evt) => {
+    evt.preventDefault();
+    view.actionSidebarDeleteFocused();
     return true;
   });
 

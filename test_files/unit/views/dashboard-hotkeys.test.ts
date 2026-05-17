@@ -17,6 +17,19 @@ vi.mock("../../../src/components/sidebar", () => ({
     constructor() {}
     render() {}
     destroy() {}
+    focusSidebar() {}
+    hasKeyboardFocus() {
+      return false;
+    }
+    moveFocusToNextItem() {}
+    moveFocusToPreviousItem() {}
+    jumpToNextFolder() {}
+    jumpToPreviousFolder() {}
+    openFocusedItem() {}
+    toggleFocusedFolderCollapse() {}
+    deleteFocusedItem() {}
+    renameFocusedItem() {}
+    blurSidebarFocus() {}
   },
 }));
 
@@ -32,6 +45,7 @@ describe("DashboardView Hotkeys", () => {
       workspace: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         on: vi.fn(),
+        getLeavesOfType: vi.fn().mockReturnValue([]),
       },
     } as unknown as App;
   }
@@ -72,7 +86,7 @@ describe("DashboardView Hotkeys", () => {
     expect(scopeHandlers.length).toBeGreaterThan(0);
   });
 
-  it("registers hotkeys for refresh, navigation, filters, and view styles", () => {
+  it("registers pane focus, sidebar navigation, and article hotkeys", () => {
     const app = createMockApp();
     const leaf = createMockLeaf(app);
     const plugin = createMockPlugin(app);
@@ -93,6 +107,12 @@ describe("DashboardView Hotkeys", () => {
 
     const shiftHelpHandler = scopeHandlers.find((h) => h.key === "?" && h.modifiers?.includes("Shift"));
     expect(shiftHelpHandler).toBeDefined();
+
+    const shiftSidebarHandler = scopeHandlers.find((h) => h.key === "s" && h.modifiers?.includes("Shift"));
+    expect(shiftSidebarHandler).toBeDefined();
+
+    const shiftReaderHandler = scopeHandlers.find((h) => h.key === "r" && h.modifiers?.includes("Shift"));
+    expect(shiftReaderHandler).toBeDefined();
 
     // Filters (Shift + 1/2/3)
     const allArticlesHandler = scopeHandlers.find((h) => h.key === "1" && h.modifiers?.includes("Shift"));
@@ -153,5 +173,32 @@ describe("DashboardView Hotkeys", () => {
 
     const sHandler = scopeHandlers.find((h) => h.key === "s" && (!h.modifiers || h.modifiers.length === 0));
     expect(sHandler).toBeDefined();
+
+    const shiftJHandler = scopeHandlers.find((h) => h.key === "j" && h.modifiers?.includes("Shift"));
+    expect(shiftJHandler).toBeDefined();
+
+    const shiftLHandler = scopeHandlers.find((h) => h.key === "l" && h.modifiers?.includes("Shift"));
+    expect(shiftLHandler).toBeDefined();
+
+    const shiftOHandler = scopeHandlers.find((h) => h.key === "o" && h.modifiers?.includes("Shift"));
+    expect(shiftOHandler).toBeDefined();
+
+    const shiftEnterHandler = scopeHandlers.find((h) => h.key === "Enter" && h.modifiers?.includes("Shift"));
+    expect(shiftEnterHandler).toBeDefined();
+
+    const shiftXHandler = scopeHandlers.find((h) => h.key === "x" && h.modifiers?.includes("Shift"));
+    expect(shiftXHandler).toBeDefined();
+
+    const shiftDHandler = scopeHandlers.find((h) => h.key === "d" && h.modifiers?.includes("Shift"));
+    expect(shiftDHandler).toBeDefined();
+
+    const removedShiftKHandler = scopeHandlers.find((h) => h.key === "k" && h.modifiers?.includes("Shift"));
+    expect(removedShiftKHandler).toBeUndefined();
+
+    const removedShiftNHandler = scopeHandlers.find((h) => h.key === "n" && h.modifiers?.includes("Shift"));
+    expect(removedShiftNHandler).toBeUndefined();
+
+    const removedShiftPHandler = scopeHandlers.find((h) => h.key === "p" && h.modifiers?.includes("Shift"));
+    expect(removedShiftPHandler).toBeUndefined();
   });
 });

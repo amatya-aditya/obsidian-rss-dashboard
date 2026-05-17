@@ -100,11 +100,9 @@ export class ReaderView extends ItemView {
     const dashboardLeaves = this.app.workspace.getLeavesOfType(
       RSS_DASHBOARD_VIEW_TYPE,
     );
-    return (
-      this.returnLeaf && dashboardLeaves.includes(this.returnLeaf)
-        ? this.returnLeaf
-        : (dashboardLeaves[0] ?? null)
-    );
+    return this.returnLeaf && dashboardLeaves.includes(this.returnLeaf)
+      ? this.returnLeaf
+      : (dashboardLeaves[0] ?? null);
   }
 
   private async focusDashboardLeaf(): Promise<void> {
@@ -208,7 +206,10 @@ export class ReaderView extends ItemView {
     const steps = [80, 90, 100, 110, 120, 130, 150, 175, 200];
     const format = this.getReaderFormat();
     const currentIndex = steps.indexOf(format.fontScalePct);
-    const nextIndex = Math.min(steps.length - 1, (currentIndex >= 0 ? currentIndex : 2) + 1);
+    const nextIndex = Math.min(
+      steps.length - 1,
+      (currentIndex >= 0 ? currentIndex : 2) + 1,
+    );
     format.fontScalePct = steps[nextIndex];
     this.applyReaderFormat();
     void this.flushReaderFormatSave();
@@ -404,6 +405,25 @@ export class ReaderView extends ItemView {
     void this.focusDashboardLeaf();
   }
 
+  public actionFocusSidebar(): void {
+    const dashboardView = this.getDashboardView();
+    if (dashboardView) {
+      dashboardView.actionFocusSidebar();
+      return;
+    }
+
+    new Notice("No dashboard pane is currently open.");
+  }
+
+  public actionFocusReader(): void {
+    if (!this.leaf) {
+      new Notice("No reader pane is currently open.");
+      return;
+    }
+
+    this.focusReaderView();
+  }
+
   /**
    * Action: Close the article and go back to dashboard.
    * @internal
@@ -490,7 +510,6 @@ export class ReaderView extends ItemView {
     }
   }
 
-
   /**
    * Action: Mark all filtered articles as read on the dashboard.
    * @internal
@@ -507,7 +526,7 @@ export class ReaderView extends ItemView {
    * @internal
    */
   public actionOpenShortcutHelp(): void {
-    new ShortcutHelpModal(this.app).open();
+    new ShortcutHelpModal(this.app, this.settings).open();
   }
 
   getViewType(): string {
@@ -687,7 +706,7 @@ export class ReaderView extends ItemView {
         title: "Reader settings",
         "aria-label": "Reader settings",
         role: "button",
-        tabindex: "0"
+        tabindex: "0",
       },
     });
     setIcon(readerFormatButton, "type");

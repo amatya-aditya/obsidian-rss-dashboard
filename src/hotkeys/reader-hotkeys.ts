@@ -94,6 +94,20 @@ export function setupReaderHotkeys(scope: Scope, view: ReaderView): void {
     return true;
   });
 
+  // Focus sidebar ('Shift + s')
+  scope.register(["Shift"], "s", (evt) => {
+    evt.preventDefault();
+    view.actionFocusSidebar();
+    return true;
+  });
+
+  // Focus reader ('Shift + r')
+  scope.register(["Shift"], "r", (evt) => {
+    evt.preventDefault();
+    view.actionFocusReader();
+    return true;
+  });
+
   // Previous article ('j')
   scope.register([], "j", (evt) => {
     evt.preventDefault();

@@ -86,6 +86,21 @@ export interface SidebarCallbacks {
   onCloseMobileSidebar?: () => void;
 }
 
+type SidebarFocusTarget =
+  | { type: "all-feeds" }
+  | { type: "folder"; path: string }
+  | { type: "feed"; url: string };
+
+type SidebarRowDescriptor = {
+  key: string;
+  target: SidebarFocusTarget;
+  element: HTMLElement;
+  feed?: Feed;
+  folderPath?: string;
+  folderName?: string;
+  expandable?: boolean;
+};
+
 // FolderNameModal — Uses Obsidian's Modal class to prevent mobile focus bugs.
 // ⚠️ DO NOT move the input to a raw document.body div or add event.stopPropagation()
 // guards. Previous attempts created race conditions with Obsidian's workspace handler,
@@ -260,6 +275,9 @@ export class Sidebar {
   private iconBtnEls = new Map<string, HTMLElement>();
   private iconActions = new Map<string, (e?: MouseEvent) => void>();
   private resizeObserver: ResizeObserver | null = null;
+  private sidebarRows: SidebarRowDescriptor[] = [];
+  private focusedSidebarTarget: SidebarFocusTarget | null = null;
+  private isSidebarKeyboardFocused = false;
 
   /**
    * Extract main domain from a URL for favicon purposes (without subdomains)
@@ -461,6 +479,8 @@ export class Sidebar {
 
     this.container.empty();
     this.container.addClass("rss-dashboard-sidebar");
+    this.container.tabIndex = -1;
+    this.sidebarRows = [];
 
     const spacing = this.settings.display.sidebarRowSpacing ?? 10;
     this.container.style.setProperty("--sidebar-row-spacing", `${spacing}px`);
@@ -507,6 +527,8 @@ export class Sidebar {
     this.renderSearchDock(controlsSurface);
     this.renderFeedFolders();
     this.applySearchFilterFromState();
+    this.syncFocusedSidebarTargetAfterRender();
+    this.applySidebarFocusState();
 
     // Attach ResizeObserver once; keep it across re-renders
     if (!this.resizeObserver) {
@@ -940,6 +962,8 @@ export class Sidebar {
     const allFeedsButton = container.createDiv({
       cls: "rss-dashboard-all-feeds-button" + (isAllActive ? " active" : ""),
     });
+    allFeedsButton.setAttr("tabindex", "-1");
+    this.registerSidebarRow({ type: "all-feeds" }, allFeedsButton);
     const isRefreshActive =
       this.plugin.isMultiFeedRefreshActive ||
       (this.plugin.activeRefreshState?.size ?? 0) > 0;
@@ -1075,6 +1099,16 @@ export class Sidebar {
         "data-folder-path": fullPath,
       },
     });
+    folderHeader.setAttr("tabindex", "-1");
+    this.registerSidebarRow(
+      { type: "folder", path: fullPath },
+      folderHeader,
+      {
+        folderPath: fullPath,
+        folderName,
+        expandable: isExpandable,
+      },
+    );
 
     const toggleButton = folderHeader.createDiv({
       cls: "rss-dashboard-feed-folder-toggle",
@@ -1410,6 +1444,8 @@ export class Sidebar {
         "data-feed-folder": feed.folder || "",
       },
     });
+    feedEl.setAttr("tabindex", "-1");
+    this.registerSidebarRow({ type: "feed", url: feed.url }, feedEl, { feed });
 
     const unreadCount = feed.items.filter((item) => !item.read).length;
     const feedNameContainer = feedEl.createDiv({
@@ -1818,6 +1854,299 @@ export class Sidebar {
       await this.plugin.saveSettings();
       this.clearFolderPathCache();
       this.render();
+    }
+  }
+
+  public focusSidebar(): void {
+    this.isSidebarKeyboardFocused = true;
+
+    const target =
+      this.getFocusedSidebarRow() ??
+      this.findDefaultSidebarFocusRow() ??
+      this.sidebarRows[0];
+    if (!target) {
+      return;
+    }
+
+    this.focusedSidebarTarget = target.target;
+    this.applySidebarFocusState();
+  }
+
+  public blurSidebarFocus(): void {
+    this.isSidebarKeyboardFocused = false;
+    this.applySidebarFocusState();
+  }
+
+  public hasKeyboardFocus(): boolean {
+    return this.isSidebarKeyboardFocused;
+  }
+
+  public moveFocusToNextItem(): void {
+    this.moveSidebarFocusByOffset(1);
+  }
+
+  public moveFocusToPreviousItem(): void {
+    this.moveSidebarFocusByOffset(-1);
+  }
+
+  public jumpToNextFolder(): void {
+    this.jumpToFolder(1);
+  }
+
+  public jumpToPreviousFolder(): void {
+    this.jumpToFolder(-1);
+  }
+
+  public openFocusedItem(): void {
+    const row = this.getFocusedSidebarRow();
+    if (!row) {
+      return;
+    }
+
+    switch (row.target.type) {
+      case "all-feeds":
+        this.callbacks.onFolderClick(null);
+        break;
+      case "folder":
+        if (row.folderPath) {
+          this.callbacks.onFolderClick(row.folderPath);
+        }
+        break;
+      case "feed":
+        if (row.feed) {
+          this.callbacks.onFeedClick(row.feed);
+        }
+        break;
+    }
+  }
+
+  public toggleFocusedFolderCollapse(): void {
+    const row = this.getFocusedSidebarRow();
+    if (
+      !row ||
+      row.target.type !== "folder" ||
+      !row.folderPath ||
+      !row.expandable
+    ) {
+      return;
+    }
+
+    this.callbacks.onToggleFolderCollapse(row.folderPath);
+  }
+
+  public deleteFocusedItem(): void {
+    const row = this.getFocusedSidebarRow();
+    if (!row) {
+      return;
+    }
+
+    if (row.target.type === "feed" && row.feed) {
+      this.showConfirmModal(
+        `Are you sure you want to delete the feed "${row.feed.title}"?`,
+        () => {
+          this.callbacks.onDeleteFeed(row.feed!);
+        },
+      );
+      return;
+    }
+
+    if (row.target.type === "folder" && row.folderPath && row.folderName) {
+      this.showConfirmModal(
+        `Are you sure you want to delete the folder '${row.folderName}' and all its subfolders and feeds?`,
+        () => {
+          const allPaths = this.getAllDescendantFolderPaths(row.folderPath!);
+          this.settings.feeds = this.settings.feeds.filter(
+            (feed) => !allPaths.includes(feed.folder),
+          );
+          this.removeFolderByPath(row.folderPath!);
+          this.render();
+        },
+      );
+    }
+  }
+
+  public renameFocusedItem(): void {
+    const row = this.getFocusedSidebarRow();
+    if (!row) {
+      return;
+    }
+
+    if (row.target.type === "feed" && row.feed) {
+      this.showEditFeedModal(row.feed);
+      return;
+    }
+
+    if (row.target.type === "folder" && row.folderPath && row.folderName) {
+      this.showFolderNameModal({
+        title: "Rename folder",
+        defaultValue: row.folderName,
+        existingNames: (() => {
+          const parentPath = row.folderPath!.includes("/")
+            ? row.folderPath!.split("/").slice(0, -1).join("/")
+            : "";
+          return parentPath
+            ? (this.findFolderByPath(parentPath)?.subfolders.map(
+                (folder) => folder.name,
+              ) ?? [])
+            : this.settings.folders.map((folder) => folder.name);
+        })(),
+        onSubmit: (newName) => {
+          if (newName !== row.folderName) {
+            void this.renameFolderByPath(row.folderPath!, newName).then(() =>
+              this.render(),
+            );
+          }
+        },
+      });
+    }
+  }
+
+  private registerSidebarRow(
+    target: SidebarFocusTarget,
+    element: HTMLElement,
+    extras?: Omit<SidebarRowDescriptor, "key" | "target" | "element">,
+  ): void {
+    this.sidebarRows.push({
+      key: this.getSidebarTargetKey(target),
+      target,
+      element,
+      ...extras,
+    });
+  }
+
+  private getSidebarTargetKey(target: SidebarFocusTarget): string {
+    switch (target.type) {
+      case "all-feeds":
+        return "all-feeds";
+      case "folder":
+        return `folder:${target.path}`;
+      case "feed":
+        return `feed:${target.url}`;
+    }
+  }
+
+  private getFocusedSidebarRow(): SidebarRowDescriptor | null {
+    if (!this.focusedSidebarTarget) {
+      return null;
+    }
+
+    const key = this.getSidebarTargetKey(this.focusedSidebarTarget);
+    return this.sidebarRows.find((row) => row.key === key) ?? null;
+  }
+
+  private findDefaultSidebarFocusRow(): SidebarRowDescriptor | null {
+    if (this.options.currentFeed) {
+      const targetKey = this.getSidebarTargetKey({
+        type: "feed",
+        url: this.options.currentFeed.url,
+      });
+      const feedRow = this.sidebarRows.find((row) => row.key === targetKey);
+      if (feedRow) {
+        return feedRow;
+      }
+    }
+
+    if (this.options.currentFolder) {
+      const targetKey = this.getSidebarTargetKey({
+        type: "folder",
+        path: this.options.currentFolder,
+      });
+      const folderRow = this.sidebarRows.find((row) => row.key === targetKey);
+      if (folderRow) {
+        return folderRow;
+      }
+    }
+
+    return (
+      this.sidebarRows.find((row) => row.target.type === "all-feeds") ?? null
+    );
+  }
+
+  private syncFocusedSidebarTargetAfterRender(): void {
+    if (!this.focusedSidebarTarget) {
+      return;
+    }
+
+    if (!this.getFocusedSidebarRow()) {
+      const fallback = this.findDefaultSidebarFocusRow() ?? this.sidebarRows[0];
+      this.focusedSidebarTarget = fallback?.target ?? null;
+    }
+  }
+
+  private applySidebarFocusState(): void {
+    this.container.toggleClass(
+      "rss-dashboard-sidebar-keyboard-focused",
+      this.isSidebarKeyboardFocused,
+    );
+
+    const focusedRow = this.getFocusedSidebarRow();
+    this.sidebarRows.forEach((row) => {
+      row.element.toggleClass(
+        "rss-dashboard-sidebar-row-focused",
+        this.isSidebarKeyboardFocused && row.key === focusedRow?.key,
+      );
+    });
+
+    if (!this.isSidebarKeyboardFocused || !focusedRow) {
+      return;
+    }
+
+    this.container.focus({ preventScroll: true });
+    focusedRow.element.focus({ preventScroll: true });
+    focusedRow.element.scrollIntoView({ block: "nearest", behavior: "auto" });
+  }
+
+  private moveSidebarFocusByOffset(offset: 1 | -1): void {
+    if (this.sidebarRows.length === 0) {
+      return;
+    }
+
+    if (!this.isSidebarKeyboardFocused) {
+      this.focusSidebar();
+      return;
+    }
+
+    const currentIndex = this.getFocusedSidebarRow()
+      ? this.sidebarRows.findIndex(
+          (row) => row.key === this.getFocusedSidebarRow()?.key,
+        )
+      : -1;
+    const startIndex = currentIndex >= 0 ? currentIndex : 0;
+    const nextIndex = Math.min(
+      this.sidebarRows.length - 1,
+      Math.max(0, startIndex + offset),
+    );
+
+    this.focusedSidebarTarget = this.sidebarRows[nextIndex].target;
+    this.applySidebarFocusState();
+  }
+
+  private jumpToFolder(direction: 1 | -1): void {
+    if (this.sidebarRows.length === 0) {
+      return;
+    }
+
+    if (!this.isSidebarKeyboardFocused) {
+      this.focusSidebar();
+      return;
+    }
+
+    const currentRow = this.getFocusedSidebarRow();
+    const startIndex = currentRow
+      ? this.sidebarRows.findIndex((row) => row.key === currentRow.key)
+      : -1;
+
+    for (
+      let idx = startIndex + direction;
+      idx >= 0 && idx < this.sidebarRows.length;
+      idx += direction
+    ) {
+      const row = this.sidebarRows[idx];
+      if (row.target.type !== "feed") {
+        this.focusedSidebarTarget = row.target;
+        this.applySidebarFocusState();
+        return;
+      }
     }
   }
 

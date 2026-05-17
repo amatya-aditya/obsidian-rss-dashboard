@@ -108,6 +108,12 @@ describe("ReaderView Hotkeys", () => {
     const shiftDHandler = scopeHandlers.find((h) => h.key === "d" && h.modifiers?.includes("Shift"));
     expect(shiftDHandler).toBeDefined();
 
+    const shiftSHandler = scopeHandlers.find((h) => h.key === "s" && h.modifiers?.includes("Shift"));
+    expect(shiftSHandler).toBeDefined();
+
+    const shiftRHandler = scopeHandlers.find((h) => h.key === "r" && h.modifiers?.includes("Shift"));
+    expect(shiftRHandler).toBeDefined();
+
     const mHandler = scopeHandlers.find((h) => h.key === "m" && (!h.modifiers || h.modifiers.length === 0));
     expect(mHandler).toBeDefined();
 

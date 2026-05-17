@@ -28,6 +28,10 @@ describe("ShortcutHelpModal", () => {
     expect(textContent).toContain("General Navigation");
     expect(textContent).toContain("Open Help Dialog");
     expect(textContent).toContain("Focus dashboard view");
+    expect(textContent).toContain("Focus sidebar");
+    expect(textContent).toContain("Focus reader view");
+    expect(textContent).toContain("Shift + l");
+    expect(textContent).toContain("Shift + o / Shift + Enter");
     
     modal.onClose();
   });

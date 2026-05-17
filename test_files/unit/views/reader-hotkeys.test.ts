@@ -17,6 +17,8 @@ type ReaderHotkeyViewStub = {
   actionNavigateNext: ReturnType<typeof vi.fn>;
   actionNavigatePrevious: ReturnType<typeof vi.fn>;
   actionFocusDashboard: ReturnType<typeof vi.fn>;
+  actionFocusSidebar: ReturnType<typeof vi.fn>;
+  actionFocusReader: ReturnType<typeof vi.fn>;
   actionToggleArticleOpen: ReturnType<typeof vi.fn>;
   actionToggleReadStatus: ReturnType<typeof vi.fn>;
   actionMarkAllAsRead: ReturnType<typeof vi.fn>;
@@ -53,6 +55,8 @@ describe("Reader hotkeys", () => {
       actionNavigateNext: vi.fn(),
       actionNavigatePrevious: vi.fn(),
       actionFocusDashboard: vi.fn(),
+      actionFocusSidebar: vi.fn(),
+      actionFocusReader: vi.fn(),
       actionToggleArticleOpen: vi.fn(),
       actionToggleReadStatus: vi.fn(),
       actionMarkAllAsRead: vi.fn(),
@@ -144,20 +148,32 @@ describe("Reader hotkeys", () => {
     expect(preventDefault.mock.calls).toHaveLength(5);
   });
 
-  it("registers and routes Shift+d to dashboard refocus", () => {
+  it("registers and routes pane focus shortcuts", () => {
     setupReaderHotkeys(scope, view as never);
 
     const handlers = (scope as unknown as { handlers: ScopeHandler[] }).handlers;
     const focusDashboard = handlers.find(
       (handler) => handler.key === "d" && handler.modifiers?.includes("Shift"),
     );
+    const focusSidebar = handlers.find(
+      (handler) => handler.key === "s" && handler.modifiers?.includes("Shift"),
+    );
+    const focusReader = handlers.find(
+      (handler) => handler.key === "r" && handler.modifiers?.includes("Shift"),
+    );
     const preventDefault = vi.fn();
     const event = { preventDefault } as unknown as KeyboardEvent;
 
     expect(focusDashboard).toBeDefined();
+    expect(focusSidebar).toBeDefined();
+    expect(focusReader).toBeDefined();
     expect(focusDashboard?.func(event)).toBe(true);
+    expect(focusSidebar?.func(event)).toBe(true);
+    expect(focusReader?.func(event)).toBe(true);
     expect(view.actionFocusDashboard.mock.calls).toHaveLength(1);
-    expect(preventDefault.mock.calls).toHaveLength(1);
+    expect(view.actionFocusSidebar.mock.calls).toHaveLength(1);
+    expect(view.actionFocusReader.mock.calls).toHaveLength(1);
+    expect(preventDefault.mock.calls).toHaveLength(3);
   });
 
   it("registers and routes reader scrolling keys", () => {
