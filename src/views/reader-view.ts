@@ -39,6 +39,10 @@ import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { resolvePodcastOpenDestinations } from "../utils/podcast-open-destinations";
 import { resolveApplePodcastsShowUrl } from "../services/apple-podcasts-service";
 import { createReaderFormatPortal } from "../utils/reader-format-portal";
+import {
+  normalizeSubstackImageUrl,
+  normalizeSubstackImageUrlsInDocument,
+} from "../utils/substack-image-url";
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE, RssDashboardView } from "./dashboard-view";
@@ -51,6 +55,11 @@ const VIDEO_ARTICLE_BANNER =
 const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
+
+const RAW_SUBSTACK_FETCH_URL_RE =
+  /https:\/\/substackcdn\.com\/image\/fetch\//gi;
+const ENCODED_SUBSTACK_S3_URL_RE =
+  /https%3A%2F%2Fsubstack-post-media\.s3\.amazonaws\.com/gi;
 
 export class ReaderView extends ItemView {
   private currentItem: FeedItem | null = null;
@@ -1255,10 +1264,21 @@ export class ReaderView extends ItemView {
       this.videoPlayer = null;
     }
 
+    const shouldBypassWebViewer = this.shouldBypassWebViewerForFeedContent(
+      item,
+      fullContent,
+    );
     const shouldUseWebViewer =
       Boolean(this.settings.useWebViewer) &&
       Boolean(this.webViewerIntegration) &&
-      !this.shouldBypassWebViewerForFeedContent(item, fullContent);
+      !shouldBypassWebViewer;
+
+    this.debugLogSubstackReaderEntry(
+      item,
+      fullContent,
+      shouldUseWebViewer,
+      shouldBypassWebViewer,
+    );
 
     if (shouldUseWebViewer && this.webViewerIntegration) {
       try {
@@ -1283,10 +1303,6 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     fullContent?: string,
   ): boolean {
-    if (!item.link) {
-      return false;
-    }
-
     const feedHtml = (
       fullContent ||
       item.content ||
@@ -1301,37 +1317,39 @@ export class ReaderView extends ItemView {
       return true;
     }
 
-    try {
-      const host = new URL(item.link).hostname.toLowerCase();
-      return this.isFeedContentPreferredHost(host);
-    } catch {
-      return false;
-    }
+    return this.prefersFeedContent(item, feedHtml);
   }
 
   private shouldSkipFullArticleFetch(item: FeedItem): boolean {
-    if (this.isTweetLikeItem(item)) {
-      return true;
-    }
-
     if (this.isVideoMediaItem(item)) {
       return true;
     }
 
-    if (!item.link) {
-      return false;
-    }
-
-    try {
-      const host = new URL(item.link).hostname.toLowerCase();
-      return this.isFeedContentPreferredHost(host);
-    } catch {
-      return false;
-    }
+    return this.prefersFeedContent(item);
   }
 
   private isVideoMediaItem(item: FeedItem): boolean {
     return isLikelyVideoItem(item);
+  }
+
+  private prefersFeedContent(item: FeedItem, feedHtml?: string): boolean {
+    if (this.isTweetLikeItem(item)) {
+      return true;
+    }
+
+    if (item.link) {
+      try {
+        const host = new URL(item.link).hostname.toLowerCase();
+        if (this.isFeedContentPreferredHost(host)) {
+          return true;
+        }
+      } catch {
+        // Fall through to markup-based detection.
+      }
+    }
+
+    const html = (feedHtml || item.content || item.description || "").trim();
+    return this.hasSubstackRichFeedMarkup(html);
   }
 
   private isFeedContentPreferredHost(host: string): boolean {
@@ -1343,6 +1361,17 @@ export class ReaderView extends ItemView {
       host === "substack.com" ||
       host.endsWith(".substack.com") ||
       this.isNitterHost(host)
+    );
+  }
+
+  private hasSubstackRichFeedMarkup(html: string): boolean {
+    if (!html) return false;
+
+    const lower = html.toLowerCase();
+    return (
+      lower.includes('data-component-name="image2todom"') ||
+      lower.includes('class="image-link image2 is-viewable-img"') ||
+      lower.includes("substackcdn.com/image/fetch/")
     );
   }
 
@@ -1580,6 +1609,21 @@ export class ReaderView extends ItemView {
         });
       }
 
+      normalizeSubstackImageUrlsInDocument(doc);
+
+      doc.body
+        .querySelectorAll(
+          ".image-link-expand, button.restack-image, button.view-image",
+        )
+        .forEach((el) => el.remove());
+
+      this.debugLogSubstackDomState(
+        "after-normalize",
+        doc,
+        doc.body.innerHTML,
+        fallbackHeroUrl,
+      );
+
       // Clean up fetched full-article HTML before hero extraction so we don't pick
       // navigation icons / breadcrumbs as the hero image.
       if (stripTopHeadline) {
@@ -1602,8 +1646,10 @@ export class ReaderView extends ItemView {
         const firstImg = doc.body.querySelector("img");
 
         if (heroSlot.childElementCount === 0) {
-          let heroUrl = fallbackHeroUrl;
-          const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
+          let heroUrl = normalizeSubstackImageUrl(fallbackHeroUrl);
+          const firstImgSrc = normalizeSubstackImageUrl(
+            firstImg?.getAttribute("src")?.trim() || "",
+          );
           if (!heroUrl && firstImgSrc) {
             heroUrl = firstImgSrc;
           }
@@ -1615,17 +1661,28 @@ export class ReaderView extends ItemView {
             });
 
             // Remove the first image from the body if it's the hero image to avoid duplication
-            if (firstImg && firstImgSrc && firstImgSrc === heroUrl) {
+            if (
+              firstImg &&
+              firstImgSrc &&
+              this.isLikelySameImageSource(firstImgSrc, heroUrl)
+            ) {
               this.removeLeadImageElement(firstImg);
             }
           }
         } else {
           // Hero slot already filled by a previous section (e.g. description)
           // If the current section starts with the same image as the hero image, remove it to avoid duplication
-          const existingHeroSrc =
-            heroSlot.querySelector("img")?.getAttribute("src")?.trim() || "";
-          const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
-          if (existingHeroSrc && firstImg && firstImgSrc === existingHeroSrc) {
+          const existingHeroSrc = normalizeSubstackImageUrl(
+            heroSlot.querySelector("img")?.getAttribute("src")?.trim() || "",
+          );
+          const firstImgSrc = normalizeSubstackImageUrl(
+            firstImg?.getAttribute("src")?.trim() || "",
+          );
+          if (
+            existingHeroSrc &&
+            firstImg &&
+            this.isLikelySameImageSource(firstImgSrc, existingHeroSrc)
+          ) {
             this.removeLeadImageElement(firstImg);
           }
         }
@@ -1671,9 +1728,28 @@ export class ReaderView extends ItemView {
       sanitizeAndAppendHtml(container, html, { mode: "rich" });
     }
 
+    this.debugLogSubstackDomState(
+      "after-sanitize",
+      container,
+      container.innerHTML,
+      fallbackHeroUrl,
+    );
+
     // Add classes to images for styling
     container.querySelectorAll("img").forEach((img) => {
       img.addClass("rss-reader-responsive-img");
+      img.addEventListener("error", () => {
+        if (this.recoverFailedSubstackImageElement(img)) {
+          console.warn(
+            `[RSS Dashboard] ReaderView recovered Substack img src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""}`,
+          );
+          return;
+        }
+
+        console.error(
+          `[RSS Dashboard] ReaderView img load failed src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""} srcset=${img.getAttribute("srcset") || ""}`,
+        );
+      });
     });
 
     if (isNitter) {
@@ -1681,8 +1757,176 @@ export class ReaderView extends ItemView {
     }
   }
 
+  private recoverFailedSubstackImageElement(img: HTMLImageElement): boolean {
+    if (img.dataset.rssSubstackRecoverAttempted === "true") {
+      return false;
+    }
+
+    const rawSrc = img.getAttribute("src") || "";
+    const currentSrc = img.currentSrc || "";
+    const normalizedCurrentSrc = normalizeSubstackImageUrl(currentSrc);
+    const normalizedRawSrc = normalizeSubstackImageUrl(rawSrc);
+    if (
+      !currentSrc ||
+      ((!normalizedCurrentSrc || normalizedCurrentSrc === currentSrc) &&
+        (!normalizedRawSrc || normalizedRawSrc === currentSrc))
+    ) {
+      return false;
+    }
+
+    img.dataset.rssSubstackRecoverAttempted = "true";
+
+    const picture = img.closest("picture");
+    if (picture) {
+      picture.querySelectorAll("source").forEach((source) => source.remove());
+    }
+
+    const replacement = img.cloneNode(true) as HTMLImageElement;
+    replacement.dataset.rssSubstackRecoverAttempted = "true";
+    replacement.removeAttribute("srcset");
+    replacement.removeAttribute("sizes");
+    const recoverySrc =
+      normalizedCurrentSrc && normalizedCurrentSrc !== currentSrc
+        ? normalizedCurrentSrc
+        : normalizedRawSrc;
+    replacement.setAttribute("src", recoverySrc);
+    img.replaceWith(replacement);
+    return true;
+  }
+
   private isNitterHost(host: string): boolean {
     return host.toLowerCase().includes("nitter");
+  }
+
+  private debugLogSubstackReaderEntry(
+    item: FeedItem,
+    fullContent: string | undefined,
+    shouldUseWebViewer: boolean,
+    shouldBypassWebViewer: boolean,
+  ): void {
+    const fieldCounts = {
+      fullContent: this.countRawSubstackFetchUrls(fullContent),
+      content: this.countRawSubstackFetchUrls(item.content),
+      description: this.countRawSubstackFetchUrls(item.description),
+      coverImage: this.countRawSubstackFetchUrls(item.coverImage),
+      image: this.countRawSubstackFetchUrls(item.image),
+    };
+
+    if (!Object.values(fieldCounts).some((count) => count > 0)) {
+      return;
+    }
+
+    console.debug("[RSS Dashboard] ReaderView Substack entry", {
+      title: item.title,
+      link: item.link,
+      guid: item.guid,
+      shouldUseWebViewer,
+      shouldBypassWebViewer,
+      fieldCounts,
+      samples: {
+        fullContent: this.extractFirstRawSubstackFetchUrl(fullContent),
+        content: this.extractFirstRawSubstackFetchUrl(item.content),
+        description: this.extractFirstRawSubstackFetchUrl(item.description),
+        coverImage: this.extractFirstRawSubstackFetchUrl(item.coverImage),
+        image: this.extractFirstRawSubstackFetchUrl(item.image),
+      },
+    });
+  }
+
+  private debugLogSubstackDomState(
+    stage: string,
+    root: Document | HTMLElement,
+    serializedHtml: string,
+    fallbackHeroUrl?: string,
+  ): void {
+    const scopedRoot = root instanceof Document ? root.body : root;
+    const fieldCounts = {
+      serializedHtml: this.countRawSubstackFetchUrls(serializedHtml),
+      fallbackHeroUrl: this.countRawSubstackFetchUrls(fallbackHeroUrl),
+      imgSrc: this.countElementsWithRawSubstackAttr(
+        scopedRoot.querySelectorAll("img[src]"),
+        "src",
+      ),
+      imgSrcset: this.countElementsWithRawSubstackAttr(
+        scopedRoot.querySelectorAll("img[srcset]"),
+        "srcset",
+      ),
+      sourceSrcset: this.countElementsWithRawSubstackAttr(
+        scopedRoot.querySelectorAll("source[srcset]"),
+        "srcset",
+      ),
+      anchorHref: this.countElementsWithRawSubstackAttr(
+        scopedRoot.querySelectorAll("a[href]"),
+        "href",
+      ),
+      inlineStyle: this.countElementsWithRawSubstackAttr(
+        scopedRoot.querySelectorAll("[style]"),
+        "style",
+      ),
+      poster: this.countElementsWithRawSubstackAttr(
+        scopedRoot.querySelectorAll("[poster]"),
+        "poster",
+      ),
+    };
+
+    if (!Object.values(fieldCounts).some((count) => count > 0)) {
+      return;
+    }
+
+    console.debug(`[RSS Dashboard] ReaderView Substack ${stage}`, {
+      fieldCounts,
+      samples: {
+        serializedHtml: this.extractFirstRawSubstackFetchUrl(serializedHtml),
+        fallbackHeroUrl: this.extractFirstRawSubstackFetchUrl(fallbackHeroUrl),
+      },
+    });
+  }
+
+  private countElementsWithRawSubstackAttr(
+    elements: Iterable<Element>,
+    attrName: string,
+  ): number {
+    let count = 0;
+    for (const el of Array.from(elements)) {
+      if (this.countRawSubstackFetchUrls(el.getAttribute(attrName)) > 0) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  private countRawSubstackFetchUrls(value: string | null | undefined): number {
+    if (!value) {
+      return 0;
+    }
+
+    return this.countSuspiciousSubstackUrls(value);
+  }
+
+  private extractFirstRawSubstackFetchUrl(
+    value: string | null | undefined,
+  ): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const match = value.match(
+      /https:\/\/substackcdn\.com\/image\/fetch\/[^\s"'<>)]*|https%3A%2F%2Fsubstack-post-media\.s3\.amazonaws\.com[^\s"'<>)]*/i,
+    );
+    return match?.[0]?.slice(0, 240);
+  }
+
+  private countSuspiciousSubstackUrls(
+    value: string | null | undefined,
+  ): number {
+    if (!value) {
+      return 0;
+    }
+
+    const rawFetchMatches = value.match(RAW_SUBSTACK_FETCH_URL_RE)?.length ?? 0;
+    const encodedS3Matches =
+      value.match(ENCODED_SUBSTACK_S3_URL_RE)?.length ?? 0;
+    return rawFetchMatches + encodedS3Matches;
   }
 
   private isTweetLikeItem(item: FeedItem): boolean {
@@ -2348,11 +2592,12 @@ export class ReaderView extends ItemView {
   }
 
   private normalizeImageSourceKey(rawUrl: string): string {
-    const fallback = rawUrl.trim().toLowerCase();
+    const normalizedUrl = normalizeSubstackImageUrl(rawUrl);
+    const fallback = normalizedUrl.trim().toLowerCase();
     if (!fallback) return "";
 
     try {
-      const url = new URL(rawUrl, "https://example.invalid");
+      const url = new URL(normalizedUrl, "https://example.invalid");
       const normalizedPath = url.pathname
         .toLowerCase()
         .replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");

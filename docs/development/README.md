@@ -20,6 +20,8 @@ Internal developer documentation for the RSS Dashboard plugin.
 
 - [Compliance Patterns and Audit Guardrails](./compliance-patterns.md)
   Canonical implementation patterns for audit-sensitive code paths: safe HTML rendering, lint-disable rationale, boundary typing, popout-safe APIs, and DOM helper conventions.
+- [Substack / RSS CDATA Entity Encoding](./substack-cdata-entity-encoding.md)
+  How `sanitizeCDATA` entity-decoding corrupts HTML attribute values from `content:encoded`, the `isHtml` flag fix, and the Cloudinary `$s_!TOKEN!` named-transformation URL format for Substack CDN images.
 - [Test-Lint Backlog Tracker](./test-lint-backlog-tracker.md)
   Pass-by-pass tracker for test-file ESLint debt reduction that branched from audit scorecard work after Pass 4.
 - [Feed Data Lifecycle: Fetch, Merge, Retention, and Persistence](./data-flow.md)

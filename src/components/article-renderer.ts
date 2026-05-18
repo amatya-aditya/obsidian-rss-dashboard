@@ -11,6 +11,10 @@ import {
   RESTRICTED_ARTICLE_REASON,
 } from "../utils/full-article-fetch";
 import { isLikelyVideoItem } from "../utils/video-detection";
+import {
+  normalizeSubstackImageUrl,
+  normalizeSubstackImageUrlsInDocument,
+} from "../utils/substack-image-url";
 import { PodcastPlayer } from "../views/podcast-player";
 import { VideoPlayer } from "../views/video-player";
 
@@ -428,6 +432,14 @@ export class ArticleRenderer {
         });
       }
 
+      normalizeSubstackImageUrlsInDocument(doc);
+
+      doc.body
+        .querySelectorAll(
+          ".image-link-expand, button.restack-image, button.view-image",
+        )
+        .forEach((el) => el.remove());
+
       if (stripTopHeadline) {
         this.stripNavigationChromeFromDocument(doc);
         this.stripTopHeadlineFromDocument(doc);
@@ -446,15 +458,21 @@ export class ArticleRenderer {
       if (heroSlot) {
         const firstImg = doc.body.querySelector("img");
         if (heroSlot.childElementCount === 0) {
-          let heroUrl = fallbackHeroUrl;
-          const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
+          let heroUrl = normalizeSubstackImageUrl(fallbackHeroUrl);
+          const firstImgSrc = normalizeSubstackImageUrl(
+            firstImg?.getAttribute("src")?.trim() || "",
+          );
           if (!heroUrl && firstImgSrc) heroUrl = firstImgSrc;
           if (heroUrl) {
             heroSlot.createEl("img", {
               cls: "rss-reader-fallback-hero",
               attr: { src: heroUrl, alt: title || "Hero image" },
             });
-            if (firstImg && firstImgSrc && firstImgSrc === heroUrl) {
+            if (
+              firstImg &&
+              firstImgSrc &&
+              this.isLikelySameImageSource(firstImgSrc, heroUrl)
+            ) {
               this.removeLeadImageElement(firstImg);
             }
           }
@@ -490,10 +508,59 @@ export class ArticleRenderer {
       sanitizeAndAppendHtml(container, html, { mode: "rich" });
     }
 
-    container
-      .querySelectorAll("img")
-      .forEach((img) => img.addClass("rss-reader-responsive-img"));
+    container.querySelectorAll("img").forEach((img) => {
+      img.addClass("rss-reader-responsive-img");
+      img.addEventListener("error", () => {
+        if (this.recoverFailedSubstackImageElement(img)) {
+          console.warn(
+            `[RSS Dashboard] ArticleRenderer recovered Substack img src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""}`,
+          );
+          return;
+        }
+
+        console.error(
+          `[RSS Dashboard] ArticleRenderer img load failed src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""} srcset=${img.getAttribute("srcset") || ""}`,
+        );
+      });
+    });
     if (isNitter) this.hydrateNitterStatsIcons(container);
+  }
+
+  private recoverFailedSubstackImageElement(img: HTMLImageElement): boolean {
+    if (img.dataset.rssSubstackRecoverAttempted === "true") {
+      return false;
+    }
+
+    const rawSrc = img.getAttribute("src") || "";
+    const currentSrc = img.currentSrc || "";
+    const normalizedCurrentSrc = normalizeSubstackImageUrl(currentSrc);
+    const normalizedRawSrc = normalizeSubstackImageUrl(rawSrc);
+    if (
+      !currentSrc ||
+      ((!normalizedCurrentSrc || normalizedCurrentSrc === currentSrc) &&
+        (!normalizedRawSrc || normalizedRawSrc === currentSrc))
+    ) {
+      return false;
+    }
+
+    img.dataset.rssSubstackRecoverAttempted = "true";
+
+    const picture = img.closest("picture");
+    if (picture) {
+      picture.querySelectorAll("source").forEach((source) => source.remove());
+    }
+
+    const replacement = img.cloneNode(true) as HTMLImageElement;
+    replacement.dataset.rssSubstackRecoverAttempted = "true";
+    replacement.removeAttribute("srcset");
+    replacement.removeAttribute("sizes");
+    const recoverySrc =
+      normalizedCurrentSrc && normalizedCurrentSrc !== currentSrc
+        ? normalizedCurrentSrc
+        : normalizedRawSrc;
+    replacement.setAttribute("src", recoverySrc);
+    img.replaceWith(replacement);
+    return true;
   }
 
   public cleanupPlayers(): void {
@@ -547,19 +614,30 @@ export class ArticleRenderer {
   }
 
   private shouldSkipFullArticleFetch(item: FeedItem): boolean {
-    if (this.isTweetLikeItem(item)) return true;
     if (this.isVideoMediaItem(item)) return true;
-    if (!item.link) return false;
-    try {
-      const host = new URL(item.link).hostname.toLowerCase();
-      return this.isFeedContentPreferredHost(host);
-    } catch {
-      return false;
-    }
+    return this.prefersFeedContent(item);
   }
 
   private isVideoMediaItem(item: FeedItem): boolean {
     return isLikelyVideoItem(item);
+  }
+
+  private prefersFeedContent(item: FeedItem): boolean {
+    if (this.isTweetLikeItem(item)) return true;
+
+    if (item.link) {
+      try {
+        const host = new URL(item.link).hostname.toLowerCase();
+        if (this.isFeedContentPreferredHost(host)) {
+          return true;
+        }
+      } catch {
+        // Fall through to markup-based detection.
+      }
+    }
+
+    const feedHtml = (item.content || item.description || "").trim();
+    return this.hasSubstackRichFeedMarkup(feedHtml);
   }
 
   private isFeedContentPreferredHost(host: string): boolean {
@@ -572,6 +650,17 @@ export class ArticleRenderer {
     return (
       preferred.some((p) => host === p || host.endsWith("." + p)) ||
       host.toLowerCase().includes("nitter")
+    );
+  }
+
+  private hasSubstackRichFeedMarkup(html: string): boolean {
+    if (!html) return false;
+
+    const lower = html.toLowerCase();
+    return (
+      lower.includes('data-component-name="image2todom"') ||
+      lower.includes('class="image-link image2 is-viewable-img"') ||
+      lower.includes("substackcdn.com/image/fetch/")
     );
   }
 
@@ -932,11 +1021,12 @@ export class ArticleRenderer {
   }
 
   private normalizeImageSourceKey(rawUrl: string): string {
-    const fallback = rawUrl.trim().toLowerCase();
+    const normalizedUrl = normalizeSubstackImageUrl(rawUrl);
+    const fallback = normalizedUrl.trim().toLowerCase();
     if (!fallback) return "";
 
     try {
-      const url = new URL(rawUrl, "https://example.invalid");
+      const url = new URL(normalizedUrl, "https://example.invalid");
       const normalizedPath = url.pathname
         .toLowerCase()
         .replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");

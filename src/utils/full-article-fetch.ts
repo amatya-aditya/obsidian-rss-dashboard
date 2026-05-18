@@ -7,7 +7,7 @@ export const RESTRICTED_ARTICLE_REASON = "paywall or restricted";
 export const RESTRICTED_ARTICLE_NOTICE =
   "Full article is restricted. Showing available feed excerpt.";
 export const RESTRICTED_ARTICLE_BANNER =
-  "Full article text appears to be restricted or paywalled.";
+  "Full article text appears to be truncated, restricted or paywalled.";
 export const RESTRICTED_ARTICLE_LINK_TEXT = "Click here to double check.";
 
 export async function fetchFullArticleContentWithOutcome(

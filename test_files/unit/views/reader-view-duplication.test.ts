@@ -289,6 +289,131 @@ describe("ReaderView – summary de-duplication", () => {
     expect(body?.textContent || "").toContain(realBodySnippet);
   });
 
+  it("prefers feed content for custom-domain Substack items and skips full-article fetch", async () => {
+    const feedImageUrl =
+      "https://substackcdn.com/image/fetch/$s_!hPfO!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png";
+    const decodedFeedImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png";
+    const feedHtml = `
+      <p>Feed article intro.</p>
+      <div class="captioned-image-container">
+        <figure>
+          <a class="image-link image2 is-viewable-img" href="${feedImageUrl}" data-component-name="Image2ToDOM">
+            <div class="image2-inset">
+              <picture>
+                <img src="${feedImageUrl}" alt="Feed image" />
+              </picture>
+            </div>
+          </a>
+        </figure>
+      </div>
+      <p>${"Longer feed body text that should remain in the rendered article. ".repeat(5)}</p>
+    `;
+    const item = makeItem({
+      title: "Astral Codex custom-domain item",
+      link: "https://www.astralcodexten.com/p/the-sigmoids-wont-save-you",
+      feedUrl: "https://www.astralcodexten.com/feed",
+      description: "<p>Short summary.</p>",
+      content: feedHtml,
+    });
+
+    getHarness(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue("<p>Fetched content that should not be used.</p>");
+
+    await readerView.displayItem(item);
+
+    const rc = getHarness(readerView).readingContainer;
+    const body = rc.querySelector<HTMLElement>(".rss-reader-article-content");
+
+    expect(
+      getHarness(readerView).fetchFullArticleContent,
+    ).not.toHaveBeenCalled();
+    expect(body?.textContent || "").toContain("Feed article intro.");
+    expect(rc.querySelector(`img[src="${decodedFeedImageUrl}"]`)).toBeTruthy();
+    expect(body?.textContent || "").not.toContain(
+      "Fetched content that should not be used.",
+    );
+  });
+
+  it("rewrites Substack CDN image URLs in fetched article HTML and hero images", async () => {
+    const coverImageUrl =
+      "https://substackcdn.com/image/fetch/$s_!hero!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fhero_1024x562.png";
+    const decodedCoverImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/hero_1024x562.png";
+    const decodedBodyImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png";
+    const longTailText =
+      "Additional article context follows after the image with enough prose to satisfy the meaningful-content threshold used by the reader. ".repeat(
+        3,
+      );
+    const fetchedHtml = `
+      <article>
+        <p>Lead-in text before image.</p>
+        <div class="captioned-image-container">
+          <figure>
+            <div class="image2-inset">
+              <picture>
+                <source
+                  type="image/webp"
+                  srcset="https://substackcdn.com/image/fetch/$s_!hPfO!,w_424,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 424w, https://substackcdn.com/image/fetch/$s_!hPfO!,w_848,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 848w"
+                  sizes="100vw"
+                >
+                <img
+                  src="https://substackcdn.com/image/fetch/$s_!hPfO!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png"
+                  srcset="https://substackcdn.com/image/fetch/$s_!hPfO!,w_424,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 424w, https://substackcdn.com/image/fetch/$s_!hPfO!,w_848,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 848w"
+                  sizes="100vw"
+                  alt="Fetched Substack example"
+                />
+              </picture>
+              <div class="image-link-expand">
+                <button type="button" class="pencraft pc-reset pencraft icon-container restack-image"></button>
+                <button type="button" class="pencraft pc-reset pencraft icon-container view-image"></button>
+              </div>
+            </div>
+          </figure>
+        </div>
+        <p>Body text after image.</p>
+        <p>${longTailText}</p>
+      </article>
+    `;
+    const item = makeItem({
+      title: "Fetched Substack media article",
+      description: "",
+      content: "",
+      coverImage: coverImageUrl,
+      link: "https://www.astralcodexten.com/p/the-sigmoids-wont-save-you",
+    });
+
+    getHarness(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(fetchedHtml);
+
+    await readerView.displayItem(item);
+
+    const rc = getHarness(readerView).readingContainer;
+    const heroImg = rc.querySelector<HTMLImageElement>(
+      ".rss-reader-hero-slot img",
+    );
+    const body = rc.querySelector<HTMLElement>(".rss-reader-article-content");
+    const source = body?.querySelector("source");
+    const img = body?.querySelector("img[alt='Fetched Substack example']");
+
+    expect(heroImg?.getAttribute("src")).toBe(decodedCoverImageUrl);
+    expect(source?.getAttribute("srcset")).toContain(decodedBodyImageUrl);
+    expect(source?.getAttribute("srcset") || "").not.toContain(
+      "substackcdn.com/image/fetch/",
+    );
+    expect(img?.getAttribute("src")).toBe(decodedBodyImageUrl);
+    expect(img?.getAttribute("srcset")).toContain(decodedBodyImageUrl);
+    expect(img?.getAttribute("srcset") || "").not.toContain(
+      "substackcdn.com/image/fetch/",
+    );
+    expect(body?.querySelector(".image-link-expand")).toBeNull();
+    expect(body?.querySelector("button.restack-image")).toBeNull();
+    expect(body?.querySelector("button.view-image")).toBeNull();
+  });
+
   // --------------------------------------------------------------- CONTROL ---
 
   it("CONTROL: renders both callout and body when description and content are genuinely distinct", async () => {

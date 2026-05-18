@@ -1029,7 +1029,11 @@ export class CustomXMLParser {
     return match ? match[1] : "UTF-8";
   }
 
-  private getTextContent(element: Element | null, tagName: string): string {
+  private getTextContent(
+    element: Element | null,
+    tagName: string,
+    isHtml: boolean = false,
+  ): string {
     if (!element) return "";
     let el: Element | null = null;
 
@@ -1087,10 +1091,10 @@ export class CustomXMLParser {
 
     if (!el) return "";
     const textContent = el.textContent?.trim() || "";
-    return textContent ? this.sanitizeCDATA(textContent) : "";
+    return textContent ? this.sanitizeCDATA(textContent, isHtml) : "";
   }
 
-  private sanitizeCDATA(text: string): string {
+  private sanitizeCDATA(text: string, isHtml: boolean = false): string {
     if (!text) return "";
 
     let cleaned = text
@@ -1098,11 +1102,53 @@ export class CustomXMLParser {
       .replace(/\]\]>/g, "")
       .trim();
 
-    cleaned = this.decodeHtmlEntities(cleaned);
-
-    cleaned = cleaned.replace(/\s+/g, " ").trim();
+    if (isHtml) {
+      cleaned = this.rewriteSubstackImageFetchSources(cleaned);
+    } else {
+      cleaned = this.decodeHtmlEntities(cleaned);
+      cleaned = cleaned.replace(/\s+/g, " ").trim();
+    }
 
     return cleaned;
+  }
+
+  private rewriteSubstackImageFetchSources(html: string): string {
+    if (!html.includes("substackcdn.com/image/fetch/")) {
+      return html;
+    }
+
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    let didRewrite = false;
+
+    for (const img of Array.from(doc.querySelectorAll("img[src]"))) {
+      const src = img.getAttribute("src");
+      const rewrittenSrc = this.decodeSubstackImageFetchUrl(src);
+
+      if (rewrittenSrc && rewrittenSrc !== src) {
+        img.setAttribute("src", rewrittenSrc);
+        didRewrite = true;
+      }
+    }
+
+    return didRewrite ? doc.body.innerHTML : html;
+  }
+
+  private decodeSubstackImageFetchUrl(url: string | null): string | null {
+    if (!url || !/^https:\/\/substackcdn\.com\/image\/fetch\//i.test(url)) {
+      return null;
+    }
+
+    const lastSlashIndex = url.lastIndexOf("/");
+    if (lastSlashIndex === -1 || lastSlashIndex === url.length - 1) {
+      return null;
+    }
+
+    try {
+      const decoded = decodeURIComponent(url.slice(lastSlashIndex + 1));
+      return /^https?:\/\//i.test(decoded) ? decoded : null;
+    } catch {
+      return null;
+    }
   }
 
   public decodeHtmlEntities(text: string): string {
@@ -1691,8 +1737,8 @@ export class CustomXMLParser {
         this.getTextContent(item, "dc:creator");
 
       const content =
-        this.getTextContent(item, "content:encoded") ||
-        this.getTextContent(item, "encoded") ||
+        this.getTextContent(item, "content:encoded", true) ||
+        this.getTextContent(item, "encoded", true) ||
         description;
 
       const enclosureElement = item.querySelector("enclosure");
@@ -1836,8 +1882,8 @@ export class CustomXMLParser {
       }
 
       const contentValue =
-        this.getTextContent(item, "content:encoded") ||
-        this.getTextContent(item, "encoded") ||
+        this.getTextContent(item, "content:encoded", true) ||
+        this.getTextContent(item, "encoded", true) ||
         description;
 
       items.push({
@@ -1930,7 +1976,8 @@ export class CustomXMLParser {
         this.getTextContent(entry, "updated");
       const guid = this.getTextContent(entry, "id") || link;
       const author = this.getTextContent(entry, "author > name");
-      const content = this.getTextContent(entry, "content") || description;
+      const content =
+        this.getTextContent(entry, "content", true) || description;
 
       // Extract duration from media:content or itunes:duration
       let duration = this.getTextContent(entry, "itunes\\:duration");

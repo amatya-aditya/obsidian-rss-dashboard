@@ -1,3 +1,4 @@
+import { readFileSync } from "fs";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { Feed, FeedItem } from "../../../src/types/types";
 import { resolveAbsoluteHttpUrl } from "../../../src/utils/url-utils";
@@ -529,6 +530,132 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
     // This is the critical check - it should extract the long content even if description is present
     expect(result.items[0].content).toContain("full content");
     expect(result.items[0].content).toContain("</b>");
+  });
+});
+
+// Fixture: Substack-style RSS with &quot; entities inside HTML attribute values
+const RSS2_SUBSTACK_QUOTED_ATTRS = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Substack Entity Test</title>
+    <link>https://example.substack.com</link>
+    <item>
+      <title>Title &amp; Subtitle</title>
+      <link>https://example.substack.com/p/test</link>
+      <description>Short summary</description>
+      <content:encoded><![CDATA[<p>Intro text.</p>
+<figure>
+  <img
+    src="https://substackcdn.com/image/fetch/w_1456/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Ftest.png"
+    data-attrs="{&quot;src&quot;:&quot;https://substack-post-media.s3.amazonaws.com/public/images/test.png&quot;,&quot;fullscreen&quot;:null}"
+    width="850"
+    height="496"
+    alt="Test image"
+  />
+</figure>
+<p>Body text.</p>]]></content:encoded>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>substack-test-1</guid>
+    </item>
+  </channel>
+</rss>`;
+
+describe("content:encoded HTML entity preservation", () => {
+  let parser: CustomXMLParser;
+
+  beforeEach(() => {
+    parser = new CustomXMLParser();
+  });
+
+  it("preserves &quot; entities in content so attribute values remain valid HTML", () => {
+    const result = parser.parseString(RSS2_SUBSTACK_QUOTED_ATTRS);
+    const item = result.items[0];
+
+    expect(item.content).toBeDefined();
+    // &quot; must survive intact — a decoded " would break the JSON attribute value
+    // when re-parsed by DOMParser("text/html")
+    expect(item.content).toContain("&quot;");
+    expect(item.content).not.toContain('data-attrs="{"');
+  });
+
+  it("produces a data-attrs value that is valid JSON when re-parsed as HTML", () => {
+    const result = parser.parseString(RSS2_SUBSTACK_QUOTED_ATTRS);
+    const item = result.items[0];
+
+    const doc = new DOMParser().parseFromString(item.content!, "text/html");
+    const img = doc.querySelector("img");
+    expect(img).not.toBeNull();
+
+    const dataAttrs = img!.getAttribute("data-attrs");
+    expect(dataAttrs).not.toBeNull();
+    expect(() => JSON.parse(dataAttrs!)).not.toThrow();
+
+    const attrs = JSON.parse(dataAttrs!) as Record<string, unknown>;
+    expect(attrs["src"]).toBe(
+      "https://substack-post-media.s3.amazonaws.com/public/images/test.png",
+    );
+  });
+
+  it("still decodes entities in plain-text fields like title", () => {
+    const result = parser.parseString(RSS2_SUBSTACK_QUOTED_ATTRS);
+    // &amp; in the <title> element should be decoded to &
+    expect(result.items[0].title).toBe("Title & Subtitle");
+  });
+
+  it("rewrites Substack image/fetch img src attributes to the decoded source URL", () => {
+    const result = parser.parseString(RSS2_SUBSTACK_QUOTED_ATTRS);
+    const item = result.items[0];
+
+    expect(item.content).toContain(
+      'src="https://substack-post-media.s3.amazonaws.com/public/images/test.png"',
+    );
+    expect(item.content).not.toContain(
+      'src="https://substackcdn.com/image/fetch/w_1456/',
+    );
+
+    const doc = new DOMParser().parseFromString(item.content!, "text/html");
+    const img = doc.querySelector("img");
+    expect(img?.getAttribute("src")).toBe(
+      "https://substack-post-media.s3.amazonaws.com/public/images/test.png",
+    );
+  });
+
+  it("rewrites broken Astral Codex Substack image src URLs from the real fixture", () => {
+    const astralCodexFeed = readFileSync(
+      "docs/archive/astralcodex.txt",
+      "utf-8",
+    );
+    const contentMatch = astralCodexFeed.match(
+      /<content:encoded>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/content:encoded>/,
+    );
+
+    expect(contentMatch?.[1]).toBeTruthy();
+
+    const rssFixture = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Astral Codex Fixture</title>
+    <link>https://www.astralcodexten.com</link>
+    <item>
+      <title>The Sigmoids Won't Save You</title>
+      <link>https://www.astralcodexten.com/p/the-sigmoids-wont-save-you</link>
+      <description>...</description>
+      <content:encoded><![CDATA[${contentMatch![1]}]]></content:encoded>
+      <pubDate>Fri, 15 May 2026 08:55:10 GMT</pubDate>
+      <guid>https://www.astralcodexten.com/p/the-sigmoids-wont-save-you</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const result = parser.parseString(rssFixture);
+    const item = result.items[0];
+
+    expect(item.content).toContain(
+      'src="https://substack-post-media.s3.amazonaws.com/public/images/78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png"',
+    );
+    expect(item.content).not.toContain(
+      'src="https://substackcdn.com/image/fetch/$s_!YDr_!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png"',
+    );
   });
 });
 

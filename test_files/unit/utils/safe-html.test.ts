@@ -286,4 +286,163 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
     expect(container.textContent).toContain("First paragraph");
     expect(container.textContent).toContain("Final paragraph");
   });
+
+  it('regression: malformed attributes from Substack (src":"https:) do not throw and preserve content', () => {
+    const container = createContainer();
+
+    // Substack feed sometimes produces malformed attribute names like:
+    // data-attrs="{&quot;src&quot;:&quot;https: which becomes src\":\"https: in rich mode
+    const substackMalformedHtml = `
+      <div class="image-wrapper">
+        <img 
+          src="https://example.com/image.jpg" 
+          src":\"https: 
+          alt="Example"
+          srcset="https://example.com/image.jpg 424w, https://example.com/image@2x.jpg 848w"
+        />
+        <p>Image caption text</p>
+      </div>
+    `;
+
+    // Should NOT throw InvalidCharacterError or any exception
+    expect(() => {
+      sanitizeAndAppendHtml(container, substackMalformedHtml, { mode: "rich" });
+    }).not.toThrow();
+
+    // Verify valid content is preserved
+    const img = container.querySelector("img");
+    expect(img).toBeTruthy();
+    expect(img?.getAttribute("src")).toBe("https://example.com/image.jpg");
+    expect(img?.getAttribute("alt")).toBe("Example");
+
+    // Valid srcset should be preserved
+    expect(img?.getAttribute("srcset")).toBeTruthy();
+
+    // Malformed attribute should NOT be present
+    expect(img?.getAttribute("src\":'https:")).toBeNull();
+    expect(img?.getAttribute('src\\":\\"https:')).toBeNull();
+
+    // Text content should still render
+    expect(container.textContent).toContain("Image caption text");
+  });
+
+  it("regression: multiple malformed attributes do not truncate downstream DOM", () => {
+    const container = createContainer();
+
+    const malformedHtml = `
+      <div>
+        <img src="https://example.com/image.jpg" invalid-attr-1":"{data invalid-attr-2":"{more />
+        <p>This text should render</p>
+        <a href="https://example.com">This link should work</a>
+      </div>
+    `;
+
+    expect(() => {
+      sanitizeAndAppendHtml(container, malformedHtml, { mode: "rich" });
+    }).not.toThrow();
+
+    // Downstream elements should still be rendered despite malformed attrs above
+    expect(container.querySelector("p")?.textContent).toBe(
+      "This text should render",
+    );
+    expect(container.querySelector("a")?.textContent).toBe(
+      "This link should work",
+    );
+    expect(container.querySelector("a")?.getAttribute("href")).toBe(
+      "https://example.com",
+    );
+  });
+
+  it("regression: strict mode handles malformed attributes gracefully", () => {
+    const container = createContainer();
+
+    const malformedHtml = `
+      <a href="https://example.com" bad-attr":"{data>Click me</a>
+      <p>This paragraph should render</p>
+    `;
+
+    expect(() => {
+      sanitizeAndAppendHtml(container, malformedHtml);
+    }).not.toThrow();
+
+    // Link should be preserved with valid href
+    const anchor = container.querySelector("a");
+    expect(anchor?.textContent).toBe("Click me");
+    expect(anchor?.getAttribute("href")).toBe("https://example.com");
+
+    // Paragraph should render
+    expect(container.querySelector("p")?.textContent).toBe(
+      "This paragraph should render",
+    );
+  });
+
+  it("preserves valid attributes while silently dropping invalid attribute names", () => {
+    const container = createContainer();
+
+    // Mix of valid and invalid attributes
+    const mixedHtml = `
+      <img 
+        src="https://example.com/valid.jpg"
+        data-valid="valid-value"
+        src":\"https:
+        class="image-class"
+        invalid-attr-with-quotes":"{...}
+        alt="Valid alt text"
+      />
+    `;
+
+    expect(() => {
+      sanitizeAndAppendHtml(container, mixedHtml, { mode: "rich" });
+    }).not.toThrow();
+
+    const img = container.querySelector("img");
+    expect(img).toBeTruthy();
+
+    // Valid attributes should be present
+    expect(img?.getAttribute("src")).toBe("https://example.com/valid.jpg");
+    expect(img?.getAttribute("alt")).toBe("Valid alt text");
+
+    // Invalid attributes should not be present
+    expect(img?.getAttribute("src\":'https:")).toBeNull();
+    expect(img?.getAttribute("invalid-attr-with-quotes\":'{\...}")).toBeNull();
+  });
+
+  it("normalizes Substack CDN image URLs before sanitizing src and srcset", () => {
+    const container = createContainer();
+    const decodedImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png";
+
+    const html = `
+      <picture>
+        <source
+          type="image/webp"
+          srcset="https://substackcdn.com/image/fetch/$s_!hPfO!,w_424,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 424w, https://substackcdn.com/image/fetch/$s_!hPfO!,w_848,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 848w"
+          sizes="100vw"
+        >
+        <img
+          src="https://substackcdn.com/image/fetch/$s_!hPfO!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png"
+          srcset="https://substackcdn.com/image/fetch/$s_!hPfO!,w_424,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 424w, https://substackcdn.com/image/fetch/$s_!hPfO!,w_848,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 848w"
+          sizes="100vw"
+          alt=""
+        >
+      </picture>
+    `;
+
+    sanitizeAndAppendHtml(container, html, { mode: "rich" });
+
+    const source = container.querySelector("source");
+    const img = container.querySelector("img");
+
+    expect(source).toBeTruthy();
+    expect(img).toBeTruthy();
+    expect(source?.getAttribute("srcset") || "").toContain(decodedImageUrl);
+    expect(source?.getAttribute("srcset") || "").not.toContain(
+      "substackcdn.com/image/fetch/",
+    );
+    expect(img?.getAttribute("srcset") || "").toContain(decodedImageUrl);
+    expect(img?.getAttribute("srcset") || "").not.toContain(
+      "substackcdn.com/image/fetch/",
+    );
+    expect(img?.getAttribute("src")).toBe(decodedImageUrl);
+  });
 });

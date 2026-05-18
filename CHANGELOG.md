@@ -9,7 +9,7 @@
 
 ### Fixes
 
-- Fixed Reader view article bodies disappearing for rich feed HTML on affected feeds such as Ars Technica. The root cause was `sanitizeAndAppendHtml` creating elements through Obsidian's `Document.createEl` helper during rich sanitization, which could throw a `HierarchyRequestError` and leave the main article body empty. The sanitizer now uses standard DOM element creation via `document.createElement` for robustness across all contexts. Added regression test coverage for rich structural HTML sanitization.
+- Fixed Reader view article bodies disappearing for rich feed HTML on affected feeds such as Ars Technica and Substack. The root cause was `sanitizeAndAppendHtml` creating elements through Obsidian's `Document.createEl` helper during rich sanitization, which could throw a `HierarchyRequestError` and leave the main article body empty. The sanitizer now uses standard DOM element creation via `document.createElement` for robustness across all contexts. Added regression test coverage for rich structural HTML sanitization.
 - Fixed `activeWindow.instanceOf` cross-realm errors by introducing a safe `windowInstanceOf` fallback helper that gracefully handles cross-frame and revoked proxy scenarios across all reader surfaces.
 
 ## [2.3.0-beta.2] - May 15, 2026
