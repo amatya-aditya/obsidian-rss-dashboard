@@ -1,6 +1,7 @@
 import { Notice, setIcon } from "obsidian";
 import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { showEditTagModal } from "./tag-utils";
+import { windowInstanceOf } from "./platform-utils";
 
 export type TagsDropdownPortalOptions = {
   anchor: HTMLElement;
@@ -117,7 +118,9 @@ export function createTagsDropdownPortal(
   };
 
   const deleteTagFromProfile = (tag: Tag) => {
-    const tagIndex = settings.availableTags.findIndex((t) => t.name === tag.name);
+    const tagIndex = settings.availableTags.findIndex(
+      (t) => t.name === tag.name,
+    );
     if (tagIndex === -1) {
       return;
     }
@@ -200,10 +203,9 @@ export function createTagsDropdownPortal(
     tagItem.addEventListener("click", (e) => {
       if (
         e.target === tagCheckbox ||
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- activeWindow.instanceOf is an Obsidian-specific API not in standard types
-        ((activeWindow as any).instanceOf(e.target, Element) &&
-          ((e.target as Element).closest(".rss-dashboard-tag-edit-button") ||
-            (e.target as Element).closest(".rss-dashboard-tag-delete-button")))
+        (windowInstanceOf(e.target, Element) &&
+          (e.target.closest(".rss-dashboard-tag-edit-button") ||
+            e.target.closest(".rss-dashboard-tag-delete-button")))
       ) {
         return;
       }

@@ -164,7 +164,8 @@ function sanitizeAndAppendNode(
     return;
   }
 
-  const next = ownerDoc.createEl(tag as keyof HTMLElementTagNameMap);
+  // Use standard DOM element creation for use Obsidian's createEl)
+  const next = ownerDoc.createElement(tag);
   if (mode === "rich") {
     copySafeAttributes(el, next);
   } else {

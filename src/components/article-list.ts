@@ -9,6 +9,7 @@ import {
   formatArticleDate,
   ensureUtf8Meta,
   setCssProps,
+  windowInstanceOf,
 } from "../utils/platform-utils";
 import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
@@ -329,11 +330,10 @@ export class ArticleList {
     const cards: HTMLElement[] = [];
 
     if (
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- activeWindow.instanceOf is an Obsidian-specific API not in standard types
-      (activeWindow as any).instanceOf(root, HTMLElement) &&
-      (root as HTMLElement).classList.contains("rss-dashboard-article-card")
+      windowInstanceOf(root, HTMLElement) &&
+      root.classList.contains("rss-dashboard-article-card")
     ) {
-      cards.push(root as HTMLElement);
+      cards.push(root);
     }
 
     root
@@ -900,7 +900,9 @@ export class ArticleList {
     direction: "left" | "right" | "up" | "down",
   ): string | null {
     const cards = Array.from(
-      this.container.querySelectorAll<HTMLElement>(".rss-dashboard-article-card"),
+      this.container.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-article-card",
+      ),
     );
     if (cards.length === 0) {
       return null;
@@ -920,9 +922,8 @@ export class ArticleList {
         rect: card.getBoundingClientRect(),
       }))
       .filter(
-        (
-          entry,
-        ): entry is { guid: string; rect: DOMRect } => entry.guid !== null,
+        (entry): entry is { guid: string; rect: DOMRect } =>
+          entry.guid !== null,
       );
     const rows: Array<Array<{ guid: string; rect: DOMRect }>> = [];
     positionedCards.forEach((entry) => {
@@ -935,9 +936,7 @@ export class ArticleList {
       }
       rows.push([entry]);
     });
-    rows.forEach((row) =>
-      row.sort((a, b) => a.rect.left - b.rect.left),
-    );
+    rows.forEach((row) => row.sort((a, b) => a.rect.left - b.rect.left));
     rows.sort((a, b) => a[0].rect.top - b[0].rect.top);
 
     const currentRowIndex = rows.findIndex((row) =>
@@ -1521,7 +1520,7 @@ export class ArticleList {
     const toggleSave = async (e: Event) => {
       e.stopPropagation();
       e.preventDefault();
-      
+
       if (article.saved) {
         if (this.callbacks.onOpenSavedArticle) {
           await this.callbacks.onOpenSavedArticle(article);
@@ -1532,10 +1531,10 @@ export class ArticleList {
         if (saveButton.classList.contains("saving")) {
           return;
         }
-        
+
         saveButton.classList.add("saving");
         saveButton.setAttribute("title", "Saving article...");
-        
+
         try {
           await this.callbacks.onArticleSave(article);
           article.saved = true;
@@ -1861,7 +1860,10 @@ export class ArticleList {
       const dateEl = actionToolbar.createDiv({
         cls: "rss-dashboard-article-date",
       });
-      const dateInfo = formatArticleDate(article.pubDate, this.settings.display.articleDateStyle ?? "relative");
+      const dateInfo = formatArticleDate(
+        article.pubDate,
+        this.settings.display.articleDateStyle ?? "relative",
+      );
       dateEl.textContent = dateInfo.text;
       dateEl.setAttribute("title", dateInfo.title);
 
@@ -1919,7 +1921,10 @@ export class ArticleList {
       } else {
         titleEl.textContent = article.title;
       }
-      const dateInfo = formatArticleDate(article.pubDate, this.settings.display.articleDateStyle ?? "relative");
+      const dateInfo = formatArticleDate(
+        article.pubDate,
+        this.settings.display.articleDateStyle ?? "relative",
+      );
       if (!useBottomRow) {
         const timeEl = mainGrid.createDiv("rss-dashboard-grid-time");
         const dateEl = timeEl.createSpan("rss-dashboard-article-date");
@@ -2156,7 +2161,9 @@ export class ArticleList {
       }
 
       if (hasTags) {
-        const tagsRegion = card.createDiv({ cls: "rss-dashboard-card-tags-region" });
+        const tagsRegion = card.createDiv({
+          cls: "rss-dashboard-card-tags-region",
+        });
         const tagsContainer = tagsRegion.createDiv({
           cls: "rss-dashboard-article-tags",
         });
@@ -2175,7 +2182,10 @@ export class ArticleList {
         const dateEl = actionToolbar.createDiv({
           cls: "rss-dashboard-article-date",
         });
-        const dateInfo = formatArticleDate(article.pubDate, this.settings.display.articleDateStyle ?? "relative");
+        const dateInfo = formatArticleDate(
+          article.pubDate,
+          this.settings.display.articleDateStyle ?? "relative",
+        );
         dateEl.textContent = dateInfo.text;
         dateEl.setAttribute("title", dateInfo.title);
       }

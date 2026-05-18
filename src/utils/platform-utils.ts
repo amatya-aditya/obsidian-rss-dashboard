@@ -219,6 +219,38 @@ export function setCssProps(
   }
 }
 
+type Newable<T = object> = {
+  new (...args: never[]): T;
+  name?: string;
+};
+
+export function windowInstanceOf<T extends object>(
+  obj: unknown,
+  Constructor: Newable<T> | null | undefined,
+): obj is T {
+  if (typeof window === "undefined" || obj == null || !Constructor) {
+    return false;
+  }
+
+  try {
+    if (obj instanceof Constructor) {
+      return true;
+    }
+  } catch {
+    // Defensive against cross-realm and revoked proxy edge cases.
+  }
+
+  if (typeof obj !== "object") {
+    return false;
+  }
+
+  const objCtorName = (obj as { constructor?: { name?: string } }).constructor
+    ?.name;
+  return Boolean(
+    objCtorName && Constructor.name && objCtorName === Constructor.name,
+  );
+}
+
 export const PHONE_MAX_WIDTH = 768;
 export const TABLET_LAYOUT_MAX_WIDTH = 1200;
 

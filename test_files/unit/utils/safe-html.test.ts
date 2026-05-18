@@ -223,4 +223,67 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
     );
     expect(hasComment).toBe(false);
   });
+
+  it("regression: rich mode with complex nested structures does not throw HierarchyRequestError", () => {
+    const container = createContainer();
+
+    // This HTML structure previously caused HierarchyRequestError when using
+    // Obsidian's createEl() in rich mode sanitization. Now uses standard DOM APIs.
+    const richHtml = `
+      <article>
+        <header>
+          <h1>Article Title</h1>
+          <p class="byline">By Author</p>
+        </header>
+        <div class="content">
+          <p>First paragraph with <strong>bold</strong> and <em>italic</em>.</p>
+          <figure>
+            <img src="https://example.com/image.jpg" alt="Example image" />
+            <figcaption>A caption</figcaption>
+          </figure>
+          <blockquote>
+            <p>A quote with <a href="https://example.com">a link</a>.</p>
+          </blockquote>
+          <ul>
+            <li>Item one</li>
+            <li>Item two with <code>code</code></li>
+            <li>Item three</li>
+          </ul>
+          <pre><code>const x = 42;</code></pre>
+          <p>Final paragraph.</p>
+        </div>
+      </article>
+    `;
+
+    // Should not throw any error
+    expect(() => {
+      sanitizeAndAppendHtml(container, richHtml, { mode: "rich" });
+    }).not.toThrow();
+
+    // Verify output is as expected
+    expect(container.querySelector("p")).toBeTruthy();
+    expect(container.querySelector("strong")?.textContent).toBe("bold");
+    expect(container.querySelector("em")?.textContent).toBe("italic");
+    expect(container.querySelector("blockquote")).toBeTruthy();
+    expect(container.querySelector("ul")).toBeTruthy();
+    expect(container.querySelectorAll("li")).toHaveLength(3);
+    expect(container.querySelector("code")?.textContent).toBe("code");
+
+    // Verify unsafe content is removed while rich structural tags are preserved
+    expect(container.querySelector("script")).toBeNull();
+    expect(container.querySelector("iframe")).toBeNull();
+    expect(container.querySelector("article")).toBeTruthy();
+    expect(container.querySelector("header")).toBeTruthy();
+    expect(container.querySelector("figure")).toBeTruthy();
+    expect(container.querySelector("figcaption")).toBeTruthy();
+
+    const img = container.querySelector("img");
+    expect(img).toBeTruthy();
+    expect(img?.getAttribute("src")).toBe("https://example.com/image.jpg");
+
+    // Verify content is preserved
+    expect(container.textContent).toContain("Article Title");
+    expect(container.textContent).toContain("First paragraph");
+    expect(container.textContent).toContain("Final paragraph");
+  });
 });

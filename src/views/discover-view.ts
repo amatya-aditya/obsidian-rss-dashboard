@@ -16,6 +16,7 @@ import {
   TABLET_LAYOUT_MAX_WIDTH,
   shouldUseMobileSidebarLayout,
   attachInputClearButton,
+  windowInstanceOf,
 } from "../utils/platform-utils";
 import {
   getPageSizeOptions,
@@ -358,7 +359,9 @@ export class DiscoverView extends ItemView {
   }
 
   private handleViewportResizeModeTransition(): void {
-    const currentMode = this.shouldUseMobileSidebarMode(activeWindow.innerWidth);
+    const currentMode = this.shouldUseMobileSidebarMode(
+      activeWindow.innerWidth,
+    );
 
     if (this.lastViewportMobileSidebarMode === null) {
       this.lastViewportMobileSidebarMode = currentMode;
@@ -508,9 +511,8 @@ export class DiscoverView extends ItemView {
     this.saveFilterState();
 
     const contentEl = this.containerEl.querySelector(".rss-discover-content");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- activeWindow.instanceOf is an Obsidian-specific API not in standard types
-    if ((activeWindow as any).instanceOf(contentEl, HTMLElement)) {
-      this.renderContent(contentEl as HTMLElement);
+    if (windowInstanceOf(contentEl, HTMLElement)) {
+      this.renderContent(contentEl);
     }
   }
 

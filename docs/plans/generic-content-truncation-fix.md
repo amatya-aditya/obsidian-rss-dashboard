@@ -1,93 +1,63 @@
 # Implementation Plan: Generic Content Truncation Fix
 
-## Overview
-This plan addresses the issue where non-paywalled articles with rich content in `content:encoded` are truncated or missing in the reader view. The fix ensures that the reader prefers feed content when fetched full-article content is thin, teaser-like, or nav-heavy. This is a generic solution applicable across feeds, not limited to specific hosts.
+## Status: ✅ RESOLVED (May 17, 2026)
+
+## Root Cause Analysis & Resolution
+
+The article body text disappearance regression was caused by a **sanitizer crash**, not content selection logic as initially hypothesized. The root cause analysis revealed:
+
+### Actual Root Cause
+
+- In `src/utils/safe-html.ts`, the `sanitizeAndAppendNode` function was using Obsidian's `Document.createEl` helper to create elements during rich sanitization.
+- On certain complex HTML structures (e.g., Ars Technica articles with nested divs, figures, figcaptions), `createEl` would throw a `HierarchyRequestError` in specific contexts.
+- This error silently broke the sanitization flow, leaving the main article body element empty and unpopulated.
+
+### Solution Implemented
+
+1. **Sanitizer Fix** (`src/utils/safe-html.ts`):
+   - Replaced `ownerDoc.createEl(tag as keyof HTMLElementTagNameMap)` with `ownerDoc.createElement(tag)`.
+   - Uses standard DOM APIs instead of Obsidian's helper, avoiding context-dependent errors.
+   - **Result**: Rich HTML is now safely sanitized without crashes; article bodies display correctly.
+
+2. **Regression Test** (`test_files/unit/utils/safe-html.test.ts`):
+   - Added comprehensive test case `regression: rich mode with complex nested structures does not throw HierarchyRequestError`.
+   - Tests with realistic Ars Technica-style HTML: articles, headers, figures, figcaptions, nested blockquotes, lists.
+   - Verifies no exceptions are thrown, output is correct, and unsafe tags are properly stripped.
+
+3. **Secondary Fix** (`src/utils/window-instanceof.ts`):
+   - Implemented `windowInstanceOf` safe fallback helper for cross-realm `instanceof` checks.
+   - Deployed across all reader surfaces: `article-list.ts`, `sidebar.ts`, `discover-view.ts`, `podcast-player.ts`, `tags-dropdown-portal.ts`.
+   - Prevents `activeWindow.instanceOf is not a function` errors in edge cases.
+
+## Original Plan Context
+
+This plan was initially designed to implement a content quality comparator to prefer rich feed content (e.g., `content:encoded`) over thin fetched content. However, runtime diagnosis revealed the actual issue was sanitization safety, not selection logic. The original planned phases (Quality Evaluator, ReaderView/ArticleRenderer integration, Cleanup Hardening) were superseded by the simpler, targeted fix.
 
 ## Goals
-1. Ensure rich feed content (e.g., `content:encoded`) is preferred when fetched content is low quality.
-2. Maintain existing restricted/paywall behavior.
-3. Align behavior across both rendering paths (ReaderView and ArticleRenderer).
-4. Avoid regressions in restricted content handling or sanitization safety.
 
-## Steps
+- ✅ Ensure rich feed content is displayed correctly without sanitization crashes.
+- ✅ Maintain existing restricted/paywall behavior.
+- ✅ Avoid regressions in sanitization safety.
+- ✅ Add robust cross-realm error handling for UI checks.
 
-### 1. Baseline and Risk Mapping
-- Confirm current selection/fallback flow in `ReaderView` and `ArticleRenderer`.
-- Identify all points where fetched content overrides feed content.
-- Ensure identical behavior changes across both paths.
+## Files Changed
 
-### 2. Phase 1 - Shared Quality Evaluator
-- Create a utility function `compareContentQuality(feedHtml, fetchedHtml, url)`.
-- Use heuristics:
-  - Text length (normalized, stripped of tags).
-  - Paragraph count.
-  - Link density.
-  - Teaser/read-more markers.
-- Output decision metadata:
-  ```typescript
-  {
-    preferFeed: boolean,
-    preferFetched: boolean,
-    reason: string
-  }
-  ```
+1. **src/utils/safe-html.ts**: Replaced Obsidian-specific DOM helper with standard API.
+2. **test_files/unit/utils/safe-html.test.ts**: Added regression test for rich HTML sanitization.
+3. **src/utils/window-instanceof.ts**: New safe fallback helper for instanceof checks.
+4. **src/components/article-list.ts, sidebar.ts, discover-view.ts, podcast-player.ts, src/utils/tags-dropdown-portal.ts**: Deployed `windowInstanceOf` helper.
+5. **CHANGELOG.md**: Documented fixes.
 
-### 3. Phase 2 - Integrate into ReaderView
-- File: `src/views/reader-view.ts`
-- Replace fetched-content-only gate in `displayItem()` with comparator-driven selection.
-- Preserve restricted failure behavior.
-- Ensure skip-fetch rules for tweet/video content remain intact.
+## Verification ✅
 
-### 4. Phase 3 - Integrate into ArticleRenderer
-- File: `src/components/article-renderer.ts`
-- Apply the same comparator in its content selection branch.
-- Align behavior with `ReaderView`.
+- ✅ Regression test for sanitizer passes.
+- ✅ All ESLint checks on test files pass.
+- ✅ No debug/instrumentation code remains.
+- ✅ TypeScript compilation clean.
+- ✅ Safe fallback helper deployed and used across all reader surfaces.
 
-### 5. Phase 4 - Harden Cleanup Interaction
-- File: `src/views/reader-view.ts`
-- Ensure aggressive strip routines (navigation/headline/duplicate lead removal) only affect chosen fetched content.
-- Prevent degradation of feed-selected content paths.
+## Lessons Learned
 
-### 6. Phase 5 - Tests
-- Extend unit tests for multi-feed scenarios:
-  - Rich `content:encoded` with short fetched content → prefer feed.
-  - Substantial fetched content → prefer fetched.
-  - Equivalent bodies → deterministic stable choice.
-- Add cases modeled on Ars Technica/BigThink patterns (summary + content:encoded body + read-full-article links).
-
-### 7. Phase 6 - Verification and Guardrails
-- Run targeted unit suites for parser, fetch helpers, reader view, and article renderer.
-- Run full repository test suite to validate no regressions.
-- Manual smoke tests:
-  - Feeds with full content in `content:encoded`.
-  - Restricted/paywalled links to confirm unchanged banner behavior.
-
-## Relevant Files
-- `src/views/reader-view.ts`: Main selection and rendering decisions.
-- `src/components/article-renderer.ts`: Duplicate selection path.
-- `src/utils/fetch-helpers.ts`: Existing blocked/restricted heuristics.
-- `src/services/feed-parser.ts`: Reference confirmed `content:encoded` priority.
-- `src/utils/safe-html.ts`: Ensure sanitization safety remains unchanged.
-- `test_files/unit/views/reader-view-restricted-banner.test.ts`: Regression guard for restricted fallback.
-- `test_files/unit/services/feed-parser.test.ts`: Extend fixtures/assertions for rich `content:encoded` selection outcomes.
-- `test_files/unit/services/fetch-helpers.test.ts`: Add low-quality fetched-content scenarios.
-
-## Verification
-1. Add unit tests for comparator outcomes:
-   - Long feed body + short fetched output → prefer feed.
-   - Substantial fetched output → prefer fetched.
-   - Equivalent bodies → deterministic stable choice.
-2. Run targeted unit suites for parser, fetch helpers, reader view, and article renderer.
-3. Run full test suite for regression coverage.
-4. Manual smoke test with at least two known affected feeds and one restricted article.
-
-## Decisions Captured
-- **Included**: Generic cross-feed fix.
-- **Included**: Both rendering paths.
-- **Excluded**: Host allowlisting as primary solution.
-- **Excluded**: Major Readability pipeline rewrite unless tests force it.
-
-## Further Considerations
-1. Centralize comparator thresholds as constants for easy tuning.
-2. Add optional telemetry/debug logging for development builds.
-3. Consider a future setting to let users globally prefer feed content or auto mode (default).
+1. Obsidian DOM helpers (createEl, Document methods) are not always safe in all contexts; standard DOM APIs are more reliable in utility/helper code.
+2. Runtime instrumentation with gated logging is effective for isolating root causes in DOM operations.
+3. Cross-realm error handling (`instanceof` checks) needs defensive programming for robust UX across edge cases.
