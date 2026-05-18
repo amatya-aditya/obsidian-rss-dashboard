@@ -73,6 +73,7 @@ vi.mock("../../../src/views/reader-view", () => ({
   ReaderView: class ReaderViewMock {
     setReturnLeaf = vi.fn();
     displayItem = vi.fn(async () => {});
+    focusReaderView = vi.fn();
     isPodcastPlaying = vi.fn(() => false);
   },
   RSS_READER_VIEW_TYPE: "rss-reader-view",
@@ -81,6 +82,7 @@ vi.mock("../../../src/views/reader-view", () => ({
 type MockReaderView = {
   setReturnLeaf: ReturnType<typeof vi.fn>;
   displayItem: ReturnType<typeof vi.fn>;
+  focusReaderView: ReturnType<typeof vi.fn>;
   isPodcastPlaying: ReturnType<typeof vi.fn>;
 };
 
@@ -213,6 +215,7 @@ describe("Dashboard reader location", () => {
     });
     expect(mainLeaf.view.setReturnLeaf).toHaveBeenCalledWith(dashboardLeaf);
     expect(mainLeaf.view.displayItem).toHaveBeenCalledWith(feed.items[0], []);
+    expect(mainLeaf.view.focusReaderView).toHaveBeenCalledTimes(1);
   });
 
   it("relocks the selected card after split open in card view", async () => {
@@ -298,6 +301,41 @@ describe("Dashboard reader location", () => {
       feed.items[0],
       [],
     );
+    expect(existingLeaf.view.focusReaderView).toHaveBeenCalledTimes(1);
+  });
+
+  it("moves focus to the reader when opening from the dashboard", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    settings.readerViewLocation = "main";
+    const mainLeaf = createReaderLeaf(new App(), "main");
+    const revealLeaf = vi.fn(async () => {});
+    const setActiveLeaf = vi.fn();
+    const { view, dashboardLeaf } = await createDashboardView(settings, {
+      activeLeaf: null,
+      getLeavesOfType: vi.fn(() => []),
+      getLeaf: vi.fn(() => mainLeaf),
+      getLeftLeaf: vi.fn(),
+      getRightLeaf: vi.fn(),
+      revealLeaf,
+      setActiveLeaf,
+    });
+
+    view.app.workspace.activeLeaf = dashboardLeaf as never;
+
+    await view.handleArticleClick(feed.items[0]);
+
+    expect(mainLeaf.setViewState).toHaveBeenCalledWith({
+      type: "rss-reader-view",
+      active: true,
+    });
+    expect(revealLeaf).toHaveBeenCalledWith(mainLeaf);
+    expect(setActiveLeaf).toHaveBeenCalledWith(mainLeaf, { focus: true });
+    expect(mainLeaf.view.focusReaderView).toHaveBeenCalledTimes(1);
+    expect(setActiveLeaf).not.toHaveBeenCalledWith(dashboardLeaf, {
+      focus: true,
+    });
   });
 
   it("opens article clicks in the right sidebar when readerViewLocation is right-sidebar", async () => {

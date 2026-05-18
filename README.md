@@ -24,6 +24,7 @@ Only the feeds you need. Stream the world's knowledge into your vault: RSS, podc
 - [Vault Shards Storage Guide](#vault-shards-storage-guide)
 - [Installation](#installation)
 - [Getting Started](#getting-started)
+- [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Development](#development)
 - [Troubleshooting](#troubleshooting)
 - [YouTube Embeds and Terms](#youtube-embeds-and-terms)
@@ -174,6 +175,10 @@ Using the new experimental storage mode? See the user-facing guide here: [docs/s
 3. Add tags to categorize your content.
 4. Use the filtering and sorting options to find specific articles quickly.
 5. Export your feed list as OPML for backup or migration.
+
+### Keyboard Shortcuts
+
+To quickly access the keyboard shortcuts help file, press `?` (Shift + /) within the app. This will display a comprehensive list of available shortcuts and their functions.
 
 ## Development
 

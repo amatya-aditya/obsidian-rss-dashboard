@@ -7,8 +7,6 @@
 import moment from "moment";
 export { moment };
 
-// Stub for HTTP requests - configure mock in test
- 
 export async function requestUrl(
   _param?: unknown,
 ): Promise<{ status: number; text: string }> {
@@ -352,7 +350,6 @@ export class MockWorkspace {
     return {};
   }
 
-   
   offref(_ref: unknown): void {}
 }
 
@@ -433,7 +430,6 @@ export class Plugin {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addCommand(_command: any): void {}
 
-   
   addRibbonIcon(
     _icon: string,
     _title: string,
@@ -518,6 +514,15 @@ export class ItemView {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   registerEvent(_evt: any): void {}
+
+  registerDomEvent(
+    el: HTMLElement,
+    type: string,
+    callback: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions,
+  ): void {
+    el.addEventListener(type, callback, options);
+  }
 }
 
 export class Menu {
@@ -640,7 +645,7 @@ export class Setting {
 
       _triggerClick(evt?: MouseEvent): void {
         if (this.clickHandler) {
-          this.clickHandler(evt ?? (new MouseEvent("click")));
+          this.clickHandler(evt ?? new MouseEvent("click"));
         } else {
           this.buttonEl.click();
         }
@@ -938,7 +943,7 @@ export class AbstractInputSuggest<T> {
     this.app = app;
     this.inputEl = inputEl;
   }
-   
+
   protected getSuggestions(_query: string): T[] {
     return [];
   }
@@ -946,4 +951,28 @@ export class AbstractInputSuggest<T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   selectSuggestion(_value: T, _evt: any): void {}
   close(): void {}
+}
+export class Scope {
+  public handlers: Array<{
+    modifiers: string[] | null;
+    key: string | null;
+    func: (...args: unknown[]) => void;
+  }> = [];
+  constructor(public parent?: Scope) {}
+  register(
+    modifiers: string[] | null,
+    key: string | null,
+    func: (...args: unknown[]) => void,
+  ) {
+    const handler = { modifiers, key, func };
+    this.handlers.push(handler);
+    return handler;
+  }
+  unregister(handler: {
+    modifiers: string[] | null;
+    key: string | null;
+    func: (...args: unknown[]) => void;
+  }) {
+    this.handlers = this.handlers.filter((h) => h !== handler);
+  }
 }

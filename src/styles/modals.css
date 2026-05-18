@@ -3044,3 +3044,110 @@
     }
   }
 }
+
+/* ==========================================================================
+   Shortcut Help Modal
+   ========================================================================== */
+
+.rss-shortcut-section {
+  margin-bottom: 24px;
+}
+
+.rss-shortcut-section h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1.1em;
+  color: var(--text-normal);
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 4px;
+}
+
+.rss-shortcut-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--background-secondary);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.rss-shortcut-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rss-shortcut-desc {
+  color: var(--text-normal);
+  font-size: 0.95em;
+}
+
+.rss-shortcut-key-container kbd {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: 'JetBrains Mono', monospace, var(--font-monospace);
+  font-size: 0.85em;
+  color: var(--text-normal);
+  box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+}
+
+/* ==========================================================================
+   Shortcut Help Modal Style Fixes
+   ========================================================================== */
+
+/* Hide Obsidian's default close button for ShortcutHelpModal since we use a custom one inside the header */
+.shortcut-help-modal .modal-close-button {
+  display: none !important;
+}
+
+/* Ensure the custom header inside ShortcutHelpModal is styled beautifully */
+.shortcut-help-modal .rss-dashboard-header {
+  order: -1 !important; /* Force top positioning if flex layout is ever applied */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  padding: 1.5rem 1.5rem 0 1.5rem !important;
+  box-sizing: border-box !important;
+  border-bottom: none !important;
+  background: transparent !important;
+}
+
+.shortcut-help-modal .rss-dashboard-header-title {
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  color: var(--text-normal) !important;
+  margin: 0 !important;
+  flex-grow: 1 !important;
+}
+
+.shortcut-help-modal .rss-dashboard-header-close-button {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  border-radius: 6px !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--text-muted) !important;
+  margin-right: 0 !important;
+  transition: background-color 0.2s, color 0.2s !important;
+}
+
+.shortcut-help-modal .rss-dashboard-header-close-button:hover {
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-normal) !important;
+}
+
+/* Align modal content padding to match the header */
+.shortcut-help-modal .rss-dashboard-modal-content {
+  padding: 1rem 1.5rem 1.5rem 1.5rem !important;
+}
+

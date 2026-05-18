@@ -34,9 +34,10 @@ interface ArticleListCallbacks {
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
   ) => void;
-  onArticleSave: (article: FeedItem) => void;
-  onOpenSavedArticle?: (article: FeedItem) => void;
+  onArticleSave?: (article: FeedItem) => Promise<void> | void;
+  onOpenSavedArticle?: (article: FeedItem) => Promise<void> | void;
   onOpenInReaderView?: (article: FeedItem) => void;
+  onOpenInBrowser?: (article: FeedItem) => void;
   onToggleSidebar: () => void;
   onSortChange: (value: "newest" | "oldest") => void;
   onGroupChange: (value: "none" | "feed" | "date" | "folder") => void;
@@ -894,6 +895,93 @@ export class ArticleList {
     }
   }
 
+  public getCardNavigationTargetGuid(
+    currentGuid: string,
+    direction: "left" | "right" | "up" | "down",
+  ): string | null {
+    const cards = Array.from(
+      this.container.querySelectorAll<HTMLElement>(".rss-dashboard-article-card"),
+    );
+    if (cards.length === 0) {
+      return null;
+    }
+
+    const currentIndex = cards.findIndex(
+      (card) => card.dataset.articleGuid === currentGuid,
+    );
+    if (currentIndex === -1) {
+      return cards[0].dataset.articleGuid ?? null;
+    }
+
+    const rowTolerance = 6;
+    const positionedCards = cards
+      .map((card) => ({
+        guid: card.dataset.articleGuid ?? null,
+        rect: card.getBoundingClientRect(),
+      }))
+      .filter(
+        (
+          entry,
+        ): entry is { guid: string; rect: DOMRect } => entry.guid !== null,
+      );
+    const rows: Array<Array<{ guid: string; rect: DOMRect }>> = [];
+    positionedCards.forEach((entry) => {
+      const existingRow = rows.find(
+        (row) => Math.abs(row[0].rect.top - entry.rect.top) <= rowTolerance,
+      );
+      if (existingRow) {
+        existingRow.push(entry);
+        return;
+      }
+      rows.push([entry]);
+    });
+    rows.forEach((row) =>
+      row.sort((a, b) => a.rect.left - b.rect.left),
+    );
+    rows.sort((a, b) => a[0].rect.top - b[0].rect.top);
+
+    const currentRowIndex = rows.findIndex((row) =>
+      row.some((entry) => entry.guid === currentGuid),
+    );
+    if (currentRowIndex === -1) {
+      return null;
+    }
+
+    const currentRow = rows[currentRowIndex];
+    const currentColumnIndex = currentRow.findIndex(
+      (entry) => entry.guid === currentGuid,
+    );
+    if (currentColumnIndex === -1) {
+      return null;
+    }
+
+    if (direction === "left") {
+      return currentColumnIndex > 0
+        ? currentRow[currentColumnIndex - 1].guid
+        : null;
+    }
+
+    if (direction === "right") {
+      return currentColumnIndex < currentRow.length - 1
+        ? currentRow[currentColumnIndex + 1].guid
+        : null;
+    }
+
+    const targetRowIndex =
+      direction === "up" ? currentRowIndex - 1 : currentRowIndex + 1;
+    if (targetRowIndex < 0 || targetRowIndex >= rows.length) {
+      return null;
+    }
+
+    const targetRow = rows[targetRowIndex];
+    const targetColumnIndex = Math.min(
+      currentColumnIndex,
+      targetRow.length - 1,
+    );
+
+    return targetRow[targetColumnIndex]?.guid ?? null;
+  }
+
   /**
    * Arm a one-shot ResizeObserver relock for card-view top-anchoring.
    *
@@ -1430,11 +1518,13 @@ export class ArticleList {
       saveButton.textContent = "S";
     }
 
-    const toggleSave = (e: Event) => {
+    const toggleSave = async (e: Event) => {
       e.stopPropagation();
+      e.preventDefault();
+      
       if (article.saved) {
         if (this.callbacks.onOpenSavedArticle) {
-          this.callbacks.onOpenSavedArticle(article);
+          await this.callbacks.onOpenSavedArticle(article);
         } else {
           new Notice("Article already saved. Look in your notes.");
         }
@@ -1442,25 +1532,35 @@ export class ArticleList {
         if (saveButton.classList.contains("saving")) {
           return;
         }
+        
         saveButton.classList.add("saving");
         saveButton.setAttribute("title", "Saving article...");
-        this.callbacks.onArticleSave(article);
-        article.saved = true;
-        saveButton.classList.add("saved");
-        setIcon(saveButton, "save");
-        if (!saveButton.querySelector("svg")) {
-          saveButton.textContent = "S";
+        
+        try {
+          await this.callbacks.onArticleSave(article);
+          article.saved = true;
+          saveButton.classList.add("saved");
+          setIcon(saveButton, "save");
+          if (!saveButton.querySelector("svg")) {
+            saveButton.textContent = "S";
+          }
+          saveButton.setAttribute("title", "Click to open saved article");
+        } catch (error) {
+          console.error("Failed to save article via card button:", error);
+          new Notice("Failed to save article.");
+        } finally {
+          saveButton.classList.remove("saving");
         }
-        saveButton.classList.remove("saving");
-        saveButton.setAttribute("title", "Click to open saved article");
       }
     };
 
-    saveButton.addEventListener("click", toggleSave);
+    saveButton.addEventListener("click", (e) => {
+      void toggleSave(e);
+    });
     saveButton.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        toggleSave(e);
+        void toggleSave(e);
       }
     });
   }
@@ -2236,7 +2336,7 @@ export class ArticleList {
           .setIcon("file-text")
           .onClick(() => {
             if (this.callbacks.onOpenSavedArticle) {
-              this.callbacks.onOpenSavedArticle(article);
+              void this.callbacks.onOpenSavedArticle(article);
             }
           });
       });
@@ -2247,7 +2347,7 @@ export class ArticleList {
           .setIcon("book-open")
           .onClick(() => {
             if (this.callbacks.onOpenInReaderView) {
-              this.callbacks.onOpenInReaderView(article);
+              void this.callbacks.onOpenInReaderView(article);
             }
           });
       });
@@ -2312,7 +2412,9 @@ export class ArticleList {
           )
           .setIcon("save")
           .onClick(() => {
-            this.callbacks.onArticleSave(article);
+            if (this.callbacks.onArticleSave) {
+              void this.callbacks.onArticleSave(article);
+            }
           });
       });
     }
