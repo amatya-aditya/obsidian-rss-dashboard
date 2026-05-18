@@ -432,6 +432,50 @@ describe("ReaderView – summary de-duplication", () => {
     expect(body).toBeTruthy();
   });
 
+  it("shows a placeholder in the feed description callout when the description is missing", async () => {
+    const item = makeItem({
+      description: "",
+      content: "<p>Extended body paragraph that should still render in the article body.</p>",
+    });
+
+    await readerView.displayItem(item);
+
+    const rc = getHarness(readerView).readingContainer;
+    const callout = rc.querySelector<HTMLElement>(
+      ".rss-reader-description-callout",
+    );
+    const descriptionBody = rc.querySelector<HTMLElement>(
+      ".rss-reader-description-body",
+    );
+    const body = rc.querySelector<HTMLElement>(".rss-reader-article-content");
+
+    expect(callout).toBeTruthy();
+    expect(descriptionBody?.textContent || "").toContain(
+      "No feed description available.",
+    );
+    expect(body?.textContent || "").toContain(
+      "Extended body paragraph that should still render in the article body.",
+    );
+  });
+
+  it("shows the placeholder when the feed description is only an ellipsis placeholder", async () => {
+    const item = makeItem({
+      description: "<p>...</p>",
+      content: "<p>Extended body paragraph that should still render in the article body.</p>",
+    });
+
+    await readerView.displayItem(item);
+
+    const rc = getHarness(readerView).readingContainer;
+    const descriptionBody = rc.querySelector<HTMLElement>(
+      ".rss-reader-description-body",
+    );
+
+    expect(descriptionBody?.textContent || "").toContain(
+      "No feed description available.",
+    );
+  });
+
   it("CONTROL: renders only body (no callout) when description and content are byte-identical", async () => {
     const html = "<p>Exactly the same content.</p>";
     const item = makeItem({ description: html, content: html });

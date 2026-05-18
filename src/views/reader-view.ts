@@ -53,6 +53,7 @@ import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
 const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
+const FEED_DESCRIPTION_UNAVAILABLE_TEXT = "No feed description available.";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
@@ -1434,6 +1435,8 @@ export class ReaderView extends ItemView {
     });
 
     const descriptionHtml = (item.description || "").trim();
+    const hasMeaningfulDescription =
+      this.hasMeaningfulFeedDescription(descriptionHtml);
     const mainHtml = (fullContent || item.content || "").trim();
     let fallbackHeroUrl =
       (item.coverImage || "").trim() ||
@@ -1456,9 +1459,10 @@ export class ReaderView extends ItemView {
 
     const hasDistinctMainContent =
       mainHtml !== "" &&
-      (!descriptionHtml || !this.isEquivalentHtml(mainHtml, descriptionHtml));
+      (!hasMeaningfulDescription ||
+        !this.isEquivalentHtml(mainHtml, descriptionHtml));
 
-    if (!isNitter && descriptionHtml && hasDistinctMainContent) {
+    if (!isNitter && hasDistinctMainContent) {
       const descriptionCallout = this.readingContainer.createEl("details", {
         cls: "rss-reader-description-callout",
       });
@@ -1467,17 +1471,21 @@ export class ReaderView extends ItemView {
       const descriptionBody = descriptionCallout.createDiv({
         cls: "rss-reader-description rss-reader-description-body",
       });
-      this.populateArticleHtml(
-        descriptionBody,
-        descriptionHtml,
-        item.link,
-        fallbackHeroUrl,
-        displayTitle,
-        heroSlot,
-        false,
-        false,
-        undefined,
-      );
+      if (hasMeaningfulDescription) {
+        this.populateArticleHtml(
+          descriptionBody,
+          descriptionHtml,
+          item.link,
+          fallbackHeroUrl,
+          displayTitle,
+          heroSlot,
+          false,
+          false,
+          undefined,
+        );
+      } else {
+        descriptionBody.setText(FEED_DESCRIPTION_UNAVAILABLE_TEXT);
+      }
     }
 
     const contentToRender = isNitter
@@ -1792,6 +1800,20 @@ export class ReaderView extends ItemView {
     replacement.setAttribute("src", recoverySrc);
     img.replaceWith(replacement);
     return true;
+  }
+
+  private hasMeaningfulFeedDescription(html: string): boolean {
+    if (!html) {
+      return false;
+    }
+
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const text = (doc.body.textContent || "").replace(/\s+/g, " ").trim();
+    if (!text) {
+      return false;
+    }
+
+    return !/^(?:\.{3,}|…+|\[\s*(?:\.{3,}|…+)\s*\])$/.test(text);
   }
 
   private isNitterHost(host: string): boolean {
