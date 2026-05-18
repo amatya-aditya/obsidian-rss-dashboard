@@ -1905,7 +1905,7 @@ export class ReaderView extends ItemView {
   }
 
   private countElementsWithRawSubstackAttr(
-    elements: Iterable<Element>,
+    elements: ArrayLike<Element> | Iterable<Element>,
     attrName: string,
   ): number {
     let count = 0;

@@ -6,19 +6,20 @@ import {
 
 describe("substack-image-url", () => {
   beforeEach(() => {
-    document.body.innerHTML = "";
+    document.body.replaceChildren();
   });
 
   it("normalizes raw Substack fetch URLs in a live DOM element tree", () => {
     const container = document.createElement("div");
-    container.innerHTML = `
+    const fragment = document.createRange().createContextualFragment(`
       <picture>
         <source
           srcset="https://substackcdn.com/image/fetch/$s_!YDr_!,w_424,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png 424w, https://substackcdn.com/image/fetch/$s_!YDr_!,w_848,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png 848w"
         >
         <img src="https://substackcdn.com/image/fetch/$s_!YDr_!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png">
       </picture>
-    `;
+    `);
+    container.replaceChildren(fragment);
 
     normalizeSubstackImageUrlsInElement(container);
 

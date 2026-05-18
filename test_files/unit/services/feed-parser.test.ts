@@ -1,4 +1,3 @@
-import { readFileSync } from "fs";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { Feed, FeedItem } from "../../../src/types/types";
 import { resolveAbsoluteHttpUrl } from "../../../src/utils/url-utils";
@@ -14,6 +13,10 @@ import {
   mergeFeedHistoryItems,
   applyFeedRetentionLimits,
 } from "../../../src/services/feed-parser";
+
+type RawTextModule = {
+  default: string;
+};
 
 // ─── RSS 2.0 Fixtures ───────────────────────────────────────────────────────
 
@@ -588,7 +591,9 @@ describe("content:encoded HTML entity preservation", () => {
 
     const dataAttrs = img!.getAttribute("data-attrs");
     expect(dataAttrs).not.toBeNull();
-    expect(() => JSON.parse(dataAttrs!)).not.toThrow();
+    expect(() => {
+      JSON.parse(dataAttrs!);
+    }).not.toThrow();
 
     const attrs = JSON.parse(dataAttrs!) as Record<string, unknown>;
     expect(attrs["src"]).toBe(
@@ -620,11 +625,9 @@ describe("content:encoded HTML entity preservation", () => {
     );
   });
 
-  it("rewrites broken Astral Codex Substack image src URLs from the real fixture", () => {
-    const astralCodexFeed = readFileSync(
-      "docs/archive/astralcodex.txt",
-      "utf-8",
-    );
+  it("rewrites broken Astral Codex Substack image src URLs from the real fixture", async () => {
+    const { default: astralCodexFeed } =
+      (await import("../../../docs/archive/astralcodex.txt?raw")) as RawTextModule;
     const contentMatch = astralCodexFeed.match(
       /<content:encoded>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/content:encoded>/,
     );

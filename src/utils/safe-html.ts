@@ -106,10 +106,12 @@ function isValidAttributeName(name: string): boolean {
   // - Forward slash (/)
   // - Greater-than (>) sign
   // - Equals (=) sign
-  const invalidChars = /[\s\0"'/>=/]/;
+  const invalidChars = /[\s"'/>=]/;
 
-  // Also reject control characters (0x00-0x1F, 0x7F)
-  const hasControlChars = /[\x00-\x1F\x7F]/.test(name);
+  const hasControlChars = Array.from(name).some((char) => {
+    const code = char.charCodeAt(0);
+    return code <= 0x1f || code === 0x7f;
+  });
 
   return !invalidChars.test(name) && !hasControlChars;
 }
@@ -156,7 +158,7 @@ function copySafeAttributes(fromEl: HTMLElement, toEl: HTMLElement): void {
     if (isValidAttributeName(attr.name)) {
       try {
         toEl.setAttribute(attr.name, attr.value);
-      } catch (error) {
+      } catch (_error) {
         // Silently drop attributes that cannot be set (e.g., from malformed HTML)
         // This prevents one bad attribute from truncating the entire DOM subtree
       }

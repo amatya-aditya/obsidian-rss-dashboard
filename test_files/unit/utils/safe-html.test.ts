@@ -296,7 +296,7 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
       <div class="image-wrapper">
         <img 
           src="https://example.com/image.jpg" 
-          src":\"https: 
+          src":"https: 
           alt="Example"
           srcset="https://example.com/image.jpg 424w, https://example.com/image@2x.jpg 848w"
         />
@@ -384,7 +384,7 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
       <img 
         src="https://example.com/valid.jpg"
         data-valid="valid-value"
-        src":\"https:
+        src":"https:
         class="image-class"
         invalid-attr-with-quotes":"{...}
         alt="Valid alt text"
@@ -404,7 +404,7 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
 
     // Invalid attributes should not be present
     expect(img?.getAttribute("src\":'https:")).toBeNull();
-    expect(img?.getAttribute("invalid-attr-with-quotes\":'{\...}")).toBeNull();
+    expect(img?.getAttribute("invalid-attr-with-quotes\":'{...}")).toBeNull();
   });
 
   it("normalizes Substack CDN image URLs before sanitizing src and srcset", () => {
