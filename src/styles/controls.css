@@ -1805,4 +1805,5 @@
 .rss-dashboard-import-statusbar-icon {
   width: 12px;
   --icon-size: 10px;
+  margin-right: 6px;
 }

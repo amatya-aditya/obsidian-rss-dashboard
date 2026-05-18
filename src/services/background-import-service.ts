@@ -423,7 +423,7 @@ export class BackgroundImportService {
         ".import-statusbar-text",
       );
       if (textSpan) {
-        textSpan.textContent = `  Fetching articles: ${current}/${total} - ${currentFeedTitle}`;
+        textSpan.textContent = `Fetching articles: ${current}/${total} - ${currentFeedTitle}`;
       }
     }
   }
