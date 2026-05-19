@@ -1,318 +1,132 @@
 # Mastodon Integration Plan
 
-**Date:** May 18, 2026  
-**Status:** Proposed  
-**Scope:** Add Mastodon profile feed resolution to RSS Dashboard
+**Date:** May 19, 2026  
+**Status:** In Progress  
+**Scope:** Add Mastodon profile feed resolution to RSS Dashboard via RSS auto-discovery
 
 ## Overview
 
-Integrate Mastodon feed resolution into the RSS Dashboard plugin by leveraging the Mastodon API to fetch public timelines. Users will be able to paste a Mastodon profile URL (e.g., `https://mastodon.social/@username`) and have it automatically converted into an RSS feed.
+Support Mastodon profile URLs such as `https://mastodon.social/@username` by resolving the RSS feed already advertised by the public profile page. This keeps the feature aligned with the plugin's existing RSS-first architecture and avoids building a separate Mastodon API ingestion pipeline.
 
 ## Key Constraint: No OAuth Required
 
-**Critical Design Constraint:** This integration **must work without OAuth authentication**. If public Mastodon timelines cannot be accessed via the API without authentication, this feature will be **not viable** and should be **scrapped**.
+This integration must work without OAuth authentication. The current supported design satisfies that by using HTML auto-discovery from the profile page rather than token-gated account lookup APIs.
 
 ### Viability Check
 
-- ✅ Mastodon API allows unauthenticated read access to public timelines
-- ✅ Users can fetch any public profile's statuses via `/api/v1/accounts/:id/statuses`
-- ✅ No authentication token required for public data
+- Confirmed: public Mastodon profile pages advertise RSS feeds via HTML auto-discovery.
+- Confirmed: this requires no OAuth or user token.
+- Rejected approach: `GET /api/v1/accounts/lookup` is not a safe default for this feature because current Mastodon docs mark it as requiring a user token.
 
-If this assumption proves incorrect during implementation, the feature will be deprecated.
+If RSS auto-discovery proves unreliable across common instances, the feature should be reconsidered before adding more complexity.
 
-## 1. Implementation Plan
+## Implementation Plan
 
-### 1.1. Research and Setup
+### Current design
 
-- **Understand Mastodon API**:
-  - Public timeline endpoint: `GET /api/v1/accounts/:id/statuses`
-  - Account lookup: `GET /api/v1/accounts/lookup?acct=username@instance`
-  - Ensure all endpoints are accessible without authentication
-  - Verify compatibility across federated instances
+- Detect Mastodon profile URLs:
+  - `https://instance/@username`
+  - `https://instance/users/username`
+- Fetch the public profile HTML.
+- Extract the `<link rel="alternate" type="application/rss+xml">` URL.
+- Resolve relative RSS URLs against the profile origin.
+- Pass the resolved feed URL through the existing feed preview and parsing pipeline.
 
-- **Data Transformation**:
-  - Convert Mastodon API responses (JSON) into RSS feed format
-  - Map fields:
-    - Mastodon status → RSS item
-    - Account name → Feed title
-    - Instance URL → Feed link
-    - Status created_at → pubDate
-    - Status content → description
-    - Media attachments → enclosures/images
+### Code changes
 
-### 1.2. Code Changes
-
-#### New Files
+#### New file
 
 - `src/services/mastodon-service.ts`
-  - Handle URL detection and parsing
-  - Fetch account information from public API
-  - Transform Mastodon JSON to RSS-compatible format
-  - Error handling for invalid URLs, rate limits, unreachable instances
+  - Detect Mastodon profile URLs
+  - Fetch profile HTML
+  - Extract RSS auto-discovery links
+  - Return resolved feed URL or `null`
 
-#### Modified Files
-
-- `src/modals/feed-manager/feed-preview-loader.ts`
-  - Add Mastodon URL detection (similar to existing X/Twitter and YouTube patterns)
-  - Route Mastodon URLs to `mastodon-service`
-  - Return transformed feed data for preview
+#### Modified files
 
 - `src/services/media-service.ts`
-  - Add `isMastodonUrl()` method
-  - Add `getMastodonRssFeed()` method (analogous to `getNitterRssFeed()`)
-
-#### Documentation
+  - Add `isMastodonUrl()`
+  - Add `getMastodonRssFeed()`
 
-- Update `docs/development/README.md` with Mastodon integration notes
-- Add Mastodon platform documentation to feed validation guide if needed
-
-### 1.3. Public API Limitations & Fallbacks
-
-- **Rate Limiting**: Mastodon instances may rate-limit API requests
-  - Add exponential backoff retry logic
-  - Display user-friendly rate limit messages
-
-- **Instance Variations**: Different Mastodon instances may have slightly different API responses
-  - Implement defensive parsing to handle variations
-  - Test against multiple instances (mastodon.social, pixelfed, peertube, etc. if they expose compatible endpoints)
-
----
-
-## 2. Test-Driven Development (TDD) Cycle
-
-### 2.1. Red Phase: Write Failing Tests
-
-#### Service Layer Tests (`test_files/unit/services/mastodon-service.test.ts`)
-
-```ts
-describe("MastodonService", () => {
-  describe("URL Detection", () => {
-    it("detects valid Mastodon profile URLs");
-    it("rejects invalid Mastodon URLs");
-    it("handles instance variations (mastodon.social, pixelfed.social, etc.)");
-  });
-
-  describe("Account Lookup", () => {
-    it("fetches account info from Mastodon API using username and instance");
-    it("throws error for non-existent account");
-    it("throws error for unreachable instance");
-  });
+- `src/modals/feed-manager/feed-preview-loader.ts`
+  - Add Mastodon detection and resolution
+  - Return Mastodon conversion metadata for the UI
 
-  describe("Timeline Fetching", () => {
-    it("fetches public statuses for an account");
-    it("filters out non-public statuses");
-    it("handles empty timelines gracefully");
-  });
+- `src/modals/feed-manager/add-feed-modal.ts`
+  - Use the shared preview loader path
+  - Display Mastodon conversion notice
+  - Route eligible folders to the configured RSS default
 
-  describe("Data Transformation", () => {
-    it("transforms Mastodon status to RSS item with correct fields");
-    it("extracts and includes media attachments as enclosures");
-    it("sanitizes HTML content from statuses");
-    it("handles replies and threads correctly");
-  });
+- `src/modals/feed-manager/edit-feed-modal.ts`
+  - Display Mastodon conversion notice
+  - Route eligible folders to the configured RSS default
 
-  describe("Error Handling", () => {
-    it("handles API rate limiting with appropriate message");
-    it("handles network errors gracefully");
-    it("handles malformed JSON responses");
-    it("handles instance timeouts");
-  });
-});
-```
+### Documentation
 
-#### Feed Manager Integration Tests (`test_files/unit/modals/feed-preview-loader-mastodon.test.ts`)
+- Update `docs/development/README.md` with supported Mastodon URL patterns
+- Document that the integration uses native RSS auto-discovery rather than Mastodon API timeline conversion
 
-```ts
-describe("FeedPreviewLoader - Mastodon", () => {
-  it("detects Mastodon URL and routes to mastodon-service");
-  it("returns feed preview data for valid Mastodon profile");
-  it("displays appropriate error message for invalid profile");
-  it("displays Mastodon conversion notice similar to X/Nitter");
-});
-```
+## Testing Strategy
 
-### 2.2. Green Phase: Implement Minimum Code to Pass Tests
+### Service tests
 
-1. **Create `src/services/mastodon-service.ts`**:
-   - `isMastodonUrl(url: string): boolean`
-   - `parseMastodonUrl(url: string): { username: string; instance: string }`
-   - `async fetchMastodonAccount(username: string, instance: string)`
-   - `async fetchMastodonTimeline(accountId: string, instance: string)`
-   - `transformStatusToRssItem(status: MastodonStatus): RssItem`
-   - `async resolveMastodonFeed(url: string): Promise<FeedPreviewData>`
+`test_files/unit/services/mastodon-service.test.ts`
 
-2. **Update `src/services/media-service.ts`**:
-   - Add `isMastodonUrl()` and `getMastodonRssFeed()` methods
+- Detects valid Mastodon profile URLs
+- Rejects non-profile or status URLs
+- Extracts absolute RSS URLs from profile auto-discovery
+- Resolves relative RSS URLs against the profile page
+- Returns `null` when the page does not advertise RSS
+- Returns `null` when the request fails
 
-3. **Update `src/modals/feed-manager/feed-preview-loader.ts`**:
-   - Add Mastodon detection before other platform checks
-   - Integrate mastodon-service
+### Feed manager tests
 
-### 2.3. Refactor Phase: Optimize & Clean Up
+- `test_files/unit/discover/feed-preview-loader.test.ts`
+  - Detects Mastodon URL and routes to `mastodon-service`
+  - Returns feed preview data for valid Mastodon profiles
+  - Marks the result as a Mastodon conversion
 
-- Extract common HTTP handling into utilities
-- Refactor error messages for consistency
-- Consolidate duplicated API fetch logic
-- Ensure test coverage meets project thresholds (40% lines, 33% branches, 34% functions)
+- `test_files/unit/modals/add-feed-modal.test.ts`
+  - Shows Mastodon conversion notice
+  - Routes eligible folders to the configured default RSS folder
 
----
+- `test_files/unit/modals/edit-feed-modal.test.ts`
+  - Shows Mastodon conversion notice
+  - Routes eligible folders to the configured default RSS folder
 
-## 3. Testing Strategy
+## Current Progress
 
-### 3.1 Test File Structure
+### Completed
 
-```
-test_files/unit/
-  ├── services/
-  │   └── mastodon-service.test.ts       (new)
-  ├── modals/
-  │   └── feed-preview-loader-mastodon.test.ts (new)
-  └── fixtures/
-      └── mastodon/
-          ├── account-response.json       (sample API response)
-          ├── timeline-response.json      (sample timeline)
-          └── edge-cases.json             (empty, locked, etc.)
-```
+- `mastodon-service.ts` created
+- Mastodon URL resolution added to preview loading
+- Feed manager add/edit flows updated to use shared preview resolution
+- Conversion notice support added for Mastodon
+- Focused unit tests added and passing
 
-### 3.2 Mocking Strategy
+### Remaining
 
-- Mock `requestUrl` from Obsidian to simulate API responses
-- Use fixtures from `test_files/unit/fixtures/mastodon/` for realistic data
-- Test against multiple Mastodon API response formats
+- Validate against real Mastodon instances
+- Update developer-facing docs
+- Run broader regression coverage if we decide to expand this beyond the current slice
 
-### 3.3 Test Coverage Requirements
+## Similarity To Existing Integrations
 
-- Minimum statement coverage: 40% (project threshold)
-- All new code paths must have corresponding tests
-- Edge cases: empty timelines, private accounts, rate limits, network errors
+This mirrors the X/Twitter to Nitter flow at the UX layer:
 
----
+- User pastes a profile URL
+- Plugin resolves it to a feed URL
+- Plugin shows a conversion notice
+- Existing RSS parsing pipeline handles the rest
 
-## 4. Implementation Milestones
+The difference is that Mastodon uses native RSS auto-discovery instead of redirecting to a third-party feed frontend.
 
-### Milestone 1: Service Layer Foundation
+## Risks
 
-**Deliverable:** `mastodon-service.ts` with full API integration
+- High risk: some instances may omit or alter RSS discovery markup
+- Medium risk: instance-specific HTML variations may require more defensive parsing
+- Low risk: normal profile-page fetch cost is acceptable for preview-time resolution
 
-- ✅ URL detection and parsing
-- ✅ Account lookup via public API
-- ✅ Timeline fetching
-- ✅ Data transformation to RSS format
-- ✅ Error handling
-- ✅ 100% test coverage for service
+## Abort Condition
 
-**Tests:** `mastodon-service.test.ts` (all tests passing)
-
-### Milestone 2: Feed Manager Integration
-
-**Deliverable:** Updated feed preview loader and media service
-
-- ✅ Mastodon URL detection in feed manager
-- ✅ Integration with mastodon-service
-- ✅ Feed preview display
-- ✅ User-facing status messages
-
-**Tests:** `feed-preview-loader-mastodon.test.ts` (all tests passing)
-
-### Milestone 3: Documentation & Polish
-
-**Deliverable:** Updated project documentation
-
-- ✅ Add Mastodon section to `docs/development/README.md`
-- ✅ Document API patterns and limitations
-- ✅ Add example Mastodon feed URLs
-
-**Tests:** Verify overall test suite remains at 100% pass rate
-
-### Milestone 4: Viability Validation
-
-**Critical Gate:** Confirm Mastodon feeds work without OAuth
-
-- ✅ Test against multiple instances
-- ✅ Verify rate limiting is acceptable
-- ✅ If blockers found → **SCRAP FEATURE**
-
----
-
-## 5. Viability Constraints & Exit Criteria
-
-### Must Be True for Feature to Proceed
-
-1. ✅ Mastodon API allows unauthenticated access to public timelines
-2. ✅ Rate limits are reasonable for background refresh cycles
-3. ✅ API responses are consistent enough to parse reliably
-
-### If Any Constraint is Violated
-
-- **Action:** Immediately deprecate this feature
-- **Reason:** Authentication complexity (OAuth, token management) is out of scope
-- **Result:** Remove Mastodon integration code and tests; document decision in `docs/archive/`
-
----
-
-## 6. Similarities to Existing Integrations
-
-This implementation mirrors the **X/Twitter → Nitter** pattern:
-
-- User pastes URL (Twitter profile → Mastodon profile)
-- Plugin detects platform and fetches feed
-- Plugin displays conversion notice to user
-- Feed is stored in settings for background refresh
-
-Similar to Twitter/Nitter:
-
-```ts
-// Current pattern for Twitter
-static getNitterRssFeed(url: string): string | null {
-  const xMatch = url.match(/(?:x|twitter)\.com\/([^/?#]+)/);
-  if (xMatch?.[1]) {
-    const username = xMatch[1];
-    return `https://nitter.net/${username}/rss`;
-  }
-  return null;
-}
-
-// Proposed pattern for Mastodon
-static async getMastodonRssFeed(url: string): Promise<string | null> {
-  const mastodonMatch = url.match(/([a-zA-Z0-9.-]+\.(social|online|world|etc))\/@([^/?#]+)/);
-  if (mastodonMatch?.[3]) {
-    const [, instance, , username] = mastodonMatch;
-    return await MastodonService.resolveMastodonFeed(username, instance);
-  }
-  return null;
-}
-```
-
----
-
-## 7. Known Differences from Twitter/Nitter
-
-| Aspect         | Twitter/Nitter             | Mastodon              |
-| -------------- | -------------------------- | --------------------- |
-| URL Structure  | Fixed (twitter.com, x.com) | Variable per instance |
-| Feed Format    | Standardized Nitter RSS    | Variable API format   |
-| Authentication | None required              | None required ✅      |
-| Public Access  | Yes                        | Yes ✅                |
-| Rate Limiting  | Nitter varies              | Per-instance limits   |
-
----
-
-## 8. Next Steps
-
-1. **Create `mastodon-service.ts`** with TDD approach (Red → Green → Refactor)
-2. **Write and pass service layer tests**
-3. **Integrate with feed manager**
-4. **Run full test suite** to ensure no regressions
-5. **Validate viability** against real Mastodon instances
-6. **Document** in developer guide if successful; **archive** if constraints violated
-
----
-
-## Risk Assessment
-
-- **High Risk:** API authentication requirement → **Exit immediately**
-- **Medium Risk:** Rate limiting too aggressive → Implement caching/backoff
-- **Low Risk:** API format variations → Handle with defensive parsing
-- **Low Risk:** Performance impact → Monitor via test suite
-
-**Abort Condition:** If OAuth or authentication is required, scrap entire feature and document the decision.
+If reliable unauthenticated RSS discovery is not available across supported Mastodon instances, scrap the feature and document that decision rather than introducing OAuth or a more complex API integration path.

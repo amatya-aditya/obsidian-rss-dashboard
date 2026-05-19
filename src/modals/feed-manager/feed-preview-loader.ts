@@ -14,6 +14,7 @@ export interface FeedPreviewLoadResult {
   inputUrl: string;
   finalUrl: string;
   isXConversion: boolean;
+  isMastodonConversion: boolean;
   title: string;
   latestPubDate?: string;
   hasEntries: boolean;
@@ -47,6 +48,20 @@ export function formatLatestEntryLabel(
   if (!Number.isFinite(date.getTime())) return "N/A";
   const daysAgo = Math.floor((now - date.getTime()) / (1000 * 60 * 60 * 24));
   return daysAgo === 0 ? "Today" : `${daysAgo} days ago`;
+}
+
+export function getPreviewConversionNotice(
+  preview: Pick<FeedPreviewLoadResult, "isXConversion" | "isMastodonConversion">,
+): string {
+  if (preview.isXConversion) {
+    return " (X > nitter conversion)";
+  }
+
+  if (preview.isMastodonConversion) {
+    return " (Mastodon > RSS auto-discovery)";
+  }
+
+  return "";
 }
 
 export function shouldAutoAssignFolder(
@@ -100,6 +115,7 @@ export async function resolveAndLoadPreview(
   let finalUrl = inputUrl;
   let detectedType: FeedPreviewType = "rss";
   let isXConversion = false;
+  let isMastodonConversion = false;
 
   const normalizedNitterUrl = MediaService.normalizeNitterUrlToRss(url);
   if (normalizedNitterUrl) {
@@ -114,6 +130,19 @@ export async function resolveAndLoadPreview(
       finalUrl = nitterUrl;
       isXConversion = true;
     }
+  }
+
+  if (MediaService.isMastodonUrl(url)) {
+    const mastodonFeedUrl = await MediaService.getMastodonRssFeed(url);
+    if (!mastodonFeedUrl) {
+      throw new Error(
+        "Could not resolve Mastodon profile feed. Please check the profile URL.",
+      );
+    }
+
+    url = mastodonFeedUrl;
+    finalUrl = mastodonFeedUrl;
+    isMastodonConversion = true;
   }
 
   if (isYouTubePageUrl(url)) {
@@ -155,6 +184,7 @@ export async function resolveAndLoadPreview(
     inputUrl,
     finalUrl,
     isXConversion,
+    isMastodonConversion,
     title: feedData.title,
     latestPubDate: feedData.latestPubDate,
     hasEntries: feedData.hasEntries,

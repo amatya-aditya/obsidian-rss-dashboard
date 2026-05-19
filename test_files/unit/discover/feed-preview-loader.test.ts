@@ -22,6 +22,8 @@ describe("resolveAndLoadPreview()", () => {
 
     vi.spyOn(MediaService, "isXUrl").mockReturnValue(false);
     vi.spyOn(MediaService, "getNitterRssFeed").mockReturnValue(null);
+    vi.spyOn(MediaService, "isMastodonUrl").mockReturnValue(false);
+    vi.spyOn(MediaService, "getMastodonRssFeed").mockResolvedValue(null);
     vi.spyOn(MediaService, "isYouTubeFeed").mockReturnValue(false);
     vi.spyOn(MediaService, "getYouTubeRssFeed").mockResolvedValue(null);
 
@@ -47,6 +49,7 @@ describe("resolveAndLoadPreview()", () => {
 
     expect(result.detectedType).toBe("rss");
     expect(result.finalUrl).toBe("https://example.com/feed.xml");
+    expect(result.isMastodonConversion).toBe(false);
     expect(loadFeedForPreviewMock).toHaveBeenCalledWith(
       "https://example.com/feed.xml",
     );
@@ -65,6 +68,7 @@ describe("resolveAndLoadPreview()", () => {
     const result = await resolveAndLoadPreview("https://x.com/user");
 
     expect(result.isXConversion).toBe(true);
+    expect(result.isMastodonConversion).toBe(false);
     expect(result.finalUrl).toBe("https://nitter.net/user/rss");
     expect(loadFeedForPreviewMock).toHaveBeenCalledWith(
       "https://nitter.net/user/rss",
@@ -84,11 +88,32 @@ describe("resolveAndLoadPreview()", () => {
     const result = await resolveAndLoadPreview("https://youtube.com/@handle");
 
     expect(result.detectedType).toBe("youtube");
+    expect(result.isMastodonConversion).toBe(false);
     expect(result.finalUrl).toBe(
       "https://www.youtube.com/feeds/videos.xml?channel_id=UC123",
     );
     expect(loadFeedForPreviewMock).toHaveBeenCalledWith(
       "https://www.youtube.com/feeds/videos.xml?channel_id=UC123",
+    );
+  });
+
+  it("resolves Mastodon profile URLs to RSS feed URLs before loading", async () => {
+    const { resolveAndLoadPreview } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    vi.spyOn(MediaService, "isMastodonUrl").mockReturnValue(true);
+    vi.spyOn(MediaService, "getMastodonRssFeed").mockResolvedValue(
+      "https://mastodon.social/@user.rss",
+    );
+
+    const result = await resolveAndLoadPreview("https://mastodon.social/@user");
+
+    expect(result.detectedType).toBe("rss");
+    expect(result.isMastodonConversion).toBe(true);
+    expect(result.finalUrl).toBe("https://mastodon.social/@user.rss");
+    expect(loadFeedForPreviewMock).toHaveBeenCalledWith(
+      "https://mastodon.social/@user.rss",
     );
   });
 
@@ -111,6 +136,7 @@ describe("resolveAndLoadPreview()", () => {
     );
 
     expect(result.detectedType).toBe("podcast");
+    expect(result.isMastodonConversion).toBe(false);
     expect(result.finalUrl).toBe("https://example.com/podcast.rss");
     expect(resolvePodcastPlatformUrlMock).toHaveBeenCalledWith(
       "https://podcasts.apple.com/show/123",

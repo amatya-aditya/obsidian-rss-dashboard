@@ -1,6 +1,7 @@
 import { requestUrl, Notice } from "obsidian";
 import { Feed, MediaSettings, Tag } from "../types/types";
 import { isKnownVideoUrl } from "../utils/video-detection";
+import { MastodonService } from "./mastodon-service";
 
 export interface YouTubeEmbedConfig {
   videoId: string;
@@ -39,6 +40,14 @@ export class MediaService {
     const host = this.getNormalizedHostname(url);
     if (!host) return false;
     return this.X_HOSTS.has(host);
+  }
+
+  static isMastodonUrl(url: string): boolean {
+    return MastodonService.isMastodonProfileUrl(url);
+  }
+
+  static async getMastodonRssFeed(url: string): Promise<string | null> {
+    return MastodonService.resolveProfileFeed(url);
   }
 
   static getNitterRssFeed(url: string): string | null {

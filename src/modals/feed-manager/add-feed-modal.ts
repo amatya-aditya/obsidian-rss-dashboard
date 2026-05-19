@@ -7,12 +7,10 @@ import type {
 } from "../../types/types";
 import { FolderSuggest } from "../../components/folder-suggest";
 import {
-  resolvePodcastPlatformUrl,
-  loadFeedForPreview,
-} from "../../services/feed-parser";
-import { detectPodcastPlatform } from "../../utils/podcast-platforms";
-import {
+  formatLatestEntryLabel,
   getDefaultFolderForResolvedFeed,
+  getPreviewConversionNotice,
+  resolveAndLoadPreview,
   shouldAutoAssignFolder,
 } from "./feed-preview-loader";
 import { MediaService } from "../../services/media-service";
@@ -28,13 +26,6 @@ import { decorateFolderSelectorInput } from "./folder-selector-field";
 
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
-
-function isYouTubePageUrl(url: string): boolean {
-  if (!url) return false;
-  if (!MediaService.isYouTubeFeed(url)) return false;
-  if (url.includes("youtube.com/feeds/videos.xml")) return false;
-  return true;
-}
 
 export class AddFeedModal extends Modal {
   folders: Folder[];
@@ -177,187 +168,17 @@ export class AddFeedModal extends Modal {
               refs.statusDiv.addClass("status-loading");
             }
             try {
-              let feedUrl = url;
-              let detectedType: "rss" | "podcast" | "youtube" = "rss";
-              let isXConversion = false;
-              let isNitterFeed = false;
+              const preview = await resolveAndLoadPreview(url, {
+                corsProxyEnabled: this.plugin?.settings?.corsProxyEnabled,
+                corsProxyUrl: this.plugin?.settings?.corsProxyUrl,
+              });
 
-              // Normalize Nitter profile URLs to their RSS endpoint
-              const normalizedNitterUrl =
-                MediaService.normalizeNitterUrlToRss(url);
-              if (normalizedNitterUrl) {
-                isNitterFeed = true;
-                url = normalizedNitterUrl;
-                feedUrl = normalizedNitterUrl;
-                if (urlInput) urlInput.value = normalizedNitterUrl;
-              }
+              url = preview.finalUrl;
+              if (urlInput) urlInput.value = preview.finalUrl;
 
-              // Check for X/Twitter URLs and convert to Nitter
-              if (MediaService.isXUrl(url)) {
-                const nitterUrl = MediaService.getNitterRssFeed(url);
-                if (nitterUrl) {
-                  isNitterFeed = true;
-                  url = nitterUrl;
-                  feedUrl = nitterUrl;
-                  if (urlInput) urlInput.value = nitterUrl;
-                  isXConversion = true;
-                  status = "\u23F3 Redirecting X to Nitter...";
-                  if (refs.statusDiv) refs.statusDiv.textContent = status;
-                }
-              }
-
-              if (
-                folderInput &&
-                isNitterFeed &&
-                shouldAutoAssignFolder(
-                  folderInput.value || "",
-                  this.plugin?.settings?.media,
-                )
-              ) {
-                const nextFolder = getDefaultFolderForResolvedFeed(
-                  {
-                    detectedType: "rss",
-                    finalUrl: feedUrl,
-                    isXConversion,
-                  },
-                  this.plugin?.settings?.media,
-                );
-                folder = nextFolder;
-                folderInput.value = nextFolder;
-              }
-
-              // Check for YouTube page URLs and convert to RSS feed
-              if (isYouTubePageUrl(url)) {
-                detectedType = "youtube";
-                status = "\u23F3 Resolving YouTube channel...";
-                if (refs.statusDiv) refs.statusDiv.textContent = status;
-
-                const rssUrl = await MediaService.getYouTubeRssFeed(url);
-                if (!rssUrl) {
-                  throw new Error(
-                    "Could not resolve YouTube channel. Please check the URL.",
-                  );
-                }
-                feedUrl = rssUrl;
-                url = rssUrl;
-                if (urlInput) urlInput.value = rssUrl;
-                status = "\u23F3 Loading YouTube feed...";
-                if (refs.statusDiv) refs.statusDiv.textContent = status;
-
-                // Auto-set folder to default YouTube folder
-                // Update if folder is empty, "Uncategorized", or was previously auto-assigned
-                const defaultYouTubeFolder =
-                  this.plugin?.settings?.media?.defaultYouTubeFolder ||
-                  "Videos";
-                const defaultPodcastFolder =
-                  this.plugin?.settings?.media?.defaultPodcastFolder ||
-                  "Podcast";
-                const defaultRssFolder =
-                  this.plugin?.settings?.media?.defaultRssFolder || "RSS";
-                const defaultTwitterFolder =
-                  this.plugin?.settings?.media?.defaultTwitterFolder ||
-                  "Twitter";
-
-                const currentFolder = folderInput?.value || "";
-                const isAutoAssignedFolder =
-                  currentFolder === defaultTwitterFolder ||
-                  currentFolder === defaultYouTubeFolder ||
-                  currentFolder === defaultPodcastFolder ||
-                  currentFolder === defaultRssFolder ||
-                  currentFolder === "Twitter" ||
-                  currentFolder === "Videos" ||
-                  currentFolder === "Podcast" ||
-                  currentFolder === "RSS";
-
-                if (
-                  folderInput &&
-                  (!currentFolder ||
-                    currentFolder === "Uncategorized" ||
-                    isAutoAssignedFolder)
-                ) {
-                  folder = defaultYouTubeFolder;
-                  folderInput.value = defaultYouTubeFolder;
-                }
-              } else if (MediaService.isYouTubeFeed(url)) {
-                detectedType = "youtube";
-              } else {
-                // Check for podcast platform URLs
-                const platform = detectPodcastPlatform(url);
-                if (platform) {
-                  if (platform.id === "pocketcasts") {
-                    if (!this.plugin?.settings.corsProxyEnabled) {
-                      throw new Error(
-                        "Pocket Casts resolution requires the CORS Proxy to be enabled in Settings (due to Pocket Casts API limitations). Please enable it, or try another feed source.",
-                      );
-                    }
-                  }
-
-                  detectedType = "podcast";
-                  status = `\u23F3 Resolving ${platform.name} URL...`;
-                  if (refs.statusDiv) refs.statusDiv.textContent = status;
-                  const resolvedUrl = await resolvePodcastPlatformUrl(
-                    url,
-                    this.plugin?.settings?.corsProxyUrl,
-                  );
-                  if (!resolvedUrl) {
-                    throw new Error("Could not resolve podcast feed URL");
-                  }
-                  feedUrl = resolvedUrl;
-                  url = resolvedUrl;
-                  if (urlInput) urlInput.value = feedUrl;
-                  status = "\u23F3 Loading feed...";
-                  if (refs.statusDiv) refs.statusDiv.textContent = status;
-
-                  // Auto-set folder to default podcast folder
-                  // Update if folder is empty, "Uncategorized", or was previously auto-assigned
-                  const defaultPodcastFolder =
-                    this.plugin?.settings?.media?.defaultPodcastFolder ||
-                    "Podcast";
-                  const defaultYouTubeFolder =
-                    this.plugin?.settings?.media?.defaultYouTubeFolder ||
-                    "Videos";
-                  const defaultRssFolder =
-                    this.plugin?.settings?.media?.defaultRssFolder || "RSS";
-                  const defaultTwitterFolder =
-                    this.plugin?.settings?.media?.defaultTwitterFolder ||
-                    "Twitter";
-
-                  const currentFolder = folderInput?.value || "";
-                  const isAutoAssignedFolder =
-                    currentFolder === defaultTwitterFolder ||
-                    currentFolder === defaultYouTubeFolder ||
-                    currentFolder === defaultPodcastFolder ||
-                    currentFolder === defaultRssFolder ||
-                    currentFolder === "Twitter" ||
-                    currentFolder === "Videos" ||
-                    currentFolder === "Podcast" ||
-                    currentFolder === "RSS";
-
-                  if (
-                    folderInput &&
-                    (!currentFolder ||
-                      currentFolder === "Uncategorized" ||
-                      isAutoAssignedFolder)
-                  ) {
-                    folder = defaultPodcastFolder;
-                    folderInput.value = defaultPodcastFolder;
-                  }
-                }
-              }
-
-              // Use loadFeedForPreview which has CORS proxy fallbacks
-              const feedData = await loadFeedForPreview(feedUrl);
-              title = feedData.title;
+              title = preview.title;
               if (titleInput) titleInput.value = title;
-              if (feedData.latestPubDate) {
-                const date = new Date(feedData.latestPubDate);
-                const daysAgo = Math.floor(
-                  (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24),
-                );
-                latestEntry = daysAgo === 0 ? "Today" : `${daysAgo} days`;
-              } else {
-                latestEntry = "N/A";
-              }
+              latestEntry = formatLatestEntryLabel(preview.latestPubDate);
 
               if (refs.latestEntryDiv)
                 refs.latestEntryDiv.textContent = latestEntry;
@@ -368,18 +189,14 @@ export class AddFeedModal extends Modal {
                 refs.statusDiv.removeClass("status-ok");
                 refs.statusDiv.removeClass("rss-dashboard-status-warning");
 
-                if (feedData.hasEntries) {
+                const conversionNotice = getPreviewConversionNotice(preview);
+
+                if (preview.hasEntries) {
                   status = "OK";
-                  const conversionNotice = isXConversion
-                    ? " (X > nitter conversion)"
-                    : "";
                   refs.statusDiv.textContent = `\u2705 OK${conversionNotice}`;
                   refs.statusDiv.addClass("status-ok");
                 } else {
                   status = EMPTY_FEED_VALIDATION_WARNING;
-                  const conversionNotice = isXConversion
-                    ? " (X > nitter conversion)"
-                    : "";
                   refs.statusDiv.textContent = `⚠ ${EMPTY_FEED_VALIDATION_WARNING}${conversionNotice}`;
                   refs.statusDiv.addClass("rss-dashboard-status-warning");
                 }
@@ -389,43 +206,22 @@ export class AddFeedModal extends Modal {
                 urlInput.addClass("loaded");
               }
               // Set the active badge based on detected type
-              setActiveBadge(detectedType);
+              setActiveBadge(preview.detectedType);
 
-              // Auto-set folder for RSS feeds if not YouTube or Podcast
-              // Update if folder is empty, "Uncategorized", or was previously auto-assigned
-              if (detectedType === "rss" && !isNitterFeed) {
-                const defaultRssFolder =
-                  this.plugin?.settings?.media?.defaultRssFolder || "RSS";
-                const defaultTwitterFolder =
-                  this.plugin?.settings?.media?.defaultTwitterFolder ||
-                  "Twitter";
-                const defaultYouTubeFolder =
-                  this.plugin?.settings?.media?.defaultYouTubeFolder ||
-                  "Videos";
-                const defaultPodcastFolder =
-                  this.plugin?.settings?.media?.defaultPodcastFolder ||
-                  "Podcast";
-
-                const currentFolder = folderInput?.value || "";
-                const isAutoAssignedFolder =
-                  currentFolder === defaultTwitterFolder ||
-                  currentFolder === defaultYouTubeFolder ||
-                  currentFolder === defaultPodcastFolder ||
-                  currentFolder === defaultRssFolder ||
-                  currentFolder === "Twitter" ||
-                  currentFolder === "Videos" ||
-                  currentFolder === "Podcast" ||
-                  currentFolder === "RSS";
-
-                if (
-                  folderInput &&
-                  (!currentFolder ||
-                    currentFolder === "Uncategorized" ||
-                    isAutoAssignedFolder)
-                ) {
-                  folder = defaultRssFolder;
-                  folderInput.value = defaultRssFolder;
-                }
+              const currentFolder = folderInput?.value || "";
+              if (
+                folderInput &&
+                shouldAutoAssignFolder(
+                  currentFolder,
+                  this.plugin?.settings?.media,
+                )
+              ) {
+                const nextFolder = getDefaultFolderForResolvedFeed(
+                  preview,
+                  this.plugin?.settings?.media,
+                );
+                folder = nextFolder;
+                folderInput.value = nextFolder;
               }
             } catch (e) {
               const errorMsg = e instanceof Error ? e.message : String(e);

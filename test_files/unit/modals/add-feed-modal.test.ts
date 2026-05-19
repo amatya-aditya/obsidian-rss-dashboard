@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { AddFeedModal } from "../../../src/modals/feed-manager/add-feed-modal";
 import { MediaService } from "../../../src/services/media-service";
-import * as feedParser from "../../../src/services/feed-parser";
+import * as feedPreviewLoader from "../../../src/modals/feed-manager/feed-preview-loader";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 type MockApp = obsidian.App;
@@ -270,12 +270,12 @@ describe("AddFeedModal", () => {
     const onSave = vi.fn();
 
     vi.spyOn(MediaService, "normalizeNitterUrlToRss").mockReturnValue(null);
-    vi.spyOn(MediaService, "isXUrl").mockReturnValue(true);
-    vi.spyOn(MediaService, "getNitterRssFeed").mockReturnValue(
-      "https://nitter.net/user/rss",
-    );
-    vi.spyOn(MediaService, "isYouTubeFeed").mockReturnValue(false);
-    vi.spyOn(feedParser, "loadFeedForPreview").mockResolvedValue({
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
+      detectedType: "rss",
+      inputUrl: "https://x.com/user",
+      finalUrl: "https://nitter.net/user/rss",
+      isXConversion: true,
+      isMastodonConversion: false,
       title: "User timeline",
       latestPubDate: "2026-05-01T00:00:00.000Z",
       hasEntries: true,
@@ -319,12 +319,12 @@ describe("AddFeedModal", () => {
     const onSave = vi.fn();
 
     vi.spyOn(MediaService, "normalizeNitterUrlToRss").mockReturnValue(null);
-    vi.spyOn(MediaService, "isXUrl").mockReturnValue(true);
-    vi.spyOn(MediaService, "getNitterRssFeed").mockReturnValue(
-      "https://nitter.net/user/rss",
-    );
-    vi.spyOn(MediaService, "isYouTubeFeed").mockReturnValue(false);
-    vi.spyOn(feedParser, "loadFeedForPreview").mockResolvedValue({
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
+      detectedType: "rss",
+      inputUrl: "https://twitter.com/user",
+      finalUrl: "https://nitter.net/user/rss",
+      isXConversion: true,
+      isMastodonConversion: false,
       title: "User timeline",
       latestPubDate: "2026-05-01T00:00:00.000Z",
       hasEntries: true,
@@ -356,5 +356,60 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(folderInput.value).toBe("My Custom Folder");
+  });
+
+  it("routes Mastodon feeds into the configured default RSS folder and shows conversion notice", async () => {
+    const app = createMockApp();
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const onSave = vi.fn();
+
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
+      detectedType: "rss",
+      inputUrl: "https://mastodon.social/@user",
+      finalUrl: "https://mastodon.social/@user.rss",
+      isXConversion: false,
+      isMastodonConversion: true,
+      title: "Mastodon timeline",
+      latestPubDate: "2026-05-01T00:00:00.000Z",
+      hasEntries: true,
+    });
+
+    const plugin = {
+      settings: {
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        media: {
+          defaultTwitterFolder: "Social/Twitter",
+          defaultYouTubeFolder: "Videos",
+          defaultPodcastFolder: "Podcast",
+          defaultRssFolder: "Social/Mastodon",
+        },
+      },
+    };
+
+    const modal = new AddFeedModal(
+      app,
+      [],
+      onAdd,
+      onSave,
+      "Uncategorized",
+      plugin as never,
+    );
+    modal.open();
+
+    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    urlInput.value = "https://mastodon.social/@user";
+    urlInput.dispatchEvent(new Event("input"));
+
+    getButtonByText(modal.contentEl, "Load").click();
+    await flushPromises();
+
+    const folderInput = getTextInputBySettingName(modal.contentEl, "Folder");
+    expect(folderInput.value).toBe("Social/Mastodon");
+
+    const statusSetting = getSettingByName(modal.contentEl, "Status");
+    expect(statusSetting.textContent).toContain(
+      "Mastodon > RSS auto-discovery",
+    );
   });
 });
