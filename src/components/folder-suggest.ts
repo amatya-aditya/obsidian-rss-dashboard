@@ -55,11 +55,20 @@ export class VaultFolderSuggest extends AbstractInputSuggest<TFolder> {
 export class FolderSuggest extends AbstractInputSuggest<string> {
     private folders: string[];
     private inputEl: HTMLInputElement;
+    private showAddNewOption: boolean;
 
-    constructor(app: App, inputEl: HTMLInputElement, folders: Folder[]) {
+    private static readonly ADD_NEW_FOLDER_LABEL = "Add new folder...";
+
+    constructor(
+        app: App,
+        inputEl: HTMLInputElement,
+        folders: Folder[],
+        options?: { showAddNewOption?: boolean },
+    ) {
         super(app, inputEl);
         this.inputEl = inputEl;
         this.folders = collectFolderPaths(folders, { sort: true });
+        this.showAddNewOption = options?.showAddNewOption ?? true;
 
         const suggestEl = (this as unknown as { suggestEl?: HTMLElement }).suggestEl;
         suggestEl?.addClass("rss-dashboard-suggestion-container");
@@ -96,24 +105,31 @@ export class FolderSuggest extends AbstractInputSuggest<string> {
         // If query is empty OR matches exactly one of our folders, show ALL folders
         // This solves the issue where pre-filled folders filter out everything else
         if (lowerQuery === "" || this.folders.some(f => f.toLowerCase() === lowerQuery)) {
-            return [...this.folders, "Add new folder..."];
+            return this.withOptionalAddNewOption(this.folders);
         }
 
         const filtered = this.folders.filter(folder =>
             folder.toLowerCase().includes(lowerQuery)
         );
 
-        // Always add "Add new folder..." at the end
-        return [...filtered, "Add new folder..."];
+        return this.withOptionalAddNewOption(filtered);
+    }
+
+    private withOptionalAddNewOption(folders: string[]): string[] {
+        if (!this.showAddNewOption) {
+            return [...folders];
+        }
+
+        return [FolderSuggest.ADD_NEW_FOLDER_LABEL, ...folders];
     }
 
     /**
      * Renders a folder suggestion in the dropdown
      */
     public renderSuggestion(folder: string, el: HTMLElement): void {
-        if (folder === "Add new folder...") {
+        if (folder === FolderSuggest.ADD_NEW_FOLDER_LABEL) {
             el.addClass("rss-dashboard-add-new-suggestion");
-            el.setText("Add new folder...");
+            el.setText(FolderSuggest.ADD_NEW_FOLDER_LABEL);
         } else {
             el.setText(folder);
         }
@@ -123,14 +139,12 @@ export class FolderSuggest extends AbstractInputSuggest<string> {
      * Called when a folder is selected
      */
     public selectSuggestion(folder: string, _evt: MouseEvent | KeyboardEvent): void {
-        if (folder === "Add new folder...") {
-            this.inputEl.value = "";
-        } else {
+        if (folder !== FolderSuggest.ADD_NEW_FOLDER_LABEL) {
             this.inputEl.value = folder;
+            this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+            this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
         }
 
-        this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-        this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
         this.inputEl.focus();
         this.close();
     }
