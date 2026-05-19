@@ -124,9 +124,9 @@ describe("VideoPlayer", () => {
       ".rss-video-description",
     );
     expect(description).not.toBeNull();
-    expect(description?.textContent).not.toContain("<script");
-    expect(description?.textContent).toContain('target="_blank"');
-    expect(description?.textContent).toContain('rel="noopener noreferrer"');
+    expect(description?.innerHTML).not.toContain("<script");
+    expect(description?.innerHTML).toContain('target="_blank"');
+    expect(description?.innerHTML).toContain('rel="noopener noreferrer"');
   });
 
   it("renders the YouTube watch button using embed.watchUrl and sets icon dataset", () => {
@@ -250,6 +250,109 @@ describe("VideoPlayer", () => {
     expect(loadSpy).toHaveBeenCalledWith(related);
   });
 
+  it("starts polling progress once the YouTube player is ready", () => {
+    vi.useFakeTimers();
+
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const item = baseItem();
+    const ytPlayer = {
+      seekTo: vi.fn(),
+      getCurrentTime: vi
+        .fn()
+        .mockReturnValueOnce(12)
+        .mockReturnValueOnce(17)
+        .mockReturnValue(17),
+      getDuration: vi.fn().mockReturnValue(120),
+      destroy: vi.fn(),
+    };
+    let readyHandler:
+      | ((event: { target: typeof ytPlayer }) => void)
+      | undefined;
+
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+
+    vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(fixedEmbed());
+    function MockYouTubePlayer(
+      _elementId: string,
+      options: {
+        events?: { onReady?: (event: { target: typeof ytPlayer }) => void };
+      },
+    ) {
+      readyHandler = options.events?.onReady;
+      return ytPlayer;
+    }
+    window.YT = {
+      Player: MockYouTubePlayer as unknown as typeof window.YT.Player,
+    };
+
+    player.loadVideo(item);
+    readyHandler?.({ target: ytPlayer });
+
+    vi.advanceTimersByTime(5000);
+    vi.advanceTimersByTime(5000);
+
+    expect(onPlaybackProgress).toHaveBeenNthCalledWith(1, item, 12, 120, false);
+    expect(onPlaybackProgress).toHaveBeenNthCalledWith(2, item, 17, 120, false);
+
+    player.destroy();
+    vi.useRealTimers();
+  });
+
+  it("does not restore or track progress when playback progress is disabled", () => {
+    vi.useFakeTimers();
+
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const item = baseItem({
+      playbackProgress: {
+        position: 33,
+        duration: 120,
+        lastUpdated: Date.now(),
+      },
+    });
+    const ytPlayer = {
+      seekTo: vi.fn(),
+      getCurrentTime: vi.fn().mockReturnValue(40),
+      getDuration: vi.fn().mockReturnValue(120),
+      destroy: vi.fn(),
+    };
+    let readyHandler:
+      | ((event: { target: typeof ytPlayer }) => void)
+      | undefined;
+
+    const player = new VideoPlayer(
+      container,
+      undefined,
+      onPlaybackProgress,
+      false,
+    );
+
+    vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(fixedEmbed());
+    function MockYouTubePlayer(
+      _elementId: string,
+      options: {
+        events?: { onReady?: (event: { target: typeof ytPlayer }) => void };
+      },
+    ) {
+      readyHandler = options.events?.onReady;
+      return ytPlayer;
+    }
+    window.YT = {
+      Player: MockYouTubePlayer as unknown as typeof window.YT.Player,
+    };
+
+    player.loadVideo(item);
+    readyHandler?.({ target: ytPlayer });
+    vi.advanceTimersByTime(10000);
+
+    expect(ytPlayer.seekTo).not.toHaveBeenCalled();
+    expect(onPlaybackProgress).not.toHaveBeenCalled();
+
+    player.destroy();
+    vi.useRealTimers();
+  });
+
   it("destroy clears the iframe and removes it from DOM without throwing", () => {
     const container = createContainer();
     const player = new VideoPlayer(container);
@@ -265,6 +368,37 @@ describe("VideoPlayer", () => {
     expect(() => player.destroy()).not.toThrow();
     expect(container.querySelector("iframe")).toBeNull();
     expect(iframe?.isConnected).toBe(false);
+  });
+
+  it("flushes playback progress before destroy tears down the player", () => {
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+    const item = baseItem();
+    const ytPlayer = {
+      seekTo: vi.fn(),
+      getCurrentTime: vi.fn().mockReturnValue(42),
+      getDuration: vi.fn().mockReturnValue(120),
+      destroy: vi.fn(),
+    };
+
+    (
+      player as unknown as {
+        currentItem: FeedItem | null;
+        player: typeof ytPlayer | null;
+      }
+    ).currentItem = item;
+    (
+      player as unknown as {
+        currentItem: FeedItem | null;
+        player: typeof ytPlayer | null;
+      }
+    ).player = ytPlayer;
+
+    player.destroy();
+
+    expect(onPlaybackProgress).toHaveBeenCalledWith(item, 42, 120, true);
+    expect(ytPlayer.destroy).toHaveBeenCalledTimes(1);
   });
 
   it("emits a Notice when render throws (loadVideo catch path)", () => {

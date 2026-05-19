@@ -14,6 +14,12 @@ describe("migrateMediaVideoTagSettings", () => {
     expect((settings.media as Record<string, unknown>).autoTagVideos).toBe(
       true,
     );
+    expect(
+      (settings.media as Record<string, unknown>).rememberPlaybackProgress,
+    ).toBe(true);
+    expect((settings.media as Record<string, unknown>).defaultYouTubeTag).toBe(
+      "Video",
+    );
     expect(Array.isArray(settings.availableTags)).toBe(true);
     expect(
       (settings.availableTags as Array<{ name: string }>).some(
@@ -22,7 +28,7 @@ describe("migrateMediaVideoTagSettings", () => {
     ).toBe(true);
   });
 
-  it("does not duplicate existing video tag regardless of case", () => {
+  it("does not duplicate existing video tag and initializes default tag", () => {
     const settings: Record<string, unknown> = {
       media: { autoTagVideos: true },
       availableTags: [
@@ -33,14 +39,17 @@ describe("migrateMediaVideoTagSettings", () => {
 
     const changed = migrateMediaVideoTagSettings(settings);
 
-    expect(changed).toBe(false);
+    expect(changed).toBe(true);
+    expect((settings.media as Record<string, unknown>).defaultYouTubeTag).toBe(
+      "Video",
+    );
     const names = (settings.availableTags as Array<{ name: string }>).map(
       (tag) => tag.name.toLowerCase(),
     );
     expect(names.filter((name) => name === "video")).toHaveLength(1);
   });
 
-  it("removes deprecated YouTube tag during migration", () => {
+  it("removes YouTube tag but preserves configurable video tag setting", () => {
     const settings: Record<string, unknown> = {
       media: { autoTagVideos: true, defaultYouTubeTag: "youtube" },
       availableTags: [
@@ -53,9 +62,9 @@ describe("migrateMediaVideoTagSettings", () => {
     const changed = migrateMediaVideoTagSettings(settings);
 
     expect(changed).toBe(true);
-    expect(
-      (settings.media as Record<string, unknown>).defaultYouTubeTag,
-    ).toBeUndefined();
+    expect((settings.media as Record<string, unknown>).defaultYouTubeTag).toBe(
+      "youtube",
+    );
     const tags = settings.availableTags as Array<{ name: string }>;
     expect(tags.some((tag) => tag.name.toLowerCase() === "youtube")).toBe(
       false,

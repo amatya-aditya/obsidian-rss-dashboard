@@ -4,13 +4,17 @@
 
 #### New: Keyboard Shortcuts
 
-- Implemented a new keyboard shortcuts system to enhance navigation and productivity.
+- Implemented a new comprehensive keyboard shortcuts system to enhance navigation and productivity.
 - To quickly access the keyboard shortcuts help file, press `?` (Shift + /) within the app. This will display a comprehensive list of available shortcuts and their functions.
+
+#### Playback Progress
+
+- Added a new **Settings > Media > Remember Playback Progress** toggle to automatically save and restore podcast and video playback position across reader and plugin restarts.
+- Additional information can be found within the ## Media Playback Progress Tracking section of [docs/SECURITY.md](docs/SECURITY.md) guide and assures users that all data is stored locally and no telemetry is collected .
 
 ### Fixes
 
-- Fixed Reader view article bodies disappearing for rich feed HTML on affected feeds such as Ars Technica and Substack. The root cause was `sanitizeAndAppendHtml` creating elements through Obsidian's `Document.createEl` helper during rich sanitization, which could throw a `HierarchyRequestError` and leave the main article body empty. The sanitizer now uses standard DOM element creation via `document.createElement` for robustness across all contexts. Added regression test coverage for rich structural HTML sanitization.
-- Fixed `activeWindow.instanceOf` cross-realm errors by introducing a safe `windowInstanceOf` fallback helper that gracefully handles cross-frame and revoked proxy scenarios across all reader surfaces.
+- Fixed Reader view article bodies disappearing for rich feed HTML on affected feeds such as Ars Technica and Substack.
 
 ## [2.3.0-beta.2] - May 15, 2026
 

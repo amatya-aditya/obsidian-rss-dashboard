@@ -85,9 +85,27 @@ type VaultAdapterPathAccess = {
   getBasePath?: () => string;
   getFullPath?: (path: string) => string;
 };
+type LegacyLocalStorageApi = {
+  loadLocalStorage?: (key: string) => unknown;
+  removeLocalStorage?: (key: string) => void;
+};
+type LegacyPlaybackProgressEntry = {
+  position: number;
+  duration: number;
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isLegacyPlaybackProgressEntry(
+  value: unknown,
+): value is LegacyPlaybackProgressEntry {
+  return (
+    isRecord(value) &&
+    typeof value.position === "number" &&
+    typeof value.duration === "number"
+  );
 }
 
 function isDesktopShell(value: unknown): value is DesktopShell {
@@ -244,6 +262,7 @@ export default class RssDashboardPlugin extends Plugin {
   public vaultAbsolutePath = "";
   private _beforeUnloadHandler: (() => void) | null = null;
   private hasCompletedStartupSavedArticleValidation = false;
+  private progressSaveDebounce: number | null = null;
   private static readonly FEED_REFRESH_CONCURRENCY = 4;
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
   private readonly feedStorageRepository: FeedStorageRepository;
@@ -372,6 +391,7 @@ export default class RssDashboardPlugin extends Plugin {
 
     const allArticles = this.getAllArticles();
     await this.articleSaver.fixSavedFilePaths(allArticles);
+    await this.migrateMediaProgressOnStartup();
 
     await this.validateSavedArticles();
   }
@@ -618,6 +638,18 @@ export default class RssDashboardPlugin extends Plugin {
               shouldRerender?: boolean,
             ) => {
               void this.updateArticleFromReader(item, updates, shouldRerender);
+            },
+            {
+              onPlaybackProgress: (item, position, duration, flush) => {
+                this.updatePlaybackProgress(
+                  item.feedUrl,
+                  item.guid,
+                  position,
+                  duration,
+                  flush,
+                  item,
+                );
+              },
             },
           ),
       );
@@ -1926,6 +1958,184 @@ export default class RssDashboardPlugin extends Plugin {
   private migrateLegacySettings(): boolean {
     return migrateSettings(this.settings);
   }
+
+  public updatePlaybackProgress(
+    feedUrl: string,
+    itemGuid: string,
+    position: number,
+    duration: number,
+    flush = false,
+    sourceItem?: FeedItem,
+  ): void {
+    if (!this.settings.media.rememberPlaybackProgress) {
+      return;
+    }
+
+    let item: FeedItem | undefined;
+
+    const resolveVideoMatch = (
+      candidateFeed?: (typeof this.settings.feeds)[number],
+    ) => {
+      if (!sourceItem || sourceItem.mediaType !== "video") {
+        return undefined;
+      }
+
+      const feedsToSearch = candidateFeed
+        ? [candidateFeed]
+        : this.settings.feeds;
+
+      for (const feed of feedsToSearch) {
+        const exactRef = feed.items.find((entry) => entry === sourceItem);
+        if (exactRef) {
+          return exactRef;
+        }
+
+        const byVideoId = sourceItem.videoId
+          ? feed.items.find((entry) => entry.videoId === sourceItem.videoId)
+          : undefined;
+        if (byVideoId) {
+          return byVideoId;
+        }
+
+        if (sourceItem.link) {
+          const byLink = feed.items.find(
+            (entry) => entry.link === sourceItem.link,
+          );
+          if (byLink) {
+            return byLink;
+          }
+        }
+      }
+
+      return undefined;
+    };
+
+    if (feedUrl) {
+      const feed = this.settings.feeds.find((f) => f.url === feedUrl);
+      item = feed?.items.find((i) => i.guid === itemGuid);
+      if (!item) {
+        item = resolveVideoMatch(feed);
+      }
+    }
+
+    if (!item) {
+      for (const feed of this.settings.feeds) {
+        const match = feed.items.find((i) => i.guid === itemGuid);
+        if (match) {
+          item = match;
+          break;
+        }
+      }
+    }
+
+    if (!item) {
+      item = resolveVideoMatch();
+    }
+
+    if (!item) return;
+
+    if (!(duration > 0) || position < 0) return;
+
+    item.playbackProgress = { position, duration, lastUpdated: Date.now() };
+
+    if (flush) {
+      if (this.progressSaveDebounce !== null) {
+        window.clearTimeout(this.progressSaveDebounce);
+        this.progressSaveDebounce = null;
+      }
+      void this.saveSettings();
+      return;
+    }
+
+    // Throttle progress persistence: schedule one save at a time.
+    // A reset-on-every-event debounce can starve saves during active playback.
+    if (this.progressSaveDebounce === null) {
+      this.progressSaveDebounce = window.setTimeout(() => {
+        void this.saveSettings();
+        this.progressSaveDebounce = null;
+      }, 2000);
+    }
+  }
+
+  public async clearPlaybackProgress(): Promise<number> {
+    if (this.progressSaveDebounce !== null) {
+      window.clearTimeout(this.progressSaveDebounce);
+      this.progressSaveDebounce = null;
+    }
+
+    let clearedCount = 0;
+    for (const feed of this.settings.feeds) {
+      for (const item of feed.items) {
+        if (!item.playbackProgress) {
+          continue;
+        }
+
+        delete item.playbackProgress;
+        clearedCount++;
+      }
+    }
+
+    const appWithLocalStorage = this.app as unknown as {
+      removeLocalStorage?: (key: string) => void;
+      saveLocalStorage?: (key: string, value: unknown) => void;
+    };
+    if (typeof appWithLocalStorage.removeLocalStorage === "function") {
+      appWithLocalStorage.removeLocalStorage("rss-podcast-progress");
+    } else if (typeof appWithLocalStorage.saveLocalStorage === "function") {
+      appWithLocalStorage.saveLocalStorage("rss-podcast-progress", null);
+    }
+
+    if (clearedCount > 0) {
+      await this.saveSettings();
+    }
+
+    return clearedCount;
+  }
+
+  private async migrateMediaProgressOnStartup(): Promise<void> {
+    if (!this.settings.media.rememberPlaybackProgress) {
+      return;
+    }
+
+    const appWithLocalStorage = this.app as unknown as LegacyLocalStorageApi;
+    if (typeof appWithLocalStorage.loadLocalStorage !== "function") return;
+
+    const legacyProgress = appWithLocalStorage.loadLocalStorage(
+      "rss-podcast-progress",
+    );
+    if (!isRecord(legacyProgress)) return;
+
+    let migratedCount = 0;
+    for (const guid in legacyProgress) {
+      const data = legacyProgress[guid];
+      if (!isLegacyPlaybackProgressEntry(data)) continue;
+
+      for (const feed of this.settings.feeds) {
+        const item = feed.items.find((i) => i.guid === guid);
+        if (!item) continue;
+
+        item.playbackProgress = {
+          position: data.position,
+          duration: data.duration,
+          lastUpdated: Date.now(),
+        };
+        migratedCount++;
+        break;
+      }
+    }
+
+    if (migratedCount > 0) {
+      storageLog(
+        `[RSS Dashboard] Migrated ${migratedCount} media progress items.`,
+      );
+      await this.saveSettings();
+    }
+
+    if (typeof appWithLocalStorage.removeLocalStorage === "function") {
+      appWithLocalStorage.removeLocalStorage("rss-podcast-progress");
+    }
+  }
+
   /**
    * Creates a save callback that persists metadata to the appropriate location
    * based on the current metadataStorageMode.
@@ -2289,6 +2499,12 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   onunload() {
+    if (this.progressSaveDebounce !== null) {
+      window.clearTimeout(this.progressSaveDebounce);
+      this.progressSaveDebounce = null;
+      void this.saveSettings();
+    }
+
     // Remove the beforeunload listener to avoid it firing when the plugin
     // is manually disabled (onunload handles it instead).
     if (this._beforeUnloadHandler) {

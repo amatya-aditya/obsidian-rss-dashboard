@@ -69,6 +69,7 @@ Community highlights:
 | Article Reader View   | Built-in reader with full article content fetching and Markdown conversion  |
 | Article Saving        | Save articles as Markdown files with customizable templates and frontmatter |
 | Custom Templates      | Customize saved article output with variable substitution                   |
+| Media Progress        | Resume from where you left off in videos and podcasts                       |
 | Pagination            | Paginated article lists with configurable page sizes                        |
 | Android/Apple Support | Responsive support for cross-platform mobile devices                        |
 

@@ -549,10 +549,22 @@ export class MediaService {
 
   static buildYouTubeEmbed(videoId: string): YouTubeEmbedConfig {
     const normalizedVideoId = videoId.trim();
+    const embedParams = new URLSearchParams({
+      rel: "0",
+      enablejsapi: "1",
+    });
+
+    if (
+      typeof window !== "undefined" &&
+      (window.location.protocol === "http:" ||
+        window.location.protocol === "https:")
+    ) {
+      embedParams.set("origin", window.location.origin);
+    }
 
     return {
       videoId: normalizedVideoId,
-      embedUrl: `https://www.youtube-nocookie.com/embed/${normalizedVideoId}?rel=0`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${normalizedVideoId}?${embedParams.toString()}`,
       watchUrl: `https://www.youtube.com/watch?v=${normalizedVideoId}`,
       referrerPolicy: this.YOUTUBE_EMBED_REFERRER_POLICY,
       allow: this.YOUTUBE_EMBED_ALLOW,
@@ -596,7 +608,7 @@ export class MediaService {
   static applyMediaTags(
     feed: Feed,
     availableTags: Tag[],
-    mediaSettings?: Pick<MediaSettings, "autoTagVideos">,
+    mediaSettings?: Pick<MediaSettings, "autoTagVideos" | "defaultYouTubeTag">,
   ): Feed {
     if (!feed.mediaType || feed.mediaType === "article") {
       return feed;
@@ -610,7 +622,12 @@ export class MediaService {
       if (!shouldAutoTagVideos) {
         return feed;
       }
-      tagNameCandidates = ["video", "videos"];
+      const configuredTag = (mediaSettings?.defaultYouTubeTag || "Video")
+        .trim()
+        .toLowerCase();
+      tagNameCandidates = configuredTag
+        ? [configuredTag, "video", "videos"]
+        : ["video", "videos"];
     } else if (feed.mediaType === "podcast") {
       tagCategory = "podcast";
       tagNameCandidates = ["podcast"];

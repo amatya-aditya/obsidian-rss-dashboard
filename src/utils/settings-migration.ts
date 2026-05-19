@@ -237,9 +237,17 @@ export function migrateMediaVideoTagSettings(
     changed = true;
   }
 
-  // Remove deprecated defaultYouTubeTag field
-  if (media && typeof media === "object" && "defaultYouTubeTag" in media) {
-    delete media.defaultYouTubeTag;
+  if (typeof media.rememberPlaybackProgress !== "boolean") {
+    media.rememberPlaybackProgress = true;
+    changed = true;
+  }
+
+  // Ensure configured video tag is present and normalized
+  if (typeof media.defaultYouTubeTag !== "string") {
+    media.defaultYouTubeTag = "Video";
+    changed = true;
+  } else if (media.defaultYouTubeTag.trim().length === 0) {
+    media.defaultYouTubeTag = "Video";
     changed = true;
   }
 

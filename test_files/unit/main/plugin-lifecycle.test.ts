@@ -68,6 +68,10 @@ import { App, Platform, type PluginManifest } from "obsidian";
 
 type MockApp = App;
 
+function flushPromises(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 // Create mock App using stubs
 function createMockApp(): MockApp {
   return App.createMock();
@@ -494,7 +498,7 @@ describe("onload() initialization", () => {
     ).not.toHaveBeenCalled();
 
     plugin.app.workspace.triggerLayoutReady();
-    await Promise.resolve();
+    await flushPromises();
 
     expect(
       (plugin as unknown as PluginPrivateAPI).articleSaver.fixSavedFilePaths,

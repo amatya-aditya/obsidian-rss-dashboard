@@ -16,6 +16,8 @@ class MockLeaf {
 
 type ReaderViewInternals = {
   contentEl: HTMLElement;
+  readingContainer: HTMLElement;
+  currentItem: { guid: string } | null;
   podcastPlayer: { destroy: ReturnType<typeof vi.fn> } | null;
   videoPlayer: { destroy: ReturnType<typeof vi.fn> } | null;
 };
@@ -87,5 +89,43 @@ describe("ReaderView onClose cleanup", () => {
     expect(
       document.body.querySelector(".rss-reader-format-dropdown-portal"),
     ).toBeNull();
+  });
+
+  it("flushes inline video progress on close", async () => {
+    const onPlaybackProgress = vi.fn();
+    const inlineReaderView = new ReaderView(
+      mockLeaf as never,
+      { ...DEFAULT_SETTINGS, useWebViewer: false },
+      { saveArticle: vi.fn() } as never,
+      vi.fn(),
+      vi.fn(),
+      { onPlaybackProgress },
+    );
+
+    getInternals(inlineReaderView).contentEl = document.createElement("div");
+    await inlineReaderView.onOpen();
+
+    const readingContainer = getInternals(inlineReaderView).readingContainer;
+    const video = document.createElement("video");
+    video.className = "rss-reader-video";
+    Object.defineProperty(video, "duration", {
+      configurable: true,
+      value: 180,
+    });
+    video.currentTime = 36;
+    readingContainer.appendChild(video);
+
+    getInternals(inlineReaderView).currentItem = {
+      guid: "inline-video-guid",
+    } as never;
+
+    await inlineReaderView.onClose();
+
+    expect(onPlaybackProgress).toHaveBeenCalledWith(
+      expect.objectContaining({ guid: "inline-video-guid" }),
+      36,
+      180,
+      true,
+    );
   });
 });

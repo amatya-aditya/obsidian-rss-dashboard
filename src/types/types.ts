@@ -23,6 +23,11 @@ export interface FeedItem {
   content?: string;
   saved?: boolean;
   savedFilePath?: string;
+  playbackProgress?: {
+    position: number;
+    duration: number;
+    lastUpdated: number;
+  };
 
   explicit?: boolean;
   image?: string;
@@ -193,7 +198,9 @@ export type PodcastTheme =
 
 export interface MediaSettings {
   autoTagVideos: boolean;
+  rememberPlaybackProgress: boolean;
   defaultYouTubeFolder: string;
+  defaultYouTubeTag: string;
   defaultPodcastFolder: string;
   defaultPodcastTag: string;
   defaultRssFolder: string;
@@ -556,7 +563,9 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   },
   media: {
     autoTagVideos: true,
+    rememberPlaybackProgress: true,
     defaultYouTubeFolder: "Videos",
+    defaultYouTubeTag: "Video",
     defaultPodcastFolder: "Podcast",
     defaultPodcastTag: "podcast",
     defaultRssFolder: "RSS",

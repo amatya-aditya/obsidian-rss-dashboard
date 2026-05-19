@@ -6,6 +6,6 @@
       "obsidian": ["./stubs/obsidian.ts"]
     }
   },
-  "include": ["**/*.ts", "../main.ts", "../src/**/*.ts"],
+  "include": ["**/*.ts", "**/*.d.ts", "../main.ts", "../src/**/*.ts"],
   "exclude": ["../coverage/**", "../node_modules/**"]
 }

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { PodcastPlayer } from "../../../src/views/podcast-player";
 import {
@@ -49,14 +49,20 @@ describe("PodcastPlayer", () => {
 
       player.loadEpisode(ep1, [ep1, ep2]);
 
-      const audioBefore = (player as unknown as { audioElement: HTMLAudioElement }).audioElement;
+      const audioBefore = (
+        player as unknown as { audioElement: HTMLAudioElement }
+      ).audioElement;
       const audioDomBefore = container.querySelector("audio");
       expect(audioBefore).toBeTruthy();
       expect(audioDomBefore).toBe(audioBefore);
 
-      (player as unknown as { sortPlaylist: (o: "recent" | "oldest") => void }).sortPlaylist("oldest");
+      (
+        player as unknown as { sortPlaylist: (o: "recent" | "oldest") => void }
+      ).sortPlaylist("oldest");
 
-      const audioAfter = (player as unknown as { audioElement: HTMLAudioElement }).audioElement;
+      const audioAfter = (
+        player as unknown as { audioElement: HTMLAudioElement }
+      ).audioElement;
       const audioDomAfter = container.querySelector("audio");
       expect(audioAfter).toBe(audioBefore);
       expect(audioDomAfter).toBe(audioBefore);
@@ -92,7 +98,9 @@ describe("PodcastPlayer", () => {
       player.refreshTags();
       player.refreshPlaylistTags(ep1.guid);
 
-      const playerTag = container.querySelector(".podcast-tag-strip .podcast-tag");
+      const playerTag = container.querySelector(
+        ".podcast-tag-strip .podcast-tag",
+      );
       expect(playerTag?.textContent).toBe("NewTag");
 
       const rowTag = container.querySelector(
@@ -139,8 +147,7 @@ describe("PodcastPlayer", () => {
 
       const ep = baseEpisode();
       ep.description = "<p>DESC_UNIQUE</p>";
-      ep.content =
-        "<p>CONTENT_UNIQUE</p><p>" + "x".repeat(80) + "</p>"; // ensure length > 40
+      ep.content = "<p>CONTENT_UNIQUE</p><p>" + "x".repeat(80) + "</p>"; // ensure length > 40
       player.loadEpisode(ep);
 
       const notesBody = container.querySelector<HTMLElement>(
@@ -259,11 +266,61 @@ describe("PodcastPlayer", () => {
       const playBtn = container.querySelector<HTMLElement>(".rss-play-pause");
       expect(playBtn?.dataset.icon).toBe("play");
 
-      (player as unknown as { handleEpisodeEnd: () => void }).handleEpisodeEnd();
+      (
+        player as unknown as { handleEpisodeEnd: () => void }
+      ).handleEpisodeEnd();
       await Promise.resolve();
 
-      const playBtnAfter = container.querySelector<HTMLElement>(".rss-play-pause");
+      const playBtnAfter =
+        container.querySelector<HTMLElement>(".rss-play-pause");
       expect(playBtnAfter?.dataset.icon).toBe("pause");
+    });
+  });
+
+  describe("playback progress persistence", () => {
+    it("starts tracking on play and flushes on pause", () => {
+      vi.useFakeTimers();
+
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
+      const app = new App();
+      const onPlaybackProgress = vi.fn();
+      const player = new PodcastPlayer(
+        container,
+        app,
+        "obsidian",
+        undefined,
+        undefined,
+        onPlaybackProgress,
+      );
+
+      const ep = baseEpisode();
+      player.loadEpisode(ep);
+
+      const audio = container.querySelector<HTMLAudioElement>("audio");
+      expect(audio).not.toBeNull();
+
+      Object.defineProperty(audio, "duration", {
+        configurable: true,
+        value: 120,
+      });
+      if (audio) {
+        audio.currentTime = 12;
+        audio.dispatchEvent(new Event("play"));
+      }
+
+      vi.advanceTimersByTime(1000);
+
+      expect(onPlaybackProgress).toHaveBeenCalledWith(ep, 12, 120, false);
+
+      if (audio) {
+        audio.dispatchEvent(new Event("pause"));
+      }
+
+      expect(onPlaybackProgress).toHaveBeenCalledWith(ep, 12, 120, true);
+
+      player.destroy();
+      vi.useRealTimers();
     });
   });
 });

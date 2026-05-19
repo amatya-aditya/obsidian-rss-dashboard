@@ -131,16 +131,142 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 - No analytics or tracking of user activity
 - No plugin behavior is reported to external services
 
-**Progress Tracking**: ✅ Local Storage Only
+---
 
-- Reading progress, playback position, and other user state is saved to your vault's local storage only
-- No data leaves your vault or device
-- All progress data remains under your full control
+## Media Playback Progress Tracking
+
+### What This Feature Does (Plain English)
+
+When you watch a YouTube video or listen to a podcast in the RSS Dashboard, the plugin remembers where you stopped. When you come back and play the same video or episode again, it automatically resumes from where you left off instead of starting from the beginning.
+
+This is exactly like how YouTube remembers your watch position on YouTube.com — it's a convenience feature so you don't lose your place.
+
+### How It Works (In Plain Terms)
+
+1. **When you play a video or podcast**, the plugin periodically records your current playback position (timestamp) and the total duration
+2. **When you pause or stop**, the plugin saves this position to your vault's local storage
+3. **When you reopen the same item**, the plugin checks if saved progress exists and jumps to that position
+4. **Everything stays on your device** — no data is sent to YouTube, podcast servers, or any external service
+
+### What Data Is Saved
+
+Only this minimal information per video/podcast:
+
+- **Position**: How many seconds in (e.g., "5:30 into a 60-minute podcast")
+- **Duration**: Total length of the media
+- **Last Updated**: When this progress was last saved
+
+**What is NOT saved:**
+
+- Video/episode titles
+- Subscription information
+- Listening habits or patterns
+- Any personally identifiable information
+
+### Storage Location
+
+**Desktop Obsidian:**
+
+- Progress is stored in your vault's plugin data folder: `.obsidian/plugins/obsidian-rss-dashboard/data.json`
+- If you use vault shards storage, each feed's progress is in its own shard file
+
+**Mobile Obsidian:**
+
+- Progress is stored in the app's local storage for immediate access
+- On next sync/open on desktop, it migrates to vault storage permanently
+
+### Privacy & Compliance
+
+✅ **No external transmission** — progress data never leaves your vault or device
+
+✅ **Not user tracking** — the plugin doesn't track your behavior, viewing habits, or usage patterns
+
+✅ **User-controlled** — you can clear progress manually or disable the feature entirely
+
+✅ **No third-party access** — external services (YouTube, podcast hosts) cannot see your playback progress through this plugin
+
+✅ **Synced like other vault data** — if you use Obsidian Sync/iCloud/other sync services, progress syncs with the same encryption/security as your other vault data
+
+### For Obsidian Compliance
+
+This feature does **not** constitute "user behavior tracking" or "analytics" as defined by Obsidian's policies because:
+
+- No usage statistics or aggregated behavior data is collected
+- Data is not analyzed for patterns or insights
+- No data leaves the user's device/vault
+- It is not reported to any external service
+- It is purely functional state necessary for the media player's operation
+
+---
+
+## Media Progress Tracking (Technical Details)
+
+### Architecture
+
+**Video Player (YouTube)**
+
+- Uses YouTube IFrame API (`onReady` event) to initialize tracking
+- Polls playback state every 5 seconds via `getCurrentTime()` and `getDuration()`
+- Throttles persistence to prevent excessive saves (2-second debounce)
+- On pause/ended/destroy, flushes progress with `flush=true` flag
+
+**Podcast Player (HTML5 Audio)**
+
+- Tracks `play` and `pause` events on `<audio>` element
+- Polls current playback position every 1 second during playback
+- Persists to plugin's `data.json` via Obsidian's `saveData()` API
+- Legacy `localStorage` migration: on startup, `rss-podcast-progress` localStorage entries are migrated to vault shards
+
+### Data Structure
+
+```typescript
+interface PlaybackProgress {
+  position: number;          // Current time in seconds
+  duration: number;          // Total duration in seconds
+  lastUpdated: number;       // Unix timestamp of last update
+}
+
+// Attached to each FeedItem
+feedItem.playbackProgress?: PlaybackProgress;
+```
+
+### Storage Flow
+
+1. **Update triggered** → `VideoPlayer.saveProgress()` / `PodcastPlayer.saveProgress()`
+2. **Calls callback** → `onPlaybackProgress(item, position, duration, flush)`
+3. **Plugin receives** → `updatePlaybackProgress()` in main plugin class
+4. **Updates item** → Sets `item.playbackProgress = { position, duration, lastUpdated }`
+5. **Debounced save** → If `flush=false`, schedules save with 2-second debounce. If `flush=true`, saves immediately
+6. **Persistence** → `saveSettings()` → `saveData()` → vault adapter writes to appropriate storage location
+
+### Migration (Startup)
+
+On plugin load, `migrateMediaProgressOnStartup()` checks for legacy `localStorage` entries:
+
+- Reads `window.localStorage.getItem('rss-podcast-progress')`
+- Matches entries by item GUID
+- Copies to `playbackProgress` on matching items
+- Persists via `saveSettings()`
+- Clears legacy storage
+
+### Debouncing Strategy
+
+- **During playback**: Saves scheduled every 5-second interval (video) or 1-second interval (audio), but debounced to max one save every 2 seconds
+- **On pause/ended**: Immediate flush with `flush=true` to ensure last position is saved
+- **On destroy**: Final flush to persist remaining progress before cleanup
+
+This prevents thrashing the vault adapter during long playback sessions while ensuring data is reasonably fresh.
+
+### Testing Coverage
+
+- `test_files/unit/views/video-player.test.ts` — polling starts on `onReady`, progresses are emitted
+- `test_files/unit/views/podcast-player.test.ts` — play/pause tracking, flush on pause
+- Integration with settings persistence verified across test suite
 
 **Future Roadmap Note**
 
 - Analytics feature is planned for future versions as an optional, opt-in feature
-- If implemented, it would track high-level insights (reading time, articles read) with explicit user consent
+- If implemented, it would track high-level insights (reading time, articles read) with explicit user consent and would be clearly disclosed as separate from playback progress
 - Current version (v2.x) has no analytics capability whatsoever
 
 ---
@@ -201,13 +327,14 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 
 ## Permissions Summary Table
 
-| Permission             | Feature                     | Risk Level | User Control             |
-| ---------------------- | --------------------------- | ---------- | ------------------------ |
-| Vault Read             | Save article, shard storage | Low        | Configured in settings   |
-| Vault Write            | Save article, shard storage | Medium     | Configured in settings   |
-| Clipboard Access       | Import/export feeds         | Low        | User-initiated only      |
-| Network Requests       | Fetch RSS feeds             | Medium     | Feed subscription choice |
-| External Domains (184) | RSS feed sources            | Medium     | Feed selection           |
+| Permission             | Feature                               | Risk Level | User Control             |
+| ---------------------- | ------------------------------------- | ---------- | ------------------------ |
+| Vault Read             | Save article, shard storage           | Low        | Configured in settings   |
+| Vault Write            | Save article, shard storage, progress | Medium     | Configured in settings   |
+| Clipboard Access       | Import/export feeds                   | Low        | User-initiated only      |
+| Network Requests       | Fetch RSS feeds                       | Medium     | Feed subscription choice |
+| External Domains (184) | RSS feed sources                      | Medium     | Feed selection           |
+| Media Progress         | Video/podcast playback positions      | Low        | Local storage only       |
 
 ---
 

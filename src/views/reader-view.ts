@@ -83,6 +83,12 @@ export class ReaderView extends ItemView {
   private currentReaderTitle?: string;
   private currentContentIsFullArticle = false;
   private turndownService = new TurndownService();
+  private onPlaybackProgress?: (
+    item: FeedItem,
+    position: number,
+    duration: number,
+    flush?: boolean,
+  ) => void;
   private readToggleButton: HTMLElement | null = null;
   private starToggleButton: HTMLElement | null = null;
   private saveButton: HTMLElement | null = null;
@@ -161,12 +167,21 @@ export class ReaderView extends ItemView {
       updates: Partial<FeedItem>,
       shouldRerender?: boolean,
     ) => void,
+    options?: {
+      onPlaybackProgress?: (
+        item: FeedItem,
+        position: number,
+        duration: number,
+        flush?: boolean,
+      ) => void;
+    },
   ) {
     super(leaf);
     this.settings = settings;
     this.articleSaver = articleSaver;
     this.onArticleSave = onArticleSave;
     this.onArticleUpdate = onArticleUpdate;
+    this.onPlaybackProgress = options?.onPlaybackProgress;
 
     this.scope = new Scope(this.app.scope);
     this.setupScope();
@@ -828,6 +843,29 @@ export class ReaderView extends ItemView {
       this.readerFormatSaveTimeout = null;
     }
 
+    const inlineVideo =
+      this.readingContainer?.querySelector<HTMLVideoElement>(
+        ".rss-reader-video",
+      );
+    if (
+      this.settings.media.rememberPlaybackProgress &&
+      inlineVideo &&
+      this.currentItem &&
+      this.onPlaybackProgress
+    ) {
+      const duration = Number.isFinite(inlineVideo.duration)
+        ? inlineVideo.duration
+        : 0;
+      if (inlineVideo.currentTime >= 0 && duration > 0) {
+        this.onPlaybackProgress(
+          this.currentItem,
+          inlineVideo.currentTime,
+          duration,
+          true,
+        );
+      }
+    }
+
     if (this.podcastPlayer) {
       this.podcastPlayer.destroy();
       this.podcastPlayer = null;
@@ -1136,9 +1174,14 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-video-container enhanced",
     });
     if (item.videoId) {
-      this.videoPlayer = new VideoPlayer(container, (selectedVideo) => {
-        void this.displayItem(selectedVideo, this.relatedItems);
-      });
+      this.videoPlayer = new VideoPlayer(
+        container,
+        (selectedVideo) => {
+          void this.displayItem(selectedVideo, this.relatedItems);
+        },
+        this.onPlaybackProgress,
+        this.settings.media.rememberPlaybackProgress,
+      );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
         this.videoPlayer.setRelatedVideos(this.relatedItems);
@@ -1202,6 +1245,8 @@ export class ReaderView extends ItemView {
         this.settings.media.podcastTheme,
         undefined,
         onEpisodeSelected,
+        this.onPlaybackProgress,
+        this.settings.media.rememberPlaybackProgress,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -1217,6 +1262,8 @@ export class ReaderView extends ItemView {
           this.settings.media.podcastTheme,
           undefined,
           onEpisodeSelected,
+          this.onPlaybackProgress,
+          this.settings.media.rememberPlaybackProgress,
         );
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
       } else {
@@ -3210,6 +3257,42 @@ export class ReaderView extends ItemView {
         },
       });
       video.appendText("Your browser does not support the video tag.");
+
+      const progressEnabled = this.settings.media.rememberPlaybackProgress;
+
+      const reportProgress = (flush = false) => {
+        if (!progressEnabled) return;
+        if (!this.onPlaybackProgress) return;
+        const position = video.currentTime;
+        const duration = Number.isFinite(video.duration) ? video.duration : 0;
+        if (position < 0 || duration <= 0) return;
+        this.onPlaybackProgress(item, position, duration, flush);
+      };
+
+      if (
+        progressEnabled &&
+        item.playbackProgress?.position &&
+        item.playbackProgress.position > 0
+      ) {
+        video.addEventListener("loadedmetadata", () => {
+          video.currentTime = item.playbackProgress?.position ?? 0;
+        });
+      }
+
+      let lastReportedSecond = -1;
+      video.addEventListener("timeupdate", () => {
+        const wholeSecond = Math.floor(video.currentTime);
+        if (
+          wholeSecond > 0 &&
+          wholeSecond % 5 === 0 &&
+          wholeSecond !== lastReportedSecond
+        ) {
+          lastReportedSecond = wholeSecond;
+          reportProgress();
+        }
+      });
+      video.addEventListener("pause", () => reportProgress(true));
+      video.addEventListener("ended", () => reportProgress(true));
     } else {
       container.createDiv({
         cls: "rss-reader-error",
