@@ -1,6 +1,6 @@
 # Git Branching Strategy
 
-Last updated: 2026-05-13
+Last updated: 2026-05-19
 
 ## Overview
 
@@ -136,14 +136,14 @@ CI enforces global coverage thresholds (configured in `vitest.config.mjs`). We u
 
 ### Current Test Suite
 
-As of **2026-04-07**, the suite contains **820 passing tests across 110 passing files**. This is the automated test baseline intended to ship with `2.2.0`. Most are **unit tests** plus fast **integration-style** tests (JSDOM + Obsidian stubs) that validate UI rendering and business logic without launching the full Obsidian app. Tests live under `test_files/unit/`.
+As of **2026-05-19**, the suite contains **1245 passing tests across 137 passing files**. This is the automated test baseline intended to ship with `2.3.0`. Most are **unit tests** plus fast **integration-style** tests (JSDOM + Obsidian stubs) that validate UI rendering and business logic without launching the full Obsidian app. Tests live under `test_files/unit/`.
 
 Current global coverage snapshot (from `npm run test:unit -- --coverage`):
 
-- **Statements** : 51.72% (8494/16423)
-- **Branches** : 41.04% (3831/9334)
-- **Functions** : 46.12% (1275/2764)
-- **Lines** : 52.73% (8223/15593)
+- Statements : 55.6% ( 11284/20293 )
+- Branches : 46.73% ( 5538/11851 )
+- Functions : 50.7% ( 1792/3534 )
+- Lines : 56.69% ( 10943/19303 )
 
 ### Running and Writing Tests
 
@@ -267,6 +267,34 @@ git push origin release/2.3.0 --tags
 ```
 
 Each pushed Beta tag should produce or be matched by a GitHub pre-release from that same tag.
+
+If the `release/x.x.x` branch already exists and you need to cut another Beta (for example, `2.3.0-beta.3` after `2.3.0-beta.2`):
+
+1. Open a PR to bring the release-bound work into `release/x.x.x` first.
+2. Preserve the original commits when doing this work. If you open a PR from `dev` to `release/x.x.x`, **merge it without squashing** so the release branch keeps the same commit history that was tested on `dev`.
+3. Only open a full `dev` → `release/x.x.x` PR when every new commit on `dev` is intended for that release. If `dev` already contains work meant for the next release, open a narrower PR or cherry-pick only the fixes/features that belong in the current release.
+4. After the release branch contains the exact changes you want to ship, bump to the next Beta version on the release branch, tag it, and push it.
+
+Preferred shared-branch workflow:
+
+- Open a PR into `release/x.x.x`.
+- Merge it with **Create a merge commit**.
+- Do **not** use **Squash and merge** for release-branch integration PRs.
+- After that PR is merged, bump/tag the next Beta on `release/x.x.x`.
+
+Alternative local command-line flow if you are performing that same integration directly instead of through a PR, when `release/2.3.0` already exists and `dev` contains the next approved `2.3.0` changes:
+
+```
+git checkout release/2.3.0
+git pull origin release/2.3.0
+git merge origin/dev
+
+npm version 2.3.0-beta.3 --no-git-tag-version
+git add package.json package-lock.json manifest.json versions.json
+git commit -m "2.3.0-beta.3"
+git tag 2.3.0-beta.3
+git push origin release/2.3.0 --tags
+```
 
 ### Step 6 — Ship
 
