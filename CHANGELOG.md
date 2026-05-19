@@ -1,4 +1,4 @@
-## Unreleased - May 17, 2026
+## [2.3.0-beta.3] - May 19, 2026
 
 ### Features
 
