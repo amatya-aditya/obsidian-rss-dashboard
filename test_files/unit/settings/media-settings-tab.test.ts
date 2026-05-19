@@ -37,7 +37,7 @@ beforeEach(() => {
 });
 
 describe("renderMediaSettingsTab()", () => {
-  it("renders playback progress as the first media option and persists toggle changes", async () => {
+  it("renders auto-tag videos before playback progress and persists toggle changes", async () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),
     );
@@ -58,8 +58,14 @@ describe("renderMediaSettingsTab()", () => {
       containerEl.querySelectorAll(".setting-item-name"),
     ).map((el) => el.textContent?.trim());
 
-    expect(names[0]).toBe("Playback progress");
-    expect(names[1]).toBe("Remember playback progress");
+    expect(names[0]).toBe("Auto-tag videos");
+    expect(names).toContain("Playback progress");
+    expect(names).toContain("Remember playback progress");
+
+    const playbackHeadingIndex = names.indexOf("Playback progress");
+    const rememberProgressIndex = names.indexOf("Remember playback progress");
+    expect(playbackHeadingIndex).toBeGreaterThan(-1);
+    expect(rememberProgressIndex).toBeGreaterThan(playbackHeadingIndex);
 
     const progressSetting = getSettingByName(
       containerEl,
