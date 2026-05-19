@@ -12,6 +12,10 @@
 - Added a new **Settings > Media > Remember Playback Progress** toggle to automatically save and restore podcast and video playback position across reader and plugin restarts.
 - Additional information can be found within the ## Media Playback Progress Tracking section of [docs/SECURITY.md](docs/SECURITY.md) guide and assures users that all data is stored locally and no telemetry is collected .
 
+#### Twitter/X/Nitter default folder
+
+- Added Settings > Media > Twitter/X/Nitter default folder to specify a default folder for Twitter/X/Nitter feeds. This folder is auto-detected and suggested after user adds a Twitter/X/Nitter feed.
+
 ### Fixes
 
 - Fixed Reader view article bodies disappearing for rich feed HTML on affected feeds such as Ars Technica and Substack.
