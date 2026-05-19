@@ -198,6 +198,7 @@ export type PodcastTheme =
 
 export interface MediaSettings {
   autoTagVideos: boolean;
+  rememberPlaybackProgress: boolean;
   defaultYouTubeFolder: string;
   defaultYouTubeTag: string;
   defaultPodcastFolder: string;
@@ -562,6 +563,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   },
   media: {
     autoTagVideos: true,
+    rememberPlaybackProgress: true,
     defaultYouTubeFolder: "Videos",
     defaultYouTubeTag: "Video",
     defaultPodcastFolder: "Podcast",

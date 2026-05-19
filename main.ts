@@ -1967,6 +1967,10 @@ export default class RssDashboardPlugin extends Plugin {
     flush = false,
     sourceItem?: FeedItem,
   ): void {
+    if (!this.settings.media.rememberPlaybackProgress) {
+      return;
+    }
+
     let item: FeedItem | undefined;
 
     const resolveVideoMatch = (
@@ -2053,7 +2057,46 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  public async clearPlaybackProgress(): Promise<number> {
+    if (this.progressSaveDebounce !== null) {
+      window.clearTimeout(this.progressSaveDebounce);
+      this.progressSaveDebounce = null;
+    }
+
+    let clearedCount = 0;
+    for (const feed of this.settings.feeds) {
+      for (const item of feed.items) {
+        if (!item.playbackProgress) {
+          continue;
+        }
+
+        delete item.playbackProgress;
+        clearedCount++;
+      }
+    }
+
+    const appWithLocalStorage = this.app as unknown as {
+      removeLocalStorage?: (key: string) => void;
+      saveLocalStorage?: (key: string, value: unknown) => void;
+    };
+    if (typeof appWithLocalStorage.removeLocalStorage === "function") {
+      appWithLocalStorage.removeLocalStorage("rss-podcast-progress");
+    } else if (typeof appWithLocalStorage.saveLocalStorage === "function") {
+      appWithLocalStorage.saveLocalStorage("rss-podcast-progress", null);
+    }
+
+    if (clearedCount > 0) {
+      await this.saveSettings();
+    }
+
+    return clearedCount;
+  }
+
   private async migrateMediaProgressOnStartup(): Promise<void> {
+    if (!this.settings.media.rememberPlaybackProgress) {
+      return;
+    }
+
     const appWithLocalStorage = this.app as unknown as LegacyLocalStorageApi;
     if (typeof appWithLocalStorage.loadLocalStorage !== "function") return;
 

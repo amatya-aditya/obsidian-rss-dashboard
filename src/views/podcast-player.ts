@@ -20,6 +20,7 @@ export class PodcastPlayer {
   private originalPlaylist: FeedItem[] = [];
   private sortOrder: "recent" | "oldest" = "recent";
   private previousVolume = 1;
+  private progressTrackingEnabled: boolean;
   private onEpisodeSelected?: (
     item: FeedItem,
     source: "playlist" | "nav" | "autoplay" | "external",
@@ -67,17 +68,21 @@ export class PodcastPlayer {
       duration: number,
       flush?: boolean,
     ) => void,
+    progressTrackingEnabled = true,
   ) {
     this.container = container;
     this.app = app;
     this.theme = theme || "obsidian";
+    this.progressTrackingEnabled = progressTrackingEnabled;
     if (playlist) {
       this.playlist = playlist;
       this.originalPlaylist = [...playlist];
     }
     this.onEpisodeSelected = onEpisodeSelected;
     this.onPlaybackProgress = onPlaybackProgress;
-    this.loadProgressData();
+    if (this.progressTrackingEnabled) {
+      this.loadProgressData();
+    }
   }
 
   setPlaylist(playlist: FeedItem[]) {
@@ -127,7 +132,9 @@ export class PodcastPlayer {
       if (item.audioUrl) {
         this.audioElement.src = item.audioUrl;
         this.audioElement.load();
-        const savedProgress = this.progressData.get(item.guid);
+        const savedProgress = this.progressTrackingEnabled
+          ? (item.playbackProgress ?? this.progressData.get(item.guid))
+          : undefined;
         if (savedProgress && savedProgress.position > 0) {
           this.audioElement.currentTime = savedProgress.position;
           this.updateProgressDisplay();
@@ -1401,6 +1408,10 @@ export class PodcastPlayer {
   }
 
   private startProgressTracking(): void {
+    if (!this.progressTrackingEnabled) {
+      return;
+    }
+
     if (this.progressInterval) {
       activeWindow.clearInterval(this.progressInterval);
     }
@@ -1462,6 +1473,7 @@ export class PodcastPlayer {
   }
 
   private saveProgress(flush = false): void {
+    if (!this.progressTrackingEnabled) return;
     if (!this.audioElement || !this.currentItem) return;
 
     if (this.audioElement.currentTime < 3) return;
@@ -1491,6 +1503,10 @@ export class PodcastPlayer {
   }
 
   private saveProgressData(): void {
+    if (!this.progressTrackingEnabled) {
+      return;
+    }
+
     try {
       const data: Record<string, { position: number; duration: number }> = {};
       this.progressData.forEach((value, key) => {
@@ -1503,6 +1519,11 @@ export class PodcastPlayer {
   }
 
   private loadProgressData(): void {
+    if (!this.progressTrackingEnabled) {
+      this.progressData.clear();
+      return;
+    }
+
     try {
       const data: unknown = this.app.loadLocalStorage("rss-podcast-progress");
       if (data && typeof data === "object") {

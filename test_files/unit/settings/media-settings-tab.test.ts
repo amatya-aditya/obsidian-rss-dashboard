@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
-import { type RssDashboardSettings, type PodcastTheme, DEFAULT_SETTINGS } from "../../../src/types/types";
+import {
+  type RssDashboardSettings,
+  type PodcastTheme,
+  DEFAULT_SETTINGS,
+} from "../../../src/types/types";
 import { renderMediaSettingsTab } from "../../../src/settings/tabs/media-settings-tab";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type RssDashboardPlugin from "../../../main";
@@ -33,15 +37,18 @@ beforeEach(() => {
 });
 
 describe("renderMediaSettingsTab()", () => {
-  it("renders auto-tag videos as the first media option and persists toggle changes", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+  it("renders playback progress as the first media option and persists toggle changes", async () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
-    settings.media.autoTagVideos = true;
+    settings.media.rememberPlaybackProgress = true;
 
     const plugin = {
       app: obsidian.App.createMock(),
       settings,
       saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
       getActiveReaderView: vi.fn(async () => null),
     } as unknown as RssDashboardPlugin;
 
@@ -51,10 +58,14 @@ describe("renderMediaSettingsTab()", () => {
       containerEl.querySelectorAll(".setting-item-name"),
     ).map((el) => el.textContent?.trim());
 
-    expect(names[0]).toBe("Auto-tag videos");
+    expect(names[0]).toBe("Playback progress");
+    expect(names[1]).toBe("Remember playback progress");
 
-    const autoTagSetting = getSettingByName(containerEl, "Auto-tag videos");
-    const toggle = autoTagSetting.querySelector(
+    const progressSetting = getSettingByName(
+      containerEl,
+      "Remember playback progress",
+    );
+    const toggle = progressSetting.querySelector(
       'input[type="checkbox"]',
     ) as HTMLInputElement;
     expect(toggle.checked).toBe(true);
@@ -62,12 +73,41 @@ describe("renderMediaSettingsTab()", () => {
     toggle.click();
     await flushPromises();
 
-    expect(plugin.settings.media.autoTagVideos).toBe(false);
+    expect(plugin.settings.media.rememberPlaybackProgress).toBe(false);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
+  it("runs the clear playback progress action", async () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
+    const settings = cloneSettings();
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 3),
+      getActiveReaderView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const clearSetting = getSettingByName(
+      containerEl,
+      "Clear saved playback progress",
+    );
+    const button = clearSetting.querySelector("button") as HTMLButtonElement;
+    button.click();
+    await flushPromises();
+
+    expect(vi.mocked(plugin.clearPlaybackProgress)).toHaveBeenCalledTimes(1);
+  });
+
   it("persists default media folders and normalizes paths", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.media.defaultYouTubeFolder = "YouTube";
 
@@ -75,26 +115,38 @@ describe("renderMediaSettingsTab()", () => {
       app: obsidian.App.createMock(),
       settings,
       saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
     } as unknown as RssDashboardPlugin;
 
-    vi.spyOn(obsidian, "normalizePath").mockImplementation((p: string) => `norm:${p}`);
+    vi.spyOn(obsidian, "normalizePath").mockImplementation(
+      (p: string) => `norm:${p}`,
+    );
 
     renderMediaSettingsTab(containerEl, plugin);
 
-    const youtubeSetting = getSettingByName(containerEl, "Default YouTube folder");
-    const input = youtubeSetting.querySelector('input[type="text"]') as HTMLInputElement;
+    const youtubeSetting = getSettingByName(
+      containerEl,
+      "Default YouTube folder",
+    );
+    const input = youtubeSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
     expect(input.value).toBe("YouTube");
 
     input.value = "Media/YouTube";
     input.dispatchEvent(new Event("input"));
     await flushPromises();
 
-    expect(plugin.settings.media.defaultYouTubeFolder).toBe("norm:Media/YouTube");
+    expect(plugin.settings.media.defaultYouTubeFolder).toBe(
+      "norm:Media/YouTube",
+    );
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
   it("updates podcast theme and refreshes reader view when available", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.media.podcastTheme = "obsidian" as PodcastTheme;
 
@@ -103,6 +155,7 @@ describe("renderMediaSettingsTab()", () => {
       app: obsidian.App.createMock(),
       settings,
       saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
       getActiveReaderView: vi.fn(async () => ({ updatePodcastTheme })),
     } as unknown as RssDashboardPlugin;
 
@@ -119,5 +172,3 @@ describe("renderMediaSettingsTab()", () => {
     expect(updatePodcastTheme).toHaveBeenCalledWith("nord");
   });
 });
-
-

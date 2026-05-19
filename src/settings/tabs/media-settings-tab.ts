@@ -5,15 +5,57 @@
  * Exports:
  *   - renderMediaSettingsTab(containerEl, plugin)
  */
-import { Setting, normalizePath } from "obsidian";
-import RssDashboardPlugin from "../../../main";
+import { App, Notice, Setting, normalizePath } from "obsidian";
 import { FolderSuggest } from "../../components/folder-suggest";
-import { PodcastTheme } from "../../types/types";
+import { Folder, PodcastTheme } from "../../types/types";
+
+interface MediaTabSettings {
+  folders: Folder[];
+  media: {
+    autoTagVideos?: boolean;
+    rememberPlaybackProgress?: boolean;
+    defaultYouTubeFolder: string;
+    defaultYouTubeTag: string;
+    defaultPodcastFolder: string;
+    defaultPodcastTag: string;
+    defaultRssFolder: string;
+    defaultRssTag: string;
+    defaultSmallwebFolder: string;
+    defaultSmallwebTag: string;
+    podcastTheme: PodcastTheme;
+  };
+}
+
+interface MediaSettingsPlugin {
+  app: App;
+  settings: MediaTabSettings;
+  saveSettings(): Promise<void>;
+  clearPlaybackProgress(): Promise<number>;
+  getActiveReaderView?(): Promise<{
+    updatePodcastTheme: (theme: PodcastTheme) => void;
+  } | null>;
+}
 
 export function renderMediaSettingsTab(
   containerEl: HTMLElement,
-  plugin: RssDashboardPlugin,
+  plugin: MediaSettingsPlugin,
 ): void {
+  new Setting(containerEl).setName("Playback progress").setHeading();
+
+  new Setting(containerEl)
+    .setName("Remember playback progress")
+    .setDesc(
+      "Save and restore podcast and video playback position across reader and plugin restarts",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.media.rememberPlaybackProgress ?? true)
+        .onChange(async (value) => {
+          plugin.settings.media.rememberPlaybackProgress = value;
+          await plugin.saveSettings();
+        }),
+    );
+
   new Setting(containerEl)
     .setName("Auto-tag videos")
     .setDesc(
@@ -27,6 +69,25 @@ export function renderMediaSettingsTab(
           await plugin.saveSettings();
         }),
     );
+
+  new Setting(containerEl)
+    .setName("Clear saved playback progress")
+    .setDesc(
+      "Remove all remembered podcast and video resume positions stored by the plugin",
+    )
+    .addButton((button) => {
+      button
+        .setButtonText("Clear progress")
+        .setWarning()
+        .onClick(async () => {
+          const clearedCount = await plugin.clearPlaybackProgress();
+          new Notice(
+            clearedCount > 0
+              ? `Cleared saved playback progress for ${clearedCount} item${clearedCount === 1 ? "" : "s"}.`
+              : "No saved playback progress was found.",
+          );
+        });
+    });
 
   // ── YouTube ───────────────────────────────────────────────────────────────
   new Setting(containerEl).setName("YouTube").setHeading();
@@ -192,11 +253,12 @@ export function renderMediaSettingsTab(
         .addOption("tokyonight", "Tokyo night")
         .setValue(plugin.settings.media.podcastTheme)
         .onChange(async (value) => {
-          plugin.settings.media.podcastTheme = value as PodcastTheme;
+          const theme = value as PodcastTheme;
+          plugin.settings.media.podcastTheme = theme;
           await plugin.saveSettings();
-          const readerView = await plugin.getActiveReaderView();
+          const readerView = await plugin.getActiveReaderView?.();
           if (readerView) {
-            readerView.updatePodcastTheme(value);
+            readerView.updatePodcastTheme(theme);
           }
         }),
     );

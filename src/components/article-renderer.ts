@@ -157,6 +157,7 @@ export class ArticleRenderer {
           void this.render(container, selectedVideo, this.relatedItems);
         },
         this.onPlaybackProgress,
+        this.settings.media.rememberPlaybackProgress,
       );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
@@ -223,6 +224,7 @@ export class ArticleRenderer {
         undefined,
         onEpisodeSelected,
         this.onPlaybackProgress,
+        this.settings.media.rememberPlaybackProgress,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {

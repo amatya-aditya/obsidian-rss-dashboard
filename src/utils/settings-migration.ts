@@ -237,6 +237,11 @@ export function migrateMediaVideoTagSettings(
     changed = true;
   }
 
+  if (typeof media.rememberPlaybackProgress !== "boolean") {
+    media.rememberPlaybackProgress = true;
+    changed = true;
+  }
+
   // Ensure configured video tag is present and normalized
   if (typeof media.defaultYouTubeTag !== "string") {
     media.defaultYouTubeTag = "Video";

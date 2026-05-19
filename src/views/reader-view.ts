@@ -847,7 +847,12 @@ export class ReaderView extends ItemView {
       this.readingContainer?.querySelector<HTMLVideoElement>(
         ".rss-reader-video",
       );
-    if (inlineVideo && this.currentItem && this.onPlaybackProgress) {
+    if (
+      this.settings.media.rememberPlaybackProgress &&
+      inlineVideo &&
+      this.currentItem &&
+      this.onPlaybackProgress
+    ) {
       const duration = Number.isFinite(inlineVideo.duration)
         ? inlineVideo.duration
         : 0;
@@ -1175,6 +1180,7 @@ export class ReaderView extends ItemView {
           void this.displayItem(selectedVideo, this.relatedItems);
         },
         this.onPlaybackProgress,
+        this.settings.media.rememberPlaybackProgress,
       );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
@@ -1240,6 +1246,7 @@ export class ReaderView extends ItemView {
         undefined,
         onEpisodeSelected,
         this.onPlaybackProgress,
+        this.settings.media.rememberPlaybackProgress,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -1256,6 +1263,7 @@ export class ReaderView extends ItemView {
           undefined,
           onEpisodeSelected,
           this.onPlaybackProgress,
+          this.settings.media.rememberPlaybackProgress,
         );
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
       } else {
@@ -3250,7 +3258,10 @@ export class ReaderView extends ItemView {
       });
       video.appendText("Your browser does not support the video tag.");
 
+      const progressEnabled = this.settings.media.rememberPlaybackProgress;
+
       const reportProgress = (flush = false) => {
+        if (!progressEnabled) return;
         if (!this.onPlaybackProgress) return;
         const position = video.currentTime;
         const duration = Number.isFinite(video.duration) ? video.duration : 0;
@@ -3259,6 +3270,7 @@ export class ReaderView extends ItemView {
       };
 
       if (
+        progressEnabled &&
         item.playbackProgress?.position &&
         item.playbackProgress.position > 0
       ) {

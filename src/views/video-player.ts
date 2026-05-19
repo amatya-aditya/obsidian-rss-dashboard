@@ -43,6 +43,7 @@ export class VideoPlayer {
   private player: YTPlayer | null = null;
   private progressInterval: number | null = null;
   private lastTrackedPosition: number | null = null;
+  private progressTrackingEnabled: boolean;
   private onVideoSelect?: (item: FeedItem) => void;
   private onPlaybackProgress?: (
     item: FeedItem,
@@ -61,10 +62,12 @@ export class VideoPlayer {
       duration: number,
       flush?: boolean,
     ) => void,
+    progressTrackingEnabled = true,
   ) {
     this.container = container;
     this.onVideoSelect = onVideoSelect;
     this.onPlaybackProgress = onPlaybackProgress;
+    this.progressTrackingEnabled = progressTrackingEnabled;
     this.loadYouTubeApi();
   }
 
@@ -198,7 +201,10 @@ export class VideoPlayer {
         this.player = new window.YT.Player(iframeId, {
           events: {
             onReady: (event: YTPlayerEvent) => {
-              if (this.currentItem?.playbackProgress?.position) {
+              if (
+                this.progressTrackingEnabled &&
+                this.currentItem?.playbackProgress?.position
+              ) {
                 event.target.seekTo(this.currentItem.playbackProgress.position);
               }
               this.startTracking();
@@ -229,6 +235,7 @@ export class VideoPlayer {
   }
 
   private startTracking(): void {
+    if (!this.progressTrackingEnabled) return;
     if (this.progressInterval) return;
     this.progressInterval = window.setInterval(() => {
       this.saveProgress();
@@ -243,6 +250,7 @@ export class VideoPlayer {
   }
 
   private saveProgress(flush = false): void {
+    if (!this.progressTrackingEnabled) return;
     if (!this.player || !this.currentItem || !this.onPlaybackProgress) return;
 
     try {

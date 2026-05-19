@@ -14,6 +14,9 @@ describe("migrateMediaVideoTagSettings", () => {
     expect((settings.media as Record<string, unknown>).autoTagVideos).toBe(
       true,
     );
+    expect(
+      (settings.media as Record<string, unknown>).rememberPlaybackProgress,
+    ).toBe(true);
     expect((settings.media as Record<string, unknown>).defaultYouTubeTag).toBe(
       "Video",
     );

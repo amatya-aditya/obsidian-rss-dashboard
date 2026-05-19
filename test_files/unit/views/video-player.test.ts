@@ -299,6 +299,60 @@ describe("VideoPlayer", () => {
     vi.useRealTimers();
   });
 
+  it("does not restore or track progress when playback progress is disabled", () => {
+    vi.useFakeTimers();
+
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const item = baseItem({
+      playbackProgress: {
+        position: 33,
+        duration: 120,
+        lastUpdated: Date.now(),
+      },
+    });
+    const ytPlayer = {
+      seekTo: vi.fn(),
+      getCurrentTime: vi.fn().mockReturnValue(40),
+      getDuration: vi.fn().mockReturnValue(120),
+      destroy: vi.fn(),
+    };
+    let readyHandler:
+      | ((event: { target: typeof ytPlayer }) => void)
+      | undefined;
+
+    const player = new VideoPlayer(
+      container,
+      undefined,
+      onPlaybackProgress,
+      false,
+    );
+
+    vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(fixedEmbed());
+    function MockYouTubePlayer(
+      _elementId: string,
+      options: {
+        events?: { onReady?: (event: { target: typeof ytPlayer }) => void };
+      },
+    ) {
+      readyHandler = options.events?.onReady;
+      return ytPlayer;
+    }
+    window.YT = {
+      Player: MockYouTubePlayer as unknown as typeof window.YT.Player,
+    };
+
+    player.loadVideo(item);
+    readyHandler?.({ target: ytPlayer });
+    vi.advanceTimersByTime(10000);
+
+    expect(ytPlayer.seekTo).not.toHaveBeenCalled();
+    expect(onPlaybackProgress).not.toHaveBeenCalled();
+
+    player.destroy();
+    vi.useRealTimers();
+  });
+
   it("destroy clears the iframe and removes it from DOM without throwing", () => {
     const container = createContainer();
     const player = new VideoPlayer(container);
