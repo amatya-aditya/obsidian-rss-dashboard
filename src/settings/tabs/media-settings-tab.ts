@@ -40,6 +40,20 @@ export function renderMediaSettingsTab(
   containerEl: HTMLElement,
   plugin: MediaSettingsPlugin,
 ): void {
+  new Setting(containerEl)
+    .setName("Auto-tag videos")
+    .setDesc(
+      "Automatically apply the configured video tag to detected video items",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.media.autoTagVideos ?? true)
+        .onChange(async (value) => {
+          plugin.settings.media.autoTagVideos = value;
+          await plugin.saveSettings();
+        }),
+    );
+
   new Setting(containerEl).setName("Playback progress").setHeading();
 
   new Setting(containerEl)
@@ -52,20 +66,6 @@ export function renderMediaSettingsTab(
         .setValue(plugin.settings.media.rememberPlaybackProgress ?? true)
         .onChange(async (value) => {
           plugin.settings.media.rememberPlaybackProgress = value;
-          await plugin.saveSettings();
-        }),
-    );
-
-  new Setting(containerEl)
-    .setName("Auto-tag videos")
-    .setDesc(
-      "Automatically apply the configured video tag to detected video items",
-    )
-    .addToggle((toggle) =>
-      toggle
-        .setValue(plugin.settings.media.autoTagVideos ?? true)
-        .onChange(async (value) => {
-          plugin.settings.media.autoTagVideos = value;
           await plugin.saveSettings();
         }),
     );
