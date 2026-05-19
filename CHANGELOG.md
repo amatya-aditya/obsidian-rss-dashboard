@@ -16,6 +16,8 @@
 
 - Fixed Reader view article bodies disappearing for rich feed HTML on affected feeds such as Ars Technica and Substack.
 
+- Fixed URLs ending in x mistakenly interpreting as x/nitter feeds [GH Issue #121 submitted by Wiloti](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/121)
+
 ## [2.3.0-beta.2] - May 15, 2026
 
 ### Features

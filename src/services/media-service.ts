@@ -36,37 +36,63 @@ export class MediaService {
   }
 
   static isXUrl(url: string): boolean {
-    if (!url) return false;
-    return (
-      url.includes("x.com/") ||
-      url.includes("twitter.com/") ||
-      url.includes("t.co/")
-    );
+    const host = this.getNormalizedHostname(url);
+    if (!host) return false;
+    return this.X_HOSTS.has(host);
   }
 
   static getNitterRssFeed(url: string): string | null {
-    if (!url) return null;
+    const host = this.getNormalizedHostname(url);
+    if (!host || !this.X_PROFILE_HOSTS.has(host)) return null;
 
-    // Handle x.com and twitter.com
-    const xMatch = url.match(/(?:x|twitter)\.com\/([^/?#]+)/);
-    if (xMatch?.[1]) {
-      const username = xMatch[1];
-      // Skip if it's a common page like 'home', 'notifications', etc.
-      const commonPages = [
-        "home",
-        "notifications",
-        "messages",
-        "explore",
-        "search",
-        "i",
-        "settings",
-      ];
-      if (commonPages.includes(username.toLowerCase())) return null;
-
-      return `https://nitter.net/${username}/rss`;
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return null;
     }
 
-    return null;
+    const username = parsed.pathname.split("/").filter(Boolean)[0];
+    if (!username) return null;
+
+    // Skip if it's a common page like 'home', 'notifications', etc.
+    const commonPages = [
+      "home",
+      "notifications",
+      "messages",
+      "explore",
+      "search",
+      "i",
+      "settings",
+    ];
+    if (commonPages.includes(username.toLowerCase())) return null;
+
+    return `https://nitter.net/${username}/rss`;
+  }
+
+  private static readonly X_HOSTS = new Set([
+    "x.com",
+    "www.x.com",
+    "twitter.com",
+    "www.twitter.com",
+    "t.co",
+    "www.t.co",
+  ]);
+
+  private static readonly X_PROFILE_HOSTS = new Set([
+    "x.com",
+    "www.x.com",
+    "twitter.com",
+    "www.twitter.com",
+  ]);
+
+  private static getNormalizedHostname(url: string): string | null {
+    if (!url) return null;
+    try {
+      return new URL(url).hostname.toLowerCase();
+    } catch {
+      return null;
+    }
   }
 
   /**
