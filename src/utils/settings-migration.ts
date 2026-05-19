@@ -242,6 +242,14 @@ export function migrateMediaVideoTagSettings(
     changed = true;
   }
 
+  if (typeof media.defaultTwitterFolder !== "string") {
+    media.defaultTwitterFolder = "Twitter";
+    changed = true;
+  } else if (media.defaultTwitterFolder.trim().length === 0) {
+    media.defaultTwitterFolder = "Twitter";
+    changed = true;
+  }
+
   // Ensure configured video tag is present and normalized
   if (typeof media.defaultYouTubeTag !== "string") {
     media.defaultYouTubeTag = "Video";

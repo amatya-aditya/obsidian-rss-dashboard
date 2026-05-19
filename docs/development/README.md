@@ -49,6 +49,8 @@ Internal developer documentation for the RSS Dashboard plugin.
   Settings/Preferences — `Alt + p`
 - [Normalize 2.2.0 release docs and beta history](../plans/Normalize%202.2.0%20release%20docs%20and%20beta%20history.md)
   (1) make `docs/releases/2.2.0.md` the public, stable “what’s new” summary, (2) add a single `docs/releases/2.2.0-beta-series.md` that preserves the full beta-by-beta history, and (3) make `CHANGELOG.md` stable-focused…
+- [Plan: Twitter/X/Nitter Default Folder Routing (TDD-First)](../plans/twitter-x-nitter-default-folder-routing.md)
+  Add `media.defaultTwitterFolder` with default `Twitter`, then route Twitter/X/Nitter feeds to this configured folder in Add/Edit Feed modals using strict Red -> Green -> Refactor workflow.
 
 ### Releases
 

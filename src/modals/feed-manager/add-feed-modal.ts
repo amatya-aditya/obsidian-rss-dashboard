@@ -11,6 +11,10 @@ import {
   loadFeedForPreview,
 } from "../../services/feed-parser";
 import { detectPodcastPlatform } from "../../utils/podcast-platforms";
+import {
+  getDefaultFolderForResolvedFeed,
+  shouldAutoAssignFolder,
+} from "./feed-preview-loader";
 import { MediaService } from "../../services/media-service";
 import { renderKeywordFilterEditor } from "../../components/keyword-filter-editor";
 import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
@@ -176,11 +180,13 @@ export class AddFeedModal extends Modal {
               let feedUrl = url;
               let detectedType: "rss" | "podcast" | "youtube" = "rss";
               let isXConversion = false;
+              let isNitterFeed = false;
 
               // Normalize Nitter profile URLs to their RSS endpoint
               const normalizedNitterUrl =
                 MediaService.normalizeNitterUrlToRss(url);
               if (normalizedNitterUrl) {
+                isNitterFeed = true;
                 url = normalizedNitterUrl;
                 feedUrl = normalizedNitterUrl;
                 if (urlInput) urlInput.value = normalizedNitterUrl;
@@ -190,6 +196,7 @@ export class AddFeedModal extends Modal {
               if (MediaService.isXUrl(url)) {
                 const nitterUrl = MediaService.getNitterRssFeed(url);
                 if (nitterUrl) {
+                  isNitterFeed = true;
                   url = nitterUrl;
                   feedUrl = nitterUrl;
                   if (urlInput) urlInput.value = nitterUrl;
@@ -197,6 +204,26 @@ export class AddFeedModal extends Modal {
                   status = "\u23F3 Redirecting X to Nitter...";
                   if (refs.statusDiv) refs.statusDiv.textContent = status;
                 }
+              }
+
+              if (
+                folderInput &&
+                isNitterFeed &&
+                shouldAutoAssignFolder(
+                  folderInput.value || "",
+                  this.plugin?.settings?.media,
+                )
+              ) {
+                const nextFolder = getDefaultFolderForResolvedFeed(
+                  {
+                    detectedType: "rss",
+                    finalUrl: feedUrl,
+                    isXConversion,
+                  },
+                  this.plugin?.settings?.media,
+                );
+                folder = nextFolder;
+                folderInput.value = nextFolder;
               }
 
               // Check for YouTube page URLs and convert to RSS feed
@@ -227,12 +254,17 @@ export class AddFeedModal extends Modal {
                   "Podcast";
                 const defaultRssFolder =
                   this.plugin?.settings?.media?.defaultRssFolder || "RSS";
+                const defaultTwitterFolder =
+                  this.plugin?.settings?.media?.defaultTwitterFolder ||
+                  "Twitter";
 
                 const currentFolder = folderInput?.value || "";
                 const isAutoAssignedFolder =
+                  currentFolder === defaultTwitterFolder ||
                   currentFolder === defaultYouTubeFolder ||
                   currentFolder === defaultPodcastFolder ||
                   currentFolder === defaultRssFolder ||
+                  currentFolder === "Twitter" ||
                   currentFolder === "Videos" ||
                   currentFolder === "Podcast" ||
                   currentFolder === "RSS";
@@ -286,12 +318,17 @@ export class AddFeedModal extends Modal {
                     "Videos";
                   const defaultRssFolder =
                     this.plugin?.settings?.media?.defaultRssFolder || "RSS";
+                  const defaultTwitterFolder =
+                    this.plugin?.settings?.media?.defaultTwitterFolder ||
+                    "Twitter";
 
                   const currentFolder = folderInput?.value || "";
                   const isAutoAssignedFolder =
+                    currentFolder === defaultTwitterFolder ||
                     currentFolder === defaultYouTubeFolder ||
                     currentFolder === defaultPodcastFolder ||
                     currentFolder === defaultRssFolder ||
+                    currentFolder === "Twitter" ||
                     currentFolder === "Videos" ||
                     currentFolder === "Podcast" ||
                     currentFolder === "RSS";
@@ -356,9 +393,12 @@ export class AddFeedModal extends Modal {
 
               // Auto-set folder for RSS feeds if not YouTube or Podcast
               // Update if folder is empty, "Uncategorized", or was previously auto-assigned
-              if (detectedType === "rss") {
+              if (detectedType === "rss" && !isNitterFeed) {
                 const defaultRssFolder =
                   this.plugin?.settings?.media?.defaultRssFolder || "RSS";
+                const defaultTwitterFolder =
+                  this.plugin?.settings?.media?.defaultTwitterFolder ||
+                  "Twitter";
                 const defaultYouTubeFolder =
                   this.plugin?.settings?.media?.defaultYouTubeFolder ||
                   "Videos";
@@ -368,9 +408,11 @@ export class AddFeedModal extends Modal {
 
                 const currentFolder = folderInput?.value || "";
                 const isAutoAssignedFolder =
+                  currentFolder === defaultTwitterFolder ||
                   currentFolder === defaultYouTubeFolder ||
                   currentFolder === defaultPodcastFolder ||
                   currentFolder === defaultRssFolder ||
+                  currentFolder === "Twitter" ||
                   currentFolder === "Videos" ||
                   currentFolder === "Podcast" ||
                   currentFolder === "RSS";

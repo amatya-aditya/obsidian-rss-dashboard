@@ -17,7 +17,9 @@ import { renderSupportedFormatBadges } from "./supported-format-badges";
 import { decorateFolderSelectorInput } from "./folder-selector-field";
 import {
   formatLatestEntryLabel,
+  getDefaultFolderForResolvedFeed,
   resolveAndLoadPreview,
+  shouldAutoAssignFolder,
 } from "./feed-preview-loader";
 import { MediaService } from "../../services/media-service";
 import { copyTextToClipboard } from "../../utils/export-utils";
@@ -175,6 +177,22 @@ export class EditFeedModal extends Modal {
                 urlInput.addClass("loaded");
               }
               setActiveBadge(preview.detectedType);
+
+              const currentFolder = folderInput?.value || "";
+              if (
+                folderInput &&
+                shouldAutoAssignFolder(
+                  currentFolder,
+                  this.plugin?.settings?.media,
+                )
+              ) {
+                const nextFolder = getDefaultFolderForResolvedFeed(
+                  preview,
+                  this.plugin?.settings?.media,
+                );
+                folder = nextFolder;
+                folderInput.value = nextFolder;
+              }
             } catch (e) {
               const errorMsg = e instanceof Error ? e.message : String(e);
               status = "Error loading feed";

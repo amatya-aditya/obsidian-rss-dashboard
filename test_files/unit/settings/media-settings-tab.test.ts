@@ -149,6 +149,46 @@ describe("renderMediaSettingsTab()", () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
+  it("renders and persists the default Twitter folder", async () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
+    const settings = cloneSettings();
+    settings.media.defaultTwitterFolder = "Twitter";
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+    } as unknown as RssDashboardPlugin;
+
+    vi.spyOn(obsidian, "normalizePath").mockImplementation(
+      (p: string) => `norm:${p}`,
+    );
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const twitterSetting = getSettingByName(
+      containerEl,
+      "Default Twitter folder",
+    );
+    const input = twitterSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+
+    expect(input.value).toBe("Twitter");
+
+    input.value = "Social/Twitter";
+    input.dispatchEvent(new Event("input"));
+    await flushPromises();
+
+    expect(plugin.settings.media.defaultTwitterFolder).toBe(
+      "norm:Social/Twitter",
+    );
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+  });
+
   it("updates podcast theme and refreshes reader view when available", async () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),

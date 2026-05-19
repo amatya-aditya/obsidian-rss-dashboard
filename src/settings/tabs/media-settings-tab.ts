@@ -14,6 +14,7 @@ interface MediaTabSettings {
   media: {
     autoTagVideos?: boolean;
     rememberPlaybackProgress?: boolean;
+    defaultTwitterFolder: string;
     defaultYouTubeFolder: string;
     defaultYouTubeTag: string;
     defaultPodcastFolder: string;
@@ -90,6 +91,22 @@ export function renderMediaSettingsTab(
     });
 
   // ── YouTube ───────────────────────────────────────────────────────────────
+  new Setting(containerEl).setName("Twitter/X/Nitter").setHeading();
+
+  new Setting(containerEl)
+    .setName("Default Twitter folder")
+    .setDesc("Default folder for Twitter/X/Nitter feeds")
+    .addText((text) => {
+      text
+        .setValue(plugin.settings.media.defaultTwitterFolder || "Twitter")
+        .onChange(async (value) => {
+          const nextValue = typeof value === "string" ? value : "";
+          plugin.settings.media.defaultTwitterFolder = normalizePath(nextValue);
+          await plugin.saveSettings();
+        });
+      new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
+    });
+
   new Setting(containerEl).setName("YouTube").setHeading();
 
   new Setting(containerEl)
