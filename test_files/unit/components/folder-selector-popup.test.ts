@@ -3,6 +3,8 @@ import { FolderSelectorPopup } from "../../../src/components/folder-selector-pop
 import { DEFAULT_SETTINGS, type Folder, type RssDashboardSettings } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
+type TestPlugin = ConstructorParameters<typeof FolderSelectorPopup>[0];
+
 function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
@@ -17,10 +19,10 @@ function createFolders(): Folder[] {
   ];
 }
 
-function createPluginStub(folders: Folder[] = createFolders()): any {
+function createPluginStub(folders: Folder[] = createFolders()): TestPlugin {
   const settings = cloneSettings();
   settings.folders = folders;
-  return { settings };
+  return { settings } as unknown as TestPlugin;
 }
 
 function setViewport(width: number, height: number): void {
@@ -41,7 +43,7 @@ afterEach(() => {
 
 describe("FolderSelectorPopup", () => {
   it("positions below the anchor by default", () => {
-    const anchorEl = document.body.createDiv();
+    const anchorEl = document.createElement("div");
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 10,
       top: 10,
@@ -58,11 +60,11 @@ describe("FolderSelectorPopup", () => {
 
     const popup = document.body.querySelector(
       ".rss-folder-selector-popup",
-    ) as HTMLElement | null;
+    );
     expect(popup).not.toBeNull();
-    expect(popup!.style.left).toBe("10px");
-    expect(popup!.style.top).toBe("34px");
-    expect(popup!.classList.contains("rss-folder-selector-popup-above")).toBe(
+    expect((popup as HTMLElement).style.left).toBe("10px");
+    expect((popup as HTMLElement).style.top).toBe("34px");
+    expect((popup as HTMLElement).classList.contains("rss-folder-selector-popup-above")).toBe(
       false,
     );
   });
@@ -70,7 +72,7 @@ describe("FolderSelectorPopup", () => {
   it("clamps left and flips above when near viewport edges", () => {
     setViewport(300, 220);
 
-    const anchorEl = document.body.createDiv();
+    const anchorEl = document.createElement("div");
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 200,
       top: 180,
@@ -98,7 +100,7 @@ describe("FolderSelectorPopup", () => {
   });
 
   it("prioritizes defaultFolder to the top when it exists (case-insensitive)", () => {
-    const anchorEl = document.body.createDiv();
+    const anchorEl = document.createElement("div");
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -121,7 +123,7 @@ describe("FolderSelectorPopup", () => {
   });
 
   it("filters folders and toggles the clear button on input", () => {
-    const anchorEl = document.body.createDiv();
+    const anchorEl = document.createElement("div");
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -168,7 +170,7 @@ describe("FolderSelectorPopup", () => {
   it("sanitizes forbidden characters in real-time and removes invalid highlight after timeout", () => {
     vi.useFakeTimers();
 
-    const anchorEl = document.body.createDiv();
+    const anchorEl = document.createElement("div");
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -202,7 +204,7 @@ describe("FolderSelectorPopup", () => {
   });
 
   it("creates a new folder option for a non-matching query and selects sanitized text", () => {
-    const anchorEl = document.body.createDiv();
+    const anchorEl = document.createElement("div");
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -240,7 +242,7 @@ describe("FolderSelectorPopup", () => {
   });
 
   it("supports keyboard navigation and Enter selects the highlighted folder", () => {
-    const anchorEl = document.body.createDiv();
+    const anchorEl = document.createElement("div");
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -259,7 +261,7 @@ describe("FolderSelectorPopup", () => {
     const items = () =>
       Array.from(
         document.body.querySelectorAll(".rss-folder-selector-item"),
-      ) as HTMLElement[];
+      );
 
     // Down selects second item
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
@@ -277,7 +279,7 @@ describe("FolderSelectorPopup", () => {
   it("closes on Escape/Tab and on outside click", () => {
     vi.useFakeTimers();
 
-    const anchorEl = document.body.createDiv();
+    const anchorEl = document.createElement("div");
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -312,7 +314,8 @@ describe("FolderSelectorPopup", () => {
     });
     vi.runAllTimers();
 
-    const outside = document.body.createDiv();
+    const outside = document.createElement("div");
+    document.body.appendChild(outside);
     outside.click();
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(
@@ -331,7 +334,7 @@ describe("FolderSelectorPopup", () => {
   });
 
   it("listOnly mode renders without input and does not show create option", () => {
-    const anchorEl = document.body.createDiv();
+    const anchorEl = document.createElement("div");
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,

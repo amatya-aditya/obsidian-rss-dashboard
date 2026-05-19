@@ -9,7 +9,9 @@ import {
   TFile,
   Notice,
 } from "obsidian";
-import { setIcon } from "obsidian";
+import { setIcon, Scope } from "obsidian";
+import { sanitizeAndAppendHtml } from "../utils/safe-html";
+import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
 import {
   RssDashboardSettings,
   FeedItem,
@@ -21,7 +23,14 @@ import {
 import { HighlightService } from "../services/highlight-service";
 import { ArticleSaver } from "../services/article-saver";
 import { setCssProps } from "../utils/platform-utils";
-import { fetchWithProxyFallback } from "../utils/fetch-helpers";
+import {
+  fetchFullArticleContentWithOutcome,
+  RESTRICTED_ARTICLE_BANNER,
+  RESTRICTED_ARTICLE_LINK_TEXT,
+  RESTRICTED_ARTICLE_NOTICE,
+  RESTRICTED_ARTICLE_REASON,
+} from "../utils/full-article-fetch";
+import { isLikelyVideoItem } from "../utils/video-detection";
 import TurndownService from "turndown";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
@@ -30,12 +39,28 @@ import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { resolvePodcastOpenDestinations } from "../utils/podcast-open-destinations";
 import { resolveApplePodcastsShowUrl } from "../services/apple-podcasts-service";
 import { createReaderFormatPortal } from "../utils/reader-format-portal";
+import {
+  normalizeSubstackImageUrl,
+  normalizeSubstackImageUrlsInDocument,
+} from "../utils/substack-image-url";
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
-import { RSS_DASHBOARD_VIEW_TYPE } from "./dashboard-view";
+import { RSS_DASHBOARD_VIEW_TYPE, RssDashboardView } from "./dashboard-view";
 import { VaultFolderSuggest } from "../components/folder-suggest";
+import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
+import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
+
+const VIDEO_ARTICLE_BANNER =
+  "This item appears to be a video. Open the source page to watch.";
+const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
+const FEED_DESCRIPTION_UNAVAILABLE_TEXT = "No feed description available.";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
+
+const RAW_SUBSTACK_FETCH_URL_RE =
+  /https:\/\/substackcdn\.com\/image\/fetch\//gi;
+const ENCODED_SUBSTACK_S3_URL_RE =
+  /https%3A%2F%2Fsubstack-post-media\.s3\.amazonaws\.com/gi;
 
 export class ReaderView extends ItemView {
   private currentItem: FeedItem | null = null;
@@ -62,12 +87,15 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     position: number,
     duration: number,
+    flush?: boolean,
   ) => void;
   private readToggleButton: HTMLElement | null = null;
   private starToggleButton: HTMLElement | null = null;
   private saveButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
+  private currentFullContentFailureType: FullArticleFetchFailureType = "none";
+  private lastRestrictedNoticeGuid: string | null = null;
 
   private readerFormatPortal: { close: (flushSave: boolean) => void } | null =
     null;
@@ -77,20 +105,41 @@ export class ReaderView extends ItemView {
     this.returnLeaf = leaf;
   }
 
-  private async navigateBackToDashboard(): Promise<void> {
+  public focusReaderView(): void {
+    this.app.workspace.setActiveLeaf(this.leaf, { focus: true });
+    activeWindow.requestAnimationFrame(() => {
+      this.containerEl.focus({ preventScroll: true });
+    });
+  }
+
+  private getDashboardLeaf(): WorkspaceLeaf | null {
     const dashboardLeaves = this.app.workspace.getLeavesOfType(
       RSS_DASHBOARD_VIEW_TYPE,
     );
-    const targetLeaf =
-      this.returnLeaf && dashboardLeaves.includes(this.returnLeaf)
-        ? this.returnLeaf
-        : (dashboardLeaves[0] ?? null);
+    return this.returnLeaf && dashboardLeaves.includes(this.returnLeaf)
+      ? this.returnLeaf
+      : (dashboardLeaves[0] ?? null);
+  }
 
+  private async focusDashboardLeaf(): Promise<void> {
+    const targetLeaf = this.getDashboardLeaf();
     if (targetLeaf) {
-      this.app.workspace.setActiveLeaf(targetLeaf, { focus: true });
       await this.app.workspace.revealLeaf(targetLeaf);
-    }
+      this.app.workspace.setActiveLeaf(targetLeaf, { focus: true });
 
+      const dashboardContainer = (
+        targetLeaf.view as { containerEl?: HTMLElement } | undefined
+      )?.containerEl;
+      if (dashboardContainer) {
+        activeWindow.requestAnimationFrame(() => {
+          dashboardContainer.focus({ preventScroll: true });
+        });
+      }
+    }
+  }
+
+  private async navigateBackToDashboard(): Promise<void> {
+    await this.focusDashboardLeaf();
     this.closeTagsDropdown();
     this.leaf.detach();
   }
@@ -123,6 +172,7 @@ export class ReaderView extends ItemView {
         item: FeedItem,
         position: number,
         duration: number,
+        flush?: boolean,
       ) => void;
     },
   ) {
@@ -132,6 +182,9 @@ export class ReaderView extends ItemView {
     this.onArticleSave = onArticleSave;
     this.onArticleUpdate = onArticleUpdate;
     this.onPlaybackProgress = options?.onPlaybackProgress;
+
+    this.scope = new Scope(this.app.scope);
+    this.setupScope();
 
     try {
       const appWithPlugins = this.app as unknown as {
@@ -162,6 +215,343 @@ export class ReaderView extends ItemView {
     } catch {
       // Web viewer integration not available
     }
+  }
+
+  private setupScope() {
+    if (this.scope) {
+      setupReaderHotkeys(this.scope, this);
+    }
+  }
+
+  /**
+   * Action: Zoom/Increase reader font size.
+   * @internal
+   */
+  public actionZoomIn(): void {
+    const steps = [80, 90, 100, 110, 120, 130, 150, 175, 200];
+    const format = this.getReaderFormat();
+    const currentIndex = steps.indexOf(format.fontScalePct);
+    const nextIndex = Math.min(
+      steps.length - 1,
+      (currentIndex >= 0 ? currentIndex : 2) + 1,
+    );
+    format.fontScalePct = steps[nextIndex];
+    this.applyReaderFormat();
+    void this.flushReaderFormatSave();
+  }
+
+  /**
+   * Action: Zoom/Decrease reader font size.
+   * @internal
+   */
+  public actionZoomOut(): void {
+    const steps = [80, 90, 100, 110, 120, 130, 150, 175, 200];
+    const format = this.getReaderFormat();
+    const currentIndex = steps.indexOf(format.fontScalePct);
+    const nextIndex = Math.max(0, (currentIndex >= 0 ? currentIndex : 2) - 1);
+    format.fontScalePct = steps[nextIndex];
+    this.applyReaderFormat();
+    void this.flushReaderFormatSave();
+  }
+
+  /**
+   * Action: Reset reader font size.
+   * @internal
+   */
+  public actionZoomReset(): void {
+    const format = this.getReaderFormat();
+    format.fontScalePct = 100;
+    this.applyReaderFormat();
+    void this.flushReaderFormatSave();
+  }
+
+  private getReaderScrollContainer(): HTMLElement | null {
+    return this.readingContainer ?? null;
+  }
+
+  private getReaderLineScrollAmount(): number {
+    const container = this.getReaderScrollContainer();
+    if (!container) {
+      return 40;
+    }
+
+    const computedStyle = activeWindow.getComputedStyle(container);
+    const lineHeight = Number.parseFloat(computedStyle.lineHeight);
+    if (Number.isFinite(lineHeight)) {
+      return Math.max(24, Math.round(lineHeight * 2));
+    }
+
+    const fontSize = Number.parseFloat(computedStyle.fontSize);
+    if (Number.isFinite(fontSize)) {
+      return Math.max(24, Math.round(fontSize * 2.5));
+    }
+
+    return 40;
+  }
+
+  private getReaderPageScrollAmount(): number {
+    const container = this.getReaderScrollContainer();
+    if (!container) {
+      return 0;
+    }
+
+    return Math.max(0, Math.round(container.clientHeight * 0.9));
+  }
+
+  private scrollReaderBy(top: number, left = 0): void {
+    const container = this.getReaderScrollContainer();
+    if (!container) {
+      return;
+    }
+
+    container.scrollBy({
+      top,
+      left,
+      behavior: "auto",
+    });
+  }
+
+  private scrollReaderTo(top: number): void {
+    const container = this.getReaderScrollContainer();
+    if (!container) {
+      return;
+    }
+
+    container.scrollTo({
+      top,
+      behavior: "auto",
+    });
+  }
+
+  /**
+   * Action: Scroll reader up by a small line-style increment.
+   * @internal
+   */
+  public actionScrollUp(): void {
+    this.scrollReaderBy(-this.getReaderLineScrollAmount());
+  }
+
+  /**
+   * Action: Scroll reader down by a small line-style increment.
+   * @internal
+   */
+  public actionScrollDown(): void {
+    this.scrollReaderBy(this.getReaderLineScrollAmount());
+  }
+
+  /**
+   * Action: Scroll reader left by a small increment.
+   * @internal
+   */
+  public actionScrollLeft(): void {
+    this.scrollReaderBy(0, -this.getReaderLineScrollAmount());
+  }
+
+  /**
+   * Action: Scroll reader right by a small increment.
+   * @internal
+   */
+  public actionScrollRight(): void {
+    this.scrollReaderBy(0, this.getReaderLineScrollAmount());
+  }
+
+  /**
+   * Action: Scroll reader up by nearly one page.
+   * @internal
+   */
+  public actionPageUp(): void {
+    this.scrollReaderBy(-this.getReaderPageScrollAmount());
+  }
+
+  /**
+   * Action: Scroll reader down by nearly one page.
+   * @internal
+   */
+  public actionPageDown(): void {
+    this.scrollReaderBy(this.getReaderPageScrollAmount());
+  }
+
+  /**
+   * Action: Jump to the top of the current article.
+   * @internal
+   */
+  public actionScrollToStart(): void {
+    this.scrollReaderTo(0);
+  }
+
+  /**
+   * Action: Jump to the bottom of the current article.
+   * @internal
+   */
+  public actionScrollToEnd(): void {
+    const container = this.getReaderScrollContainer();
+    if (!container) {
+      return;
+    }
+
+    this.scrollReaderTo(container.scrollHeight);
+  }
+
+  private getDashboardView(): RssDashboardView | null {
+    const leaf = this.getDashboardLeaf();
+    if (leaf && leaf.view instanceof RssDashboardView) {
+      return leaf.view;
+    }
+    return null;
+  }
+
+  /**
+   * Action: Navigate to next article from reader.
+   * @internal
+   */
+  public actionNavigateNext(): void {
+    const dashboardView = this.getDashboardView();
+    if (dashboardView) {
+      dashboardView.actionNavigateNext({ open: true });
+    }
+  }
+
+  /**
+   * Action: Navigate to previous article from reader.
+   * @internal
+   */
+  public actionNavigatePrevious(): void {
+    const dashboardView = this.getDashboardView();
+    if (dashboardView) {
+      dashboardView.actionNavigatePrevious({ open: true });
+    }
+  }
+
+  /**
+   * Action: Refocus the dashboard leaf while keeping the reader open.
+   * @internal
+   */
+  public actionFocusDashboard(): void {
+    void this.focusDashboardLeaf();
+  }
+
+  public actionFocusSidebar(): void {
+    const dashboardView = this.getDashboardView();
+    if (dashboardView) {
+      dashboardView.actionFocusSidebar();
+      return;
+    }
+
+    new Notice("No dashboard pane is currently open.");
+  }
+
+  public actionFocusReader(): void {
+    if (!this.leaf) {
+      new Notice("No reader pane is currently open.");
+      return;
+    }
+
+    this.focusReaderView();
+  }
+
+  /**
+   * Action: Close the article and go back to dashboard.
+   * @internal
+   */
+  public actionToggleArticleOpen(): void {
+    void this.navigateBackToDashboard();
+  }
+
+  /**
+   * Action: Toggle read/unread status of the current article.
+   * @internal
+   */
+  public actionToggleReadStatus(): void {
+    if (this.currentItem) {
+      this.toggleReadStatus();
+    }
+  }
+
+  /**
+   * Action: Toggle star status of the current article.
+   * @internal
+   */
+  public actionToggleStarStatus(): void {
+    if (this.currentItem) {
+      this.toggleStarStatus();
+    }
+  }
+
+  /**
+   * Action: Toggle tags dropdown menu.
+   * @internal
+   */
+  public actionToggleTagsMenu(): void {
+    const tagsButton = this.contentEl.querySelector<HTMLElement>(
+      ".rss-dashboard-tags-toggle",
+    );
+    if (tagsButton) {
+      this.toggleTagsDropdown(tagsButton);
+    }
+  }
+
+  /**
+   * Action: Save current article.
+   * @internal
+   */
+  public async actionSaveCurrentArticle(): Promise<void> {
+    if (!this.currentItem) {
+      return;
+    }
+    if (this.currentItem.saved) {
+      const file = this.app.vault.getAbstractFileByPath(
+        this.currentItem.savedFilePath || "",
+      );
+      if (file instanceof TFile) {
+        await this.leaf.openFile(file);
+      }
+      return;
+    }
+
+    const htmlToSave =
+      this.currentFullContent && this.currentContentIsFullArticle
+        ? this.stripNavigationChromeFromHtml(
+            this.stripTopHeadlineFromHtml(this.currentFullContent),
+          )
+        : this.currentFullContent || this.currentItem.description || "";
+    const markdownContent = this.turndownService.turndown(htmlToSave);
+    const displayTitle = this.currentDisplayTitle;
+    const saveItem = displayTitle
+      ? { ...this.currentItem, title: displayTitle }
+      : this.currentItem;
+    const customTemplate = this.getCustomTemplateForArticle(this.currentItem);
+    const file = await this.articleSaver.saveArticle(
+      saveItem,
+      undefined,
+      customTemplate,
+      markdownContent,
+    );
+    if (file) {
+      this.currentItem.saved = true;
+      this.currentItem.savedFilePath = file.path;
+      this.onArticleSave(this.currentItem);
+
+      this.updateSavedLabel(true);
+    }
+  }
+
+  /**
+   * Action: Mark all filtered articles as read on the dashboard.
+   * @internal
+   */
+  public actionMarkAllAsRead(): void {
+    const dashboardView = this.getDashboardView();
+    if (dashboardView) {
+      dashboardView.actionMarkAllAsRead();
+    }
+  }
+
+  /**
+   * Action: Open keyboard shortcuts help modal.
+   * @internal
+   */
+  public actionOpenShortcutHelp(): void {
+    new ShortcutHelpModal(this.app, this.settings).open();
   }
 
   getViewType(): string {
@@ -214,6 +604,30 @@ export class ReaderView extends ItemView {
   onOpen(): Promise<void> {
     this.contentEl.empty();
     this.contentEl.addClass("rss-reader-view");
+
+    // Make the view container focusable so keyboard events are routed through
+    // Obsidian's scope system when this view is active.
+    this.containerEl.tabIndex = -1;
+    this.registerDomEvent(this.containerEl, "click", (evt) => {
+      // Only grab focus back to the container if the click was not on an
+      // interactive element (input, button, select, textarea, link, etc.).
+      const target = evt.target as HTMLElement;
+      const interactive = target.closest(
+        'input, button, select, textarea, a, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!interactive) {
+        this.containerEl.focus({ preventScroll: true });
+      }
+    });
+    if (typeof this.app.workspace.on === "function") {
+      this.registerEvent(
+        this.app.workspace.on("active-leaf-change", (leaf) => {
+          if (leaf === this.leaf) {
+            this.containerEl.focus({ preventScroll: true });
+          }
+        }),
+      );
+    }
 
     const header = this.contentEl.createDiv({ cls: "rss-reader-header" });
 
@@ -313,11 +727,24 @@ export class ReaderView extends ItemView {
     // Reader formatting button
     const readerFormatButton = actions.createDiv({
       cls: "rss-reader-action-button rss-reader-format-button",
-      attr: { title: "Reader settings" },
+      attr: {
+        title: "Reader settings",
+        "aria-label": "Reader settings",
+        role: "button",
+        tabindex: "0",
+      },
     });
     setIcon(readerFormatButton, "type");
     readerFormatButton.addEventListener("click", (e) => {
-      this.toggleReaderFormatDropdown(e as MouseEvent);
+      e.stopPropagation();
+      this.toggleReaderFormatDropdown(readerFormatButton);
+    });
+    readerFormatButton.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        this.toggleReaderFormatDropdown(readerFormatButton);
+      }
     });
 
     // Open in browser button
@@ -371,7 +798,7 @@ export class ReaderView extends ItemView {
                     new Notice("Could not find this show in apple podcasts.");
                     return;
                   }
-                  window.open(appleUrl, "_blank");
+                  activeWindow.open(appleUrl, "_blank");
                 })();
               });
               return;
@@ -379,7 +806,7 @@ export class ReaderView extends ItemView {
 
             const url = destination.url;
             if (url) {
-              menuItem.onClick(() => window.open(url, "_blank"));
+              menuItem.onClick(() => activeWindow.open(url, "_blank"));
             } else {
               menuItem.setDisabled(true);
             }
@@ -392,7 +819,7 @@ export class ReaderView extends ItemView {
 
       const url = resolveItemExternalUrl(item);
       if (!url) return;
-      window.open(url, "_blank");
+      activeWindow.open(url, "_blank");
     });
 
     this.readingContainer = this.contentEl.createDiv({
@@ -412,8 +839,26 @@ export class ReaderView extends ItemView {
     }
 
     if (this.readerFormatSaveTimeout !== null) {
-      window.clearTimeout(this.readerFormatSaveTimeout);
+      activeWindow.clearTimeout(this.readerFormatSaveTimeout);
       this.readerFormatSaveTimeout = null;
+    }
+
+    const inlineVideo =
+      this.readingContainer?.querySelector<HTMLVideoElement>(
+        ".rss-reader-video",
+      );
+    if (inlineVideo && this.currentItem && this.onPlaybackProgress) {
+      const duration = Number.isFinite(inlineVideo.duration)
+        ? inlineVideo.duration
+        : 0;
+      if (inlineVideo.currentTime >= 0 && duration > 0) {
+        this.onPlaybackProgress(
+          this.currentItem,
+          inlineVideo.currentTime,
+          duration,
+          true,
+        );
+      }
     }
 
     if (this.podcastPlayer) {
@@ -494,7 +939,7 @@ export class ReaderView extends ItemView {
 
   private showCustomSaveModal(item: FeedItem): void {
     const displayTitle = this.currentDisplayTitle;
-    const modal = document.body.createDiv({
+    const modal = activeDocument.body.createDiv({
       cls: "rss-dashboard-modal rss-dashboard-modal-container",
     });
 
@@ -566,7 +1011,7 @@ export class ReaderView extends ItemView {
       text: "Cancel",
     });
     cancelButton.addEventListener("click", () => {
-      document.body.removeChild(modal);
+      activeDocument.body.removeChild(modal);
     });
 
     const saveButton = buttonContainer.createEl("button", {
@@ -600,7 +1045,7 @@ export class ReaderView extends ItemView {
           this.updateSavedLabel(true);
         }
 
-        document.body.removeChild(modal);
+        activeDocument.body.removeChild(modal);
       })();
     });
 
@@ -614,13 +1059,17 @@ export class ReaderView extends ItemView {
     modalContent.appendChild(buttonContainer);
 
     modal.appendChild(modalContent);
-    document.body.appendChild(modal);
+    activeDocument.body.appendChild(modal);
   }
 
   async displayItem(
     item: FeedItem,
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
+    if (this.currentItem?.guid !== item.guid) {
+      this.lastRestrictedNoticeGuid = null;
+    }
+
     this.closeTagsDropdown();
     if (this.readingContainer) {
       this.readingContainer.empty();
@@ -632,6 +1081,7 @@ export class ReaderView extends ItemView {
       ? this.formatNitterReaderTitle(item)
       : undefined;
     this.currentContentIsFullArticle = false;
+    this.currentFullContentFailureType = "none";
     this.syncReaderTitle();
 
     // Update toggle button states
@@ -688,6 +1138,14 @@ export class ReaderView extends ItemView {
         : await this.fetchFullArticleContent(item.link);
       const hasFullArticleContent =
         this.hasMeaningfulArticleContent(fetchedContent);
+
+      if (hasFullArticleContent) {
+        item.restrictedReason = undefined;
+      } else if (this.lastFullArticleFetchWasRestricted()) {
+        item.restrictedReason = RESTRICTED_ARTICLE_REASON;
+        // Toast notification removed for paywalled/restricted articles.
+      }
+
       const displayTitle = hasFullArticleContent
         ? this.extractDisplayTitleFromHtml(fetchedContent)
         : null;
@@ -797,6 +1255,7 @@ export class ReaderView extends ItemView {
           this.settings.media.podcastTheme,
           undefined,
           onEpisodeSelected,
+          this.onPlaybackProgress,
         );
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
       } else {
@@ -845,10 +1304,21 @@ export class ReaderView extends ItemView {
       this.videoPlayer = null;
     }
 
+    const shouldBypassWebViewer = this.shouldBypassWebViewerForFeedContent(
+      item,
+      fullContent,
+    );
     const shouldUseWebViewer =
       Boolean(this.settings.useWebViewer) &&
       Boolean(this.webViewerIntegration) &&
-      !this.shouldBypassWebViewerForFeedContent(item, fullContent);
+      !shouldBypassWebViewer;
+
+    this.debugLogSubstackReaderEntry(
+      item,
+      fullContent,
+      shouldUseWebViewer,
+      shouldBypassWebViewer,
+    );
 
     if (shouldUseWebViewer && this.webViewerIntegration) {
       try {
@@ -873,10 +1343,6 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     fullContent?: string,
   ): boolean {
-    if (!item.link) {
-      return false;
-    }
-
     const feedHtml = (
       fullContent ||
       item.content ||
@@ -891,29 +1357,39 @@ export class ReaderView extends ItemView {
       return true;
     }
 
-    try {
-      const host = new URL(item.link).hostname.toLowerCase();
-      return this.isFeedContentPreferredHost(host);
-    } catch {
-      return false;
-    }
+    return this.prefersFeedContent(item, feedHtml);
   }
 
   private shouldSkipFullArticleFetch(item: FeedItem): boolean {
+    if (this.isVideoMediaItem(item)) {
+      return true;
+    }
+
+    return this.prefersFeedContent(item);
+  }
+
+  private isVideoMediaItem(item: FeedItem): boolean {
+    return isLikelyVideoItem(item);
+  }
+
+  private prefersFeedContent(item: FeedItem, feedHtml?: string): boolean {
     if (this.isTweetLikeItem(item)) {
       return true;
     }
 
-    if (!item.link) {
-      return false;
+    if (item.link) {
+      try {
+        const host = new URL(item.link).hostname.toLowerCase();
+        if (this.isFeedContentPreferredHost(host)) {
+          return true;
+        }
+      } catch {
+        // Fall through to markup-based detection.
+      }
     }
 
-    try {
-      const host = new URL(item.link).hostname.toLowerCase();
-      return this.isFeedContentPreferredHost(host);
-    } catch {
-      return false;
-    }
+    const html = (feedHtml || item.content || item.description || "").trim();
+    return this.hasSubstackRichFeedMarkup(html);
   }
 
   private isFeedContentPreferredHost(host: string): boolean {
@@ -925,6 +1401,17 @@ export class ReaderView extends ItemView {
       host === "substack.com" ||
       host.endsWith(".substack.com") ||
       this.isNitterHost(host)
+    );
+  }
+
+  private hasSubstackRichFeedMarkup(html: string): boolean {
+    if (!html) return false;
+
+    const lower = html.toLowerCase();
+    return (
+      lower.includes('data-component-name="image2todom"') ||
+      lower.includes('class="image-link image2 is-viewable-img"') ||
+      lower.includes("substackcdn.com/image/fetch/")
     );
   }
 
@@ -987,6 +1474,8 @@ export class ReaderView extends ItemView {
     });
 
     const descriptionHtml = (item.description || "").trim();
+    const hasMeaningfulDescription =
+      this.hasMeaningfulFeedDescription(descriptionHtml);
     const mainHtml = (fullContent || item.content || "").trim();
     let fallbackHeroUrl =
       (item.coverImage || "").trim() ||
@@ -1009,9 +1498,10 @@ export class ReaderView extends ItemView {
 
     const hasDistinctMainContent =
       mainHtml !== "" &&
-      (!descriptionHtml || !this.isEquivalentHtml(mainHtml, descriptionHtml));
+      (!hasMeaningfulDescription ||
+        !this.isEquivalentHtml(mainHtml, descriptionHtml));
 
-    if (!isNitter && descriptionHtml && hasDistinctMainContent) {
+    if (!isNitter && hasDistinctMainContent) {
       const descriptionCallout = this.readingContainer.createEl("details", {
         cls: "rss-reader-description-callout",
       });
@@ -1020,17 +1510,21 @@ export class ReaderView extends ItemView {
       const descriptionBody = descriptionCallout.createDiv({
         cls: "rss-reader-description rss-reader-description-body",
       });
-      this.populateArticleHtml(
-        descriptionBody,
-        descriptionHtml,
-        item.link,
-        fallbackHeroUrl,
-        displayTitle,
-        heroSlot,
-        false,
-        false,
-        undefined,
-      );
+      if (hasMeaningfulDescription) {
+        this.populateArticleHtml(
+          descriptionBody,
+          descriptionHtml,
+          item.link,
+          fallbackHeroUrl,
+          displayTitle,
+          heroSlot,
+          false,
+          false,
+          undefined,
+        );
+      } else {
+        descriptionBody.setText(FEED_DESCRIPTION_UNAVAILABLE_TEXT);
+      }
     }
 
     const contentToRender = isNitter
@@ -1057,6 +1551,65 @@ export class ReaderView extends ItemView {
         descriptionHtml,
       );
     }
+
+    if (item.restrictedReason) {
+      this.renderRestrictedBanner(item);
+    } else if (this.shouldRenderVideoSourceBanner(item)) {
+      this.renderVideoSourceBanner(item);
+    }
+  }
+
+  private renderRestrictedBanner(item: FeedItem): void {
+    const banner = this.readingContainer.createDiv({
+      cls: "rss-reader-inline-banner rss-reader-paywall-banner",
+    });
+    const message = banner.createDiv({
+      cls: "rss-reader-paywall-banner-text",
+    });
+    message.setText(
+      item.restrictedReason === RESTRICTED_ARTICLE_REASON
+        ? RESTRICTED_ARTICLE_BANNER
+        : (item.restrictedReason ?? RESTRICTED_ARTICLE_BANNER),
+    );
+
+    if (!item.link) {
+      return;
+    }
+
+    const link = banner.createEl("a", {
+      cls: "rss-reader-paywall-banner-link",
+      text: RESTRICTED_ARTICLE_LINK_TEXT,
+      href: item.link,
+    });
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+  }
+
+  private shouldRenderVideoSourceBanner(item: FeedItem): boolean {
+    return isLikelyVideoItem(item) && !item.videoId && !item.videoUrl;
+  }
+
+  private renderVideoSourceBanner(item: FeedItem): void {
+    const banner = this.readingContainer.createDiv({
+      cls: "rss-reader-inline-banner rss-reader-video-banner",
+    });
+    const message = banner.createDiv({
+      cls: "rss-reader-video-banner-text",
+      text: VIDEO_ARTICLE_BANNER,
+    });
+    message.setAttr("role", "note");
+
+    if (!item.link) {
+      return;
+    }
+
+    const link = banner.createEl("a", {
+      cls: "rss-reader-video-banner-link",
+      text: VIDEO_ARTICLE_LINK_TEXT,
+      href: item.link,
+    });
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
   }
 
   private populateArticleHtml(
@@ -1103,6 +1656,21 @@ export class ReaderView extends ItemView {
         });
       }
 
+      normalizeSubstackImageUrlsInDocument(doc);
+
+      doc.body
+        .querySelectorAll(
+          ".image-link-expand, button.restack-image, button.view-image",
+        )
+        .forEach((el) => el.remove());
+
+      this.debugLogSubstackDomState(
+        "after-normalize",
+        doc,
+        doc.body.innerHTML,
+        fallbackHeroUrl,
+      );
+
       // Clean up fetched full-article HTML before hero extraction so we don't pick
       // navigation icons / breadcrumbs as the hero image.
       if (stripTopHeadline) {
@@ -1125,8 +1693,10 @@ export class ReaderView extends ItemView {
         const firstImg = doc.body.querySelector("img");
 
         if (heroSlot.childElementCount === 0) {
-          let heroUrl = fallbackHeroUrl;
-          const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
+          let heroUrl = normalizeSubstackImageUrl(fallbackHeroUrl);
+          const firstImgSrc = normalizeSubstackImageUrl(
+            firstImg?.getAttribute("src")?.trim() || "",
+          );
           if (!heroUrl && firstImgSrc) {
             heroUrl = firstImgSrc;
           }
@@ -1138,17 +1708,28 @@ export class ReaderView extends ItemView {
             });
 
             // Remove the first image from the body if it's the hero image to avoid duplication
-            if (firstImg && firstImgSrc && firstImgSrc === heroUrl) {
+            if (
+              firstImg &&
+              firstImgSrc &&
+              this.isLikelySameImageSource(firstImgSrc, heroUrl)
+            ) {
               this.removeLeadImageElement(firstImg);
             }
           }
         } else {
           // Hero slot already filled by a previous section (e.g. description)
           // If the current section starts with the same image as the hero image, remove it to avoid duplication
-          const existingHeroSrc =
-            heroSlot.querySelector("img")?.getAttribute("src")?.trim() || "";
-          const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
-          if (existingHeroSrc && firstImg && firstImgSrc === existingHeroSrc) {
+          const existingHeroSrc = normalizeSubstackImageUrl(
+            heroSlot.querySelector("img")?.getAttribute("src")?.trim() || "",
+          );
+          const firstImgSrc = normalizeSubstackImageUrl(
+            firstImg?.getAttribute("src")?.trim() || "",
+          );
+          if (
+            existingHeroSrc &&
+            firstImg &&
+            this.isLikelySameImageSource(firstImgSrc, existingHeroSrc)
+          ) {
             this.removeLeadImageElement(firstImg);
           }
         }
@@ -1188,15 +1769,34 @@ export class ReaderView extends ItemView {
       this.settings.highlights.highlightInContent
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
-      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
+      sanitizeAndAppendHtml(container, html, { mode: "rich" });
       highlightService.highlightElement(container);
     } else {
-      container.innerHTML = html; // eslint-disable-line @microsoft/sdl/no-inner-html
+      sanitizeAndAppendHtml(container, html, { mode: "rich" });
     }
+
+    this.debugLogSubstackDomState(
+      "after-sanitize",
+      container,
+      container.innerHTML,
+      fallbackHeroUrl,
+    );
 
     // Add classes to images for styling
     container.querySelectorAll("img").forEach((img) => {
       img.addClass("rss-reader-responsive-img");
+      img.addEventListener("error", () => {
+        if (this.recoverFailedSubstackImageElement(img)) {
+          console.warn(
+            `[RSS Dashboard] ReaderView recovered Substack img src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""}`,
+          );
+          return;
+        }
+
+        console.error(
+          `[RSS Dashboard] ReaderView img load failed src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""} srcset=${img.getAttribute("srcset") || ""}`,
+        );
+      });
     });
 
     if (isNitter) {
@@ -1204,8 +1804,190 @@ export class ReaderView extends ItemView {
     }
   }
 
+  private recoverFailedSubstackImageElement(img: HTMLImageElement): boolean {
+    if (img.dataset.rssSubstackRecoverAttempted === "true") {
+      return false;
+    }
+
+    const rawSrc = img.getAttribute("src") || "";
+    const currentSrc = img.currentSrc || "";
+    const normalizedCurrentSrc = normalizeSubstackImageUrl(currentSrc);
+    const normalizedRawSrc = normalizeSubstackImageUrl(rawSrc);
+    if (
+      !currentSrc ||
+      ((!normalizedCurrentSrc || normalizedCurrentSrc === currentSrc) &&
+        (!normalizedRawSrc || normalizedRawSrc === currentSrc))
+    ) {
+      return false;
+    }
+
+    img.dataset.rssSubstackRecoverAttempted = "true";
+
+    const picture = img.closest("picture");
+    if (picture) {
+      picture.querySelectorAll("source").forEach((source) => source.remove());
+    }
+
+    const replacement = img.cloneNode(true) as HTMLImageElement;
+    replacement.dataset.rssSubstackRecoverAttempted = "true";
+    replacement.removeAttribute("srcset");
+    replacement.removeAttribute("sizes");
+    const recoverySrc =
+      normalizedCurrentSrc && normalizedCurrentSrc !== currentSrc
+        ? normalizedCurrentSrc
+        : normalizedRawSrc;
+    replacement.setAttribute("src", recoverySrc);
+    img.replaceWith(replacement);
+    return true;
+  }
+
+  private hasMeaningfulFeedDescription(html: string): boolean {
+    if (!html) {
+      return false;
+    }
+
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const text = (doc.body.textContent || "").replace(/\s+/g, " ").trim();
+    if (!text) {
+      return false;
+    }
+
+    return !/^(?:\.{3,}|…+|\[\s*(?:\.{3,}|…+)\s*\])$/.test(text);
+  }
+
   private isNitterHost(host: string): boolean {
     return host.toLowerCase().includes("nitter");
+  }
+
+  private debugLogSubstackReaderEntry(
+    item: FeedItem,
+    fullContent: string | undefined,
+    shouldUseWebViewer: boolean,
+    shouldBypassWebViewer: boolean,
+  ): void {
+    const fieldCounts = {
+      fullContent: this.countRawSubstackFetchUrls(fullContent),
+      content: this.countRawSubstackFetchUrls(item.content),
+      description: this.countRawSubstackFetchUrls(item.description),
+      coverImage: this.countRawSubstackFetchUrls(item.coverImage),
+      image: this.countRawSubstackFetchUrls(item.image),
+    };
+
+    if (!Object.values(fieldCounts).some((count) => count > 0)) {
+      return;
+    }
+
+    console.debug("[RSS Dashboard] ReaderView Substack entry", {
+      title: item.title,
+      link: item.link,
+      guid: item.guid,
+      shouldUseWebViewer,
+      shouldBypassWebViewer,
+      fieldCounts,
+      samples: {
+        fullContent: this.extractFirstRawSubstackFetchUrl(fullContent),
+        content: this.extractFirstRawSubstackFetchUrl(item.content),
+        description: this.extractFirstRawSubstackFetchUrl(item.description),
+        coverImage: this.extractFirstRawSubstackFetchUrl(item.coverImage),
+        image: this.extractFirstRawSubstackFetchUrl(item.image),
+      },
+    });
+  }
+
+  private debugLogSubstackDomState(
+    stage: string,
+    root: Document | HTMLElement,
+    serializedHtml: string,
+    fallbackHeroUrl?: string,
+  ): void {
+    const scopedRoot = root instanceof Document ? root.body : root;
+    const fieldCounts = {
+      serializedHtml: this.countRawSubstackFetchUrls(serializedHtml),
+      fallbackHeroUrl: this.countRawSubstackFetchUrls(fallbackHeroUrl),
+      imgSrc: this.countElementsWithRawSubstackAttr(
+        scopedRoot.querySelectorAll("img[src]"),
+        "src",
+      ),
+      imgSrcset: this.countElementsWithRawSubstackAttr(
+        scopedRoot.querySelectorAll("img[srcset]"),
+        "srcset",
+      ),
+      sourceSrcset: this.countElementsWithRawSubstackAttr(
+        scopedRoot.querySelectorAll("source[srcset]"),
+        "srcset",
+      ),
+      anchorHref: this.countElementsWithRawSubstackAttr(
+        scopedRoot.querySelectorAll("a[href]"),
+        "href",
+      ),
+      inlineStyle: this.countElementsWithRawSubstackAttr(
+        scopedRoot.querySelectorAll("[style]"),
+        "style",
+      ),
+      poster: this.countElementsWithRawSubstackAttr(
+        scopedRoot.querySelectorAll("[poster]"),
+        "poster",
+      ),
+    };
+
+    if (!Object.values(fieldCounts).some((count) => count > 0)) {
+      return;
+    }
+
+    console.debug(`[RSS Dashboard] ReaderView Substack ${stage}`, {
+      fieldCounts,
+      samples: {
+        serializedHtml: this.extractFirstRawSubstackFetchUrl(serializedHtml),
+        fallbackHeroUrl: this.extractFirstRawSubstackFetchUrl(fallbackHeroUrl),
+      },
+    });
+  }
+
+  private countElementsWithRawSubstackAttr(
+    elements: ArrayLike<Element> | Iterable<Element>,
+    attrName: string,
+  ): number {
+    let count = 0;
+    for (const el of Array.from(elements)) {
+      if (this.countRawSubstackFetchUrls(el.getAttribute(attrName)) > 0) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  private countRawSubstackFetchUrls(value: string | null | undefined): number {
+    if (!value) {
+      return 0;
+    }
+
+    return this.countSuspiciousSubstackUrls(value);
+  }
+
+  private extractFirstRawSubstackFetchUrl(
+    value: string | null | undefined,
+  ): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const match = value.match(
+      /https:\/\/substackcdn\.com\/image\/fetch\/[^\s"'<>)]*|https%3A%2F%2Fsubstack-post-media\.s3\.amazonaws\.com[^\s"'<>)]*/i,
+    );
+    return match?.[0]?.slice(0, 240);
+  }
+
+  private countSuspiciousSubstackUrls(
+    value: string | null | undefined,
+  ): number {
+    if (!value) {
+      return 0;
+    }
+
+    const rawFetchMatches = value.match(RAW_SUBSTACK_FETCH_URL_RE)?.length ?? 0;
+    const encodedS3Matches =
+      value.match(ENCODED_SUBSTACK_S3_URL_RE)?.length ?? 0;
+    return rawFetchMatches + encodedS3Matches;
   }
 
   private isTweetLikeItem(item: FeedItem): boolean {
@@ -1404,7 +2186,7 @@ export class ReaderView extends ItemView {
       return (match ? match[1] : "").trim();
     };
 
-    const statsEl = doc.createElement("div");
+    const statsEl = doc.createDiv();
     statsEl.className = "rss-nitter-stats";
 
     const pills: Array<{ key: string; icon: string; count: string }> = [
@@ -1419,15 +2201,15 @@ export class ReaderView extends ItemView {
     ];
 
     for (const pill of pills) {
-      const pillEl = doc.createElement("span");
+      const pillEl = doc.createSpan();
       pillEl.className = "rss-nitter-stat";
       pillEl.setAttribute("data-stat", pill.key);
 
-      const iconEl = doc.createElement("span");
+      const iconEl = doc.createSpan();
       iconEl.className = "rss-nitter-stat-icon";
       iconEl.setAttribute("data-rss-icon", pill.icon);
 
-      const countEl = doc.createElement("span");
+      const countEl = doc.createSpan();
       countEl.className = "rss-nitter-stat-count";
       countEl.textContent = pill.count;
 
@@ -1871,11 +2653,12 @@ export class ReaderView extends ItemView {
   }
 
   private normalizeImageSourceKey(rawUrl: string): string {
-    const fallback = rawUrl.trim().toLowerCase();
+    const normalizedUrl = normalizeSubstackImageUrl(rawUrl);
+    const fallback = normalizedUrl.trim().toLowerCase();
     if (!fallback) return "";
 
     try {
-      const url = new URL(rawUrl, "https://example.invalid");
+      const url = new URL(normalizedUrl, "https://example.invalid");
       const normalizedPath = url.pathname
         .toLowerCase()
         .replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");
@@ -1893,11 +2676,31 @@ export class ReaderView extends ItemView {
   }
 
   private async fetchFullArticleContent(url: string): Promise<string> {
+    if (!url) {
+      this.currentFullContentFailureType = "none";
+      return "";
+    }
+
     const proxyUrl =
       this.settings.corsProxyEnabled && this.settings.corsProxyUrl
         ? this.settings.corsProxyUrl
         : undefined;
-    return fetchWithProxyFallback(url, proxyUrl);
+    const result = await fetchFullArticleContentWithOutcome(url, proxyUrl);
+    this.currentFullContentFailureType = result.failureType;
+    return result.content;
+  }
+
+  private showRestrictedNotice(item: FeedItem): void {
+    if (this.lastRestrictedNoticeGuid === item.guid) {
+      return;
+    }
+
+    new Notice(RESTRICTED_ARTICLE_NOTICE);
+    this.lastRestrictedNoticeGuid = item.guid;
+  }
+
+  private lastFullArticleFetchWasRestricted(): boolean {
+    return this.currentFullContentFailureType === "restricted";
   }
 
   private toggleReadStatus(): void {
@@ -1935,7 +2738,9 @@ export class ReaderView extends ItemView {
       return;
     }
 
-    this.currentItem.tags = this.syncTagColorsWithSettings(this.currentItem.tags);
+    this.currentItem.tags = this.syncTagColorsWithSettings(
+      this.currentItem.tags,
+    );
     this.refreshReaderHeaderTags();
 
     if (this.podcastPlayer && this.currentItem.mediaType === "podcast") {
@@ -2199,13 +3004,7 @@ export class ReaderView extends ItemView {
     this.contentEl.dataset.rssReaderParagraph = format.paragraphSpacing;
   }
 
-  private toggleReaderFormatDropdown(event: MouseEvent): void {
-    event.stopPropagation();
-    const anchor = event.currentTarget;
-    if (!(anchor instanceof HTMLElement)) {
-      return;
-    }
-
+  private toggleReaderFormatDropdown(anchor: HTMLElement): void {
     if (this.readerFormatPortal) {
       this.readerFormatPortal.close(true);
       this.readerFormatPortal = null;
@@ -2214,7 +3013,7 @@ export class ReaderView extends ItemView {
 
     const format = this.getReaderFormat();
     const portal = createReaderFormatPortal({
-      anchor,
+      anchor: anchor,
       format,
       defaults: DEFAULT_SETTINGS.readerFormat,
       applyFormat: () => this.applyReaderFormat(),
@@ -2235,10 +3034,10 @@ export class ReaderView extends ItemView {
 
   private scheduleReaderFormatSave(): void {
     if (this.readerFormatSaveTimeout !== null) {
-      window.clearTimeout(this.readerFormatSaveTimeout);
+      activeWindow.clearTimeout(this.readerFormatSaveTimeout);
     }
 
-    this.readerFormatSaveTimeout = window.setTimeout(() => {
+    this.readerFormatSaveTimeout = activeWindow.setTimeout(() => {
       void this.flushReaderFormatSave();
     }, 300);
   }
@@ -2324,7 +3123,7 @@ export class ReaderView extends ItemView {
 
   private async flushReaderFormatSave(): Promise<void> {
     if (this.readerFormatSaveTimeout !== null) {
-      window.clearTimeout(this.readerFormatSaveTimeout);
+      activeWindow.clearTimeout(this.readerFormatSaveTimeout);
       this.readerFormatSaveTimeout = null;
     }
 
@@ -2450,6 +3249,38 @@ export class ReaderView extends ItemView {
         },
       });
       video.appendText("Your browser does not support the video tag.");
+
+      const reportProgress = (flush = false) => {
+        if (!this.onPlaybackProgress) return;
+        const position = video.currentTime;
+        const duration = Number.isFinite(video.duration) ? video.duration : 0;
+        if (position < 0 || duration <= 0) return;
+        this.onPlaybackProgress(item, position, duration, flush);
+      };
+
+      if (
+        item.playbackProgress?.position &&
+        item.playbackProgress.position > 0
+      ) {
+        video.addEventListener("loadedmetadata", () => {
+          video.currentTime = item.playbackProgress?.position ?? 0;
+        });
+      }
+
+      let lastReportedSecond = -1;
+      video.addEventListener("timeupdate", () => {
+        const wholeSecond = Math.floor(video.currentTime);
+        if (
+          wholeSecond > 0 &&
+          wholeSecond % 5 === 0 &&
+          wholeSecond !== lastReportedSecond
+        ) {
+          lastReportedSecond = wholeSecond;
+          reportProgress();
+        }
+      });
+      video.addEventListener("pause", () => reportProgress(true));
+      video.addEventListener("ended", () => reportProgress(true));
     } else {
       container.createDiv({
         cls: "rss-reader-error",

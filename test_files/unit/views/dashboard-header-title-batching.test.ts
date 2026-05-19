@@ -15,8 +15,7 @@ vi.mock("../../../src/utils/platform-utils", () => ({
 
 vi.mock("../../../src/components/sidebar", () => ({
   Sidebar: class SidebarMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
+    constructor(..._args: unknown[]) {}
     render(): void {
       sidebarRenderSpy();
     }
@@ -27,16 +26,14 @@ vi.mock("../../../src/components/sidebar", () => ({
 
 vi.mock("../../../src/modals/feed-manager-modal", () => ({
   FeedManagerModal: class FeedManagerModalMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
+    constructor(..._args: unknown[]) {}
     open(): void {}
   },
 }));
 
 vi.mock("../../../src/modals/mobile-navigation-modal", () => ({
   MobileNavigationModal: class MobileNavigationModalMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
+    constructor(..._args: unknown[]) {}
     open(): void {}
     close(): void {}
   },
@@ -49,8 +46,7 @@ vi.mock("../../../src/views/reader-view", () => ({
 
 vi.mock("../../../src/services/article-saver", () => ({
   ArticleSaver: class ArticleSaverMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
+    constructor(..._args: unknown[]) {}
   },
 }));
 
@@ -77,20 +73,37 @@ describe("Dashboard header title batching", () => {
       saveSettings: vi.fn(async () => {}),
     };
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin as never);
+    interface RssDashboardViewWithPrivates {
+      schedulePersistDashboardMultiFilters: ReturnType<typeof vi.fn>;
+      getFilteredArticles: ReturnType<typeof vi.fn>;
+      refreshFilterStatusBarOnly: ReturnType<typeof vi.fn>;
+      articleList: {
+        refilter: ReturnType<typeof vi.fn>;
+        updateHeaderTitle: ReturnType<typeof vi.fn>;
+        destroy: ReturnType<typeof vi.fn>;
+      };
+      handleFilterChange: (opts: unknown) => void;
+      sidebar: {
+        clearFolderPathCache: ReturnType<typeof vi.fn>;
+        render: ReturnType<typeof vi.fn>;
+      };
+    }
 
-    (view as any).schedulePersistDashboardMultiFilters = vi.fn();
-    (view as any).getFilteredArticles = vi.fn(() => []);
-    (view as any).refreshFilterStatusBarOnly = vi.fn();
+    const view = new RssDashboardView(leaf, plugin as never) as unknown as RssDashboardViewWithPrivates;
+
+    view.schedulePersistDashboardMultiFilters = vi.fn();
+    view.getFilteredArticles = vi.fn(() => []);
+    view.refreshFilterStatusBarOnly = vi.fn();
 
     const updateHeaderTitle = vi.fn();
-    (view as any).articleList = {
+    view.articleList = {
       refilter: vi.fn(),
       updateHeaderTitle,
+      destroy: vi.fn(),
     };
 
-    (view as any).handleFilterChange({ type: "unread", value: null, checked: true });
-    (view as any).handleFilterChange({ type: "starred", value: null, checked: true });
+    view.handleFilterChange({ type: "unread", value: null, checked: true });
+    view.handleFilterChange({ type: "starred", value: null, checked: true });
 
     // Run the coalesced setTimeout(0)
     await vi.runAllTimersAsync();
@@ -114,21 +127,33 @@ describe("Dashboard header title batching", () => {
       saveSettings: vi.fn(async () => {}),
     };
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin as never);
 
-    (view as any).sidebar = {
+    interface RssDashboardViewWithPrivates {
+      sidebar: {
+        clearFolderPathCache: ReturnType<typeof vi.fn>;
+        render: ReturnType<typeof vi.fn>;
+      };
+      articleList: {
+        destroy: ReturnType<typeof vi.fn>;
+      };
+      refreshSidebarOnly: () => void;
+    }
+
+    const view = new RssDashboardView(leaf, plugin as never) as unknown as RssDashboardViewWithPrivates;
+
+    view.sidebar = {
       clearFolderPathCache: vi.fn(),
       render: sidebarRenderSpy,
     };
-    (view as any).articleList = {
+    view.articleList = {
       destroy: vi.fn(),
     };
 
     view.refreshSidebarOnly();
 
-    expect((view as any).sidebar.clearFolderPathCache).toHaveBeenCalledTimes(1);
+    expect(view.sidebar.clearFolderPathCache).toHaveBeenCalledTimes(1);
     expect(sidebarRenderSpy).toHaveBeenCalledTimes(1);
-    expect((view as any).articleList.destroy).not.toHaveBeenCalled();
+    expect(view.articleList.destroy).not.toHaveBeenCalled();
   });
 });
 

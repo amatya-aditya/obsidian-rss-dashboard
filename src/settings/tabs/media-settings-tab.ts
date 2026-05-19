@@ -14,6 +14,20 @@ export function renderMediaSettingsTab(
   containerEl: HTMLElement,
   plugin: RssDashboardPlugin,
 ): void {
+  new Setting(containerEl)
+    .setName("Auto-tag videos")
+    .setDesc(
+      "Automatically apply the configured video tag to detected video items",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.media.autoTagVideos ?? true)
+        .onChange(async (value) => {
+          plugin.settings.media.autoTagVideos = value;
+          await plugin.saveSettings();
+        }),
+    );
+
   // ── YouTube ───────────────────────────────────────────────────────────────
   new Setting(containerEl).setName("YouTube").setHeading();
 
@@ -24,7 +38,8 @@ export function renderMediaSettingsTab(
       text
         .setValue(plugin.settings.media.defaultYouTubeFolder || "YouTube")
         .onChange(async (value) => {
-          plugin.settings.media.defaultYouTubeFolder = normalizePath(value);
+          const nextValue = typeof value === "string" ? value : "";
+          plugin.settings.media.defaultYouTubeFolder = normalizePath(nextValue);
           await plugin.saveSettings();
         });
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
@@ -32,26 +47,38 @@ export function renderMediaSettingsTab(
 
   new Setting(containerEl)
     .setName("Default YouTube tag")
-    .setDesc("Default tag for YouTube videos")
-    .addText((text) =>
-      text
-        .setValue(plugin.settings.media.defaultYouTubeTag || "youtube")
-        .onChange(async (value) => {
-          plugin.settings.media.defaultYouTubeTag = value;
-          await plugin.saveSettings();
-        }),
-    );
-  
+    .setDesc("Tag used for auto-tagged video content")
+    .addText((text) => {
+      const currentTag = (
+        plugin.settings.media as unknown as Record<string, unknown>
+      ).defaultYouTubeTag;
+      const initialValue =
+        typeof currentTag === "string" && currentTag.trim().length > 0
+          ? currentTag
+          : "Video";
+
+      text.setValue(initialValue).onChange(async (value) => {
+        const nextValue =
+          typeof value === "string" && value.trim().length > 0
+            ? value.trim()
+            : "Video";
+        plugin.settings.media.defaultYouTubeTag = nextValue;
+        await plugin.saveSettings();
+      });
+    });
+
   // Policy Compliance: YouTube TOS and Privacy disclosure
   const complianceInfo = containerEl.createDiv({
     cls: "rss-settings-compliance-info",
   });
-  complianceInfo.createEl("p", {
-    text: "This plugin uses the YouTube IFrame API for video playback. By using this feature, you agree to be bound by the ",
-  }).createEl("a", {
-    href: "https://www.youtube.com/t/terms",
-    text: "YouTube Terms of Service",
-  });
+  complianceInfo
+    .createEl("p", {
+      text: "This plugin uses the YouTube IFrame API for video playback. By using this feature, you agree to be bound by the ",
+    })
+    .createEl("a", {
+      href: "https://www.youtube.com/t/terms",
+      text: "YouTube Terms of Service",
+    });
   complianceInfo.createEl("p", {
     cls: "setting-item-description",
     text: "Playback progress for videos and podcasts is stored locally in your vault's data.json file.",
@@ -67,7 +94,8 @@ export function renderMediaSettingsTab(
       text
         .setValue(plugin.settings.media.defaultPodcastFolder || "Podcast")
         .onChange(async (value) => {
-          plugin.settings.media.defaultPodcastFolder = normalizePath(value);
+          const nextValue = typeof value === "string" ? value : "";
+          plugin.settings.media.defaultPodcastFolder = normalizePath(nextValue);
           await plugin.saveSettings();
         });
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
@@ -95,7 +123,8 @@ export function renderMediaSettingsTab(
       text
         .setValue(plugin.settings.media.defaultRssFolder || "RSS")
         .onChange(async (value) => {
-          plugin.settings.media.defaultRssFolder = normalizePath(value);
+          const nextValue = typeof value === "string" ? value : "";
+          plugin.settings.media.defaultRssFolder = normalizePath(nextValue);
           await plugin.saveSettings();
         });
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
@@ -123,7 +152,9 @@ export function renderMediaSettingsTab(
       text
         .setValue(plugin.settings.media.defaultSmallwebFolder || "Smallweb")
         .onChange(async (value) => {
-          plugin.settings.media.defaultSmallwebFolder = normalizePath(value);
+          const nextValue = typeof value === "string" ? value : "";
+          plugin.settings.media.defaultSmallwebFolder =
+            normalizePath(nextValue);
           await plugin.saveSettings();
         });
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);

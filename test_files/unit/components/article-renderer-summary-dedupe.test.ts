@@ -10,14 +10,15 @@
  * Control tests (marked with "CONTROL:") must PASS both before and after.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import { ArticleRenderer } from "../../../src/components/article-renderer";
 import {
-  FeedItem,
-  RssDashboardSettings,
+  type FeedItem,
+  type RssDashboardSettings,
   DEFAULT_SETTINGS,
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import * as obsidian from "obsidian";
 
 installObsidianDomPolyfills();
 
@@ -41,28 +42,33 @@ function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
   };
 }
 
+interface ArticleRendererWithPrivate {
+  render(container: HTMLElement, item: FeedItem): Promise<void>;
+  fetchFullArticleContent: Mock<(url?: string) => Promise<string>>;
+}
+
 describe("ArticleRenderer – summary de-duplication", () => {
-  let renderer: any;
+  let renderer: ArticleRenderer;
   let container: HTMLElement;
 
   beforeEach(() => {
     const mockApp = {
       workspace: { getLeavesOfType: vi.fn().mockReturnValue([]) },
       vault: { getAbstractFileByPath: vi.fn() },
-    };
+    } as unknown as obsidian.App;
 
     renderer = new ArticleRenderer({
-      app: mockApp as any,
+      app: mockApp,
       settings: { ...DEFAULT_SETTINGS } as RssDashboardSettings,
       onArticleSave: vi.fn(),
       onArticleUpdate: vi.fn(),
     });
 
     // Prevent outbound HTTP — content comes from item fields only
-    (renderer as any).fetchFullArticleContent = vi.fn().mockResolvedValue("");
+    const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
+    rendererInternal.fetchFullArticleContent = vi.fn().mockResolvedValue("");
 
-    container = document.createElement("div");
-    document.body.appendChild(container);
+    container = document.body.appendChild(document.createElement("div"));
   });
 
   // ------------------------------------------------------------------ RED ---
@@ -128,19 +134,20 @@ describe("ArticleRenderer – summary de-duplication", () => {
       link: "https://arstechnica.com/tech-policy/2026/04/example/",
     });
 
-    (renderer as any).fetchFullArticleContent = vi
+    const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
+    rendererInternal.fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue(fetchedHtml);
 
     await renderer.render(container, item);
 
     const callout = container.querySelector(".rss-reader-description-callout");
-    const heroImg = container.querySelector(
+    const heroImg = container.querySelector<HTMLImageElement>(
       ".rss-reader-hero-slot img",
-    ) as HTMLImageElement | null;
-    const body = container.querySelector(
+    );
+    const body = container.querySelector<HTMLElement>(
       ".rss-reader-article-content",
-    ) as HTMLElement | null;
+    );
 
     expect(callout).toBeTruthy();
     expect(heroImg).toBeTruthy();
@@ -166,6 +173,50 @@ describe("ArticleRenderer – summary de-duplication", () => {
     const body = container.querySelector(".rss-reader-article-content");
     expect(callout).toBeTruthy();
     expect(body).toBeTruthy();
+  });
+
+  it("shows a placeholder in the feed description callout when the description is missing", async () => {
+    const item = makeItem({
+      description: "",
+      content: "<p>Extended body paragraph that should still render in the article body.</p>",
+    });
+
+    await renderer.render(container, item);
+
+    const callout = container.querySelector<HTMLElement>(
+      ".rss-reader-description-callout",
+    );
+    const descriptionBody = container.querySelector<HTMLElement>(
+      ".rss-reader-description-body",
+    );
+    const body = container.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
+
+    expect(callout).toBeTruthy();
+    expect(descriptionBody?.textContent || "").toContain(
+      "No feed description available.",
+    );
+    expect(body?.textContent || "").toContain(
+      "Extended body paragraph that should still render in the article body.",
+    );
+  });
+
+  it("shows the placeholder when the feed description is only an ellipsis placeholder", async () => {
+    const item = makeItem({
+      description: "<p>...</p>",
+      content: "<p>Extended body paragraph that should still render in the article body.</p>",
+    });
+
+    await renderer.render(container, item);
+
+    const descriptionBody = container.querySelector<HTMLElement>(
+      ".rss-reader-description-body",
+    );
+
+    expect(descriptionBody?.textContent || "").toContain(
+      "No feed description available.",
+    );
   });
 
   it("CONTROL: renders only body (no callout) when description and content are byte-identical", async () => {
@@ -224,13 +275,14 @@ describe("ArticleRenderer – summary de-duplication", () => {
       link: "https://arstechnica.com/ai/2026/04/google-unveils-two-new-tpus-designed-for-the-agentic-era/",
     });
 
-    (renderer as any).fetchFullArticleContent = vi
+    const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
+    rendererInternal.fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue(fetchedHtml);
 
     await renderer.render(container, item);
 
-    const body = container.querySelector(
+    const body = container.querySelector<HTMLElement>(
       ".rss-reader-article-content",
     ) as HTMLElement;
     const callout = container.querySelector(".rss-reader-description-callout");
@@ -245,5 +297,206 @@ describe("ArticleRenderer – summary de-duplication", () => {
       "Most of the companies that have fully committed",
     );
     expect(callout).toBeTruthy();
+  });
+
+  it("keeps Substack picture media renderable by dropping comma-rich srcset URLs in article bodies", async () => {
+    const longTailText =
+      "Additional article context follows after the image with enough prose to satisfy the meaningful-content threshold used by the renderer. ".repeat(
+        3,
+      );
+    const fetchedHtml = `
+      <article>
+        <p>Lead-in text before image.</p>
+        <div class="captioned-image-container">
+          <figure>
+            <div class="image2-inset">
+              <picture>
+                <source
+                  type="image/webp"
+                  srcset="https://substackcdn.com/image/fetch/$s_!hPfO!,w_424,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 424w, https://substackcdn.com/image/fetch/$s_!hPfO!,w_848,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 848w"
+                  sizes="100vw"
+                >
+                <img
+                  src="https://substackcdn.com/image/fetch/$s_!hPfO!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png"
+                  srcset="https://substackcdn.com/image/fetch/$s_!hPfO!,w_424,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 424w, https://substackcdn.com/image/fetch/$s_!hPfO!,w_848,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 848w"
+                  sizes="100vw"
+                  alt="Substack example"
+                />
+              </picture>
+              <div class="image-link-expand">
+                <button type="button" class="pencraft pc-reset pencraft icon-container restack-image"></button>
+                <button type="button" class="pencraft pc-reset pencraft icon-container view-image"></button>
+              </div>
+            </div>
+          </figure>
+        </div>
+        <p>Body text after image.</p>
+        <p>${longTailText}</p>
+      </article>
+    `;
+
+    const item = makeItem({
+      title: "Substack media article",
+      description: "",
+      content: "",
+      coverImage: "https://example.com/cover-image.jpg",
+      link: "https://www.astralcodexten.com/p/the-sigmoids-wont-save-you",
+    });
+
+    const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
+    rendererInternal.fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(fetchedHtml);
+
+    await renderer.render(container, item);
+
+    const body = container.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
+    const source = body?.querySelector("source");
+    const img = body?.querySelector("img[alt='Substack example']");
+    const decodedUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png";
+
+    expect(body?.textContent || "").toContain("Lead-in text before image.");
+    expect(body?.textContent || "").toContain("Body text after image.");
+    expect(source?.getAttribute("srcset")).toContain(decodedUrl);
+    expect(source?.getAttribute("srcset") || "").not.toContain(
+      "substackcdn.com/image/fetch/",
+    );
+    expect(img?.getAttribute("srcset")).toContain(decodedUrl);
+    expect(img?.getAttribute("srcset") || "").not.toContain(
+      "substackcdn.com/image/fetch/",
+    );
+    expect(img?.getAttribute("src")).toBe(decodedUrl);
+    expect(body?.querySelector(".image-link-expand")).toBeNull();
+    expect(body?.querySelector("button.restack-image")).toBeNull();
+    expect(body?.querySelector("button.view-image")).toBeNull();
+  });
+
+  it("preserves non-duplicate early Substack image blocks before the first substantial paragraph", async () => {
+    const heroUrl =
+      "https://substackcdn.com/image/fetch/$s_!hero!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fhero_1024x562.png";
+    const firstBodyImageUrl =
+      "https://substackcdn.com/image/fetch/$s_!hPfO!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png";
+    const secondBodyImageUrl =
+      "https://substackcdn.com/image/fetch/$s_!YDr_!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png";
+    const decodedHeroUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/hero_1024x562.png";
+    const decodedFirstBodyImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png";
+    const decodedSecondBodyImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png";
+    const longParagraph =
+      "This longer paragraph represents the first substantial block of article text after a sequence of short intro paragraphs and image blocks. ".repeat(
+        4,
+      );
+
+    const fetchedHtml = `
+      <article>
+        <p>Short intro paragraph before the first image.</p>
+        <div class="captioned-image-container">
+          <figure>
+            <div class="image2-inset">
+              <picture>
+                <img src="${firstBodyImageUrl}" alt="First body image" />
+              </picture>
+            </div>
+          </figure>
+        </div>
+        <p>Another short paragraph before the second image.</p>
+        <div class="captioned-image-container">
+          <figure>
+            <div class="image2-inset">
+              <picture>
+                <img src="${secondBodyImageUrl}" alt="Second body image" />
+              </picture>
+            </div>
+          </figure>
+        </div>
+        <p>${longParagraph}</p>
+      </article>
+    `;
+
+    const item = makeItem({
+      title: "Astral Codex style lead media",
+      description: "",
+      content: "",
+      coverImage: heroUrl,
+      link: "https://www.astralcodexten.com/p/the-sigmoids-wont-save-you",
+    });
+
+    const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
+    rendererInternal.fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(fetchedHtml);
+
+    await renderer.render(container, item);
+
+    const body = container.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
+    const heroImg = container.querySelector<HTMLImageElement>(
+      ".rss-reader-hero-slot img",
+    );
+
+    expect(heroImg?.getAttribute("src")).toBe(decodedHeroUrl);
+    expect(
+      body?.querySelector(`img[src="${decodedFirstBodyImageUrl}"]`),
+    ).toBeTruthy();
+    expect(
+      body?.querySelector(`img[src="${decodedSecondBodyImageUrl}"]`),
+    ).toBeTruthy();
+    expect(body?.textContent || "").toContain("first substantial block");
+  });
+
+  it("prefers feed content for custom-domain Substack items and skips full-article fetch", async () => {
+    const feedImageUrl =
+      "https://substackcdn.com/image/fetch/$s_!hPfO!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png";
+    const decodedFeedImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png";
+    const feedHtml = `
+      <p>Feed article intro.</p>
+      <div class="captioned-image-container">
+        <figure>
+          <a class="image-link image2 is-viewable-img" href="${feedImageUrl}" data-component-name="Image2ToDOM">
+            <div class="image2-inset">
+              <picture>
+                <img src="${feedImageUrl}" alt="Feed image" />
+              </picture>
+            </div>
+          </a>
+        </figure>
+      </div>
+      <p>${"Longer feed body text that should remain in the rendered article. ".repeat(5)}</p>
+    `;
+
+    const item = makeItem({
+      title: "Astral Codex custom-domain item",
+      link: "https://www.astralcodexten.com/p/the-sigmoids-wont-save-you",
+      feedUrl: "https://www.astralcodexten.com/feed",
+      description: "<p>Short summary.</p>",
+      content: feedHtml,
+    });
+
+    const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
+    rendererInternal.fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue("<p>Fetched content that should not be used.</p>");
+
+    await renderer.render(container, item);
+
+    const body = container.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
+
+    expect(rendererInternal.fetchFullArticleContent).not.toHaveBeenCalled();
+    expect(body?.textContent || "").toContain("Feed article intro.");
+    expect(
+      container.querySelector(`img[src="${decodedFeedImageUrl}"]`),
+    ).toBeTruthy();
+    expect(body?.textContent || "").not.toContain(
+      "Fetched content that should not be used.",
+    );
   });
 });

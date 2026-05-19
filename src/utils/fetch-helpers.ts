@@ -1,6 +1,9 @@
 import { Readability } from "@mozilla/readability";
-import { Notice } from "obsidian";
-import { robustFetch, ensureUtf8Meta } from "./platform-utils";
+import {
+  robustFetch,
+  robustFetchDetailed,
+  ensureUtf8Meta,
+} from "./platform-utils";
 
 /** Markers that indicate the page is a WAF/bot-challenge block rather than real content. */
 const BLOCKED_MARKERS = [
@@ -11,7 +14,33 @@ const BLOCKED_MARKERS = [
   "access denied",
   "403 forbidden",
   "enable javascript and cookies",
+  "paywall",
+  "subscription required",
+  "subscribe to continue",
+  "401 unauthorized",
 ];
+
+const RESTRICTED_MARKERS = [
+  "401",
+  "403",
+  "forbidden",
+  "access denied",
+  "paywall",
+  "subscription required",
+  "subscribe to continue",
+  "unauthorized",
+];
+
+export type FullArticleFetchFailureType = "none" | "restricted" | "network";
+
+export interface FullArticleFetchResult {
+  content: string;
+  failureType: FullArticleFetchFailureType;
+}
+
+function isRestrictedStatus(status: number | undefined): boolean {
+  return status === 401 || status === 403;
+}
 
 /**
  * Returns true when the fetched HTML looks like a WAF/bot-challenge block
@@ -25,6 +54,12 @@ export function isBlockedResponse(html: string): boolean {
   }
   const lower = html.toLowerCase();
   return BLOCKED_MARKERS.some((marker) => lower.includes(marker));
+}
+
+export function isRestrictedSignal(input: string): boolean {
+  if (!input) return false;
+  const lower = input.toLowerCase();
+  return RESTRICTED_MARKERS.some((marker) => lower.includes(marker));
 }
 
 const DEFAULT_HEADERS: Record<string, string> = {
@@ -54,6 +89,113 @@ export async function fetchAndParse(
   return article?.content ?? "";
 }
 
+function parseArticleContent(html: string): string {
+  const withMeta = ensureUtf8Meta(html);
+  const doc = new DOMParser().parseFromString(withMeta, "text/html");
+  const article = new Readability(doc).parse();
+  return article?.content ?? "";
+}
+
+/**
+ * Fetches article content with a direct request and optional proxy fallback.
+ * Returns a structured result so callers can distinguish restricted pages
+ * from generic network/system failures.
+ */
+export async function fetchWithProxyFallbackDetailed(
+  url: string,
+  proxyUrl?: string,
+): Promise<FullArticleFetchResult> {
+  try {
+    // 1. Direct fetch
+    const directResponse = await robustFetchDetailed(url, {
+      headers: DEFAULT_HEADERS,
+    });
+    const directHtml = directResponse.text;
+    const directBlocked =
+      isBlockedResponse(directHtml) || isRestrictedStatus(directResponse.status);
+
+    if (!directBlocked) {
+      console.debug(
+        `[RSS Dashboard] Direct fetch succeeded for ${url} (${directHtml.length} chars).`,
+      );
+      return { content: parseArticleContent(directHtml), failureType: "none" };
+    }
+
+    const directRestricted =
+      isRestrictedStatus(directResponse.status) ||
+      isRestrictedSignal(directHtml);
+    console.warn(
+      `[RSS Dashboard] Direct fetch returned blocked/empty response for ${url} (${directHtml?.length ?? 0} chars). Attempting proxy...`,
+    );
+
+    // 2. Proxy fallback (silent, logs only)
+    if (!proxyUrl || proxyUrl.trim() === "") {
+      console.warn(
+        "[RSS Dashboard] No CORS proxy configured. Cannot retry blocked fetch.",
+      );
+      return {
+        content: "",
+        failureType: directRestricted ? "restricted" : "network",
+      };
+    }
+
+    const proxyTarget =
+      proxyUrl.trim().replace(/\/$/, "") + encodeURIComponent(url);
+
+    const proxyResponse = await robustFetchDetailed(proxyTarget, {
+      headers: DEFAULT_HEADERS,
+    });
+    const proxyHtml = proxyResponse.text;
+
+    if (
+      !proxyHtml ||
+      isBlockedResponse(proxyHtml) ||
+      isRestrictedStatus(proxyResponse.status)
+    ) {
+      const proxyRestricted =
+        isRestrictedStatus(proxyResponse.status) ||
+        isRestrictedSignal(proxyHtml || "");
+      console.warn(
+        `[RSS Dashboard] Proxy fetch also returned blocked/empty response for ${url}.`,
+      );
+      return {
+        content: "",
+        failureType:
+          directRestricted || proxyRestricted ? "restricted" : "network",
+      };
+    }
+
+    console.debug(
+      `[RSS Dashboard] Proxy fetch succeeded for ${url} (${proxyHtml.length} chars).`,
+    );
+    return { content: parseArticleContent(proxyHtml), failureType: "none" };
+  } catch (e: unknown) {
+    const error = e as {
+      message?: string;
+      status?: number;
+      statusCode?: number;
+      response?: { status?: number };
+    };
+    const msg = e instanceof Error ? e.message : String(e);
+    const status =
+      error?.status ?? error?.statusCode ?? error?.response?.status ?? 0;
+    const restricted = isRestrictedStatus(status) || isRestrictedSignal(msg);
+    const logMessage = restricted
+      ? `[RSS Dashboard] Restricted article fetch blocked (${status || "no-status"}): ${msg}`
+      : `[RSS Dashboard] fetchWithProxyFallback error: ${msg}`;
+
+    if (restricted) {
+      console.warn(logMessage);
+    } else {
+      console.error(logMessage);
+    }
+    return {
+      content: "",
+      failureType: restricted ? "restricted" : "network",
+    };
+  }
+}
+
 /**
  * Orchestrates the full fetch-with-proxy-fallback flow:
  *
@@ -65,65 +207,6 @@ export async function fetchWithProxyFallback(
   url: string,
   proxyUrl?: string,
 ): Promise<string> {
-  try {
-    // 1. Direct fetch
-    const directHtml = await robustFetch(url, { headers: DEFAULT_HEADERS });
-    const blocked = isBlockedResponse(directHtml);
-
-    if (!blocked) {
-      console.debug(
-        `[RSS Dashboard] Direct fetch succeeded for ${url} (${directHtml.length} chars).`,
-      );
-      const withMeta = ensureUtf8Meta(directHtml);
-      const doc = new DOMParser().parseFromString(withMeta, "text/html");
-      const article = new Readability(doc).parse();
-      return article?.content ?? "";
-    }
-
-    const logMsg = `[RSS Dashboard] Direct fetch returned blocked/empty response for ${url} (${directHtml?.length ?? 0} chars). Attempting proxy...`;
-    console.warn(logMsg);
-    new Notice(`Fetch blocked (${directHtml?.length ?? 0} chars), retrying via proxy`, 5000);
-
-    // 2. Proxy fallback
-    if (!proxyUrl || proxyUrl.trim() === "") {
-      const msg =
-        "[RSS Dashboard] No CORS proxy configured. Cannot retry blocked fetch.";
-      console.warn(msg);
-      new Notice("No proxy configured in settings", 5000);
-      return "";
-    }
-
-    const proxyTarget =
-      proxyUrl.trim().replace(/\/$/, "") + encodeURIComponent(url);
-    new Notice(`Calling proxy: ${proxyTarget.substring(0, 50)}`, 3000);
-
-    const proxyHtml = await robustFetch(proxyTarget, {
-      headers: DEFAULT_HEADERS,
-    });
-
-    if (!proxyHtml || isBlockedResponse(proxyHtml)) {
-      const msg = `[RSS Dashboard] Proxy fetch also returned blocked/empty response for ${url}.`;
-      console.warn(msg);
-      new Notice(`Proxy fetch failed or was also blocked (${proxyHtml?.length ?? 0} chars)`, 5000);
-      return "";
-    }
-
-    console.debug(
-      `[RSS Dashboard] Proxy fetch succeeded for ${url} (${proxyHtml.length} chars).`,
-    );
-    new Notice(`Proxy fetch succeeded (${proxyHtml.length} chars)`, 3000);
-
-    const withMeta = ensureUtf8Meta(proxyHtml);
-    const doc = new DOMParser().parseFromString(withMeta, "text/html");
-    const article = new Readability(doc).parse();
-    return article?.content ?? "";
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    const errorMsg = `[RSS Dashboard] fetchWithProxyFallback error: ${msg}`;
-
-    console.error(errorMsg);
-    new Notice(`Network error: ${msg}`, 5000);
-    return "";
-  }
+  const result = await fetchWithProxyFallbackDetailed(url, proxyUrl);
+  return result.content;
 }
-

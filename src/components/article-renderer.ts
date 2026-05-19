@@ -1,10 +1,27 @@
 import { App, setIcon, TFile } from "obsidian";
+import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { FeedItem, RssDashboardSettings } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
 import { MediaService } from "../services/media-service";
-import { fetchWithProxyFallback } from "../utils/fetch-helpers";
+import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
+import {
+  fetchFullArticleContentWithOutcome,
+  RESTRICTED_ARTICLE_BANNER,
+  RESTRICTED_ARTICLE_LINK_TEXT,
+  RESTRICTED_ARTICLE_REASON,
+} from "../utils/full-article-fetch";
+import { isLikelyVideoItem } from "../utils/video-detection";
+import {
+  normalizeSubstackImageUrl,
+  normalizeSubstackImageUrlsInDocument,
+} from "../utils/substack-image-url";
 import { PodcastPlayer } from "../views/podcast-player";
 import { VideoPlayer } from "../views/video-player";
+
+const VIDEO_ARTICLE_BANNER =
+  "This item appears to be a video. Open the source page to watch.";
+const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
+const FEED_DESCRIPTION_UNAVAILABLE_TEXT = "No feed description available.";
 
 export interface ArticleRendererOptions {
   app: App;
@@ -20,6 +37,7 @@ export interface ArticleRendererOptions {
     item: FeedItem,
     position: number,
     duration: number,
+    flush?: boolean,
   ) => void;
 }
 
@@ -37,6 +55,7 @@ export class ArticleRenderer {
     item: FeedItem,
     position: number,
     duration: number,
+    flush?: boolean,
   ) => void;
 
   private podcastPlayer: PodcastPlayer | null = null;
@@ -47,6 +66,8 @@ export class ArticleRenderer {
   private currentDisplayTitle?: string;
   private currentReaderTitle?: string;
   private currentContentIsFullArticle = false;
+  private currentFullContentFailureType: FullArticleFetchFailureType = "none";
+  private lastRestrictedNoticeGuid: string | null = null;
 
   constructor(options: ArticleRendererOptions) {
     this.app = options.app;
@@ -62,6 +83,10 @@ export class ArticleRenderer {
     item: FeedItem,
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
+    if (this.currentItem?.guid !== item.guid) {
+      this.lastRestrictedNoticeGuid = null;
+    }
+
     container.empty();
     this.currentItem = item;
     this.relatedItems = relatedItems;
@@ -70,6 +95,7 @@ export class ArticleRenderer {
       ? this.formatNitterReaderTitle(item)
       : undefined;
     this.currentContentIsFullArticle = false;
+    this.currentFullContentFailureType = "none";
 
     if (item.mediaType === "video" && !item.videoId && item.link) {
       const vid = MediaService.extractYouTubeVideoId(item.link);
@@ -95,6 +121,14 @@ export class ArticleRenderer {
         : await this.fetchFullArticleContent(item.link);
       const hasFullArticleContent =
         this.hasMeaningfulArticleContent(fetchedContent);
+
+      if (hasFullArticleContent) {
+        item.restrictedReason = undefined;
+      } else if (this.lastFullArticleFetchWasRestricted()) {
+        item.restrictedReason = RESTRICTED_ARTICLE_REASON;
+        this.showRestrictedNotice(item);
+      }
+
       const displayTitle = hasFullArticleContent
         ? this.extractDisplayTitleFromHtml(fetchedContent)
         : null;
@@ -250,12 +284,13 @@ export class ArticleRenderer {
         tagElement.style.setProperty("--tag-color", tag.color);
       }
     }
-
     const heroSlot = container.createDiv({
       cls: "rss-reader-hero-slot",
     });
 
     const descriptionHtml = (item.description || "").trim();
+    const hasMeaningfulDescription =
+      this.hasMeaningfulFeedDescription(descriptionHtml);
     const mainHtml = (fullContent || item.content || "").trim();
     let fallbackHeroUrl =
       (item.coverImage || "").trim() ||
@@ -265,9 +300,10 @@ export class ArticleRenderer {
 
     const hasDistinctMainContent =
       mainHtml !== "" &&
-      (!descriptionHtml || !this.isEquivalentHtml(mainHtml, descriptionHtml));
+      (!hasMeaningfulDescription ||
+        !this.isEquivalentHtml(mainHtml, descriptionHtml));
 
-    if (!isNitter && descriptionHtml && hasDistinctMainContent) {
+    if (!isNitter && hasDistinctMainContent) {
       const descriptionCallout = container.createEl("details", {
         cls: "rss-reader-description-callout",
       });
@@ -276,17 +312,21 @@ export class ArticleRenderer {
       const descriptionBody = descriptionCallout.createDiv({
         cls: "rss-reader-description rss-reader-description-body",
       });
-      this.populateArticleHtml(
-        descriptionBody,
-        descriptionHtml,
-        item.link,
-        fallbackHeroUrl,
-        displayTitle,
-        heroSlot,
-        false,
-        false,
-        undefined,
-      );
+      if (hasMeaningfulDescription) {
+        this.populateArticleHtml(
+          descriptionBody,
+          descriptionHtml,
+          item.link,
+          fallbackHeroUrl,
+          displayTitle,
+          heroSlot,
+          false,
+          false,
+          undefined,
+        );
+      } else {
+        descriptionBody.setText(FEED_DESCRIPTION_UNAVAILABLE_TEXT);
+      }
     }
 
     const contentToRender = isNitter
@@ -313,6 +353,68 @@ export class ArticleRenderer {
         descriptionHtml,
       );
     }
+
+    if (item.restrictedReason) {
+      this.renderRestrictedBanner(container, item);
+    } else if (this.shouldRenderVideoSourceBanner(item)) {
+      this.renderVideoSourceBanner(container, item);
+    }
+  }
+
+  private renderRestrictedBanner(container: HTMLElement, item: FeedItem): void {
+    const banner = container.createDiv({
+      cls: "rss-reader-inline-banner rss-reader-paywall-banner",
+    });
+    const message = banner.createDiv({
+      cls: "rss-reader-paywall-banner-text",
+    });
+    message.setText(
+      item.restrictedReason === RESTRICTED_ARTICLE_REASON
+        ? RESTRICTED_ARTICLE_BANNER
+        : (item.restrictedReason ?? RESTRICTED_ARTICLE_BANNER),
+    );
+
+    if (!item.link) {
+      return;
+    }
+
+    const link = banner.createEl("a", {
+      cls: "rss-reader-paywall-banner-link",
+      text: RESTRICTED_ARTICLE_LINK_TEXT,
+      href: item.link,
+    });
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+  }
+
+  private shouldRenderVideoSourceBanner(item: FeedItem): boolean {
+    return isLikelyVideoItem(item) && !item.videoId && !item.videoUrl;
+  }
+
+  private renderVideoSourceBanner(
+    container: HTMLElement,
+    item: FeedItem,
+  ): void {
+    const banner = container.createDiv({
+      cls: "rss-reader-inline-banner rss-reader-video-banner",
+    });
+    const message = banner.createDiv({
+      cls: "rss-reader-video-banner-text",
+      text: VIDEO_ARTICLE_BANNER,
+    });
+    message.setAttr("role", "note");
+
+    if (!item.link) {
+      return;
+    }
+
+    const link = banner.createEl("a", {
+      cls: "rss-reader-video-banner-link",
+      text: VIDEO_ARTICLE_LINK_TEXT,
+      href: item.link,
+    });
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
   }
 
   private populateArticleHtml(
@@ -356,6 +458,14 @@ export class ArticleRenderer {
         });
       }
 
+      normalizeSubstackImageUrlsInDocument(doc);
+
+      doc.body
+        .querySelectorAll(
+          ".image-link-expand, button.restack-image, button.view-image",
+        )
+        .forEach((el) => el.remove());
+
       if (stripTopHeadline) {
         this.stripNavigationChromeFromDocument(doc);
         this.stripTopHeadlineFromDocument(doc);
@@ -374,15 +484,21 @@ export class ArticleRenderer {
       if (heroSlot) {
         const firstImg = doc.body.querySelector("img");
         if (heroSlot.childElementCount === 0) {
-          let heroUrl = fallbackHeroUrl;
-          const firstImgSrc = firstImg?.getAttribute("src")?.trim() || "";
+          let heroUrl = normalizeSubstackImageUrl(fallbackHeroUrl);
+          const firstImgSrc = normalizeSubstackImageUrl(
+            firstImg?.getAttribute("src")?.trim() || "",
+          );
           if (!heroUrl && firstImgSrc) heroUrl = firstImgSrc;
           if (heroUrl) {
             heroSlot.createEl("img", {
               cls: "rss-reader-fallback-hero",
               attr: { src: heroUrl, alt: title || "Hero image" },
             });
-            if (firstImg && firstImgSrc && firstImgSrc === heroUrl) {
+            if (
+              firstImg &&
+              firstImgSrc &&
+              this.isLikelySameImageSource(firstImgSrc, heroUrl)
+            ) {
               this.removeLeadImageElement(firstImg);
             }
           }
@@ -412,18 +528,79 @@ export class ArticleRenderer {
       this.settings.highlights.highlightInContent
     ) {
       const highlightService = new HighlightService(this.settings.highlights);
-      // eslint-disable-next-line @microsoft/sdl/no-inner-html
-      container.innerHTML = html;
+      sanitizeAndAppendHtml(container, html, { mode: "rich" });
       highlightService.highlightElement(container);
     } else {
-      // eslint-disable-next-line @microsoft/sdl/no-inner-html
-      container.innerHTML = html;
+      sanitizeAndAppendHtml(container, html, { mode: "rich" });
     }
 
-    container
-      .querySelectorAll("img")
-      .forEach((img) => img.addClass("rss-reader-responsive-img"));
+    container.querySelectorAll("img").forEach((img) => {
+      img.addClass("rss-reader-responsive-img");
+      img.addEventListener("error", () => {
+        if (this.recoverFailedSubstackImageElement(img)) {
+          console.warn(
+            `[RSS Dashboard] ArticleRenderer recovered Substack img src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""}`,
+          );
+          return;
+        }
+
+        console.error(
+          `[RSS Dashboard] ArticleRenderer img load failed src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""} srcset=${img.getAttribute("srcset") || ""}`,
+        );
+      });
+    });
     if (isNitter) this.hydrateNitterStatsIcons(container);
+  }
+
+  private recoverFailedSubstackImageElement(img: HTMLImageElement): boolean {
+    if (img.dataset.rssSubstackRecoverAttempted === "true") {
+      return false;
+    }
+
+    const rawSrc = img.getAttribute("src") || "";
+    const currentSrc = img.currentSrc || "";
+    const normalizedCurrentSrc = normalizeSubstackImageUrl(currentSrc);
+    const normalizedRawSrc = normalizeSubstackImageUrl(rawSrc);
+    if (
+      !currentSrc ||
+      ((!normalizedCurrentSrc || normalizedCurrentSrc === currentSrc) &&
+        (!normalizedRawSrc || normalizedRawSrc === currentSrc))
+    ) {
+      return false;
+    }
+
+    img.dataset.rssSubstackRecoverAttempted = "true";
+
+    const picture = img.closest("picture");
+    if (picture) {
+      picture.querySelectorAll("source").forEach((source) => source.remove());
+    }
+
+    const replacement = img.cloneNode(true) as HTMLImageElement;
+    replacement.dataset.rssSubstackRecoverAttempted = "true";
+    replacement.removeAttribute("srcset");
+    replacement.removeAttribute("sizes");
+    const recoverySrc =
+      normalizedCurrentSrc && normalizedCurrentSrc !== currentSrc
+        ? normalizedCurrentSrc
+        : normalizedRawSrc;
+    replacement.setAttribute("src", recoverySrc);
+    img.replaceWith(replacement);
+    return true;
+  }
+
+  private hasMeaningfulFeedDescription(html: string): boolean {
+    if (!html) {
+      return false;
+    }
+
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const text = (doc.body.textContent || "").replace(/\s+/g, " ").trim();
+    if (!text) {
+      return false;
+    }
+
+    return !/^(?:\.{3,}|…+|\[\s*(?:\.{3,}|…+)\s*\])$/.test(text);
   }
 
   public cleanupPlayers(): void {
@@ -440,15 +617,31 @@ export class ArticleRenderer {
   // --- Helper methods (extracted from ReaderView) ---
 
   private async fetchFullArticleContent(url?: string): Promise<string> {
-    if (!url) return "";
+    if (!url) {
+      this.currentFullContentFailureType = "none";
+      return "";
+    }
+
     try {
       const proxyUrl = this.settings.corsProxyEnabled
         ? this.settings.corsProxyUrl
         : undefined;
-      return await fetchWithProxyFallback(url, proxyUrl);
+      const result = await fetchFullArticleContentWithOutcome(url, proxyUrl);
+      this.currentFullContentFailureType = result.failureType;
+      return result.content;
     } catch {
+      this.currentFullContentFailureType = "network";
       return "";
     }
+  }
+
+  private showRestrictedNotice(item: FeedItem): void {
+    // Toast notification removed for paywalled/restricted articles.
+    this.lastRestrictedNoticeGuid = item.guid;
+  }
+
+  private lastFullArticleFetchWasRestricted(): boolean {
+    return this.currentFullContentFailureType === "restricted";
   }
 
   private hasMeaningfulArticleContent(html: string): boolean {
@@ -461,14 +654,30 @@ export class ArticleRenderer {
   }
 
   private shouldSkipFullArticleFetch(item: FeedItem): boolean {
+    if (this.isVideoMediaItem(item)) return true;
+    return this.prefersFeedContent(item);
+  }
+
+  private isVideoMediaItem(item: FeedItem): boolean {
+    return isLikelyVideoItem(item);
+  }
+
+  private prefersFeedContent(item: FeedItem): boolean {
     if (this.isTweetLikeItem(item)) return true;
-    if (!item.link) return false;
-    try {
-      const host = new URL(item.link).hostname.toLowerCase();
-      return this.isFeedContentPreferredHost(host);
-    } catch {
-      return false;
+
+    if (item.link) {
+      try {
+        const host = new URL(item.link).hostname.toLowerCase();
+        if (this.isFeedContentPreferredHost(host)) {
+          return true;
+        }
+      } catch {
+        // Fall through to markup-based detection.
+      }
     }
+
+    const feedHtml = (item.content || item.description || "").trim();
+    return this.hasSubstackRichFeedMarkup(feedHtml);
   }
 
   private isFeedContentPreferredHost(host: string): boolean {
@@ -481,6 +690,17 @@ export class ArticleRenderer {
     return (
       preferred.some((p) => host === p || host.endsWith("." + p)) ||
       host.toLowerCase().includes("nitter")
+    );
+  }
+
+  private hasSubstackRichFeedMarkup(html: string): boolean {
+    if (!html) return false;
+
+    const lower = html.toLowerCase();
+    return (
+      lower.includes('data-component-name="image2todom"') ||
+      lower.includes('class="image-link image2 is-viewable-img"') ||
+      lower.includes("substackcdn.com/image/fetch/")
     );
   }
 
@@ -841,11 +1061,12 @@ export class ArticleRenderer {
   }
 
   private normalizeImageSourceKey(rawUrl: string): string {
-    const fallback = rawUrl.trim().toLowerCase();
+    const normalizedUrl = normalizeSubstackImageUrl(rawUrl);
+    const fallback = normalizedUrl.trim().toLowerCase();
     if (!fallback) return "";
 
     try {
-      const url = new URL(rawUrl, "https://example.invalid");
+      const url = new URL(normalizedUrl, "https://example.invalid");
       const normalizedPath = url.pathname
         .toLowerCase()
         .replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");
@@ -988,7 +1209,7 @@ export class ArticleRenderer {
       );
     };
 
-    const statsEl = doc.createElement("div");
+    const statsEl = doc.createDiv();
     statsEl.className = "rss-nitter-stats";
     [
       { k: "comment", i: "message-circle" },
@@ -996,13 +1217,13 @@ export class ArticleRenderer {
       { k: "heart", i: "heart" },
       { k: "views", i: "bar-chart-2" },
     ].forEach((p) => {
-      const pill = doc.createElement("span");
+      const pill = doc.createSpan();
       pill.className = "rss-nitter-stat";
       pill.setAttribute("data-stat", p.k);
-      const icon = doc.createElement("span");
+      const icon = doc.createSpan();
       icon.className = "rss-nitter-stat-icon";
       icon.setAttribute("data-rss-icon", p.i);
-      const count = doc.createElement("span");
+      const count = doc.createSpan();
       count.className = "rss-nitter-stat-count";
       count.textContent = extractCount(`icon-${p.k}`);
       pill.appendChild(icon);

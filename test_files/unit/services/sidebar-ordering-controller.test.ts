@@ -17,7 +17,7 @@ function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
 
-function makeFeed(title: string, url: string, folder: any = ""): Feed {
+function makeFeed(title: string, url: string, folder: unknown = ""): Feed {
   return { title, url, folder, items: [], lastUpdated: 0 } as Feed;
 }
 
@@ -28,16 +28,17 @@ function folder(name: string, subfolders: Folder[] = []): Folder {
 describe("sidebar-ordering-controller helpers", () => {
   it("setFolderFeedSortCustom creates map and normalizes empty folder key", () => {
     const settings = cloneSettings();
-    settings.folderFeedSortOrders = undefined as any;
+    delete settings.folderFeedSortOrders;
 
-    setFolderFeedSortCustom(settings, undefined as any);
-    expect(settings.folderFeedSortOrders).toBeTruthy();
-    expect(settings.folderFeedSortOrders?.[""]?.by).toBe("custom");
+    setFolderFeedSortCustom(settings, "" as string);
+    const updatedSettings = settings;
+    expect(updatedSettings.folderFeedSortOrders).toBeTruthy();
+    expect(updatedSettings.folderFeedSortOrders?.[""]?.by).toBe("custom");
   });
 
   it("setFolderSortCustom switches to custom and preserves ascending", () => {
     const settings = cloneSettings();
-    settings.folderSortOrder = { by: "name", ascending: false } as any;
+    settings.folderSortOrder = { by: "name", ascending: false };
     setFolderSortCustom(settings);
     expect(settings.folderSortOrder).toEqual({ by: "custom", ascending: false });
   });
@@ -240,7 +241,7 @@ describe("moveFolder", () => {
     ];
     settings.collapsedFolders = ["Alpha", "Alpha/Child"];
     settings.folderFeedSortOrders = {
-      "Alpha/Child": { by: "name", ascending: true } as any,
+      "Alpha/Child": { by: "name", ascending: true },
     };
 
     const result = moveFolder(settings, {

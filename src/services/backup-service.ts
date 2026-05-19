@@ -46,12 +46,23 @@ export class BackupService {
     if (!pluginDir) return;
 
     try {
-      // 1. data.json
+      // 1. data.json - follow metadata storage location
       if (autoBackup.backupDataJson) {
-        const dataPath = `${pluginDir}/data.json`;
-        if (await this.vault.adapter.exists(dataPath)) {
-          const content = await this.vault.adapter.read(dataPath);
-          await this.vault.adapter.write(`${dataPath}.backup`, content);
+        // Determine where metadata is stored
+        let metadataPath: string | undefined;
+        if (this.settings.metadataStorageMode === "vault-location") {
+          metadataPath = this.settings.metadataStorageFolder;
+        } else {
+          // plugin-default mode: use plugin directory
+          metadataPath = pluginDir;
+        }
+
+        if (metadataPath) {
+          const dataPath = `${metadataPath}/data.json`;
+          if (await this.vault.adapter.exists(dataPath)) {
+            const content = await this.vault.adapter.read(dataPath);
+            await this.vault.adapter.write(`${dataPath}.backup`, content);
+          }
         }
 
         if (this.settings.storageMode === "vault-shards") {
@@ -102,7 +113,7 @@ export class BackupService {
    * Called during plugin unload via beforeunload handler
    * Returns true if backups succeeded, false otherwise
    *
-   * NOTE: The following block uses Electron's native fs/path modules via 'window.require'.
+   * NOTE: The following block uses Electron's native fs/path modules via 'activeWindow.require'.
    * This is a known desktop-only pattern in Obsidian. The surrounding try...catch is
    * CRITICAL to ensure the plugin doesn't crash on mobile where these APIs are absent.
    */
@@ -114,8 +125,8 @@ export class BackupService {
     if (!pluginDir) return false;
 
     try {
-      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
-      const req = (window as any).require;
+      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Electron native fs/path modules required for desktop auto-backup; not in standard Obsidian types */
+      const req = (activeWindow as any).require;
       if (!req) return false;
 
       const fs = req("fs");
@@ -128,9 +139,23 @@ export class BackupService {
       const absPluginDir = path.resolve(vaultRoot, pluginDir);
 
       if (autoBackup.backupDataJson) {
-        const dataPath = path.join(absPluginDir, "data.json");
-        if (fs.existsSync(dataPath)) {
-          fs.copyFileSync(dataPath, `${dataPath}.backup`);
+        // Determine where metadata is stored
+        let metadataPath: string | undefined;
+        if (this.settings.metadataStorageMode === "vault-location") {
+          metadataPath = path.resolve(
+            vaultRoot,
+            this.settings.metadataStorageFolder,
+          );
+        } else {
+          // plugin-default mode: use plugin directory
+          metadataPath = absPluginDir;
+        }
+
+        if (metadataPath) {
+          const dataPath = path.join(metadataPath, "data.json");
+          if (fs.existsSync(dataPath)) {
+            fs.copyFileSync(dataPath, `${dataPath}.backup`);
+          }
         }
 
         if (this.settings.storageMode === "vault-shards") {
@@ -138,7 +163,11 @@ export class BackupService {
             absPluginDir,
             "portable-data-bundle.json.backup",
           );
-          fs.writeFileSync(bundlePath, this.getPortableDataBundleJsonFn(), "utf-8");
+          fs.writeFileSync(
+            bundlePath,
+            this.getPortableDataBundleJsonFn(),
+            "utf-8",
+          );
         }
       }
 

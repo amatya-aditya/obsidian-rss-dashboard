@@ -106,7 +106,7 @@ export function renderImportExportSettingsTab(
         .setIcon("upload")
         .setButtonText("Import data.json")
         .onClick(() => {
-          const input = document.body.createEl("input", {
+          const input = activeDocument.body.createEl("input", {
             attr: { type: "file", accept: ".json,.backup,application/json" },
           });
           input.onchange = () => {
@@ -152,6 +152,55 @@ export function renderImportExportSettingsTab(
         }),
     );
 
+  // ── Shard Data ────────────────────────────────────────────────────────────
+  const portableBundleSection = containerEl.createDiv();
+  new Setting(portableBundleSection)
+    .setName("Shard data")
+    .setDesc(
+      "Import or export shard data bundles for cross-device migration.",
+    )
+    .setHeading();
+
+  const portableBundleActions = new Setting(portableBundleSection);
+  portableBundleActions.settingEl.addClass("rss-dashboard-import-export-actions");
+  portableBundleActions
+    .addButton((button) =>
+      button
+        .setIcon("upload")
+        .setButtonText("Import shard data")
+        .onClick(() => {
+          const input = activeDocument.body.createEl("input", {
+            attr: { type: "file", accept: ".json,.backup,application/json" },
+          });
+          input.onchange = () => {
+            void (async () => {
+              const file = input.files?.[0];
+              if (!file) return;
+              try {
+                await plugin.importPortableDataBundleFromFile(file);
+                new ImportSuccessModal(
+                  plugin.app,
+                  "Shard data imported successfully!",
+                ).open();
+              } catch (e) {
+                new Notice(
+                  `Shard data import failed: ${e instanceof Error ? e.message : "invalid file"}`,
+                );
+              }
+            })();
+          };
+          input.click();
+        }),
+    )
+    .addButton((button) =>
+      button
+        .setIcon("download")
+        .setButtonText("Export shard data")
+        .onClick(() => {
+          void plugin.exportPortableDataBundle();
+        }),
+    );
+
   // ── usersettings.json ─────────────────────────────────────────────────────
   const userSettingsSection = containerEl.createDiv();
   new Setting(userSettingsSection)
@@ -167,7 +216,7 @@ export function renderImportExportSettingsTab(
         .setIcon("upload")
         .setButtonText("Import usersettings.json")
         .onClick(() => {
-          const input = document.body.createEl("input", {
+          const input = activeDocument.body.createEl("input", {
             attr: { type: "file", accept: ".json,.backup,application/json" },
           });
           input.onchange = () => {

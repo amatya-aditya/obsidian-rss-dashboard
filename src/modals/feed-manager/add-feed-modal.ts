@@ -1,4 +1,4 @@
-﻿import { Modal, App, Setting, Notice } from "obsidian";
+import { Modal, App, Setting, Notice } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
 import type {
   FeedKeywordRulesSettings,
@@ -137,7 +137,7 @@ export class AddFeedModal extends Modal {
         });
         urlInput.addEventListener("blur", normalizeNitterUrl);
         urlInput.addEventListener("paste", () => {
-          window.setTimeout(normalizeNitterUrl, 0);
+          activeWindow.setTimeout(normalizeNitterUrl, 0);
         });
       })
       .addButton((btn) => {
@@ -755,7 +755,7 @@ export class AddFeedModal extends Modal {
     };
     cancelBtn.onclick = () => this.close();
 
-    window.setTimeout(() => {
+    activeWindow.setTimeout(() => {
       urlInput?.focus();
       urlInput?.select();
     }, 0);

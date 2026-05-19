@@ -129,6 +129,7 @@
   border-radius: 5px;
 }
 .rss-reader-article-header,
+.rss-reader-inline-banner,
 .rss-reader-description-callout,
 .rss-reader-article-content {
   max-width: var(--rss-reader-max-width);
@@ -191,6 +192,99 @@
   border-radius: 8px;
   background: var(--background-secondary);
   overflow: hidden;
+}
+
+.rss-reader-inline-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 18px auto 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+}
+
+.rss-reader-paywall-banner {
+  background: color-mix(
+    in srgb,
+    var(--color-orange, #d38b00) 14%,
+    var(--background-secondary)
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--color-orange, #d38b00) 35%,
+      var(--background-modifier-border)
+    );
+}
+
+.rss-reader-paywall-banner-text {
+  flex: 1 1 260px;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 500;
+  color: var(--text-normal);
+}
+
+.rss-reader-paywall-banner-link {
+  color: var(--text-normal);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.rss-reader-paywall-banner-link:hover {
+  color: var(--text-normal);
+  text-decoration: underline;
+}
+
+.rss-reader-paywall-banner-link:focus-visible {
+  outline: 2px solid var(--background-modifier-border);
+  outline-offset: 2px;
+}
+
+.rss-reader-video-banner {
+  background: color-mix(
+    in srgb,
+    var(--interactive-accent, #2f80ed) 12%,
+    var(--background-secondary)
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--interactive-accent, #2f80ed) 32%,
+      var(--background-modifier-border)
+    );
+}
+
+.rss-reader-video-banner-text {
+  flex: 1 1 260px;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 500;
+  color: var(--text-normal);
+}
+
+.rss-reader-video-banner-link {
+  color: var(--text-normal);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.rss-reader-video-banner-link:hover {
+  color: var(--text-normal);
+  text-decoration: underline;
+}
+
+.rss-reader-video-banner-link:focus-visible {
+  outline: 2px solid var(--background-modifier-border);
+  outline-offset: 2px;
 }
 
 .rss-reader-description-callout > summary {
@@ -593,6 +687,16 @@ mark.rss-highlight {
 
 .rss-reader-action-button.saved {
   color: var(--interactive-accent);
+}
+
+@media (max-width: 768px) {
+  .rss-reader-inline-banner {
+    align-items: flex-start;
+  }
+
+  .rss-reader-paywall-banner-link {
+    min-height: 40px;
+  }
 }
 
 /* --- Inline reader (article opened inside the dashboard) --- */

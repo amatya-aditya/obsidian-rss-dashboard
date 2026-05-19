@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { copyTextToClipboard, exportBlob } from "../../../src/utils/export-utils";
+import {
+  copyTextToClipboard,
+  exportBlob,
+} from "../../../src/utils/export-utils";
 
 describe("export-utils", () => {
   it("exports via share sheet on mobile when available", async () => {
@@ -13,9 +16,7 @@ describe("export-utils", () => {
       configurable: true,
     });
 
-    const shareMock = vi
-      .fn<[ShareData], Promise<void>>()
-      .mockResolvedValue(undefined);
+    const shareMock = vi.fn().mockResolvedValue(undefined);
     const originalShareDesc = Object.getOwnPropertyDescriptor(
       navigator,
       "share",
@@ -29,7 +30,7 @@ describe("export-utils", () => {
       configurable: true,
     });
     Object.defineProperty(navigator, "canShare", {
-      value: vi.fn<[ShareData], boolean>().mockReturnValue(true),
+      value: vi.fn().mockReturnValue(true),
       configurable: true,
     });
 
@@ -41,14 +42,18 @@ describe("export-utils", () => {
 
     expect(result).toBe("shared");
     expect(shareMock).toHaveBeenCalledTimes(1);
-    const data = shareMock.mock.calls[0][0];
+    const data = shareMock.mock.calls[0][0] as unknown as { files: File[] };
     expect(Array.isArray(data.files)).toBe(true);
-    expect(data.files?.[0]).toBeInstanceOf(File);
-    expect(data.files?.[0]?.name).toBe("data.json");
+    expect(data.files[0]).toBeInstanceOf(File);
+    expect(data.files[0].name).toBe("data.json");
     expect(createObjectURLMock).not.toHaveBeenCalled();
 
     if (originalCreateObjectURLDesc) {
-      Object.defineProperty(URL, "createObjectURL", originalCreateObjectURLDesc);
+      Object.defineProperty(
+        URL,
+        "createObjectURL",
+        originalCreateObjectURLDesc,
+      );
     } else {
       delete (URL as unknown as Record<string, unknown>)["createObjectURL"];
     }
@@ -66,7 +71,7 @@ describe("export-utils", () => {
 
   it("treats AbortError as a canceled export on mobile", async () => {
     const shareMock = vi
-      .fn<[ShareData], Promise<void>>()
+      .fn()
       .mockRejectedValue(new DOMException("Canceled", "AbortError"));
     const originalShareDesc = Object.getOwnPropertyDescriptor(
       navigator,
@@ -127,9 +132,7 @@ describe("export-utils", () => {
       configurable: true,
     });
 
-    const openSpy = vi
-      .spyOn(window, "open")
-      .mockImplementation(() => window);
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => window);
 
     const result = await exportBlob({
       blob: new Blob(["{}"], { type: "application/json" }),
@@ -146,12 +149,20 @@ describe("export-utils", () => {
     vi.useRealTimers();
     openSpy.mockRestore();
     if (originalCreateObjectURLDesc) {
-      Object.defineProperty(URL, "createObjectURL", originalCreateObjectURLDesc);
+      Object.defineProperty(
+        URL,
+        "createObjectURL",
+        originalCreateObjectURLDesc,
+      );
     } else {
       delete (URL as unknown as Record<string, unknown>)["createObjectURL"];
     }
     if (originalRevokeObjectURLDesc) {
-      Object.defineProperty(URL, "revokeObjectURL", originalRevokeObjectURLDesc);
+      Object.defineProperty(
+        URL,
+        "revokeObjectURL",
+        originalRevokeObjectURLDesc,
+      );
     } else {
       delete (URL as unknown as Record<string, unknown>)["revokeObjectURL"];
     }
@@ -212,12 +223,20 @@ describe("export-utils", () => {
     appendSpy.mockRestore();
     clickSpy.mockRestore();
     if (originalCreateObjectURLDesc) {
-      Object.defineProperty(URL, "createObjectURL", originalCreateObjectURLDesc);
+      Object.defineProperty(
+        URL,
+        "createObjectURL",
+        originalCreateObjectURLDesc,
+      );
     } else {
       delete (URL as unknown as Record<string, unknown>)["createObjectURL"];
     }
     if (originalRevokeObjectURLDesc) {
-      Object.defineProperty(URL, "revokeObjectURL", originalRevokeObjectURLDesc);
+      Object.defineProperty(
+        URL,
+        "revokeObjectURL",
+        originalRevokeObjectURLDesc,
+      );
     } else {
       delete (URL as unknown as Record<string, unknown>)["revokeObjectURL"];
     }
@@ -245,7 +264,7 @@ describe("export-utils", () => {
     }
   });
 
-  it("falls back to document.execCommand('copy') when clipboard API is missing", async () => {
+  it("returns failed when clipboard API is missing (no execCommand fallback)", async () => {
     const originalClipboardDesc = Object.getOwnPropertyDescriptor(
       navigator,
       "clipboard",
@@ -255,25 +274,10 @@ describe("export-utils", () => {
       configurable: true,
     });
 
-    const execCommandMock = vi.fn<[string], boolean>(() => true);
-    const originalExecCommandDesc = Object.getOwnPropertyDescriptor(
-      document,
-      "execCommand",
-    );
-    Object.defineProperty(document, "execCommand", {
-      value: execCommandMock,
-      configurable: true,
-    });
-
+    // execCommand fallback is no longer supported
     const result = await copyTextToClipboard("hello");
-    expect(result).toBe("copied");
-    expect(execCommandMock).toHaveBeenCalledWith("copy");
+    expect(result).toBe("failed");
 
-    if (originalExecCommandDesc) {
-      Object.defineProperty(document, "execCommand", originalExecCommandDesc);
-    } else {
-      delete (document as unknown as Record<string, unknown>)["execCommand"];
-    }
     if (originalClipboardDesc) {
       Object.defineProperty(navigator, "clipboard", originalClipboardDesc);
     } else {
@@ -291,7 +295,7 @@ describe("export-utils", () => {
       configurable: true,
     });
 
-    const execCommandMock = vi.fn<[string], boolean>(() => false);
+    const execCommandMock = vi.fn(() => false);
     const originalExecCommandDesc = Object.getOwnPropertyDescriptor(
       document,
       "execCommand",

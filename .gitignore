@@ -32,3 +32,11 @@ feeds.opml.backup
 coverage/
 .github/prompts/
 tree.txt
+docs/development/test_lint_backlog_ranked.json
+eslint_test_report.json
+test_lint_backlog_ranked.json
+eslint_test_report_utf8.json
+lint_target.json
+scratch/sum_errors_new.ps1
+eslint_test_report_new.json
+scratch/sum_errors.ps1

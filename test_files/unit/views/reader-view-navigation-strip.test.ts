@@ -10,12 +10,23 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 installObsidianDomPolyfills();
 
 class MockLeaf {
-  app: any;
-  view: any;
-  constructor(app: any) {
+  app: unknown;
+  view: unknown;
+  constructor(app: unknown) {
     this.app = app;
   }
   detach = vi.fn();
+}
+
+type ReaderViewInternals = {
+  contentEl: HTMLElement;
+  readingContainer: HTMLElement;
+  fetchFullArticleContent: ReturnType<typeof vi.fn>;
+  stripNavigationChromeFromHtml: (html: string) => string;
+};
+
+function getInternals(view: ReaderView): ReaderViewInternals {
+  return view as unknown as ReaderViewInternals;
 }
 
 function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
@@ -39,7 +50,7 @@ function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
 }
 
 describe("ReaderView full-article nav/breadcrumb stripping", () => {
-  let readerView: any;
+  let readerView: ReaderView;
   let mockSettings: RssDashboardSettings;
 
   beforeEach(async () => {
@@ -58,14 +69,14 @@ describe("ReaderView full-article nav/breadcrumb stripping", () => {
 
     const mockLeaf = new MockLeaf(mockApp);
     readerView = new ReaderView(
-      mockLeaf as any,
+      mockLeaf as never,
       mockSettings,
-      { saveArticle: vi.fn() } as any,
+      { saveArticle: vi.fn() } as never,
       vi.fn(),
       vi.fn(),
     );
 
-    (readerView as any).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = document.createElement("div");
     await readerView.onOpen();
   });
 
@@ -81,14 +92,16 @@ describe("ReaderView full-article nav/breadcrumb stripping", () => {
       <p>${"x".repeat(260)}</p>
     `;
 
-    (readerView as any).fetchFullArticleContent = vi.fn().mockResolvedValue(html);
+    getInternals(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(html);
 
     await readerView.displayItem(makeItem());
 
-    const container = (readerView as any).readingContainer as HTMLElement;
-    const content = container.querySelector(".rss-reader-article-content") as
-      | HTMLElement
-      | null;
+    const container = getInternals(readerView).readingContainer;
+    const content = container.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
     expect(content).toBeTruthy();
     expect(content?.querySelector("nav")).toBeNull();
     expect((content?.textContent || "").includes("x".repeat(40))).toBe(true);
@@ -108,14 +121,16 @@ describe("ReaderView full-article nav/breadcrumb stripping", () => {
       <p>tail</p>
     `;
 
-    (readerView as any).fetchFullArticleContent = vi.fn().mockResolvedValue(html);
+    getInternals(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(html);
 
     await readerView.displayItem(makeItem());
 
-    const container = (readerView as any).readingContainer as HTMLElement;
-    const content = container.querySelector(".rss-reader-article-content") as
-      | HTMLElement
-      | null;
+    const container = getInternals(readerView).readingContainer;
+    const content = container.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
     expect(content).toBeTruthy();
     expect(content?.querySelector("nav")).toBeTruthy();
   });
@@ -126,10 +141,10 @@ describe("ReaderView full-article nav/breadcrumb stripping", () => {
       <p>Keep me</p>
     `;
 
-    const cleaned = (readerView as any).stripNavigationChromeFromHtml(html) as string;
+    const cleaned =
+      getInternals(readerView).stripNavigationChromeFromHtml(html);
     const doc = new DOMParser().parseFromString(cleaned, "text/html");
     expect(doc.body.querySelector("nav")).toBeNull();
     expect(doc.body.textContent || "").toContain("Keep me");
   });
 });
-

@@ -1,5 +1,6 @@
 import { requestUrl, Notice } from "obsidian";
-import { Feed, Tag } from "../types/types";
+import { Feed, MediaSettings, Tag } from "../types/types";
+import { isKnownVideoUrl } from "../utils/video-detection";
 
 export interface YouTubeEmbedConfig {
   videoId: string;
@@ -322,6 +323,7 @@ export class MediaService {
       ];
 
       for (const pattern of patterns) {
+        const _dummy = activeDocument.createElement("div");
         const match = link.match(pattern);
         if (match?.[1]?.length === 11) {
           return match[1];
@@ -457,9 +459,52 @@ export class MediaService {
       return this.processYouTubeFeed(feed);
     }
 
-    const hasVideo = feed.items.some((item) =>
-      item.enclosure?.type?.startsWith("video/"),
-    );
+    const isVideoItem = (item: Feed["items"][number]): boolean => {
+      if (item.enclosure?.type?.startsWith("video/") === true) {
+        return true;
+      }
+
+      if (item.mediaContentType?.startsWith("video/") === true) {
+        return true;
+      }
+
+      if (item.mediaContentMedium === "video") {
+        return true;
+      }
+
+      if (item.enclosure?.type?.startsWith("audio/") === true) {
+        return false;
+      }
+
+      if (item.mediaContentType?.startsWith("audio/") === true) {
+        return false;
+      }
+
+      if (item.mediaContentMedium === "audio") {
+        return false;
+      }
+
+      if (item.mediaContentType?.startsWith("image/") === true) {
+        // Some feeds (e.g. Bloomberg) attach image media:content as thumbnails
+        // even for video articles. Keep URL-based video-route detection as a
+        // fallback before classifying these as non-video.
+        if (!isKnownVideoUrl(item.link)) {
+          return false;
+        }
+      }
+
+      if (item.mediaContentMedium === "image") {
+        // Some feeds mark video entries with image medium for thumbnails.
+        // Preserve URL-route fallback for known video links.
+        if (!isKnownVideoUrl(item.link)) {
+          return false;
+        }
+      }
+
+      return isKnownVideoUrl(item.link);
+    };
+
+    const hasVideo = feed.items.some((item) => isVideoItem(item));
     if (hasVideo) {
       return {
         ...feed,
@@ -472,7 +517,18 @@ export class MediaService {
               videoUrl: item.enclosure.url,
             };
           }
-          return item;
+
+          if (isVideoItem(item)) {
+            return {
+              ...item,
+              mediaType: "video",
+            };
+          }
+
+          return {
+            ...item,
+            mediaType: item.mediaType || "article",
+          };
         }),
       };
     }
@@ -493,12 +549,22 @@ export class MediaService {
 
   static buildYouTubeEmbed(videoId: string): YouTubeEmbedConfig {
     const normalizedVideoId = videoId.trim();
+    const embedParams = new URLSearchParams({
+      rel: "0",
+      enablejsapi: "1",
+    });
 
-    const origin = window.location.origin === "app://obsidian.md" ? "https://www.youtube.com" : window.location.origin;
+    if (
+      typeof window !== "undefined" &&
+      (window.location.protocol === "http:" ||
+        window.location.protocol === "https:")
+    ) {
+      embedParams.set("origin", window.location.origin);
+    }
 
     return {
       videoId: normalizedVideoId,
-      embedUrl: `https://www.youtube-nocookie.com/embed/${normalizedVideoId}?rel=0&enablejsapi=1&origin=${encodeURIComponent(origin)}`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${normalizedVideoId}?${embedParams.toString()}`,
       watchUrl: `https://www.youtube.com/watch?v=${normalizedVideoId}`,
       referrerPolicy: this.YOUTUBE_EMBED_REFERRER_POLICY,
       allow: this.YOUTUBE_EMBED_ALLOW,
@@ -539,28 +605,59 @@ export class MediaService {
         `;
   }
 
-  static applyMediaTags(feed: Feed, availableTags: Tag[]): Feed {
+  static applyMediaTags(
+    feed: Feed,
+    availableTags: Tag[],
+    mediaSettings?: Pick<MediaSettings, "autoTagVideos" | "defaultYouTubeTag">,
+  ): Feed {
     if (!feed.mediaType || feed.mediaType === "article") {
       return feed;
     }
 
-    let tagName: string | undefined;
+    let tagNameCandidates: string[] = [];
+    let tagCategory: "video" | "podcast" | undefined;
     if (feed.mediaType === "video") {
-      tagName = this.isYouTubeFeed(feed.url) ? "youtube" : "video";
+      tagCategory = "video";
+      const shouldAutoTagVideos = mediaSettings?.autoTagVideos ?? true;
+      if (!shouldAutoTagVideos) {
+        return feed;
+      }
+      const configuredTag = (mediaSettings?.defaultYouTubeTag || "Video")
+        .trim()
+        .toLowerCase();
+      tagNameCandidates = configuredTag
+        ? [configuredTag, "video", "videos"]
+        : ["video", "videos"];
     } else if (feed.mediaType === "podcast") {
-      tagName = "podcast";
+      tagCategory = "podcast";
+      tagNameCandidates = ["podcast"];
     }
 
-    if (!tagName) return feed;
+    if (tagNameCandidates.length === 0 || !tagCategory) return feed;
+    if (!Array.isArray(availableTags) || availableTags.length === 0)
+      return feed;
 
-    const mediaTag = availableTags.find(
-      (t) => t.name.toLowerCase() === tagName,
+    const mediaTag = availableTags.find((t) =>
+      tagNameCandidates.includes(t.name.toLowerCase()),
     );
     if (!mediaTag) return feed;
 
+    const selectedTagName = mediaTag.name.toLowerCase();
+
     const updatedItems = feed.items.map((item) => {
+      const shouldTagItem =
+        tagCategory === "video"
+          ? item.mediaType === "video"
+          : tagCategory === "podcast"
+            ? item.mediaType === "podcast"
+            : false;
+
+      if (!shouldTagItem) {
+        return item;
+      }
+
       if (!item.tags) item.tags = [];
-      if (!item.tags.some((t) => t.name.toLowerCase() === tagName)) {
+      if (!item.tags.some((t) => t.name.toLowerCase() === selectedTagName)) {
         item.tags.push({ ...mediaTag });
       }
       return item;

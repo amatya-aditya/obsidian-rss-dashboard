@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import type RssDashboardPlugin from "../../../main";
 
 vi.mock("../../../src/components/keyword-filter-editor", () => {
   return {
@@ -21,14 +22,15 @@ describe("renderRulesSettingsTab()", () => {
     );
     const editor = await import("../../../src/components/keyword-filter-editor");
 
-    const containerEl = document.body.createDiv();
+    const containerEl = document.createElement("div");
+    document.body.appendChild(containerEl);
     const saveSettings = vi.fn(async () => {});
     const notifyFiltersUpdated = vi.fn();
-    const plugin: any = {
+    const plugin = {
       settings: {},
       saveSettings,
       notifyFiltersUpdated,
-    };
+    } as unknown as RssDashboardPlugin;
     const onRefresh = vi.fn();
 
     vi.spyOn(Date, "now").mockReturnValue(123);
@@ -41,8 +43,14 @@ describe("renderRulesSettingsTab()", () => {
       rules: [],
     });
 
-    expect((editor as any).renderKeywordFilterEditor).toHaveBeenCalledTimes(1);
-    const callArgs = (editor as any).renderKeywordFilterEditor.mock.calls[0][0];
+    const mockRender = editor.renderKeywordFilterEditor as Mock;
+    expect(mockRender).toHaveBeenCalledTimes(1);
+    
+    interface EditorArgs {
+      state: unknown;
+      onChange: (newState: { includeLogic: string; rules: { kind: string; keyword: string }[] }) => void;
+    }
+    const callArgs = mockRender.mock.calls[0][0] as EditorArgs;
     expect(callArgs.state).toEqual({ includeLogic: "AND", rules: [] });
 
     callArgs.onChange({
@@ -50,8 +58,8 @@ describe("renderRulesSettingsTab()", () => {
       rules: [{ kind: "include", keyword: "a" }],
     });
 
-    expect(plugin.settings.keywordRules.includeLogic).toBe("OR");
-    expect(plugin.settings.keywordRules.rules).toEqual([
+    expect(plugin.settings.keywordRules?.includeLogic).toBe("OR");
+    expect(plugin.settings.keywordRules?.rules).toEqual([
       { kind: "include", keyword: "a" },
     ]);
     expect(onRefresh).toHaveBeenCalledTimes(1);

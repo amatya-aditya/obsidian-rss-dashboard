@@ -30,7 +30,12 @@ export class KeywordFilterService {
         return false;
       }
 
-      return !!(rule.applyToTitle || rule.applyToSummary || rule.applyToContent);
+      return !!(
+        rule.applyToTitle ||
+        rule.applyToSummary ||
+        rule.applyToContent ||
+        rule.applyToURL
+      );
     });
   }
 
@@ -122,6 +127,9 @@ export class KeywordFilterService {
     }
     if (rule.applyToContent) {
       sources.push(item.content || item.description || "");
+    }
+    if (rule.applyToURL) {
+      sources.push(item.link || "");
     }
 
     const keyword = rule.keyword.trim();

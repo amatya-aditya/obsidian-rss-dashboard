@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from "vitest";
 import { Sidebar, SidebarOptions, SidebarCallbacks } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
@@ -6,22 +6,63 @@ import {
   RssDashboardSettings,
   Folder,
   type Feed,
+  type FeedRefreshState,
+  type FeedMetadata,
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import type RssDashboardPlugin from "../../../main";
 
 installObsidianDomPolyfills();
+
+interface TestApp extends App {
+  workspace: App["workspace"];
+}
+
+/** Typed interface for the plugin surface under test */
+interface TestPlugin extends Partial<RssDashboardPlugin> {
+  settings: RssDashboardSettings;
+  saveSettings: Mock<() => Promise<void>>;
+  activeRefreshState?: Map<string, FeedRefreshState>;
+  backgroundImportQueue?: FeedMetadata[];
+}
+
+/** Typed interface for Sidebar private member access */
+type TestSidebar = {
+  app: App;
+  container: HTMLElement;
+  settings: RssDashboardSettings;
+  options: SidebarOptions;
+  extractDomain: (url: string) => string;
+  getFaviconUrl: (domain: string) => string;
+  isFaviconUrlAvailable: (url: string) => Promise<boolean>;
+  renderFallbackFeedIcon: (el: HTMLElement) => void;
+  cachedFolderPaths: string[] | null;
+  getCachedFolderPaths: () => string[];
+  renderHeader: (el: HTMLElement) => void;
+  resizeObserver: ResizeObserver | null;
+  destroy: () => void;
+  render: () => void;
+  clearFolderPathCache: () => void;
+  focusSidebar: () => void;
+  hasKeyboardFocus: () => boolean;
+  moveFocusToNextItem: () => void;
+  moveFocusToPreviousItem: () => void;
+  jumpToNextFolder: () => void;
+  jumpToPreviousFolder: () => void;
+  openFocusedItem: () => void;
+  focusedSidebarTarget: { type: string; path?: string; url?: string } | null;
+};
 
 describe("Sidebar Core", () => {
   let app: App;
   let container: HTMLElement;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let plugin: any;
+  let plugin: TestPlugin;
   let settings: RssDashboardSettings;
   let options: SidebarOptions;
   let callbacks: SidebarCallbacks;
 
   beforeEach(() => {
-    app = ObsidianStubs.App.createMock();
+    app = ObsidianStubs.App.createMock() as TestApp;
     container = document.createElement("div");
     
     settings = {
@@ -71,36 +112,41 @@ describe("Sidebar Core", () => {
   });
 
   it("should initialize with correct properties", () => {
-    const sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
+    const sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
     expect(sidebar).toBeDefined();
-    // Accessing private members via bracket notation for testing
-    expect(sidebar["app"]).toBe(app);
-    expect(sidebar["container"]).toBe(container);
-    expect(sidebar["settings"]).toBe(settings);
-    expect(sidebar["options"]).toBe(options);
+    const ts = sidebar as unknown as TestSidebar;
+    // Accessing private members via typed boundary
+    expect(ts.app).toBe(app);
+    expect(ts.container).toBe(container);
+    expect(ts.settings).toBe(settings);
+    expect(ts.options).toBe(options);
   });
 
   describe("extractDomain", () => {
     let sidebar: Sidebar;
 
     beforeEach(() => {
-      sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
+      sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
     });
 
     it("should extract domain from simple URL", () => {
-      expect(sidebar["extractDomain"]("https://example.com/rss")).toBe("example.com");
+      const ts = sidebar as unknown as TestSidebar;
+      expect(ts.extractDomain("https://example.com/rss")).toBe("example.com");
     });
 
     it("should extract domain from URL with subdomains", () => {
-      expect(sidebar["extractDomain"]("https://blog.example.com/feed")).toBe("example.com");
+      const ts = sidebar as unknown as TestSidebar;
+      expect(ts.extractDomain("https://blog.example.com/feed")).toBe("example.com");
     });
 
     it("should handle feeds.feedburner.com specifically", () => {
-      expect(sidebar["extractDomain"]("http://feeds.feedburner.com/test")).toBe("feedburner.com");
+      const ts = sidebar as unknown as TestSidebar;
+      expect(ts.extractDomain("http://feeds.feedburner.com/test")).toBe("feedburner.com");
     });
 
     it("should handle invalid URLs gracefully", () => {
-      expect(sidebar["extractDomain"]("not-a-url")).toBe("");
+      const ts = sidebar as unknown as TestSidebar;
+      expect(ts.extractDomain("not-a-url")).toBe("");
     });
   });
 
@@ -108,17 +154,19 @@ describe("Sidebar Core", () => {
     let sidebar: Sidebar;
 
     beforeEach(() => {
-      sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
+      sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
     });
 
     it("should return Google S2 favicon URL", () => {
       const domain = "example.com";
       const expected = `https://www.google.com/s2/favicons?sz=32&domain_url=http://${domain}`;
-      expect(sidebar["getFaviconUrl"](domain)).toBe(expected);
+      const ts = sidebar as unknown as TestSidebar;
+      expect(ts.getFaviconUrl(domain)).toBe(expected);
     });
 
     it("should return empty string for empty domain", () => {
-      expect(sidebar["getFaviconUrl"]("")).toBe("");
+      const ts = sidebar as unknown as TestSidebar;
+      expect(ts.getFaviconUrl("")).toBe("");
     });
   });
 
@@ -126,7 +174,7 @@ describe("Sidebar Core", () => {
     let sidebar: Sidebar;
 
     beforeEach(() => {
-      sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
+      sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
       // Use vi.spyOn for mocking exported stub functions
       vi.spyOn(ObsidianStubs, "requestUrl").mockImplementation(async () => ({ status: 200, text: "" }));
     });
@@ -137,7 +185,8 @@ describe("Sidebar Core", () => {
 
     it("should return true for 200 OK headcount", async () => {
       vi.mocked(ObsidianStubs.requestUrl).mockResolvedValue({ status: 200, text: "" });
-      const result = await sidebar["isFaviconUrlAvailable"]("http://fav.ico");
+      const ts = sidebar as unknown as TestSidebar;
+      const result = await ts.isFaviconUrlAvailable("http://fav.ico");
       expect(result).toBe(true);
       expect(ObsidianStubs.requestUrl).toHaveBeenCalledWith(expect.objectContaining({ method: "HEAD" }));
     });
@@ -147,14 +196,16 @@ describe("Sidebar Core", () => {
         .mockResolvedValueOnce({ status: 405, text: "" })
         .mockResolvedValueOnce({ status: 200, text: "" });
         
-      const result = await sidebar["isFaviconUrlAvailable"]("http://fav.ico");
+      const ts = sidebar as unknown as TestSidebar;
+      const result = await ts.isFaviconUrlAvailable("http://fav.ico");
       expect(result).toBe(true);
       expect(ObsidianStubs.requestUrl).toHaveBeenCalledTimes(2);
     });
 
     it("should return false if both HEAD and GET fail", async () => {
       vi.mocked(ObsidianStubs.requestUrl).mockRejectedValue(new Error("Network Error"));
-      const result = await sidebar["isFaviconUrlAvailable"]("http://fav.ico");
+      const ts = sidebar as unknown as TestSidebar;
+      const result = await ts.isFaviconUrlAvailable("http://fav.ico");
       expect(result).toBe(false);
     });
   });
@@ -164,19 +215,21 @@ describe("Sidebar Core", () => {
     let iconEl: HTMLElement;
 
     beforeEach(() => {
-      sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
+      sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
       iconEl = document.createElement("div");
     });
 
     it("should add rss icon by default", () => {
-      sidebar["renderFallbackFeedIcon"](iconEl);
+      const ts = sidebar as unknown as TestSidebar;
+      ts.renderFallbackFeedIcon(iconEl);
       expect(iconEl.dataset.icon).toBe("rss");
       expect(iconEl.classList.contains("rss-icon-hidden")).toBe(false);
     });
 
     it("should hide icon if setting enabled", () => {
       settings.display.hideDefaultRssIcon = true;
-      sidebar["renderFallbackFeedIcon"](iconEl);
+      const ts = sidebar as unknown as TestSidebar;
+      ts.renderFallbackFeedIcon(iconEl);
       expect(iconEl.classList.contains("rss-icon-hidden")).toBe(true);
     });
   });
@@ -185,7 +238,7 @@ describe("Sidebar Core", () => {
     let sidebar: Sidebar;
 
     beforeEach(() => {
-      sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
+      sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
       settings.folders = [
         { name: "folder1", subfolders: [] },
         { name: "folder2", subfolders: [] },
@@ -193,24 +246,27 @@ describe("Sidebar Core", () => {
     });
 
     it("should cache folder paths after first call", () => {
-      expect(sidebar["cachedFolderPaths"]).toBeNull();
-      const paths = sidebar["getCachedFolderPaths"]();
+      const ts = sidebar as unknown as TestSidebar;
+      expect(ts.cachedFolderPaths).toBeNull();
+      const paths = ts.getCachedFolderPaths();
       expect(paths).toContain("folder1");
-      expect(sidebar["cachedFolderPaths"]).not.toBeNull();
+      expect(ts.cachedFolderPaths).not.toBeNull();
     });
 
     it("should clear cache when clearFolderPathCache is called", () => {
-      sidebar["getCachedFolderPaths"]();
+      const ts = sidebar as unknown as TestSidebar;
+      ts.getCachedFolderPaths();
       sidebar.clearFolderPathCache();
-      expect(sidebar["cachedFolderPaths"]).toBeNull();
+      expect(ts.cachedFolderPaths).toBeNull();
     });
   });
 
   describe("renderHeader basics", () => {
     it("should render sidebar header container", () => {
-      const sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
-      const headerSurface = container.createDiv();
-      sidebar["renderHeader"](headerSurface);
+      const sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
+      const headerSurface = document.createElement("div");
+      const ts = sidebar as unknown as TestSidebar;
+      ts.renderHeader(headerSurface);
       
       const header = headerSurface.querySelector(".rss-dashboard-sidebar-header");
       expect(header).toBeDefined();
@@ -219,13 +275,134 @@ describe("Sidebar Core", () => {
 
   describe("lifecycle", () => {
     it("should disconnect resizeObserver on destroy", () => {
-      const sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
+      const sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
       const mockObserver = { disconnect: vi.fn() };
-      sidebar["resizeObserver"] = mockObserver as any;
+      const ts = sidebar as unknown as TestSidebar;
+      ts.resizeObserver = mockObserver as unknown as ResizeObserver;
       
       sidebar.destroy();
       expect(mockObserver.disconnect).toHaveBeenCalled();
-      expect(sidebar["resizeObserver"]).toBeNull();
+      expect(ts.resizeObserver).toBeNull();
+    });
+  });
+
+  describe("sidebar keyboard navigation", () => {
+    beforeEach(() => {
+      document.body.appendChild(container);
+      settings.folders = [
+        { name: "Folder 1", subfolders: [] },
+        { name: "Folder 2", subfolders: [] },
+      ] as Folder[];
+      settings.feeds = [
+        {
+          title: "Feed 1",
+          url: "https://example.com/feed-1.xml",
+          folder: "Folder 1",
+          items: [{ read: false }],
+        } as Feed,
+        {
+          title: "Feed 2",
+          url: "https://example.com/feed-2.xml",
+          folder: "Folder 2",
+          items: [{ read: false }],
+        } as Feed,
+      ];
+    });
+
+    it("focuses the current feed by default and scrolls it into view", () => {
+      options.currentFeed = settings.feeds[1];
+      const scrollIntoViewSpy = vi.spyOn(Element.prototype, "scrollIntoView");
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+
+      sidebar.render();
+      const ts = sidebar as unknown as TestSidebar;
+      ts.focusSidebar();
+
+      expect(ts.hasKeyboardFocus()).toBe(true);
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "feed",
+        url: "https://example.com/feed-2.xml",
+      });
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith({
+        block: "nearest",
+        behavior: "auto",
+      });
+    });
+
+    it("moves up and down visible rows and opens the focused feed", () => {
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+
+      sidebar.render();
+      const ts = sidebar as unknown as TestSidebar;
+      ts.focusSidebar();
+      ts.moveFocusToNextItem();
+      ts.moveFocusToNextItem();
+      ts.openFocusedItem();
+
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "feed",
+        url: "https://example.com/feed-1.xml",
+      });
+      expect(callbacks.onFeedClick).toHaveBeenCalledWith(settings.feeds[0]);
+
+      ts.moveFocusToPreviousItem();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 1",
+      });
+    });
+
+    it("jumps between folders from both folder and feed rows", () => {
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+
+      sidebar.render();
+      const ts = sidebar as unknown as TestSidebar;
+      ts.focusSidebar();
+      ts.jumpToNextFolder();
+
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 1",
+      });
+
+      ts.moveFocusToNextItem();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "feed",
+        url: "https://example.com/feed-1.xml",
+      });
+
+      ts.jumpToNextFolder();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 2",
+      });
+
+      ts.jumpToPreviousFolder();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 1",
+      });
     });
   });
 
@@ -258,7 +435,7 @@ describe("Sidebar Core", () => {
         [queuedFeed.url, { status: "pending", startedAt: Date.now() }],
       ]);
 
-      const sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
+      const sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
       sidebar.render();
 
       const allFeedsIcon = container.querySelector(".rss-dashboard-all-feeds-icon");
@@ -290,7 +467,7 @@ describe("Sidebar Core", () => {
         },
       ];
 
-      const sidebar = new Sidebar(app as any, container, plugin, settings, options, callbacks);
+      const sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
       sidebar.render();
 
       const feedEl = container.querySelector(".rss-dashboard-feed");

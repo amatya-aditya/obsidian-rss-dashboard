@@ -1,13 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { VideoPlayer } from "../../../src/views/video-player";
-import { MediaService, type YouTubeEmbedConfig } from "../../../src/services/media-service";
+import {
+  MediaService,
+  type YouTubeEmbedConfig,
+} from "../../../src/services/media-service";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type { FeedItem, Tag } from "../../../src/types/types";
+
+type ObsidianBody = HTMLElement & {
+  empty: () => void;
+  createDiv: (options?: { text?: string }) => HTMLDivElement;
+};
+
+function getObsidianBody(): ObsidianBody {
+  return document.body as ObsidianBody;
+}
+
+function createContainer(options?: { text?: string }): HTMLDivElement {
+  return getObsidianBody().createDiv(options);
+}
 
 describe("VideoPlayer", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
-    document.body.empty();
+    getObsidianBody().empty();
     vi.restoreAllMocks();
   });
 
@@ -41,20 +57,23 @@ describe("VideoPlayer", () => {
   }
 
   it("emits a Notice and does not render when videoId is missing", () => {
-    const container = document.body.createDiv({ text: "keep" });
+    const container = createContainer({ text: "keep" });
     const player = new VideoPlayer(container);
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     player.loadVideo(baseItem({ videoId: undefined }));
 
-    expect(logSpy).toHaveBeenCalledWith("[Stub Notice]", "No video ID provided");
+    expect(logSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "No video ID provided",
+    );
     expect(container.querySelector(".rss-video-player")).toBeNull();
     expect(container.textContent).toContain("keep");
   });
 
   it("renders iframe attributes using MediaService.buildYouTubeEmbed", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
     const player = new VideoPlayer(container);
 
     const embed = fixedEmbed();
@@ -71,23 +90,27 @@ describe("VideoPlayer", () => {
   });
 
   it("renders title, channel, and date metadata", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
     const player = new VideoPlayer(container);
 
     player.loadVideo(baseItem({ description: "" }));
 
-    const titleName = container.querySelector(".rss-video-title .setting-item-name");
+    const titleName = container.querySelector<HTMLElement>(
+      ".rss-video-title .setting-item-name",
+    );
     expect(titleName?.textContent).toBe("Video Title");
 
-    const channel = container.querySelector(".rss-video-channel");
+    const channel = container.querySelector<HTMLElement>(".rss-video-channel");
     expect(channel?.textContent).toBe("Channel Name");
 
-    const date = container.querySelector(".rss-video-date");
-    expect(date?.textContent).toBe(new Date("2026-03-01T12:34:56.000Z").toLocaleDateString());
+    const date = container.querySelector<HTMLElement>(".rss-video-date");
+    expect(date?.textContent).toBe(
+      new Date("2026-03-01T12:34:56.000Z").toLocaleDateString(),
+    );
   });
 
   it("sanitizes description by removing scripts and constraining anchor attributes (current behavior)", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
     const player = new VideoPlayer(container);
 
     player.loadVideo(
@@ -97,7 +120,9 @@ describe("VideoPlayer", () => {
       }),
     );
 
-    const description = container.querySelector(".rss-video-description");
+    const description = container.querySelector<HTMLElement>(
+      ".rss-video-description",
+    );
     expect(description).not.toBeNull();
     expect(description?.innerHTML).not.toContain("<script");
     expect(description?.innerHTML).toContain('target="_blank"');
@@ -105,7 +130,7 @@ describe("VideoPlayer", () => {
   });
 
   it("renders the YouTube watch button using embed.watchUrl and sets icon dataset", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
     const player = new VideoPlayer(container);
 
     const embed = fixedEmbed();
@@ -113,29 +138,33 @@ describe("VideoPlayer", () => {
 
     player.loadVideo(baseItem());
 
-    const button = container.querySelector<HTMLAnchorElement>(".rss-video-youtube-button");
+    const button = container.querySelector<HTMLAnchorElement>(
+      ".rss-video-youtube-button",
+    );
     expect(button).not.toBeNull();
     expect(button?.getAttribute("href")).toBe(embed.watchUrl);
     expect(button?.target).toBe("_blank");
     expect(button?.rel).toBe("noopener noreferrer");
 
-    const icon = container.querySelector<HTMLElement>(".rss-video-youtube-button-icon");
-    expect(icon?.dataset.icon).toBe("youtube");
+    const icon = container.querySelector<HTMLElement>(
+      ".rss-video-youtube-button-icon",
+    );
+    expect(icon?.getAttribute("data-icon")).toBe("youtube");
   });
 
   it("renders related videos empty state initially (findRelatedVideos returns [])", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
     const player = new VideoPlayer(container);
 
     player.loadVideo(baseItem());
 
-    expect(container.querySelector(".rss-video-related-empty")?.textContent).toContain(
-      "No related videos found",
-    );
+    expect(
+      container.querySelector(".rss-video-related-empty")?.textContent,
+    ).toContain("No related videos found");
   });
 
   it("setRelatedVideos filters, excludes current, and caps at 5", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
     const player = new VideoPlayer(container);
 
     player.loadVideo(baseItem());
@@ -144,7 +173,11 @@ describe("VideoPlayer", () => {
     const candidates: FeedItem[] = [
       base, // excluded (same guid)
       baseItem({ guid: "no-video-id", videoId: undefined }), // excluded (no videoId)
-      baseItem({ guid: "wrong-feed", feedUrl: "https://elsewhere/feed.xml", videoId: "x1" }), // excluded
+      baseItem({
+        guid: "wrong-feed",
+        feedUrl: "https://elsewhere/feed.xml",
+        videoId: "x1",
+      }), // excluded
       ...Array.from({ length: 7 }, (_, idx) =>
         baseItem({
           guid: `rel-${idx}`,
@@ -165,13 +198,13 @@ describe("VideoPlayer", () => {
     expect(firstImg?.getAttribute("src")).toBe(
       "https://img.youtube.com/vi/vid-0/mqdefault.jpg",
     );
-    expect(items[0]?.querySelector(".rss-video-related-title")?.textContent).toBe(
-      "Rel 0",
-    );
+    expect(
+      items[0]?.querySelector(".rss-video-related-title")?.textContent,
+    ).toBe("Rel 0");
   });
 
   it("clicking a related item calls onVideoSelect when provided", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
     const onVideoSelect = vi.fn();
     const player = new VideoPlayer(container, onVideoSelect);
 
@@ -195,7 +228,7 @@ describe("VideoPlayer", () => {
   });
 
   it("clicking a related item falls back to loadVideo when onVideoSelect is not provided", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
     const player = new VideoPlayer(container);
 
     player.loadVideo(baseItem());
@@ -217,8 +250,57 @@ describe("VideoPlayer", () => {
     expect(loadSpy).toHaveBeenCalledWith(related);
   });
 
+  it("starts polling progress once the YouTube player is ready", () => {
+    vi.useFakeTimers();
+
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const item = baseItem();
+    const ytPlayer = {
+      seekTo: vi.fn(),
+      getCurrentTime: vi
+        .fn()
+        .mockReturnValueOnce(12)
+        .mockReturnValueOnce(17)
+        .mockReturnValue(17),
+      getDuration: vi.fn().mockReturnValue(120),
+      destroy: vi.fn(),
+    };
+    let readyHandler:
+      | ((event: { target: typeof ytPlayer }) => void)
+      | undefined;
+
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+
+    vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(fixedEmbed());
+    function MockYouTubePlayer(
+      _elementId: string,
+      options: {
+        events?: { onReady?: (event: { target: typeof ytPlayer }) => void };
+      },
+    ) {
+      readyHandler = options.events?.onReady;
+      return ytPlayer;
+    }
+    window.YT = {
+      Player: MockYouTubePlayer as unknown as typeof window.YT.Player,
+    };
+
+    player.loadVideo(item);
+    readyHandler?.({ target: ytPlayer });
+
+    vi.advanceTimersByTime(5000);
+    vi.advanceTimersByTime(5000);
+
+    expect(onPlaybackProgress).toHaveBeenNthCalledWith(1, item, 12, 120, false);
+    expect(onPlaybackProgress).toHaveBeenNthCalledWith(2, item, 17, 120, false);
+
+    player.destroy();
+    vi.useRealTimers();
+  });
+
   it("destroy clears the iframe and removes it from DOM without throwing", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
     const player = new VideoPlayer(container);
 
     const embed = fixedEmbed();
@@ -234,19 +316,52 @@ describe("VideoPlayer", () => {
     expect(iframe?.isConnected).toBe(false);
   });
 
+  it("flushes playback progress before destroy tears down the player", () => {
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+    const item = baseItem();
+    const ytPlayer = {
+      seekTo: vi.fn(),
+      getCurrentTime: vi.fn().mockReturnValue(42),
+      getDuration: vi.fn().mockReturnValue(120),
+      destroy: vi.fn(),
+    };
+
+    (
+      player as unknown as {
+        currentItem: FeedItem | null;
+        player: typeof ytPlayer | null;
+      }
+    ).currentItem = item;
+    (
+      player as unknown as {
+        currentItem: FeedItem | null;
+        player: typeof ytPlayer | null;
+      }
+    ).player = ytPlayer;
+
+    player.destroy();
+
+    expect(onPlaybackProgress).toHaveBeenCalledWith(item, 42, 120, true);
+    expect(ytPlayer.destroy).toHaveBeenCalledTimes(1);
+  });
+
   it("emits a Notice when render throws (loadVideo catch path)", () => {
-    const container = document.body.createDiv();
+    const container = createContainer();
     const player = new VideoPlayer(container);
 
     vi.spyOn(MediaService, "buildYouTubeEmbed").mockImplementation(() => {
       throw new Error("boom");
     });
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     player.loadVideo(baseItem());
 
-    expect(logSpy).toHaveBeenCalledWith("[Stub Notice]", "Error loading video: boom");
+    expect(logSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "Error loading video: boom",
+    );
   });
 });
-

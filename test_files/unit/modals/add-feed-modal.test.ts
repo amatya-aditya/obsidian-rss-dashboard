@@ -3,14 +3,10 @@ import * as obsidian from "obsidian";
 import { AddFeedModal } from "../../../src/modals/feed-manager/add-feed-modal";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
-type MockApp = ReturnType<
-  (typeof obsidian.App & { createMock(): unknown })["createMock"]
->;
+type MockApp = obsidian.App;
 
 function createMockApp(): MockApp {
-  return (
-    obsidian.App as typeof obsidian.App & { createMock(): MockApp }
-  ).createMock();
+  return new obsidian.App();
 }
 
 type OnAddFn = AddFeedModal["onAdd"];
@@ -84,7 +80,7 @@ describe("AddFeedModal", () => {
     const onAdd: OnAddFn = vi.fn(async () => true);
     const onSave = vi.fn();
 
-    const modal = new AddFeedModal(app as any, [], onAdd as any, onSave as any);
+    const modal = new AddFeedModal(app, [], onAdd, onSave);
     modal.open();
 
     const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
@@ -125,7 +121,7 @@ describe("AddFeedModal", () => {
     const onAdd: OnAddFn = vi.fn(async () => true);
     const onSave = vi.fn();
 
-    const modal = new AddFeedModal(app as any, [], onAdd as any, onSave as any);
+    const modal = new AddFeedModal(app, [], onAdd, onSave);
     modal.open();
 
     const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
@@ -162,7 +158,7 @@ describe("AddFeedModal", () => {
     const onAdd: OnAddFn = vi.fn(async () => true);
     const onSave = vi.fn();
 
-    const modal = new AddFeedModal(app as any, [], onAdd as any, onSave as any);
+    const modal = new AddFeedModal(app, [], onAdd, onSave);
     modal.open();
 
     const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
@@ -198,9 +194,9 @@ describe("AddFeedModal", () => {
     const app = createMockApp();
     const onAdd: OnAddFn = vi.fn(async () => true);
     const onSave = vi.fn();
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
-    const modal = new AddFeedModal(app as any, [], onAdd as any, onSave as any);
+    const modal = new AddFeedModal(app, [], onAdd, onSave);
     modal.open();
 
     const titleSetting = getSettingByName(modal.contentEl, "Title");
@@ -227,7 +223,7 @@ describe("AddFeedModal", () => {
     const onAdd: OnAddFn = vi.fn(async () => false);
     const onSave = vi.fn();
 
-    const modal = new AddFeedModal(app as any, [], onAdd as any, onSave as any);
+    const modal = new AddFeedModal(app, [], onAdd, onSave);
     const closeSpy = vi.spyOn(modal, "close");
     modal.open();
 

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { ArticleEmptyState } from "../../../src/components/article-empty-state";
 import type { FilterContext } from "../../../src/utils/filter-detection";

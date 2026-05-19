@@ -12,20 +12,39 @@ installObsidianDomPolyfills();
 
 // Mocking Obsidian components
 class MockLeaf {
-  app: any;
-  view: any;
-  constructor(app: any) {
+  app: unknown;
+  view: unknown;
+  constructor(app: unknown) {
     this.app = app;
   }
   detach = vi.fn();
 }
 
+type ReaderViewHarness = {
+  contentEl: HTMLElement;
+  readingContainer: HTMLElement;
+  fetchFullArticleContent: ReturnType<typeof vi.fn>;
+};
+
+function getHarness(view: ReaderView): ReaderViewHarness {
+  return view as unknown as ReaderViewHarness;
+}
+
 describe("ReaderView Image Duplication", () => {
-  let readerView: any;
-  let mockApp: any;
-  let mockLeaf: any;
+  let readerView: ReaderView;
+  let mockApp: {
+    workspace: {
+      getLeavesOfType: ReturnType<typeof vi.fn>;
+      setActiveLeaf: ReturnType<typeof vi.fn>;
+      revealLeaf: ReturnType<typeof vi.fn>;
+    };
+    vault: {
+      getAbstractFileByPath: ReturnType<typeof vi.fn>;
+    };
+  };
+  let mockLeaf: MockLeaf;
   let mockSettings: RssDashboardSettings;
-  let mockArticleSaver: any;
+  let mockArticleSaver: { saveArticle: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     mockApp = {
@@ -43,15 +62,15 @@ describe("ReaderView Image Duplication", () => {
     mockArticleSaver = { saveArticle: vi.fn() };
 
     readerView = new ReaderView(
-      mockLeaf as any,
+      mockLeaf as never,
       mockSettings,
-      mockArticleSaver,
+      mockArticleSaver as never,
       vi.fn(),
       vi.fn(),
     );
 
     // Initialize contentEl since it's used in onOpen
-    (readerView as any).contentEl = document.createElement("div");
+    getHarness(readerView).contentEl = document.createElement("div");
   });
 
   it("should extract hero image and remove it from content (Reproduction)", async () => {
@@ -81,19 +100,21 @@ describe("ReaderView Image Duplication", () => {
     // Note: displayItem calls populateArticleHtml
     await readerView.displayItem(item);
 
-    const readingContainer = (readerView as any).readingContainer;
-    const heroSlot = readingContainer.querySelector(".rss-reader-hero-slot");
-    const articleContent = readingContainer.querySelector(
+    const readingContainer = getHarness(readerView).readingContainer;
+    const heroSlot = readingContainer.querySelector<HTMLElement>(
+      ".rss-reader-hero-slot",
+    );
+    const articleContent = readingContainer.querySelector<HTMLElement>(
       ".rss-reader-article-content",
     );
 
     // Check hero slot
-    const heroImg = heroSlot.querySelector("img");
+    const heroImg = heroSlot?.querySelector<HTMLImageElement>("img");
     expect(heroImg).toBeTruthy();
-    expect(heroImg.src).toBe("https://example.com/hero.jpg");
+    expect(heroImg?.src).toBe("https://example.com/hero.jpg");
 
     // Check article content - BUG: Currently it contains the image too
-    const contentImg = articleContent.querySelector("img");
+    const contentImg = articleContent?.querySelector("img");
 
     // This is the expected behavior AFTER fix.
     // For now, I'm documenting the current failing state by making it a test that should pass after fix.
@@ -125,7 +146,7 @@ describe("ReaderView Image Duplication", () => {
     await readerView.onOpen();
     await readerView.displayItem(item);
 
-    const readingContainer = (readerView as any).readingContainer;
+    const readingContainer = getHarness(readerView).readingContainer;
 
     // Count all images in the reading container (excluding hero slot)
     const contentImages = readingContainer.querySelectorAll(
@@ -144,7 +165,7 @@ describe("ReaderView Image Duplication", () => {
 // ---------------------------------------------------------------------------
 
 describe("ReaderView – summary de-duplication", () => {
-  let readerView: any;
+  let readerView: ReaderView;
   let mockSettings: RssDashboardSettings;
 
   beforeEach(async () => {
@@ -161,16 +182,18 @@ describe("ReaderView – summary de-duplication", () => {
     mockSettings = { ...DEFAULT_SETTINGS, useWebViewer: false };
 
     readerView = new ReaderView(
-      mockLeaf as any,
+      mockLeaf as never,
       mockSettings,
-      { saveArticle: vi.fn() } as any,
+      { saveArticle: vi.fn() } as never,
       vi.fn(),
       vi.fn(),
     );
 
-    (readerView as any).contentEl = document.createElement("div");
+    getHarness(readerView).contentEl = document.createElement("div");
     // Prevent outbound HTTP — content comes from item fields only
-    (readerView as any).fetchFullArticleContent = vi.fn().mockResolvedValue("");
+    getHarness(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue("");
     await readerView.onOpen();
   });
 
@@ -204,7 +227,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     await readerView.displayItem(item);
 
-    const rc = (readerView as any).readingContainer as HTMLElement;
+    const rc = getHarness(readerView).readingContainer;
     const callout = rc.querySelector(".rss-reader-description-callout");
     expect(callout).toBeNull();
   });
@@ -217,7 +240,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     await readerView.displayItem(item);
 
-    const rc = (readerView as any).readingContainer as HTMLElement;
+    const rc = getHarness(readerView).readingContainer;
     const callout = rc.querySelector(".rss-reader-description-callout");
     expect(callout).toBeNull();
   });
@@ -244,20 +267,18 @@ describe("ReaderView – summary de-duplication", () => {
       link: "https://arstechnica.com/tech-policy/2026/04/example/",
     });
 
-    (readerView as any).fetchFullArticleContent = vi
+    getHarness(readerView).fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue(fetchedHtml);
 
     await readerView.displayItem(item);
 
-    const rc = (readerView as any).readingContainer as HTMLElement;
+    const rc = getHarness(readerView).readingContainer;
     const callout = rc.querySelector(".rss-reader-description-callout");
-    const heroImg = rc.querySelector(
+    const heroImg = rc.querySelector<HTMLImageElement>(
       ".rss-reader-hero-slot img",
-    ) as HTMLImageElement | null;
-    const body = rc.querySelector(
-      ".rss-reader-article-content",
-    ) as HTMLElement | null;
+    );
+    const body = rc.querySelector<HTMLElement>(".rss-reader-article-content");
 
     expect(callout).toBeTruthy();
     expect(heroImg).toBeTruthy();
@@ -266,6 +287,131 @@ describe("ReaderView – summary de-duplication", () => {
     expect(body?.textContent || "").not.toContain("Truthiness");
     expect(body?.textContent || "").not.toContain(summarySentence);
     expect(body?.textContent || "").toContain(realBodySnippet);
+  });
+
+  it("prefers feed content for custom-domain Substack items and skips full-article fetch", async () => {
+    const feedImageUrl =
+      "https://substackcdn.com/image/fetch/$s_!hPfO!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png";
+    const decodedFeedImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png";
+    const feedHtml = `
+      <p>Feed article intro.</p>
+      <div class="captioned-image-container">
+        <figure>
+          <a class="image-link image2 is-viewable-img" href="${feedImageUrl}" data-component-name="Image2ToDOM">
+            <div class="image2-inset">
+              <picture>
+                <img src="${feedImageUrl}" alt="Feed image" />
+              </picture>
+            </div>
+          </a>
+        </figure>
+      </div>
+      <p>${"Longer feed body text that should remain in the rendered article. ".repeat(5)}</p>
+    `;
+    const item = makeItem({
+      title: "Astral Codex custom-domain item",
+      link: "https://www.astralcodexten.com/p/the-sigmoids-wont-save-you",
+      feedUrl: "https://www.astralcodexten.com/feed",
+      description: "<p>Short summary.</p>",
+      content: feedHtml,
+    });
+
+    getHarness(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue("<p>Fetched content that should not be used.</p>");
+
+    await readerView.displayItem(item);
+
+    const rc = getHarness(readerView).readingContainer;
+    const body = rc.querySelector<HTMLElement>(".rss-reader-article-content");
+
+    expect(
+      getHarness(readerView).fetchFullArticleContent,
+    ).not.toHaveBeenCalled();
+    expect(body?.textContent || "").toContain("Feed article intro.");
+    expect(rc.querySelector(`img[src="${decodedFeedImageUrl}"]`)).toBeTruthy();
+    expect(body?.textContent || "").not.toContain(
+      "Fetched content that should not be used.",
+    );
+  });
+
+  it("rewrites Substack CDN image URLs in fetched article HTML and hero images", async () => {
+    const coverImageUrl =
+      "https://substackcdn.com/image/fetch/$s_!hero!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fhero_1024x562.png";
+    const decodedCoverImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/hero_1024x562.png";
+    const decodedBodyImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png";
+    const longTailText =
+      "Additional article context follows after the image with enough prose to satisfy the meaningful-content threshold used by the reader. ".repeat(
+        3,
+      );
+    const fetchedHtml = `
+      <article>
+        <p>Lead-in text before image.</p>
+        <div class="captioned-image-container">
+          <figure>
+            <div class="image2-inset">
+              <picture>
+                <source
+                  type="image/webp"
+                  srcset="https://substackcdn.com/image/fetch/$s_!hPfO!,w_424,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 424w, https://substackcdn.com/image/fetch/$s_!hPfO!,w_848,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 848w"
+                  sizes="100vw"
+                >
+                <img
+                  src="https://substackcdn.com/image/fetch/$s_!hPfO!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png"
+                  srcset="https://substackcdn.com/image/fetch/$s_!hPfO!,w_424,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 424w, https://substackcdn.com/image/fetch/$s_!hPfO!,w_848,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png 848w"
+                  sizes="100vw"
+                  alt="Fetched Substack example"
+                />
+              </picture>
+              <div class="image-link-expand">
+                <button type="button" class="pencraft pc-reset pencraft icon-container restack-image"></button>
+                <button type="button" class="pencraft pc-reset pencraft icon-container view-image"></button>
+              </div>
+            </div>
+          </figure>
+        </div>
+        <p>Body text after image.</p>
+        <p>${longTailText}</p>
+      </article>
+    `;
+    const item = makeItem({
+      title: "Fetched Substack media article",
+      description: "",
+      content: "",
+      coverImage: coverImageUrl,
+      link: "https://www.astralcodexten.com/p/the-sigmoids-wont-save-you",
+    });
+
+    getHarness(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(fetchedHtml);
+
+    await readerView.displayItem(item);
+
+    const rc = getHarness(readerView).readingContainer;
+    const heroImg = rc.querySelector<HTMLImageElement>(
+      ".rss-reader-hero-slot img",
+    );
+    const body = rc.querySelector<HTMLElement>(".rss-reader-article-content");
+    const source = body?.querySelector("source");
+    const img = body?.querySelector("img[alt='Fetched Substack example']");
+
+    expect(heroImg?.getAttribute("src")).toBe(decodedCoverImageUrl);
+    expect(source?.getAttribute("srcset")).toContain(decodedBodyImageUrl);
+    expect(source?.getAttribute("srcset") || "").not.toContain(
+      "substackcdn.com/image/fetch/",
+    );
+    expect(img?.getAttribute("src")).toBe(decodedBodyImageUrl);
+    expect(img?.getAttribute("srcset")).toContain(decodedBodyImageUrl);
+    expect(img?.getAttribute("srcset") || "").not.toContain(
+      "substackcdn.com/image/fetch/",
+    );
+    expect(body?.querySelector(".image-link-expand")).toBeNull();
+    expect(body?.querySelector("button.restack-image")).toBeNull();
+    expect(body?.querySelector("button.view-image")).toBeNull();
   });
 
   // --------------------------------------------------------------- CONTROL ---
@@ -279,11 +425,55 @@ describe("ReaderView – summary de-duplication", () => {
 
     await readerView.displayItem(item);
 
-    const rc = (readerView as any).readingContainer as HTMLElement;
+    const rc = getHarness(readerView).readingContainer;
     const callout = rc.querySelector(".rss-reader-description-callout");
     const body = rc.querySelector(".rss-reader-article-content");
     expect(callout).toBeTruthy();
     expect(body).toBeTruthy();
+  });
+
+  it("shows a placeholder in the feed description callout when the description is missing", async () => {
+    const item = makeItem({
+      description: "",
+      content: "<p>Extended body paragraph that should still render in the article body.</p>",
+    });
+
+    await readerView.displayItem(item);
+
+    const rc = getHarness(readerView).readingContainer;
+    const callout = rc.querySelector<HTMLElement>(
+      ".rss-reader-description-callout",
+    );
+    const descriptionBody = rc.querySelector<HTMLElement>(
+      ".rss-reader-description-body",
+    );
+    const body = rc.querySelector<HTMLElement>(".rss-reader-article-content");
+
+    expect(callout).toBeTruthy();
+    expect(descriptionBody?.textContent || "").toContain(
+      "No feed description available.",
+    );
+    expect(body?.textContent || "").toContain(
+      "Extended body paragraph that should still render in the article body.",
+    );
+  });
+
+  it("shows the placeholder when the feed description is only an ellipsis placeholder", async () => {
+    const item = makeItem({
+      description: "<p>...</p>",
+      content: "<p>Extended body paragraph that should still render in the article body.</p>",
+    });
+
+    await readerView.displayItem(item);
+
+    const rc = getHarness(readerView).readingContainer;
+    const descriptionBody = rc.querySelector<HTMLElement>(
+      ".rss-reader-description-body",
+    );
+
+    expect(descriptionBody?.textContent || "").toContain(
+      "No feed description available.",
+    );
   });
 
   it("CONTROL: renders only body (no callout) when description and content are byte-identical", async () => {
@@ -292,7 +482,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     await readerView.displayItem(item);
 
-    const rc = (readerView as any).readingContainer as HTMLElement;
+    const rc = getHarness(readerView).readingContainer;
     const callout = rc.querySelector(".rss-reader-description-callout");
     expect(callout).toBeNull();
   });
@@ -327,14 +517,20 @@ describe("ReaderView – summary de-duplication", () => {
       link: "https://arstechnica.com/tech-policy/2026/04/example/",
     });
 
-    (readerView as any).fetchFullArticleContent = vi
+    getHarness(readerView).fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue(fetchedHtml);
     await readerView.displayItem(item);
 
-    const body = (readerView as any).readingContainer.querySelector(
+    const body = getHarness(
+      readerView,
+    ).readingContainer.querySelector<HTMLElement>(
       ".rss-reader-article-content",
-    ) as HTMLElement;
+    );
+    expect(body).not.toBeNull();
+    if (!body) {
+      throw new Error("Expected .rss-reader-article-content to exist");
+    }
     expect(body.querySelector("svg")).toBeNull();
     expect(body.textContent).toContain("Sam was broke");
   });
@@ -369,15 +565,15 @@ describe("ReaderView – summary de-duplication", () => {
       link: "https://arstechnica.com/tech-policy/2026/04/example/",
     });
 
-    (readerView as any).fetchFullArticleContent = vi
+    getHarness(readerView).fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue(fetchedHtml);
     await readerView.displayItem(item);
 
-    const body = (readerView as any).readingContainer.querySelector(
+    const body = getHarness(readerView).readingContainer.querySelector(
       ".rss-reader-article-content",
     ) as HTMLElement;
-    const callout = (readerView as any).readingContainer.querySelector(
+    const callout = getHarness(readerView).readingContainer.querySelector(
       ".rss-reader-description-callout",
     );
 
@@ -435,12 +631,12 @@ describe("ReaderView – summary de-duplication", () => {
       link: "https://arstechnica.com/ai/2026/04/google-unveils-two-new-tpus-designed-for-the-agentic-era/",
     });
 
-    (readerView as any).fetchFullArticleContent = vi
+    getHarness(readerView).fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue(fetchedHtml);
     await readerView.displayItem(item);
 
-    const rc = (readerView as any).readingContainer as HTMLElement;
+    const rc = getHarness(readerView).readingContainer;
     const body = rc.querySelector(".rss-reader-article-content") as HTMLElement;
     const callout = rc.querySelector(".rss-reader-description-callout");
 

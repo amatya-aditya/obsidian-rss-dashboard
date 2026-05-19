@@ -167,7 +167,7 @@ export function showEditTagModal({
   onSave?: () => Promise<void> | void;
   submitLabel?: string;
 }): void {
-  const modal = document.body.createDiv({
+  const modal = activeDocument.body.createDiv({
     cls: "rss-dashboard-modal rss-dashboard-modal-container",
   });
 
@@ -206,7 +206,7 @@ export function showEditTagModal({
 
   const closeModal = () => {
     if (modal.parentElement) {
-      document.body.removeChild(modal);
+      activeDocument.body.removeChild(modal);
     }
   };
 
@@ -258,7 +258,7 @@ export function showEditTagModal({
   buttonContainer.appendChild(saveButton);
   formContainer.appendChild(buttonContainer);
 
-  requestAnimationFrame(() => {
+  activeWindow.requestAnimationFrame(() => {
     nameInput.focus();
     nameInput.select();
   });

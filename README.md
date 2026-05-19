@@ -21,8 +21,10 @@ Only the feeds you need. Stream the world's knowledge into your vault: RSS, podc
 - [Features](#features)
 - [Screenshots](#screenshots)
 - [Roadmap](#roadmap)
+- [Vault Shards Storage Guide](#vault-shards-storage-guide)
 - [Installation](#installation)
 - [Getting Started](#getting-started)
+- [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Development](#development)
 - [Troubleshooting](#troubleshooting)
 - [YouTube Embeds and Terms](#youtube-embeds-and-terms)
@@ -108,6 +110,10 @@ Community highlights:
 
 Looking for upcoming features? The old README planned-features list now lives in [docs/plans/public-roadmap.md](docs/plans/public-roadmap.md), along with links to other public-facing plans that have not been implemented yet.
 
+## Vault Shards Storage Guide
+
+Using the new experimental storage mode? See the user-facing guide here: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
+
 ## Installation
 
 ### Community Plugins Directory
@@ -170,7 +176,15 @@ Looking for upcoming features? The old README planned-features list now lives in
 4. Use the filtering and sorting options to find specific articles quickly.
 5. Export your feed list as OPML for backup or migration.
 
+### Keyboard Shortcuts
+
+To quickly access the keyboard shortcuts help file, press `?` (Shift + /) within the app. This will display a comprehensive list of available shortcuts and their functions.
+
 ## Development
+
+Before opening a PR, read the contributor policy in [CONTRIBUTING.MD](CONTRIBUTING.MD), especially the **Compliance Declarations (Audit Guardrails)** section.
+
+For implementation examples and approved patterns used in recent compliance passes, see [docs/development/compliance-patterns.md](docs/development/compliance-patterns.md).
 
 ### Local Setup
 
@@ -202,6 +216,8 @@ nvm use
 npm ci
 npm run test:unit -- --coverage
 ```
+
+**Test Baseline**: 130 test files, 1180 passing tests, 100% compliance audit. See [testing-guide.md](docs/development/test_coverage/testing-guide.md) for details.
 
 ### Production Build
 

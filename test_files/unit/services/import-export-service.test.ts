@@ -8,8 +8,8 @@
  *   - exportOpml: calls exportBlob with a text/xml blob
  *   - exportDataJson: calls exportBlob with an application/json blob containing full settings
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { RssDashboardSettings } from "../../../src/types/types";
+import { describe, it, expect, vi, beforeEach, type MockInstance } from "vitest";
+import type { RssDashboardSettings, PortableDataBundle } from "../../../src/types/types";
 
 vi.mock("../../../src/utils/export-utils", () => ({
   exportBlob: vi.fn().mockResolvedValue("downloaded"),
@@ -35,18 +35,18 @@ function makeSettings(overrides?: object): RssDashboardSettings {
   } as unknown as RssDashboardSettings;
 }
 
-function getNoticeMessages(spy: ReturnType<typeof vi.spyOn>): string[] {
+function getNoticeMessages(spy: MockInstance): string[] {
   return spy.mock.calls
     .filter((call: unknown[]): call is [string, string] => call[0] === "[Stub Notice]")
     .map((call: [string, string]) => String(call[1]));
 }
 
 describe("ImportExportService", () => {
-  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+  let consoleLogSpy: MockInstance;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
   });
 
   describe("getUserSettingsJson", () => {
@@ -55,7 +55,7 @@ describe("ImportExportService", () => {
         settings: makeSettings(),
         isMobile: false,
       });
-      const parsed = JSON.parse(svc.getUserSettingsJson());
+      const parsed = JSON.parse(svc.getUserSettingsJson()) as Record<string, unknown>;
       expect(parsed).not.toHaveProperty("feeds");
       expect(parsed).not.toHaveProperty("folders");
       expect(parsed).not.toHaveProperty("availableTags");
@@ -67,7 +67,7 @@ describe("ImportExportService", () => {
         settings: makeSettings(),
         isMobile: false,
       });
-      expect(() => JSON.parse(svc.getUserSettingsJson())).not.toThrow();
+      expect(() => { JSON.parse(svc.getUserSettingsJson()); }).not.toThrow();
     });
   });
 
@@ -148,7 +148,7 @@ describe("ImportExportService", () => {
       await svc.exportOpml();
       expect(exportBlob).toHaveBeenCalledWith(
         expect.objectContaining({
-          blob: expect.objectContaining({ type: "text/xml" }),
+          blob: expect.objectContaining({ type: "text/xml" }) as unknown as Blob,
           filename: "feeds.opml",
         }),
       );
@@ -162,13 +162,13 @@ describe("ImportExportService", () => {
       await svc.exportDataJson();
       expect(exportBlob).toHaveBeenCalledWith(
         expect.objectContaining({
-          blob: expect.objectContaining({ type: "application/json" }),
+          blob: expect.objectContaining({ type: "application/json" }) as unknown as Blob,
           filename: "data.json",
         }),
       );
-      const call = vi.mocked(exportBlob).mock.calls[0][0];
+      const call = vi.mocked(exportBlob).mock.calls[0][0] as unknown as { blob: Blob; filename: string };
       const text = await call.blob.text();
-      const parsed = JSON.parse(text);
+      const parsed = JSON.parse(text) as Record<string, unknown>;
       expect(parsed).toHaveProperty("feeds");
     });
   });
@@ -179,15 +179,16 @@ describe("ImportExportService", () => {
       const svc = new ImportExportService({
         settings,
         isMobile: false,
-        getPortableDataBundle: () =>
-          ({
+        getPortableDataBundle: () => {
+          return {
             version: 1,
             exportedAt: 123,
             storageMode: "vault-shards",
             metadata: { ...settings, feeds: [] },
             shards: [],
             markdownMirrorFallbackPlanned: true,
-          }) as any,
+          } as unknown as PortableDataBundle;
+        },
       });
 
       await svc.exportPortableDataBundle();
@@ -197,11 +198,66 @@ describe("ImportExportService", () => {
           filename: "rss-dashboard-portable-bundle.json",
         }),
       );
-      const call = vi.mocked(exportBlob).mock.calls[0][0];
+      const call = vi.mocked(exportBlob).mock.calls[0][0] as unknown as { blob: Blob; filename: string };
       const text = await call.blob.text();
-      const parsed = JSON.parse(text);
+      const parsed = JSON.parse(text) as Record<string, unknown>;
       expect(parsed.storageMode).toBe("vault-shards");
       expect(parsed.markdownMirrorFallbackPlanned).toBe(true);
+    });
+  });
+
+  describe("importPortableDataBundleFromFile", () => {
+    it("parses bundle JSON and passes it to the import callback", async () => {
+      const importPortableDataBundle = vi.fn().mockResolvedValue(undefined);
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+        importPortableDataBundle,
+      });
+
+      const file = new File(
+        [
+          JSON.stringify({
+            version: 1,
+            exportedAt: 123,
+            storageMode: "vault-shards",
+            metadata: { feeds: [] },
+            shards: [],
+            markdownMirrorFallbackPlanned: true,
+          }),
+        ],
+        "portable-bundle.json",
+        { type: "application/json" },
+      );
+
+      await svc.importPortableDataBundleFromFile(file);
+
+      expect(importPortableDataBundle).toHaveBeenCalledTimes(1);
+      expect(importPortableDataBundle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          version: 1,
+          storageMode: "vault-shards",
+        }),
+      );
+      expect(getNoticeMessages(consoleLogSpy)).toContain(
+        "Portable data bundle imported",
+      );
+    });
+
+    it("throws a helpful error when bundle JSON is invalid", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+        importPortableDataBundle: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const file = new File(["{bad json"], "portable-bundle.json", {
+        type: "application/json",
+      });
+
+      await expect(svc.importPortableDataBundleFromFile(file)).rejects.toThrow(
+        "Invalid portable bundle JSON",
+      );
     });
   });
 });

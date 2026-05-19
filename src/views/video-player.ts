@@ -42,11 +42,13 @@ export class VideoPlayer {
   private iframeEl: HTMLIFrameElement | null = null;
   private player: YTPlayer | null = null;
   private progressInterval: number | null = null;
+  private lastTrackedPosition: number | null = null;
   private onVideoSelect?: (item: FeedItem) => void;
   private onPlaybackProgress?: (
     item: FeedItem,
     position: number,
     duration: number,
+    flush?: boolean,
   ) => void;
   private relatedVideos: FeedItem[] = [];
 
@@ -57,6 +59,7 @@ export class VideoPlayer {
       item: FeedItem,
       position: number,
       duration: number,
+      flush?: boolean,
     ) => void,
   ) {
     this.container = container;
@@ -95,6 +98,7 @@ export class VideoPlayer {
 
     try {
       this.currentItem = item;
+      this.lastTrackedPosition = item.playbackProgress?.position ?? null;
       this.render();
     } catch (error) {
       const msg = `Error loading video: ${error instanceof Error ? error.message : "Unknown error"}`;
@@ -197,6 +201,7 @@ export class VideoPlayer {
               if (this.currentItem?.playbackProgress?.position) {
                 event.target.seekTo(this.currentItem.playbackProgress.position);
               }
+              this.startTracking();
             },
             onStateChange: (event: YTStateChangeEvent) => {
               this.handleStateChange(event.data);
@@ -214,12 +219,12 @@ export class VideoPlayer {
     if (state === 1) {
       // PLAYING
       this.startTracking();
-    } else {
-      this.stopTracking();
-      if (state === 2 || state === 0) {
-        // PAUSED or ENDED
-        this.saveProgress();
-      }
+      return;
+    }
+
+    if (state === 2 || state === 0) {
+      // PAUSED or ENDED
+      this.saveProgress(true);
     }
   }
 
@@ -237,18 +242,33 @@ export class VideoPlayer {
     }
   }
 
-  private saveProgress(): void {
+  private saveProgress(flush = false): void {
     if (!this.player || !this.currentItem || !this.onPlaybackProgress) return;
 
     try {
       const position = this.player.getCurrentTime();
       const duration = this.player.getDuration();
-      if (position >= 0 && duration > 0) {
-        this.onPlaybackProgress(this.currentItem, position, duration);
+      if (!(position >= 0) || !(duration > 0)) {
+        return;
       }
+
+      if (
+        !flush &&
+        this.lastTrackedPosition !== null &&
+        Math.abs(position - this.lastTrackedPosition) < 1
+      ) {
+        return;
+      }
+
+      this.lastTrackedPosition = position;
+      this.onPlaybackProgress(this.currentItem, position, duration, flush);
     } catch {
       // Player might not be ready or detached
     }
+  }
+
+  private flushProgress(): void {
+    this.saveProgress(true);
   }
 
   setRelatedVideos(videos: FeedItem[]): void {
@@ -325,6 +345,7 @@ export class VideoPlayer {
 
   destroy(): void {
     this.stopTracking();
+    this.flushProgress();
     if (this.player) {
       try {
         this.player.destroy();

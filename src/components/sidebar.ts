@@ -23,12 +23,16 @@ import {
 import { collectFolderPaths } from "../utils/folder-paths";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import { showEditTagModal } from "../utils/tag-utils";
-import { attachInputClearButton } from "../utils/platform-utils";
+import {
+  attachInputClearButton,
+  windowInstanceOf,
+} from "../utils/platform-utils";
 import { SidebarSearchService } from "../services/sidebar-search-service";
 import { isValidFolderName } from "../utils/validation";
 import type RssDashboardPlugin from "../../main";
 import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
+import { MediaService } from "../services/media-service";
 import {
   moveFeedAndInsert,
   moveFeedToFolderAppend,
@@ -84,6 +88,21 @@ export interface SidebarCallbacks {
   onActivateDiscover?: () => void;
   onCloseMobileSidebar?: () => void;
 }
+
+type SidebarFocusTarget =
+  | { type: "all-feeds" }
+  | { type: "folder"; path: string }
+  | { type: "feed"; url: string };
+
+type SidebarRowDescriptor = {
+  key: string;
+  target: SidebarFocusTarget;
+  element: HTMLElement;
+  feed?: Feed;
+  folderPath?: string;
+  folderName?: string;
+  expandable?: boolean;
+};
 
 // FolderNameModal — Uses Obsidian's Modal class to prevent mobile focus bugs.
 // ⚠️ DO NOT move the input to a raw document.body div or add event.stopPropagation()
@@ -226,7 +245,7 @@ class FolderNameModal extends Modal {
 
     // Single focus+select; Obsidian's Modal handles focus isolation.
     // ⚠️ Do NOT add rAF re-focus, blur recovery, or stopPropagation.
-    setTimeout(() => {
+    activeWindow.setTimeout(() => {
       if (this.contentEl.isConnected) {
         nameInput.focus();
         nameInput.select();
@@ -259,6 +278,9 @@ export class Sidebar {
   private iconBtnEls = new Map<string, HTMLElement>();
   private iconActions = new Map<string, (e?: MouseEvent) => void>();
   private resizeObserver: ResizeObserver | null = null;
+  private sidebarRows: SidebarRowDescriptor[] = [];
+  private focusedSidebarTarget: SidebarFocusTarget | null = null;
+  private isSidebarKeyboardFocused = false;
 
   /**
    * Extract main domain from a URL for favicon purposes (without subdomains)
@@ -460,6 +482,8 @@ export class Sidebar {
 
     this.container.empty();
     this.container.addClass("rss-dashboard-sidebar");
+    this.container.tabIndex = -1;
+    this.sidebarRows = [];
 
     const spacing = this.settings.display.sidebarRowSpacing ?? 10;
     this.container.style.setProperty("--sidebar-row-spacing", `${spacing}px`);
@@ -506,6 +530,8 @@ export class Sidebar {
     this.renderSearchDock(controlsSurface);
     this.renderFeedFolders();
     this.applySearchFilterFromState();
+    this.syncFocusedSidebarTargetAfterRender();
+    this.applySidebarFocusState();
 
     // Attach ResizeObserver once; keep it across re-renders
     if (!this.resizeObserver) {
@@ -515,11 +541,11 @@ export class Sidebar {
       this.resizeObserver.observe(this.container);
     }
     // Update scroll fade indicators after layout settles
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       this.updateIconRowFades();
     });
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       this.container.scrollTop = scrollPosition;
       const newFoldersSection = this.container.querySelector(
         ".rss-dashboard-feed-folders-section",
@@ -900,7 +926,7 @@ export class Sidebar {
       });
 
       // Auto-focus the input
-      requestAnimationFrame(() => {
+      activeWindow.requestAnimationFrame(() => {
         input.focus();
       });
     } else {
@@ -939,6 +965,8 @@ export class Sidebar {
     const allFeedsButton = container.createDiv({
       cls: "rss-dashboard-all-feeds-button" + (isAllActive ? " active" : ""),
     });
+    allFeedsButton.setAttr("tabindex", "-1");
+    this.registerSidebarRow({ type: "all-feeds" }, allFeedsButton);
     const isRefreshActive =
       this.plugin.isMultiFeedRefreshActive ||
       (this.plugin.activeRefreshState?.size ?? 0) > 0;
@@ -1015,7 +1043,11 @@ export class Sidebar {
         });
     });
 
-    menu.showAtMouseEvent(event);
+    if (typeof menu.showAtMouseEvent === "function") {
+      menu.showAtMouseEvent(event);
+    } else {
+      menu.showAtPosition({ x: event.clientX, y: event.clientY });
+    }
   }
 
   private applySortOrder(
@@ -1069,6 +1101,12 @@ export class Sidebar {
         "data-folder-name": folderName,
         "data-folder-path": fullPath,
       },
+    });
+    folderHeader.setAttr("tabindex", "-1");
+    this.registerSidebarRow({ type: "folder", path: fullPath }, folderHeader, {
+      folderPath: fullPath,
+      folderName,
+      expandable: isExpandable,
     });
 
     const toggleButton = folderHeader.createDiv({
@@ -1139,140 +1177,11 @@ export class Sidebar {
     folderHeader.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const menu = new Menu();
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Add feed")
-          .setIcon("rss")
-          .onClick(() => {
-            this.showAddFeedModal(fullPath);
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Add subfolder")
-          .setIcon("folder-plus")
-          .onClick(() => {
-            this.showFolderNameModal({
-              title: "Add subfolder",
-              existingNames:
-                this.findFolderByPath(fullPath)?.subfolders.map(
-                  (f) => f.name,
-                ) ?? [],
-              onSubmit: (subfolderName) => {
-                void this.addSubfolderByPath(fullPath, subfolderName).then(() =>
-                  this.render(),
-                );
-              },
-            });
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Rename folder")
-          .setIcon("edit")
-          .onClick(() => {
-            this.showFolderNameModal({
-              title: "Rename folder",
-              defaultValue: folderName,
-              existingNames: (() => {
-                const parentPath = fullPath.includes("/")
-                  ? fullPath.split("/").slice(0, -1).join("/")
-                  : "";
-                return parentPath
-                  ? (this.findFolderByPath(parentPath)?.subfolders.map(
-                      (f) => f.name,
-                    ) ?? [])
-                  : this.settings.folders.map((f) => f.name);
-              })(),
-              onSubmit: (newName) => {
-                if (newName !== folderName) {
-                  void this.renameFolderByPath(fullPath, newName).then(() =>
-                    this.render(),
-                  );
-                }
-              },
-            });
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Sort feeds (a to z)")
-          .setIcon("sort-asc")
-          .onClick(() => {
-            void this.sortFeedsInFolder(fullPath, "name", true);
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Sort feeds (z to a)")
-          .setIcon("sort-desc")
-          .onClick(() => {
-            void this.sortFeedsInFolder(fullPath, "name", false);
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Mark all as read")
-          .setIcon("check-circle")
-          .onClick(() => {
-            const allPaths = this.getAllDescendantFolderPaths(fullPath);
-            this.settings.feeds.forEach((feed) => {
-              if (feed.folder && allPaths.includes(feed.folder)) {
-                feed.items.forEach((item) => {
-                  item.read = true;
-                });
-              }
-            });
-            void this.plugin.saveSettings().then(() => this.render());
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle(`Refresh feeds in folder`)
-          .setIcon("refresh-cw")
-          .onClick(() => {
-            void this.plugin.refreshFeedsInFolder(fullPath);
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Refresh all feeds")
-          .setIcon("refresh-cw")
-          .onClick(() => {
-            void this.plugin.refreshFeeds();
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        const isPinned = folderObj.pinned;
-        item
-          .setTitle(isPinned ? "Unpin folder" : "Pin folder")
-          .setIcon(isPinned ? "unlock" : "lock")
-          .onClick(() => {
-            folderObj.pinned = !isPinned;
-            folderObj.modifiedAt = Date.now();
-            void this.plugin.saveSettings().then(() => this.render());
-          });
-      });
-      menu.addItem((item: MenuItem) => {
-        item
-          .setTitle("Delete folder")
-          .setIcon("trash")
-          .onClick(() => {
-            this.showConfirmModal(
-              `Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`,
-              () => {
-                const allPaths = this.getAllDescendantFolderPaths(fullPath);
-                this.settings.feeds = this.settings.feeds.filter(
-                  (feed) => !allPaths.includes(feed.folder),
-                );
-                this.removeFolderByPath(fullPath);
-                this.render();
-              },
-            );
-          });
-      });
-      menu.showAtMouseEvent(e);
+      this.showFolderContextMenu(e, folderObj, fullPath, folderName);
+    });
+
+    this.attachLongPressContextMenu(folderHeader, (event) => {
+      this.showFolderContextMenu(event, folderObj, fullPath, folderName);
     });
 
     folderHeader.addEventListener("dragstart", (e) => {
@@ -1534,6 +1443,8 @@ export class Sidebar {
         "data-feed-folder": feed.folder || "",
       },
     });
+    feedEl.setAttr("tabindex", "-1");
+    this.registerSidebarRow({ type: "feed", url: feed.url }, feedEl, { feed });
 
     const unreadCount = feed.items.filter((item) => !item.read).length;
     const feedNameContainer = feedEl.createDiv({
@@ -1561,8 +1472,11 @@ export class Sidebar {
       setIcon(feedIcon, "loader-2");
       feedIcon.addClass("processing");
       feedEl.classList.add("processing-feed");
-    } else if (feed.mediaType === "video") {
-      // Show play icon for video feeds
+    } else if (
+      feed.mediaType === "video" &&
+      MediaService.isYouTubeFeed(feed.url)
+    ) {
+      // Show play icon only for YouTube feeds.
       feedEl.classList.add("video-feed");
       setIcon(feedIcon, "play");
       feedIcon.addClass("video");
@@ -1632,13 +1546,14 @@ export class Sidebar {
       this.showFeedContextMenu(e, feed);
     });
 
-    this.attachLongPressContextMenu(feedEl, feed);
+    this.attachLongPressContextMenu(feedEl, (event) => {
+      this.showFeedContextMenu(event, feed);
+    });
 
     feedEl.addEventListener("dragstart", (e) => {
-      if (e.dataTransfer) {
-        e.dataTransfer.setData("feed-url", feed.url);
-        e.dataTransfer.effectAllowed = "move";
-      }
+      if (!e.dataTransfer) return;
+      e.dataTransfer.setData("feed-url", feed.url);
+      e.dataTransfer.effectAllowed = "move";
     });
 
     const clearFeedDropClasses = () => {
@@ -1711,22 +1626,25 @@ export class Sidebar {
     });
   }
 
-  private attachLongPressContextMenu(feedEl: HTMLElement, feed: Feed): void {
+  private attachLongPressContextMenu(
+    targetEl: HTMLElement,
+    onLongPress: (event: MouseEvent) => void,
+  ): void {
     let longPressTriggered = false;
 
     const clearTimer = () => {
       if (this.longPressTimer !== null) {
-        window.clearTimeout(this.longPressTimer);
+        activeWindow.clearTimeout(this.longPressTimer);
         this.longPressTimer = null;
       }
     };
 
-    feedEl.addEventListener("pointerdown", (event: PointerEvent) => {
+    targetEl.addEventListener("pointerdown", (event: PointerEvent) => {
       if (event.pointerType === "mouse") return;
 
       longPressTriggered = false;
       clearTimer();
-      this.longPressTimer = window.setTimeout(() => {
+      this.longPressTimer = activeWindow.setTimeout(() => {
         longPressTriggered = true;
         const syntheticEvent = new MouseEvent("contextmenu", {
           bubbles: true,
@@ -1734,21 +1652,166 @@ export class Sidebar {
           clientX: event.clientX,
           clientY: event.clientY,
         });
-        this.showFeedContextMenu(syntheticEvent, feed);
+        onLongPress(syntheticEvent);
       }, 500);
     });
 
-    feedEl.addEventListener("pointerup", clearTimer);
-    feedEl.addEventListener("pointercancel", clearTimer);
-    feedEl.addEventListener("pointermove", clearTimer);
+    targetEl.addEventListener("pointerup", clearTimer);
+    targetEl.addEventListener("pointercancel", clearTimer);
+    targetEl.addEventListener("pointermove", clearTimer);
 
-    feedEl.addEventListener("click", (event) => {
+    targetEl.addEventListener("click", (event) => {
       if (longPressTriggered) {
         event.preventDefault();
         event.stopPropagation();
         longPressTriggered = false;
       }
     });
+  }
+
+  private showFolderContextMenu(
+    event: MouseEvent,
+    folderObj: Folder,
+    fullPath: string,
+    folderName: string,
+  ): void {
+    const menu = new Menu();
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Add feed")
+        .setIcon("rss")
+        .onClick(() => {
+          this.showAddFeedModal(fullPath);
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Add subfolder")
+        .setIcon("folder-plus")
+        .onClick(() => {
+          this.showFolderNameModal({
+            title: "Add subfolder",
+            existingNames:
+              this.findFolderByPath(fullPath)?.subfolders.map((f) => f.name) ??
+              [],
+            onSubmit: (subfolderName) => {
+              void this.addSubfolderByPath(fullPath, subfolderName).then(() =>
+                this.render(),
+              );
+            },
+          });
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Rename folder")
+        .setIcon("edit")
+        .onClick(() => {
+          this.showFolderNameModal({
+            title: "Rename folder",
+            defaultValue: folderName,
+            existingNames: (() => {
+              const parentPath = fullPath.includes("/")
+                ? fullPath.split("/").slice(0, -1).join("/")
+                : "";
+              return parentPath
+                ? (this.findFolderByPath(parentPath)?.subfolders.map(
+                    (f) => f.name,
+                  ) ?? [])
+                : this.settings.folders.map((f) => f.name);
+            })(),
+            onSubmit: (newName) => {
+              if (newName !== folderName) {
+                void this.renameFolderByPath(fullPath, newName).then(() =>
+                  this.render(),
+                );
+              }
+            },
+          });
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Sort feeds (a to z)")
+        .setIcon("sort-asc")
+        .onClick(() => {
+          void this.sortFeedsInFolder(fullPath, "name", true);
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Sort feeds (z to a)")
+        .setIcon("sort-desc")
+        .onClick(() => {
+          void this.sortFeedsInFolder(fullPath, "name", false);
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Mark all as read")
+        .setIcon("check-circle")
+        .onClick(() => {
+          const allPaths = this.getAllDescendantFolderPaths(fullPath);
+          this.settings.feeds.forEach((feed) => {
+            if (feed.folder && allPaths.includes(feed.folder)) {
+              feed.items.forEach((item) => {
+                item.read = true;
+              });
+            }
+          });
+          void this.plugin.saveSettings().then(() => this.render());
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle(`Refresh feeds in folder`)
+        .setIcon("refresh-cw")
+        .onClick(() => {
+          void this.plugin.refreshFeedsInFolder(fullPath);
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Refresh all feeds")
+        .setIcon("refresh-cw")
+        .onClick(() => {
+          void this.plugin.refreshFeeds();
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      const isPinned = folderObj.pinned;
+      item
+        .setTitle(isPinned ? "Unpin folder" : "Pin folder")
+        .setIcon(isPinned ? "unlock" : "lock")
+        .onClick(() => {
+          folderObj.pinned = !isPinned;
+          folderObj.modifiedAt = Date.now();
+          void this.plugin.saveSettings().then(() => this.render());
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Delete folder")
+        .setIcon("trash")
+        .onClick(() => {
+          this.showConfirmModal(
+            `Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`,
+            () => {
+              const allPaths = this.getAllDescendantFolderPaths(fullPath);
+              this.settings.feeds = this.settings.feeds.filter(
+                (feed) => !allPaths.includes(feed.folder),
+              );
+              this.removeFolderByPath(fullPath);
+              this.render();
+            },
+          );
+        });
+    });
+    if (typeof menu.showAtMouseEvent === "function") {
+      menu.showAtMouseEvent(event);
+    } else {
+      menu.showAtPosition({ x: event.clientX, y: event.clientY });
+    }
   }
 
   private findFolderByPath(path: string): Folder | null {
@@ -1790,6 +1853,300 @@ export class Sidebar {
       await this.plugin.saveSettings();
       this.clearFolderPathCache();
       this.render();
+    }
+  }
+
+  public focusSidebar(): void {
+    this.isSidebarKeyboardFocused = true;
+
+    const target =
+      this.getFocusedSidebarRow() ??
+      this.findDefaultSidebarFocusRow() ??
+      this.sidebarRows[0];
+    if (!target) {
+      return;
+    }
+
+    this.focusedSidebarTarget = target.target;
+    this.applySidebarFocusState();
+  }
+
+  public blurSidebarFocus(): void {
+    this.isSidebarKeyboardFocused = false;
+    this.applySidebarFocusState();
+  }
+
+  public hasKeyboardFocus(): boolean {
+    return this.isSidebarKeyboardFocused;
+  }
+
+  public moveFocusToNextItem(): void {
+    this.moveSidebarFocusByOffset(1);
+  }
+
+  public moveFocusToPreviousItem(): void {
+    this.moveSidebarFocusByOffset(-1);
+  }
+
+  public jumpToNextFolder(): void {
+    this.jumpToFolder(1);
+  }
+
+  public jumpToPreviousFolder(): void {
+    this.jumpToFolder(-1);
+  }
+
+  public openFocusedItem(): void {
+    const row = this.getFocusedSidebarRow();
+    if (!row) {
+      return;
+    }
+
+    switch (row.target.type) {
+      case "all-feeds":
+        this.callbacks.onFolderClick(null);
+        break;
+      case "folder":
+        if (row.folderPath) {
+          this.callbacks.onFolderClick(row.folderPath);
+        }
+        break;
+      case "feed":
+        if (row.feed) {
+          this.callbacks.onFeedClick(row.feed);
+        }
+        break;
+    }
+  }
+
+  public toggleFocusedFolderCollapse(): void {
+    const row = this.getFocusedSidebarRow();
+    if (
+      !row ||
+      row.target.type !== "folder" ||
+      !row.folderPath ||
+      !row.expandable
+    ) {
+      return;
+    }
+
+    this.callbacks.onToggleFolderCollapse(row.folderPath);
+  }
+
+  public deleteFocusedItem(): void {
+    const row = this.getFocusedSidebarRow();
+    if (!row) {
+      return;
+    }
+
+    if (row.target.type === "feed" && row.feed) {
+      this.showConfirmModal(
+        `Are you sure you want to delete the feed "${row.feed.title}"?`,
+        () => {
+          this.callbacks.onDeleteFeed(row.feed!);
+        },
+      );
+      return;
+    }
+
+    if (row.target.type === "folder" && row.folderPath && row.folderName) {
+      this.showConfirmModal(
+        `Are you sure you want to delete the folder '${row.folderName}' and all its subfolders and feeds?`,
+        () => {
+          const allPaths = this.getAllDescendantFolderPaths(row.folderPath!);
+          this.settings.feeds = this.settings.feeds.filter(
+            (feed) => !allPaths.includes(feed.folder),
+          );
+          this.removeFolderByPath(row.folderPath!);
+          this.render();
+        },
+      );
+    }
+  }
+
+  public renameFocusedItem(): void {
+    const row = this.getFocusedSidebarRow();
+    if (!row) {
+      return;
+    }
+
+    if (row.target.type === "feed" && row.feed) {
+      this.showEditFeedModal(row.feed);
+      return;
+    }
+
+    if (row.target.type === "folder" && row.folderPath && row.folderName) {
+      const { folderPath, folderName } = row;
+      this.showFolderNameModal({
+        title: "Rename folder",
+        defaultValue: folderName,
+        existingNames: (() => {
+          const parentPath = folderPath.includes("/")
+            ? folderPath.split("/").slice(0, -1).join("/")
+            : "";
+          return parentPath
+            ? (this.findFolderByPath(parentPath)?.subfolders.map(
+                (folder) => folder.name,
+              ) ?? [])
+            : this.settings.folders.map((folder) => folder.name);
+        })(),
+        onSubmit: (newName) => {
+          if (newName !== row.folderName) {
+            void this.renameFolderByPath(row.folderPath!, newName).then(() =>
+              this.render(),
+            );
+          }
+        },
+      });
+    }
+  }
+
+  private registerSidebarRow(
+    target: SidebarFocusTarget,
+    element: HTMLElement,
+    extras?: Omit<SidebarRowDescriptor, "key" | "target" | "element">,
+  ): void {
+    this.sidebarRows.push({
+      key: this.getSidebarTargetKey(target),
+      target,
+      element,
+      ...extras,
+    });
+  }
+
+  private getSidebarTargetKey(target: SidebarFocusTarget): string {
+    switch (target.type) {
+      case "all-feeds":
+        return "all-feeds";
+      case "folder":
+        return `folder:${target.path}`;
+      case "feed":
+        return `feed:${target.url}`;
+    }
+  }
+
+  private getFocusedSidebarRow(): SidebarRowDescriptor | null {
+    if (!this.focusedSidebarTarget) {
+      return null;
+    }
+
+    const key = this.getSidebarTargetKey(this.focusedSidebarTarget);
+    return this.sidebarRows.find((row) => row.key === key) ?? null;
+  }
+
+  private findDefaultSidebarFocusRow(): SidebarRowDescriptor | null {
+    if (this.options.currentFeed) {
+      const targetKey = this.getSidebarTargetKey({
+        type: "feed",
+        url: this.options.currentFeed.url,
+      });
+      const feedRow = this.sidebarRows.find((row) => row.key === targetKey);
+      if (feedRow) {
+        return feedRow;
+      }
+    }
+
+    if (this.options.currentFolder) {
+      const targetKey = this.getSidebarTargetKey({
+        type: "folder",
+        path: this.options.currentFolder,
+      });
+      const folderRow = this.sidebarRows.find((row) => row.key === targetKey);
+      if (folderRow) {
+        return folderRow;
+      }
+    }
+
+    return (
+      this.sidebarRows.find((row) => row.target.type === "all-feeds") ?? null
+    );
+  }
+
+  private syncFocusedSidebarTargetAfterRender(): void {
+    if (!this.focusedSidebarTarget) {
+      return;
+    }
+
+    if (!this.getFocusedSidebarRow()) {
+      const fallback = this.findDefaultSidebarFocusRow() ?? this.sidebarRows[0];
+      this.focusedSidebarTarget = fallback?.target ?? null;
+    }
+  }
+
+  private applySidebarFocusState(): void {
+    this.container.toggleClass(
+      "rss-dashboard-sidebar-keyboard-focused",
+      this.isSidebarKeyboardFocused,
+    );
+
+    const focusedRow = this.getFocusedSidebarRow();
+    this.sidebarRows.forEach((row) => {
+      row.element.toggleClass(
+        "rss-dashboard-sidebar-row-focused",
+        this.isSidebarKeyboardFocused && row.key === focusedRow?.key,
+      );
+    });
+
+    if (!this.isSidebarKeyboardFocused || !focusedRow) {
+      return;
+    }
+
+    this.container.focus({ preventScroll: true });
+    focusedRow.element.focus({ preventScroll: true });
+    focusedRow.element.scrollIntoView({ block: "nearest", behavior: "auto" });
+  }
+
+  private moveSidebarFocusByOffset(offset: 1 | -1): void {
+    if (this.sidebarRows.length === 0) {
+      return;
+    }
+
+    if (!this.isSidebarKeyboardFocused) {
+      this.focusSidebar();
+      return;
+    }
+
+    const currentIndex = this.getFocusedSidebarRow()
+      ? this.sidebarRows.findIndex(
+          (row) => row.key === this.getFocusedSidebarRow()?.key,
+        )
+      : -1;
+    const startIndex = currentIndex >= 0 ? currentIndex : 0;
+    const nextIndex = Math.min(
+      this.sidebarRows.length - 1,
+      Math.max(0, startIndex + offset),
+    );
+
+    this.focusedSidebarTarget = this.sidebarRows[nextIndex].target;
+    this.applySidebarFocusState();
+  }
+
+  private jumpToFolder(direction: 1 | -1): void {
+    if (this.sidebarRows.length === 0) {
+      return;
+    }
+
+    if (!this.isSidebarKeyboardFocused) {
+      this.focusSidebar();
+      return;
+    }
+
+    const currentRow = this.getFocusedSidebarRow();
+    const startIndex = currentRow
+      ? this.sidebarRows.findIndex((row) => row.key === currentRow.key)
+      : -1;
+
+    for (
+      let idx = startIndex + direction;
+      idx >= 0 && idx < this.sidebarRows.length;
+      idx += direction
+    ) {
+      const row = this.sidebarRows[idx];
+      if (row.target.type !== "feed") {
+        this.focusedSidebarTarget = row.target;
+        this.applySidebarFocusState();
+        return;
+      }
     }
   }
 
@@ -1936,11 +2293,11 @@ export class Sidebar {
     cancelButton.onclick = () => confirmModal.close();
 
     confirmModal.open();
-    window.setTimeout(() => okButton.focus(), 50);
+    activeWindow.setTimeout(() => okButton.focus(), 50);
   }
 
   public showAddTagModal(): void {
-    const modal = document.body.createDiv({
+    const modal = activeDocument.body.createDiv({
       cls: "rss-dashboard-modal rss-dashboard-modal-container",
     });
 
@@ -1980,7 +2337,7 @@ export class Sidebar {
       text: "Cancel",
     });
     cancelButton.addEventListener("click", () => {
-      document.body.removeChild(modal);
+      modal.remove();
     });
 
     const addButton = buttonContainer.createEl("button", {
@@ -2011,7 +2368,7 @@ export class Sidebar {
 
         this.render();
 
-        document.body.removeChild(modal);
+        modal.remove();
 
         new Notice(`Tag "${tagName}" added successfully!`);
       } else {
@@ -2022,9 +2379,9 @@ export class Sidebar {
     formContainer.appendChild(buttonContainer);
 
     modal.appendChild(modalContent);
-    document.body.appendChild(modal);
+    activeDocument.body.appendChild(modal);
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       nameInput.focus();
     });
   }
@@ -2268,7 +2625,7 @@ export class Sidebar {
             this.isSearchExpanded = !this.isSearchExpanded;
             this.render();
             if (this.isSearchExpanded) {
-              requestAnimationFrame(() => {
+              activeWindow.requestAnimationFrame(() => {
                 const searchInput =
                   this.container.querySelector<HTMLInputElement>(
                     ".rss-dashboard-search-input",
@@ -2330,7 +2687,7 @@ export class Sidebar {
           const action = () => {
             cachedCollapseAllPaths = null;
             this.toggleAllFolders();
-            window.setTimeout(updateCollapseAllIcon, 0);
+            activeWindow.setTimeout(updateCollapseAllIcon, 0);
           };
           this.iconActions.set("collapseAll", action);
           btn = createToolbarButton(iconConfig, action);
@@ -2341,9 +2698,9 @@ export class Sidebar {
 
         case "settings": {
           const action = () => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- Obsidian internal app.setting API is untyped; optional chaining prevents crashes
             (this.app as any).setting?.open?.();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- Obsidian internal app.setting API is untyped; optional chaining prevents crashes
             (this.app as any).setting?.openTabById?.(this.plugin.manifest.id);
           };
           this.iconActions.set("settings", action);
@@ -2373,7 +2730,7 @@ export class Sidebar {
         cls: "rss-dashboard-coachmark",
         text: "Add your first feed here",
       });
-      window.setTimeout(() => {
+      activeWindow.setTimeout(() => {
         if (!this.app.loadLocalStorage("rss-first-launch-coachmark-shown")) {
           this.app.saveLocalStorage("rss-first-launch-coachmark-shown", "true");
           if (coachmark.parentNode) coachmark.remove();
@@ -2599,7 +2956,7 @@ export class Sidebar {
       () => {
         this.searchQuery = "";
         if (searchTimeout) {
-          window.clearTimeout(searchTimeout);
+          activeWindow.clearTimeout(searchTimeout);
         }
         this.filterFeedsAndFolders("");
         searchInput.focus();
@@ -2615,8 +2972,8 @@ export class Sidebar {
       searchInput.select();
 
       // On mobile, ensure the input is visible above the keyboard
-      if (window.innerWidth <= 768) {
-        window.setTimeout(() => {
+      if (activeWindow.innerWidth <= 768) {
+        activeWindow.setTimeout(() => {
           searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 100);
       }
@@ -2627,17 +2984,17 @@ export class Sidebar {
       this.searchQuery = rawQuery;
       const query = rawQuery.toLowerCase().trim();
       if (searchTimeout) {
-        window.clearTimeout(searchTimeout);
+        activeWindow.clearTimeout(searchTimeout);
       }
-      searchTimeout = window.setTimeout(() => {
+      searchTimeout = activeWindow.setTimeout(() => {
         this.filterFeedsAndFolders(query);
       }, 150);
     });
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       searchInput.focus();
-      if (window.innerWidth <= 768) {
-        window.setTimeout(() => {
+      if (activeWindow.innerWidth <= 768) {
+        activeWindow.setTimeout(() => {
           searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 100);
       }
@@ -2762,7 +3119,7 @@ export class Sidebar {
       cachedFolderPaths = null;
       this.toggleAllFolders();
 
-      window.setTimeout(() => updateCollapseIcon(), 0);
+      activeWindow.setTimeout(() => updateCollapseIcon(), 0);
     });
 
     const searchButton = sidebarToolbar.createDiv({
@@ -2785,7 +3142,7 @@ export class Sidebar {
       this.render();
 
       if (this.isSearchExpanded) {
-        requestAnimationFrame(() => {
+        activeWindow.requestAnimationFrame(() => {
           const searchInput = this.container.querySelector<HTMLInputElement>(
             ".rss-dashboard-search-input",
           );
@@ -3492,7 +3849,7 @@ export class Sidebar {
         folderFeedContainer?.children ?? [],
       ).some(
         (child) =>
-          child instanceof HTMLElement &&
+          windowInstanceOf(child, HTMLElement) &&
           child.classList.contains("rss-dashboard-feed-folder") &&
           folderVisible.get(child) === true,
       );

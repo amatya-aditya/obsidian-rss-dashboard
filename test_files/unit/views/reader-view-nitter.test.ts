@@ -1,22 +1,37 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ReaderView } from "../../../src/views/reader-view";
-import { FeedItem, RssDashboardSettings, DEFAULT_SETTINGS } from "../../../src/types/types";
+import {
+  FeedItem,
+  RssDashboardSettings,
+  DEFAULT_SETTINGS,
+} from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 installObsidianDomPolyfills();
 
 class MockLeaf {
-  app: any;
-  view: any;
-  constructor(app: any) {
+  app: unknown;
+  view: unknown;
+  constructor(app: unknown) {
     this.app = app;
   }
   detach = vi.fn();
 }
 
+type ReaderViewInternals = {
+  contentEl: HTMLElement;
+  readingContainer: HTMLElement;
+  fetchFullArticleContent: ReturnType<typeof vi.fn>;
+};
+
+function getInternals(view: ReaderView): ReaderViewInternals {
+  return view as unknown as ReaderViewInternals;
+}
+
 function makeNitterItem(overrides: Partial<FeedItem> = {}): FeedItem {
   return {
-    title: "A very long tweet title that should not be used in the reader header",
+    title:
+      "A very long tweet title that should not be used in the reader header",
     link: "https://twitter.com/janedoe/status/123",
     description: "<p>Hello<br><br>World</p>",
     content: "<p>Hello World</p>",
@@ -36,9 +51,18 @@ function makeNitterItem(overrides: Partial<FeedItem> = {}): FeedItem {
 }
 
 describe("ReaderView Nitter rendering", () => {
-  let readerView: any;
-  let mockApp: any;
-  let mockLeaf: any;
+  let readerView: ReaderView;
+  let mockApp: {
+    workspace: {
+      getLeavesOfType: ReturnType<typeof vi.fn>;
+      setActiveLeaf: ReturnType<typeof vi.fn>;
+      revealLeaf: ReturnType<typeof vi.fn>;
+    };
+    vault: {
+      getAbstractFileByPath: ReturnType<typeof vi.fn>;
+    };
+  };
+  let mockLeaf: MockLeaf;
   let mockSettings: RssDashboardSettings;
 
   beforeEach(async () => {
@@ -56,34 +80,44 @@ describe("ReaderView Nitter rendering", () => {
     mockSettings = { ...DEFAULT_SETTINGS, useWebViewer: false };
 
     readerView = new ReaderView(
-      mockLeaf as any,
+      mockLeaf as never,
       mockSettings,
-      { saveArticle: vi.fn() } as any,
+      { saveArticle: vi.fn() } as never,
       vi.fn(),
       vi.fn(),
     );
 
-    (readerView as any).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = document.createElement("div");
     await readerView.onOpen();
   });
 
   it("uses a compact reader-only title for Nitter items (header, H1, and tab text)", async () => {
-    (readerView as any).fetchFullArticleContent = vi.fn().mockResolvedValue("<p>should not fetch</p>");
+    getInternals(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue("<p>should not fetch</p>");
 
     const item = makeNitterItem();
     await readerView.displayItem(item);
 
     const expectedTitle = "Jane Doe (@janedoe) · 2026-03-20";
 
-    const headerTitle = (readerView as any).contentEl.querySelector(".rss-reader-title");
+    const headerTitle =
+      getInternals(readerView).contentEl.querySelector<HTMLElement>(
+        ".rss-reader-title",
+      );
     expect(headerTitle?.textContent).toContain(expectedTitle);
 
-    const container = (readerView as any).readingContainer as HTMLElement;
-    expect(container.querySelector(".rss-reader-item-title")?.textContent).toContain(expectedTitle);
+    const container = getInternals(readerView).readingContainer;
+    expect(
+      container.querySelector<HTMLElement>(".rss-reader-item-title")
+        ?.textContent,
+    ).toContain(expectedTitle);
 
     expect(readerView.getDisplayText()).toContain(expectedTitle);
 
-    expect((readerView as any).fetchFullArticleContent).not.toHaveBeenCalled();
+    expect(
+      getInternals(readerView).fetchFullArticleContent,
+    ).not.toHaveBeenCalled();
   });
 
   it("uses a compact title for X/Twitter links even when feedUrl is not Nitter", async () => {
@@ -96,10 +130,11 @@ describe("ReaderView Nitter rendering", () => {
 
     await readerView.displayItem(item);
 
-    const container = (readerView as any).readingContainer as HTMLElement;
-    expect(container.querySelector(".rss-reader-item-title")?.textContent).toContain(
-      "@janedoe · 2026-03-20",
-    );
+    const container = getInternals(readerView).readingContainer;
+    expect(
+      container.querySelector<HTMLElement>(".rss-reader-item-title")
+        ?.textContent,
+    ).toContain("@janedoe · 2026-03-20");
   });
 
   it("renders a single formatted tweet body and skips the feed description callout for Nitter", async () => {
@@ -109,10 +144,14 @@ describe("ReaderView Nitter rendering", () => {
     });
     await readerView.displayItem(item);
 
-    const container = (readerView as any).readingContainer as HTMLElement;
-    expect(container.querySelector(".rss-reader-description-callout")).toBeNull();
+    const container = getInternals(readerView).readingContainer;
+    expect(
+      container.querySelector<HTMLElement>(".rss-reader-description-callout"),
+    ).toBeNull();
 
-    const content = container.querySelector(".rss-reader-article-content") as HTMLElement | null;
+    const content = container.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
     expect(content).toBeTruthy();
     expect(content?.querySelectorAll("br").length).toBeGreaterThanOrEqual(2);
   });
@@ -133,31 +172,37 @@ describe("ReaderView Nitter rendering", () => {
     });
     await readerView.displayItem(item);
 
-    const container = (readerView as any).readingContainer as HTMLElement;
-    const stats = container.querySelector(".rss-nitter-stats");
+    const container = getInternals(readerView).readingContainer;
+    const stats = container.querySelector<HTMLElement>(".rss-nitter-stats");
     expect(stats).toBeTruthy();
 
-    const icons = Array.from(container.querySelectorAll<HTMLElement>(".rss-nitter-stat-icon"));
+    const icons = Array.from(
+      container.querySelectorAll<HTMLElement>(".rss-nitter-stat-icon"),
+    );
     expect(icons.length).toBe(4);
     icons.forEach((el) => {
-      expect(el.dataset.icon).toBeTruthy();
+      expect(el.getAttribute("data-rss-icon")).toBeTruthy();
     });
 
     expect(
-      container.querySelector<HTMLElement>('.rss-nitter-stat[data-stat="comment"] .rss-nitter-stat-count')
-        ?.textContent,
+      container.querySelector<HTMLElement>(
+        '.rss-nitter-stat[data-stat="comment"] .rss-nitter-stat-count',
+      )?.textContent,
     ).toContain("3");
     expect(
-      container.querySelector<HTMLElement>('.rss-nitter-stat[data-stat="retweet"] .rss-nitter-stat-count')
-        ?.textContent,
+      container.querySelector<HTMLElement>(
+        '.rss-nitter-stat[data-stat="retweet"] .rss-nitter-stat-count',
+      )?.textContent,
     ).toContain("10");
     expect(
-      container.querySelector<HTMLElement>('.rss-nitter-stat[data-stat="heart"] .rss-nitter-stat-count')
-        ?.textContent,
+      container.querySelector<HTMLElement>(
+        '.rss-nitter-stat[data-stat="heart"] .rss-nitter-stat-count',
+      )?.textContent,
     ).toContain("42");
     expect(
-      container.querySelector<HTMLElement>('.rss-nitter-stat[data-stat="views"] .rss-nitter-stat-count')
-        ?.textContent,
+      container.querySelector<HTMLElement>(
+        '.rss-nitter-stat[data-stat="views"] .rss-nitter-stat-count',
+      )?.textContent,
     ).toContain("999");
   });
 });

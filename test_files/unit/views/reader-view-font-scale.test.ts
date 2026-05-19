@@ -10,14 +10,24 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 installObsidianDomPolyfills();
 
 class MockLeaf {
-  app: any;
-  view: any;
+  app: unknown;
+  view: unknown;
 
-  constructor(app: any) {
+  constructor(app: unknown) {
     this.app = app;
   }
 
   detach = vi.fn();
+}
+
+type ReaderViewInternals = {
+  contentEl: HTMLElement;
+  readingContainer: HTMLElement;
+  applyReaderFormat: () => void;
+};
+
+function getInternals(view: ReaderView): ReaderViewInternals {
+  return view as unknown as ReaderViewInternals;
 }
 
 function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
@@ -66,23 +76,23 @@ describe("ReaderView font scaling", () => {
     };
 
     readerView = new ReaderView(
-      new MockLeaf(mockApp) as any,
+      new MockLeaf(mockApp) as never,
       mockSettings,
-      { saveArticle: vi.fn() } as any,
+      { saveArticle: vi.fn() } as never,
       vi.fn(),
       vi.fn(),
     );
 
-    (readerView as any).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = document.createElement("div");
     await readerView.onOpen();
   });
 
   it("exposes one shared body font-size variable derived from fontScalePct", () => {
-    const contentEl = (readerView as any).contentEl as HTMLElement;
+    const contentEl = getInternals(readerView).contentEl;
 
-    expect(contentEl.style.getPropertyValue("--rss-reader-body-font-size")).toBe(
-      "1.25em",
-    );
+    expect(
+      contentEl.style.getPropertyValue("--rss-reader-body-font-size"),
+    ).toBe("1.25em");
     expect(contentEl.style.getPropertyValue("--rss-reader-font-scale")).toBe(
       "1.25",
     );
@@ -90,19 +100,19 @@ describe("ReaderView font scaling", () => {
 
   it("updates the article headline font when the reader font changes", async () => {
     mockSettings.readerFormat.fontFamily = "serif";
-    (readerView as any).applyReaderFormat();
+    getInternals(readerView).applyReaderFormat();
     await readerView.displayItem(makeItem());
 
-    const headline = (readerView as any).readingContainer.querySelector(
-      ".rss-reader-item-title",
-    ) as HTMLElement | null;
+    const headline = getInternals(
+      readerView,
+    ).readingContainer.querySelector<HTMLElement>(".rss-reader-item-title");
 
     expect(headline?.style.fontFamily).toBe(
       'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
     );
 
     mockSettings.readerFormat.fontFamily = "mono";
-    (readerView as any).applyReaderFormat();
+    getInternals(readerView).applyReaderFormat();
 
     expect(headline?.style.fontFamily).toBe(
       'var(--font-monospace), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',

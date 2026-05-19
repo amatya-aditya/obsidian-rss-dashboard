@@ -219,3 +219,73 @@ export function migrateKeywordRulesSettings(
 
   return changed;
 }
+
+export function migrateMediaVideoTagSettings(
+  settings: Record<string, unknown>,
+): boolean {
+  let changed = false;
+
+  // Defensive: ensure settings.media is a record
+  if (!isRecord(settings.media)) {
+    settings.media = {};
+    changed = true;
+  }
+
+  const media = settings.media as Record<string, unknown>;
+  if (typeof media.autoTagVideos !== "boolean") {
+    media.autoTagVideos = true;
+    changed = true;
+  }
+
+  // Ensure configured video tag is present and normalized
+  if (typeof media.defaultYouTubeTag !== "string") {
+    media.defaultYouTubeTag = "Video";
+    changed = true;
+  } else if (media.defaultYouTubeTag.trim().length === 0) {
+    media.defaultYouTubeTag = "Video";
+    changed = true;
+  }
+
+  // Defensive: ensure availableTags is always an array
+  const hadValidAvailableTags = Array.isArray(settings.availableTags);
+  const availableTags: Array<unknown> =
+    hadValidAvailableTags && Array.isArray(settings.availableTags)
+      ? settings.availableTags
+      : [];
+
+  // Remove YouTube tag if present (YouTube videos now use generic Video tag)
+  const youtubeTagIndex = availableTags.findIndex((tag) => {
+    return (
+      isRecord(tag) &&
+      typeof tag.name === "string" &&
+      tag.name.toLowerCase() === "youtube"
+    );
+  });
+
+  if (youtubeTagIndex !== -1) {
+    availableTags.splice(youtubeTagIndex, 1);
+    settings.availableTags = availableTags;
+    changed = true;
+  }
+
+  const hasVideoTag = availableTags.some((tag) => {
+    return (
+      isRecord(tag) &&
+      typeof tag.name === "string" &&
+      tag.name.toLowerCase() === "video"
+    );
+  });
+
+  if (!hasVideoTag) {
+    availableTags.push({ name: "Video", color: "#d04747" });
+    settings.availableTags = availableTags;
+    changed = true;
+  }
+
+  if (!hadValidAvailableTags) {
+    settings.availableTags = availableTags;
+    changed = true;
+  }
+
+  return changed;
+}

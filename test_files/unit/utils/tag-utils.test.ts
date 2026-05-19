@@ -5,11 +5,12 @@ import {
   updateTagInSettings,
   withSavedTagName,
 } from "../../../src/utils/tag-utils";
+import { FeedItem, RssDashboardSettings, Tag } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 type TestTag = { name: string; color?: string };
 
-function makeSettings(tags: TestTag[]): any {
+function makeSettings(tags: TestTag[]): RssDashboardSettings {
   return {
     availableTags: [...tags],
     feeds: [
@@ -21,12 +22,15 @@ function makeSettings(tags: TestTag[]): any {
         ],
       },
     ],
-  };
+  } as unknown as RssDashboardSettings;
 }
 
 beforeEach(() => {
   installObsidianDomPolyfills();
-  document.body.empty();
+  interface ObsidianElement extends HTMLElement {
+    empty(): void;
+  }
+  (document.body as unknown as ObsidianElement).empty();
   vi.restoreAllMocks();
 });
 
@@ -37,11 +41,11 @@ describe("tag-utils.updateTagInSettings", () => {
 
     const updated = updateTagInSettings(
       settings,
-      oldTag as any,
+      oldTag as unknown as Tag,
       {
         name: "Technology",
         color: "#abcdef",
-      } as any,
+      } as unknown as Tag,
     );
 
     expect(updated).toEqual([
@@ -62,7 +66,7 @@ describe("tag-utils.updateTagInSettings", () => {
 
 describe("tag-utils.showEditTagModal", () => {
   it("validates empty and duplicate names, then saves and closes", async () => {
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     const settings = makeSettings([
       { name: "Tech", color: "#111111" },
@@ -73,19 +77,19 @@ describe("tag-utils.showEditTagModal", () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     showEditTagModal({ settings, tag, onSave });
 
-    const modal = document.querySelector(
+    const modal = document.querySelector<HTMLElement>(
       ".rss-dashboard-modal",
-    ) as HTMLElement | null;
+    );
     expect(modal).not.toBeNull();
 
-    const nameInput = document.querySelector(
+    const nameInput = document.querySelector<HTMLInputElement>(
       ".rss-dashboard-tag-modal-name-input",
-    ) as HTMLInputElement | null;
+    );
     expect(nameInput).not.toBeNull();
 
-    const saveButton = document.querySelector(
+    const saveButton = document.querySelector<HTMLButtonElement>(
       "button.rss-dashboard-primary-button",
-    ) as HTMLButtonElement | null;
+    );
     expect(saveButton).not.toBeNull();
 
     // Empty name
@@ -127,12 +131,12 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
     const article = {
       starred: false,
       tags: [{ name: "news", color: "#111111" }],
-    } as any;
+    };
 
-    const updates = applyAutomaticArticleTags(article, { starred: true }, {
+    const updates = applyAutomaticArticleTags(article as unknown as FeedItem, { starred: true }, {
       availableTags: [{ name: "Favorite", color: "#f1c40f" }],
       articleSaving: { addSavedTag: true },
-    } as any);
+    } as unknown as RssDashboardSettings);
 
     expect(updates.tags).toEqual([
       { name: "news", color: "#111111" },
@@ -147,12 +151,12 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
         { name: "Favorite", color: "#f1c40f" },
         { name: "news", color: "#111111" },
       ],
-    } as any;
+    };
 
-    const updates = applyAutomaticArticleTags(article, { starred: false }, {
+    const updates = applyAutomaticArticleTags(article as unknown as FeedItem, { starred: false }, {
       availableTags: [{ name: "Favorite", color: "#f1c40f" }],
       articleSaving: { addSavedTag: true },
-    } as any);
+    } as unknown as RssDashboardSettings);
 
     expect(updates.tags).toEqual([{ name: "news", color: "#111111" }]);
   });
@@ -161,12 +165,12 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
     const article = {
       saved: false,
       tags: [{ name: "saved", color: "#123456" }],
-    } as any;
+    };
 
-    const updates = applyAutomaticArticleTags(article, { saved: true }, {
+    const updates = applyAutomaticArticleTags(article as unknown as FeedItem, { saved: true }, {
       availableTags: [],
       articleSaving: { addSavedTag: true },
-    } as any);
+    } as unknown as RssDashboardSettings);
 
     expect(updates.tags).toEqual([{ name: "Saved", color: "#123456" }]);
   });

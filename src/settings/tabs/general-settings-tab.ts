@@ -8,7 +8,7 @@
  *   - MAX_ITEMS_PRESETS, isPresetMaxItems                — testable helpers
  *   - AUTO_DELETE_PRESETS, isPresetAutoDeleteDuration    — testable helpers
  */
-import { App, Notice, Setting, WorkspaceLeaf } from "obsidian";
+import { App, Notice, Setting, TFolder, WorkspaceLeaf } from "obsidian";
 import { setCssProps } from "../../utils/platform-utils";
 import { normalizeRefreshIntervalMinutes } from "../../utils/validation";
 import { isPresetRefreshInterval } from "../../utils/refresh-intervals";
@@ -20,11 +20,11 @@ import {
   getPageSizeOptions,
   PAGE_SIZE_OPTIONS,
 } from "../../utils/page-size-options";
+import { ApplyMaxItemsToExistingFeedsModal } from "../modals/settings-modals";
 import {
-  ApplyMaxItemsToExistingFeedsModal,
-} from "../modals/settings-modals";
-import {
+  MetadataCleanupModal,
   ShardDeletionFailureModal,
+  type MetadataCleanupAction,
   type ShardDeletionFailureAction,
   type StorageTransitionAction,
   type StorageTransitionOptions,
@@ -36,23 +36,19 @@ import type {
 } from "../../services/feed-storage-repository";
 import type { RssDashboardSettings } from "../../types/types";
 
-const STORAGE_LOG_PREFIX = "[RSS Dashboard][Storage]";
-
-interface GeneralSettingsPlugin {
+export interface GeneralSettingsPlugin {
   app: App;
   settingTab: { display(): void } | null;
   settings: RssDashboardSettings;
   saveSettings(): Promise<void>;
-  getActiveDashboardView(): Promise<
-    | {
-        leaf: WorkspaceLeaf;
-        render(): void;
-      }
-    | null
-  >;
+  getActiveDashboardView(): Promise<{
+    leaf: WorkspaceLeaf;
+    render(): void;
+  } | null>;
   getStorageStatus(): FeedStorageStatus;
   migrateToVaultStorage(): Promise<void>;
   repairVaultStorage(): Promise<void>;
+  importPortableDataBundleFromFile(file: File): Promise<void>;
   exportPortableDataBundle(): Promise<void>;
   exportDataJson(): Promise<void>;
   applyFeedLimitsToAllFeeds(): Promise<void>;
@@ -62,25 +58,17 @@ interface GeneralSettingsPlugin {
   }): Promise<void>;
   isShardFolderDeletionError(error: unknown): error is ShardFolderDeletionError;
   openStorageFolderInSystem(folderPath?: string): Promise<void>;
+  migrateMetadataToVaultLocation(): Promise<void>;
+  revertMetadataToPluginDefault(): Promise<void>;
 }
 
-function storageLog(message: string, details?: unknown): void {
-  if (details === undefined) {
-    console.debug(`${STORAGE_LOG_PREFIX} ${message}`);
-    return;
-  }
+function storageLog(_message: string, _details?: unknown): void {}
 
-  console.debug(`${STORAGE_LOG_PREFIX} ${message}`, details);
-}
-
-function storageError(message: string, error: unknown, details?: unknown): void {
-  if (details === undefined) {
-    console.error(`${STORAGE_LOG_PREFIX} ${message}`, error);
-    return;
-  }
-
-  console.error(`${STORAGE_LOG_PREFIX} ${message}`, details, error);
-}
+function storageError(
+  _message: string,
+  _error: unknown,
+  _details?: unknown,
+): void {}
 
 // ── Pure preset helpers (exported for testing) ───────────────────────────────
 
@@ -338,6 +326,129 @@ export function renderGeneralSettingsTab(
         }),
     );
 
+  let pendingMetadataStorageFolder =
+    plugin.settings.metadataStorageMode === "vault-location"
+      ? plugin.settings.metadataStorageFolder
+      : "";
+  let lastSavedMetadataStorageFolder = pendingMetadataStorageFolder;
+
+  const pluginDefaultMetadataFilePath = `${plugin.app.vault.configDir}/plugins/rss-dashboard/data.json`;
+
+  const deleteMetadataFileAtPath = async (
+    dataFilePath: string,
+  ): Promise<boolean> => {
+    const file = plugin.app.vault.getAbstractFileByPath(dataFilePath);
+    if (!file || file instanceof TFolder) {
+      return false;
+    }
+    await plugin.app.fileManager.trashFile(file);
+    return true;
+  };
+
+  const maybeOfferMetadataCleanup = async (
+    previousDataFilePath: string | null,
+  ): Promise<void> => {
+    if (!previousDataFilePath) {
+      return;
+    }
+    const previousFile =
+      plugin.app.vault.getAbstractFileByPath(previousDataFilePath);
+    if (!previousFile || previousFile instanceof TFolder) {
+      return;
+    }
+
+    const cleanupModal = new MetadataCleanupModal(plugin.app, {
+      previousLocationLabel: previousDataFilePath,
+    });
+    cleanupModal.open();
+    const cleanupAction: MetadataCleanupAction =
+      await cleanupModal.waitForClose();
+
+    if (cleanupAction !== "delete") {
+      return;
+    }
+
+    try {
+      const deleted = await deleteMetadataFileAtPath(previousDataFilePath);
+      if (deleted) {
+        new Notice("Previous metadata data.json copy deleted.");
+      }
+    } catch (error) {
+      storageError("Failed to delete previous metadata copy", error, {
+        previousDataFilePath,
+      });
+      new Notice(
+        `Failed to delete previous metadata copy${
+          error instanceof Error ? `: ${error.message}` : ""
+        }`,
+      );
+    }
+  };
+
+  const commitMetadataStorageFolder = async (
+    rawValue: string,
+  ): Promise<void> => {
+    const nextFolder = rawValue.trim();
+    if (nextFolder === lastSavedMetadataStorageFolder) {
+      return;
+    }
+
+    const previousMode = plugin.settings.metadataStorageMode;
+    const previousFolder = plugin.settings.metadataStorageFolder;
+    const previousDataFilePath =
+      previousMode === "vault-location"
+        ? `${previousFolder}/data.json`
+        : pluginDefaultMetadataFilePath;
+
+    try {
+      storageLog("Metadata storage folder changed", {
+        previousMode,
+        previousFolder,
+        nextFolder,
+      });
+
+      if (!nextFolder) {
+        if (plugin.settings.metadataStorageMode === "vault-location") {
+          await plugin.revertMetadataToPluginDefault();
+        }
+        plugin.settings.metadataStorageFolder = ".rss-dashboard-data";
+        await plugin.saveSettings();
+        lastSavedMetadataStorageFolder = "";
+        pendingMetadataStorageFolder = "";
+        await maybeOfferMetadataCleanup(previousDataFilePath);
+        return;
+      }
+
+      plugin.settings.metadataStorageFolder = nextFolder;
+      if (plugin.settings.metadataStorageMode === "vault-location") {
+        // Reuse migration flow when switching from one vault folder to another.
+        plugin.settings.metadataStorageMode = "plugin-default";
+      }
+
+      await plugin.migrateMetadataToVaultLocation();
+      lastSavedMetadataStorageFolder = nextFolder;
+      pendingMetadataStorageFolder = nextFolder;
+      await maybeOfferMetadataCleanup(previousDataFilePath);
+    } catch (error) {
+      plugin.settings.metadataStorageMode = previousMode;
+      plugin.settings.metadataStorageFolder = previousFolder;
+      pendingMetadataStorageFolder =
+        previousMode === "vault-location" ? previousFolder : "";
+
+      storageError("Metadata storage folder update failed", error, {
+        previousMode,
+        previousFolder,
+        nextFolder,
+      });
+      new Notice(
+        `Metadata storage update failed${
+          error instanceof Error ? `: ${error.message}` : ""
+        }`,
+      );
+      throw error;
+    }
+  };
+
   new Setting(containerEl)
     .setName("Storage status")
     .setDesc(renderStorageStatus());
@@ -362,7 +473,6 @@ export function renderGeneralSettingsTab(
               folder: plugin.settings.storageFolder,
               feedCount: plugin.settings.feeds.length,
             });
-
             if (pendingStorageMode === plugin.settings.storageMode) {
               new Notice("Storage mode is already active.");
               return;
@@ -371,7 +481,9 @@ export function renderGeneralSettingsTab(
             const modalOptions: StorageTransitionOptions = {
               currentMode: plugin.settings.storageMode,
               targetMode: pendingStorageMode,
-              storageFolder: plugin.settings.storageFolder.trim() || ".rss-dashboard-data/feeds",
+              storageFolder:
+                plugin.settings.storageFolder.trim() ||
+                ".rss-dashboard-data/feeds",
             };
             const modal: StorageTransitionModal = new StorageTransitionModal(
               plugin.app,
@@ -424,9 +536,6 @@ export function renderGeneralSettingsTab(
               }
 
               pendingStorageMode = plugin.settings.storageMode;
-              if (plugin.settingTab) {
-                plugin.settingTab.display();
-              }
             } catch (error) {
               storageError("Apply storage mode action failed", error, {
                 requestedMode: pendingStorageMode,
@@ -469,21 +578,52 @@ export function renderGeneralSettingsTab(
       }),
     )
     .addButton((button) =>
-      button.setButtonText("Export portable data bundle").onClick(() => {
+      button.setButtonText("Import shard data").onClick(() => {
+        const input = activeDocument.body.createEl("input", {
+          attr: { type: "file", accept: ".json,.backup,application/json" },
+        });
+        input.onchange = () => {
+          void (async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            storageLog("Clicked import shard data", {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            try {
+              await plugin.importPortableDataBundleFromFile(file);
+            } catch (error) {
+              storageError("Shard data import failed", error, {
+                currentMode: plugin.settings.storageMode,
+                folder: plugin.settings.storageFolder,
+              });
+              new Notice(
+                `Shard data import failed${
+                  error instanceof Error ? `: ${error.message}` : ""
+                }`,
+              );
+            }
+          })();
+        };
+        input.click();
+      }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Export shard data").onClick(() => {
         void (async () => {
-          storageLog("Clicked export portable data bundle", {
+          storageLog("Clicked export shard data", {
             currentMode: plugin.settings.storageMode,
             folder: plugin.settings.storageFolder,
           });
           try {
             await plugin.exportPortableDataBundle();
           } catch (error) {
-            storageError("Portable bundle export failed", error, {
+            storageError("Shard data export failed", error, {
               currentMode: plugin.settings.storageMode,
               folder: plugin.settings.storageFolder,
             });
             new Notice(
-              `Portable bundle export failed${
+              `Shard data export failed${
                 error instanceof Error ? `: ${error.message}` : ""
               }`,
             );
@@ -502,6 +642,49 @@ export function renderGeneralSettingsTab(
       border: "1px solid #6a4df0",
     });
   }
+
+  new Setting(containerEl).setName("Metadata Storage").setHeading();
+
+  new Setting(containerEl)
+    .setName("Metadata data.json location")
+    .setDesc(
+      "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin directory.",
+    )
+    .addText((text) => {
+      text
+        .setPlaceholder(".rss-dashboard-data")
+        .setValue(lastSavedMetadataStorageFolder)
+        .onChange((value) => {
+          pendingMetadataStorageFolder = value;
+        });
+    });
+
+  new Setting(containerEl)
+    .setName("Metadata actions")
+    .setDesc(
+      "Apply metadata location changes independently from feed storage mode.",
+    )
+    .addButton((button) =>
+      button
+        .setButtonText("Apply metadata location")
+        .setTooltip("Apply metadata data.json location change")
+        .onClick(() => {
+          void (async () => {
+            const metadataChanged =
+              pendingMetadataStorageFolder.trim() !==
+              lastSavedMetadataStorageFolder;
+            if (!metadataChanged) {
+              new Notice("Metadata location is already active.");
+              return;
+            }
+
+            await commitMetadataStorageFolder(pendingMetadataStorageFolder);
+            if (plugin.settingTab) {
+              plugin.settingTab.display();
+            }
+          })();
+        }),
+    );
 
   new Setting(containerEl).setName("Global feeds").setHeading();
 
@@ -585,9 +768,9 @@ export function renderGeneralSettingsTab(
     pendingMaxItemsChange = { oldValue, newValue };
     if (maxItemsPromptOpen) return;
     if (maxItemsPromptTimer) {
-      window.clearTimeout(maxItemsPromptTimer);
+      activeWindow.clearTimeout(maxItemsPromptTimer);
     }
-    maxItemsPromptTimer = window.setTimeout(() => {
+    maxItemsPromptTimer = activeWindow.setTimeout(() => {
       maxItemsPromptTimer = null;
       if (maxItemsPromptOpen) return;
       const change = pendingMaxItemsChange;

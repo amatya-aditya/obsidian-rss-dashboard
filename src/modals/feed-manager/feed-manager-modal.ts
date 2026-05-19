@@ -598,7 +598,7 @@ export class FeedManagerModal extends Modal {
     folderPath: string,
   ): void {
     const oldName = folderPath.split("/").pop() || folderPath;
-    const input = document.createElement("input");
+    const input = activeDocument.createElement("input");
     input.type = "text";
     input.value = oldName;
     input.className = "feed-manager-folder-name-input";

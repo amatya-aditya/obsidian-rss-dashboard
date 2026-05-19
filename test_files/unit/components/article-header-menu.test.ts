@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ArticleHeaderMenu } from "../../../src/components/article-header-menu";
+import { ArticleHeaderMenu, type ArticleHeaderMenuCallbacks } from "../../../src/components/article-header-menu";
+import type { RssDashboardSettings } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 class ResizeObserverMock {
@@ -7,12 +8,12 @@ class ResizeObserverMock {
   unobserve() {}
   disconnect() {}
 }
-window.ResizeObserver = ResizeObserverMock as any;
+window.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 
 describe("ArticleHeaderMenu Component", () => {
   let container: HTMLElement;
-  let settings: any;
-  let callbacks: any;
+  let settings: RssDashboardSettings;
+  let callbacks: ArticleHeaderMenuCallbacks;
 
   beforeEach(() => {
     installObsidianDomPolyfills();
@@ -23,12 +24,12 @@ describe("ArticleHeaderMenu Component", () => {
       viewStyle: "list",
       articleSort: "newest",
       articleGroupBy: "none",
-      articleFilter: { value: 0 },
+      articleFilter: { type: "none", value: 0 },
       display: {
         cardColumnsPerRow: 0,
         cardSpacing: 15,
       },
-    };
+    } as unknown as RssDashboardSettings;
 
     callbacks = {
       onSearch: vi.fn(),
@@ -40,7 +41,7 @@ describe("ArticleHeaderMenu Component", () => {
       onRefreshFeeds: vi.fn(),
       onMarkAllAsRead: vi.fn(),
       onMarkAllAsUnread: vi.fn(),
-    };
+    } satisfies ArticleHeaderMenuCallbacks;
   });
 
   afterEach(() => {

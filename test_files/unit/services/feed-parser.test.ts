@@ -14,6 +14,10 @@ import {
   applyFeedRetentionLimits,
 } from "../../../src/services/feed-parser";
 
+type RawTextModule = {
+  default: string;
+};
+
 // ─── RSS 2.0 Fixtures ───────────────────────────────────────────────────────
 
 const RSS2_BASIC = `<?xml version="1.0" encoding="UTF-8"?>
@@ -168,6 +172,38 @@ const RSS2_WITH_MEDIA_CONTENT_IMAGE = `<?xml version="1.0" encoding="UTF-8"?>
   </channel>
 </rss>`;
 
+const RSS2_WITH_MEDIA_CONTENT_VIDEO = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Media Video Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Has Media Video</title>
+      <link>https://example.com/videos/1</link>
+      <description>Video description</description>
+      <media:content url="https://example.com/videos/1.mp4" medium="video" type="video/mp4" />
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>media-video-1</guid>
+    </item>
+  </channel>
+</rss>`;
+
+const RSS2_WITH_MEDIA_CONTENT_MEDIUM_ONLY = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Media Medium Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Has Media Medium Only</title>
+      <link>https://example.com/posts/1</link>
+      <description>Article description</description>
+      <media:content url="https://example.com/poster.jpg" medium="image" />
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>media-medium-1</guid>
+    </item>
+  </channel>
+</rss>`;
+
 const RSS2_EMPTY = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
@@ -187,6 +223,27 @@ const SUBSTACK_RSS = `<?xml version="1.0" encoding="UTF-8"?>
       <description>This is the summary description.</description>
       <content:encoded><![CDATA[<p>This is the <b>full content</b> of the Substack article.</p>]]></content:encoded>
       <pubDate>Fri, 13 Mar 2026 12:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>`;
+
+const BLOOMBERG_VIDEO_IMAGE_FIRST_RSS = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Bloomberg Tech Video Feed</title>
+    <link>https://www.bloomberg.com</link>
+    <item>
+      <title><![CDATA[Chip Stocks Down on Momentum and Not CPI, Bokeh's Forrest Says]]></title>
+      <description><![CDATA[Kim Forrest, Bokeh Capital Partners chief investment officer, says Tuesday's selloff is just a pause in momentum for skyrocketing chip stocks, not a shock from a hotter-than-estimated inflation report. She speaks with Ed Ludlow and Caroline Hyde on "Bloomberg Tech." (Source: Bloomberg)]]></description>
+      <link>https://www.bloomberg.com/news/videos/2026-05-12/chip-stocks-down-on-momentum-not-cpi-bokeh-s-forrest-video</link>
+      <guid isPermaLink="true">https://www.bloomberg.com/news/videos/2026-05-12/chip-stocks-down-on-momentum-not-cpi-bokeh-s-forrest-video</guid>
+      <pubDate>Tue, 12 May 2026 16:24:55 GMT</pubDate>
+      <category domain="stock-symbol"><![CDATA[NMS:INTC]]></category>
+      <media:content url="https://assets.bwbx.io/images/users/iqjWHBFdfxIU/i8GIl8UI8oTY/v3/1200x-1.jpg" type="image/jpeg">
+        <media:thumbnail url="https://assets.bwbx.io/images/users/iqjWHBFdfxIU/i8GIl8UI8oTY/v3/1200x-1.jpg" />
+        <media:description />
+      </media:content>
+      <media:content url="https://www.bloomberg.com/news/videos/2026-05-12/chip-stocks-down-on-momentum-not-cpi-bokeh-s-forrest-video.mp4" type="video/mp4" />
     </item>
   </channel>
 </rss>`;
@@ -430,6 +487,32 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
     );
   });
 
+  it("preserves media:content type on items", () => {
+    const result = parser.parseString(RSS2_WITH_MEDIA_CONTENT_VIDEO);
+    expect(result.items[0].mediaContentType).toBe("video/mp4");
+  });
+
+  it("preserves media:content medium on items", () => {
+    const result = parser.parseString(RSS2_WITH_MEDIA_CONTENT_VIDEO);
+    expect(result.items[0].mediaContentMedium).toBe("video");
+  });
+
+  it("preserves media:content medium when type is absent", () => {
+    const result = parser.parseString(RSS2_WITH_MEDIA_CONTENT_MEDIUM_ONLY);
+    expect(result.items[0].mediaContentType).toBeUndefined();
+    expect(result.items[0].mediaContentMedium).toBe("image");
+  });
+
+  it("prefers video media type when image media:content appears first", () => {
+    const result = parser.parseString(BLOOMBERG_VIDEO_IMAGE_FIRST_RSS);
+    expect(result.items[0].mediaContentType).toBe("video/mp4");
+  });
+
+  it("prefers video media medium when image media:content appears first", () => {
+    const result = parser.parseString(BLOOMBERG_VIDEO_IMAGE_FIRST_RSS);
+    expect(result.items[0].mediaContentMedium).toBe("video");
+  });
+
   it("returns type 'rss' for RSS 2.0", () => {
     const result = parser.parseString(RSS2_BASIC);
     expect(result.type).toBe("rss");
@@ -450,6 +533,132 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
     // This is the critical check - it should extract the long content even if description is present
     expect(result.items[0].content).toContain("full content");
     expect(result.items[0].content).toContain("</b>");
+  });
+});
+
+// Fixture: Substack-style RSS with &quot; entities inside HTML attribute values
+const RSS2_SUBSTACK_QUOTED_ATTRS = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Substack Entity Test</title>
+    <link>https://example.substack.com</link>
+    <item>
+      <title>Title &amp; Subtitle</title>
+      <link>https://example.substack.com/p/test</link>
+      <description>Short summary</description>
+      <content:encoded><![CDATA[<p>Intro text.</p>
+<figure>
+  <img
+    src="https://substackcdn.com/image/fetch/w_1456/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Ftest.png"
+    data-attrs="{&quot;src&quot;:&quot;https://substack-post-media.s3.amazonaws.com/public/images/test.png&quot;,&quot;fullscreen&quot;:null}"
+    width="850"
+    height="496"
+    alt="Test image"
+  />
+</figure>
+<p>Body text.</p>]]></content:encoded>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>substack-test-1</guid>
+    </item>
+  </channel>
+</rss>`;
+
+describe("content:encoded HTML entity preservation", () => {
+  let parser: CustomXMLParser;
+
+  beforeEach(() => {
+    parser = new CustomXMLParser();
+  });
+
+  it("preserves &quot; entities in content so attribute values remain valid HTML", () => {
+    const result = parser.parseString(RSS2_SUBSTACK_QUOTED_ATTRS);
+    const item = result.items[0];
+
+    expect(item.content).toBeDefined();
+    // &quot; must survive intact — a decoded " would break the JSON attribute value
+    // when re-parsed by DOMParser("text/html")
+    expect(item.content).toContain("&quot;");
+    expect(item.content).not.toContain('data-attrs="{"');
+  });
+
+  it("produces a data-attrs value that is valid JSON when re-parsed as HTML", () => {
+    const result = parser.parseString(RSS2_SUBSTACK_QUOTED_ATTRS);
+    const item = result.items[0];
+
+    const doc = new DOMParser().parseFromString(item.content!, "text/html");
+    const img = doc.querySelector("img");
+    expect(img).not.toBeNull();
+
+    const dataAttrs = img!.getAttribute("data-attrs");
+    expect(dataAttrs).not.toBeNull();
+    expect(() => {
+      JSON.parse(dataAttrs!);
+    }).not.toThrow();
+
+    const attrs = JSON.parse(dataAttrs!) as Record<string, unknown>;
+    expect(attrs["src"]).toBe(
+      "https://substack-post-media.s3.amazonaws.com/public/images/test.png",
+    );
+  });
+
+  it("still decodes entities in plain-text fields like title", () => {
+    const result = parser.parseString(RSS2_SUBSTACK_QUOTED_ATTRS);
+    // &amp; in the <title> element should be decoded to &
+    expect(result.items[0].title).toBe("Title & Subtitle");
+  });
+
+  it("rewrites Substack image/fetch img src attributes to the decoded source URL", () => {
+    const result = parser.parseString(RSS2_SUBSTACK_QUOTED_ATTRS);
+    const item = result.items[0];
+
+    expect(item.content).toContain(
+      'src="https://substack-post-media.s3.amazonaws.com/public/images/test.png"',
+    );
+    expect(item.content).not.toContain(
+      'src="https://substackcdn.com/image/fetch/w_1456/',
+    );
+
+    const doc = new DOMParser().parseFromString(item.content!, "text/html");
+    const img = doc.querySelector("img");
+    expect(img?.getAttribute("src")).toBe(
+      "https://substack-post-media.s3.amazonaws.com/public/images/test.png",
+    );
+  });
+
+  it("rewrites broken Astral Codex Substack image src URLs from the real fixture", async () => {
+    const { default: astralCodexFeed } =
+      (await import("../../../docs/archive/astralcodex.txt?raw")) as RawTextModule;
+    const contentMatch = astralCodexFeed.match(
+      /<content:encoded>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/content:encoded>/,
+    );
+
+    expect(contentMatch?.[1]).toBeTruthy();
+
+    const rssFixture = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Astral Codex Fixture</title>
+    <link>https://www.astralcodexten.com</link>
+    <item>
+      <title>The Sigmoids Won't Save You</title>
+      <link>https://www.astralcodexten.com/p/the-sigmoids-wont-save-you</link>
+      <description>...</description>
+      <content:encoded><![CDATA[${contentMatch![1]}]]></content:encoded>
+      <pubDate>Fri, 15 May 2026 08:55:10 GMT</pubDate>
+      <guid>https://www.astralcodexten.com/p/the-sigmoids-wont-save-you</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const result = parser.parseString(rssFixture);
+    const item = result.items[0];
+
+    expect(item.content).toContain(
+      'src="https://substack-post-media.s3.amazonaws.com/public/images/78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png"',
+    );
+    expect(item.content).not.toContain(
+      'src="https://substackcdn.com/image/fetch/$s_!YDr_!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png"',
+    );
   });
 });
 
@@ -497,8 +706,8 @@ describe("mergeFeedHistoryItems", () => {
 
 describe("FeedParser.parseFeed", () => {
   const mediaSettings = {
+    autoTagVideos: true,
     defaultYouTubeFolder: "Videos",
-    defaultYouTubeTag: "youtube",
     defaultPodcastFolder: "Podcast",
     defaultPodcastTag: "podcast",
     defaultRssFolder: "RSS",
@@ -508,6 +717,44 @@ describe("FeedParser.parseFeed", () => {
     openInSplitView: true,
     podcastTheme: "solarized" as const,
   };
+
+  it("applies Video tag for Bloomberg video-route items with image medium", async () => {
+    const feedUrl = "https://www.bloomberg.com/feed/podcast.xml";
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Bloomberg TV</title>
+    <link>https://www.bloomberg.com</link>
+    <item>
+      <title>Henry Wang on US-China Summit Expectations</title>
+      <link>https://www.bloomberg.com/news/videos/2026-05-13/henry-wang-on-us-china-summit-expectations-video</link>
+      <description>Video item with image medium metadata</description>
+      <media:content url="https://assets.bwbx.io/images/sample.jpg" medium="image" type="image/jpeg" />
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>https://www.bloomberg.com/news/videos/2026-05-13/henry-wang-on-us-china-summit-expectations-video</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({
+      status: 200,
+      text: xml,
+    });
+
+    const parser = new FeedParser(mediaSettings, [
+      { name: "Video", color: "#d04747" },
+    ]);
+    const parsed = await parser.parseFeed(feedUrl, null);
+
+    expect(parsed.mediaType).toBe("video");
+    expect(parsed.items[0].mediaType).toBe("video");
+    expect(parsed.items[0].tags.map((tag) => tag.name.toLowerCase())).toContain(
+      "video",
+    );
+
+    requestUrlSpy.mockRestore();
+  });
 
   it("dedupes numeric URL-fragment GUIDs across refreshes while preserving read state", async () => {
     const feedUrl = "https://example.com/feed.xml";
@@ -533,16 +780,10 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml0,
       })
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml1,
       });
 
@@ -558,6 +799,143 @@ describe("FeedParser.parseFeed", () => {
     expect(second.items).toHaveLength(1);
     expect(second.items[0].read).toBe(true);
     expect(second.items[0].guid).toBe("https://example.com/a");
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("deduplicates YouTube items whose stored GUID is a watch URL vs yt:video: Atom form", async () => {
+    // Regression test for shard duplication bug: the same YouTube video can
+    // accumulate two entries when one parsing path stores guid as the watch URL
+    // and a later Atom refresh stores guid as yt:video:ID. Both must canonicalise
+    // to the same key so the existing item is found and read-state is preserved.
+    const feedUrl =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCWFKCr40YwOZQx8FHU_ZqqQ";
+
+    const ytAtomXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015"
+      xmlns:media="http://search.yahoo.com/mrss/"
+      xmlns="http://www.w3.org/2005/Atom">
+  <link rel="self" href="${feedUrl}"/>
+  <id>yt:channel:UCWFKCr40YwOZQx8FHU_ZqqQ</id>
+  <yt:channelId>UCWFKCr40YwOZQx8FHU_ZqqQ</yt:channelId>
+  <title>Test Channel</title>
+  <entry>
+    <id>yt:video:dQw4w9WgXcQ</id>
+    <yt:videoId>dQw4w9WgXcQ</yt:videoId>
+    <title>Never Gonna Give You Up</title>
+    <link rel="alternate" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"/>
+    <author><name>Test Channel</name></author>
+    <published>2024-01-01T00:00:00+00:00</published>
+  </entry>
+</feed>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({ status: 200, text: ytAtomXml });
+
+    const parser = new FeedParser(mediaSettings, []);
+
+    // Simulate an existing feed that has the same video stored under its watch
+    // URL guid (as produced by an older parsing path or the link-fallback path).
+    const existingFeed = {
+      title: "Test Channel",
+      url: feedUrl,
+      folder: "",
+      items: [
+        {
+          title: "Never Gonna Give You Up",
+          link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          description: "",
+          content: "",
+          pubDate: "2024-01-01T00:00:00+00:00",
+          guid: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          read: true,
+          starred: false,
+          tags: [],
+          feedTitle: "Test Channel",
+          feedUrl,
+          coverImage: "",
+          saved: false,
+          mediaType: "video" as const,
+        },
+      ],
+      lastUpdated: 0,
+      mediaType: "article" as const,
+    };
+
+    const result = await parser.parseFeed(feedUrl, existingFeed);
+
+    // Must collapse to exactly one item – no duplicate.
+    expect(result.items).toHaveLength(1);
+    // User's read state must be preserved from the existing entry.
+    expect(result.items[0].read).toBe(true);
+    // GUID must be normalised to the canonical yt:video: form.
+    expect(result.items[0].guid).toBe("yt:video:dQw4w9WgXcQ");
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("deduplicates YouTube Shorts stored as a shorts URL vs yt:video: form", async () => {
+    // Same as above but for /shorts/ URLs which are common with mixed-content
+    // YouTube channels (JerryRigEverything style).
+    const feedUrl =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCWFKCr40YwOZQx8FHU_ZqqQ";
+
+    const ytAtomXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015"
+      xmlns:media="http://search.yahoo.com/mrss/"
+      xmlns="http://www.w3.org/2005/Atom">
+  <link rel="self" href="${feedUrl}"/>
+  <id>yt:channel:UCWFKCr40YwOZQx8FHU_ZqqQ</id>
+  <yt:channelId>UCWFKCr40YwOZQx8FHU_ZqqQ</yt:channelId>
+  <title>Test Channel</title>
+  <entry>
+    <id>yt:video:4slngTaicg8</id>
+    <yt:videoId>4slngTaicg8</yt:videoId>
+    <title>60% of people have a drinking problem</title>
+    <link rel="alternate" href="https://www.youtube.com/shorts/4slngTaicg8"/>
+    <author><name>JerryRigEverything</name></author>
+    <published>2026-05-12T18:11:59+00:00</published>
+  </entry>
+</feed>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({ status: 200, text: ytAtomXml });
+
+    const parser = new FeedParser(mediaSettings, []);
+
+    // Existing shard has the shorts URL as the guid (old parsing path).
+    const existingFeed = {
+      title: "Test Channel",
+      url: feedUrl,
+      folder: "",
+      items: [
+        {
+          title: "60% of people have a drinking problem",
+          link: "https://www.youtube.com/shorts/4slngTaicg8",
+          description: "",
+          content: "",
+          pubDate: "2026-05-12 18:11:59",
+          guid: "https://www.youtube.com/shorts/4slngTaicg8",
+          read: true,
+          starred: false,
+          tags: [{ name: "YouTube", color: "#ff0000" }],
+          feedTitle: "Test Channel",
+          feedUrl,
+          coverImage:
+            "https://img.youtube.com/vi/4slngTaicg8/maxresdefault.jpg",
+          saved: false,
+          mediaType: "video" as const,
+        },
+      ],
+      lastUpdated: 0,
+      mediaType: "article" as const,
+    };
+
+    const result = await parser.parseFeed(feedUrl, existingFeed);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].read).toBe(true);
+    expect(result.items[0].guid).toBe("yt:video:4slngTaicg8");
 
     requestUrlSpy.mockRestore();
   });
@@ -591,9 +969,6 @@ describe("FeedParser.parseFeed", () => {
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy.mockResolvedValueOnce({
       status: 200,
-      headers: {},
-      arrayBuffer: new ArrayBuffer(0),
-      json: {},
       text: xml,
     });
 
@@ -655,23 +1030,14 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml,
       })
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml,
       })
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml,
       });
 
@@ -754,16 +1120,10 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xmlWithOldAndRecent,
       })
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xmlWithRecentOnly,
       });
 
@@ -803,16 +1163,10 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
       })
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
       });
 
@@ -856,16 +1210,10 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml,
       })
       .mockResolvedValueOnce({
         status: 200,
-        headers: {},
-        arrayBuffer: new ArrayBuffer(0),
-        json: {},
         text: xml,
       });
 
@@ -893,9 +1241,6 @@ describe("FeedParserService.parseFeed", () => {
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy.mockResolvedValueOnce({
       status: 200,
-      headers: {},
-      arrayBuffer: new ArrayBuffer(0),
-      json: {},
       text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
     });
 

@@ -3,10 +3,13 @@ import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { ArticleHeader } from "./article-header";
 import { ArticleEmptyState } from "./article-empty-state";
 import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
+import { MediaService } from "../services/media-service";
 import {
   formatDateWithRelative,
+  formatArticleDate,
   ensureUtf8Meta,
   setCssProps,
+  windowInstanceOf,
 } from "../utils/platform-utils";
 import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
@@ -32,9 +35,10 @@ interface ArticleListCallbacks {
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
   ) => void;
-  onArticleSave: (article: FeedItem) => void;
-  onOpenSavedArticle?: (article: FeedItem) => void;
+  onArticleSave?: (article: FeedItem) => Promise<void> | void;
+  onOpenSavedArticle?: (article: FeedItem) => Promise<void> | void;
   onOpenInReaderView?: (article: FeedItem) => void;
+  onOpenInBrowser?: (article: FeedItem) => void;
   onToggleSidebar: () => void;
   onSortChange: (value: "newest" | "oldest") => void;
   onGroupChange: (value: "none" | "feed" | "date" | "folder") => void;
@@ -83,7 +87,7 @@ export class ArticleList {
   private tagsDropdownCleanup: (() => void) | null = null;
 
   private documentListeners: Array<{
-    target: Document;
+    target: Document | Window;
     type: string;
     listener: EventListenerOrEventListenerObject;
   }> = [];
@@ -186,7 +190,7 @@ export class ArticleList {
       this.resizeObserver = null;
     }
     if (this.cardLayoutFrame !== null) {
-      cancelAnimationFrame(this.cardLayoutFrame);
+      activeWindow.cancelAnimationFrame(this.cardLayoutFrame);
       this.cardLayoutFrame = null;
     }
     if (this.header) {
@@ -203,7 +207,7 @@ export class ArticleList {
   }
 
   private isMobileViewport(): boolean {
-    return window.matchMedia("(max-width: 768px)").matches;
+    return activeWindow.matchMedia("(max-width: 768px)").matches;
   }
 
   private shouldShowToolbarForView(view: "list" | "card" | "feed"): boolean {
@@ -313,10 +317,10 @@ export class ArticleList {
     }
 
     if (this.cardLayoutFrame !== null) {
-      cancelAnimationFrame(this.cardLayoutFrame);
+      activeWindow.cancelAnimationFrame(this.cardLayoutFrame);
     }
 
-    this.cardLayoutFrame = requestAnimationFrame(() => {
+    this.cardLayoutFrame = activeWindow.requestAnimationFrame(() => {
       this.cardLayoutFrame = null;
       this.layoutCardTagRows(root);
     });
@@ -326,7 +330,7 @@ export class ArticleList {
     const cards: HTMLElement[] = [];
 
     if (
-      root instanceof HTMLElement &&
+      windowInstanceOf(root, HTMLElement) &&
       root.classList.contains("rss-dashboard-article-card")
     ) {
       cards.push(root);
@@ -460,7 +464,7 @@ export class ArticleList {
       ".rss-dashboard-card-tags-region",
     );
     if (!tagsRegion) {
-      tagsRegion = document.createElement("div");
+      tagsRegion = activeDocument.createDiv();
       tagsRegion.className = "rss-dashboard-card-tags-region";
       const cardFooter = articleEl.querySelector<HTMLElement>(
         ".rss-dashboard-card-footer",
@@ -493,7 +497,7 @@ export class ArticleList {
       ".rss-dashboard-feed-tags-region",
     );
     if (!tagsRegion) {
-      tagsRegion = document.createElement("div");
+      tagsRegion = activeDocument.createDiv();
       tagsRegion.className = "rss-dashboard-feed-tags-region";
       const feedFooter = articleEl.querySelector<HTMLElement>(
         ".rss-dashboard-feed-footer",
@@ -518,7 +522,7 @@ export class ArticleList {
   }
 
   private addDocumentListener(
-    target: Document,
+    target: Document | Window,
     type: string,
     listener: EventListenerOrEventListenerObject,
   ) {
@@ -551,7 +555,7 @@ export class ArticleList {
       this.filterArticlesBySearch(this.articleSearchQuery);
     }
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       const shouldForceCardTopAnchor =
         this.pendingCardTopAnchor && this.settings.viewStyle === "card";
 
@@ -741,7 +745,7 @@ export class ArticleList {
         "opacity 150ms ease, max-height 200ms ease 100ms, margin 200ms ease 100ms, padding 200ms ease 100ms",
     });
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       setCssProps(targetEl, {
         opacity: "0",
         "max-height": "0",
@@ -752,7 +756,7 @@ export class ArticleList {
       });
     });
 
-    setTimeout(() => {
+    activeWindow.setTimeout(() => {
       targetEl.remove();
       if (listEl) listEl.scrollTop = scrollPos;
     }, 320);
@@ -794,7 +798,7 @@ export class ArticleList {
     }
 
     const insertIdx = this.findSortedInsertIndex(article, sortOrder);
-    const temp = document.createElement("div");
+    const temp = activeDocument.createDiv();
 
     if (this.settings.viewStyle === "list") {
       this.renderListView(temp, [article]);
@@ -839,7 +843,7 @@ export class ArticleList {
       "padding-bottom": "0",
     });
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       setCssProps(newEl, {
         transition:
           "opacity 150ms ease, max-height 200ms ease 100ms, margin 200ms ease 100ms, padding 200ms ease 100ms",
@@ -852,7 +856,7 @@ export class ArticleList {
       });
     });
 
-    setTimeout(() => {
+    activeWindow.setTimeout(() => {
       setCssProps(newEl, {
         overflow: "",
         "max-height": "",
@@ -889,6 +893,92 @@ export class ArticleList {
           this.settings.viewStyle === "card",
       });
     }
+  }
+
+  public getCardNavigationTargetGuid(
+    currentGuid: string,
+    direction: "left" | "right" | "up" | "down",
+  ): string | null {
+    const cards = Array.from(
+      this.container.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-article-card",
+      ),
+    );
+    if (cards.length === 0) {
+      return null;
+    }
+
+    const currentIndex = cards.findIndex(
+      (card) => card.dataset.articleGuid === currentGuid,
+    );
+    if (currentIndex === -1) {
+      return cards[0].dataset.articleGuid ?? null;
+    }
+
+    const rowTolerance = 6;
+    const positionedCards = cards
+      .map((card) => ({
+        guid: card.dataset.articleGuid ?? null,
+        rect: card.getBoundingClientRect(),
+      }))
+      .filter(
+        (entry): entry is { guid: string; rect: DOMRect } =>
+          entry.guid !== null,
+      );
+    const rows: Array<Array<{ guid: string; rect: DOMRect }>> = [];
+    positionedCards.forEach((entry) => {
+      const existingRow = rows.find(
+        (row) => Math.abs(row[0].rect.top - entry.rect.top) <= rowTolerance,
+      );
+      if (existingRow) {
+        existingRow.push(entry);
+        return;
+      }
+      rows.push([entry]);
+    });
+    rows.forEach((row) => row.sort((a, b) => a.rect.left - b.rect.left));
+    rows.sort((a, b) => a[0].rect.top - b[0].rect.top);
+
+    const currentRowIndex = rows.findIndex((row) =>
+      row.some((entry) => entry.guid === currentGuid),
+    );
+    if (currentRowIndex === -1) {
+      return null;
+    }
+
+    const currentRow = rows[currentRowIndex];
+    const currentColumnIndex = currentRow.findIndex(
+      (entry) => entry.guid === currentGuid,
+    );
+    if (currentColumnIndex === -1) {
+      return null;
+    }
+
+    if (direction === "left") {
+      return currentColumnIndex > 0
+        ? currentRow[currentColumnIndex - 1].guid
+        : null;
+    }
+
+    if (direction === "right") {
+      return currentColumnIndex < currentRow.length - 1
+        ? currentRow[currentColumnIndex + 1].guid
+        : null;
+    }
+
+    const targetRowIndex =
+      direction === "up" ? currentRowIndex - 1 : currentRowIndex + 1;
+    if (targetRowIndex < 0 || targetRowIndex >= rows.length) {
+      return null;
+    }
+
+    const targetRow = rows[targetRowIndex];
+    const targetColumnIndex = Math.min(
+      currentColumnIndex,
+      targetRow.length - 1,
+    );
+
+    return targetRow[targetColumnIndex]?.guid ?? null;
   }
 
   /**
@@ -928,15 +1018,15 @@ export class ArticleList {
       }
     };
 
-    const fallbackId = window.setTimeout(applyRelock, 500);
+    const fallbackId = activeWindow.setTimeout(applyRelock, 500);
 
     this.resizeObserver = new ResizeObserver(() => {
       if (this.cardLayoutFrame !== null) {
-        cancelAnimationFrame(this.cardLayoutFrame);
+        activeWindow.cancelAnimationFrame(this.cardLayoutFrame);
       }
-      this.cardLayoutFrame = requestAnimationFrame(() => {
+      this.cardLayoutFrame = activeWindow.requestAnimationFrame(() => {
         this.cardLayoutFrame = null;
-        clearTimeout(fallbackId);
+        activeWindow.clearTimeout(fallbackId);
         applyRelock();
       });
     });
@@ -1301,8 +1391,9 @@ export class ArticleList {
     const iconContainer = container.createDiv({
       cls: "rss-dashboard-article-feed-icon",
     });
+    const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
 
-    if (mediaType === "video") {
+    if (mediaType === "video" && isYouTubeFeed) {
       setIcon(iconContainer, "play");
       iconContainer.addClass("video");
     } else if (mediaType === "podcast") {
@@ -1337,8 +1428,9 @@ export class ArticleList {
   private renderHeaderFeedIcon(container: HTMLElement, feedUrl: string): void {
     const feed = this.settings.feeds.find((f) => f.url === feedUrl);
     const mediaType = feed?.mediaType;
+    const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
 
-    if (mediaType === "video") {
+    if (mediaType === "video" && isYouTubeFeed) {
       setIcon(container, "play");
       container.addClass("video");
     } else if (mediaType === "podcast") {
@@ -1425,11 +1517,13 @@ export class ArticleList {
       saveButton.textContent = "S";
     }
 
-    const toggleSave = (e: Event) => {
+    const toggleSave = async (e: Event) => {
       e.stopPropagation();
+      e.preventDefault();
+
       if (article.saved) {
         if (this.callbacks.onOpenSavedArticle) {
-          this.callbacks.onOpenSavedArticle(article);
+          await this.callbacks.onOpenSavedArticle(article);
         } else {
           new Notice("Article already saved. Look in your notes.");
         }
@@ -1437,25 +1531,35 @@ export class ArticleList {
         if (saveButton.classList.contains("saving")) {
           return;
         }
+
         saveButton.classList.add("saving");
         saveButton.setAttribute("title", "Saving article...");
-        this.callbacks.onArticleSave(article);
-        article.saved = true;
-        saveButton.classList.add("saved");
-        setIcon(saveButton, "save");
-        if (!saveButton.querySelector("svg")) {
-          saveButton.textContent = "S";
+
+        try {
+          await this.callbacks.onArticleSave(article);
+          article.saved = true;
+          saveButton.classList.add("saved");
+          setIcon(saveButton, "save");
+          if (!saveButton.querySelector("svg")) {
+            saveButton.textContent = "S";
+          }
+          saveButton.setAttribute("title", "Click to open saved article");
+        } catch (error) {
+          console.error("Failed to save article via card button:", error);
+          new Notice("Failed to save article.");
+        } finally {
+          saveButton.classList.remove("saving");
         }
-        saveButton.classList.remove("saving");
-        saveButton.setAttribute("title", "Click to open saved article");
       }
     };
 
-    saveButton.addEventListener("click", toggleSave);
+    saveButton.addEventListener("click", (e) => {
+      void toggleSave(e);
+    });
     saveButton.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        toggleSave(e);
+        void toggleSave(e);
       }
     });
   }
@@ -1569,23 +1673,23 @@ export class ArticleList {
           ?.querySelector(`[id="article-${article.guid}"]`) as HTMLElement;
       }
       if (!articleEl) {
-        articleEl = document.getElementById(
+        articleEl = activeDocument.getElementById(
           `article-${article.guid}`,
         ) as HTMLElement;
       }
       if (articleEl) {
         articleEl.classList.add("rss-dashboard-tag-change-feedback");
-        window.setTimeout(() => {
+        activeWindow.setTimeout(() => {
           articleEl.classList.remove("rss-dashboard-tag-change-feedback");
         }, 200);
         this.syncArticleTags(articleEl, article);
         void articleEl.offsetHeight;
       } else {
-        const tempIndicator = document.body.createDiv({
+        const tempIndicator = activeDocument.body.createDiv({
           cls: "rss-dashboard-tag-change-notification",
           text: `Tag "${tag.name}" ${checked ? "added" : "removed"}`,
         });
-        window.setTimeout(() => {
+        activeWindow.setTimeout(() => {
           if (tempIndicator.parentNode) {
             tempIndicator.parentNode.removeChild(tempIndicator);
           }
@@ -1756,7 +1860,10 @@ export class ArticleList {
       const dateEl = actionToolbar.createDiv({
         cls: "rss-dashboard-article-date",
       });
-      const dateInfo = formatDateWithRelative(article.pubDate);
+      const dateInfo = formatArticleDate(
+        article.pubDate,
+        this.settings.display.articleDateStyle ?? "relative",
+      );
       dateEl.textContent = dateInfo.text;
       dateEl.setAttribute("title", dateInfo.title);
 
@@ -1814,7 +1921,10 @@ export class ArticleList {
       } else {
         titleEl.textContent = article.title;
       }
-      const dateInfo = formatDateWithRelative(article.pubDate);
+      const dateInfo = formatArticleDate(
+        article.pubDate,
+        this.settings.display.articleDateStyle ?? "relative",
+      );
       if (!useBottomRow) {
         const timeEl = mainGrid.createDiv("rss-dashboard-grid-time");
         const dateEl = timeEl.createSpan("rss-dashboard-article-date");
@@ -2051,13 +2161,13 @@ export class ArticleList {
       }
 
       if (hasTags) {
-        const tagsRegion = document.createElement("div");
-        tagsRegion.className = "rss-dashboard-card-tags-region";
+        const tagsRegion = card.createDiv({
+          cls: "rss-dashboard-card-tags-region",
+        });
         const tagsContainer = tagsRegion.createDiv({
           cls: "rss-dashboard-article-tags",
         });
         this.renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
-        card.appendChild(tagsRegion);
       }
 
       if (this.shouldShowToolbarForView("card")) {
@@ -2072,7 +2182,10 @@ export class ArticleList {
         const dateEl = actionToolbar.createDiv({
           cls: "rss-dashboard-article-date",
         });
-        const dateInfo = formatDateWithRelative(article.pubDate);
+        const dateInfo = formatArticleDate(
+          article.pubDate,
+          this.settings.display.articleDateStyle ?? "relative",
+        );
         dateEl.textContent = dateInfo.text;
         dateEl.setAttribute("title", dateInfo.title);
       }
@@ -2233,7 +2346,7 @@ export class ArticleList {
           .setIcon("file-text")
           .onClick(() => {
             if (this.callbacks.onOpenSavedArticle) {
-              this.callbacks.onOpenSavedArticle(article);
+              void this.callbacks.onOpenSavedArticle(article);
             }
           });
       });
@@ -2244,7 +2357,7 @@ export class ArticleList {
           .setIcon("book-open")
           .onClick(() => {
             if (this.callbacks.onOpenInReaderView) {
-              this.callbacks.onOpenInReaderView(article);
+              void this.callbacks.onOpenInReaderView(article);
             }
           });
       });
@@ -2257,7 +2370,7 @@ export class ArticleList {
         .setTitle("Open in browser")
         .setIcon("external-link")
         .onClick(() => {
-          window.open(article.link, "_blank");
+          activeWindow.open(article.link, "_blank");
         });
     });
 
@@ -2309,7 +2422,9 @@ export class ArticleList {
           )
           .setIcon("save")
           .onClick(() => {
-            this.callbacks.onArticleSave(article);
+            if (this.callbacks.onArticleSave) {
+              void this.callbacks.onArticleSave(article);
+            }
           });
       });
     }

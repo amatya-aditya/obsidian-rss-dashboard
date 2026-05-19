@@ -15,19 +15,22 @@ export class ImportExportService {
   private settings: RssDashboardSettings;
   private isMobile: boolean;
   private getPortableDataBundle?: () => PortableDataBundle;
+  private importPortableDataBundle?: (bundle: unknown) => Promise<void>;
 
   constructor(options: {
     settings: RssDashboardSettings;
     isMobile: boolean;
     getPortableDataBundle?: () => PortableDataBundle;
+    importPortableDataBundle?: (bundle: unknown) => Promise<void>;
   }) {
     this.settings = options.settings;
     this.isMobile = options.isMobile;
     this.getPortableDataBundle = options.getPortableDataBundle;
+    this.importPortableDataBundle = options.importPortableDataBundle;
   }
 
   getUserSettingsJson(): string {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- feeds/folders/availableTags intentionally excluded from settings-only export via destructuring
     const { feeds, folders, availableTags, ...settingsOnly } = this.settings;
     return JSON.stringify(settingsOnly, null, 2);
   }
@@ -88,6 +91,28 @@ export class ImportExportService {
       isMobile: this.isMobile,
     });
     this.showExportNotice(result, filename);
+  }
+
+  async importPortableDataBundleFromFile(file: File): Promise<void> {
+    const text = await file.text();
+    let parsed: unknown;
+
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      throw new Error(
+        `Invalid portable bundle JSON${error instanceof Error ? `: ${error.message}` : ""}`,
+      );
+    }
+
+    if (!this.importPortableDataBundle) {
+      throw new Error(
+        "Portable bundle import is not available in this context",
+      );
+    }
+
+    await this.importPortableDataBundle(parsed);
+    new Notice("Portable data bundle imported");
   }
 
   public showExportNotice(result: ExportBlobResult, filename: string): void {

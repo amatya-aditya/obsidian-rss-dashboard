@@ -1,15 +1,20 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { renderSupportedFormatBadges } from "../../../src/modals/feed-manager/supported-format-badges";
+ 
+interface ObsidianElement extends HTMLElement {
+  createDiv(o?: { cls?: string; text?: string }): HTMLDivElement;
+  empty(): void;
+}
 
 describe("renderSupportedFormatBadges()", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
-    document.body.empty();
+    (document.body as unknown as ObsidianElement).empty();
   });
 
   it("renders RSS, Podcast, and YouTube badges with Lucide icons", () => {
-    const host = document.body.createDiv();
+    const host = (document.body as unknown as ObsidianElement).createDiv();
     renderSupportedFormatBadges(host);
 
     const rssBadge = host.querySelector<HTMLElement>(".format-badge.rss");
@@ -28,7 +33,7 @@ describe("renderSupportedFormatBadges()", () => {
   });
 
   it("toggles active badge state", () => {
-    const host = document.body.createDiv();
+    const host = (document.body as unknown as ObsidianElement).createDiv();
     const { setActiveBadge } = renderSupportedFormatBadges(host);
 
     setActiveBadge("podcast");

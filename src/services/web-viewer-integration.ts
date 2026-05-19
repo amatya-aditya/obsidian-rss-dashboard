@@ -36,7 +36,7 @@ export class WebViewerIntegration {
       try {
         await webViewerPlugin.openWebpage(url, title);
 
-        window.setTimeout(() => {
+        activeWindow.setTimeout(() => {
           this.addCustomSaveButton();
         }, 1000);
 
@@ -52,8 +52,8 @@ export class WebViewerIntegration {
     return false;
   }
 
-  private addCustomSaveButton(): void {
-    const webViewerContainer = document.querySelector(".webpage-container");
+  protected addCustomSaveButton(): void {
+    const webViewerContainer = activeDocument.querySelector(".webpage-container");
     if (!webViewerContainer) return;
 
     if (webViewerContainer.querySelector(".rss-custom-save-button")) return;
@@ -86,7 +86,7 @@ export class WebViewerIntegration {
     controlBar.appendChild(saveButton);
   }
 
-  private showSaveDialog(): void {
+  protected showSaveDialog(): void {
     const webViewerPlugin = this.app.plugins.plugins["webpage-html-export"];
     if (!webViewerPlugin) return;
 
@@ -94,7 +94,7 @@ export class WebViewerIntegration {
     const url = webViewerPlugin.currentUrl || "";
     const content = webViewerPlugin.cleanedHtml || "";
 
-    const modal = document.body.createDiv({
+    const modal = activeDocument.body.createDiv({
       cls: "rss-dashboard-modal",
     });
 
@@ -161,7 +161,7 @@ export class WebViewerIntegration {
       text: "Cancel",
     });
     cancelButton.addEventListener("click", () => {
-      document.body.removeChild(modal);
+      activeDocument.body.removeChild(modal);
     });
 
     const saveButton = buttonContainer.createEl("button", {
@@ -195,7 +195,7 @@ export class WebViewerIntegration {
             includeFrontmatter,
           );
 
-          document.body.removeChild(modal);
+          activeDocument.body.removeChild(modal);
         } catch (error) {
           const message =
             error instanceof Error ? error.message : String(error);
@@ -208,7 +208,7 @@ export class WebViewerIntegration {
       if (e.key === "Enter") {
         templateInput.focus();
       } else if (e.key === "Escape") {
-        document.body.removeChild(modal);
+        activeDocument.body.removeChild(modal);
       }
     });
     templateInput.addEventListener("keydown", (e) => {
@@ -216,7 +216,7 @@ export class WebViewerIntegration {
         saveButton.click();
         e.preventDefault();
       } else if (e.key === "Escape") {
-        document.body.removeChild(modal);
+        activeDocument.body.removeChild(modal);
       }
     });
 
@@ -231,15 +231,15 @@ export class WebViewerIntegration {
     modalContent.appendChild(buttonContainer);
 
     modal.appendChild(modalContent);
-    document.body.appendChild(modal);
+    activeDocument.body.appendChild(modal);
 
-    requestAnimationFrame(() => {
+    activeWindow.requestAnimationFrame(() => {
       folderInput.focus();
       folderInput.select();
     });
   }
 
-  private async saveArticle(
+  protected async saveArticle(
     item: FeedItem,
     folder: string,
     template: string,
@@ -272,7 +272,7 @@ export class WebViewerIntegration {
     return file;
   }
 
-  private generateFrontmatter(item: FeedItem): string {
+  protected generateFrontmatter(item: FeedItem): string {
     let frontmatter = this.settings.frontmatterTemplate;
 
     if (!frontmatter) {
@@ -336,7 +336,7 @@ guid: "{{guid}}"
     return frontmatter.endsWith("\n") ? frontmatter : `${frontmatter}\n`;
   }
 
-  private applyTemplate(item: FeedItem, template: string): string {
+  protected applyTemplate(item: FeedItem, template: string): string {
     const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
     const isoDateTime = Number.isNaN(pubDate.getTime())
       ? new Date().toISOString()
@@ -360,7 +360,7 @@ guid: "{{guid}}"
       .replace(/{{content}}/g, item.description);
   }
 
-  private async ensureFolderExists(folderPath: string): Promise<void> {
+  protected async ensureFolderExists(folderPath: string): Promise<void> {
     if (!folderPath || folderPath.trim() === "") {
       return;
     }

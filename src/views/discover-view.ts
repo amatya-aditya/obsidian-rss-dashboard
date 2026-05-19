@@ -16,6 +16,7 @@ import {
   TABLET_LAYOUT_MAX_WIDTH,
   shouldUseMobileSidebarLayout,
   attachInputClearButton,
+  windowInstanceOf,
 } from "../utils/platform-utils";
 import {
   getPageSizeOptions,
@@ -84,9 +85,9 @@ export class DiscoverView extends ItemView {
 
   onOpen(): Promise<void> {
     this.lastViewportMobileSidebarMode = this.shouldUseMobileSidebarMode(
-      window.innerWidth,
+      activeWindow.innerWidth,
     );
-    this.registerDomEvent(window, "resize", () => {
+    this.registerDomEvent(activeWindow, "resize", () => {
       this.handleViewportResizeModeTransition();
     });
 
@@ -358,7 +359,9 @@ export class DiscoverView extends ItemView {
   }
 
   private handleViewportResizeModeTransition(): void {
-    const currentMode = this.shouldUseMobileSidebarMode(window.innerWidth);
+    const currentMode = this.shouldUseMobileSidebarMode(
+      activeWindow.innerWidth,
+    );
 
     if (this.lastViewportMobileSidebarMode === null) {
       this.lastViewportMobileSidebarMode = currentMode;
@@ -508,7 +511,7 @@ export class DiscoverView extends ItemView {
     this.saveFilterState();
 
     const contentEl = this.containerEl.querySelector(".rss-discover-content");
-    if (contentEl instanceof HTMLElement) {
+    if (windowInstanceOf(contentEl, HTMLElement)) {
       this.renderContent(contentEl);
     }
   }
@@ -736,7 +739,7 @@ export class DiscoverView extends ItemView {
 
     // const categoryHeader = categorySection.createDiv({ cls: "rss-discover-section-header" });
     // setIcon(categoryHeader, "folder-tree");
-    // categoryHeader.appendChild(document.createTextNode(" Categories"));
+    // categoryHeader.appendChild(activeDocument.createTextNode(" Categories"));
 
     const categoryTree = categorySection.createDiv({
       cls: "rss-discover-category-tree",
@@ -903,7 +906,7 @@ export class DiscoverView extends ItemView {
   private handleCategorySelection(
     categoryName: string,
     selected: boolean,
-    depth: number,
+    _depth: number,
     categoryType: "domain" | "subdomain" | "area" | "topic",
   ): void {
     if (selected) {
@@ -955,10 +958,6 @@ export class DiscoverView extends ItemView {
 
   private renderTagFilter(container: HTMLElement): void {
     const tagSection = container.createDiv({ cls: "rss-discover-section" });
-
-    // const tagHeader = tagSection.createDiv({ cls: "rss-discover-section-header" });
-    // setIcon(tagHeader, "tags");
-    // tagHeader.appendChild(document.createTextNode(" Tags"));
 
     const tagList = tagSection.createDiv({ cls: "rss-discover-tag-list" });
 
@@ -1745,7 +1744,7 @@ export class DiscoverView extends ItemView {
   }
 
   private previewFeed(feed: FeedMetadata): void {
-    window.open(feed.url, "_blank");
+    activeWindow.open(feed.url, "_blank");
   }
 
   async onClose(): Promise<void> {
@@ -1798,10 +1797,10 @@ export class DiscoverView extends ItemView {
     }
 
     if (!this.hasRegisteredResizeEvents) {
-      this.registerDomEvent(document, "mousemove", (e) => {
+      this.registerDomEvent(activeDocument, "mousemove", (e) => {
         this.handleResizeMove(e);
       });
-      this.registerDomEvent(document, "mouseup", () => {
+      this.registerDomEvent(activeDocument, "mouseup", () => {
         this.handleResizeEnd();
       });
       this.hasRegisteredResizeEvents = true;

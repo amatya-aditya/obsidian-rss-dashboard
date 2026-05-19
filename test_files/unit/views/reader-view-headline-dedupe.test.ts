@@ -10,12 +10,22 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 installObsidianDomPolyfills();
 
 class MockLeaf {
-  app: any;
-  view: any;
-  constructor(app: any) {
+  app: unknown;
+  view: unknown;
+  constructor(app: unknown) {
     this.app = app;
   }
   detach = vi.fn();
+}
+
+type ReaderViewInternals = {
+  contentEl: HTMLElement;
+  readingContainer: HTMLElement;
+  fetchFullArticleContent: ReturnType<typeof vi.fn>;
+};
+
+function getInternals(view: ReaderView): ReaderViewInternals {
+  return view as unknown as ReaderViewInternals;
 }
 
 function makeBaseItem(overrides: Partial<FeedItem> = {}): FeedItem {
@@ -39,7 +49,7 @@ function makeBaseItem(overrides: Partial<FeedItem> = {}): FeedItem {
 }
 
 describe("ReaderView headline de-dupe", () => {
-  let readerView: any;
+  let readerView: ReaderView;
   let mockSettings: RssDashboardSettings;
 
   beforeEach(async () => {
@@ -58,25 +68,27 @@ describe("ReaderView headline de-dupe", () => {
     mockSettings = { ...DEFAULT_SETTINGS, useWebViewer: false };
 
     readerView = new ReaderView(
-      mockLeaf as any,
+      mockLeaf as never,
       mockSettings,
-      { saveArticle: vi.fn() } as any,
+      { saveArticle: vi.fn() } as never,
       vi.fn(),
       vi.fn(),
     );
 
-    (readerView as any).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = document.createElement("div");
     await readerView.onOpen();
   });
 
   it("uses page <h1> as display title and strips it from content", async () => {
     const html = `<h1>Page Headline From Site</h1><p>${"x".repeat(260)}</p>`;
-    (readerView as any).fetchFullArticleContent = vi.fn().mockResolvedValue(html);
+    getInternals(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(html);
 
     const item = makeBaseItem({ title: "Feed Title Should Not Show" });
     await readerView.displayItem(item);
 
-    const container = (readerView as any).readingContainer as HTMLElement;
+    const container = getInternals(readerView).readingContainer;
     expect(
       container.querySelector(".rss-reader-item-title")?.textContent,
     ).toContain("Page Headline From Site");
@@ -87,12 +99,14 @@ describe("ReaderView headline de-dupe", () => {
 
   it("does not override title for boilerplate <h1> but still strips it near the top", async () => {
     const html = `<h1>Sign in</h1><p>${"x".repeat(260)}</p>`;
-    (readerView as any).fetchFullArticleContent = vi.fn().mockResolvedValue(html);
+    getInternals(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(html);
 
     const item = makeBaseItem({ title: "Feed Title Here" });
     await readerView.displayItem(item);
 
-    const container = (readerView as any).readingContainer as HTMLElement;
+    const container = getInternals(readerView).readingContainer;
     expect(
       container.querySelector(".rss-reader-item-title")?.textContent,
     ).toContain("Feed Title Here");
@@ -106,12 +120,14 @@ describe("ReaderView headline de-dupe", () => {
       "",
     );
     const html = `<div>${prefix}<h1>Deep Heading</h1><p>${"x".repeat(260)}</p></div>`;
-    (readerView as any).fetchFullArticleContent = vi.fn().mockResolvedValue(html);
+    getInternals(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(html);
 
     const item = makeBaseItem({ title: "Feed Title Here" });
     await readerView.displayItem(item);
 
-    const container = (readerView as any).readingContainer as HTMLElement;
+    const container = getInternals(readerView).readingContainer;
     expect(
       container.querySelector(".rss-reader-item-title")?.textContent,
     ).toContain("Feed Title Here");
@@ -120,4 +136,3 @@ describe("ReaderView headline de-dupe", () => {
     expect(content?.querySelector("h1")?.textContent).toContain("Deep Heading");
   });
 });
-

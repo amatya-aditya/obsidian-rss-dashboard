@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { App } from "obsidian";
+import * as obsidian from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
+import type RssDashboardPlugin from "../../../main";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -11,23 +13,20 @@ vi.mock("../../../src/utils/platform-utils", () => ({
 
 vi.mock("../../../src/components/article-list", () => ({
   ArticleList: class ArticleListMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
+    constructor() {}
     render(): void {}
     destroy(): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    refilter(..._args: any[]): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setSelectedArticle(..._args: any[]): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    updateHeaderTitle(..._args: any[]): void {}
+    refilter(): void {}
+    setSelectedArticle(): void {}
+    updateHeaderTitle(): void {}
+    updateCardSpacingLayout(): void {}
+    refreshCardTagLayout(): void {}
   },
 }));
 
 vi.mock("../../../src/components/sidebar", () => ({
   Sidebar: class SidebarMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
+    constructor() {}
     render(): void {}
     clearFolderPathCache(): void {}
     destroy(): void {}
@@ -36,16 +35,14 @@ vi.mock("../../../src/components/sidebar", () => ({
 
 vi.mock("../../../src/modals/feed-manager-modal", () => ({
   FeedManagerModal: class FeedManagerModalMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
+    constructor() {}
     open(): void {}
   },
 }));
 
 vi.mock("../../../src/modals/mobile-navigation-modal", () => ({
   MobileNavigationModal: class MobileNavigationModalMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
+    constructor() {}
     open(): void {}
     close(): void {}
   },
@@ -58,13 +55,28 @@ vi.mock("../../../src/views/reader-view", () => ({
 
 vi.mock("../../../src/services/article-saver", () => ({
   ArticleSaver: class ArticleSaverMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(..._args: any[]) {}
+    constructor() {}
   },
 }));
 
 function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
+}
+
+interface MockArticleList {
+  refilter: ReturnType<typeof vi.fn>;
+  updateHeaderTitle: ReturnType<typeof vi.fn>;
+  updateCardSpacingLayout: ReturnType<typeof vi.fn>;
+  refreshCardTagLayout: ReturnType<typeof vi.fn>;
+}
+
+interface MockDashboardView {
+  handleFilterChange: (change: unknown) => Promise<void>;
+  render: ReturnType<typeof vi.fn>;
+  schedulePersistDashboardMultiFilters: ReturnType<typeof vi.fn>;
+  getFilteredArticles: ReturnType<typeof vi.fn>;
+  refreshFilterStatusBarOnly: ReturnType<typeof vi.fn>;
+  articleList: MockArticleList;
 }
 
 describe("Dashboard card layout filter batch", () => {
@@ -76,7 +88,7 @@ describe("Dashboard card layout filter batch", () => {
   it("persists card layout values from a batch and rerenders once", async () => {
     const { RssDashboardView } = await import("../../../src/views/dashboard-view");
 
-    const app = new App();
+    const app = new obsidian.App();
     const settings = cloneSettings();
     settings.display.cardColumnsPerRow = 0;
     settings.display.cardSpacing = 15;
@@ -84,13 +96,13 @@ describe("Dashboard card layout filter batch", () => {
     const plugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
-    };
+    } as unknown as RssDashboardPlugin;
 
-    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin as never);
-    view.render = vi.fn(async () => {}) as unknown as typeof view.render;
+    const leaf = { app } as unknown as obsidian.WorkspaceLeaf;
+    const view = new RssDashboardView(leaf, plugin) as unknown as MockDashboardView;
+    view.render = vi.fn(async () => {});
 
-    await (view as any).handleFilterChange({
+    await view.handleFilterChange({
       type: "batch",
       value: null,
       batch: {
@@ -108,7 +120,7 @@ describe("Dashboard card layout filter batch", () => {
   it("does not save or rerender when batch card layout values are unchanged", async () => {
     const { RssDashboardView } = await import("../../../src/views/dashboard-view");
 
-    const app = new App();
+    const app = new obsidian.App();
     const settings = cloneSettings();
     settings.display.cardColumnsPerRow = 3;
     settings.display.cardSpacing = 18;
@@ -116,20 +128,22 @@ describe("Dashboard card layout filter batch", () => {
     const plugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
-    };
+    } as unknown as RssDashboardPlugin;
 
-    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin as never);
-    view.render = vi.fn(async () => {}) as unknown as typeof view.render;
-    (view as any).schedulePersistDashboardMultiFilters = vi.fn();
-    (view as any).getFilteredArticles = vi.fn(() => []);
-    (view as any).refreshFilterStatusBarOnly = vi.fn();
-    (view as any).articleList = {
+    const leaf = { app } as unknown as obsidian.WorkspaceLeaf;
+    const view = new RssDashboardView(leaf, plugin) as unknown as MockDashboardView;
+    view.render = vi.fn(async () => {});
+    view.schedulePersistDashboardMultiFilters = vi.fn();
+    view.getFilteredArticles = vi.fn(() => []);
+    view.refreshFilterStatusBarOnly = vi.fn();
+    view.articleList = {
       refilter: vi.fn(),
       updateHeaderTitle: vi.fn(),
+      updateCardSpacingLayout: vi.fn(),
+      refreshCardTagLayout: vi.fn(),
     };
 
-    await (view as any).handleFilterChange({
+    await view.handleFilterChange({
       type: "batch",
       value: null,
       batch: {
@@ -147,26 +161,29 @@ describe("Dashboard card layout filter batch", () => {
 
     const { RssDashboardView } = await import("../../../src/views/dashboard-view");
 
-    const app = new App();
+    const app = new obsidian.App();
     const settings = cloneSettings();
     settings.display.cardSpacing = 15;
 
     const plugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
-    };
+    } as unknown as RssDashboardPlugin;
 
-    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin as never);
-    view.render = vi.fn(async () => {}) as unknown as typeof view.render;
+    const leaf = { app } as unknown as obsidian.WorkspaceLeaf;
+    const view = new RssDashboardView(leaf, plugin) as unknown as MockDashboardView;
+    view.render = vi.fn(async () => {});
     const updateCardSpacingLayout = vi.fn();
     const refreshCardTagLayout = vi.fn();
-    (view as any).articleList = {
+    view.articleList = {
+      refilter: vi.fn(),
+      updateHeaderTitle: vi.fn(),
       updateCardSpacingLayout,
       refreshCardTagLayout,
     };
 
-    (view as any).handleFilterChange({
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    view.handleFilterChange({
       type: "card-spacing-live",
       value: 24,
     });
@@ -193,33 +210,36 @@ describe("Dashboard card layout filter batch", () => {
 
     const { RssDashboardView } = await import("../../../src/views/dashboard-view");
 
-    const app = new App();
+    const app = new obsidian.App();
     const settings = cloneSettings();
     settings.display.cardSpacing = 15;
 
     const plugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
-    };
+    } as unknown as RssDashboardPlugin;
 
-    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin as never);
-    view.render = vi.fn(async () => {}) as unknown as typeof view.render;
+    const leaf = { app } as unknown as obsidian.WorkspaceLeaf;
+    const view = new RssDashboardView(leaf, plugin) as unknown as MockDashboardView;
+    view.render = vi.fn(async () => {});
     const updateCardSpacingLayout = vi.fn();
     const refreshCardTagLayout = vi.fn();
-    (view as any).articleList = {
+    view.articleList = {
+      refilter: vi.fn(),
+      updateHeaderTitle: vi.fn(),
       updateCardSpacingLayout,
       refreshCardTagLayout,
     };
 
-    (view as any).handleFilterChange({
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    view.handleFilterChange({
       type: "card-spacing-live",
       value: 24,
     });
 
     expect(refreshCardTagLayout).not.toHaveBeenCalled();
 
-    await (view as any).handleFilterChange({
+    await view.handleFilterChange({
       type: "card-spacing-commit",
       value: 24,
     });
@@ -236,3 +256,4 @@ describe("Dashboard card layout filter batch", () => {
     vi.useRealTimers();
   });
 });
+

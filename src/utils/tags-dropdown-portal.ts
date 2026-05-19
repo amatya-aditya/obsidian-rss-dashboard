@@ -1,6 +1,7 @@
 import { Notice, setIcon } from "obsidian";
 import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { showEditTagModal } from "./tag-utils";
+import { windowInstanceOf } from "./platform-utils";
 
 export type TagsDropdownPortalOptions = {
   anchor: HTMLElement;
@@ -31,7 +32,7 @@ export function createTagsDropdownPortal(
 
   const targetDocument = anchor.ownerDocument;
   const targetBody = targetDocument.body;
-  const targetWindow = targetDocument.defaultView || window;
+  const targetWindow = targetDocument.defaultView || activeWindow;
   const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
 
   targetDocument
@@ -117,7 +118,9 @@ export function createTagsDropdownPortal(
   };
 
   const deleteTagFromProfile = (tag: Tag) => {
-    const tagIndex = settings.availableTags.findIndex((t) => t.name === tag.name);
+    const tagIndex = settings.availableTags.findIndex(
+      (t) => t.name === tag.name,
+    );
     if (tagIndex === -1) {
       return;
     }
@@ -192,7 +195,7 @@ export function createTagsDropdownPortal(
 
       onTagAssignmentChange(tag, isChecked);
 
-      window.setTimeout(() => {
+      activeWindow.setTimeout(() => {
         tagItem.classList.remove("rss-dashboard-tag-item-processing");
       }, 200);
     });
@@ -200,7 +203,7 @@ export function createTagsDropdownPortal(
     tagItem.addEventListener("click", (e) => {
       if (
         e.target === tagCheckbox ||
-        (e.target instanceof Element &&
+        (windowInstanceOf(e.target, Element) &&
           (e.target.closest(".rss-dashboard-tag-edit-button") ||
             e.target.closest(".rss-dashboard-tag-delete-button")))
       ) {
@@ -214,7 +217,7 @@ export function createTagsDropdownPortal(
 
       onTagAssignmentChange(tag, isChecked);
 
-      window.setTimeout(() => {
+      activeWindow.setTimeout(() => {
         tagItem.classList.remove("rss-dashboard-tag-item-processing");
       }, 200);
     });
@@ -330,7 +333,7 @@ export function createTagsDropdownPortal(
       appendTagItem(newTag, true);
 
       nameInput.value = "";
-      requestAnimationFrame(() => nameInput.focus());
+      activeWindow.requestAnimationFrame(() => nameInput.focus());
       new Notice(`Tag "${tagName}" added`);
     };
 

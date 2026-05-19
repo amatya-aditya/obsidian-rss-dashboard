@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ArticleFilterMenu } from "../../../src/components/article-filter-menu";
+import { ArticleFilterMenu, type ArticleFilterCallbacks } from "../../../src/components/article-filter-menu";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { type RssDashboardSettings, DEFAULT_SETTINGS } from "../../../src/types/types";
 
 describe("ArticleFilterMenu Component", () => {
   let container: HTMLElement;
   let toggleBtn: HTMLElement;
-  let mockCallbacks: any;
-  let settings: any;
+  let mockCallbacks: ArticleFilterCallbacks;
+  let settings: RssDashboardSettings;
 
   beforeEach(() => {
     installObsidianDomPolyfills();
@@ -18,14 +19,16 @@ describe("ArticleFilterMenu Component", () => {
     document.body.appendChild(toggleBtn);
 
     settings = {
+      ...DEFAULT_SETTINGS,
       viewStyle: "card",
       availableTags: [
         { name: "Tag1", color: "#ff0000" },
         { name: "Tag2", color: "#00ff00" }
       ],
-      keywordRules: { bypassAll: false },
-      highlights: { enabled: true },
+      keywordRules: { ...DEFAULT_SETTINGS.keywordRules, bypassAll: false },
+      highlights: { ...DEFAULT_SETTINGS.highlights, enabled: true },
       display: {
+        ...DEFAULT_SETTINGS.display,
         showFilterStatusBar: true,
         cardColumnsPerRow: 0,
         cardSpacing: 15,
@@ -73,23 +76,18 @@ describe("ArticleFilterMenu Component", () => {
     const applyBtn = document.querySelector(".rss-dashboard-filter-apply-btn") as HTMLElement;
     // Simulate checking Unread (usually item index 1 or by label)
     // Find the item with text "Unread"
-    const items = document.querySelectorAll(".rss-dashboard-filter-menu-item");
-    let unreadItem: HTMLElement | null = null;
-    items.forEach(item => {
-        if (item.textContent?.includes("Unread")) unreadItem = item as HTMLElement;
-    });
+    const unreadItem = Array.from(document.querySelectorAll<HTMLElement>(".rss-dashboard-filter-menu-item"))
+        .find(item => item.textContent?.includes("Unread"));
 
-    (unreadItem as any)?.click(); 
+    if (unreadItem) {
+      unreadItem.click();
+    }
     applyBtn.click();
 
-    expect(mockCallbacks.onFilterChange).toHaveBeenCalledWith(expect.objectContaining({
-      type: "batch",
-      batch: expect.objectContaining({
-        statusFilters: expect.any(Set)
-      })
-    }));
+    const mockFn = mockCallbacks.onFilterChange as unknown as { mock: { calls: Array<Array<{ batch: { statusFilters: Set<string> } }>> } };
+    expect(mockFn.mock.calls.length).toBe(1);
 
-    const lastCall = mockCallbacks.onFilterChange.mock.calls[0][0];
+    const lastCall = mockFn.mock.calls[0][0];
     expect(lastCall.batch.statusFilters.has("unread")).toBe(true);
   });
 

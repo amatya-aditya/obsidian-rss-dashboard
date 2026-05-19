@@ -3,6 +3,8 @@ import * as Obsidian from "obsidian";
 import {
   attachInputClearButton,
   ensureUtf8Meta,
+  formatDateWithRelative,
+  formatArticleDate,
   formatRelativeTime,
   getViewportTier,
   isPhoneViewport,
@@ -14,7 +16,10 @@ import {
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
 }
 
 function encodeLatin1(text: string): Uint8Array {
@@ -124,13 +129,16 @@ describe("platform-utils.robustFetch", () => {
 
 describe("platform-utils.attachInputClearButton", () => {
   it("toggles visibility on input events and clears on click", () => {
-    const wrapper = document.body.createDiv();
-    const input = wrapper.createEl("input", { type: "text" });
+    const wrapper = document.createElement("div");
+    document.body.appendChild(wrapper);
+    const input = document.createElement("input");
+    input.type = "text";
+    wrapper.appendChild(input);
     const onClear = vi.fn();
 
     const clearButton = attachInputClearButton(
       wrapper,
-      input as HTMLInputElement,
+      input,
       onClear,
     );
 
@@ -138,19 +146,22 @@ describe("platform-utils.attachInputClearButton", () => {
     expect(clearButton.classList.contains("rss-discover-search-clear")).toBe(true);
     expect(clearButton.classList.contains("rss-discover-search-clear-hidden")).toBe(true);
 
-    (input as HTMLInputElement).value = "abc";
+    input.value = "abc";
     input.dispatchEvent(new Event("input"));
     expect(clearButton.classList.contains("rss-discover-search-clear-hidden")).toBe(false);
 
     clearButton.click();
-    expect((input as HTMLInputElement).value).toBe("");
+    expect(input.value).toBe("");
     expect(clearButton.classList.contains("rss-discover-search-clear-hidden")).toBe(true);
     expect(onClear).toHaveBeenCalledTimes(1);
   });
 
   it("supports keyboard activation via Enter and Space", () => {
-    const wrapper = document.body.createDiv();
-    const input = wrapper.createEl("input", { type: "text" }) as HTMLInputElement;
+    const wrapper = document.createElement("div");
+    document.body.appendChild(wrapper);
+    const input = document.createElement("input");
+    input.type = "text";
+    wrapper.appendChild(input);
     input.value = "abc";
 
     const onClear = vi.fn();
@@ -175,8 +186,11 @@ describe("platform-utils.attachInputClearButton", () => {
   });
 
   it("honors useButtonElement and custom classes", () => {
-    const wrapper = document.body.createDiv();
-    const input = wrapper.createEl("input", { type: "text" }) as HTMLInputElement;
+    const wrapper = document.createElement("div");
+    document.body.appendChild(wrapper);
+    const input = document.createElement("input");
+    input.type = "text";
+    wrapper.appendChild(input);
     input.value = "abc";
 
     const onClear = vi.fn();
@@ -231,6 +245,42 @@ describe("platform-utils.misc", () => {
     expect(getViewportTier(500)).toBe("phone");
     expect(getViewportTier(900)).toBe("tablet");
     expect(getViewportTier(1600)).toBe("desktop");
+  });
+
+  it("formatDateWithRelative returns relative text and absolute title", () => {
+    vi.useFakeTimers();
+    // 2026-05-15T12:00:00
+    vi.setSystemTime(new Date("2026-05-15T12:00:00Z"));
+
+    const date = new Date("2026-05-15T10:00:00Z");
+    const result = formatDateWithRelative(date);
+
+    expect(result.text).toBe("Today");
+    // toLocaleDateString output can vary by environment, but we expect a string containing the date
+    expect(result.title).toContain("2026");
+    expect(result.title).toContain("May");
+
+    vi.useRealTimers();
+  });
+
+  it("formatArticleDate respects relative/absolute styles", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-15T12:00:00Z"));
+
+    const date = new Date("2026-05-15T10:00:00Z");
+
+    // Case 1: Relative (default)
+    const relativeResult = formatArticleDate(date, "relative");
+    expect(relativeResult.text).toBe("Today");
+    expect(relativeResult.title).toContain("2026");
+
+    // Case 2: Absolute
+    const absoluteResult = formatArticleDate(date, "absolute");
+    expect(absoluteResult.text).toContain("2026");
+    expect(absoluteResult.text).toContain("May");
+    expect(absoluteResult.title).toBe("Today");
+
+    vi.useRealTimers();
   });
 });
 

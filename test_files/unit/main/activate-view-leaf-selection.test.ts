@@ -12,9 +12,10 @@
  * `readerViewLocation` from `viewLocation`; `activateDiscoverView()` and
  * `activateSmallwebView()` were left still following the dashboard setting.
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DEFAULT_SETTINGS } from "../../../src/types/types";
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import type { RssDashboardSettings } from "../../../src/types/types";
+import { App, PluginManifest } from "obsidian";
+import type { FolderService } from "../../../src/services/folder-service";
 
 // ─── Module mocks (must precede the main.ts import) ──────────────────────────
 
@@ -42,11 +43,11 @@ vi.mock("../../../src/utils/settings-migration", () => ({
   migrateDisplaySettings: vi.fn(),
   migrateDefaultFilterToDashboardMultiFilters: vi.fn(),
   migrateKeywordRulesSettings: vi.fn().mockReturnValue(false),
+  migrateMediaVideoTagSettings: vi.fn().mockReturnValue(false),
 }));
 
 // Import main AFTER mocks are registered
 import RssDashboardPlugin from "../../../main";
-import { App } from "obsidian";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -57,7 +58,43 @@ const MANIFEST = {
   author: "Test",
   description: "Test",
   dir: ".",
-};
+} as unknown as PluginManifest;
+
+/** Typed interface for the mocked App workspace surface */
+interface TestAppWorkspace {
+  getLeavesOfType: ReturnType<typeof vi.fn>;
+  getLeaf: ReturnType<typeof vi.fn>;
+  getLeftLeaf: ReturnType<typeof vi.fn>;
+  getRightLeaf: ReturnType<typeof vi.fn>;
+  revealLeaf: ReturnType<typeof vi.fn>;
+}
+
+/** Typed interface for the mocked App surface */
+interface TestApp extends App {
+  workspace: TestAppWorkspace & App["workspace"];
+}
+
+/** Typed interface for the plugin surface under test */
+interface TestPlugin extends Partial<RssDashboardPlugin> {
+  settings: RssDashboardSettings;
+  folderService: FolderService;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  loadData: Mock<() => Promise<any>>;
+  saveData: Mock<() => Promise<void>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  registerView: Mock<(type: string, viewCreator: (leaf: any) => any) => void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addRibbonIcon: Mock<(icon: string, title: string, callback: (evt: any) => any) => any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addCommand: Mock<(command: any) => void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addSettingTab: Mock<(settingTab: any) => void>;
+  registerInterval: Mock<(id: number) => number>;
+  activateDiscoverView: () => Promise<void>;
+  activateSmallwebView: () => Promise<void>;
+  activateView: () => Promise<void>;
+  loadSettings: () => Promise<void>;
+}
 
 /** A minimal leaf stub that satisfies the `setViewState` contract. */
 function makeMockLeaf() {
@@ -73,12 +110,12 @@ async function createPlugin(
   viewLocation: RssDashboardSettings["viewLocation"],
   existingLeaves: unknown[] = [],
 ) {
-  const app = (App as any).createMock();
+  const app = App.createMock() as TestApp;
 
   // Concrete leaf returned by getLeaf / sidebar helpers
   const mockLeaf = makeMockLeaf();
 
-  // Override workspace spies
+  // Override workspace spies using Object.assign to satisfy typed mock surface
   Object.assign(app.workspace, {
     getLeavesOfType: vi.fn(() => existingLeaves),
     getLeaf: vi.fn(() => mockLeaf),
@@ -87,7 +124,7 @@ async function createPlugin(
     revealLeaf: vi.fn(async () => {}),
   });
 
-  const plugin = new RssDashboardPlugin(app as any, MANIFEST as any);
+  const plugin = new RssDashboardPlugin(app, MANIFEST) as unknown as TestPlugin;
   plugin.loadData = vi.fn().mockResolvedValue({ viewLocation });
   plugin.saveData = vi.fn().mockResolvedValue(undefined);
   plugin.registerView = vi.fn();
@@ -101,7 +138,7 @@ async function createPlugin(
   // Initialize folderService after loadSettings
   const { FolderService } =
     await import("../../../src/services/folder-service");
-  (plugin as any).folderService = new FolderService(plugin.settings);
+  plugin.folderService = new FolderService(plugin.settings);
 
   return { plugin, app, mockLeaf };
 }

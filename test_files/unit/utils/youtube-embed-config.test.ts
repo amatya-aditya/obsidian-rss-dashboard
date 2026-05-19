@@ -8,11 +8,10 @@ describe("youtube embed config", () => {
 
     expect(embed.videoId).toBe("dQw4w9WgXcQ");
     expect(embed.embedUrl).toContain(
-      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&enablejsapi=1&origin=",
+      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&enablejsapi=1",
     );
-    expect(embed.watchUrl).toBe(
-      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    );
+    expect(embed.embedUrl).toContain("origin=");
+    expect(embed.watchUrl).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
     expect(embed.referrerPolicy).toBe("strict-origin-when-cross-origin");
     expect(embed.embedUrl).not.toContain("autoplay=");
     expect(embed.embedUrl).not.toContain("vq=");

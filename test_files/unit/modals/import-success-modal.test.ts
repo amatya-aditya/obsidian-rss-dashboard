@@ -11,7 +11,7 @@ describe("ImportSuccessModal", () => {
 
   it("renders a message and closes on OK click", () => {
     const app = obsidian.App.createMock();
-    const modal = new ImportSuccessModal(app as any, "All done!");
+    const modal = new ImportSuccessModal(app as unknown as obsidian.App, "All done!");
     modal.open();
 
     expect(modal.contentEl.textContent).toContain("Import successful");

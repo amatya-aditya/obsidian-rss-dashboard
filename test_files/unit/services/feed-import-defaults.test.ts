@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import type { Feed, RssDashboardSettings } from "../../../src/types/types";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 
