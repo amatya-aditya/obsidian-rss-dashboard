@@ -5,7 +5,7 @@
 #### New: Keyboard Shortcuts
 
 - Implemented a new comprehensive keyboard shortcuts system to enhance navigation and productivity.
-- To quickly access the keyboard shortcuts help file, press `?` (Shift + /) within the app. This will display a comprehensive list of available shortcuts and their functions.
+- To quickly access the keyboard shortcuts help file, press `?` (Shift + /) within the app. This will display a list of available shortcuts and their functions.
 
 #### Playback Progress
 
