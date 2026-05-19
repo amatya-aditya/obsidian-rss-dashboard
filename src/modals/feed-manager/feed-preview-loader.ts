@@ -19,6 +19,13 @@ export interface FeedPreviewLoadResult {
   hasEntries: boolean;
 }
 
+export interface MediaFolderDefaults {
+  defaultTwitterFolder?: string;
+  defaultYouTubeFolder?: string;
+  defaultPodcastFolder?: string;
+  defaultRssFolder?: string;
+}
+
 function isYouTubePageUrl(url: string): boolean {
   if (!url) return false;
   if (!MediaService.isYouTubeFeed(url)) return false;
@@ -40,6 +47,49 @@ export function formatLatestEntryLabel(
   if (!Number.isFinite(date.getTime())) return "N/A";
   const daysAgo = Math.floor((now - date.getTime()) / (1000 * 60 * 60 * 24));
   return daysAgo === 0 ? "Today" : `${daysAgo} days ago`;
+}
+
+export function shouldAutoAssignFolder(
+  currentFolder: string,
+  media?: MediaFolderDefaults,
+): boolean {
+  const normalizedFolder = currentFolder.trim();
+  if (!normalizedFolder || normalizedFolder === "Uncategorized") {
+    return true;
+  }
+
+  const autoAssignedFolders = new Set([
+    media?.defaultTwitterFolder || "Twitter",
+    media?.defaultYouTubeFolder || "Videos",
+    media?.defaultPodcastFolder || "Podcast",
+    media?.defaultRssFolder || "RSS",
+    "Twitter",
+    "Videos",
+    "Podcast",
+    "RSS",
+  ]);
+
+  return autoAssignedFolders.has(normalizedFolder);
+}
+
+export function getDefaultFolderForResolvedFeed(
+  preview: Pick<FeedPreviewLoadResult, "detectedType" | "finalUrl" | "isXConversion">,
+  media?: MediaFolderDefaults,
+): string {
+  const isNitterFeed = !!MediaService.normalizeNitterUrlToRss(preview.finalUrl);
+  if (preview.isXConversion || isNitterFeed) {
+    return media?.defaultTwitterFolder || "Twitter";
+  }
+
+  if (preview.detectedType === "youtube") {
+    return media?.defaultYouTubeFolder || "Videos";
+  }
+
+  if (preview.detectedType === "podcast") {
+    return media?.defaultPodcastFolder || "Podcast";
+  }
+
+  return media?.defaultRssFolder || "RSS";
 }
 
 export async function resolveAndLoadPreview(

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { EditFeedModal } from "../../../src/modals/feed-manager/edit-feed-modal";
 import { applyFeedRetentionLimits } from "../../../src/services/feed-parser";
+import * as feedPreviewLoader from "../../../src/modals/feed-manager/feed-preview-loader";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type { Feed } from "../../../src/types/types";
 
@@ -117,6 +118,18 @@ function getToggleBySettingName(
     throw new Error(`Toggle not found for setting: ${name}`);
   }
   return toggleEl;
+}
+
+function getTextInputBySettingName(
+  containerEl: HTMLElement,
+  name: string,
+): HTMLInputElement {
+  const settingEl = getSettingByName(containerEl, name);
+  const inputEl = settingEl.querySelector('input[type="text"]');
+  if (!(inputEl instanceof HTMLInputElement)) {
+    throw new Error(`Text input not found for setting: ${name}`);
+  }
+  return inputEl;
 }
 
 function getLocalStorageStatus(containerEl: HTMLElement): HTMLElement {
@@ -925,5 +938,123 @@ describe("EditFeedModal", () => {
 
     expect(plugin.saveSettings).toHaveBeenCalledTimes(0);
     expect(closeSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("auto-assigns the configured Twitter folder in Edit when the current folder is eligible", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: 0,
+    } as unknown as Feed;
+
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
+      detectedType: "rss",
+      inputUrl: "https://x.com/user",
+      finalUrl: "https://nitter.net/user/rss",
+      isXConversion: true,
+      title: "User timeline",
+      latestPubDate: "2026-05-01T00:00:00.000Z",
+      hasEntries: true,
+    });
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+        media: {
+          defaultTwitterFolder: "Social/Twitter",
+          defaultYouTubeFolder: "Videos",
+          defaultPodcastFolder: "Podcast",
+          defaultRssFolder: "RSS",
+        },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    urlInput.value = "https://x.com/user";
+    urlInput.dispatchEvent(new Event("input"));
+
+    getButtonByText(modal.contentEl, "Load").click();
+    await flushPromises();
+
+    const folderInput = getTextInputBySettingName(modal.contentEl, "Folder");
+    expect(folderInput.value).toBe("Social/Twitter");
+  });
+
+  it("preserves a custom folder in Edit when loading an X/Twitter feed", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "My Custom Folder",
+      items: [],
+      lastUpdated: 0,
+    } as unknown as Feed;
+
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
+      detectedType: "rss",
+      inputUrl: "https://twitter.com/user",
+      finalUrl: "https://nitter.net/user/rss",
+      isXConversion: true,
+      title: "User timeline",
+      latestPubDate: "2026-05-01T00:00:00.000Z",
+      hasEntries: true,
+    });
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+        media: {
+          defaultTwitterFolder: "Social/Twitter",
+          defaultYouTubeFolder: "Videos",
+          defaultPodcastFolder: "Podcast",
+          defaultRssFolder: "RSS",
+        },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    urlInput.value = "https://twitter.com/user";
+    urlInput.dispatchEvent(new Event("input"));
+
+    getButtonByText(modal.contentEl, "Load").click();
+    await flushPromises();
+
+    const folderInput = getTextInputBySettingName(modal.contentEl, "Folder");
+    expect(folderInput.value).toBe("My Custom Folder");
   });
 });

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { AddFeedModal } from "../../../src/modals/feed-manager/add-feed-modal";
+import { MediaService } from "../../../src/services/media-service";
+import * as feedParser from "../../../src/services/feed-parser";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 type MockApp = obsidian.App;
@@ -62,6 +64,18 @@ function getToggleBySettingName(
     throw new Error(`Toggle not found for setting: ${name}`);
   }
   return toggleEl;
+}
+
+function getTextInputBySettingName(
+  containerEl: HTMLElement,
+  name: string,
+): HTMLInputElement {
+  const settingEl = getSettingByName(containerEl, name);
+  const inputEl = settingEl.querySelector('input[type="text"]');
+  if (!(inputEl instanceof HTMLInputElement)) {
+    throw new Error(`Text input not found for setting: ${name}`);
+  }
+  return inputEl;
 }
 
 beforeEach(() => {
@@ -248,5 +262,99 @@ describe("AddFeedModal", () => {
     expect(onAdd).toHaveBeenCalledTimes(1);
     expect(onSave).toHaveBeenCalledTimes(0);
     expect(closeSpy).toHaveBeenCalledTimes(0);
+  });
+
+  it("routes X/Twitter feeds into the configured default Twitter folder when folder is eligible", async () => {
+    const app = createMockApp();
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const onSave = vi.fn();
+
+    vi.spyOn(MediaService, "normalizeNitterUrlToRss").mockReturnValue(null);
+    vi.spyOn(MediaService, "isXUrl").mockReturnValue(true);
+    vi.spyOn(MediaService, "getNitterRssFeed").mockReturnValue(
+      "https://nitter.net/user/rss",
+    );
+    vi.spyOn(MediaService, "isYouTubeFeed").mockReturnValue(false);
+    vi.spyOn(feedParser, "loadFeedForPreview").mockResolvedValue({
+      title: "User timeline",
+      latestPubDate: "2026-05-01T00:00:00.000Z",
+      hasEntries: true,
+    });
+
+    const plugin = {
+      settings: {
+        media: {
+          defaultTwitterFolder: "Social/Twitter",
+          defaultYouTubeFolder: "Videos",
+          defaultPodcastFolder: "Podcast",
+          defaultRssFolder: "RSS",
+        },
+      },
+    };
+
+    const modal = new AddFeedModal(
+      app,
+      [],
+      onAdd,
+      onSave,
+      "Uncategorized",
+      plugin as never,
+    );
+    modal.open();
+
+    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    urlInput.value = "https://x.com/user";
+    urlInput.dispatchEvent(new Event("input"));
+
+    getButtonByText(modal.contentEl, "Load").click();
+    await flushPromises();
+
+    const folderInput = getTextInputBySettingName(modal.contentEl, "Folder");
+    expect(folderInput.value).toBe("Social/Twitter");
+  });
+
+  it("keeps a custom folder when loading an X/Twitter feed", async () => {
+    const app = createMockApp();
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const onSave = vi.fn();
+
+    vi.spyOn(MediaService, "normalizeNitterUrlToRss").mockReturnValue(null);
+    vi.spyOn(MediaService, "isXUrl").mockReturnValue(true);
+    vi.spyOn(MediaService, "getNitterRssFeed").mockReturnValue(
+      "https://nitter.net/user/rss",
+    );
+    vi.spyOn(MediaService, "isYouTubeFeed").mockReturnValue(false);
+    vi.spyOn(feedParser, "loadFeedForPreview").mockResolvedValue({
+      title: "User timeline",
+      latestPubDate: "2026-05-01T00:00:00.000Z",
+      hasEntries: true,
+    });
+
+    const plugin = {
+      settings: {
+        media: {
+          defaultTwitterFolder: "Social/Twitter",
+          defaultYouTubeFolder: "Videos",
+          defaultPodcastFolder: "Podcast",
+          defaultRssFolder: "RSS",
+        },
+      },
+    };
+
+    const modal = new AddFeedModal(app, [], onAdd, onSave, "", plugin as never);
+    modal.open();
+
+    const folderInput = getTextInputBySettingName(modal.contentEl, "Folder");
+    folderInput.value = "My Custom Folder";
+    folderInput.dispatchEvent(new Event("input"));
+
+    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    urlInput.value = "https://twitter.com/user";
+    urlInput.dispatchEvent(new Event("input"));
+
+    getButtonByText(modal.contentEl, "Load").click();
+    await flushPromises();
+
+    expect(folderInput.value).toBe("My Custom Folder");
   });
 });

@@ -87,4 +87,32 @@ describe("migrateMediaVideoTagSettings", () => {
     );
     expect(names).toContain("video");
   });
+
+  it("backfills defaultTwitterFolder when missing", () => {
+    const settings: Record<string, unknown> = {
+      media: { autoTagVideos: true },
+      availableTags: [],
+    };
+
+    const changed = migrateMediaVideoTagSettings(settings);
+
+    expect(changed).toBe(true);
+    expect(
+      (settings.media as Record<string, unknown>).defaultTwitterFolder,
+    ).toBe("Twitter");
+  });
+
+  it("restores defaultTwitterFolder when blank", () => {
+    const settings: Record<string, unknown> = {
+      media: { autoTagVideos: true, defaultTwitterFolder: "   " },
+      availableTags: [],
+    };
+
+    const changed = migrateMediaVideoTagSettings(settings);
+
+    expect(changed).toBe(true);
+    expect(
+      (settings.media as Record<string, unknown>).defaultTwitterFolder,
+    ).toBe("Twitter");
+  });
 });
