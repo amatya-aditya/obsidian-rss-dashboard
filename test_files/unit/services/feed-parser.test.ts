@@ -13,7 +13,6 @@ import {
   mergeFeedHistoryItems,
   applyFeedRetentionLimits,
 } from "../../../src/services/feed-parser";
-import astralCodexFeed from "../../../docs/archive/astralcodex.txt?raw";
 
 // ─── RSS 2.0 Fixtures ───────────────────────────────────────────────────────
 
@@ -223,6 +222,14 @@ const SUBSTACK_RSS = `<?xml version="1.0" encoding="UTF-8"?>
     </item>
   </channel>
 </rss>`;
+
+const ASTRAL_CODEX_BROKEN_SUBSTACK_CONTENT = `
+  <p>Intro paragraph.</p>
+  <figure>
+    <img src="https://substackcdn.com/image/fetch/$s_!YDr_!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png" />
+  </figure>
+  <p>Outro paragraph.</p>
+`;
 
 const BLOOMBERG_VIDEO_IMAGE_FIRST_RSS = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
@@ -623,18 +630,6 @@ describe("content:encoded HTML entity preservation", () => {
   });
 
   it("rewrites broken Astral Codex Substack image src URLs from the real fixture", () => {
-    const contentMatch =
-      /<content:encoded>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/content:encoded>/.exec(
-        String(astralCodexFeed),
-      );
-
-    expect(contentMatch).toBeTruthy();
-    if (!contentMatch) {
-      throw new Error("Expected content:encoded CDATA in Astral Codex fixture");
-    }
-
-    const [, encodedContent] = contentMatch;
-
     const rssFixture = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
@@ -644,7 +639,7 @@ describe("content:encoded HTML entity preservation", () => {
       <title>The Sigmoids Won't Save You</title>
       <link>https://www.astralcodexten.com/p/the-sigmoids-wont-save-you</link>
       <description>...</description>
-      <content:encoded><![CDATA[${encodedContent}]]></content:encoded>
+      <content:encoded><![CDATA[${ASTRAL_CODEX_BROKEN_SUBSTACK_CONTENT}]]></content:encoded>
       <pubDate>Fri, 15 May 2026 08:55:10 GMT</pubDate>
       <guid>https://www.astralcodexten.com/p/the-sigmoids-wont-save-you</guid>
     </item>
