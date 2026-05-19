@@ -623,11 +623,17 @@ describe("content:encoded HTML entity preservation", () => {
   });
 
   it("rewrites broken Astral Codex Substack image src URLs from the real fixture", () => {
-    const contentMatch = astralCodexFeed.match(
-      /<content:encoded>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/content:encoded>/,
-    );
+    const contentMatch =
+      /<content:encoded>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/content:encoded>/.exec(
+        String(astralCodexFeed),
+      );
 
-    expect(contentMatch?.[1]).toBeTruthy();
+    expect(contentMatch).toBeTruthy();
+    if (!contentMatch) {
+      throw new Error("Expected content:encoded CDATA in Astral Codex fixture");
+    }
+
+    const [, encodedContent] = contentMatch;
 
     const rssFixture = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
@@ -638,7 +644,7 @@ describe("content:encoded HTML entity preservation", () => {
       <title>The Sigmoids Won't Save You</title>
       <link>https://www.astralcodexten.com/p/the-sigmoids-wont-save-you</link>
       <description>...</description>
-      <content:encoded><![CDATA[${contentMatch![1]}]]></content:encoded>
+      <content:encoded><![CDATA[${encodedContent}]]></content:encoded>
       <pubDate>Fri, 15 May 2026 08:55:10 GMT</pubDate>
       <guid>https://www.astralcodexten.com/p/the-sigmoids-wont-save-you</guid>
     </item>
@@ -702,7 +708,9 @@ describe("mergeFeedHistoryItems", () => {
 describe("FeedParser.parseFeed", () => {
   const mediaSettings = {
     autoTagVideos: true,
+    rememberPlaybackProgress: true,
     defaultYouTubeFolder: "Videos",
+    defaultYouTubeTag: "Video",
     defaultPodcastFolder: "Podcast",
     defaultPodcastTag: "podcast",
     defaultRssFolder: "RSS",
