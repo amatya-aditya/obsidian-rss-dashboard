@@ -1,6 +1,7 @@
 import { requestUrl, Platform } from "obsidian";
 import { Feed, FeedItem, MediaSettings, Tag } from "../types/types.js";
 import { MediaService } from "./media-service";
+import { MastodonService } from "./mastodon-service";
 import {
   detectPodcastPlatform,
   APPLE_PODCASTS,
@@ -2736,6 +2737,26 @@ export class FeedParser {
     this.parser = new CustomXMLParser();
   }
 
+  private resolveFeedIconUrl(
+    feedLogoCandidates: string[],
+    url: string,
+  ): string {
+    const feedLogoUrl =
+      feedLogoCandidates.length > 0 ? feedLogoCandidates[0] : "";
+
+    if (!feedLogoUrl) {
+      return "";
+    }
+
+    if (MastodonService.isResolvedFeedUrl(url)) {
+      return this.mediaSettings.useMastodonProfileImages
+        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+        : "";
+    }
+
+    return this.convertToAbsoluteUrl(feedLogoUrl, url);
+  }
+
   private convertToAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
     if (!relativeUrl || !baseUrl) return relativeUrl;
 
@@ -3500,7 +3521,7 @@ export class FeedParser {
       typeof parsed.image === "string" ? parsed.image : "",
     ].filter(Boolean);
     const feedLogoUrl =
-      feedLogoCandidates.length > 0 ? feedLogoCandidates[0] : "";
+      feedLogoCandidates.length > 0 ? String(feedLogoCandidates[0]) : "";
     const coverImageCounts: Record<string, number> = {};
     newFeed.items.forEach((item) => {
       if (item.coverImage) {
@@ -3524,9 +3545,10 @@ export class FeedParser {
     });
 
     // Store the feed icon URL for display in sidebar
-    newFeed.iconUrl = feedLogoUrl
-      ? this.convertToAbsoluteUrl(feedLogoUrl, url)
-      : "";
+    newFeed.iconUrl = this.resolveFeedIconUrl(
+      feedLogoCandidates.map((candidate) => String(candidate)),
+      url,
+    );
 
     const processedFeed = MediaService.detectAndProcessFeed(newFeed);
     if (processedFeed.mediaType === "video" && !existingFeed?.folder) {

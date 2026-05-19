@@ -101,4 +101,26 @@ describe("MastodonService", () => {
       ).resolves.toBeNull();
     });
   });
+
+  describe("isResolvedFeedUrl", () => {
+    it("detects @username RSS URLs", () => {
+      expect(
+        MastodonService.isResolvedFeedUrl("https://mastodon.social/@Gargron.rss"),
+      ).toBe(true);
+    });
+
+    it("detects /users/username.rss URLs", () => {
+      expect(
+        MastodonService.isResolvedFeedUrl(
+          "https://example.social/users/gargron.rss",
+        ),
+      ).toBe(true);
+    });
+
+    it("rejects non-Mastodon RSS URLs", () => {
+      expect(
+        MastodonService.isResolvedFeedUrl("https://example.com/feed.xml"),
+      ).toBe(false);
+    });
+  });
 });

@@ -5,6 +5,10 @@ export class MastodonService {
     /^\/@[^/?#]+\/?$/i,
     /^\/users\/[^/?#]+\/?$/i,
   ];
+  private static readonly FEED_PATH_PATTERNS = [
+    /^\/@[^/?#]+\.rss$/i,
+    /^\/users\/[^/?#]+\.rss$/i,
+  ];
 
   static isMastodonProfileUrl(url: string): boolean {
     if (!url) return false;
@@ -47,6 +51,25 @@ export class MastodonService {
     } catch {
       return null;
     }
+  }
+
+  static isResolvedFeedUrl(url: string): boolean {
+    if (!url) return false;
+
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return false;
+    }
+
+    if (!/^https?:$/i.test(parsed.protocol)) {
+      return false;
+    }
+
+    return this.FEED_PATH_PATTERNS.some((pattern) =>
+      pattern.test(parsed.pathname),
+    );
   }
 
   private static normalizeProfileUrl(url: string): string {

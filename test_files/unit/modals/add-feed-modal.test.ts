@@ -358,7 +358,7 @@ describe("AddFeedModal", () => {
     expect(folderInput.value).toBe("My Custom Folder");
   });
 
-  it("routes Mastodon feeds into the configured default RSS folder and shows conversion notice", async () => {
+  it("routes Mastodon feeds into the configured default Mastodon folder and shows conversion notice", async () => {
     const app = createMockApp();
     const onAdd: OnAddFn = vi.fn(async () => true);
     const onSave = vi.fn();
@@ -380,9 +380,10 @@ describe("AddFeedModal", () => {
         corsProxyUrl: "",
         media: {
           defaultTwitterFolder: "Social/Twitter",
+          defaultMastodonFolder: "Social/Mastodon",
           defaultYouTubeFolder: "Videos",
           defaultPodcastFolder: "Podcast",
-          defaultRssFolder: "Social/Mastodon",
+          defaultRssFolder: "RSS",
         },
       },
     };
@@ -411,5 +412,52 @@ describe("AddFeedModal", () => {
     expect(statusSetting.textContent).toContain(
       "Mastodon > RSS auto-discovery",
     );
+  });
+
+  it("keeps a custom folder when loading a Mastodon feed", async () => {
+    const app = createMockApp();
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const onSave = vi.fn();
+
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
+      detectedType: "rss",
+      inputUrl: "https://mastodon.social/@user",
+      finalUrl: "https://mastodon.social/@user.rss",
+      isXConversion: false,
+      isMastodonConversion: true,
+      title: "Mastodon timeline",
+      latestPubDate: "2026-05-01T00:00:00.000Z",
+      hasEntries: true,
+    });
+
+    const plugin = {
+      settings: {
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        media: {
+          defaultTwitterFolder: "Social/Twitter",
+          defaultMastodonFolder: "Social/Mastodon",
+          defaultYouTubeFolder: "Videos",
+          defaultPodcastFolder: "Podcast",
+          defaultRssFolder: "RSS",
+        },
+      },
+    };
+
+    const modal = new AddFeedModal(app, [], onAdd, onSave, "", plugin as never);
+    modal.open();
+
+    const folderInput = getTextInputBySettingName(modal.contentEl, "Folder");
+    folderInput.value = "My Custom Folder";
+    folderInput.dispatchEvent(new Event("input"));
+
+    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    urlInput.value = "https://mastodon.social/@user";
+    urlInput.dispatchEvent(new Event("input"));
+
+    getButtonByText(modal.contentEl, "Load").click();
+    await flushPromises();
+
+    expect(folderInput.value).toBe("My Custom Folder");
   });
 });

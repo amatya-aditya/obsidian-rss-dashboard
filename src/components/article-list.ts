@@ -1392,6 +1392,8 @@ export class ArticleList {
       cls: "rss-dashboard-article-feed-icon",
     });
     const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
+    const feed = this.settings.feeds?.find((f) => f.url === feedUrl);
+    const feedIconUrl = feed?.iconUrl;
 
     if (mediaType === "video" && isYouTubeFeed) {
       setIcon(iconContainer, "play");
@@ -1399,6 +1401,18 @@ export class ArticleList {
     } else if (mediaType === "podcast") {
       setIcon(iconContainer, "mic");
       iconContainer.addClass("podcast");
+    } else if (feedIconUrl) {
+      // Show cached feed logo (e.g. Mastodon profile image) when available
+      const imgEl = iconContainer.createEl("img", {
+        attr: { src: feedIconUrl, alt: feed?.title || feedUrl },
+        cls: "rss-dashboard-article-feed-icon-img",
+      });
+      imgEl.onerror = () => {
+        iconContainer.empty();
+        if (!this.settings.display.hideDefaultRssIcon) {
+          setIcon(iconContainer, "rss");
+        }
+      };
     } else if (this.settings.display.useDomainFavicons) {
       const domain = extractDomain(feedUrl);
       if (domain) {
@@ -1436,6 +1450,21 @@ export class ArticleList {
     } else if (mediaType === "podcast") {
       setIcon(container, "mic");
       container.addClass("podcast");
+    } else if (feed?.iconUrl) {
+      // Show cached feed logo (e.g. Mastodon profile image) when available
+      const imgEl = container.createEl("img", {
+        attr: {
+          src: feed.iconUrl,
+          alt: feed.title || feedUrl,
+        },
+        cls: "rss-dashboard-header-feed-icon-img",
+      });
+      imgEl.onerror = () => {
+        container.empty();
+        if (!this.settings.display.hideDefaultRssIcon) {
+          setIcon(container, "rss");
+        }
+      };
     } else if (this.settings.display.useDomainFavicons) {
       const domain = extractDomain(feedUrl);
       if (domain) {

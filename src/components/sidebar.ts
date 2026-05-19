@@ -1485,6 +1485,18 @@ export class Sidebar {
       feedEl.classList.add("podcast-feed");
       setIcon(feedIcon, "mic");
       feedIcon.addClass("podcast");
+    } else if (feed.iconUrl) {
+      // Show feed logo (e.g. Mastodon profile image) when available
+      const imgEl = feedIcon.createEl("img", {
+        attr: { src: feed.iconUrl, alt: feed.title },
+        cls: "rss-dashboard-feed-icon-img",
+      });
+      imgEl.onerror = () => {
+        feedIcon.empty();
+        if (!this.settings.display.hideDefaultRssIcon) {
+          setIcon(feedIcon, "rss");
+        }
+      };
     } else if (this.settings.display.useDomainFavicons) {
       // Show domain favicon for regular feeds when setting is enabled
       const domain = this.extractDomain(feed.url);

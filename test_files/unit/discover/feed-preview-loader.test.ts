@@ -182,3 +182,39 @@ describe("formatLatestEntryLabel()", () => {
   });
 });
 
+describe("Mastodon folder defaults", () => {
+  it("routes Mastodon conversions to the configured Mastodon folder", async () => {
+    const { getDefaultFolderForResolvedFeed } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const folder = getDefaultFolderForResolvedFeed(
+      {
+        detectedType: "rss",
+        finalUrl: "https://mastodon.social/@user.rss",
+        isXConversion: false,
+        isMastodonConversion: true,
+      },
+      {
+        defaultMastodonFolder: "Social/Mastodon",
+        defaultRssFolder: "RSS",
+      },
+    );
+
+    expect(folder).toBe("Social/Mastodon");
+  });
+
+  it("treats configured and legacy Mastodon folders as auto-assignable", async () => {
+    const { shouldAutoAssignFolder } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    expect(
+      shouldAutoAssignFolder("Social/Mastodon", {
+        defaultMastodonFolder: "Social/Mastodon",
+      }),
+    ).toBe(true);
+    expect(shouldAutoAssignFolder("Mastodon", {})).toBe(true);
+  });
+});
+

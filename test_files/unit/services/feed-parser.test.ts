@@ -146,6 +146,25 @@ const RSS2_WITH_IMAGE = `<?xml version="1.0" encoding="UTF-8"?>
   </channel>
 </rss>`;
 
+const RSS2_MASTODON_PROFILE_IMAGE = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Gargron (@Gargron@mastodon.social)</title>
+    <link>https://mastodon.social/@Gargron</link>
+    <image>
+      <url>https://files.mastodon.social/accounts/avatars/109/246/358/402/616/382/original/4143aa23be8308b5.jpg</url>
+      <title>Gargron</title>
+    </image>
+    <item>
+      <title>Post 1</title>
+      <link>https://mastodon.social/@Gargron/123</link>
+      <description>Post content</description>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>https://mastodon.social/@Gargron/123</guid>
+    </item>
+  </channel>
+</rss>`;
+
 const RSS2_WITH_MEDIA_CONTENT_IMAGE = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
   <channel>
@@ -704,6 +723,8 @@ describe("FeedParser.parseFeed", () => {
   const mediaSettings = {
     autoTagVideos: true,
     rememberPlaybackProgress: true,
+    defaultTwitterFolder: "Twitter",
+    defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultYouTubeTag: "Video",
     defaultPodcastFolder: "Podcast",
@@ -712,9 +733,92 @@ describe("FeedParser.parseFeed", () => {
     defaultRssTag: "rss",
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "smallweb",
+    useMastodonProfileImages: false,
     openInSplitView: true,
     podcastTheme: "solarized" as const,
   };
+
+  it("keeps the current Mastodon icon behavior when profile images are disabled", async () => {
+    const feedUrl = "https://mastodon.social/@Gargron.rss";
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({
+      status: 200,
+      text: RSS2_MASTODON_PROFILE_IMAGE,
+    });
+
+    const parser = new FeedParser(
+      {
+        ...mediaSettings,
+        useMastodonProfileImages: false,
+      },
+      [],
+    );
+    const parsed = await parser.parseFeed(feedUrl, null);
+
+    expect(parsed.iconUrl).not.toBe(
+      "https://files.mastodon.social/accounts/avatars/109/246/358/402/616/382/original/4143aa23be8308b5.jpg",
+    );
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("prefers Mastodon profile images for feed icons when enabled", async () => {
+    const feedUrl = "https://mastodon.social/@Gargron.rss";
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({
+      status: 200,
+      text: RSS2_MASTODON_PROFILE_IMAGE,
+    });
+
+    const parser = new FeedParser(
+      {
+        ...mediaSettings,
+        useMastodonProfileImages: true,
+      },
+      [],
+    );
+    const parsed = await parser.parseFeed(feedUrl, null);
+
+    expect(parsed.iconUrl).toBe(
+      "https://files.mastodon.social/accounts/avatars/109/246/358/402/616/382/original/4143aa23be8308b5.jpg",
+    );
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("preserves the chosen Mastodon icon behavior across refresh", async () => {
+    const feedUrl = "https://mastodon.social/@Gargron.rss";
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce({
+        status: 200,
+        text: RSS2_MASTODON_PROFILE_IMAGE,
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        text: RSS2_MASTODON_PROFILE_IMAGE,
+      });
+
+    const parser = new FeedParser(
+      {
+        ...mediaSettings,
+        useMastodonProfileImages: true,
+      },
+      [],
+    );
+    const first = await parser.parseFeed(feedUrl, null);
+    const refreshed = await parser.parseFeed(feedUrl, first);
+
+    expect(first.iconUrl).toBe(
+      "https://files.mastodon.social/accounts/avatars/109/246/358/402/616/382/original/4143aa23be8308b5.jpg",
+    );
+    expect(refreshed.iconUrl).toBe(first.iconUrl);
+
+    requestUrlSpy.mockRestore();
+  });
 
   it("applies Video tag for Bloomberg video-route items with image medium", async () => {
     const feedUrl = "https://www.bloomberg.com/feed/podcast.xml";

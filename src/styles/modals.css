@@ -1400,6 +1400,16 @@
   background: var(--interactive-accent-hover, #217dbb) !important;
 }
 
+/* Mastodon toggle confirm description paragraph */
+.rss-dashboard-mastodon-confirm-modal p {
+  margin: 0 0 1.2rem 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--background-secondary);
+  border-radius: 8px;
+  line-height: 1.6;
+  color: var(--text-normal);
+}
+
 /* ============================================
    Folder Header with Delete Button
    ============================================ */

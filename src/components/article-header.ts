@@ -619,6 +619,21 @@ export class ArticleHeader {
     } else if (mediaType === "podcast") {
       setIcon(container, "mic");
       container.addClass("podcast");
+    } else if (feed?.iconUrl) {
+      // Show cached feed logo (e.g. Mastodon profile image) when available
+      const imgEl = container.createEl("img", {
+        attr: {
+          src: feed.iconUrl,
+          alt: feed.title || feedUrl,
+        },
+        cls: "rss-dashboard-header-feed-icon-img",
+      });
+      imgEl.onerror = () => {
+        container.empty();
+        if (!this.settings.display.hideDefaultRssIcon) {
+          setIcon(container, "rss");
+        }
+      };
     } else if (this.settings.display.useDomainFavicons) {
       const domain = extractDomain(feedUrl);
       if (domain) {

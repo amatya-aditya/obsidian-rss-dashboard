@@ -22,6 +22,7 @@ export interface FeedPreviewLoadResult {
 
 export interface MediaFolderDefaults {
   defaultTwitterFolder?: string;
+  defaultMastodonFolder?: string;
   defaultYouTubeFolder?: string;
   defaultPodcastFolder?: string;
   defaultRssFolder?: string;
@@ -75,10 +76,12 @@ export function shouldAutoAssignFolder(
 
   const autoAssignedFolders = new Set([
     media?.defaultTwitterFolder || "Twitter",
+    media?.defaultMastodonFolder || "Mastodon",
     media?.defaultYouTubeFolder || "Videos",
     media?.defaultPodcastFolder || "Podcast",
     media?.defaultRssFolder || "RSS",
     "Twitter",
+    "Mastodon",
     "Videos",
     "Podcast",
     "RSS",
@@ -88,12 +91,19 @@ export function shouldAutoAssignFolder(
 }
 
 export function getDefaultFolderForResolvedFeed(
-  preview: Pick<FeedPreviewLoadResult, "detectedType" | "finalUrl" | "isXConversion">,
+  preview: Pick<
+    FeedPreviewLoadResult,
+    "detectedType" | "finalUrl" | "isXConversion" | "isMastodonConversion"
+  >,
   media?: MediaFolderDefaults,
 ): string {
   const isNitterFeed = !!MediaService.normalizeNitterUrlToRss(preview.finalUrl);
   if (preview.isXConversion || isNitterFeed) {
     return media?.defaultTwitterFolder || "Twitter";
+  }
+
+  if (preview.isMastodonConversion) {
+    return media?.defaultMastodonFolder || "Mastodon";
   }
 
   if (preview.detectedType === "youtube") {

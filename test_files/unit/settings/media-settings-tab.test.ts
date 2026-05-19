@@ -212,6 +212,83 @@ describe("renderMediaSettingsTab()", () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
+  it("renders and persists the default Mastodon folder", async () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
+    const settings = cloneSettings();
+    settings.media.defaultMastodonFolder = "Mastodon";
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+    } as unknown as RssDashboardPlugin;
+
+    vi.spyOn(obsidian, "normalizePath").mockImplementation(
+      (p: string) => `norm:${p}`,
+    );
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const mastodonHeading = getSettingByName(containerEl, "Mastodon");
+    expect(mastodonHeading).toBeDefined();
+
+    const mastodonSetting = getSettingByName(
+      containerEl,
+      "Default Mastodon folder",
+    );
+    const input = mastodonSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+
+    expect(input.value).toBe("Mastodon");
+
+    input.value = "Social/Mastodon";
+    input.dispatchEvent(new Event("input"));
+    await flushPromises();
+
+    expect(plugin.settings.media.defaultMastodonFolder).toBe(
+      "norm:Social/Mastodon",
+    );
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+  });
+
+it("renders and persists the Mastodon profile image toggle", async () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
+    const settings = cloneSettings();
+    settings.media.useMastodonProfileImages = false;
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      getActiveDashboardView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const toggleSetting = getSettingByName(
+      containerEl,
+      "Use profile images for Mastodon feeds",
+    );
+    const toggle = toggleSetting.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
+
+    expect(toggle.checked).toBe(false);
+
+    toggle.click();
+    await flushPromises();
+
+    expect(plugin.settings.media.useMastodonProfileImages).toBe(true);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+  });
+
   it("wires media folder settings with the shared folder suggester defaults", async () => {
     vi.resetModules();
 
@@ -260,6 +337,7 @@ describe("renderMediaSettingsTab()", () => {
     renderWithMock(containerEl, plugin);
 
     expect(capturedOptions).toEqual([
+      undefined,
       undefined,
       undefined,
       undefined,

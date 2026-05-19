@@ -102,6 +102,20 @@ describe("migrateMediaVideoTagSettings", () => {
     ).toBe("Twitter");
   });
 
+  it("backfills defaultMastodonFolder when missing", () => {
+    const settings: Record<string, unknown> = {
+      media: { autoTagVideos: true },
+      availableTags: [],
+    };
+
+    const changed = migrateMediaVideoTagSettings(settings);
+
+    expect(changed).toBe(true);
+    expect(
+      (settings.media as Record<string, unknown>).defaultMastodonFolder,
+    ).toBe("Mastodon");
+  });
+
   it("restores defaultTwitterFolder when blank", () => {
     const settings: Record<string, unknown> = {
       media: { autoTagVideos: true, defaultTwitterFolder: "   " },
@@ -114,5 +128,33 @@ describe("migrateMediaVideoTagSettings", () => {
     expect(
       (settings.media as Record<string, unknown>).defaultTwitterFolder,
     ).toBe("Twitter");
+  });
+
+  it("restores defaultMastodonFolder when blank", () => {
+    const settings: Record<string, unknown> = {
+      media: { autoTagVideos: true, defaultMastodonFolder: "   " },
+      availableTags: [],
+    };
+
+    const changed = migrateMediaVideoTagSettings(settings);
+
+    expect(changed).toBe(true);
+    expect(
+      (settings.media as Record<string, unknown>).defaultMastodonFolder,
+    ).toBe("Mastodon");
+  });
+
+  it("backfills useMastodonProfileImages to false", () => {
+    const settings: Record<string, unknown> = {
+      media: { autoTagVideos: true },
+      availableTags: [],
+    };
+
+    const changed = migrateMediaVideoTagSettings(settings);
+
+    expect(changed).toBe(true);
+    expect(
+      (settings.media as Record<string, unknown>).useMastodonProfileImages,
+    ).toBe(false);
   });
 });

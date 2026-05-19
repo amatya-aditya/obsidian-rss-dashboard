@@ -1060,7 +1060,7 @@ describe("EditFeedModal", () => {
     expect(folderInput.value).toBe("My Custom Folder");
   });
 
-  it("shows a Mastodon conversion notice and routes to the configured RSS folder in Edit", async () => {
+  it("shows a Mastodon conversion notice and routes to the configured Mastodon folder in Edit", async () => {
     const app = createMockApp();
     const feed: Feed = {
       title: "Old title",
@@ -1091,9 +1091,10 @@ describe("EditFeedModal", () => {
         articleSaving: { savedTemplates: [] },
         media: {
           defaultTwitterFolder: "Social/Twitter",
+          defaultMastodonFolder: "Social/Mastodon",
           defaultYouTubeFolder: "Videos",
           defaultPodcastFolder: "Podcast",
-          defaultRssFolder: "Social/Mastodon",
+          defaultRssFolder: "RSS",
         },
       },
       ensureFolderExists: vi.fn(async () => {}),
@@ -1123,5 +1124,66 @@ describe("EditFeedModal", () => {
     expect(statusSetting.textContent).toContain(
       "Mastodon > RSS auto-discovery",
     );
+  });
+
+  it("preserves a custom folder in Edit when loading a Mastodon feed", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "My Custom Folder",
+      items: [],
+      lastUpdated: 0,
+    } as unknown as Feed;
+
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
+      detectedType: "rss",
+      inputUrl: "https://mastodon.social/@user",
+      finalUrl: "https://mastodon.social/@user.rss",
+      isXConversion: false,
+      isMastodonConversion: true,
+      title: "Mastodon timeline",
+      latestPubDate: "2026-05-01T00:00:00.000Z",
+      hasEntries: true,
+    });
+
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+        media: {
+          defaultTwitterFolder: "Social/Twitter",
+          defaultMastodonFolder: "Social/Mastodon",
+          defaultYouTubeFolder: "Videos",
+          defaultPodcastFolder: "Podcast",
+          defaultRssFolder: "RSS",
+        },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app,
+      plugin as unknown as PluginTestFixture,
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    urlInput.value = "https://mastodon.social/@user";
+    urlInput.dispatchEvent(new Event("input"));
+
+    getButtonByText(modal.contentEl, "Load").click();
+    await flushPromises();
+
+    const folderInput = getTextInputBySettingName(modal.contentEl, "Folder");
+    expect(folderInput.value).toBe("My Custom Folder");
   });
 });

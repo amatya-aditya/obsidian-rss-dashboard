@@ -200,6 +200,7 @@ export interface MediaSettings {
   autoTagVideos: boolean;
   rememberPlaybackProgress: boolean;
   defaultTwitterFolder: string;
+  defaultMastodonFolder: string;
   defaultYouTubeFolder: string;
   defaultYouTubeTag: string;
   defaultPodcastFolder: string;
@@ -208,6 +209,7 @@ export interface MediaSettings {
   defaultRssTag: string;
   defaultSmallwebFolder: string;
   defaultSmallwebTag: string;
+  useMastodonProfileImages: boolean;
   openInSplitView: boolean;
   podcastTheme: PodcastTheme;
   enableApplePodcastsOpen?: boolean;
@@ -566,6 +568,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     autoTagVideos: true,
     rememberPlaybackProgress: true,
     defaultTwitterFolder: "Twitter",
+    defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultYouTubeTag: "Video",
     defaultPodcastFolder: "Podcast",
@@ -574,6 +577,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultRssTag: "RSS",
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "smallweb",
+    useMastodonProfileImages: false,
     openInSplitView: true,
     podcastTheme: "obsidian",
     enableApplePodcastsOpen: false,

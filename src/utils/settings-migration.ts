@@ -250,6 +250,19 @@ export function migrateMediaVideoTagSettings(
     changed = true;
   }
 
+  if (typeof media.defaultMastodonFolder !== "string") {
+    media.defaultMastodonFolder = "Mastodon";
+    changed = true;
+  } else if (media.defaultMastodonFolder.trim().length === 0) {
+    media.defaultMastodonFolder = "Mastodon";
+    changed = true;
+  }
+
+  if (typeof media.useMastodonProfileImages !== "boolean") {
+    media.useMastodonProfileImages = false;
+    changed = true;
+  }
+
   // Ensure configured video tag is present and normalized
   if (typeof media.defaultYouTubeTag !== "string") {
     media.defaultYouTubeTag = "Video";
