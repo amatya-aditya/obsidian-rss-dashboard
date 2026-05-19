@@ -13,10 +13,7 @@ import {
   mergeFeedHistoryItems,
   applyFeedRetentionLimits,
 } from "../../../src/services/feed-parser";
-
-type RawTextModule = {
-  default: string;
-};
+import astralCodexFeed from "../../../docs/archive/astralcodex.txt?raw";
 
 // ─── RSS 2.0 Fixtures ───────────────────────────────────────────────────────
 
@@ -625,9 +622,7 @@ describe("content:encoded HTML entity preservation", () => {
     );
   });
 
-  it("rewrites broken Astral Codex Substack image src URLs from the real fixture", async () => {
-    const { default: astralCodexFeed } =
-      (await import("../../../docs/archive/astralcodex.txt?raw")) as RawTextModule;
+  it("rewrites broken Astral Codex Substack image src URLs from the real fixture", () => {
     const contentMatch = astralCodexFeed.match(
       /<content:encoded>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/content:encoded>/,
     );
