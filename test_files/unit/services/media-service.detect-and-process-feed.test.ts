@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MediaService } from "../../../src/services/media-service";
-import type { Feed, FeedItem } from "../../../src/types/types";
+import type { Feed, FeedItem, MediaSettings } from "../../../src/types/types";
 
 function createItem(overrides: Partial<FeedItem> = {}): FeedItem {
   return {
@@ -348,3 +348,72 @@ describe("MediaService.detectAndProcessFeed", () => {
     expect(tagged.items[0].tags).toEqual([]);
   });
 });
+
+describe("MediaService.shouldShowFeedIcon", () => {
+  const defaultMediaSettings = (overrides: Partial<MediaSettings> = {}): MediaSettings => ({
+    autoTagVideos: true,
+    rememberPlaybackProgress: true,
+    defaultTwitterFolder: "Twitter",
+    defaultMastodonFolder: "Mastodon",
+    defaultYouTubeFolder: "Videos",
+    defaultYouTubeTag: "Video",
+    defaultPodcastFolder: "Podcast",
+    defaultPodcastTag: "podcast",
+    defaultRssFolder: "RSS",
+    defaultRssTag: "RSS",
+    defaultSmallwebFolder: "Smallweb",
+    defaultSmallwebTag: "smallweb",
+    useMastodonProfileImages: false,
+    useDomainIconsRss: false,
+    useDomainIconsPodcast: false,
+    useDomainIconsTwitter: false,
+    openInSplitView: true,
+    podcastTheme: "obsidian",
+    ...overrides,
+  });
+
+  const createMockFeedWithIcon = (url: string, mediaType: "article" | "video" | "podcast" = "article"): Feed => ({
+    title: "Mock Feed",
+    url,
+    folder: "RSS",
+    items: [],
+    lastUpdated: 0,
+    mediaType,
+    iconUrl: "https://example.com/icon.png",
+  });
+
+  it("handles YouTube/Video feeds correctly", () => {
+    const feedYt = createMockFeedWithIcon("https://www.youtube.com/feeds/videos.xml?channel_id=123", "video");
+    expect(MediaService.shouldShowFeedIcon(feedYt, defaultMediaSettings({}))).toBe(false);
+  });
+
+  it("handles Podcast feeds correctly", () => {
+    const feedPodcast = createMockFeedWithIcon("https://example.com/podcast.xml", "podcast");
+    expect(MediaService.shouldShowFeedIcon(feedPodcast, defaultMediaSettings({ useDomainIconsPodcast: false }))).toBe(false);
+    expect(MediaService.shouldShowFeedIcon(feedPodcast, defaultMediaSettings({ useDomainIconsPodcast: true }))).toBe(true);
+  });
+
+  it("handles Mastodon feeds correctly", () => {
+    const feedMastodon = createMockFeedWithIcon("https://mastodon.social/@username.rss");
+    expect(MediaService.shouldShowFeedIcon(feedMastodon, defaultMediaSettings({ useMastodonProfileImages: false }))).toBe(false);
+    expect(MediaService.shouldShowFeedIcon(feedMastodon, defaultMediaSettings({ useMastodonProfileImages: true }))).toBe(true);
+  });
+
+  it("handles Twitter/Nitter feeds correctly", () => {
+    const feedTwitter = createMockFeedWithIcon("https://nitter.net/username/rss");
+    expect(MediaService.shouldShowFeedIcon(feedTwitter, defaultMediaSettings({ useDomainIconsTwitter: false }))).toBe(false);
+    expect(MediaService.shouldShowFeedIcon(feedTwitter, defaultMediaSettings({ useDomainIconsTwitter: true }))).toBe(true);
+  });
+
+  it("handles standard RSS feeds correctly", () => {
+    const feedRss = createMockFeedWithIcon("https://example.com/rss.xml");
+    expect(MediaService.shouldShowFeedIcon(feedRss, defaultMediaSettings({ useDomainIconsRss: false }))).toBe(false);
+    expect(MediaService.shouldShowFeedIcon(feedRss, defaultMediaSettings({ useDomainIconsRss: true }))).toBe(true);
+  });
+
+  it("returns false if feed has no iconUrl", () => {
+    const feedNoIcon = { ...createMockFeedWithIcon("https://example.com/rss.xml"), iconUrl: undefined };
+    expect(MediaService.shouldShowFeedIcon(feedNoIcon, defaultMediaSettings({ useDomainIconsRss: true }))).toBe(false);
+  });
+});
+

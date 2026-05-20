@@ -9,12 +9,15 @@
 import { App, Modal, Notice, Setting, normalizePath, WorkspaceLeaf } from "obsidian";
 import { FeedParser } from "../../services/feed-parser";
 import { MastodonService } from "../../services/mastodon-service";
+import { MediaService } from "../../services/media-service";
 import { FolderSuggest } from "../../components/folder-suggest";
-import { Folder, FeedItem, PodcastTheme, Tag } from "../../types/types";
+import { Folder, FeedItem, PodcastTheme, Tag, Feed } from "../../types/types";
 import type { MediaSettings } from "../../types/types";
 
 interface MediaTabSettings {
   folders: Folder[];
+  feeds?: Feed[];
+  availableTags?: Tag[];
   media: {
     autoTagVideos?: boolean;
     rememberPlaybackProgress?: boolean;
@@ -29,6 +32,10 @@ interface MediaTabSettings {
     defaultSmallwebFolder: string;
     defaultSmallwebTag: string;
     useMastodonProfileImages?: boolean;
+    useDomainIconsRss?: boolean;
+    useDomainIconsYouTube?: boolean;
+    useDomainIconsPodcast?: boolean;
+    useDomainIconsTwitter?: boolean;
     podcastTheme: PodcastTheme;
   };
 }
@@ -117,6 +124,16 @@ export function renderMediaSettingsTab(
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
     });
 
+  setupDomainIconToggle(containerEl, plugin, {
+    settingName: "Use profile images for Twitter/Nitter feeds",
+    settingDesc: "Replace the standard Twitter/X icon with the feed profile image when one is available",
+    settingKey: "useDomainIconsTwitter",
+    domainName: "Twitter",
+    heading: "Clear Twitter profile images?",
+    confirmLabel: "Clear profile images",
+    matchesDomain: (feed) => MediaService.isTwitterOrNitterFeed(feed.url),
+  });
+
   new Setting(containerEl).setName("Mastodon").setHeading();
 
   new Setting(containerEl)
@@ -173,6 +190,7 @@ export function renderMediaSettingsTab(
                 plugin.settings.media as unknown as MediaSettings,
                 availableTags,
               );
+              await plugin.saveSettings();
               new Notice(
                 `Profile images loaded for ${mastodonFeedEntries.length} Mastodon feed${mastodonFeedEntries.length === 1 ? "" : "s"}.`,
               );
@@ -198,7 +216,8 @@ export function renderMediaSettingsTab(
             }
             const iconCount = iconCountByUrl.size;
 
-            const confirmed = await showMastodonToggleConfirm(plugin.app, {
+            const confirmed = await showDomainIconToggleConfirm(plugin.app, {
+              domainName: "Mastodon",
               heading: "Clear Mastodon profile images?",
               description:
                 iconCount > 0
@@ -275,6 +294,12 @@ export function renderMediaSettingsTab(
       });
     });
 
+  new Setting(containerEl)
+    .setName("Channel profile images")
+    .setDesc(
+      "YouTube RSS feeds do not provide channel profile images. Videos will always use the default video play icon."
+    );
+
   // Policy Compliance: YouTube TOS and Privacy disclosure
   const complianceInfo = containerEl.createDiv({
     cls: "rss-settings-compliance-info",
@@ -321,6 +346,16 @@ export function renderMediaSettingsTab(
         }),
     );
 
+  setupDomainIconToggle(containerEl, plugin, {
+    settingName: "Use album/show artwork for Podcast feeds",
+    settingDesc: "Replace the standard podcast mic icon with the album/show artwork when one is available",
+    settingKey: "useDomainIconsPodcast",
+    domainName: "Podcast",
+    heading: "Clear Podcast artwork?",
+    confirmLabel: "Clear artwork",
+    matchesDomain: (feed) => feed.mediaType === "podcast",
+  });
+
   // ── RSS ───────────────────────────────────────────────────────────────────
   new Setting(containerEl).setName("RSS").setHeading();
 
@@ -349,6 +384,20 @@ export function renderMediaSettingsTab(
           await plugin.saveSettings();
         }),
     );
+
+  setupDomainIconToggle(containerEl, plugin, {
+    settingName: "Use site icons/favicons for RSS feeds",
+    settingDesc: "Replace the standard RSS feed icon with the site icon/favicon when one is available",
+    settingKey: "useDomainIconsRss",
+    domainName: "RSS",
+    heading: "Clear RSS site icons?",
+    confirmLabel: "Clear site icons",
+    matchesDomain: (feed) =>
+      !MastodonService.isResolvedFeedUrl(feed.url) &&
+      !MediaService.isYouTubeFeed(feed.url) &&
+      feed.mediaType !== "podcast" &&
+      !MediaService.isTwitterOrNitterFeed(feed.url),
+  });
 
   // ── Kagi smallweb ─────────────────────────────────────────────────────────
   new Setting(containerEl).setName("Kagi smallweb").setHeading();
@@ -411,9 +460,118 @@ export function renderMediaSettingsTab(
     );
 }
 
-// ── Mastodon Toggle Confirmation Modal ───────────────────────────────────────
+function setupDomainIconToggle(
+  containerEl: HTMLElement,
+  plugin: MediaSettingsPlugin,
+  options: {
+    settingName: string;
+    settingDesc: string;
+    settingKey: keyof MediaTabSettings["media"];
+    domainName: string;
+    heading: string;
+    confirmLabel: string;
+    matchesDomain: (feed: {
+      url: string;
+      iconUrl?: string;
+      title: string;
+      mediaType?: "article" | "video" | "podcast";
+      items: FeedItem[];
+    }) => boolean;
+  }
+) {
+  const { settingName, settingDesc, settingKey, domainName, heading, confirmLabel, matchesDomain } = options;
+  
+  new Setting(containerEl)
+    .setName(settingName)
+    .setDesc(settingDesc)
+    .addToggle((toggle) =>
+      toggle
+        .setValue(!!plugin.settings.media[settingKey])
+        .onChange(async (value) => {
+          const oldValue = !!(plugin.settings.media as unknown as Record<string, boolean>)[settingKey];
+          const settings = plugin.settings;
+          const feeds = settings.feeds ?? [];
+          const availableTags = settings.availableTags ?? [];
 
-interface MastodonToggleModalParams {
+          if (!oldValue && value) {
+            (plugin.settings.media as unknown as Record<string, boolean>)[settingKey] = true;
+            await plugin.saveSettings();
+
+            void (async () => {
+              const entries = collectDomainFeeds(feeds, matchesDomain);
+              await fetchDomainFeedIcons(
+                entries,
+                plugin.settings.media as unknown as MediaSettings,
+                availableTags,
+              );
+              await plugin.saveSettings();
+              new Notice(
+                `Profile images loaded for ${entries.filter(e => e.needsRefresh).length} ${domainName} feed${entries.filter(e => e.needsRefresh).length === 1 ? "" : "s"}.`,
+              );
+              const view = await plugin.getActiveDashboardView();
+              if (view) {
+                view.render();
+              }
+            })();
+            return;
+          }
+
+          if (oldValue && !value) {
+            const entries = collectDomainFeeds(feeds, matchesDomain);
+            const iconCountByUrl = new Map<string, number>();
+            for (const { feed, needsRefresh } of entries) {
+              if (needsRefresh && feed.iconUrl) {
+                iconCountByUrl.set(
+                  feed.url,
+                  (iconCountByUrl.get(feed.url) || 0) + 1,
+                );
+              }
+            }
+            const iconCount = iconCountByUrl.size;
+
+            const confirmed = await showDomainIconToggleConfirm(plugin.app, {
+              domainName,
+              heading,
+              description:
+                iconCount > 0
+                  ? `${iconCount} ${domainName} feed${iconCount === 1 ? "" : "s"} currently use a profile image. Cached profile-image URLs in your feeds will be cleared. Cached favicons or domain images already shown in the feeds list are unaffected.`
+                  : `Existing feeds may have cached profile-image URLs from when the setting was enabled. Cleared feeds will revert to the standard RSS or domain/favicon icon.`,
+              cancelLabel: "Cancel",
+              confirmLabel,
+              onConfirm() {
+                for (const { feed, needsRefresh } of entries) {
+                  if (needsRefresh) {
+                    feed.iconUrl = "";
+                  }
+                }
+              },
+            });
+
+            if (confirmed) {
+              (plugin.settings.media as unknown as Record<string, boolean>)[settingKey] = false;
+              await plugin.saveSettings();
+              const view = await plugin.getActiveDashboardView();
+              if (view) {
+                view.render();
+              }
+            } else {
+              setTimeout(() => {
+                void toggle.setValue(true);
+              }, 0);
+            }
+            return;
+          }
+
+          (plugin.settings.media as unknown as Record<string, boolean>)[settingKey] = value;
+          await plugin.saveSettings();
+        }),
+    );
+}
+
+// ── Domain Icon Toggle Confirmation Modal ────────────────────────────────────
+
+export interface DomainIconToggleModalParams {
+  domainName: string;
   heading: string;
   description: string;
   cancelLabel: string;
@@ -421,12 +579,12 @@ interface MastodonToggleModalParams {
   onConfirm?: () => void;
 }
 
-export class MastodonToggleConfirmModal extends Modal {
+export class DomainIconToggleConfirmModal extends Modal {
   private confirmed = false;
   private resolvePromise: ((value: boolean) => void) | null = null;
-  private params: MastodonToggleModalParams;
+  private params: DomainIconToggleModalParams;
 
-  constructor(app: App, params: MastodonToggleModalParams) {
+  constructor(app: App, params: DomainIconToggleModalParams) {
     super(app);
     this.params = params;
   }
@@ -435,10 +593,19 @@ export class MastodonToggleConfirmModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     this.modalEl.addClass("rss-dashboard-modal");
-    this.modalEl.addClass("rss-dashboard-mastodon-confirm-modal");
+    
+    const domainClass = this.params.domainName
+      ? this.params.domainName.toLowerCase().replace(/[^a-z0-9]/g, '-')
+      : 'mastodon';
+    this.modalEl.addClass(`rss-dashboard-${domainClass}-confirm-modal`);
+    
     contentEl.addClass("rss-dashboard-modal-content");
-    contentEl.createEl("h2", { text: this.params.heading });
-    contentEl.createEl("p", { text: this.params.description });
+    
+    const headingText = this.params.heading.replace(/\{domainName\}/g, this.params.domainName);
+    const descriptionText = this.params.description.replace(/\{domainName\}/g, this.params.domainName);
+    
+    contentEl.createEl("h2", { text: headingText });
+    contentEl.createEl("p", { text: descriptionText });
 
     const footerEl = contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons",
@@ -478,6 +645,86 @@ export class MastodonToggleConfirmModal extends Modal {
 }
 
 /**
+ * Collect all feeds and determine which ones match the given domain logic.
+ */
+export function collectDomainFeeds(
+  feeds: ReadonlyArray<{
+    url: string;
+    iconUrl?: string;
+    title: string;
+    mediaType?: "article" | "video" | "podcast";
+    items: FeedItem[];
+  }>,
+  matchesDomain: (feed: {
+    url: string;
+    iconUrl?: string;
+    title: string;
+    mediaType?: "article" | "video" | "podcast";
+    items: FeedItem[];
+  }) => boolean,
+): Array<{
+  feed: ReadonlyArray<{
+    url: string;
+    iconUrl?: string;
+    title: string;
+    mediaType?: "article" | "video" | "podcast";
+    items: FeedItem[];
+  }>[number];
+  needsRefresh: boolean;
+}> {
+  return feeds.map((feed) => ({
+    feed,
+    needsRefresh: matchesDomain(feed),
+  }));
+}
+
+/**
+ * Batch-refresh every flagged feed so `feed.iconUrl` is repopulated
+ * or cleared according to the resolved toggle.
+ */
+export async function fetchDomainFeedIcons(
+  entries: ReadonlyArray<{
+    feed: ReadonlyArray<{
+      url: string;
+      iconUrl?: string;
+      title: string;
+      mediaType?: "article" | "video" | "podcast";
+      items: FeedItem[];
+    }>[number];
+    needsRefresh: boolean;
+  }>,
+  mediaSettings: MediaSettings,
+  availableTags: ReadonlyArray<{ name: string; id?: string }>,
+): Promise<void> {
+  const feedsToRefresh = entries
+    .filter((entry) => entry.needsRefresh)
+    .map((entry) => entry.feed);
+
+  if (feedsToRefresh.length === 0) return;
+
+  const feedParser = new FeedParser(
+    mediaSettings,
+    availableTags as Tag[],
+  );
+
+  for (const feed of feedsToRefresh) {
+    try {
+      const refreshed = await feedParser.refreshFeed({
+        ...feed,
+        folder: "",
+        lastUpdated: 0,
+      });
+      feed.iconUrl = refreshed.iconUrl;
+    } catch (err) {
+      console.warn(
+        `[RSS dashboard] Failed to refresh feed icon for "${feed.title}":`,
+        err,
+      );
+    }
+  }
+}
+
+/**
  * Collect all feeds; flag those whose URL matches the Mastodon resolved-feed
  * pattern (`*.rss` on a Mastodon host).
  */
@@ -499,10 +746,7 @@ function collectMastodonFeeds(
   }>[number];
   needsRefresh: boolean;
 }> {
-  return feeds.map((feed) => ({
-    feed,
-    needsRefresh: MastodonService.isResolvedFeedUrl(feed.url),
-  }));
+  return collectDomainFeeds(feeds, (feed) => MastodonService.isResolvedFeedUrl(feed.url));
 }
 
 /**
@@ -523,43 +767,23 @@ async function fetchMastodonFeedIcons(
   mediaSettings: MediaSettings,
   availableTags: ReadonlyArray<{ name: string; id?: string }>,
 ): Promise<void> {
-  const feedsToRefresh = mastodonFeedEntries
-    .filter((entry) => entry.needsRefresh)
-    .map((entry) => entry.feed);
-
-  if (feedsToRefresh.length === 0) return;
-
-  // FeedParser constructor takes (MediaSettings, Tag[]) - cast availableTags to match
-  const feedParser = new FeedParser(
-    mediaSettings,
-    availableTags as Tag[],
-  );
-
-  for (const feed of feedsToRefresh) {
-    try {
-      const refreshed = await feedParser.refreshFeed({
-        ...feed,
-        folder: "",
-        lastUpdated: 0,
-      });
-      feed.iconUrl = refreshed.iconUrl;
-    } catch (err) {
-      console.warn(
-        `[RSS dashboard] Failed to refresh Mastodon feed icon for "${feed.title}":`,
-        err,
-      );
-    }
-  }
+  await fetchDomainFeedIcons(mastodonFeedEntries, mediaSettings, availableTags);
 }
 
 /**
- * Build a MastodonToggleConfirmModal, open it, and wait for the user to choose.
+ * Build a DomainIconToggleConfirmModal, open it, and wait for the user to choose.
  */
-async function showMastodonToggleConfirm(
+export async function showDomainIconToggleConfirm(
   app: App,
-  params: MastodonToggleModalParams,
+  params: DomainIconToggleModalParams,
 ): Promise<boolean> {
-  const modal = new MastodonToggleConfirmModal(app, params);
+  const modal = new DomainIconToggleConfirmModal(app, params);
   modal.open();
   return await modal.waitForClose();
 }
+
+/** @deprecated Use DomainIconToggleConfirmModal instead */
+export { DomainIconToggleConfirmModal as MastodonToggleConfirmModal };
+
+/** @deprecated Use showDomainIconToggleConfirm instead */
+export { showDomainIconToggleConfirm as showMastodonToggleConfirm };

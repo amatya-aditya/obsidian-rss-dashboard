@@ -33,9 +33,11 @@ describe("ArticleHeader Component", () => {
       display: {
         mobileShowListToolbar: true,
         mobileListToolbarStyle: "minimal",
-        useDomainFavicons: true,
         cardColumnsPerRow: 0,
         cardSpacing: 15,
+      },
+      media: {
+        useDomainIconsRss: true,
       }
     } as unknown as TestSettings;
 

@@ -634,7 +634,7 @@ export class ArticleHeader {
           setIcon(container, "rss");
         }
       };
-    } else if (this.settings.display.useDomainFavicons) {
+    } else if (this.settings.media.useDomainIconsRss) {
       const domain = extractDomain(feedUrl);
       if (domain) {
         const faviconUrl = getFaviconUrl(domain);

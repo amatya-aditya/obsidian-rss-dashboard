@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ArticleList } from "../../../src/components/article-list";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { FeedItem, RssDashboardSettings, Tag } from "../../../src/types/types";
+import { FeedItem, RssDashboardSettings, Tag, DEFAULT_SETTINGS } from "../../../src/types/types";
 
 type ArticleListCallbacks = ConstructorParameters<typeof ArticleList>[6];
 
@@ -55,10 +55,12 @@ describe("ArticleList Component", () => {
      Element.prototype.scrollIntoView = vi.fn();
 
      settings = {
+       ...DEFAULT_SETTINGS,
        viewStyle: "list",
        articleGroupBy: "none",
        articleSort: "newest",
        display: {
+         ...DEFAULT_SETTINGS.display,
          cardColumnsPerRow: 3,
          cardSpacing: 15,
          mobileShowListToolbar: true,
@@ -69,7 +71,12 @@ describe("ArticleList Component", () => {
          value: 0,
        },
        articleSaving: {
+         ...DEFAULT_SETTINGS.articleSaving,
          saveFullContent: false,
+       },
+       media: {
+         ...DEFAULT_SETTINGS.media,
+         useDomainIconsRss: false,
        },
      };
 
@@ -78,17 +85,27 @@ describe("ArticleList Component", () => {
          guid: "1",
          title: "Article 1",
          link: "link1",
+         description: "",
          pubDate: new Date().toISOString(),
          read: false,
+         starred: false,
          tags: [],
+         feedTitle: "",
+         feedUrl: "",
+         coverImage: "",
        },
        {
          guid: "2",
          title: "Article 2",
          link: "link2",
+         description: "",
          pubDate: new Date().toISOString(),
          read: false,
+         starred: false,
          tags: [],
+         feedTitle: "",
+         feedUrl: "",
+         coverImage: "",
        },
      ];
 
@@ -559,7 +576,7 @@ describe("ArticleList Component", () => {
 articleList.scheduleCardTopAnchorOnResize();
 
        expect(observedEl).toBe(container);
-       expect(articleList.pendingCardTopAnchor).toBe(true);
+       expect((articleList as any).pendingCardTopAnchor).toBe(true);
      });
 
     it("top-anchors the selected card and disconnects the observer when a resize fires", () => {
@@ -604,7 +621,7 @@ articleList.scheduleCardTopAnchorOnResize();
 
 expect(container.scrollTop).toBe(200);
        expect(disconnected).toBe(true);
-       expect(articleList.pendingCardTopAnchor).toBe(false);
+       expect((articleList as any).pendingCardTopAnchor).toBe(false);
 
        rectSpy.mockRestore();
      });
@@ -648,7 +665,7 @@ articleList.scheduleCardTopAnchorOnResize();
 
        expect(container.scrollTop).toBe(200);
        expect(disconnected).toBe(true);
-       expect(articleList.pendingCardTopAnchor).toBe(false);
+       expect((articleList as any).pendingCardTopAnchor).toBe(false);
 
       rectSpy.mockRestore();
       vi.useRealTimers();
@@ -745,7 +762,7 @@ articleList.scheduleCardTopAnchorOnResize();
 articleList.scrollSelectedCardToTop();
 
        expect(container.scrollTop).toBe(200);
-       expect(articleList.pendingCardTopAnchor).toBe(false);
+       expect((articleList as any).pendingCardTopAnchor).toBe(false);
 
        rectSpy.mockRestore();
      });
@@ -1220,7 +1237,7 @@ statusBarEl.className = "rss-dashboard-filter-subheader";
         ".rss-dashboard-feed-item",
       ) as HTMLElement;
       // Access private method for test verification - bind this properly
-      const syncMethod = (articleList as { syncArticleTags?: (el: HTMLElement, article: FeedItem) => void }).syncArticleTags;
+      const syncMethod = (articleList as any).syncArticleTags;
       if (syncMethod) syncMethod.call(articleList, item, articles[0]);
 
       // Check if it's in the toolbar (incorrect) or tags region (correct)

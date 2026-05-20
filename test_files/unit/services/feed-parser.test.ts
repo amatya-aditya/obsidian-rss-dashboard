@@ -733,7 +733,11 @@ describe("FeedParser.parseFeed", () => {
     defaultRssTag: "rss",
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "smallweb",
-    useMastodonProfileImages: false,
+    useMastodonProfileImages: true,
+    useDomainIconsRss: true,
+    useDomainIconsYouTube: true,
+    useDomainIconsPodcast: true,
+    useDomainIconsTwitter: true,
     openInSplitView: true,
     podcastTheme: "solarized" as const,
   };
@@ -816,6 +820,71 @@ describe("FeedParser.parseFeed", () => {
       "https://files.mastodon.social/accounts/avatars/109/246/358/402/616/382/original/4143aa23be8308b5.jpg",
     );
     expect(refreshed.iconUrl).toBe(first.iconUrl);
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("extracts and honors the RSS icon settings toggle", async () => {
+    const feedUrl = "https://example.com/rss.xml";
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValue({
+      status: 200,
+      text: RSS2_WITH_IMAGE,
+    });
+
+    // 1. When useDomainIconsRss is false
+    const parserOff = new FeedParser({ ...mediaSettings, useDomainIconsRss: false }, []);
+    const parsedOff = await parserOff.parseFeed(feedUrl, null);
+    expect(parsedOff.iconUrl).toBe("");
+
+    // 2. When useDomainIconsRss is true
+    const parserOn = new FeedParser({ ...mediaSettings, useDomainIconsRss: true }, []);
+    const parsedOn = await parserOn.parseFeed(feedUrl, null);
+    expect(parsedOn.iconUrl).toBe("https://example.com/logo.png");
+
+    requestUrlSpy.mockRestore();
+  });
+
+
+
+  it("extracts and honors the Podcast icon settings toggle", async () => {
+    const feedUrl = "https://example.com/podcast.xml";
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValue({
+      status: 200,
+      text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
+    });
+
+    // 1. When useDomainIconsPodcast is false
+    const parserOff = new FeedParser({ ...mediaSettings, useDomainIconsPodcast: false }, []);
+    const parsedOff = await parserOff.parseFeed(feedUrl, null);
+    expect(parsedOff.iconUrl).toBe("");
+
+    // 2. When useDomainIconsPodcast is true
+    const parserOn = new FeedParser({ ...mediaSettings, useDomainIconsPodcast: true }, []);
+    const parsedOn = await parserOn.parseFeed(feedUrl, null);
+    expect(parsedOn.iconUrl).toBe("https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png");
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("extracts and honors the Twitter/Nitter icon settings toggle", async () => {
+    const feedUrl = "https://nitter.net/Gargron/rss";
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValue({
+      status: 200,
+      text: RSS2_WITH_IMAGE,
+    });
+
+    // 1. When useDomainIconsTwitter is false
+    const parserOff = new FeedParser({ ...mediaSettings, useDomainIconsTwitter: false }, []);
+    const parsedOff = await parserOff.parseFeed(feedUrl, null);
+    expect(parsedOff.iconUrl).toBe("");
+
+    // 2. When useDomainIconsTwitter is true
+    const parserOn = new FeedParser({ ...mediaSettings, useDomainIconsTwitter: true }, []);
+    const parsedOn = await parserOn.parseFeed(feedUrl, null);
+    expect(parsedOn.iconUrl).toBe("https://example.com/logo.png");
 
     requestUrlSpy.mockRestore();
   });

@@ -2740,6 +2740,7 @@ export class FeedParser {
   private resolveFeedIconUrl(
     feedLogoCandidates: string[],
     url: string,
+    mediaType?: "article" | "video" | "podcast",
   ): string {
     const feedLogoUrl =
       feedLogoCandidates.length > 0 ? feedLogoCandidates[0] : "";
@@ -2748,13 +2749,34 @@ export class FeedParser {
       return "";
     }
 
+    if (mediaType === "video" || MediaService.isYouTubeFeed(url)) {
+      return this.mediaSettings.useDomainIconsYouTube
+        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+        : "";
+    }
+
+    if (mediaType === "podcast") {
+      return this.mediaSettings.useDomainIconsPodcast
+        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+        : "";
+    }
+
     if (MastodonService.isResolvedFeedUrl(url)) {
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
       return this.mediaSettings.useMastodonProfileImages
         ? this.convertToAbsoluteUrl(feedLogoUrl, url)
         : "";
     }
 
-    return this.convertToAbsoluteUrl(feedLogoUrl, url);
+    if (MediaService.isTwitterOrNitterFeed(url)) {
+      return this.mediaSettings.useDomainIconsTwitter
+        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+        : "";
+    }
+
+    return this.mediaSettings.useDomainIconsRss
+      ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+      : "";
   }
 
   private convertToAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
@@ -3544,18 +3566,20 @@ export class FeedParser {
       }
     });
 
-    // Store the feed icon URL for display in sidebar
-    newFeed.iconUrl = this.resolveFeedIconUrl(
-      feedLogoCandidates.map((candidate) => String(candidate)),
-      url,
-    );
-
     const processedFeed = MediaService.detectAndProcessFeed(newFeed);
     if (processedFeed.mediaType === "video" && !existingFeed?.folder) {
       processedFeed.folder = this.mediaSettings.defaultYouTubeFolder;
     } else if (processedFeed.mediaType === "podcast" && !existingFeed?.folder) {
       processedFeed.folder = this.mediaSettings.defaultPodcastFolder;
     }
+
+    // Store the feed icon URL for display in sidebar
+    processedFeed.iconUrl = this.resolveFeedIconUrl(
+      feedLogoCandidates.map((candidate) => String(candidate)),
+      url,
+      processedFeed.mediaType,
+    );
+
     return MediaService.applyMediaTags(
       processedFeed,
       this.availableTags,

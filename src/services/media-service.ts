@@ -46,6 +46,40 @@ export class MediaService {
     return MastodonService.isMastodonProfileUrl(url);
   }
 
+  static isTwitterOrNitterFeed(url: string): boolean {
+    if (!url) return false;
+    if (this.isXUrl(url)) return true;
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      return hostname === "nitter.net" || hostname.endsWith(".nitter.net");
+    } catch {
+      return false;
+    }
+  }
+
+  static shouldShowFeedIcon(feed: Feed, mediaSettings: MediaSettings): boolean {
+    if (!feed || !feed.iconUrl) return false;
+
+    if (feed.mediaType === "video" || this.isYouTubeFeed(feed.url)) {
+      return false;
+    }
+
+    if (feed.mediaType === "podcast") {
+      return !!mediaSettings.useDomainIconsPodcast;
+    }
+
+    if (MastodonService.isResolvedFeedUrl(feed.url)) {
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      return !!mediaSettings.useMastodonProfileImages;
+    }
+
+    if (this.isTwitterOrNitterFeed(feed.url)) {
+      return !!mediaSettings.useDomainIconsTwitter;
+    }
+
+    return !!mediaSettings.useDomainIconsRss;
+  }
+
   static async getMastodonRssFeed(url: string): Promise<string | null> {
     return MastodonService.resolveProfileFeed(url);
   }

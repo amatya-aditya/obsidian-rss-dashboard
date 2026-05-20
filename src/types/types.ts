@@ -209,7 +209,12 @@ export interface MediaSettings {
   defaultRssTag: string;
   defaultSmallwebFolder: string;
   defaultSmallwebTag: string;
+  /** @deprecated use useDomainIconsRss, useDomainIconsYouTube, useDomainIconsPodcast, useDomainIconsTwitter, or similar. */
   useMastodonProfileImages: boolean;
+  useDomainIconsRss: boolean;
+  useDomainIconsPodcast: boolean;
+  useDomainIconsTwitter: boolean;
+  useDomainIconsYouTube: boolean;
   openInSplitView: boolean;
   podcastTheme: PodcastTheme;
   enableApplePodcastsOpen?: boolean;
@@ -259,7 +264,6 @@ export interface DisplaySettings {
     | "videos"
     | "podcasts";
   hiddenFilters: string[];
-  useDomainFavicons: boolean;
   hideDefaultRssIcon: boolean;
   autoMarkReadOnOpen: boolean;
   sidebarRowSpacing: number;
@@ -578,6 +582,10 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "smallweb",
     useMastodonProfileImages: false,
+    useDomainIconsRss: false,
+    useDomainIconsPodcast: false,
+    useDomainIconsTwitter: false,
+    useDomainIconsYouTube: false,
     openInSplitView: true,
     podcastTheme: "obsidian",
     enableApplePodcastsOpen: false,
@@ -638,7 +646,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     mobileListToolbarStyle: "minimal",
     defaultFilter: "all",
     hiddenFilters: [],
-    useDomainFavicons: true,
     hideDefaultRssIcon: false,
     autoMarkReadOnOpen: false,
     sidebarRowSpacing: 10,

@@ -8,7 +8,7 @@ import {
 } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
-import { RssDashboardSettings, Feed, Folder } from "../../../src/types/types";
+import { RssDashboardSettings, Feed, Folder, MediaSettings } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -67,6 +67,9 @@ describe("Sidebar Rendering", () => {
         showAllFeedsUnreadBadges: true,
         showFolderUnreadBadges: true,
         showFeedUnreadBadges: true,
+      },
+      media: {
+        useDomainIconsRss: false,
       },
       availableTags: [{ name: "Tag 1", color: "#ff0000" }],
     } as unknown as RssDashboardSettings;
@@ -176,7 +179,7 @@ describe("Sidebar Rendering", () => {
   });
 
   it("uses favicon flow for non-YouTube video feeds instead of play icon", () => {
-    settings.display.useDomainFavicons = true;
+    settings.media.useDomainIconsRss = true;
     settings.feeds = [
       {
         title: "Bloomberg Video Feed",
@@ -209,7 +212,7 @@ describe("Sidebar Rendering", () => {
   });
 
   it("shows play icon for YouTube video feeds", () => {
-    settings.display.useDomainFavicons = true;
+    settings.media.useDomainIconsRss = true;
     settings.feeds = [
       {
         title: "YouTube Feed",
@@ -410,4 +413,64 @@ describe("Sidebar Rendering", () => {
 
     expect(callbacks.onTagToggle).toHaveBeenCalledWith("Tag 1");
   });
+
+  it("renders standard feed icon image if useDomainIconsRss is true", () => {
+    settings.media = {
+      useDomainIconsRss: true,
+    } as unknown as MediaSettings;
+    settings.feeds = [
+      {
+        title: "RSS Feed",
+        url: "https://example.com/rss",
+        folder: "Folder 1",
+        items: [{ read: false }],
+        iconUrl: "https://example.com/feed-icon.png",
+      } as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    const img = container.querySelector(".rss-dashboard-feed-icon-img") as HTMLImageElement;
+    expect(img).not.toBeNull();
+    expect(img.src).toBe("https://example.com/feed-icon.png");
+  });
+
+  it("falls back to generic RSS icon if useDomainIconsRss is false", () => {
+    settings.media = {
+      useDomainIconsRss: false,
+    } as unknown as MediaSettings;
+    settings.feeds = [
+      {
+        title: "RSS Feed",
+        url: "https://example.com/rss",
+        folder: "Folder 1",
+        items: [{ read: false }],
+        iconUrl: "https://example.com/feed-icon.png",
+      } as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    const img = container.querySelector(".rss-dashboard-feed-icon-img");
+    expect(img).toBeNull();
+    const icon = container.querySelector(".rss-dashboard-feed-icon") as HTMLElement;
+    expect(icon.dataset.icon).toBe("rss");
+  });
 });
+
