@@ -1777,8 +1777,17 @@ export default class RssDashboardPlugin extends Plugin {
             refreshView: false,
           });
         }
+
+        // Apply default media/smallweb tags after parsing so newly added feeds
+        // (e.g. from Kagi Smallweb) carry their configured auto-tag on first add.
+        const feedWithTags = MediaService.applyMediaTags(
+          feedToStore,
+          this.settings.availableTags,
+          this.settings.media,
+        );
+
         // Only add to settings if parsing succeeded
-        this.settings.feeds.push(feedToStore);
+        this.settings.feeds.push(feedWithTags);
         await this.saveSettings();
 
         const view = await this.getActiveDashboardView();

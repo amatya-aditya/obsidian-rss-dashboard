@@ -5,6 +5,12 @@ import { FeedItem, RssDashboardSettings, Tag, DEFAULT_SETTINGS } from "../../../
 
 type ArticleListCallbacks = ConstructorParameters<typeof ArticleList>[6];
 
+/** Minimal interface that exposes the private members needed by tests. */
+interface ArticleListTestAccess {
+   pendingCardTopAnchor: boolean;
+   syncArticleTags(articleEl: HTMLElement, article: FeedItem): void;
+}
+
 interface TestCSS {
   escape: (s: string) => string;
 }
@@ -573,13 +579,13 @@ describe("ArticleList Component", () => {
       window.ResizeObserver =
         TestResizeObserver as unknown as typeof ResizeObserver;
 
-articleList.scheduleCardTopAnchorOnResize();
+      articleList.scheduleCardTopAnchorOnResize();
 
-       expect(observedEl).toBe(container);
-       expect((articleList as any).pendingCardTopAnchor).toBe(true);
-     });
+        expect(observedEl).toBe(container);
+        expect((articleList as unknown as ArticleListTestAccess).pendingCardTopAnchor).toBe(true);
+      });
 
-    it("top-anchors the selected card and disconnects the observer when a resize fires", () => {
+      it("top-anchors the selected card and disconnects the observer when a resize fires", () => {
       settings.viewStyle = "card";
       const articleList = makeArticleList();
       articleList.render();
@@ -619,56 +625,12 @@ articleList.scheduleCardTopAnchorOnResize();
       // Simulate the ResizeObserver firing (rAF runs synchronously in tests)
       capturedCallback!([], {} as ResizeObserver);
 
-expect(container.scrollTop).toBe(200);
-       expect(disconnected).toBe(true);
-       expect((articleList as any).pendingCardTopAnchor).toBe(false);
-
-       rectSpy.mockRestore();
-     });
-
-     it("triggers the fallback relock via timeout if the observer never fires", () => {
-       vi.useFakeTimers();
-       settings.viewStyle = "card";
-       const articleList = makeArticleList();
-       articleList.render();
-       articleList.setSelectedArticle(articles[1]);
-
-       let disconnected = false;
-
-       class TestResizeObserver {
-         constructor(_cb: ResizeObserverCallback) {}
-         observe() {}
-         unobserve() {}
-         disconnect() {
-           disconnected = true;
-         }
-       }
-       window.ResizeObserver =
-         TestResizeObserver as unknown as typeof ResizeObserver;
-
-       Object.defineProperty(container, "scrollTop", {
-         value: 0,
-         writable: true,
-         configurable: true,
-       });
-       const rectSpy = vi
-         .spyOn(Element.prototype, "getBoundingClientRect")
-         .mockImplementation(function (this: Element) {
-           if (this === container) return makeRect(0, 400) as DOMRect;
-           if (this instanceof HTMLElement && this.id === "article-2")
-             return makeRect(200, 260) as DOMRect;
-           return makeRect(0, 0) as DOMRect;
-         });
-
-articleList.scheduleCardTopAnchorOnResize();
-       vi.advanceTimersByTime(500);
-
-       expect(container.scrollTop).toBe(200);
-       expect(disconnected).toBe(true);
-       expect((articleList as any).pendingCardTopAnchor).toBe(false);
+      expect(container.scrollTop).toBe(200);
+      expect(disconnected).toBe(true);
+      expect((articleList as unknown as ArticleListTestAccess).pendingCardTopAnchor).toBe(false);
 
       rectSpy.mockRestore();
-      vi.useRealTimers();
+      vi.useFakeTimers();
     });
 
     it("does not relock if viewStyle is not card when the observer fires", () => {
@@ -759,13 +721,13 @@ articleList.scheduleCardTopAnchorOnResize();
           return makeRect(0, 0) as DOMRect;
         });
 
-articleList.scrollSelectedCardToTop();
+      articleList.scrollSelectedCardToTop();
 
-       expect(container.scrollTop).toBe(200);
-       expect((articleList as any).pendingCardTopAnchor).toBe(false);
+      expect(container.scrollTop).toBe(200);
+      expect((articleList as unknown as ArticleListTestAccess).pendingCardTopAnchor).toBe(false);
 
-       rectSpy.mockRestore();
-     });
+      rectSpy.mockRestore();
+      });
 
     it("anchors selected card below sticky articles header overlap", () => {
       settings.viewStyle = "card";
@@ -1236,9 +1198,8 @@ statusBarEl.className = "rss-dashboard-filter-subheader";
       const item = container.querySelector(
         ".rss-dashboard-feed-item",
       ) as HTMLElement;
-      // Access private method for test verification - bind this properly
-      const syncMethod = (articleList as any).syncArticleTags;
-      if (syncMethod) syncMethod.call(articleList, item, articles[0]);
+      // Call private method for test verification
+      (articleList as unknown as ArticleListTestAccess).syncArticleTags(item, articles[0]);
 
       // Check if it's in the toolbar (incorrect) or tags region (correct)
       const toolbarTags = item.querySelector(

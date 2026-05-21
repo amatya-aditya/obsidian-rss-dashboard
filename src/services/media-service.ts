@@ -685,11 +685,24 @@ export class MediaService {
         | "defaultPodcastTag"
         | "defaultTwitterTag"
         | "defaultMastodonTag"
+        | "defaultSmallwebFolder"
+        | "defaultSmallwebTag"
       >
     >,
   ): Feed {
     const isTwitter = MediaService.isTwitterOrNitterFeed(feed.url);
     const isMastodon = MastodonService.isResolvedFeedUrl(feed.url);
+    const smallwebFolder = mediaSettings?.defaultSmallwebFolder?.trim() || "";
+    const smallwebTagSetting = mediaSettings?.defaultSmallwebTag?.trim() || "";
+
+    if (smallwebFolder && feed.folder === smallwebFolder) {
+      console.debug(
+        "[applyMediaTags] smallweb branch: folder=",
+        feed.folder,
+        "tag=",
+        smallwebTagSetting,
+      );
+    }
 
     if (
       (!feed.mediaType || feed.mediaType === "article") &&
@@ -720,17 +733,23 @@ export class MediaService {
       }
     } else if (feed.mediaType === "podcast") {
       tagCategory = "podcast";
-      const configuredTag = (mediaSettings?.defaultPodcastTag || "podcast").trim().toLowerCase();
+      const configuredTag = (mediaSettings?.defaultPodcastTag || "podcast")
+        .trim()
+        .toLowerCase();
       tagNameCandidates = configuredTag
         ? [configuredTag, "podcast", "podcasts"]
         : ["podcast", "podcasts"];
     } else if (isTwitter) {
       tagCategory = "twitter";
-      const configuredTag = (mediaSettings?.defaultTwitterTag || "").trim().toLowerCase();
+      const configuredTag = (mediaSettings?.defaultTwitterTag || "")
+        .trim()
+        .toLowerCase();
       tagNameCandidates = configuredTag ? [configuredTag] : [];
     } else if (isMastodon) {
       tagCategory = "mastodon";
-      const configuredTag = (mediaSettings?.defaultMastodonTag || "").trim().toLowerCase();
+      const configuredTag = (mediaSettings?.defaultMastodonTag || "")
+        .trim()
+        .toLowerCase();
       tagNameCandidates = configuredTag ? [configuredTag] : [];
     }
 
