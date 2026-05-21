@@ -4,6 +4,7 @@ import { ArticleHeader } from "./article-header";
 import { ArticleEmptyState } from "./article-empty-state";
 import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
 import { MediaService } from "../services/media-service";
+import { MastodonService } from "../services/mastodon-service";
 import {
   formatDateWithRelative,
   formatArticleDate,
@@ -1412,6 +1413,26 @@ export class ArticleList {
               setIcon(iconContainer, "rss");
             }
           };
+        } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+          const domain = extractDomain(feedUrl);
+          if (domain) {
+            const faviconUrl = getFaviconUrl(domain);
+            const fallbackImg = iconContainer.createEl("img", {
+              attr: {
+                src: faviconUrl,
+                alt: "Mastodon",
+              },
+              cls: "rss-dashboard-feed-favicon",
+            });
+            fallbackImg.onerror = () => {
+              iconContainer.empty();
+              if (!this.settings.display.hideDefaultRssIcon) {
+                setIcon(iconContainer, "rss");
+              }
+            };
+          } else if (!this.settings.display.hideDefaultRssIcon) {
+            setIcon(iconContainer, "rss");
+          }
         } else if (!this.settings.display.hideDefaultRssIcon) {
           setIcon(iconContainer, "rss");
         }
@@ -1432,6 +1453,27 @@ export class ArticleList {
           setIcon(iconContainer, "rss");
         }
       };
+    } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+      const domain = extractDomain(feedUrl);
+      if (domain) {
+        const faviconUrl = getFaviconUrl(domain);
+        iconContainer.empty();
+        const imgEl = iconContainer.createEl("img", {
+          attr: {
+            src: faviconUrl,
+            alt: "Mastodon",
+          },
+          cls: "rss-dashboard-feed-favicon",
+        });
+        imgEl.onerror = () => {
+          iconContainer.empty();
+          if (!this.settings.display.hideDefaultRssIcon) {
+            setIcon(iconContainer, "rss");
+          }
+        };
+      } else if (!this.settings.display.hideDefaultRssIcon) {
+        setIcon(iconContainer, "rss");
+      }
     } else if (mediaType === "video" && isYouTubeFeed) {
       setIcon(iconContainer, "play");
       iconContainer.addClass("video");
@@ -1495,6 +1537,26 @@ export class ArticleList {
               setIcon(container, "rss");
             }
           };
+        } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+          const domain = extractDomain(feedUrl);
+          if (domain) {
+            const faviconUrl = getFaviconUrl(domain);
+            const fallbackImg = container.createEl("img", {
+              attr: {
+                src: faviconUrl,
+                alt: "Mastodon",
+              },
+              cls: "rss-dashboard-header-favicon",
+            });
+            fallbackImg.onerror = () => {
+              container.empty();
+              if (!this.settings.display.hideDefaultRssIcon) {
+                setIcon(container, "rss");
+              }
+            };
+          } else if (!this.settings.display.hideDefaultRssIcon) {
+            setIcon(container, "rss");
+          }
         } else if (!this.settings.display.hideDefaultRssIcon) {
           setIcon(container, "rss");
         }
@@ -1515,6 +1577,27 @@ export class ArticleList {
           setIcon(container, "rss");
         }
       };
+    } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+      const domain = extractDomain(feedUrl);
+      if (domain) {
+        const faviconUrl = getFaviconUrl(domain);
+        container.empty();
+        const imgEl = container.createEl("img", {
+          attr: {
+            src: faviconUrl,
+            alt: "Mastodon",
+          },
+          cls: "rss-dashboard-header-favicon",
+        });
+        imgEl.onerror = () => {
+          container.empty();
+          if (!this.settings.display.hideDefaultRssIcon) {
+            setIcon(container, "rss");
+          }
+        };
+      } else if (!this.settings.display.hideDefaultRssIcon) {
+        setIcon(container, "rss");
+      }
     } else if (mediaType === "video" && isYouTubeFeed) {
       setIcon(container, "play");
       container.addClass("video");

@@ -33,6 +33,7 @@ import type RssDashboardPlugin from "../../main";
 import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { MediaService } from "../services/media-service";
+import { MastodonService } from "../services/mastodon-service";
 import {
   moveFeedAndInsert,
   moveFeedToFolderAppend,
@@ -1482,6 +1483,11 @@ export class Sidebar {
         feedIcon.empty();
         if (MediaService.isTwitterOrNitterFeed(feed.url)) {
           void this.renderDomainFavicon(feedIcon, "twitter.com");
+        } else if (MastodonService.isResolvedFeedUrl(feed.url)) {
+          void this.renderDomainFavicon(
+            feedIcon,
+            this.extractDomain(feed.url),
+          );
         } else if (!this.settings.display.hideDefaultRssIcon) {
           setIcon(feedIcon, "rss");
         }
@@ -1490,6 +1496,10 @@ export class Sidebar {
       // Show default Twitter/X favicon
       this.renderFallbackFeedIcon(feedIcon);
       void this.renderDomainFavicon(feedIcon, "twitter.com");
+    } else if (MastodonService.isResolvedFeedUrl(feed.url)) {
+      // Show default Mastodon instance domain favicon
+      this.renderFallbackFeedIcon(feedIcon);
+      void this.renderDomainFavicon(feedIcon, this.extractDomain(feed.url));
     } else if (
       feed.mediaType === "video" &&
       MediaService.isYouTubeFeed(feed.url)

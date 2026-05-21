@@ -5,6 +5,7 @@ import { ArticleFilterMenu, FilterChangeEvent } from "./article-filter-menu";
 import { ArticleHeaderMenu } from "./article-header-menu";
 import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
 import { MediaService } from "../services/media-service";
+import { MastodonService } from "../services/mastodon-service";
 
 interface ArticleHeaderMenuController {
   destroy(): void;
@@ -630,7 +631,44 @@ export class ArticleHeader {
       });
       imgEl.onerror = () => {
         container.empty();
-        if (!this.settings.display.hideDefaultRssIcon) {
+        if (
+          MediaService.isTwitterOrNitterFeed(feedUrl)
+        ) {
+          const faviconUrl = getFaviconUrl("twitter.com");
+          const fallbackImg = container.createEl("img", {
+            attr: {
+              src: faviconUrl,
+              alt: "Twitter/X",
+            },
+            cls: "rss-dashboard-header-favicon",
+          });
+          fallbackImg.onerror = () => {
+            container.empty();
+            if (!this.settings.display.hideDefaultRssIcon) {
+              setIcon(container, "rss");
+            }
+          };
+        } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+          const domain = extractDomain(feedUrl);
+          if (domain) {
+            const faviconUrl = getFaviconUrl(domain);
+            const fallbackImg = container.createEl("img", {
+              attr: {
+                src: faviconUrl,
+                alt: "Mastodon",
+              },
+              cls: "rss-dashboard-header-favicon",
+            });
+            fallbackImg.onerror = () => {
+              container.empty();
+              if (!this.settings.display.hideDefaultRssIcon) {
+                setIcon(container, "rss");
+              }
+            };
+          } else if (!this.settings.display.hideDefaultRssIcon) {
+            setIcon(container, "rss");
+          }
+        } else if (!this.settings.display.hideDefaultRssIcon) {
           setIcon(container, "rss");
         }
       };
@@ -642,6 +680,27 @@ export class ArticleHeader {
           attr: {
             src: faviconUrl,
             alt: domain,
+          },
+          cls: "rss-dashboard-header-favicon",
+        });
+        imgEl.onerror = () => {
+          container.empty();
+          if (!this.settings.display.hideDefaultRssIcon) {
+            setIcon(container, "rss");
+          }
+        };
+      } else if (!this.settings.display.hideDefaultRssIcon) {
+        setIcon(container, "rss");
+      }
+    } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+      // Show Mastodon instance domain favicon independent of useDomainIconsRss
+      const domain = extractDomain(feedUrl);
+      if (domain) {
+        const faviconUrl = getFaviconUrl(domain);
+        const imgEl = container.createEl("img", {
+          attr: {
+            src: faviconUrl,
+            alt: "Mastodon",
           },
           cls: "rss-dashboard-header-favicon",
         });
