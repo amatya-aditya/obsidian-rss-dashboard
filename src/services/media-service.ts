@@ -677,29 +677,61 @@ export class MediaService {
   static applyMediaTags(
     feed: Feed,
     availableTags: Tag[],
-    mediaSettings?: Pick<MediaSettings, "autoTagVideos" | "defaultYouTubeTag">,
+    mediaSettings?: Partial<
+      Pick<
+        MediaSettings,
+        | "defaultVideoTag"
+        | "defaultYouTubeTag"
+        | "defaultPodcastTag"
+        | "defaultTwitterTag"
+        | "defaultMastodonTag"
+      >
+    >,
   ): Feed {
-    if (!feed.mediaType || feed.mediaType === "article") {
+    const isTwitter = MediaService.isTwitterOrNitterFeed(feed.url);
+    const isMastodon = MastodonService.isResolvedFeedUrl(feed.url);
+
+    if (
+      (!feed.mediaType || feed.mediaType === "article") &&
+      !isTwitter &&
+      !isMastodon
+    ) {
       return feed;
     }
 
     let tagNameCandidates: string[] = [];
-    let tagCategory: "video" | "podcast" | undefined;
+    let tagCategory: "video" | "podcast" | "twitter" | "mastodon" | undefined;
     if (feed.mediaType === "video") {
       tagCategory = "video";
-      const shouldAutoTagVideos = mediaSettings?.autoTagVideos ?? true;
-      if (!shouldAutoTagVideos) {
-        return feed;
+      if (MediaService.isYouTubeFeed(feed.url)) {
+        const rawTag = mediaSettings?.defaultYouTubeTag;
+        const configuredTag =
+          rawTag !== undefined && rawTag.trim().length > 0
+            ? rawTag.trim().toLowerCase()
+            : "video";
+        tagNameCandidates = [configuredTag, "video", "videos"];
+      } else {
+        const rawTag = mediaSettings?.defaultVideoTag;
+        if (rawTag === undefined || rawTag.trim().length === 0) {
+          return feed;
+        }
+        const configuredTag = rawTag.trim().toLowerCase();
+        tagNameCandidates = [configuredTag, "video", "videos"];
       }
-      const configuredTag = (mediaSettings?.defaultYouTubeTag || "Video")
-        .trim()
-        .toLowerCase();
-      tagNameCandidates = configuredTag
-        ? [configuredTag, "video", "videos"]
-        : ["video", "videos"];
     } else if (feed.mediaType === "podcast") {
       tagCategory = "podcast";
-      tagNameCandidates = ["podcast"];
+      const configuredTag = (mediaSettings?.defaultPodcastTag || "podcast").trim().toLowerCase();
+      tagNameCandidates = configuredTag
+        ? [configuredTag, "podcast", "podcasts"]
+        : ["podcast", "podcasts"];
+    } else if (isTwitter) {
+      tagCategory = "twitter";
+      const configuredTag = (mediaSettings?.defaultTwitterTag || "").trim().toLowerCase();
+      tagNameCandidates = configuredTag ? [configuredTag] : [];
+    } else if (isMastodon) {
+      tagCategory = "mastodon";
+      const configuredTag = (mediaSettings?.defaultMastodonTag || "").trim().toLowerCase();
+      tagNameCandidates = configuredTag ? [configuredTag] : [];
     }
 
     if (tagNameCandidates.length === 0 || !tagCategory) return feed;
@@ -719,7 +751,11 @@ export class MediaService {
           ? item.mediaType === "video"
           : tagCategory === "podcast"
             ? item.mediaType === "podcast"
-            : false;
+            : tagCategory === "twitter"
+              ? true
+              : tagCategory === "mastodon"
+                ? true
+                : false;
 
       if (!shouldTagItem) {
         return item;

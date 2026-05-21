@@ -43,6 +43,22 @@ describe("MastodonService", () => {
         ),
       ).toBe(false);
     });
+
+    it("rejects .rss feed URLs as profile URLs", () => {
+      expect(
+        MastodonService.isMastodonProfileUrl(
+          "https://mastodon.social/@zackwhittaker.rss",
+        ),
+      ).toBe(false);
+    });
+
+    it("rejects /users/username.rss feed URLs as profile URLs", () => {
+      expect(
+        MastodonService.isMastodonProfileUrl(
+          "https://example.social/users/gargron.rss",
+        ),
+      ).toBe(false);
+    });
   });
 
   describe("resolveProfileFeed", () => {

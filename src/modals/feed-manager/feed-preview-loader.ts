@@ -1,4 +1,5 @@
 import { MediaService } from "../../services/media-service";
+import { MastodonService } from "../../services/mastodon-service";
 import { loadFeedForPreview, resolvePodcastPlatformUrl } from "../../services/feed-parser";
 import { detectPodcastPlatform } from "../../utils/podcast-platforms";
 
@@ -93,7 +94,7 @@ export function shouldAutoAssignFolder(
 export function getDefaultFolderForResolvedFeed(
   preview: Pick<
     FeedPreviewLoadResult,
-    "detectedType" | "finalUrl" | "isXConversion" | "isMastodonConversion"
+    "detectedType" | "inputUrl" | "finalUrl" | "isXConversion" | "isMastodonConversion"
   >,
   media?: MediaFolderDefaults,
 ): string {
@@ -102,7 +103,10 @@ export function getDefaultFolderForResolvedFeed(
     return media?.defaultTwitterFolder || "Twitter";
   }
 
-  if (preview.isMastodonConversion) {
+  if (
+    preview.isMastodonConversion ||
+    MastodonService.isResolvedFeedUrl(preview.inputUrl)
+  ) {
     return media?.defaultMastodonFolder || "Mastodon";
   }
 

@@ -24,6 +24,10 @@ export class MastodonService {
       return false;
     }
 
+    if (this.isResolvedFeedUrl(url)) {
+      return false;
+    }
+
     return this.PROFILE_PATH_PATTERNS.some((pattern) =>
       pattern.test(parsed.pathname),
     );

@@ -191,6 +191,7 @@ describe("Mastodon folder defaults", () => {
     const folder = getDefaultFolderForResolvedFeed(
       {
         detectedType: "rss",
+        inputUrl: "https://mastodon.social/@user.rss",
         finalUrl: "https://mastodon.social/@user.rss",
         isXConversion: false,
         isMastodonConversion: true,
@@ -215,6 +216,28 @@ describe("Mastodon folder defaults", () => {
       }),
     ).toBe(true);
     expect(shouldAutoAssignFolder("Mastodon", {})).toBe(true);
+  });
+
+  it("routes a direct Mastodon .rss feed URL to the Mastodon folder", async () => {
+    const { getDefaultFolderForResolvedFeed } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const folder = getDefaultFolderForResolvedFeed(
+      {
+        detectedType: "rss",
+        inputUrl: "https://mastodon.social/@zackwhittaker.rss",
+        finalUrl: "https://mastodon.social/@zackwhittaker.rss",
+        isXConversion: false,
+        isMastodonConversion: false,
+      },
+      {
+        defaultMastodonFolder: "Social/Mastodon",
+        defaultRssFolder: "RSS",
+      },
+    );
+
+    expect(folder).toBe("Social/Mastodon");
   });
 });
 

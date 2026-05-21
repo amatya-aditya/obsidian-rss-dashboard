@@ -232,8 +232,12 @@ export function migrateMediaVideoTagSettings(
   }
 
   const media = settings.media as Record<string, unknown>;
-  if (typeof media.autoTagVideos !== "boolean") {
-    media.autoTagVideos = true;
+  if (typeof media.defaultVideoTag !== "string") {
+    if (media.autoTagVideos === false) {
+      media.defaultVideoTag = "";
+    } else {
+      media.defaultVideoTag = "Video";
+    }
     changed = true;
   }
 

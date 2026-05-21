@@ -721,7 +721,7 @@ describe("mergeFeedHistoryItems", () => {
 
 describe("FeedParser.parseFeed", () => {
   const mediaSettings = {
-    autoTagVideos: true,
+    defaultVideoTag: "Video",
     rememberPlaybackProgress: true,
     defaultTwitterFolder: "Twitter",
     defaultMastodonFolder: "Mastodon",
