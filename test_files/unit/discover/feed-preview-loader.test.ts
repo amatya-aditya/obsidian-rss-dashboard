@@ -22,6 +22,8 @@ describe("resolveAndLoadPreview()", () => {
 
     vi.spyOn(MediaService, "isXUrl").mockReturnValue(false);
     vi.spyOn(MediaService, "getNitterRssFeed").mockReturnValue(null);
+    vi.spyOn(MediaService, "isMastodonUrl").mockReturnValue(false);
+    vi.spyOn(MediaService, "getMastodonRssFeed").mockResolvedValue(null);
     vi.spyOn(MediaService, "isYouTubeFeed").mockReturnValue(false);
     vi.spyOn(MediaService, "getYouTubeRssFeed").mockResolvedValue(null);
 
@@ -47,6 +49,7 @@ describe("resolveAndLoadPreview()", () => {
 
     expect(result.detectedType).toBe("rss");
     expect(result.finalUrl).toBe("https://example.com/feed.xml");
+    expect(result.isMastodonConversion).toBe(false);
     expect(loadFeedForPreviewMock).toHaveBeenCalledWith(
       "https://example.com/feed.xml",
     );
@@ -65,6 +68,7 @@ describe("resolveAndLoadPreview()", () => {
     const result = await resolveAndLoadPreview("https://x.com/user");
 
     expect(result.isXConversion).toBe(true);
+    expect(result.isMastodonConversion).toBe(false);
     expect(result.finalUrl).toBe("https://nitter.net/user/rss");
     expect(loadFeedForPreviewMock).toHaveBeenCalledWith(
       "https://nitter.net/user/rss",
@@ -84,11 +88,32 @@ describe("resolveAndLoadPreview()", () => {
     const result = await resolveAndLoadPreview("https://youtube.com/@handle");
 
     expect(result.detectedType).toBe("youtube");
+    expect(result.isMastodonConversion).toBe(false);
     expect(result.finalUrl).toBe(
       "https://www.youtube.com/feeds/videos.xml?channel_id=UC123",
     );
     expect(loadFeedForPreviewMock).toHaveBeenCalledWith(
       "https://www.youtube.com/feeds/videos.xml?channel_id=UC123",
+    );
+  });
+
+  it("resolves Mastodon profile URLs to RSS feed URLs before loading", async () => {
+    const { resolveAndLoadPreview } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    vi.spyOn(MediaService, "isMastodonUrl").mockReturnValue(true);
+    vi.spyOn(MediaService, "getMastodonRssFeed").mockResolvedValue(
+      "https://mastodon.social/@user.rss",
+    );
+
+    const result = await resolveAndLoadPreview("https://mastodon.social/@user");
+
+    expect(result.detectedType).toBe("rss");
+    expect(result.isMastodonConversion).toBe(true);
+    expect(result.finalUrl).toBe("https://mastodon.social/@user.rss");
+    expect(loadFeedForPreviewMock).toHaveBeenCalledWith(
+      "https://mastodon.social/@user.rss",
     );
   });
 
@@ -111,6 +136,7 @@ describe("resolveAndLoadPreview()", () => {
     );
 
     expect(result.detectedType).toBe("podcast");
+    expect(result.isMastodonConversion).toBe(false);
     expect(result.finalUrl).toBe("https://example.com/podcast.rss");
     expect(resolvePodcastPlatformUrlMock).toHaveBeenCalledWith(
       "https://podcasts.apple.com/show/123",
@@ -153,6 +179,65 @@ describe("formatLatestEntryLabel()", () => {
     const now = new Date("2026-03-22T12:00:00.000Z").getTime();
     const latest = "2026-03-20T00:30:00.000Z";
     expect(formatLatestEntryLabel(latest, now)).toBe("2 days ago");
+  });
+});
+
+describe("Mastodon folder defaults", () => {
+  it("routes Mastodon conversions to the configured Mastodon folder", async () => {
+    const { getDefaultFolderForResolvedFeed } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const folder = getDefaultFolderForResolvedFeed(
+      {
+        detectedType: "rss",
+        inputUrl: "https://mastodon.social/@user.rss",
+        finalUrl: "https://mastodon.social/@user.rss",
+        isXConversion: false,
+        isMastodonConversion: true,
+      },
+      {
+        defaultMastodonFolder: "Social/Mastodon",
+        defaultRssFolder: "RSS",
+      },
+    );
+
+    expect(folder).toBe("Social/Mastodon");
+  });
+
+  it("treats configured and legacy Mastodon folders as auto-assignable", async () => {
+    const { shouldAutoAssignFolder } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    expect(
+      shouldAutoAssignFolder("Social/Mastodon", {
+        defaultMastodonFolder: "Social/Mastodon",
+      }),
+    ).toBe(true);
+    expect(shouldAutoAssignFolder("Mastodon", {})).toBe(true);
+  });
+
+  it("routes a direct Mastodon .rss feed URL to the Mastodon folder", async () => {
+    const { getDefaultFolderForResolvedFeed } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const folder = getDefaultFolderForResolvedFeed(
+      {
+        detectedType: "rss",
+        inputUrl: "https://mastodon.social/@zackwhittaker.rss",
+        finalUrl: "https://mastodon.social/@zackwhittaker.rss",
+        isXConversion: false,
+        isMastodonConversion: false,
+      },
+      {
+        defaultMastodonFolder: "Social/Mastodon",
+        defaultRssFolder: "RSS",
+      },
+    );
+
+    expect(folder).toBe("Social/Mastodon");
   });
 });
 

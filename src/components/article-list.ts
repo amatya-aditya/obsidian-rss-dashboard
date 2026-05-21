@@ -4,6 +4,7 @@ import { ArticleHeader } from "./article-header";
 import { ArticleEmptyState } from "./article-empty-state";
 import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
 import { MediaService } from "../services/media-service";
+import { MastodonService } from "../services/mastodon-service";
 import {
   formatDateWithRelative,
   formatArticleDate,
@@ -78,23 +79,21 @@ export class ArticleList {
   private totalArticles: number;
   private currentFeedUrl: string | null = null;
   private header: ArticleHeader | null = null;
-
   private showFeedSource: boolean = true;
   private statusFilters: Set<string>;
   private tagFilters: Set<string>;
   private filterLogic: "AND" | "OR";
   private articleSearchQuery: string = "";
   private tagsDropdownCleanup: (() => void) | null = null;
-
+  private activePortal: HTMLElement | null = null;
+  private activeFilterToggleBtn: HTMLElement | null = null;
+  private activeFilterOutsideListenerCleanup: (() => void) | null = null;
+  private pendingCardTopAnchor: boolean = false;
   private documentListeners: Array<{
     target: Document | Window;
     type: string;
     listener: EventListenerOrEventListenerObject;
   }> = [];
-  private activePortal: HTMLElement | null = null;
-  private activeFilterToggleBtn: HTMLElement | null = null;
-  private activeFilterOutsideListenerCleanup: (() => void) | null = null;
-  private pendingCardTopAnchor: boolean = false;
 
   constructor(
     container: HTMLElement,
@@ -131,9 +130,6 @@ export class ArticleList {
     this.currentFeedUrl = currentFeedUrl || null;
     this.showFeedSource = showFeedSource;
 
-    // Header and filter logic were extracted to ArticleHeader and ArticleFilterMenu
-    // to reduce this file's length and complexity. Legacy methods like renderHeader(),
-    // createControls(), and showFiltersMenu() now live in those respective classes.
     this.header = new ArticleHeader(
       this.container,
       this.settings,
@@ -1392,14 +1388,99 @@ export class ArticleList {
       cls: "rss-dashboard-article-feed-icon",
     });
     const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
+    const feed = this.settings.feeds?.find((f) => f.url === feedUrl);
 
-    if (mediaType === "video" && isYouTubeFeed) {
+    if (feed && MediaService.shouldShowFeedIcon(feed, this.settings.media)) {
+      // Show cached feed logo when available and enabled
+      const imgEl = iconContainer.createEl("img", {
+        attr: { src: feed.iconUrl!, alt: feed.title || feedUrl },
+        cls: "rss-dashboard-article-feed-icon-img",
+      });
+      imgEl.onerror = () => {
+        iconContainer.empty();
+        if (MediaService.isTwitterOrNitterFeed(feedUrl)) {
+          const faviconUrl = getFaviconUrl("twitter.com");
+          const fallbackImg = iconContainer.createEl("img", {
+            attr: {
+              src: faviconUrl,
+              alt: "Twitter/X",
+            },
+            cls: "rss-dashboard-feed-favicon",
+          });
+          fallbackImg.onerror = () => {
+            iconContainer.empty();
+            if (!this.settings.display.hideDefaultRssIcon) {
+              setIcon(iconContainer, "rss");
+            }
+          };
+        } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+          const domain = extractDomain(feedUrl);
+          if (domain) {
+            const faviconUrl = getFaviconUrl(domain);
+            const fallbackImg = iconContainer.createEl("img", {
+              attr: {
+                src: faviconUrl,
+                alt: "Mastodon",
+              },
+              cls: "rss-dashboard-feed-favicon",
+            });
+            fallbackImg.onerror = () => {
+              iconContainer.empty();
+              if (!this.settings.display.hideDefaultRssIcon) {
+                setIcon(iconContainer, "rss");
+              }
+            };
+          } else if (!this.settings.display.hideDefaultRssIcon) {
+            setIcon(iconContainer, "rss");
+          }
+        } else if (!this.settings.display.hideDefaultRssIcon) {
+          setIcon(iconContainer, "rss");
+        }
+      };
+    } else if (MediaService.isTwitterOrNitterFeed(feedUrl)) {
+      const faviconUrl = getFaviconUrl("twitter.com");
+      iconContainer.empty();
+      const imgEl = iconContainer.createEl("img", {
+        attr: {
+          src: faviconUrl,
+          alt: "Twitter/X",
+        },
+        cls: "rss-dashboard-feed-favicon",
+      });
+      imgEl.onerror = () => {
+        iconContainer.empty();
+        if (!this.settings.display.hideDefaultRssIcon) {
+          setIcon(iconContainer, "rss");
+        }
+      };
+    } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+      const domain = extractDomain(feedUrl);
+      if (domain) {
+        const faviconUrl = getFaviconUrl(domain);
+        iconContainer.empty();
+        const imgEl = iconContainer.createEl("img", {
+          attr: {
+            src: faviconUrl,
+            alt: "Mastodon",
+          },
+          cls: "rss-dashboard-feed-favicon",
+        });
+        imgEl.onerror = () => {
+          iconContainer.empty();
+          if (!this.settings.display.hideDefaultRssIcon) {
+            setIcon(iconContainer, "rss");
+          }
+        };
+      } else if (!this.settings.display.hideDefaultRssIcon) {
+        setIcon(iconContainer, "rss");
+      }
+    } else if (mediaType === "video" && isYouTubeFeed) {
       setIcon(iconContainer, "play");
       iconContainer.addClass("video");
     } else if (mediaType === "podcast") {
       setIcon(iconContainer, "mic");
       iconContainer.addClass("podcast");
-    } else if (this.settings.display.useDomainFavicons) {
+    } else if (this.settings.media.useDomainIconsRss) {
       const domain = extractDomain(feedUrl);
       if (domain) {
         const faviconUrl = getFaviconUrl(domain);
@@ -1430,13 +1511,100 @@ export class ArticleList {
     const mediaType = feed?.mediaType;
     const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
 
-    if (mediaType === "video" && isYouTubeFeed) {
+    if (feed && MediaService.shouldShowFeedIcon(feed, this.settings.media)) {
+      // Show cached feed logo when available and enabled
+      const imgEl = container.createEl("img", {
+        attr: {
+          src: feed.iconUrl!,
+          alt: feed.title || feedUrl,
+        },
+        cls: "rss-dashboard-header-feed-icon-img",
+      });
+      imgEl.onerror = () => {
+        container.empty();
+        if (MediaService.isTwitterOrNitterFeed(feedUrl)) {
+          const faviconUrl = getFaviconUrl("twitter.com");
+          const fallbackImg = container.createEl("img", {
+            attr: {
+              src: faviconUrl,
+              alt: "Twitter/X",
+            },
+            cls: "rss-dashboard-header-favicon",
+          });
+          fallbackImg.onerror = () => {
+            container.empty();
+            if (!this.settings.display.hideDefaultRssIcon) {
+              setIcon(container, "rss");
+            }
+          };
+        } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+          const domain = extractDomain(feedUrl);
+          if (domain) {
+            const faviconUrl = getFaviconUrl(domain);
+            const fallbackImg = container.createEl("img", {
+              attr: {
+                src: faviconUrl,
+                alt: "Mastodon",
+              },
+              cls: "rss-dashboard-header-favicon",
+            });
+            fallbackImg.onerror = () => {
+              container.empty();
+              if (!this.settings.display.hideDefaultRssIcon) {
+                setIcon(container, "rss");
+              }
+            };
+          } else if (!this.settings.display.hideDefaultRssIcon) {
+            setIcon(container, "rss");
+          }
+        } else if (!this.settings.display.hideDefaultRssIcon) {
+          setIcon(container, "rss");
+        }
+      };
+    } else if (MediaService.isTwitterOrNitterFeed(feedUrl)) {
+      const faviconUrl = getFaviconUrl("twitter.com");
+      container.empty();
+      const imgEl = container.createEl("img", {
+        attr: {
+          src: faviconUrl,
+          alt: "Twitter/X",
+        },
+        cls: "rss-dashboard-header-favicon",
+      });
+      imgEl.onerror = () => {
+        container.empty();
+        if (!this.settings.display.hideDefaultRssIcon) {
+          setIcon(container, "rss");
+        }
+      };
+    } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+      const domain = extractDomain(feedUrl);
+      if (domain) {
+        const faviconUrl = getFaviconUrl(domain);
+        container.empty();
+        const imgEl = container.createEl("img", {
+          attr: {
+            src: faviconUrl,
+            alt: "Mastodon",
+          },
+          cls: "rss-dashboard-header-favicon",
+        });
+        imgEl.onerror = () => {
+          container.empty();
+          if (!this.settings.display.hideDefaultRssIcon) {
+            setIcon(container, "rss");
+          }
+        };
+      } else if (!this.settings.display.hideDefaultRssIcon) {
+        setIcon(container, "rss");
+      }
+    } else if (mediaType === "video" && isYouTubeFeed) {
       setIcon(container, "play");
       container.addClass("video");
     } else if (mediaType === "podcast") {
       setIcon(container, "mic");
       container.addClass("podcast");
-    } else if (this.settings.display.useDomainFavicons) {
+    } else if (this.settings.media.useDomainIconsRss) {
       const domain = extractDomain(feedUrl);
       if (domain) {
         const faviconUrl = getFaviconUrl(domain);

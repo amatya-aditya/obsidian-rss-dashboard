@@ -1,6 +1,7 @@
 import { requestUrl, Notice } from "obsidian";
 import { Feed, MediaSettings, Tag } from "../types/types";
 import { isKnownVideoUrl } from "../utils/video-detection";
+import { MastodonService } from "./mastodon-service";
 
 export interface YouTubeEmbedConfig {
   videoId: string;
@@ -39,6 +40,48 @@ export class MediaService {
     const host = this.getNormalizedHostname(url);
     if (!host) return false;
     return this.X_HOSTS.has(host);
+  }
+
+  static isMastodonUrl(url: string): boolean {
+    return MastodonService.isMastodonProfileUrl(url);
+  }
+
+  static isTwitterOrNitterFeed(url: string): boolean {
+    if (!url) return false;
+    if (this.isXUrl(url)) return true;
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      return hostname === "nitter.net" || hostname.endsWith(".nitter.net");
+    } catch {
+      return false;
+    }
+  }
+
+  static shouldShowFeedIcon(feed: Feed, mediaSettings: MediaSettings): boolean {
+    if (!feed || !feed.iconUrl) return false;
+
+    if (feed.mediaType === "video" || this.isYouTubeFeed(feed.url)) {
+      return false;
+    }
+
+    if (feed.mediaType === "podcast") {
+      return !!mediaSettings.useDomainIconsPodcast;
+    }
+
+    if (MastodonService.isResolvedFeedUrl(feed.url)) {
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      return !!mediaSettings.useMastodonProfileImages;
+    }
+
+    if (this.isTwitterOrNitterFeed(feed.url)) {
+      return !!mediaSettings.useDomainIconsTwitter;
+    }
+
+    return !!mediaSettings.useDomainIconsRss;
+  }
+
+  static async getMastodonRssFeed(url: string): Promise<string | null> {
+    return MastodonService.resolveProfileFeed(url);
   }
 
   static getNitterRssFeed(url: string): string | null {
@@ -634,29 +677,80 @@ export class MediaService {
   static applyMediaTags(
     feed: Feed,
     availableTags: Tag[],
-    mediaSettings?: Pick<MediaSettings, "autoTagVideos" | "defaultYouTubeTag">,
+    mediaSettings?: Partial<
+      Pick<
+        MediaSettings,
+        | "defaultVideoTag"
+        | "defaultYouTubeTag"
+        | "defaultPodcastTag"
+        | "defaultTwitterTag"
+        | "defaultMastodonTag"
+        | "defaultSmallwebFolder"
+        | "defaultSmallwebTag"
+      >
+    >,
   ): Feed {
-    if (!feed.mediaType || feed.mediaType === "article") {
+    const isTwitter = MediaService.isTwitterOrNitterFeed(feed.url);
+    const isMastodon = MastodonService.isResolvedFeedUrl(feed.url);
+    const smallwebFolder = mediaSettings?.defaultSmallwebFolder?.trim() || "";
+    const smallwebTagSetting = mediaSettings?.defaultSmallwebTag?.trim() || "";
+
+    if (smallwebFolder && feed.folder === smallwebFolder) {
+      console.debug(
+        "[applyMediaTags] smallweb branch: folder=",
+        feed.folder,
+        "tag=",
+        smallwebTagSetting,
+      );
+    }
+
+    if (
+      (!feed.mediaType || feed.mediaType === "article") &&
+      !isTwitter &&
+      !isMastodon
+    ) {
       return feed;
     }
 
     let tagNameCandidates: string[] = [];
-    let tagCategory: "video" | "podcast" | undefined;
+    let tagCategory: "video" | "podcast" | "twitter" | "mastodon" | undefined;
     if (feed.mediaType === "video") {
       tagCategory = "video";
-      const shouldAutoTagVideos = mediaSettings?.autoTagVideos ?? true;
-      if (!shouldAutoTagVideos) {
-        return feed;
+      if (MediaService.isYouTubeFeed(feed.url)) {
+        const rawTag = mediaSettings?.defaultYouTubeTag;
+        const configuredTag =
+          rawTag !== undefined && rawTag.trim().length > 0
+            ? rawTag.trim().toLowerCase()
+            : "video";
+        tagNameCandidates = [configuredTag, "video", "videos"];
+      } else {
+        const rawTag = mediaSettings?.defaultVideoTag;
+        if (rawTag === undefined || rawTag.trim().length === 0) {
+          return feed;
+        }
+        const configuredTag = rawTag.trim().toLowerCase();
+        tagNameCandidates = [configuredTag, "video", "videos"];
       }
-      const configuredTag = (mediaSettings?.defaultYouTubeTag || "Video")
+    } else if (feed.mediaType === "podcast") {
+      tagCategory = "podcast";
+      const configuredTag = (mediaSettings?.defaultPodcastTag || "podcast")
         .trim()
         .toLowerCase();
       tagNameCandidates = configuredTag
-        ? [configuredTag, "video", "videos"]
-        : ["video", "videos"];
-    } else if (feed.mediaType === "podcast") {
-      tagCategory = "podcast";
-      tagNameCandidates = ["podcast"];
+        ? [configuredTag, "podcast", "podcasts"]
+        : ["podcast", "podcasts"];
+    } else if (isTwitter) {
+      tagCategory = "twitter";
+      const configuredTag = (mediaSettings?.defaultTwitterTag || "")
+        .trim()
+        .toLowerCase();
+      tagNameCandidates = configuredTag ? [configuredTag] : [];
+    } else if (isMastodon) {
+      tagCategory = "mastodon";
+      const configuredTag = (mediaSettings?.defaultMastodonTag || "")
+        .trim()
+        .toLowerCase();
+      tagNameCandidates = configuredTag ? [configuredTag] : [];
     }
 
     if (tagNameCandidates.length === 0 || !tagCategory) return feed;
@@ -676,7 +770,11 @@ export class MediaService {
           ? item.mediaType === "video"
           : tagCategory === "podcast"
             ? item.mediaType === "podcast"
-            : false;
+            : tagCategory === "twitter"
+              ? true
+              : tagCategory === "mastodon"
+                ? true
+                : false;
 
       if (!shouldTagItem) {
         return item;

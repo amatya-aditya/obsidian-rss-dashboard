@@ -1,3 +1,21 @@
+## [Unreleased] - May 21, 2026
+
+### Features
+
+#### New: Mastodon Integration
+
+- Can now add your favorite Mastodon feeds directly into the RSS Dashboard.
+
+#### New: Auto-tag by Feed Type
+
+- All Feed Types (X/Twitter/Nitter, Podcast, RSS, Youtube, Mastodon, Kagi Smallweb) now have the ability to receive auto-tags via Settings > Media tab. Create tags via the Tags Settings tab then select the tag from the dropdown box.
+
+#### New: Ability to toggle between feed-specific profile favicons or default icons
+
+- Added ability to enable/disable showing each feed's profile favicon or a default favicon for users who with to keep things clean and simple. Found within Settings > Media.
+
+---
+
 ## [2.3.0-beta.3] - May 19, 2026
 
 ### Features

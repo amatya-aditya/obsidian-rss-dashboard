@@ -1,6 +1,7 @@
 import { requestUrl, Platform } from "obsidian";
 import { Feed, FeedItem, MediaSettings, Tag } from "../types/types.js";
 import { MediaService } from "./media-service";
+import { MastodonService } from "./mastodon-service";
 import {
   detectPodcastPlatform,
   APPLE_PODCASTS,
@@ -2736,6 +2737,48 @@ export class FeedParser {
     this.parser = new CustomXMLParser();
   }
 
+  private resolveFeedIconUrl(
+    feedLogoCandidates: string[],
+    url: string,
+    mediaType?: "article" | "video" | "podcast",
+  ): string {
+    const feedLogoUrl =
+      feedLogoCandidates.length > 0 ? feedLogoCandidates[0] : "";
+
+    if (!feedLogoUrl) {
+      return "";
+    }
+
+    if (mediaType === "video" || MediaService.isYouTubeFeed(url)) {
+      return this.mediaSettings.useDomainIconsYouTube
+        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+        : "";
+    }
+
+    if (mediaType === "podcast") {
+      return this.mediaSettings.useDomainIconsPodcast
+        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+        : "";
+    }
+
+    if (MastodonService.isResolvedFeedUrl(url)) {
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      return this.mediaSettings.useMastodonProfileImages
+        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+        : "";
+    }
+
+    if (MediaService.isTwitterOrNitterFeed(url)) {
+      return this.mediaSettings.useDomainIconsTwitter
+        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+        : "";
+    }
+
+    return this.mediaSettings.useDomainIconsRss
+      ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+      : "";
+  }
+
   private convertToAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
     if (!relativeUrl || !baseUrl) return relativeUrl;
 
@@ -3500,7 +3543,7 @@ export class FeedParser {
       typeof parsed.image === "string" ? parsed.image : "",
     ].filter(Boolean);
     const feedLogoUrl =
-      feedLogoCandidates.length > 0 ? feedLogoCandidates[0] : "";
+      feedLogoCandidates.length > 0 ? String(feedLogoCandidates[0]) : "";
     const coverImageCounts: Record<string, number> = {};
     newFeed.items.forEach((item) => {
       if (item.coverImage) {
@@ -3523,17 +3566,20 @@ export class FeedParser {
       }
     });
 
-    // Store the feed icon URL for display in sidebar
-    newFeed.iconUrl = feedLogoUrl
-      ? this.convertToAbsoluteUrl(feedLogoUrl, url)
-      : "";
-
     const processedFeed = MediaService.detectAndProcessFeed(newFeed);
     if (processedFeed.mediaType === "video" && !existingFeed?.folder) {
       processedFeed.folder = this.mediaSettings.defaultYouTubeFolder;
     } else if (processedFeed.mediaType === "podcast" && !existingFeed?.folder) {
       processedFeed.folder = this.mediaSettings.defaultPodcastFolder;
     }
+
+    // Store the feed icon URL for display in sidebar
+    processedFeed.iconUrl = this.resolveFeedIconUrl(
+      feedLogoCandidates.map((candidate) => String(candidate)),
+      url,
+      processedFeed.mediaType,
+    );
+
     return MediaService.applyMediaTags(
       processedFeed,
       this.availableTags,

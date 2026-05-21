@@ -917,24 +917,7 @@ export function renderDisplaySettingsTab(
         }),
     );
 
-  new Setting(containerEl)
-    .setName("Use domain favicons")
-    .setDesc(
-      "Show domain-specific favicons instead of generic RSS icons for feeds",
-    )
-    .addToggle((toggle) =>
-      toggle
-        .setValue(plugin.settings.display.useDomainFavicons)
-        .onChange(async (value) => {
-          plugin.settings.display.useDomainFavicons = value;
-          await plugin.saveSettings();
-          const view = await plugin.getActiveDashboardView();
-          if (view?.sidebar) {
-            await plugin.app.workspace.revealLeaf(view.leaf);
-            view.sidebar.render();
-          }
-        }),
-    );
+
 
   new Setting(containerEl)
     .setName("Hide default RSS icon")

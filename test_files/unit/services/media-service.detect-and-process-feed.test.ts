@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MediaService } from "../../../src/services/media-service";
-import type { Feed, FeedItem } from "../../../src/types/types";
+import type { Feed, FeedItem, MediaSettings } from "../../../src/types/types";
 
 function createItem(overrides: Partial<FeedItem> = {}): FeedItem {
   return {
@@ -68,7 +68,7 @@ describe("MediaService.detectAndProcessFeed", () => {
     ).toBe("article");
   });
 
-  it("auto-applies Video tag to non-YouTube video feeds when enabled", () => {
+  it("auto-applies Video tag to non-YouTube video feeds", () => {
     const detected = MediaService.detectAndProcessFeed(
       createFeed([
         createItem({
@@ -81,14 +81,14 @@ describe("MediaService.detectAndProcessFeed", () => {
     const tagged = MediaService.applyMediaTags(
       detected,
       [{ name: "Video", color: "#d04747" }],
-      { autoTagVideos: true },
+      { defaultVideoTag: "Video" },
     );
 
     const item = tagged.items[0];
     expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("video");
   });
 
-  it("auto-applies existing Videos tag to non-YouTube video feeds when enabled", () => {
+  it("auto-applies existing Videos tag to non-YouTube video feeds", () => {
     const detected = MediaService.detectAndProcessFeed(
       createFeed([
         createItem({
@@ -101,14 +101,14 @@ describe("MediaService.detectAndProcessFeed", () => {
     const tagged = MediaService.applyMediaTags(
       detected,
       [{ name: "Videos", color: "#d04747" }],
-      { autoTagVideos: true },
+      { defaultVideoTag: "Video" },
     );
 
     const item = tagged.items[0];
     expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("videos");
   });
 
-  it("does not auto-apply Video tag to non-YouTube video feeds when disabled", () => {
+  it("does not apply Video tag to non-YouTube video feeds when defaultVideoTag is not set", () => {
     const detected = MediaService.detectAndProcessFeed(
       createFeed([
         createItem({
@@ -121,7 +121,7 @@ describe("MediaService.detectAndProcessFeed", () => {
     const tagged = MediaService.applyMediaTags(
       detected,
       [{ name: "Video", color: "#d04747" }],
-      { autoTagVideos: false },
+      { defaultVideoTag: "" },
     );
 
     const item = tagged.items[0];
@@ -156,7 +156,7 @@ describe("MediaService.detectAndProcessFeed", () => {
     const tagged = MediaService.applyMediaTags(
       detected,
       [{ name: "Video", color: "#d04747" }],
-      { autoTagVideos: true },
+      { defaultVideoTag: "Video" },
     );
 
     const videoItem = tagged.items.find(
@@ -236,7 +236,7 @@ describe("MediaService.detectAndProcessFeed", () => {
     const tagged = MediaService.applyMediaTags(
       detected,
       [{ name: "Video", color: "#d04747" }],
-      { autoTagVideos: true },
+      { defaultVideoTag: "Video" },
     );
 
     expect(tagged.items[0].tags.map((tag) => tag.name.toLowerCase())).toContain(
@@ -260,8 +260,8 @@ describe("MediaService.detectAndProcessFeed", () => {
 
     const tagged = MediaService.applyMediaTags(
       detected,
-      [{ name: "Videos", color: "#d04747" }],
-      { autoTagVideos: true },
+       [{ name: "Videos", color: "#d04747" }],
+      { defaultVideoTag: "Video" },
     );
 
     expect(tagged.items[0].tags.map((tag) => tag.name.toLowerCase())).toContain(
@@ -286,7 +286,7 @@ describe("MediaService.detectAndProcessFeed", () => {
     const tagged = MediaService.applyMediaTags(
       detected,
       [{ name: "Video", color: "#d04747" }],
-      { autoTagVideos: true },
+      { defaultVideoTag: "Video" },
     );
 
     expect(tagged.items[0].tags.map((tag) => tag.name.toLowerCase())).toContain(
@@ -309,13 +309,78 @@ describe("MediaService.detectAndProcessFeed", () => {
     const tagged = MediaService.applyMediaTags(
       detected,
       [{ name: "Video", color: "#d04747" }],
-      { autoTagVideos: true },
+      { defaultVideoTag: "Video" },
     );
 
     const item = tagged.items[0];
     expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("video");
     expect(item.tags.map((tag) => tag.name.toLowerCase())).not.toContain(
       "youtube",
+    );
+  });
+
+  it("applies defaultYouTubeTag to YouTube feeds independently of the video-tag setting", () => {
+    const ytFeed = createFeed([
+      createItem({
+        guid: "yt-no-videotag",
+        link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      }),
+    ]);
+    ytFeed.url =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw";
+
+    const detected = MediaService.detectAndProcessFeed(ytFeed);
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [{ name: "MyYouTube", color: "#d04747" }],
+      { defaultVideoTag: "", defaultYouTubeTag: "MyYouTube" },
+    );
+
+    const item = tagged.items[0];
+    expect(item.tags.map((t) => t.name.toLowerCase())).toContain("myyoutube");
+    expect(item.tags.map((t) => t.name.toLowerCase())).not.toContain("video");
+  });
+
+  it("applies the default 'video' tag to YouTube feeds when defaultYouTubeTag is not set", () => {
+    const ytFeed = createFeed([
+      createItem({
+        guid: "yt-no-setting",
+        link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      }),
+    ]);
+    ytFeed.url =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw";
+
+    const tagged = MediaService.applyMediaTags(
+      MediaService.detectAndProcessFeed(ytFeed),
+      [{ name: "Video", color: "#d04747" }],
+      { defaultVideoTag: "", defaultYouTubeTag: undefined },
+    );
+
+    expect(
+      tagged.items[0].tags.map((t) => t.name.toLowerCase()),
+    ).toContain("video");
+  });
+
+  it("does not tag non-YouTube video feeds when defaultVideoTag is not set", () => {
+    const detected = MediaService.detectAndProcessFeed(
+      createFeed([
+        createItem({
+          guid: "non-yt-novideotag",
+          link: "https://www.bloomberg.com/news/videos/2026-05-12/video-story",
+        }),
+      ]),
+    );
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [{ name: "Video", color: "#d04747" }],
+      { defaultVideoTag: "" },
+    );
+
+    expect(tagged.items[0].tags.map((t) => t.name.toLowerCase())).not.toContain(
+      "video",
     );
   });
 
@@ -335,16 +400,204 @@ describe("MediaService.detectAndProcessFeed", () => {
       MediaService.applyMediaTags(
         detected,
         null as unknown as Array<{ name: string; color: string }>,
-        { autoTagVideos: true },
+        { defaultVideoTag: "" },
       ),
     ).not.toThrow();
 
     const tagged = MediaService.applyMediaTags(
       detected,
       null as unknown as Array<{ name: string; color: string }>,
-      { autoTagVideos: true },
+      { defaultVideoTag: "" },
     );
 
     expect(tagged.items[0].tags).toEqual([]);
   });
+
+  it("auto-applies configured defaultPodcastTag to podcast feeds", () => {
+    const podcastFeed = createFeed([
+      createItem({
+        guid: "podcast-1",
+        link: "https://example.com/episode.mp3",
+        enclosure: { url: "https://example.com/episode.mp3", type: "audio/mpeg", length: "100" },
+      }),
+    ]);
+    
+    const detected = MediaService.detectAndProcessFeed(podcastFeed);
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [{ name: "MyPod", color: "#8e44ad" }],
+      { defaultPodcastTag: "MyPod" }
+    );
+
+    const item = tagged.items[0];
+    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("mypod");
+  });
+
+  it("falls back to 'podcast' if defaultPodcastTag is empty", () => {
+    const podcastFeed = createFeed([
+      createItem({
+        guid: "podcast-2",
+        link: "https://example.com/episode2.mp3",
+        enclosure: { url: "https://example.com/episode2.mp3", type: "audio/mpeg", length: "100" },
+      }),
+    ]);
+    
+    const detected = MediaService.detectAndProcessFeed(podcastFeed);
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [{ name: "Podcast", color: "#8e44ad" }],
+      { defaultPodcastTag: "" }
+    );
+
+    const item = tagged.items[0];
+    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("podcast");
+  });
+
+  it("auto-applies configured defaultTwitterTag to Twitter feeds", () => {
+    const twitterFeed = createFeed([
+      createItem({
+        guid: "tweet-1",
+        link: "https://nitter.net/user/status/123",
+      }),
+    ]);
+    twitterFeed.url = "https://nitter.net/user/rss";
+
+    const tagged = MediaService.applyMediaTags(
+      twitterFeed,
+      [{ name: "TwitterTag", color: "#1da1f2" }],
+      { defaultTwitterTag: "TwitterTag" }
+    );
+
+    const item = tagged.items[0];
+    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("twittertag");
+  });
+
+  it("does not tag Twitter feeds if defaultTwitterTag is empty", () => {
+    const twitterFeed = createFeed([
+      createItem({
+        guid: "tweet-2",
+        link: "https://nitter.net/user/status/456",
+      }),
+    ]);
+    twitterFeed.url = "https://nitter.net/user/rss";
+
+    const tagged = MediaService.applyMediaTags(
+      twitterFeed,
+      [{ name: "TwitterTag", color: "#1da1f2" }],
+      { defaultTwitterTag: "" }
+    );
+
+    const item = tagged.items[0];
+    expect(item.tags).toEqual([]);
+  });
+
+  it("auto-applies configured defaultMastodonTag to Mastodon feeds", () => {
+    const mastodonFeed = createFeed([
+      createItem({
+        guid: "toot-1",
+        link: "https://mastodon.social/@user/123",
+      }),
+    ]);
+    mastodonFeed.url = "https://mastodon.social/@user.rss";
+
+    const tagged = MediaService.applyMediaTags(
+      mastodonFeed,
+      [{ name: "MastodonTag", color: "#2b90d9" }],
+      { defaultMastodonTag: "MastodonTag" }
+    );
+
+    const item = tagged.items[0];
+    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("mastodontag");
+  });
+
+  it("does not tag Mastodon feeds if defaultMastodonTag is empty", () => {
+    const mastodonFeed = createFeed([
+      createItem({
+        guid: "toot-2",
+        link: "https://mastodon.social/@user/456",
+      }),
+    ]);
+    mastodonFeed.url = "https://mastodon.social/@user.rss";
+
+    const tagged = MediaService.applyMediaTags(
+      mastodonFeed,
+      [{ name: "MastodonTag", color: "#2b90d9" }],
+      { defaultMastodonTag: "" }
+    );
+
+    const item = tagged.items[0];
+    expect(item.tags).toEqual([]);
+  });
 });
+
+describe("MediaService.shouldShowFeedIcon", () => {
+  const defaultMediaSettings = (overrides: Partial<MediaSettings> = {}): MediaSettings => ({
+    defaultVideoTag: "Video",
+    rememberPlaybackProgress: true,
+    defaultTwitterFolder: "Twitter",
+    defaultMastodonFolder: "Mastodon",
+    defaultYouTubeFolder: "Videos",
+    defaultYouTubeTag: "Video",
+    defaultPodcastFolder: "Podcast",
+    defaultPodcastTag: "podcast",
+    defaultRssFolder: "RSS",
+    defaultRssTag: "RSS",
+    defaultSmallwebFolder: "Smallweb",
+    defaultSmallwebTag: "smallweb",
+    useMastodonProfileImages: false,
+    useDomainIconsRss: false,
+    useDomainIconsPodcast: false,
+    useDomainIconsTwitter: false,
+    useDomainIconsYouTube: false,
+    openInSplitView: true,
+    podcastTheme: "obsidian",
+    ...overrides,
+  });
+
+  const createMockFeedWithIcon = (url: string, mediaType: "article" | "video" | "podcast" = "article"): Feed => ({
+    title: "Mock Feed",
+    url,
+    folder: "RSS",
+    items: [],
+    lastUpdated: 0,
+    mediaType,
+    iconUrl: "https://example.com/icon.png",
+  });
+
+  it("handles YouTube/Video feeds correctly", () => {
+    const feedYt = createMockFeedWithIcon("https://www.youtube.com/feeds/videos.xml?channel_id=123", "video");
+    expect(MediaService.shouldShowFeedIcon(feedYt, defaultMediaSettings({}))).toBe(false);
+  });
+
+  it("handles Podcast feeds correctly", () => {
+    const feedPodcast = createMockFeedWithIcon("https://example.com/podcast.xml", "podcast");
+    expect(MediaService.shouldShowFeedIcon(feedPodcast, defaultMediaSettings({ useDomainIconsPodcast: false }))).toBe(false);
+    expect(MediaService.shouldShowFeedIcon(feedPodcast, defaultMediaSettings({ useDomainIconsPodcast: true }))).toBe(true);
+  });
+
+  it("handles Mastodon feeds correctly", () => {
+    const feedMastodon = createMockFeedWithIcon("https://mastodon.social/@username.rss");
+    expect(MediaService.shouldShowFeedIcon(feedMastodon, defaultMediaSettings({ useMastodonProfileImages: false }))).toBe(false);
+    expect(MediaService.shouldShowFeedIcon(feedMastodon, defaultMediaSettings({ useMastodonProfileImages: true }))).toBe(true);
+  });
+
+  it("handles Twitter/Nitter feeds correctly", () => {
+    const feedTwitter = createMockFeedWithIcon("https://nitter.net/username/rss");
+    expect(MediaService.shouldShowFeedIcon(feedTwitter, defaultMediaSettings({ useDomainIconsTwitter: false }))).toBe(false);
+    expect(MediaService.shouldShowFeedIcon(feedTwitter, defaultMediaSettings({ useDomainIconsTwitter: true }))).toBe(true);
+  });
+
+  it("handles standard RSS feeds correctly", () => {
+    const feedRss = createMockFeedWithIcon("https://example.com/rss.xml");
+    expect(MediaService.shouldShowFeedIcon(feedRss, defaultMediaSettings({ useDomainIconsRss: false }))).toBe(false);
+    expect(MediaService.shouldShowFeedIcon(feedRss, defaultMediaSettings({ useDomainIconsRss: true }))).toBe(true);
+  });
+
+  it("returns false if feed has no iconUrl", () => {
+    const feedNoIcon = { ...createMockFeedWithIcon("https://example.com/rss.xml"), iconUrl: undefined };
+    expect(MediaService.shouldShowFeedIcon(feedNoIcon, defaultMediaSettings({ useDomainIconsRss: true }))).toBe(false);
+  });
+});
+

@@ -239,6 +239,29 @@ describe("settings-loader", () => {
 
       expect(settings.dashboardMultiFilters.logic).toBe("OR");
     });
+
+    it("migrates useDomainFavicons in display to useDomainIconsRss in media", async () => {
+      const { migrateSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const settings = {
+        ...DEFAULT_SETTINGS,
+        display: {
+          ...DEFAULT_SETTINGS.display,
+          useDomainFavicons: true,
+        },
+        media: {
+          ...DEFAULT_SETTINGS.media,
+          useDomainIconsRss: false,
+        },
+      } as unknown as RssDashboardSettings & Record<string, unknown>;
+
+      const changed = migrateSettings(settings as unknown as RssDashboardSettings);
+
+      expect(changed).toBe(true);
+      expect(settings.media.useDomainIconsRss).toBe(true);
+      expect((settings.display as unknown as Record<string, unknown>).useDomainFavicons).toBeUndefined();
+    });
   });
 
   // ── dedupeAndNormalizeFeedItems ──────────────────────────────────────────────

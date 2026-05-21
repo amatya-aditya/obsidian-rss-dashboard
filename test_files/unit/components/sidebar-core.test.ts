@@ -74,6 +74,9 @@ describe("Sidebar Core", () => {
         sidebarItemPaddingLeft: 2,
         sidebarItemPaddingRight: 2,
       },
+      media: {
+        useDomainIconsRss: false,
+      },
     } as unknown as RssDashboardSettings;
 
     options = {

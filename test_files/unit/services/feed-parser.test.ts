@@ -146,6 +146,25 @@ const RSS2_WITH_IMAGE = `<?xml version="1.0" encoding="UTF-8"?>
   </channel>
 </rss>`;
 
+const RSS2_MASTODON_PROFILE_IMAGE = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Gargron (@Gargron@mastodon.social)</title>
+    <link>https://mastodon.social/@Gargron</link>
+    <image>
+      <url>https://files.mastodon.social/accounts/avatars/109/246/358/402/616/382/original/4143aa23be8308b5.jpg</url>
+      <title>Gargron</title>
+    </image>
+    <item>
+      <title>Post 1</title>
+      <link>https://mastodon.social/@Gargron/123</link>
+      <description>Post content</description>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>https://mastodon.social/@Gargron/123</guid>
+    </item>
+  </channel>
+</rss>`;
+
 const RSS2_WITH_MEDIA_CONTENT_IMAGE = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
   <channel>
@@ -702,8 +721,10 @@ describe("mergeFeedHistoryItems", () => {
 
 describe("FeedParser.parseFeed", () => {
   const mediaSettings = {
-    autoTagVideos: true,
+    defaultVideoTag: "Video",
     rememberPlaybackProgress: true,
+    defaultTwitterFolder: "Twitter",
+    defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultYouTubeTag: "Video",
     defaultPodcastFolder: "Podcast",
@@ -712,9 +733,161 @@ describe("FeedParser.parseFeed", () => {
     defaultRssTag: "rss",
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "smallweb",
+    useMastodonProfileImages: true,
+    useDomainIconsRss: true,
+    useDomainIconsYouTube: true,
+    useDomainIconsPodcast: true,
+    useDomainIconsTwitter: true,
     openInSplitView: true,
     podcastTheme: "solarized" as const,
   };
+
+  it("keeps the current Mastodon icon behavior when profile images are disabled", async () => {
+    const feedUrl = "https://mastodon.social/@Gargron.rss";
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({
+      status: 200,
+      text: RSS2_MASTODON_PROFILE_IMAGE,
+    });
+
+    const parser = new FeedParser(
+      {
+        ...mediaSettings,
+        useMastodonProfileImages: false,
+      },
+      [],
+    );
+    const parsed = await parser.parseFeed(feedUrl, null);
+
+    expect(parsed.iconUrl).not.toBe(
+      "https://files.mastodon.social/accounts/avatars/109/246/358/402/616/382/original/4143aa23be8308b5.jpg",
+    );
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("prefers Mastodon profile images for feed icons when enabled", async () => {
+    const feedUrl = "https://mastodon.social/@Gargron.rss";
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({
+      status: 200,
+      text: RSS2_MASTODON_PROFILE_IMAGE,
+    });
+
+    const parser = new FeedParser(
+      {
+        ...mediaSettings,
+        useMastodonProfileImages: true,
+      },
+      [],
+    );
+    const parsed = await parser.parseFeed(feedUrl, null);
+
+    expect(parsed.iconUrl).toBe(
+      "https://files.mastodon.social/accounts/avatars/109/246/358/402/616/382/original/4143aa23be8308b5.jpg",
+    );
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("preserves the chosen Mastodon icon behavior across refresh", async () => {
+    const feedUrl = "https://mastodon.social/@Gargron.rss";
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce({
+        status: 200,
+        text: RSS2_MASTODON_PROFILE_IMAGE,
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        text: RSS2_MASTODON_PROFILE_IMAGE,
+      });
+
+    const parser = new FeedParser(
+      {
+        ...mediaSettings,
+        useMastodonProfileImages: true,
+      },
+      [],
+    );
+    const first = await parser.parseFeed(feedUrl, null);
+    const refreshed = await parser.parseFeed(feedUrl, first);
+
+    expect(first.iconUrl).toBe(
+      "https://files.mastodon.social/accounts/avatars/109/246/358/402/616/382/original/4143aa23be8308b5.jpg",
+    );
+    expect(refreshed.iconUrl).toBe(first.iconUrl);
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("extracts and honors the RSS icon settings toggle", async () => {
+    const feedUrl = "https://example.com/rss.xml";
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValue({
+      status: 200,
+      text: RSS2_WITH_IMAGE,
+    });
+
+    // 1. When useDomainIconsRss is false
+    const parserOff = new FeedParser({ ...mediaSettings, useDomainIconsRss: false }, []);
+    const parsedOff = await parserOff.parseFeed(feedUrl, null);
+    expect(parsedOff.iconUrl).toBe("");
+
+    // 2. When useDomainIconsRss is true
+    const parserOn = new FeedParser({ ...mediaSettings, useDomainIconsRss: true }, []);
+    const parsedOn = await parserOn.parseFeed(feedUrl, null);
+    expect(parsedOn.iconUrl).toBe("https://example.com/logo.png");
+
+    requestUrlSpy.mockRestore();
+  });
+
+
+
+  it("extracts and honors the Podcast icon settings toggle", async () => {
+    const feedUrl = "https://example.com/podcast.xml";
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValue({
+      status: 200,
+      text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
+    });
+
+    // 1. When useDomainIconsPodcast is false
+    const parserOff = new FeedParser({ ...mediaSettings, useDomainIconsPodcast: false }, []);
+    const parsedOff = await parserOff.parseFeed(feedUrl, null);
+    expect(parsedOff.iconUrl).toBe("");
+
+    // 2. When useDomainIconsPodcast is true
+    const parserOn = new FeedParser({ ...mediaSettings, useDomainIconsPodcast: true }, []);
+    const parsedOn = await parserOn.parseFeed(feedUrl, null);
+    expect(parsedOn.iconUrl).toBe("https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png");
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("extracts and honors the Twitter/Nitter icon settings toggle", async () => {
+    const feedUrl = "https://nitter.net/Gargron/rss";
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValue({
+      status: 200,
+      text: RSS2_WITH_IMAGE,
+    });
+
+    // 1. When useDomainIconsTwitter is false
+    const parserOff = new FeedParser({ ...mediaSettings, useDomainIconsTwitter: false }, []);
+    const parsedOff = await parserOff.parseFeed(feedUrl, null);
+    expect(parsedOff.iconUrl).toBe("");
+
+    // 2. When useDomainIconsTwitter is true
+    const parserOn = new FeedParser({ ...mediaSettings, useDomainIconsTwitter: true }, []);
+    const parsedOn = await parserOn.parseFeed(feedUrl, null);
+    expect(parsedOn.iconUrl).toBe("https://example.com/logo.png");
+
+    requestUrlSpy.mockRestore();
+  });
 
   it("applies Video tag for Bloomberg video-route items with image medium", async () => {
     const feedUrl = "https://www.bloomberg.com/feed/podcast.xml";

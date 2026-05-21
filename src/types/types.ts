@@ -197,9 +197,10 @@ export type PodcastTheme =
   | "tokyonight";
 
 export interface MediaSettings {
-  autoTagVideos: boolean;
+  defaultVideoTag: string;
   rememberPlaybackProgress: boolean;
   defaultTwitterFolder: string;
+  defaultMastodonFolder: string;
   defaultYouTubeFolder: string;
   defaultYouTubeTag: string;
   defaultPodcastFolder: string;
@@ -208,6 +209,14 @@ export interface MediaSettings {
   defaultRssTag: string;
   defaultSmallwebFolder: string;
   defaultSmallwebTag: string;
+  defaultTwitterTag?: string;
+  defaultMastodonTag?: string;
+  /** @deprecated use useDomainIconsRss, useDomainIconsYouTube, useDomainIconsPodcast, useDomainIconsTwitter, or similar. */
+  useMastodonProfileImages: boolean;
+  useDomainIconsRss: boolean;
+  useDomainIconsPodcast: boolean;
+  useDomainIconsTwitter: boolean;
+  useDomainIconsYouTube: boolean;
   openInSplitView: boolean;
   podcastTheme: PodcastTheme;
   enableApplePodcastsOpen?: boolean;
@@ -257,7 +266,6 @@ export interface DisplaySettings {
     | "videos"
     | "podcasts";
   hiddenFilters: string[];
-  useDomainFavicons: boolean;
   hideDefaultRssIcon: boolean;
   autoMarkReadOnOpen: boolean;
   sidebarRowSpacing: number;
@@ -563,17 +571,25 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     paragraphSpacing: "default",
   },
   media: {
-    autoTagVideos: true,
+    defaultVideoTag: "Video",
     rememberPlaybackProgress: true,
     defaultTwitterFolder: "Twitter",
+    defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultYouTubeTag: "Video",
     defaultPodcastFolder: "Podcast",
-    defaultPodcastTag: "podcast",
+    defaultPodcastTag: "Podcast",
     defaultRssFolder: "RSS",
-    defaultRssTag: "RSS",
+    defaultRssTag: "",
     defaultSmallwebFolder: "Smallweb",
-    defaultSmallwebTag: "smallweb",
+    defaultSmallwebTag: "",
+    defaultTwitterTag: "",
+    defaultMastodonTag: "",
+    useMastodonProfileImages: false,
+    useDomainIconsRss: false,
+    useDomainIconsPodcast: false,
+    useDomainIconsTwitter: false,
+    useDomainIconsYouTube: false,
     openInSplitView: true,
     podcastTheme: "obsidian",
     enableApplePodcastsOpen: false,
@@ -634,7 +650,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     mobileListToolbarStyle: "minimal",
     defaultFilter: "all",
     hiddenFilters: [],
-    useDomainFavicons: true,
     hideDefaultRssIcon: false,
     autoMarkReadOnOpen: false,
     sidebarRowSpacing: 10,

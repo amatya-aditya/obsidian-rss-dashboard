@@ -33,6 +33,7 @@ import type RssDashboardPlugin from "../../main";
 import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { MediaService } from "../services/media-service";
+import { MastodonService } from "../services/mastodon-service";
 import {
   moveFeedAndInsert,
   moveFeedToFolderAppend,
@@ -1472,6 +1473,33 @@ export class Sidebar {
       setIcon(feedIcon, "loader-2");
       feedIcon.addClass("processing");
       feedEl.classList.add("processing-feed");
+    } else if (MediaService.shouldShowFeedIcon(feed, this.settings.media)) {
+      // Show feed logo (e.g. Mastodon profile image) when available and enabled
+      const imgEl = feedIcon.createEl("img", {
+        attr: { src: feed.iconUrl!, alt: feed.title },
+        cls: "rss-dashboard-feed-icon-img",
+      });
+      imgEl.onerror = () => {
+        feedIcon.empty();
+        if (MediaService.isTwitterOrNitterFeed(feed.url)) {
+          void this.renderDomainFavicon(feedIcon, "twitter.com");
+        } else if (MastodonService.isResolvedFeedUrl(feed.url)) {
+          void this.renderDomainFavicon(
+            feedIcon,
+            this.extractDomain(feed.url),
+          );
+        } else if (!this.settings.display.hideDefaultRssIcon) {
+          setIcon(feedIcon, "rss");
+        }
+      };
+    } else if (MediaService.isTwitterOrNitterFeed(feed.url)) {
+      // Show default Twitter/X favicon
+      this.renderFallbackFeedIcon(feedIcon);
+      void this.renderDomainFavicon(feedIcon, "twitter.com");
+    } else if (MastodonService.isResolvedFeedUrl(feed.url)) {
+      // Show default Mastodon instance domain favicon
+      this.renderFallbackFeedIcon(feedIcon);
+      void this.renderDomainFavicon(feedIcon, this.extractDomain(feed.url));
     } else if (
       feed.mediaType === "video" &&
       MediaService.isYouTubeFeed(feed.url)
@@ -1485,7 +1513,7 @@ export class Sidebar {
       feedEl.classList.add("podcast-feed");
       setIcon(feedIcon, "mic");
       feedIcon.addClass("podcast");
-    } else if (this.settings.display.useDomainFavicons) {
+    } else if (this.settings.media.useDomainIconsRss) {
       // Show domain favicon for regular feeds when setting is enabled
       const domain = this.extractDomain(feed.url);
       if (domain) {

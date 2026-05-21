@@ -232,8 +232,12 @@ export function migrateMediaVideoTagSettings(
   }
 
   const media = settings.media as Record<string, unknown>;
-  if (typeof media.autoTagVideos !== "boolean") {
-    media.autoTagVideos = true;
+  if (typeof media.defaultVideoTag !== "string") {
+    if (media.autoTagVideos === false) {
+      media.defaultVideoTag = "";
+    } else {
+      media.defaultVideoTag = "Video";
+    }
     changed = true;
   }
 
@@ -247,6 +251,19 @@ export function migrateMediaVideoTagSettings(
     changed = true;
   } else if (media.defaultTwitterFolder.trim().length === 0) {
     media.defaultTwitterFolder = "Twitter";
+    changed = true;
+  }
+
+  if (typeof media.defaultMastodonFolder !== "string") {
+    media.defaultMastodonFolder = "Mastodon";
+    changed = true;
+  } else if (media.defaultMastodonFolder.trim().length === 0) {
+    media.defaultMastodonFolder = "Mastodon";
+    changed = true;
+  }
+
+  if (typeof media.useMastodonProfileImages !== "boolean") {
+    media.useMastodonProfileImages = false;
     changed = true;
   }
 

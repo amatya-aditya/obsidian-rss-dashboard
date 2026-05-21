@@ -35,3 +35,31 @@ describe("favicon-utils.getFaviconUrl", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Mastodon-specific domain extraction
+// ---------------------------------------------------------------------------
+
+describe("favicon-utils — Mastodon domain extraction", () => {
+  it("extracts mastodon.social from a Mastodon profile-style RSS URL", () => {
+    expect(
+      extractDomain("https://mastodon.social/@username.rss"),
+    ).toBe("mastodon.social");
+  });
+
+  it("extracts the instance domain from a /users/ Mastodon RSS URL", () => {
+    expect(
+      extractDomain("https://hachyderm.io/users/alice.rss"),
+    ).toBe("hachyderm.io");
+  });
+
+  it("extracts the base domain from a short Mastodon instance RSS URL", () => {
+    expect(
+      extractDomain("https://fosstodon.org/@bob.rss"),
+    ).toBe("fosstodon.org");
+  });
+
+  it("returns empty string when the input is not a parseable URL", () => {
+    expect(extractDomain("not-a-url")).toBe("");
+  });
+});
+

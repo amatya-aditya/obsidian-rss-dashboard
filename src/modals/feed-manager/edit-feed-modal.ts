@@ -18,6 +18,7 @@ import { decorateFolderSelectorInput } from "./folder-selector-field";
 import {
   formatLatestEntryLabel,
   getDefaultFolderForResolvedFeed,
+  getPreviewConversionNotice,
   resolveAndLoadPreview,
   shouldAutoAssignFolder,
 } from "./feed-preview-loader";
@@ -142,9 +143,7 @@ export class EditFeedModal extends Modal {
                 corsProxyUrl: this.plugin?.settings?.corsProxyUrl,
               });
 
-              const conversionNotice = preview.isXConversion
-                ? " (X > nitter conversion)"
-                : "";
+              const conversionNotice = getPreviewConversionNotice(preview);
 
               url = preview.finalUrl;
               if (urlInput) urlInput.value = url;

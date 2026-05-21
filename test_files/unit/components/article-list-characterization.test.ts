@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildArticle, createArticleListHarness } from "./article-list-harness";
+import { Feed, MediaSettings } from "../../../src/types/types";
 
 interface TestableArticleList {
   filterArticlesBySearch(query: string): void;
@@ -268,5 +269,57 @@ describe("Phase 7 - ArticleList characterization", () => {
 
     h.cleanup();
   });
+
+  it("renders standard feed icon image in article list if useDomainIconsRss is true", () => {
+    const h = createArticleListHarness({
+      settings: {
+        media: {
+          useDomainIconsRss: true,
+        } as unknown as MediaSettings,
+        feeds: [
+          {
+            title: "RSS Feed",
+            url: "https://example.com/rss",
+            iconUrl: "https://example.com/feed-icon.png",
+          } as unknown as Feed,
+        ],
+      },
+      articles: [
+        buildArticle({ guid: "1", title: "One", feedUrl: "https://example.com/rss", mediaType: "article" }),
+      ],
+    });
+    h.list.render();
+
+    const img = h.getArticleEl("1")?.querySelector(".rss-dashboard-article-feed-icon-img") as HTMLImageElement;
+    expect(img).not.toBeNull();
+    expect(img.src).toBe("https://example.com/feed-icon.png");
+    h.cleanup();
+  });
+
+  it("falls back to default icon branch in article list if useDomainIconsRss is false", () => {
+    const h = createArticleListHarness({
+      settings: {
+        media: {
+          useDomainIconsRss: false,
+        } as unknown as MediaSettings,
+        feeds: [
+          {
+            title: "RSS Feed",
+            url: "https://example.com/rss",
+            iconUrl: "https://example.com/feed-icon.png",
+          } as unknown as Feed,
+        ],
+      },
+      articles: [
+        buildArticle({ guid: "1", title: "One", feedUrl: "https://example.com/rss", mediaType: "article" }),
+      ],
+    });
+    h.list.render();
+
+    const img = h.getArticleEl("1")?.querySelector(".rss-dashboard-article-feed-icon-img");
+    expect(img).toBeNull();
+    h.cleanup();
+  });
 });
+
 

@@ -1,4 +1,5 @@
 import { MediaService } from "../../services/media-service";
+import { MastodonService } from "../../services/mastodon-service";
 import { loadFeedForPreview, resolvePodcastPlatformUrl } from "../../services/feed-parser";
 import { detectPodcastPlatform } from "../../utils/podcast-platforms";
 
@@ -14,6 +15,7 @@ export interface FeedPreviewLoadResult {
   inputUrl: string;
   finalUrl: string;
   isXConversion: boolean;
+  isMastodonConversion: boolean;
   title: string;
   latestPubDate?: string;
   hasEntries: boolean;
@@ -21,6 +23,7 @@ export interface FeedPreviewLoadResult {
 
 export interface MediaFolderDefaults {
   defaultTwitterFolder?: string;
+  defaultMastodonFolder?: string;
   defaultYouTubeFolder?: string;
   defaultPodcastFolder?: string;
   defaultRssFolder?: string;
@@ -49,6 +52,20 @@ export function formatLatestEntryLabel(
   return daysAgo === 0 ? "Today" : `${daysAgo} days ago`;
 }
 
+export function getPreviewConversionNotice(
+  preview: Pick<FeedPreviewLoadResult, "isXConversion" | "isMastodonConversion">,
+): string {
+  if (preview.isXConversion) {
+    return " (X > nitter conversion)";
+  }
+
+  if (preview.isMastodonConversion) {
+    return " (Mastodon > RSS auto-discovery)";
+  }
+
+  return "";
+}
+
 export function shouldAutoAssignFolder(
   currentFolder: string,
   media?: MediaFolderDefaults,
@@ -60,10 +77,12 @@ export function shouldAutoAssignFolder(
 
   const autoAssignedFolders = new Set([
     media?.defaultTwitterFolder || "Twitter",
+    media?.defaultMastodonFolder || "Mastodon",
     media?.defaultYouTubeFolder || "Videos",
     media?.defaultPodcastFolder || "Podcast",
     media?.defaultRssFolder || "RSS",
     "Twitter",
+    "Mastodon",
     "Videos",
     "Podcast",
     "RSS",
@@ -73,12 +92,22 @@ export function shouldAutoAssignFolder(
 }
 
 export function getDefaultFolderForResolvedFeed(
-  preview: Pick<FeedPreviewLoadResult, "detectedType" | "finalUrl" | "isXConversion">,
+  preview: Pick<
+    FeedPreviewLoadResult,
+    "detectedType" | "inputUrl" | "finalUrl" | "isXConversion" | "isMastodonConversion"
+  >,
   media?: MediaFolderDefaults,
 ): string {
   const isNitterFeed = !!MediaService.normalizeNitterUrlToRss(preview.finalUrl);
   if (preview.isXConversion || isNitterFeed) {
     return media?.defaultTwitterFolder || "Twitter";
+  }
+
+  if (
+    preview.isMastodonConversion ||
+    MastodonService.isResolvedFeedUrl(preview.inputUrl)
+  ) {
+    return media?.defaultMastodonFolder || "Mastodon";
   }
 
   if (preview.detectedType === "youtube") {
@@ -100,6 +129,7 @@ export async function resolveAndLoadPreview(
   let finalUrl = inputUrl;
   let detectedType: FeedPreviewType = "rss";
   let isXConversion = false;
+  let isMastodonConversion = false;
 
   const normalizedNitterUrl = MediaService.normalizeNitterUrlToRss(url);
   if (normalizedNitterUrl) {
@@ -114,6 +144,19 @@ export async function resolveAndLoadPreview(
       finalUrl = nitterUrl;
       isXConversion = true;
     }
+  }
+
+  if (MediaService.isMastodonUrl(url)) {
+    const mastodonFeedUrl = await MediaService.getMastodonRssFeed(url);
+    if (!mastodonFeedUrl) {
+      throw new Error(
+        "Could not resolve Mastodon profile feed. Please check the profile URL.",
+      );
+    }
+
+    url = mastodonFeedUrl;
+    finalUrl = mastodonFeedUrl;
+    isMastodonConversion = true;
   }
 
   if (isYouTubePageUrl(url)) {
@@ -155,6 +198,7 @@ export async function resolveAndLoadPreview(
     inputUrl,
     finalUrl,
     isXConversion,
+    isMastodonConversion,
     title: feedData.title,
     latestPubDate: feedData.latestPubDate,
     hasEntries: feedData.hasEntries,
