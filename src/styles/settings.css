@@ -1156,3 +1156,84 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ================ Tag multi-select chip control ================ */
+
+.rss-dashboard-tag-multi-select {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rss-dashboard-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-left: 3px solid var(--tag-chip-accent-color, var(--color-accent));
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.6;
+  user-select: none;
+}
+
+.rss-dashboard-tag-chip:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--color-accent);
+}
+
+.rss-dashboard-tag-chip--selected {
+  background: var(--background-modifier-hover);
+  border-color: var(--color-accent);
+  color: var(--text-normal);
+}
+
+.rss-dashboard-tag-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
+.rss-dashboard-tag-chip-icon {
+  inline-size: 14px;
+  block-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rss-dashboard-tag-chip-icon svg {
+  inline-size: 12px;
+  block-size: 12px;
+}
+
+.rss-dashboard-tag-chip-none {
+  opacity: 0.6;
+  font-style: italic;
+  cursor: default;
+}
+
+.rss-dashboard-tag-chip-none:hover {
+  background: var(--background-primary);
+  border-color: var(--background-modifier-border);
+}
+
+/* ================ Tag multi-select empty-state ================ */
+
+.rss-dashboard-tag-multi-select--empty {
+  display: inline-flex;
+  align-items: center;
+}
+
+.rss-dashboard-tag-multi-select-empty {
+  opacity: 0.6;
+  font-style: italic;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: default;
+  user-select: none;
+}
