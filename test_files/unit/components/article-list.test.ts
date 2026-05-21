@@ -1,14 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ArticleList } from "../../../src/components/article-list";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { FeedItem, RssDashboardSettings, Tag, DEFAULT_SETTINGS } from "../../../src/types/types";
+import {
+  FeedItem,
+  RssDashboardSettings,
+  Tag,
+  DEFAULT_SETTINGS,
+} from "../../../src/types/types";
 
 type ArticleListCallbacks = ConstructorParameters<typeof ArticleList>[6];
 
 /** Minimal interface that exposes the private members needed by tests. */
 interface ArticleListTestAccess {
-   pendingCardTopAnchor: boolean;
-   syncArticleTags(articleEl: HTMLElement, article: FeedItem): void;
+  pendingCardTopAnchor: boolean;
+  syncArticleTags(articleEl: HTMLElement, article: FeedItem): void;
 }
 
 interface TestCSS {
@@ -22,7 +27,9 @@ interface TestWindow extends Window {
 const getWindowCSS = (): TestCSS => {
   const win = window as TestWindow;
   if (win.CSS === undefined) {
-    const css: TestCSS = { escape: (s: string) => s.replace(/([^\w-])/g, "\\$1") };
+    const css: TestCSS = {
+      escape: (s: string) => s.replace(/([^\w-])/g, "\\$1"),
+    };
     win.CSS = css;
     return css;
   }
@@ -39,101 +46,103 @@ const mockRAF = (cb: FrameRequestCallback) => {
 };
 
 class ResizeObserverMock {
-   observe() {}
-   unobserve() {}
-   disconnect() {}
+  observe() {}
+  unobserve() {}
+  disconnect() {}
 }
-(window as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+(
+  window as unknown as { ResizeObserver: typeof ResizeObserver }
+).ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 
 describe("ArticleList Component", () => {
-   let container: HTMLElement;
-   let settings: RssDashboardSettings;
-   let mockCallbacks: ArticleListCallbacks;
-   let articles: FeedItem[];
+  let container: HTMLElement;
+  let settings: RssDashboardSettings;
+  let mockCallbacks: ArticleListCallbacks;
+  let articles: FeedItem[];
 
-   beforeEach(() => {
-     installObsidianDomPolyfills();
-     getWindowCSS();
-     window.requestAnimationFrame = mockRAF;
-     container = document.createElement("div");
-     document.body.appendChild(container);
+  beforeEach(() => {
+    installObsidianDomPolyfills();
+    getWindowCSS();
+    window.requestAnimationFrame = mockRAF;
+    container = document.createElement("div");
+    document.body.appendChild(container);
 
-     Element.prototype.scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = vi.fn();
 
-     settings = {
-       ...DEFAULT_SETTINGS,
-       viewStyle: "list",
-       articleGroupBy: "none",
-       articleSort: "newest",
-       display: {
-         ...DEFAULT_SETTINGS.display,
-         cardColumnsPerRow: 3,
-         cardSpacing: 15,
-         mobileShowListToolbar: true,
-         mobileShowCardToolbar: true,
-       },
-       articleFilter: {
-         type: "none",
-         value: 0,
-       },
-       articleSaving: {
-         ...DEFAULT_SETTINGS.articleSaving,
-         saveFullContent: false,
-       },
-       media: {
-         ...DEFAULT_SETTINGS.media,
-         useDomainIconsRss: false,
-       },
-     };
+    settings = {
+      ...DEFAULT_SETTINGS,
+      viewStyle: "list",
+      articleGroupBy: "none",
+      articleSort: "newest",
+      display: {
+        ...DEFAULT_SETTINGS.display,
+        cardColumnsPerRow: 3,
+        cardSpacing: 15,
+        mobileShowListToolbar: true,
+        mobileShowCardToolbar: true,
+      },
+      articleFilter: {
+        type: "none",
+        value: 0,
+      },
+      articleSaving: {
+        ...DEFAULT_SETTINGS.articleSaving,
+        saveFullContent: false,
+      },
+      media: {
+        ...DEFAULT_SETTINGS.media,
+        useDomainIconsRss: false,
+      },
+    };
 
-     articles = [
-       {
-         guid: "1",
-         title: "Article 1",
-         link: "link1",
-         description: "",
-         pubDate: new Date().toISOString(),
-         read: false,
-         starred: false,
-         tags: [],
-         feedTitle: "",
-         feedUrl: "",
-         coverImage: "",
-       },
-       {
-         guid: "2",
-         title: "Article 2",
-         link: "link2",
-         description: "",
-         pubDate: new Date().toISOString(),
-         read: false,
-         starred: false,
-         tags: [],
-         feedTitle: "",
-         feedUrl: "",
-         coverImage: "",
-       },
-     ];
+    articles = [
+      {
+        guid: "1",
+        title: "Article 1",
+        link: "link1",
+        description: "",
+        pubDate: new Date().toISOString(),
+        read: false,
+        starred: false,
+        tags: [],
+        feedTitle: "",
+        feedUrl: "",
+        coverImage: "",
+      },
+      {
+        guid: "2",
+        title: "Article 2",
+        link: "link2",
+        description: "",
+        pubDate: new Date().toISOString(),
+        read: false,
+        starred: false,
+        tags: [],
+        feedTitle: "",
+        feedUrl: "",
+        coverImage: "",
+      },
+    ];
 
-     mockCallbacks = {
-       onArticleClick: vi.fn(),
-       onToggleViewStyle: vi.fn(),
-       onRefreshFeeds: vi.fn(async () => {}),
-       onOpenViewFilters: vi.fn(),
-       onOpenPerFeedSettings: vi.fn(),
-       onArticleUpdate: vi.fn(),
-       onArticleSave: vi.fn(),
-       onOpenSavedArticle: vi.fn(),
-       onOpenInReaderView: vi.fn(),
-       onToggleSidebar: vi.fn(),
-       onSortChange: vi.fn(),
-       onGroupChange: vi.fn(),
-       onFilterChange: vi.fn(),
-       onPageChange: vi.fn(),
-       onPageSizeChange: vi.fn(),
-       onPersistSettings: vi.fn(),
-       onSearch: vi.fn(),
-     } as ArticleListCallbacks;
+    mockCallbacks = {
+      onArticleClick: vi.fn(),
+      onToggleViewStyle: vi.fn(),
+      onRefreshFeeds: vi.fn(async () => {}),
+      onOpenViewFilters: vi.fn(),
+      onOpenPerFeedSettings: vi.fn(),
+      onArticleUpdate: vi.fn(),
+      onArticleSave: vi.fn(),
+      onOpenSavedArticle: vi.fn(),
+      onOpenInReaderView: vi.fn(),
+      onToggleSidebar: vi.fn(),
+      onSortChange: vi.fn(),
+      onGroupChange: vi.fn(),
+      onFilterChange: vi.fn(),
+      onPageChange: vi.fn(),
+      onPageSizeChange: vi.fn(),
+      onPersistSettings: vi.fn(),
+      onSearch: vi.fn(),
+    } as ArticleListCallbacks;
   });
 
   afterEach(() => {
@@ -581,11 +590,13 @@ describe("ArticleList Component", () => {
 
       articleList.scheduleCardTopAnchorOnResize();
 
-        expect(observedEl).toBe(container);
-        expect((articleList as unknown as ArticleListTestAccess).pendingCardTopAnchor).toBe(true);
-      });
+      expect(observedEl).toBe(container);
+      expect(
+        (articleList as unknown as ArticleListTestAccess).pendingCardTopAnchor,
+      ).toBe(true);
+    });
 
-      it("top-anchors the selected card and disconnects the observer when a resize fires", () => {
+    it("top-anchors the selected card and disconnects the observer when a resize fires", () => {
       settings.viewStyle = "card";
       const articleList = makeArticleList();
       articleList.render();
@@ -627,7 +638,9 @@ describe("ArticleList Component", () => {
 
       expect(container.scrollTop).toBe(200);
       expect(disconnected).toBe(true);
-      expect((articleList as unknown as ArticleListTestAccess).pendingCardTopAnchor).toBe(false);
+      expect(
+        (articleList as unknown as ArticleListTestAccess).pendingCardTopAnchor,
+      ).toBe(false);
 
       rectSpy.mockRestore();
       vi.useFakeTimers();
@@ -724,10 +737,12 @@ describe("ArticleList Component", () => {
       articleList.scrollSelectedCardToTop();
 
       expect(container.scrollTop).toBe(200);
-      expect((articleList as unknown as ArticleListTestAccess).pendingCardTopAnchor).toBe(false);
+      expect(
+        (articleList as unknown as ArticleListTestAccess).pendingCardTopAnchor,
+      ).toBe(false);
 
       rectSpy.mockRestore();
-      });
+    });
 
     it("anchors selected card below sticky articles header overlap", () => {
       settings.viewStyle = "card";
@@ -778,19 +793,19 @@ describe("ArticleList Component", () => {
       const keywordRow = document.createElement("div");
       const highlightRow = document.createElement("div");
       const viewingRow = document.createElement("div");
-statusBarEl.className = "rss-dashboard-filter-subheader";
-       statusBarContentEl.className = "rss-dashboard-filter-subheader-content";
-       keywordRow.className = "rss-dashboard-filter-stats-row";
-       highlightRow.className = "rss-dashboard-highlight-stats";
-       viewingRow.className =
-         "rss-dashboard-filter-stats-row rss-dashboard-viewing-filter-stats-row";
-       Object.assign(statusBarEl.style, {
-         paddingTop: "8px",
-         paddingBottom: "8px",
-         borderTop: "1px solid transparent",
-         borderBottom: "1px solid transparent",
-         marginBottom: "14px",
-       });
+      statusBarEl.className = "rss-dashboard-filter-subheader";
+      statusBarContentEl.className = "rss-dashboard-filter-subheader-content";
+      keywordRow.className = "rss-dashboard-filter-stats-row";
+      highlightRow.className = "rss-dashboard-highlight-stats";
+      viewingRow.className =
+        "rss-dashboard-filter-stats-row rss-dashboard-viewing-filter-stats-row";
+      Object.assign(statusBarEl.style, {
+        paddingTop: "8px",
+        paddingBottom: "8px",
+        borderTop: "1px solid transparent",
+        borderBottom: "1px solid transparent",
+        marginBottom: "14px",
+      });
       statusBarContentEl.appendChild(keywordRow);
       statusBarContentEl.appendChild(highlightRow);
       statusBarContentEl.appendChild(viewingRow);
@@ -928,7 +943,9 @@ statusBarEl.className = "rss-dashboard-filter-subheader";
   describe("Card Spacing Layout", () => {
     it("updates the card gap variable without re-running tag layout on live spacing changes", () => {
       settings.viewStyle = "card";
-      articles[0].tags = [{ name: "Tag1", color: "#8b5cf6" }] as unknown as Tag[];
+      articles[0].tags = [
+        { name: "Tag1", color: "#8b5cf6" },
+      ] as unknown as Tag[];
 
       const articleList = new ArticleList(
         container,
@@ -949,7 +966,10 @@ statusBarEl.className = "rss-dashboard-filter-subheader";
 
       articleList.render();
 
-      const scheduleSpy = vi.spyOn(articleList, "scheduleCardTagLayout" as never);
+      const scheduleSpy = vi.spyOn(
+        articleList,
+        "scheduleCardTagLayout" as never,
+      );
 
       articleList.updateCardSpacingLayout(22);
 
@@ -966,7 +986,9 @@ statusBarEl.className = "rss-dashboard-filter-subheader";
 
     it("refreshes visible card tag layout when explicitly requested", () => {
       settings.viewStyle = "card";
-      articles[0].tags = [{ name: "Tag1", color: "#8b5cf6" }] as unknown as Tag[];
+      articles[0].tags = [
+        { name: "Tag1", color: "#8b5cf6" },
+      ] as unknown as Tag[];
 
       const articleList = new ArticleList(
         container,
@@ -987,7 +1009,10 @@ statusBarEl.className = "rss-dashboard-filter-subheader";
 
       articleList.render();
 
-      const scheduleSpy = vi.spyOn(articleList, "scheduleCardTagLayout" as never);
+      const scheduleSpy = vi.spyOn(
+        articleList,
+        "scheduleCardTagLayout" as never,
+      );
 
       articleList.refreshCardTagLayout();
 
@@ -1199,7 +1224,10 @@ statusBarEl.className = "rss-dashboard-filter-subheader";
         ".rss-dashboard-feed-item",
       ) as HTMLElement;
       // Call private method for test verification
-      (articleList as unknown as ArticleListTestAccess).syncArticleTags(item, articles[0]);
+      (articleList as unknown as ArticleListTestAccess).syncArticleTags(
+        item,
+        articles[0],
+      );
 
       // Check if it's in the toolbar (incorrect) or tags region (correct)
       const toolbarTags = item.querySelector(
