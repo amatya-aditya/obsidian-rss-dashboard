@@ -4,6 +4,7 @@ import type {
   FeedKeywordRulesSettings,
   Folder,
   SavedTemplate,
+  Tag,
 } from "../../types/types";
 import { FolderSuggest } from "../../components/folder-suggest";
 import {
@@ -23,23 +24,28 @@ import {
 } from "../../utils/refresh-intervals";
 import { renderSupportedFormatBadges } from "./supported-format-badges";
 import { decorateFolderSelectorInput } from "./folder-selector-field";
+import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
 
+/** Typed payload emitted by AddFeedModal when the user confirms adding a feed. */
+export interface AddFeedRequest {
+  title: string;
+  url: string;
+  folder: string;
+  autoDeleteDuration?: number;
+  maxItemsLimit?: number;
+  scanInterval?: number;
+  feedKeywordRules?: FeedKeywordRulesSettings;
+  customTemplate?: string;
+  excludeFromRefresh?: boolean;
+  customTags?: string[];
+}
+
 export class AddFeedModal extends Modal {
   folders: Folder[];
-  onAdd: (
-    title: string,
-    url: string,
-    folder: string,
-    autoDeleteDuration?: number,
-    maxItemsLimit?: number,
-    scanInterval?: number,
-    feedKeywordRules?: FeedKeywordRulesSettings,
-    customTemplate?: string,
-    excludeFromRefresh?: boolean,
-  ) => Promise<boolean | void>;
+  onAdd: (request: AddFeedRequest) => Promise<boolean | void>;
   onSave: () => void;
   defaultFolder: string;
   plugin?: RssDashboardPlugin;
@@ -47,17 +53,7 @@ export class AddFeedModal extends Modal {
   constructor(
     app: App,
     folders: Folder[],
-    onAdd: (
-      title: string,
-      url: string,
-      folder: string,
-      autoDeleteDuration?: number,
-      maxItemsLimit?: number,
-      scanInterval?: number,
-      feedKeywordRules?: FeedKeywordRulesSettings,
-      customTemplate?: string,
-      excludeFromRefresh?: boolean,
-    ) => Promise<boolean | void>,
+    onAdd: (request: AddFeedRequest) => Promise<boolean | void>,
     onSave: () => void,
     defaultFolder = "",
     plugin?: RssDashboardPlugin,
@@ -288,6 +284,24 @@ export class AddFeedModal extends Modal {
       new FolderSuggest(this.app, folderInput, this.folders);
     });
     decorateFolderSelectorInput(folderSetting, folderInput);
+
+    // --- Auto-tag multi-select ---
+    let customTags: string[] = [];
+    const availableTags: Tag[] =
+      this.plugin?.settings?.availableTags ?? [];
+
+    const autoTagSetting = new Setting(contentEl)
+      .setName("Auto-tag")
+      .setDesc("Automatically apply these tags to new articles from this feed");
+
+    addTagMultiSelectControl({
+      setting: autoTagSetting,
+      availableTags,
+      selectedTagNames: [],
+      onChange: (selectedNames) => {
+        customTags = selectedNames;
+      },
+    });
 
     const perFeedControlsDetails = contentEl.createEl("details", {
       cls: "rss-keyword-filter-details rss-per-feed-controls-details",
@@ -571,17 +585,18 @@ export class AddFeedModal extends Modal {
         if (this.plugin && finalFolder) {
           await this.plugin.ensureFolderExists(finalFolder);
         }
-        const added = await this.onAdd(
+        const added = await this.onAdd({
           title,
           url,
-          finalFolder,
+          folder: finalFolder,
           autoDeleteDuration,
           maxItemsLimit,
           scanInterval,
           feedKeywordRules,
           customTemplate,
           excludeFromRefresh,
-        ).catch(() => {
+          customTags: customTags.length > 0 ? customTags : undefined,
+        }).catch(() => {
           return false;
         });
 

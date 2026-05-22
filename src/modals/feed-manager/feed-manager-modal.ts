@@ -7,7 +7,7 @@ import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
 import { isValidFolderName } from "../../utils/validation";
 import { collectFolderPaths } from "../../utils/folder-paths";
 import { removeFolderByPath } from "../../utils/folder-tree";
-import { AddFeedModal } from "./add-feed-modal";
+import { AddFeedModal, type AddFeedRequest } from "./add-feed-modal";
 import { EditFeedModal } from "./edit-feed-modal";
 
 export class FeedManagerModal extends Modal {
@@ -134,27 +134,17 @@ export class FeedManagerModal extends Modal {
       new AddFeedModal(
         this.app,
         this.plugin.settings.folders,
-        (
-          title,
-          url,
-          folder,
-          autoDeleteDuration,
-          maxItemsLimit,
-          scanInterval,
-          feedFilters,
-          customTemplate,
-          excludeFromRefresh,
-        ) =>
+        async (request: AddFeedRequest) =>
           this.plugin.addFeed(
-            title,
-            url,
-            folder,
-            autoDeleteDuration,
-            maxItemsLimit,
-            scanInterval,
-            feedFilters,
-            customTemplate,
-            excludeFromRefresh,
+            request.title,
+            request.url,
+            request.folder,
+            request.autoDeleteDuration,
+            request.maxItemsLimit,
+            request.scanInterval,
+            request.feedKeywordRules,
+            request.customTemplate,
+            request.excludeFromRefresh,
           ),
         () => this.onOpen(),
         "",

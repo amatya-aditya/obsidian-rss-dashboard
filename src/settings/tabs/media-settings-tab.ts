@@ -26,34 +26,14 @@ import {
   Feed,
   DEFAULT_SETTINGS,
 } from "../../types/types";
+import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 import type { MediaSettings } from "../../types/types";
 
 interface MediaTabSettings {
   folders: Folder[];
   feeds?: Feed[];
   availableTags?: Tag[];
-  media: {
-    defaultVideoTag: string;
-    rememberPlaybackProgress?: boolean;
-    defaultTwitterFolder: string;
-    defaultMastodonFolder: string;
-    defaultYouTubeFolder: string;
-    defaultYouTubeTag: string;
-    defaultPodcastFolder: string;
-    defaultPodcastTag: string;
-    defaultRssFolder: string;
-    defaultRssTag: string;
-    defaultSmallwebFolder: string;
-    defaultSmallwebTag: string;
-    defaultTwitterTag?: string;
-    defaultMastodonTag?: string;
-    useMastodonProfileImages?: boolean;
-    useDomainIconsRss?: boolean;
-    useDomainIconsYouTube?: boolean;
-    useDomainIconsPodcast?: boolean;
-    useDomainIconsTwitter?: boolean;
-    podcastTheme: PodcastTheme;
-  };
+  media: MediaSettings;
 }
 
 interface MediaSettingsPlugin {
@@ -74,23 +54,25 @@ export function renderMediaSettingsTab(
   containerEl: HTMLElement,
   plugin: MediaSettingsPlugin,
 ): void {
-  new Setting(containerEl)
+  const videoTagSetting = new Setting(containerEl)
     .setName("Tag for video articles")
     .setDesc(
       "Default tag for RSS articles with detected video content (YouTube feeds use the dedicated tag below)",
-    )
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      dropdown
-        .setValue(plugin.settings.media.defaultVideoTag ?? "")
-        .onChange(async (value) => {
-          plugin.settings.media.defaultVideoTag = value.trim();
-          await plugin.saveSettings();
-        });
-    });
+    );
+  addTagMultiSelectControl({
+    setting: videoTagSetting,
+    availableTags: plugin.settings.availableTags ?? [],
+    selectedTagNames:
+      (plugin.settings.media as { defaultVideoTags?: string[] })
+        .defaultVideoTags ?? [],
+    noneLabel: "(none)",
+    onChange: async (selected: string[]) => {
+      (
+        plugin.settings.media as { defaultVideoTags?: string[] }
+      ).defaultVideoTags = selected;
+      await plugin.saveSettings();
+    },
+  });
 
   new Setting(containerEl).setName("Playback progress").setHeading();
 
@@ -144,21 +126,23 @@ export function renderMediaSettingsTab(
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
     });
 
-  new Setting(containerEl)
+  const twitterTagSetting = new Setting(containerEl)
     .setName("Default Twitter tag")
-    .setDesc("Default tag for Twitter/X/Nitter feeds")
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      dropdown
-        .setValue(plugin.settings.media.defaultTwitterTag || "")
-        .onChange(async (value) => {
-          plugin.settings.media.defaultTwitterTag = value;
-          await plugin.saveSettings();
-        });
-    });
+    .setDesc("Default tag for Twitter/X/Nitter feeds");
+  addTagMultiSelectControl({
+    setting: twitterTagSetting,
+    availableTags: plugin.settings.availableTags ?? [],
+    selectedTagNames:
+      (plugin.settings.media as { defaultTwitterTags?: string[] })
+        .defaultTwitterTags ?? [],
+    noneLabel: "(none)",
+    onChange: async (selected: string[]) => {
+      (
+        plugin.settings.media as { defaultTwitterTags?: string[] }
+      ).defaultTwitterTags = selected;
+      await plugin.saveSettings();
+    },
+  });
 
   setupDomainIconToggle(containerEl, plugin, {
     settingName: "Use profile images for Twitter/Nitter feeds",
@@ -188,21 +172,23 @@ export function renderMediaSettingsTab(
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
     });
 
-  new Setting(containerEl)
+    const mastodonTagSetting = new Setting(containerEl)
     .setName("Default Mastodon tag")
-    .setDesc("Default tag for Mastodon feeds")
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      dropdown
-        .setValue(plugin.settings.media.defaultMastodonTag || "")
-        .onChange(async (value) => {
-          plugin.settings.media.defaultMastodonTag = value;
-          await plugin.saveSettings();
-        });
-    });
+    .setDesc("Default tag for Mastodon feeds");
+  addTagMultiSelectControl({
+    setting: mastodonTagSetting,
+    availableTags: plugin.settings.availableTags ?? [],
+    selectedTagNames:
+      (plugin.settings.media as { defaultMastodonTags?: string[] })
+        .defaultMastodonTags ?? [],
+    noneLabel: "(none)",
+    onChange: async (selected: string[]) => {
+      (
+        plugin.settings.media as { defaultMastodonTags?: string[] }
+      ).defaultMastodonTags = selected;
+      await plugin.saveSettings();
+    },
+  });
 
   new Setting(containerEl)
     .setName("Use profile images for Mastodon feeds")
@@ -211,10 +197,11 @@ export function renderMediaSettingsTab(
     )
     .addToggle((toggle) =>
       toggle
+        // eslint-disable-next-line @typescript-eslint/no-deprecated
         .setValue(plugin.settings.media.useMastodonProfileImages ?? false)
         .onChange(async (value) => {
-          const oldValue =
-            plugin.settings.media.useMastodonProfileImages ?? false;
+          // eslint-disable-next-line @typescript-eslint/no-deprecated
+          const oldValue = plugin.settings.media.useMastodonProfileImages ?? false;
           const settings = plugin.settings as unknown as Record<
             string,
             unknown
@@ -236,6 +223,7 @@ export function renderMediaSettingsTab(
 
           // ── Transition: OFF → ON ─────────────────────────────────────────
           if (!oldValue && value) {
+            // eslint-disable-next-line @typescript-eslint/no-deprecated
             plugin.settings.media.useMastodonProfileImages = true;
             await plugin.saveSettings();
 
@@ -295,6 +283,7 @@ export function renderMediaSettingsTab(
             });
 
             if (confirmed) {
+              // eslint-disable-next-line @typescript-eslint/no-deprecated
               plugin.settings.media.useMastodonProfileImages = false;
               await plugin.saveSettings();
               const view = await plugin.getActiveDashboardView();
@@ -311,6 +300,7 @@ export function renderMediaSettingsTab(
           }
 
           // ── No-op: toggle was already in the target state ──────────────────
+          // eslint-disable-next-line @typescript-eslint/no-deprecated
           plugin.settings.media.useMastodonProfileImages = value;
           await plugin.saveSettings();
         }),
@@ -332,26 +322,23 @@ export function renderMediaSettingsTab(
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
     });
 
-  new Setting(containerEl)
+  const youtubeTagSetting = new Setting(containerEl)
     .setName("Default YouTube tag")
-    .setDesc("Tag used for auto-tagged video content")
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      const currentTag = (plugin.settings.media.defaultYouTubeTag ?? "").trim();
-      const initialValue =
-        typeof currentTag === "string" && currentTag.length > 0
-          ? currentTag
-          : "";
-
-      dropdown.setValue(initialValue).onChange(async (value) => {
-        const nextValue = value.trim();
-        plugin.settings.media.defaultYouTubeTag = nextValue;
-        await plugin.saveSettings();
-      });
-    });
+    .setDesc("Tag used for auto-tagged video content");
+  addTagMultiSelectControl({
+    setting: youtubeTagSetting,
+    availableTags: plugin.settings.availableTags ?? [],
+    selectedTagNames:
+      (plugin.settings.media as { defaultYouTubeTags?: string[] })
+        .defaultYouTubeTags ?? [],
+    noneLabel: "(none)",
+    onChange: async (selected: string[]) => {
+      (
+        plugin.settings.media as { defaultYouTubeTags?: string[] }
+      ).defaultYouTubeTags = selected;
+      await plugin.saveSettings();
+    },
+  });
 
   new Setting(containerEl)
     .setName("Channel profile images")
@@ -375,21 +362,23 @@ export function renderMediaSettingsTab(
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
     });
 
-  new Setting(containerEl)
+  const podcastTagSetting = new Setting(containerEl)
     .setName("Default podcast tag")
-    .setDesc("Default tag for podcast episodes")
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      dropdown
-        .setValue(plugin.settings.media.defaultPodcastTag ?? "")
-        .onChange(async (value) => {
-          plugin.settings.media.defaultPodcastTag = value;
-          await plugin.saveSettings();
-        });
-    });
+    .setDesc("Default tag for podcast episodes");
+  addTagMultiSelectControl({
+    setting: podcastTagSetting,
+    availableTags: plugin.settings.availableTags ?? [],
+    selectedTagNames:
+      (plugin.settings.media as { defaultPodcastTags?: string[] })
+        .defaultPodcastTags ?? [],
+    noneLabel: "(none)",
+    onChange: async (selected: string[]) => {
+      (
+        plugin.settings.media as { defaultPodcastTags?: string[] }
+      ).defaultPodcastTags = selected;
+      await plugin.saveSettings();
+    },
+  });
 
   setupDomainIconToggle(containerEl, plugin, {
     settingName: "Use album/show artwork for Podcast feeds",
@@ -419,21 +408,23 @@ export function renderMediaSettingsTab(
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
     });
 
-  new Setting(containerEl)
+  const rssTagSetting = new Setting(containerEl)
     .setName("Default RSS tag")
-    .setDesc("Default tag for RSS articles")
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      dropdown
-        .setValue(plugin.settings.media.defaultRssTag ?? "")
-        .onChange(async (value) => {
-          plugin.settings.media.defaultRssTag = value;
-          await plugin.saveSettings();
-        });
-    });
+    .setDesc("Default tag for RSS articles");
+  addTagMultiSelectControl({
+    setting: rssTagSetting,
+    availableTags: plugin.settings.availableTags ?? [],
+    selectedTagNames:
+      (plugin.settings.media as { defaultRssTags?: string[] })
+        .defaultRssTags ?? [],
+    noneLabel: "(none)",
+    onChange: async (selected: string[]) => {
+      (
+        plugin.settings.media as { defaultRssTags?: string[] }
+      ).defaultRssTags = selected;
+      await plugin.saveSettings();
+    },
+  });
 
   setupDomainIconToggle(containerEl, plugin, {
     settingName: "Use site icons/favicons for RSS feeds",
@@ -468,21 +459,23 @@ export function renderMediaSettingsTab(
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
     });
 
-  new Setting(containerEl)
+  const smallwebTagSetting = new Setting(containerEl)
     .setName("Default smallweb tag")
-    .setDesc("Default tag for smallweb articles")
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      dropdown
-        .setValue(plugin.settings.media.defaultSmallwebTag ?? "")
-        .onChange(async (value) => {
-          plugin.settings.media.defaultSmallwebTag = value;
-          await plugin.saveSettings();
-        });
-    });
+    .setDesc("Default tag for smallweb articles");
+  addTagMultiSelectControl({
+    setting: smallwebTagSetting,
+    availableTags: plugin.settings.availableTags ?? [],
+    selectedTagNames:
+      (plugin.settings.media as { defaultSmallwebTags?: string[] })
+        .defaultSmallwebTags ?? [],
+    noneLabel: "(none)",
+    onChange: async (selected: string[]) => {
+      (
+        plugin.settings.media as { defaultSmallwebTags?: string[] }
+      ).defaultSmallwebTags = selected;
+      await plugin.saveSettings();
+    },
+  });
 
   // ── Podcast player ────────────────────────────────────────────────────────
   new Setting(containerEl).setName("Podcast player").setHeading();
@@ -561,12 +554,19 @@ export function renderMediaSettingsTab(
       button.setButtonText("Default tag names").onClick(async () => {
         const d = DEFAULT_SETTINGS.media;
         plugin.settings.media.defaultVideoTag = d.defaultVideoTag;
+        plugin.settings.media.defaultVideoTags = d.defaultVideoTags;
         plugin.settings.media.defaultYouTubeTag = d.defaultYouTubeTag;
+        plugin.settings.media.defaultYouTubeTags = d.defaultYouTubeTags;
         plugin.settings.media.defaultPodcastTag = d.defaultPodcastTag;
+        plugin.settings.media.defaultPodcastTags = d.defaultPodcastTags;
         plugin.settings.media.defaultRssTag = d.defaultRssTag;
+        plugin.settings.media.defaultRssTags = d.defaultRssTags;
         plugin.settings.media.defaultSmallwebTag = d.defaultSmallwebTag;
+        plugin.settings.media.defaultSmallwebTags = d.defaultSmallwebTags;
         plugin.settings.media.defaultTwitterTag = d.defaultTwitterTag;
+        plugin.settings.media.defaultTwitterTags = d.defaultTwitterTags;
         plugin.settings.media.defaultMastodonTag = d.defaultMastodonTag;
+        plugin.settings.media.defaultMastodonTags = d.defaultMastodonTags;
         await plugin.saveSettings();
         new Notice("Tag names restored to defaults.");
         // Re-render the settings tab so the inputs reflect the reset values.

@@ -4,6 +4,7 @@ import type {
   Feed,
   FeedKeywordRulesSettings,
   SavedTemplate,
+  Tag,
 } from "../../types/types";
 import { FolderSuggest } from "../../components/folder-suggest";
 import { renderKeywordFilterEditor } from "../../components/keyword-filter-editor";
@@ -24,6 +25,10 @@ import {
 } from "./feed-preview-loader";
 import { MediaService } from "../../services/media-service";
 import { copyTextToClipboard } from "../../utils/export-utils";
+import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
+import { TagApplicationConfirmModal } from "./tag-application-confirm-modal";
+import { applyTagsToItems, removeTagsFromItemsByName } from "../../services/tag-applier";
+import { resolveTagObjects } from "../../utils/tag-resolver";
 
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
@@ -76,6 +81,8 @@ export class EditFeedModal extends Modal {
     let title = feedTitle;
     let folder = feedFolder;
     let status = "";
+    const originalCustomTags = [...(this.feed.customTags ?? [])];
+    let customTags: string[] = [...(this.feed.customTags ?? [])];
     let latestEntry = "-";
     let titleInput: HTMLInputElement;
     let urlInput: HTMLInputElement;
@@ -259,6 +266,22 @@ export class EditFeedModal extends Modal {
         new FolderSuggest(this.app, folderInput, this.plugin.settings.folders);
       });
     decorateFolderSelectorInput(folderSetting, folderInput);
+
+    const availableTags: Tag[] =
+      this.plugin?.settings.availableTags ??
+      [];
+
+    const autoTagSetting = new Setting(contentEl)
+      .setName("Auto-tags")
+      .setDesc("Tags applied automatically to new articles from this feed");
+    addTagMultiSelectControl({
+      setting: autoTagSetting,
+      availableTags,
+      selectedTagNames: customTags,
+      onChange: (selected) => {
+        customTags = selected;
+      },
+    });
 
     const localStorageAddressResult =
       this.plugin.getFeedLocalStorageAddress?.(this.feed) ?? {
@@ -650,6 +673,34 @@ export class EditFeedModal extends Modal {
       }
 
       void (async () => {
+        // --- Determine if customTags changed ---
+        const tagsChanged =
+          customTags.length !== originalCustomTags.length ||
+          customTags.some((t, i) => t !== originalCustomTags[i]);
+
+        if (tagsChanged) {
+          const confirmModal = new TagApplicationConfirmModal(this.app);
+          const choice = confirmModal.waitForClose();
+          confirmModal.open();
+          const result = await choice;
+
+          if (result === "cancel_save") {
+            return;
+          }
+
+          if (result === "apply_existing") {
+            const oldSet = new Set(originalCustomTags);
+            const newSet = new Set(customTags);
+            const removedNames = originalCustomTags.filter((n) => !newSet.has(n));
+            const addedNames = customTags.filter((n) => !oldSet.has(n));
+            removeTagsFromItemsByName(this.feed.items, removedNames);
+            const addedTags = resolveTagObjects(addedNames, availableTags);
+            applyTagsToItems(this.feed.items, addedTags);
+          }
+
+          this.feed.customTags = customTags;
+        }
+
         const oldTitle = this.feed.title;
         const previousAutoDeleteDuration =
           typeof this.feed.autoDeleteDuration === "number"

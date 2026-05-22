@@ -319,3 +319,56 @@ export function migrateMediaVideoTagSettings(
 
   return changed;
 }
+
+/**
+ * Legacy-to-array tag migration fields and their parallel string[] counterparts.
+ *
+ * Each legacy `string` field is migrated to its matching `string[]` field:
+ *   - non-empty string  →  [trimmedValue]
+ *   - empty / whitespace →  []
+ *   - absent / undefined →  []
+ *   - already an array   →  left as-is, no change
+ *
+ * Operates in-place on a plain Record so it can be tested without Obsidian imports.
+ * Returns true only on first migration (once arrays exist all subsequent calls are no-ops).
+ */
+const MEDIA_TAG_ARRAY_FIELDS: Array<{
+  legacy: string;
+  array: string;
+}> = [
+  { legacy: "defaultVideoTag", array: "defaultVideoTags" },
+  { legacy: "defaultYouTubeTag", array: "defaultYouTubeTags" },
+  { legacy: "defaultPodcastTag", array: "defaultPodcastTags" },
+  { legacy: "defaultRssTag", array: "defaultRssTags" },
+  { legacy: "defaultSmallwebTag", array: "defaultSmallwebTags" },
+  { legacy: "defaultTwitterTag", array: "defaultTwitterTags" },
+  { legacy: "defaultMastodonTag", array: "defaultMastodonTags" },
+];
+
+export function migrateMediaDefaultTagArrays(
+  settings: Record<string, unknown>,
+): boolean {
+  if (!isRecord(settings.media)) {
+    return false;
+  }
+
+  const media = settings.media;
+  let changed = false;
+
+  // Process all fields every call — do not short-circuit on the first change.
+  // Each field is dehydrated independently: arrays already present are skipped,
+  // absent/empty legacy strings become [], non-empty become [trimmedValue].
+  for (const { legacy, array: arrayField } of MEDIA_TAG_ARRAY_FIELDS) {
+    if (Array.isArray(media[arrayField])) {
+      continue; // already migrated – skip
+    }
+
+    const legacyValue = media[legacy];
+    const trimmed =
+      typeof legacyValue === "string" ? legacyValue.trim() : "";
+    media[arrayField] = trimmed.length > 0 ? [trimmed] : [];
+    changed = true;
+  }
+
+  return changed;
+}

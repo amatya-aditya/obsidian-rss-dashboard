@@ -90,7 +90,7 @@ describe("tag-multi-select", () => {
 			".rss-dashboard-tag-chip",
 		));
 
-		(techChip as HTMLElement).click();
+		techChip.click();
 
 		expect(onChange).toHaveBeenCalledOnce();
 		expect(onChange).toHaveBeenCalledWith(["News", "Tech"]);
@@ -108,7 +108,7 @@ describe("tag-multi-select", () => {
 			".rss-dashboard-tag-chip",
 		));
 
-		(newsChip as HTMLElement).click();
+		newsChip.click();
 
 		expect(onChange).toHaveBeenCalledOnce();
 		expect(onChange).toHaveBeenCalledWith(["Tech"]);
@@ -219,7 +219,7 @@ describe("tag-multi-select", () => {
 			".rss-dashboard-tag-chip",
 		));
 
-		(chip as HTMLElement).dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+		chip.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 		expect(onChange).toHaveBeenCalledWith(["News"]);
 	});
 
@@ -234,7 +234,7 @@ describe("tag-multi-select", () => {
 			".rss-dashboard-tag-chip",
 		));
 
-		(chip as HTMLElement).dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+		chip.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
 		expect(onChange).toHaveBeenCalledWith(["News"]);
 	});
 
@@ -250,11 +250,12 @@ describe("tag-multi-select", () => {
 		));
 
 		// Click once — selects
-		(chip as HTMLElement).click();
+		chip.click();
+
 		expect(onChange).toHaveBeenLastCalledWith(["News"]);
 
 		// Click again — deselects (uses live state, not initial snapshot)
-		(chip as HTMLElement).click();
+		chip.click();
 		expect(onChange).toHaveBeenLastCalledWith([]);
 	});
 
@@ -271,10 +272,12 @@ describe("tag-multi-select", () => {
 		);
 
 		// Select Tech, then News — second click uses live state including Tech
-		(chips[1] as HTMLElement).click();
+		// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+		chips[1]!.click();
 		expect(onChange).toHaveBeenLastCalledWith(["Tech"]);
 
-		(chips[0] as HTMLElement).click();
+		// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+		chips[0]!.click();
 		expect(onChange).toHaveBeenLastCalledWith(["News", "Tech"]);
 	});
 

@@ -8,7 +8,12 @@ import {
   Feed,
   DEFAULT_SETTINGS,
 } from "../../../src/types/types";
-import { renderMediaSettingsTab, DomainIconToggleConfirmModal, collectDomainFeeds, fetchDomainFeedIcons } from "../../../src/settings/tabs/media-settings-tab";
+import {
+  renderMediaSettingsTab,
+  DomainIconToggleConfirmModal,
+  collectDomainFeeds,
+  fetchDomainFeedIcons,
+} from "../../../src/settings/tabs/media-settings-tab";
 import { FeedParser } from "../../../src/services/feed-parser";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type RssDashboardPlugin from "../../../main";
@@ -257,16 +262,16 @@ describe("renderMediaSettingsTab()", () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
-  it("renders tag settings as dropdowns and persists changes", async () => {
+  it("renders YouTube tag as multi-select chips and persists array changes", async () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),
     );
     const settings = cloneSettings();
     settings.availableTags = [
       { name: "MyVideo", color: "#f00" },
-      { name: "MyPodcast", color: "#00f" }
+      { name: "MyPodcast", color: "#00f" },
     ];
-    settings.media.defaultYouTubeTag = "Video";
+    settings.media.defaultYouTubeTags = ["MyVideo"];
 
     const plugin = {
       app: obsidian.App.createMock(),
@@ -279,41 +284,120 @@ describe("renderMediaSettingsTab()", () => {
 
     const youtubeTagSetting = getSettingByName(
       containerEl,
-      "Default YouTube tag"
+      "Default YouTube tag",
     );
-    
-    // Ensure it's a select element
-    const select = youtubeTagSetting.querySelector(
-      "select"
-    ) as HTMLSelectElement;
-    expect(select).not.toBeNull();
-    
-    // Has unassigned and available tags
-    const options = Array.from(select.options).map(o => o.value);
-    expect(options).toContain(""); // Unassigned/None
-    expect(options).toContain("MyVideo");
-    expect(options).toContain("MyPodcast");
 
-    // Change value
-    select.value = "MyVideo";
-    select.dispatchEvent(new Event("change"));
+    const wrapper = youtubeTagSetting.querySelector(
+      ".rss-dashboard-tag-multi-select",
+    );
+    expect(wrapper).not.toBeNull();
+
+    const chips = Array.from(
+      wrapper.querySelectorAll(".rss-dashboard-tag-chip"),
+    );
+    const chipNames = chips.map((c) =>
+      c.querySelector(".rss-dashboard-tag-chip-name")!.textContent?.trim(),
+    );
+    expect(chipNames).toContain("MyVideo");
+    expect(chipNames).toContain("MyPodcast");
+
+    // "MyVideo" is initially selected; clicking it should deselect
+    const myVideoChip = chips.find(
+      (c) =>
+        c.querySelector(".rss-dashboard-tag-chip-name")!.textContent?.trim() ===
+        "MyVideo",
+    ) as HTMLElement;
+    expect(myVideoChip).not.toBeNull();
+    expect(myVideoChip.classList.contains("rss-dashboard-tag-chip--selected")).toBe(true);
+
+    myVideoChip.click();
     await flushPromises();
 
-    expect(plugin.settings.media.defaultYouTubeTag).toBe("MyVideo");
+    expect(plugin.settings.media.defaultYouTubeTags).toEqual([]);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
-  it("renders Twitter and Mastodon tag settings as dropdowns and persists changes", async () => {
+  it("renders Twitter and Mastodon tags as multi-select chips and persists array changes", async () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),
     );
     const settings = cloneSettings();
     settings.availableTags = [
       { name: "MyTwitter", color: "#1da1f2" },
-      { name: "MyMastodon", color: "#2b90d9" }
+      { name: "MyMastodon", color: "#2b90d9" },
     ];
-    settings.media.defaultTwitterTag = "";
-    settings.media.defaultMastodonTag = "";
+    settings.media.defaultTwitterTags = ["MyTwitter"];
+    settings.media.defaultMastodonTags = ["MyMastodon"];
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    // ── Twitter ──────────────────────────────────────────────────────────────
+    const twitterTagSetting = getSettingByName(
+      containerEl,
+      "Default Twitter tag",
+    );
+    const twWrapper = twitterTagSetting.querySelector(
+      ".rss-dashboard-tag-multi-select",
+    );
+    expect(twWrapper).not.toBeNull();
+    const twChips = Array.from(
+      twWrapper.querySelectorAll(".rss-dashboard-tag-chip"),
+    );
+    expect(() =>
+      twWrapper.querySelector("select"),
+    ).toThrow("Setting not found: Default Twitter tag");
+    // no <select> element; chips exist
+    expect(twChips.length).toBeGreaterThan(0);
+
+    expect(
+      twWrapper.querySelector(".rss-dashboard-tag-chip--selected"),
+    ).not.toBeNull();
+
+    // ── Mastodon ─────────────────────────────────────────────────────────────
+    const mastodonTagSetting = getSettingByName(
+      containerEl,
+      "Default Mastodon tag",
+    );
+    const maWrapper = mastodonTagSetting.querySelector(
+      ".rss-dashboard-tag-multi-select",
+    );
+    expect(maWrapper).not.toBeNull();
+    const maChips = Array.from(
+      maWrapper.querySelectorAll(".rss-dashboard-tag-chip"),
+    );
+    expect(maChips.length).toBeGreaterThan(0);
+
+    // Toggle Twitter chip off → array becomes []
+    const twMyChip = twChips.find(
+      (c) =>
+        c.querySelector(".rss-dashboard-tag-chip-name")!.textContent?.trim() ===
+        "MyTwitter",
+    ) as HTMLElement;
+    twMyChip.click();
+    await flushPromises();
+
+    expect(plugin.settings.media.defaultTwitterTags).toEqual([]);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+
+    // Toggle Ma chip on → becomes ["MyMastodon"]
+    const maMyChip = maChips.find(
+      (c) =>
+        c.querySelector(".rss-dashboard-tag-chip-name")!.textContent?.trim() ===
+        "MyMastodon",
+    ) as HTMLElement;
+    maMyChip.click();
+    await flushPromises();
+
+    expect(plugin.settings.media.defaultMastodonTags).toEqual(["MyMastodon"]);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
+  });
 
     const plugin = {
       app: obsidian.App.createMock(),
@@ -658,6 +742,214 @@ it("renders and persists the Mastodon profile image toggle", async () => {
 
     expect(plugin.settings.media.useDomainIconsTwitter).toBe(true);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
+  });
+
+  // ─── Multi-select chip tests ───────────────────────────────────────────────
+
+  it("displays tag rows as multi-select chips instead of <select> dropdowns", () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
+    const settings = cloneSettings();
+    settings.availableTags = [
+      { name: "MyVideo", color: "#f00" },
+      { name: "MyPodcast", color: "#00f" },
+    ];
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const tagSettingNames = [
+      "Tag for video articles",
+      "Default Twitter tag",
+      "Default Mastodon tag",
+      "Default YouTube tag",
+      "Default podcast tag",
+      "Default RSS tag",
+      "Default smallweb tag",
+    ];
+
+    for (const name of tagSettingNames) {
+      const setting = getSettingByName(containerEl, name);
+      const hasSelect = !!setting.querySelector("select");
+      const wrapper = setting.querySelector(".rss-dashboard-tag-multi-select");
+      expect(hasSelect).toBe(false, `"${name}" should not have a <select> element`);
+      expect(wrapper).not.toBeNull(`"${name}" should have a multi-select chip wrapper`);
+    }
+  });
+
+  it("renders chips with correct selected-state from array default", () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
+    const settings = cloneSettings();
+    settings.availableTags = [
+      { name: "Important", color: "#e74c3c" },
+      { name: "Video", color: "#d04747" },
+      { name: "Podcast", color: "#8e44ad" },
+    ];
+    settings.media.defaultYouTubeTags = ["Important", "Video"];
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const setting = getSettingByName(containerEl, "Default YouTube tag");
+    const chips = setting.querySelectorAll(".rss-dashboard-tag-chip");
+
+    expect(chips.length).toBeGreaterThan(0);
+
+    const selectedChips = setting.querySelectorAll(
+      ".rss-dashboard-tag-chip--selected",
+    );
+    expect(selectedChips.length).toBe(2);
+  });
+
+  it("renders chips with aria-pressed true for selected and false for unselected", () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
+    const settings = cloneSettings();
+    settings.availableTags = [
+      { name: "A", color: "#e74c3c" },
+      { name: "B", color: "#3498db" },
+      { name: "C", color: "#2ecc71" },
+    ];
+    settings.media.defaultVideoTags = ["B"];
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const setting = getSettingByName(containerEl, "Tag for video articles");
+    const chips = setting.querySelectorAll(".rss-dashboard-tag-chip");
+
+    expect(chips.length).toBe(3);
+
+    for (const chip of chips) {
+      const pressed = chip.getAttribute("aria-pressed");
+      expect(["true", "false"]).toContain(pressed);
+    }
+
+    const selected = setting.querySelector(".rss-dashboard-tag-chip--selected");
+    expect(selected).toBeTruthy();
+    expect(selected!.getAttribute("aria-pressed")).toBe("true");
+
+    const unselected = setting.querySelector(
+      ".rss-dashboard-tag-chip:not(.rss-dashboard-tag-chip--selected)",
+    );
+    expect(unselected).toBeTruthy();
+    expect(unselected!.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("toggles a chip and calls onChange with cumulative string[]", async () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
+    const settings = cloneSettings();
+    settings.availableTags = [
+      { name: "X", color: "#e74c3c" },
+      { name: "Y", color: "#3498db" },
+      { name: "Z", color: "#2ecc71" },
+    ];
+    settings.media.defaultVideoTags = ["X"];
+
+    const onChange = vi.fn(async () => {});
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      getActiveReaderView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const setting = getSettingByName(containerEl, "Tag for video articles");
+    const yChip = Array.from(setting.querySelectorAll(".rss-dashboard-tag-chip"))
+      .find((el) => el.querySelector(".rss-dashboard-tag-chip-name")?.textContent === "Y");
+
+    expect(yChip).toBeTruthy();
+    yChip!.click();
+    await flushPromises();
+
+    expect(onChange).toHaveBeenCalledTimes(0);
+  });
+
+  it("shows explicit empty-state label when availableTags is empty", () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
+    const settings = cloneSettings();
+    settings.availableTags = [];
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const tagSetting = getSettingByName(
+      containerEl,
+      "Tag for video articles",
+    );
+    const wrapper = tagSetting.querySelector(
+      ".rss-dashboard-tag-multi-select",
+    );
+    expect(wrapper).not.toBeNull();
+    expect(wrapper).toHaveClass("rss-dashboard-tag-multi-select--empty");
+
+    const emptyText = wrapper.querySelector(
+      ".rss-dashboard-tag-multi-select-empty",
+    );
+    expect(emptyText).not.toBeNull();
+  });
+
+  it("restores defaultVideoTags to ['Video'] on reset tag names button click", async () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
+    const settings = cloneSettings();
+    settings.media.defaultVideoTags = ["Custom"];
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      getActiveDashboardView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const resetSetting = getSettingByName(containerEl, "Reset tag names");
+    const resetButton = resetSetting.querySelector(
+      "button",
+    ) as HTMLButtonElement;
+    resetButton.click();
+    await flushPromises();
+
+    expect(plugin.settings.media.defaultVideoTags).toEqual(["Video"]);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalled();
   });
 });
 

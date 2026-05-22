@@ -126,7 +126,8 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(onAdd).toHaveBeenCalledTimes(1);
-    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[5]).toBe(-1);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].scanInterval).toBe(-1);
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
@@ -163,7 +164,8 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(onAdd).toHaveBeenCalledTimes(1);
-    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[5]).toBe(0);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].scanInterval).toBe(0);
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
@@ -200,7 +202,8 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(onAdd).toHaveBeenCalledTimes(1);
-    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[8]).toBe(true);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].excludeFromRefresh).toBe(true);
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
@@ -459,5 +462,68 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(folderInput.value).toBe("My Custom Folder");
+  });
+
+  it("renders tag multi-select and submits selected customTags in object payload", async () => {
+    const app = createMockApp();
+    const onAdd = vi.fn(async () => true);
+    const onSave = vi.fn();
+
+    const plugin = {
+      settings: {
+        tags: [
+          { name: "News", color: "#111122" },
+          { name: "Tech", color: "#228811" },
+        ],
+        media: {
+          defaultTwitterFolder: "Social/Twitter",
+          defaultYouTubeFolder: "Videos",
+          defaultPodcastFolder: "Podcast",
+          defaultRssFolder: "RSS",
+        },
+      },
+    };
+
+    const modal = new AddFeedModal(app, [], onAdd, onSave, "", plugin as never);
+    modal.open();
+
+    const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
+    const urlInput = urlSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+    urlInput.value = "https://example.com/feed.xml";
+    urlInput.dispatchEvent(new Event("input"));
+
+    const titleSetting = getSettingByName(modal.contentEl, "Title");
+    const titleInput = titleSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+    titleInput.value = "My feed";
+    titleInput.dispatchEvent(new Event("input"));
+
+    // Find the tag multi-select control inside the modal
+    const tagsWrapper = modal.contentEl.querySelector(".rss-dashboard-tag-multi-select");
+    expect(tagsWrapper).not.toBeNull();
+
+    // Select "News" and "Tech" tags by clicking their chips
+    const chips = Array.from(tagsWrapper!.querySelectorAll<HTMLElement>(".rss-dashboard-tag-chip"));
+    const newsChip = chips.find((c) => c.textContent?.trim() === "News");
+    const techChip = chips.find((c) => c.textContent?.trim() === "Tech");
+    expect(newsChip).toBeDefined();
+    expect(techChip).toBeDefined();
+
+    newsChip!.click();
+    techChip!.click();
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    const requestPayload = onAdd.mock.calls[0]?.[0];
+    expect(requestPayload).toBeDefined();
+    expect(requestPayload.url).toBe("https://example.com/feed.xml");
+    expect(requestPayload.title).toBe("My feed");
+    expect(requestPayload.customTags).toEqual(["News", "Tech"]);
+    expect(onSave).toHaveBeenCalledTimes(1);
   });
 });

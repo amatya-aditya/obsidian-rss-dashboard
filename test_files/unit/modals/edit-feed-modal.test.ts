@@ -5,6 +5,7 @@ import { applyFeedRetentionLimits } from "../../../src/services/feed-parser";
 import * as feedPreviewLoader from "../../../src/modals/feed-manager/feed-preview-loader";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type { Feed } from "../../../src/types/types";
+import type RssDashboardPlugin from "../../../src/main";
 
 type MockApp = ReturnType<
   (typeof obsidian.App & { createMock(): unknown })["createMock"]
@@ -1186,4 +1187,250 @@ describe("EditFeedModal", () => {
     const folderInput = getTextInputBySettingName(modal.contentEl, "Folder");
     expect(folderInput.value).toBe("My Custom Folder");
   });
+
+  it("renders tag multi-select with pre-populated values and does not open confirm modal if customTags are unchanged on save", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: 0,
+      customTags: ["News"],
+    } as unknown as Feed;
+
+    const plugin: PluginTestFixture = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        availableTags: [
+          { name: "News", color: "#111122" },
+          { name: "Tech", color: "#228811" },
+        ],
+        articleSaving: { savedTemplates: [] },
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+      } as PluginTestFixture["settings"],
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    const modal = new EditFeedModal(
+      app,
+      plugin as unknown as RssDashboardPlugin,
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    // Check pre-population
+    const tagsWrapper = modal.contentEl.querySelector(".rss-dashboard-tag-multi-select");
+    expect(tagsWrapper).not.toBeNull();
+    const activeChip = tagsWrapper!.querySelector(".rss-dashboard-tag-chip[aria-pressed='true']");
+    expect(activeChip?.textContent?.trim()).toBe("News");
+
+    // Click save without changing anything
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    // Should save directly and not open confirmation
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    expect(feed.customTags).toEqual(["News"]);
+  });
+
+  it("opens TagApplicationConfirmModal on save when customTags change, and processes apply_existing", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Uncategorized",
+      items: [
+        { title: "Item 1", tags: [{ name: "Tech", color: "#228811" }] },
+      ],
+      lastUpdated: 0,
+      customTags: ["Tech"],
+    } as unknown as Feed;
+
+    const plugin: PluginTestFixture = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        availableTags: [
+          { name: "News", color: "#111122" },
+          { name: "Tech", color: "#228811" },
+        ],
+        articleSaving: { savedTemplates: [] },
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+      } as PluginTestFixture["settings"],
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    const modal = new EditFeedModal(
+      app,
+      plugin as unknown as RssDashboardPlugin,
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    const tagsWrapper = modal.contentEl.querySelector(".rss-dashboard-tag-multi-select");
+    const chips = Array.from(tagsWrapper!.querySelectorAll<HTMLElement>(".rss-dashboard-tag-chip"));
+
+    // Click "News" to select it, and "Tech" to deselect it
+    const tagsWrapper = modal.contentEl.querySelector(".rss-dashboard-tag-multi-select");
+    const chips = Array.from(tagsWrapper!.querySelectorAll<HTMLElement>(".rss-dashboard-tag-chip"));
+    const newsChip = chips.find((c) => c.textContent?.trim() === "News");
+    const techChip = chips.find((c) => c.textContent?.trim() === "Tech");
+    newsChip!.click();
+    techChip!.click();
+
+    const { TagApplicationConfirmModal } = await import("../../../src/modals/feed-manager/tag-application-confirm-modal");
+    const mockWaitForClose = vi.spyOn(TagApplicationConfirmModal.prototype, "waitForClose").mockResolvedValue("apply_existing");
+    const mockOpen = vi.spyOn(TagApplicationConfirmModal.prototype, "open").mockImplementation(() => {});
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(mockOpen).toHaveBeenCalledTimes(1);
+    expect(mockWaitForClose).toHaveBeenCalledTimes(1);
+
+    // After applying retroactively: News should be applied, Tech should be removed from items
+    expect(feed.customTags).toEqual(["News"]);
+    expect(feed.items[0].tags).toEqual([{ name: "News", color: "#111122" }]);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens TagApplicationConfirmModal on save when customTags change, and processes future_only", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Uncategorized",
+      items: [
+        { title: "Item 1", tags: [{ name: "Tech", color: "#228811" }] },
+      ],
+      lastUpdated: 0,
+      customTags: ["Tech"],
+    } as unknown as Feed;
+
+    const plugin: PluginTestFixture = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        availableTags: [
+          { name: "News", color: "#111122" },
+          { name: "Tech", color: "#228811" },
+        ],
+        articleSaving: { savedTemplates: [] },
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+      } as PluginTestFixture["settings"],
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app,
+      plugin as unknown as RssDashboardPlugin,
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    const tagsWrapper = modal.contentEl.querySelector(".rss-dashboard-tag-multi-select");
+    const chips = Array.from(tagsWrapper!.querySelectorAll<HTMLElement>(".rss-dashboard-tag-chip"));
+    const newsChip = chips.find((c) => c.textContent?.trim() === "News");
+    const techChip = chips.find((c) => c.textContent?.trim() === "Tech");
+    newsChip!.click();
+    techChip!.click();
+
+    const { TagApplicationConfirmModal } = await import("../../../src/modals/feed-manager/tag-application-confirm-modal");
+    const mockWaitForClose = vi.spyOn(TagApplicationConfirmModal.prototype, "waitForClose").mockResolvedValue("future_only");
+    const mockOpen = vi.spyOn(TagApplicationConfirmModal.prototype, "open").mockImplementation(() => {});
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(mockOpen).toHaveBeenCalledTimes(1);
+
+    // Only customTags on feed should update, items remain untouched
+    expect(feed.customTags).toEqual(["News"]);
+    expect(feed.items[0].tags).toEqual([{ name: "Tech", color: "#228811" }]);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens TagApplicationConfirmModal on save when customTags change, and processes cancel_save", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Uncategorized",
+      items: [
+        { title: "Item 1", tags: [{ name: "Tech", color: "#228811" }] },
+      ],
+      lastUpdated: 0,
+      customTags: ["Tech"],
+    } as unknown as Feed;
+
+    const plugin: PluginTestFixture = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        availableTags: [
+          { name: "News", color: "#111122" },
+          { name: "Tech", color: "#228811" },
+        ],
+        articleSaving: { savedTemplates: [] },
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+      } as PluginTestFixture["settings"],
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    const modal = new EditFeedModal(
+      app,
+      plugin as unknown as RssDashboardPlugin,
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    const tagsWrapper = modal.contentEl.querySelector(".rss-dashboard-tag-multi-select");
+    const chips = Array.from(tagsWrapper!.querySelectorAll<HTMLElement>(".rss-dashboard-tag-chip"));
+    const newsChip = chips.find((c) => c.textContent?.trim() === "News");
+    const techChip = chips.find((c) => c.textContent?.trim() === "Tech");
+    newsChip!.click();
+    techChip!.click();
+
+    const { TagApplicationConfirmModal } = await import("../../../src/modals/feed-manager/tag-application-confirm-modal");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const mockWaitForClose = vi.spyOn(TagApplicationConfirmModal.prototype, "waitForClose").mockResolvedValue("cancel_save");
+    const mockOpen = vi.spyOn(TagApplicationConfirmModal.prototype, "open").mockImplementation(() => {});
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(mockOpen).toHaveBeenCalledTimes(1);
+
+    // Reverts selection, does not save feed settings or change items
+    expect(feed.customTags).toEqual(["Tech"]);
+    expect(feed.items[0].tags).toEqual([{ name: "Tech", color: "#228811" }]);
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+  });
 });
+
