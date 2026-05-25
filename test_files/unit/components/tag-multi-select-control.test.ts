@@ -1,284 +1,210 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-	Tag,
-} from "../../../src/types/types";
-import {
-	addTagMultiSelectControl,
-} from "../../../src/components/tag-multi-select-control";
+import type { Tag } from "../../../src/types/types";
+import { addTagMultiSelectControl } from "../../../src/components/tag-multi-select-control";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
-function makeContainer(): HTMLElement {
-	return document.createElement("div");
+function setup(opts: {
+  availableTags: Tag[];
+  selectedTagNames: string[];
+  triggerEmptyLabel?: string;
+}) {
+  const onChange = vi.fn();
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+
+  addTagMultiSelectControl({
+    setting: { controlEl: container } as unknown as import("obsidian").Setting,
+    availableTags: opts.availableTags,
+    selectedTagNames: opts.selectedTagNames,
+    triggerEmptyLabel: opts.triggerEmptyLabel,
+    menuTitle: "Select tags",
+    onChange,
+  });
+
+  const wrapper = container.querySelector<HTMLElement>(
+    ".rss-dashboard-tag-multi-select",
+  );
+  const trigger = container.querySelector<HTMLButtonElement>(
+    ".rss-dashboard-tag-multi-select-trigger",
+  );
+
+  expect(wrapper).not.toBeNull();
+  expect(trigger).not.toBeNull();
+
+  return { container, wrapper: wrapper!, trigger: trigger!, onChange };
 }
 
-function setup(opts: {
-	availableTags: Tag[];
-	selectedTagNames: string[];
-	onChange?: ReturnType<typeof vi.fn>;
-}): {
-	wrapper: HTMLElement;
-	onChange: ReturnType<typeof vi.fn>;
-} {
-	const onChange = vi.fn();
-	const container = makeContainer();
+function getMenu(): HTMLElement {
+  const menu = document.body.querySelector<HTMLElement>(
+    ".rss-dashboard-tag-multi-select-menu",
+  );
+  if (!menu) {
+    throw new Error("Tag menu not found");
+  }
+  return menu;
+}
 
-	addTagMultiSelectControl({
-		setting: {
-			controlEl: container,
-		} as unknown as import("obsidian").Setting,
-		availableTags: opts.availableTags,
-		selectedTagNames: opts.selectedTagNames,
-		onChange,
-	});
+function getOption(name: string): HTMLButtonElement {
+  const option = Array.from(
+    getMenu().querySelectorAll<HTMLButtonElement>(
+      ".rss-dashboard-tag-multi-select-menu-option",
+    ),
+  ).find((el) => el.getAttribute("data-tag-name") === name);
 
-	const wrapper = container.querySelector<HTMLElement>(
-		".rss-dashboard-tag-multi-select",
-	);
-	expect(wrapper).not.toBeNull();
-	return { wrapper: wrapper!, onChange };
+  if (!option) {
+    throw new Error(`Tag option not found: ${name}`);
+  }
+  return option;
 }
 
 beforeEach(() => {
-	installObsidianDomPolyfills();
-	vi.restoreAllMocks();
+  installObsidianDomPolyfills();
+  document.body.empty();
+  vi.restoreAllMocks();
 });
 
 describe("tag-multi-select", () => {
+  it("renders a compact trigger with the empty summary when no tags are selected", () => {
+    const { trigger } = setup({
+      availableTags: [{ name: "News", color: "#111122" }],
+      selectedTagNames: [],
+      triggerEmptyLabel: "None",
+    });
 
-	it("renders a chip div for each available tag", () => {
-		const { wrapper } = setup({
-			availableTags: [
-				{ name: "News", color: "#111122" },
-				{ name: "Tech", color: "#228811" },
-			],
-			selectedTagNames: [],
-		});
-		const chips = wrapper.querySelectorAll(".rss-dashboard-tag-chip");
-		expect(chips).toHaveLength(2);
-	});
+    expect(trigger.textContent).toContain("None");
+    expect(trigger.disabled).toBe(false);
+  });
 
-	it("marks preselected tags with aria-pressed=true and unselected chips with aria-pressed=false", () => {
-		const { wrapper } = setup({
-			availableTags: [
-				{ name: "News", color: "#111122" },
-				{ name: "Tech", color: "#228811" },
-			],
-			selectedTagNames: ["News"],
-		});
-		const selected = wrapper.querySelectorAll<HTMLElement>(
-			".rss-dashboard-tag-chip[aria-pressed='true']",
-		);
-		expect(selected).toHaveLength(1);
-		expect(selected[0].textContent).toBe("News");
+  it("renders the single selected tag name in the trigger summary", () => {
+    const { trigger } = setup({
+      availableTags: [
+        { name: "News", color: "#111122" },
+        { name: "Tech", color: "#228811" },
+      ],
+      selectedTagNames: ["Tech"],
+    });
 
-		const unselected = wrapper.querySelectorAll<HTMLElement>(
-			".rss-dashboard-tag-chip[aria-pressed='false']",
-		);
-		expect(unselected).toHaveLength(1);
-		expect(unselected[0].textContent).toBe("Tech");
-	});
+    expect(trigger.textContent).toContain("Tech");
+  });
 
-	it("clicks a chip and onChange fires with normalised array", () => {
-		const { wrapper, onChange } = setup({
-			availableTags: [
-				{ name: "News", color: "#111122" },
-				{ name: "Tech", color: "#228811" },
-			],
-			selectedTagNames: ["News"],
-		});
-		const [, techChip] = Array.from(wrapper.querySelectorAll<HTMLElement>(
-			".rss-dashboard-tag-chip",
-		));
+  it("renders an aggregate summary when multiple tags are selected", () => {
+    const { trigger } = setup({
+      availableTags: [
+        { name: "News", color: "#111122" },
+        { name: "Tech", color: "#228811" },
+      ],
+      selectedTagNames: ["News", "Tech"],
+    });
 
-		techChip.click();
+    expect(trigger.textContent).toContain("2 tags selected");
+  });
 
-		expect(onChange).toHaveBeenCalledOnce();
-		expect(onChange).toHaveBeenCalledWith(["News", "Tech"]);
-	});
+  it("opens and closes the dropdown menu from the trigger", () => {
+    const { trigger } = setup({
+      availableTags: [{ name: "News", color: "#111122" }],
+      selectedTagNames: [],
+    });
 
-	it("clicks a selected chip and onChange fires with chip removed", () => {
-		const { wrapper, onChange } = setup({
-			availableTags: [
-				{ name: "News", color: "#111122" },
-				{ name: "Tech", color: "#228811" },
-			],
-			selectedTagNames: ["News", "Tech"],
-		});
-		const [newsChip] = Array.from(wrapper.querySelectorAll<HTMLElement>(
-			".rss-dashboard-tag-chip",
-		));
+    trigger.click();
+    expect(getMenu()).toBeTruthy();
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
 
-		newsChip.click();
+    trigger.click();
+    expect(
+      document.body.querySelector(".rss-dashboard-tag-multi-select-menu"),
+    ).toBeNull();
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
 
-		expect(onChange).toHaveBeenCalledOnce();
-		expect(onChange).toHaveBeenCalledWith(["Tech"]);
-	});
+  it("clicking outside closes the open menu", async () => {
+    const { trigger } = setup({
+      availableTags: [{ name: "News", color: "#111122" }],
+      selectedTagNames: [],
+    });
 
-	it("dedupes repeated names in selectedTagNames and preserves order", () => {
-		const { wrapper } = setup({
-			availableTags: [
-				{ name: "News", color: "#111122" },
-				{ name: "Tech", color: "#228811" },
-				{ name: "Video", color: "#881122" },
-			],
-			selectedTagNames: ["News", "Tech", "News", "Tech"],
-		});
-		const selected = wrapper.querySelectorAll<HTMLElement>(
-			".rss-dashboard-tag-chip[aria-pressed='true']",
-		);
-		expect(selected).toHaveLength(2);
-		expect(selected[0].textContent).toBe("News");
-		expect(selected[1].textContent).toBe("Tech");
-	});
+    trigger.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
 
-	it("ignores names not in availableTags", () => {
-		const { wrapper } = setup({
-			availableTags: [
-				{ name: "News", color: "#111122" },
-			],
-			selectedTagNames: ["News", "Ghost"],
-		});
-		const chips = wrapper.querySelectorAll(".rss-dashboard-tag-chip");
-		expect(chips).toHaveLength(1);
-		expect(chips[0].textContent).toBe("News");
-		expect(
-			wrapper.querySelectorAll(".rss-dashboard-tag-chip[aria-pressed='true']"),
-		).toHaveLength(1);
-	});
+    expect(
+      document.body.querySelector(".rss-dashboard-tag-multi-select-menu"),
+    ).toBeNull();
+  });
 
-	it("clicks all available tags and emits the final deduped state", () => {
-		const { wrapper, onChange } = setup({
-			availableTags: [
-				{ name: "News", color: "#111122" },
-			],
-			selectedTagNames: [],
-		});
+  it("clicking an option emits the cumulative normalized array", () => {
+    const { trigger, onChange } = setup({
+      availableTags: [
+        { name: "News", color: "#111122" },
+        { name: "Tech", color: "#228811" },
+      ],
+      selectedTagNames: ["News"],
+    });
 
-		const chips = wrapper.querySelectorAll<HTMLElement>(
-			".rss-dashboard-tag-chip",
-		);
-		chips.forEach((chip: HTMLElement) => chip.click());
+    trigger.click();
+    getOption("Tech").click();
 
-		expect(onChange).toHaveBeenLastCalledWith(["News"]);
-	});
+    expect(onChange).toHaveBeenCalledWith(["News", "Tech"]);
+    expect(trigger.textContent).toContain("2 tags selected");
+  });
 
-	it("does not mutate the availableTags array", () => {
-		const availableTags: Tag[] = [
-			{ name: "News", color: "#111122" },
-			{ name: "Tech", color: "#228811" },
-		];
-		setup({
-			availableTags,
-			selectedTagNames: ["News"],
-		});
-		expect(availableTags).toEqual([
-			{ name: "News", color: "#111122" },
-			{ name: "Tech", color: "#228811" },
-		]);
-	});
+  it("repeated toggle on the same option updates DOM state without parent rerender", () => {
+    const { trigger, onChange } = setup({
+      availableTags: [{ name: "News", color: "#111122" }],
+      selectedTagNames: [],
+    });
 
-	it("renders a visible empty-state element when no tags are available", () => {
-		const onChange = vi.fn();
-		const container = makeContainer();
+    trigger.click();
+    getOption("News").click();
+    expect(onChange).toHaveBeenLastCalledWith(["News"]);
+    expect(getOption("News").getAttribute("aria-pressed")).toBe("true");
+    expect(trigger.textContent).toContain("News");
 
-		addTagMultiSelectControl({
-			setting: {
-				controlEl: container,
-			} as unknown as import("obsidian").Setting,
-			availableTags: [],
-			selectedTagNames: [],
-			noneLabel: "(none selected)",
-			onChange,
-		});
+    getOption("News").click();
+    expect(onChange).toHaveBeenLastCalledWith([]);
+    expect(getOption("News").getAttribute("aria-pressed")).toBe("false");
+    expect(trigger.textContent).toContain("None");
+  });
 
-		const wrapper = container.querySelector<HTMLElement>(
-			".rss-dashboard-tag-multi-select",
-		);
-		expect(wrapper).not.toBeNull();
-		if (wrapper == null) return;
-		expect(
-			wrapper.querySelectorAll(".rss-dashboard-tag-chip"),
-		).toHaveLength(0);
+  it("keyboard activation toggles the selected option", () => {
+    const { trigger, onChange } = setup({
+      availableTags: [{ name: "News", color: "#111122" }],
+      selectedTagNames: [],
+    });
 
-		const emptyEl = wrapper.querySelector<HTMLElement>(
-			".rss-dashboard-tag-multi-select-empty",
-		);
-		expect(emptyEl).not.toBeNull();
-		expect(emptyEl!.textContent).toBe("(none selected)");
-		expect(wrapper.classList.contains("rss-dashboard-tag-multi-select--empty")).toBe(true);
-	});
+    trigger.click();
+    getOption("News").dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
 
-	it("keyboard Enter fires onChange with the toggled state", () => {
-		const { wrapper, onChange } = setup({
-			availableTags: [
-				{ name: "News", color: "#111122" },
-			],
-			selectedTagNames: [],
-		});
-		const [chip] = Array.from(wrapper.querySelectorAll<HTMLElement>(
-			".rss-dashboard-tag-chip",
-		));
+    expect(onChange).toHaveBeenCalledWith(["News"]);
+  });
 
-		chip.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-		expect(onChange).toHaveBeenCalledWith(["News"]);
-	});
+  it("dedupes repeated names and ignores names not present in availableTags", () => {
+    const { trigger } = setup({
+      availableTags: [
+        { name: "News", color: "#111122" },
+        { name: "Tech", color: "#228811" },
+      ],
+      selectedTagNames: ["News", "Ghost", "News"],
+    });
 
-	it("keyboard Space fires onChange with the toggled state", () => {
-		const { wrapper, onChange } = setup({
-			availableTags: [
-				{ name: "News", color: "#111122" },
-			],
-			selectedTagNames: [],
-		});
-		const [chip] = Array.from(wrapper.querySelectorAll<HTMLElement>(
-			".rss-dashboard-tag-chip",
-		));
+    expect(trigger.textContent).toContain("News");
+    trigger.click();
+    expect(getOption("News").getAttribute("aria-pressed")).toBe("true");
+    expect(getOption("Tech").getAttribute("aria-pressed")).toBe("false");
+  });
 
-		chip.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
-		expect(onChange).toHaveBeenCalledWith(["News"]);
-	});
+  it("shows a disabled trigger with empty-state summary when there are no available tags", () => {
+    const { wrapper, trigger } = setup({
+      availableTags: [],
+      selectedTagNames: [],
+      triggerEmptyLabel: "None",
+    });
 
-	it("repeated toggle on the same chip emits toggle-off without requiring parent re-render", () => {
-		const { wrapper, onChange } = setup({
-			availableTags: [
-				{ name: "News", color: "#111122" },
-			],
-			selectedTagNames: [],
-		});
-		const [chip] = Array.from(wrapper.querySelectorAll<HTMLElement>(
-			".rss-dashboard-tag-chip",
-		));
-
-		// Click once — selects
-		chip.click();
-
-		expect(onChange).toHaveBeenLastCalledWith(["News"]);
-
-		// Click again — deselects (uses live state, not initial snapshot)
-		chip.click();
-		expect(onChange).toHaveBeenLastCalledWith([]);
-	});
-
-	it("heterogeneous sequential clicks on two chips emit cumulative correct state", () => {
-		const { wrapper, onChange } = setup({
-			availableTags: [
-				{ name: "News", color: "#111122" },
-				{ name: "Tech", color: "#228811" },
-			],
-			selectedTagNames: [],
-		});
-		const chips = wrapper.querySelectorAll<HTMLElement>(
-			".rss-dashboard-tag-chip",
-		);
-
-		// Select Tech, then News — second click uses live state including Tech
-		// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-		chips[1]!.click();
-		expect(onChange).toHaveBeenLastCalledWith(["Tech"]);
-
-		// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-		chips[0]!.click();
-		expect(onChange).toHaveBeenLastCalledWith(["News", "Tech"]);
-	});
-
+    expect(wrapper.classList.contains("rss-dashboard-tag-multi-select--empty")).toBe(
+      true,
+    );
+    expect(trigger.disabled).toBe(true);
+    expect(trigger.textContent).toContain("None");
+  });
 });

@@ -17,7 +17,7 @@ import type {
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 
 // Mock functions for FeedParser - must be declared before mocks
-const mockParseFeed = vi.fn();
+const mockParseFeed = vi.fn<(url: string) => Promise<Feed>>();
 const mockRefreshAllFeeds = vi.fn();
 
 // Mock window event listeners - must be declared before mocks
@@ -58,6 +58,7 @@ vi.mock("../../../src/utils/settings-migration", () => ({
   migrateDefaultFilterToDashboardMultiFilters: vi.fn(),
   migrateKeywordRulesSettings: vi.fn().mockReturnValue(false),
   migrateMediaVideoTagSettings: vi.fn().mockReturnValue(false),
+  migrateMediaDefaultTagArrays: vi.fn().mockReturnValue(false),
 }));
 
 // Import main AFTER all mocks are set up
@@ -159,8 +160,7 @@ async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
   (plugin as unknown as PluginPrivateAPI).backgroundImportService =
     new BackgroundImportService({
       feedParser: {
-        parseFeed: (url: string) =>
-          (mockParseFeed as (url: string) => unknown)(url),
+        parseFeed: (url: string) => mockParseFeed(url),
       },
       getSettings: () => plugin.settings,
       getView: () => plugin.getActiveDashboardView(),
@@ -168,7 +168,9 @@ async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
       ensureFolderExists: (folder, opts) =>
         plugin.ensureFolderExists(folder, opts),
       addStatusBarItem: () => {
-        const el = document.createElement("div");
+        const el = document.createElement("div") as HTMLDivElement & {
+          createSpan: (opts?: { cls?: string }) => HTMLSpanElement;
+        };
         el.createSpan = (opts?: { cls?: string }) => {
           const span = document.createElement("span");
           if (opts?.cls) span.className = opts.cls;
@@ -1021,6 +1023,57 @@ describe("addFeed()", () => {
     expect(addedFeed?.mediaType).toBe("video");
   });
 
+  it("applies all configured defaultYouTubeTags when adding a new YouTube feed", async () => {
+    const youtubeUrl =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw";
+
+    plugin.settings.availableTags = [
+      { name: "Video", color: "#d04747" },
+      { name: "News", color: "#3498db" },
+      { name: "Tech", color: "#2ecc71" },
+      { name: "Learning", color: "#f1c40f" },
+    ];
+    plugin.settings.media.defaultYouTubeFolder = "Videos";
+    plugin.settings.media.defaultYouTubeTags = [
+      "News",
+      "Tech",
+      "Learning",
+      "Video",
+    ];
+    plugin.settings.media.defaultYouTubeTag = "Video";
+
+    mockParseFeed.mockResolvedValue({
+      title: "YouTube Feed",
+      url: youtubeUrl,
+      folder: "Videos",
+      items: [
+        {
+          ...sampleFeed.items[0],
+          guid: "yt-item-1",
+          link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          feedUrl: youtubeUrl,
+          feedTitle: "YouTube Feed",
+          mediaType: "video",
+          tags: [],
+        },
+      ],
+      lastUpdated: Date.now(),
+      mediaType: "video",
+    });
+
+    await plugin.addFeed("YouTube Feed", youtubeUrl, "Videos");
+
+    const addedFeed = plugin.settings.feeds.find(
+      (f: Feed) => f.url === youtubeUrl,
+    );
+    expect(addedFeed?.items[0].tags?.map((tag) => tag.name)).toEqual([
+      "Video",
+      "News",
+      "Tech",
+      "Learning",
+    ]);
+  });
+
   it("detects media type based on folder (Podcast)", async () => {
     // Given: Feed in Podcast folder
     const podcastUrl = "https://podcast.com/feed.xml";
@@ -1179,6 +1232,62 @@ describe("addFeed()", () => {
 
     const addedFeed = plugin.settings.feeds.find((f: Feed) => f.url === newUrl);
     expect(addedFeed?.excludeFromRefresh).toBe(true);
+  });
+
+  it("stores customTags and applies them alongside media default tags on first add", async () => {
+    const youtubeUrl =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC_custom_stack";
+
+    plugin.settings.availableTags = [
+      { name: "Video", color: "#d04747" },
+      { name: "News", color: "#3498db" },
+      { name: "Tech", color: "#2ecc71" },
+    ];
+    plugin.settings.media.defaultYouTubeFolder = "Videos";
+    plugin.settings.media.defaultYouTubeTags = ["Video", "News"];
+    plugin.settings.media.defaultYouTubeTag = "Video";
+
+    mockParseFeed.mockResolvedValue({
+      title: "Stacked Tags Feed",
+      url: youtubeUrl,
+      folder: "Videos",
+      items: [
+        {
+          ...sampleFeed.items[0],
+          guid: "yt-stack-1",
+          link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          feedUrl: youtubeUrl,
+          feedTitle: "Stacked Tags Feed",
+          mediaType: "video",
+          tags: [{ name: "Video", color: "#d04747" }],
+        },
+      ],
+      lastUpdated: Date.now(),
+      mediaType: "video",
+    });
+
+    await plugin.addFeed(
+      "Stacked Tags Feed",
+      youtubeUrl,
+      "Videos",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      ["News", "Tech", "Missing", "Tech"],
+    );
+
+    const addedFeed = plugin.settings.feeds.find(
+      (f: Feed) => f.url === youtubeUrl,
+    );
+    expect(addedFeed?.customTags).toEqual(["News", "Tech", "Missing", "Tech"]);
+    expect(addedFeed?.items[0].tags?.map((tag) => tag.name)).toEqual([
+      "Video",
+      "News",
+      "Tech",
+    ]);
   });
 
   it("preserves the global maxItems default when parser output omits maxItemsLimit", async () => {

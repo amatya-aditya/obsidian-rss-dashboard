@@ -63,6 +63,8 @@ import {
   migrateSettings,
 } from "./src/utils/settings-loader";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
+import { applyTagsToItems } from "./src/services/tag-applier";
+import { resolveTagObjects } from "./src/utils/tag-resolver";
 
 export interface FiltersUpdatedEventPayload {
   source: string;
@@ -1703,6 +1705,7 @@ export default class RssDashboardPlugin extends Plugin {
     feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
     excludeFromRefresh?: boolean,
+    customTags?: string[],
     options?: { showNotice?: boolean },
   ) {
     const showNotice = options?.showNotice !== false;
@@ -1739,6 +1742,10 @@ export default class RssDashboardPlugin extends Plugin {
         excludeFromRefresh: excludeFromRefresh === true,
         mediaType: mediaType,
         customTemplate: customTemplate || undefined,
+        customTags:
+          Array.isArray(customTags) && customTags.length > 0
+            ? [...customTags]
+            : undefined,
         keywordRules: feedKeywordRules || {
           overrideGlobalRules: false,
           includeLogic: "AND",
@@ -1769,6 +1776,7 @@ export default class RssDashboardPlugin extends Plugin {
           excludeFromRefresh:
             parsedFeed.excludeFromRefresh ?? newFeed.excludeFromRefresh,
           customTemplate: parsedFeed.customTemplate ?? newFeed.customTemplate,
+          customTags: parsedFeed.customTags ?? newFeed.customTags,
           keywordRules: parsedFeed.keywordRules ?? newFeed.keywordRules,
         };
         if (feedToStore.folder) {
@@ -1785,6 +1793,11 @@ export default class RssDashboardPlugin extends Plugin {
           this.settings.availableTags,
           this.settings.media,
         );
+        const resolvedCustomTags = resolveTagObjects(
+          feedToStore.customTags ?? [],
+          this.settings.availableTags,
+        );
+        applyTagsToItems(feedWithTags.items, resolvedCustomTags);
 
         // Only add to settings if parsing succeeded
         this.settings.feeds.push(feedWithTags);

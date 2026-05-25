@@ -78,6 +78,28 @@ function getTextInputBySettingName(
   return inputEl;
 }
 
+function getTagTrigger(containerEl: HTMLElement): HTMLButtonElement {
+  const trigger = containerEl.querySelector(
+    ".rss-dashboard-tag-multi-select-trigger",
+  );
+  if (!(trigger instanceof HTMLButtonElement)) {
+    throw new Error("Tag trigger not found");
+  }
+  return trigger;
+}
+
+function getOpenTagOption(name: string): HTMLButtonElement {
+  const option = Array.from(
+    document.body.querySelectorAll<HTMLButtonElement>(
+      ".rss-dashboard-tag-multi-select-menu-option",
+    ),
+  ).find((el) => el.getAttribute("data-tag-name") === name);
+  if (!(option instanceof HTMLButtonElement)) {
+    throw new Error(`Tag option not found: ${name}`);
+  }
+  return option;
+}
+
 beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
@@ -464,14 +486,14 @@ describe("AddFeedModal", () => {
     expect(folderInput.value).toBe("My Custom Folder");
   });
 
-  it("renders tag multi-select and submits selected customTags in object payload", async () => {
+  it("renders tag dropdown multi-select and submits selected customTags in object payload", async () => {
     const app = createMockApp();
     const onAdd = vi.fn(async () => true);
     const onSave = vi.fn();
 
     const plugin = {
       settings: {
-        tags: [
+        availableTags: [
           { name: "News", color: "#111122" },
           { name: "Tech", color: "#228811" },
         ],
@@ -501,19 +523,12 @@ describe("AddFeedModal", () => {
     titleInput.value = "My feed";
     titleInput.dispatchEvent(new Event("input"));
 
-    // Find the tag multi-select control inside the modal
-    const tagsWrapper = modal.contentEl.querySelector(".rss-dashboard-tag-multi-select");
-    expect(tagsWrapper).not.toBeNull();
+    const trigger = getTagTrigger(modal.contentEl);
+    expect(trigger.textContent).toContain("None");
 
-    // Select "News" and "Tech" tags by clicking their chips
-    const chips = Array.from(tagsWrapper!.querySelectorAll<HTMLElement>(".rss-dashboard-tag-chip"));
-    const newsChip = chips.find((c) => c.textContent?.trim() === "News");
-    const techChip = chips.find((c) => c.textContent?.trim() === "Tech");
-    expect(newsChip).toBeDefined();
-    expect(techChip).toBeDefined();
-
-    newsChip!.click();
-    techChip!.click();
+    trigger.click();
+    getOpenTagOption("News").click();
+    getOpenTagOption("Tech").click();
 
     getButtonByText(modal.contentEl, "Save").click();
     await flushPromises();

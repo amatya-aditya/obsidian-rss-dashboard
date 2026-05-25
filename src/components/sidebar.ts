@@ -74,6 +74,7 @@ export interface SidebarCallbacks {
     feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
     excludeFromRefresh?: boolean,
+    customTags?: string[],
   ) => Promise<void>;
   onEditFeed: (feed: Feed, title: string, url: string, folder: string) => void;
   onDeleteFeed: (feed: Feed) => void;
@@ -3208,6 +3209,7 @@ export class Sidebar {
           request.feedKeywordRules,
           request.customTemplate,
           request.excludeFromRefresh,
+          request.customTags,
         ),
       () => this.render(),
       defaultFolder,

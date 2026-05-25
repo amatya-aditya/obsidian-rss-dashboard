@@ -65,7 +65,8 @@ export function renderMediaSettingsTab(
     selectedTagNames:
       (plugin.settings.media as { defaultVideoTags?: string[] })
         .defaultVideoTags ?? [],
-    noneLabel: "(none)",
+    triggerEmptyLabel: "None",
+    menuTitle: "Select default video tags",
     onChange: async (selected: string[]) => {
       (
         plugin.settings.media as { defaultVideoTags?: string[] }
@@ -135,7 +136,8 @@ export function renderMediaSettingsTab(
     selectedTagNames:
       (plugin.settings.media as { defaultTwitterTags?: string[] })
         .defaultTwitterTags ?? [],
-    noneLabel: "(none)",
+    triggerEmptyLabel: "None",
+    menuTitle: "Select default Twitter tags",
     onChange: async (selected: string[]) => {
       (
         plugin.settings.media as { defaultTwitterTags?: string[] }
@@ -181,7 +183,8 @@ export function renderMediaSettingsTab(
     selectedTagNames:
       (plugin.settings.media as { defaultMastodonTags?: string[] })
         .defaultMastodonTags ?? [],
-    noneLabel: "(none)",
+    triggerEmptyLabel: "None",
+    menuTitle: "Select default Mastodon tags",
     onChange: async (selected: string[]) => {
       (
         plugin.settings.media as { defaultMastodonTags?: string[] }
@@ -331,7 +334,8 @@ export function renderMediaSettingsTab(
     selectedTagNames:
       (plugin.settings.media as { defaultYouTubeTags?: string[] })
         .defaultYouTubeTags ?? [],
-    noneLabel: "(none)",
+    triggerEmptyLabel: "None",
+    menuTitle: "Select default YouTube tags",
     onChange: async (selected: string[]) => {
       (
         plugin.settings.media as { defaultYouTubeTags?: string[] }
@@ -371,7 +375,8 @@ export function renderMediaSettingsTab(
     selectedTagNames:
       (plugin.settings.media as { defaultPodcastTags?: string[] })
         .defaultPodcastTags ?? [],
-    noneLabel: "(none)",
+    triggerEmptyLabel: "None",
+    menuTitle: "Select default podcast tags",
     onChange: async (selected: string[]) => {
       (
         plugin.settings.media as { defaultPodcastTags?: string[] }
@@ -417,7 +422,8 @@ export function renderMediaSettingsTab(
     selectedTagNames:
       (plugin.settings.media as { defaultRssTags?: string[] })
         .defaultRssTags ?? [],
-    noneLabel: "(none)",
+    triggerEmptyLabel: "None",
+    menuTitle: "Select default RSS tags",
     onChange: async (selected: string[]) => {
       (
         plugin.settings.media as { defaultRssTags?: string[] }
@@ -468,7 +474,8 @@ export function renderMediaSettingsTab(
     selectedTagNames:
       (plugin.settings.media as { defaultSmallwebTags?: string[] })
         .defaultSmallwebTags ?? [],
-    noneLabel: "(none)",
+    triggerEmptyLabel: "None",
+    menuTitle: "Select default smallweb tags",
     onChange: async (selected: string[]) => {
       (
         plugin.settings.media as { defaultSmallwebTags?: string[] }

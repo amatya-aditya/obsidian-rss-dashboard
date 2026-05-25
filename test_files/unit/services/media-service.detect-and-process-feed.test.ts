@@ -342,6 +342,94 @@ describe("MediaService.detectAndProcessFeed", () => {
     expect(item.tags.map((t) => t.name.toLowerCase())).not.toContain("video");
   });
 
+  it("applies all configured defaultYouTubeTags to YouTube feeds", () => {
+    const ytFeed = createFeed([
+      createItem({
+        guid: "yt-multi-tag",
+        link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      }),
+    ]);
+    ytFeed.url =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw";
+
+    const tagged = MediaService.applyMediaTags(
+      MediaService.detectAndProcessFeed(ytFeed),
+      [
+        { name: "Video", color: "#d04747" },
+        { name: "News", color: "#3498db" },
+        { name: "Tech", color: "#2ecc71" },
+        { name: "Learning", color: "#f1c40f" },
+      ],
+      {
+        defaultVideoTag: "",
+        defaultYouTubeTag: "Video",
+        defaultYouTubeTags: ["News", "Tech", "Learning", "Video"],
+      },
+    );
+
+    expect(tagged.items[0].tags.map((tag) => tag.name)).toEqual([
+      "Video",
+      "News",
+      "Tech",
+      "Learning",
+    ]);
+  });
+
+  it("falls back to legacy defaultYouTubeTag when defaultYouTubeTags is empty", () => {
+    const ytFeed = createFeed([
+      createItem({
+        guid: "yt-legacy-fallback",
+        link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      }),
+    ]);
+    ytFeed.url =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw";
+
+    const tagged = MediaService.applyMediaTags(
+      MediaService.detectAndProcessFeed(ytFeed),
+      [{ name: "Legacy YouTube", color: "#d04747" }],
+      {
+        defaultVideoTag: "",
+        defaultYouTubeTag: "Legacy YouTube",
+        defaultYouTubeTags: [],
+      },
+    );
+
+    expect(tagged.items[0].tags.map((tag) => tag.name)).toEqual([
+      "Legacy YouTube",
+    ]);
+  });
+
+  it("ignores unknown configured media tags and dedupes repeated names", () => {
+    const ytFeed = createFeed([
+      createItem({
+        guid: "yt-ignore-unknown",
+        link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        tags: [{ name: "Video", color: "#d04747" }],
+      }),
+    ]);
+    ytFeed.url =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw";
+
+    const tagged = MediaService.applyMediaTags(
+      MediaService.detectAndProcessFeed(ytFeed),
+      [
+        { name: "Video", color: "#d04747" },
+        { name: "Tech", color: "#2ecc71" },
+      ],
+      {
+        defaultVideoTag: "",
+        defaultYouTubeTag: "Video",
+        defaultYouTubeTags: ["Video", "Missing", "Tech", "Tech"],
+      },
+    );
+
+    expect(tagged.items[0].tags.map((tag) => tag.name)).toEqual([
+      "Video",
+      "Tech",
+    ]);
+  });
+
   it("applies the default 'video' tag to YouTube feeds when defaultYouTubeTag is not set", () => {
     const ytFeed = createFeed([
       createItem({

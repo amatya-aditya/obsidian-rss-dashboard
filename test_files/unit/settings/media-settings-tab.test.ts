@@ -38,6 +38,36 @@ function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
 
+function getTagTrigger(settingEl: HTMLElement): HTMLButtonElement {
+  const trigger = settingEl.querySelector(
+    ".rss-dashboard-tag-multi-select-trigger",
+  );
+  if (!(trigger instanceof HTMLButtonElement)) {
+    throw new Error("Tag trigger not found");
+  }
+  return trigger;
+}
+
+function getOpenTagMenu(): HTMLElement {
+  const menu = document.body.querySelector(".rss-dashboard-tag-multi-select-menu");
+  if (!(menu instanceof HTMLElement)) {
+    throw new Error("Tag menu not found");
+  }
+  return menu;
+}
+
+function getTagOption(name: string): HTMLButtonElement {
+  const option = Array.from(
+    getOpenTagMenu().querySelectorAll<HTMLButtonElement>(
+      ".rss-dashboard-tag-multi-select-menu-option",
+    ),
+  ).find((el) => el.getAttribute("data-tag-name") === name);
+  if (!(option instanceof HTMLButtonElement)) {
+    throw new Error(`Tag option not found: ${name}`);
+  }
+  return option;
+}
+
 function sampleFolders(): Folder[] {
   return [
     {
@@ -262,7 +292,7 @@ describe("renderMediaSettingsTab()", () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
-  it("renders YouTube tag as multi-select chips and persists array changes", async () => {
+  it("renders YouTube tag as a dropdown multi-select and persists array changes", async () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),
     );
@@ -282,42 +312,24 @@ describe("renderMediaSettingsTab()", () => {
 
     renderMediaSettingsTab(containerEl, plugin);
 
-    const youtubeTagSetting = getSettingByName(
-      containerEl,
-      "Default YouTube tag",
+    const trigger = getTagTrigger(
+      getSettingByName(containerEl, "Default YouTube tag"),
     );
+    expect(trigger.textContent).toContain("MyVideo");
 
-    const wrapper = youtubeTagSetting.querySelector(
-      ".rss-dashboard-tag-multi-select",
-    );
-    expect(wrapper).not.toBeNull();
+    trigger.click();
+    expect(getTagOption("MyVideo").getAttribute("aria-pressed")).toBe("true");
+    expect(getTagOption("MyPodcast").getAttribute("aria-pressed")).toBe("false");
 
-    const chips = Array.from(
-      wrapper.querySelectorAll(".rss-dashboard-tag-chip"),
-    );
-    const chipNames = chips.map((c) =>
-      c.querySelector(".rss-dashboard-tag-chip-name")!.textContent?.trim(),
-    );
-    expect(chipNames).toContain("MyVideo");
-    expect(chipNames).toContain("MyPodcast");
-
-    // "MyVideo" is initially selected; clicking it should deselect
-    const myVideoChip = chips.find(
-      (c) =>
-        c.querySelector(".rss-dashboard-tag-chip-name")!.textContent?.trim() ===
-        "MyVideo",
-    ) as HTMLElement;
-    expect(myVideoChip).not.toBeNull();
-    expect(myVideoChip.classList.contains("rss-dashboard-tag-chip--selected")).toBe(true);
-
-    myVideoChip.click();
+    getTagOption("MyVideo").click();
     await flushPromises();
 
     expect(plugin.settings.media.defaultYouTubeTags).toEqual([]);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+    expect(trigger.textContent).toContain("None");
   });
 
-  it("renders Twitter and Mastodon tags as multi-select chips and persists array changes", async () => {
+  it("renders Twitter and Mastodon tags as dropdown multi-selects and persists array changes", async () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),
     );
@@ -338,115 +350,34 @@ describe("renderMediaSettingsTab()", () => {
 
     renderMediaSettingsTab(containerEl, plugin);
 
-    // ── Twitter ──────────────────────────────────────────────────────────────
-    const twitterTagSetting = getSettingByName(
-      containerEl,
-      "Default Twitter tag",
+    const twitterTrigger = getTagTrigger(
+      getSettingByName(containerEl, "Default Twitter tag"),
     );
-    const twWrapper = twitterTagSetting.querySelector(
-      ".rss-dashboard-tag-multi-select",
+    const mastodonTrigger = getTagTrigger(
+      getSettingByName(containerEl, "Default Mastodon tag"),
     );
-    expect(twWrapper).not.toBeNull();
-    const twChips = Array.from(
-      twWrapper.querySelectorAll(".rss-dashboard-tag-chip"),
-    );
-    expect(() =>
-      twWrapper.querySelector("select"),
-    ).toThrow("Setting not found: Default Twitter tag");
-    // no <select> element; chips exist
-    expect(twChips.length).toBeGreaterThan(0);
 
-    expect(
-      twWrapper.querySelector(".rss-dashboard-tag-chip--selected"),
-    ).not.toBeNull();
+    expect(twitterTrigger.textContent).toContain("MyTwitter");
+    expect(mastodonTrigger.textContent).toContain("MyMastodon");
 
-    // ── Mastodon ─────────────────────────────────────────────────────────────
-    const mastodonTagSetting = getSettingByName(
-      containerEl,
-      "Default Mastodon tag",
-    );
-    const maWrapper = mastodonTagSetting.querySelector(
-      ".rss-dashboard-tag-multi-select",
-    );
-    expect(maWrapper).not.toBeNull();
-    const maChips = Array.from(
-      maWrapper.querySelectorAll(".rss-dashboard-tag-chip"),
-    );
-    expect(maChips.length).toBeGreaterThan(0);
-
-    // Toggle Twitter chip off → array becomes []
-    const twMyChip = twChips.find(
-      (c) =>
-        c.querySelector(".rss-dashboard-tag-chip-name")!.textContent?.trim() ===
-        "MyTwitter",
-    ) as HTMLElement;
-    twMyChip.click();
+    twitterTrigger.click();
+    getTagOption("MyTwitter").click();
     await flushPromises();
 
     expect(plugin.settings.media.defaultTwitterTags).toEqual([]);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+    expect(twitterTrigger.textContent).toContain("None");
 
-    // Toggle Ma chip on → becomes ["MyMastodon"]
-    const maMyChip = maChips.find(
-      (c) =>
-        c.querySelector(".rss-dashboard-tag-chip-name")!.textContent?.trim() ===
-        "MyMastodon",
-    ) as HTMLElement;
-    maMyChip.click();
+    mastodonTrigger.click();
+    getTagOption("MyMastodon").click();
     await flushPromises();
 
-    expect(plugin.settings.media.defaultMastodonTags).toEqual(["MyMastodon"]);
+    expect(plugin.settings.media.defaultMastodonTags).toEqual([]);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
+    expect(mastodonTrigger.textContent).toContain("None");
   });
 
-    const plugin = {
-      app: obsidian.App.createMock(),
-      settings,
-      saveSettings: vi.fn(async () => {}),
-      clearPlaybackProgress: vi.fn(async () => 0),
-    } as unknown as RssDashboardPlugin;
-
-    renderMediaSettingsTab(containerEl, plugin);
-
-    // 1. Twitter Tag Settings Dropdown
-    const twitterTagSetting = getSettingByName(
-      containerEl,
-      "Default Twitter tag"
-    );
-    const twitterSelect = twitterTagSetting.querySelector("select") as HTMLSelectElement;
-    expect(twitterSelect).not.toBeNull();
-    const twitterOptions = Array.from(twitterSelect.options).map(o => o.value);
-    expect(twitterOptions).toContain("");
-    expect(twitterOptions).toContain("MyTwitter");
-    expect(twitterOptions).toContain("MyMastodon");
-
-    twitterSelect.value = "MyTwitter";
-    twitterSelect.dispatchEvent(new Event("change"));
-    await flushPromises();
-
-    expect(plugin.settings.media.defaultTwitterTag).toBe("MyTwitter");
-
-    // 2. Mastodon Tag Settings Dropdown
-    const mastodonTagSetting = getSettingByName(
-      containerEl,
-      "Default Mastodon tag"
-    );
-    const mastodonSelect = mastodonTagSetting.querySelector("select") as HTMLSelectElement;
-    expect(mastodonSelect).not.toBeNull();
-    const mastodonOptions = Array.from(mastodonSelect.options).map(o => o.value);
-    expect(mastodonOptions).toContain("");
-    expect(mastodonOptions).toContain("MyTwitter");
-    expect(mastodonOptions).toContain("MyMastodon");
-
-    mastodonSelect.value = "MyMastodon";
-    mastodonSelect.dispatchEvent(new Event("change"));
-    await flushPromises();
-
-    expect(plugin.settings.media.defaultMastodonTag).toBe("MyMastodon");
-    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
-  });
-
-it("renders and persists the Mastodon profile image toggle", async () => {
+  it("renders and persists the Mastodon profile image toggle", async () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),
     );
@@ -744,9 +675,7 @@ it("renders and persists the Mastodon profile image toggle", async () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
   });
 
-  // ─── Multi-select chip tests ───────────────────────────────────────────────
-
-  it("displays tag rows as multi-select chips instead of <select> dropdowns", () => {
+  it("displays tag rows as dropdown multi-select triggers instead of inline chip lists", () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),
     );
@@ -778,13 +707,13 @@ it("renders and persists the Mastodon profile image toggle", async () => {
     for (const name of tagSettingNames) {
       const setting = getSettingByName(containerEl, name);
       const hasSelect = !!setting.querySelector("select");
-      const wrapper = setting.querySelector(".rss-dashboard-tag-multi-select");
+      const trigger = setting.querySelector(".rss-dashboard-tag-multi-select-trigger");
       expect(hasSelect).toBe(false, `"${name}" should not have a <select> element`);
-      expect(wrapper).not.toBeNull(`"${name}" should have a multi-select chip wrapper`);
+      expect(trigger).not.toBeNull(`"${name}" should have a tag dropdown trigger`);
     }
   });
 
-  it("renders chips with correct selected-state from array default", () => {
+  it("renders trigger summaries from array defaults", () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),
     );
@@ -806,17 +735,12 @@ it("renders and persists the Mastodon profile image toggle", async () => {
     renderMediaSettingsTab(containerEl, plugin);
 
     const setting = getSettingByName(containerEl, "Default YouTube tag");
-    const chips = setting.querySelectorAll(".rss-dashboard-tag-chip");
+    const trigger = getTagTrigger(setting);
 
-    expect(chips.length).toBeGreaterThan(0);
-
-    const selectedChips = setting.querySelectorAll(
-      ".rss-dashboard-tag-chip--selected",
-    );
-    expect(selectedChips.length).toBe(2);
+    expect(trigger.textContent).toContain("2 tags selected");
   });
 
-  it("renders chips with aria-pressed true for selected and false for unselected", () => {
+  it("renders menu options with aria-pressed true for selected and false for unselected", () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),
     );
@@ -838,27 +762,24 @@ it("renders and persists the Mastodon profile image toggle", async () => {
     renderMediaSettingsTab(containerEl, plugin);
 
     const setting = getSettingByName(containerEl, "Tag for video articles");
-    const chips = setting.querySelectorAll(".rss-dashboard-tag-chip");
+    const trigger = getTagTrigger(setting);
+    trigger.click();
 
-    expect(chips.length).toBe(3);
+    const options = getOpenTagMenu().querySelectorAll<HTMLElement>(
+      ".rss-dashboard-tag-multi-select-menu-option",
+    );
+    expect(options.length).toBe(3);
 
-    for (const chip of chips) {
-      const pressed = chip.getAttribute("aria-pressed");
+    for (const option of Array.from(options)) {
+      const pressed = option.getAttribute("aria-pressed");
       expect(["true", "false"]).toContain(pressed);
     }
 
-    const selected = setting.querySelector(".rss-dashboard-tag-chip--selected");
-    expect(selected).toBeTruthy();
-    expect(selected!.getAttribute("aria-pressed")).toBe("true");
-
-    const unselected = setting.querySelector(
-      ".rss-dashboard-tag-chip:not(.rss-dashboard-tag-chip--selected)",
-    );
-    expect(unselected).toBeTruthy();
-    expect(unselected!.getAttribute("aria-pressed")).toBe("false");
+    expect(getTagOption("B").getAttribute("aria-pressed")).toBe("true");
+    expect(getTagOption("A").getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("toggles a chip and calls onChange with cumulative string[]", async () => {
+  it("toggles a tag option and persists the cumulative string array", async () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),
     );
@@ -870,7 +791,6 @@ it("renders and persists the Mastodon profile image toggle", async () => {
     ];
     settings.media.defaultVideoTags = ["X"];
 
-    const onChange = vi.fn(async () => {});
     const plugin = {
       app: obsidian.App.createMock(),
       settings,
@@ -882,17 +802,17 @@ it("renders and persists the Mastodon profile image toggle", async () => {
     renderMediaSettingsTab(containerEl, plugin);
 
     const setting = getSettingByName(containerEl, "Tag for video articles");
-    const yChip = Array.from(setting.querySelectorAll(".rss-dashboard-tag-chip"))
-      .find((el) => el.querySelector(".rss-dashboard-tag-chip-name")?.textContent === "Y");
-
-    expect(yChip).toBeTruthy();
-    yChip!.click();
+    const trigger = getTagTrigger(setting);
+    trigger.click();
+    getTagOption("Y").click();
     await flushPromises();
 
-    expect(onChange).toHaveBeenCalledTimes(0);
+    expect(plugin.settings.media.defaultVideoTags).toEqual(["X", "Y"]);
+    expect(trigger.textContent).toContain("2 tags selected");
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
-  it("shows explicit empty-state label when availableTags is empty", () => {
+  it("shows a disabled empty-state trigger when availableTags is empty", () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),
     );
@@ -912,16 +832,14 @@ it("renders and persists the Mastodon profile image toggle", async () => {
       containerEl,
       "Tag for video articles",
     );
-    const wrapper = tagSetting.querySelector(
-      ".rss-dashboard-tag-multi-select",
-    );
+    const wrapper = tagSetting.querySelector(".rss-dashboard-tag-multi-select");
+    const trigger = getTagTrigger(tagSetting);
     expect(wrapper).not.toBeNull();
-    expect(wrapper).toHaveClass("rss-dashboard-tag-multi-select--empty");
-
-    const emptyText = wrapper.querySelector(
-      ".rss-dashboard-tag-multi-select-empty",
-    );
-    expect(emptyText).not.toBeNull();
+    expect(
+      wrapper?.classList.contains("rss-dashboard-tag-multi-select--empty"),
+    ).toBe(true);
+    expect(trigger.disabled).toBe(true);
+    expect(trigger.textContent?.toLowerCase()).toContain("none");
   });
 
   it("restores defaultVideoTags to ['Video'] on reset tag names button click", async () => {
@@ -929,6 +847,7 @@ it("renders and persists the Mastodon profile image toggle", async () => {
       document.createElement("div"),
     );
     const settings = cloneSettings();
+    settings.availableTags = [{ name: "Custom", color: "#123456" }];
     settings.media.defaultVideoTags = ["Custom"];
 
     const plugin = {
@@ -940,6 +859,11 @@ it("renders and persists the Mastodon profile image toggle", async () => {
     } as unknown as RssDashboardPlugin;
 
     renderMediaSettingsTab(containerEl, plugin);
+
+    const trigger = getTagTrigger(
+      getSettingByName(containerEl, "Tag for video articles"),
+    );
+    expect(trigger.textContent).toContain("Custom");
 
     const resetSetting = getSettingByName(containerEl, "Reset tag names");
     const resetButton = resetSetting.querySelector(

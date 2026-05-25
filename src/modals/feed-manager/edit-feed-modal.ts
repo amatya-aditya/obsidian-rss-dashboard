@@ -278,6 +278,8 @@ export class EditFeedModal extends Modal {
       setting: autoTagSetting,
       availableTags,
       selectedTagNames: customTags,
+      triggerEmptyLabel: "None",
+      menuTitle: "Select auto-tags",
       onChange: (selected) => {
         customTags = selected;
       },

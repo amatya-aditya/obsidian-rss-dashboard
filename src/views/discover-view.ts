@@ -1680,6 +1680,7 @@ export class DiscoverView extends ItemView {
         undefined,
         undefined,
         undefined,
+        undefined,
         { showNotice: false },
       );
       if (!added) {

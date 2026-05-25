@@ -145,6 +145,7 @@ export class FeedManagerModal extends Modal {
             request.feedKeywordRules,
             request.customTemplate,
             request.excludeFromRefresh,
+            request.customTags,
           ),
         () => this.onOpen(),
         "",

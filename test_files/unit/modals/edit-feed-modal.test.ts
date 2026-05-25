@@ -159,6 +159,28 @@ function getLocalStorageCopyButton(containerEl: HTMLElement): HTMLElement {
   return buttonEl;
 }
 
+function getTagTrigger(containerEl: HTMLElement): HTMLButtonElement {
+  const trigger = containerEl.querySelector(
+    ".rss-dashboard-tag-multi-select-trigger",
+  );
+  if (!(trigger instanceof HTMLButtonElement)) {
+    throw new Error("Tag trigger not found");
+  }
+  return trigger;
+}
+
+function getOpenTagOption(name: string): HTMLButtonElement {
+  const option = Array.from(
+    document.body.querySelectorAll<HTMLButtonElement>(
+      ".rss-dashboard-tag-multi-select-menu-option",
+    ),
+  ).find((el) => el.getAttribute("data-tag-name") === name);
+  if (!(option instanceof HTMLButtonElement)) {
+    throw new Error(`Tag option not found: ${name}`);
+  }
+  return option;
+}
+
 function makeArticle(
   guid: string,
   pubDate: string,
@@ -1217,20 +1239,14 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const rssPlugin = plugin as unknown as RssDashboardPlugin;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    const modal = new EditFeedModal(
-      app,
-      plugin as unknown as RssDashboardPlugin,
-      feed,
-      vi.fn(),
-    );
+    const modal = new EditFeedModal(app, rssPlugin, feed, vi.fn());
     modal.open();
 
-    // Check pre-population
-    const tagsWrapper = modal.contentEl.querySelector(".rss-dashboard-tag-multi-select");
-    expect(tagsWrapper).not.toBeNull();
-    const activeChip = tagsWrapper!.querySelector(".rss-dashboard-tag-chip[aria-pressed='true']");
-    expect(activeChip?.textContent?.trim()).toBe("News");
+    const trigger = getTagTrigger(modal.contentEl);
+    expect(trigger.textContent).toContain("News");
 
     // Click save without changing anything
     getButtonByText(modal.contentEl, "Save").click();
@@ -1272,26 +1288,16 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const rssPlugin = plugin as unknown as RssDashboardPlugin;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    const modal = new EditFeedModal(
-      app,
-      plugin as unknown as RssDashboardPlugin,
-      feed,
-      vi.fn(),
-    );
+    const modal = new EditFeedModal(app, rssPlugin, feed, vi.fn());
     modal.open();
 
-    const tagsWrapper = modal.contentEl.querySelector(".rss-dashboard-tag-multi-select");
-    const chips = Array.from(tagsWrapper!.querySelectorAll<HTMLElement>(".rss-dashboard-tag-chip"));
-
-    // Click "News" to select it, and "Tech" to deselect it
-    const tagsWrapper = modal.contentEl.querySelector(".rss-dashboard-tag-multi-select");
-    const chips = Array.from(tagsWrapper!.querySelectorAll<HTMLElement>(".rss-dashboard-tag-chip"));
-    const newsChip = chips.find((c) => c.textContent?.trim() === "News");
-    const techChip = chips.find((c) => c.textContent?.trim() === "Tech");
-    newsChip!.click();
-    techChip!.click();
+    const trigger = getTagTrigger(modal.contentEl);
+    trigger.click();
+    getOpenTagOption("News").click();
+    getOpenTagOption("Tech").click();
 
     const { TagApplicationConfirmModal } = await import("../../../src/modals/feed-manager/tag-application-confirm-modal");
     const mockWaitForClose = vi.spyOn(TagApplicationConfirmModal.prototype, "waitForClose").mockResolvedValue("apply_existing");
@@ -1340,20 +1346,16 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-    const modal = new EditFeedModal(
-      app,
-      plugin as unknown as RssDashboardPlugin,
-      feed,
-      vi.fn(),
-    );
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const rssPlugin = plugin as unknown as RssDashboardPlugin;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    const modal = new EditFeedModal(app, rssPlugin, feed, vi.fn());
     modal.open();
 
-    const tagsWrapper = modal.contentEl.querySelector(".rss-dashboard-tag-multi-select");
-    const chips = Array.from(tagsWrapper!.querySelectorAll<HTMLElement>(".rss-dashboard-tag-chip"));
-    const newsChip = chips.find((c) => c.textContent?.trim() === "News");
-    const techChip = chips.find((c) => c.textContent?.trim() === "Tech");
-    newsChip!.click();
-    techChip!.click();
+    const trigger = getTagTrigger(modal.contentEl);
+    trigger.click();
+    getOpenTagOption("News").click();
+    getOpenTagOption("Tech").click();
 
     const { TagApplicationConfirmModal } = await import("../../../src/modals/feed-manager/tag-application-confirm-modal");
     const mockWaitForClose = vi.spyOn(TagApplicationConfirmModal.prototype, "waitForClose").mockResolvedValue("future_only");
@@ -1363,6 +1365,7 @@ describe("EditFeedModal", () => {
     await flushPromises();
 
     expect(mockOpen).toHaveBeenCalledTimes(1);
+    expect(mockWaitForClose).toHaveBeenCalledTimes(1);
 
     // Only customTags on feed should update, items remain untouched
     expect(feed.customTags).toEqual(["News"]);
@@ -1401,21 +1404,16 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const rssPlugin = plugin as unknown as RssDashboardPlugin;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    const modal = new EditFeedModal(
-      app,
-      plugin as unknown as RssDashboardPlugin,
-      feed,
-      vi.fn(),
-    );
+    const modal = new EditFeedModal(app, rssPlugin, feed, vi.fn());
     modal.open();
 
-    const tagsWrapper = modal.contentEl.querySelector(".rss-dashboard-tag-multi-select");
-    const chips = Array.from(tagsWrapper!.querySelectorAll<HTMLElement>(".rss-dashboard-tag-chip"));
-    const newsChip = chips.find((c) => c.textContent?.trim() === "News");
-    const techChip = chips.find((c) => c.textContent?.trim() === "Tech");
-    newsChip!.click();
-    techChip!.click();
+    const trigger = getTagTrigger(modal.contentEl);
+    trigger.click();
+    getOpenTagOption("News").click();
+    getOpenTagOption("Tech").click();
 
     const { TagApplicationConfirmModal } = await import("../../../src/modals/feed-manager/tag-application-confirm-modal");
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
