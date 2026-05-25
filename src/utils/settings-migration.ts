@@ -262,8 +262,8 @@ export function migrateMediaVideoTagSettings(
     changed = true;
   }
 
-  if (typeof media.useMastodonProfileImages !== "boolean") {
-    media.useMastodonProfileImages = false;
+  if (typeof media.useDomainIconsMastodon !== "boolean") {
+    media.useDomainIconsMastodon = false;
     changed = true;
   }
 
@@ -364,8 +364,7 @@ export function migrateMediaDefaultTagArrays(
     }
 
     const legacyValue = media[legacy];
-    const trimmed =
-      typeof legacyValue === "string" ? legacyValue.trim() : "";
+    const trimmed = typeof legacyValue === "string" ? legacyValue.trim() : "";
     media[arrayField] = trimmed.length > 0 ? [trimmed] : [];
     changed = true;
   }

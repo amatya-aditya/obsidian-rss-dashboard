@@ -4,7 +4,10 @@ import { ArticleList } from "../../../src/components/article-list";
 import { ArticleHeader } from "../../../src/components/article-header";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
-import type { SidebarCallbacks, SidebarOptions } from "../../../src/components/sidebar";
+import type {
+  SidebarCallbacks,
+  SidebarOptions,
+} from "../../../src/components/sidebar";
 import {
   RssDashboardSettings,
   Feed,
@@ -42,7 +45,7 @@ describe("Mastodon Feed Icon — Sidebar", () => {
       display: { ...DEFAULT_SETTINGS.display },
       media: {
         ...DEFAULT_SETTINGS.media,
-        useMastodonProfileImages: true,
+        useDomainIconsMastodon: true,
         useDomainIconsRss: false,
       },
       availableTags: [],
@@ -114,20 +117,17 @@ describe("Mastodon Feed Icon — Sidebar", () => {
     // renderDomainFavicon calls the private isFaviconUrlAvailable which hits
     // requestUrl (throw-stubbed in tests).  Spy it so the async pre-check
     // returns "available" without network access.
-    vi
-      .spyOn(
-        sidebar as unknown as {
-          isFaviconUrlAvailable: (faviconUrl: string) => Promise<boolean>;
-        },
-        "isFaviconUrlAvailable",
-      )
-      .mockResolvedValue(true);
+    vi.spyOn(
+      sidebar as unknown as {
+        isFaviconUrlAvailable: (faviconUrl: string) => Promise<boolean>;
+      },
+      "isFaviconUrlAvailable",
+    ).mockResolvedValue(true);
 
     sidebar.render();
 
     // Allow the microtask queue to drain the async renderDomainFavicon call.
     await new Promise((r) => setTimeout(r, 0));
-
 
     const feedRow = container.querySelector(
       '[data-feed-url="https://mastodon.social/@user.rss"]',
@@ -147,7 +147,6 @@ describe("Mastodon Feed Icon — Sidebar", () => {
     );
     expect(faviconImg).not.toBeNull();
     expect(faviconImg?.src).toContain("mastodon.social");
-
   });
 
   it("still shows generic RSS icon for non-Mastodon feeds with no iconUrl", () => {
@@ -173,7 +172,9 @@ describe("Mastodon Feed Icon — Sidebar", () => {
     const feedRow = container.querySelector(
       '[data-feed-url="https://example.com/rss"]',
     ) as HTMLElement;
-    const iconEl = feedRow.querySelector(".rss-dashboard-feed-icon") as HTMLElement;
+    const iconEl = feedRow.querySelector(
+      ".rss-dashboard-feed-icon",
+    ) as HTMLElement;
     expect(iconEl.dataset.icon).toBe("rss");
   });
 });
@@ -214,7 +215,7 @@ describe("Mastodon Feed Icon — ArticleList renderFeedIcon", () => {
       },
       media: {
         ...DEFAULT_SETTINGS.media,
-        useMastodonProfileImages: true,
+        useDomainIconsMastodon: true,
         useDomainIconsRss: false,
       },
       feeds: [],

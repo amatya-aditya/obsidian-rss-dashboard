@@ -65,9 +65,9 @@ describe("migrateMediaVideoTagSettings", () => {
     expect((settings.media as Record<string, unknown>).defaultYouTubeTag).toBe(
       "youtube",
     );
-    expect(
-      (settings.media as Record<string, unknown>).defaultVideoTag,
-    ).toBe("Video");
+    expect((settings.media as Record<string, unknown>).defaultVideoTag).toBe(
+      "Video",
+    );
     const tags = settings.availableTags as Array<{ name: string }>;
     expect(tags.some((tag) => tag.name.toLowerCase() === "youtube")).toBe(
       false,
@@ -147,7 +147,7 @@ describe("migrateMediaVideoTagSettings", () => {
     ).toBe("Mastodon");
   });
 
-  it("backfills useMastodonProfileImages to false", () => {
+  it("backfills useDomainIconsMastodon to false", () => {
     const settings: Record<string, unknown> = {
       media: { defaultVideoTag: "Video" },
       availableTags: [],
@@ -157,7 +157,7 @@ describe("migrateMediaVideoTagSettings", () => {
 
     expect(changed).toBe(true);
     expect(
-      (settings.media as Record<string, unknown>).useMastodonProfileImages,
+      (settings.media as Record<string, unknown>).useDomainIconsMastodon,
     ).toBe(false);
   });
 
@@ -168,7 +168,7 @@ describe("migrateMediaVideoTagSettings", () => {
         rememberPlaybackProgress: true,
         defaultTwitterFolder: "Twitter",
         defaultMastodonFolder: "Mastodon",
-        useMastodonProfileImages: false,
+        useDomainIconsMastodon: false,
         defaultYouTubeTag: "Video",
       },
       availableTags: [{ name: "Video", color: "#d04747" }],
@@ -177,8 +177,8 @@ describe("migrateMediaVideoTagSettings", () => {
     const changed = migrateMediaVideoTagSettings(settings);
 
     expect(changed).toBe(false);
-    expect(
-      (settings.media as Record<string, unknown>).defaultVideoTag,
-    ).toBe("");
+    expect((settings.media as Record<string, unknown>).defaultVideoTag).toBe(
+      "",
+    );
   });
 });

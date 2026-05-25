@@ -2762,8 +2762,7 @@ export class FeedParser {
     }
 
     if (MastodonService.isResolvedFeedUrl(url)) {
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
-      return this.mediaSettings.useMastodonProfileImages
+      return this.mediaSettings.useDomainIconsMastodon
         ? this.convertToAbsoluteUrl(feedLogoUrl, url)
         : "";
     }

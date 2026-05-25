@@ -218,8 +218,7 @@ export interface MediaSettings {
   defaultTwitterTags?: string[];
   defaultMastodonTag?: string;
   defaultMastodonTags?: string[];
-  /** @deprecated use useDomainIconsRss, useDomainIconsYouTube, useDomainIconsPodcast, useDomainIconsTwitter, or similar. */
-  useMastodonProfileImages: boolean;
+  useDomainIconsMastodon: boolean;
   useDomainIconsRss: boolean;
   useDomainIconsPodcast: boolean;
   useDomainIconsTwitter: boolean;
@@ -599,7 +598,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultTwitterTags: [],
     defaultMastodonTag: "",
     defaultMastodonTags: [],
-    useMastodonProfileImages: false,
+    useDomainIconsMastodon: false,
     useDomainIconsRss: false,
     useDomainIconsPodcast: false,
     useDomainIconsTwitter: false,

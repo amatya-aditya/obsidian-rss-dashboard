@@ -8,9 +8,10 @@ describe("migrateMediaDefaultTagArrays", () => {
     };
 
     const changed = migrateMediaDefaultTagArrays(settings);
+    const media = settings.media as Record<string, unknown>;
 
     expect(changed).toBe(true);
-    expect(settings.media).toEqual({
+    expect(media).toEqual({
       defaultVideoTag: "Video",
       defaultYouTubeTag: "YT",
       defaultVideoTags: ["Video"],
@@ -30,10 +31,11 @@ describe("migrateMediaDefaultTagArrays", () => {
     };
 
     const changed = migrateMediaDefaultTagArrays(settings);
+    const media = settings.media as Record<string, unknown>;
 
     expect(changed).toBe(true);
-    expect(settings.media.defaultVideoTags).toEqual([]);
-    expect(settings.media.defaultRssTags).toEqual([]);
+    expect(media.defaultVideoTags).toEqual([]);
+    expect(media.defaultRssTags).toEqual([]);
   });
 
   it("sets empty arrays for all seven fields when media is empty", () => {
@@ -42,22 +44,23 @@ describe("migrateMediaDefaultTagArrays", () => {
     };
 
     const changed = migrateMediaDefaultTagArrays(settings);
+    const media = settings.media as Record<string, unknown>;
 
     expect(changed).toBe(true);
-    expect(Array.isArray(settings.media.defaultVideoTags)).toBe(true);
-    expect(Array.isArray(settings.media.defaultYouTubeTags)).toBe(true);
-    expect(Array.isArray(settings.media.defaultPodcastTags)).toBe(true);
-    expect(Array.isArray(settings.media.defaultRssTags)).toBe(true);
-    expect(Array.isArray(settings.media.defaultSmallwebTags)).toBe(true);
-    expect(Array.isArray(settings.media.defaultTwitterTags)).toBe(true);
-    expect(Array.isArray(settings.media.defaultMastodonTags)).toBe(true);
-    expect(settings.media.defaultVideoTags).toEqual([]);
-    expect(settings.media.defaultYouTubeTags).toEqual([]);
-    expect(settings.media.defaultPodcastTags).toEqual([]);
-    expect(settings.media.defaultRssTags).toEqual([]);
-    expect(settings.media.defaultSmallwebTags).toEqual([]);
-    expect(settings.media.defaultTwitterTags).toEqual([]);
-    expect(settings.media.defaultMastodonTags).toEqual([]);
+    expect(Array.isArray(media.defaultVideoTags)).toBe(true);
+    expect(Array.isArray(media.defaultYouTubeTags)).toBe(true);
+    expect(Array.isArray(media.defaultPodcastTags)).toBe(true);
+    expect(Array.isArray(media.defaultRssTags)).toBe(true);
+    expect(Array.isArray(media.defaultSmallwebTags)).toBe(true);
+    expect(Array.isArray(media.defaultTwitterTags)).toBe(true);
+    expect(Array.isArray(media.defaultMastodonTags)).toBe(true);
+    expect(media.defaultVideoTags).toEqual([]);
+    expect(media.defaultYouTubeTags).toEqual([]);
+    expect(media.defaultPodcastTags).toEqual([]);
+    expect(media.defaultRssTags).toEqual([]);
+    expect(media.defaultSmallwebTags).toEqual([]);
+    expect(media.defaultTwitterTags).toEqual([]);
+    expect(media.defaultMastodonTags).toEqual([]);
   });
 
   it("does not overwrite existing arrays (idempotent)", () => {
@@ -75,9 +78,10 @@ describe("migrateMediaDefaultTagArrays", () => {
     };
 
     const changed = migrateMediaDefaultTagArrays(settings);
+    const media = settings.media as Record<string, unknown>;
 
     expect(changed).toBe(false);
-    expect(settings.media.defaultVideoTags).toEqual(["Video"]);
+    expect(media.defaultVideoTags).toEqual(["Video"]);
   });
 
   it("idempotent call returns false on second call", () => {
@@ -104,14 +108,15 @@ describe("migrateMediaDefaultTagArrays", () => {
     };
 
     const changed = migrateMediaDefaultTagArrays(settings);
+    const media = settings.media as Record<string, unknown>;
 
     expect(changed).toBe(true);
-    expect(settings.media.defaultVideoTags).toEqual(["Vid"]);
-    expect(settings.media.defaultYouTubeTags).toEqual(["Yt"]);
-    expect(settings.media.defaultPodcastTags).toEqual(["Pod"]);
-    expect(settings.media.defaultRssTags).toEqual(["RSS"]);
-    expect(settings.media.defaultSmallwebTags).toEqual(["SW"]);
-    expect(settings.media.defaultTwitterTags).toEqual(["Tw"]);
-    expect(settings.media.defaultMastodonTags).toEqual(["Ma"]);
+    expect(media.defaultVideoTags).toEqual(["Vid"]);
+    expect(media.defaultYouTubeTags).toEqual(["Yt"]);
+    expect(media.defaultPodcastTags).toEqual(["Pod"]);
+    expect(media.defaultRssTags).toEqual(["RSS"]);
+    expect(media.defaultSmallwebTags).toEqual(["SW"]);
+    expect(media.defaultTwitterTags).toEqual(["Tw"]);
+    expect(media.defaultMastodonTags).toEqual(["Ma"]);
   });
 });

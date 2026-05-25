@@ -67,7 +67,10 @@ export class MediaService {
       ]);
     }
 
-    return this.resolveConfiguredTagNames(availableTags, fallbackNamesWhenUnset);
+    return this.resolveConfiguredTagNames(
+      availableTags,
+      fallbackNamesWhenUnset,
+    );
   }
 
   static readonly YOUTUBE_EMBED_REFERRER_POLICY =
@@ -127,8 +130,7 @@ export class MediaService {
     }
 
     if (MastodonService.isResolvedFeedUrl(feed.url)) {
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
-      return !!mediaSettings.useMastodonProfileImages;
+      return !!mediaSettings.useDomainIconsMastodon;
     }
 
     if (this.isTwitterOrNitterFeed(feed.url)) {
