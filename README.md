@@ -181,6 +181,8 @@ Using the new Vault Shards storage mode? See the user-facing guide here: [docs/s
 
 To quickly access the keyboard shortcuts help file, press `?` (Shift + /) within the app. This will display a comprehensive list of available shortcuts and their functions.
 
+For a preview of the keyboard shortcuts, see [Keyboard Shortcuts](Keyboard%20Shortcuts.md).
+
 ## Development
 
 Before opening a PR, read the contributor policy in [CONTRIBUTING.MD](CONTRIBUTING.MD), especially the **Compliance Declarations (Audit Guardrails)** section.
