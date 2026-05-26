@@ -113,7 +113,7 @@ Looking for upcoming features? The old README planned-features list now lives in
 
 ## Vault Shards Storage Guide
 
-Using the new experimental storage mode? See the user-facing guide here: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
+Using the new Vault Shards storage mode? See the user-facing guide here: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
 
 ## Installation
 
@@ -180,6 +180,8 @@ Using the new experimental storage mode? See the user-facing guide here: [docs/s
 ### Keyboard Shortcuts
 
 To quickly access the keyboard shortcuts help file, press `?` (Shift + /) within the app. This will display a comprehensive list of available shortcuts and their functions.
+
+For a preview of the keyboard shortcuts, see [Keyboard Shortcuts](docs/Keyboard%20Shortcuts.md).
 
 ## Development
 
