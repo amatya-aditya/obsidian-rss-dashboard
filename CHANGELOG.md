@@ -67,7 +67,7 @@
 
 ## [2.3.0-beta.1] - May 11, 2026
 
-- New experimental **Vault Shards storage mode**: Store article history in separate per-feed files instead of one large data.json file, with easy migration between modes.
+- New **Vault Shards storage mode**: Store article history in separate per-feed files instead of one large data.json file, with easy migration between modes.
 
 - Enhanced storage controls: Manage storage mode, repair shards, and import/export data directly from General settings.
 

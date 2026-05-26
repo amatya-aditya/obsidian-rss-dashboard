@@ -246,7 +246,7 @@ export function renderGeneralSettingsTab(
       });
     });
 
-  new Setting(containerEl).setName("Storage (experimental)").setHeading();
+  new Setting(containerEl).setName("Storage").setHeading();
   let pendingStorageMode = plugin.settings.storageMode;
 
   const renderStorageStatus = (): string => {
@@ -274,7 +274,7 @@ export function renderGeneralSettingsTab(
     .addDropdown((dropdown) =>
       dropdown
         .addOption("legacy-json", "Legacy JSON")
-        .addOption("vault-shards", "Experimental vault shards")
+        .addOption("vault-shards", "Vault shards")
         .setValue(pendingStorageMode)
         .onChange((value) => {
           storageLog("Storage mode dropdown changed", {

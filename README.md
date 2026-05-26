@@ -113,7 +113,7 @@ Looking for upcoming features? The old README planned-features list now lives in
 
 ## Vault Shards Storage Guide
 
-Using the new experimental storage mode? See the user-facing guide here: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
+Using the new Vault Shards storage mode? See the user-facing guide here: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
 
 ## Installation
 
