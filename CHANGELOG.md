@@ -1,3 +1,7 @@
+## [2.3.0] - May 26, 2026
+
+- Official Release. No additional changes added since 2.3.0-beta.3.
+
 ## [2.3.0-beta.3] - May 19, 2026
 
 ### Features
