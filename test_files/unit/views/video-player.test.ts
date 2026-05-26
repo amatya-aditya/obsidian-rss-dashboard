@@ -83,7 +83,8 @@ describe("VideoPlayer", () => {
 
     const iframe = container.querySelector<HTMLIFrameElement>("iframe");
     expect(iframe).not.toBeNull();
-    expect(iframe?.getAttribute("src")).toBe(embed.embedUrl);
+    // src has &id=<iframeId> appended for postMessage routing, so check prefix
+    expect(iframe?.getAttribute("src")).toContain(embed.embedUrl);
     expect(iframe?.getAttribute("allow")).toBe(embed.allow);
     expect(iframe?.getAttribute("referrerpolicy")).toBe(embed.referrerPolicy);
     expect(iframe?.allowFullscreen).toBe(true);
@@ -256,44 +257,57 @@ describe("VideoPlayer", () => {
     const container = createContainer();
     const onPlaybackProgress = vi.fn();
     const item = baseItem();
-    const ytPlayer = {
-      seekTo: vi.fn(),
-      getCurrentTime: vi
-        .fn()
-        .mockReturnValueOnce(12)
-        .mockReturnValueOnce(17)
-        .mockReturnValue(17),
-      getDuration: vi.fn().mockReturnValue(120),
-      destroy: vi.fn(),
-    };
-    let readyHandler:
-      | ((event: { target: typeof ytPlayer }) => void)
-      | undefined;
 
     const player = new VideoPlayer(container, undefined, onPlaybackProgress);
 
     vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(fixedEmbed());
-    function MockYouTubePlayer(
-      _elementId: string,
-      options: {
-        events?: { onReady?: (event: { target: typeof ytPlayer }) => void };
-      },
-    ) {
-      readyHandler = options.events?.onReady;
-      return ytPlayer;
-    }
-    window.YT = {
-      Player: MockYouTubePlayer as unknown as typeof window.YT.Player,
-    };
 
     player.loadVideo(item);
-    readyHandler?.({ target: ytPlayer });
+
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+    const iframeId = iframe?.id;
+
+    // Send onReady event
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://www.youtube-nocookie.com",
+        data: JSON.stringify({
+          event: "onReady",
+          id: iframeId,
+        }),
+      })
+    );
+
+    // Send infoDelivery event to set duration
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://www.youtube-nocookie.com",
+        data: JSON.stringify({
+          event: "infoDelivery",
+          info: { duration: 120 },
+          id: iframeId,
+        }),
+      })
+    );
+
+    // Send stateChange playing (1) event
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://www.youtube-nocookie.com",
+        data: JSON.stringify({
+          event: "onStateChange",
+          info: 1,
+          id: iframeId,
+        }),
+      })
+    );
+
+    // Now timers advance by 5 seconds
+    vi.advanceTimersByTime(5000);
+    expect(onPlaybackProgress).toHaveBeenNthCalledWith(1, item, 5, 120, false);
 
     vi.advanceTimersByTime(5000);
-    vi.advanceTimersByTime(5000);
-
-    expect(onPlaybackProgress).toHaveBeenNthCalledWith(1, item, 12, 120, false);
-    expect(onPlaybackProgress).toHaveBeenNthCalledWith(2, item, 17, 120, false);
+    expect(onPlaybackProgress).toHaveBeenNthCalledWith(2, item, 10, 120, false);
 
     player.destroy();
     vi.useRealTimers();
@@ -311,15 +325,6 @@ describe("VideoPlayer", () => {
         lastUpdated: Date.now(),
       },
     });
-    const ytPlayer = {
-      seekTo: vi.fn(),
-      getCurrentTime: vi.fn().mockReturnValue(40),
-      getDuration: vi.fn().mockReturnValue(120),
-      destroy: vi.fn(),
-    };
-    let readyHandler:
-      | ((event: { target: typeof ytPlayer }) => void)
-      | undefined;
 
     const player = new VideoPlayer(
       container,
@@ -329,24 +334,49 @@ describe("VideoPlayer", () => {
     );
 
     vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(fixedEmbed());
-    function MockYouTubePlayer(
-      _elementId: string,
-      options: {
-        events?: { onReady?: (event: { target: typeof ytPlayer }) => void };
-      },
-    ) {
-      readyHandler = options.events?.onReady;
-      return ytPlayer;
-    }
-    window.YT = {
-      Player: MockYouTubePlayer as unknown as typeof window.YT.Player,
-    };
 
     player.loadVideo(item);
-    readyHandler?.({ target: ytPlayer });
+
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+    const iframeId = iframe?.id;
+
+    // Send onReady event
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://www.youtube-nocookie.com",
+        data: JSON.stringify({
+          event: "onReady",
+          id: iframeId,
+        }),
+      })
+    );
+
+    // Send infoDelivery event to set duration
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://www.youtube-nocookie.com",
+        data: JSON.stringify({
+          event: "infoDelivery",
+          info: { duration: 120 },
+          id: iframeId,
+        }),
+      })
+    );
+
+    // Send stateChange playing (1) event
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://www.youtube-nocookie.com",
+        data: JSON.stringify({
+          event: "onStateChange",
+          info: 1,
+          id: iframeId,
+        }),
+      })
+    );
+
     vi.advanceTimersByTime(10000);
 
-    expect(ytPlayer.seekTo).not.toHaveBeenCalled();
     expect(onPlaybackProgress).not.toHaveBeenCalled();
 
     player.destroy();
@@ -375,30 +405,28 @@ describe("VideoPlayer", () => {
     const onPlaybackProgress = vi.fn();
     const player = new VideoPlayer(container, undefined, onPlaybackProgress);
     const item = baseItem();
-    const ytPlayer = {
-      seekTo: vi.fn(),
-      getCurrentTime: vi.fn().mockReturnValue(42),
-      getDuration: vi.fn().mockReturnValue(120),
-      destroy: vi.fn(),
-    };
 
-    (
-      player as unknown as {
-        currentItem: FeedItem | null;
-        player: typeof ytPlayer | null;
-      }
-    ).currentItem = item;
-    (
-      player as unknown as {
-        currentItem: FeedItem | null;
-        player: typeof ytPlayer | null;
-      }
-    ).player = ytPlayer;
+    vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(fixedEmbed());
+
+    player.loadVideo(item);
+
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+    const iframeId = iframe?.id;
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://www.youtube-nocookie.com",
+        data: JSON.stringify({
+          event: "infoDelivery",
+          info: { duration: 120, currentTime: 42 },
+          id: iframeId,
+        }),
+      })
+    );
 
     player.destroy();
 
     expect(onPlaybackProgress).toHaveBeenCalledWith(item, 42, 120, true);
-    expect(ytPlayer.destroy).toHaveBeenCalledTimes(1);
   });
 
   it("emits a Notice when render throws (loadVideo catch path)", () => {

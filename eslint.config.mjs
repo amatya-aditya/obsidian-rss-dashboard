@@ -24,6 +24,20 @@ export default defineConfig([
     },
   },
   {
+    files: ["**/*.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.property.name='createElement'][arguments.0.value='script']",
+          message:
+            "Dynamic <script> element creation is prohibited per Obsidian compliance standards.",
+        },
+      ],
+    },
+  },
+  {
     files: ["test_files/**/*.ts"],
     languageOptions: {
       parser: tsparser,

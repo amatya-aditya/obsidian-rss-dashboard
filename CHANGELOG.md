@@ -1,3 +1,19 @@
+## [Unreleased] - May 26, 2026
+
+- Remediation work on latest Community Plugin Audit (https://community.obsidian.md/plugins/rss-dashboard) - now standing at 72% compliance (up from 46% last version).
+
+### Addressed Issues
+
+#### Risks
+
+-**Dynamic `<script>` element creation**
+
+- Flagged as the only red/critical risk due to 2.3.0's media progress saving feature (specifically Youtube iFrame embeds)
+- Rewrote how the progress is stored that adheres to Obsidian's best practices and Youtube SDK API
+- Added CI/CD ESLint rule to prevent dynamic `<script>` element creation in the future
+
+---
+
 ## [2.3.0] - May 26, 2026
 
 - Official Release. No additional changes added since 2.3.0-beta.3. See [docs/releases/2.3.0.md](docs/releases/2.3.0.md) for complete release notes.
