@@ -6,146 +6,157 @@ import { collectFolderPaths } from "../utils/folder-paths";
  * Provides type-ahead folder suggestions from the vault
  */
 export class VaultFolderSuggest extends AbstractInputSuggest<TFolder> {
-    private inputEl: HTMLInputElement;
+  private inputEl: HTMLInputElement;
 
-    constructor(app: App, inputEl: HTMLInputElement) {
-        super(app, inputEl);
-        this.inputEl = inputEl;
+  constructor(app: App, inputEl: HTMLInputElement) {
+    super(app, inputEl);
+    this.inputEl = inputEl;
 
-        const suggestEl = (this as unknown as { suggestEl?: HTMLElement }).suggestEl;
-        suggestEl?.addClass("rss-dashboard-suggestion-container");
+    const suggestEl = (this as unknown as { suggestEl?: HTMLElement })
+      .suggestEl;
+    suggestEl?.addClass("rss-dashboard-folder-suggestion-container");
+  }
+
+  protected getSuggestions(query: string): TFolder[] {
+    const lowerQuery = query.toLowerCase();
+    const folders: TFolder[] = [];
+
+    const rootFolder = this.app.vault.getRoot();
+    this.collectFolders(rootFolder, folders);
+
+    return folders.filter((folder) =>
+      folder.path.toLowerCase().includes(lowerQuery),
+    );
+  }
+
+  private collectFolders(folder: TFolder, result: TFolder[]): void {
+    for (const child of folder.children) {
+      if (child instanceof TFolder) {
+        result.push(child);
+        this.collectFolders(child, result);
+      }
     }
+  }
 
-    protected getSuggestions(query: string): TFolder[] {
-        const lowerQuery = query.toLowerCase();
-        const folders: TFolder[] = [];
+  public renderSuggestion(folder: TFolder, el: HTMLElement): void {
+    el.setText(folder.path);
+  }
 
-        const rootFolder = this.app.vault.getRoot();
-        this.collectFolders(rootFolder, folders);
-
-        return folders.filter(folder =>
-            folder.path.toLowerCase().includes(lowerQuery)
-        );
-    }
-
-    private collectFolders(folder: TFolder, result: TFolder[]): void {
-        for (const child of folder.children) {
-            if (child instanceof TFolder) {
-                result.push(child);
-                this.collectFolders(child, result);
-            }
-        }
-    }
-
-    public renderSuggestion(folder: TFolder, el: HTMLElement): void {
-        el.setText(folder.path);
-    }
-
-    public selectSuggestion(folder: TFolder, _evt: MouseEvent | KeyboardEvent): void {
-        this.inputEl.value = folder.path;
-        this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-        this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
-        this.close();
-    }
+  public selectSuggestion(
+    folder: TFolder,
+    _evt: MouseEvent | KeyboardEvent,
+  ): void {
+    this.inputEl.value = folder.path;
+    this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+    this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
+    this.close();
+  }
 }
 
 /**
  * Provides type-ahead folder suggestions for RSS sidebar folders
  */
 export class FolderSuggest extends AbstractInputSuggest<string> {
-    private folders: string[];
-    private inputEl: HTMLInputElement;
-    private showAddNewOption: boolean;
+  private folders: string[];
+  private inputEl: HTMLInputElement;
+  private showAddNewOption: boolean;
 
-    private static readonly ADD_NEW_FOLDER_LABEL = "Add new folder...";
+  private static readonly ADD_NEW_FOLDER_LABEL = "Add new folder...";
 
-    constructor(
-        app: App,
-        inputEl: HTMLInputElement,
-        folders: Folder[],
-        options?: { showAddNewOption?: boolean },
+  constructor(
+    app: App,
+    inputEl: HTMLInputElement,
+    folders: Folder[],
+    options?: { showAddNewOption?: boolean },
+  ) {
+    super(app, inputEl);
+    this.inputEl = inputEl;
+    this.folders = collectFolderPaths(folders, { sort: true });
+    this.showAddNewOption = options?.showAddNewOption ?? true;
+
+    const suggestEl = (this as unknown as { suggestEl?: HTMLElement })
+      .suggestEl;
+    suggestEl?.addClass("rss-dashboard-folder-suggestion-container");
+
+    // Naming restrictions validation
+    this.inputEl.addEventListener("input", () => {
+      const forbidden = /[\\:*?"<>|]/g;
+      if (forbidden.test(this.inputEl.value)) {
+        this.inputEl.value = this.inputEl.value.replace(forbidden, "");
+      }
+    });
+
+    // Trigger suggestions on click if empty
+    this.inputEl.addEventListener("click", () => {
+      if (this.inputEl.value === "") {
+        this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+  }
+
+  /**
+   * Updates the available folders
+   */
+  public updateFolders(folders: Folder[]): void {
+    this.folders = collectFolderPaths(folders, { sort: true });
+  }
+
+  /**
+   * Returns filtered folder suggestions based on the query
+   */
+  protected getSuggestions(query: string): string[] {
+    const lowerQuery = query.toLowerCase();
+
+    // If query is empty OR matches exactly one of our folders, show ALL folders
+    // This solves the issue where pre-filled folders filter out everything else
+    if (
+      lowerQuery === "" ||
+      this.folders.some((f) => f.toLowerCase() === lowerQuery)
     ) {
-        super(app, inputEl);
-        this.inputEl = inputEl;
-        this.folders = collectFolderPaths(folders, { sort: true });
-        this.showAddNewOption = options?.showAddNewOption ?? true;
-
-        const suggestEl = (this as unknown as { suggestEl?: HTMLElement }).suggestEl;
-        suggestEl?.addClass("rss-dashboard-suggestion-container");
-
-        // Naming restrictions validation
-        this.inputEl.addEventListener("input", () => {
-            const forbidden = /[\\:*?"<>|]/g;
-            if (forbidden.test(this.inputEl.value)) {
-                this.inputEl.value = this.inputEl.value.replace(forbidden, "");
-            }
-        });
-
-        // Trigger suggestions on click if empty
-        this.inputEl.addEventListener("click", () => {
-            if (this.inputEl.value === "") {
-                this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-            }
-        });
+      return this.withOptionalAddNewOption(this.folders);
     }
 
-    /**
-     * Updates the available folders
-     */
-    public updateFolders(folders: Folder[]): void {
-        this.folders = collectFolderPaths(folders, { sort: true });
+    const filtered = this.folders.filter((folder) =>
+      folder.toLowerCase().includes(lowerQuery),
+    );
+
+    return this.withOptionalAddNewOption(filtered);
+  }
+
+  private withOptionalAddNewOption(folders: string[]): string[] {
+    if (!this.showAddNewOption) {
+      return [...folders];
     }
 
-    /**
-     * Returns filtered folder suggestions based on the query
-     */
-    protected getSuggestions(query: string): string[] {
-        const lowerQuery = query.toLowerCase();
+    return [FolderSuggest.ADD_NEW_FOLDER_LABEL, ...folders];
+  }
 
-        // If query is empty OR matches exactly one of our folders, show ALL folders
-        // This solves the issue where pre-filled folders filter out everything else
-        if (lowerQuery === "" || this.folders.some(f => f.toLowerCase() === lowerQuery)) {
-            return this.withOptionalAddNewOption(this.folders);
-        }
+  /**
+   * Renders a folder suggestion in the dropdown
+   */
+  public renderSuggestion(folder: string, el: HTMLElement): void {
+    if (folder === FolderSuggest.ADD_NEW_FOLDER_LABEL) {
+      el.addClass("rss-dashboard-add-new-suggestion");
+      el.setText(FolderSuggest.ADD_NEW_FOLDER_LABEL);
+    } else {
+      el.setText(folder);
+    }
+  }
 
-        const filtered = this.folders.filter(folder =>
-            folder.toLowerCase().includes(lowerQuery)
-        );
-
-        return this.withOptionalAddNewOption(filtered);
+  /**
+   * Called when a folder is selected
+   */
+  public selectSuggestion(
+    folder: string,
+    _evt: MouseEvent | KeyboardEvent,
+  ): void {
+    if (folder !== FolderSuggest.ADD_NEW_FOLDER_LABEL) {
+      this.inputEl.value = folder;
+      this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+      this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
-    private withOptionalAddNewOption(folders: string[]): string[] {
-        if (!this.showAddNewOption) {
-            return [...folders];
-        }
-
-        return [FolderSuggest.ADD_NEW_FOLDER_LABEL, ...folders];
-    }
-
-    /**
-     * Renders a folder suggestion in the dropdown
-     */
-    public renderSuggestion(folder: string, el: HTMLElement): void {
-        if (folder === FolderSuggest.ADD_NEW_FOLDER_LABEL) {
-            el.addClass("rss-dashboard-add-new-suggestion");
-            el.setText(FolderSuggest.ADD_NEW_FOLDER_LABEL);
-        } else {
-            el.setText(folder);
-        }
-    }
-
-    /**
-     * Called when a folder is selected
-     */
-    public selectSuggestion(folder: string, _evt: MouseEvent | KeyboardEvent): void {
-        if (folder !== FolderSuggest.ADD_NEW_FOLDER_LABEL) {
-            this.inputEl.value = folder;
-            this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-            this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-
-        this.inputEl.focus();
-        this.close();
-    }
+    this.inputEl.focus();
+    this.close();
+  }
 }

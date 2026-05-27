@@ -187,7 +187,7 @@
   gap: var(--rss-dashboard-card-gap, 15px);
   align-items: stretch;
   justify-items: stretch;
-  padding: 15px;
+  padding: 8px;
 }
 
 .rss-dashboard-article-card {

@@ -99,11 +99,7 @@
   background-color: var(--background-modifier-active);
   font-weight: bold;
 }
-.rss-dashboard-filters-section {
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--background-modifier-border);
-}
+
 .rss-dashboard-tags-section {
   margin-bottom: 10px;
   border-bottom: 1px solid var(--background-modifier-border);
@@ -634,7 +630,6 @@
   z-index: 3;
 }
 
-.rss-dashboard-filters-section,
 .rss-dashboard-tags-section,
 .rss-dashboard-feed-folders-section {
   padding: 0;

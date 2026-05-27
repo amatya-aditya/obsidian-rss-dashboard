@@ -3,19 +3,6 @@
   border-bottom: 1px solid var(--background-modifier-border);
 }
 
-/* Search container when inside filters section */
-.rss-dashboard-filters-section .rss-dashboard-search-container {
-  padding: 8px;
-  margin-top: 4px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  background-color: var(--background-secondary);
-  width: 100%;
-  clear: both;
-  margin-left: 0;
-  margin-right: 0;
-}
-
 /* Discover mobile header styles */
 .rss-discover-mobile-header {
   display: none;
@@ -47,87 +34,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.rss-dashboard-filters-section .rss-dashboard-search-input {
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* Tags container when inside filters section */
-.rss-dashboard-filters-section .rss-dashboard-tags-container {
-  padding: 8px;
-  margin-top: 4px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  background-color: var(--background-secondary);
-  max-height: 300px;
-  overflow-y: auto;
-  width: 100%;
-  clear: both;
-  margin-left: 0;
-  margin-right: 0;
-}
-
-.rss-dashboard-filters-section .rss-dashboard-add-tag-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  margin-bottom: 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  color: var(--text-muted);
-}
-
-.rss-dashboard-filters-section .rss-dashboard-add-tag-button:hover {
-  background-color: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-.rss-dashboard-filters-section .rss-dashboard-sidebar-tag {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  margin: 2px 0;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.rss-dashboard-filters-section .rss-dashboard-sidebar-tag:hover {
-  background-color: var(--background-modifier-hover);
-}
-
-.rss-dashboard-filters-section .rss-dashboard-sidebar-tag.active {
-  background-color: var(--interactive-accent);
-  color: var(--text-on-accent);
-}
-
-.rss-dashboard-filters-section .rss-dashboard-tag-color-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--tag-color, var(--interactive-accent));
-  flex-shrink: 0;
-}
-
-.rss-dashboard-filters-section .rss-dashboard-tag-name {
-  flex: 1;
-  font-size: 13px;
-}
-
-.rss-dashboard-filters-section .rss-dashboard-tag-count {
-  background-color: var(--background-modifier-border);
-  color: var(--text-muted);
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 500;
-  min-width: 20px;
-  text-align: center;
 }
 
 .rss-dashboard-search-input {
@@ -237,7 +143,7 @@
   position: relative;
   z-index: 1;
   padding: 8px 44px 8px 10px;
-  margin: 0 10px 14px;
+  margin: 0 10px 8px;
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
   font-size: 12px;

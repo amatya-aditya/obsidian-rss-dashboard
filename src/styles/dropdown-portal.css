@@ -6,7 +6,7 @@
   width: max-content;
   box-sizing: border-box;
   overflow-x: auto;
-  z-index: 99999;
+  z-index: var(--z-index-dropdown);
   left: var(--dropdown-anchor-left, 0);
   top: var(--dropdown-anchor-top, 0);
   background: var(--background-primary);
@@ -60,7 +60,7 @@
   position: fixed;
   inset: 0;
   background: rgb(0 0 0 / 0.28);
-  z-index: 99998;
+  z-index: var(--z-index-dropdown-backdrop);
 }
 
 .rss-dashboard-tags-mobile-sheet {
@@ -205,7 +205,7 @@
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  z-index: 9999;
+  z-index: var(--z-index-filter-menu);
   min-width: 190px;
   padding: 4px 0;
   display: flex;

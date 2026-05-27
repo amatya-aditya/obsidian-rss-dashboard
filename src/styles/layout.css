@@ -1,22 +1,19 @@
 .rss-dashboard-container {
   font-size: 14px;
   height: 100%;
-  overflow: hidden;
-  padding: 0px !important;
-  /* border-top: 1px solid var(--background-modifier-border); */
   background-color: var(--background-primary);
   color: var(--text-normal);
+  padding: 0 !important; /* 2.3.1 audit-ok: override for Obsidian's forced workspace padding */
 }
 
 .rss-dashboard-layout {
   display: flex;
   height: 100%;
-  overflow: hidden;
   position: relative;
 }
 
 .rss-dashboard-sidebar {
-  width: 290px;
+  width: 300px;
   height: 100%;
   border-right: 1px solid var(--background-modifier-border);
   display: flex;
@@ -164,15 +161,13 @@
   }
 }
 
-.rss-dashboard-header,
-.rss-dashboard-filters-section,
-.rss-dashboard-tags-section,
-.rss-dashboard-sponsor-section {
+/* .rss-dashboard-header,
+.rss-dashboard-tags-section {
   flex: 0 0 auto;
   overflow: visible !important;
   max-height: none !important;
   min-height: unset !important;
-}
+} */
 
 .sidebar-collapsed .rss-dashboard-sidebar {
   display: none !important;

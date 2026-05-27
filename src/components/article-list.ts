@@ -2213,16 +2213,24 @@ export class ArticleList {
       cls: "rss-dashboard-pagination",
     });
 
-    const prevButton = paginationContainer.createEl("button", {
+    // ── Row 1: page navigation buttons ──────────────────────────
+    const pagesRow = paginationContainer.createDiv({
+      cls: "rss-dashboard-pagination-pages",
+    });
+
+    const prevButton = pagesRow.createEl("button", {
       cls: "rss-dashboard-pagination-btn prev",
       text: "<",
     });
     prevButton.disabled = currentPage === 1;
     prevButton.onclick = () => this.callbacks.onPageChange(currentPage - 1);
 
-    const maxPagesToShow = 5;
-    let startPage = Math.max(1, currentPage - 2);
-    let endPage = Math.min(totalPages, currentPage + 2);
+    const isMobile = this.isMobileViewport();
+    const maxPagesToShow = isMobile ? 3 : 5;
+    const padding = isMobile ? 1 : 2;
+
+    let startPage = Math.max(1, currentPage - padding);
+    let endPage = Math.min(totalPages, currentPage + padding);
     if (endPage - startPage < maxPagesToShow - 1) {
       if (startPage === 1) {
         endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
@@ -2231,35 +2239,40 @@ export class ArticleList {
       }
     }
     if (startPage > 1) {
-      this.createPageButton(paginationContainer, 1, currentPage);
+      this.createPageButton(pagesRow, 1, currentPage);
       if (startPage > 2) {
-        paginationContainer.createEl("span", {
+        pagesRow.createEl("span", {
           text: "...",
           cls: "rss-dashboard-pagination-ellipsis",
         });
       }
     }
     for (let i = startPage; i <= endPage; i++) {
-      this.createPageButton(paginationContainer, i, currentPage);
+      this.createPageButton(pagesRow, i, currentPage);
     }
     if (endPage < totalPages) {
       if (endPage < totalPages - 1) {
-        paginationContainer.createEl("span", {
+        pagesRow.createEl("span", {
           text: "...",
           cls: "rss-dashboard-pagination-ellipsis",
         });
       }
-      this.createPageButton(paginationContainer, totalPages, currentPage);
+      this.createPageButton(pagesRow, totalPages, currentPage);
     }
 
-    const nextButton = paginationContainer.createEl("button", {
+    const nextButton = pagesRow.createEl("button", {
       cls: "rss-dashboard-pagination-btn next",
       text: ">",
     });
     nextButton.disabled = currentPage === totalPages;
     nextButton.onclick = () => this.callbacks.onPageChange(currentPage + 1);
 
-    const markPageReadButton = paginationContainer.createEl("button", {
+    // ── Row 2: utility controls ──────────────────────────────────
+    const controlsRow = paginationContainer.createDiv({
+      cls: "rss-dashboard-pagination-controls",
+    });
+
+    const markPageReadButton = controlsRow.createEl("button", {
       cls: "rss-dashboard-pagination-btn rss-dashboard-pagination-mark-page-read",
       text: "Mark page read",
     });
@@ -2286,7 +2299,11 @@ export class ArticleList {
       }
     };
 
-    const pageSizeDropdown = paginationContainer.createEl("select", {
+    // Page-size selector wrapped for custom chevron styling
+    const pageSizeWrapper = controlsRow.createDiv({
+      cls: "rss-dashboard-page-size-wrapper",
+    });
+    const pageSizeDropdown = pageSizeWrapper.createEl("select", {
       cls: "rss-dashboard-page-size-dropdown",
     });
     for (const size of getPageSizeOptions(pageSize)) {
@@ -2305,6 +2322,7 @@ export class ArticleList {
       });
       if (size === pageSize) opt.selected = true;
     }
+
     pageSizeDropdown.onchange = (e) => {
       const size = Number((e.target as HTMLSelectElement).value);
       this.callbacks.onPageSizeChange(size);
@@ -2315,7 +2333,13 @@ export class ArticleList {
       pageSize,
       currentPage,
     });
-    paginationContainer.createEl("span", {
+
+    // ── Row 3: Results count ──────────────────────────────────
+    const resultsRow = paginationContainer.createDiv({
+      cls: "rss-dashboard-pagination-results",
+    });
+
+    resultsRow.createEl("span", {
       cls: "rss-dashboard-pagination-results",
       text: `Results: ${startIdx} - ${endIdx} of ${totalArticles}`,
     });

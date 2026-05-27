@@ -267,8 +267,8 @@ describe("Phase 7 - ArticleList in-place updates", () => {
       ".rss-dashboard-page-size-dropdown",
     );
 
-    expect(nextButton?.nextElementSibling).toBe(markPageReadButton);
-    expect(markPageReadButton?.nextElementSibling).toBe(pageSizeDropdown);
+    expect(nextButton?.parentElement?.classList.contains("rss-dashboard-pagination-pages")).toBe(true);
+    expect(markPageReadButton?.nextElementSibling).toBe(pageSizeDropdown?.parentElement);
 
     h.cleanup();
   });

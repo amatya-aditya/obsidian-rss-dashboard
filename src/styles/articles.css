@@ -27,6 +27,13 @@
   min-height: 0;
 }
 
+@media (max-width: 1200px) {
+  /* Override bottom padding to accomodate persistent mobile Obsidian menu. */
+  .rss-dashboard-articles {
+    padding: 0px 10px 110px 10px;
+  }
+}
+
 .rss-dashboard-articles-title {
   font-size: 18px;
   font-weight: 600;
