@@ -1744,31 +1744,6 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
-.rss-dashboard-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--text-muted);
-}
-.rss-dashboard-empty-state svg {
-  margin-bottom: 15px;
-}
-.rss-dashboard-empty-state-icon {
-  width: 48px;
-  height: 48px;
-}
-.rss-dashboard-empty-state h3 {
-  margin: 0 0 10px 0;
-  font-size: 18px;
-  color: var(--text-normal);
-}
-.rss-dashboard-empty-state p {
-  margin: 0;
-  font-size: 14px;
-}
 .rss-reader-media-player.audio-player {
   background-color: var(--background-secondary);
   border-radius: 8px;
@@ -1833,10 +1808,10 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   margin-bottom: 8px;
 }
 .rss-dashboard-empty-state-icon svg {
-  width: var(--icon-size) !important;
-  height: var(--icon-size) !important;
-  display: block !important;
-  visibility: visible !important;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  display: block;
+  visibility: visible;
   stroke: var(--text-muted);
 }
 .rss-dashboard-empty-state h2 {

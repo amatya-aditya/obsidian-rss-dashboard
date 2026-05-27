@@ -1,4 +1,10 @@
 /**
+ * ArticleEmptyState - Renders empty article state UI
+ *
+ * Handles two scenarios:
+ * 1. NoArticlesAtAll: Feed is genuinely empty or some articles pass filters
+ * 2. AllArticlesFiltered: Feed has articles but all are hidden by active filters
+ *
  * ArticleEmptyState Styles
  * 
  * CSS scoped with rss-dashboard- prefix to prevent global collision with Obsidian core.
@@ -24,10 +30,10 @@
 }
 
 .rss-dashboard-empty-state-icon svg {
-  width: var(--icon-size) !important;
-  height: var(--icon-size) !important;
-  display: block !important;
-  visibility: visible !important;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  display: block;
+  visibility: visible;
   stroke: var(--text-muted);
 }
 

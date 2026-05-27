@@ -38,9 +38,7 @@
 
 ### CSS — `!important` Usage (900 warnings)
 
-- [ ] Audit `styles.css` for `!important` declarations — replace with higher-specificity selectors or CSS variables where feasible
-- [ ] Audit `src/styles/modals.css` for same
-- [ ] Audit `src/styles/sidebar.css` for same
+- [ ] Audit entire codebase for `!important` declarations — replace with higher-specificity selectors or CSS variables where feasible
 - [ ] For any `!important` that must remain (e.g. Obsidian theme override conflicts), add an inline comment: `/* audit-ok: !important required to override Obsidian theme specificity */`
 - [ ] Document the approved exception pattern in `CONTRIBUTING.MD`
 
