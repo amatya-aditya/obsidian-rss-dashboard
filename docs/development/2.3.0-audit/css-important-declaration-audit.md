@@ -15,7 +15,6 @@ Generated: 2026-05-26 23:37
 | settings.css        | 9     |
 | dropdown-portal.css | 8     |
 | layout.css          | 8     |
-| card-view.css       | 6     |
 
 ## modals.css
 

@@ -131,7 +131,7 @@
   overflow: hidden;
 }
 
-.rss-dashboard-article-tag {
+.rss-dashboard-tag-badge {
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 0.95em;
@@ -480,7 +480,7 @@
   border-color: var(--text-accent);
 }
 
-.rss-dashboard-article-tag {
+.rss-dashboard-tag-badge {
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 11px;

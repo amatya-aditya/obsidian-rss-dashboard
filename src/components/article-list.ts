@@ -345,7 +345,7 @@ export class ArticleList {
 
   private layoutSingleCardTagRow(card: HTMLElement): void {
     const tagsContainer = card.querySelector<HTMLElement>(
-      ".rss-dashboard-card-tags-region .rss-dashboard-article-tags",
+      ".rss-dashboard-card-tags-region .rss-dashboard-tag-container",
     );
     const articleGuid = card.dataset.articleGuid;
     if (!tagsContainer || !articleGuid) {
@@ -367,7 +367,7 @@ export class ArticleList {
     const tagsToShow = tags.slice(0, MAX_VISIBLE_TAGS);
     tagsToShow.forEach((tag) => {
       const tagEl = container.createDiv({
-        cls: "rss-dashboard-article-tag",
+        cls: "rss-dashboard-tag-badge",
         text: tag.name,
       });
       tagEl.style.setProperty(
@@ -390,7 +390,7 @@ export class ArticleList {
 
   private createTagChip(container: HTMLElement, tag: Tag): HTMLElement {
     const tagEl = container.createDiv({
-      cls: "rss-dashboard-article-tag",
+      cls: "rss-dashboard-tag-badge",
       text: tag.name,
     });
     tagEl.style.setProperty(
@@ -477,11 +477,11 @@ export class ArticleList {
     }
 
     let tagsContainer = tagsRegion.querySelector<HTMLElement>(
-      ".rss-dashboard-article-tags",
+      ".rss-dashboard-tag-container",
     );
     if (!tagsContainer) {
       tagsContainer = tagsRegion.createDiv({
-        cls: "rss-dashboard-article-tags",
+        cls: "rss-dashboard-tag-container",
       });
     }
 
@@ -510,11 +510,11 @@ export class ArticleList {
     }
 
     let tagsContainer = tagsRegion.querySelector<HTMLElement>(
-      ".rss-dashboard-article-tags",
+      ".rss-dashboard-tag-container",
     );
     if (!tagsContainer) {
       tagsContainer = tagsRegion.createDiv({
-        cls: "rss-dashboard-article-tags",
+        cls: "rss-dashboard-tag-container",
       });
     }
 
@@ -1141,7 +1141,7 @@ export class ArticleList {
   private syncArticleTags(articleEl: HTMLElement, article: FeedItem): void {
     const tags = article.tags || [];
     const existingContainers = Array.from(
-      articleEl.querySelectorAll<HTMLElement>(".rss-dashboard-article-tags"),
+      articleEl.querySelectorAll<HTMLElement>(".rss-dashboard-tag-container"),
     );
 
     const hasTags = tags.length > 0;
@@ -1181,7 +1181,7 @@ export class ArticleList {
         );
         if (articleContent) {
           const tagContainer = articleContent.createDiv({
-            cls: "rss-dashboard-article-tags rss-dashboard-list-body-tags",
+            cls: "rss-dashboard-tag-container rss-dashboard-list-body-tags",
           });
           if (listFooter) {
             articleContent.insertBefore(tagContainer, listFooter);
@@ -1197,7 +1197,7 @@ export class ArticleList {
         );
         if (toolbar) {
           existingContainers.push(
-            toolbar.createDiv({ cls: "rss-dashboard-article-tags" }),
+            toolbar.createDiv({ cls: "rss-dashboard-tag-container" }),
           );
         }
       }
@@ -1843,7 +1843,7 @@ export class ArticleList {
           cls: "rss-dashboard-feed-tags-region",
         });
         const tagsContainer = tagsRegion.createDiv({
-          cls: "rss-dashboard-article-tags",
+          cls: "rss-dashboard-tag-container",
         });
         this.renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
       }
@@ -1943,11 +1943,11 @@ export class ArticleList {
         );
         if (!useMinimal && article.tags && article.tags.length > 0) {
           const articleTags = actionToolbar.createDiv(
-            "rss-dashboard-article-tags",
+            "rss-dashboard-tag-container",
           );
           article.tags.forEach((tag) => {
             const tagEl = articleTags.createDiv({
-              cls: "rss-dashboard-article-tag",
+              cls: "rss-dashboard-tag-badge",
               text: tag.name,
             });
             tagEl.style.setProperty("--tag-color", tag.color);
@@ -1967,12 +1967,12 @@ export class ArticleList {
       if (showListToolbar && useBottomRow) {
         if (article.tags && article.tags.length > 0) {
           const bodyTags = contentEl.createDiv(
-            "rss-dashboard-article-tags rss-dashboard-list-body-tags",
+            "rss-dashboard-tag-container rss-dashboard-list-body-tags",
           );
           const tagsToShow = article.tags.slice(0, MAX_VISIBLE_TAGS);
           tagsToShow.forEach((tag) => {
             const tagEl = bodyTags.createDiv({
-              cls: "rss-dashboard-article-tag",
+              cls: "rss-dashboard-tag-badge",
               text: tag.name,
             });
             tagEl.style.setProperty("--tag-color", tag.color);
@@ -2165,7 +2165,7 @@ export class ArticleList {
           cls: "rss-dashboard-card-tags-region",
         });
         const tagsContainer = tagsRegion.createDiv({
-          cls: "rss-dashboard-article-tags",
+          cls: "rss-dashboard-tag-container",
         });
         this.renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
       }

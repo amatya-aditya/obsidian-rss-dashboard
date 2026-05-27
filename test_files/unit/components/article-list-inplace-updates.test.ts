@@ -97,7 +97,7 @@ describe("Phase 7 - ArticleList in-place updates", () => {
 
     const articleEl = h.getArticleEl("1");
     const tagEl = articleEl?.querySelector<HTMLElement>(
-      ".rss-dashboard-article-tag",
+      ".rss-dashboard-tag-badge",
     );
     expect(tagEl?.style.getPropertyValue("--tag-color")).toBe("#000000");
 
@@ -106,7 +106,7 @@ describe("Phase 7 - ArticleList in-place updates", () => {
 
     const updatedTagEl = h
       .getArticleEl("1")
-      ?.querySelector<HTMLElement>(".rss-dashboard-article-tag");
+      ?.querySelector<HTMLElement>(".rss-dashboard-tag-badge");
     expect(updatedTagEl?.style.getPropertyValue("--tag-color")).toBe("#ff0000");
 
     h.cleanup();
