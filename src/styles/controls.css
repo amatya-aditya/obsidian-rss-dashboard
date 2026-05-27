@@ -183,7 +183,6 @@
   align-items: center;
   justify-content: space-between;
   background: var(--background-primary);
-  position: -webkit-sticky;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -1084,7 +1083,9 @@
 }
 
 .rss-dashboard-desktop-controls .rss-dashboard-select-inner {
-  display: contents;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .rss-dashboard-themed-select-trigger {

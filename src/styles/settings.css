@@ -971,7 +971,7 @@
 @media (max-width: 920px) {
   .rss-keyword-filter-editor-controls {
     grid-template-columns: 1fr 1fr;
-    column-gap: 12px;
+    gap: 12px 12px; /* row-gap column-gap */
   }
 
   .rss-keyword-filter-input {

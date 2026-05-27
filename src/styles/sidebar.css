@@ -343,10 +343,10 @@
   background: var(--background-primary);
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
+  scrollbar-gutter: stable; /* audit-ok: standard CSS Scrollbars L4; degrades gracefully in unsupported environments */
+  scrollbar-width: thin; /* audit-ok: standard CSS Scrollbars L4; degrades gracefully in unsupported environments */
   scrollbar-color: var(--scrollbar-thumb-bg, var(--background-modifier-border))
-    transparent;
+    transparent; /* audit-ok: standard CSS Scrollbars L4; degrades gracefully in unsupported environments */
 }
 
 .rss-dashboard-feed-folder {
@@ -397,9 +397,11 @@
   );
 }
 
-.rss-dashboard-feed-folder-header.rss-dashboard-sidebar-row-focused .rss-dashboard-feed-folder-name,
+.rss-dashboard-feed-folder-header.rss-dashboard-sidebar-row-focused
+  .rss-dashboard-feed-folder-name,
 .rss-dashboard-feed.rss-dashboard-sidebar-row-focused .rss-dashboard-feed-name,
-.rss-dashboard-all-feeds-button.rss-dashboard-sidebar-row-focused .rss-dashboard-all-feeds-label {
+.rss-dashboard-all-feeds-button.rss-dashboard-sidebar-row-focused
+  .rss-dashboard-all-feeds-label {
   color: var(--text-accent);
 }
 
@@ -736,7 +738,6 @@
 .rss-dashboard-sidebar {
   overflow: hidden;
   min-height: 0;
-  max-height: 100vh;
   max-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -749,50 +750,58 @@
   flex: 0 0 auto;
 }
 
-.rss-dashboard-feed-folders-section::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
+/* audit-ok: css-scrollbar — ::-webkit-scrollbar pseudo-elements are required for
+   consistent scrollbar appearance in Obsidian's Chromium/Electron environment.
+   Wrapped in @supports selector() for progressive enhancement; degrades to
+   standard scrollbar-width/color (above) in non-WebKit environments. */
+@supports selector(::-webkit-scrollbar) {
+  .rss-dashboard-feed-folders-section::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
 
-.rss-dashboard-feed-folders-section::-webkit-scrollbar-track {
-  background: transparent;
-}
+  .rss-dashboard-feed-folders-section::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
-.rss-dashboard-feed-folders-section::-webkit-scrollbar-track-piece {
-  background: transparent;
-}
+  .rss-dashboard-feed-folders-section::-webkit-scrollbar-track-piece {
+    background: transparent;
+  }
 
-.rss-dashboard-feed-folders-section::-webkit-scrollbar-button {
-  width: 0;
-  height: 0;
-  display: none;
-  background: transparent;
-}
+  .rss-dashboard-feed-folders-section::-webkit-scrollbar-button {
+    width: 0;
+    height: 0;
+    display: none;
+    background: transparent;
+  }
 
-.rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb {
-  background-color: var(
-    --scrollbar-thumb-bg,
-    var(--background-modifier-border)
-  );
-  border-radius: 999px;
-  border: 2px solid var(--scrollbar-bg, transparent);
-}
+  .rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb {
+    background-color: var(
+      --scrollbar-thumb-bg,
+      var(--background-modifier-border)
+    );
+    border-radius: 999px;
+    border: 2px solid var(--scrollbar-bg, transparent);
+  }
 
-.rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb:hover {
-  background-color: var(
-    --scrollbar-active-thumb-bg,
-    var(--scrollbar-thumb-bg, var(--background-modifier-border))
-  );
+  .rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb:hover {
+    background-color: var(
+      --scrollbar-active-thumb-bg,
+      var(--scrollbar-thumb-bg, var(--background-modifier-border))
+    );
+  }
 }
 
 .rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden {
-  scrollbar-width: none;
+  scrollbar-width: none; /* audit-ok: scrollbar suppression required for UX-critical overflow hiding */
   -ms-overflow-style: none;
 }
 
-.rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+@supports selector(::-webkit-scrollbar) {
+  .rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
 }
 
 /* Refresh button in filters section */
@@ -1171,8 +1180,12 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   pointer-events: none;
 }
 
-.rss-dashboard-header-icon-row::-webkit-scrollbar {
-  display: none; /* Chrome/Safari/WebKit */
+/* audit-ok: css-scrollbar — ::-webkit-scrollbar required to suppress scrollbar in Obsidian's
+   Chromium/Electron environment; wrapped in @supports for progressive enhancement. */
+@supports selector(::-webkit-scrollbar) {
+  .rss-dashboard-header-icon-row::-webkit-scrollbar {
+    display: none; /* Chrome/Safari/WebKit */
+  }
 }
 
 .rss-dashboard-header-icon-row .clickable-icon {

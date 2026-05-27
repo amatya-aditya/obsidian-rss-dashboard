@@ -44,74 +44,73 @@
 - [ ] For any `!important` that must remain (e.g. Obsidian theme override conflicts), add an inline comment: `/* audit-ok: !important required to override Obsidian theme specificity */`
 - [ ] Document the approved exception pattern in `CONTRIBUTING.MD`
 
+- Note: Line from @controls.css - \* We use !important on display toggles to prevent overrides from later-loaded stylesheets (modals.css, discover.css) - need to investigate further
+
 ### CSS — Partially Supported Browser Features
 
 #### `css-scrollbar` (14 warnings)
 
-- [ ] `styles.css` (7 occurrences) — evaluate if scrollbar styling is critical; consider wrapping in a `@supports` query or removing
-- [ ] `src/styles/modals.css:2762`, `2763-2767`, `2814`
-- [ ] `src/styles/sidebar.css:347`, `348-349`, `789`, `1159`
-- [ ] If kept: add inline comment `/* audit-ok: css-scrollbar used intentionally; degrades gracefully on unsupported targets */` and document in `CONTRIBUTING.MD`
+- [x] `styles.css` (7 occurrences) — evaluate if scrollbar styling is critical; consider wrapping in a `@supports` query or removing
+- [x] `src/styles/modals.css:2762`, `2763-2767`, `2814`
+- [x] `src/styles/sidebar.css:347`, `348-349`, `789`, `1159`
 
 #### `multicolumn` (8 warnings)
 
-- [ ] `styles.css` (4 occurrences)
-- [ ] `src/styles/card-view.css:654`
-- [ ] `src/styles/modals.css:1579`
-- [ ] `src/styles/settings.css:556`, `974`
-- [ ] If kept: add inline comment `/* audit-ok: multicolumn layout degrades gracefully */` and document in `CONTRIBUTING.MD`
+- [x] `styles.css` (4 occurrences)
+- [x] `src/styles/card-view.css:654`
+- [x] `src/styles/modals.css:1579`
+- [x] `src/styles/settings.css:556`, `974`
 
 #### `css-display-contents` (2 warnings)
 
-- [ ] `styles.css:1`
-- [ ] `src/styles/controls.css:1087`
-- [ ] Same inline comment and CONTRIBUTING.MD treatment as above
+- [x] `styles.css:1`
+- [x] `src/styles/controls.css:1087`
 
 ### CSS — Duplicate Property Declarations
 
 #### `max-height` (8 warnings)
 
-- [ ] `styles.css` (4 occurrences — likely from build bundle, fix in source)
-- [ ] `src/styles/modals.css:2492`, `2544`
-- [ ] `src/styles/reader.css:457`
-- [ ] `src/styles/sidebar.css:739`
+- [x] `styles.css`
+- [x] `src/styles/modals.css:2492`, `2544`
+- [x] `src/styles/reader.css:457`
+- [x] `src/styles/sidebar.css:739`
 
 #### `height` (4 warnings)
 
-- [ ] `styles.css` (2 occurrences)
-- [ ] `src/styles/modals.css:2488`, `2540`
+- [x] `styles.css` (2 occurrences)
+- [x] `src/styles/modals.css:2488`, `2540`
 
 #### `min-height` (4 warnings)
 
-- [ ] `styles.css` (2 occurrences)
-- [ ] `src/styles/modals.css:2490`, `2542`
+- [x] `styles.css` (2 occurrences)
+- [x] `src/styles/modals.css:2490`, `2542`
 
 #### `padding` (2 warnings)
 
-- [ ] `styles.css:1`
-- [ ] `src/styles/articles.css:56`
+- [x] `styles.css:1`
+- [x] `src/styles/articles.css:56`
 
 #### `position` (2 warnings)
 
-- [ ] `styles.css:1`
-- [ ] `src/styles/controls.css:186`
+- [x] `styles.css:1`
+- [x] `src/styles/controls.css:186`
 
 #### `bottom` (2 warnings)
 
-- [ ] `styles.css:1`
-- [ ] `src/styles/dropdown-portal.css:46`
+- [x] `styles.css:1`
+- [x] `src/styles/dropdown-portal.css:46`
 
 #### `color` (1 warning)
 
-- [ ] `src/styles/articles.css:58`
+- [x] `src/styles/articles.css:58`
 
 #### `border` (1 warning)
 
-- [ ] `src/styles/articles.css:54`
+- [x] `src/styles/articles.css:54`
 
 #### `line-height` (1 warning)
 
-- [ ] `src/styles/modals.css:461`
+- [x] `src/styles/modals.css:461`
 
 > **Note on `styles.css` duplicate warnings**: Many of these point to `styles.css:1`, which is the build-bundled output. The root cause is likely in the source CSS files — fix there; the bundled file should clear automatically.
 

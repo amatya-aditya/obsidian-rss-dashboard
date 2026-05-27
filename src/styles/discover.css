@@ -1966,21 +1966,27 @@
 }
 
 /* Scrollbar styling for folder list */
-.rss-folder-selector-list::-webkit-scrollbar {
-  width: 6px;
-}
+/* audit-ok: css-scrollbar — ::-webkit-scrollbar pseudo-elements are required for
+   consistent scrollbar appearance in Obsidian's Chromium/Electron environment.
+   Wrapped in @supports selector() for progressive enhancement; degrades to the
+   browser default scrollbar in non-WebKit environments. */
+@supports selector(::-webkit-scrollbar) {
+  .rss-folder-selector-list::-webkit-scrollbar {
+    width: 6px;
+  }
 
-.rss-folder-selector-list::-webkit-scrollbar-track {
-  background: transparent;
-}
+  .rss-folder-selector-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
-.rss-folder-selector-list::-webkit-scrollbar-thumb {
-  background: var(--background-modifier-border);
-  border-radius: 3px;
-}
+  .rss-folder-selector-list::-webkit-scrollbar-thumb {
+    background: var(--background-modifier-border);
+    border-radius: 3px;
+  }
 
-.rss-folder-selector-list::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  .rss-folder-selector-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
 }
 
 /* Mobile adjustments for folder selector */

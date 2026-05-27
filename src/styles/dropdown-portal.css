@@ -43,7 +43,6 @@
 
 .rss-dashboard-tags-dropdown-content-portal.dropdown-align-below {
   top: auto;
-  bottom: calc(100vh - var(--dropdown-anchor-top, 0));
   bottom: calc(100dvh - var(--dropdown-anchor-top, 0));
 }
 
@@ -283,13 +282,13 @@
 }
 
 .rss-dashboard-filter-apply-btn:hover {
-	border-color: #a66ac0;
-	background: #a66ac0;
+  border-color: #a66ac0;
+  background: #a66ac0;
 }
 
 .rss-dashboard-filter-checkbox {
-	margin: 0;
-	cursor: pointer;
+  margin: 0;
+  cursor: pointer;
 }
 
 .rss-dashboard-filter-menu-icon {

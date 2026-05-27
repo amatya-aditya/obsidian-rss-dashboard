@@ -644,23 +644,6 @@
   box-shadow: 0 0 8px rgb(0 0 0 / 0.4);
 }
 
-@media print {
-  .rss-dashboard-card-view {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 10px;
-  }
-
-  .rss-dashboard-article-card {
-    break-inside: avoid;
-    box-shadow: none;
-    border: 1px solid #ccc;
-  }
-
-  .rss-dashboard-action-toolbar {
-    display: none;
-  }
-}
-
 @media (prefers-contrast: high) {
   .rss-dashboard-article-card {
     border-width: 2px;

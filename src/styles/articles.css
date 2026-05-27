@@ -55,7 +55,6 @@
   background: none;
   padding: 4px 8px;
   cursor: pointer;
-  color: var(--text-normal);
   height: var(--input-height);
   font-size: var(--font-ui-small);
   font-family: inherit;
@@ -65,13 +64,11 @@
   max-width: 100%;
   box-sizing: border-box;
   margin: 0;
-  border: 0;
   box-shadow: var(--input-shadow);
   border-radius: var(--input-radius);
   -webkit-appearance: none;
   appearance: none;
   background-color: var(--dropdown-background);
-  padding: var(--dropdown-padding);
   background-repeat: no-repeat, repeat;
   background-position: var(--dropdown-background-position);
   background-size: var(--dropdown-background-size);
