@@ -1,4 +1,4 @@
-﻿/**
+/**
  * P0-1 Tests for Plugin Lifecycle (main.ts)
  *
  * Tests cover:
@@ -47,7 +47,6 @@ vi.mock("../../../src/services/article-saver", () => ({
 vi.mock("../../../src/services/backup-service", () => ({
   BackupService: class BackupService {
     performAutoBackups = vi.fn().mockResolvedValue(undefined);
-    performAutoBackupsSyncDesktop = vi.fn().mockReturnValue(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(_options?: any) {}
   },
@@ -94,7 +93,6 @@ function createMockManifest(): PluginManifest {
 type PluginPrivateAPI = {
   backupService: {
     performAutoBackups: () => Promise<void>;
-    performAutoBackupsSyncDesktop: () => boolean;
   };
   folderService: object;
   backgroundImportService: { startBackgroundImport: (feeds: Feed[]) => void };
@@ -160,7 +158,7 @@ async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
     new BackgroundImportService({
       feedParser: {
         parseFeed: (url: string) =>
-          (mockParseFeed as (url: string) => unknown)(url),
+          (mockParseFeed as (url: string) => Promise<Feed>)(url),
       },
       getSettings: () => plugin.settings,
       getView: () => plugin.getActiveDashboardView(),
@@ -168,7 +166,9 @@ async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
       ensureFolderExists: (folder, opts) =>
         plugin.ensureFolderExists(folder, opts),
       addStatusBarItem: () => {
-        const el = document.createElement("div");
+        const el = document.createElement("div") as unknown as HTMLElement & {
+          createSpan: (opts?: { cls?: string }) => HTMLSpanElement;
+        };
         el.createSpan = (opts?: { cls?: string }) => {
           const span = document.createElement("span");
           if (opts?.cls) span.className = opts.cls;
@@ -441,13 +441,6 @@ describe("onload() initialization", () => {
     expect(plugin.addSettingTab).toHaveBeenCalled();
   });
 
-  it("registers beforeunload handler for backup", async () => {
-    // When: onload is called
-    await plugin.onload();
-
-    // Then: _beforeUnloadHandler should be set
-    expect(plugin["_beforeUnloadHandler"]).toBeDefined();
-  });
 
   it("loads settings during initialization", async () => {
     // When: onload is called
@@ -1347,11 +1340,8 @@ describe("ingestFeedsForBackgroundImport()", () => {
 
 describe("onunload()", () => {
   let plugin: RssDashboardPlugin;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let removeEventListenerSpy: any;
 
   beforeEach(async () => {
-    removeEventListenerSpy = vi.spyOn(window, "removeEventListener");
     const app = createMockApp();
     plugin = await createPluginInstance(app);
 
@@ -1365,8 +1355,8 @@ describe("onunload()", () => {
       },
     };
 
-    // Set up beforeUnloadHandler
-    plugin["_beforeUnloadHandler"] = vi.fn();
+    (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups =
+      vi.fn().mockResolvedValue(undefined);
 
     vi.clearAllMocks();
   });
@@ -1375,60 +1365,11 @@ describe("onunload()", () => {
     vi.restoreAllMocks();
   });
 
-  it("removes beforeunload handler", () => {
-    // Given: Plugin with beforeUnloadHandler set
-    expect(plugin["_beforeUnloadHandler"]).toBeDefined();
-
+  it("calls async performAutoBackups on onunload", () => {
     // When: onunload is called
     plugin.onunload();
 
-    // Then: beforeUnloadHandler should be null
-    expect(plugin["_beforeUnloadHandler"]).toBeNull();
-  });
-
-  it("removes beforeunload event listener from window", () => {
-    // When: onunload is called
-    plugin.onunload();
-
-    // Then: removeEventListener should be called
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      "beforeunload",
-      expect.any(Function),
-    );
-  });
-
-  it("attempts sync backup on desktop", () => {
-    // Given: Plugin with auto-backup settings
-    (
-      plugin as unknown as PluginPrivateAPI
-    ).backupService.performAutoBackupsSyncDesktop = vi
-      .fn()
-      .mockReturnValue(true);
-
-    // When: onunload is called
-    plugin.onunload();
-
-    // Then: performAutoBackupsSyncDesktop should be called
-    expect(
-      (plugin as unknown as PluginPrivateAPI).backupService
-        .performAutoBackupsSyncDesktop,
-    ).toHaveBeenCalled();
-  });
-
-  it("falls back to async backup when sync fails", () => {
-    // Given: Plugin with auto-backup settings that fails sync
-    (
-      plugin as unknown as PluginPrivateAPI
-    ).backupService.performAutoBackupsSyncDesktop = vi
-      .fn()
-      .mockReturnValue(false);
-    (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups =
-      vi.fn().mockResolvedValue(undefined);
-
-    // When: onunload is called
-    plugin.onunload();
-
-    // Then: performAutoBackups should be called as fallback
+    // Then: performAutoBackups should be called
     expect(
       (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups,
     ).toHaveBeenCalled();

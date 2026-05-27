@@ -18,7 +18,17 @@
   - Tested new implementation - working.
   - ESLint passes.
 
-- [ ] **Direct filesystem access via Node.js `fs` module** — Plugin is accessing the filesystem outside of the Obsidian vault API (`vault.read`, `vault.modify`, etc.). Audit all `fs` usages and migrate to the Obsidian API. Flag any cases where `fs` is genuinely required and document the justification in `docs/SECURITY.md`.
+- [x] **Direct filesystem access via Node.js `fs` module** — Plugin is accessing the filesystem outside of the Obsidian vault API (`vault.read`, `vault.modify`, etc.). Audit all `fs` usages and migrate to the Obsidian API. Flag any cases where `fs` is genuinely required and document the justification in `docs/SECURITY.md`.
+
+- Notes:
+  - Plan: `docs/development/2.3.0-audit/remediate-direct-filesystem-access.md`
+  - Audited all instances of `fs` usage and completely eliminated Node.js `fs` and `path` dependencies from the production codebase.
+  - Migrated OPML import file pickers in `main.ts` and `src/modals/import-opml-modal.ts` to standard, sandboxed browser `<input type="file" accept=".opml,.xml,.backup">` elements, which use standard HTML5 File APIs.
+  - Removed the desktop-only synchronous backup flow (`performAutoBackupsSyncDesktop()`) from `src/services/backup-service.ts` and `main.ts`, which bypassed the vault sandbox.
+  - Configured auto-backups to run as a standard asynchronous best-effort task on `onunload` using cross-platform sandboxed `vault.adapter` APIs.
+  - Removed all `window.require("fs")` and `window.require("path")` calls from the codebase, meaning no security exemptions are needed in `docs/SECURITY.md`.
+  - Updated the unit tests in `test_files/unit/services/backup-service.test.ts` and `test_files/unit/main/plugin-lifecycle.test.ts` to reflect the removal of `performAutoBackupsSyncDesktop()`.
+  - Confirmed all lint checks and unit tests pass clean.
 
 ---
 

@@ -260,7 +260,6 @@ export default class RssDashboardPlugin extends Plugin {
   public settingTab: RssDashboardSettingTab | null = null;
   private isMultiFeedRefreshRunning = false;
   public vaultAbsolutePath = "";
-  private _beforeUnloadHandler: (() => void) | null = null;
   private hasCompletedStartupSavedArticleValidation = false;
   private progressSaveDebounce: number | null = null;
   private static readonly FEED_REFRESH_CONCURRENCY = 4;
@@ -591,12 +590,6 @@ export default class RssDashboardPlugin extends Plugin {
       return elapsed >= intervalMs;
     };
 
-    // Register a window-level beforeunload listener for reliable backup
-    // on Obsidian quit. onunload is NOT reliably called by Electron on window close.
-    this._beforeUnloadHandler = () => {
-      this.backupService.performAutoBackupsSyncDesktop();
-    };
-    window.addEventListener("beforeunload", this._beforeUnloadHandler);
 
     const view = await this.getActiveDashboardView();
     if (view) {
@@ -1173,51 +1166,8 @@ export default class RssDashboardPlugin extends Plugin {
       }
     };
 
-    /**
-     * NOTE for future developers: The following block uses Electron's native dialog via 'window.require'
-     * to support multiple file extension filters simultaneously (e.g., .opml, .xml) on Windows.
-     * This is a known desktop-only pattern in Obsidian. We use 'any' casts and disable ESLint
-     * rules here because these Electron-specific APIs are not in the standard Obsidian type
-     * definitions. The surrounding try...catch is CRITICAL to ensure the plugin doesn't
-     * crash on mobile where these APIs are absent.
-     */
-    try {
-      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
-      const remote =
-        (window as any).require?.("@electron/remote") ||
-        (window as any).require?.("electron")?.remote;
-      if (remote && remote.dialog) {
-        const filePaths = remote.dialog.showOpenDialogSync({
-          title: "Import feeds from OPML or XML",
-          properties: ["openFile"],
-          filters: [
-            {
-              name: "OPML, XML, or Backup Files",
-              extensions: ["opml", "xml", "backup"],
-            },
-            { name: "All Files", extensions: ["*"] },
-          ],
-        });
-
-        if (filePaths && filePaths.length > 0) {
-          const filePath = filePaths[0];
-          const fs = (window as any).require("fs");
-          const content = fs.readFileSync(filePath, "utf-8");
-          const fileName = filePath.split(/[/\\]/).pop() || "file";
-          const file = new File([content], fileName, { type: "text/xml" });
-          void handleImportOpmlFile(file);
-          return;
-        } else if (filePaths === undefined) {
-          return; // Dialog was cancelled
-        }
-      }
-      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
-    } catch {
-      // Ignore errors and fallback
-    }
-
     const input = activeDocument.body.createEl("input", {
-      attr: { type: "file", accept: ".opml,.xml" },
+      attr: { type: "file", accept: ".opml,.xml,.backup" },
     });
     input.onchange = () => {
       const file = input.files?.[0];
@@ -2493,11 +2443,6 @@ export default class RssDashboardPlugin extends Plugin {
     await this.backupService.performAutoBackups();
   }
 
-  public performAutoBackupsSyncDesktop(): boolean {
-    // ✅ BackupService extracted — delegates to service
-    return this.backupService.performAutoBackupsSyncDesktop();
-  }
-
   onunload() {
     if (this.progressSaveDebounce !== null) {
       window.clearTimeout(this.progressSaveDebounce);
@@ -2505,17 +2450,8 @@ export default class RssDashboardPlugin extends Plugin {
       void this.saveSettings();
     }
 
-    // Remove the beforeunload listener to avoid it firing when the plugin
-    // is manually disabled (onunload handles it instead).
-    if (this._beforeUnloadHandler) {
-      window.removeEventListener("beforeunload", this._beforeUnloadHandler);
-      this._beforeUnloadHandler = null;
-    }
-    // Run backups synchronously on plugin disable
-    const synced = this.backupService.performAutoBackupsSyncDesktop();
-    if (!synced) {
-      void this.backupService.performAutoBackups();
-    }
+    // Run backups asynchronously on plugin disable/unload (best effort)
+    void this.backupService.performAutoBackups();
   }
 
   private async validateSavedArticles(): Promise<void> {

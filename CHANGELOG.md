@@ -6,13 +6,14 @@
 
 #### Risks
 
--**Dynamic `<script>` element creation**
+- **Dynamic `<script>` element creation**
+  - Flagged as a red/critical risk due to 2.3.0's media progress saving feature (specifically Youtube iFrame embeds)
+  - Rewrote how the progress is stored that adheres to Obsidian's best practices and Youtube SDK API
+  - Added CI/CD ESLint rule to prevent dynamic `<script>` element creation in the future
 
-- Flagged as the only red/critical risk due to 2.3.0's media progress saving feature (specifically Youtube iFrame embeds)
-- Rewrote how the progress is stored that adheres to Obsidian's best practices and Youtube SDK API
-- Added CI/CD ESLint rule to prevent dynamic `<script>` element creation in the future
+- Completely eliminated all Node.js/Electron `fs` and `path` usages from the production plugin code
 
----
+## docs\development\2.3.0-audit\remediate-direct-filesystem-access.md
 
 ## [2.3.0] - May 26, 2026
 

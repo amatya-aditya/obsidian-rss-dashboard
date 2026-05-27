@@ -142,52 +142,8 @@ export class ImportOpmlModal extends Modal {
   }
 
   private openFilePicker() {
-    /**
-     * NOTE for future developers: The following block uses Electron's native dialog via 'activeWindow.require'
-     * to support multiple file extension filters simultaneously (e.g., .opml, .xml) on Windows.
-     * This is a known desktop-only pattern in Obsidian. We use 'any' casts and disable ESLint
-     * rules here because these Electron-specific APIs are not in the standard Obsidian type
-     * definitions. The surrounding try...catch is CRITICAL to ensure the plugin doesn't
-     * crash on mobile where these APIs are absent.
-     */
-    try {
-      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument -- Electron remote dialog API for native file picker on desktop; not in standard Obsidian types */
-      const remote =
-        (activeWindow as any).require?.("@electron/remote") ||
-        (activeWindow as any).require?.("electron")?.remote;
-      if (remote && remote.dialog) {
-        const filePaths = remote.dialog.showOpenDialogSync({
-          title: "Import feeds from OPML or XML",
-          properties: ["openFile"],
-          filters: [
-            {
-              name: "OPML, XML, or Backup Files",
-              extensions: ["opml", "xml", "backup"],
-            },
-            { name: "All Files", extensions: ["*"] },
-          ],
-        });
-
-        if (filePaths && filePaths.length > 0) {
-          const filePath = filePaths[0];
-          const fs = (window as any).require("fs");
-          const content = fs.readFileSync(filePath, "utf-8");
-          const fileName = filePath.split(/[/\\]/).pop() || "file";
-          const file = new File([content], fileName, { type: "text/xml" });
-          void this.handleFileSelection(file);
-          return;
-        } else if (filePaths === undefined) {
-          return; // Dialog was cancelled
-        }
-      }
-      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
-    } catch {
-      // Ignore errors and fallback to HTML input (e.g., on mobile)
-    }
-
-    // Fallback for mobile / web: standard HTML file input
     const input = activeDocument.body.createEl("input", {
-      attr: { type: "file", accept: ".opml,.xml" },
+      attr: { type: "file", accept: ".opml,.xml,.backup" },
     });
     input.onchange = async () => {
       const file = input.files?.[0];
