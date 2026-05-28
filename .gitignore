@@ -16,3 +16,6 @@ release/
 
 # testfiles
 test_files
+
+# claude code local settings
+.claude/settings.local.json
