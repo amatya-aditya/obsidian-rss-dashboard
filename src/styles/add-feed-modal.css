@@ -1,0 +1,284 @@
+/* =============================================================================
+ * Add Feed Modal
+ *
+ * This file is a child of modals.css, created during the 2.3.1 refactor to
+ * modularize feature-specific modal styles.
+ * Base structural styles are inherited from modals.css.
+ * =============================================================================
+ */
+
+/* ============================================
+   Add Feed Modal UI
+   ============================================ */
+
+/* Modal subtitle */
+.add-feed-subtitle {
+  font-size: 0.9em;
+  color: var(--text-muted);
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+}
+
+.rss-keyword-filter-details {
+  margin: 12px 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+}
+
+.rss-keyword-filter-summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  font-weight: 600;
+}
+
+.rss-keyword-filter-details-body {
+  padding: 0 12px 12px;
+}
+
+.rss-keyword-filter-details .rss-keyword-filter-rule-col,
+.rss-keyword-filter-details .rss-keyword-filter-rule-enabled-col {
+  min-width: 0;
+}
+
+.rss-keyword-filter-details .rss-keyword-filter-select,
+.rss-keyword-filter-details .rss-keyword-filter-input {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  border-radius: 6px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+}
+
+.rss-keyword-filter-details .rss-keyword-filter-rule-top {
+  align-items: stretch;
+}
+
+.rss-keyword-filter-details .rss-keyword-filter-label {
+  line-height: 1.2;
+}
+
+.rss-dashboard-modal .rss-keyword-filter-checkbox {
+  width: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border-radius: 3px;
+}
+
+.rss-dashboard-modal .rss-keyword-filter-select {
+  width: auto;
+  min-width: 112px;
+}
+
+.rss-dashboard-modal .rss-keyword-filter-input {
+  width: auto;
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+/* Add/Edit Feed > Feed URL > Load button */
+.rss-dashboard-modal .rss-dashboard-load-button {
+  background: var(--rss-color-purple);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.rss-dashboard-load-button:hover {
+  background: color-mix(in srgb, var(--rss-color-purple) 86%, white);
+  transform: translateY(-1px);
+}
+
+.rss-dashboard-load-button:active {
+  transform: translateY(0);
+}
+
+.rss-dashboard-load-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+/* Loading spinner for Load button */
+.rss-dashboard-load-button.loading {
+  opacity: 0.7;
+  cursor: wait;
+  position: relative;
+}
+
+.rss-dashboard-load-button.loading::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid transparent;
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-left: 8px;
+}
+
+/* Add/Edit Feed form rows: label | matched control */
+.rss-dashboard-modal .rss-feed-form-row {
+  --rss-feed-form-label-column: 40%;
+  display: grid;
+  grid-template-columns:
+    minmax(220px, var(--rss-feed-form-label-column))
+    minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.rss-dashboard-modal .rss-feed-form-row .setting-item-info {
+  grid-column: 1;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+}
+
+.rss-dashboard-modal .rss-feed-form-row .setting-item-control {
+  display: flex;
+  grid-column: 2;
+  align-items: center;
+  justify-content: stretch;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+
+.rss-dashboard-modal .rss-feed-form-row-url .setting-item-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+}
+
+.rss-dashboard-modal .rss-feed-form-row .feed-url-input,
+.rss-dashboard-modal .rss-feed-form-row .title-input,
+.rss-dashboard-modal .rss-feed-form-row .folder-input {
+  min-width: 0;
+  width: 100%;
+}
+
+.rss-dashboard-modal .rss-feed-form-row-url .feed-url-input {
+  grid-area: 1 / 1;
+  padding-right: calc(var(--rss-feed-form-load-button-width) + 18px);
+}
+
+.rss-dashboard-modal .rss-feed-source-row .setting-item-control {
+  justify-content: center;
+}
+
+.rss-dashboard-modal .rss-feed-source-row .supported-formats {
+  justify-content: center;
+  margin: 0;
+  padding-bottom: 0;
+  width: 100%;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Status color classes */
+.add-feed-status.status-ok {
+  color: var(--rss-color-status-ok);
+  font-weight: 600;
+}
+
+.add-feed-status.status-error {
+  color: var(--rss-color-status-error);
+  font-weight: 600;
+}
+
+.add-feed-status.status-loading {
+  color: var(--rss-color-status-loading);
+  font-weight: 500;
+}
+
+/* URL input loaded state */
+.feed-url-input.loaded {
+  border-color: var(--rss-color-status-ok);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+/* Supported formats badges */
+.supported-formats {
+  justify-content: center;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  /* padding-left: 12px; */
+  padding-bottom: 4px;
+}
+
+/* Add/Edit Feed Badges that indicate the format of the feed and glow when active */
+
+.format-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75em;
+  padding: 4px 10px;
+  color: var(--text-muted);
+}
+
+.format-badge svg {
+  width: 14px;
+  height: 14px;
+}
+
+.format-badge.active {
+  animation: badge-glow 1.5s ease-in-out infinite;
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+  margin: 2px;
+}
+
+.format-badge.rss {
+  color: var(--rss-color-inactive-badge);
+}
+
+.format-badge.podcast {
+  color: var(--rss-color-inactive-badge);
+}
+
+.format-badge.youtube {
+  color: var(--rss-color-inactive-badge);
+}
+
+.format-badge.rss.active {
+  color: var(--rss-color-rss-badge);
+}
+
+.format-badge.podcast.active {
+  color: var(--rss-color-podcast-badge);
+}
+
+.format-badge.youtube.active {
+  color: var(--rss-color-youtube-badge);
+}
+
+@keyframes badge-glow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}

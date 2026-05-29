@@ -1,0 +1,362 @@
+/* =============================================================================
+ * Feed Manager Modal
+ *
+ * This file is a child of modals.css, created during the 2.3.1 refactor to
+ * modularize feature-specific modal styles.
+ * Base structural styles are inherited from modals.css.
+
+ * =============================================================================
+ */
+
+/* ============================================
+    Feed Manager Modal Root Variables
+    ============================================ */
+
+:root {
+  /* Feed Manager Modal Z-Index Tokens */
+  --feed-manager-z-index-modal: 100000;
+  --feed-manager-z-index-modal-overlay: 100100;
+  --feed-manager-z-index-modal-overlay-container: 100101;
+  --feed-manager-z-index-drawer: 99999;
+
+  /* Feed Manager Semantic Palette */
+  --feed-manager-add-button: #8b5cf6;
+  --feed-manager-add-button-hover: #7c3aed;
+
+  --feed-manager-import-button-hover: #21b842;
+  --feed-manager-export-button-hover: #064cc6;
+  --feed-manager-delete-all-button: #dc2626;
+  --feed-manager-delete-all-button-hover: #b91c1c;
+}
+
+/* ============================================
+   Feed Manager Modal Base
+   ============================================ */
+
+.feed-manager-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+}
+
+.delete-all-backup-notice strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-normal);
+  font-size: 0.95rem;
+}
+
+.delete-all-backup-notice p {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.rss-dashboard-confirm-modal .export-opml-btn {
+  background: var(--feed-manager-color-accent, #3498db);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+/* ============================================
+   Feed Manager Buttons
+   ============================================ */
+
+/* Add button */
+
+.feed-manager-button-row button.feed-manager-add-button {
+  background: var(--feed-manager-add-button);
+  color: white;
+  cursor: pointer;
+}
+
+.feed-manager-button-row button.feed-manager-add-button:hover {
+  background: var(--feed-manager-add-button-hover);
+  color: white;
+  cursor: pointer;
+}
+
+.feed-manager-button-row button.feed-manager-add-button:hover svg {
+  color: white;
+}
+
+/* Import OPML button */
+.feed-manager-button-row button.feed-manager-import-button {
+  color: white;
+  cursor: pointer;
+}
+
+.feed-manager-button-row button.feed-manager-import-button:hover {
+  background: var(--feed-manager-import-button-hover);
+  color: white;
+  cursor: pointer;
+}
+.feed-manager-button-row button.feed-manager-import-button:hover svg {
+  color: white;
+}
+
+/* Export OPML button  */
+.feed-manager-button-row button.feed-manager-export-button {
+  color: white;
+  cursor: pointer;
+}
+
+.feed-manager-button-row button.feed-manager-export-button:hover {
+  background: var(--feed-manager-export-button-hover);
+  color: white;
+  cursor: pointer;
+}
+.feed-manager-button-row button.feed-manager-export-button:hover svg {
+  color: white;
+}
+
+/* Delete All Feeds button */
+.feed-manager-button-row button.feed-manager-delete-all-button {
+  background: var(--feed-manager-delete-all-button);
+  color: white;
+  cursor: pointer;
+}
+
+.feed-manager-button-row button.feed-manager-delete-all-button:hover {
+  background: var(--feed-manager-delete-all-button-hover);
+  color: white;
+  cursor: pointer;
+}
+
+.feed-manager-button-row button.feed-manager-delete-all-button:hover svg {
+  color: white;
+}
+
+/* Delete All Feeds Confirmation Modal */
+
+.rss-dashboard-confirm-modal .export-opml-btn:hover {
+  background: var(--feed-manager-export-button-hover);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+
+@media (max-width: 1200px) {
+  .modal-container.mod-dim .modal.rss-dashboard-modal-container {
+    max-height: 90dvh;
+    padding: 15px 14px;
+    width: 90vw;
+  }
+}
+
+@media (min-width: 769px) {
+  .feed-manager-button-row,
+  .feed-manager-button-row-primary,
+  .feed-manager-button-row-secondary {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .feed-manager-button-row button,
+  .feed-manager-button-row-primary button,
+  .feed-manager-button-row-secondary button {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    margin: 0 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .feed-manager-button-row,
+  .feed-manager-button-row-primary,
+  .feed-manager-button-row-secondary {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .feed-manager-button-row button,
+  .feed-manager-button-row-primary button,
+  .feed-manager-button-row-secondary button {
+    width: 100%;
+    min-width: 0;
+    margin: 0 !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .feed-manager-modal-content {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .feed-manager-modal h2 {
+    font-size: 1.1rem;
+  }
+
+  .feed-manager-modal-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .feed-manager-modal-buttons button {
+    width: 100%;
+  }
+
+  .feed-manager-folder-header {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .feed-manager-delete-folder-button {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+
+  .feed-manager-button-row {
+    flex-direction: column;
+  }
+
+  .feed-manager-button-row button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .modal-container.mod-dim .modal.rss-dashboard-modal-container {
+    width: 90vw;
+    max-height: 90vh;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    z-index: var(--feed-manager-z-index-drawer);
+    top: 50%;
+    left: 50%;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+    position: absolute;
+    border-radius: 16px;
+  }
+
+  .rss-mobile-feed-manager-modal .modal-content {
+    width: auto;
+    height: max-content;
+    overflow-y: auto;
+    padding: 12px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item.setting-item-heading {
+    padding-right: 44px;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item {
+    display: block;
+    padding: 10px 0;
+  }
+
+  .rss-mobile-feed-manager-modal .rss-feed-form-row {
+    display: block;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-info {
+    margin-bottom: 6px;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .rss-mobile-feed-manager-modal .rss-feed-form-row-url .setting-item-control {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control input,
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control textarea,
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control select {
+    flex: 1 1 220px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .rss-mobile-feed-manager-modal .setting-item .setting-item-control button {
+    min-height: 44px;
+  }
+
+  .rss-mobile-feed-manager-modal .rss-feed-form-row-url .feed-url-input {
+    grid-area: auto;
+    flex: 0 0 auto;
+    height: var(--input-height, 36px);
+    padding-right: 0;
+  }
+
+  .rss-mobile-feed-manager-modal
+    .rss-feed-form-row-url
+    .rss-dashboard-load-button {
+    grid-area: auto;
+    justify-self: center;
+    transform: none;
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    margin: 2px 0 0;
+    padding: 0 1rem;
+  }
+
+  .rss-mobile-feed-manager-modal .rss-dashboard-modal-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    background: var(--background-primary);
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: 8px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    margin-top: 12px;
+    grid-template-columns: 1fr;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-top-controls {
+    position: static;
+    background: var(--background-primary);
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 12px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-button-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-button-row-primary {
+    grid-template-columns: minmax(180px, 320px);
+    justify-content: center;
+  }
+
+  .rss-mobile-feed-manager-modal
+    .feed-manager-button-row-primary
+    .feed-manager-add-button {
+    width: 100%;
+  }
+
+  .rss-mobile-feed-manager-modal .feed-manager-button-row-secondary {
+    grid-template-columns: 1fr 1fr;
+  }
+}

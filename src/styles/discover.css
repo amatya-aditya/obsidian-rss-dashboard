@@ -1528,12 +1528,12 @@
 }
 
 .feed-preview-modal {
-  position: fixed !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  z-index: 10000 !important;
-  margin: 0 !important;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10000;
+  margin: 0;
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.18),
     0 1.5px 6px rgba(0, 0, 0, 0.08);
@@ -1678,12 +1678,7 @@
 
 /* Smallweb badge styling */
 .rss-smallweb-badge {
-  background: linear-gradient(
-    135deg,
-    hsl(260, 60%, 65%),
-    hsl(280, 60%, 65%)
-  ) !important;
-  /* color: white !important; */
+  background: #981fc8;
   display: inline-flex;
   align-items: center;
   vertical-align: middle;

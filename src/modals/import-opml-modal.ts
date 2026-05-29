@@ -63,7 +63,7 @@ export class ImportOpmlModal extends Modal {
     ]);
     this.modalEl.addClass("rss-import-opml-modal");
     if (isMobile) {
-      this.modalEl.addClass("rss-mobile-feed-manager-modal");
+      this.modalEl.addClass("rss-mobile-import-opml-modal");
     }
 
     contentEl.empty();
@@ -348,39 +348,41 @@ export class ImportOpmlModal extends Modal {
       cls: "import-preview-toolbar",
     });
 
-    const makeButton = (text: string, onClick: () => void) => {
-      const btn = toolbar.createEl("button", { text });
+    const makeButton = (text: string, iconName: string, onClick: () => void) => {
+      const btn = toolbar.createEl("button");
+      setIcon(btn, iconName);
+      btn.createSpan({ text });
       btn.onclick = onClick;
       return btn;
     };
 
-    makeButton("Select all", () => {
+    makeButton("Select all", "check-square", () => {
       const urls = this.collectAllFeedUrls(model.getFolderTree());
       urls.forEach((url) => model.toggleFeed(url, true));
       this.renderPreview();
       this.updateImportButtonFromModel();
     });
 
-    makeButton("Select none", () => {
+    makeButton("Select none", "square", () => {
       const urls = this.collectAllFeedUrls(model.getFolderTree());
       urls.forEach((url) => model.toggleFeed(url, false));
       this.renderPreview();
       this.updateImportButtonFromModel();
     });
 
-    makeButton("Expand all", () => {
+    makeButton("Expand all", "chevrons-down", () => {
       this.collapsedFolderPaths.clear();
       this.renderPreview();
     });
 
-    makeButton("Collapse all", () => {
+    makeButton("Collapse all", "chevrons-up", () => {
       this.collapsedFolderPaths = new Set(
         this.collectAllFolderPaths(model.getFolderTree()),
       );
       this.renderPreview();
     });
 
-    makeButton("Auto-fix invalid names", () => {
+    makeButton("Auto-fix invalid names", "wand-2", () => {
       model.autoFixInvalidNames();
       this.renderPreview();
       this.updateImportButtonFromModel();
@@ -879,19 +881,19 @@ export class ImportOpmlModal extends Modal {
       text: "Before overwriting, we strongly recommend backing up your current feeds by exporting to an OPML file.",
     });
 
+    // Button container
+    const buttonContainer = modalContent.createDiv({
+      cls: "rss-dashboard-modal-buttons",
+    });
+
     // Export OPML button
-    const exportBtn = backupDiv.createEl("button", {
+    const exportBtn = buttonContainer.createEl("button", {
       text: "Export OPML",
       cls: "rss-dashboard-primary-button export-opml-btn",
     });
     exportBtn.onclick = () => {
       this.plugin.exportOpml();
     };
-
-    // Button container
-    const buttonContainer = modalContent.createDiv({
-      cls: "rss-dashboard-modal-buttons",
-    });
 
     const cancelButton = buttonContainer.createEl("button", {
       text: "Cancel",

@@ -8,6 +8,10 @@
 @import "./video.css";
 @import "./controls.css";
 @import "./modals.css";
+@import "./add-feed-modal.css";
+@import "./edit-feed-modal.css";
+@import "./feed-manager-modal.css";
+@import "./import-opml-modal.css";
 @import "./dropdown-portal.css";
 @import "./pagination.css";
 @import "./discover.css";

@@ -40,27 +40,21 @@
 
 ---
 
-**Updated Plan**
+## Completed Tasks
 
-## Completed
-
-- Added explanatory comments for the hardcoded shadow values in `src/styles/modals.css`.
-- Kept the combobox padding split as-is.
-- Left `import-hidden` / `import-visible` in place because they are still used by the import modal state flow.
-- Began the feed-manager responsive cleanup by extracting a canonical grouped block for the search/button layout.
-
-## Still Unfinished
-
-- Remove the remaining duplicate lower feed-manager block in `src/styles/modals.css`.
-- Finish consolidating the remaining breakpoint rules so there is one clear source of truth for the feed-manager mobile behavior.
-- Audit the Android/WebView `clickable-icon` SVG blocks and merge any truly shared selectors.
-- Do the final `modals.css` section reorder to match the checklist layering.
-- Re-check whether the `@media (min-width: 769px)` feed manager grid rule is still needed after the consolidation is complete.
+- [x] Extracted Add Feed Modal styles into `add-feed-modal.css`
+- [x] Extracted Edit Feed Modal styles into `edit-feed-modal.css`
+- [x] Updated `feed-manager-modal.css` header comment
+- [x] Removed the remaining duplicate lower feed-manager block in `src/styles/modals.css`.
+- [x] Finished consolidating the remaining breakpoint rules so there is one clear source of truth for the feed-manager mobile behavior.
+- [x] Audited the Android/WebView `clickable-icon` SVG blocks and merged shared selectors.
+- [x] Added `audit-ok` inline comments for `!important` and missing design tokens.
+- [x] Did the final `modals.css` section reorder to match the checklist layering.
+- [x] Imported the newly created CSS files in `index.css`.
 
 ## Current Status
 
-- The work is currently in a safe-but-partially-refactored state.
-- No behavior-changing utility swaps were made.
-- The main remaining risk is CSS duplication, not functional regression.
-
-If you want, I can turn this into a tighter “done vs next” checklist with file-level bullets for the remaining `modals.css` cleanup.
+- The `modals.css` file has been fully refactored and modularized.
+- Feature-specific modals (`feed-manager`, `add-feed`, `edit-feed`) have been broken off into their own child CSS files.
+- Base structural styles and responsive overrides have been consolidated in `modals.css`.
+- This unblocks the next phase of the `!important` declaration audit.
