@@ -141,7 +141,7 @@
    right padding to reserve space for the collapse/expand toggle button. */
 .rss-dashboard-filter-subheader {
   position: relative;
-  z-index: 1;
+  z-index: 999999;
   padding: 8px 44px 8px 10px;
   margin: 0 10px 8px;
   border: 1px solid var(--background-modifier-border);

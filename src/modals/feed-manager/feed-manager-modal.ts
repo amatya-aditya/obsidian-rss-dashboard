@@ -25,46 +25,13 @@ export class FeedManagerModal extends Modal {
 
     this.modalEl.className +=
       " rss-dashboard-modal rss-dashboard-modal-container";
-    // Add mobile-specific class for proper styling on mobile/tablet
     if (isMobile) {
       this.modalEl.addClass("rss-mobile-feed-manager-modal");
-      // Hide default close button on mobile in favor of custom header button
-      this.modalEl.addClass("hide-default-close-button");
     }
 
     contentEl.empty();
 
-    // Create custom header with close button on mobile
-    if (isMobile) {
-      const headerContainer = contentEl.createDiv({
-        cls: "feed-manager-header-container",
-      });
-
-      headerContainer.createEl("h2", {
-        text: "Manage feeds",
-        cls: "feed-manager-header-title",
-      });
-
-      const closeBtn = headerContainer.createDiv({
-        cls: "clickable-icon feed-manager-header-close-button",
-        attr: {
-          "aria-label": "Close",
-          role: "button",
-          tabindex: "0",
-        },
-      });
-      setIcon(closeBtn, "x");
-      const closeAction = () => this.close();
-      closeBtn.onclick = closeAction;
-      closeBtn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          closeAction();
-        }
-      });
-    } else {
-      new Setting(contentEl).setName("Manage feeds").setHeading();
-    }
+    new Setting(contentEl).setName("Manage feeds").setHeading();
 
     // Search and button container
     const topControls = contentEl.createDiv({
