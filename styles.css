@@ -5210,7 +5210,7 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   color: var(--text-warning, #e6a700);
   font-weight: 500;
 }
-.add-tag-modal .tag-input-row.full-inline-row {
+.rss-add-tag-modal .tag-input-row.full-inline-row {
   display: flex;
   align-items: center;
   gap: 0.5em;
@@ -5219,14 +5219,14 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   flex-wrap: nowrap;
   justify-content: flex-start;
 }
-.add-tag-modal .color-label {
+.rss-add-tag-modal .color-label {
   display: inline-block;
   align-items: center;
   margin: 2px 6px;
   padding: 0;
   height: 36px;
 }
-.add-tag-modal .color-circle {
+.rss-add-tag-modal .color-circle {
   width: 32px;
   height: 32px;
   -webkit-appearance: none;
@@ -5238,20 +5238,20 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   inline-size: 32px;
   block-size: 32px;
 }
-body .add-tag-modal input.color-circle {
+body .rss-add-tag-modal input.color-circle {
   width: auto;
   height: fit-content;
 }
-.add-tag-modal .color-circle::-webkit-color-swatch-wrapper {
+.rss-add-tag-modal .color-circle::-webkit-color-swatch-wrapper {
   padding: 0;
   border-radius: 50%;
 }
-.add-tag-modal .color-circle::-webkit-color-swatch,
-.add-tag-modal .color-circle::-moz-color-swatch {
+.rss-add-tag-modal .color-circle::-webkit-color-swatch,
+.rss-add-tag-modal .color-circle::-moz-color-swatch {
   border: none;
   border-radius: 50%;
 }
-.add-tag-modal .tag-name-input {
+.rss-add-tag-modal .tag-name-input {
   flex: 0 1 180px;
   min-width: 100px;
   max-width: 220px;
@@ -5263,7 +5263,7 @@ body .add-tag-modal input.color-circle {
   display: inline-block;
   vertical-align: middle;
 }
-.add-tag-modal .tag-input-row.full-inline-row button {
+.rss-add-tag-modal .tag-input-row.full-inline-row button {
   margin-left: 0.5em;
   min-width: 70px;
   padding: 0 16px;
@@ -5274,13 +5274,13 @@ body .add-tag-modal input.color-circle {
   vertical-align: middle;
   box-sizing: border-box;
 }
-.add-tag-modal .tag-input-row.full-inline-row button:first-of-type {
+.rss-add-tag-modal .tag-input-row.full-inline-row button:first-of-type {
   margin-left: 0;
 }
-body .add-tag-modal .tag-input-row.full-inline-row input,
-body .add-tag-modal .tag-input-row.full-inline-row .color-circle,
-body .add-tag-modal .tag-input-row.full-inline-row .rss-dashboard-modal-buttons.inline-buttons,
-body .add-tag-modal .tag-input-row.full-inline-row .rss-dashboard-modal-buttons.inline-buttons button {
+body .rss-add-tag-modal .tag-input-row.full-inline-row input,
+body .rss-add-tag-modal .tag-input-row.full-inline-row .color-circle,
+body .rss-add-tag-modal .tag-input-row.full-inline-row .rss-dashboard-modal-buttons.inline-buttons,
+body .rss-add-tag-modal .tag-input-row.full-inline-row .rss-dashboard-modal-buttons.inline-buttons button {
   width: auto;
   min-width: unset;
   max-width: unset;
@@ -5370,10 +5370,10 @@ body .rss-dashboard-tag-modal-color-picker::-moz-color-swatch {
   color: var(--text-normal);
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
 }
-body .shortcut-help-modal .modal-close-button {
+body .rss-shortcut-help-modal .modal-close-button {
   display: none;
 }
-.shortcut-help-modal .rss-dashboard-header {
+.rss-shortcut-help-modal .rss-dashboard-header {
   order: -1;
   display: flex;
   align-items: center;
@@ -5384,14 +5384,14 @@ body .shortcut-help-modal .modal-close-button {
   border-bottom: none;
   background: transparent;
 }
-.shortcut-help-modal .rss-dashboard-header-title {
+.rss-shortcut-help-modal .rss-dashboard-header-title {
   font-size: 1.5rem;
   font-weight: 600;
   color: var(--text-normal);
   margin: 0;
   flex-grow: 1;
 }
-.shortcut-help-modal .rss-dashboard-header-close-button {
+.rss-shortcut-help-modal .rss-dashboard-header-close-button {
   width: 32px;
   min-width: 32px;
   height: 32px;
@@ -5407,11 +5407,11 @@ body .shortcut-help-modal .modal-close-button {
   margin-right: 0;
   transition: background-color 0.2s, color 0.2s;
 }
-.shortcut-help-modal .rss-dashboard-header-close-button:hover {
+.rss-shortcut-help-modal .rss-dashboard-header-close-button:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
-.shortcut-help-modal .rss-dashboard-modal-content {
+.rss-shortcut-help-modal .rss-dashboard-modal-content {
   padding: 1rem 1.5rem 1.5rem 1.5rem;
 }
 .rss-dashboard-clear-icon {

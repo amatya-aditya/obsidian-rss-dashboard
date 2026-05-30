@@ -14,7 +14,7 @@ export class ShortcutHelpModal extends Modal {
     contentEl.empty();
     this.modalEl.addClass("rss-dashboard-modal");
     this.modalEl.addClass("rss-dashboard-modal-container");
-    this.modalEl.addClass("shortcut-help-modal");
+    this.modalEl.addClass("rss-shortcut-help-modal");
 
     const header = contentEl.createDiv({ cls: "rss-dashboard-header" });
     header.createDiv({
