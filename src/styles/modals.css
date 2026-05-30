@@ -6,6 +6,11 @@
  * and have been split into their own files as part of the 2.3.1 refactor.
  * =============================================================================
  */
+
+/* ============================================
+ * 1. Base Variables & Z-Index
+ * Defines modal stacking hierarchy and color palette
+ * ============================================ */
 :root {
   /* Modal and Dropdown Stacking Hierarchy Tokens */
   --z-index-close-button: 10;
@@ -34,6 +39,10 @@
   --rss-color-discover-accent: #9b59b6;
 }
 
+/* ============================================
+ * 2. Base Modal Container & Layout
+ * Structural styling for the generic modal wrapper
+ * ============================================ */
 .rss-dashboard-modal {
   position: fixed;
   top: 50%;
@@ -52,165 +61,6 @@
 }
 .rss-dashboard-modal-content {
   padding: 2rem 1.5rem 1.5rem 1.5rem;
-}
-
-/* Suggestion container z-index fix */
-.rss-dashboard-folder-suggestion-container {
-  z-index: var(--z-index-folder-suggestion-container);
-}
-/*
- * Android WebView Icon Rendering Compatibility Block
- * Scoped to .rss-dashboard-modal to avoid Obsidian core collisions.
- *
- * Root causes:
- *  1. WebView fails to resolve % SVG sizing inside flex containers without
- *     explicit pixel dimensions on the SVG element itself.
- *  2. WebView drops SVG children from paint layer during layout recalculation
- *     when transforms/opacity transitions are active on ancestor elements.
- *
- * Fix: ancestor specificity replaces !important; contain + will-change
- * resolve the paint-drop bug at source rather than patching with visibility.
- *
- * Ref: design-spec §Icon Rendering Standards
- */
-.rss-dashboard-modal .clickable-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  contain: layout style;
-  width: var(--icon-size, 20px);
-  height: var(--icon-size, 20px);
-}
-
-.rss-dashboard-modal .clickable-icon > svg {
-  display: block;
-  width: var(--icon-size, 20px);
-  height: var(--icon-size, 20px);
-  overflow: visible;
-  will-change: transform;
-}
-
-.rss-dashboard-modal .clickable-icon > svg * {
-  pointer-events: none;
-}
-
-.rss-dashboard-folder-input-container {
-  position: relative;
-  width: 100%;
-  margin-bottom: 1rem;
-}
-
-.rss-dashboard-clear-icon {
-  --icon-size: 18px;
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  padding: 4px;
-  border-radius: 4px;
-  z-index: 5;
-}
-
-.rss-dashboard-clear-icon:hover {
-  background-color: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-.rss-dashboard-folder-input-container input {
-  padding-right: 34px !important;
-}
-
-.rss-dashboard-modal h2 {
-  margin: 0 0 1.2rem 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-normal, #222);
-}
-.rss-dashboard-modal h3 {
-  margin: 1.2rem 0 0.5rem 0;
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: var(--text-normal);
-}
-.rss-dashboard-modal .setting-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 0;
-}
-.rss-dashboard-modal-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  padding: 0.8rem;
-}
-
-.rss-dashboard-modal-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.rss-dashboard-modal-actions button {
-  width: 100%;
-  margin: 0;
-  border-radius: 8px;
-}
-
-.rss-dashboard-modal .rss-per-feed-controls-highlight {
-  border: 1px solid var(--interactive-accent);
-  border-radius: 10px;
-  box-shadow: 0 0 0 3px
-    color-mix(in srgb, var(--interactive-accent) 18%, transparent);
-}
-
-.rss-dashboard-modal .rss-per-feed-auto-delete-highlight {
-  border-radius: 8px;
-  border: 2px solid var(--color-red);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-red) 22%, transparent);
-  background: color-mix(in srgb, var(--color-red) 10%, transparent);
-}
-.rss-dashboard-primary-button {
-  background: var(--interactive-accent, #3498db);
-  color: var(--text-on-accent);
-  border: none;
-  border-radius: 6px;
-  padding: 0.4rem 1.2rem;
-  margin: 0 0.4rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.rss-dashboard-primary-button:hover {
-  background: var(--interactive-accent-hover, #217dbb);
-}
-.rss-dashboard-modal input,
-.rss-dashboard-modal textarea {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-  border-radius: 5px;
-  border: 1px solid var(--background-modifier-border, #ccc);
-  padding: 0.4rem 0.6rem;
-  font-size: 0.9rem;
-  color: var(--text-normal, #222);
-}
-.rss-dashboard-modal label {
-  font-size: 0.98rem;
-  color: var(--text-muted, #666);
-  margin-bottom: 0.2rem;
-  display: block;
-}
-.rss-dashboard-modal .setting-item:last-child {
-  border-bottom: none;
-}
-
-.rss-dashboard-modal input .setting-item-control {
-  width: 100% !important;
 }
 
 .modal-container .modal.rss-dashboard-modal-container {
@@ -240,700 +90,76 @@
   padding: 15px 14px;
 }
 
-.edit-feed-folder-input {
+/* On mobile the generic modal is a bottom sheet; the folder-name modal is
+   small enough that we pin it to the top instead so the soft keyboard never
+   slides up over it. */
+body .rss-folder-name-modal.rss-dashboard-modal-container {
+  top: env(safe-area-inset-top, 0px);
+  bottom: auto;
+  border-radius: 0 0 16px 16px;
+  max-height: 60vh;
+}
+
+/* ============================================
+ * 3. Typography & Form Basics
+ * Headings, labels, and setting row layouts
+ * ============================================ */
+.rss-dashboard-modal h2 {
+  margin: 0 0 1.2rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-normal, #222);
+}
+.rss-dashboard-modal h3 {
+  margin: 1.2rem 0 0.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-normal);
+}
+.rss-dashboard-modal label {
+  font-size: 0.98rem;
+  color: var(--text-muted, #666);
+  margin-bottom: 0.2rem;
+  display: block;
+}
+.rss-dashboard-modal .setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+}
+.rss-dashboard-modal .setting-item:last-child {
+  border-bottom: none;
+}
+body .rss-dashboard-modal input .setting-item-control {
+  width: 100%;
+}
+
+/* ============================================
+ * 4. Inputs & Form Elements
+ * Text inputs, textareas, and error messages
+ * ============================================ */
+.rss-dashboard-modal input,
+.rss-dashboard-modal textarea {
   width: 100%;
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-  position: relative;
-}
-
-.edit-feed-folder-option {
-  padding: 8px 16px;
-  cursor: pointer;
+  border-radius: 5px;
+  border: 1px solid var(--background-modifier-border, #ccc);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
   color: var(--text-normal, #222);
-  font-size: 1em;
-  transition:
-    background 0.15s,
-    color 0.15s;
 }
 
-.edit-feed-folder-option:hover,
-.edit-feed-folder-option:focus {
-  background: var(--background-modifier-hover, #f0f0f0);
-  color: var(--interactive-accent, #3498db);
-}
-
-.rss-dashboard-modal .rss-edit-feed-storage-address-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.rss-dashboard-folder-input-container {
+  position: relative;
   width: 100%;
+  margin-bottom: 1rem;
 }
-
-.rss-dashboard-modal .rss-edit-feed-storage-address-text {
-  width: 100%;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+body .rss-dashboard-folder-input-container input {
+  padding-right: 34px;
 }
-
-.rss-dashboard-modal .rss-edit-feed-storage-status {
-  font-size: 0.95em;
-  color: var(--text-normal);
-}
-
-.rss-dashboard-modal .rss-edit-feed-storage-feed-id {
-  font-size: 0.9em;
-  color: var(--text-muted);
-  font-family: var(--font-monospace);
-}
-
-.rss-dashboard-modal .rss-edit-feed-storage-copy-button {
-  --icon-size: 18px;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  color: var(--text-muted);
-  background: var(--background-secondary);
-}
-
-.rss-dashboard-modal .rss-edit-feed-storage-copy-button:hover {
-  color: var(--text-normal);
-  background: var(--background-modifier-hover);
-}
-
-.rss-dashboard-modal .rss-edit-feed-storage-copy-button:focus-visible {
-  outline: 2px solid var(--interactive-accent);
-  outline-offset: 1px;
-}
-.add-tag-modal .tag-input-row.full-inline-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  margin-bottom: 1em;
-  width: 100%;
-  flex-wrap: nowrap;
-  justify-content: flex-start;
-}
-
-.add-tag-modal .color-label {
-  display: inline-block;
-  align-items: center;
-  margin: 2px 6px;
-  padding: 0;
-  height: 36px;
-}
-
-.add-tag-modal .color-circle {
-  width: 32px;
-  height: 32px;
-  -webkit-appearance: none;
-  appearance: none;
-  display: inline-block;
-  background: none;
-  box-sizing: border-box;
-  line-height: 32px;
-  inline-size: 32px;
-  block-size: 32px;
-}
-
-.add-tag-modal input.color-circle {
-  width: auto !important;
-  height: fit-content;
-}
-
-.add-tag-modal .color-circle::-webkit-color-swatch-wrapper {
-  padding: 0;
-  border-radius: 50%;
-}
-
-.add-tag-modal .color-circle::-webkit-color-swatch {
-  border: none;
-  border-radius: 50%;
-}
-
-.add-tag-modal .color-circle::-moz-color-swatch {
-  border: none;
-  border-radius: 50%;
-}
-
-.add-tag-modal .tag-name-input {
-  flex: 0 1 180px;
-  min-width: 100px;
-  max-width: 220px;
-  margin-right: 0.5em;
-  width: auto;
-  box-sizing: border-box;
-  height: 36px;
-  line-height: 36px;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-.add-tag-modal .tag-input-row.full-inline-row button {
-  margin-left: 0.5em;
-  min-width: 70px;
-  padding: 0 16px;
-  font-size: 1em;
-  height: 36px;
-  line-height: 36px;
-  display: inline-block;
-  vertical-align: middle;
-  box-sizing: border-box;
-}
-
-.add-tag-modal .tag-input-row.full-inline-row button:first-of-type {
-  margin-left: 0;
-}
-
-.add-tag-modal .tag-input-row.full-inline-row input,
-.add-tag-modal .tag-input-row.full-inline-row .color-circle,
-.add-tag-modal
-  .tag-input-row.full-inline-row
-  .rss-dashboard-modal-buttons.inline-buttons,
-.add-tag-modal
-  .tag-input-row.full-inline-row
-  .rss-dashboard-modal-buttons.inline-buttons
-  button {
-  width: auto !important;
-  min-width: unset !important;
-  max-width: unset !important;
-  box-sizing: border-box;
-  flex: 0 0 auto;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-.rss-dashboard-tag-modal-form {
-  display: flex;
-  align-items: center;
-  gap: 30px;
-}
-
-.rss-dashboard-tag-modal-color-picker {
-  -webkit-appearance: none !important;
-  -moz-appearance: none !important;
-  appearance: none !important;
-  width: 38px !important;
-  height: 38px !important;
-  padding: 0 !important;
-  border: none !important;
-  border-radius: 50% !important;
-  cursor: pointer !important;
-}
-
-.rss-dashboard-tag-modal-color-picker::-webkit-color-swatch-wrapper {
-  padding: 0 !important;
-}
-
-.rss-dashboard-tag-modal-color-picker::-webkit-color-swatch {
-  border: none !important;
-  border-radius: 50% !important;
-}
-
-.rss-dashboard-tag-modal-color-picker::-moz-color-swatch {
-  border: none !important;
-  border-radius: 50% !important;
-}
-
-.rss-dashboard-tag-modal-name-input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  background-color: var(--background-primary);
-  color: var(--text-normal);
-  font-size: 14px;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.rss-dashboard-tag-modal-name-input:focus {
-  outline: none;
-  border-color: var(--interactive-accent);
-  box-shadow: 0 0 0 2px var(--interactive-accent-hover);
-}
-
-.import-modal-header-buttons {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-/* Warning status style for YouTube URL detection */
-.rss-dashboard-status-warning {
-  color: var(--text-warning, #e6a700);
-  font-weight: 500;
-}
-
-/* ============================================
-   Mobile/Tablet Responsive Modal Styles
-   ============================================ */
-
-/* Tablet styles (<= 1200px) */
-
-@media (max-width: 1200px) {
-  .modal-container .modal.rss-dashboard-modal-container {
-    width: 90vw;
-    max-width: 600px;
-    max-height: 85vh;
-    padding: 0;
-  }
-
-  .modal-container.mod-dim .modal.rss-dashboard-modal-container {
-    width: 90vw;
-    max-width: 600px;
-    max-height: 85vh;
-    padding: 0;
-  }
-
-  .modal.rss-mobile-navigation-modal,
-  .modal.rss-mobile-discover-filters-modal {
-    --rss-mobile-statusbar-fallback-top: 24px;
-    --rss-mobile-statusbar-inset-top: max(
-      env(safe-area-inset-top, 0px),
-      var(--rss-mobile-statusbar-fallback-top)
-    );
-    --rss-dashboard-header-top-padding: calc(
-      6px + var(--rss-mobile-statusbar-inset-top)
-    );
-    --rss-discover-header-top-padding: calc(
-      10px + var(--rss-mobile-statusbar-inset-top)
-    );
-    height: 100dvh;
-    min-height: 100dvh;
-    max-height: 100dvh;
-    width: min(88vw, 360px);
-    max-width: min(88vw, 360px);
-    margin: 0 !important;
-    border-radius: 0;
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: auto;
-    display: flex;
-    flex-direction: column;
-    z-index: var(--z-index-drawer);
-    transform: none;
-    animation: rss-mobile-drawer-in 0.18s ease-out;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-header {
-    padding-top: var(--rss-dashboard-header-top-padding);
-  }
-
-  .modal.rss-mobile-discover-filters-modal .rss-discover-header {
-    padding-top: var(--rss-discover-header-top-padding);
-  }
-
-  .rss-mobile-navigation-modal .modal-content,
-  .rss-mobile-discover-filters-modal .modal-content {
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-  }
-
-  .rss-mobile-navigation-modal .modal-content,
-  .rss-mobile-discover-filters-modal .modal-content {
-    overflow: hidden;
-  }
-
-  .modal.rss-mobile-navigation-modal .modal-close-button,
-  .modal.rss-mobile-discover-filters-modal .modal-close-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    left: auto;
-    z-index: var(--z-index-close-button);
-  }
-
-  .modal.rss-mobile-navigation-modal .modal-close-button::before,
-  .modal.rss-mobile-discover-filters-modal .modal-close-button::before {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar {
-    /* Sidebar toolbar is rendered under the header; avoid footer-style offsets. */
-    display: flex !important;
-    width: 100% !important;
-    height: 100%;
-    max-height: none;
-    min-height: 0;
-    border-right: none;
-    padding: 0;
-    flex-direction: column;
-    overflow: hidden;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-
-  .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar {
-    display: block !important;
-    width: 100% !important;
-    height: 100%;
-    max-height: none;
-    border-right: none;
-    padding: 0;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container {
-    height: 100%;
-    min-height: 0;
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
-    width: 100% !important;
-    padding-bottom: 0 !important;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folders-section {
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    touch-action: pan-y;
-    scrollbar-width: thin;
-    scrollbar-color: var(
-        --scrollbar-thumb-bg,
-        var(--background-modifier-border)
-      )
-      transparent;
-  }
-}
-
-@media (max-width: 768px) {
-  .modal.rss-mobile-navigation-modal,
-  .modal.rss-mobile-discover-filters-modal {
-    width: 95vw !important;
-    max-width: 95vw !important;
-    border-radius: 0 !important;
-    border: 1px solid var(--background-modifier-border) !important;
-    border-left: none !important;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
-    display: none !important;
-  }
-
-  .modal.rss-mobile-navigation-modal .modal-close-button,
-  .modal.rss-mobile-discover-filters-modal .modal-close-button {
-    display: none !important;
-  }
-
-  .modal.rss-mobile-navigation-modal.rss-mobile-platform-ios,
-  .modal.rss-mobile-discover-filters-modal.rss-mobile-platform-ios {
-    --rss-ios-top-safe-raw: env(safe-area-inset-top, 0px);
-    --rss-ios-top-safe-effective: clamp(
-      0px,
-      calc(var(--rss-ios-top-safe-raw) - 40px),
-      12px
-    );
-    --rss-dashboard-header-top-padding: calc(
-      4px + var(--rss-ios-top-safe-effective)
-    );
-    --rss-discover-header-top-padding: calc(
-      8px + var(--rss-ios-top-safe-effective)
-    );
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-header {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button,
-  .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button.active,
-  .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button,
-  .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button.active {
-    font-size: 16px;
-    font-weight: 600;
-    padding: 4px 12px;
-    min-height: 32px;
-    line-height: 1.1;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button--icon,
-  .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button--icon.active,
-  .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button--icon,
-  .modal.rss-mobile-discover-filters-modal
-    .rss-dashboard-nav-button--icon.active {
-    width: 32px;
-    min-width: 32px;
-    min-height: 32px;
-    padding: 0;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-feed {
-    padding-top: calc(var(--sidebar-row-spacing) / 2);
-    padding-bottom: calc(var(--sidebar-row-spacing) / 2);
-    padding-right: var(--sidebar-item-padding-right);
-    padding-left: var(--sidebar-item-padding-left);
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folder-header {
-    padding-top: calc(var(--sidebar-row-spacing) / 2);
-    padding-bottom: calc(var(--sidebar-row-spacing) / 2);
-    padding-right: var(--sidebar-item-padding-right);
-    padding-left: var(--sidebar-item-padding-left);
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-all-feeds-button {
-    padding-top: 10px;
-    padding-bottom: 10px;
-    padding-right: var(--sidebar-item-padding-right);
-    padding-left: var(--sidebar-item-padding-left);
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container {
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-drawer-toggle-button {
-    min-height: 16px;
-    font-size: 4px;
-    padding: 8px 16px;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-nav-container {
-    flex: 1;
-    display: flex;
-    align-items: center;
-  }
-
-  .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-container {
-    flex: 1;
-    display: flex;
-    align-items: center;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-header-close-button {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: 4px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    margin-right: 0;
-  }
-
-  .modal.rss-mobile-discover-filters-modal .rss-dashboard-header-close-button {
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: 8px;
-    border: 1px solid var(--background-secondary);
-    background: var(--background-secondary);
-    color: var(--text-on-accent);
-    margin-right: 2px;
-  }
-
-  .modal.rss-mobile-navigation-modal .rss-dashboard-header-close-button:hover {
-    background: var(--background-modifier-hover);
-    color: var(--text-normal);
-  }
-
-  .modal.rss-mobile-discover-filters-modal
-    .rss-dashboard-header-close-button:hover {
-    border-color: var(--rss-color-discover-accent);
-    background: var(--rss-color-discover-accent);
-    color: var(--text-on-accent);
-  }
-
-  .rss-folder-name-modal.rss-dashboard-modal-container {
-    top: env(safe-area-inset-top, 0px) !important;
-    bottom: auto !important;
-    border-radius: 0 0 16px 16px !important;
-    max-height: 60vh !important;
-  }
-
-  /* Ensure the text input accepts taps and opens the iOS soft keyboard */
-  .rss-folder-name-modal .rss-folder-name-modal-input {
-    -webkit-user-select: text !important;
-    user-select: text !important;
-    touch-action: manipulation;
-    /* 16 px prevents iOS auto-zoom on focus */
-    font-size: 16px;
-  }
-
-  .rss-dashboard-danger-button {
-    min-height: 44px;
-    padding: 12px 20px;
-    font-size: 16px;
-    min-width: 80px;
-  }
-
-  .modal-container .modal.rss-dashboard-modal-container {
-    width: 100%;
-    max-width: 100%;
-    max-height: 90vh;
-    position: fixed;
-    bottom: 0;
-    top: auto;
-    left: 0;
-    right: 0;
-    transform: none;
-    border-radius: 16px 16px 0 0;
-    z-index: var(--z-index-modal);
-    margin: 0;
-    padding: 0;
-  }
-
-  /* Close button positioning for mobile bottom sheet */
-  .modal-container .modal.rss-dashboard-modal-container .modal-close-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    left: auto;
-    z-index: var(--z-index-close-button);
-  }
-
-  /* Center the X icon inside the close button circle */
-  .modal-container
-    .modal.rss-dashboard-modal-container
-    .modal-close-button::before {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-  }
-
-  /* Modal content adjustments */
-  .rss-dashboard-modal {
-    border-radius: 16px 16px 0 0;
-    max-height: 90vh;
-  }
-
-  .rss-dashboard-modal-content {
-    padding: 1rem 1rem 1rem 1rem;
-  }
-
-  /* Larger touch targets for inputs */
-  .rss-dashboard-modal input:not([type="checkbox"]),
-  .rss-dashboard-modal textarea,
-  .rss-dashboard-modal select {
-    min-height: 44px;
-    font-size: 16px; /* Prevents iOS zoom on focus */
-    padding: 10px 12px;
-  }
-
-  /* Larger buttons */
-  .rss-dashboard-modal-buttons button,
-  .rss-dashboard-primary-button {
-    min-height: 44px;
-    min-width: 44px;
-    padding: 12px 20px;
-    font-size: 16px;
-  }
-
-  /* Setting items with better spacing */
-  .rss-dashboard-modal .setting-item {
-    padding: 12px 0;
-    gap: 12px;
-  }
-
-  /* Heading adjustments */
-  .rss-dashboard-modal h2 {
-    font-size: 1.25rem;
-    margin-bottom: 1rem;
-  }
-
-  .rss-dashboard-modal h3 {
-    font-size: 1rem;
-    margin-top: 1rem;
-  }
-
-  /* Dropdown styling */
-  .rss-dashboard-modal select {
-    width: 100%;
-    min-width: 0;
-  }
-
-  /* Custom input for dropdowns */
-  .rss-custom-input {
-    min-height: 44px;
-    font-size: 16px;
-    width: 100%;
-    margin-top: 8px;
-  }
-}
-
-/* Very small screens (<= 400px) */
-@media (max-width: 400px) {
-  .modal-container .modal.rss-dashboard-modal-container {
-    max-height: 95vh;
-  }
-
-  .modal-container.mod-dim .modal.rss-dashboard-modal-container {
-    max-height: 95vh;
-    padding: 12px 10px;
-  }
-
-  .rss-dashboard-modal-content {
-    padding: 0.75rem 0.5rem 0.75rem 0.5rem;
-  }
-
-  .rss-dashboard-modal h2 {
-    font-size: 1.1rem;
-  }
-
-  .rss-dashboard-modal-buttons {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .rss-dashboard-modal-actions {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .rss-dashboard-modal-buttons button {
-    width: 100%;
-  }
-}
-
-/* ============================================
-   Folder Name Modal (Add / Rename)
-   ============================================ */
 
 /* Error message below the input */
 .rss-folder-name-modal-error {
@@ -942,24 +168,51 @@
   margin-top: -8px;
   margin-bottom: 10px;
 }
-
 .rss-folder-name-modal-error-hidden {
   display: none;
 }
-
 /* Red border on input when validation fails */
-.rss-folder-name-modal-input.rss-folder-name-modal-input-error {
-  border-color: var(--text-error, #ef4444) !important;
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
+  border-color: var(--text-error, #ef4444);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
 }
 
-/* On mobile the generic modal is a bottom sheet; the folder-name modal is
-   small enough that we pin it to the top instead so the soft keyboard never
-   slides up over it. */
-
 /* ============================================
-   Danger Button Styles
-   ============================================ */
+ * 5. Buttons & Actions
+ * Primary, danger, and interaction buttons
+ * ============================================ */
+.rss-dashboard-modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.8rem;
+}
+.rss-dashboard-modal-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 0.5rem;
+}
+.rss-dashboard-modal-actions button {
+  width: 100%;
+  margin: 0;
+  border-radius: 8px;
+}
+
+.rss-dashboard-primary-button {
+  background: var(--interactive-accent, #3498db);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 1.2rem;
+  margin: 0 0.4rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.rss-dashboard-primary-button:hover {
+  background: var(--interactive-accent-hover, #217dbb);
+}
 
 /* Base danger button - red background with hover stroke */
 .rss-dashboard-danger-button {
@@ -972,16 +225,15 @@
   cursor: pointer;
   transition: all 0.15s ease;
 }
-
 .rss-dashboard-danger-button:hover {
   background: var(--rss-color-red-danger-hover);
   border-color: var(--rss-color-red-danger);
   box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.3);
   cursor: pointer;
 }
-
-.rss-dashboard-modal-interactions-disabled {
-  pointer-events: none;
+.rss-dashboard-danger-button:active {
+  background: var(--rss-color-red-danger-dark);
+  transform: translateY(1px);
 }
 
 .rss-confirm-modal-cancel {
@@ -999,7 +251,6 @@
   font-weight: 500;
   transition: all 0.15s ease;
 }
-
 .rss-confirm-modal-cancel:hover {
   background: var(--background-modifier-border-hover);
   cursor: pointer;
@@ -1011,7 +262,6 @@
   border: 2px solid transparent;
   cursor: pointer;
 }
-
 .rss-dashboard-confirm-modal .rss-folder-name-modal-cancel:hover {
   background: var(--rss-color-red-danger);
   border-color: var(--rss-color-red-confirm);
@@ -1019,104 +269,251 @@
   cursor: pointer;
 }
 
-.rss-dashboard-danger-button:active {
-  background: var(--rss-color-red-danger-dark);
-  transform: translateY(1px);
+.import-modal-header-buttons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
-/* Removes default Obsidian padding. */
-.modal.rss-mobile-navigation-modal .modal-content,
-.modal.rss-mobile-navigation-modal,
-.modal.rss-mobile-discover-filters-modal,
-.modal-container.mod-dim .modal.rss-mobile-navigation-modal,
-.modal-container.mod-dim .modal.rss-mobile-discover-filters-modal,
-.modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container,
-.modal.rss-mobile-navigation-modal .rss-dashboard-sidebar,
-.modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar-container,
-.modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
-  padding: 0 !important; /* 2.3.1 Audit OK */
+.rss-dashboard-modal-interactions-disabled {
+  pointer-events: none;
 }
 
-@supports selector(::-webkit-scrollbar) {
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
+/* ============================================
+ * 6. Specific Modal Features
+ * Edit Feed, Storage, Status, Tag modals
+ * ============================================ */
 
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section::-webkit-scrollbar-track-piece {
-    background: transparent;
-  }
-
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section::-webkit-scrollbar-button {
-    width: 0;
-    height: 0;
-    display: none;
-    background: transparent;
-  }
-
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb {
-    background-color: var(
-      --scrollbar-thumb-bg,
-      var(--background-modifier-border)
-    );
-    border-radius: 999px;
-    border: 2px solid var(--scrollbar-bg, transparent);
-  }
-
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb:hover {
-    background-color: var(
-      --scrollbar-active-thumb-bg,
-      var(--scrollbar-thumb-bg, var(--background-modifier-border))
-    );
-  }
+/* Suggestion container */
+.rss-dashboard-folder-suggestion-container {
+  z-index: var(--z-index-folder-suggestion-container);
 }
 
-.modal.rss-mobile-navigation-modal
-  .rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden::-webkit-scrollbar {
-  display: none;
+.edit-feed-folder-input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  position: relative;
+}
+.edit-feed-folder-option {
+  padding: 8px 16px;
+  cursor: pointer;
+  color: var(--text-normal, #222);
+  font-size: 1em;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.edit-feed-folder-option:hover,
+.edit-feed-folder-option:focus {
+  background: var(--background-modifier-hover, #f0f0f0);
+  color: var(--interactive-accent, #3498db);
 }
 
-@supports selector(::-webkit-scrollbar) {
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-  }
+/* Storage Address section */
+.rss-dashboard-modal .rss-edit-feed-storage-address-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.rss-dashboard-modal .rss-edit-feed-storage-address-text {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.rss-dashboard-modal .rss-edit-feed-storage-status {
+  font-size: 0.95em;
+  color: var(--text-normal);
+}
+.rss-dashboard-modal .rss-edit-feed-storage-feed-id {
+  font-size: 0.9em;
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+}
+.rss-dashboard-modal .rss-edit-feed-storage-copy-button {
+  --icon-size: 18px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+}
+.rss-dashboard-modal .rss-edit-feed-storage-copy-button:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+.rss-dashboard-modal .rss-edit-feed-storage-copy-button:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
 }
 
-.modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
-  display: block !important;
-  left: 0;
-  right: auto;
+/* Control Highlights */
+.rss-dashboard-modal .rss-per-feed-controls-highlight {
+  border: 1px solid var(--interactive-accent);
+  border-radius: 10px;
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+}
+.rss-dashboard-modal .rss-per-feed-auto-delete-highlight {
+  border-radius: 8px;
+  border: 2px solid var(--color-red);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-red) 22%, transparent);
+  background: color-mix(in srgb, var(--color-red) 10%, transparent);
 }
 
-@keyframes rss-mobile-drawer-in {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+/* Warning status style for YouTube URL detection */
+.rss-dashboard-status-warning {
+  color: var(--text-warning, #e6a700);
+  font-weight: 500;
+}
+
+/* ============================================
+ * 7. Tag Modal Settings
+ * Styling for Tag addition, colors
+ * ============================================ */
+.add-tag-modal .tag-input-row.full-inline-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 1em;
+  width: 100%;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+}
+.add-tag-modal .color-label {
+  display: inline-block;
+  align-items: center;
+  margin: 2px 6px;
+  padding: 0;
+  height: 36px;
+}
+.add-tag-modal .color-circle {
+  width: 32px;
+  height: 32px;
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-block;
+  background: none;
+  box-sizing: border-box;
+  line-height: 32px;
+  inline-size: 32px;
+  block-size: 32px;
+}
+body .add-tag-modal input.color-circle {
+  width: auto;
+  height: fit-content;
+}
+.add-tag-modal .color-circle::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border-radius: 50%;
+}
+.add-tag-modal .color-circle::-webkit-color-swatch,
+.add-tag-modal .color-circle::-moz-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.add-tag-modal .tag-name-input {
+  flex: 0 1 180px;
+  min-width: 100px;
+  max-width: 220px;
+  margin-right: 0.5em;
+  width: auto;
+  box-sizing: border-box;
+  height: 36px;
+  line-height: 36px;
+  display: inline-block;
+  vertical-align: middle;
+}
+.add-tag-modal .tag-input-row.full-inline-row button {
+  margin-left: 0.5em;
+  min-width: 70px;
+  padding: 0 16px;
+  font-size: 1em;
+  height: 36px;
+  line-height: 36px;
+  display: inline-block;
+  vertical-align: middle;
+  box-sizing: border-box;
+}
+.add-tag-modal .tag-input-row.full-inline-row button:first-of-type {
+  margin-left: 0;
+}
+body .add-tag-modal .tag-input-row.full-inline-row input,
+body .add-tag-modal .tag-input-row.full-inline-row .color-circle,
+body
+  .add-tag-modal
+  .tag-input-row.full-inline-row
+  .rss-dashboard-modal-buttons.inline-buttons,
+body
+  .add-tag-modal
+  .tag-input-row.full-inline-row
+  .rss-dashboard-modal-buttons.inline-buttons
+  button {
+  width: auto;
+  min-width: unset;
+  max-width: unset;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+}
+
+.rss-dashboard-tag-modal-form {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+body .rss-dashboard-tag-modal-color-picker {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+body .rss-dashboard-tag-modal-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+body .rss-dashboard-tag-modal-color-picker::-webkit-color-swatch,
+body .rss-dashboard-tag-modal-color-picker::-moz-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+.rss-dashboard-tag-modal-name-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 14px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.rss-dashboard-tag-modal-name-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--interactive-accent-hover);
 }
 
 /* ==========================================================================
-   Shortcut Help Modal
-   ========================================================================== */
-
+ * 8. Shortcut Help Modal
+ * Layout and header rules for help
+ * ========================================================================== */
 .rss-shortcut-section {
   margin-bottom: 24px;
 }
-
 .rss-shortcut-section h3 {
   margin-top: 0;
   margin-bottom: 12px;
@@ -1125,7 +522,6 @@
   border-bottom: 1px solid var(--background-modifier-border);
   padding-bottom: 4px;
 }
-
 .rss-shortcut-grid {
   display: flex;
   flex-direction: column;
@@ -1135,18 +531,15 @@
   border-radius: 8px;
   border: 1px solid var(--background-modifier-border);
 }
-
 .rss-shortcut-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-
 .rss-shortcut-desc {
   color: var(--text-normal);
   font-size: 0.95em;
 }
-
 .rss-shortcut-key-container kbd {
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
@@ -1158,16 +551,10 @@
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
 }
 
-/* ==========================================================================
-   Shortcut Help Modal Style Fixes
-   ========================================================================== */
-
 /* Hide Obsidian's default close button for ShortcutHelpModal since we use a custom one inside the header */
-.shortcut-help-modal .modal-close-button {
-  display: none !important;
+body .shortcut-help-modal .modal-close-button {
+  display: none;
 }
-
-/* Ensure the custom header inside ShortcutHelpModal is styled beautifully */
 .shortcut-help-modal .rss-dashboard-header {
   order: -1; /* Force top positioning if flex layout is ever applied */
   display: flex;
@@ -1179,7 +566,6 @@
   border-bottom: none;
   background: transparent;
 }
-
 .shortcut-help-modal .rss-dashboard-header-title {
   font-size: 1.5rem;
   font-weight: 600;
@@ -1187,7 +573,6 @@
   margin: 0;
   flex-grow: 1;
 }
-
 .shortcut-help-modal .rss-dashboard-header-close-button {
   width: 32px;
   min-width: 32px;
@@ -1206,13 +591,507 @@
     background-color 0.2s,
     color 0.2s;
 }
-
 .shortcut-help-modal .rss-dashboard-header-close-button:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
-
-/* Align modal content padding to match the header */
 .shortcut-help-modal .rss-dashboard-modal-content {
   padding: 1rem 1.5rem 1.5rem 1.5rem;
+}
+
+/* ============================================
+ * 9. Icons & Fixes
+ * SVG rendering, reset styles
+ * ============================================ */
+.rss-dashboard-clear-icon {
+  --icon-size: 18px;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 4px;
+  z-index: 5;
+}
+.rss-dashboard-clear-icon:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* Android WebView Icon Rendering Compatibility Block
+ * Scoped to .rss-dashboard-modal to avoid Obsidian core collisions. */
+.rss-dashboard-modal .clickable-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  contain: layout style;
+  width: var(--icon-size, 20px);
+  height: var(--icon-size, 20px);
+}
+.rss-dashboard-modal .clickable-icon > svg {
+  display: block;
+  width: var(--icon-size, 20px);
+  height: var(--icon-size, 20px);
+  overflow: visible;
+  will-change: transform;
+}
+.rss-dashboard-modal .clickable-icon > svg * {
+  pointer-events: none;
+}
+
+/* Removes default Obsidian padding. */
+body .modal.rss-mobile-navigation-modal .modal-content,
+body .modal.rss-mobile-navigation-modal,
+body .modal.rss-mobile-discover-filters-modal,
+body .modal-container.mod-dim .modal.rss-mobile-navigation-modal,
+body .modal-container.mod-dim .modal.rss-mobile-discover-filters-modal,
+body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container,
+body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar,
+body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar-container,
+body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
+  padding: 0; /* 2.3.1 Audit OK */
+}
+
+/* ============================================
+ * 10. Mobile/Tablet Responsive Modal Styles
+ * Overrides for responsive behavior
+ * ============================================ */
+
+/* Tablet styles (<= 1200px) */
+@media (max-width: 1200px) {
+  .modal-container .modal.rss-dashboard-modal-container {
+    width: 90vw;
+    max-width: 600px;
+    max-height: 85vh;
+    padding: 0;
+  }
+  .modal-container.mod-dim .modal.rss-dashboard-modal-container {
+    width: 90vw;
+    max-width: 600px;
+    max-height: 85vh;
+    padding: 0;
+  }
+  .modal.rss-mobile-navigation-modal,
+  .modal.rss-mobile-discover-filters-modal {
+    --rss-mobile-statusbar-fallback-top: 24px;
+    --rss-mobile-statusbar-inset-top: max(
+      env(safe-area-inset-top, 0px),
+      var(--rss-mobile-statusbar-fallback-top)
+    );
+    --rss-dashboard-header-top-padding: calc(
+      6px + var(--rss-mobile-statusbar-inset-top)
+    );
+    --rss-discover-header-top-padding: calc(
+      10px + var(--rss-mobile-statusbar-inset-top)
+    );
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    width: min(88vw, 360px);
+    max-width: min(88vw, 360px);
+    margin: 0;
+    border-radius: 0;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: auto;
+    display: flex;
+    flex-direction: column;
+    z-index: var(--z-index-drawer);
+    transform: none;
+    animation: rss-mobile-drawer-in 0.18s ease-out;
+  }
+  .modal.rss-mobile-navigation-modal .rss-dashboard-header {
+    padding-top: var(--rss-dashboard-header-top-padding);
+  }
+  .modal.rss-mobile-discover-filters-modal .rss-discover-header {
+    padding-top: var(--rss-discover-header-top-padding);
+  }
+  .rss-mobile-navigation-modal .modal-content,
+  .rss-mobile-discover-filters-modal .modal-content {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .modal.rss-mobile-navigation-modal .modal-close-button,
+  .modal.rss-mobile-discover-filters-modal .modal-close-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    left: auto;
+    z-index: var(--z-index-close-button);
+  }
+  .modal.rss-mobile-navigation-modal .modal-close-button::before,
+  .modal.rss-mobile-discover-filters-modal .modal-close-button::before {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+  body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    min-height: 0;
+    border-right: none;
+    padding: 0;
+    flex-direction: column;
+    overflow: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    visibility: visible;
+    opacity: 1;
+  }
+  body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border-right: none;
+    padding: 0;
+    visibility: visible;
+    opacity: 1;
+  }
+  body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container {
+    height: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    width: 100%;
+    padding-bottom: 0;
+  }
+  .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folders-section {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    scrollbar-width: thin;
+    scrollbar-color: var(
+        --scrollbar-thumb-bg,
+        var(--background-modifier-border)
+      )
+      transparent;
+  }
+}
+
+/* Mobile styles (<= 768px) */
+@media (max-width: 768px) {
+  body .modal.rss-mobile-navigation-modal,
+  body .modal.rss-mobile-discover-filters-modal {
+    width: 95vw;
+    max-width: 95vw;
+    border-radius: 0;
+    border: 1px solid var(--background-modifier-border);
+    border-left: none;
+  }
+  body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
+    display: none;
+  }
+  .modal.rss-mobile-navigation-modal .modal-close-button,
+  .modal.rss-mobile-discover-filters-modal .modal-close-button {
+    display: none;
+  }
+  .modal.rss-mobile-navigation-modal.rss-mobile-platform-ios,
+  .modal.rss-mobile-discover-filters-modal.rss-mobile-platform-ios {
+    --rss-ios-top-safe-raw: env(safe-area-inset-top, 0px);
+    --rss-ios-top-safe-effective: clamp(
+      0px,
+      calc(var(--rss-ios-top-safe-raw) - 40px),
+      12px
+    );
+    --rss-dashboard-header-top-padding: calc(
+      4px + var(--rss-ios-top-safe-effective)
+    );
+    --rss-discover-header-top-padding: calc(
+      8px + var(--rss-ios-top-safe-effective)
+    );
+  }
+  .modal.rss-mobile-navigation-modal .rss-dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button,
+  .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button.active,
+  .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button,
+  .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button.active {
+    font-size: 16px;
+    font-weight: 600;
+    padding: 4px 12px;
+    min-height: 32px;
+    line-height: 1.1;
+  }
+  .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button--icon,
+  .modal.rss-mobile-navigation-modal .rss-dashboard-nav-button--icon.active,
+  .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-button--icon,
+  .modal.rss-mobile-discover-filters-modal
+    .rss-dashboard-nav-button--icon.active {
+    width: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+  }
+  .modal.rss-mobile-navigation-modal .rss-dashboard-feed,
+  .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folder-header,
+  .modal.rss-mobile-navigation-modal .rss-dashboard-all-feeds-button {
+    padding-top: calc(var(--sidebar-row-spacing) / 2);
+    padding-bottom: calc(var(--sidebar-row-spacing) / 2);
+    padding-right: var(--sidebar-item-padding-right);
+    padding-left: var(--sidebar-item-padding-left);
+  }
+  .modal.rss-mobile-navigation-modal .rss-dashboard-all-feeds-button {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container {
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal.rss-mobile-navigation-modal .rss-dashboard-drawer-toggle-button {
+    min-height: 16px;
+    font-size: 4px;
+    padding: 8px 16px;
+  }
+  .modal.rss-mobile-navigation-modal .rss-dashboard-nav-container,
+  .modal.rss-mobile-discover-filters-modal .rss-dashboard-nav-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
+  .modal.rss-mobile-navigation-modal .rss-dashboard-header-close-button {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    margin-right: 0;
+  }
+  .modal.rss-mobile-discover-filters-modal .rss-dashboard-header-close-button {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 8px;
+    border: 1px solid var(--background-secondary);
+    background: var(--background-secondary);
+    color: var(--text-on-accent);
+    margin-right: 2px;
+  }
+  .modal.rss-mobile-navigation-modal .rss-dashboard-header-close-button:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+  }
+  .modal.rss-mobile-discover-filters-modal
+    .rss-dashboard-header-close-button:hover {
+    border-color: var(--rss-color-discover-accent);
+    background: var(--rss-color-discover-accent);
+    color: var(--text-on-accent);
+  }
+
+  /* Ensure the text input accepts taps and opens the iOS soft keyboard */
+  body .rss-folder-name-modal .rss-folder-name-modal-input {
+    -webkit-user-select: text;
+    user-select: text;
+    touch-action: manipulation;
+    /* 16 px prevents iOS auto-zoom on focus */
+    font-size: 16px;
+  }
+  .rss-dashboard-danger-button {
+    min-height: 44px;
+    padding: 12px 20px;
+    font-size: 16px;
+    min-width: 80px;
+  }
+  .modal-container .modal.rss-dashboard-modal-container {
+    width: 100%;
+    max-width: 100%;
+    max-height: 90vh;
+    position: fixed;
+    bottom: 0;
+    top: auto;
+    left: 0;
+    right: 0;
+    transform: none;
+    border-radius: 16px 16px 0 0;
+    z-index: var(--z-index-modal);
+    margin: 0;
+    padding: 0;
+  }
+  .modal-container .modal.rss-dashboard-modal-container .modal-close-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    left: auto;
+    z-index: var(--z-index-close-button);
+  }
+  .modal-container
+    .modal.rss-dashboard-modal-container
+    .modal-close-button::before {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+  .rss-dashboard-modal {
+    border-radius: 16px 16px 0 0;
+    max-height: 90vh;
+  }
+  .rss-dashboard-modal-content {
+    padding: 1rem 1rem 1rem 1rem;
+  }
+  .rss-dashboard-modal input:not([type="checkbox"]),
+  .rss-dashboard-modal textarea,
+  .rss-dashboard-modal select {
+    min-height: 44px;
+    font-size: 16px;
+    padding: 10px 12px;
+  }
+  .rss-dashboard-modal-buttons button,
+  .rss-dashboard-primary-button {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px 20px;
+    font-size: 16px;
+  }
+  .rss-dashboard-modal .setting-item {
+    padding: 12px 0;
+    gap: 12px;
+  }
+  .rss-dashboard-modal h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .rss-dashboard-modal h3 {
+    font-size: 1rem;
+    margin-top: 1rem;
+  }
+  .rss-dashboard-modal select {
+    width: 100%;
+    min-width: 0;
+  }
+  .rss-custom-input {
+    min-height: 44px;
+    font-size: 16px;
+    width: 100%;
+    margin-top: 8px;
+  }
+}
+
+/* Small screens (<= 400px) */
+@media (max-width: 400px) {
+  .modal-container .modal.rss-dashboard-modal-container {
+    max-height: 95vh;
+  }
+  .modal-container.mod-dim .modal.rss-dashboard-modal-container {
+    max-height: 95vh;
+    padding: 12px 10px;
+  }
+  .rss-dashboard-modal-content {
+    padding: 0.75rem 0.5rem 0.75rem 0.5rem;
+  }
+  .rss-dashboard-modal h2 {
+    font-size: 1.1rem;
+  }
+  .rss-dashboard-modal-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+  body .rss-dashboard-modal-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .rss-dashboard-modal-buttons button {
+    width: 100%;
+  }
+}
+
+/* Scrollbar styles for Mobile */
+@supports selector(::-webkit-scrollbar) {
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar-track,
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar-track-piece {
+    background: transparent;
+  }
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar-button {
+    width: 0;
+    height: 0;
+    display: none;
+    background: transparent;
+  }
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb {
+    background-color: var(
+      --scrollbar-thumb-bg,
+      var(--background-modifier-border)
+    );
+    border-radius: 999px;
+    border: 2px solid var(--scrollbar-bg, transparent);
+  }
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb:hover {
+    background-color: var(
+      --scrollbar-active-thumb-bg,
+      var(--scrollbar-thumb-bg, var(--background-modifier-border))
+    );
+  }
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+}
+
+body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
+  display: block;
+  left: 0;
+  right: auto;
+}
+
+@keyframes rss-mobile-drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }

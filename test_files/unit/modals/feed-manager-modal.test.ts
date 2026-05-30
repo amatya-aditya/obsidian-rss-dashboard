@@ -2,16 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { FeedManagerModal } from "../../../src/modals/feed-manager/feed-manager-modal";
 import { ImportOpmlModal } from "../../../src/modals/import-opml-modal";
-import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type RssDashboardPlugin from "../../../main";
 
 function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
-}
-
-function flushPromises(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 beforeEach(() => {
@@ -25,7 +24,6 @@ beforeEach(() => {
 });
 
 describe("FeedManagerModal", () => {
-
   it("closes after the OPML import modal reports import started", () => {
     const app = obsidian.App.createMock();
     const plugin = {
@@ -40,7 +38,9 @@ describe("FeedManagerModal", () => {
     const openSpy = vi
       .spyOn(ImportOpmlModal.prototype, "open")
       .mockImplementation(function (this: ImportOpmlModal) {
-        (this as unknown as { onImportStarted?: () => void }).onImportStarted?.();
+        (
+          this as unknown as { onImportStarted?: () => void }
+        ).onImportStarted?.();
       });
 
     const modal = new FeedManagerModal(
