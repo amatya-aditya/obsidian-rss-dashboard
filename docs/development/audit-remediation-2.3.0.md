@@ -86,7 +86,7 @@
 #### `padding` (2 warnings)
 
 - [x] `styles.css:1`
-- [x] `src/styles/articles.css:56`
+- [x] `src/styles/articles.css:56` — resolved by consolidating the two `@media (max-width: 1200px)` blocks into one
 
 #### `position` (2 warnings)
 
@@ -100,11 +100,11 @@
 
 #### `color` (1 warning)
 
-- [x] `src/styles/articles.css:58`
+- [x] `src/styles/articles.css:58` — resolved by merging `.video` and `.youtube` feed-icon rules into a single grouped selector
 
 #### `border` (1 warning)
 
-- [x] `src/styles/articles.css:54`
+- [x] `src/styles/articles.css:54` — confirmed false positive (different selectors); no change needed
 
 #### `line-height` (1 warning)
 
