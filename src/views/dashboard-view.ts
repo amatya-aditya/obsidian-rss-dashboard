@@ -165,9 +165,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private setupScope() {
-    if (this.scope) {
-      setupDashboardHotkeys(this.scope, this);
-    }
+    setupDashboardHotkeys(this);
   }
 
   /**

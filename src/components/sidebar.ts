@@ -2948,6 +2948,11 @@ export class Sidebar {
       },
     });
 
+    // ⚠️ Bulletproof stop propagation for typing hotkeys (r, j, k, etc)
+    searchInput.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+    });
+
     let searchTimeout: number;
 
     attachInputClearButton(
