@@ -1,0 +1,541 @@
+/* =============================================================================
+ * Controls Dropdown Styles (controls-dropdown.css)
+ *
+ * This file contains styles for the complex dropdown menu, view style selectors,
+ * card layout controls, toolbar mode, and mark-all buttons.
+ * Extracted from controls.css as part of the 2.3.0 audit-remediation refactor.
+ * =============================================================================
+ */
+
+/* ============================================
+ * 1. Dropdown Menu Shell
+ * ============================================ */
+.rss-dashboard-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 280px;
+  max-width: 90vw;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.2s ease;
+  margin-top: 8px;
+}
+
+.rss-dashboard-dropdown-menu.is-menu-open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.rss-dashboard-dropdown-controls {
+  --rss-dashboard-dropdown-accent: var(--rss-color-podcast, #9b59b6);
+  --rss-dashboard-dropdown-accent-hover: var(--rss-color-podcast-hover, #a66ac0);
+  padding: 16px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-article-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ============================================
+ * 2. Toolbar Mode & Layout Controls
+ * ============================================ */
+.rss-dashboard-dropdown-card-layout-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 2px 0 4px;
+}
+
+.rss-dashboard-dropdown-card-layout-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.rss-dashboard-dropdown-card-layout-label {
+  color: var(--text-normal);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.rss-dashboard-dropdown-card-layout-row .rss-dashboard-dropdown-card-layout-trigger {
+  width: 110px;
+  min-width: 110px;
+  max-width: 110px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 12px;
+  justify-content: space-between;
+  flex: 0 0 auto;
+}
+
+.rss-dashboard-dropdown-card-layout-row .rss-dashboard-dropdown-cards-per-row-trigger {
+  width: 110px;
+}
+
+.rss-dashboard-dropdown-card-spacing-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.rss-dashboard-dropdown-card-spacing-input {
+  width: 170px;
+  max-width: 100%;
+  accent-color: var(--interactive-accent);
+}
+
+.rss-dashboard-dropdown-card-layout-trigger:focus-visible,
+.rss-dashboard-dropdown-card-spacing-input:focus-visible {
+  outline: 2px solid var(--interactive-accent-hover);
+  outline-offset: 1px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-label {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-select,
+.rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: 14px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-select:hover,
+.rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-select:focus,
+.rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-input:hover,
+.rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-input:focus {
+  border-color: var(--rss-dashboard-dropdown-accent);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-toolbar-mode-slider {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--rss-dashboard-dropdown-accent);
+}
+
+/* ============================================
+ * 3. Multi-Filter & Search Actions
+ * ============================================ */
+.rss-dashboard-dropdown-controls .rss-dashboard-multi-filter-btn {
+  display: flex;
+  width: 100%;
+  height: 42px;
+  min-height: 42px;
+  border-radius: 10px;
+  font-size: 14px;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-weight: 600;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-multi-filter-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-multi-filter-btn.has-active-filters {
+  border-color: var(--rss-dashboard-dropdown-accent);
+  color: var(--text-on-accent, #f3e8ff);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-article-search-container {
+  position: relative;
+  padding: 0;
+  gap: 0;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-article-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-article-search-input {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 40px 10px 40px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-article-search-input:focus {
+  width: 100%;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-article-search-clear-button {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-article-search-clear-button:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-article-search-clear-button.is-hidden {
+  display: none;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-article-search-clear-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ============================================
+ * 4. Mark All Controls
+ * ============================================ */
+.rss-dashboard-mark-all-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rss-dashboard-mark-all-label {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.rss-dashboard-mark-all-buttons-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.rss-dashboard-mark-all-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-button {
+  flex: 1 1 calc(50% - 4px);
+  min-width: 0;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-button:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--rss-dashboard-dropdown-accent);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-read-button,
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-unread-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-read-icon,
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-unread-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-read-icon {
+  color: var(--rss-dashboard-dropdown-accent);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-unread-icon {
+  color: var(--text-muted);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-read-icon svg,
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-unread-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-button.rss-dashboard-mark-read {
+  border-color: color-mix(in srgb, var(--rss-color-success, #2ecc71) 30%, transparent);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-button.rss-dashboard-mark-read span.rss-dashboard-mark-all-text {
+  color: var(--text-normal);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-button.rss-dashboard-mark-read:hover {
+  background-color: color-mix(in srgb, var(--rss-color-success, #2ecc71) 10%, transparent);
+  border-color: var(--rss-color-success, #2ecc71);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-mark-all-button.rss-dashboard-mark-read svg {
+  color: var(--rss-color-success, #2ecc71);
+}
+
+/* ============================================
+ * 5. Themed Selectors
+ * ============================================ */
+.rss-dashboard-dropdown-controls .rss-dashboard-select-with-icon {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-select-with-label .rss-dashboard-select-label {
+  display: none;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-select-inner {
+  position: relative;
+  width: 100%;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-select-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-select-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Merged themed select triggers */
+.rss-dashboard-dropdown-controls .rss-dashboard-themed-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-select-with-icon :is(.rss-dashboard-filter, .rss-dashboard-sort, .rss-dashboard-group, .rss-dashboard-view-style-select),
+.rss-dashboard-dropdown-controls .rss-dashboard-themed-select-trigger {
+  width: 100%;
+  height: 42px;
+  min-height: 42px;
+  padding: 8px 12px 8px 38px;
+  box-sizing: border-box;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: 14px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  color-scheme: inherit;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-select-with-icon :is(.rss-dashboard-filter, .rss-dashboard-sort, .rss-dashboard-group, .rss-dashboard-view-style-select):hover {
+  border-color: var(--rss-dashboard-dropdown-accent);
+  background-color: var(--background-modifier-hover);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-select-with-icon :is(.rss-dashboard-filter, .rss-dashboard-sort, .rss-dashboard-group, .rss-dashboard-view-style-select):focus,
+.rss-dashboard-dropdown-controls .rss-dashboard-themed-select-trigger.active {
+  border-color: var(--rss-dashboard-dropdown-accent);
+  outline: none;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-view-style-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 6px 0 4px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-view-style-selector {
+  flex: 1;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-view-style-selector:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--rss-dashboard-dropdown-accent);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-selector-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  --icon-size: 18px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-selector-icon svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  /* audit-ok: svg normalizer */
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-selector-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-selector-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  --icon-size: 14px;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-selector-arrow svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  /* audit-ok: svg normalizer */
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-view-refresh-button {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-view-refresh-button:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--rss-dashboard-dropdown-accent);
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-view-refresh-button .rss-dashboard-refresh-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-view-refresh-button .rss-dashboard-refresh-icon svg {
+  width: 18px;
+  height: 18px;
+  color: inherit;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-view-refresh-button:hover svg {
+  color: inherit;
+  animation: rss-dashboard-refresh-spin 0.6s ease-out;
+}
+
+@keyframes rss-dashboard-refresh-hover-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-refresh-button {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  align-self: center;
+  padding: 0;
+  border: 1px solid var(--rss-dashboard-dropdown-accent);
+  background: var(--rss-dashboard-dropdown-accent);
+  color: var(--text-on-accent, #fff);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rss-dashboard-dropdown-controls .rss-dashboard-refresh-button:hover {
+  border-color: var(--rss-dashboard-dropdown-accent-hover);
+  background: var(--rss-dashboard-dropdown-accent-hover);
+  color: var(--text-on-accent, #fff);
+}

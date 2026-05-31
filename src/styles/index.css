@@ -7,6 +7,8 @@
 @import "./reader.css";
 @import "./video.css";
 @import "./controls.css";
+@import "./controls-dropdown.css";
+@import "./controls-filter-bar.css";
 @import "./modals.css";
 @import "./add-feed-modal.css";
 @import "./edit-feed-modal.css";
