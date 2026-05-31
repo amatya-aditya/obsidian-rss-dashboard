@@ -1,0 +1,273 @@
+/* =============================================================================
+ * Kagi Smallweb View (kagi-smallweb.css)
+ *
+ * Kagi smallweb view, badges, skeletons, and footer.
+ * =============================================================================
+ */
+
+/* ============================================
+ * 1. Container & Header
+ * ============================================ */
+
+
+
+.rss-smallweb-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0 16px;
+}
+
+.rss-smallweb-header {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 16px;
+}
+
+.rss-smallweb-title-section {
+  margin-top: 12px;
+}
+
+.rss-smallweb-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.rss-smallweb-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.rss-smallweb-refresh-btn {
+  background: var(--interactive-normal);
+  color: var(--text-muted);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.rss-smallweb-refresh-btn:hover {
+  background: var(--interactive-hover);
+  color: var(--text-normal);
+  border-color: var(--interactive-accent);
+}
+
+.rss-smallweb-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.rss-smallweb-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: var(--background-modifier-warning);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-normal);
+  line-height: 1.4;
+}
+
+.rss-smallweb-warning svg {
+  flex-shrink: 0;
+  color: var(--text-warning);
+}
+
+.rss-smallweb-last-update {
+  margin-bottom: 12px;
+}
+
+.rss-smallweb-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.rss-smallweb-timestamp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.rss-smallweb-timestamp svg {
+  width: 14px;
+  height: 14px;
+}
+
+.rss-smallweb-timestamp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.rss-smallweb-timestamp-link:hover {
+  color: var(--text-accent);
+}
+
+.rss-smallweb-timestamp-link svg {
+  width: 14px;
+  height: 14px;
+}
+
+.rss-smallweb-search-wrapper {
+  flex: 1;
+  max-width: 300px;
+  position: relative;
+}
+
+.rss-smallweb-results-count {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.rss-smallweb-badge {
+  background: var(--rss-color-kagi-brand);
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+.rss-smallweb-post-title {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body .rss-smallweb-following-btn {
+  background: var(--background-modifier-success) ;
+  color: var(--text-error);
+  border: 1px solid var(--background-modifier-success) !important;
+  cursor: pointer !important;
+  opacity: 0.9;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rss-smallweb-following-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+body .rss-smallweb-unfollow-hover {
+  background: var(--background-modifier-error) ;
+  color: var(--text-error);
+  border-color: var(--background-modifier-error) !important;
+}
+
+body .rss-smallweb-error-btn {
+  background: var(--background-modifier-error) ;
+  color: var(--text-error) !important;
+  border-color: var(--background-modifier-error) !important;
+}
+
+.rss-smallweb-skeleton {
+  opacity: 0.6;
+  animation: rss-smallweb-pulse 1.5s ease-in-out infinite;
+}
+
+.rss-smallweb-skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 5px;
+  background: var(--background-modifier-border);
+}
+
+.rss-smallweb-skeleton-title {
+  width: 120px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--background-modifier-border);
+  margin-bottom: 4px;
+}
+
+.rss-smallweb-skeleton-text {
+  width: 100%;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--background-modifier-border);
+  margin-bottom: 8px;
+}
+
+.rss-smallweb-skeleton-text-short {
+  width: 60%;
+}
+
+.rss-smallweb-skeleton-button {
+  width: 100px;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--background-modifier-border);
+}
+
+@keyframes rss-smallweb-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.rss-smallweb-footer {
+  padding: 24px 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: auto;
+}
+
+.rss-smallweb-footer a {
+  color: var(--text-accent);
+  text-decoration: none;
+}
+
+.rss-smallweb-footer a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .rss-smallweb-title {
+    font-size: 1.25rem;
+  }
+
+  .rss-smallweb-controls-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rss-smallweb-search-wrapper {
+    max-width: none;
+  }
+
+  .rss-smallweb-timestamp {
+    order: 1;
+  }
+}

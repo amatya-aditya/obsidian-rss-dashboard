@@ -17,6 +17,10 @@
 @import "./dropdown-portal.css";
 @import "./pagination.css";
 @import "./discover.css";
+@import "./discover-sidebar.css";
+@import "./feed-preview-modal.css";
+@import "./kagi-smallweb.css";
+@import "./folder-selector-popup.css";
 @import "./podcast-player.css";
 @import "./podcast-themes.css";
 @import "./settings.css";
