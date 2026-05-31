@@ -22,8 +22,11 @@
   --rss-sidebar-controls-border: var(--background-modifier-border);
   --rss-sidebar-controls-shadow: 0 2px 6px rgb(0 0 0 / 0.08);
   font-size: 13px;
+  /* audit-ok: flex-grow fills the Obsidian leaf pane on all breakpoints;
+     max-height: 100dvh was removed — it collapses the sidebar when the
+     parent pane has no resolved height (mobile / tablet floating panel). */
+  flex: 1 1 auto;
   min-height: 0;
-  max-height: 100dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -37,9 +40,12 @@
  * ============================================ */
 .rss-dashboard-sidebar-container {
   position: relative;
-  height: 100%;
+  /* audit-ok: flex-grow: 1 replaces height: 100% + max-height: 100dvh.
+     height: 100% requires a resolved parent height (not guaranteed on
+     mobile); flex-grow fills the available space without that requirement.
+     max-height: 100dvh removed for same reason as .rss-dashboard-sidebar. */
+  flex: 1 1 auto;
   min-height: 0;
-  max-height: 100dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;

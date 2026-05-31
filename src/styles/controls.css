@@ -468,14 +468,14 @@
   border-color: var(--interactive-accent);
 }
 .rss-dashboard-hamburger-button svg {
-  width: 20px !important; /* audit-ok: svg normalizer */
-  height: 20px !important; /* audit-ok: svg normalizer */
-  display: block !important; /* audit-ok: svg normalizer */
-  visibility: visible !important; /* audit-ok: svg normalizer */
-  opacity: 1 !important; /* audit-ok: svg normalizer */
-  fill: none !important; /* audit-ok: svg normalizer */
-  stroke: currentColor !important; /* audit-ok: svg normalizer */
-  stroke-width: 2.2 !important; /* audit-ok: svg normalizer */
+  width: 20px;
+  height: 20px;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
   transition: transform 0.2s ease;
 }
 .rss-dashboard-hamburger-button.active svg {
@@ -697,6 +697,3 @@
 .rss-dashboard-articles-header.is-narrow .rss-dashboard-sidebar-toggle {
   margin-right: 8px;
 }
-
-
-

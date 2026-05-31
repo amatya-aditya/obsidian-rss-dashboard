@@ -196,11 +196,11 @@
     padding: 0;
   }
 
-  .rss-dashboard-sidebar {
+  .rss-dashboard-layout > .rss-dashboard-sidebar {
     display: none !important;
   }
 
-  .rss-dashboard-sidebar-resize-handle {
+  .rss-dashboard-layout > .rss-dashboard-sidebar-resize-handle {
     display: none !important;
   }
 

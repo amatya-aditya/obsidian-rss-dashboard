@@ -686,8 +686,11 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     --rss-discover-header-top-padding: calc(
       10px + var(--rss-mobile-statusbar-inset-top)
     );
+    height: 100vh;
     height: 100dvh;
+    min-height: 100vh;
     min-height: 100dvh;
+    max-height: 100vh;
     max-height: 100dvh;
     width: min(88vw, 360px);
     max-width: min(88vw, 360px);
