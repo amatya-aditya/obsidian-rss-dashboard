@@ -95,12 +95,12 @@ function makeViewWithRegisterSpy(
   plugin: RssDashboardPlugin,
 ) {
   const spy = vi.spyOn(
-    RssDashboardView.prototype,
-    "registerDomEvent" as any,
+    RssDashboardView.prototype as unknown as { registerDomEvent: (...args: unknown[]) => void },
+    "registerDomEvent",
   );
   const view = new RssDashboardView(leaf, plugin);
   // Skip render() — hotkey tests don't exercise the article rendering pipeline
-  (view as any).render = vi.fn();
+  (view as unknown as { render: () => void }).render = vi.fn();
   return { view, spy };
 }
 
@@ -108,9 +108,10 @@ function makeViewWithRegisterSpy(
  * Extract the handler registered for (document, "keydown") from the prototype spy.
  */
 function getKeydownHandler(
-  spy: ReturnType<typeof vi.spyOn>,
+  spy: unknown,
 ): ((e: KeyboardEvent) => void) | null {
-  for (const call of spy.mock.calls) {
+  const mockSpy = spy as { mock: { calls: unknown[][] } };
+  for (const call of mockSpy.mock.calls) {
     if (call[0] === document && call[1] === "keydown") {
       return call[2] as (e: KeyboardEvent) => void;
     }
@@ -146,18 +147,18 @@ describe("DashboardView Hotkeys", () => {
     } as unknown as WorkspaceLeaf;
 
     // Connect the view to the leaf correctly for activeLeaf checks
-    (leaf as any).view = { app };
+    (leaf as unknown as { view: unknown }).view = { app };
 
     plugin = {
       app,
-      settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
+      settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as typeof DEFAULT_SETTINGS,
       saveSettings: vi.fn(),
       updatePlaybackProgress: vi.fn(),
       refreshFeeds: vi.fn().mockResolvedValue(undefined),
     } as unknown as RssDashboardPlugin;
 
     // activeLeaf setup so Guard 1 passes
-    (app.workspace as any).activeLeaf = leaf;
+    (app.workspace as unknown as { activeLeaf: WorkspaceLeaf }).activeLeaf = leaf;
   });
 
   afterEach(() => {
@@ -168,7 +169,7 @@ describe("DashboardView Hotkeys", () => {
     // Spy on prototype BEFORE construction so the constructor call is captured
     const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
     // Link the view to the mock activeLeaf so guard passes
-    (leaf as any).view = view;
+    (leaf as unknown as { view: unknown }).view = view;
 
     expect(spy).toHaveBeenCalledWith(
       document,
@@ -179,7 +180,7 @@ describe("DashboardView Hotkeys", () => {
 
   it("executes corresponding actions on keydown", () => {
     const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
-    (leaf as any).view = view;
+    (leaf as unknown as { view: unknown }).view = view;
 
     const keydownHandler = getKeydownHandler(spy);
     expect(keydownHandler).toBeDefined();
@@ -223,7 +224,7 @@ describe("DashboardView Hotkeys", () => {
   it("ignores hotkeys if the view is not the active leaf", () => {
     const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
     // Leaf is active, but view is NOT the leaf's view
-    (leaf as any).view = { app };
+    (leaf as unknown as { view: unknown }).view = { app };
 
     const keydownHandler = getKeydownHandler(spy);
     expect(keydownHandler).toBeDefined();
@@ -241,7 +242,7 @@ describe("DashboardView Hotkeys", () => {
 
   it("ignores hotkeys if an input is focused", () => {
     const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
-    (leaf as any).view = view;
+    (leaf as unknown as { view: unknown }).view = view;
 
     const keydownHandler = getKeydownHandler(spy);
     expect(keydownHandler).toBeDefined();
