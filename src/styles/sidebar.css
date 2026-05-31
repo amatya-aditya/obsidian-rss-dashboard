@@ -1,9 +1,79 @@
+/* =============================================================================
+ * Sidebar Styles (sidebar.css)
+ *
+ * Core sidebar navigation surface: container shell, header icon row,
+ * controls toolbar, tag panel, feed/folder tree, search dock, drag-and-drop,
+ * scrollbar variants, media-type overlays, and the folder-name modal.
+ * Media overlays (YouTube/podcast) are co-located here because they rely
+ * on sidebar feed context selectors.
+ * =============================================================================
+ */
+
+/* ============================================
+ * 1. Base Variables & Custom Properties
+ * Sidebar-scoped design tokens and layout defaults
+ * ============================================ */
+.rss-dashboard-sidebar {
+  --sidebar-row-spacing: 10px;
+  --sidebar-row-indentation: 20px;
+  --sidebar-item-padding-left: 2px;
+  --sidebar-item-padding-right: 2px;
+  --rss-sidebar-controls-bg: var(--background-secondary);
+  --rss-sidebar-controls-border: var(--background-modifier-border);
+  --rss-sidebar-controls-shadow: 0 2px 6px rgb(0 0 0 / 0.08);
+  font-size: 13px;
+  min-height: 0;
+  max-height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 0 !important; /* audit-ok: required to suppress Obsidian's default 16px container padding */
+}
+
+/* ============================================
+ * 2. Sidebar Container & Shell Layout
+ * Structural shell for the sidebar scroll area and controls surface
+ * ============================================ */
+.rss-dashboard-sidebar-container {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  max-height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 0 !important; /* audit-ok: required to suppress Obsidian's default 16px container padding */
+}
+
+.rss-dashboard-sidebar-controls-surface {
+  order: 1;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--rss-sidebar-controls-shadow, 0 2px 6px rgb(0 0 0 / 0.08));
+  z-index: 3;
+}
+
+/* Shared padding/margin reset for collapsible content sections */
+.rss-dashboard-tags-section,
+.rss-dashboard-feed-folders-section {
+  padding: 0;
+  margin: 0;
+}
+
+.rss-dashboard-feed-folders-section > * {
+  flex: 0 0 auto;
+}
+
+/* ============================================
+ * 3. Header & Title Row
+ * Top bar with title, controls, and header-right slot
+ * ============================================ */
 .rss-dashboard-header {
   order: 1;
   padding: 8px 10px;
-  /* border-bottom: 1px solid
-    var(--rss-sidebar-controls-border, var(--background-modifier-border));
-  background: var(--rss-sidebar-controls-bg, var(--background-secondary)); */
   display: flex;
   align-items: center;
   gap: 8px;
@@ -17,15 +87,18 @@
   flex: 0 0 auto;
   margin-left: 2px;
 }
+
 .rss-dashboard-title {
   font-weight: bold;
   font-size: 16px;
   color: var(--text-normal);
 }
+
 .rss-dashboard-controls {
   display: flex;
   gap: 5px;
 }
+
 .rss-dashboard-controls button {
   font-size: 12px;
   padding: 2px 5px;
@@ -35,22 +108,26 @@
   color: var(--text-normal);
   cursor: pointer;
 }
+
 .rss-dashboard-controls button:hover {
   background-color: var(--interactive-hover);
 }
+
 .rss-dashboard-section-header {
   display: flex;
   align-items: center;
-  padding: 8px 10px;
+  padding: 10px 8px;
   border-bottom: 1px solid var(--background-modifier-border);
   cursor: pointer;
 }
+
 .rss-dashboard-section-title {
   flex-grow: 1;
   font-weight: bold;
   font-size: 14px;
   color: var(--text-muted);
 }
+
 .rss-dashboard-section-toggle {
   width: 16px;
   height: 16px;
@@ -59,51 +136,252 @@
   justify-content: center;
   color: var(--text-muted);
 }
-.rss-dashboard-folder-icon,
-.rss-dashboard-feed-icon {
-  flex: 0 0 16px;
+
+/* ============================================
+ * 4. Header Icon Row & Toolbar
+ * Scrollable icon row with overflow fade indicators and inline toolbar
+ * ============================================ */
+
+/* Wrapper clips the scroll area and hosts fade-mask pseudo-elements */
+.rss-icon-row-wrapper {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Fade indicator — right edge (shown when icons are scrolled offscreen) */
+.rss-icon-row-wrapper::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 24px;
+  height: 100%;
+  background: linear-gradient(to right, transparent, var(--background-primary));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+/* Fade indicator — left edge */
+.rss-icon-row-wrapper::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 24px;
+  height: 100%;
+  background: linear-gradient(to left, transparent, var(--background-primary));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1;
+}
+
+.rss-icon-row-wrapper.has-overflow-right::after {
+  opacity: 1;
+}
+
+.rss-icon-row-wrapper.has-overflow-left::before {
+  opacity: 1;
+}
+
+/* Scrollable icon row */
+.rss-dashboard-header-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  padding: 1px 0; /* prevent focus rings from clipping */
+  cursor: grab;
+}
+
+.rss-dashboard-header-icon-row.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.rss-dashboard-header-icon-row.dragging .clickable-icon {
+  pointer-events: none;
+}
+
+/* audit-ok: css-scrollbar — ::-webkit-scrollbar required to suppress scrollbar in Obsidian's
+   Chromium/Electron environment; wrapped in @supports for progressive enhancement. */
+@supports selector(::-webkit-scrollbar) {
+  .rss-dashboard-header-icon-row::-webkit-scrollbar {
+    display: none; /* Chrome/Safari/WebKit */
+  }
+}
+
+.rss-dashboard-header-icon-row .clickable-icon {
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 8px;
+  border-radius: 4px;
   color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.rss-dashboard-header-icon-row .clickable-icon:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.rss-dashboard-header-icon-row .clickable-icon.is-active {
+  color: var(--text-accent);
+  background-color: var(--background-modifier-hover);
+}
+
+/* Nav divider between navigation and action icon groups */
+.rss-nav-divider {
+  width: 2px;
+  height: 18px;
+  background: var(--background-modifier-border);
+  margin: 0 4px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* audit-ok: Android WebView SVG visibility — see design-spec.md §Icon Rendering Standards */
+.rss-dashboard-header-icon-row .clickable-icon svg {
+  width: 16px !important;
+  height: 16px !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* Base toolbar container */
+.rss-dashboard-header-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.rss-dashboard-header-icon-button {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 4px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.rss-dashboard-header-icon-button:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.rss-dashboard-header-manage-container {
   position: relative;
 }
 
-.rss-dashboard-feed-icon.rss-icon-hidden {
-  display: none;
+.rss-dashboard-coachmark {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 100;
+  margin-top: 4px;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
 }
 
-.rss-dashboard-feed-favicon {
-  width: 16px;
-  height: 16px;
-  object-fit: contain;
-  border-radius: 2px;
-  background-color: var(--background-secondary);
+/* ============================================
+ * 5. Controls Toolbar
+ * Sidebar toolbar row with action icon buttons
+ * ============================================ */
+.rss-dashboard-sidebar-toolbar {
+  order: 3;
+  z-index: 2;
+  background: var(--rss-sidebar-controls-bg, var(--background-secondary));
+  display: flex;
+  justify-content: space-around;
+  gap: 4px;
+  padding: 6px 4px;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.rss-dashboard-folder {
+.rss-dashboard-sidebar-toolbar--inline {
+  order: 0;
+  z-index: auto;
+  background: transparent;
+  justify-content: flex-start;
+  gap: 2px;
+  padding: 0;
+  width: auto;
+  box-sizing: border-box;
+}
+
+.rss-dashboard-sidebar-toolbar--inline .rss-dashboard-toolbar-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+}
+
+.rss-dashboard-toolbar-button {
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
-  padding: 5px 10px;
+  justify-content: center;
   cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-.rss-dashboard-folder:hover {
-  background-color: var(--background-modifier-hover);
-}
-.rss-dashboard-folder.active {
-  background-color: var(--background-modifier-active);
-  font-weight: bold;
+  color: var(--text-muted);
+  border-radius: 4px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
+.rss-dashboard-toolbar-button:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.rss-dashboard-toolbar-button.is-active {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.rss-dashboard-toolbar-button:focus-visible {
+  outline: 2px solid var(--interactive-accent-hover);
+  outline-offset: 1px;
+}
+
+/* ============================================
+ * 6. Tags Section
+ * Tag list panel, filter mode toggle, add-tag controls
+ * ============================================ */
 .rss-dashboard-tags-section {
-  margin-bottom: 10px;
   border-bottom: 1px solid var(--background-modifier-border);
   overflow: hidden;
+}
+
+.rss-dashboard-sidebar-tags-section {
+  border-bottom: 1px solid var(--interactive-accent);
 }
 
 .rss-dashboard-tag-filter-mode-group {
@@ -190,7 +468,7 @@
 }
 
 .rss-dashboard-sidebar-tag-row .rss-dashboard-tag-checkbox {
-  accent-color: #9b59b6;
+  accent-color: var(--interactive-accent);
   margin-right: 8px;
   cursor: pointer;
   width: 18px;
@@ -211,6 +489,10 @@
   opacity: 0.8;
 }
 
+.rss-dashboard-tag-label {
+  font-size: 12px;
+}
+
 .rss-dashboard-sidebar-add-tag-row {
   display: flex;
   align-items: center;
@@ -218,29 +500,31 @@
   padding: 4px 10px 8px;
 }
 
-.rss-dashboard-tag-color-picker {
-  width: 20px !important;
-  height: 20px !important;
-  min-width: 20px !important;
-  max-width: 20px !important;
-  padding: 0 !important;
-  border: none !important;
-  background: none !important;
+/* body scope replaces !important block — overrides Obsidian's default color-input sizing */
+body .rss-dashboard-tag-color-picker {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  padding: 0;
+  border: none;
+  background: none;
   cursor: pointer;
   flex-shrink: 0;
-  border-radius: 50% !important;
-  overflow: hidden !important;
+  border-radius: 50%;
+  overflow: hidden;
   appearance: none;
   -webkit-appearance: none;
-  box-sizing: border-box !important;
+  box-sizing: border-box;
 }
 
-.rss-dashboard-tag-color-picker::-webkit-color-swatch-wrapper {
+/* audit-ok: pseudo-element normalization for color swatch rendering across browsers */
+body .rss-dashboard-tag-color-picker::-webkit-color-swatch-wrapper {
   padding: 0 !important;
   border-radius: 50% !important;
 }
 
-.rss-dashboard-tag-color-picker::-webkit-color-swatch {
+body .rss-dashboard-tag-color-picker::-webkit-color-swatch {
   border: none !important;
   border-radius: 50% !important;
 }
@@ -276,6 +560,11 @@
   background-color: var(--interactive-accent-hover);
 }
 
+.rss-dashboard-sidebar-add-tag-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
 .rss-dashboard-sidebar-add-tag-cancel-btn {
   width: 24px;
   height: 24px;
@@ -283,25 +572,15 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: white;
-  background-color: #ef4444;
+  color: var(--text-on-accent);
+  background-color: var(--rss-color-red-confirm);
   border-radius: 4px;
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
 .rss-dashboard-sidebar-add-tag-cancel-btn:hover {
-  background-color: #dc2626;
-}
-
-.rss-dashboard-sidebar-add-tag-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-.rss-dashboard-sidebar-tags-section {
-  border-bottom: 1px solid;
-  border-color: #8e44ad;
+  background-color: var(--rss-color-red-danger);
 }
 
 .rss-dashboard-sidebar-add-tag-toggle {
@@ -327,6 +606,54 @@
 .rss-dashboard-sidebar-add-tag-toggle-label {
   font-size: 12px;
 }
+
+/* ============================================
+ * 7. Feed Folders & Feed Tree
+ * Folder and feed list items, icons, unread badges, and tree hierarchy
+ * ============================================ */
+.rss-dashboard-folder-icon,
+.rss-dashboard-feed-icon {
+  flex: 0 0 16px;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  color: var(--text-muted);
+  position: relative;
+}
+
+.rss-dashboard-feed-icon.rss-icon-hidden {
+  display: none;
+}
+
+.rss-dashboard-feed-favicon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 2px;
+  background-color: var(--background-secondary);
+}
+
+.rss-dashboard-folder {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.rss-dashboard-folder:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.rss-dashboard-folder.active {
+  background-color: var(--background-modifier-active);
+  font-weight: bold;
+}
+
 .rss-dashboard-feed-folders-section {
   order: 5;
   flex: 1 1 auto;
@@ -335,7 +662,6 @@
   margin-top: 0;
   display: block;
   position: relative;
-  padding: 0px 6px !important;
   background: var(--background-primary);
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -345,10 +671,16 @@
     transparent; /* audit-ok: standard CSS Scrollbars L4; degrades gracefully in unsupported environments */
 }
 
+/* Scoped override — replaces !important for Obsidian default element padding */
+body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
+  padding: 0 6px;
+}
+
 .rss-dashboard-feed-folder {
   overflow: hidden;
   flex: 0 0 auto;
 }
+
 .rss-dashboard-feed-folder-header {
   display: flex;
   align-items: center;
@@ -364,6 +696,7 @@
   padding-right: var(--sidebar-item-padding-right);
   flex-shrink: 0;
 }
+
 .rss-dashboard-feed-folder-header:hover {
   background: var(--background-modifier-hover);
 }
@@ -381,6 +714,7 @@
   color: var(--text-accent);
 }
 
+/* Keyboard focus state shared by all sidebar row types */
 .rss-dashboard-feed-folder-header.rss-dashboard-sidebar-row-focused,
 .rss-dashboard-feed.rss-dashboard-sidebar-row-focused,
 .rss-dashboard-all-feeds-button.rss-dashboard-sidebar-row-focused {
@@ -408,6 +742,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.rss-dashboard-folder-name,
+.rss-dashboard-feed-name {
+  font-size: 13px;
+}
+
 .rss-dashboard-feed-folder-toggle {
   width: 16px;
   height: 16px;
@@ -440,6 +780,7 @@
 .rss-dashboard-folder-feeds.collapsed {
   display: none;
 }
+
 .rss-dashboard-feed {
   cursor: pointer;
   display: flex;
@@ -450,14 +791,17 @@
   padding-right: var(--sidebar-item-padding-right);
   flex-shrink: 0;
 }
+
 .rss-dashboard-feed:hover {
   background-color: var(--background-modifier-hover);
 }
+
 .rss-dashboard-feed.active {
   background-color: var(--background-modifier-active);
   font-weight: bold;
   color: var(--text-accent);
 }
+
 .rss-dashboard-feed-name-container {
   display: flex;
   justify-content: space-between;
@@ -465,6 +809,7 @@
   width: 100%;
   min-width: 0;
 }
+
 .rss-dashboard-feed-name {
   min-width: 0;
   white-space: nowrap;
@@ -472,11 +817,13 @@
   text-overflow: ellipsis;
   flex-grow: 1;
 }
+
+/* Shared unread badge layout */
 .rss-dashboard-feed-unread-count,
 .rss-dashboard-all-feeds-unread,
 .rss-dashboard-folder-unread-count {
   flex-shrink: 0;
-  color: white;
+  color: var(--text-on-accent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -489,76 +836,118 @@
   line-height: 1;
   box-sizing: border-box;
 }
+
 .rss-dashboard-feed-unread-count {
   margin-left: auto;
-  background-color: var(--rss-unread-badge-feed-color, #8e44ad);
+  background-color: var(--rss-unread-badge-feed-color, var(--interactive-accent));
 }
 
 .rss-dashboard-all-feeds-unread {
-  background-color: var(--rss-unread-badge-all-feeds-color, #8e44ad);
+  background-color: var(--rss-unread-badge-all-feeds-color, var(--interactive-accent));
 }
 
 .rss-dashboard-folder-unread-count {
   margin-left: auto;
-  background-color: var(--rss-unread-badge-folder-color, #d85b9f);
+  background-color: var(--rss-unread-badge-folder-color, var(--rss-color-purple));
 }
-.rss-dashboard-sidebar-toolbar {
-  order: 3;
-  z-index: 2;
-  background: var(--rss-sidebar-controls-bg, var(--background-secondary));
+
+/* ============================================
+ * 8. All Feeds Button
+ * Top-level "All Feeds" navigation item with theme-aware border
+ * ============================================ */
+.rss-dashboard-all-feeds-button {
   display: flex;
-  justify-content: space-around;
-  gap: 4px;
-  padding: 6px 4px;
-  flex-shrink: 0;
-  width: 100%;
-  box-sizing: border-box;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  padding: 4px;
+  border-bottom: solid 1px;
+  border-top: solid 1px;
 }
 
-.rss-dashboard-sidebar-toolbar--inline {
-  order: 0;
-  z-index: auto;
-  background: transparent;
-  justify-content: flex-start;
-  gap: 2px;
-  padding: 0;
-  width: auto;
-  box-sizing: border-box;
+/* Light theme: subtle border using text-normal at low opacity */
+body.theme-light .rss-dashboard-all-feeds-button {
+  border-bottom-color: color-mix(in srgb, var(--text-normal) 20%, transparent);
+  border-top-color: color-mix(in srgb, var(--text-normal) 20%, transparent);
 }
 
-.rss-dashboard-sidebar-toolbar--inline .rss-dashboard-toolbar-button {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
+/* Dark theme: secondary-alt surface border */
+body.theme-dark .rss-dashboard-all-feeds-button {
+  border-bottom-color: var(--background-secondary-alt);
+  border-top-color: var(--background-secondary-alt);
 }
 
-.rss-dashboard-toolbar-button {
-  width: 32px;
-  height: 32px;
+.rss-dashboard-all-feeds-button:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.rss-dashboard-all-feeds-button.active {
+  background-color: var(--background-modifier-active);
+}
+
+.rss-dashboard-all-feeds-icon {
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  margin-right: 8px;
+  color: var(--rss-unread-badge-all-feeds-color);
+}
+
+.rss-dashboard-all-feeds-label-container {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  padding: 4px 2px;
+}
+
+.rss-dashboard-all-feeds-label {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rss-dashboard-all-feeds-button.active .rss-dashboard-all-feeds-label {
+  font-weight: 600;
+}
+
+.rss-dashboard-all-feeds-right {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  gap: 8px;
+}
+
+.rss-dashboard-inline-refresh-button {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-muted);
   border-radius: 4px;
+  cursor: pointer;
   transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+    color 0.2s ease,
+    background-color 0.2s ease;
 }
-.rss-dashboard-toolbar-button:hover {
-  background-color: var(--background-modifier-hover);
+
+.rss-dashboard-inline-refresh-button:hover {
   color: var(--text-normal);
+  background-color: var(--background-modifier-hover);
 }
 
-.rss-dashboard-toolbar-button.is-active {
-  background-color: var(--interactive-accent);
-  color: var(--text-on-accent);
+.rss-dashboard-all-feeds-icon.refreshing svg,
+.rss-dashboard-inline-refresh-button.refreshing svg {
+  animation: spin 1s linear infinite;
 }
 
-.rss-dashboard-toolbar-button:focus-visible {
-  outline: 2px solid var(--interactive-accent-hover);
-  outline-offset: 1px;
-}
+/* ============================================
+ * 9. Drag & Drop States
+ * Visual feedback indicators for drag-and-drop reordering
+ * ============================================ */
 .rss-dashboard-feed-folder-header.drag-over {
   background-color: var(--interactive-accent);
   color: var(--text-on-accent);
@@ -567,6 +956,7 @@
 .rss-dashboard-feed-folder-header[draggable="true"] {
   cursor: grab;
 }
+
 .rss-dashboard-feed-folder-header[draggable="true"]:active {
   cursor: grabbing;
 }
@@ -574,9 +964,11 @@
 .rss-dashboard-feed-folder-header.drag-over-before {
   box-shadow: inset 0 3px 0 0 var(--interactive-accent);
 }
+
 .rss-dashboard-feed-folder-header.drag-over-after {
   box-shadow: inset 0 -3px 0 0 var(--interactive-accent);
 }
+
 .rss-dashboard-feed-folder-header.drag-over-nest {
   background-color: var(--interactive-accent);
   color: var(--text-on-accent);
@@ -585,6 +977,7 @@
 .rss-dashboard-feed[draggable="true"] {
   cursor: grab;
 }
+
 .rss-dashboard-feed[draggable="true"]:active {
   cursor: grabbing;
 }
@@ -592,158 +985,15 @@
 .rss-dashboard-feed.drag-over-before {
   box-shadow: inset 0 3px 0 0 var(--interactive-accent);
 }
+
 .rss-dashboard-feed.drag-over-after {
   box-shadow: inset 0 -3px 0 0 var(--interactive-accent);
 }
 
-.rss-dashboard-sidebar-container {
-  position: relative;
-  height: 100%;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-.rss-dashboard-sidebar {
-  --sidebar-row-spacing: 10px;
-  --sidebar-row-indentation: 20px;
-  --sidebar-item-padding-left: 2px;
-  --sidebar-item-padding-right: 2px;
-  --rss-sidebar-controls-bg: var(--background-secondary);
-  --rss-sidebar-controls-border: var(--background-modifier-border);
-  --rss-sidebar-controls-shadow: 0 2px 6px rgb(0 0 0 / 0.08);
-  font-size: 13px;
-  padding: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.rss-dashboard-sidebar-controls-surface {
-  order: 1;
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  /* background: var(--rss-sidebar-controls-bg, var(--background-secondary));
-  border-bottom: 1px solid
-    var(--rss-sidebar-controls-border, var(--background-modifier-border)); */
-  box-shadow: var(--rss-sidebar-controls-shadow, 0 2px 6px rgb(0 0 0 / 0.08));
-  z-index: 3;
-}
-
-.rss-dashboard-tags-section,
-.rss-dashboard-feed-folders-section {
-  padding: 0;
-  margin: 0;
-}
-.rss-dashboard-folder {
-  padding: 4px 8px;
-}
-.rss-dashboard-folder-name,
-.rss-dashboard-feed-name {
-  font-size: 13px;
-}
-/* Deprecated feed padding rule
-.rss-dashboard-folder-icon,
-.rss-dashboard-feed-icon {
-  width: 14px;
-  height: 14px;
-  margin-right: 6px;
-} */
-.rss-dashboard-section-header {
-  padding: 10px 8px;
-}
-
-.rss-dashboard-tag-label {
-  font-size: 12px;
-}
-/* Deprecated folder header padding rule */
-
-.rss-custom-save-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  background-color: var(--interactive-accent);
-  color: var(--text-on-accent);
-  border: 0;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-left: 8px;
-}
-.rss-custom-save-button:hover {
-  background-color: var(--interactive-accent-hover);
-}
-
-.rss-custom-save-button-icon {
-  width: 18px;
-  height: 18px;
-}
-.rss-dashboard-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-.rss-dashboard-youtube-article .rss-dashboard-article-cover {
-  position: relative;
-}
-.rss-dashboard-youtube-article .rss-dashboard-article-cover::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 48px;
-  height: 48px;
-  background-color: rgb(255 0 0 / 0.8);
-  border-radius: 50%;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='white' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-play'%3E%3Cpolygon points='6 3 20 12 6 21 6 3'%3E%3C/polygon%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 24px;
-}
-.rss-dashboard-podcast-article .rss-dashboard-article-cover {
-  position: relative;
-}
-.rss-dashboard-podcast-article .rss-dashboard-article-cover::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 48px;
-  height: 48px;
-  background-color: rgb(142 68 173 / 0.8);
-  border-radius: 50%;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-headphones'%3E%3Cpath d='M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3'%3E%3C/path%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 24px;
-}
-.rss-dashboard-feed.youtube-feed .rss-dashboard-feed-icon,
-.rss-dashboard-folder[data-folder="YouTube"] .rss-dashboard-folder-icon,
-.rss-dashboard-folder[data-folder="Videos"] .rss-dashboard-folder-icon {
-  color: red;
-}
-.rss-dashboard-feed.podcast-feed .rss-dashboard-feed-icon,
-.rss-dashboard-folder[data-folder="Podcasts"] .rss-dashboard-folder-icon {
-  color: #8e44ad;
-}
-.rss-dashboard-sidebar-container,
-.rss-dashboard-sidebar {
-  overflow: hidden;
-  min-height: 0;
-  max-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  /* Keep Obsidian's default 16px container padding from leaking into sidebar surfaces. */
-  padding: 0 !important;
-  box-sizing: border-box;
-}
-
-.rss-dashboard-feed-folders-section > * {
-  flex: 0 0 auto;
-}
+/* ============================================
+ * 10. Scrollbar Styles
+ * Standard and hidden scrollbar variants for the feed folders section
+ * ============================================ */
 
 /* audit-ok: css-scrollbar — ::-webkit-scrollbar pseudo-elements are required for
    consistent scrollbar appearance in Obsidian's Chromium/Electron environment.
@@ -799,7 +1049,79 @@
   }
 }
 
-/* Refresh button in filters section */
+/* ============================================
+ * 11. Search Dock
+ * Inline search bar docked to the sidebar with clear button
+ * ============================================ */
+
+/* audit-ok: display toggle utility — !important required to override specificity of later-loaded sheets */
+.rss-dashboard-search-hidden {
+  display: none !important;
+}
+
+.rss-dashboard-search-dock {
+  order: 4;
+  flex-shrink: 0;
+  padding: 6px 0;
+  border-top: 1px solid
+    var(--rss-sidebar-controls-border, var(--background-modifier-border));
+  background: var(--rss-sidebar-controls-bg, var(--background-secondary));
+}
+
+@media (max-width: 768px) {
+  .rss-dashboard-search-dock {
+    border-top: none;
+    border-bottom: 1px solid var(--background-modifier-border);
+  }
+}
+
+.rss-dashboard-search-dock .rss-dashboard-search-container {
+  max-width: none;
+  position: relative;
+}
+
+.rss-dashboard-search-dock .rss-dashboard-search-input {
+  padding-right: 32px;
+}
+
+.rss-dashboard-search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rss-dashboard-search-clear:hover {
+  color: var(--text-normal);
+}
+
+.rss-dashboard-search-clear.is-hidden {
+  display: none;
+}
+
+/* ============================================
+ * 12. Refresh Animation & Button States
+ * Spin keyframe and refresh button interaction states
+ * ============================================ */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .rss-dashboard-refresh-button:hover {
   color: var(--text-accent);
 }
@@ -813,81 +1135,71 @@
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* ============================================
+ * 13. Media Type Overlays
+ * YouTube and podcast cover overlays and feed-icon color theming.
+ * Co-located here because they rely on sidebar feed context selectors.
+ * ============================================ */
+.rss-dashboard-youtube-article .rss-dashboard-article-cover {
+  position: relative;
 }
 
-/* All Feeds Button */
-.rss-dashboard-all-feeds-button {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  padding: 4px;
-  border-bottom: solid 1px;
-  border-top: solid 1px;
+.rss-dashboard-youtube-article .rss-dashboard-article-cover::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  background-color: color-mix(in srgb, var(--rss-color-youtube-badge) 80%, transparent);
+  border-radius: 50%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='white' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-play'%3E%3Cpolygon points='6 3 20 12 6 21 6 3'%3E%3C/polygon%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 24px;
 }
 
-/* Light mode: reduce opacity */
-body.theme-light .rss-dashboard-all-feeds-button {
-  border-bottom-color: #33333380;
-  border-top-color: #33333380;
+.rss-dashboard-podcast-article .rss-dashboard-article-cover {
+  position: relative;
 }
 
-/* Dark mode */
-body.theme-dark .rss-dashboard-all-feeds-button {
-  border-bottom-color: var(--background-secondary-alt);
-  border-top-color: var(--background-secondary-alt);
+.rss-dashboard-podcast-article .rss-dashboard-article-cover::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  background-color: color-mix(in srgb, var(--rss-color-podcast-badge) 80%, transparent);
+  border-radius: 50%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-headphones'%3E%3Cpath d='M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 24px;
 }
 
-.rss-dashboard-all-feeds-button:hover {
-  background-color: var(--background-modifier-hover);
+/* Feed-icon color theming for media feed types */
+.rss-dashboard-feed.youtube-feed .rss-dashboard-feed-icon,
+.rss-dashboard-folder[data-folder="YouTube"] .rss-dashboard-folder-icon,
+.rss-dashboard-folder[data-folder="Videos"] .rss-dashboard-folder-icon {
+  color: var(--rss-color-youtube-badge);
 }
 
-.rss-dashboard-all-feeds-button.active {
-  background-color: var(--background-modifier-active);
+.rss-dashboard-feed.podcast-feed .rss-dashboard-feed-icon,
+.rss-dashboard-folder[data-folder="Podcasts"] .rss-dashboard-folder-icon {
+  color: var(--rss-color-podcast-badge);
 }
 
-.rss-dashboard-all-feeds-icon {
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 8px;
-  color: var(--rss-unread-badge-all-feeds-color);
-}
+/* ============================================
+ * 14. Folder Name Modal
+ * Rename / create folder modal surface, elevated above standard modal z-index
+ * ============================================ */
 
-/* Spinner color override */
-/* .rss-dashboard-all-feeds-button.active .rss-dashboard-all-feeds-icon {
-  color: var(--text-accent);
-} */
-
-.rss-dashboard-all-feeds-label-container {
-  flex-grow: 1;
-  display: flex;
-  align-items: center;
-  padding: 4px 2px;
-}
-
-.rss-dashboard-all-feeds-label {
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.rss-dashboard-all-feeds-button.active .rss-dashboard-all-feeds-label {
-  font-weight: 600;
-}
-
-.rss-folder-name-modal {
-  z-index: 100100 !important;
+/* body scope provides specificity to override Obsidian modal stacking without !important */
+body .rss-folder-name-modal {
+  z-index: 100100;
 }
 
 .rss-folder-name-modal-content {
@@ -952,25 +1264,25 @@ body.theme-dark .rss-dashboard-all-feeds-button {
 }
 
 .rss-folder-name-modal-cancel {
-  background-color: #ef4444;
-  color: #fff;
+  background-color: var(--rss-color-red-confirm);
+  color: var(--text-on-accent);
 }
 
 .rss-folder-name-modal-cancel:hover {
-  background-color: #dc2626;
+  background-color: var(--rss-color-red-danger);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--rss-color-red-confirm) 30%, transparent);
 }
 
 .rss-folder-name-modal-ok {
-  background-color: #8b5cf6;
-  color: #fff;
+  background-color: var(--rss-color-purple);
+  color: var(--text-on-accent);
 }
 
 .rss-folder-name-modal-ok:hover {
-  background-color: #7c3aed;
+  background-color: var(--rss-color-purple-hover);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--rss-color-purple) 30%, transparent);
 }
 
 .rss-sidebar-confirm-message {
@@ -978,234 +1290,37 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   color: var(--text-normal);
 }
 
-/* Search hidden class for feed/folder search */
-.rss-dashboard-search-hidden {
-  display: none !important;
-}
-
-.rss-dashboard-search-dock {
-  order: 4;
-  flex-shrink: 0;
-  padding: 6px 0;
-  border-top: 1px solid
-    var(--rss-sidebar-controls-border, var(--background-modifier-border));
-  background: var(--rss-sidebar-controls-bg, var(--background-secondary));
-}
-
-@media (max-width: 768px) {
-  .rss-dashboard-search-dock {
-    border-top: none;
-    border-bottom: 1px solid var(--background-modifier-border);
-  }
-}
-
-.rss-dashboard-search-dock .rss-dashboard-search-container {
-  max-width: none;
-  position: relative;
-}
-
-.rss-dashboard-search-dock .rss-dashboard-search-input {
-  padding-right: 32px;
-}
-
-@media (hover: none) and (pointer: coarse) {
-  .rss-dashboard-feed-folder-header,
-  .rss-dashboard-feed,
-  .rss-dashboard-all-feeds-button {
-    min-height: 44px;
-  }
-}
-
-.rss-dashboard-search-clear {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
-  border: none;
-  padding: 0;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
+/* ============================================
+ * 15. Utility & Legacy Classes
+ * Shared save button, checkbox wrapper, and empty state
+ * ============================================ */
+.rss-custom-save-button {
   display: flex;
   align-items: center;
-  justify-content: center;
-}
-
-.rss-dashboard-search-clear:hover {
-  color: var(--text-normal);
-}
-
-.rss-dashboard-search-clear.is-hidden {
-  display: none;
-}
-
-/* --- REDESIGN LAYOUT --- */
-
-/* Wrapper clips the scroll area and hosts the fade-mask pseudo-elements */
-.rss-icon-row-wrapper {
-  flex: 1;
-  min-width: 0;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Fade indicator — right edge (shown when more icons are scrolled offscreen) */
-.rss-icon-row-wrapper::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 24px;
-  height: 100%;
-  background: linear-gradient(to right, transparent, var(--background-primary));
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-/* Fade indicator — left edge */
-.rss-icon-row-wrapper::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 24px;
-  height: 100%;
-  background: linear-gradient(to left, transparent, var(--background-primary));
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 1;
-}
-
-.rss-icon-row-wrapper.has-overflow-right::after {
-  opacity: 1;
-}
-.rss-icon-row-wrapper.has-overflow-left::before {
-  opacity: 1;
-}
-
-/* Scrollable icon row */
-.rss-dashboard-header-icon-row {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
-  padding: 1px 0; /* keep focus rings from clipping */
-  cursor: grab;
-}
-
-.rss-dashboard-header-icon-row.dragging {
-  cursor: grabbing;
-  user-select: none;
-}
-
-.rss-dashboard-header-icon-row.dragging .clickable-icon {
-  pointer-events: none;
-}
-
-/* audit-ok: css-scrollbar — ::-webkit-scrollbar required to suppress scrollbar in Obsidian's
-   Chromium/Electron environment; wrapped in @supports for progressive enhancement. */
-@supports selector(::-webkit-scrollbar) {
-  .rss-dashboard-header-icon-row::-webkit-scrollbar {
-    display: none; /* Chrome/Safari/WebKit */
-  }
-}
-
-.rss-dashboard-header-icon-row .clickable-icon {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
-}
-
-.rss-dashboard-header-icon-row .clickable-icon:hover {
-  background-color: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-.rss-dashboard-header-icon-row .clickable-icon.is-active {
-  color: var(--text-accent);
-  background-color: var(--background-modifier-hover);
-}
-
-/* Nav divider between navigation and action icons */
-.rss-nav-divider {
-  width: 2px;
-  height: 18px;
-  background: var(--background-modifier-border);
-  margin: 0 4px;
-  flex-shrink: 0;
-  align-self: center;
-}
-
-/* SVG visibility fix for Android WebView */
-.rss-dashboard-header-icon-row .clickable-icon svg {
-  width: 16px !important;
-  height: 16px !important;
-  display: block !important;
-  visibility: visible !important;
-}
-
-/* Base Toolbar */
-.rss-dashboard-header-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.rss-dashboard-header-icon-button {
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--text-muted);
-  border-radius: 4px;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.rss-dashboard-header-icon-button:hover {
-  background-color: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-.rss-dashboard-header-manage-container {
-  position: relative;
-}
-
-.rss-dashboard-coachmark {
-  position: absolute;
-  top: 100%;
-  right: 0;
+  gap: 6px;
+  padding: 4px 8px;
   background-color: var(--interactive-accent);
   color: var(--text-on-accent);
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  white-space: nowrap;
-  z-index: 100;
-  margin-top: 4px;
-  pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.rss-custom-save-button:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+.rss-custom-save-button-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.rss-dashboard-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
 }
 
 .rss-dashboard-empty-state {
@@ -1219,34 +1334,14 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   margin: 10px;
 }
 
-/* Base Spacing for Items */
-.rss-dashboard-all-feeds-right {
-  display: flex;
-  align-items: center;
-  margin-left: auto;
-  gap: 8px;
-}
-.rss-dashboard-inline-refresh-button {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  border-radius: 4px;
-  cursor: pointer;
-  transition:
-    color 0.2s ease,
-    background-color 0.2s ease;
-}
-.rss-dashboard-inline-refresh-button:hover {
-  color: var(--text-normal);
-  background-color: var(--background-modifier-hover);
-}
-.rss-dashboard-all-feeds-icon.refreshing svg {
-  animation: spin 1s linear infinite;
-}
-
-.rss-dashboard-inline-refresh-button.refreshing svg {
-  animation: spin 1s linear infinite;
+/* ============================================
+ * 16. Responsive & Touch Targets
+ * Minimum tap target sizes for touch/coarse pointer devices
+ * ============================================ */
+@media (hover: none) and (pointer: coarse) {
+  .rss-dashboard-feed-folder-header,
+  .rss-dashboard-feed,
+  .rss-dashboard-all-feeds-button {
+    min-height: 44px;
+  }
 }
