@@ -3,7 +3,7 @@
   height: 100%;
   background-color: var(--background-primary);
   color: var(--text-normal);
-  padding: 0 !important; /* 2.3.1 audit-ok: override for Obsidian's forced workspace padding */
+  padding: 0 !important; /* audit-ok: override for Obsidian's forced workspace padding */
 }
 
 .rss-dashboard-layout {
@@ -166,17 +166,9 @@
   }
 }
 
-/* .rss-dashboard-header,
-.rss-dashboard-tags-section {
-  flex: 0 0 auto;
-  overflow: visible !important;
-  max-height: none !important;
-  min-height: unset !important;
-} */
-
 .sidebar-collapsed .rss-dashboard-sidebar {
-  display: none !important;
-  width: 0 !important;
+  display: none !important; /* audit-ok: override Obsidian's inline styles that force-show the sidebar on mobile */
+  width: 0 !important; /* audit-ok: override Obsidian's inline styles that force-show the sidebar on mobile */
 }
 
 /* Tablet and below: hide dashboard sidebar in favor of mobile navigation modal. */
@@ -202,11 +194,11 @@
   }
 
   .rss-dashboard-layout > .rss-dashboard-sidebar {
-    display: none !important;
+    display: none !important; /* audit-ok: override for Obsidian's forced sidebar display on mobile */
   }
 
   .rss-dashboard-layout > .rss-dashboard-sidebar-resize-handle {
-    display: none !important;
+    display: none !important; /* audit-ok: hide the resize handle on mobile since the sidebar is always hidden and the handle would be non-functional */
   }
 
   .rss-dashboard-container {

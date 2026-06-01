@@ -295,9 +295,8 @@
  * 6. Media Query - Mobile (max-width: 1200px)
  * ============================================ */
 
-/* audit-ok: display toggle utility */
 .rss-discover-controls-container.is-narrow .rss-discover-filter-controls {
-  display: none !important;
+  display: none !important;  /* audit-ok: display toggle utility */
 }
 .rss-discover-controls-container.is-narrow .rss-discover-mobile-filters-menu {
   display: block;

@@ -361,8 +361,9 @@
  * ============================================ */
 .rss-dashboard-tag-change-feedback {
   transition: background-color 0.2s ease;
-  background-color: var(--background-modifier-hover) !important;
-  /* audit-ok: temporary state visual override */
+  background-color: var(
+    --background-modifier-hover
+  ) !important; /* audit-ok: temporary state visual override */
 }
 
 .rss-dashboard-tag-item-processing {

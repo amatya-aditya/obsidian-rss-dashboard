@@ -469,10 +469,8 @@ The fix addresses both failure modes at source rather than overriding them with 
 Only use `!important` on icon sizing or visibility rules if Obsidian core sets the same property `!important` on a matching selector, making specificity-only wins impossible. If that situation arises, document it with a comment citing the specific core rule:
 
 ```css
-/* audit-ok: core app.css sets .clickable-icon svg { width: Xpx !important }
-   at higher specificity; cannot override without !important here. */
 .your-component-scope .clickable-icon > svg {
-  width: var(--icon-size, 20px) !important;
+  width: var(--icon-size, 20px) !important; /* audit-ok: explanation;
 }
 ```
 

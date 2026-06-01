@@ -9,8 +9,6 @@
  * 1. Container & Header
  * ============================================ */
 
-
-
 .rss-smallweb-container {
   height: 100%;
   display: flex;
@@ -159,10 +157,10 @@
 }
 
 body .rss-smallweb-following-btn {
-  background: var(--background-modifier-success) ;
+  background: var(--background-modifier-success);
   color: var(--text-error);
-  border: 1px solid var(--background-modifier-success) !important;
-  cursor: pointer !important;
+  border: 1px solid var(--background-modifier-success);
+  cursor: pointer;
   opacity: 0.9;
   display: inline-flex;
   align-items: center;
@@ -175,15 +173,15 @@ body .rss-smallweb-following-btn {
 }
 
 body .rss-smallweb-unfollow-hover {
-  background: var(--background-modifier-error) ;
+  background: var(--background-modifier-error);
   color: var(--text-error);
-  border-color: var(--background-modifier-error) !important;
+  border-color: var(--background-modifier-error);
 }
 
 body .rss-smallweb-error-btn {
-  background: var(--background-modifier-error) ;
-  color: var(--text-error) !important;
-  border-color: var(--background-modifier-error) !important;
+  background: var(--background-modifier-error);
+  color: var(--text-error);
+  border-color: var(--background-modifier-error);
 }
 
 .rss-smallweb-skeleton {

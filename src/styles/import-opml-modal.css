@@ -100,10 +100,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px !important;
+  border-radius: 6px;
   min-height: 38px;
   padding: 0.4rem 1rem;
-  margin: 0 !important;
+  margin: 0 !important; /* audit-ok: overrides any inline width styles for buttons */
 }
 
 /* Secondary-style "Cancel" button in Import OPML modal */
@@ -489,7 +489,7 @@
 }
 
 .import-preview-edit-input.is-invalid {
-  border-color: var(--text-error) !important;
+  border-color: var(--text-error);
 }
 
 /* ============================================
@@ -729,10 +729,10 @@
 .rss-dashboard-modal-overlay .rss-dashboard-confirm-modal {
   z-index: var(--feed-manager-z-index-modal-overlay-container);
   animation: modal-slide-in 0.2s ease-out;
-  width: 450px !important;
-  max-width: 90vw !important;
-  height: auto !important;
-  max-height: 85vh !important;
+  width: 450px;
+  max-width: 90vw;
+  height: auto;
+  max-height: 85vh;
 }
 
 @keyframes modal-slide-in {

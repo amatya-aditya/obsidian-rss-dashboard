@@ -525,15 +525,14 @@ body .rss-dashboard-tag-color-picker {
   box-sizing: border-box;
 }
 
-/* audit-ok: pseudo-element normalization for color swatch rendering across browsers */
 body .rss-dashboard-tag-color-picker::-webkit-color-swatch-wrapper {
-  padding: 0 !important;
-  border-radius: 50% !important;
+  padding: 0 !important; /* audit-ok: pseudo-element normalization for color swatch rendering across browsers */
+  border-radius: 50% !important; /* audit-ok: pseudo-element normalization for color swatch rendering across browsers */
 }
 
 body .rss-dashboard-tag-color-picker::-webkit-color-swatch {
-  border: none !important;
-  border-radius: 50% !important;
+  border: none !important; /* audit-ok: pseudo-element normalization for color swatch rendering across browsers */
+  border-radius: 50% !important; /* audit-ok: pseudo-element normalization for color swatch rendering across browsers */
 }
 
 .rss-dashboard-sidebar-add-tag-input {
@@ -846,16 +845,25 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
 
 .rss-dashboard-feed-unread-count {
   margin-left: auto;
-  background-color: var(--rss-unread-badge-feed-color, var(--interactive-accent));
+  background-color: var(
+    --rss-unread-badge-feed-color,
+    var(--interactive-accent)
+  );
 }
 
 .rss-dashboard-all-feeds-unread {
-  background-color: var(--rss-unread-badge-all-feeds-color, var(--interactive-accent));
+  background-color: var(
+    --rss-unread-badge-all-feeds-color,
+    var(--interactive-accent)
+  );
 }
 
 .rss-dashboard-folder-unread-count {
   margin-left: auto;
-  background-color: var(--rss-unread-badge-folder-color, var(--rss-color-purple));
+  background-color: var(
+    --rss-unread-badge-folder-color,
+    var(--rss-color-purple)
+  );
 }
 
 /* ============================================
@@ -1061,9 +1069,8 @@ body.theme-dark .rss-dashboard-all-feeds-button {
  * Inline search bar docked to the sidebar with clear button
  * ============================================ */
 
-/* audit-ok: display toggle utility — !important required to override specificity of later-loaded sheets */
 .rss-dashboard-search-hidden {
-  display: none !important;
+  display: none !important; /* audit-ok: display toggle utility — !important required to override specificity of later-loaded sheets */
 }
 
 .rss-dashboard-search-dock {
@@ -1159,7 +1166,11 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   transform: translate(-50%, -50%);
   width: 48px;
   height: 48px;
-  background-color: color-mix(in srgb, var(--rss-color-youtube-badge) 80%, transparent);
+  background-color: color-mix(
+    in srgb,
+    var(--rss-color-youtube-badge) 80%,
+    transparent
+  );
   border-radius: 50%;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='white' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-play'%3E%3Cpolygon points='6 3 20 12 6 21 6 3'%3E%3C/polygon%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -1179,7 +1190,11 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   transform: translate(-50%, -50%);
   width: 48px;
   height: 48px;
-  background-color: color-mix(in srgb, var(--rss-color-podcast-badge) 80%, transparent);
+  background-color: color-mix(
+    in srgb,
+    var(--rss-color-podcast-badge) 80%,
+    transparent
+  );
   border-radius: 50%;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-headphones'%3E%3Cpath d='M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3'%3E%3C/path%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -1278,7 +1293,8 @@ body .rss-folder-name-modal {
 .rss-folder-name-modal-cancel:hover {
   background-color: var(--rss-color-red-danger);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--rss-color-red-confirm) 30%, transparent);
+  box-shadow: 0 2px 8px
+    color-mix(in srgb, var(--rss-color-red-confirm) 30%, transparent);
 }
 
 .rss-folder-name-modal-ok {
@@ -1289,7 +1305,8 @@ body .rss-folder-name-modal {
 .rss-folder-name-modal-ok:hover {
   background-color: var(--rss-color-purple-hover);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--rss-color-purple) 30%, transparent);
+  box-shadow: 0 2px 8px
+    color-mix(in srgb, var(--rss-color-purple) 30%, transparent);
 }
 
 .rss-sidebar-confirm-message {

@@ -9,8 +9,6 @@
  * 1. Popup Container
  * ============================================ */
 
-
-
 .rss-folder-selector-popup {
   position: fixed;
   min-width: 220px;
@@ -72,7 +70,7 @@ body .rss-folder-selector-input {
 
 .rss-folder-selector-input-invalid {
   animation: rss-folder-input-shake 0.3s ease;
-  border-color: var(--text-error) !important;
+  border-color: var(--text-error);
 }
 
 @keyframes rss-folder-input-shake {
@@ -173,19 +171,19 @@ body .rss-folder-selector-input {
 
 @media (max-width: 600px) {
   .rss-folder-selector-popup {
-    left: 16px !important;
-    right: 16px !important;
+    left: 16px !important; /* audit-ok: overrides inline anchor positioning on mobile */
+    right: 16px !important; /* audit-ok: overrides inline anchor positioning on mobile */
     max-width: none;
     min-width: auto;
   }
 }
 
 body .rss-folder-selector-input-wrapper {
-  position: relative ;
+  position: relative;
 }
 
 body .rss-folder-selector-input {
-  padding-right: 32px ;
+  padding-right: 32px;
 }
 
 .rss-folder-selector-clear {
@@ -195,7 +193,7 @@ body .rss-folder-selector-input {
   transform: translateY(-50%);
   width: 18px;
   height: 18px;
-  display: flex !important;
+  display: flex !important; /* audit-ok: display toggle utility */
   align-items: center;
   justify-content: center;
   cursor: pointer;
@@ -213,5 +211,5 @@ body .rss-folder-selector-input {
 }
 
 .rss-folder-selector-clear.is-hidden {
-  display: none !important;
+  display: none !important; /* audit-ok: display toggle utility */
 }

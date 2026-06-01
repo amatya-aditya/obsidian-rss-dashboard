@@ -170,9 +170,8 @@ body .rss-discover-controls-container.is-narrow .rss-discover-mobile-header {
   border-radius: 4px;
   transition: all 0.15s ease;
 }
-/* audit-ok: display toggle utility */
 .rss-discover-search-input-wrapper .rss-discover-search-clear-hidden {
-  display: none !important;
+  display: none !important; /* audit-ok: display toggle utility */
 }
 .rss-discover-search-input-wrapper .rss-discover-search-clear:hover {
   color: var(--rss-color-danger-hover);
@@ -330,10 +329,9 @@ body .rss-discover-controls-container.is-narrow .rss-discover-mobile-header {
  * 5. Media Query - Mobile (max-width: 1200px)
  * ============================================ */
 
-/* audit-ok: responsive display toggle */
 @media (max-width: 1200px) {
   .rss-discover-layout > .rss-discover-sidebar {
-    display: none !important;
+    display: none !important; /* audit-ok: display toggle utility */
   }
 
   .rss-discover-sidebar {
