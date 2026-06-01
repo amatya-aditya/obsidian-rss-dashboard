@@ -178,6 +178,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  contain: layout style;
   width: 40px;
   height: 40px;
   border-radius: 6px;
@@ -187,16 +188,16 @@
   cursor: pointer;
   transition: all 0.2s ease;
 }
-/* audit-ok: svg icon normalization */
-.rss-discover-mobile-filters-button svg {
-  width: var(--icon-size) !important;
-  height: var(--icon-size) !important;
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  stroke: currentColor !important;
-  fill: none !important;
-  stroke-width: 2 !important;
+.rss-discover-mobile-filters-button > svg {
+  display: block;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  overflow: visible;
+  opacity: 1;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  will-change: transform;
 }
 .rss-discover-mobile-filters-button:hover {
   background: var(--background-modifier-hover);

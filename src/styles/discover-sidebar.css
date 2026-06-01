@@ -45,6 +45,7 @@
 .rss-discover-header-nav-button {
   display: flex;
   align-items: center;
+  contain: layout style;
   gap: 6px;
   padding: 6px;
   min-height: 16px;
@@ -74,12 +75,12 @@
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
-/* audit-ok: svg icon normalization */
-.rss-discover-header-nav-button svg {
-  width: 16px !important;
-  height: 16px !important;
-  display: block !important;
-  visibility: visible !important;
+.rss-discover-header-nav-button > svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  overflow: visible;
+  will-change: transform;
   flex-shrink: 0;
 }
 .rss-discover-header-nav-button-text {
@@ -122,13 +123,17 @@ body .rss-discover-controls-container.is-narrow .rss-discover-mobile-header {
   gap: 8px;
 }
 
-/* audit-ok: svg icon normalization */
-.rss-discover-sidebar-toggle svg {
-  width: 20px !important;
-  height: 20px !important;
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
+.rss-discover-sidebar-toggle {
+  contain: layout style;
+}
+
+.rss-discover-sidebar-toggle > svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  overflow: visible;
+  opacity: 1;
+  will-change: transform;
 }
 
 /* ============================================

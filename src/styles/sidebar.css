@@ -230,6 +230,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  contain: layout style;
   border-radius: 4px;
   color: var(--text-muted);
   cursor: pointer;
@@ -258,12 +259,12 @@
   align-self: center;
 }
 
-/* audit-ok: Android WebView SVG visibility — see design-spec.md §Icon Rendering Standards */
-.rss-dashboard-header-icon-row .clickable-icon svg {
-  width: 16px !important;
-  height: 16px !important;
-  display: block !important;
-  visibility: visible !important;
+.rss-dashboard-header-icon-row .clickable-icon > svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  overflow: visible;
+  will-change: transform;
 }
 
 /* Base toolbar container */

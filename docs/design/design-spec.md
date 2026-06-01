@@ -2,6 +2,7 @@
 
 ## Update History
 
+- 2026-05-31: Replace !important icon rendering workaround with contain/will-change pattern; add §Android WebView SVG Rendering
 - 2026-04-25: Add branding guidance for logo typography and asset storage
 - 2026-03-17: Standardize icon rendering using clickable-icon pattern for Android compatibility
 - 2026-03-04: Update iPhone modal headroom fix and sync docs
@@ -110,6 +111,7 @@ Current governed surfaces:
   - Visual hierarchy role: supportive status surface
 
 Reader restricted banner styling note:
+
 - Keep this surface as a simple colored status banner.
 - Do not use interactive accent treatments (accent stripes, accent-pill links, or accent hover states) for this banner.
 
@@ -402,20 +404,81 @@ iconButton.addEventListener("keydown", (e) => {
 
 - **Sizing**: Use the `--icon-size` CSS variable to control the SVG dimensions.
 - **Stroke Weights**: Preserve Lucide's default `stroke-width: 2` unless a specific variation is required.
-- **Android Visibility**: Use `!important` on `width`, `height`, and `visibility: visible` within the component-specific SVG rules to prevent rendering drops.
+- **Android Visibility**: Use contain: layout style on the container and explicit pixel dimensions on > svg to prevent Android WebView rendering drops. See §Android WebView SVG Rendering: Avoiding !important."
+
+### Android WebView SVG Rendering: Avoiding `!important`
+
+**This section supersedes the `!important` guidance previously listed under Styling Guidelines.** The prior pattern worked but conflicted with the v2.3.0 remediation goal of eliminating `!important` from the codebase. The approach below solves the same Android WebView failures without it.
+
+#### Why WebView Fails
+
+Android WebView has two distinct SVG-in-icon failure modes:
+
+1. **SVG sizing collapse.** Lucide icons are injected as inline `<svg>` elements with `width` and `height` set to `100%`. WebView does not reliably resolve percentage-based SVG intrinsic sizing when the parent is a flex container without explicit pixel dimensions on the SVG element itself. The icon collapses to 0×0 or an unintended fallback size.
+
+2. **Paint-layer drop.** On certain WebView builds, SVG children of `.clickable-icon` elements can be dropped from the paint layer during layout recalculation when ancestor elements have active `transform` or `opacity` transitions. The prior workaround patched this with `visibility: visible !important`.
+
+#### The Fix: Target SVG Directly, Isolate the Paint Layer
+
+The fix addresses both failure modes at source rather than overriding them with `!important`:
+
+- Set explicit pixel dimensions on the `> svg` element, not only on the `.clickable-icon` container. This is where WebView actually fails to resolve sizing.
+- Use `contain: layout style` on the container to isolate the subtree's paint layer.
+- Use `will-change: transform` on `> svg` to force compositing, which prevents the paint-drop bug.
+- Use the direct child combinator (`> svg`) rather than the descendant combinator (`svg`) to avoid matching nested `<svg>` elements inside compound Lucide icons.
 
 ```css
-.your-icon-class {
-  --icon-size: 24px;
+/*
+ * Android WebView Icon Rendering Fix
+ * Scoped to component ancestor to avoid Obsidian core collisions.
+ *
+ * Problem: WebView fails to resolve % SVG sizing inside flex containers,
+ * and drops SVG children from the paint layer during layout recalculation
+ * when transforms/opacity transitions are active on ancestor elements.
+ *
+ * Fix: explicit pixel dimensions on > svg; contain + will-change resolve
+ * the paint-drop bug at source rather than patching with visibility.
+ *
+ * Ref: design-spec §Icon Rendering Standards
+ */
+.your-component-scope .clickable-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  contain: layout style;
+  width: var(--icon-size, 20px);
+  height: var(--icon-size, 20px);
 }
 
-.your-icon-class svg {
-  width: var(--icon-size) !important;
-  height: var(--icon-size) !important;
-  display: block !important;
-  visibility: visible !important;
+.your-component-scope .clickable-icon > svg {
+  display: block;
+  width: var(--icon-size, 20px);
+  height: var(--icon-size, 20px);
+  overflow: visible;
+  will-change: transform;
+}
+
+.your-component-scope .clickable-icon > svg * {
+  pointer-events: none;
 }
 ```
+
+#### When `!important` Is Still Justified
+
+Only use `!important` on icon sizing or visibility rules if Obsidian core sets the same property `!important` on a matching selector, making specificity-only wins impossible. If that situation arises, document it with a comment citing the specific core rule:
+
+```css
+/* audit-ok: core app.css sets .clickable-icon svg { width: Xpx !important }
+   at higher specificity; cannot override without !important here. */
+.your-component-scope .clickable-icon > svg {
+  width: var(--icon-size, 20px) !important;
+}
+```
+
+Without that documented reason, `!important` on icon rules is a remediation target, not an acceptable pattern.
+
+---
 
 ## Change Management
 

@@ -1055,6 +1055,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  contain: layout style;
   cursor: grab;
   color: var(--text-muted);
   border-radius: 4px;
@@ -1069,9 +1070,12 @@
   cursor: grabbing;
 }
 
-.rss-dashboard-icon-drag-handle svg {
-  width: 14px !important;
-  height: 14px !important;
+.rss-dashboard-icon-drag-handle > svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  overflow: visible;
+  will-change: transform;
 }
 
 .rss-dashboard-icon-visibility-row.rss-dashboard-icon-row-dragging {
@@ -1102,16 +1106,18 @@
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
+  contain: layout style;
   --icon-size: 16px;
   color: var(--text-muted);
   margin-right: 6px;
 }
 
-.rss-settings-icon-preview svg {
-  width: var(--icon-size) !important;
-  height: var(--icon-size) !important;
-  display: block !important;
-  visibility: visible !important;
+.rss-settings-icon-preview > svg {
+  display: block;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  overflow: visible;
+  will-change: transform;
 }
 
 /* Proxy Setting UI Refinements */
