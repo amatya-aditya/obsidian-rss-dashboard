@@ -98,6 +98,24 @@ beforeEach(() => {
 });
 
 describe("General settings storage section", () => {
+  it("marks the storage transition modal for mobile safe-area positioning", () => {
+    const app = obsidian.App.createMock();
+    const modal = new StorageTransitionModal(app, {
+      currentMode: "legacy-json",
+      targetMode: "vault-shards",
+      storageFolder: ".rss-dashboard-data/feeds",
+    });
+
+    modal.open();
+
+    expect(modal.modalEl.classList.contains("rss-storage-transition-modal")).toBe(
+      true,
+    );
+    expect(
+      modal.contentEl.querySelector(".rss-storage-transition-buttons"),
+    ).toBeTruthy();
+  });
+
   it("renders the storage controls in the General tab", () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();

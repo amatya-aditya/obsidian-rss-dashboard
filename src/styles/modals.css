@@ -692,8 +692,8 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     min-height: 100dvh;
     max-height: 100vh;
     max-height: 100dvh;
-    width: min(88vw, 360px);
-    max-width: min(88vw, 360px);
+    width: 80vw;
+    max-width: 80vw;
     margin: 0;
     border-radius: 0;
     position: fixed;
@@ -757,13 +757,22 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     visibility: visible;
     opacity: 1;
   }
-  body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
-    display: block;
+  body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar-container,
+  body .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar {
+    display: flex;
+    flex-direction: column;
     width: 100%;
+    min-width: 0;
     height: 100%;
     max-height: none;
+    min-height: 0;
     border-right: none;
+    border-bottom: none;
     padding: 0;
+    overflow: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
     visibility: visible;
     opacity: 1;
   }
@@ -798,8 +807,8 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
 @media (max-width: 768px) {
   body .modal.rss-mobile-navigation-modal,
   body .modal.rss-mobile-discover-filters-modal {
-    width: 95vw;
-    max-width: 95vw;
+    width: 80vw;
+    max-width: 80vw;
     border-radius: 0;
     border: 1px solid var(--background-modifier-border);
     border-left: none;
@@ -877,7 +886,8 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     display: flex;
     align-items: center;
   }
-  .modal.rss-mobile-navigation-modal .rss-dashboard-header-close-button {
+  .modal.rss-mobile-navigation-modal .rss-dashboard-header-close-button,
+  .modal.rss-mobile-discover-filters-modal .rss-dashboard-header-close-button {
     width: 32px;
     min-width: 32px;
     height: 32px;
@@ -892,30 +902,11 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     color: var(--text-muted);
     margin-right: 0;
   }
-  .modal.rss-mobile-discover-filters-modal .rss-dashboard-header-close-button {
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: 8px;
-    border: 1px solid var(--background-secondary);
-    background: var(--background-secondary);
-    color: var(--text-on-accent);
-    margin-right: 2px;
-  }
-  .modal.rss-mobile-navigation-modal .rss-dashboard-header-close-button:hover {
-    background: var(--background-modifier-hover);
-    color: var(--text-normal);
-  }
+  .modal.rss-mobile-navigation-modal .rss-dashboard-header-close-button:hover,
   .modal.rss-mobile-discover-filters-modal
     .rss-dashboard-header-close-button:hover {
-    border-color: var(--rss-color-discover-accent);
-    background: var(--rss-color-discover-accent);
-    color: var(--text-on-accent);
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
   }
 
   /* Ensure the text input accepts taps and opens the iOS soft keyboard */
@@ -946,6 +937,37 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     z-index: var(--z-index-modal);
     margin: 0;
     padding: 0;
+  }
+  body .modal-container .modal.rss-storage-transition-modal {
+    --rss-storage-modal-bottom-gap: 24px;
+    --rss-storage-modal-bottom-gap: max(
+      24px,
+      env(safe-area-inset-bottom, 0px)
+    );
+    width: auto;
+    max-width: calc(100vw - 24px);
+    max-height: calc(90vh - 24px);
+    max-height: calc(90dvh - var(--rss-storage-modal-bottom-gap));
+    bottom: 24px;
+    bottom: var(--rss-storage-modal-bottom-gap);
+    left: 12px;
+    right: 12px;
+    border-radius: 16px;
+  }
+  body .modal.rss-storage-transition-modal .rss-storage-transition-buttons {
+    width: 100%;
+    box-sizing: border-box;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px 4px 4px;
+  }
+  body .modal.rss-storage-transition-modal .rss-storage-transition-buttons button {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    white-space: normal;
+    line-height: 1.2;
   }
   .modal-container .modal.rss-dashboard-modal-container .modal-close-button {
     display: flex;

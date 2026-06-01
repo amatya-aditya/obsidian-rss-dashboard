@@ -44,6 +44,7 @@ export class StorageTransitionModal extends Modal {
 
     this.modalEl.addClass("rss-dashboard-modal");
     this.modalEl.addClass("rss-dashboard-modal-container");
+    this.modalEl.addClass("rss-storage-transition-modal");
 
     if (
       this.currentMode === "legacy-json" &&
@@ -82,6 +83,7 @@ export class StorageTransitionModal extends Modal {
 
     const buttonsSetting = new Setting(contentEl);
     buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
+    buttonsSetting.controlEl.addClass("rss-storage-transition-buttons");
     buttonsSetting
       .addButton((btn) =>
         btn.setButtonText("Cancel").onClick(() => {
@@ -120,6 +122,7 @@ export class StorageTransitionModal extends Modal {
 
     const buttonsSetting = new Setting(contentEl);
     buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
+    buttonsSetting.controlEl.addClass("rss-storage-transition-buttons");
     buttonsSetting
       .addButton((btn) =>
         btn.setButtonText("Cancel").onClick(() => {

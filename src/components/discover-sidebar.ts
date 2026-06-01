@@ -143,7 +143,7 @@ export class DiscoverSidebar {
         cls: "rss-discover-header-right",
       });
       const closeBtn = rightActions.createDiv({
-        cls: "rss-dashboard-header-close-button",
+        cls: "rss-dashboard-header-close-button clickable-icon",
         attr: {
           title: "Close filters",
           "aria-label": "Close filters",

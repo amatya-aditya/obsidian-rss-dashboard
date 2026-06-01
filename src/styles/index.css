@@ -18,6 +18,8 @@
 @import "./pagination.css";
 @import "./discover.css";
 @import "./discover-sidebar.css";
+@import "./discover-sidebar-filters.css";
+@import "./discover-sidebar-nav.css";
 @import "./feed-preview-modal.css";
 @import "./kagi-smallweb.css";
 @import "./folder-selector-popup.css";
