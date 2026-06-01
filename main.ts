@@ -590,7 +590,6 @@ export default class RssDashboardPlugin extends Plugin {
       return elapsed >= intervalMs;
     };
 
-
     const view = await this.getActiveDashboardView();
     if (view) {
       view.render();
@@ -923,32 +922,39 @@ export default class RssDashboardPlugin extends Plugin {
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
   ): Promise<void> {
-    if (item.feedUrl) {
-      const normalizedUpdates = applyAutomaticArticleTags(
-        item,
-        updates,
-        this.settings,
+    const resolvedFeed =
+      this.settings.feeds.find((f) => f.url === item.feedUrl) ||
+      this.settings.feeds.find((f) =>
+        f.items.some((candidate) => candidate.guid === item.guid),
       );
-      const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
-      if (!feed) return;
+    if (!resolvedFeed) return;
 
-      const originalItem = feed.items.find((i) => i.guid === item.guid);
-      if (!originalItem) return;
+    const resolvedFeedUrl = resolvedFeed.url;
+    item.feedUrl = resolvedFeedUrl;
 
-      await this.updateArticle(
-        item.guid,
-        item.feedUrl,
-        normalizedUpdates,
-        false,
-      );
-      await this.syncDashboardArticleUpdate(
-        item.guid,
-        item.feedUrl,
-        normalizedUpdates,
-        !!shouldRerender,
-      );
-      await this.syncReaderArticleUpdate(item.guid, normalizedUpdates);
-    }
+    const normalizedUpdates = applyAutomaticArticleTags(
+      item,
+      updates,
+      this.settings,
+    );
+    const originalItem = resolvedFeed.items.find((i) => i.guid === item.guid);
+    if (!originalItem) return;
+
+    // Reflect updates in open dashboard/reader views immediately, then persist.
+    Object.assign(originalItem, normalizedUpdates);
+    await this.syncDashboardArticleUpdate(
+      item.guid,
+      resolvedFeedUrl,
+      normalizedUpdates,
+      !!shouldRerender,
+    );
+    await this.syncReaderArticleUpdate(item.guid, normalizedUpdates);
+    await this.updateArticle(
+      item.guid,
+      resolvedFeedUrl,
+      normalizedUpdates,
+      false,
+    );
   }
 
   private async syncReaderArticleUpdate(

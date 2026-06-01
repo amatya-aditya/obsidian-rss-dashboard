@@ -1,10 +1,8 @@
 ## [Unreleased] - May 26, 2026
 
+### Community Plugin Audit
+
 - Remediation work on latest Community Plugin Audit (https://community.obsidian.md/plugins/rss-dashboard) - now standing at 72% compliance (up from 46% last version).
-
-### Addressed Issues
-
-#### Risks
 
 - **Dynamic `<script>` element creation**
   - Flagged as a red/critical risk due to 2.3.0's media progress saving feature (specifically Youtube iFrame embeds)
@@ -13,7 +11,11 @@
 
 - Completely eliminated all Node.js/Electron `fs` and `path` usages from the production plugin code
 
-## docs\development\2.3.0-audit\remediate-direct-filesystem-access.md
+- Completely eliminated all superflous !important declarations; added comments to remaining declarations that pass audit
+
+### GH Issue #139
+
+- Fixed issue where clicking a feed in the sidebar does nothing when a sync plugin (Self-hosted LiveSync) is enabled.
 
 ## [2.3.0] - May 26, 2026
 

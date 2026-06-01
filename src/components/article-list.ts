@@ -7,7 +7,6 @@ import { MediaService } from "../services/media-service";
 import {
   formatDateWithRelative,
   formatArticleDate,
-  ensureUtf8Meta,
   setCssProps,
   windowInstanceOf,
 } from "../utils/platform-utils";
@@ -21,6 +20,8 @@ import {
 import { computeResultsRange } from "../utils/pagination-utils";
 
 const MAX_VISIBLE_TAGS = 6;
+const CARD_PREVIEW_SUMMARY_MAX_CHARS = 420;
+const CARD_PREVIEW_HIGHLIGHT_MAX_CHARS = 900;
 
 interface ArticleListCallbacks {
   onArticleClick: (article: FeedItem) => void;
@@ -78,6 +79,7 @@ export class ArticleList {
   private totalArticles: number;
   private currentFeedUrl: string | null = null;
   private header: ArticleHeader | null = null;
+  private highlightService: HighlightService | null = null;
 
   private showFeedSource: boolean = true;
   private statusFilters: Set<string>;
@@ -130,6 +132,10 @@ export class ArticleList {
     this.filterLogic = filterLogic;
     this.currentFeedUrl = currentFeedUrl || null;
     this.showFeedSource = showFeedSource;
+
+    if (this.settings.highlights?.enabled) {
+      this.highlightService = new HighlightService(this.settings.highlights);
+    }
 
     // Header and filter logic were extracted to ArticleHeader and ArticleFilterMenu
     // to reduce this file's length and complexity. Legacy methods like renderHeader(),
@@ -1166,10 +1172,14 @@ export class ArticleList {
       return;
     }
 
+    let tagsContainerAdded = false;
     if (hasTags && existingContainers.length === 0) {
       if (articleEl.classList.contains("rss-dashboard-article-card")) {
         const tagsContainer = this.ensureCardTagsContainer(articleEl);
-        if (tagsContainer) existingContainers.push(tagsContainer);
+        if (tagsContainer) {
+          existingContainers.push(tagsContainer);
+          tagsContainerAdded = true;
+        }
       } else if (
         articleEl.classList.contains("rss-dashboard-list-item-bottom-row")
       ) {
@@ -1187,20 +1197,30 @@ export class ArticleList {
             articleContent.insertBefore(tagContainer, listFooter);
           }
           existingContainers.push(tagContainer);
+          tagsContainerAdded = true;
         }
       } else if (articleEl.classList.contains("rss-dashboard-feed-item")) {
         const tagsContainer = this.ensureFeedTagsContainer(articleEl);
-        if (tagsContainer) existingContainers.push(tagsContainer);
+        if (tagsContainer) {
+          existingContainers.push(tagsContainer);
+          tagsContainerAdded = true;
+        }
       } else {
         const toolbar = articleEl.querySelector<HTMLElement>(
           ".rss-dashboard-action-toolbar",
         );
         if (toolbar) {
-          existingContainers.push(
-            toolbar.createDiv({ cls: "rss-dashboard-tag-container" }),
-          );
+          const tagContainer = toolbar.createDiv({
+            cls: "rss-dashboard-tag-container",
+          });
+          existingContainers.push(tagContainer);
+          tagsContainerAdded = true;
         }
       }
+    }
+
+    if (tagsContainerAdded) {
+      articleEl.classList.add("rss-dashboard-tags-newly-added");
     }
 
     existingContainers.forEach((container) => {
@@ -1381,6 +1401,23 @@ export class ArticleList {
   private getFeedFolder(feedUrl: string): string | undefined {
     const feed = this.settings.feeds.find((f) => f.url === feedUrl);
     return feed?.folder;
+  }
+
+  private getCardPreviewSummaryText(summary: string): string {
+    if (!summary) {
+      return "";
+    }
+
+    const normalized = summary.replace(/\s+/g, " ").trim();
+    if (normalized.length <= CARD_PREVIEW_SUMMARY_MAX_CHARS) {
+      return normalized;
+    }
+
+    return `${normalized.slice(0, CARD_PREVIEW_SUMMARY_MAX_CHARS - 1)}…`;
+  }
+
+  private shouldHighlightCardPreviewSummary(summaryText: string): boolean {
+    return summaryText.length <= CARD_PREVIEW_HIGHLIGHT_MAX_CHARS;
   }
 
   private renderFeedIcon(
@@ -1658,32 +1695,28 @@ export class ArticleList {
         this.articles[index] = { ...article };
       }
 
+      this.updateArticleInPlace(article);
+
       this.callbacks.onArticleUpdate(
         article,
         { tags: [...article.tags] },
         false,
       );
 
-      let articleEl = this.container.querySelector(
-        `[id="article-${article.guid}"]`,
-      ) as HTMLElement;
-      if (!articleEl) {
-        articleEl = this.container
-          .closest(".rss-dashboard-container")
-          ?.querySelector(`[id="article-${article.guid}"]`) as HTMLElement;
-      }
-      if (!articleEl) {
-        articleEl = activeDocument.getElementById(
-          `article-${article.guid}`,
-        ) as HTMLElement;
-      }
-      if (articleEl) {
-        articleEl.classList.add("rss-dashboard-tag-change-feedback");
-        activeWindow.setTimeout(() => {
-          articleEl.classList.remove("rss-dashboard-tag-change-feedback");
-        }, 200);
-        this.syncArticleTags(articleEl, article);
-        void articleEl.offsetHeight;
+      const targetId = `article-${article.guid}`;
+      const articleEls = Array.from(
+        this.container.querySelectorAll<HTMLElement>(
+          ".rss-dashboard-article-item, .rss-dashboard-article-card, .rss-dashboard-feed-item",
+        ),
+      ).filter((el) => el.id === targetId);
+
+      if (articleEls.length > 0) {
+        articleEls.forEach((articleEl) => {
+          articleEl.classList.add("rss-dashboard-tag-change-feedback");
+          activeWindow.setTimeout(() => {
+            articleEl.classList.remove("rss-dashboard-tag-change-feedback");
+          }, 200);
+        });
       } else {
         const tempIndicator = activeDocument.body.createDiv({
           cls: "rss-dashboard-tag-change-notification",
@@ -1792,12 +1825,8 @@ export class ArticleList {
         cls: "rss-dashboard-article-title",
       });
 
-      if (
-        this.settings.highlights?.enabled &&
-        this.settings.highlights.highlightInTitles
-      ) {
-        const highlightService = new HighlightService(this.settings.highlights);
-        highlightService.setHighlightedText(titleEl, article.title);
+      if (this.highlightService && this.settings.highlights.highlightInTitles) {
+        this.highlightService.setHighlightedText(titleEl, article.title);
       } else {
         titleEl.textContent = article.title;
       }
@@ -1825,13 +1854,10 @@ export class ArticleList {
         const textToDisplay = article.summary || article.content || "";
 
         if (
-          this.settings.highlights?.enabled &&
+          this.highlightService &&
           this.settings.highlights.highlightInSummaries
         ) {
-          const highlightService = new HighlightService(
-            this.settings.highlights,
-          );
-          highlightService.setHighlightedText(summaryEl, textToDisplay);
+          this.highlightService.setHighlightedText(summaryEl, textToDisplay);
         } else {
           summaryEl.textContent = textToDisplay;
         }
@@ -1912,12 +1938,8 @@ export class ArticleList {
       const titleEl = headlineEl.createDiv({
         cls: "rss-dashboard-article-title rss-dashboard-list-title",
       });
-      if (
-        this.settings.highlights?.enabled &&
-        this.settings.highlights.highlightInTitles
-      ) {
-        const highlightService = new HighlightService(this.settings.highlights);
-        highlightService.setHighlightedText(titleEl, article.title);
+      if (this.highlightService && this.settings.highlights.highlightInTitles) {
+        this.highlightService.setHighlightedText(titleEl, article.title);
       } else {
         titleEl.textContent = article.title;
       }
@@ -1950,7 +1972,10 @@ export class ArticleList {
               cls: "rss-dashboard-tag-badge",
               text: tag.name,
             });
-            tagEl.style.setProperty("--tag-color", tag.color);
+            tagEl.style.setProperty(
+              "--tag-color",
+              tag.color || "var(--interactive-accent)",
+            );
           });
         }
       } else {
@@ -1975,7 +2000,10 @@ export class ArticleList {
               cls: "rss-dashboard-tag-badge",
               text: tag.name,
             });
-            tagEl.style.setProperty("--tag-color", tag.color);
+            tagEl.style.setProperty(
+              "--tag-color",
+              tag.color || "var(--interactive-accent)",
+            );
           });
           if (article.tags.length > MAX_VISIBLE_TAGS) {
             const overflowTag = bodyTags.createDiv({
@@ -2053,12 +2081,8 @@ export class ArticleList {
         cls: "rss-dashboard-article-title",
       });
 
-      if (
-        this.settings.highlights?.enabled &&
-        this.settings.highlights.highlightInTitles
-      ) {
-        const highlightService = new HighlightService(this.settings.highlights);
-        highlightService.setHighlightedText(cardTitleEl, article.title);
+      if (this.highlightService && this.settings.highlights.highlightInTitles) {
+        this.highlightService.setHighlightedText(cardTitleEl, article.title);
       } else {
         cardTitleEl.textContent = article.title;
       }
@@ -2119,25 +2143,29 @@ export class ArticleList {
         };
 
         if (article.summary) {
+          const previewSummaryText = this.getCardPreviewSummaryText(
+            article.summary,
+          );
           const summaryOverlay = coverContainer.createDiv({
             cls: "rss-dashboard-summary-overlay",
           });
           if (
-            this.settings.highlights?.enabled &&
-            this.settings.highlights.highlightInSummaries
+            this.highlightService &&
+            this.settings.highlights.highlightInSummaries &&
+            this.shouldHighlightCardPreviewSummary(previewSummaryText)
           ) {
-            const highlightService = new HighlightService(
-              this.settings.highlights,
-            );
-            highlightService.setHighlightedText(
+            this.highlightService.setHighlightedText(
               summaryOverlay,
-              article.summary,
+              previewSummaryText,
             );
           } else {
-            summaryOverlay.textContent = article.summary;
+            summaryOverlay.textContent = previewSummaryText;
           }
         }
       } else if (article.summary) {
+        const previewSummaryText = this.getCardPreviewSummaryText(
+          article.summary,
+        );
         const previewRegion = cardContent.createDiv({
           cls: "rss-dashboard-card-preview-region",
         });
@@ -2145,18 +2173,16 @@ export class ArticleList {
           cls: "rss-dashboard-cover-summary-only",
         });
         if (
-          this.settings.highlights?.enabled &&
-          this.settings.highlights.highlightInSummaries
+          this.highlightService &&
+          this.settings.highlights.highlightInSummaries &&
+          this.shouldHighlightCardPreviewSummary(previewSummaryText)
         ) {
-          const highlightService = new HighlightService(
-            this.settings.highlights,
-          );
-          highlightService.setHighlightedText(
+          this.highlightService.setHighlightedText(
             summaryOnlyContainer,
-            article.summary,
+            previewSummaryText,
           );
         } else {
-          summaryOnlyContainer.textContent = article.summary;
+          summaryOnlyContainer.textContent = previewSummaryText;
         }
       }
 
@@ -2510,9 +2536,9 @@ export class ArticleList {
 }
 
 function extractFirstImageSrc(html: string): string | null {
-  const htmlWithMeta = ensureUtf8Meta(html);
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlWithMeta, "text/html");
-  const img = doc.querySelector("img");
-  return img ? img.getAttribute("src") : null;
+  if (!html) return null;
+
+  // Use a regex for rapid extraction without full DOM parsing
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return match ? match[1] : null;
 }
