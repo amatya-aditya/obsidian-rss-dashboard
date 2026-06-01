@@ -219,6 +219,17 @@ export class ArticleSaver {
       .replace(/^[/\s]+|[/\s]+$/g, "");
   }
 
+  private isMissingPathError(error: unknown): boolean {
+    const message =
+      error instanceof Error ? error.message.toLowerCase() : String(error);
+
+    return (
+      message.includes("enoent") ||
+      message.includes("enonet") ||
+      message.includes("no such file")
+    );
+  }
+
   private async ensureFolderExists(folderPath: string): Promise<void> {
     if (!folderPath || folderPath.trim() === "") {
       return;
@@ -230,8 +241,14 @@ export class ArticleSaver {
     }
 
     try {
-      if (this.app.vault.getAbstractFileByPath(cleanPath) === null) {
-        await this.app.vault.createFolder(cleanPath);
+      const parts = cleanPath.split("/").filter((part) => part.trim() !== "");
+      let currentPath = "";
+
+      for (const part of parts) {
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+        if (this.app.vault.getAbstractFileByPath(currentPath) === null) {
+          await this.app.vault.createFolder(currentPath);
+        }
       }
     } catch {
       throw new Error(`Failed to create folder: ${cleanPath}`);
@@ -508,8 +525,18 @@ export class ArticleSaver {
           : `${filename}.md`;
 
       const existingFile = this.app.vault.getAbstractFileByPath(filePath);
-      if (existingFile !== null) {
-        await this.app.fileManager.trashFile(existingFile);
+      if (existingFile instanceof TFile) {
+        try {
+          await this.app.fileManager.trashFile(existingFile);
+        } catch (error) {
+          if (!this.isMissingPathError(error)) {
+            throw error;
+          }
+        }
+      } else if (existingFile !== null) {
+        throw new Error(
+          `Cannot save article because ${filePath} exists and is not a file.`,
+        );
       }
 
       const template =
@@ -525,7 +552,17 @@ export class ArticleSaver {
 
       contentToWrite += this.applyTemplate(item, template, rawContent);
 
-      const file = await this.app.vault.create(filePath, contentToWrite);
+      let file: TFile;
+      try {
+        file = await this.app.vault.create(filePath, contentToWrite);
+      } catch (error) {
+        if (!(folder && this.isMissingPathError(error))) {
+          throw error;
+        }
+
+        await this.ensureFolderExists(folder);
+        file = await this.app.vault.create(filePath, contentToWrite);
+      }
 
       item.saved = true;
       item.savedFilePath = filePath;

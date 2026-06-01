@@ -1,5 +1,9 @@
 ## [Unreleased] - May 26, 2026
 
+### New Features
+
+- Added Settings > General > Saved article open location option to control where saved articles open. Resolve [GH FR Issue #131](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/131)
+
 ### Community Plugin Audit
 
 - Remediation work on latest Community Plugin Audit (https://community.obsidian.md/plugins/rss-dashboard) - now standing at 72% compliance (up from 46% last version).
@@ -16,6 +20,10 @@
 ### GH Issue #139
 
 - Fixed issue where clicking a feed in the sidebar does nothing when a sync plugin (Self-hosted LiveSync) is enabled.
+
+### Features
+
+- Added a new **Saved article open location** option under General settings so saved articles can open in Main, left/right sidebar, inline dashboard mode, or external browser, independent of the Reader view location setting.
 
 ## [2.3.0] - May 26, 2026
 

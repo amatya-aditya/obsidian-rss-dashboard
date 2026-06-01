@@ -308,7 +308,7 @@ export class MockDataVault {
 
 export class MockWorkspace {
   private leaves: Map<string, unknown> = new Map();
-  private activeLeaf: unknown = null;
+  public activeLeaf: unknown = null;
   private layoutReadyCallbacks: Array<() => void> = [];
 
   onLayoutChange = new MockEvent();
@@ -323,17 +323,21 @@ export class MockWorkspace {
     return this.activeLeaf;
   }
 
-  setActiveLeaf(leaf: unknown): void {
+setActiveLeaf(leaf: unknown, _options?: { focus?: boolean }): void {
     this.activeLeaf = leaf;
   }
 
-  createLeafByType(_type: string): unknown {
+  getLeaf(_type?: "split" | "tab"): unknown {
     return {};
   }
 
-  // Minimal surface used by settings tabs to focus a view.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
-  async revealLeaf(_leaf: any): Promise<void> {}
+  getLeftLeaf(_force?: boolean): unknown {
+    return {};
+  }
+
+  getRightLeaf(_force?: boolean): unknown {
+    return {};
+  }
 
   onLayoutReady(callback: () => void): void {
     this.layoutReadyCallbacks.push(callback);

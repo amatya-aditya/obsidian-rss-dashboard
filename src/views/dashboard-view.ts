@@ -17,6 +17,7 @@ import {
   KeywordFilterRule,
   RssDashboardSettings,
   Folder,
+  ViewLocation,
 } from "../types/types";
 import type {
   FiltersUpdatedEventPayload,
@@ -3529,6 +3530,18 @@ export class RssDashboardView extends ItemView {
     return "main";
   }
 
+  private getSavedArticleOpenLocation(): ViewLocation {
+    const location = this.settings.savedArticleOpenLocation;
+    if (
+      location === "left-sidebar" ||
+      location === "right-sidebar" ||
+      location === "inline"
+    ) {
+      return location;
+    }
+    return "main";
+  }
+
   private getConfiguredReaderLeaf(): WorkspaceLeaf | null {
     const { workspace } = this.app;
     const readerLeaves = workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
@@ -3543,6 +3556,23 @@ export class RssDashboardView extends ItemView {
         return null;
       default:
         return readerLeaves[0] ?? null;
+    }
+  }
+
+  private getConfiguredSavedArticleLeaf(
+    location: ViewLocation,
+  ): WorkspaceLeaf | null {
+    const { workspace } = this.app;
+
+    switch (location) {
+      case "left-sidebar":
+        return workspace.getLeftLeaf(false);
+      case "right-sidebar":
+        return workspace.getRightLeaf(false);
+      case "inline":
+        return null;
+      default:
+        return workspace.getLeaf("split");
     }
   }
 
@@ -3792,9 +3822,25 @@ export class RssDashboardView extends ItemView {
     return null;
   }
 
-  private async openSavedArticleFile(file: TFile): Promise<void> {
+  public async openSavedArticleFile(
+    file: TFile,
+    article?: FeedItem,
+  ): Promise<void> {
     try {
-      const leaf = this.app.workspace.getLeaf("split");
+      const location = this.getSavedArticleOpenLocation();
+
+      if (location === "inline" && article) {
+        this.inlineArticle = article;
+        void this.render();
+        new Notice(`Opened saved article: ${file.basename}`);
+        return;
+      }
+
+      const leaf = this.getConfiguredSavedArticleLeaf(location);
+      if (!leaf) {
+        throw new Error("No workspace leaf available for saved article");
+      }
+
       await leaf.openFile(file);
       void this.app.workspace.revealLeaf(leaf);
 
@@ -3816,7 +3862,7 @@ export class RssDashboardView extends ItemView {
     try {
       const savedFile = await this.saver.findSavedArticleFile(article);
       if (savedFile) {
-        await this.openSavedArticleFile(savedFile);
+        await this.openSavedArticleFile(savedFile, article);
         loadingNotice.hide();
       } else {
         await this.updateArticleStatus(article, { saved: false }, false);

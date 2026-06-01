@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { App, Platform } from "obsidian";
+import { App, Platform, type TFile } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import {
   DEFAULT_SETTINGS,
@@ -90,9 +90,19 @@ type TestDashboardView = {
   app: App;
   render: ReturnType<typeof vi.fn>;
   inlineArticle: import("../../../src/types/types").FeedItem | null;
-  handleArticleClick: (item: import("../../../src/types/types").FeedItem) => Promise<void>;
-  handleOpenInReaderView: (item: import("../../../src/types/types").FeedItem) => Promise<void>;
-  handleFeedClick: (feed: import("../../../src/types/types").Feed) => Promise<void>;
+  handleArticleClick: (
+    item: import("../../../src/types/types").FeedItem,
+  ) => Promise<void>;
+  handleOpenInReaderView: (
+    item: import("../../../src/types/types").FeedItem,
+  ) => Promise<void>;
+  handleFeedClick: (
+    feed: import("../../../src/types/types").Feed,
+  ) => Promise<void>;
+  openSavedArticleFile: (
+    file: TFile,
+    article?: import("../../../src/types/types").FeedItem,
+  ) => Promise<void>;
   articleList: {
     setSelectedArticle: ReturnType<typeof vi.fn>;
     scheduleCardTopAnchorOnResize: ReturnType<typeof vi.fn>;
@@ -158,9 +168,14 @@ function createReaderLeaf(app: App, id: string): MockLeaf {
 }
 
 async function createDashboardView(
-   settings: RssDashboardSettings,
-   workspaceOverrides: Record<string, unknown> = {},
-): Promise<{ app: App; plugin: unknown; view: TestDashboardView; dashboardLeaf: unknown }> {
+  settings: RssDashboardSettings,
+  workspaceOverrides: Record<string, unknown> = {},
+): Promise<{
+  app: App;
+  plugin: unknown;
+  view: TestDashboardView;
+  dashboardLeaf: unknown;
+}> {
   const { RssDashboardView } =
     await import("../../../src/views/dashboard-view");
   const app = new App();
@@ -180,7 +195,12 @@ async function createDashboardView(
     plugin as unknown as ConstructorParameters<typeof RssDashboardView>[1],
   );
   view.render = vi.fn();
-  return { app, plugin, view: view as unknown as TestDashboardView, dashboardLeaf };
+  return {
+    app,
+    plugin,
+    view: view as unknown as TestDashboardView,
+    dashboardLeaf,
+  };
 }
 
 describe("Dashboard reader location", () => {
@@ -620,4 +640,60 @@ describe("Dashboard reader location", () => {
     expect(view.inlineArticle).toBe(null);
     expect(view.render).toHaveBeenCalled();
   });
-});
+
+  it("opens saved articles in the configured sidebar location", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    settings.readerViewLocation = "main";
+    settings.savedArticleOpenLocation = "right-sidebar";
+    const rightLeaf = {
+      openFile: vi.fn(async () => {}),
+    };
+    const revealLeaf = vi.fn(async () => {});
+    const { view } = await createDashboardView(settings, {
+      getLeaf: vi.fn(),
+      getLeftLeaf: vi.fn(),
+      getRightLeaf: vi.fn(() => rightLeaf),
+      revealLeaf,
+    });
+    const savedFile = await App.createMock().vault.create(
+      "RSS articles/saved-article.md",
+      "# Saved article",
+    );
+
+    await view.openSavedArticleFile(savedFile, feed.items[0]);
+
+    expect(
+      view.app.workspace.getRightLeaf as ReturnType<typeof vi.fn>,
+    ).toHaveBeenCalledWith(false);
+    expect(rightLeaf.openFile).toHaveBeenCalledWith(savedFile);
+    expect(revealLeaf).toHaveBeenCalledWith(rightLeaf);
+  });
+
+  it("renders saved articles inline when savedArticleOpenLocation is inline", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    settings.savedArticleOpenLocation = "inline";
+    const { view } = await createDashboardView(settings, {
+      getLeaf: vi.fn(),
+      getLeftLeaf: vi.fn(),
+      getRightLeaf: vi.fn(),
+      revealLeaf: vi.fn(async () => {}),
+    });
+    const savedFile = await App.createMock().vault.create(
+      "RSS articles/saved-inline.md",
+      "# Saved inline",
+    );
+
+    await view.openSavedArticleFile(savedFile, feed.items[0]);
+
+    expect(view.inlineArticle).toBe(feed.items[0]);
+    expect(view.render).toHaveBeenCalled();
+    expect(
+      view.app.workspace.getLeaf as ReturnType<typeof vi.fn>,
+    ).not.toHaveBeenCalled();
+  });
+
+  });

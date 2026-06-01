@@ -19,6 +19,7 @@ import {
   DEFAULT_SETTINGS,
   ArticleSavingSettings,
   Tag,
+  ViewLocation,
 } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
 import { ArticleSaver } from "../services/article-saver";
@@ -400,6 +401,55 @@ export class ReaderView extends ItemView {
     return null;
   }
 
+private getSavedArticleOpenLocation(): ViewLocation {
+    const location = this.settings.savedArticleOpenLocation;
+    if (
+      location === "left-sidebar" ||
+      location === "right-sidebar" ||
+      location === "inline"
+    ) {
+      return location;
+    }
+    return "main";
+  }
+
+  private getConfiguredSavedArticleLeaf(
+    location: ViewLocation,
+  ): WorkspaceLeaf | null {
+    switch (location) {
+      case "left-sidebar":
+        return this.app.workspace.getLeftLeaf(false);
+      case "right-sidebar":
+        return this.app.workspace.getRightLeaf(false);
+      case "inline":
+        return null;
+      default:
+        return this.app.workspace.getLeaf("split");
+    }
+  }
+
+  private async openSavedArticleInConfiguredLocation(
+    file: TFile,
+    article: FeedItem,
+  ): Promise<void> {
+    const dashboardView = this.getDashboardView();
+    if (dashboardView) {
+      await dashboardView.openSavedArticleFile(file, article);
+      return;
+    }
+
+    const location = this.getSavedArticleOpenLocation();
+    const targetLocation = location === "inline" ? "main" : location;
+    const leaf = this.getConfiguredSavedArticleLeaf(targetLocation);
+    if (!leaf) {
+      new Notice("No workspace leaf available for saved article");
+      return;
+    }
+
+    await leaf.openFile(file);
+    await this.app.workspace.revealLeaf(leaf);
+  }
+
   /**
    * Action: Navigate to next article from reader.
    * @internal
@@ -503,7 +553,7 @@ export class ReaderView extends ItemView {
         this.currentItem.savedFilePath || "",
       );
       if (file instanceof TFile) {
-        await this.leaf.openFile(file);
+        await this.openSavedArticleInConfiguredLocation(file, this.currentItem);
       }
       return;
     }
@@ -662,7 +712,10 @@ export class ReaderView extends ItemView {
           this.currentItem.savedFilePath || "",
         );
         if (file instanceof TFile) {
-          void this.leaf.openFile(file);
+          void this.openSavedArticleInConfiguredLocation(
+            file,
+            this.currentItem,
+          );
           return;
         }
       }

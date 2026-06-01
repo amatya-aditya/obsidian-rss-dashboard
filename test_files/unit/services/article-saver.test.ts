@@ -143,6 +143,72 @@ describe("ArticleSaver.saveArticle", () => {
     expect(item.savedFilePath).toBeUndefined();
   });
 
+  it("continues saving when replacing an existing file hits a missing-path race", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultFolder: "Articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({ title: "Race Condition" });
+    await saver.saveArticle(item, undefined, undefined, "FIRST");
+
+    vi.spyOn(app.fileManager, "trashFile").mockRejectedValueOnce(
+      new Error("ENONET: no such file exists"),
+    );
+
+    const result = await saver.saveArticle(
+      item,
+      undefined,
+      undefined,
+      "SECOND",
+    );
+
+    expect(result).toBeInstanceOf(TFile);
+  });
+
+  it("creates nested folders one segment at a time", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultFolder: "Parent/Child/Grandchild",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+    const createFolderSpy = vi.spyOn(app.vault, "createFolder");
+
+    const item = createItem({ title: "Nested Folder Save" });
+    const result = await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    expect(result).toBeInstanceOf(TFile);
+    expect(createFolderSpy).toHaveBeenCalledWith("Parent");
+    expect(createFolderSpy).toHaveBeenCalledWith("Parent/Child");
+    expect(createFolderSpy).toHaveBeenCalledWith("Parent/Child/Grandchild");
+  });
+
+  it("retries create after restoring missing folder path", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultFolder: "Articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const originalCreate = app.vault.create.bind(app.vault);
+    const createSpy = vi.spyOn(app.vault, "create");
+    createSpy
+      .mockRejectedValueOnce(new Error("ENOENT: no such file or directory"))
+      .mockImplementationOnce(async (path: string, content: string) => {
+        return await originalCreate(path, content);
+      });
+
+    const item = createItem({ title: "Retry Missing Folder" });
+    const result = await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    expect(result).toBeInstanceOf(TFile);
+    expect(createSpy).toHaveBeenCalledTimes(2);
+  });
+
   it("uses the full sanitized title in the saved file path", async () => {
     const app = App.createMock();
     const settings = createSettings({

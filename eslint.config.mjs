@@ -77,6 +77,7 @@ export default defineConfig([
           allowAutoFix: true,
         },
       ],
+      "@typescript-eslint/unbound-method": "off",
     },
   },
   {

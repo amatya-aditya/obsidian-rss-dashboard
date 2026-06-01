@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Scope, WorkspaceLeaf } from "obsidian";
+import { App, Scope, WorkspaceLeaf } from "obsidian";
 import { ReaderView } from "../../../src/views/reader-view";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
@@ -16,6 +16,7 @@ class MockLeaf {
   }
 
   detach = vi.fn();
+  openFile = vi.fn(async () => {});
 }
 
 describe("ReaderView dashboard refocus", () => {
@@ -98,5 +99,77 @@ describe("ReaderView dashboard refocus", () => {
     });
     expect(workspace.revealLeaf).toHaveBeenCalledWith(fallbackLeaf);
     expect(leaf.detach).not.toHaveBeenCalled();
+  });
+
+  it("routes saved article reopen through configured location helper", async () => {
+    const { view, app, leaf } = createReaderView([]);
+    const file = await App.createMock().vault.create(
+      "RSS articles/saved.md",
+      "# Saved",
+    );
+    const openSavedArticleInConfiguredLocation = vi.fn(async () => {});
+
+    (
+      view as unknown as {
+        currentItem: {
+          saved: boolean;
+          savedFilePath: string;
+          title: string;
+          link: string;
+          guid: string;
+          description: string;
+          pubDate: string;
+          read: boolean;
+          starred: boolean;
+          tags: [];
+          feedTitle: string;
+          feedUrl: string;
+          coverImage: string;
+        };
+        openSavedArticleInConfiguredLocation: ReturnType<typeof vi.fn>;
+      }
+    ).currentItem = {
+      saved: true,
+      savedFilePath: "RSS articles/saved.md",
+      title: "Saved",
+      link: "https://example.com/saved",
+      guid: "saved-guid",
+      description: "",
+      pubDate: new Date().toISOString(),
+      read: false,
+      starred: false,
+      tags: [],
+      feedTitle: "Feed",
+      feedUrl: "https://example.com/feed",
+      coverImage: "",
+    };
+    (
+      view as unknown as {
+        openSavedArticleInConfiguredLocation: ReturnType<typeof vi.fn>;
+      }
+    ).openSavedArticleInConfiguredLocation =
+      openSavedArticleInConfiguredLocation;
+
+    (
+      app.vault as unknown as {
+        getAbstractFileByPath: ReturnType<typeof vi.fn>;
+      }
+    ).getAbstractFileByPath = vi.fn(() => file);
+
+    const leafOpenFileSpy = vi.spyOn(
+      leaf as unknown as { openFile: () => void },
+      "openFile",
+    );
+
+    await view.actionSaveCurrentArticle();
+
+    expect(openSavedArticleInConfiguredLocation).toHaveBeenCalledWith(
+      file,
+      expect.objectContaining({
+        saved: true,
+        savedFilePath: "RSS articles/saved.md",
+      }),
+    );
+    expect(leafOpenFileSpy).not.toHaveBeenCalled();
   });
 });

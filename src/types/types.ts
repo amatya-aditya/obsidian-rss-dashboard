@@ -414,6 +414,7 @@ export interface RssDashboardSettings {
   };
   viewLocation: ViewLocation;
   readerViewLocation: ViewLocation;
+  savedArticleOpenLocation: ViewLocation;
   useWebViewer: boolean;
 
   corsProxyEnabled: boolean;
@@ -550,6 +551,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   folderFeedSortOrders: {},
   viewLocation: "main",
   readerViewLocation: "main",
+  savedArticleOpenLocation: "main",
   useWebViewer: true,
   corsProxyEnabled: false,
   corsProxyUrl: "",
