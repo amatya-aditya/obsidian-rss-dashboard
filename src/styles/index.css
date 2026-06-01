@@ -27,4 +27,7 @@
 @import "./podcast-player.css";
 @import "./podcast-themes.css";
 @import "./settings.css";
+@import "./settings-about-support.css";
+@import "./settings-keyword-filters.css";
+@import "./settings-icon-proxy.css";
 @import "./feed-view.css";
