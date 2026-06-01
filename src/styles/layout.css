@@ -24,6 +24,11 @@
   flex-shrink: 0;
 }
 
+.rss-dashboard-layout > .rss-dashboard-sidebar-container {
+  flex: 0 0 auto;
+  height: 100%;
+}
+
 /*
  * Sidebar Resize Handle
  *

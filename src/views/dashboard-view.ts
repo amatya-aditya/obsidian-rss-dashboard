@@ -3094,6 +3094,7 @@ export class RssDashboardView extends ItemView {
     if (this.sidebarContainer && !this.settings.sidebarCollapsed) {
       const width = this.settings.sidebarWidth || 280;
       this.sidebarContainer.style.width = `${width}px`;
+      this.sidebarContainer.style.minWidth = `${width}px`;
       // Keep the resize handle pinned to the sidebar's right edge.
       // CSS `transform: translateX(-50%)` on the handle centers it on this
       // position, giving equal hitbox on both sides of the border line.
