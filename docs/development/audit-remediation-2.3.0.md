@@ -9,7 +9,7 @@
 
 ## 🔴 Risks (Must Fix)
 
-- [x] **Dynamic `<script>` element creation** — Locate and remove all dynamic script element injection. Replace with a safe alternative (static imports, Obsidian API, or a sanctioned content injection pattern). Add CI/CD lint rule to block future regressions. See `.github/workflows/` for enforcement rule.
+- [x] **Dynamic `<script>` element creation** — Enforced via ESLint `no-restricted-syntax` rule in `eslint.config.mjs` and `npm run lint` step in `.github/workflows/test.yml`. CI will block any call expression matching `createElement('script')`.
 
 - Notes:
   - Added CI/CD ESlint rule to eslint.config.mjs - "no-restricted-syntax" - to block future regressions
@@ -18,7 +18,7 @@
   - Tested new implementation - working.
   - ESLint passes.
 
-- [x] **Direct filesystem access via Node.js `fs` module** — Plugin is accessing the filesystem outside of the Obsidian vault API (`vault.read`, `vault.modify`, etc.). Audit all `fs` usages and migrate to the Obsidian API. Flag any cases where `fs` is genuinely required and document the justification in `docs/SECURITY.md`.
+- [x] **Direct filesystem access via Node.js `fs` module** — All `fs` and `path` imports eliminated from `src/`. Enforced via ESLint `no-restricted-imports` rule (scoped to `src/**/*.ts`) and the `npm run lint` CI step. `fs`/`path` remain permissible only in test files.
 
 - Notes:
   - Plan: `docs/development/2.3.0-audit/remediate-direct-filesystem-access.md`
@@ -38,9 +38,9 @@
 
 ### CSS — `!important` Usage (900 warnings)
 
-- [ ] Audit entire codebase for `!important` declarations — replace with higher-specificity selectors or CSS variables where feasible
-- [ ] For any `!important` that must remain (e.g. Obsidian theme override conflicts), add an inline comment: `/* audit-ok: !important required to override Obsidian theme specificity */`
-- [ ] Document the approved exception pattern in `CONTRIBUTING.MD`
+- [x] Audit entire codebase for `!important` declarations — replace with higher-specificity selectors or CSS variables where feasible
+- [x] For any `!important` that must remain (e.g. Obsidian theme override conflicts), add an inline comment: `/* audit-ok: !important required to override Obsidian theme specificity */`
+- [x] Document the approved exception pattern in `CONTRIBUTING.MD`
 
 - Note: Line from @controls.css - \* We use !important on display toggles to prevent overrides from later-loaded stylesheets (modals.css, discover.css) - need to investigate further
 
@@ -116,18 +116,18 @@
 
 ## 🔵 Other
 
-- [ ] **Extra release artifact** — `obsidian-rss-dashboard.zip` is included in the release but only `main.js`, `manifest.json`, and `styles.css` are supported. Remove the `.zip` from the release workflow or add it as a separate GitHub Release asset outside the plugin registry entry.
+- [x] **Extra release artifact** — `obsidian-rss-dashboard.zip` is included in the release but only `main.js`, `manifest.json`, and `styles.css` are supported. Remove the `.zip` from the release workflow or add it as a separate GitHub Release asset outside the plugin registry entry.
 
-- [ ] **Clipboard access disclosure** — Already disclosed in scorecard. Verify `docs/SECURITY.md` entry is current and accurate for v2.3.0 (no changes needed if clipboard usage hasn't changed).
+- [x] **Clipboard access disclosure** — Already disclosed in scorecard. Verify `docs/SECURITY.md` entry is current and accurate for v2.3.0 (no changes needed if clipboard usage hasn't changed).
 
 ---
 
 ## CI/CD & Governance (New — See Recommendations)
 
-- [ ] Add GitHub Actions step to block dynamic `<script>` element creation (grep/ESLint rule)
-- [ ] Add GitHub Actions step to block direct `fs` module usage in `src/` (grep or ESLint `no-restricted-imports`)
-- [ ] Update `CONTRIBUTING.MD` with CSS warning exception policy (inline comment format + approved patterns)
-- [ ] Update `CONTRIBUTING.MD` with guidance on `!important` — when it's acceptable and how to document it
+- [x] Add GitHub Actions step to block dynamic `<script>` element creation (grep/ESLint rule) — covered by `npm run lint` step in `test.yml` and `no-restricted-syntax` rule
+- [x] Add GitHub Actions step to block direct `fs` module usage in `src/` (grep or ESLint `no-restricted-imports`) — covered by same lint step and new `no-restricted-imports` rule targeting `fs`/`path` in `src/**/*.ts`
+- [x] Update `CONTRIBUTING.MD` with CSS warning exception policy (inline comment format + approved patterns)
+- [x] Update `CONTRIBUTING.MD` with guidance on `!important` — when it's acceptable and how to document it
 
 ---
 

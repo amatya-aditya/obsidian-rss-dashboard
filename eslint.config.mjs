@@ -24,6 +24,26 @@ export default defineConfig([
     },
   },
   {
+    files: ["src/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "fs",
+              message: "Direct fs module usage is prohibited. Use vault.read/vault.modify or browser File APIs.",
+            },
+            {
+              name: "path",
+              message: "Direct path module usage is prohibited. Use Obsidian adapter paths or TFile/TFolder APIs.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["**/*.ts"],
     rules: {
       "no-restricted-syntax": [
