@@ -2,7 +2,8 @@
 
 ### New Features
 
-- Added Settings > General > Saved article open location option to control where saved articles open. Resolve [GH FR Issue #131](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/131)
+- Added Settings > General > Saved article open location option to control where saved articles open. [GH FR #131](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/131)
+- Added ',' keybind to mark article read and advance to next article. [GH FR #183](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/138)
 
 ### Community Plugin Audit
 

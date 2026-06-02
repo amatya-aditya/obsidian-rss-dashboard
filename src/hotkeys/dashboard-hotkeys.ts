@@ -188,14 +188,18 @@ export function setupDashboardHotkeys(view: RssDashboardView): void {
           view.actionSetViewStyle("card");
           handled = true;
           break;
-        case "3":
-          view.actionSetViewStyle("feed");
-          handled = true;
-          break;
-      }
-    }
+case "3":
+           view.actionSetViewStyle("feed");
+           handled = true;
+           break;
+         case ",":
+           void view.actionMarkReadAndNext();
+           handled = true;
+           break;
+       }
+     }
 
-    if (handled) {
+     if (handled) {
       e.preventDefault();
       // stop propagation to prevent other global events from handling it (since we acted on it)
       e.stopPropagation();

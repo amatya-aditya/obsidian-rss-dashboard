@@ -126,7 +126,10 @@ describe("ReaderView Hotkeys", () => {
     const tHandler = scopeHandlers.find((h) => h.key === "t" && (!h.modifiers || h.modifiers.length === 0));
     expect(tHandler).toBeDefined();
 
-    const sHandler = scopeHandlers.find((h) => h.key === "s" && (!h.modifiers || h.modifiers.length === 0));
+const sHandler = scopeHandlers.find((h) => h.key === "s" && (!h.modifiers || h.modifiers.length === 0));
     expect(sHandler).toBeDefined();
-  });
-});
+
+    const commaHandler = scopeHandlers.find((h) => h.key === "," && (!h.modifiers || h.modifiers.length === 0));
+    expect(commaHandler).toBeDefined();
+   });
+ });

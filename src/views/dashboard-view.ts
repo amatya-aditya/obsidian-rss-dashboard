@@ -444,35 +444,44 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  /**
-   * Action: Toggle read/unread status of selected article.
-   * @internal
-   */
-  public async actionToggleReadStatus(): Promise<void> {
-    if (this.selectedArticle) {
-      this.selectedArticle.read = !this.selectedArticle.read;
-      await this.handleArticleUpdate(
-        this.selectedArticle,
-        { read: this.selectedArticle.read },
-        false,
-      );
-    }
-  }
+/**
+    * Action: Toggle read/unread status of selected article.
+    * @internal
+    */
+   public async actionToggleReadStatus(): Promise<void> {
+     if (this.selectedArticle) {
+       this.selectedArticle.read = !this.selectedArticle.read;
+       await this.handleArticleUpdate(
+         this.selectedArticle,
+         { read: this.selectedArticle.read },
+         false,
+       );
+     }
+   }
 
-  /**
-   * Action: Toggle star status of selected article.
-   * @internal
-   */
-  public async actionToggleStarStatus(): Promise<void> {
-    if (this.selectedArticle) {
-      this.selectedArticle.starred = !this.selectedArticle.starred;
-      await this.handleArticleUpdate(
-        this.selectedArticle,
-        { starred: this.selectedArticle.starred },
-        false,
-      );
-    }
-  }
+   /**
+    * Action: Mark article read/unread and advance to next article.
+    * @internal
+    */
+   public async actionMarkReadAndNext(): Promise<void> {
+     await this.actionToggleReadStatus();
+     this.actionNavigateNext({ open: true });
+   }
+
+   /**
+    * Action: Toggle star status of selected article.
+    * @internal
+    */
+   public async actionToggleStarStatus(): Promise<void> {
+     if (this.selectedArticle) {
+       this.selectedArticle.starred = !this.selectedArticle.starred;
+       await this.handleArticleUpdate(
+         this.selectedArticle,
+         { starred: this.selectedArticle.starred },
+         false,
+       );
+     }
+   }
 
   /**
    * Action: Toggle tags dropdown menu.

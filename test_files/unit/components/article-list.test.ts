@@ -63,35 +63,91 @@ describe("ArticleList Component", () => {
       articleGroupBy: "none",
       articleSort: "newest",
       display: {
+        showCoverImage: true,
+        showSummary: true,
+        showFilterStatusBar: true,
+        showSidebarScrollbar: true,
+        showAllFeedsUnreadBadges: true,
+        showFolderUnreadBadges: true,
+        showFeedUnreadBadges: true,
+        allFeedsUnreadBadgeColor: "#ff0000",
+        folderUnreadBadgeColor: "#ff0000",
+        feedUnreadBadgeColor: "#ff0000",
+        allFeedsUnreadBadgeDefaultColor: "#ff0000",
+        folderUnreadBadgeDefaultColor: "#ff0000",
+        feedUnreadBadgeDefaultColor: "#ff0000",
+        filterDisplayStyle: "inline" as const,
+        mobileShowCardToolbar: true,
+        mobileShowListToolbar: true,
+        mobileListToolbarStyle: "bottom-row" as const,
+        defaultFilter: "all" as const,
+        hiddenFilters: [],
+        useDomainFavicons: true,
+        hideDefaultRssIcon: false,
+        autoMarkReadOnOpen: false,
+        sidebarRowSpacing: 4,
+        sidebarRowIndentation: 12,
+        sidebarItemPaddingLeft: 8,
+        sidebarItemPaddingRight: 8,
         cardColumnsPerRow: 3,
         cardSpacing: 15,
-        mobileShowListToolbar: true,
-        mobileShowCardToolbar: true,
+        hideEmptyFeeds: false,
+        hideIconDashboard: false,
+        hideIconDiscover: false,
+        hideIconAddFeed: false,
+        hideIconManageFeeds: false,
+        hideIconSearch: false,
+        hideIconTags: false,
+        hideIconAddFolder: false,
+        hideIconSort: false,
+        hideIconCollapseAll: false,
+        hideIconSettings: false,
+        hideIconDivider: false,
+        hideToolbarEntirely: false,
+        iconOrder: [],
+        articleDateStyle: "relative" as const,
       },
       articleFilter: {
-        type: "none",
+        type: "none" as const,
         value: 0,
       },
       articleSaving: {
+        addSavedTag: true,
+        defaultFolder: ".",
+        defaultTemplate: "",
+        includeFrontmatter: true,
+        frontmatterTemplate: "",
         saveFullContent: false,
+        fetchTimeout: 10,
+        savedTemplates: [],
       },
-    };
+    } as unknown as RssDashboardSettings;
 
     articles = [
       {
         guid: "1",
         title: "Article 1",
         link: "link1",
+        description: "desc1",
         pubDate: new Date().toISOString(),
         read: false,
+        starred: false,
+        feedTitle: "Feed 1",
+        feedUrl: "feed1",
+        coverImage: "",
         tags: [],
       },
       {
         guid: "2",
         title: "Article 2",
         link: "link2",
+        description: "desc2",
         pubDate: new Date().toISOString(),
         read: false,
+        starred: false,
+        feedTitle: "Feed 2",
+        feedUrl: "feed2",
+        coverImage: "",
         tags: [],
       },
     ];
@@ -315,7 +371,6 @@ describe("ArticleList Component", () => {
       articleList.render();
 
       const selectedEl = container.querySelector("#article-2");
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(selectedEl?.scrollIntoView).toHaveBeenCalledWith({
         block: "nearest",
         behavior: "auto",
@@ -396,7 +451,6 @@ describe("ArticleList Component", () => {
       ) as HTMLElement;
       articleList.setSelectedArticle(articles[1]);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(secondArticleEl.scrollIntoView).toHaveBeenCalledWith({
         block: "nearest",
         behavior: "auto",
@@ -563,7 +617,7 @@ describe("ArticleList Component", () => {
       articleList.scheduleCardTopAnchorOnResize();
 
       expect(observedEl).toBe(container);
-      expect(articleList.pendingCardTopAnchor).toBe(true);
+      expect((articleList as unknown as { pendingCardTopAnchor: boolean }).pendingCardTopAnchor).toBe(true);
     });
 
     it("top-anchors the selected card and disconnects the observer when a resize fires", () => {
@@ -608,7 +662,7 @@ describe("ArticleList Component", () => {
 
       expect(container.scrollTop).toBe(200);
       expect(disconnected).toBe(true);
-      expect(articleList.pendingCardTopAnchor).toBe(false);
+      expect((articleList as unknown as { pendingCardTopAnchor: boolean }).pendingCardTopAnchor).toBe(false);
 
       rectSpy.mockRestore();
     });
@@ -652,7 +706,7 @@ describe("ArticleList Component", () => {
 
       expect(container.scrollTop).toBe(200);
       expect(disconnected).toBe(true);
-      expect(articleList.pendingCardTopAnchor).toBe(false);
+      expect((articleList as unknown as { pendingCardTopAnchor: boolean }).pendingCardTopAnchor).toBe(false);
 
       rectSpy.mockRestore();
       vi.useRealTimers();
@@ -749,7 +803,7 @@ describe("ArticleList Component", () => {
       articleList.scrollSelectedCardToTop();
 
       expect(container.scrollTop).toBe(200);
-      expect(articleList.pendingCardTopAnchor).toBe(false);
+      expect((articleList as unknown as { pendingCardTopAnchor: boolean }).pendingCardTopAnchor).toBe(false);
 
       rectSpy.mockRestore();
     });
@@ -1237,7 +1291,7 @@ describe("ArticleList Component", () => {
       ) as HTMLElement;
       // Access private method for test verification - bind this properly
       const syncMethod = (
-        articleList as {
+        articleList as unknown as {
           syncArticleTags?: (el: HTMLElement, article: FeedItem) => void;
         }
       ).syncArticleTags;

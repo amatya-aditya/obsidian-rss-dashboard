@@ -85,18 +85,19 @@ export class ShortcutHelpModal extends Modal {
       { key: "0", desc: "Reset font size" },
     ]);
 
-    this.renderSection(body, "Article Manipulation", [
-      { key: "Arrow keys", desc: "Card view navigation" },
-      { key: "o / Enter", desc: "Open article in reader pane" },
-      { key: "k", desc: "Close reader pane" },
-      { key: "j", desc: "Open prior article in feed" },
-      { key: "l", desc: "Open next article in feed" },
-      { key: "m", desc: "Mark article read/unread toggle" },
-      { key: "Shift + a", desc: "Mark all as read" },
-      { key: "f", desc: "Star/Unstar article" },
-      { key: "t", desc: "Add tags to article" },
-      { key: "s", desc: "Save full content to notes" },
-    ]);
+this.renderSection(body, "Article Manipulation", [
+       { key: "Arrow keys", desc: "Card view navigation" },
+       { key: "o / Enter", desc: "Open article in reader pane" },
+       { key: "k", desc: "Close reader pane" },
+       { key: "j", desc: "Open prior article in feed" },
+       { key: "l", desc: "Open next article in feed" },
+       { key: "m", desc: "Mark article read/unread toggle" },
+       { key: ",", desc: "Mark article read and open next" },
+       { key: "Shift + a", desc: "Mark all as read" },
+       { key: "f", desc: "Star/Unstar article" },
+       { key: "t", desc: "Add tags to article" },
+       { key: "s", desc: "Save full content to notes" },
+     ]);
 
     this.renderSection(body, "Sidebar Navigation", [
       { key: "Shift + l", desc: "Next item" },
@@ -153,21 +154,22 @@ export class ShortcutHelpModal extends Modal {
             { key: "0", desc: "Reset font size" },
           ],
         },
-        {
-          section: "Article Manipulation",
-          items: [
-            { key: "Arrow keys", desc: "Card view navigation" },
-            { key: "o / Enter", desc: "Open article in reader pane" },
-            { key: "k", desc: "Close reader pane" },
-            { key: "j", desc: "Open prior article in feed" },
-            { key: "l", desc: "Open next article in feed" },
-            { key: "m", desc: "Mark article read/unread toggle" },
-            { key: "Shift + a", desc: "Mark all as read" },
-            { key: "f", desc: "Star/Unstar article" },
-            { key: "t", desc: "Add tags to article" },
-            { key: "s", desc: "Save full content to notes" },
-          ],
-        },
+{
+           section: "Article Manipulation",
+           items: [
+             { key: "Arrow keys", desc: "Card view navigation" },
+             { key: "o / Enter", desc: "Open article in reader pane" },
+             { key: "k", desc: "Close reader pane" },
+             { key: "j", desc: "Open prior article in feed" },
+             { key: "l", desc: "Open next article in feed" },
+             { key: "m", desc: "Mark article read/unread toggle" },
+             { key: ",", desc: "Mark article read and open next" },
+             { key: "Shift + a", desc: "Mark all as read" },
+             { key: "f", desc: "Star/Unstar article" },
+             { key: "t", desc: "Add tags to article" },
+             { key: "s", desc: "Save full content to notes" },
+           ],
+         },
         {
           section: "Sidebar Navigation",
           items: [

@@ -21,6 +21,7 @@ type ReaderHotkeyViewStub = {
   actionFocusReader: ReturnType<typeof vi.fn>;
   actionToggleArticleOpen: ReturnType<typeof vi.fn>;
   actionToggleReadStatus: ReturnType<typeof vi.fn>;
+  actionMarkReadAndNext: ReturnType<typeof vi.fn>;
   actionMarkAllAsRead: ReturnType<typeof vi.fn>;
   actionToggleStarStatus: ReturnType<typeof vi.fn>;
   actionToggleTagsMenu: ReturnType<typeof vi.fn>;
@@ -59,6 +60,7 @@ describe("Reader hotkeys", () => {
       actionFocusReader: vi.fn(),
       actionToggleArticleOpen: vi.fn(),
       actionToggleReadStatus: vi.fn(),
+      actionMarkReadAndNext: vi.fn(),
       actionMarkAllAsRead: vi.fn(),
       actionToggleStarStatus: vi.fn(),
       actionToggleTagsMenu: vi.fn(),
@@ -221,6 +223,26 @@ describe("Reader hotkeys", () => {
       expect(actionMock.mock.calls).toHaveLength(1);
     });
 
-    expect(preventDefault.mock.calls).toHaveLength(bindings.length);
-  });
-});
+expect(preventDefault.mock.calls).toHaveLength(bindings.length);
+   });
+
+   it("registers and routes mark-read-and-next keybinding", () => {
+     setupReaderHotkeys(scope, view as never);
+
+     const handlers = (scope as unknown as { handlers: ScopeHandler[] }).handlers;
+     const commaHandler = handlers.find(
+       (handler) =>
+         handler.key === "," &&
+         (!handler.modifiers || handler.modifiers.length === 0),
+     );
+
+     expect(commaHandler).toBeDefined();
+
+     const preventDefault = vi.fn();
+     const event = { preventDefault } as unknown as KeyboardEvent;
+
+     expect(commaHandler?.func(event)).toBe(true);
+     expect(view.actionMarkReadAndNext.mock.calls).toHaveLength(1);
+     expect(preventDefault.mock.calls).toHaveLength(1);
+   });
+ });

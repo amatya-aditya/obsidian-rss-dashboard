@@ -197,6 +197,9 @@ describe("DashboardView Hotkeys", () => {
     const markAllReadSpy = vi
       .spyOn(view, "actionMarkAllAsRead")
       .mockImplementation(() => {});
+    const markReadAndNextSpy = vi
+      .spyOn(view, "actionMarkReadAndNext")
+      .mockImplementation(async () => {});
 
     const triggerKey = (key: string, shiftKey = false) => {
       const e = new KeyboardEvent("keydown", { key, shiftKey });
@@ -216,10 +219,14 @@ describe("DashboardView Hotkeys", () => {
     triggerKey("k");
     expect(prevSpy).toHaveBeenCalled();
 
-    // Test 'Shift+A'
-    triggerKey("A", true);
-    expect(markAllReadSpy).toHaveBeenCalled();
-  });
+// Test 'Shift+A'
+     triggerKey("A", true);
+     expect(markAllReadSpy).toHaveBeenCalled();
+
+     // Test ',' (mark read and next)
+     triggerKey(",");
+     expect(markReadAndNextSpy).toHaveBeenCalled();
+   });
 
   it("ignores hotkeys if the view is not the active leaf", () => {
     const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);

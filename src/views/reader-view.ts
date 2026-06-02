@@ -507,25 +507,34 @@ private getSavedArticleOpenLocation(): ViewLocation {
     void this.navigateBackToDashboard();
   }
 
-  /**
-   * Action: Toggle read/unread status of the current article.
-   * @internal
-   */
-  public actionToggleReadStatus(): void {
-    if (this.currentItem) {
-      this.toggleReadStatus();
-    }
-  }
+/**
+    * Action: Toggle read/unread status of the current article.
+    * @internal
+    */
+   public actionToggleReadStatus(): void {
+     if (this.currentItem) {
+       this.toggleReadStatus();
+     }
+   }
 
-  /**
-   * Action: Toggle star status of the current article.
-   * @internal
-   */
-  public actionToggleStarStatus(): void {
-    if (this.currentItem) {
-      this.toggleStarStatus();
-    }
-  }
+   /**
+    * Action: Mark read/unread and open next article.
+    * @internal
+    */
+   public actionMarkReadAndNext(): void {
+     this.actionToggleReadStatus();
+     this.actionNavigateNext();
+   }
+
+   /**
+    * Action: Toggle star status of the current article.
+    * @internal
+    */
+   public actionToggleStarStatus(): void {
+     if (this.currentItem) {
+       this.toggleStarStatus();
+     }
+   }
 
   /**
    * Action: Toggle tags dropdown menu.
