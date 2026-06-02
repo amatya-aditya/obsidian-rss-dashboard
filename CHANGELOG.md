@@ -26,6 +26,12 @@
 
 - Added a new **Saved article open location** option under General settings so saved articles can open in Main, left/right sidebar, inline dashboard mode, or external browser, independent of the Reader view location setting.
 
+### Fixes
+
+#### Saved articles not saving properly
+
+- Fixed issue where certain feeds with malformed xml would corrupt the saved article. Added a new cleaner helper to sanitize the feed xml. (https://rss.beehiiv.com/feeds/40ZQ7CSldT.xml) (https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/127)
+
 ## [2.3.0] - May 26, 2026
 
 - Official Release. No additional changes added since 2.3.0-beta.3. See [docs/releases/2.3.0.md](docs/releases/2.3.0.md) for complete release notes.

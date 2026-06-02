@@ -18,6 +18,7 @@ import {
   PAGE_SIZE_OPTIONS,
 } from "../utils/page-size-options";
 import { computeResultsRange } from "../utils/pagination-utils";
+import { htmlToReadableText } from "../utils/html-text";
 
 const MAX_VISIBLE_TAGS = 6;
 const CARD_PREVIEW_SUMMARY_MAX_CHARS = 420;
@@ -1408,12 +1409,44 @@ export class ArticleList {
       return "";
     }
 
-    const normalized = summary.replace(/\s+/g, " ").trim();
+    const readableText = summary.includes("<")
+      ? htmlToReadableText(summary)
+      : summary;
+    const normalized = readableText.replace(/\s+/g, " ").trim();
     if (normalized.length <= CARD_PREVIEW_SUMMARY_MAX_CHARS) {
       return normalized;
     }
 
     return `${normalized.slice(0, CARD_PREVIEW_SUMMARY_MAX_CHARS - 1)}…`;
+  }
+
+  private looksLikeStylesheetText(text: string): boolean {
+    const normalized = text.replace(/\s+/g, " ").trim();
+    if (!normalized) return false;
+
+    return (
+      /^\.[\w-]+[\s,{.#[\w-]*]*\{\s*[\w-]+\s*:/i.test(normalized) ||
+      /(?:^|[\s;}])(?:border|padding|background(?:-color)?|font-family|color|overflow-wrap)\s*:/i.test(
+        normalized,
+      )
+    );
+  }
+
+  private getArticlePreviewSummaryText(article: FeedItem): string {
+    const candidates = [
+      article.summary || "",
+      article.description || "",
+      article.content || "",
+    ];
+
+    for (const candidate of candidates) {
+      const previewText = this.getCardPreviewSummaryText(candidate);
+      if (previewText && !this.looksLikeStylesheetText(previewText)) {
+        return previewText;
+      }
+    }
+
+    return "";
   }
 
   private shouldHighlightCardPreviewSummary(summaryText: string): boolean {
@@ -1847,19 +1880,19 @@ export class ArticleList {
       }
 
       // 3. Clamped Summary/Content
-      if (article.summary || article.content) {
+      const feedPreviewText = this.getArticlePreviewSummaryText(article);
+      if (feedPreviewText) {
         const summaryEl = textRegion.createDiv({
           cls: "rss-dashboard-feed-summary",
         });
-        const textToDisplay = article.summary || article.content || "";
 
         if (
           this.highlightService &&
           this.settings.highlights.highlightInSummaries
         ) {
-          this.highlightService.setHighlightedText(summaryEl, textToDisplay);
+          this.highlightService.setHighlightedText(summaryEl, feedPreviewText);
         } else {
-          summaryEl.textContent = textToDisplay;
+          summaryEl.textContent = feedPreviewText;
         }
       }
 
@@ -2121,6 +2154,8 @@ export class ArticleList {
         coverImgSrc = article.enclosure.url;
       }
 
+      const previewSummaryText = this.getArticlePreviewSummaryText(article);
+
       if (coverImgSrc) {
         const previewRegion = cardContent.createDiv({
           cls: "rss-dashboard-card-preview-region",
@@ -2128,7 +2163,7 @@ export class ArticleList {
         const coverContainer = previewRegion.createDiv({
           cls:
             "rss-dashboard-cover-container" +
-            (article.summary ? " has-summary" : ""),
+            (previewSummaryText ? " has-summary" : ""),
         });
         const coverImg = coverContainer.createEl("img", {
           cls: "rss-dashboard-cover-image",
@@ -2142,10 +2177,7 @@ export class ArticleList {
           this.scheduleCardTagLayout(card);
         };
 
-        if (article.summary) {
-          const previewSummaryText = this.getCardPreviewSummaryText(
-            article.summary,
-          );
+        if (previewSummaryText) {
           const summaryOverlay = coverContainer.createDiv({
             cls: "rss-dashboard-summary-overlay",
           });
@@ -2162,10 +2194,7 @@ export class ArticleList {
             summaryOverlay.textContent = previewSummaryText;
           }
         }
-      } else if (article.summary) {
-        const previewSummaryText = this.getCardPreviewSummaryText(
-          article.summary,
-        );
+      } else if (previewSummaryText) {
         const previewRegion = cardContent.createDiv({
           cls: "rss-dashboard-card-preview-region",
         });

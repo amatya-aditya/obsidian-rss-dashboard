@@ -388,7 +388,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     expect(written).toContain("world");
   });
 
-  it("falls back to saveArticle when full content is unavailable", async () => {
+  it("falls back to feed content when full content is unavailable", async () => {
     const app = App.createMock();
     const settings = createSettings({
       defaultTemplate: "{{content}}",
@@ -405,10 +405,108 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     });
     const saveSpy = vi.spyOn(saver, "saveArticle");
 
-    const item = createItem({ title: "Fallback Content" });
+    const item = createItem({
+      title: "Fallback Content",
+      content:
+        '<div><style>.bh__table { border: 1px solid #C0C0C0; }</style><p>Feed body wins.</p></div>',
+    });
     await saver.saveArticleWithFullContent(item);
 
-    expect(saveSpy).toHaveBeenCalledWith(item, undefined, undefined);
+    expect(saveSpy).toHaveBeenCalledWith(
+      item,
+      undefined,
+      undefined,
+      "Feed body wins.",
+    );
+  });
+
+  it("uses richer feed content when fetched article content is only a short excerpt", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "# {{title}}\n\n{{content}}\n\n[Source]({{link}})",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content:
+        '<body xmlns="http://www.w3.org/1999/xhtml">Q+A with one of the Broadview Six.</body>',
+      failureType: "none",
+    });
+
+    const item = createItem({
+      title: "Beehiiv Full Body",
+      content:
+        '<div class="beehiiv"><style> .bh__table, .bh__table_header, .bh__table_cell { border: 1px solid #C0C0C0; }</style><div class="beehiiv__body"><p>For the last seven months, Kat Abughazaleh was not allowed to go to Alaska.</p><p>The full interview continues from here with much more context.</p></div></div>',
+    });
+
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain(
+      "For the last seven months, Kat Abughazaleh was not allowed to go to Alaska.",
+    );
+    expect(written).toContain(
+      "The full interview continues from here with much more context.",
+    );
+    expect(written).not.toContain(".bh__table");
+    expect(written).not.toContain("border: 1px");
+    expect(written).not.toContain("<body");
+    expect(written).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+  });
+
+  it("keeps embed links inline when saving beehiiv blockquote content", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "<p>Short excerpt.</p>",
+      failureType: "none",
+    });
+
+    const instagramUrl =
+      "https://www.instagram.com/p/DY3yTRYjtma/?img_index=1";
+    const blueskyUrl =
+      "https://bsky.app/profile/marisakabas.bsky.social/post/3mmuh2ltnq22b";
+    const item = createItem({
+      title: "Beehiiv Embeds",
+      content: `<div>
+        <p>Enough feed text to be selected over the fetched excerpt.</p>
+        <blockquote align="center" class="instagram-media">
+          <a href="${instagramUrl}"><p dir="ltr" lang="en">Instagram post</p></a>
+        </blockquote>
+        <blockquote align="center" class="bluesky-embed">
+          <p dir="ltr" lang="en"><p>I just spoke with Sister Sharon.</p></p>
+          <a href="${blueskyUrl}"><p> &mdash; Marisa Kabas (@marisakabas.bsky.social) <br/> 9:25 PM - May 27, 2026 </p></a>
+        </blockquote>
+      </div>`,
+    });
+
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain(`[Instagram post](${instagramUrl})`);
+    expect(written).toContain(
+      `[— Marisa Kabas (@marisakabas.bsky.social) 9:25 PM - May 27, 2026](${blueskyUrl})`,
+    );
+    expect(written).not.toContain("[\n>");
+    expect(written).not.toContain("> ](");
   });
 
   it("skips full-content fetch for Bloomberg video routes and saves available content", async () => {

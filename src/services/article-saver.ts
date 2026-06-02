@@ -11,6 +11,10 @@ import {
 import { ensureUtf8Meta } from "../utils/platform-utils";
 import { withSavedTagName } from "../utils/tag-utils";
 import { isLikelyVideoItem } from "../utils/video-detection";
+import {
+  htmlToReadableText,
+  stripNonContentHtmlNodes,
+} from "../utils/html-text";
 
 export function sanitizeFilename(name: string): string {
   const sanitized = name
@@ -52,12 +56,10 @@ export class ArticleSaver {
       const doc = parser.parseFromString(htmlWithMeta, "text/html");
 
       const elementsToRemove = doc.querySelectorAll(
-        "script, style, iframe, .ad, .ads, .advertisement, " +
+        "script, style, iframe, noscript, template, svg, link, meta, base, object, embed, .ad, .ads, .advertisement, " +
           "div[class*='ad-'], div[id*='ad-'], div[class*='ads-'], div[id*='ads-']",
       );
       elementsToRemove.forEach((el) => el.remove());
-
-      doc.querySelectorAll("svg").forEach((el) => el.remove());
 
       doc.querySelectorAll("img").forEach((img) => {
         const src = img.getAttribute("src");
@@ -82,10 +84,47 @@ export class ArticleSaver {
         table.classList.add("markdown-compatible-table");
       });
 
-      return new XMLSerializer().serializeToString(doc.body);
+      return doc.body.innerHTML;
     } catch {
       return html;
     }
+  }
+
+  private getReadableTextLength(html: string): number {
+    return htmlToReadableText(html).length;
+  }
+
+  private normalizeBlockLinksForMarkdown(html: string): string {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      doc.querySelectorAll("a").forEach((link) => {
+        const hasBlockContent = !!link.querySelector(
+          "address, article, aside, blockquote, br, dd, div, dl, dt, figcaption, figure, footer, h1, h2, h3, h4, h5, h6, header, hr, li, main, nav, ol, p, pre, section, table, ul",
+        );
+        if (!hasBlockContent) return;
+
+        link.querySelectorAll("br").forEach((br) => {
+          br.replaceWith(doc.createTextNode(" "));
+        });
+
+        const label = (link.textContent || "").replace(/\s+/g, " ").trim();
+        if (label) {
+          link.textContent = label;
+        }
+      });
+
+      return doc.body.innerHTML;
+    } catch {
+      return html;
+    }
+  }
+
+  private htmlToMarkdown(html: string): string {
+    const cleaned = stripNonContentHtmlNodes(html);
+    const normalized = this.normalizeBlockLinksForMarkdown(cleaned);
+    return this.turndownService.turndown(normalized);
   }
 
   private generateFrontmatter(item: FeedItem): string {
@@ -472,6 +511,8 @@ export class ArticleSaver {
       const loadingNotice = new Notice("Fetching full article content...", 0);
 
       const fetchResult = await this.fetchArticleContentWithOutcome(item.link);
+      const feedContent = item.content || "";
+
       if (!fetchResult.content) {
         loadingNotice.hide();
         if (fetchResult.failureType === "restricted") {
@@ -483,12 +524,24 @@ export class ArticleSaver {
             "Could not fetch full content. Saving with available content.",
           );
         }
-        return await this.saveArticle(item, customFolder, customTemplate);
+        const fallbackMarkdown = feedContent
+          ? this.htmlToMarkdown(feedContent)
+          : undefined;
+        return await this.saveArticle(
+          item,
+          customFolder,
+          customTemplate,
+          fallbackMarkdown,
+        );
       }
 
-      const markdownContent = this.turndownService.turndown(
-        fetchResult.content,
-      );
+      const fetchedTextLength = this.getReadableTextLength(fetchResult.content);
+      const feedTextLength = this.getReadableTextLength(feedContent);
+      const contentSource =
+        feedContent && feedTextLength > fetchedTextLength
+          ? feedContent
+          : fetchResult.content;
+      const markdownContent = this.htmlToMarkdown(contentSource);
       loadingNotice.hide();
 
       return await this.saveArticle(

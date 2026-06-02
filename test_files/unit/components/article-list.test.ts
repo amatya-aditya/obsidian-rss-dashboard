@@ -207,6 +207,46 @@ describe("ArticleList Component", () => {
     expect(container.textContent).toContain("Article 2");
   });
 
+  it("uses feed description for card image overlay when stored summary is stylesheet text", () => {
+    settings.viewStyle = "card";
+    articles = [
+      {
+        ...articles[0],
+        summary:
+          ".bh__table, .bh__table_header, .bh__table_cell { border: 1px solid #C0C0C0; } .bh__table_cell { padding: 5px; }",
+        description:
+          "Q+A with one of the Broadview Six, who had all charges dropped against them after grand jury misconduct.",
+        coverImage: "https://example.com/cover.jpg",
+      },
+    ];
+
+    const articleList = new ArticleList(
+      container,
+      settings,
+      "All articles",
+      null,
+      articles,
+      null,
+      mockCallbacks,
+      1,
+      1,
+      10,
+      1,
+      new Set(),
+      new Set(),
+      "OR",
+    );
+
+    articleList.render();
+
+    const overlay = container.querySelector(".rss-dashboard-summary-overlay");
+    expect(overlay?.textContent).toBe(
+      "Q+A with one of the Broadview Six, who had all charges dropped against them after grand jury misconduct.",
+    );
+    expect(overlay?.textContent).not.toContain(".bh__table");
+    expect(overlay?.textContent).not.toContain("border: 1px");
+  });
+
   it("should trigger onArticleClick when an article is clicked", () => {
     const articleList = new ArticleList(
       container,
