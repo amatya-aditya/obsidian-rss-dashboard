@@ -24,6 +24,7 @@ Only the feeds you need. Stream the world's knowledge into your vault: RSS, podc
 - [Vault Shards Storage Guide](#vault-shards-storage-guide)
 - [Installation](#installation)
 - [Getting Started](#getting-started)
+- [One-Click Subscribe URI](#one-click-subscribe-uri)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Development](#development)
 - [Troubleshooting](#troubleshooting)
@@ -168,6 +169,39 @@ Using the new Vault Shards storage mode? See the user-facing guide here: [docs/s
 3. Save articles as Markdown files for long-term storage in your vault.
 4. Use the video player for YouTube content or the audio player for podcasts.
 5. YouTube embeds use Privacy Enhanced Mode through `youtube-nocookie.com`, and each video includes a visible **Watch on YouTube** link.
+
+## One-Click Subscribe URI
+
+RSS Dashboard supports adding feeds directly from external apps and browser extensions through Obsidian's URI protocol handler.
+
+Use this format:
+
+```text
+obsidian://rss-dashboard?action=add-feed&url=<encoded-feed-url>
+```
+
+Example:
+
+```text
+obsidian://rss-dashboard?action=add-feed&url=https%3A%2F%2Fexample.com%2Frss.xml
+```
+
+Browser-extension mapping example:
+
+- Set your extension's subscribe/open URL target to `obsidian://rss-dashboard?action=add-feed&url=${encodeURIComponent(feedUrl)}` (replace `feedUrl` with your extension's feed URL variable).
+
+Notes:
+
+- The `url` query parameter is required.
+- Feed URLs must be URL-encoded before being inserted into the URI.
+- The URI opens the Add Feed modal with the URL prefilled so you can confirm settings before saving.
+
+Troubleshooting:
+
+- `Unsupported RSS Dashboard URI action`: verify `action=add-feed`.
+- `Missing required URL parameter for add-feed.`: include `url=<encoded-feed-url>`.
+- `URL must start with http:// or https://`: pass a valid web feed URL.
+- `Feed URL is malformed. Ensure the url parameter is URL-encoded.`: encode the feed URL before launching the URI.
 
 ### Organizing Your Feeds
 

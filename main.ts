@@ -6,6 +6,7 @@ import {
   Platform,
   requireApiVersion,
   TFolder,
+  type ObsidianProtocolData,
 } from "obsidian";
 
 import { getSettingManager } from "./src/utils/settings-manager";
@@ -56,7 +57,11 @@ import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
-import { normalizeRefreshIntervalMinutes } from "./src/utils/validation";
+import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
+import {
+  normalizeRefreshIntervalMinutes,
+  isValidUrl,
+} from "./src/utils/validation";
 import {
   dedupeAndNormalizeFeedItems,
   loadAndNormalizeSettings,
@@ -248,6 +253,7 @@ export default class RssDashboardPlugin extends Plugin {
     "rss-podcast-progress",
     "rss-first-launch-coachmark-shown",
   ] as const;
+  private static readonly URI_ACTION_ADD_FEED = "add-feed";
 
   settings!: RssDashboardSettings;
   feedParser!: FeedParser;
@@ -604,6 +610,13 @@ export default class RssDashboardPlugin extends Plugin {
 
       this.scheduleStartupSavedArticleValidation();
 
+      this.registerObsidianProtocolHandler(
+        this.manifest.id,
+        (params: ObsidianProtocolData) => {
+          void this.dispatchUriAction(params);
+        },
+      );
+
       this.registerView(
         RSS_DASHBOARD_VIEW_TYPE,
         (leaf) => new RssDashboardView(leaf, this),
@@ -763,6 +776,145 @@ export default class RssDashboardPlugin extends Plugin {
       console.error("[RSS Dashboard] onload initialization failed:", e);
       new Notice("Error initializing RSS dashboard plugin.");
     }
+  }
+
+  private async dispatchUriAction(params: ObsidianProtocolData): Promise<void> {
+    const action = this.resolveRequestedUriAction(params);
+
+    if (!action) {
+      new Notice(
+        "Missing RSS Dashboard URI action. Use action=add-feed with a URL parameter.",
+      );
+      return;
+    }
+
+    try {
+      switch (action) {
+        case RssDashboardPlugin.URI_ACTION_ADD_FEED:
+          await this.handleAddFeedUriAction(params);
+          return;
+        default:
+          new Notice(`Unsupported RSS Dashboard URI action: ${action}`);
+      }
+    } catch (error) {
+      console.error("[RSS Dashboard] URI action failed:", error);
+      new Notice(
+        `RSS Dashboard URI action failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  private resolveRequestedUriAction(params: ObsidianProtocolData): string {
+    const routeAction = (params.action ?? "").trim().toLowerCase();
+    const queryAction =
+      typeof params.uriAction === "string"
+        ? params.uriAction.trim().toLowerCase()
+        : "";
+
+    if (queryAction) {
+      return queryAction;
+    }
+
+    // Obsidian protocol reserves `action` for the route itself.
+    // For links like `obsidian://rss-dashboard?...`, infer add-feed when a URL
+    // parameter is present so browser-triggered links work reliably.
+    if (
+      routeAction === this.manifest.id.toLowerCase() &&
+      typeof params.url === "string" &&
+      params.url.trim().length > 0
+    ) {
+      return RssDashboardPlugin.URI_ACTION_ADD_FEED;
+    }
+
+    if (routeAction === this.manifest.id.toLowerCase()) {
+      return "";
+    }
+
+    return routeAction;
+  }
+
+  private decodeUriFeedUrl(rawUrl: string): string {
+    const candidate = rawUrl.trim();
+    if (!candidate) {
+      throw new Error("Missing required URL parameter for add-feed.");
+    }
+
+    if (!candidate.includes("%")) {
+      return candidate;
+    }
+
+    try {
+      return decodeURIComponent(candidate);
+    } catch {
+      throw new Error(
+        "Feed URL is malformed. Ensure the url parameter is URL-encoded.",
+      );
+    }
+  }
+
+  private buildUriAddFeedTitle(feedUrl: string): string {
+    try {
+      const parsed = new URL(feedUrl);
+      const hostname = parsed.hostname.replace(/^www\./i, "").trim();
+      return hostname || feedUrl;
+    } catch {
+      return feedUrl;
+    }
+  }
+
+  private async handleAddFeedUriAction(
+    params: ObsidianProtocolData,
+  ): Promise<void> {
+    const rawUrl = typeof params.url === "string" ? params.url : "";
+    if (!rawUrl.trim()) {
+      new Notice("Missing required URL parameter for add-feed.");
+      return;
+    }
+
+    const decodedUrl = this.decodeUriFeedUrl(rawUrl);
+    const urlValidation = isValidUrl(decodedUrl);
+    if (!urlValidation.valid) {
+      new Notice(urlValidation.error ?? "Invalid feed URL.");
+      return;
+    }
+
+    const defaultFolder = this.settings.media.defaultRssFolder?.trim() || "RSS";
+
+    await this.activateView();
+
+    new AddFeedModal(
+      this.app,
+      this.settings.folders,
+      async (
+        title,
+        url,
+        folder,
+        autoDeleteDuration,
+        maxItemsLimit,
+        scanInterval,
+        feedKeywordRules,
+        customTemplate,
+        excludeFromRefresh,
+      ) =>
+        await this.addFeed(
+          title,
+          url,
+          folder,
+          autoDeleteDuration,
+          maxItemsLimit,
+          scanInterval,
+          feedKeywordRules,
+          customTemplate,
+          excludeFromRefresh,
+        ),
+      () => {
+        void this.refreshDashboardViews();
+      },
+      defaultFolder,
+      this,
+      decodedUrl,
+      this.buildUriAddFeedTitle(decodedUrl),
+    ).open();
   }
 
   private applyMobileOptimizations(): void {

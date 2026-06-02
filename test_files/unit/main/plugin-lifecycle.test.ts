@@ -15,6 +15,7 @@ import type {
   RssDashboardSettings,
 } from "../../../src/types/types";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
+import { AddFeedModal } from "../../../src/modals/feed-manager/add-feed-modal";
 
 // Mock functions for FeedParser - must be declared before mocks
 const mockParseFeed = vi.fn();
@@ -132,6 +133,8 @@ async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
 
   // Mock registerInterval
   plugin.registerInterval = vi.fn((id: number) => id);
+
+  plugin.registerObsidianProtocolHandler = vi.fn();
 
   // Initialize backupService with mock
   const { BackupService } =
@@ -435,6 +438,15 @@ describe("onload() initialization", () => {
     expect(plugin.addSettingTab).toHaveBeenCalled();
   });
 
+  it("registers an Obsidian protocol handler", async () => {
+    await plugin.onload();
+
+    expect(plugin.registerObsidianProtocolHandler).toHaveBeenCalledWith(
+      "rss-dashboard",
+      expect.any(Function),
+    );
+  });
+
   it("loads settings during initialization", async () => {
     // When: onload is called
     await plugin.onload();
@@ -534,6 +546,113 @@ describe("onload() initialization", () => {
     expect(plugin.settings.feeds[0].items[0].savedFilePath).toBe(
       "Articles/Saved article.md",
     );
+  });
+});
+
+describe("URI add-feed handling", () => {
+  let plugin: RssDashboardPlugin;
+
+  beforeEach(async () => {
+    const app = createMockApp();
+    plugin = await createPluginInstance(app);
+
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      media: {
+        ...DEFAULT_SETTINGS.media,
+        defaultRssFolder: "RSS",
+      },
+    } as RssDashboardSettings;
+
+    plugin.feedParser = {
+      parseFeed: mockParseFeed,
+      refreshAllFeeds: mockRefreshAllFeeds,
+    } as unknown as typeof plugin.feedParser;
+
+    plugin.getActiveDashboardView = vi.fn().mockResolvedValue({
+      render: vi.fn(),
+      refresh: vi.fn(),
+    });
+
+    vi.clearAllMocks();
+    mockRefreshAllFeeds.mockClear();
+    mockParseFeed.mockClear();
+  });
+
+  it("shows unsupported-action notice for unknown URI action", async () => {
+    const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+    await plugin.onload();
+    const handler = (
+      plugin.registerObsidianProtocolHandler as ReturnType<typeof vi.fn>
+    ).mock.calls[0][1] as (params: Record<string, string>) => void;
+
+    handler({ action: "unknown" });
+    await flushPromises();
+
+    expect(noticeSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "Unsupported RSS Dashboard URI action: unknown",
+    );
+  });
+
+  it("shows notice and skips add when URI url is missing", async () => {
+    const addFeedSpy = vi.spyOn(plugin, "addFeed");
+    const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+    await plugin.onload();
+    const handler = (
+      plugin.registerObsidianProtocolHandler as ReturnType<typeof vi.fn>
+    ).mock.calls[0][1] as (params: Record<string, string>) => void;
+
+    handler({ action: "add-feed" });
+    await flushPromises();
+
+    expect(addFeedSpy).not.toHaveBeenCalled();
+    expect(noticeSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "Missing required URL parameter for add-feed.",
+    );
+  });
+
+  it("shows notice and skips add for invalid feed URLs", async () => {
+    const addFeedSpy = vi.spyOn(plugin, "addFeed");
+    const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+    await plugin.onload();
+    const handler = (
+      plugin.registerObsidianProtocolHandler as ReturnType<typeof vi.fn>
+    ).mock.calls[0][1] as (params: Record<string, string>) => void;
+
+    handler({ action: "add-feed", url: "ftp://example.com/feed.xml" });
+    await flushPromises();
+
+    expect(addFeedSpy).not.toHaveBeenCalled();
+    expect(noticeSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "URL must start with http:// or https://",
+    );
+  });
+
+  it("opens Add Feed modal with prefilled URL for browser URI route", async () => {
+    const addFeedSpy = vi.spyOn(plugin, "addFeed");
+    const modalOpenSpy = vi.spyOn(AddFeedModal.prototype, "open");
+
+    await plugin.onload();
+    const handler = (
+      plugin.registerObsidianProtocolHandler as ReturnType<typeof vi.fn>
+    ).mock.calls[0][1] as (params: Record<string, string>) => void;
+
+    const encodedUrl = encodeURIComponent("https://example.com/feed.xml");
+    handler({ action: "rss-dashboard", url: encodedUrl });
+    await flushPromises();
+
+    expect(modalOpenSpy).toHaveBeenCalledTimes(1);
+    expect(addFeedSpy).not.toHaveBeenCalled();
+
+    const urlInput =
+      document.querySelector<HTMLInputElement>(".feed-url-input");
+    expect(urlInput?.value).toBe("https://example.com/feed.xml");
   });
 });
 

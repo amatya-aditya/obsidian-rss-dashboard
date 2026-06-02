@@ -51,6 +51,8 @@ export class AddFeedModal extends Modal {
   onSave: () => void;
   defaultFolder: string;
   plugin?: RssDashboardPlugin;
+  initialUrl: string;
+  initialTitle: string;
 
   constructor(
     app: App,
@@ -69,6 +71,8 @@ export class AddFeedModal extends Modal {
     onSave: () => void,
     defaultFolder = "",
     plugin?: RssDashboardPlugin,
+    initialUrl = "",
+    initialTitle = "",
   ) {
     super(app);
     this.folders = folders;
@@ -76,6 +80,8 @@ export class AddFeedModal extends Modal {
     this.onSave = onSave;
     this.defaultFolder = defaultFolder;
     this.plugin = plugin || undefined;
+    this.initialUrl = initialUrl.trim();
+    this.initialTitle = initialTitle.trim();
   }
   onOpen() {
     const { contentEl } = this;
@@ -98,8 +104,8 @@ export class AddFeedModal extends Modal {
     subtitle.textContent =
       "Add a new RSS, podcast, or YouTube feed to your dashboard";
 
-    let url = "";
-    let title = "";
+    let url = this.initialUrl;
+    let title = this.initialTitle;
     let status = "";
     let latestEntry = "-";
     let folder = this.defaultFolder;
@@ -125,6 +131,7 @@ export class AddFeedModal extends Modal {
       .setName("Feed URL")
       .addText((text) => {
         text.onChange((v) => (url = v));
+        text.setValue(url);
         urlInput = text.inputEl;
         urlInput.autocomplete = "off";
         urlInput.spellcheck = false;

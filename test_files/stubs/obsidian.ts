@@ -323,7 +323,7 @@ export class MockWorkspace {
     return this.activeLeaf;
   }
 
-setActiveLeaf(leaf: unknown, _options?: { focus?: boolean }): void {
+  setActiveLeaf(leaf: unknown, _options?: { focus?: boolean }): void {
     this.activeLeaf = leaf;
   }
 
@@ -448,6 +448,11 @@ export class Plugin {
   registerInterval(id: number): number {
     return id;
   }
+
+  registerObsidianProtocolHandler(
+    _action: string,
+    _handler: (params: Record<string, string>) => unknown,
+  ): void {}
 
   // Data API (overridden in tests when needed)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional

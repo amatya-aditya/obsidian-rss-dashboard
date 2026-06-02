@@ -4,6 +4,7 @@
 
 - Added Settings > General > Saved article open location option to control where saved articles open. [GH FR #131](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/131)
 - Added ',' keybind to mark article read and advance to next article. [GH FR #183](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/138)
+- Added Obsidian URI support for one-click feed subscription via `obsidian://rss-dashboard?action=add-feed&url=<encoded-feed-url>`, including parameter validation and unsupported-action notices. [GH FR #126](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/126)
 
 ### Community Plugin Audit
 
@@ -28,9 +29,15 @@
 
 ### Fixes
 
-#### Saved articles not saving properly
+#### Saving articles to vault not saving article content
 
-- Fixed issue where certain feeds with malformed xml would corrupt the saved article. Added a new cleaner helper to sanitize the feed xml. (https://rss.beehiiv.com/feeds/40ZQ7CSldT.xml) (https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/127)
+= These issues were raised via [GH Issue #127](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/127) and appeared to be the same issue on the surface but turned out to be several:
+
+- Certain feeds with malformed xml would corrupt the saved article. Added a new cleaner helper to sanitize the feed xml. [beehiiv.com example](https://rss.beehiiv.com/feeds/40ZQ7CSldT.xml)
+
+- Certain feeds (i.e. Substack) would not save articles or images properly when saving article to vault due to Substack's content:encoded xml schema and our parsing helper not handling it properly.
+
+- Fixed format discrepency between saving article via dashboard card and saving article via reader toolbar (different pathways interally but now both resolve the same way for the user's saved note)
 
 ## [2.3.0] - May 26, 2026
 
