@@ -1,7 +1,10 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
-import { type RssDashboardSettings, type Feed, DEFAULT_SETTINGS } from "../../../src/types/types";
+import {
+  type RssDashboardSettings,
+  type Feed,
+  DEFAULT_SETTINGS,
+} from "../../../src/types/types";
 import { renderTagsSettingsTab } from "../../../src/settings/tabs/tags-settings-tab";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type RssDashboardPlugin from "../../../main";
@@ -34,7 +37,9 @@ beforeEach(() => {
 
 describe("renderTagsSettingsTab()", () => {
   it("persists color changes, updates applied tags, and refreshes open tag views", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.availableTags = [{ name: "tag1", color: "#000000" }];
     settings.feeds = [
@@ -63,7 +68,8 @@ describe("renderTagsSettingsTab()", () => {
 
     const trigger = vi.fn();
     const mockApp = obsidian.App.createMock();
-    (mockApp.workspace as unknown as { trigger: typeof trigger }).trigger = trigger;
+    (mockApp.workspace as unknown as { trigger: typeof trigger }).trigger =
+      trigger;
 
     const plugin = {
       app: mockApp,
@@ -90,7 +96,9 @@ describe("renderTagsSettingsTab()", () => {
   });
 
   it("deletes an existing tag and refreshes", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.availableTags = [{ name: "tag1", color: "#000000" }];
     const onRefresh = vi.fn();
@@ -116,7 +124,9 @@ describe("renderTagsSettingsTab()", () => {
   });
 
   it("adds a new tag and refreshes", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.availableTags = [];
     const onRefresh = vi.fn();
@@ -159,4 +169,3 @@ describe("renderTagsSettingsTab()", () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 });
-

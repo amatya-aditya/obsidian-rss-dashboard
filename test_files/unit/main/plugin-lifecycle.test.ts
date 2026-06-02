@@ -377,7 +377,6 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: registerView should be called for all views
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.registerView).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(Function),
@@ -393,7 +392,6 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: addRibbonIcon should be called
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.addRibbonIcon).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(String),
@@ -406,7 +404,6 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: addCommand should be called for all commands
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.addCommand).toHaveBeenCalled();
     // Should have multiple commands (open-dashboard, open-discover, refresh-feeds, etc.)
     expect(
@@ -419,7 +416,6 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: registerInterval should be called with a setInterval result
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.registerInterval).toHaveBeenCalled();
   });
 
@@ -428,7 +424,6 @@ describe("onload() initialization", () => {
 
     await plugin.onload();
 
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.registerInterval).not.toHaveBeenCalled();
   });
 
@@ -437,10 +432,8 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: addSettingTab should be called
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.addSettingTab).toHaveBeenCalled();
   });
-
 
   it("loads settings during initialization", async () => {
     // When: onload is called
@@ -693,7 +686,6 @@ describe("refreshFeeds()", () => {
     await plugin.refreshFeeds();
 
     // Then: saveSettings should be called
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalled();
   });
 
@@ -1212,7 +1204,6 @@ describe("addFeed()", () => {
     await plugin.addFeed("Save Test Feed", newUrl, "Uncategorized");
 
     // Then: saveSettings should be called
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalled();
   });
 
@@ -1291,9 +1282,7 @@ describe("ingestFeedsForBackgroundImport()", () => {
       (f) => f.url === "https://example.com/new.xml",
     );
     expect(addedFeed?.items).toEqual([]);
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalledTimes(1);
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.ensureFolderExists).toHaveBeenCalledWith("Research", {
       saveSettings: false,
       refreshView: false,
@@ -1432,7 +1421,6 @@ describe("performAutoBackups()", () => {
     await plugin.performAutoBackups();
 
     // Then: No writes should occur
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).not.toHaveBeenCalled();
   });
 
@@ -1444,7 +1432,6 @@ describe("performAutoBackups()", () => {
     await plugin.performAutoBackups();
 
     // Then: Should not throw
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).not.toHaveBeenCalled();
   });
 });
@@ -1624,7 +1611,6 @@ describe("saveSettings()", () => {
     await plugin.saveSettings();
 
     // Then: saveData should be called with settings
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalledWith(plugin.settings);
   });
 
@@ -1636,7 +1622,6 @@ describe("saveSettings()", () => {
     await plugin.saveSettings();
 
     // Then: saveData should be called with modified settings
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalledWith(
       expect.objectContaining({
         refreshInterval: 120,
@@ -1686,7 +1671,6 @@ describe("applyFeedLimitsToAllFeeds()", () => {
     await plugin.applyFeedLimitsToAllFeeds();
 
     // Then: settings should be saved
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalled();
   });
 

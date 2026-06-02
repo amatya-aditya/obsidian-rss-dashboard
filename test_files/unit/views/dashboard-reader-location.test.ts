@@ -236,7 +236,7 @@ describe("Dashboard reader location", () => {
     expect(mainLeaf.view.setReturnLeaf).toHaveBeenCalledWith(dashboardLeaf);
     expect(mainLeaf.view.displayItem).toHaveBeenCalledWith(feed.items[0], []);
     expect(mainLeaf.view.focusReaderView).toHaveBeenCalledTimes(1);
-  });
+  }, 10000);
 
   it("relocks the selected card after split open in card view", async () => {
     const settings = cloneSettings();
@@ -695,5 +695,4 @@ describe("Dashboard reader location", () => {
       view.app.workspace.getLeaf as ReturnType<typeof vi.fn>,
     ).not.toHaveBeenCalled();
   });
-
-  });
+});

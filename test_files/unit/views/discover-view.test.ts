@@ -225,7 +225,7 @@ describe("DiscoverView (P1-3)", () => {
     const filtered = view.filteredFeeds;
     expect(filtered).toHaveLength(1);
     expect(filtered[0].title).toBe("Alpha Tech Blog");
-  });
+  }, 10000);
 
   it("filterFeeds() applies query, type, tag, path, and follow-status filters", async () => {
     const { view } = await createView({

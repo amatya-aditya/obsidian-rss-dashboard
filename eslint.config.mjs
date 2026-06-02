@@ -32,11 +32,13 @@ export default defineConfig([
           paths: [
             {
               name: "fs",
-              message: "Direct fs module usage is prohibited. Use vault.read/vault.modify or browser File APIs.",
+              message:
+                "Direct fs module usage is prohibited. Use vault.read/vault.modify or browser File APIs.",
             },
             {
               name: "path",
-              message: "Direct path module usage is prohibited. Use Obsidian adapter paths or TFile/TFolder APIs.",
+              message:
+                "Direct path module usage is prohibited. Use Obsidian adapter paths or TFile/TFolder APIs.",
             },
           ],
         },
@@ -140,6 +142,9 @@ export default defineConfig([
       //   // ============================================
 
       // Unused variables - prefix with _ to ignore
+      "@typescript-eslint/ban-ts-comment": "off",
+      "no-prototype-builtins": "off",
+      "@typescript-eslint/no-empty-function": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {

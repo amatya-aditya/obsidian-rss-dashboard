@@ -59,7 +59,6 @@ describe("BackupService", () => {
 
       await service.performAutoBackups();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockVault.adapter.write).not.toHaveBeenCalled();
     });
 
@@ -82,11 +81,10 @@ describe("BackupService", () => {
 
       await service.performAutoBackups();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockVault.adapter.read).toHaveBeenCalledWith(
         "configDir/plugins/obsidian-rss-dashboard/data.json",
       );
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(mockVault.adapter.write).toHaveBeenCalledWith(
         "configDir/plugins/obsidian-rss-dashboard/data.json.backup",
         expect.any(String),
@@ -114,7 +112,6 @@ describe("BackupService", () => {
 
       await service.performAutoBackups();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockVault.adapter.write).toHaveBeenCalledWith(
         "configDir/plugins/obsidian-rss-dashboard/portable-data-bundle.json.backup",
         JSON.stringify({ bundle: true }),
@@ -142,7 +139,6 @@ describe("BackupService", () => {
 
       await service.performAutoBackups();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockVault.adapter.write).toHaveBeenCalledWith(
         "configDir/plugins/obsidian-rss-dashboard/feeds.opml.backup",
         expect.stringContaining("<?xml"),
@@ -166,18 +162,16 @@ describe("BackupService", () => {
         vault: mockVault,
       });
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       vi.mocked(mockVault.adapter.exists).mockImplementation((path: string) =>
         Promise.resolve(path.includes("usersettings.json")),
       );
 
       await service.performAutoBackups();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockVault.adapter.read).toHaveBeenCalledWith(
         expect.stringContaining("usersettings.json"),
       );
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(mockVault.adapter.write).toHaveBeenCalledWith(
         expect.stringContaining("backup"),
         expect.any(String),
