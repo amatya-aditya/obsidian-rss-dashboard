@@ -15,6 +15,7 @@ import {
   htmlToReadableText,
   stripNonContentHtmlNodes,
 } from "../utils/html-text";
+import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 
 export function sanitizeFilename(name: string): string {
   const sanitized = name
@@ -90,6 +91,32 @@ export class ArticleSaver {
     }
   }
 
+  private getPreferredFeedHtml(item: FeedItem): string {
+    return item.content || item.description || item.summary || "";
+  }
+
+  private shouldPreferFeedHtml(item: FeedItem, feedHtml: string): boolean {
+    if (!feedHtml) return false;
+
+    if (item.link) {
+      try {
+        const host = new URL(item.link).hostname.toLowerCase();
+        if (host === "substack.com" || host.endsWith(".substack.com")) {
+          return true;
+        }
+      } catch {
+        // Fall through to markup-based detection.
+      }
+    }
+
+    const lower = feedHtml.toLowerCase();
+    return (
+      lower.includes('data-component-name="image2todom"') ||
+      lower.includes('class="image-link image2 is-viewable-img"') ||
+      lower.includes("substackcdn.com/image/fetch/")
+    );
+  }
+
   private getReadableTextLength(html: string): number {
     return htmlToReadableText(html).length;
   }
@@ -100,10 +127,12 @@ export class ArticleSaver {
       const doc = parser.parseFromString(html, "text/html");
 
       doc.querySelectorAll("a").forEach((link) => {
+        const href = link.getAttribute("href") || "";
+        const hasInlineImage = !!link.querySelector("img, picture img");
         const hasBlockContent = !!link.querySelector(
           "address, article, aside, blockquote, br, dd, div, dl, dt, figcaption, figure, footer, h1, h2, h3, h4, h5, h6, header, hr, li, main, nav, ol, p, pre, section, table, ul",
         );
-        if (!hasBlockContent) return;
+        if (!hasBlockContent && !hasInlineImage) return;
 
         link.querySelectorAll("br").forEach((br) => {
           br.replaceWith(doc.createTextNode(" "));
@@ -112,6 +141,20 @@ export class ArticleSaver {
         const label = (link.textContent || "").replace(/\s+/g, " ").trim();
         if (label) {
           link.textContent = label;
+          return;
+        }
+
+        if (hasInlineImage) {
+          const fragment = doc.createDocumentFragment();
+          while (link.firstChild) {
+            fragment.appendChild(link.firstChild);
+          }
+
+          if (href) {
+            link.setAttribute("href", normalizeSubstackImageUrl(href));
+          }
+
+          link.replaceWith(fragment);
         }
       });
 
@@ -119,6 +162,65 @@ export class ArticleSaver {
     } catch {
       return html;
     }
+  }
+
+  private getFallbackHeroUrl(item: FeedItem): string {
+    const enclosureImageUrl =
+      item.enclosure?.type?.startsWith("image/") && item.enclosure.url
+        ? item.enclosure.url
+        : "";
+
+    const heroUrl =
+      item.coverImage ||
+      item.image ||
+      item.itunes?.image?.href ||
+      enclosureImageUrl ||
+      "";
+
+    return normalizeSubstackImageUrl((heroUrl || "").trim());
+  }
+
+  private htmlAlreadyContainsImage(html: string, imageUrl: string): boolean {
+    try {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      return Array.from(doc.querySelectorAll("img")).some(
+        (img) =>
+          normalizeSubstackImageUrl(img.getAttribute("src") || "") === imageUrl,
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  private prependFallbackHeroHtml(item: FeedItem, html: string): string {
+    if (!html) return html;
+
+    const heroUrl = this.getFallbackHeroUrl(item);
+    if (!heroUrl) return html;
+    if (this.htmlAlreadyContainsImage(html, heroUrl)) return html;
+
+    return `<p><img src="${heroUrl}" alt="Hero image" /></p>${html}`;
+  }
+
+  private prependFallbackHeroMarkdown(
+    item: FeedItem,
+    markdown: string,
+    sourceHtml: string,
+  ): string {
+    if (!markdown) return markdown;
+
+    const heroUrl = this.getFallbackHeroUrl(item);
+    if (!heroUrl) return markdown;
+
+    if (this.htmlAlreadyContainsImage(sourceHtml, heroUrl)) {
+      return markdown;
+    }
+
+    if (markdown.includes(heroUrl)) {
+      return markdown;
+    }
+
+    return `![Hero image](${heroUrl})\n\n${markdown}`;
   }
 
   private htmlToMarkdown(html: string): string {
@@ -219,7 +321,12 @@ export class ArticleSaver {
     template: string,
     rawContent?: string,
   ): string {
-    const content = rawContent || this.cleanHtml(item.description);
+    const content = rawContent
+      ? rawContent
+      : this.prependFallbackHeroHtml(
+          item,
+          this.cleanHtml(this.getPreferredFeedHtml(item)),
+        );
 
     const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
 
@@ -511,7 +618,7 @@ export class ArticleSaver {
       const loadingNotice = new Notice("Fetching full article content...", 0);
 
       const fetchResult = await this.fetchArticleContentWithOutcome(item.link);
-      const feedContent = item.content || "";
+      const feedContent = this.getPreferredFeedHtml(item);
 
       if (!fetchResult.content) {
         loadingNotice.hide();
@@ -527,21 +634,33 @@ export class ArticleSaver {
         const fallbackMarkdown = feedContent
           ? this.htmlToMarkdown(feedContent)
           : undefined;
+        const fallbackWithHero = fallbackMarkdown
+          ? this.prependFallbackHeroMarkdown(
+              item,
+              fallbackMarkdown,
+              feedContent,
+            )
+          : undefined;
         return await this.saveArticle(
           item,
           customFolder,
           customTemplate,
-          fallbackMarkdown,
+          fallbackWithHero,
         );
       }
 
       const fetchedTextLength = this.getReadableTextLength(fetchResult.content);
       const feedTextLength = this.getReadableTextLength(feedContent);
-      const contentSource =
-        feedContent && feedTextLength > fetchedTextLength
+      const contentSource = this.shouldPreferFeedHtml(item, feedContent)
+        ? feedContent || fetchResult.content
+        : feedContent && feedTextLength > fetchedTextLength
           ? feedContent
           : fetchResult.content;
-      const markdownContent = this.htmlToMarkdown(contentSource);
+      const markdownContent = this.prependFallbackHeroMarkdown(
+        item,
+        this.htmlToMarkdown(contentSource),
+        contentSource,
+      );
       loadingNotice.hide();
 
       return await this.saveArticle(
