@@ -697,7 +697,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     backupOpml: true,
     backupUserdata: true,
   },
-  storageMode: "legacy-json",
+  storageMode: "vault-shards",
   storageFolder: ".rss-dashboard-data/feeds",
   storageSchemaVersion: 1,
   metadataStorageMode: "plugin-default",

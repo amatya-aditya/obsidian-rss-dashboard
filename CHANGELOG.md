@@ -40,6 +40,12 @@
 
 - Fixed format discrepency between saving article via dashboard card and saving article via reader toolbar (different pathways interally but now both resolve the same way for the user's saved note)
 
+#### Sync issues
+
+- Added a new bootstrap pointer which saves metadata config locally so the app knows where to look upon restart.
+- Changed default storage type for fresh plugin installs from Legacy JSON to Shard Storage - still retaining Legacy JSON as an option to ease transition for existing users.
+- Resolves [GH Issue #142](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/142) and [GH Issue #140](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/140)
+
 ## [2.3.0] - May 26, 2026
 
 - Official Release. No additional changes added since 2.3.0-beta.3. See [docs/releases/2.3.0.md](docs/releases/2.3.0.md) for complete release notes.

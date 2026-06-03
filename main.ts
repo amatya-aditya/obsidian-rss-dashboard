@@ -2262,6 +2262,9 @@ export default class RssDashboardPlugin extends Plugin {
           storageLog("Metadata saved to vault location", {
             path: dataFilePath,
           });
+
+          // Bootstrap pointer: save metadata config locally so the app knows where to look on restart.
+          await this.saveData(data);
         } catch (error) {
           storageError("Failed to save metadata to vault location", error);
           throw error;
