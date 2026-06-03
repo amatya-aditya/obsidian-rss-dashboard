@@ -471,7 +471,7 @@ export class ArticleList {
       ".rss-dashboard-card-tags-region",
     );
     if (!tagsRegion) {
-      tagsRegion = activeDocument.createDiv();
+      tagsRegion = activeDocument.createElement("div");
       tagsRegion.className = "rss-dashboard-card-tags-region";
       const cardFooter = articleEl.querySelector<HTMLElement>(
         ".rss-dashboard-card-footer",
@@ -504,7 +504,7 @@ export class ArticleList {
       ".rss-dashboard-feed-tags-region",
     );
     if (!tagsRegion) {
-      tagsRegion = activeDocument.createDiv();
+      tagsRegion = activeDocument.createElement("div");
       tagsRegion.className = "rss-dashboard-feed-tags-region";
       const feedFooter = articleEl.querySelector<HTMLElement>(
         ".rss-dashboard-feed-footer",
