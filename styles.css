@@ -5,7 +5,6 @@
   background-color: var(--background-primary);
   color: var(--text-normal);
   padding: 0 !important;
-  isolation: isolate;
 }
 .rss-dashboard-layout {
   display: flex;
