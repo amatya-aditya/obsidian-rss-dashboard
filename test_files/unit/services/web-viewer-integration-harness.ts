@@ -63,16 +63,15 @@ export function buildFeedItem(overrides: Partial<FeedItem> = {}): FeedItem {
     feedTitle: overrides.feedTitle ?? "Feed",
     feedUrl: overrides.feedUrl ?? "https://example.com/feed",
     coverImage: overrides.coverImage ?? "",
+    image: overrides.image ?? "",
   } as FeedItem;
 }
 
 export function createWebpageContainer(): HTMLElement {
   installObsidianDomPolyfills();
-  // document.body has createDiv added by installObsidianDomPolyfills
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return
-  return (document.body as unknown as HTMLElement).createDiv({
-    cls: "webpage-container",
-  });
+  const container = document.createElement("div");
+  container.className = "webpage-container";
+  return container;
 }
 
 export function createWebViewerIntegrationHarness(
@@ -118,6 +117,10 @@ export function createWebViewerIntegrationHarness(
   const createdContainer = overrides.webpageContainer === undefined;
   const webpageContainer =
     overrides.webpageContainer === undefined ? createWebpageContainer() : overrides.webpageContainer;
+
+  if (createdContainer && webpageContainer) {
+    document.body.appendChild(webpageContainer);
+  }
 
   const cleanup = () => {
     if (createdContainer && webpageContainer) {

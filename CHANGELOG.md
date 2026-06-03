@@ -5,6 +5,7 @@
 - Added Settings > General > Saved article open location option to control where saved articles open. [GH FR #131](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/131)
 - Added ',' keybind to mark article read and advance to next article. [GH FR #183](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/138)
 - Added Obsidian URI support for one-click feed subscription via `obsidian://rss-dashboard?action=add-feed&url=<encoded-feed-url>`, including parameter validation and unsupported-action notices. [GH FR #126](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/126)
+- Added {{image}} to Article Saving template which includes URL to cover image if it exists [GH FR #128](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/128)
 
 ### Community Plugin Audit
 

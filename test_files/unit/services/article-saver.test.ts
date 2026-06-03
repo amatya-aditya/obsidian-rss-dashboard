@@ -878,3 +878,88 @@ describe("ArticleSaver saved file lookups", () => {
     expect(file?.path).toBe("Custom Folder/My Article.md");
   });
 });
+
+describe("ArticleSaver.{{image}} template variable", () => {
+  it("replaces {{image}} in default template with coverImage when present", async () => {
+    const app = App.createMock();
+    const imageUrl = "https://example.com/cover.jpg";
+    const settings = createSettings({
+      defaultTemplate: "{{image}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: "Image Test",
+      coverImage: imageUrl,
+    });
+
+    const file = await saver.saveArticle(item);
+    expect(file).toBeInstanceOf(TFile);
+    if (!file) return;
+    const written = await app.vault.read(file);
+    expect(written).toBe(imageUrl);
+  });
+
+  it("resolves {{image}} from itunes.image href when other images missing", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{image}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const itunesImageUrl = "https://example.com/itunes.jpg";
+    const item = createItem({
+      title: "Itunes Image Test",
+      itunes: { image: { href: itunesImageUrl } },
+    });
+
+    const file = await saver.saveArticle(item);
+    expect(file).toBeInstanceOf(TFile);
+    if (!file) return;
+    const written = await app.vault.read(file);
+    expect(written).toBe(itunesImageUrl);
+  });
+
+  it("falls back to empty string when no image is present", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "cover: {{image}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: "No Image Test",
+    });
+
+    const file = await saver.saveArticle(item);
+    expect(file).toBeInstanceOf(TFile);
+    if (!file) return;
+    const written = await app.vault.read(file);
+    expect(written).toBe("cover: ");
+  });
+
+  it("prioritizes coverImage over image for {{image}} replacement", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{image}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const coverImageUrl = "https://example.com/cover.jpg";
+    const item = createItem({
+      title: "Priority Test",
+      coverImage: coverImageUrl,
+      image: "https://example.com/other.jpg",
+    });
+
+    const file = await saver.saveArticle(item);
+    expect(file).toBeInstanceOf(TFile);
+    if (!file) return;
+    const written = await app.vault.read(file);
+    expect(written).toBe(coverImageUrl);
+  });
+});

@@ -424,3 +424,59 @@ guid: "{{guid}}"
     });
   });
 });
+
+describe("WebViewerIntegration.{{image}} template variable parity", () => {
+  it("replaces {{image}} in template with empty string when no image present", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));
+
+    const h = createWebViewerIntegrationHarness();
+    const integration = h.integration as unknown as {
+      applyTemplate: (item: { title: string; link: string; author?: string; feedTitle: string; summary?: string; description?: string; pubDate: string }, template: string) => string;
+    };
+    const applyTemplate = integration.applyTemplate.bind(h.integration);
+
+    const item = buildFeedItem({
+      title: "No Image",
+      link: "https://example.com",
+      description: "<p>content</p>",
+      pubDate: new Date("2026-01-02T03:04:05Z").toISOString(),
+    });
+
+    const out = applyTemplate(item, "cover: {{image}}");
+    expect(out).toBe("cover: ");
+
+    h.cleanup();
+  });
+
+  it("replaces {{image}} in frontmatter with item.image when present", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));
+
+    const imageUrl = "https://example.com/image.jpg";
+    const h = createWebViewerIntegrationHarness({
+      settings: {
+        frontmatterTemplate: `---
+title: "{{title}}"
+cover: "{{image}}"
+---`,
+      },
+    });
+    const integration = h.integration as unknown as {
+      generateFrontmatter: (item: { title: string; guid: string; link: string; author?: string; feedTitle: string; tags: { name: string; color: string }[]; pubDate: string; image?: string }) => string;
+    };
+    const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+
+    const item = buildFeedItem({
+      title: "With Image",
+      link: "https://example.com",
+      pubDate: new Date("2026-01-02T03:04:05Z").toISOString(),
+      image: imageUrl,
+    });
+
+    const out = generateFrontmatter(item);
+    expect(out).toContain(`cover: "${imageUrl}"`);
+
+    h.cleanup();
+  });
+});

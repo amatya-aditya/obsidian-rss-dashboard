@@ -593,6 +593,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
  feedTitle: "{{feedTitle}}"
  summary: "{{summary}}"
  guid: "{{guid}}"
+ image: "{{image}}"
 ---
 
 # {{title}}

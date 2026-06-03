@@ -1,6 +1,7 @@
 import { App, Notice, TFile, setIcon, Setting } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
 import { sanitizeFilename } from "./article-saver";
+import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 
 interface WebViewerPlugin {
   openWebpage?(url: string, title: string): Promise<void>;
@@ -331,7 +332,8 @@ guid: "{{guid}}"
       .replace(/{{link}}/g, item.link)
       .replace(/{{author}}/g, item.author || "")
       .replace(/{{feedTitle}}/g, item.feedTitle || "Web viewer")
-      .replace(/{{guid}}/g, item.guid);
+      .replace(/{{guid}}/g, item.guid)
+      .replace(/{{image}}/g, this.getImage(item));
 
     return frontmatter.endsWith("\n") ? frontmatter : `${frontmatter}\n`;
   }
@@ -357,7 +359,20 @@ guid: "{{guid}}"
       .replace(/{{author}}/g, item.author || "")
       .replace(/{{source}}/g, item.feedTitle || "Web viewer")
       .replace(/{{summary}}/g, item.summary || "")
-      .replace(/{{content}}/g, item.description);
+      .replace(/{{content}}/g, item.description)
+      .replace(/{{image}}/g, this.getImage(item));
+  }
+
+  private getImage(item: FeedItem): string {
+    const enclosureImageUrl =
+      item.enclosure?.type?.startsWith("image/") && item.enclosure.url
+        ? item.enclosure.url
+        : "";
+
+    return normalizeSubstackImageUrl(
+      (item.coverImage || item.image || item.itunes?.image?.href || enclosureImageUrl || "")
+        .trim(),
+    );
   }
 
   protected async ensureFolderExists(folderPath: string): Promise<void> {

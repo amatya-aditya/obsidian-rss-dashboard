@@ -267,7 +267,8 @@ export class ArticleSaver {
       .replace(/{{link}}/g, item.link)
       .replace(/{{author}}/g, item.author || "")
       .replace(/{{feedTitle}}/g, item.feedTitle)
-      .replace(/{{guid}}/g, item.guid);
+      .replace(/{{guid}}/g, item.guid)
+      .replace(/{{image}}/g, this.getFallbackHeroUrl(item));
 
     if (item.mediaType === "video" && item.videoId) {
       const injection = `mediaType: video\nvideoId: "${item.videoId}"\n`;
@@ -351,7 +352,8 @@ export class ArticleSaver {
       .replace(/{{summary}}/g, item.summary || "")
       .replace(/{{content}}/g, content)
       .replace(/{{tags}}/g, tagsString)
-      .replace(/{{guid}}/g, item.guid);
+      .replace(/{{guid}}/g, item.guid)
+      .replace(/{{image}}/g, this.getFallbackHeroUrl(item));
   }
 
   private normalizePath(path: string): string {
