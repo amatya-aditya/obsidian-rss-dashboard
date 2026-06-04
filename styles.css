@@ -5056,6 +5056,18 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   color: var(--text-warning, #e6a700);
   font-weight: 500;
 }
+.rss-tag-application-warning {
+  font-size: 0.9em;
+  color: var(--text-muted);
+  border-left: 3px solid var(--background-modifier-border-hover);
+  padding: 0.5rem 0.75rem;
+  margin: 0.75rem 0 0.25rem;
+  border-radius: 0 4px 4px 0;
+}
+.rss-tag-application-buttons {
+  gap: 0.6rem;
+  padding-top: 0.5rem;
+}
 .rss-add-tag-modal .tag-input-row.full-inline-row {
   display: flex;
   align-items: center;
@@ -5995,6 +6007,19 @@ body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
 .rss-dashboard-modal .rss-edit-feed-storage-copy-button:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 1px;
+}
+.rss-dashboard-inherited-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.rss-dashboard-tag-badge {
+  background-color: var(--tag-color, #3498db);
+  color: var(--text-on-accent, #fff);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: 500;
 }
 
 /* src/styles/feed-manager-modal.css */

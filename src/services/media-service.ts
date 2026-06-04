@@ -734,8 +734,8 @@ export class MediaService {
         `;
   }
 
-  static applyMediaTags(
-    feed: Feed,
+  static getInheritedTagsAndCategory(
+    feed: Pick<Feed, "url" | "folder" | "mediaType">,
     availableTags: Tag[],
     mediaSettings?: Partial<
       Pick<
@@ -757,14 +757,23 @@ export class MediaService {
         | "defaultRssTags"
       >
     >,
-  ): Feed {
+  ): {
+    tags: Tag[];
+    category?:
+      | "video"
+      | "podcast"
+      | "twitter"
+      | "mastodon"
+      | "smallweb"
+      | "rss";
+  } {
     const isTwitter = MediaService.isTwitterOrNitterFeed(feed.url);
     const isMastodon = MastodonService.isResolvedFeedUrl(feed.url);
     const smallwebFolder = mediaSettings?.defaultSmallwebFolder?.trim() || "";
     const isSmallweb = smallwebFolder && feed.folder === smallwebFolder;
 
     if (!Array.isArray(availableTags) || availableTags.length === 0) {
-      return feed;
+      return { tags: [] };
     }
 
     let tagCategory:
@@ -833,6 +842,36 @@ export class MediaService {
         mediaSettings?.defaultRssTag,
       );
     }
+
+    return { tags: mediaTags, category: tagCategory };
+  }
+
+  static applyMediaTags(
+    feed: Feed,
+    availableTags: Tag[],
+    mediaSettings?: Partial<
+      Pick<
+        MediaSettings,
+        | "defaultVideoTag"
+        | "defaultVideoTags"
+        | "defaultYouTubeTag"
+        | "defaultYouTubeTags"
+        | "defaultPodcastTag"
+        | "defaultPodcastTags"
+        | "defaultTwitterTag"
+        | "defaultTwitterTags"
+        | "defaultMastodonTag"
+        | "defaultMastodonTags"
+        | "defaultSmallwebFolder"
+        | "defaultSmallwebTag"
+        | "defaultSmallwebTags"
+        | "defaultRssTag"
+        | "defaultRssTags"
+      >
+    >,
+  ): Feed {
+    const { tags: mediaTags, category: tagCategory } =
+      this.getInheritedTagsAndCategory(feed, availableTags, mediaSettings);
 
     if (mediaTags.length === 0 || !tagCategory) return feed;
 

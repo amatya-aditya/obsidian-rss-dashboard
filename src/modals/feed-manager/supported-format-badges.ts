@@ -8,7 +8,7 @@ export function renderSupportedFormatBadges(containerEl: HTMLElement): {
   podcastBadge: HTMLSpanElement;
   youtubeBadge: HTMLSpanElement;
   clearActiveBadge: () => void;
-  setActiveBadge: (feedType: SupportedFeedType) => void;
+  setActiveBadge: (feedType: SupportedFeedType | null) => void;
 } {
   const formatsEl = containerEl.createDiv({ cls: "supported-formats" });
 
@@ -33,7 +33,7 @@ export function renderSupportedFormatBadges(containerEl: HTMLElement): {
     youtubeBadge.removeClass("active");
   };
 
-  const setActiveBadge = (feedType: SupportedFeedType) => {
+  const setActiveBadge = (feedType: SupportedFeedType | null) => {
     clearActiveBadge();
     if (feedType === "rss") rssBadge.addClass("active");
     if (feedType === "podcast") podcastBadge.addClass("active");

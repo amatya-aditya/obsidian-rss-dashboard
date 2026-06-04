@@ -40,43 +40,42 @@ export class TagApplicationConfirmModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
 
-    new Setting(contentEl).setName("Update feed tags").setHeading();
+    this.modalEl.addClass("rss-dashboard-modal");
+    this.modalEl.addClass("rss-dashboard-modal-container");
 
-    contentEl
-      .createDiv({ cls: "tag-application-confirm-description" })
-      .setText("How would you like to apply these tag changes?");
+    contentEl.createEl("h2", { text: "Update feed tags" });
 
-    const warning = contentEl.createDiv({
-      cls: "tag-application-confirm-warning",
-    });
-    warning.setText(
-      "This will remove the selected tag names from all existing articles in this feed, including tags added manually or by other auto-tag rules.",
-    );
-
-    const btns = contentEl.createDiv({ cls: "tag-application-confirm-buttons" });
-
-    const applyBtn = btns.createEl("button", {
-      text: "Apply to existing",
-      cls: "mod-cta",
-    });
-    applyBtn.addEventListener("click", () => {
-      this.settle("apply_existing");
+    contentEl.createEl("p", {
+      text: "How would you like to apply these tag changes?",
     });
 
-    const futureBtn = btns.createEl("button", {
-      text: "Future only",
-    });
-    futureBtn.addEventListener("click", () => {
-      this.settle("future_only");
+    contentEl.createEl("p", {
+      text: "This will remove the selected tag names from all existing articles in this feed, including tags added manually or by other auto-tag rules.",
+      cls: "rss-tag-application-warning",
     });
 
-    const cancelBtn = btns.createEl("button", {
-      text: "Cancel",
-      cls: "mod-warning",
-    });
-    cancelBtn.addEventListener("click", () => {
-      this.settle("cancel_save");
-    });
+    const buttonsSetting = new Setting(contentEl);
+    buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
+    buttonsSetting.controlEl.addClass("rss-tag-application-buttons");
+    buttonsSetting
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => {
+          this.settle("cancel_save");
+        }),
+      )
+      .addButton((btn) =>
+        btn.setButtonText("Future only").onClick(() => {
+          this.settle("future_only");
+        }),
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Apply to existing")
+          .setCta()
+          .onClick(() => {
+            this.settle("apply_existing");
+          }),
+      );
   }
 
   onClose(): void {

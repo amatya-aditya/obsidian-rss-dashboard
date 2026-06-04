@@ -59,7 +59,7 @@ export function renderTagsSettingsTab(
     },
     {
       name: "Default YouTube tag",
-      description: "Tag used for auto-tagged video content",
+      description: "Tag used for auto-tagged YouTube content",
       menuTitle: "Select default YouTube tags",
       getSelectedTagNames: () => plugin.settings.media.defaultYouTubeTags ?? [],
       setSelectedTagNames: (selected) => {

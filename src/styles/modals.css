@@ -374,6 +374,21 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   font-weight: 500;
 }
 
+/* Tag Application Confirm Modal */
+.rss-tag-application-warning {
+  font-size: 0.9em;
+  color: var(--text-muted);
+  border-left: 3px solid var(--background-modifier-border-hover);
+  padding: 0.5rem 0.75rem;
+  margin: 0.75rem 0 0.25rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.rss-tag-application-buttons {
+  gap: 0.6rem;
+  padding-top: 0.5rem;
+}
+
 /* ============================================
  * 7. Tag Modal Settings
  * Styling for Tag addition, colors
