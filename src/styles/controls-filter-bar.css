@@ -1,0 +1,213 @@
+/* =============================================================================
+ * Controls Filter Bar Styles (controls-filter-bar.css)
+ *
+ * This file contains the styles for the collapsible info strip below the toolbar
+ * showing keyword filter stats and highlight match counts.
+ * Extracted from controls.css as part of the 2.3.0 audit-remediation refactor.
+ * =============================================================================
+ */
+
+/* ============================================
+ * 1. Subheader Shell & Collapsible State
+ * ============================================ */
+.rss-dashboard-filter-subheader {
+  position: relative;
+  z-index: 999999;
+  padding: 8px 44px 8px 10px;
+  margin: 0 10px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  flex-shrink: 0;
+}
+
+.rss-dashboard-filter-subheader-content {
+  max-height: 200px;
+  transition:
+    max-height 120ms ease,
+    opacity 120ms ease;
+}
+
+.rss-dashboard-filter-subheader-content > * + * {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.rss-dashboard-filter-subheader.is-collapsed
+  .rss-dashboard-filter-subheader-content {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.rss-dashboard-filter-subheader-toggle {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 32px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.rss-dashboard-filter-subheader-toggle:hover {
+  color: var(--text-normal);
+  border-color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+}
+
+/* ============================================
+ * 2. Keyword Filter Stats
+ * ============================================ */
+.rss-dashboard-filter-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.rss-dashboard-filter-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  min-height: 15px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.rss-dashboard-filter-edit-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+  border-radius: 4px;
+}
+
+.rss-dashboard-filter-stats-text {
+  flex: 1;
+}
+
+/* ============================================
+ * 3. Highlight Match Stats
+ * ============================================ */
+.rss-dashboard-highlight-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  font-size: 12px;
+}
+
+.rss-dashboard-viewing-filter-open-btn {
+  --icon-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  min-height: 15px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.rss-dashboard-viewing-filter-open-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+  border-radius: 4px;
+}
+
+.rss-dashboard-viewing-filter-open-btn svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  display: block;
+  visibility: visible;
+  /* audit-ok: svg normalizer */
+}
+
+.rss-highlight-stats-label {
+  margin-right: 2px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.rss-dashboard-highlight-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  min-height: 15px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-right: 4px;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.rss-dashboard-highlight-edit-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+  border-radius: 4px;
+}
+
+.rss-highlight-stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.rss-highlight-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--highlight-color, #ffd700);
+  flex-shrink: 0;
+}
+
+.rss-highlight-stats-sep {
+  color: var(--text-faint);
+  user-select: none;
+  -webkit-user-select: none;
+}

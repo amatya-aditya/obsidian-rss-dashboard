@@ -63,7 +63,7 @@ export class ImportOpmlModal extends Modal {
     ]);
     this.modalEl.addClass("rss-import-opml-modal");
     if (isMobile) {
-      this.modalEl.addClass("rss-mobile-feed-manager-modal");
+      this.modalEl.addClass("rss-mobile-import-opml-modal");
     }
 
     contentEl.empty();
@@ -142,52 +142,8 @@ export class ImportOpmlModal extends Modal {
   }
 
   private openFilePicker() {
-    /**
-     * NOTE for future developers: The following block uses Electron's native dialog via 'activeWindow.require'
-     * to support multiple file extension filters simultaneously (e.g., .opml, .xml) on Windows.
-     * This is a known desktop-only pattern in Obsidian. We use 'any' casts and disable ESLint
-     * rules here because these Electron-specific APIs are not in the standard Obsidian type
-     * definitions. The surrounding try...catch is CRITICAL to ensure the plugin doesn't
-     * crash on mobile where these APIs are absent.
-     */
-    try {
-      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument -- Electron remote dialog API for native file picker on desktop; not in standard Obsidian types */
-      const remote =
-        (activeWindow as any).require?.("@electron/remote") ||
-        (activeWindow as any).require?.("electron")?.remote;
-      if (remote && remote.dialog) {
-        const filePaths = remote.dialog.showOpenDialogSync({
-          title: "Import feeds from OPML or XML",
-          properties: ["openFile"],
-          filters: [
-            {
-              name: "OPML, XML, or Backup Files",
-              extensions: ["opml", "xml", "backup"],
-            },
-            { name: "All Files", extensions: ["*"] },
-          ],
-        });
-
-        if (filePaths && filePaths.length > 0) {
-          const filePath = filePaths[0];
-          const fs = (window as any).require("fs");
-          const content = fs.readFileSync(filePath, "utf-8");
-          const fileName = filePath.split(/[/\\]/).pop() || "file";
-          const file = new File([content], fileName, { type: "text/xml" });
-          void this.handleFileSelection(file);
-          return;
-        } else if (filePaths === undefined) {
-          return; // Dialog was cancelled
-        }
-      }
-      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
-    } catch {
-      // Ignore errors and fallback to HTML input (e.g., on mobile)
-    }
-
-    // Fallback for mobile / web: standard HTML file input
     const input = activeDocument.body.createEl("input", {
-      attr: { type: "file", accept: ".opml,.xml" },
+      attr: { type: "file", accept: ".opml,.xml,.backup" },
     });
     input.onchange = async () => {
       const file = input.files?.[0];
@@ -392,39 +348,41 @@ export class ImportOpmlModal extends Modal {
       cls: "import-preview-toolbar",
     });
 
-    const makeButton = (text: string, onClick: () => void) => {
-      const btn = toolbar.createEl("button", { text });
+    const makeButton = (text: string, iconName: string, onClick: () => void) => {
+      const btn = toolbar.createEl("button");
+      setIcon(btn, iconName);
+      btn.createSpan({ text });
       btn.onclick = onClick;
       return btn;
     };
 
-    makeButton("Select all", () => {
+    makeButton("Select all", "check-square", () => {
       const urls = this.collectAllFeedUrls(model.getFolderTree());
       urls.forEach((url) => model.toggleFeed(url, true));
       this.renderPreview();
       this.updateImportButtonFromModel();
     });
 
-    makeButton("Select none", () => {
+    makeButton("Select none", "square", () => {
       const urls = this.collectAllFeedUrls(model.getFolderTree());
       urls.forEach((url) => model.toggleFeed(url, false));
       this.renderPreview();
       this.updateImportButtonFromModel();
     });
 
-    makeButton("Expand all", () => {
+    makeButton("Expand all", "chevrons-down", () => {
       this.collapsedFolderPaths.clear();
       this.renderPreview();
     });
 
-    makeButton("Collapse all", () => {
+    makeButton("Collapse all", "chevrons-up", () => {
       this.collapsedFolderPaths = new Set(
         this.collectAllFolderPaths(model.getFolderTree()),
       );
       this.renderPreview();
     });
 
-    makeButton("Auto-fix invalid names", () => {
+    makeButton("Auto-fix invalid names", "wand-2", () => {
       model.autoFixInvalidNames();
       this.renderPreview();
       this.updateImportButtonFromModel();
@@ -923,19 +881,19 @@ export class ImportOpmlModal extends Modal {
       text: "Before overwriting, we strongly recommend backing up your current feeds by exporting to an OPML file.",
     });
 
+    // Button container
+    const buttonContainer = modalContent.createDiv({
+      cls: "rss-dashboard-modal-buttons",
+    });
+
     // Export OPML button
-    const exportBtn = backupDiv.createEl("button", {
+    const exportBtn = buttonContainer.createEl("button", {
       text: "Export OPML",
       cls: "rss-dashboard-primary-button export-opml-btn",
     });
     exportBtn.onclick = () => {
       this.plugin.exportOpml();
     };
-
-    // Button container
-    const buttonContainer = modalContent.createDiv({
-      cls: "rss-dashboard-modal-buttons",
-    });
 
     const cancelButton = buttonContainer.createEl("button", {
       text: "Cancel",

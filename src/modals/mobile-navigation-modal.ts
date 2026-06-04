@@ -29,6 +29,7 @@ export class MobileNavigationModal extends Modal {
     const { contentEl } = this;
 
     contentEl.empty();
+    this.modalWidth = Math.floor(activeWindow.innerWidth * 0.8);
     this.modalEl.addClass("rss-mobile-navigation-modal");
     this.modalEl.classList.remove(
       "rss-mobile-platform-ios",

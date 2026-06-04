@@ -422,6 +422,7 @@ export interface RssDashboardSettings {
   };
   viewLocation: ViewLocation;
   readerViewLocation: ViewLocation;
+  savedArticleOpenLocation: ViewLocation;
   useWebViewer: boolean;
 
   corsProxyEnabled: boolean;
@@ -558,6 +559,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   folderFeedSortOrders: {},
   viewLocation: "main",
   readerViewLocation: "main",
+  savedArticleOpenLocation: "main",
   useWebViewer: true,
   corsProxyEnabled: false,
   corsProxyUrl: "",
@@ -607,6 +609,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
  feedTitle: "{{feedTitle}}"
  summary: "{{summary}}"
  guid: "{{guid}}"
+ image: "{{image}}"
 ---
 
 # {{title}}
@@ -709,7 +712,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     backupOpml: true,
     backupUserdata: true,
   },
-  storageMode: "legacy-json",
+  storageMode: "vault-shards",
   storageFolder: ".rss-dashboard-data/feeds",
   storageSchemaVersion: 1,
   metadataStorageMode: "plugin-default",

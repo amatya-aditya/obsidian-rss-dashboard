@@ -17,6 +17,7 @@ import {
   KeywordFilterRule,
   RssDashboardSettings,
   Folder,
+  ViewLocation,
 } from "../types/types";
 import type {
   FiltersUpdatedEventPayload,
@@ -78,6 +79,9 @@ export class RssDashboardView extends ItemView {
   private articleList!: ArticleList;
   private sidebarContainer: HTMLElement | null = null;
   private verificationTimeout: number | null = null;
+  private scheduledRenderTimeout: number | null = null;
+  private isRenderInProgress = false;
+  private hasPendingRender = false;
   private dashboardMultiFiltersDirty = false;
   private dashboardMultiFiltersSaveTimeout: number | null = null;
   private cardLayoutSaveTimeout: number | null = null;
@@ -165,9 +169,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private setupScope() {
-    if (this.scope) {
-      setupDashboardHotkeys(this.scope, this);
-    }
+    setupDashboardHotkeys(this);
   }
 
   /**
@@ -442,35 +444,44 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  /**
-   * Action: Toggle read/unread status of selected article.
-   * @internal
-   */
-  public async actionToggleReadStatus(): Promise<void> {
-    if (this.selectedArticle) {
-      this.selectedArticle.read = !this.selectedArticle.read;
-      await this.handleArticleUpdate(
-        this.selectedArticle,
-        { read: this.selectedArticle.read },
-        false,
-      );
-    }
-  }
+/**
+    * Action: Toggle read/unread status of selected article.
+    * @internal
+    */
+   public async actionToggleReadStatus(): Promise<void> {
+     if (this.selectedArticle) {
+       this.selectedArticle.read = !this.selectedArticle.read;
+       await this.handleArticleUpdate(
+         this.selectedArticle,
+         { read: this.selectedArticle.read },
+         false,
+       );
+     }
+   }
 
-  /**
-   * Action: Toggle star status of selected article.
-   * @internal
-   */
-  public async actionToggleStarStatus(): Promise<void> {
-    if (this.selectedArticle) {
-      this.selectedArticle.starred = !this.selectedArticle.starred;
-      await this.handleArticleUpdate(
-        this.selectedArticle,
-        { starred: this.selectedArticle.starred },
-        false,
-      );
-    }
-  }
+   /**
+    * Action: Mark article read/unread and advance to next article.
+    * @internal
+    */
+   public async actionMarkReadAndNext(): Promise<void> {
+     await this.actionToggleReadStatus();
+     this.actionNavigateNext({ open: true });
+   }
+
+   /**
+    * Action: Toggle star status of selected article.
+    * @internal
+    */
+   public async actionToggleStarStatus(): Promise<void> {
+     if (this.selectedArticle) {
+       this.selectedArticle.starred = !this.selectedArticle.starred;
+       await this.handleArticleUpdate(
+         this.selectedArticle,
+         { starred: this.selectedArticle.starred },
+         false,
+       );
+     }
+   }
 
   /**
    * Action: Toggle tags dropdown menu.
@@ -522,7 +533,7 @@ export class RssDashboardView extends ItemView {
 
     if (count > 0) {
       void this.plugin.saveSettings();
-      void this.render();
+      this.scheduleRender();
       new Notice(`Marked ${count} items as read`);
     } else {
       new Notice("No unread items in current view");
@@ -777,214 +788,241 @@ export class RssDashboardView extends ItemView {
   }
 
   render(): void {
-    this.syncCurrentFeedReference();
-    this.syncDashboardMultiFiltersFromSettings();
-    this.verifySavedArticles();
-
-    if (!this.shouldUseMobileSidebarMode(activeWindow.innerWidth)) {
-      this.closeMobileSidebarModal();
-    }
-
-    if (this.articleList) {
-      this.articleList.destroy();
-    }
-    this.clearCardLayoutRefreshTimeout();
-
-    if (this.settings.sidebarCollapsed) {
-      this.containerEl.addClass("sidebar-collapsed");
-    } else {
-      this.containerEl.removeClass("sidebar-collapsed");
-    }
-
-    // Reapply persisted sidebar width before painting the list.
-    this.applySidebarWidth();
-
-    if (this.sidebar) {
-      this.sidebar.clearFolderPathCache();
-      this.sidebar["options"] = {
-        currentFolder: this.currentFolder,
-        currentFeed: this.currentFeed,
-        selectedTags: this.selectedTags,
-        tagsCollapsed: this.tagsCollapsed,
-        collapsedFolders: this.collapsedFolders,
-      };
-      this.sidebar["settings"] = this.settings;
-      this.sidebar.render();
-    }
-
-    const container = this.containerEl.children[1];
-    let dashboardContainer = container.querySelector(
-      ".rss-dashboard-layout",
-    ) as HTMLElement;
-    if (!dashboardContainer) {
-      dashboardContainer = container.createDiv({
-        cls: "rss-dashboard-layout",
-      });
-    }
-    let contentContainer = dashboardContainer.querySelector(
-      ".rss-dashboard-content",
-    ) as HTMLElement;
-    if (!contentContainer) {
-      contentContainer = dashboardContainer.createDiv({
-        cls: "rss-dashboard-content",
-      });
-    } else {
-      contentContainer.empty();
-    }
-
-    const scopedArticles = this.getUnfilteredArticles();
-    const articlesIgnoringAge = scopedArticles.filter((item) =>
-      this.matchesFilters(item, { ignoreAgeFilter: true }),
-    );
-    const allFilteredArticles = this.getFilteredArticles();
-    // Must run after getFilteredArticles() so counts reflect the active view,
-    // and before renderFilterSubheader() which reads this.highlightMatchCounts.
-    this.computeHighlightMatchCounts(allFilteredArticles);
-
-    if (this.inlineArticle) {
-      this.renderInlineArticle(contentContainer);
+    if (this.isRenderInProgress) {
+      this.hasPendingRender = true;
       return;
     }
 
-    this.renderToolbar(contentContainer);
-    this.renderFilterSubheader(contentContainer);
+    this.isRenderInProgress = true;
 
-    const articlesContainer = contentContainer.createDiv({
-      cls: "rss-dashboard-articles",
-    });
-    const pageSize = this.getCurrentPageSize();
-    const totalArticles = allFilteredArticles.length;
-    let currentPage = this.getCurrentPage();
-    const pagination = computePagination({
-      totalItems: totalArticles,
-      pageSize,
-      requestedPage: currentPage,
-    });
-    if (pagination.currentPage !== currentPage) {
-      this.setCurrentPageState(pagination.currentPage);
-      currentPage = pagination.currentPage;
-    }
-    const articlesForPage = allFilteredArticles.slice(
-      pagination.startIdx,
-      pagination.endIdx,
-    );
+    try {
+      this.syncCurrentFeedReference();
+      this.syncDashboardMultiFiltersFromSettings();
+      this.verifySavedArticles();
 
-    const titleInfo = this.getArticlesTitleInfo();
-    this.articleList = new ArticleList(
-      articlesContainer,
-      this.settings,
-      titleInfo.title,
-      titleInfo.tooltip,
-      articlesForPage,
-      this.selectedArticle,
-      {
-        onArticleClick: (article) => {
-          void this.handleArticleClick(article);
-        },
-        onToggleViewStyle: this.handleToggleViewStyle.bind(this),
-        onRefreshFeeds: this.handleRefreshFeeds.bind(this),
-        onSearch: (_q: string) => {
-          // State is handled by ArticleList locally, but we could sync it here if needed
-        },
-        onOpenViewFilters: () => {
-          this.openViewingFiltersMenu();
-        },
-        onOpenPerFeedSettings: () => {
-          if (this.currentFeed) {
-            this.showEditFeedModal(this.currentFeed, {
-              expandSection: "per-feed",
-              highlightSection: "per-feed",
-            });
-          }
-        },
-        onArticleUpdate: (article, updates, shouldRerender) => {
-          void this.handleArticleUpdate(article, updates, shouldRerender);
-        },
-        onArticleSave: (article) => {
-          void this.handleArticleSave(article);
-        },
-        onOpenSavedArticle: (article) => {
-          void this.handleOpenSavedArticle(article);
-        },
-        onOpenInReaderView: (article) => {
-          void this.handleOpenInReaderView(article);
-        },
-        onToggleSidebar: this.handleToggleSidebar.bind(this),
-        onSortChange: this.handleSortChange.bind(this),
-        onGroupChange: this.handleGroupChange.bind(this),
-        onFilterChange: (value: {
-          type: string;
-          value: unknown;
-          checked?: boolean;
-          isTag?: boolean;
-        }) => {
-          void this.handleFilterChange(value);
-        },
-        onPageChange: this.handlePageChange.bind(this),
-        onPageSizeChange: this.handlePageSizeChange.bind(this),
-        onMarkPageAsRead: () => {
-          this.markCurrentPageAsRead();
-        },
-        onOpenTagsSettings: () => {
-          void this.plugin.openTagsSettings();
-        },
-        onTagsMutated: () => {
-          void this.plugin.refreshOpenTagColorViews();
-          this.app.workspace.trigger("rss-dashboard:tags-mutated");
-        },
-        onPersistSettings: async () => {
-          await this.plugin.saveSettings();
-        },
-        onMarkAllAsRead: () => {
-          this.actionMarkAllAsRead();
-        },
-        onMarkAllAsUnread: () => {
-          const articles = this.getFilteredArticles();
-          let count = 0;
-          articles.forEach((item) => {
-            if (item.read) {
-              item.read = false;
-              count++;
+      if (!this.shouldUseMobileSidebarMode(activeWindow.innerWidth)) {
+        this.closeMobileSidebarModal();
+      }
+
+      if (this.articleList) {
+        this.articleList.destroy();
+      }
+      this.clearCardLayoutRefreshTimeout();
+
+      if (this.settings.sidebarCollapsed) {
+        this.containerEl.addClass("sidebar-collapsed");
+      } else {
+        this.containerEl.removeClass("sidebar-collapsed");
+      }
+
+      // Reapply persisted sidebar width before painting the list.
+      this.applySidebarWidth();
+
+      if (this.sidebar) {
+        this.sidebar.clearFolderPathCache();
+        this.sidebar["options"] = {
+          currentFolder: this.currentFolder,
+          currentFeed: this.currentFeed,
+          selectedTags: this.selectedTags,
+          tagsCollapsed: this.tagsCollapsed,
+          collapsedFolders: this.collapsedFolders,
+        };
+        this.sidebar["settings"] = this.settings;
+        this.sidebar.render();
+      }
+
+      const container = this.containerEl.children[1];
+      let dashboardContainer = container.querySelector(
+        ".rss-dashboard-layout",
+      ) as HTMLElement;
+      if (!dashboardContainer) {
+        dashboardContainer = container.createDiv({
+          cls: "rss-dashboard-layout",
+        });
+      }
+      let contentContainer = dashboardContainer.querySelector(
+        ".rss-dashboard-content",
+      ) as HTMLElement;
+      if (!contentContainer) {
+        contentContainer = dashboardContainer.createDiv({
+          cls: "rss-dashboard-content",
+        });
+      } else {
+        contentContainer.empty();
+      }
+
+      const scopedArticles = this.getUnfilteredArticles();
+      const articlesIgnoringAge = scopedArticles.filter((item) =>
+        this.matchesFilters(item, { ignoreAgeFilter: true }),
+      );
+      const allFilteredArticles = this.getFilteredArticles();
+      // Must run after getFilteredArticles() so counts reflect the active view,
+      // and before renderFilterSubheader() which reads this.highlightMatchCounts.
+      this.computeHighlightMatchCounts(allFilteredArticles);
+
+      if (this.inlineArticle) {
+        this.renderInlineArticle(contentContainer);
+        return;
+      }
+
+      this.renderToolbar(contentContainer);
+      this.renderFilterSubheader(contentContainer);
+
+      const articlesContainer = contentContainer.createDiv({
+        cls: "rss-dashboard-articles",
+      });
+      const pageSize = this.getCurrentPageSize();
+      const totalArticles = allFilteredArticles.length;
+      let currentPage = this.getCurrentPage();
+      const pagination = computePagination({
+        totalItems: totalArticles,
+        pageSize,
+        requestedPage: currentPage,
+      });
+      if (pagination.currentPage !== currentPage) {
+        this.setCurrentPageState(pagination.currentPage);
+        currentPage = pagination.currentPage;
+      }
+      const articlesForPage = allFilteredArticles.slice(
+        pagination.startIdx,
+        pagination.endIdx,
+      );
+
+      const titleInfo = this.getArticlesTitleInfo();
+      this.articleList = new ArticleList(
+        articlesContainer,
+        this.settings,
+        titleInfo.title,
+        titleInfo.tooltip,
+        articlesForPage,
+        this.selectedArticle,
+        {
+          onArticleClick: (article) => {
+            void this.handleArticleClick(article);
+          },
+          onToggleViewStyle: this.handleToggleViewStyle.bind(this),
+          onRefreshFeeds: this.handleRefreshFeeds.bind(this),
+          onSearch: (_q: string) => {
+            // State is handled by ArticleList locally, but we could sync it here if needed
+          },
+          onOpenViewFilters: () => {
+            this.openViewingFiltersMenu();
+          },
+          onOpenPerFeedSettings: () => {
+            if (this.currentFeed) {
+              this.showEditFeedModal(this.currentFeed, {
+                expandSection: "per-feed",
+                highlightSection: "per-feed",
+              });
             }
-          });
+          },
+          onArticleUpdate: (article, updates, shouldRerender) => {
+            void this.handleArticleUpdate(article, updates, shouldRerender);
+          },
+          onArticleSave: (article) => {
+            void this.handleArticleSave(article);
+          },
+          onOpenSavedArticle: (article) => {
+            void this.handleOpenSavedArticle(article);
+          },
+          onOpenInReaderView: (article) => {
+            void this.handleOpenInReaderView(article);
+          },
+          onToggleSidebar: this.handleToggleSidebar.bind(this),
+          onSortChange: this.handleSortChange.bind(this),
+          onGroupChange: this.handleGroupChange.bind(this),
+          onFilterChange: (value: {
+            type: string;
+            value: unknown;
+            checked?: boolean;
+            isTag?: boolean;
+          }) => {
+            void this.handleFilterChange(value);
+          },
+          onPageChange: this.handlePageChange.bind(this),
+          onPageSizeChange: this.handlePageSizeChange.bind(this),
+          onMarkPageAsRead: () => {
+            this.markCurrentPageAsRead();
+          },
+          onOpenTagsSettings: () => {
+            void this.plugin.openTagsSettings();
+          },
+          onTagsMutated: () => {
+            void this.plugin.refreshOpenTagColorViews();
+            this.app.workspace.trigger("rss-dashboard:tags-mutated");
+          },
+          onPersistSettings: async () => {
+            await this.plugin.saveSettings();
+          },
+          onMarkAllAsRead: () => {
+            this.actionMarkAllAsRead();
+          },
+          onMarkAllAsUnread: () => {
+            const articles = this.getFilteredArticles();
+            let count = 0;
+            articles.forEach((item) => {
+              if (item.read) {
+                item.read = false;
+                count++;
+              }
+            });
 
-          if (count > 0) {
-            void this.plugin.saveSettings();
-            void this.render();
-            new Notice(`Marked ${count} items as unread`);
-          } else {
-            new Notice("No read items in current view");
-          }
+            if (count > 0) {
+              void this.plugin.saveSettings();
+              this.scheduleRender();
+              new Notice(`Marked ${count} items as unread`);
+            } else {
+              new Notice("No read items in current view");
+            }
+          },
         },
-      },
-      currentPage,
-      pagination.totalPages,
-      pageSize,
-      totalArticles,
-      new Set(this.activeStatusFilters),
-      new Set(this.activeTagFilters),
-      this.filterLogic,
-      this.currentFeed?.url,
-      this.currentFeed === null,
-    );
+        currentPage,
+        pagination.totalPages,
+        pageSize,
+        totalArticles,
+        new Set(this.activeStatusFilters),
+        new Set(this.activeTagFilters),
+        this.filterLogic,
+        this.currentFeed?.url,
+        this.currentFeed === null,
+      );
 
-    this.articleList.setEmptyStateContext(
-      buildArticleEmptyStateContext({
-        visibleCount: allFilteredArticles.length,
-        scopedCount: scopedArticles.length,
-        availableBeforeAgeFilterCount: articlesIgnoringAge.length,
-        viewFilterReasonLabel: this.getViewFilterReasonLabel(),
-        articleFilter: this.settings.articleFilter,
-        refreshDiagnostics: this.currentFeed?.lastRefreshDiagnostics,
-      }),
-    );
+      this.articleList.setEmptyStateContext(
+        buildArticleEmptyStateContext({
+          visibleCount: allFilteredArticles.length,
+          scopedCount: scopedArticles.length,
+          availableBeforeAgeFilterCount: articlesIgnoringAge.length,
+          viewFilterReasonLabel: this.getViewFilterReasonLabel(),
+          articleFilter: this.settings.articleFilter,
+          refreshDiagnostics: this.currentFeed?.lastRefreshDiagnostics,
+        }),
+      );
 
-    this.articleList.render();
+      this.articleList.render();
 
-    this.updateRefreshButtonText();
+      this.updateRefreshButtonText();
 
-    // Recreate the resize handle after sidebar.render() clears the container.
-    this.setupSidebarResize();
+      // Recreate the resize handle after sidebar.render() clears the container.
+      this.setupSidebarResize();
+    } finally {
+      this.isRenderInProgress = false;
+
+      if (this.hasPendingRender) {
+        this.hasPendingRender = false;
+        this.render();
+      }
+    }
+  }
+
+  private scheduleRender(): void {
+    if (this.scheduledRenderTimeout !== null) {
+      return;
+    }
+
+    this.scheduledRenderTimeout = activeWindow.setTimeout(() => {
+      this.scheduledRenderTimeout = null;
+      this.render();
+    }, 0);
   }
 
   private renderToolbar(container: HTMLElement): void {
@@ -1330,9 +1368,14 @@ export class RssDashboardView extends ItemView {
     let articles: FeedItem[] = [];
 
     if (this.currentFeed) {
+      const currentFeed = this.currentFeed;
       // Don't slice before filtering/sorting. Refresh merge + retention sorts newest-first,
       // but slicing early can still hide newly fetched items when ordering changes.
-      articles = [...this.currentFeed.items];
+      articles = this.currentFeed.items.map((item) => ({
+        ...item,
+        feedTitle: item.feedTitle || currentFeed.title,
+        feedUrl: item.feedUrl || currentFeed.url,
+      }));
     } else if (this.selectedTags.length > 0) {
       const mode = this.settings.sidebarTagFilterMode || "or";
       for (const feed of this.settings.feeds) {
@@ -1445,7 +1488,12 @@ export class RssDashboardView extends ItemView {
     let articles: FeedItem[] = [];
 
     if (this.currentFeed) {
-      articles = [...this.currentFeed.items];
+      const currentFeed = this.currentFeed;
+      articles = this.currentFeed.items.map((item) => ({
+        ...item,
+        feedTitle: item.feedTitle || currentFeed.title,
+        feedUrl: item.feedUrl || currentFeed.url,
+      }));
     } else if (this.selectedTags.length > 0) {
       const mode = this.settings.sidebarTagFilterMode || "or";
       for (const feed of this.settings.feeds) {
@@ -2172,7 +2220,7 @@ export class RssDashboardView extends ItemView {
     }
     this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
     void this.plugin.saveSettings();
-    void this.render();
+    this.scheduleRender();
   }
 
   // --- Article open/save actions ---
@@ -2387,9 +2435,11 @@ export class RssDashboardView extends ItemView {
       updates,
       this.settings,
     );
-    const feed = this.settings.feeds.find(
-      (f: Feed) => f.url === article.feedUrl,
-    );
+    const feed =
+      this.settings.feeds.find((f: Feed) => f.url === article.feedUrl) ||
+      this.settings.feeds.find((f: Feed) =>
+        f.items.some((item: FeedItem) => item.guid === article.guid),
+      );
 
     if (!feed) return;
 
@@ -2998,6 +3048,10 @@ export class RssDashboardView extends ItemView {
     if (this.verificationTimeout) {
       activeWindow.clearTimeout(this.verificationTimeout);
     }
+    if (this.scheduledRenderTimeout !== null) {
+      activeWindow.clearTimeout(this.scheduledRenderTimeout);
+      this.scheduledRenderTimeout = null;
+    }
     if (this.dashboardMultiFiltersSaveTimeout !== null) {
       activeWindow.clearTimeout(this.dashboardMultiFiltersSaveTimeout);
       this.dashboardMultiFiltersSaveTimeout = null;
@@ -3096,6 +3150,7 @@ export class RssDashboardView extends ItemView {
     if (this.sidebarContainer && !this.settings.sidebarCollapsed) {
       const width = this.settings.sidebarWidth || 280;
       this.sidebarContainer.style.width = `${width}px`;
+      this.sidebarContainer.style.minWidth = `${width}px`;
       // Keep the resize handle pinned to the sidebar's right edge.
       // CSS `transform: translateX(-50%)` on the handle centers it on this
       // position, giving equal hitbox on both sides of the border line.
@@ -3484,6 +3539,18 @@ export class RssDashboardView extends ItemView {
     return "main";
   }
 
+  private getSavedArticleOpenLocation(): ViewLocation {
+    const location = this.settings.savedArticleOpenLocation;
+    if (
+      location === "left-sidebar" ||
+      location === "right-sidebar" ||
+      location === "inline"
+    ) {
+      return location;
+    }
+    return "main";
+  }
+
   private getConfiguredReaderLeaf(): WorkspaceLeaf | null {
     const { workspace } = this.app;
     const readerLeaves = workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
@@ -3498,6 +3565,23 @@ export class RssDashboardView extends ItemView {
         return null;
       default:
         return readerLeaves[0] ?? null;
+    }
+  }
+
+  private getConfiguredSavedArticleLeaf(
+    location: ViewLocation,
+  ): WorkspaceLeaf | null {
+    const { workspace } = this.app;
+
+    switch (location) {
+      case "left-sidebar":
+        return workspace.getLeftLeaf(false);
+      case "right-sidebar":
+        return workspace.getRightLeaf(false);
+      case "inline":
+        return null;
+      default:
+        return workspace.getLeaf("split");
     }
   }
 
@@ -3747,9 +3831,25 @@ export class RssDashboardView extends ItemView {
     return null;
   }
 
-  private async openSavedArticleFile(file: TFile): Promise<void> {
+  public async openSavedArticleFile(
+    file: TFile,
+    article?: FeedItem,
+  ): Promise<void> {
     try {
-      const leaf = this.app.workspace.getLeaf("split");
+      const location = this.getSavedArticleOpenLocation();
+
+      if (location === "inline" && article) {
+        this.inlineArticle = article;
+        void this.render();
+        new Notice(`Opened saved article: ${file.basename}`);
+        return;
+      }
+
+      const leaf = this.getConfiguredSavedArticleLeaf(location);
+      if (!leaf) {
+        throw new Error("No workspace leaf available for saved article");
+      }
+
       await leaf.openFile(file);
       void this.app.workspace.revealLeaf(leaf);
 
@@ -3771,7 +3871,7 @@ export class RssDashboardView extends ItemView {
     try {
       const savedFile = await this.saver.findSavedArticleFile(article);
       if (savedFile) {
-        await this.openSavedArticleFile(savedFile);
+        await this.openSavedArticleFile(savedFile, article);
         loadingNotice.hide();
       } else {
         await this.updateArticleStatus(article, { saved: false }, false);

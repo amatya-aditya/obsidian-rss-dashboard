@@ -1,0 +1,349 @@
+/* =============================================================================
+ * Discover Sidebar (discover-sidebar.css)
+ *
+ * Core sidebar container, search inputs, category and tag tree lists.
+ * =============================================================================
+ */
+
+/* ============================================
+ * 1. Base Variables & Custom Properties
+ * ============================================ */
+
+/* ============================================
+ * 2. Sidebar Layout & Container
+ * ============================================ */
+
+.rss-discover-sidebar {
+  width: 250px;
+  min-width: 200px;
+  border-right: 1px solid var(--background-modifier-border);
+  padding: 0px;
+  overflow-y: auto;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.rss-discover-filter-container {
+  position: sticky;
+  top: -10px;
+  background: var(--background-primary);
+  border-radius: 6px;
+}
+
+.rss-discover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px;
+}
+.rss-discover-header .rss-dashboard-nav-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+.rss-discover-header-nav-button {
+  display: flex;
+  align-items: center;
+  contain: layout style;
+  gap: 6px;
+  padding: 6px;
+  min-height: 16px;
+  flex: 1 1 calc(50% - 4px);
+  min-width: 40px;
+  background: var(--interactive-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.rss-discover-header-nav-button:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--text-on-accent);
+}
+.rss-discover-header-nav-button:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+.rss-discover-header-nav-button > svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  overflow: visible;
+  will-change: transform;
+  flex-shrink: 0;
+}
+.rss-discover-header-nav-button-text {
+  white-space: nowrap;
+}
+
+.rss-discover-controls-container {
+  position: sticky;
+  top: 0;
+  background: var(--background-primary);
+  z-index: 100;
+}
+
+.rss-discover-mobile-header {
+  display: none;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 12px;
+}
+body .rss-discover-controls-container.is-narrow .rss-discover-mobile-header {
+  display: flex;
+  width: 100%;
+  z-index: 10;
+}
+
+.rss-discover-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rss-discover-header-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-normal);
+}
+.rss-discover-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rss-discover-sidebar-toggle {
+  contain: layout style;
+}
+
+.rss-discover-sidebar-toggle > svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  overflow: visible;
+  opacity: 1;
+  will-change: transform;
+}
+
+/* ============================================
+ * 3. Search Inputs
+ * ============================================ */
+
+.rss-discover-search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.rss-discover-search-input,
+.rss-discover-tag-search {
+  width: 100%;
+  padding: 8px 12px;
+  padding-right: 36px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 14px;
+}
+.rss-discover-search-input-wrapper .rss-discover-search-clear {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--rss-color-danger);
+  background-color: var(--rss-color-danger-bg);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+.rss-discover-search-input-wrapper .rss-discover-search-clear-hidden {
+  display: none !important; /* audit-ok: display toggle utility */
+}
+.rss-discover-search-input-wrapper .rss-discover-search-clear:hover {
+  color: var(--rss-color-danger-hover);
+  background-color: var(--rss-color-danger-bg-hover);
+  transform: scale(1.08);
+}
+.rss-discover-search-input-wrapper .rss-discover-search-clear:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+.rss-discover-search-input-wrapper .rss-discover-search-clear svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.5;
+}
+
+/* ============================================
+ * 4. Category & Tag Trees
+ * ============================================ */
+
+.rss-discover-type-list,
+.rss-discover-tag-list {
+  overflow-y: auto;
+}
+.rss-discover-type-item,
+.rss-discover-tag-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+  gap: 8px;
+}
+.rss-discover-tag-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.rss-discover-type-item input[type="checkbox"],
+.rss-discover-tag-item input[type="checkbox"] {
+  margin: 0;
+}
+.rss-discover-type-item label,
+.rss-discover-tag-item label {
+  flex: 1;
+  font-size: 14px;
+  cursor: pointer;
+}
+.rss-discover-type-count,
+.rss-discover-tag-count {
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 12px;
+  min-width: 20px;
+  text-align: center;
+}
+.rss-discover-category-tree {
+  overflow-y: auto;
+}
+.rss-discover-category-node {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 4px 0;
+  gap: 0;
+}
+.rss-discover-category-node.disabled {
+  opacity: 0.5;
+}
+.rss-discover-category-item.disabled {
+  opacity: 0.5;
+}
+.rss-discover-category-node input[type="checkbox"] {
+  margin: 0;
+}
+.rss-discover-category-node label {
+  flex: 1;
+  font-size: 14px;
+  cursor: pointer;
+}
+.rss-discover-category-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.rss-discover-category-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 4px 8px 4px 0;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.rss-discover-category-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-left: calc(var(--depth) * 16px);
+}
+.rss-discover-category-row input[type="checkbox"] {
+  margin: 0;
+}
+.rss-discover-category-row label {
+  flex: 1;
+  font-size: 14px;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rss-discover-category-expand {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.rss-discover-category-expand-hidden {
+  visibility: hidden;
+}
+.rss-discover-category-children {
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  min-width: 0;
+  box-sizing: border-box;
+  margin-left: 12px;
+  padding-left: 8px;
+  border-left: 1px solid var(--background-modifier-border);
+}
+.rss-discover-category-children.rss-collapsed {
+  display: none;
+}
+.rss-discover-category-count {
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 12px;
+  min-width: 20px;
+  text-align: center;
+  justify-self: end;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+/* ============================================
+ * 5. Media Query - Mobile (max-width: 1200px)
+ * ============================================ */
+
+@media (max-width: 1200px) {
+  .rss-discover-layout > .rss-discover-sidebar {
+    display: none !important; /* audit-ok: display toggle utility */
+  }
+
+  .rss-discover-sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--background-modifier-border);
+  }
+
+  .rss-discover-filter-container {
+    flex: none;
+  }
+
+  .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-content {
+    padding: 0 16px;
+  }
+}

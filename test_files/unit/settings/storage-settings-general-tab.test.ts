@@ -98,6 +98,24 @@ beforeEach(() => {
 });
 
 describe("General settings storage section", () => {
+  it("marks the storage transition modal for mobile safe-area positioning", () => {
+    const app = obsidian.App.createMock();
+    const modal = new StorageTransitionModal(app, {
+      currentMode: "legacy-json",
+      targetMode: "vault-shards",
+      storageFolder: ".rss-dashboard-data/feeds",
+    });
+
+    modal.open();
+
+    expect(modal.modalEl.classList.contains("rss-storage-transition-modal")).toBe(
+      true,
+    );
+    expect(
+      modal.contentEl.querySelector(".rss-storage-transition-buttons"),
+    ).toBeTruthy();
+  });
+
   it("renders the storage controls in the General tab", () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
@@ -121,6 +139,7 @@ describe("General settings storage section", () => {
   it("applies the pending legacy-to-shards storage change through the modal", async () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
+    plugin.settings.storageMode = "legacy-json";
     vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(
       () => {},
     );
@@ -170,6 +189,7 @@ describe("General settings storage section", () => {
   it("does not trigger migration when the storage mode dropdown changes", async () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
+    plugin.settings.storageMode = "legacy-json";
 
     renderGeneralSettingsTab(
       containerEl,
@@ -195,6 +215,7 @@ describe("General settings storage section", () => {
   it("exports data.json from the apply modal before migrating to shards", async () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
+    plugin.settings.storageMode = "legacy-json";
     vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(
       () => {},
     );
@@ -405,6 +426,7 @@ describe("General settings storage section", () => {
   it("updates the storage folder setting through a standard text input", async () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
+    plugin.settings.storageMode = "legacy-json";
 
     renderGeneralSettingsTab(
       containerEl,

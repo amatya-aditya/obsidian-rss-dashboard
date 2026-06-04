@@ -1,243 +1,208 @@
-import { Scope } from "obsidian";
 import type { RssDashboardView } from "../views/dashboard-view";
+
+/**
+ * Returns true when the event target is an interactive typing element.
+ * Safe to use in bubbling-phase listeners.
+ */
+export function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+
+  const tag = target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (target.isContentEditable) return true;
+
+  // Obsidian's CodeMirror editor — not caught by tag checks
+  if (target.closest('.cm-editor, .cm-content')) return true;
+
+  return false;
+}
 
 /**
  * Registers keyboard shortcuts scoped to the RSS Dashboard view.
  * Decouples the hotkey routing logic from the monolithic dashboard view.
+ * Uses a bubbling-phase document listener to avoid Obsidian Scope capture-phase issues.
  */
-export function setupDashboardHotkeys(scope: Scope, view: RssDashboardView): void {
-  // Pane focus
-  scope.register(["Shift"], "s", (evt) => {
-    evt.preventDefault();
-    view.actionFocusSidebar();
-    return true;
-  });
+export function setupDashboardHotkeys(view: RssDashboardView): void {
+  view.registerDomEvent(document, "keydown", (e: KeyboardEvent) => {
+    // Guard 1: only fire when THIS view instance is the active leaf
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    if (view.app.workspace.activeLeaf?.view !== view) return;
 
-  scope.register(["Shift"], "r", (evt) => {
-    evt.preventDefault();
-    if (view.isSidebarFocused()) {
-      view.actionSidebarRenameFocused();
+    // Guard 2: user is typing somewhere — let the input own the event
+    if (isTypingTarget(e.target)) return;
+
+    // Guard 3: skip OS modified keys (Ctrl/Cmd/Alt) to preserve native shortcuts
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+    const key = e.key;
+    const shift = e.shiftKey;
+
+    let handled = false;
+
+    if (shift) {
+      switch (key) {
+        case "S":
+          view.actionFocusSidebar();
+          handled = true;
+          break;
+        case "R":
+          if (view.isSidebarFocused()) {
+            view.actionSidebarRenameFocused();
+          } else {
+            view.actionFocusReader();
+          }
+          handled = true;
+          break;
+        case " ": // Shift + Space
+          view.actionNavigatePrevious();
+          handled = true;
+          break;
+        case "J":
+          view.actionSidebarMovePrevious();
+          handled = true;
+          break;
+        case "L":
+          view.actionSidebarMoveNext();
+          handled = true;
+          break;
+        case "O":
+          view.actionSidebarOpenFocused();
+          handled = true;
+          break;
+        case "Enter":
+          view.actionSidebarOpenFocused();
+          handled = true;
+          break;
+        case "X":
+          view.actionSidebarToggleFocusedFolder();
+          handled = true;
+          break;
+        case "D":
+          view.actionSidebarDeleteFocused();
+          handled = true;
+          break;
+        case "A":
+          view.actionMarkAllAsRead();
+          handled = true;
+          break;
+        case "!": // Shift + 1
+          view.actionSetStatusFilter("all");
+          handled = true;
+          break;
+        case "@": // Shift + 2
+          view.actionSetStatusFilter("unread");
+          handled = true;
+          break;
+        case "#": // Shift + 3
+          view.actionSetStatusFilter("read");
+          handled = true;
+          break;
+        case "?": // Shift + ?
+          view.actionOpenShortcutHelp();
+          handled = true;
+          break;
+      }
     } else {
-      view.actionFocusReader();
+      switch (key) {
+        case "r":
+          void view.actionRefreshFeeds();
+          handled = true;
+          break;
+        case "j":
+          view.actionNavigateNext();
+          handled = true;
+          break;
+        case " ": // Space
+          view.actionNavigateNext();
+          handled = true;
+          break;
+        case "k":
+          view.actionNavigatePrevious();
+          handled = true;
+          break;
+        case "ArrowLeft":
+          if (view.isSidebarFocused()) {
+            view.actionSidebarJumpPreviousFolder();
+          } else {
+            view.actionNavigateCard("left");
+          }
+          handled = true;
+          break;
+        case "ArrowRight":
+          if (view.isSidebarFocused()) {
+            view.actionSidebarJumpNextFolder();
+          } else {
+            view.actionNavigateCard("right");
+          }
+          handled = true;
+          break;
+        case "ArrowUp":
+          if (view.isSidebarFocused()) {
+            view.actionSidebarMovePrevious();
+          } else {
+            view.actionNavigateCard("up");
+          }
+          handled = true;
+          break;
+        case "ArrowDown":
+          if (view.isSidebarFocused()) {
+            view.actionSidebarMoveNext();
+          } else {
+            view.actionNavigateCard("down");
+          }
+          handled = true;
+          break;
+        case "o":
+          view.actionToggleArticleOpen();
+          handled = true;
+          break;
+        case "Enter":
+          if (view.isSidebarFocused()) {
+            view.actionSidebarOpenFocused();
+          } else {
+            view.actionToggleArticleOpen();
+          }
+          handled = true;
+          break;
+        case "m":
+          void view.actionToggleReadStatus();
+          handled = true;
+          break;
+        case "f":
+          void view.actionToggleStarStatus();
+          handled = true;
+          break;
+        case "t":
+          view.actionToggleTagsMenu();
+          handled = true;
+          break;
+        case "s":
+          void view.actionSaveSelectedArticle();
+          handled = true;
+          break;
+        case "1":
+          view.actionSetViewStyle("list");
+          handled = true;
+          break;
+        case "2":
+          view.actionSetViewStyle("card");
+          handled = true;
+          break;
+case "3":
+           view.actionSetViewStyle("feed");
+           handled = true;
+           break;
+         case ",":
+           void view.actionMarkReadAndNext();
+           handled = true;
+           break;
+       }
+     }
+
+     if (handled) {
+      e.preventDefault();
+      // stop propagation to prevent other global events from handling it (since we acted on it)
+      e.stopPropagation();
     }
-    return true;
-  });
-
-  // Refresh feed ('r')
-  scope.register([], "r", (evt) => {
-    evt.preventDefault();
-    void view.actionRefreshFeeds();
-    return true;
-  });
-
-  // Next article ('j')
-  scope.register([], "j", (evt) => {
-    evt.preventDefault();
-    view.actionNavigateNext();
-    return true;
-  });
-
-  // Next article ('Space')
-  scope.register([], " ", (evt) => {
-    evt.preventDefault();
-    view.actionNavigateNext();
-    return true;
-  });
-
-  // Previous article ('k')
-  scope.register([], "k", (evt) => {
-    evt.preventDefault();
-    view.actionNavigatePrevious();
-    return true;
-  });
-
-  // Previous article ('Shift + Space')
-  scope.register(["Shift"], " ", (evt) => {
-    evt.preventDefault();
-    view.actionNavigatePrevious();
-    return true;
-  });
-
-  // Card Navigation ('ArrowLeft')
-  scope.register([], "ArrowLeft", (evt) => {
-    evt.preventDefault();
-    if (view.isSidebarFocused()) {
-      view.actionSidebarJumpPreviousFolder();
-    } else {
-      view.actionNavigateCard("left");
-    }
-    return true;
-  });
-
-  // Card Navigation ('ArrowRight')
-  scope.register([], "ArrowRight", (evt) => {
-    evt.preventDefault();
-    if (view.isSidebarFocused()) {
-      view.actionSidebarJumpNextFolder();
-    } else {
-      view.actionNavigateCard("right");
-    }
-    return true;
-  });
-
-  // Card Navigation ('ArrowUp')
-  scope.register([], "ArrowUp", (evt) => {
-    evt.preventDefault();
-    if (view.isSidebarFocused()) {
-      view.actionSidebarMovePrevious();
-    } else {
-      view.actionNavigateCard("up");
-    }
-    return true;
-  });
-
-  // Card Navigation ('ArrowDown')
-  scope.register([], "ArrowDown", (evt) => {
-    evt.preventDefault();
-    if (view.isSidebarFocused()) {
-      view.actionSidebarMoveNext();
-    } else {
-      view.actionNavigateCard("down");
-    }
-    return true;
-  });
-
-  // Open/Close article ('o')
-  scope.register([], "o", (evt) => {
-    evt.preventDefault();
-    view.actionToggleArticleOpen();
-    return true;
-  });
-
-  // Open/Close article ('Enter')
-  scope.register([], "Enter", (evt) => {
-    evt.preventDefault();
-    if (view.isSidebarFocused()) {
-      view.actionSidebarOpenFocused();
-    } else {
-      view.actionToggleArticleOpen();
-    }
-    return true;
-  });
-
-  // Mark read/unread ('m')
-  scope.register([], "m", (evt) => {
-    evt.preventDefault();
-    void view.actionToggleReadStatus();
-    return true;
-  });
-
-  // Mark all as read ('Shift + a')
-  scope.register(["Shift"], "a", (evt) => {
-    evt.preventDefault();
-    view.actionMarkAllAsRead();
-    return true;
-  });
-
-  // Star/unstar article ('f')
-  scope.register([], "f", (evt) => {
-    evt.preventDefault();
-    void view.actionToggleStarStatus();
-    return true;
-  });
-
-  // Add tags to article ('t')
-  scope.register([], "t", (evt) => {
-    evt.preventDefault();
-    view.actionToggleTagsMenu();
-    return true;
-  });
-
-  // Save selected article ('s')
-  scope.register([], "s", (evt) => {
-    evt.preventDefault();
-    void view.actionSaveSelectedArticle();
-    return true;
-  });
-
-  scope.register(["Shift"], "j", (evt) => {
-    evt.preventDefault();
-    view.actionSidebarMovePrevious();
-    return true;
-  });
-
-  scope.register(["Shift"], "l", (evt) => {
-    evt.preventDefault();
-    view.actionSidebarMoveNext();
-    return true;
-  });
-
-  scope.register(["Shift"], "o", (evt) => {
-    evt.preventDefault();
-    view.actionSidebarOpenFocused();
-    return true;
-  });
-
-  scope.register(["Shift"], "Enter", (evt) => {
-    evt.preventDefault();
-    view.actionSidebarOpenFocused();
-    return true;
-  });
-
-  scope.register(["Shift"], "x", (evt) => {
-    evt.preventDefault();
-    view.actionSidebarToggleFocusedFolder();
-    return true;
-  });
-
-  scope.register(["Shift"], "d", (evt) => {
-    evt.preventDefault();
-    view.actionSidebarDeleteFocused();
-    return true;
-  });
-
-
-  // Filter: All ('Shift + 1')
-  scope.register(["Shift"], "1", (evt) => {
-    evt.preventDefault();
-    view.actionSetStatusFilter("all");
-    return true;
-  });
-
-  // Filter: Unread ('Shift + 2')
-  scope.register(["Shift"], "2", (evt) => {
-    evt.preventDefault();
-    view.actionSetStatusFilter("unread");
-    return true;
-  });
-
-  // Filter: Read ('Shift + 3')
-  scope.register(["Shift"], "3", (evt) => {
-    evt.preventDefault();
-    view.actionSetStatusFilter("read");
-    return true;
-  });
-
-  // View Style: List ('1')
-  scope.register([], "1", (evt) => {
-    evt.preventDefault();
-    view.actionSetViewStyle("list");
-    return true;
-  });
-
-  // View Style: Card ('2')
-  scope.register([], "2", (evt) => {
-    evt.preventDefault();
-    view.actionSetViewStyle("card");
-    return true;
-  });
-
-  // View Style: Feed ('3')
-  scope.register([], "3", (evt) => {
-    evt.preventDefault();
-    view.actionSetViewStyle("feed");
-    return true;
-  });
-
-  // Open Shortcut Help ('Shift + ?')
-  scope.register(["Shift"], "?", (evt) => {
-    evt.preventDefault();
-    view.actionOpenShortcutHelp();
-    return true;
   });
 }

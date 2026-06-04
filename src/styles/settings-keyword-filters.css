@@ -1,0 +1,579 @@
+/* =============================================================================
+ * Settings Keyword Filters (settings-keyword-filters.css)
+ *
+ * Filter display modes, keyword/highlight editor controls, and keyword-specific
+ * responsive behavior.
+ * =============================================================================
+ */
+
+/* ============================================
+ * 1. Keyword Token Defaults
+ * ============================================ */
+
+:root {
+  --rss-color-danger: #c93030;
+  --rss-color-danger-hover: #b62828;
+  --rss-color-danger-disabled: #7a2a2a;
+  --rss-color-danger-border: #a32020;
+  --rss-color-danger-border-disabled: #6a2020;
+}
+
+/* ============================================
+ * 2. Filter Display Modes
+ * ============================================ */
+
+.rss-dashboard-filters-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+}
+
+.rss-dashboard-filters-inline .rss-dashboard-filter-items-row {
+  display: flex;
+  gap: 2px;
+  justify-content: left;
+}
+
+.rss-dashboard-filters-inline .rss-dashboard-filter-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.rss-dashboard-filters-inline .rss-dashboard-filter-item:hover {
+  background-color: var(--background-modifier-hover);
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.rss-dashboard-filters-inline .rss-dashboard-filter-item.active {
+  background-color: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.rss-dashboard-filters-inline .rss-dashboard-search-filter.active,
+.rss-dashboard-filters-inline .rss-dashboard-tags-filter.active {
+  background-color: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.rss-dashboard-filters-inline .rss-dashboard-filter-icon {
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rss-dashboard-filters-inline .rss-dashboard-filter-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.rss-dashboard-filters-vertical .rss-dashboard-filter-item {
+  display: flex;
+  align-items: center;
+  padding: 2px 12px;
+  margin: 2px 0;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rss-dashboard-filters-vertical .rss-dashboard-filter-item:hover {
+  background-color: var(--background-modifier-hover);
+  border-color: var(--color-accent);
+}
+
+.rss-dashboard-filters-vertical .rss-dashboard-filter-item.active {
+  background-color: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.rss-dashboard-filters-vertical .rss-dashboard-search-filter.active,
+.rss-dashboard-filters-vertical .rss-dashboard-tags-filter.active {
+  background-color: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.rss-dashboard-filters-vertical .rss-dashboard-filter-icon {
+  margin-right: 8px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================
+ * 3. Highlight Controls
+ * ============================================ */
+
+.rss-dashboard-highlights-words-container {
+  margin: 12px 0;
+  padding: 8px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+}
+
+.rss-dashboard-highlight-word-name-click {
+  cursor: pointer;
+}
+
+.rss-dashboard-highlight-word-name-click:hover {
+  color: var(--text-accent);
+  text-decoration: underline;
+}
+
+.rss-dashboard-highlight-word-setting .setting-item-control {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ============================================
+ * 4. Keyword Filter Editor
+ * ============================================ */
+
+.rss-keyword-filter-editor {
+  margin-top: 8px;
+}
+
+.rss-keyword-filter-editor-controls {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr);
+  align-items: center;
+  column-gap: 18px;
+  row-gap: 10px;
+  margin: 8px 0 12px;
+}
+
+.rss-keyword-filter-toggle-row,
+.rss-keyword-filter-logic-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rss-keyword-filter-toggle-row {
+  grid-column: 1;
+}
+
+.rss-keyword-filter-logic-row {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.rss-keyword-filter-logic-label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.rss-keyword-filter-logic-help {
+  flex-basis: 100%;
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 0;
+}
+
+.rss-keyword-filter-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+
+.rss-keyword-filter-segmented-btn {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  min-width: 56px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rss-keyword-filter-segmented-btn.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.rss-keyword-filter-segmented-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rss-keyword-filter-rules-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rss-keyword-filter-rule-row {
+  padding-bottom: 0;
+}
+
+.rss-keyword-filter-rule-col {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--background-secondary);
+}
+
+.rss-keyword-filter-rule-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.rss-keyword-filter-rule-header-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rss-keyword-filter-rule-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.rss-keyword-filter-enabled-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rss-keyword-filter-enabled-btn:hover {
+  border-color: var(--interactive-accent);
+}
+
+.rss-keyword-filter-enabled-btn-box {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border-hover);
+  background: var(--background-secondary);
+  color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.rss-keyword-filter-enabled-btn-box.is-checked {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.rss-keyword-filter-enabled-btn.is-checked {
+  border-color: var(--interactive-accent);
+}
+
+.rss-keyword-filter-enabled-btn-label {
+  color: var(--text-normal);
+}
+
+.rss-keyword-filter-enabled-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
+.rss-keyword-filter-rule-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rss-keyword-filter-rule-row.is-disabled .rss-keyword-filter-rule-body {
+  opacity: 0.65;
+  filter: grayscale(0.2);
+  pointer-events: none;
+}
+
+.rss-keyword-filter-rule-type-row,
+.rss-keyword-filter-rule-match-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, auto);
+  gap: 8px;
+  align-items: center;
+}
+
+.rss-keyword-filter-inline-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  min-width: 0;
+}
+
+.rss-keyword-filter-rule-keyword-row {
+  display: flex;
+  min-width: 0;
+}
+
+.rss-keyword-filter-rule-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(102px, 1fr));
+}
+
+.rss-keyword-filter-rule-segmented .rss-keyword-filter-segmented-btn {
+  min-width: 0;
+}
+
+.rss-keyword-filter-select,
+.rss-keyword-filter-input {
+  height: var(--input-height);
+}
+
+.rss-keyword-filter-select {
+  min-width: 112px;
+}
+
+.rss-keyword-filter-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.rss-keyword-filter-locations-row {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.rss-keyword-filter-location-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+}
+
+.rss-keyword-filter-label {
+  color: var(--text-normal);
+  font-size: 12px;
+}
+
+.rss-keyword-filter-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--rss-color-danger-border, #a32020);
+  border-radius: 6px;
+  background: var(--rss-color-danger, #c93030);
+  color: var(--text-on-accent);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rss-keyword-filter-delete-header {
+  margin-left: auto;
+  text-transform: capitalize;
+}
+
+.rss-keyword-filter-delete:hover {
+  background: var(--rss-color-danger-hover, #b62828);
+}
+
+.rss-keyword-filter-delete:disabled {
+  background: var(--rss-color-danger-disabled, #7a2a2a);
+  border-color: var(--rss-color-danger-border-disabled, #6a2020);
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
+.rss-keyword-filter-checkbox {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  vertical-align: middle;
+  accent-color: var(--interactive-accent);
+}
+
+.rss-keyword-filter-empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 8px 10px;
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: 8px;
+}
+
+.rss-keyword-filter-add-btn {
+  margin-top: 10px;
+  width: 100%;
+  min-height: 38px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+/* ============================================
+ * 5. Responsive Overrides
+ * ============================================ */
+
+@media (max-width: 1200px) {
+  .rss-dashboard-filters-inline
+    .rss-dashboard-filter-item.rss-dashboard-mobile-action-button {
+    width: auto;
+    min-width: 118px;
+    min-height: 40px;
+    height: 40px;
+    padding: 0 10px;
+    justify-content: flex-start;
+    gap: 8px;
+    border-radius: 10px;
+  }
+
+  .rss-dashboard-filters-inline
+    .rss-dashboard-filter-item.rss-dashboard-mobile-action-button
+    .rss-dashboard-filter-name {
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .rss-dashboard-filters-inline
+    .rss-dashboard-filter-item.rss-dashboard-mobile-refresh-button {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+  }
+
+  .rss-dashboard-filters-inline
+    .rss-dashboard-filter-item.rss-dashboard-mobile-refresh-button:hover {
+    background-color: var(--interactive-accent-hover);
+    color: var(--text-on-accent);
+  }
+}
+
+@media (max-width: 1024px) {
+  .rss-dashboard-highlight-word-setting.setting-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .rss-dashboard-highlight-word-setting .setting-item-info {
+    width: 100%;
+    padding-right: 0;
+  }
+
+  .rss-dashboard-highlight-word-setting .setting-item-control {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "enabled edit delete"
+      "color color color"
+      "partial partial partial"
+      "case case case";
+    align-items: center;
+    gap: 8px;
+  }
+
+  .rss-dashboard-highlight-word-setting .setting-item-control > :nth-child(1) {
+    grid-area: color;
+    justify-self: stretch;
+  }
+
+  .rss-dashboard-highlight-word-setting .setting-item-control > :nth-child(2) {
+    grid-area: enabled;
+    justify-self: start;
+  }
+
+  .rss-dashboard-highlight-word-setting .setting-item-control > :nth-child(3) {
+    grid-area: partial;
+    justify-self: stretch;
+  }
+
+  .rss-dashboard-highlight-word-setting
+    .setting-item-control
+    > :nth-child(3)
+    button {
+    width: 100%;
+  }
+
+  .rss-dashboard-highlight-word-setting .setting-item-control > :nth-child(4) {
+    grid-area: case;
+    justify-self: stretch;
+  }
+
+  .rss-dashboard-highlight-word-setting
+    .setting-item-control
+    > :nth-child(4)
+    button {
+    width: 100%;
+  }
+
+  .rss-dashboard-highlight-word-setting .setting-item-control > :nth-child(5) {
+    grid-area: edit;
+    justify-self: end;
+  }
+
+  .rss-dashboard-highlight-word-setting .setting-item-control > :nth-child(6) {
+    grid-area: delete;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 920px) {
+  .rss-keyword-filter-editor-controls {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 12px;
+  }
+
+  .rss-keyword-filter-input {
+    min-width: 160px;
+  }
+}
+
+@media (max-width: 768px) {
+  .rss-keyword-filter-editor-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .rss-keyword-filter-toggle-row,
+  .rss-keyword-filter-logic-row,
+  .rss-keyword-filter-logic-help {
+    grid-column: 1;
+  }
+
+  .rss-keyword-filter-rule-type-row,
+  .rss-keyword-filter-rule-match-row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -33,7 +33,6 @@
   opacity: 0.8;
 }
 
-
 .rss-dashboard-article-item.video .rss-dashboard-article-title::before,
 .rss-dashboard-article-item.podcast .rss-dashboard-article-title::before {
   display: inline-block;
@@ -131,7 +130,7 @@
   flex-wrap: wrap;
 }
 
-.rss-dashboard-grid-actions .rss-dashboard-article-tags {
+.rss-dashboard-grid-actions .rss-dashboard-tag-container {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
@@ -253,10 +252,10 @@
 
 .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
   .rss-dashboard-grid-actions
-  .rss-dashboard-article-tags,
+  .rss-dashboard-tag-container,
 .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-minimal
   .rss-dashboard-grid-actions
-  .rss-dashboard-article-tags {
+  .rss-dashboard-tag-container {
   display: none;
 }
 

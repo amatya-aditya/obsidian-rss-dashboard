@@ -1,22 +1,19 @@
 .rss-dashboard-container {
   font-size: 14px;
   height: 100%;
-  overflow: hidden;
-  padding: 0px !important;
-  /* border-top: 1px solid var(--background-modifier-border); */
   background-color: var(--background-primary);
   color: var(--text-normal);
+  padding: 0 !important; /* audit-ok: override for Obsidian's forced workspace padding */
 }
 
 .rss-dashboard-layout {
   display: flex;
   height: 100%;
-  overflow: hidden;
   position: relative;
 }
 
 .rss-dashboard-sidebar {
-  width: 290px;
+  width: 300px;
   height: 100%;
   border-right: 1px solid var(--background-modifier-border);
   display: flex;
@@ -25,6 +22,11 @@
   background-color: var(--background-primary);
   position: relative;
   flex-shrink: 0;
+}
+
+.rss-dashboard-layout > .rss-dashboard-sidebar-container {
+  flex: 0 0 auto;
+  height: 100%;
 }
 
 /*
@@ -164,19 +166,9 @@
   }
 }
 
-.rss-dashboard-header,
-.rss-dashboard-filters-section,
-.rss-dashboard-tags-section,
-.rss-dashboard-sponsor-section {
-  flex: 0 0 auto;
-  overflow: visible !important;
-  max-height: none !important;
-  min-height: unset !important;
-}
-
 .sidebar-collapsed .rss-dashboard-sidebar {
-  display: none !important;
-  width: 0 !important;
+  display: none !important; /* audit-ok: override Obsidian's inline styles that force-show the sidebar on mobile */
+  width: 0 !important; /* audit-ok: override Obsidian's inline styles that force-show the sidebar on mobile */
 }
 
 /* Tablet and below: hide dashboard sidebar in favor of mobile navigation modal. */
@@ -201,12 +193,12 @@
     padding: 0;
   }
 
-  .rss-dashboard-sidebar {
-    display: none !important;
+  .rss-dashboard-layout > .rss-dashboard-sidebar {
+    display: none !important; /* audit-ok: override for Obsidian's forced sidebar display on mobile */
   }
 
-  .rss-dashboard-sidebar-resize-handle {
-    display: none !important;
+  .rss-dashboard-layout > .rss-dashboard-sidebar-resize-handle {
+    display: none !important; /* audit-ok: hide the resize handle on mobile since the sidebar is always hidden and the handle would be non-functional */
   }
 
   .rss-dashboard-container {

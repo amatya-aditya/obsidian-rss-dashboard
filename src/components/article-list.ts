@@ -8,7 +8,6 @@ import { MastodonService } from "../services/mastodon-service";
 import {
   formatDateWithRelative,
   formatArticleDate,
-  ensureUtf8Meta,
   setCssProps,
   windowInstanceOf,
 } from "../utils/platform-utils";
@@ -20,8 +19,11 @@ import {
   PAGE_SIZE_OPTIONS,
 } from "../utils/page-size-options";
 import { computeResultsRange } from "../utils/pagination-utils";
+import { htmlToReadableText } from "../utils/html-text";
 
 const MAX_VISIBLE_TAGS = 6;
+const CARD_PREVIEW_SUMMARY_MAX_CHARS = 420;
+const CARD_PREVIEW_HIGHLIGHT_MAX_CHARS = 900;
 
 interface ArticleListCallbacks {
   onArticleClick: (article: FeedItem) => void;
@@ -79,6 +81,8 @@ export class ArticleList {
   private totalArticles: number;
   private currentFeedUrl: string | null = null;
   private header: ArticleHeader | null = null;
+  private highlightService: HighlightService | null = null;
+
   private showFeedSource: boolean = true;
   private statusFilters: Set<string>;
   private tagFilters: Set<string>;
@@ -130,6 +134,13 @@ export class ArticleList {
     this.currentFeedUrl = currentFeedUrl || null;
     this.showFeedSource = showFeedSource;
 
+    if (this.settings.highlights?.enabled) {
+      this.highlightService = new HighlightService(this.settings.highlights);
+    }
+
+    // Header and filter logic were extracted to ArticleHeader and ArticleFilterMenu
+    // to reduce this file's length and complexity. Legacy methods like renderHeader(),
+    // createControls(), and showFiltersMenu() now live in those respective classes.
     this.header = new ArticleHeader(
       this.container,
       this.settings,
@@ -341,7 +352,7 @@ export class ArticleList {
 
   private layoutSingleCardTagRow(card: HTMLElement): void {
     const tagsContainer = card.querySelector<HTMLElement>(
-      ".rss-dashboard-card-tags-region .rss-dashboard-article-tags",
+      ".rss-dashboard-card-tags-region .rss-dashboard-tag-container",
     );
     const articleGuid = card.dataset.articleGuid;
     if (!tagsContainer || !articleGuid) {
@@ -363,7 +374,7 @@ export class ArticleList {
     const tagsToShow = tags.slice(0, MAX_VISIBLE_TAGS);
     tagsToShow.forEach((tag) => {
       const tagEl = container.createDiv({
-        cls: "rss-dashboard-article-tag",
+        cls: "rss-dashboard-tag-badge",
         text: tag.name,
       });
       tagEl.style.setProperty(
@@ -386,7 +397,7 @@ export class ArticleList {
 
   private createTagChip(container: HTMLElement, tag: Tag): HTMLElement {
     const tagEl = container.createDiv({
-      cls: "rss-dashboard-article-tag",
+      cls: "rss-dashboard-tag-badge",
       text: tag.name,
     });
     tagEl.style.setProperty(
@@ -460,7 +471,7 @@ export class ArticleList {
       ".rss-dashboard-card-tags-region",
     );
     if (!tagsRegion) {
-      tagsRegion = activeDocument.createDiv();
+      tagsRegion = activeDocument.createElement("div");
       tagsRegion.className = "rss-dashboard-card-tags-region";
       const cardFooter = articleEl.querySelector<HTMLElement>(
         ".rss-dashboard-card-footer",
@@ -473,11 +484,11 @@ export class ArticleList {
     }
 
     let tagsContainer = tagsRegion.querySelector<HTMLElement>(
-      ".rss-dashboard-article-tags",
+      ".rss-dashboard-tag-container",
     );
     if (!tagsContainer) {
       tagsContainer = tagsRegion.createDiv({
-        cls: "rss-dashboard-article-tags",
+        cls: "rss-dashboard-tag-container",
       });
     }
 
@@ -493,7 +504,7 @@ export class ArticleList {
       ".rss-dashboard-feed-tags-region",
     );
     if (!tagsRegion) {
-      tagsRegion = activeDocument.createDiv();
+      tagsRegion = activeDocument.createElement("div");
       tagsRegion.className = "rss-dashboard-feed-tags-region";
       const feedFooter = articleEl.querySelector<HTMLElement>(
         ".rss-dashboard-feed-footer",
@@ -506,11 +517,11 @@ export class ArticleList {
     }
 
     let tagsContainer = tagsRegion.querySelector<HTMLElement>(
-      ".rss-dashboard-article-tags",
+      ".rss-dashboard-tag-container",
     );
     if (!tagsContainer) {
       tagsContainer = tagsRegion.createDiv({
-        cls: "rss-dashboard-article-tags",
+        cls: "rss-dashboard-tag-container",
       });
     }
 
@@ -1137,7 +1148,7 @@ export class ArticleList {
   private syncArticleTags(articleEl: HTMLElement, article: FeedItem): void {
     const tags = article.tags || [];
     const existingContainers = Array.from(
-      articleEl.querySelectorAll<HTMLElement>(".rss-dashboard-article-tags"),
+      articleEl.querySelectorAll<HTMLElement>(".rss-dashboard-tag-container"),
     );
 
     const hasTags = tags.length > 0;
@@ -1162,10 +1173,14 @@ export class ArticleList {
       return;
     }
 
+    let tagsContainerAdded = false;
     if (hasTags && existingContainers.length === 0) {
       if (articleEl.classList.contains("rss-dashboard-article-card")) {
         const tagsContainer = this.ensureCardTagsContainer(articleEl);
-        if (tagsContainer) existingContainers.push(tagsContainer);
+        if (tagsContainer) {
+          existingContainers.push(tagsContainer);
+          tagsContainerAdded = true;
+        }
       } else if (
         articleEl.classList.contains("rss-dashboard-list-item-bottom-row")
       ) {
@@ -1177,26 +1192,36 @@ export class ArticleList {
         );
         if (articleContent) {
           const tagContainer = articleContent.createDiv({
-            cls: "rss-dashboard-article-tags rss-dashboard-list-body-tags",
+            cls: "rss-dashboard-tag-container rss-dashboard-list-body-tags",
           });
           if (listFooter) {
             articleContent.insertBefore(tagContainer, listFooter);
           }
           existingContainers.push(tagContainer);
+          tagsContainerAdded = true;
         }
       } else if (articleEl.classList.contains("rss-dashboard-feed-item")) {
         const tagsContainer = this.ensureFeedTagsContainer(articleEl);
-        if (tagsContainer) existingContainers.push(tagsContainer);
+        if (tagsContainer) {
+          existingContainers.push(tagsContainer);
+          tagsContainerAdded = true;
+        }
       } else {
         const toolbar = articleEl.querySelector<HTMLElement>(
           ".rss-dashboard-action-toolbar",
         );
         if (toolbar) {
-          existingContainers.push(
-            toolbar.createDiv({ cls: "rss-dashboard-article-tags" }),
-          );
+          const tagContainer = toolbar.createDiv({
+            cls: "rss-dashboard-tag-container",
+          });
+          existingContainers.push(tagContainer);
+          tagsContainerAdded = true;
         }
       }
+    }
+
+    if (tagsContainerAdded) {
+      articleEl.classList.add("rss-dashboard-tags-newly-added");
     }
 
     existingContainers.forEach((container) => {
@@ -1377,6 +1402,55 @@ export class ArticleList {
   private getFeedFolder(feedUrl: string): string | undefined {
     const feed = this.settings.feeds.find((f) => f.url === feedUrl);
     return feed?.folder;
+  }
+
+  private getCardPreviewSummaryText(summary: string): string {
+    if (!summary) {
+      return "";
+    }
+
+    const readableText = summary.includes("<")
+      ? htmlToReadableText(summary)
+      : summary;
+    const normalized = readableText.replace(/\s+/g, " ").trim();
+    if (normalized.length <= CARD_PREVIEW_SUMMARY_MAX_CHARS) {
+      return normalized;
+    }
+
+    return `${normalized.slice(0, CARD_PREVIEW_SUMMARY_MAX_CHARS - 1)}…`;
+  }
+
+  private looksLikeStylesheetText(text: string): boolean {
+    const normalized = text.replace(/\s+/g, " ").trim();
+    if (!normalized) return false;
+
+    return (
+      /^\.[\w-]+[\s,{.#[\w-]*]*\{\s*[\w-]+\s*:/i.test(normalized) ||
+      /(?:^|[\s;}])(?:border|padding|background(?:-color)?|font-family|color|overflow-wrap)\s*:/i.test(
+        normalized,
+      )
+    );
+  }
+
+  private getArticlePreviewSummaryText(article: FeedItem): string {
+    const candidates = [
+      article.summary || "",
+      article.description || "",
+      article.content || "",
+    ];
+
+    for (const candidate of candidates) {
+      const previewText = this.getCardPreviewSummaryText(candidate);
+      if (previewText && !this.looksLikeStylesheetText(previewText)) {
+        return previewText;
+      }
+    }
+
+    return "";
+  }
+
+  private shouldHighlightCardPreviewSummary(summaryText: string): boolean {
+    return summaryText.length <= CARD_PREVIEW_HIGHLIGHT_MAX_CHARS;
   }
 
   private renderFeedIcon(
@@ -1826,32 +1900,28 @@ export class ArticleList {
         this.articles[index] = { ...article };
       }
 
+      this.updateArticleInPlace(article);
+
       this.callbacks.onArticleUpdate(
         article,
         { tags: [...article.tags] },
         false,
       );
 
-      let articleEl = this.container.querySelector(
-        `[id="article-${article.guid}"]`,
-      ) as HTMLElement;
-      if (!articleEl) {
-        articleEl = this.container
-          .closest(".rss-dashboard-container")
-          ?.querySelector(`[id="article-${article.guid}"]`) as HTMLElement;
-      }
-      if (!articleEl) {
-        articleEl = activeDocument.getElementById(
-          `article-${article.guid}`,
-        ) as HTMLElement;
-      }
-      if (articleEl) {
-        articleEl.classList.add("rss-dashboard-tag-change-feedback");
-        activeWindow.setTimeout(() => {
-          articleEl.classList.remove("rss-dashboard-tag-change-feedback");
-        }, 200);
-        this.syncArticleTags(articleEl, article);
-        void articleEl.offsetHeight;
+      const targetId = `article-${article.guid}`;
+      const articleEls = Array.from(
+        this.container.querySelectorAll<HTMLElement>(
+          ".rss-dashboard-article-item, .rss-dashboard-article-card, .rss-dashboard-feed-item",
+        ),
+      ).filter((el) => el.id === targetId);
+
+      if (articleEls.length > 0) {
+        articleEls.forEach((articleEl) => {
+          articleEl.classList.add("rss-dashboard-tag-change-feedback");
+          activeWindow.setTimeout(() => {
+            articleEl.classList.remove("rss-dashboard-tag-change-feedback");
+          }, 200);
+        });
       } else {
         const tempIndicator = activeDocument.body.createDiv({
           cls: "rss-dashboard-tag-change-notification",
@@ -1960,12 +2030,8 @@ export class ArticleList {
         cls: "rss-dashboard-article-title",
       });
 
-      if (
-        this.settings.highlights?.enabled &&
-        this.settings.highlights.highlightInTitles
-      ) {
-        const highlightService = new HighlightService(this.settings.highlights);
-        highlightService.setHighlightedText(titleEl, article.title);
+      if (this.highlightService && this.settings.highlights.highlightInTitles) {
+        this.highlightService.setHighlightedText(titleEl, article.title);
       } else {
         titleEl.textContent = article.title;
       }
@@ -1986,22 +2052,19 @@ export class ArticleList {
       }
 
       // 3. Clamped Summary/Content
-      if (article.summary || article.content) {
+      const feedPreviewText = this.getArticlePreviewSummaryText(article);
+      if (feedPreviewText) {
         const summaryEl = textRegion.createDiv({
           cls: "rss-dashboard-feed-summary",
         });
-        const textToDisplay = article.summary || article.content || "";
 
         if (
-          this.settings.highlights?.enabled &&
+          this.highlightService &&
           this.settings.highlights.highlightInSummaries
         ) {
-          const highlightService = new HighlightService(
-            this.settings.highlights,
-          );
-          highlightService.setHighlightedText(summaryEl, textToDisplay);
+          this.highlightService.setHighlightedText(summaryEl, feedPreviewText);
         } else {
-          summaryEl.textContent = textToDisplay;
+          summaryEl.textContent = feedPreviewText;
         }
       }
 
@@ -2011,7 +2074,7 @@ export class ArticleList {
           cls: "rss-dashboard-feed-tags-region",
         });
         const tagsContainer = tagsRegion.createDiv({
-          cls: "rss-dashboard-article-tags",
+          cls: "rss-dashboard-tag-container",
         });
         this.renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
       }
@@ -2080,12 +2143,8 @@ export class ArticleList {
       const titleEl = headlineEl.createDiv({
         cls: "rss-dashboard-article-title rss-dashboard-list-title",
       });
-      if (
-        this.settings.highlights?.enabled &&
-        this.settings.highlights.highlightInTitles
-      ) {
-        const highlightService = new HighlightService(this.settings.highlights);
-        highlightService.setHighlightedText(titleEl, article.title);
+      if (this.highlightService && this.settings.highlights.highlightInTitles) {
+        this.highlightService.setHighlightedText(titleEl, article.title);
       } else {
         titleEl.textContent = article.title;
       }
@@ -2111,14 +2170,17 @@ export class ArticleList {
         );
         if (!useMinimal && article.tags && article.tags.length > 0) {
           const articleTags = actionToolbar.createDiv(
-            "rss-dashboard-article-tags",
+            "rss-dashboard-tag-container",
           );
           article.tags.forEach((tag) => {
             const tagEl = articleTags.createDiv({
-              cls: "rss-dashboard-article-tag",
+              cls: "rss-dashboard-tag-badge",
               text: tag.name,
             });
-            tagEl.style.setProperty("--tag-color", tag.color);
+            tagEl.style.setProperty(
+              "--tag-color",
+              tag.color || "var(--interactive-accent)",
+            );
           });
         }
       } else {
@@ -2135,15 +2197,18 @@ export class ArticleList {
       if (showListToolbar && useBottomRow) {
         if (article.tags && article.tags.length > 0) {
           const bodyTags = contentEl.createDiv(
-            "rss-dashboard-article-tags rss-dashboard-list-body-tags",
+            "rss-dashboard-tag-container rss-dashboard-list-body-tags",
           );
           const tagsToShow = article.tags.slice(0, MAX_VISIBLE_TAGS);
           tagsToShow.forEach((tag) => {
             const tagEl = bodyTags.createDiv({
-              cls: "rss-dashboard-article-tag",
+              cls: "rss-dashboard-tag-badge",
               text: tag.name,
             });
-            tagEl.style.setProperty("--tag-color", tag.color);
+            tagEl.style.setProperty(
+              "--tag-color",
+              tag.color || "var(--interactive-accent)",
+            );
           });
           if (article.tags.length > MAX_VISIBLE_TAGS) {
             const overflowTag = bodyTags.createDiv({
@@ -2221,12 +2286,8 @@ export class ArticleList {
         cls: "rss-dashboard-article-title",
       });
 
-      if (
-        this.settings.highlights?.enabled &&
-        this.settings.highlights.highlightInTitles
-      ) {
-        const highlightService = new HighlightService(this.settings.highlights);
-        highlightService.setHighlightedText(cardTitleEl, article.title);
+      if (this.highlightService && this.settings.highlights.highlightInTitles) {
+        this.highlightService.setHighlightedText(cardTitleEl, article.title);
       } else {
         cardTitleEl.textContent = article.title;
       }
@@ -2265,6 +2326,8 @@ export class ArticleList {
         coverImgSrc = article.enclosure.url;
       }
 
+      const previewSummaryText = this.getArticlePreviewSummaryText(article);
+
       if (coverImgSrc) {
         const previewRegion = cardContent.createDiv({
           cls: "rss-dashboard-card-preview-region",
@@ -2272,7 +2335,7 @@ export class ArticleList {
         const coverContainer = previewRegion.createDiv({
           cls:
             "rss-dashboard-cover-container" +
-            (article.summary ? " has-summary" : ""),
+            (previewSummaryText ? " has-summary" : ""),
         });
         const coverImg = coverContainer.createEl("img", {
           cls: "rss-dashboard-cover-image",
@@ -2286,26 +2349,24 @@ export class ArticleList {
           this.scheduleCardTagLayout(card);
         };
 
-        if (article.summary) {
+        if (previewSummaryText) {
           const summaryOverlay = coverContainer.createDiv({
             cls: "rss-dashboard-summary-overlay",
           });
           if (
-            this.settings.highlights?.enabled &&
-            this.settings.highlights.highlightInSummaries
+            this.highlightService &&
+            this.settings.highlights.highlightInSummaries &&
+            this.shouldHighlightCardPreviewSummary(previewSummaryText)
           ) {
-            const highlightService = new HighlightService(
-              this.settings.highlights,
-            );
-            highlightService.setHighlightedText(
+            this.highlightService.setHighlightedText(
               summaryOverlay,
-              article.summary,
+              previewSummaryText,
             );
           } else {
-            summaryOverlay.textContent = article.summary;
+            summaryOverlay.textContent = previewSummaryText;
           }
         }
-      } else if (article.summary) {
+      } else if (previewSummaryText) {
         const previewRegion = cardContent.createDiv({
           cls: "rss-dashboard-card-preview-region",
         });
@@ -2313,18 +2374,16 @@ export class ArticleList {
           cls: "rss-dashboard-cover-summary-only",
         });
         if (
-          this.settings.highlights?.enabled &&
-          this.settings.highlights.highlightInSummaries
+          this.highlightService &&
+          this.settings.highlights.highlightInSummaries &&
+          this.shouldHighlightCardPreviewSummary(previewSummaryText)
         ) {
-          const highlightService = new HighlightService(
-            this.settings.highlights,
-          );
-          highlightService.setHighlightedText(
+          this.highlightService.setHighlightedText(
             summaryOnlyContainer,
-            article.summary,
+            previewSummaryText,
           );
         } else {
-          summaryOnlyContainer.textContent = article.summary;
+          summaryOnlyContainer.textContent = previewSummaryText;
         }
       }
 
@@ -2333,7 +2392,7 @@ export class ArticleList {
           cls: "rss-dashboard-card-tags-region",
         });
         const tagsContainer = tagsRegion.createDiv({
-          cls: "rss-dashboard-article-tags",
+          cls: "rss-dashboard-tag-container",
         });
         this.renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
       }
@@ -2381,16 +2440,24 @@ export class ArticleList {
       cls: "rss-dashboard-pagination",
     });
 
-    const prevButton = paginationContainer.createEl("button", {
+    // ── Row 1: page navigation buttons ──────────────────────────
+    const pagesRow = paginationContainer.createDiv({
+      cls: "rss-dashboard-pagination-pages",
+    });
+
+    const prevButton = pagesRow.createEl("button", {
       cls: "rss-dashboard-pagination-btn prev",
       text: "<",
     });
     prevButton.disabled = currentPage === 1;
     prevButton.onclick = () => this.callbacks.onPageChange(currentPage - 1);
 
-    const maxPagesToShow = 5;
-    let startPage = Math.max(1, currentPage - 2);
-    let endPage = Math.min(totalPages, currentPage + 2);
+    const isMobile = this.isMobileViewport();
+    const maxPagesToShow = isMobile ? 3 : 5;
+    const padding = isMobile ? 1 : 2;
+
+    let startPage = Math.max(1, currentPage - padding);
+    let endPage = Math.min(totalPages, currentPage + padding);
     if (endPage - startPage < maxPagesToShow - 1) {
       if (startPage === 1) {
         endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
@@ -2399,35 +2466,40 @@ export class ArticleList {
       }
     }
     if (startPage > 1) {
-      this.createPageButton(paginationContainer, 1, currentPage);
+      this.createPageButton(pagesRow, 1, currentPage);
       if (startPage > 2) {
-        paginationContainer.createEl("span", {
+        pagesRow.createEl("span", {
           text: "...",
           cls: "rss-dashboard-pagination-ellipsis",
         });
       }
     }
     for (let i = startPage; i <= endPage; i++) {
-      this.createPageButton(paginationContainer, i, currentPage);
+      this.createPageButton(pagesRow, i, currentPage);
     }
     if (endPage < totalPages) {
       if (endPage < totalPages - 1) {
-        paginationContainer.createEl("span", {
+        pagesRow.createEl("span", {
           text: "...",
           cls: "rss-dashboard-pagination-ellipsis",
         });
       }
-      this.createPageButton(paginationContainer, totalPages, currentPage);
+      this.createPageButton(pagesRow, totalPages, currentPage);
     }
 
-    const nextButton = paginationContainer.createEl("button", {
+    const nextButton = pagesRow.createEl("button", {
       cls: "rss-dashboard-pagination-btn next",
       text: ">",
     });
     nextButton.disabled = currentPage === totalPages;
     nextButton.onclick = () => this.callbacks.onPageChange(currentPage + 1);
 
-    const markPageReadButton = paginationContainer.createEl("button", {
+    // ── Row 2: utility controls ──────────────────────────────────
+    const controlsRow = paginationContainer.createDiv({
+      cls: "rss-dashboard-pagination-controls",
+    });
+
+    const markPageReadButton = controlsRow.createEl("button", {
       cls: "rss-dashboard-pagination-btn rss-dashboard-pagination-mark-page-read",
       text: "Mark page read",
     });
@@ -2454,7 +2526,11 @@ export class ArticleList {
       }
     };
 
-    const pageSizeDropdown = paginationContainer.createEl("select", {
+    // Page-size selector wrapped for custom chevron styling
+    const pageSizeWrapper = controlsRow.createDiv({
+      cls: "rss-dashboard-page-size-wrapper",
+    });
+    const pageSizeDropdown = pageSizeWrapper.createEl("select", {
       cls: "rss-dashboard-page-size-dropdown",
     });
     for (const size of getPageSizeOptions(pageSize)) {
@@ -2473,6 +2549,7 @@ export class ArticleList {
       });
       if (size === pageSize) opt.selected = true;
     }
+
     pageSizeDropdown.onchange = (e) => {
       const size = Number((e.target as HTMLSelectElement).value);
       this.callbacks.onPageSizeChange(size);
@@ -2483,7 +2560,13 @@ export class ArticleList {
       pageSize,
       currentPage,
     });
-    paginationContainer.createEl("span", {
+
+    // ── Row 3: Results count ──────────────────────────────────
+    const resultsRow = paginationContainer.createDiv({
+      cls: "rss-dashboard-pagination-results",
+    });
+
+    resultsRow.createEl("span", {
       cls: "rss-dashboard-pagination-results",
       text: `Results: ${startIdx} - ${endIdx} of ${totalArticles}`,
     });
@@ -2654,9 +2737,9 @@ export class ArticleList {
 }
 
 function extractFirstImageSrc(html: string): string | null {
-  const htmlWithMeta = ensureUtf8Meta(html);
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlWithMeta, "text/html");
-  const img = doc.querySelector("img");
-  return img ? img.getAttribute("src") : null;
+  if (!html) return null;
+
+  // Use a regex for rapid extraction without full DOM parsing
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return match ? match[1] : null;
 }

@@ -6,6 +6,7 @@ import {
   Platform,
   requireApiVersion,
   TFolder,
+  type ObsidianProtocolData,
 } from "obsidian";
 
 import { getSettingManager } from "./src/utils/settings-manager";
@@ -56,7 +57,11 @@ import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
-import { normalizeRefreshIntervalMinutes } from "./src/utils/validation";
+import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
+import {
+  normalizeRefreshIntervalMinutes,
+  isValidUrl,
+} from "./src/utils/validation";
 import {
   dedupeAndNormalizeFeedItems,
   loadAndNormalizeSettings,
@@ -248,6 +253,7 @@ export default class RssDashboardPlugin extends Plugin {
     "rss-podcast-progress",
     "rss-first-launch-coachmark-shown",
   ] as const;
+  private static readonly URI_ACTION_ADD_FEED = "add-feed";
 
   settings!: RssDashboardSettings;
   feedParser!: FeedParser;
@@ -260,7 +266,6 @@ export default class RssDashboardPlugin extends Plugin {
   public settingTab: RssDashboardSettingTab | null = null;
   private isMultiFeedRefreshRunning = false;
   public vaultAbsolutePath = "";
-  private _beforeUnloadHandler: (() => void) | null = null;
   private hasCompletedStartupSavedArticleValidation = false;
   private progressSaveDebounce: number | null = null;
   private static readonly FEED_REFRESH_CONCURRENCY = 4;
@@ -591,13 +596,6 @@ export default class RssDashboardPlugin extends Plugin {
       return elapsed >= intervalMs;
     };
 
-    // Register a window-level beforeunload listener for reliable backup
-    // on Obsidian quit. onunload is NOT reliably called by Electron on window close.
-    this._beforeUnloadHandler = () => {
-      this.backupService.performAutoBackupsSyncDesktop();
-    };
-    window.addEventListener("beforeunload", this._beforeUnloadHandler);
-
     const view = await this.getActiveDashboardView();
     if (view) {
       view.render();
@@ -611,6 +609,13 @@ export default class RssDashboardPlugin extends Plugin {
       }
 
       this.scheduleStartupSavedArticleValidation();
+
+      this.registerObsidianProtocolHandler(
+        this.manifest.id,
+        (params: ObsidianProtocolData) => {
+          void this.dispatchUriAction(params);
+        },
+      );
 
       this.registerView(
         RSS_DASHBOARD_VIEW_TYPE,
@@ -773,6 +778,145 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  private async dispatchUriAction(params: ObsidianProtocolData): Promise<void> {
+    const action = this.resolveRequestedUriAction(params);
+
+    if (!action) {
+      new Notice(
+        "Missing RSS Dashboard URI action. Use action=add-feed with a URL parameter.",
+      );
+      return;
+    }
+
+    try {
+      switch (action) {
+        case RssDashboardPlugin.URI_ACTION_ADD_FEED:
+          await this.handleAddFeedUriAction(params);
+          return;
+        default:
+          new Notice(`Unsupported RSS Dashboard URI action: ${action}`);
+      }
+    } catch (error) {
+      console.error("[RSS Dashboard] URI action failed:", error);
+      new Notice(
+        `RSS Dashboard URI action failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  private resolveRequestedUriAction(params: ObsidianProtocolData): string {
+    const routeAction = (params.action ?? "").trim().toLowerCase();
+    const queryAction =
+      typeof params.uriAction === "string"
+        ? params.uriAction.trim().toLowerCase()
+        : "";
+
+    if (queryAction) {
+      return queryAction;
+    }
+
+    // Obsidian protocol reserves `action` for the route itself.
+    // For links like `obsidian://rss-dashboard?...`, infer add-feed when a URL
+    // parameter is present so browser-triggered links work reliably.
+    if (
+      routeAction === this.manifest.id.toLowerCase() &&
+      typeof params.url === "string" &&
+      params.url.trim().length > 0
+    ) {
+      return RssDashboardPlugin.URI_ACTION_ADD_FEED;
+    }
+
+    if (routeAction === this.manifest.id.toLowerCase()) {
+      return "";
+    }
+
+    return routeAction;
+  }
+
+  private decodeUriFeedUrl(rawUrl: string): string {
+    const candidate = rawUrl.trim();
+    if (!candidate) {
+      throw new Error("Missing required URL parameter for add-feed.");
+    }
+
+    if (!candidate.includes("%")) {
+      return candidate;
+    }
+
+    try {
+      return decodeURIComponent(candidate);
+    } catch {
+      throw new Error(
+        "Feed URL is malformed. Ensure the url parameter is URL-encoded.",
+      );
+    }
+  }
+
+  private buildUriAddFeedTitle(feedUrl: string): string {
+    try {
+      const parsed = new URL(feedUrl);
+      const hostname = parsed.hostname.replace(/^www\./i, "").trim();
+      return hostname || feedUrl;
+    } catch {
+      return feedUrl;
+    }
+  }
+
+  private async handleAddFeedUriAction(
+    params: ObsidianProtocolData,
+  ): Promise<void> {
+    const rawUrl = typeof params.url === "string" ? params.url : "";
+    if (!rawUrl.trim()) {
+      new Notice("Missing required URL parameter for add-feed.");
+      return;
+    }
+
+    const decodedUrl = this.decodeUriFeedUrl(rawUrl);
+    const urlValidation = isValidUrl(decodedUrl);
+    if (!urlValidation.valid) {
+      new Notice(urlValidation.error ?? "Invalid feed URL.");
+      return;
+    }
+
+    const defaultFolder = this.settings.media.defaultRssFolder?.trim() || "RSS";
+
+    await this.activateView();
+
+    new AddFeedModal(
+      this.app,
+      this.settings.folders,
+      async (
+        title,
+        url,
+        folder,
+        autoDeleteDuration,
+        maxItemsLimit,
+        scanInterval,
+        feedKeywordRules,
+        customTemplate,
+        excludeFromRefresh,
+      ) =>
+        await this.addFeed(
+          title,
+          url,
+          folder,
+          autoDeleteDuration,
+          maxItemsLimit,
+          scanInterval,
+          feedKeywordRules,
+          customTemplate,
+          excludeFromRefresh,
+        ),
+      () => {
+        void this.refreshDashboardViews();
+      },
+      defaultFolder,
+      this,
+      decodedUrl,
+      this.buildUriAddFeedTitle(decodedUrl),
+    ).open();
+  }
+
   private applyMobileOptimizations(): void {
     if (
       this.settings.refreshInterval > 0 &&
@@ -930,32 +1074,39 @@ export default class RssDashboardPlugin extends Plugin {
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
   ): Promise<void> {
-    if (item.feedUrl) {
-      const normalizedUpdates = applyAutomaticArticleTags(
-        item,
-        updates,
-        this.settings,
+    const resolvedFeed =
+      this.settings.feeds.find((f) => f.url === item.feedUrl) ||
+      this.settings.feeds.find((f) =>
+        f.items.some((candidate) => candidate.guid === item.guid),
       );
-      const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
-      if (!feed) return;
+    if (!resolvedFeed) return;
 
-      const originalItem = feed.items.find((i) => i.guid === item.guid);
-      if (!originalItem) return;
+    const resolvedFeedUrl = resolvedFeed.url;
+    item.feedUrl = resolvedFeedUrl;
 
-      await this.updateArticle(
-        item.guid,
-        item.feedUrl,
-        normalizedUpdates,
-        false,
-      );
-      await this.syncDashboardArticleUpdate(
-        item.guid,
-        item.feedUrl,
-        normalizedUpdates,
-        !!shouldRerender,
-      );
-      await this.syncReaderArticleUpdate(item.guid, normalizedUpdates);
-    }
+    const normalizedUpdates = applyAutomaticArticleTags(
+      item,
+      updates,
+      this.settings,
+    );
+    const originalItem = resolvedFeed.items.find((i) => i.guid === item.guid);
+    if (!originalItem) return;
+
+    // Reflect updates in open dashboard/reader views immediately, then persist.
+    Object.assign(originalItem, normalizedUpdates);
+    await this.syncDashboardArticleUpdate(
+      item.guid,
+      resolvedFeedUrl,
+      normalizedUpdates,
+      !!shouldRerender,
+    );
+    await this.syncReaderArticleUpdate(item.guid, normalizedUpdates);
+    await this.updateArticle(
+      item.guid,
+      resolvedFeedUrl,
+      normalizedUpdates,
+      false,
+    );
   }
 
   private async syncReaderArticleUpdate(
@@ -1173,51 +1324,8 @@ export default class RssDashboardPlugin extends Plugin {
       }
     };
 
-    /**
-     * NOTE for future developers: The following block uses Electron's native dialog via 'window.require'
-     * to support multiple file extension filters simultaneously (e.g., .opml, .xml) on Windows.
-     * This is a known desktop-only pattern in Obsidian. We use 'any' casts and disable ESLint
-     * rules here because these Electron-specific APIs are not in the standard Obsidian type
-     * definitions. The surrounding try...catch is CRITICAL to ensure the plugin doesn't
-     * crash on mobile where these APIs are absent.
-     */
-    try {
-      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
-      const remote =
-        (window as any).require?.("@electron/remote") ||
-        (window as any).require?.("electron")?.remote;
-      if (remote && remote.dialog) {
-        const filePaths = remote.dialog.showOpenDialogSync({
-          title: "Import feeds from OPML or XML",
-          properties: ["openFile"],
-          filters: [
-            {
-              name: "OPML, XML, or Backup Files",
-              extensions: ["opml", "xml", "backup"],
-            },
-            { name: "All Files", extensions: ["*"] },
-          ],
-        });
-
-        if (filePaths && filePaths.length > 0) {
-          const filePath = filePaths[0];
-          const fs = (window as any).require("fs");
-          const content = fs.readFileSync(filePath, "utf-8");
-          const fileName = filePath.split(/[/\\]/).pop() || "file";
-          const file = new File([content], fileName, { type: "text/xml" });
-          void handleImportOpmlFile(file);
-          return;
-        } else if (filePaths === undefined) {
-          return; // Dialog was cancelled
-        }
-      }
-      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
-    } catch {
-      // Ignore errors and fallback
-    }
-
     const input = activeDocument.body.createEl("input", {
-      attr: { type: "file", accept: ".opml,.xml" },
+      attr: { type: "file", accept: ".opml,.xml,.backup" },
     });
     input.onchange = () => {
       const file = input.files?.[0];
@@ -2163,6 +2271,9 @@ export default class RssDashboardPlugin extends Plugin {
           storageLog("Metadata saved to vault location", {
             path: dataFilePath,
           });
+
+          // Bootstrap pointer: save metadata config locally so the app knows where to look on restart.
+          await this.saveData(data);
         } catch (error) {
           storageError("Failed to save metadata to vault location", error);
           throw error;
@@ -2502,11 +2613,6 @@ export default class RssDashboardPlugin extends Plugin {
     await this.backupService.performAutoBackups();
   }
 
-  public performAutoBackupsSyncDesktop(): boolean {
-    // ✅ BackupService extracted — delegates to service
-    return this.backupService.performAutoBackupsSyncDesktop();
-  }
-
   onunload() {
     if (this.progressSaveDebounce !== null) {
       window.clearTimeout(this.progressSaveDebounce);
@@ -2514,17 +2620,8 @@ export default class RssDashboardPlugin extends Plugin {
       void this.saveSettings();
     }
 
-    // Remove the beforeunload listener to avoid it firing when the plugin
-    // is manually disabled (onunload handles it instead).
-    if (this._beforeUnloadHandler) {
-      window.removeEventListener("beforeunload", this._beforeUnloadHandler);
-      this._beforeUnloadHandler = null;
-    }
-    // Run backups synchronously on plugin disable
-    const synced = this.backupService.performAutoBackupsSyncDesktop();
-    if (!synced) {
-      void this.backupService.performAutoBackups();
-    }
+    // Run backups asynchronously on plugin disable/unload (best effort)
+    void this.backupService.performAutoBackups();
   }
 
   private async validateSavedArticles(): Promise<void> {

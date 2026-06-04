@@ -20,6 +20,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint (security rules)
+        run: npm run lint
+
       - name: Run tests with coverage
         run: npm run test:unit -- --coverage
 

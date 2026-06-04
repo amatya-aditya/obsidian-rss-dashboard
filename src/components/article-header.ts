@@ -405,6 +405,10 @@ export class ArticleHeader {
 
     trigger.onclick = (e) => {
       e.stopPropagation();
+      if (trigger.hasClass("active")) {
+        this.closeActivePortal();
+        return;
+      }
       this.showThemedMenu(trigger, options, getValue(), onChange);
     };
   }
@@ -493,6 +497,10 @@ export class ArticleHeader {
 
     selector.onclick = (e) => {
       e.stopPropagation();
+      if (selector.hasClass("active")) {
+        this.closeActivePortal();
+        return;
+      }
       const viewIcons: Record<string, string> = {
         feed: "newspaper",
         card: "layout-grid",

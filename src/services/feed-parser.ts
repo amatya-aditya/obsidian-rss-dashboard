@@ -11,6 +11,7 @@ import {
   canonicalizeItemIdentityUrl,
   resolveAbsoluteHttpUrl,
 } from "../utils/url-utils.js";
+import { htmlToReadableText } from "../utils/html-text.js";
 
 interface ItunesLookupResponse {
   resultCount: number;
@@ -3216,12 +3217,8 @@ export class FeedParser {
     if (!description) return "";
 
     try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(description, "text/html");
-      let text = doc.body.textContent || "";
-
+      let text = htmlToReadableText(description);
       text = this.decodeHtmlEntities(text);
-
       text = text.replace(/\s+/g, " ").trim();
 
       if (text.length > maxLength) {

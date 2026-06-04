@@ -38,18 +38,19 @@
 
 ## Article Manipulation
 
-| Shortcut   | Action                          |
-| ---------- | ------------------------------- |
-| Arrow keys | Card view navigation            |
-| o / Enter  | Open article in reader pane     |
-| k          | Close reader pane               |
-| j          | Open prior article in feed      |
-| l          | Open next article in feed       |
-| m          | Mark article read/unread toggle |
-| Shift + a  | Mark all as read                |
-| f          | Star/Unstar article             |
-| t          | Add tags to article             |
-| s          | Save full content to notes      |
+| Shortcut        | Action                                |
+| --------------- | ----------------------------------- |
+| Arrow keys      | Card view navigation                |
+| o / Enter       | Open article in reader pane         |
+| k               | Close reader pane                   |
+| j               | Open prior article in feed          |
+| l               | Open next article in feed           |
+| m               | Mark article read/unread toggle     |
+| ,               | Mark article read and open next     |
+| Shift + a       | Mark all as read                    |
+| f               | Star/Unstar article                 |
+| t               | Add tags to article                 |
+| s               | Save full content to notes          |
 
 ## Sidebar Navigation
 

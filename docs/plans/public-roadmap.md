@@ -2,7 +2,7 @@
 
 This document collects public-facing ideas, compatibility notes, and upcoming work that is still tracked in `docs/plans`. Priorities may change, but this is the best place to track what is likely coming next without digging through older planning folders.
 
-## Planned Features
+## Future Feature Ideas
 
 These items were previously listed in the README:
 
@@ -23,6 +23,7 @@ These features already have draft plan documents and are still not implemented:
 
 - Media notes for podcast and video playback: [Media Notes Feature - Podcast and Video Player](Future/Media%20Notes%20Feature%20%E2%80%94%20Podcast%20%26%20Video%20Player.md)
 - Better handling for `.mp4` hero images in feed view: [handle-mp4-hero-images.md](Future/handle-mp4-hero-images.md)
+- Cover image fallback | Send GET requests to articles to grab hero image if not present in feed item | [cover-image-fallback-og-fetch-plan.md](Future/cover-image-fallback-og-fetch-plan.md)
 
 ## Notes
 

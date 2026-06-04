@@ -22,7 +22,6 @@ import {
   getPerFeedRefreshIntervalDropdownValue,
 } from "../../utils/refresh-intervals";
 import { renderSupportedFormatBadges } from "./supported-format-badges";
-import { decorateFolderSelectorInput } from "./folder-selector-field";
 
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
@@ -43,6 +42,8 @@ export class AddFeedModal extends Modal {
   onSave: () => void;
   defaultFolder: string;
   plugin?: RssDashboardPlugin;
+  initialUrl: string;
+  initialTitle: string;
 
   constructor(
     app: App,
@@ -61,6 +62,8 @@ export class AddFeedModal extends Modal {
     onSave: () => void,
     defaultFolder = "",
     plugin?: RssDashboardPlugin,
+    initialUrl = "",
+    initialTitle = "",
   ) {
     super(app);
     this.folders = folders;
@@ -68,6 +71,8 @@ export class AddFeedModal extends Modal {
     this.onSave = onSave;
     this.defaultFolder = defaultFolder;
     this.plugin = plugin || undefined;
+    this.initialUrl = initialUrl.trim();
+    this.initialTitle = initialTitle.trim();
   }
   onOpen() {
     const { contentEl } = this;
@@ -90,8 +95,8 @@ export class AddFeedModal extends Modal {
     subtitle.textContent =
       "Add a new RSS, podcast, or YouTube feed to your dashboard";
 
-    let url = "";
-    let title = "";
+    let url = this.initialUrl;
+    let title = this.initialTitle;
     let status = "";
     let latestEntry = "-";
     let folder = this.defaultFolder;
@@ -117,6 +122,7 @@ export class AddFeedModal extends Modal {
       .setName("Feed URL")
       .addText((text) => {
         text.onChange((v) => (url = v));
+        text.setValue(url);
         urlInput = text.inputEl;
         urlInput.autocomplete = "off";
         urlInput.spellcheck = false;
@@ -247,24 +253,35 @@ export class AddFeedModal extends Modal {
         });
       });
 
+    urlSetting.settingEl.addClass("rss-feed-form-row");
+    urlSetting.settingEl.addClass("rss-feed-form-row-url");
+
+    const sourceSetting = new Setting(contentEl).setName("Feed Source");
+    sourceSetting.settingEl.addClass("rss-feed-form-row");
+    sourceSetting.settingEl.addClass("rss-feed-source-row");
+
     const { clearActiveBadge, setActiveBadge } = renderSupportedFormatBadges(
-      urlSetting.descEl,
+      sourceSetting.controlEl,
     );
 
-    new Setting(contentEl).setName("Title").addText((text) => {
-      titleInput = text.inputEl;
-      text.setValue(title).onChange((v) => (title = v));
-      titleInput.autocomplete = "off";
-      titleInput.spellcheck = false;
-      titleInput.addEventListener("focus", () => titleInput.select());
-      titleInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          folderInput?.focus();
-        } else if (e.key === "Escape") {
-          this.close();
-        }
+    const titleSetting = new Setting(contentEl)
+      .setName("Title")
+      .addText((text) => {
+        text.setValue(title).onChange((v) => (title = v));
+        titleInput = text.inputEl;
+        titleInput.autocomplete = "off";
+        titleInput.spellcheck = false;
+        titleInput.addClass("title-input");
+        titleInput.addEventListener("focus", () => titleInput.select());
+        titleInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            folderInput?.focus();
+          } else if (e.key === "Escape") {
+            this.close();
+          }
+        });
       });
-    });
+    titleSetting.settingEl.addClass("rss-feed-form-row");
 
     const latestEntrySetting = new Setting(contentEl).setName("Latest entry");
     refs.latestEntryDiv = latestEntrySetting.controlEl.createDiv({
@@ -278,16 +295,19 @@ export class AddFeedModal extends Modal {
       cls: "add-feed-status",
     });
 
-    const folderSetting = new Setting(contentEl).setName("Folder").addText((text) => {
-      text.setValue(folder).setPlaceholder("Type or select folder...");
-      folderInput = text.inputEl;
-      folderInput.autocomplete = "off";
-      folderInput.spellcheck = false;
-      folderInput.addEventListener("focus", () => folderInput.select());
+    const folderSetting = new Setting(contentEl)
+      .setName("Folder")
+      .addText((text) => {
+        text.setValue(folder).setPlaceholder("Type or select folder...");
+        folderInput = text.inputEl;
+        folderInput.autocomplete = "off";
+        folderInput.spellcheck = false;
+        folderInput.addClass("folder-input");
+        folderInput.addEventListener("focus", () => folderInput.select());
 
-      new FolderSuggest(this.app, folderInput, this.folders);
-    });
-    decorateFolderSelectorInput(folderSetting, folderInput);
+        new FolderSuggest(this.app, folderInput, this.folders);
+      });
+    folderSetting.settingEl.addClass("rss-feed-form-row");
 
     const perFeedControlsDetails = contentEl.createEl("details", {
       cls: "rss-keyword-filter-details rss-per-feed-controls-details",

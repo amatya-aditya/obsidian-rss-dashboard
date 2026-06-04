@@ -1,31 +1,42 @@
+/* =============================================================================
+ * Article List & Card Styles (articles.css)
+ *
+ * Styles for the main article feed area: layout container, article cards,
+ * typography, action toggles, tag dropdown, and the media player.
+ * Responsive overrides are consolidated at the bottom of the file.
+ * =============================================================================
+ */
+
+/* ============================================
+ * 1. Layout & Content Container
+ * Top-level content area and scrollable article list
+ * ============================================ */
+
 .rss-dashboard-content {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   /* Creates a stacking context so iOS WebKit compositing of the overflow-y:auto
-	   scroll child (.rss-dashboard-articles) cannot paint over preceding siblings
-	   like .rss-dashboard-filter-subheader. Without this, real iPhone hides the
-	   filter/highlight status bar even though it renders correctly in emulation. */
+     scroll child (.rss-dashboard-articles) cannot paint over preceding siblings
+     like .rss-dashboard-filter-subheader. Without this, real iPhone hides the
+     filter/highlight status bar even though it renders correctly in emulation. */
   isolation: isolate;
   background-color: var(--background-primary);
   width: 100%;
 }
 
-@media (max-width: 1200px) {
-  /* Override inline sizing when tablet/mobile sidebar is hidden. */
-  .rss-dashboard-content {
-    width: 100% !important;
-    margin-left: 0 !important;
-  }
-}
-
 .rss-dashboard-articles {
-  padding: 0px 10px 10px 10px;
+  padding: 0 10px 10px 10px;
   overflow-y: auto;
   flex: 1 1 0;
   min-height: 0;
 }
+
+/* ============================================
+ * 2. Header & Controls
+ * Article list title bar and view-mode toggle buttons
+ * ============================================ */
 
 .rss-dashboard-articles-title {
   font-size: 18px;
@@ -55,7 +66,6 @@
   background: none;
   padding: 4px 8px;
   cursor: pointer;
-  color: var(--text-normal);
   height: var(--input-height);
   font-size: var(--font-ui-small);
   font-family: inherit;
@@ -65,13 +75,11 @@
   max-width: 100%;
   box-sizing: border-box;
   margin: 0;
-  border: 0;
   box-shadow: var(--input-shadow);
   border-radius: var(--input-radius);
   -webkit-appearance: none;
   appearance: none;
   background-color: var(--dropdown-background);
-  padding: var(--dropdown-padding);
   background-repeat: no-repeat, repeat;
   background-position: var(--dropdown-background-position);
   background-size: var(--dropdown-background-size);
@@ -87,7 +95,10 @@
   color: var(--text-on-accent);
 }
 
-/* Light mode override - REMOVED: causing black icons on active buttons */
+/* ============================================
+ * 3. Article List
+ * List wrapper and card state modifiers
+ * ============================================ */
 
 .rss-dashboard-articles-list {
   display: flex;
@@ -96,6 +107,29 @@
   padding: 12px 0;
   animation: rss-dashboard-fade-in 0.3s ease;
 }
+
+/* Ensure smooth transitions for article card state changes */
+.rss-dashboard-article-card {
+  transition:
+    opacity 0.2s ease-out,
+    transform 0.2s ease-out,
+    background-color 0.15s ease,
+    box-shadow 0.18s ease,
+    border 0.18s ease;
+}
+
+.rss-dashboard-article-card.unread .rss-dashboard-article-title {
+  font-weight: bold;
+}
+
+.rss-dashboard-article-card.read {
+  opacity: 0.8;
+}
+
+/* ============================================
+ * 4. Article Typography
+ * Title, meta row, and summary text
+ * ============================================ */
 
 .rss-dashboard-article-title {
   font-size: 1.1em;
@@ -123,52 +157,23 @@
   flex-wrap: wrap;
 }
 
+/* Merged from duplicate rule block — list-view values take precedence */
 .rss-dashboard-article-summary {
   color: var(--text-muted);
   font-size: 0.99em;
   margin: 2px 0 0 0;
   line-height: 1.5;
   display: -webkit-box;
+  -webkit-line-clamp: 3;
   line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.rss-dashboard-article-tag {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.95em;
-  color: #fff;
-  background: var(--tag-color, var(--interactive-accent));
-  font-weight: 500;
-}
-
-.rss-dashboard-article-actions {
-  margin-left: auto;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  background: none;
-  border-radius: 0;
-  padding: 0;
-  margin-top: 4px;
-}
-
-@media (max-width: 900px) {
-  .rss-dashboard-article-title,
-  .rss-dashboard-article-summary {
-    font-size: 1em;
-    line-clamp: 2;
-  }
-}
-
-.rss-dashboard-article-card.unread .rss-dashboard-article-title {
-  font-weight: bold;
-}
-
-.rss-dashboard-article-card.read {
-  opacity: 0.8;
-}
+/* ============================================
+ * 5. Article Metadata
+ * Feed name, date tooltip, duration badge, feed icon
+ * ============================================ */
 
 .rss-dashboard-article-header {
   display: flex;
@@ -186,6 +191,7 @@
   padding-top: 4px;
 }
 
+/* Feed name and date share base text styles */
 .rss-dashboard-article-feed,
 .rss-dashboard-article-date {
   font-size: 12px;
@@ -194,6 +200,7 @@
   text-overflow: ellipsis;
 }
 
+/* Feed name and source share truncation styles */
 .rss-dashboard-article-feed,
 .rss-dashboard-article-source {
   display: block;
@@ -213,6 +220,7 @@
   color: var(--text-normal);
 }
 
+/* Custom tooltip showing the full date on hover */
 .rss-dashboard-article-date[title]:hover::after {
   content: attr(title);
   position: absolute;
@@ -229,6 +237,58 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.rss-dashboard-article-feed-container {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
+}
+
+.rss-dashboard-article-feed-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+/* Grouped: video and YouTube share the same brand color */
+.rss-dashboard-article-feed-icon.video,
+.rss-dashboard-article-feed-icon.youtube {
+  color: red;
+}
+
+.rss-dashboard-article-feed-icon.podcast {
+  color: #8e44ad;
+}
+
+.rss-dashboard-article-duration {
+  background-color: #8e44ad;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+/* ============================================
+ * 6. Article Actions & Toggle Buttons
+ * Save, read, star, and tag action icons
+ * ============================================ */
+
+.rss-dashboard-article-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: none;
+  border-radius: 0;
+  padding: 0;
+  margin-top: 4px;
+}
+
+/* Base toggle button style */
 .rss-dashboard-save-toggle,
 .rss-dashboard-read-toggle,
 .rss-dashboard-star-toggle,
@@ -247,15 +307,16 @@
   position: relative;
 }
 
-.rss-dashboard-save-toggle svg,
-.rss-dashboard-read-toggle svg,
-.rss-dashboard-star-toggle svg,
-.rss-dashboard-tags-toggle svg {
-  width: var(--icon-size) !important;
-  height: var(--icon-size) !important;
-  display: block !important;
-  visibility: visible !important;
-  stroke-width: 2 !important;
+/* Scoped with body to override Obsidian's SVG injection without !important */
+body .rss-dashboard-save-toggle svg,
+body .rss-dashboard-read-toggle svg,
+body .rss-dashboard-star-toggle svg,
+body .rss-dashboard-tags-toggle svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  display: block;
+  visibility: visible;
+  stroke-width: 2;
 }
 
 .rss-dashboard-save-toggle:hover,
@@ -265,10 +326,58 @@
   color: var(--text-normal);
 }
 
+/* Save toggle states */
+.rss-dashboard-save-toggle {
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.rss-dashboard-save-toggle:hover {
+  opacity: 1;
+}
+
+.rss-dashboard-save-toggle.saved {
+  opacity: 1;
+  color: var(--interactive-accent);
+}
+
+.rss-dashboard-save-toggle.saved:hover {
+  opacity: 0.8;
+}
+
+.rss-dashboard-save-toggle.saving {
+  opacity: 0.5;
+  cursor: not-allowed;
+  position: relative;
+}
+
+/* Spinner overlay while save is in progress */
+.rss-dashboard-save-toggle.saving::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  /* `spin` keyframe is defined in the root styles.css bundle */
+  animation: spin 1s linear infinite;
+}
+
+/* Read toggle state */
 .rss-dashboard-read-toggle.read {
   color: #2ecc71;
 }
 
+/* Scoped with body to win over theme SVG color resets without !important */
+body .rss-dashboard-read-toggle.read svg {
+  color: #43a047;
+}
+
+/* Star toggle states */
 .rss-dashboard-star-toggle.starred {
   color: #f1c40f;
 }
@@ -277,51 +386,20 @@
   fill: #f1c40f;
 }
 
-.rss-dashboard-star-toggle.unstarred {
-  color: #888 !important;
-  opacity: 1 !important;
+/* Scoped with body to prevent theme opacity resets without !important */
+body .rss-dashboard-star-toggle.unstarred {
+  color: #888;
+  opacity: 1;
 }
 
-.rss-dashboard-star-toggle svg {
-  opacity: 1 !important;
+body .rss-dashboard-star-toggle svg {
+  opacity: 1;
 }
 
-@media (max-width: 768px) {
-  .rss-dashboard-action-toolbar .rss-dashboard-save-toggle,
-  .rss-dashboard-action-toolbar .rss-dashboard-read-toggle,
-  .rss-dashboard-action-toolbar .rss-dashboard-star-toggle,
-  .rss-dashboard-action-toolbar .rss-dashboard-tags-toggle {
-    width: auto;
-    min-width: 40px;
-    height: 36px;
-    border-radius: 12px;
-    padding: 0 10px;
-    border: 1px solid var(--background-modifier-border);
-    background-color: var(--background-primary);
-  }
-
-  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
-    .rss-dashboard-grid-actions
-    .rss-dashboard-save-toggle,
-  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
-    .rss-dashboard-grid-actions
-    .rss-dashboard-read-toggle,
-  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
-    .rss-dashboard-grid-actions
-    .rss-dashboard-star-toggle,
-  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
-    .rss-dashboard-grid-actions
-    .rss-dashboard-tags-toggle,
-  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-minimal
-    .rss-dashboard-grid-actions
-    .rss-dashboard-read-toggle {
-    min-width: 40px;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    border-radius: 12px;
-  }
-}
+/* ============================================
+ * 7. Tags Dropdown
+ * Inline tag picker, add-row, badges, and action buttons
+ * ============================================ */
 
 .rss-dashboard-tags-dropdown {
   position: relative;
@@ -340,7 +418,6 @@
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
   z-index: 9999;
   border-radius: 4px;
-  overflow: hidden;
   border: 1px solid var(--background-modifier-border);
   padding: 5px 0;
 }
@@ -362,6 +439,7 @@
   margin: 4px 0;
 }
 
+/* Inline add-row inside the dropdown */
 .rss-dashboard-tag-inline-add-row {
   display: flex;
   align-items: center;
@@ -416,12 +494,13 @@
   border-color: var(--interactive-accent);
 }
 
-.rss-dashboard-tag-inline-button svg {
-  width: var(--icon-size) !important;
-  height: var(--icon-size) !important;
-  display: block !important;
-  visibility: visible !important;
-  stroke-width: 2 !important;
+/* Scoped with body to override Obsidian SVG injection without !important */
+body .rss-dashboard-tag-inline-button svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  display: block;
+  visibility: visible;
+  stroke-width: 2;
 }
 
 .rss-dashboard-tag-checkbox {
@@ -429,6 +508,17 @@
   cursor: pointer;
 }
 
+/* Merged duplicate: tag-badge used in both list view and dropdown */
+.rss-dashboard-tag-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.95em;
+  color: #fff;
+  background: var(--tag-color, var(--interactive-accent));
+  font-weight: 500;
+}
+
+/* Inline tag label (inside dropdown items) */
 .rss-dashboard-tag-label {
   padding: 1px 6px;
   border-radius: 3px;
@@ -439,6 +529,7 @@
   background-color: var(--tag-color, var(--interactive-accent));
 }
 
+/* Tag item action buttons (edit / delete) */
 .rss-dashboard-tag-action-button {
   --icon-size: 13px;
   display: flex;
@@ -447,7 +538,7 @@
   width: 20px;
   height: 20px;
   padding: 0;
-  margin-left: 4px; /* Added spacing since there can be two buttons */
+  margin-left: 4px; /* Spacing when two buttons appear side-by-side */
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
   background: var(--background-secondary);
@@ -456,17 +547,18 @@
   flex-shrink: 0;
 }
 
-.rss-dashboard-tag-action-button svg {
-  width: var(--icon-size) !important;
-  height: var(--icon-size) !important;
-  display: block !important;
-  visibility: visible !important;
-  stroke-width: 2 !important;
-}
-
-/* Ensure the first action button gets the margin-auto spacing to push both to the right */
+/* Push first action button to the right after the tag label */
 .rss-dashboard-tag-label + .rss-dashboard-tag-action-button {
   margin-left: auto;
+}
+
+/* Scoped with body to override Obsidian SVG injection without !important */
+body .rss-dashboard-tag-action-button svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  display: block;
+  visibility: visible;
+  stroke-width: 2;
 }
 
 .rss-dashboard-tag-action-button:hover {
@@ -483,122 +575,10 @@
   border-color: var(--text-accent);
 }
 
-.rss-dashboard-article-tag {
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 11px;
-  color: #fff;
-  background-color: var(--tag-color, var(--interactive-accent));
-}
-
-.rss-dashboard-article-summary {
-  font-size: 0.9em;
-  color: var(--text-muted);
-  margin: 5px 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  line-clamp: 5;
-  -webkit-box-orient: vertical;
-}
-
-.rss-dashboard-article-feed-container {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  max-width: 100%;
-  flex: 1 1 auto;
-}
-
-.rss-dashboard-article-feed-icon {
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-}
-
-.rss-dashboard-article-feed-icon.video {
-  color: red;
-}
-
-.rss-dashboard-article-feed-icon.youtube {
-  color: red;
-}
-
-.rss-dashboard-article-feed-icon.podcast {
-  color: #8e44ad;
-}
-
-.rss-dashboard-save-toggle {
-  cursor: pointer;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
-}
-
-.rss-dashboard-save-toggle:hover {
-  opacity: 1;
-}
-
-.rss-dashboard-save-toggle.saved {
-  opacity: 1;
-  color: var(--interactive-accent);
-}
-
-.rss-dashboard-save-toggle.saved:hover {
-  opacity: 0.8;
-}
-
-.rss-dashboard-save-toggle.saving {
-  opacity: 0.5;
-  cursor: not-allowed;
-  position: relative;
-}
-
-.rss-dashboard-save-toggle.saving::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 12px;
-  height: 12px;
-  margin: -6px 0 0 -6px;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-.rss-dashboard-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--text-muted);
-}
-
-.rss-dashboard-empty-state svg {
-  margin-bottom: 15px;
-}
-
-.rss-dashboard-empty-state-icon {
-  width: 48px;
-  height: 48px;
-}
-
-.rss-dashboard-empty-state h3 {
-  margin: 0 0 10px 0;
-  font-size: 18px;
-  color: var(--text-normal);
-}
-
-.rss-dashboard-empty-state p {
-  margin: 0;
-  font-size: 14px;
-}
+/* ============================================
+ * 8. Media Player
+ * Audio player wrapper for podcast/audio articles
+ * ============================================ */
 
 .rss-reader-media-player.audio-player {
   background-color: var(--background-secondary);
@@ -612,28 +592,91 @@
   margin-top: 10px;
 }
 
-.rss-dashboard-article-duration {
-  background-color: #8e44ad;
-  color: #fff;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 12px;
+/* ============================================
+ * 9. Animations & Keyframes
+ * ============================================ */
+
+@keyframes rss-dashboard-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
-.rss-dashboard-read-toggle.read svg {
-  color: #43a047 !important;
+/* Note: `spin` keyframe (used by .rss-dashboard-save-toggle.saving::after)
+   is defined in the root styles.css bundle. */
+
+/* ============================================
+ * 10. Responsive Overrides
+ * Consolidated @media blocks — desktop → tablet → mobile → touch
+ * ============================================ */
+
+/* Tablet / narrow desktop (≤ 1200px) */
+@media (max-width: 1200px) {
+  /* Override inline sizing when sidebar is hidden by JS layout code. */
+  .rss-dashboard-content {
+    width: 100% !important; /* audit-ok: these properties are set via inline style by the sidebar layout manager */
+    margin-left: 0 !important; /* audit-ok: these properties are set via inline style by the sidebar layout manager */
+  }
+
+  /* Increase bottom padding to accommodate the persistent Obsidian mobile menu */
+  .rss-dashboard-articles {
+    padding: 0 10px 110px 10px;
+  }
 }
 
-/* Ensure smooth transitions for article elements */
-.rss-dashboard-article-card {
-  transition:
-    opacity 0.2s ease-out,
-    transform 0.2s ease-out,
-    background-color 0.15s ease,
-    box-shadow 0.18s ease,
-    border 0.18s ease;
+/* Mobile (≤ 900px) — reduce typography scale */
+@media (max-width: 900px) {
+  .rss-dashboard-article-title,
+  .rss-dashboard-article-summary {
+    font-size: 1em;
+    line-clamp: 2;
+  }
 }
 
+/* Mobile (≤ 768px) — touch-target sizing for action toggles */
+@media (max-width: 768px) {
+  .rss-dashboard-action-toolbar .rss-dashboard-save-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-read-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-star-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-tags-toggle {
+    width: auto;
+    min-width: 40px;
+    height: 36px;
+    border-radius: 12px;
+    padding: 0 10px;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+  }
+
+  /* Grid-style mobile list: square icon-only buttons */
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
+    .rss-dashboard-grid-actions
+    .rss-dashboard-save-toggle,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
+    .rss-dashboard-grid-actions
+    .rss-dashboard-read-toggle,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
+    .rss-dashboard-grid-actions
+    .rss-dashboard-star-toggle,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
+    .rss-dashboard-grid-actions
+    .rss-dashboard-tags-toggle,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-minimal
+    .rss-dashboard-grid-actions
+    .rss-dashboard-read-toggle {
+    min-width: 40px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 12px;
+  }
+}
+
+/* Touch devices — pointer-coarse hover / active feedback */
 @media (hover: none) and (pointer: coarse) {
   .rss-dashboard-article-card:hover,
   .rss-dashboard-article-item:hover {
@@ -644,15 +687,5 @@
   .rss-dashboard-article-card:active,
   .rss-dashboard-article-item:active {
     background-color: var(--background-modifier-active);
-  }
-}
-
-@keyframes rss-dashboard-fade-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
   }
 }

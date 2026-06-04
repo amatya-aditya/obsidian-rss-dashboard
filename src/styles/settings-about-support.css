@@ -1,0 +1,140 @@
+/* =============================================================================
+ * Settings About & Support (settings-about-support.css)
+ *
+ * About tab content, support call-to-actions, and support readme links.
+ * =============================================================================
+ */
+
+/* ============================================
+ * 1. About Surface
+ * ============================================ */
+
+.rss-dashboard-about-tab {
+  max-width: 640px;
+  margin: 8px auto 0;
+  padding: 12px 8px;
+  text-align: center;
+}
+
+.rss-dashboard-about-title {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--text-normal);
+  line-height: 1.15;
+}
+
+.rss-dashboard-about-version {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.rss-dashboard-about-section-title {
+  margin-top: 24px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.rss-dashboard-about-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.rss-dashboard-about-btn {
+  display: inline-block;
+  min-width: 90px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.12s ease;
+}
+
+.rss-dashboard-about-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--background-secondary);
+  transform: translateY(-1px);
+}
+
+.rss-dashboard-about-btn:active {
+  transform: translateY(0);
+}
+
+/* ============================================
+ * 2. Support Surface
+ * ============================================ */
+
+.rss-dashboard-support-btn-row {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0 8px 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.rss-dashboard-support-btn {
+  display: inline-block;
+  background: var(--color-accent);
+  color: var(--background-primary);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.rss-dashboard-support-btn:hover {
+  background: var(--color-accent-2);
+  color: var(--text-on-accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  border-color: var(--color-accent);
+}
+
+.rss-dashboard-support-message {
+  font-size: 16px;
+  color: var(--text-normal);
+  margin-bottom: 8px;
+  text-align: center;
+  padding: 12px;
+  background: var(--background-secondary);
+  border-radius: 8px;
+}
+
+.rss-dashboard-support-readme {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.rss-dashboard-support-readme a {
+  color: var(--color-accent);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.rss-dashboard-support-readme a:hover {
+  background: var(--background-secondary);
+  color: var(--color-accent-2);
+}

@@ -151,14 +151,21 @@ export function setupReaderHotkeys(scope: Scope, view: ReaderView): void {
     return true;
   });
 
-  // Save current article ('s')
-  scope.register([], "s", (evt) => {
-    evt.preventDefault();
-    void view.actionSaveCurrentArticle();
-    return true;
-  });
+// Save current article ('s')
+   scope.register([], "s", (evt) => {
+     evt.preventDefault();
+     void view.actionSaveCurrentArticle();
+     return true;
+   });
 
-  // Open Shortcut Help ('Shift + ?')
+   // Mark read and open next article (',')
+   scope.register([], ",", (evt) => {
+     evt.preventDefault();
+     void view.actionMarkReadAndNext();
+     return true;
+   });
+
+   // Open Shortcut Help ('Shift + ?')
   scope.register(["Shift"], "?", (evt) => {
     evt.preventDefault();
     view.actionOpenShortcutHelp();

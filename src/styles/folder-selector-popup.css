@@ -1,0 +1,215 @@
+/* =============================================================================
+ * Folder Selector Popup (folder-selector-popup.css)
+ *
+ * Folder selector popup, list, and input interactions.
+ * =============================================================================
+ */
+
+/* ============================================
+ * 1. Popup Container
+ * ============================================ */
+
+.rss-folder-selector-popup {
+  position: fixed;
+  min-width: 220px;
+  max-width: 320px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 99999;
+  animation: rss-folder-popup-fade-in 0.15s ease-out;
+}
+
+.rss-folder-selector-popup-above {
+  animation: rss-folder-popup-fade-in-above 0.15s ease-out;
+}
+
+@keyframes rss-folder-popup-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rss-folder-popup-fade-in-above {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+body .rss-folder-selector-input-wrapper {
+  padding: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+body .rss-folder-selector-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: 13px;
+  transition: border-color 0.15s ease;
+}
+
+.rss-folder-selector-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.rss-folder-selector-input-invalid {
+  animation: rss-folder-input-shake 0.3s ease;
+  border-color: var(--text-error);
+}
+
+@keyframes rss-folder-input-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+.rss-folder-selector-list {
+  overflow-y: auto;
+  padding: 4px 0;
+  max-height: calc(5 * 32px); /* 5 items max visible */
+}
+
+.rss-folder-selector-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-normal);
+  transition: background-color 0.1s ease;
+}
+
+.rss-folder-selector-item:hover,
+.rss-folder-selector-item.is-selected {
+  background-color: var(--background-modifier-hover);
+}
+
+.rss-folder-selector-item.is-selected {
+  border-left: 2px solid var(--interactive-accent);
+  padding-left: 10px;
+}
+
+.rss-folder-selector-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.rss-folder-selector-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.rss-folder-selector-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rss-folder-selector-create {
+  color: var(--interactive-accent);
+}
+
+.rss-folder-selector-create .rss-folder-selector-icon {
+  color: var(--interactive-accent);
+}
+
+.rss-folder-selector-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  cursor: default;
+}
+
+.rss-folder-selector-empty:hover {
+  background-color: transparent;
+}
+
+@supports selector(::-webkit-scrollbar) {
+  .rss-folder-selector-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .rss-folder-selector-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .rss-folder-selector-list::-webkit-scrollbar-thumb {
+    background: var(--background-modifier-border);
+    border-radius: 3px;
+  }
+
+  .rss-folder-selector-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+}
+
+@media (max-width: 600px) {
+  .rss-folder-selector-popup {
+    left: 16px !important; /* audit-ok: overrides inline anchor positioning on mobile */
+    right: 16px !important; /* audit-ok: overrides inline anchor positioning on mobile */
+    max-width: none;
+    min-width: auto;
+  }
+}
+
+body .rss-folder-selector-input-wrapper {
+  position: relative;
+}
+
+body .rss-folder-selector-input {
+  padding-right: 32px;
+}
+
+.rss-folder-selector-clear {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: flex !important; /* audit-ok: display toggle utility */
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 4px;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+  z-index: 10;
+}
+
+.rss-folder-selector-clear:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.rss-folder-selector-clear.is-hidden {
+  display: none !important; /* audit-ok: display toggle utility */
+}

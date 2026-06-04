@@ -8,7 +8,12 @@
  * Each test covers a targeted scenario without any service code existing yet.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_SETTINGS, type Feed, type FeedIngestionCandidate, type FeedMetadata } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type Feed,
+  type FeedIngestionCandidate,
+  type FeedMetadata,
+} from "../../../src/types/types";
 import type { BackgroundImportServiceDeps } from "../../../src/services/background-import-service";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -16,9 +21,20 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 interface TestableBackgroundImportService {
   createPlaceholderFeed: (candidate: FeedIngestionCandidate) => Feed;
   parseFeedWithTimeout: (url: string) => Promise<Feed>;
-  mergeBackgroundImportedFeed: (feedMetadata: FeedMetadata, parsedFeed: Feed) => void;
-  updateBackgroundImportProgress: (current: number, total: number, currentFeedTitle: string) => void;
-  processBackgroundImportWorker: (saveEvery: number, renderEvery: number, shouldRenderDuringImport: boolean) => Promise<void>;
+  mergeBackgroundImportedFeed: (
+    feedMetadata: FeedMetadata,
+    parsedFeed: Feed,
+  ) => void;
+  updateBackgroundImportProgress: (
+    current: number,
+    total: number,
+    currentFeedTitle: string,
+  ) => void;
+  processBackgroundImportWorker: (
+    saveEvery: number,
+    renderEvery: number,
+    shouldRenderDuringImport: boolean,
+  ) => Promise<void>;
   backgroundImportQueue: FeedMetadata[];
   backgroundImportTotalCount: number;
   backgroundImportInFlightUrls: Set<string>;
@@ -49,7 +65,11 @@ describe("BackgroundImportService", () => {
     };
   }
 
-  function makeDeps(settingsOverrides: Record<string, unknown> = {}): BackgroundImportServiceDeps & { _settings: ReturnType<typeof makeSettings> } {
+  function makeDeps(
+    settingsOverrides: Record<string, unknown> = {},
+  ): BackgroundImportServiceDeps & {
+    _settings: ReturnType<typeof makeSettings>;
+  } {
     const settings = makeSettings(settingsOverrides);
     return {
       getSettings: () => settings,
@@ -76,7 +96,9 @@ describe("BackgroundImportService", () => {
       const deps = makeDeps();
       const service = new BackgroundImportService(deps);
 
-      const placeholder = (service as unknown as TestableBackgroundImportService).createPlaceholderFeed({
+      const placeholder = (
+        service as unknown as TestableBackgroundImportService
+      ).createPlaceholderFeed({
         title: "Test Video Feed",
         url: "https://youtube.com/feeds/videos.xml",
         mediaType: "video",
@@ -92,7 +114,9 @@ describe("BackgroundImportService", () => {
       const deps = makeDeps();
       const service = new BackgroundImportService(deps);
 
-      const placeholder = (service as unknown as TestableBackgroundImportService).createPlaceholderFeed({
+      const placeholder = (
+        service as unknown as TestableBackgroundImportService
+      ).createPlaceholderFeed({
         title: "Test Podcast",
         url: "https://podcast.example.com/feed.xml",
         mediaType: "podcast",
@@ -108,7 +132,9 @@ describe("BackgroundImportService", () => {
       const deps = makeDeps({ defaultAutoDeleteDuration: 14 });
       const service = new BackgroundImportService(deps);
 
-      const placeholder = (service as unknown as TestableBackgroundImportService).createPlaceholderFeed({
+      const placeholder = (
+        service as unknown as TestableBackgroundImportService
+      ).createPlaceholderFeed({
         title: "No Duration",
         url: "https://example.com/feed.xml",
       });
@@ -122,7 +148,9 @@ describe("BackgroundImportService", () => {
       const deps = makeDeps({ maxItems: 75 });
       const service = new BackgroundImportService(deps);
 
-      const placeholder = (service as unknown as TestableBackgroundImportService).createPlaceholderFeed({
+      const placeholder = (
+        service as unknown as TestableBackgroundImportService
+      ).createPlaceholderFeed({
         title: "No Limit",
         url: "https://example.com/feed.xml",
       });
@@ -136,7 +164,9 @@ describe("BackgroundImportService", () => {
       const deps = makeDeps();
       const service = new BackgroundImportService(deps);
 
-      const placeholder = (service as unknown as TestableBackgroundImportService).createPlaceholderFeed({
+      const placeholder = (
+        service as unknown as TestableBackgroundImportService
+      ).createPlaceholderFeed({
         title: "Refresh Off",
         url: "https://example.com/refresh-off.xml",
         scanInterval: -1,
@@ -151,7 +181,9 @@ describe("BackgroundImportService", () => {
       const deps = makeDeps();
       const service = new BackgroundImportService(deps);
 
-      const placeholder = (service as unknown as TestableBackgroundImportService).createPlaceholderFeed({
+      const placeholder = (
+        service as unknown as TestableBackgroundImportService
+      ).createPlaceholderFeed({
         title: "Muted Feed",
         url: "https://example.com/muted.xml",
         excludeFromRefresh: true,
@@ -166,7 +198,9 @@ describe("BackgroundImportService", () => {
       const deps = makeDeps();
       const service = new BackgroundImportService(deps);
 
-      const placeholder = (service as unknown as TestableBackgroundImportService).createPlaceholderFeed({
+      const placeholder = (
+        service as unknown as TestableBackgroundImportService
+      ).createPlaceholderFeed({
         title: "Typed Article",
         url: "https://example.com/article.xml",
         mediaType: "article",
@@ -197,11 +231,10 @@ describe("BackgroundImportService", () => {
       const service = new BackgroundImportService(deps);
 
       await expect(
-        (service as unknown as TestableBackgroundImportService).parseFeedWithTimeout(
-          "https://example.com/recovered.xml",
-        ),
+        (
+          service as unknown as TestableBackgroundImportService
+        ).parseFeedWithTimeout("https://example.com/recovered.xml"),
       ).resolves.toEqual(parsedFeed);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(deps.feedParser.parseFeed).toHaveBeenCalledTimes(2);
     });
 
@@ -225,16 +258,21 @@ describe("BackgroundImportService", () => {
         .mockRejectedValue(new Error("Timed out"));
       const service = new BackgroundImportService(deps);
 
-      (service as unknown as TestableBackgroundImportService).backgroundImportQueue = [deps._settings.feeds[0]];
-      (service as unknown as TestableBackgroundImportService).backgroundImportTotalCount = 1;
-      await (service as unknown as TestableBackgroundImportService).processBackgroundImportWorker(1, 1, false);
+      (
+        service as unknown as TestableBackgroundImportService
+      ).backgroundImportQueue = [deps._settings.feeds[0]];
+      (
+        service as unknown as TestableBackgroundImportService
+      ).backgroundImportTotalCount = 1;
+      await (
+        service as unknown as TestableBackgroundImportService
+      ).processBackgroundImportWorker(1, 1, false);
 
       const updatedFeed = deps._settings.feeds[0] as Feed & {
         importStatus?: string;
         importError?: string;
       };
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(deps.feedParser.parseFeed).toHaveBeenCalledTimes(2);
       expect(updatedFeed.importStatus).toBe("timed_out");
       expect(updatedFeed.importError).toBeTruthy();
@@ -290,7 +328,9 @@ describe("BackgroundImportService", () => {
         mediaType: "article",
       };
 
-      (service as unknown as TestableBackgroundImportService).mergeBackgroundImportedFeed(feedMetadata, parsedFeed);
+      (
+        service as unknown as TestableBackgroundImportService
+      ).mergeBackgroundImportedFeed(feedMetadata, parsedFeed);
 
       expect(deps._settings.feeds[0].title).toBe("New Title");
       expect(deps._settings.feeds[0].author).toBe("Author Name");
@@ -320,7 +360,9 @@ describe("BackgroundImportService", () => {
       };
 
       expect(() =>
-        (service as unknown as TestableBackgroundImportService).mergeBackgroundImportedFeed(feedMetadata, parsedFeed),
+        (
+          service as unknown as TestableBackgroundImportService
+        ).mergeBackgroundImportedFeed(feedMetadata, parsedFeed),
       ).not.toThrow();
       expect(deps._settings.feeds).toHaveLength(0);
     });
@@ -340,9 +382,13 @@ describe("BackgroundImportService", () => {
       const deps = makeDeps();
       deps.addStatusBarItem = vi.fn(() => statusBarItem);
       const service = new BackgroundImportService(deps);
-      (service as unknown as TestableBackgroundImportService).importStatusBarItem = statusBarItem;
+      (
+        service as unknown as TestableBackgroundImportService
+      ).importStatusBarItem = statusBarItem;
 
-      (service as unknown as TestableBackgroundImportService).updateBackgroundImportProgress(3, 10, "My Feed");
+      (
+        service as unknown as TestableBackgroundImportService
+      ).updateBackgroundImportProgress(3, 10, "My Feed");
 
       expect(textSpan.textContent).toContain("3/10");
       expect(textSpan.textContent).toContain("My Feed");

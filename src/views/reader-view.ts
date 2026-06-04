@@ -19,6 +19,7 @@ import {
   DEFAULT_SETTINGS,
   ArticleSavingSettings,
   Tag,
+  ViewLocation,
 } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
 import { ArticleSaver } from "../services/article-saver";
@@ -400,6 +401,55 @@ export class ReaderView extends ItemView {
     return null;
   }
 
+  private getSavedArticleOpenLocation(): ViewLocation {
+    const location = this.settings.savedArticleOpenLocation;
+    if (
+      location === "left-sidebar" ||
+      location === "right-sidebar" ||
+      location === "inline"
+    ) {
+      return location;
+    }
+    return "main";
+  }
+
+  private getConfiguredSavedArticleLeaf(
+    location: ViewLocation,
+  ): WorkspaceLeaf | null {
+    switch (location) {
+      case "left-sidebar":
+        return this.app.workspace.getLeftLeaf(false);
+      case "right-sidebar":
+        return this.app.workspace.getRightLeaf(false);
+      case "inline":
+        return null;
+      default:
+        return this.app.workspace.getLeaf("split");
+    }
+  }
+
+  private async openSavedArticleInConfiguredLocation(
+    file: TFile,
+    article: FeedItem,
+  ): Promise<void> {
+    const dashboardView = this.getDashboardView();
+    if (dashboardView) {
+      await dashboardView.openSavedArticleFile(file, article);
+      return;
+    }
+
+    const location = this.getSavedArticleOpenLocation();
+    const targetLocation = location === "inline" ? "main" : location;
+    const leaf = this.getConfiguredSavedArticleLeaf(targetLocation);
+    if (!leaf) {
+      new Notice("No workspace leaf available for saved article");
+      return;
+    }
+
+    await leaf.openFile(file);
+    await this.app.workspace.revealLeaf(leaf);
+  }
+
   /**
    * Action: Navigate to next article from reader.
    * @internal
@@ -468,6 +518,15 @@ export class ReaderView extends ItemView {
   }
 
   /**
+   * Action: Mark read/unread and open next article.
+   * @internal
+   */
+  public actionMarkReadAndNext(): void {
+    this.actionToggleReadStatus();
+    this.actionNavigateNext();
+  }
+
+  /**
    * Action: Toggle star status of the current article.
    * @internal
    */
@@ -503,18 +562,12 @@ export class ReaderView extends ItemView {
         this.currentItem.savedFilePath || "",
       );
       if (file instanceof TFile) {
-        await this.leaf.openFile(file);
+        await this.openSavedArticleInConfiguredLocation(file, this.currentItem);
       }
       return;
     }
 
-    const htmlToSave =
-      this.currentFullContent && this.currentContentIsFullArticle
-        ? this.stripNavigationChromeFromHtml(
-            this.stripTopHeadlineFromHtml(this.currentFullContent),
-          )
-        : this.currentFullContent || this.currentItem.description || "";
-    const markdownContent = this.turndownService.turndown(htmlToSave);
+    const markdownContent = this.buildReaderSaveMarkdown(this.currentItem);
     const displayTitle = this.currentDisplayTitle;
     const saveItem = displayTitle
       ? { ...this.currentItem, title: displayTitle }
@@ -532,6 +585,112 @@ export class ReaderView extends ItemView {
       this.onArticleSave(this.currentItem);
 
       this.updateSavedLabel(true);
+    }
+  }
+
+  private buildReaderSaveMarkdown(item: FeedItem): string {
+    const htmlToSave =
+      this.currentFullContent && this.currentContentIsFullArticle
+        ? this.stripNavigationChromeFromHtml(
+            this.stripTopHeadlineFromHtml(this.currentFullContent),
+          )
+        : this.currentFullContent || item.description || "";
+    const htmlWithHero = this.prependFallbackHeroForSavedMarkdown(
+      item,
+      htmlToSave,
+    );
+    const normalizedSaveHtml =
+      this.normalizeBlockLinksForSavedMarkdown(htmlWithHero);
+    return this.turndownService.turndown(normalizedSaveHtml);
+  }
+
+  private prependFallbackHeroForSavedMarkdown(
+    item: FeedItem,
+    html: string,
+  ): string {
+    if (!html) return html;
+
+    const feedIconUrl = item.feedUrl
+      ? this.settings.feeds.find((f) => f.url === item.feedUrl)?.iconUrl || ""
+      : "";
+    const normalize = (u: string) => normalizeSubstackImageUrl(u.trim());
+    const normalizedFeedIcon = feedIconUrl ? normalize(feedIconUrl) : "";
+
+    const fallbackCandidates = [
+      item.coverImage || "",
+      item.image || "",
+      item.itunes?.image?.href || "",
+      item.enclosure?.type?.startsWith("image/")
+        ? (item.enclosure.url ?? "")
+        : "",
+    ];
+
+    const fallbackHeroUrl = fallbackCandidates
+      .map((candidate) => normalize(candidate))
+      .find((candidate) => candidate && candidate !== normalizedFeedIcon);
+
+    if (!fallbackHeroUrl) return html;
+
+    try {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const heroAlreadyIncluded = Array.from(doc.querySelectorAll("img")).some(
+        (img) =>
+          this.isLikelySameImageSource(
+            normalizeSubstackImageUrl(img.getAttribute("src") || ""),
+            fallbackHeroUrl,
+          ),
+      );
+
+      if (heroAlreadyIncluded) {
+        return html;
+      }
+    } catch {
+      // Best-effort check only; continue and inject hero if parsing fails.
+    }
+
+    return `<p><img src="${fallbackHeroUrl}" alt="Hero image" /></p>${html}`;
+  }
+
+  private normalizeBlockLinksForSavedMarkdown(html: string): string {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      doc.querySelectorAll("a").forEach((link) => {
+        const href = normalizeSubstackImageUrl(link.getAttribute("href") || "");
+        const hasInlineImage = !!link.querySelector("img, picture img");
+        const hasBlockContent = !!link.querySelector(
+          "address, article, aside, blockquote, br, dd, div, dl, dt, figcaption, figure, footer, h1, h2, h3, h4, h5, h6, header, hr, li, main, nav, ol, p, pre, section, table, ul",
+        );
+        if (!hasBlockContent && !hasInlineImage) return;
+
+        link.querySelectorAll("br").forEach((br) => {
+          br.replaceWith(doc.createTextNode(" "));
+        });
+
+        const label = (link.textContent || "").replace(/\s+/g, " ").trim();
+        if (label) {
+          link.textContent = label;
+          return;
+        }
+
+        if (hasInlineImage) {
+          const fragment = doc.createDocumentFragment();
+          while (link.firstChild) {
+            fragment.appendChild(link.firstChild);
+          }
+
+          if (href) {
+            link.setAttribute("href", href);
+          }
+
+          link.replaceWith(fragment);
+        }
+      });
+
+      return doc.body.innerHTML;
+    } catch {
+      return html;
     }
   }
 
@@ -662,7 +821,10 @@ export class ReaderView extends ItemView {
           this.currentItem.savedFilePath || "",
         );
         if (file instanceof TFile) {
-          void this.leaf.openFile(file);
+          void this.openSavedArticleInConfiguredLocation(
+            file,
+            this.currentItem,
+          );
           return;
         }
       }
@@ -903,13 +1065,7 @@ export class ReaderView extends ItemView {
         .setTitle("Save with default settings")
         .setIcon("save")
         .onClick(async () => {
-          const htmlToSave =
-            this.currentFullContent && this.currentContentIsFullArticle
-              ? this.stripNavigationChromeFromHtml(
-                  this.stripTopHeadlineFromHtml(this.currentFullContent),
-                )
-              : this.currentFullContent || item.description || "";
-          const markdownContent = this.turndownService.turndown(htmlToSave);
+          const markdownContent = this.buildReaderSaveMarkdown(item);
           const saveItem = displayTitle
             ? { ...item, title: displayTitle }
             : item;
@@ -1028,13 +1184,7 @@ export class ReaderView extends ItemView {
         const folder = folderInput.value.trim();
         const template = templateInput.value.trim() || undefined;
 
-        const htmlToSave =
-          this.currentFullContent && this.currentContentIsFullArticle
-            ? this.stripNavigationChromeFromHtml(
-                this.stripTopHeadlineFromHtml(this.currentFullContent),
-              )
-            : this.currentFullContent || item.description || "";
-        const markdownContent = this.turndownService.turndown(htmlToSave);
+        const markdownContent = this.buildReaderSaveMarkdown(item);
         const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
         const file = await this.articleSaver.saveArticle(
           saveItem,

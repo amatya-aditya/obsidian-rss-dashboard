@@ -176,6 +176,23 @@ export function renderGeneralSettingsTab(
     );
 
   new Setting(containerEl)
+    .setName("Saved article open location")
+    .setDesc("Choose where to open saved article files")
+    .addDropdown((dropdown) =>
+      dropdown
+        .addOption("main", "Main view (split)")
+        .addOption("right-sidebar", "Right sidebar")
+        .addOption("left-sidebar", "Left sidebar")
+        .addOption("inline", "Inline (inside dashboard)")
+        .setValue(plugin.settings.savedArticleOpenLocation || "main")
+        .onChange(async (value: string) => {
+          plugin.settings.savedArticleOpenLocation =
+            value as import("../../types/types").ViewLocation;
+          await plugin.saveSettings();
+        }),
+    );
+
+  new Setting(containerEl)
     .setName("Use web viewer")
     .setDesc("Use web viewer core plugin for articles when available")
     .addToggle((toggle) =>

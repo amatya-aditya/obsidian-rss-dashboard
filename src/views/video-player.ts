@@ -2,37 +2,10 @@ import { Notice, Setting, setIcon } from "obsidian";
 import { FeedItem } from "../types/types";
 import { MediaService } from "../services/media-service";
 
-interface YTPlayerEvent {
-  target: YTPlayer;
-}
-
-interface YTStateChangeEvent {
-  data: number;
-}
-
-interface YTPlayer {
-  seekTo(seconds: number, allowSeekAhead?: boolean): void;
-  getCurrentTime(): number;
-  getDuration(): number;
-  destroy(): void;
-}
-
-interface YTPlayerOptions {
-  events?: {
-    onReady?: (event: YTPlayerEvent) => void;
-    onStateChange?: (event: YTStateChangeEvent) => void;
-  };
-}
-
-interface YTNamespace {
-  Player: new (elementId: string, options: YTPlayerOptions) => YTPlayer;
-}
-
-declare global {
-  interface Window {
-    YT?: YTNamespace;
-    onYouTubeIframeAPIReady: () => void;
-  }
+interface YouTubeMessagePayload {
+  id?: string | number;
+  event?: string;
+  info?: unknown;
 }
 
 export class VideoPlayer {
@@ -40,7 +13,6 @@ export class VideoPlayer {
   private currentItem: FeedItem | null = null;
   private playerEl: HTMLElement | null = null;
   private iframeEl: HTMLIFrameElement | null = null;
-  private player: YTPlayer | null = null;
   private progressInterval: number | null = null;
   private lastTrackedPosition: number | null = null;
   private progressTrackingEnabled: boolean;
@@ -52,6 +24,9 @@ export class VideoPlayer {
     flush?: boolean,
   ) => void;
   private relatedVideos: FeedItem[] = [];
+  private messageHandler: ((event: MessageEvent) => void) | null = null;
+  private playStartTime: number | null = null;
+  private videoDuration: number | null = null;
 
   constructor(
     container: HTMLElement,
@@ -68,28 +43,7 @@ export class VideoPlayer {
     this.onVideoSelect = onVideoSelect;
     this.onPlaybackProgress = onPlaybackProgress;
     this.progressTrackingEnabled = progressTrackingEnabled;
-    this.loadYouTubeApi();
-  }
-
-  private loadYouTubeApi(): void {
-    if (typeof window === "undefined") return;
-    if (window.YT && window.YT.Player) return;
-
-    if (!document.getElementById("youtube-iframe-api")) {
-      const tag = document.createElement("script");
-      tag.id = "youtube-iframe-api";
-      tag.src = "https://www.youtube.com/iframe_api";
-      const firstScriptTag = document.getElementsByTagName("script")[0];
-      if (firstScriptTag && firstScriptTag.parentNode) {
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-      } else {
-        (
-          document.head ||
-          document.body ||
-          document.documentElement
-        ).appendChild(tag);
-      }
-    }
+    this.setupMessageListener();
   }
 
   loadVideo(item: FeedItem): void {
@@ -124,7 +78,7 @@ export class VideoPlayer {
 
     this.iframeEl = document.createElement("iframe");
     this.iframeEl.id = iframeId;
-    this.iframeEl.src = embed.embedUrl;
+    this.iframeEl.src = `${embed.embedUrl}&id=${iframeId}`;
     this.iframeEl.setAttribute("allow", embed.allow);
     this.iframeEl.setAttribute("referrerpolicy", embed.referrerPolicy);
     this.iframeEl.allowFullscreen = true;
@@ -195,35 +149,105 @@ export class VideoPlayer {
     this.renderRelatedVideos();
   }
 
-  private initPlayer(iframeId: string): void {
-    const checkApi = () => {
-      if (window.YT && window.YT.Player) {
-        this.player = new window.YT.Player(iframeId, {
-          events: {
-            onReady: (event: YTPlayerEvent) => {
-              if (
-                this.progressTrackingEnabled &&
-                this.currentItem?.playbackProgress?.position
-              ) {
-                event.target.seekTo(this.currentItem.playbackProgress.position);
-              }
-              this.startTracking();
-            },
-            onStateChange: (event: YTStateChangeEvent) => {
-              this.handleStateChange(event.data);
-            },
-          },
-        });
-      } else {
-        setTimeout(checkApi, 100);
+  private sendCommand(func: string, args: unknown[] = []): void {
+    if (!this.iframeEl || !this.iframeEl.contentWindow) return;
+    try {
+      const message = JSON.stringify({
+        event: "command",
+        func: func,
+        args: args,
+        id: this.iframeEl.id,
+      });
+      const url = new URL(this.iframeEl.src);
+      this.iframeEl.contentWindow.postMessage(message, url.origin);
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  private setupMessageListener(): void {
+    this.messageHandler = (event: MessageEvent) => {
+      if (
+        event.origin !== "https://www.youtube.com" &&
+        event.origin !== "https://www.youtube-nocookie.com"
+      ) {
+        return;
+      }
+
+      try {
+        let parsedData: unknown;
+        if (typeof event.data === "string") {
+          parsedData = JSON.parse(event.data);
+        } else {
+          parsedData = event.data;
+        }
+
+        if (!parsedData || typeof parsedData !== "object") return;
+        const payload = parsedData as YouTubeMessagePayload;
+
+        // Verify it belongs to this player's iframe
+        if (payload.id !== undefined && String(payload.id) !== this.iframeEl?.id) {
+          return;
+        }
+
+        if (payload.event === "onReady") {
+          this.handlePlayerReady();
+        } else if (payload.event === "onStateChange") {
+          if (typeof payload.info === "number") {
+            this.handleStateChange(payload.info);
+          }
+        } else if (payload.event === "infoDelivery" && payload.info && typeof payload.info === "object") {
+          const info = payload.info as Record<string, unknown>;
+          if (typeof info.duration === "number") {
+            this.videoDuration = info.duration;
+          }
+          if (typeof info.currentTime === "number") {
+            this.lastTrackedPosition = info.currentTime;
+            if (this.playStartTime !== null) {
+              this.playStartTime = Date.now();
+            }
+          }
+          if (typeof info.playerState === "number") {
+            this.handleStateChange(info.playerState);
+          }
+        }
+      } catch {
+        // Parse/JSON error
       }
     };
-    checkApi();
+
+    window.addEventListener("message", this.messageHandler);
+  }
+
+  private handlePlayerReady(): void {
+    if (
+      this.progressTrackingEnabled &&
+      this.currentItem?.playbackProgress?.position
+    ) {
+      this.sendCommand("seekTo", [this.currentItem.playbackProgress.position, true]);
+    }
+  }
+
+  private initPlayer(_iframeId: string): void {
+    this.playStartTime = null;
+    this.videoDuration = null;
+
+    if (
+      this.progressTrackingEnabled &&
+      this.currentItem?.playbackProgress?.position
+    ) {
+      setTimeout(() => {
+        this.sendCommand("seekTo", [this.currentItem!.playbackProgress!.position, true]);
+      }, 1000);
+    }
   }
 
   private handleStateChange(state: number): void {
     if (state === 1) {
       // PLAYING
+      if (this.playStartTime === null) {
+        this.playStartTime = Date.now();
+      }
       this.startTracking();
       return;
     }
@@ -231,6 +255,8 @@ export class VideoPlayer {
     if (state === 2 || state === 0) {
       // PAUSED or ENDED
       this.saveProgress(true);
+      this.stopTracking();
+      this.playStartTime = null;
     }
   }
 
@@ -251,11 +277,20 @@ export class VideoPlayer {
 
   private saveProgress(flush = false): void {
     if (!this.progressTrackingEnabled) return;
-    if (!this.player || !this.currentItem || !this.onPlaybackProgress) return;
+    if (!this.currentItem || !this.onPlaybackProgress) return;
 
     try {
-      const position = this.player.getCurrentTime();
-      const duration = this.player.getDuration();
+      let position = this.lastTrackedPosition ?? 0;
+      if (this.playStartTime !== null) {
+        const elapsed = (Date.now() - this.playStartTime) / 1000;
+        position += elapsed;
+      }
+
+      const duration =
+        this.videoDuration ??
+        this.currentItem.playbackProgress?.duration ??
+        0;
+
       if (!(position >= 0) || !(duration > 0)) {
         return;
       }
@@ -269,6 +304,10 @@ export class VideoPlayer {
       }
 
       this.lastTrackedPosition = position;
+      if (this.playStartTime !== null) {
+        this.playStartTime = Date.now();
+      }
+
       this.onPlaybackProgress(this.currentItem, position, duration, flush);
     } catch {
       // Player might not be ready or detached
@@ -354,13 +393,9 @@ export class VideoPlayer {
   destroy(): void {
     this.stopTracking();
     this.flushProgress();
-    if (this.player) {
-      try {
-        this.player.destroy();
-      } catch {
-        // Player may already be destroyed
-      }
-      this.player = null;
+    if (this.messageHandler) {
+      window.removeEventListener("message", this.messageHandler);
+      this.messageHandler = null;
     }
     if (this.iframeEl) {
       this.iframeEl.remove();

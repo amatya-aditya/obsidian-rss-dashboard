@@ -1,8 +1,10 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as obsidian from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
@@ -86,7 +88,8 @@ describe("Dashboard card layout filter batch", () => {
   });
 
   it("persists card layout values from a batch and rerenders once", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
+    const { RssDashboardView } =
+      await import("../../../src/views/dashboard-view");
 
     const app = new obsidian.App();
     const settings = cloneSettings();
@@ -99,7 +102,10 @@ describe("Dashboard card layout filter batch", () => {
     } as unknown as RssDashboardPlugin;
 
     const leaf = { app } as unknown as obsidian.WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin) as unknown as MockDashboardView;
+    const view = new RssDashboardView(
+      leaf,
+      plugin,
+    ) as unknown as MockDashboardView;
     view.render = vi.fn(async () => {});
 
     await view.handleFilterChange({
@@ -118,7 +124,8 @@ describe("Dashboard card layout filter batch", () => {
   });
 
   it("does not save or rerender when batch card layout values are unchanged", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
+    const { RssDashboardView } =
+      await import("../../../src/views/dashboard-view");
 
     const app = new obsidian.App();
     const settings = cloneSettings();
@@ -131,7 +138,10 @@ describe("Dashboard card layout filter batch", () => {
     } as unknown as RssDashboardPlugin;
 
     const leaf = { app } as unknown as obsidian.WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin) as unknown as MockDashboardView;
+    const view = new RssDashboardView(
+      leaf,
+      plugin,
+    ) as unknown as MockDashboardView;
     view.render = vi.fn(async () => {});
     view.schedulePersistDashboardMultiFilters = vi.fn();
     view.getFilteredArticles = vi.fn(() => []);
@@ -159,7 +169,8 @@ describe("Dashboard card layout filter batch", () => {
   it("updates card spacing live without a full rerender", async () => {
     vi.useFakeTimers();
 
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
+    const { RssDashboardView } =
+      await import("../../../src/views/dashboard-view");
 
     const app = new obsidian.App();
     const settings = cloneSettings();
@@ -171,7 +182,10 @@ describe("Dashboard card layout filter batch", () => {
     } as unknown as RssDashboardPlugin;
 
     const leaf = { app } as unknown as obsidian.WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin) as unknown as MockDashboardView;
+    const view = new RssDashboardView(
+      leaf,
+      plugin,
+    ) as unknown as MockDashboardView;
     view.render = vi.fn(async () => {});
     const updateCardSpacingLayout = vi.fn();
     const refreshCardTagLayout = vi.fn();
@@ -208,7 +222,8 @@ describe("Dashboard card layout filter batch", () => {
   it("commits card spacing without a full rerender and refreshes visible tag layout immediately", async () => {
     vi.useFakeTimers();
 
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
+    const { RssDashboardView } =
+      await import("../../../src/views/dashboard-view");
 
     const app = new obsidian.App();
     const settings = cloneSettings();
@@ -220,7 +235,10 @@ describe("Dashboard card layout filter batch", () => {
     } as unknown as RssDashboardPlugin;
 
     const leaf = { app } as unknown as obsidian.WorkspaceLeaf;
-    const view = new RssDashboardView(leaf, plugin) as unknown as MockDashboardView;
+    const view = new RssDashboardView(
+      leaf,
+      plugin,
+    ) as unknown as MockDashboardView;
     view.render = vi.fn(async () => {});
     const updateCardSpacingLayout = vi.fn();
     const refreshCardTagLayout = vi.fn();
@@ -256,4 +274,3 @@ describe("Dashboard card layout filter batch", () => {
     vi.useRealTimers();
   });
 });
-

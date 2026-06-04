@@ -1,277 +1,269 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { App, Scope, WorkspaceLeaf } from "obsidian";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { App, WorkspaceLeaf } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
+import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
+
+vi.mock("../../../src/utils/platform-utils", () => ({
+  robustFetch: vi.fn(),
+  ensureUtf8Meta: (html: string) => html,
+  shouldUseMobileSidebarLayout: () => false,
+}));
 
 vi.mock("../../../src/components/article-list", () => ({
   ArticleList: class ArticleListMock {
-    constructor() {}
-    render() {}
-    destroy() {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructor(..._args: any[]) {}
+    render(): void {}
+    destroy(): void {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    refilter(..._args: any[]): void {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setSelectedArticle(..._args: any[]): void {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    hasArticle(..._args: any[]): boolean {
+      return false;
+    }
+    getCardNavigationTargetGuid(): string | null {
+      return null;
+    }
   },
 }));
 
 vi.mock("../../../src/components/sidebar", () => ({
   Sidebar: class SidebarMock {
-    constructor() {}
-    render() {}
-    destroy() {}
-    focusSidebar() {}
-    hasKeyboardFocus() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructor(..._args: any[]) {}
+    render(): void {}
+    destroy(): void {}
+    clearFolderPathCache(): void {}
+    focusSidebar(): void {}
+    hasKeyboardFocus(): boolean {
       return false;
     }
-    moveFocusToNextItem() {}
-    moveFocusToPreviousItem() {}
-    jumpToNextFolder() {}
-    jumpToPreviousFolder() {}
-    openFocusedItem() {}
-    toggleFocusedFolderCollapse() {}
-    deleteFocusedItem() {}
-    renameFocusedItem() {}
-    blurSidebarFocus() {}
+    moveFocusToNextItem(): void {}
+    moveFocusToPreviousItem(): void {}
+    jumpToNextFolder(): void {}
+    jumpToPreviousFolder(): void {}
+    openFocusedItem(): void {}
+    toggleFocusedFolderCollapse(): void {}
+    deleteFocusedItem(): void {}
+    renameFocusedItem(): void {}
+    blurSidebarFocus(): void {}
   },
 }));
 
+vi.mock("../../../src/modals/feed-manager-modal", () => ({
+  FeedManagerModal: class FeedManagerModalMock {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructor(..._args: any[]) {}
+    open(): void {}
+  },
+}));
+
+vi.mock("../../../src/modals/mobile-navigation-modal", () => ({
+  MobileNavigationModal: class MobileNavigationModalMock {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructor(..._args: any[]) {}
+    open(): void {}
+    close(): void {}
+  },
+}));
+
+vi.mock("../../../src/views/reader-view", () => ({
+  ReaderView: class ReaderViewMock {},
+  RSS_READER_VIEW_TYPE: "rss-reader-view",
+}));
+
+vi.mock("../../../src/services/article-saver", () => ({
+  ArticleSaver: class ArticleSaverMock {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructor(..._args: any[]) {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    verifyAllSavedArticles(..._args: any[]): void {}
+  },
+}));
+
+/**
+ * Helper: spy on RssDashboardView.prototype.registerDomEvent BEFORE constructing
+ * the view so calls made during the constructor (setupDashboardHotkeys) are captured.
+ * Returns { view, spy, getKeydownHandler }.
+ */
+function makeViewWithRegisterSpy(
+  leaf: WorkspaceLeaf,
+  plugin: RssDashboardPlugin,
+) {
+  const spy = vi.spyOn(
+    RssDashboardView.prototype as unknown as { registerDomEvent: (...args: unknown[]) => void },
+    "registerDomEvent",
+  );
+  const view = new RssDashboardView(leaf, plugin);
+  // Skip render() — hotkey tests don't exercise the article rendering pipeline
+  (view as unknown as { render: () => void }).render = vi.fn();
+  return { view, spy };
+}
+
+/**
+ * Extract the handler registered for (document, "keydown") from the prototype spy.
+ */
+function getKeydownHandler(
+  spy: unknown,
+): ((e: KeyboardEvent) => void) | null {
+  const mockSpy = spy as { mock: { calls: unknown[][] } };
+  for (const call of mockSpy.mock.calls) {
+    if (call[0] === document && call[1] === "keydown") {
+      return call[2] as (e: KeyboardEvent) => void;
+    }
+  }
+  return null;
+}
+
 describe("DashboardView Hotkeys", () => {
+  let app: App;
+  let leaf: WorkspaceLeaf;
+  let plugin: RssDashboardPlugin;
+
   beforeEach(() => {
     installObsidianDomPolyfills();
     document.body.empty();
-  });
 
-  function createMockApp(): App {
-    return {
-      scope: new Scope(),
+    app = {
       workspace: {
         on: vi.fn(),
         getLeavesOfType: vi.fn().mockReturnValue([]),
+        setActiveLeaf: vi.fn(),
+      },
+      vault: {
+        on: vi.fn(),
       },
     } as unknown as App;
-  }
 
-  function createMockLeaf(app: App): WorkspaceLeaf {
-    return {
+    leaf = {
       app,
-      view: { app },
+      view: null,
       onClose: vi.fn(),
       onContextMenu: vi.fn(),
     } as unknown as WorkspaceLeaf;
-  }
 
-  function createMockPlugin(app: App): RssDashboardPlugin {
-    return {
+    // Connect the view to the leaf correctly for activeLeaf checks
+    (leaf as unknown as { view: unknown }).view = { app };
+
+    plugin = {
       app,
-      settings: {
-        feeds: [],
-      },
+      settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as typeof DEFAULT_SETTINGS,
       saveSettings: vi.fn(),
+      updatePlaybackProgress: vi.fn(),
+      refreshFeeds: vi.fn().mockResolvedValue(undefined),
     } as unknown as RssDashboardPlugin;
-  }
 
-  it("registers a custom scope for the dashboard view", () => {
-    const app = createMockApp();
-    const leaf = createMockLeaf(app);
-    const plugin = createMockPlugin(app);
-
-    const view = new RssDashboardView(leaf, plugin);
-
-    const viewScope = (view as unknown as { scope: Scope }).scope;
-    expect(viewScope).toBeInstanceOf(Scope);
-
-    const scopeHandlers = (
-      viewScope as unknown as { handlers: { key: string }[] }
-    ).handlers;
-    expect(scopeHandlers.length).toBeGreaterThan(0);
+    // activeLeaf setup so Guard 1 passes
+    (app.workspace as unknown as { activeLeaf: WorkspaceLeaf }).activeLeaf = leaf;
   });
 
-  it("registers pane focus, sidebar navigation, and article hotkeys", () => {
-    const app = createMockApp();
-    const leaf = createMockLeaf(app);
-    const plugin = createMockPlugin(app);
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
-    const view = new RssDashboardView(leaf, plugin);
+  it("registers a document keydown listener instead of a custom scope", () => {
+    // Spy on prototype BEFORE construction so the constructor call is captured
+    const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
+    // Link the view to the mock activeLeaf so guard passes
+    (leaf as unknown as { view: unknown }).view = view;
 
-    const viewScope = (view as unknown as { scope: Scope }).scope;
-    const scopeHandlers = (
-      viewScope as unknown as {
-        handlers: { key: string; modifiers: string[] }[];
-      }
-    ).handlers;
-
-    const refreshHandler = scopeHandlers.find(
-      (h) => h.key === "r" && (!h.modifiers || h.modifiers.length === 0),
+    expect(spy).toHaveBeenCalledWith(
+      document,
+      "keydown",
+      expect.any(Function),
     );
-    expect(refreshHandler).toBeDefined();
+  });
 
-    const nextHandler = scopeHandlers.find(
-      (h) => h.key === "j" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(nextHandler).toBeDefined();
+  it("executes corresponding actions on keydown", () => {
+    const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
+    (leaf as unknown as { view: unknown }).view = view;
 
-    const markHandler = scopeHandlers.find(
-      (h) => h.key === "m" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(markHandler).toBeDefined();
+    const keydownHandler = getKeydownHandler(spy);
+    expect(keydownHandler).toBeDefined();
 
-    const shiftHelpHandler = scopeHandlers.find(
-      (h) => h.key === "?" && h.modifiers?.includes("Shift"),
-    );
-    expect(shiftHelpHandler).toBeDefined();
+    const refreshSpy = vi
+      .spyOn(view, "actionRefreshFeeds")
+      .mockImplementation(async () => {});
+    const nextSpy = vi
+      .spyOn(view, "actionNavigateNext")
+      .mockImplementation(() => {});
+    const prevSpy = vi
+      .spyOn(view, "actionNavigatePrevious")
+      .mockImplementation(() => {});
+    const markAllReadSpy = vi
+      .spyOn(view, "actionMarkAllAsRead")
+      .mockImplementation(() => {});
+    const markReadAndNextSpy = vi
+      .spyOn(view, "actionMarkReadAndNext")
+      .mockImplementation(async () => {});
 
-    const shiftSidebarHandler = scopeHandlers.find(
-      (h) => h.key === "s" && h.modifiers?.includes("Shift"),
-    );
-    expect(shiftSidebarHandler).toBeDefined();
+    const triggerKey = (key: string, shiftKey = false) => {
+      const e = new KeyboardEvent("keydown", { key, shiftKey });
+      Object.defineProperty(e, "target", { value: document.body }); // Not an input
+      keydownHandler!(e);
+    };
 
-    const shiftReaderHandler = scopeHandlers.find(
-      (h) => h.key === "r" && h.modifiers?.includes("Shift"),
-    );
-    expect(shiftReaderHandler).toBeDefined();
+    // Test 'r'
+    triggerKey("r");
+    expect(refreshSpy).toHaveBeenCalled();
 
-    // Filters (Shift + 1/2/3)
-    const allArticlesHandler = scopeHandlers.find(
-      (h) => h.key === "1" && h.modifiers?.includes("Shift"),
-    );
-    expect(allArticlesHandler).toBeDefined();
+    // Test 'j'
+    triggerKey("j");
+    expect(nextSpy).toHaveBeenCalled();
 
-    const unreadArticlesHandler = scopeHandlers.find(
-      (h) => h.key === "2" && h.modifiers?.includes("Shift"),
-    );
-    expect(unreadArticlesHandler).toBeDefined();
+    // Test 'k'
+    triggerKey("k");
+    expect(prevSpy).toHaveBeenCalled();
 
-    const readArticlesHandler = scopeHandlers.find(
-      (h) => h.key === "3" && h.modifiers?.includes("Shift"),
-    );
-    expect(readArticlesHandler).toBeDefined();
+// Test 'Shift+A'
+     triggerKey("A", true);
+     expect(markAllReadSpy).toHaveBeenCalled();
 
-    // View Styles (1/2/3)
-    const listViewHandler = scopeHandlers.find(
-      (h) => h.key === "1" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(listViewHandler).toBeDefined();
+     // Test ',' (mark read and next)
+     triggerKey(",");
+     expect(markReadAndNextSpy).toHaveBeenCalled();
+   });
 
-    const cardViewHandler = scopeHandlers.find(
-      (h) => h.key === "2" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(cardViewHandler).toBeDefined();
+  it("ignores hotkeys if the view is not the active leaf", () => {
+    const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
+    // Leaf is active, but view is NOT the leaf's view
+    (leaf as unknown as { view: unknown }).view = { app };
 
-    const feedViewHandler = scopeHandlers.find(
-      (h) => h.key === "3" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(feedViewHandler).toBeDefined();
+    const keydownHandler = getKeydownHandler(spy);
+    expect(keydownHandler).toBeDefined();
 
-    // New Article Manipulation Hotkeys
-    const spaceHandler = scopeHandlers.find(
-      (h) => h.key === " " && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(spaceHandler).toBeDefined();
+    const refreshSpy = vi
+      .spyOn(view, "actionRefreshFeeds")
+      .mockImplementation(async () => {});
 
-    const prevKHandler = scopeHandlers.find(
-      (h) => h.key === "k" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(prevKHandler).toBeDefined();
+    const e = new KeyboardEvent("keydown", { key: "r" });
+    Object.defineProperty(e, "target", { value: document.body });
+    keydownHandler!(e);
 
-    const shiftSpaceHandler = scopeHandlers.find(
-      (h) => h.key === " " && h.modifiers?.includes("Shift"),
-    );
-    expect(shiftSpaceHandler).toBeDefined();
+    expect(refreshSpy).not.toHaveBeenCalled();
+  });
 
-    const arrowLeftHandler = scopeHandlers.find(
-      (h) =>
-        h.key === "ArrowLeft" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(arrowLeftHandler).toBeDefined();
+  it("ignores hotkeys if an input is focused", () => {
+    const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
+    (leaf as unknown as { view: unknown }).view = view;
 
-    const arrowRightHandler = scopeHandlers.find(
-      (h) =>
-        h.key === "ArrowRight" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(arrowRightHandler).toBeDefined();
+    const keydownHandler = getKeydownHandler(spy);
+    expect(keydownHandler).toBeDefined();
 
-    const arrowUpHandler = scopeHandlers.find(
-      (h) => h.key === "ArrowUp" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(arrowUpHandler).toBeDefined();
+    const refreshSpy = vi
+      .spyOn(view, "actionRefreshFeeds")
+      .mockImplementation(async () => {});
 
-    const arrowDownHandler = scopeHandlers.find(
-      (h) =>
-        h.key === "ArrowDown" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(arrowDownHandler).toBeDefined();
+    const e = new KeyboardEvent("keydown", { key: "r" });
+    const inputEl = document.createElement("input");
+    Object.defineProperty(e, "target", { value: inputEl });
 
-    const oHandler = scopeHandlers.find(
-      (h) => h.key === "o" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(oHandler).toBeDefined();
+    keydownHandler!(e);
 
-    const enterHandler = scopeHandlers.find(
-      (h) => h.key === "Enter" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(enterHandler).toBeDefined();
-
-    const shiftAHandler = scopeHandlers.find(
-      (h) => h.key === "a" && h.modifiers?.includes("Shift"),
-    );
-    expect(shiftAHandler).toBeDefined();
-
-    const fHandler = scopeHandlers.find(
-      (h) => h.key === "f" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(fHandler).toBeDefined();
-
-    const tHandler = scopeHandlers.find(
-      (h) => h.key === "t" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(tHandler).toBeDefined();
-
-    const sHandler = scopeHandlers.find(
-      (h) => h.key === "s" && (!h.modifiers || h.modifiers.length === 0),
-    );
-    expect(sHandler).toBeDefined();
-
-    const shiftJHandler = scopeHandlers.find(
-      (h) => h.key === "j" && h.modifiers?.includes("Shift"),
-    );
-    expect(shiftJHandler).toBeDefined();
-
-    const shiftLHandler = scopeHandlers.find(
-      (h) => h.key === "l" && h.modifiers?.includes("Shift"),
-    );
-    expect(shiftLHandler).toBeDefined();
-
-    const shiftOHandler = scopeHandlers.find(
-      (h) => h.key === "o" && h.modifiers?.includes("Shift"),
-    );
-    expect(shiftOHandler).toBeDefined();
-
-    const shiftEnterHandler = scopeHandlers.find(
-      (h) => h.key === "Enter" && h.modifiers?.includes("Shift"),
-    );
-    expect(shiftEnterHandler).toBeDefined();
-
-    const shiftXHandler = scopeHandlers.find(
-      (h) => h.key === "x" && h.modifiers?.includes("Shift"),
-    );
-    expect(shiftXHandler).toBeDefined();
-
-    const shiftDHandler = scopeHandlers.find(
-      (h) => h.key === "d" && h.modifiers?.includes("Shift"),
-    );
-    expect(shiftDHandler).toBeDefined();
-
-    const removedShiftKHandler = scopeHandlers.find(
-      (h) => h.key === "k" && h.modifiers?.includes("Shift"),
-    );
-    expect(removedShiftKHandler).toBeUndefined();
-
-    const removedShiftNHandler = scopeHandlers.find(
-      (h) => h.key === "n" && h.modifiers?.includes("Shift"),
-    );
-    expect(removedShiftNHandler).toBeUndefined();
-
-    const removedShiftPHandler = scopeHandlers.find(
-      (h) => h.key === "p" && h.modifiers?.includes("Shift"),
-    );
-    expect(removedShiftPHandler).toBeUndefined();
+    expect(refreshSpy).not.toHaveBeenCalled();
   });
 });

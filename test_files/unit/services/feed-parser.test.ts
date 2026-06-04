@@ -927,6 +927,46 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy.mockRestore();
   });
 
+  it("extracts beehiiv summaries without style text from content:encoded", async () => {
+    const feedUrl = "https://rss.beehiiv.com/feeds/40ZQ7CSldT.xml";
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>The Handbasket</title>
+    <link>https://www.thehandbasket.co</link>
+    <item>
+      <title>Kat Abughazaleh shows us how to fight fascists</title>
+      <link>https://www.thehandbasket.co/p/kat-abughazaleh-broadview-six-grand-jury-charges-dropped</link>
+      <description>Q+A with one of the Broadview Six.</description>
+      <content:encoded><![CDATA[<div class="beehiiv"><style> .bh__table, .bh__table_header, .bh__table_cell { border: 1px solid #C0C0C0; } .bh__table_cell { padding: 5px; }</style><div class="beehiiv__body"><p>For the last seven months, Kat Abughazaleh was not allowed to go to Alaska.</p><p>The full interview continues from here.</p></div></div>]]></content:encoded>
+      <pubDate>Mon, 01 Jun 2026 00:00:00 GMT</pubDate>
+      <guid>beehiiv-1</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({
+      status: 200,
+      text: xml,
+    });
+
+    const parser = new FeedParser(mediaSettings, []);
+    const parsed = await parser.parseFeed(feedUrl, null);
+    const item = parsed.items[0];
+
+    expect(item.content).toContain("beehiiv__body");
+    expect(item.content).toContain("For the last seven months");
+    expect(item.summary).toBe(
+      "For the last seven months, Kat Abughazaleh was not allowed to go to Alaska. The full interview continues from here.",
+    );
+    expect(item.summary).not.toContain(".bh__table");
+    expect(item.summary).not.toContain("border: 1px");
+    expect(item.summary).not.toContain("padding: 5px");
+
+    requestUrlSpy.mockRestore();
+  });
+
   it("dedupes numeric URL-fragment GUIDs across refreshes while preserving read state", async () => {
     const feedUrl = "https://example.com/feed.xml";
 

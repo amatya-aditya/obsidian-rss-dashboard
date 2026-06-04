@@ -88,6 +88,23 @@ export function loadAndNormalizeSettings(
     settings.readerViewLocation = "right-sidebar";
   }
 
+  // Remove external-browser from readerViewLocation (not supported for regular articles)
+  if (settings.readerViewLocation === "external-browser") {
+    settings.readerViewLocation = "main";
+  }
+
+  // Check if savedArticleOpenLocation was provided in raw data (not inherited from defaults)
+  const savedArticleLocationProvided = rawData?.savedArticleOpenLocation !== undefined;
+  if (!savedArticleLocationProvided) {
+    // Inherit from readerViewLocation, but also convert external-browser to main
+    settings.savedArticleOpenLocation = settings.readerViewLocation;
+  }
+
+  // Migrate: convert external-browser to main for saved articles (external browser no longer supported)
+  if (savedArticleLocationProvided && rawData?.savedArticleOpenLocation === "external-browser") {
+    settings.savedArticleOpenLocation = "main";
+  }
+
   if (settings.useWebViewer === undefined) {
     settings.useWebViewer = true;
   }

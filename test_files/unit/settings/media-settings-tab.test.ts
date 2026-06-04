@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import {
@@ -405,10 +404,9 @@ it("renders and persists the Mastodon profile image toggle", async () => {
       [];
 
     vi.doMock("../../../src/components/folder-suggest", async () => {
-      const actual =
-        await vi.importActual<typeof import("../../../src/components/folder-suggest")>(
-          "../../../src/components/folder-suggest",
-        );
+      const actual = await vi.importActual<
+        typeof import("../../../src/components/folder-suggest")
+      >("../../../src/components/folder-suggest");
 
       return {
         ...actual,
@@ -426,9 +424,8 @@ it("renders and persists the Mastodon profile image toggle", async () => {
       };
     });
 
-    const { renderMediaSettingsTab: renderWithMock } = await import(
-      "../../../src/settings/tabs/media-settings-tab"
-    );
+    const { renderMediaSettingsTab: renderWithMock } =
+      await import("../../../src/settings/tabs/media-settings-tab");
 
     const containerEl = document.body.appendChild(
       document.createElement("div"),
@@ -484,10 +481,13 @@ it("renders and persists the Mastodon profile image toggle", async () => {
       'input[type="text"]',
     ) as HTMLInputElement;
 
-    const { FolderSuggest } = await import(
-      "../../../src/components/folder-suggest"
+    const { FolderSuggest } =
+      await import("../../../src/components/folder-suggest");
+    const suggest = new FolderSuggest(
+      plugin.app,
+      input,
+      plugin.settings.folders,
     );
-    const suggest = new FolderSuggest(plugin.app, input, plugin.settings.folders);
 
     suggest.selectSuggestion("Twitter/Lists", new MouseEvent("click"));
     await flushPromises();
@@ -525,10 +525,13 @@ it("renders and persists the Mastodon profile image toggle", async () => {
     ) as HTMLInputElement;
     input.value = "Social/Custom";
 
-    const { FolderSuggest } = await import(
-      "../../../src/components/folder-suggest"
+    const { FolderSuggest } =
+      await import("../../../src/components/folder-suggest");
+    const suggest = new FolderSuggest(
+      plugin.app,
+      input,
+      plugin.settings.folders,
     );
-    const suggest = new FolderSuggest(plugin.app, input, plugin.settings.folders);
 
     suggest.selectSuggestion("Add new folder...", new MouseEvent("click"));
     await flushPromises();
