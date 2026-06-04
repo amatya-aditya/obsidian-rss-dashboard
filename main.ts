@@ -887,27 +887,18 @@ export default class RssDashboardPlugin extends Plugin {
     new AddFeedModal(
       this.app,
       this.settings.folders,
-      async (
-        title,
-        url,
-        folder,
-        autoDeleteDuration,
-        maxItemsLimit,
-        scanInterval,
-        feedKeywordRules,
-        customTemplate,
-        excludeFromRefresh,
-      ) =>
+      async (request) =>
         await this.addFeed(
-          title,
-          url,
-          folder,
-          autoDeleteDuration,
-          maxItemsLimit,
-          scanInterval,
-          feedKeywordRules,
-          customTemplate,
-          excludeFromRefresh,
+          request.title,
+          request.url,
+          request.folder,
+          request.autoDeleteDuration,
+          request.maxItemsLimit,
+          request.scanInterval,
+          request.feedKeywordRules,
+          request.customTemplate,
+          request.excludeFromRefresh,
+          request.customTags,
         ),
       () => {
         void this.refreshDashboardViews();

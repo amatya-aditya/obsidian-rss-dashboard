@@ -2,11 +2,7 @@ import { Modal, App, Setting, setIcon, Notice } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
 import { ImportOpmlModal } from "../import-opml-modal";
 import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
-import { isValidFolderName } from "../../utils/validation";
-import { collectFolderPaths } from "../../utils/folder-paths";
-import { removeFolderByPath } from "../../utils/folder-tree";
 import { AddFeedModal, type AddFeedRequest } from "./add-feed-modal";
-import { EditFeedModal } from "./edit-feed-modal";
 
 export class FeedManagerModal extends Modal {
   plugin: RssDashboardPlugin;
