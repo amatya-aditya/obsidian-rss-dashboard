@@ -1,14 +1,57 @@
+/* =========================================================
+   Pagination – two-row structured layout
+   Row 1 (.rss-dashboard-pagination-pages):
+       prev | 1 … 44 45 [46] 47 … 50 | next
+   Row 2 (.rss-dashboard-pagination-controls):
+       [Mark page read]  [10 ▾]  Results: X – Y of Z
+   ========================================================= */
+
+.rss-dashboard-pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 .rss-dashboard-pagination {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 0.5rem;
   padding-top: 16px;
   margin: 0;
-  flex-wrap: wrap;
-  justify-content: space-around;
+  width: 100%;
 }
 
+/* ── Row 1: page navigation buttons ─────────────────────── */
+.rss-dashboard-pagination-pages {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ── Row 2: utility controls ─────────────────────────────── */
+.rss-dashboard-pagination-controls {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── Shared button styles ─────────────────────────────────── */
 .rss-dashboard-pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  flex-shrink: 0;
   background: var(--background-secondary);
   color: var(--text-color);
   border-radius: 6px;
@@ -19,11 +62,11 @@
     background 0.15s,
     color 0.15s,
     border 0.15s;
-  margin: 0 2px;
+  margin: 0;
 }
 
 .rss-dashboard-pagination-btn.active,
-.rss-dashboard-pagination-btn:disabled {
+.rss-dashboard-pagination-btn:disabled:not(.prev):not(.next) {
   background: var(--color-accent);
   color: var(--text-on-accent);
   border-color: var(--color-accent);
@@ -41,47 +84,66 @@
 .rss-dashboard-pagination-btn.prev:disabled,
 .rss-dashboard-pagination-btn.next:disabled {
   background: var(--background-secondary);
-  color: var(--text-color);
-  border-color: var(--color-accent);
+  color: var(--text-muted);
+  border-color: transparent;
+  opacity: 0.45;
+  cursor: default;
 }
 
+/* ── Ellipsis ─────────────────────────────────────────────── */
 .rss-dashboard-pagination-ellipsis {
-  color: var(--text-color);
+  color: var(--text-muted);
   font-size: 1.1em;
-  margin: 0 4px;
+  margin: 0 2px;
+  user-select: none;
 }
 
-.rss-dashboard-pagination-results {
-  margin-left: 1.2rem;
-  color: var(--text-color);
-  font-size: 0.98em;
+/* ── Page-size dropdown ───────────────────────────────────── */
+.rss-dashboard-page-size-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.rss-dashboard-page-size-wrapper::after {
+  content: "▾";
+  position: absolute;
+  right: 0.55em;
+  pointer-events: none;
+  color: var(--text-muted);
+  font-size: 0.8em;
+  line-height: 1;
 }
 
 .rss-dashboard-page-size-dropdown {
-  margin-left: 1.2rem;
-  padding: 0.2em 0.8em;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0.3em 1.8em 0.3em 0.9em;
   border-radius: 6px;
   background: var(--background-secondary);
   color: var(--text-color);
+  border: 1px solid var(--background-modifier-border);
   font-size: 1em;
   outline: none;
   cursor: pointer;
   transition: border 0.15s;
 }
 
-.rss-dashboard-pagination-mark-page-read {
-  margin-left: 0.5rem;
-}
-
 .rss-dashboard-page-size-dropdown:focus {
   border-color: var(--color-accent);
 }
 
-.rss-dashboard-pagination-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  margin-top: 0;
-  margin-bottom: 0;
+/* ── Results text ─────────────────────────────────────────── */
+.rss-dashboard-pagination-results {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+/* ── Mobile: hide prev/next since touch can tap page numbers ─ */
+@media (max-width: 600px) {
+  .rss-dashboard-pagination-btn.prev,
+  .rss-dashboard-pagination-btn.next {
+    display: none;
+  }
 }

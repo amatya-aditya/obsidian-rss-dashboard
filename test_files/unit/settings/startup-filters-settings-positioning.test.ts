@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 
 type ObsidianHTMLElement = HTMLElement & {
@@ -34,12 +37,12 @@ describe("Startup filters settings popover positioning (integration)", () => {
     // Drive rAF through timers for deterministic tests.
     vi.stubGlobal(
       "requestAnimationFrame",
-      (cb: FrameRequestCallback) => window.setTimeout(() => cb(0), 0) as unknown as number,
+      (cb: FrameRequestCallback) =>
+        window.setTimeout(() => cb(0), 0) as unknown as number,
     );
 
-    const { renderDisplaySettingsTab } = await import(
-      "../../../src/settings/tabs/display-settings-tab"
-    );
+    const { renderDisplaySettingsTab } =
+      await import("../../../src/settings/tabs/display-settings-tab");
 
     const container = (document.body as ObsidianHTMLElement).createDiv();
     const settings = cloneSettings();
@@ -53,15 +56,25 @@ describe("Startup filters settings popover positioning (integration)", () => {
       app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
     };
 
-    renderDisplaySettingsTab(container, plugin as unknown as RssDashboardPlugin, () => {});
+    renderDisplaySettingsTab(
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      () => {},
+    );
 
     const buttons = Array.from(container.querySelectorAll("button"));
     const startupBtn = buttons.find((b) => (b.textContent ?? "") === "All");
     expect(startupBtn).toBeTruthy();
 
     // Stub viewport size
-    Object.defineProperty(window, "innerHeight", { value: 740, configurable: true });
-    Object.defineProperty(window, "innerWidth", { value: 400, configurable: true });
+    Object.defineProperty(window, "innerHeight", {
+      value: 740,
+      configurable: true,
+    });
+    Object.defineProperty(window, "innerWidth", {
+      value: 400,
+      configurable: true,
+    });
 
     let anchorRect = {
       top: 700,
@@ -75,10 +88,12 @@ describe("Startup filters settings popover positioning (integration)", () => {
       stubRect(anchorRect);
 
     // Stub menu/submenu rects in jsdom (layout is 0 otherwise)
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    const originalGetBoundingClientRect =
+      HTMLElement.prototype.getBoundingClientRect;
     HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
-      if (this.classList.contains("rss-dashboard-startup-filters-menu-portal")) {
+      if (
+        this.classList.contains("rss-dashboard-startup-filters-menu-portal")
+      ) {
         return stubRect({
           top: 0,
           left: 0,
@@ -135,12 +150,12 @@ describe("Startup filters settings popover positioning (integration)", () => {
     vi.useFakeTimers();
     vi.stubGlobal(
       "requestAnimationFrame",
-      (cb: FrameRequestCallback) => window.setTimeout(() => cb(0), 0) as unknown as number,
+      (cb: FrameRequestCallback) =>
+        window.setTimeout(() => cb(0), 0) as unknown as number,
     );
 
-    const { renderDisplaySettingsTab } = await import(
-      "../../../src/settings/tabs/display-settings-tab"
-    );
+    const { renderDisplaySettingsTab } =
+      await import("../../../src/settings/tabs/display-settings-tab");
 
     const container = (document.body as ObsidianHTMLElement).createDiv();
     const settings = cloneSettings();
@@ -154,15 +169,25 @@ describe("Startup filters settings popover positioning (integration)", () => {
       app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
     };
 
-    renderDisplaySettingsTab(container, plugin as unknown as RssDashboardPlugin, () => {});
+    renderDisplaySettingsTab(
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      () => {},
+    );
 
     const startupBtn = Array.from(container.querySelectorAll("button")).find(
       (b) => (b.textContent ?? "") === "All",
     );
     expect(startupBtn).toBeTruthy();
 
-    Object.defineProperty(window, "innerHeight", { value: 260, configurable: true });
-    Object.defineProperty(window, "innerWidth", { value: 260, configurable: true });
+    Object.defineProperty(window, "innerHeight", {
+      value: 260,
+      configurable: true,
+    });
+    Object.defineProperty(window, "innerWidth", {
+      value: 260,
+      configurable: true,
+    });
 
     startupBtn!.getBoundingClientRect = () =>
       stubRect({
@@ -174,10 +199,12 @@ describe("Startup filters settings popover positioning (integration)", () => {
         height: 30,
       });
 
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    const originalGetBoundingClientRect =
+      HTMLElement.prototype.getBoundingClientRect;
     HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
-      if (this.classList.contains("rss-dashboard-startup-filters-menu-portal")) {
+      if (
+        this.classList.contains("rss-dashboard-startup-filters-menu-portal")
+      ) {
         return stubRect({
           top: 0,
           left: 0,
@@ -205,14 +232,18 @@ describe("Startup filters settings popover positioning (integration)", () => {
     await vi.runAllTimersAsync();
 
     const taggedRow = Array.from(
-      document.body.querySelectorAll<HTMLElement>(".rss-dashboard-filter-menu-item"),
+      document.body.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-filter-menu-item",
+      ),
     ).find((el) => (el.textContent ?? "").includes("Tagged"));
     expect(taggedRow).toBeTruthy();
 
     taggedRow!.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
     await vi.runAllTimersAsync();
 
-    const submenu = document.body.querySelector<HTMLElement>(".rss-dashboard-tag-submenu");
+    const submenu = document.body.querySelector<HTMLElement>(
+      ".rss-dashboard-tag-submenu",
+    );
     expect(submenu).toBeTruthy();
 
     const cssTop = submenu?.style.getPropertyValue("--submenu-top");

@@ -64,6 +64,37 @@ describe("sanitizeFilename", () => {
 });
 
 describe("ArticleSaver.saveArticle", () => {
+  it("prefers item.content over description when raw content is not provided", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: "Prefer Content",
+      description:
+        '<body xmlns="http://www.w3.org/1999/xhtml">Short summary.</body>',
+      content:
+        "<p>Organizations are accumulating a type of debt that no one has been hired to pay down.</p><p>Second paragraph with more context.</p>",
+    });
+
+    const file = await saver.saveArticle(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain(
+      "Organizations are accumulating a type of debt that no one has been hired to pay down.",
+    );
+    expect(written).toContain("Second paragraph with more context.");
+    expect(written).not.toContain(
+      '<body xmlns="http://www.w3.org/1999/xhtml">',
+    );
+  });
+
   it("writes to a normalized folder path and applies template/frontmatter substitutions", async () => {
     const app = App.createMock();
     const settings = createSettings({
@@ -141,6 +172,72 @@ describe("ArticleSaver.saveArticle", () => {
     expect(result).toBeNull();
     expect(item.saved).not.toBe(true);
     expect(item.savedFilePath).toBeUndefined();
+  });
+
+  it("continues saving when replacing an existing file hits a missing-path race", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultFolder: "Articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({ title: "Race Condition" });
+    await saver.saveArticle(item, undefined, undefined, "FIRST");
+
+    vi.spyOn(app.fileManager, "trashFile").mockRejectedValueOnce(
+      new Error("ENONET: no such file exists"),
+    );
+
+    const result = await saver.saveArticle(
+      item,
+      undefined,
+      undefined,
+      "SECOND",
+    );
+
+    expect(result).toBeInstanceOf(TFile);
+  });
+
+  it("creates nested folders one segment at a time", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultFolder: "Parent/Child/Grandchild",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+    const createFolderSpy = vi.spyOn(app.vault, "createFolder");
+
+    const item = createItem({ title: "Nested Folder Save" });
+    const result = await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    expect(result).toBeInstanceOf(TFile);
+    expect(createFolderSpy).toHaveBeenCalledWith("Parent");
+    expect(createFolderSpy).toHaveBeenCalledWith("Parent/Child");
+    expect(createFolderSpy).toHaveBeenCalledWith("Parent/Child/Grandchild");
+  });
+
+  it("retries create after restoring missing folder path", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultFolder: "Articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const originalCreate = app.vault.create.bind(app.vault);
+    const createSpy = vi.spyOn(app.vault, "create");
+    createSpy
+      .mockRejectedValueOnce(new Error("ENOENT: no such file or directory"))
+      .mockImplementationOnce(async (path: string, content: string) => {
+        return await originalCreate(path, content);
+      });
+
+    const item = createItem({ title: "Retry Missing Folder" });
+    const result = await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    expect(result).toBeInstanceOf(TFile);
+    expect(createSpy).toHaveBeenCalledTimes(2);
   });
 
   it("uses the full sanitized title in the saved file path", async () => {
@@ -296,6 +393,131 @@ describe("ArticleSaver.fetchFullArticleContent", () => {
 });
 
 describe("ArticleSaver.saveArticleWithFullContent", () => {
+  it("prepends enclosure image when chosen feed HTML has no inline image", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content:
+        '<body xmlns="http://www.w3.org/1999/xhtml">Organizations are accumulating a type of debt that no one has been hired to pay down.</body>',
+      failureType: "none",
+    });
+
+    const enclosureUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/b83cfdcd-1a21-49a0-943f-977022ed4b0a_2160x1131.png";
+    const item = createItem({
+      title: "Part-time owners, full-time debt",
+      link: "https://behzodsirjani.substack.com/p/part-time-owners-full-time-debt",
+      content: "",
+      description:
+        "<p>Organizations are accumulating a type of debt that no one has been hired to pay down.</p>",
+      enclosure: {
+        url: enclosureUrl,
+        length: "0",
+        type: "image/jpeg",
+      },
+      coverImage: "",
+      image: "",
+    });
+
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain(`![Hero image](${enclosureUrl})`);
+    expect(written).toContain(
+      "Organizations are accumulating a type of debt that no one has been hired to pay down.",
+    );
+  });
+
+  it("unwraps image-only links without malformed markdown", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content:
+        '<body xmlns="http://www.w3.org/1999/xhtml">Organizations are accumulating a type of debt that no one has been hired to pay down.</body>',
+      failureType: "none",
+    });
+
+    const rawSubstackLink =
+      "https://substackcdn.com/image/fetch/$s_!GtED!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F108fc67d-1f88-4d55-bb47-e44613e67b2a_1632x656.png";
+    const decodedImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/108fc67d-1f88-4d55-bb47-e44613e67b2a_1632x656.png";
+    const item = createItem({
+      title: "Substack Linked Image",
+      link: "https://behzodsirjani.substack.com/p/another-post",
+      content: `<figure><a href="${rawSubstackLink}"><img src="${decodedImageUrl}" alt="" /></a></figure><p>Body text.</p>`,
+      description: "<p>Summary</p>",
+    });
+
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain(`![](${decodedImageUrl})`);
+    expect(written).not.toContain("Link to image");
+    expect(written).not.toContain("[\n\n![](");
+    expect(written).toContain("Body text.");
+  });
+
+  it("uses feed description as fallback feed content when item.content is empty", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content:
+        '<body xmlns="http://www.w3.org/1999/xhtml">Organizations are accumulating a type of debt that no one has been hired to pay down.</body>',
+      failureType: "none",
+    });
+
+    const item = createItem({
+      title: "Substack Description Fallback",
+      link: "https://behzodsirjani.substack.com/p/part-time-owners-full-time-debt",
+      content: "",
+      description:
+        "<p>Organizations are accumulating a type of debt that no one has been hired to pay down.</p><p>At Vercel, I was brought in to handle some of this debt, but not all of it.</p>",
+    });
+
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain(
+      "At Vercel, I was brought in to handle some of this debt, but not all of it.",
+    );
+    expect(written).not.toContain(
+      '<body xmlns="http://www.w3.org/1999/xhtml">',
+    );
+  });
+
   it("converts fetched HTML to markdown and saves it", async () => {
     const app = App.createMock();
     const settings = createSettings({
@@ -322,7 +544,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     expect(written).toContain("world");
   });
 
-  it("falls back to saveArticle when full content is unavailable", async () => {
+  it("falls back to feed content when full content is unavailable", async () => {
     const app = App.createMock();
     const settings = createSettings({
       defaultTemplate: "{{content}}",
@@ -339,10 +561,107 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     });
     const saveSpy = vi.spyOn(saver, "saveArticle");
 
-    const item = createItem({ title: "Fallback Content" });
+    const item = createItem({
+      title: "Fallback Content",
+      content:
+        "<div><style>.bh__table { border: 1px solid #C0C0C0; }</style><p>Feed body wins.</p></div>",
+    });
     await saver.saveArticleWithFullContent(item);
 
-    expect(saveSpy).toHaveBeenCalledWith(item, undefined, undefined);
+    expect(saveSpy).toHaveBeenCalledWith(
+      item,
+      undefined,
+      undefined,
+      "Feed body wins.",
+    );
+  });
+
+  it("uses richer feed content when fetched article content is only a short excerpt", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "# {{title}}\n\n{{content}}\n\n[Source]({{link}})",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content:
+        '<body xmlns="http://www.w3.org/1999/xhtml">Q+A with one of the Broadview Six.</body>',
+      failureType: "none",
+    });
+
+    const item = createItem({
+      title: "Beehiiv Full Body",
+      content:
+        '<div class="beehiiv"><style> .bh__table, .bh__table_header, .bh__table_cell { border: 1px solid #C0C0C0; }</style><div class="beehiiv__body"><p>For the last seven months, Kat Abughazaleh was not allowed to go to Alaska.</p><p>The full interview continues from here with much more context.</p></div></div>',
+    });
+
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain(
+      "For the last seven months, Kat Abughazaleh was not allowed to go to Alaska.",
+    );
+    expect(written).toContain(
+      "The full interview continues from here with much more context.",
+    );
+    expect(written).not.toContain(".bh__table");
+    expect(written).not.toContain("border: 1px");
+    expect(written).not.toContain("<body");
+    expect(written).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+  });
+
+  it("keeps embed links inline when saving beehiiv blockquote content", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "<p>Short excerpt.</p>",
+      failureType: "none",
+    });
+
+    const instagramUrl = "https://www.instagram.com/p/DY3yTRYjtma/?img_index=1";
+    const blueskyUrl =
+      "https://bsky.app/profile/marisakabas.bsky.social/post/3mmuh2ltnq22b";
+    const item = createItem({
+      title: "Beehiiv Embeds",
+      content: `<div>
+        <p>Enough feed text to be selected over the fetched excerpt.</p>
+        <blockquote align="center" class="instagram-media">
+          <a href="${instagramUrl}"><p dir="ltr" lang="en">Instagram post</p></a>
+        </blockquote>
+        <blockquote align="center" class="bluesky-embed">
+          <p dir="ltr" lang="en"><p>I just spoke with Sister Sharon.</p></p>
+          <a href="${blueskyUrl}"><p> &mdash; Marisa Kabas (@marisakabas.bsky.social) <br/> 9:25 PM - May 27, 2026 </p></a>
+        </blockquote>
+      </div>`,
+    });
+
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain(`[Instagram post](${instagramUrl})`);
+    expect(written).toContain(
+      `[— Marisa Kabas (@marisakabas.bsky.social) 9:25 PM - May 27, 2026](${blueskyUrl})`,
+    );
+    expect(written).not.toContain("[\n>");
+    expect(written).not.toContain("> ](");
   });
 
   it("skips full-content fetch for Bloomberg video routes and saves available content", async () => {
@@ -557,5 +876,90 @@ describe("ArticleSaver saved file lookups", () => {
 
     expect(file).toBeInstanceOf(TFile);
     expect(file?.path).toBe("Custom Folder/My Article.md");
+  });
+});
+
+describe("ArticleSaver.{{image}} template variable", () => {
+  it("replaces {{image}} in default template with coverImage when present", async () => {
+    const app = App.createMock();
+    const imageUrl = "https://example.com/cover.jpg";
+    const settings = createSettings({
+      defaultTemplate: "{{image}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: "Image Test",
+      coverImage: imageUrl,
+    });
+
+    const file = await saver.saveArticle(item);
+    expect(file).toBeInstanceOf(TFile);
+    if (!file) return;
+    const written = await app.vault.read(file);
+    expect(written).toBe(imageUrl);
+  });
+
+  it("resolves {{image}} from itunes.image href when other images missing", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{image}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const itunesImageUrl = "https://example.com/itunes.jpg";
+    const item = createItem({
+      title: "Itunes Image Test",
+      itunes: { image: { href: itunesImageUrl } },
+    });
+
+    const file = await saver.saveArticle(item);
+    expect(file).toBeInstanceOf(TFile);
+    if (!file) return;
+    const written = await app.vault.read(file);
+    expect(written).toBe(itunesImageUrl);
+  });
+
+  it("falls back to empty string when no image is present", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "cover: {{image}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: "No Image Test",
+    });
+
+    const file = await saver.saveArticle(item);
+    expect(file).toBeInstanceOf(TFile);
+    if (!file) return;
+    const written = await app.vault.read(file);
+    expect(written).toBe("cover: ");
+  });
+
+  it("prioritizes coverImage over image for {{image}} replacement", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{image}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const coverImageUrl = "https://example.com/cover.jpg";
+    const item = createItem({
+      title: "Priority Test",
+      coverImage: coverImageUrl,
+      image: "https://example.com/other.jpg",
+    });
+
+    const file = await saver.saveArticle(item);
+    expect(file).toBeInstanceOf(TFile);
+    if (!file) return;
+    const written = await app.vault.read(file);
+    expect(written).toBe(coverImageUrl);
   });
 });

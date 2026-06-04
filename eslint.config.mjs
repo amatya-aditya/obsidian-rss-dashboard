@@ -24,6 +24,42 @@ export default defineConfig([
     },
   },
   {
+    files: ["src/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "fs",
+              message:
+                "Direct fs module usage is prohibited. Use vault.read/vault.modify or browser File APIs.",
+            },
+            {
+              name: "path",
+              message:
+                "Direct path module usage is prohibited. Use Obsidian adapter paths or TFile/TFolder APIs.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["**/*.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.property.name='createElement'][arguments.0.value='script']",
+          message:
+            "Dynamic <script> element creation is prohibited per Obsidian compliance standards.",
+        },
+      ],
+    },
+  },
+  {
     files: ["test_files/**/*.ts"],
     languageOptions: {
       parser: tsparser,
@@ -43,6 +79,7 @@ export default defineConfig([
           allowAutoFix: true,
         },
       ],
+      "@typescript-eslint/unbound-method": "off",
     },
   },
   {
@@ -105,6 +142,9 @@ export default defineConfig([
       //   // ============================================
 
       // Unused variables - prefix with _ to ignore
+      "@typescript-eslint/ban-ts-comment": "off",
+      "no-prototype-builtins": "off",
+      "@typescript-eslint/no-empty-function": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {

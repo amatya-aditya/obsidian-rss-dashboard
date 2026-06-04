@@ -1,0 +1,316 @@
+/* =============================================================================
+ * Discover Sidebar Filters (discover-sidebar-filters.css)
+ *
+ * Filter headers, mobile filter dropdowns, sort controls, clear buttons, and
+ * selected filter chips.
+ * =============================================================================
+ */
+
+/* ============================================
+ * 1. Base Variables & Custom Properties
+ * ============================================ */
+
+/* ============================================
+ * 2. Filter Header & Actions
+ * ============================================ */
+
+.rss-discover-filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 8px 16px;
+  background: var(--background-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+}
+.rss-discover-filter-header-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex: 1;
+}
+.rss-discover-filter-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.rss-discover-add-all-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary-alt);
+  color: var(--text-normal);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+.rss-discover-add-all-btn:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+  transform: translateY(-1px);
+}
+.rss-discover-add-all-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.rss-discover-add-all-btn.is-processing {
+  opacity: 1;
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+}
+.rss-discover-add-all-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  animation: rss-discover-add-all-spin 0.9s linear infinite;
+}
+.rss-discover-add-all-spinner svg {
+  width: 14px;
+  height: 14px;
+}
+@keyframes rss-discover-add-all-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.rss-discover-filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ============================================
+ * 3. Selected Filter Chips
+ * ============================================ */
+
+.rss-discover-selected-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: 16px;
+  align-items: center;
+}
+.rss-discover-selected-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--background-modifier-border);
+  cursor: default;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+.rss-discover-selected-filter:hover {
+  background: var(--background-modifier-border);
+  border-color: var(--interactive-accent);
+}
+.rss-discover-selected-filter svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+.rss-discover-selected-filter-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--rss-color-danger);
+  background-color: var(--rss-color-danger-bg);
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+.rss-discover-selected-filter-remove:hover {
+  color: var(--rss-color-danger-hover);
+  background-color: var(--rss-color-danger-bg-hover);
+  transform: scale(1.12);
+}
+.rss-discover-selected-filter-remove:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+.rss-discover-selected-filter-remove svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.5;
+}
+
+/* ============================================
+ * 4. Mobile Filters Menu
+ * ============================================ */
+
+.rss-discover-mobile-filters-menu {
+  display: none;
+  position: relative;
+}
+.rss-discover-mobile-filters-button {
+  --icon-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  contain: layout style;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.rss-discover-mobile-filters-button > svg {
+  display: block;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  overflow: visible;
+  opacity: 1;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  will-change: transform;
+}
+.rss-discover-mobile-filters-button:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
+.rss-discover-mobile-filters-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(320px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  padding: 10px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-l);
+  z-index: 120;
+}
+.rss-discover-mobile-filters-menu.active .rss-discover-mobile-filters-dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rss-discover-mobile-filters-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: stretch;
+}
+.rss-discover-sort-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.rss-discover-sort-dropdown {
+  padding: 6px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: 13px;
+  cursor: pointer;
+  min-width: 120px;
+  max-width: 100%;
+}
+.rss-discover-sort-dropdown:hover {
+  border-color: var(--interactive-accent);
+}
+.rss-discover-sort-dropdown:focus {
+  border-color: var(--interactive-accent);
+  outline: 2px solid var(--interactive-accent);
+}
+.rss-discover-sort-dropdown option {
+  background: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+/* ============================================
+ * 5. Filter Buttons (Clear, OK)
+ * ============================================ */
+
+.rss-discover-btn-base,
+.rss-clear-filter-button,
+.rss-discover-ok-button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 0;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+}
+
+.rss-clear-filter-button {
+  background: var(--background-modifier-error);
+  color: var(--text-on-accent);
+}
+
+.rss-discover-ok-button {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+.rss-discover-ok-button:hover {
+  filter: brightness(1.08);
+}
+
+/* ============================================
+ * 6. Media Query - Mobile (max-width: 1200px)
+ * ============================================ */
+
+.rss-discover-controls-container.is-narrow .rss-discover-filter-controls {
+  display: none !important;  /* audit-ok: display toggle utility */
+}
+.rss-discover-controls-container.is-narrow .rss-discover-mobile-filters-menu {
+  display: block;
+}
+.rss-discover-controls-container.is-narrow .rss-discover-mobile-filters-dropdown .rss-discover-sort-container {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.rss-discover-controls-container.is-narrow .rss-discover-mobile-filters-dropdown .rss-discover-sort-dropdown {
+  width: 100%;
+  min-width: 0;
+}
+.rss-discover-controls-container.is-narrow .rss-discover-mobile-filters-dropdown .rss-clear-filter-button {
+  margin-top: 0;
+}

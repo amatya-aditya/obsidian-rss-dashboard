@@ -6,14 +6,29 @@
  *   - renderArticleSavingSettingsTab(containerEl, plugin, onRefresh)
  */
 import { Notice, Setting, normalizePath } from "obsidian";
-import RssDashboardPlugin from "../../../main";
-import { DEFAULT_SETTINGS, SavedTemplate } from "../../types/types";
+import type { App } from "obsidian";
+import { DEFAULT_SETTINGS, type SavedTemplate } from "../../types/types";
 import { VaultFolderSuggest } from "../../components/folder-suggest";
 import { TemplateNameModal } from "../modals/settings-modals";
 
+export interface ArticleSavingPluginLike {
+  app: App;
+  settings: {
+    articleSaving: {
+      defaultFolder: string;
+      addSavedTag: boolean;
+      saveFullContent: boolean;
+      fetchTimeout: number | undefined;
+      defaultTemplate: string;
+      savedTemplates?: SavedTemplate[] | undefined;
+    };
+  };
+  saveSettings: () => Promise<void>;
+}
+
 export function renderArticleSavingSettingsTab(
   containerEl: HTMLElement,
-  plugin: RssDashboardPlugin,
+  plugin: ArticleSavingPluginLike,
   onRefresh: () => void,
 ): void {
   new Setting(containerEl)
@@ -116,6 +131,7 @@ export function renderArticleSavingSettingsTab(
     "{{content}}",
     "{{source}}",
     "{{link}}",
+    "{{image}}",
   ].forEach((variable) => {
     list.createEl("li", { text: variable });
   });
@@ -194,7 +210,7 @@ export function renderArticleSavingSettingsTab(
             .setButtonText("Update")
             .setTooltip("Update this template with current editor content")
             .onClick(async () => {
-              plugin.settings.articleSaving.savedTemplates[index].template =
+              plugin.settings.articleSaving.savedTemplates![index].template =
                 plugin.settings.articleSaving.defaultTemplate;
               await plugin.saveSettings();
               new Notice(`Template "${template.name}" updated`);
@@ -205,7 +221,7 @@ export function renderArticleSavingSettingsTab(
             .setIcon("trash")
             .setTooltip("Delete this template")
             .onClick(async () => {
-              plugin.settings.articleSaving.savedTemplates.splice(index, 1);
+              plugin.settings.articleSaving.savedTemplates!.splice(index, 1);
               await plugin.saveSettings();
               new Notice(`Template "${template.name}" deleted`);
               onRefresh();

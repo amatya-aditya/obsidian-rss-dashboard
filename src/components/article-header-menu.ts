@@ -285,6 +285,10 @@ export class ArticleHeaderMenu {
     );
     cardsPerRowTrigger.onclick = (e) => {
       e.stopPropagation();
+      if (cardsPerRowTrigger.hasClass("active")) {
+        this.closeActivePortal();
+        return;
+      }
       this.showThemedMenu(
         cardsPerRowTrigger,
         [
@@ -388,6 +392,10 @@ export class ArticleHeaderMenu {
 
     trigger.onclick = (e) => {
       e.stopPropagation();
+      if (trigger.hasClass("active")) {
+        this.closeActivePortal();
+        return;
+      }
       this.showThemedMenu(trigger, options, getValue(), onChange);
     };
   }
@@ -479,6 +487,10 @@ export class ArticleHeaderMenu {
 
     selector.onclick = (e) => {
       e.stopPropagation();
+      if (selector.hasClass("active")) {
+        this.closeActivePortal();
+        return;
+      }
       this.showThemedMenu(
         selector,
         { "List View": "list", "Card View": "card", "Feed View": "feed" },

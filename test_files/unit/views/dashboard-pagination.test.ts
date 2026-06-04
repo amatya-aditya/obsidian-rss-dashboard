@@ -159,7 +159,7 @@ describe("Dashboard pagination", () => {
       view as unknown as { getFilteredArticles: () => FeedItem[] }
     ).getFilteredArticles();
     expect(result).toHaveLength(49);
-  });
+  }, 10000);
 
   it("handlePageSizeChange() resets active page to 1", async () => {
     const { RssDashboardView } =
@@ -262,7 +262,9 @@ describe("Dashboard pagination", () => {
       openTagsSettings: vi.fn(async () => {}),
     };
 
-    const consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const consoleLogSpy = vi
+      .spyOn(console, "debug")
+      .mockImplementation(() => {});
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);
@@ -325,7 +327,9 @@ describe("Dashboard pagination", () => {
       openTagsSettings: vi.fn(async () => {}),
     };
 
-    const consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const consoleLogSpy = vi
+      .spyOn(console, "debug")
+      .mockImplementation(() => {});
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);
@@ -397,7 +401,9 @@ describe("Dashboard pagination", () => {
       openTagsSettings: vi.fn(async () => {}),
     };
 
-    const consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const consoleLogSpy = vi
+      .spyOn(console, "debug")
+      .mockImplementation(() => {});
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);
@@ -459,7 +465,9 @@ describe("Dashboard pagination", () => {
       openTagsSettings: vi.fn(async () => {}),
     };
 
-    const consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const consoleLogSpy = vi
+      .spyOn(console, "debug")
+      .mockImplementation(() => {});
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);

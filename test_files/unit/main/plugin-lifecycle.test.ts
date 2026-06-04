@@ -1,4 +1,4 @@
-﻿/**
+/**
  * P0-1 Tests for Plugin Lifecycle (main.ts)
  *
  * Tests cover:
@@ -15,6 +15,7 @@ import type {
   RssDashboardSettings,
 } from "../../../src/types/types";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
+import { AddFeedModal } from "../../../src/modals/feed-manager/add-feed-modal";
 
 // Mock functions for FeedParser - must be declared before mocks
 const mockParseFeed = vi.fn<(url: string) => Promise<Feed>>();
@@ -47,7 +48,6 @@ vi.mock("../../../src/services/article-saver", () => ({
 vi.mock("../../../src/services/backup-service", () => ({
   BackupService: class BackupService {
     performAutoBackups = vi.fn().mockResolvedValue(undefined);
-    performAutoBackupsSyncDesktop = vi.fn().mockReturnValue(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(_options?: any) {}
   },
@@ -95,7 +95,6 @@ function createMockManifest(): PluginManifest {
 type PluginPrivateAPI = {
   backupService: {
     performAutoBackups: () => Promise<void>;
-    performAutoBackupsSyncDesktop: () => boolean;
   };
   folderService: object;
   backgroundImportService: { startBackgroundImport: (feeds: Feed[]) => void };
@@ -135,6 +134,8 @@ async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
 
   // Mock registerInterval
   plugin.registerInterval = vi.fn((id: number) => id);
+
+  plugin.registerObsidianProtocolHandler = vi.fn();
 
   // Initialize backupService with mock
   const { BackupService } =
@@ -379,7 +380,6 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: registerView should be called for all views
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.registerView).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(Function),
@@ -395,7 +395,6 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: addRibbonIcon should be called
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.addRibbonIcon).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(String),
@@ -408,7 +407,6 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: addCommand should be called for all commands
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.addCommand).toHaveBeenCalled();
     // Should have multiple commands (open-dashboard, open-discover, refresh-feeds, etc.)
     expect(
@@ -421,7 +419,6 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: registerInterval should be called with a setInterval result
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.registerInterval).toHaveBeenCalled();
   });
 
@@ -430,7 +427,6 @@ describe("onload() initialization", () => {
 
     await plugin.onload();
 
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.registerInterval).not.toHaveBeenCalled();
   });
 
@@ -439,16 +435,16 @@ describe("onload() initialization", () => {
     await plugin.onload();
 
     // Then: addSettingTab should be called
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.addSettingTab).toHaveBeenCalled();
   });
 
-  it("registers beforeunload handler for backup", async () => {
-    // When: onload is called
+  it("registers an Obsidian protocol handler", async () => {
     await plugin.onload();
 
-    // Then: _beforeUnloadHandler should be set
-    expect(plugin["_beforeUnloadHandler"]).toBeDefined();
+    expect(plugin.registerObsidianProtocolHandler).toHaveBeenCalledWith(
+      "rss-dashboard",
+      expect.any(Function),
+    );
   });
 
   it("loads settings during initialization", async () => {
@@ -550,6 +546,113 @@ describe("onload() initialization", () => {
     expect(plugin.settings.feeds[0].items[0].savedFilePath).toBe(
       "Articles/Saved article.md",
     );
+  });
+});
+
+describe("URI add-feed handling", () => {
+  let plugin: RssDashboardPlugin;
+
+  beforeEach(async () => {
+    const app = createMockApp();
+    plugin = await createPluginInstance(app);
+
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      media: {
+        ...DEFAULT_SETTINGS.media,
+        defaultRssFolder: "RSS",
+      },
+    } as RssDashboardSettings;
+
+    plugin.feedParser = {
+      parseFeed: mockParseFeed,
+      refreshAllFeeds: mockRefreshAllFeeds,
+    } as unknown as typeof plugin.feedParser;
+
+    plugin.getActiveDashboardView = vi.fn().mockResolvedValue({
+      render: vi.fn(),
+      refresh: vi.fn(),
+    });
+
+    vi.clearAllMocks();
+    mockRefreshAllFeeds.mockClear();
+    mockParseFeed.mockClear();
+  });
+
+  it("shows unsupported-action notice for unknown URI action", async () => {
+    const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+    await plugin.onload();
+    const handler = (
+      plugin.registerObsidianProtocolHandler as ReturnType<typeof vi.fn>
+    ).mock.calls[0][1] as (params: Record<string, string>) => void;
+
+    handler({ action: "unknown" });
+    await flushPromises();
+
+    expect(noticeSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "Unsupported RSS Dashboard URI action: unknown",
+    );
+  });
+
+  it("shows notice and skips add when URI url is missing", async () => {
+    const addFeedSpy = vi.spyOn(plugin, "addFeed");
+    const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+    await plugin.onload();
+    const handler = (
+      plugin.registerObsidianProtocolHandler as ReturnType<typeof vi.fn>
+    ).mock.calls[0][1] as (params: Record<string, string>) => void;
+
+    handler({ action: "add-feed" });
+    await flushPromises();
+
+    expect(addFeedSpy).not.toHaveBeenCalled();
+    expect(noticeSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "Missing required URL parameter for add-feed.",
+    );
+  });
+
+  it("shows notice and skips add for invalid feed URLs", async () => {
+    const addFeedSpy = vi.spyOn(plugin, "addFeed");
+    const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+    await plugin.onload();
+    const handler = (
+      plugin.registerObsidianProtocolHandler as ReturnType<typeof vi.fn>
+    ).mock.calls[0][1] as (params: Record<string, string>) => void;
+
+    handler({ action: "add-feed", url: "ftp://example.com/feed.xml" });
+    await flushPromises();
+
+    expect(addFeedSpy).not.toHaveBeenCalled();
+    expect(noticeSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "URL must start with http:// or https://",
+    );
+  });
+
+  it("opens Add Feed modal with prefilled URL for browser URI route", async () => {
+    const addFeedSpy = vi.spyOn(plugin, "addFeed");
+    const modalOpenSpy = vi.spyOn(AddFeedModal.prototype, "open");
+
+    await plugin.onload();
+    const handler = (
+      plugin.registerObsidianProtocolHandler as ReturnType<typeof vi.fn>
+    ).mock.calls[0][1] as (params: Record<string, string>) => void;
+
+    const encodedUrl = encodeURIComponent("https://example.com/feed.xml");
+    handler({ action: "rss-dashboard", url: encodedUrl });
+    await flushPromises();
+
+    expect(modalOpenSpy).toHaveBeenCalledTimes(1);
+    expect(addFeedSpy).not.toHaveBeenCalled();
+
+    const urlInput =
+      document.querySelector<HTMLInputElement>(".feed-url-input");
+    expect(urlInput?.value).toBe("https://example.com/feed.xml");
   });
 });
 
@@ -702,7 +805,6 @@ describe("refreshFeeds()", () => {
     await plugin.refreshFeeds();
 
     // Then: saveSettings should be called
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalled();
   });
 
@@ -1328,7 +1430,6 @@ describe("addFeed()", () => {
     await plugin.addFeed("Save Test Feed", newUrl, "Uncategorized");
 
     // Then: saveSettings should be called
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalled();
   });
 
@@ -1407,9 +1508,7 @@ describe("ingestFeedsForBackgroundImport()", () => {
       (f) => f.url === "https://example.com/new.xml",
     );
     expect(addedFeed?.items).toEqual([]);
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalledTimes(1);
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.ensureFolderExists).toHaveBeenCalledWith("Research", {
       saveSettings: false,
       refreshView: false,
@@ -1456,11 +1555,8 @@ describe("ingestFeedsForBackgroundImport()", () => {
 
 describe("onunload()", () => {
   let plugin: RssDashboardPlugin;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let removeEventListenerSpy: any;
 
   beforeEach(async () => {
-    removeEventListenerSpy = vi.spyOn(window, "removeEventListener");
     const app = createMockApp();
     plugin = await createPluginInstance(app);
 
@@ -1474,8 +1570,8 @@ describe("onunload()", () => {
       },
     };
 
-    // Set up beforeUnloadHandler
-    plugin["_beforeUnloadHandler"] = vi.fn();
+    (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups =
+      vi.fn().mockResolvedValue(undefined);
 
     vi.clearAllMocks();
   });
@@ -1484,60 +1580,11 @@ describe("onunload()", () => {
     vi.restoreAllMocks();
   });
 
-  it("removes beforeunload handler", () => {
-    // Given: Plugin with beforeUnloadHandler set
-    expect(plugin["_beforeUnloadHandler"]).toBeDefined();
-
+  it("calls async performAutoBackups on onunload", () => {
     // When: onunload is called
     plugin.onunload();
 
-    // Then: beforeUnloadHandler should be null
-    expect(plugin["_beforeUnloadHandler"]).toBeNull();
-  });
-
-  it("removes beforeunload event listener from window", () => {
-    // When: onunload is called
-    plugin.onunload();
-
-    // Then: removeEventListener should be called
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      "beforeunload",
-      expect.any(Function),
-    );
-  });
-
-  it("attempts sync backup on desktop", () => {
-    // Given: Plugin with auto-backup settings
-    (
-      plugin as unknown as PluginPrivateAPI
-    ).backupService.performAutoBackupsSyncDesktop = vi
-      .fn()
-      .mockReturnValue(true);
-
-    // When: onunload is called
-    plugin.onunload();
-
-    // Then: performAutoBackupsSyncDesktop should be called
-    expect(
-      (plugin as unknown as PluginPrivateAPI).backupService
-        .performAutoBackupsSyncDesktop,
-    ).toHaveBeenCalled();
-  });
-
-  it("falls back to async backup when sync fails", () => {
-    // Given: Plugin with auto-backup settings that fails sync
-    (
-      plugin as unknown as PluginPrivateAPI
-    ).backupService.performAutoBackupsSyncDesktop = vi
-      .fn()
-      .mockReturnValue(false);
-    (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups =
-      vi.fn().mockResolvedValue(undefined);
-
-    // When: onunload is called
-    plugin.onunload();
-
-    // Then: performAutoBackups should be called as fallback
+    // Then: performAutoBackups should be called
     expect(
       (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups,
     ).toHaveBeenCalled();
@@ -1600,7 +1647,6 @@ describe("performAutoBackups()", () => {
     await plugin.performAutoBackups();
 
     // Then: No writes should occur
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).not.toHaveBeenCalled();
   });
 
@@ -1612,7 +1658,6 @@ describe("performAutoBackups()", () => {
     await plugin.performAutoBackups();
 
     // Then: Should not throw
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).not.toHaveBeenCalled();
   });
 });
@@ -1792,7 +1837,6 @@ describe("saveSettings()", () => {
     await plugin.saveSettings();
 
     // Then: saveData should be called with settings
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalledWith(plugin.settings);
   });
 
@@ -1804,7 +1848,6 @@ describe("saveSettings()", () => {
     await plugin.saveSettings();
 
     // Then: saveData should be called with modified settings
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalledWith(
       expect.objectContaining({
         refreshInterval: 120,
@@ -1854,7 +1897,6 @@ describe("applyFeedLimitsToAllFeeds()", () => {
     await plugin.applyFeedLimitsToAllFeeds();
 
     // Then: settings should be saved
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- vi.fn() mock reassigned in beforeEach; false positive
     expect(plugin.saveData).toHaveBeenCalled();
   });
 

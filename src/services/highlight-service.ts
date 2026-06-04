@@ -13,6 +13,7 @@ interface HighlightMatch {
  */
 export class HighlightService {
   private settings: HighlightSettings;
+  private regexCache: Map<string, RegExp> = new Map();
 
   constructor(settings: HighlightSettings) {
     this.settings = settings;
@@ -33,24 +34,28 @@ export class HighlightService {
     }
 
     // Use TreeWalker to find all text nodes
-    const walker = activeDocument.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-      acceptNode: (node: Node) => {
-        const parent = node.parentElement;
-        if (!parent) return NodeFilter.FILTER_REJECT;
+    const walker = activeDocument.createTreeWalker(
+      container,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: (node: Node) => {
+          const parent = node.parentElement;
+          if (!parent) return NodeFilter.FILTER_REJECT;
 
-        // Skip certain elements
-        if (this.shouldSkipElement(parent)) {
-          return NodeFilter.FILTER_REJECT;
-        }
+          // Skip certain elements
+          if (this.shouldSkipElement(parent)) {
+            return NodeFilter.FILTER_REJECT;
+          }
 
-        // Skip empty text nodes
-        if (!node.textContent?.trim()) {
-          return NodeFilter.FILTER_REJECT;
-        }
+          // Skip empty text nodes
+          if (!node.textContent?.trim()) {
+            return NodeFilter.FILTER_REJECT;
+          }
 
-        return NodeFilter.FILTER_ACCEPT;
+          return NodeFilter.FILTER_ACCEPT;
+        },
       },
-    });
+    );
 
     // Collect text nodes first (we'll modify DOM during iteration)
     const textNodes: Text[] = [];
@@ -237,7 +242,10 @@ export class HighlightService {
    * Matches are ordered left-to-right; if multiple words start at the same
    * position, the longest match wins.
    */
-  private collectMatches(text: string, words: HighlightWord[]): HighlightMatch[] {
+  private collectMatches(
+    text: string,
+    words: HighlightWord[],
+  ): HighlightMatch[] {
     if (!text || words.length === 0) return [];
 
     const rawMatches: Array<HighlightMatch & { priority: number }> = [];
@@ -290,12 +298,18 @@ export class HighlightService {
     const rawText = word.text?.trim();
     if (!rawText) return null;
 
+    const cacheKey = `${rawText}|${word.wholeWord}|${word.caseSensitive}`;
+    const cached = this.regexCache.get(cacheKey);
+    if (cached) return cached;
+
     const escaped = this.escapeRegex(rawText);
     const pattern = word.wholeWord
       ? `(?<=^|\\W)(${escaped})(?=$|\\W)`
       : `(${escaped})`;
     const flags = word.caseSensitive ? "g" : "gi";
-    return new RegExp(pattern, flags);
+    const regex = new RegExp(pattern, flags);
+    this.regexCache.set(cacheKey, regex);
+    return regex;
   }
 
   /**

@@ -15,7 +15,6 @@ import {
   getPerFeedRefreshIntervalDropdownValue,
 } from "../../utils/refresh-intervals";
 import { renderSupportedFormatBadges } from "./supported-format-badges";
-import { decorateFolderSelectorInput } from "./folder-selector-field";
 import {
   formatLatestEntryLabel,
   getDefaultFolderForResolvedFeed,
@@ -27,7 +26,10 @@ import { MediaService } from "../../services/media-service";
 import { copyTextToClipboard } from "../../utils/export-utils";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 import { TagApplicationConfirmModal } from "./tag-application-confirm-modal";
-import { applyTagsToItems, removeTagsFromItemsByName } from "../../services/tag-applier";
+import {
+  applyTagsToItems,
+  removeTagsFromItemsByName,
+} from "../../services/tag-applier";
 import { resolveTagObjects } from "../../utils/tag-resolver";
 
 const EMPTY_FEED_VALIDATION_WARNING =
@@ -222,25 +224,35 @@ export class EditFeedModal extends Modal {
           })();
         });
       });
+    urlSetting.settingEl.addClass("rss-feed-form-row");
+    urlSetting.settingEl.addClass("rss-feed-form-row-url");
+
+    const sourceSetting = new Setting(contentEl).setName("Feed Source");
+    sourceSetting.settingEl.addClass("rss-feed-form-row");
+    sourceSetting.settingEl.addClass("rss-feed-source-row");
 
     const { clearActiveBadge, setActiveBadge } = renderSupportedFormatBadges(
-      urlSetting.descEl,
+      sourceSetting.controlEl,
     );
 
-    new Setting(contentEl).setName("Title").addText((text) => {
-      text.setValue(title).onChange((v) => (title = v));
-      titleInput = text.inputEl;
-      titleInput.autocomplete = "off";
-      titleInput.spellcheck = false;
-      titleInput.addEventListener("focus", () => titleInput.select());
-      titleInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          folderInput?.focus();
-        } else if (e.key === "Escape") {
-          this.close();
-        }
+    const titleSetting = new Setting(contentEl)
+      .setName("Title")
+      .addText((text) => {
+        text.setValue(title).onChange((v) => (title = v));
+        titleInput = text.inputEl;
+        titleInput.autocomplete = "off";
+        titleInput.spellcheck = false;
+        titleInput.addClass("title-input");
+        titleInput.addEventListener("focus", () => titleInput.select());
+        titleInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            folderInput?.focus();
+          } else if (e.key === "Escape") {
+            this.close();
+          }
+        });
       });
-    });
+    titleSetting.settingEl.addClass("rss-feed-form-row");
 
     const latestEntrySetting = new Setting(contentEl).setName("Latest entry");
     refs.latestEntryDiv = latestEntrySetting.controlEl.createDiv({
@@ -261,15 +273,14 @@ export class EditFeedModal extends Modal {
         folderInput = text.inputEl;
         folderInput.autocomplete = "off";
         folderInput.spellcheck = false;
+        folderInput.addClass("folder-input");
         folderInput.addEventListener("focus", () => folderInput.select());
 
         new FolderSuggest(this.app, folderInput, this.plugin.settings.folders);
       });
-    decorateFolderSelectorInput(folderSetting, folderInput);
+    folderSetting.settingEl.addClass("rss-feed-form-row");
 
-    const availableTags: Tag[] =
-      this.plugin?.settings.availableTags ??
-      [];
+    const availableTags: Tag[] = this.plugin?.settings.availableTags ?? [];
 
     const autoTagSetting = new Setting(contentEl)
       .setName("Auto-tags")
@@ -285,12 +296,14 @@ export class EditFeedModal extends Modal {
       },
     });
 
-    const localStorageAddressResult =
-      this.plugin.getFeedLocalStorageAddress?.(this.feed) ?? {
-        mode: this.plugin.settings.storageMode,
-        address: "data.json",
-      };
-    const hasResolvedLocalAddress = localStorageAddressResult.address.length > 0;
+    const localStorageAddressResult = this.plugin.getFeedLocalStorageAddress?.(
+      this.feed,
+    ) ?? {
+      mode: this.plugin.settings.storageMode,
+      address: "data.json",
+    };
+    const hasResolvedLocalAddress =
+      localStorageAddressResult.address.length > 0;
     const storageDescription = "Shows where this feed is stored.";
     const feedIdText = this.feed.feedId?.trim()
       ? this.feed.feedId
@@ -338,7 +351,9 @@ export class EditFeedModal extends Modal {
       }
 
       void (async () => {
-        const result = await copyTextToClipboard(localStorageAddressResult.address);
+        const result = await copyTextToClipboard(
+          localStorageAddressResult.address,
+        );
         if (result === "copied") {
           new Notice("Copied local storage address.");
           return;
@@ -349,12 +364,15 @@ export class EditFeedModal extends Modal {
     };
 
     copyStorageAddressButton.addEventListener("click", copyLocalAddress);
-    copyStorageAddressButton.addEventListener("keydown", (evt: KeyboardEvent) => {
-      if (evt.key === "Enter" || evt.key === " ") {
-        evt.preventDefault();
-        copyLocalAddress();
-      }
-    });
+    copyStorageAddressButton.addEventListener(
+      "keydown",
+      (evt: KeyboardEvent) => {
+        if (evt.key === "Enter" || evt.key === " ") {
+          evt.preventDefault();
+          copyLocalAddress();
+        }
+      },
+    );
 
     const perFeedControlsDetails = contentEl.createEl("details", {
       cls: "rss-keyword-filter-details rss-per-feed-controls-details",
@@ -693,7 +711,9 @@ export class EditFeedModal extends Modal {
           if (result === "apply_existing") {
             const oldSet = new Set(originalCustomTags);
             const newSet = new Set(customTags);
-            const removedNames = originalCustomTags.filter((n) => !newSet.has(n));
+            const removedNames = originalCustomTags.filter(
+              (n) => !newSet.has(n),
+            );
             const addedNames = customTags.filter((n) => !oldSet.has(n));
             removeTagsFromItemsByName(this.feed.items, removedNames);
             const addedTags = resolveTagObjects(addedNames, availableTags);

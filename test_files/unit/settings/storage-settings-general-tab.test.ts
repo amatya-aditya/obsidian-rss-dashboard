@@ -1,12 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
-import { renderGeneralSettingsTab, type GeneralSettingsPlugin } from "../../../src/settings/tabs/general-settings-tab";
+import {
+  renderGeneralSettingsTab,
+  type GeneralSettingsPlugin,
+} from "../../../src/settings/tabs/general-settings-tab";
 import {
   ShardDeletionFailureModal,
   StorageTransitionModal,
 } from "../../../src/settings/modals/storage-settings-modals";
-import { ShardFolderDeletionError, type FeedStorageStatus } from "../../../src/services/feed-storage-repository";
-import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
+import {
+  ShardFolderDeletionError,
+  type FeedStorageStatus,
+} from "../../../src/services/feed-storage-repository";
+import {
+  DEFAULT_SETTINGS,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 function cloneSettings(): RssDashboardSettings {
@@ -52,18 +61,22 @@ function createPlugin() {
     settings: cloneSettings(),
     saveSettings: vi.fn(async () => {}),
     getActiveDashboardView: vi.fn(async () => null),
-    getStorageStatus: vi.fn((): FeedStorageStatus => ({
-      mode: "legacy-json" as const,
-      folder: ".rss-dashboard-data/feeds",
-      shardCount: 0,
-      feedCount: 0,
-      migrationReady: true,
-      lastRepairResult: "Not yet run",
-    })),
+    getStorageStatus: vi.fn(
+      (): FeedStorageStatus => ({
+        mode: "legacy-json" as const,
+        folder: ".rss-dashboard-data/feeds",
+        shardCount: 0,
+        feedCount: 0,
+        migrationReady: true,
+        lastRepairResult: "Not yet run",
+      }),
+    ),
     migrateToVaultStorage: vi.fn(async () => {}),
     revertToLegacyJsonStorage: vi.fn(async () => {}),
     revertToLegacyJsonStorageWithOptions: vi.fn(async () => {}),
-    isShardFolderDeletionError: (error: unknown): error is ShardFolderDeletionError =>
+    isShardFolderDeletionError: (
+      error: unknown,
+    ): error is ShardFolderDeletionError =>
       error instanceof ShardFolderDeletionError,
     openStorageFolderInSystem: vi.fn(async () => {}),
     repairVaultStorage: vi.fn(async () => {}),
@@ -85,35 +98,65 @@ beforeEach(() => {
 });
 
 describe("General settings storage section", () => {
-  it("renders the experimental storage controls in the General tab", () => {
+  it("marks the storage transition modal for mobile safe-area positioning", () => {
+    const app = obsidian.App.createMock();
+    const modal = new StorageTransitionModal(app, {
+      currentMode: "legacy-json",
+      targetMode: "vault-shards",
+      storageFolder: ".rss-dashboard-data/feeds",
+    });
+
+    modal.open();
+
+    expect(modal.modalEl.classList.contains("rss-storage-transition-modal")).toBe(
+      true,
+    );
+    expect(
+      modal.contentEl.querySelector(".rss-storage-transition-buttons"),
+    ).toBeTruthy();
+  });
+
+  it("renders the storage controls in the General tab", () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
 
-    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
+    renderGeneralSettingsTab(
+      containerEl,
+      plugin as unknown as GeneralSettingsPlugin,
+    );
 
     expect(getSettingByName(containerEl, "Storage mode").textContent).toContain(
       "legacy monolithic data.json store",
     );
-    expect(getSettingByName(containerEl, "Storage folder").textContent).toContain(
-      "cross-device sync tools can access it",
-    );
-    expect(getSettingByName(containerEl, "Storage status").textContent).toContain(
-      "Migration ready",
-    );
+    expect(
+      getSettingByName(containerEl, "Storage folder").textContent,
+    ).toContain("cross-device sync tools can access it");
+    expect(
+      getSettingByName(containerEl, "Storage status").textContent,
+    ).toContain("Migration ready");
   });
 
   it("applies the pending legacy-to-shards storage change through the modal", async () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
-    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(() => {});
-    vi.spyOn(StorageTransitionModal.prototype, "waitForClose").mockResolvedValue(
-      "apply",
+    plugin.settings.storageMode = "legacy-json";
+    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(
+      () => {},
+    );
+    vi.spyOn(
+      StorageTransitionModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue("apply");
+
+    renderGeneralSettingsTab(
+      containerEl,
+      plugin as unknown as GeneralSettingsPlugin,
     );
 
-    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
-
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const select = storageModeSetting.querySelector("select") as HTMLSelectElement;
+    const select = storageModeSetting.querySelector(
+      "select",
+    ) as HTMLSelectElement;
     select.value = "vault-shards";
     select.dispatchEvent(new Event("change"));
 
@@ -146,11 +189,17 @@ describe("General settings storage section", () => {
   it("does not trigger migration when the storage mode dropdown changes", async () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
+    plugin.settings.storageMode = "legacy-json";
 
-    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
+    renderGeneralSettingsTab(
+      containerEl,
+      plugin as unknown as GeneralSettingsPlugin,
+    );
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const select = storageModeSetting.querySelector("select") as HTMLSelectElement;
+    const select = storageModeSetting.querySelector(
+      "select",
+    ) as HTMLSelectElement;
 
     select.value = "vault-shards";
     select.dispatchEvent(new Event("change"));
@@ -166,15 +215,24 @@ describe("General settings storage section", () => {
   it("exports data.json from the apply modal before migrating to shards", async () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
-    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(() => {});
-    vi.spyOn(StorageTransitionModal.prototype, "waitForClose").mockResolvedValue(
-      "export-data-json",
+    plugin.settings.storageMode = "legacy-json";
+    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(
+      () => {},
+    );
+    vi.spyOn(
+      StorageTransitionModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue("export-data-json");
+
+    renderGeneralSettingsTab(
+      containerEl,
+      plugin as unknown as GeneralSettingsPlugin,
     );
 
-    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
-
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const select = storageModeSetting.querySelector("select") as HTMLSelectElement;
+    const select = storageModeSetting.querySelector(
+      "select",
+    ) as HTMLSelectElement;
     select.value = "vault-shards";
     select.dispatchEvent(new Event("change"));
 
@@ -201,15 +259,23 @@ describe("General settings storage section", () => {
       migrationReady: false,
       lastRepairResult: "Migration completed",
     }));
-    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(() => {});
-    vi.spyOn(StorageTransitionModal.prototype, "waitForClose").mockResolvedValue(
-      "apply-delete-shards",
+    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(
+      () => {},
+    );
+    vi.spyOn(
+      StorageTransitionModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue("apply-delete-shards");
+
+    renderGeneralSettingsTab(
+      containerEl,
+      plugin as unknown as GeneralSettingsPlugin,
     );
 
-    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
-
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const select = storageModeSetting.querySelector("select") as HTMLSelectElement;
+    const select = storageModeSetting.querySelector(
+      "select",
+    ) as HTMLSelectElement;
     select.value = "legacy-json";
     select.dispatchEvent(new Event("change"));
 
@@ -247,19 +313,30 @@ describe("General settings storage section", () => {
       )
       .mockResolvedValueOnce(undefined);
 
-    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(() => {});
-    vi.spyOn(StorageTransitionModal.prototype, "waitForClose").mockResolvedValue(
-      "apply-delete-shards",
+    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(
+      () => {},
     );
-    vi.spyOn(ShardDeletionFailureModal.prototype, "open").mockImplementation(() => {});
-    vi.spyOn(ShardDeletionFailureModal.prototype, "waitForClose").mockResolvedValue(
-      "apply-anyway",
+    vi.spyOn(
+      StorageTransitionModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue("apply-delete-shards");
+    vi.spyOn(ShardDeletionFailureModal.prototype, "open").mockImplementation(
+      () => {},
     );
+    vi.spyOn(
+      ShardDeletionFailureModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue("apply-anyway");
 
-    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
+    renderGeneralSettingsTab(
+      containerEl,
+      plugin as unknown as GeneralSettingsPlugin,
+    );
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const select = storageModeSetting.querySelector("select") as HTMLSelectElement;
+    const select = storageModeSetting.querySelector(
+      "select",
+    ) as HTMLSelectElement;
     select.value = "legacy-json";
     select.dispatchEvent(new Event("change"));
 
@@ -270,12 +347,18 @@ describe("General settings storage section", () => {
     applyButton.click();
     await flushAsyncWork();
 
-    expect(plugin.revertToLegacyJsonStorageWithOptions).toHaveBeenNthCalledWith(1, {
-      deleteShardFolder: true,
-    });
-    expect(plugin.revertToLegacyJsonStorageWithOptions).toHaveBeenNthCalledWith(2, {
-      deleteShardFolder: false,
-    });
+    expect(plugin.revertToLegacyJsonStorageWithOptions).toHaveBeenNthCalledWith(
+      1,
+      {
+        deleteShardFolder: true,
+      },
+    );
+    expect(plugin.revertToLegacyJsonStorageWithOptions).toHaveBeenNthCalledWith(
+      2,
+      {
+        deleteShardFolder: false,
+      },
+    );
   });
 
   it("can open the shard folder after delete failure before the user decides", async () => {
@@ -299,19 +382,29 @@ describe("General settings storage section", () => {
         ),
       );
 
-    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(() => {});
-    vi.spyOn(StorageTransitionModal.prototype, "waitForClose").mockResolvedValue(
-      "apply-delete-shards",
+    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(
+      () => {},
     );
-    vi.spyOn(ShardDeletionFailureModal.prototype, "open").mockImplementation(() => {});
+    vi.spyOn(
+      StorageTransitionModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue("apply-delete-shards");
+    vi.spyOn(ShardDeletionFailureModal.prototype, "open").mockImplementation(
+      () => {},
+    );
     vi.spyOn(ShardDeletionFailureModal.prototype, "waitForClose")
       .mockResolvedValueOnce("open-folder")
       .mockResolvedValueOnce("cancel");
 
-    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
+    renderGeneralSettingsTab(
+      containerEl,
+      plugin as unknown as GeneralSettingsPlugin,
+    );
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const select = storageModeSetting.querySelector("select") as HTMLSelectElement;
+    const select = storageModeSetting.querySelector(
+      "select",
+    ) as HTMLSelectElement;
     select.value = "legacy-json";
     select.dispatchEvent(new Event("change"));
 
@@ -325,17 +418,28 @@ describe("General settings storage section", () => {
     expect(plugin.openStorageFolderInSystem).toHaveBeenCalledWith(
       ".rss-dashboard-data/feeds",
     );
-    expect(plugin.revertToLegacyJsonStorageWithOptions).toHaveBeenCalledTimes(1);
+    expect(plugin.revertToLegacyJsonStorageWithOptions).toHaveBeenCalledTimes(
+      1,
+    );
   });
 
   it("updates the storage folder setting through a standard text input", async () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
+    plugin.settings.storageMode = "legacy-json";
 
-    renderGeneralSettingsTab(containerEl, plugin as unknown as GeneralSettingsPlugin);
+    renderGeneralSettingsTab(
+      containerEl,
+      plugin as unknown as GeneralSettingsPlugin,
+    );
 
-    const storageFolderSetting = getSettingByName(containerEl, "Storage folder");
-    const input = storageFolderSetting.querySelector("input") as HTMLInputElement;
+    const storageFolderSetting = getSettingByName(
+      containerEl,
+      "Storage folder",
+    );
+    const input = storageFolderSetting.querySelector(
+      "input",
+    ) as HTMLInputElement;
 
     input.value = "RSS Mirror/Feeds";
     input.dispatchEvent(new Event("input"));

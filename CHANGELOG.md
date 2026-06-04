@@ -1,20 +1,54 @@
-## [Unreleased] - May 21, 2026
+## [Unreleased] - May 26, 2026
+
+### New Features
+
+- Added Settings > General > Saved article open location option to control where saved articles open. [GH FR #131](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/131)
+- Added ',' keybind to mark article read and advance to next article. [GH FR #183](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/138)
+- Added Obsidian URI support for one-click feed subscription via `obsidian://rss-dashboard?action=add-feed&url=<encoded-feed-url>`, including parameter validation and unsupported-action notices. [GH FR #126](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/126)
+- Added {{image}} to Article Saving template which includes URL to cover image if it exists [GH FR #128](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/128)
+
+### Community Plugin Audit
+
+- Remediation work on latest Community Plugin Audit (https://community.obsidian.md/plugins/rss-dashboard) - now standing at 72% compliance (up from 46% last version).
+
+- **Dynamic `<script>` element creation**
+  - Flagged as a red/critical risk due to 2.3.0's media progress saving feature (specifically Youtube iFrame embeds)
+  - Rewrote how the progress is stored that adheres to Obsidian's best practices and Youtube SDK API
+  - Added CI/CD ESLint rule to prevent dynamic `<script>` element creation in the future
+
+- Completely eliminated all Node.js/Electron `fs` and `path` usages from the production plugin code
+
+- Completely eliminated all superflous !important declarations; added comments to remaining declarations that pass audit
+
+### GH Issue #139
+
+- Fixed issue where clicking a feed in the sidebar does nothing when a sync plugin (Self-hosted LiveSync) is enabled.
 
 ### Features
 
-#### New: Mastodon Integration
+- Added a new **Saved article open location** option under General settings so saved articles can open in Main, left/right sidebar, inline dashboard mode, or external browser, independent of the Reader view location setting.
 
-- Can now add your favorite Mastodon feeds directly into the RSS Dashboard.
+### Fixes
 
-#### New: Auto-tag by Feed Type
+#### Saving articles to vault not saving article content
 
-- All Feed Types (X/Twitter/Nitter, Podcast, RSS, Youtube, Mastodon, Kagi Smallweb) now have the ability to receive auto-tags via Settings > Media tab. Create tags via the Tags Settings tab then select the tag from the dropdown box.
+= These issues were raised via [GH Issue #127](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/127) and appeared to be the same issue on the surface but turned out to be several:
 
-#### New: Ability to toggle between feed-specific profile favicons or default icons
+- Certain feeds with malformed xml would corrupt the saved article. Added a new cleaner helper to sanitize the feed xml. [beehiiv.com example](https://rss.beehiiv.com/feeds/40ZQ7CSldT.xml)
 
-- Added ability to enable/disable showing each feed's profile favicon or a default favicon for users who with to keep things clean and simple. Found within Settings > Media.
+- Certain feeds (i.e. Substack) would not save articles or images properly when saving article to vault due to Substack's content:encoded xml schema and our parsing helper not handling it properly.
 
----
+- Fixed format discrepency between saving article via dashboard card and saving article via reader toolbar (different pathways interally but now both resolve the same way for the user's saved note)
+
+#### Sync issues
+
+- Added a new bootstrap pointer which saves metadata config locally so the app knows where to look upon restart.
+- Changed default storage type for fresh plugin installs from Legacy JSON to Shard Storage - still retaining Legacy JSON as an option to ease transition for existing users.
+- Resolves [GH Issue #142](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/142) and [GH Issue #140](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/140)
+
+## [2.3.0] - May 26, 2026
+
+- Official Release. No additional changes added since 2.3.0-beta.3. See [docs/releases/2.3.0.md](docs/releases/2.3.0.md) for complete release notes.
 
 ## [2.3.0-beta.3] - May 19, 2026
 
@@ -81,7 +115,7 @@
 
 ## [2.3.0-beta.1] - May 11, 2026
 
-- New experimental **Vault Shards storage mode**: Store article history in separate per-feed files instead of one large data.json file, with easy migration between modes.
+- New **Vault Shards storage mode**: Store article history in separate per-feed files instead of one large data.json file, with easy migration between modes.
 
 - Enhanced storage controls: Manage storage mode, repair shards, and import/export data directly from General settings.
 

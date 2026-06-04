@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "inlineSourceMap": true,
-    "inlineSources": true,
+    "inlineSourceMap": false,
+    // "inlineSources": true,
     "module": "ESNext",
     "target": "ES6",
     "allowJs": true,
@@ -12,21 +12,11 @@
     "strictNullChecks": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "lib": [
-      "DOM",
-      "ES2020"
-    ],
+    "lib": ["DOM", "ES2020"],
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true
   },
-  "include": [
-    "main.ts",
-    "src/**/*.ts"
-  ],
-  "exclude": [
-    "test_files/**",
-    "coverage/**",
-    "node_modules/**"
-  ]
+  "include": ["main.ts", "src/**/*.ts"],
+  "exclude": ["test_files/**", "coverage/**", "node_modules/**"]
 }

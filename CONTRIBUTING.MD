@@ -2,6 +2,19 @@
 
 Last updated: 2026-05-19
 
+## Table of Contents
+- [Overview](#overview)
+- [Branch Structure](#branch-structure)
+- [Branch Descriptions](#branch-descriptions)
+- [Contributor Workflow](#contributor-workflow)
+- [Testing and TDD Approach](#testing-and-tdd-approach)
+- [Compliance Declarations (Audit Guardrails)](#compliance-declarations-audit-guardrails)
+- [Release Process](#release-process)
+- [Versioning (SemVer)](#versioning-semver)
+- [Naming Conventions and Validation](#naming-conventions-and-validation)
+- [Key Rules](#key-rules)
+- [Quick Reference](#quick-reference)
+
 ## Overview
 
 This document outlines the branching strategy for all contributors. Following these conventions keeps our codebase stable, our release process predictable, and collaboration smooth.
@@ -187,6 +200,30 @@ To prevent repeat audit regressions, every PR must follow these declarations. Tr
 - AI-generated patches must satisfy the same declarations as hand-written code.
 - If generated output conflicts with these rules, correct the patch before opening a PR.
 - Keep fixes policy-aligned, minimal, and test-backed.
+
+### CSS !important Usage Guidelines
+
+To maintain compatibility with Obsidian's community plugin standards and avoid specificity wars, the use of `!important` in CSS should be avoided whenever possible. However, there are limited scenarios where its use may be justified:
+
+1. **When overriding Obsidian core styles**: If Obsidian core applies a style with `!important` that needs to be overridden, and increasing specificity alone is insufficient, `!important` may be used as a last resort.
+
+2. **For specific icon rendering fixes**: As documented in the design spec, `!important` may be justified for icon sizing or visibility rules when Obsidian core sets the same property `!important` on a matching selector, making specificity-only wins impossible.
+
+When `!important` is deemed necessary, it must be accompanied by an inline comment explaining the justification, following this format:
+```css
+/* audit-ok: !important required to [specific reason] */
+```
+
+Examples of acceptable usage:
+```css
+.your-component-scope .clickable-icon > svg {
+  width: var(--icon-size, 20px) !important; /* audit-ok: Required to override Obsidian core's !important declaration on svg elements */
+}
+```
+
+Any use of `!important` without proper justification and documentation will be flagged during code review and must be refactored.
+
+This aligns with the audit remediation efforts in v2.3.0 where !important usage was reduced from 900 warnings to 0 through a combination of refactoring and documented exceptions.
 
 ### Required Before PR
 

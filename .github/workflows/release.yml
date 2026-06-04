@@ -31,14 +31,9 @@ jobs:
         run: |
           # Create a release directory
           mkdir -p release
-          
+
           # Copy main files
           cp main.js manifest.json styles.css release/
-          
-          # Create zip file for easy distribution
-          cd release
-          zip -r ../obsidian-rss-dashboard.zip .
-          cd ..
 
       - name: Attest build provenance for release assets
         uses: actions/attest-build-provenance@v2
@@ -74,4 +69,3 @@ jobs:
             main.js \
             manifest.json \
             styles.css \
-            obsidian-rss-dashboard.zip

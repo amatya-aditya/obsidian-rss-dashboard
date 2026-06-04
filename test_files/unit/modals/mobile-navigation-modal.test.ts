@@ -77,7 +77,7 @@ describe("MobileNavigationModal", () => {
     expect(modal.modalEl.classList.contains("rss-mobile-navigation-modal")).toBe(true);
     expect(modal.modalEl.querySelector(".modal-close-button")).toBeFalsy();
     expect(lastSidebarInstance?.rendered).toBe(true);
-    expect(modal.modalEl.style.width).toBe("280px");
+    expect(modal.modalEl.style.width).toBe("1120px");
 
     lastSidebarInstance!.callbacks.onTagToggle("AI");
     expect(callbacks.onTagToggle).toHaveBeenCalledWith("AI");

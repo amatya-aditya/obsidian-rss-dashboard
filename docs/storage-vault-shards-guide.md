@@ -1,4 +1,4 @@
-# Vault Shards Storage Guide (Experimental)
+# Vault Shards Storage Guide
 
 This guide explains the new Vault Shards storage mode in RSS Dashboard: what it is, when to use it, and how to safely migrate.
 
@@ -22,7 +22,6 @@ Vault Shards can help if you:
 
 ## Important Notes Before You Switch
 
-- This feature is experimental.
 - Plugin settings and metadata still use the plugin data file.
 - Vault Shards improves portability, but does not fully replace all plugin-managed metadata storage.
 
@@ -30,7 +29,7 @@ Vault Shards can help if you:
 
 1. Open Obsidian Settings.
 2. Go to Community plugins -> RSS Dashboard -> General.
-3. In Storage (experimental), choose Experimental vault shards.
+3. In Storage, choose 'Vault shards'.
 4. Confirm or edit Storage folder.
 5. Click Migrate to vault storage.
 6. Wait for completion notice.

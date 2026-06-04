@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import {
@@ -41,7 +40,9 @@ function getTagTrigger(settingEl: HTMLElement): HTMLButtonElement {
 }
 
 function getOpenTagMenu(): HTMLElement {
-  const menu = document.body.querySelector(".rss-dashboard-tag-multi-select-menu");
+  const menu = document.body.querySelector(
+    ".rss-dashboard-tag-multi-select-menu",
+  );
   if (!(menu instanceof HTMLElement)) {
     throw new Error("Tag menu not found");
   }
@@ -78,7 +79,9 @@ beforeEach(() => {
 
 describe("renderTagsSettingsTab()", () => {
   it("renders Auto Tagging before the tag list and add-tag section", () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.availableTags = [{ name: "Video", color: "#d04747" }];
 
@@ -103,7 +106,9 @@ describe("renderTagsSettingsTab()", () => {
   });
 
   it("renders all auto-tag rows as tag multi-select triggers instead of native selects", () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.availableTags = [
       { name: "Video", color: "#d04747" },
@@ -129,7 +134,9 @@ describe("renderTagsSettingsTab()", () => {
   });
 
   it("renders selected summaries for single, multiple, and empty selections", () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.availableTags = [
       { name: "Video", color: "#d04747" },
@@ -164,7 +171,9 @@ describe("renderTagsSettingsTab()", () => {
   });
 
   it("toggles auto-tag selections, persists array settings, and updates aria state", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.availableTags = [
       { name: "Video", color: "#d04747" },
@@ -209,7 +218,9 @@ describe("renderTagsSettingsTab()", () => {
   });
 
   it("shows a disabled empty-state trigger when availableTags is empty", () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.availableTags = [];
 
@@ -235,7 +246,9 @@ describe("renderTagsSettingsTab()", () => {
   });
 
   it("restores default tag arrays on reset and refreshes the tab", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.availableTags = [{ name: "Custom", color: "#123456" }];
     settings.media.defaultVideoTag = "Custom";
@@ -253,7 +266,9 @@ describe("renderTagsSettingsTab()", () => {
     renderTagsSettingsTab(containerEl, plugin, onRefresh);
 
     const resetSetting = getSettingByName(containerEl, "Reset tag names");
-    const resetButton = resetSetting.querySelector("button") as HTMLButtonElement;
+    const resetButton = resetSetting.querySelector(
+      "button",
+    ) as HTMLButtonElement;
     resetButton.click();
     await flushPromises();
 
@@ -265,7 +280,9 @@ describe("renderTagsSettingsTab()", () => {
   });
 
   it("persists color changes, updates applied tags, and refreshes open tag views", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.availableTags = [{ name: "tag1", color: "#000000" }];
     settings.feeds = [
@@ -294,7 +311,8 @@ describe("renderTagsSettingsTab()", () => {
 
     const trigger = vi.fn();
     const mockApp = obsidian.App.createMock();
-    (mockApp.workspace as unknown as { trigger: typeof trigger }).trigger = trigger;
+    (mockApp.workspace as unknown as { trigger: typeof trigger }).trigger =
+      trigger;
 
     const plugin = {
       app: mockApp,
@@ -321,7 +339,9 @@ describe("renderTagsSettingsTab()", () => {
   });
 
   it("deletes an existing tag and refreshes", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.availableTags = [{ name: "tag1", color: "#000000" }];
     const onRefresh = vi.fn();
@@ -347,7 +367,9 @@ describe("renderTagsSettingsTab()", () => {
   });
 
   it("adds a new tag and refreshes", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.availableTags = [];
     const onRefresh = vi.fn();

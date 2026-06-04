@@ -630,10 +630,10 @@ export class DiscoverView extends ItemView {
     });
 
     const sidebarToggleButton = leftSection.createDiv({
-      cls: "rss-dashboard-sidebar-toggle",
+      cls: "rss-dashboard-sidebar-toggle clickable-icon",
       attr: { title: "Toggle filters" },
     });
-    setIcon(sidebarToggleButton, "panel-left");
+    setIcon(sidebarToggleButton, "panel-left-open");
     sidebarToggleButton.addEventListener("click", () => {
       this.openMobileSidebar();
     });

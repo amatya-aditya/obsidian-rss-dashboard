@@ -153,14 +153,39 @@ describe("settings-loader", () => {
       const result = loadAndNormalizeSettings(raw);
 
       expect(Array.isArray(result.availableTags)).toBe(true);
-      expect(result.availableTags.length).toBeGreaterThan(0);
-      expect(
-        result.availableTags.map((tag) => tag.name.toLowerCase()),
-      ).toContain("video");
-    });
+expect(result.availableTags.length).toBeGreaterThan(0);
+    expect(
+      result.availableTags.map((tag) => tag.name.toLowerCase()),
+    ).toContain("video");
   });
 
-  // ── migrateSettings ──────────────────────────────────────────────────────────
+  it("inherits savedArticleOpenLocation from readerViewLocation when missing", async () => {
+    const { loadAndNormalizeSettings } =
+      await import("../../../src/utils/settings-loader");
+
+    const raw: Partial<RssDashboardSettings> = {
+      readerViewLocation: "left-sidebar",
+    };
+    const result = loadAndNormalizeSettings(raw);
+
+    expect(result.savedArticleOpenLocation).toBe("left-sidebar");
+  });
+
+  it("migrates external-browser savedArticleOpenLocation to main", async () => {
+    const { loadAndNormalizeSettings } =
+      await import("../../../src/utils/settings-loader");
+
+    const raw: Partial<RssDashboardSettings> = {
+      readerViewLocation: "right-sidebar",
+      savedArticleOpenLocation: "external-browser",
+    };
+    const result = loadAndNormalizeSettings(raw);
+
+    expect(result.savedArticleOpenLocation).toBe("main");
+  });
+});
+
+// ── migrateSettings ──────────────────────────────────────────────────────────
 
   describe("migrateSettings", () => {
     it("migrates savePath to articleSaving.defaultFolder", async () => {

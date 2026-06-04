@@ -5,16 +5,9 @@ import {
   FeedItem,
   RssDashboardSettings,
   Tag,
-  DEFAULT_SETTINGS,
 } from "../../../src/types/types";
 
 type ArticleListCallbacks = ConstructorParameters<typeof ArticleList>[6];
-
-/** Minimal interface that exposes the private members needed by tests. */
-interface ArticleListTestAccess {
-  pendingCardTopAnchor: boolean;
-  syncArticleTags(articleEl: HTMLElement, article: FeedItem): void;
-}
 
 interface TestCSS {
   escape: (s: string) => string;
@@ -70,57 +63,101 @@ describe("ArticleList Component", () => {
     Element.prototype.scrollIntoView = vi.fn();
 
     settings = {
-      ...DEFAULT_SETTINGS,
       viewStyle: "list",
       articleGroupBy: "none",
       articleSort: "newest",
       display: {
-        ...DEFAULT_SETTINGS.display,
+        showCoverImage: true,
+        showSummary: true,
+        showFilterStatusBar: true,
+        showSidebarScrollbar: true,
+        showAllFeedsUnreadBadges: true,
+        showFolderUnreadBadges: true,
+        showFeedUnreadBadges: true,
+        allFeedsUnreadBadgeColor: "#ff0000",
+        folderUnreadBadgeColor: "#ff0000",
+        feedUnreadBadgeColor: "#ff0000",
+        allFeedsUnreadBadgeDefaultColor: "#ff0000",
+        folderUnreadBadgeDefaultColor: "#ff0000",
+        feedUnreadBadgeDefaultColor: "#ff0000",
+        filterDisplayStyle: "inline" as const,
+        mobileShowCardToolbar: true,
+        mobileShowListToolbar: true,
+        mobileListToolbarStyle: "bottom-row" as const,
+        defaultFilter: "all" as const,
+        hiddenFilters: [],
+        hideDefaultRssIcon: false,
+        autoMarkReadOnOpen: false,
+        sidebarRowSpacing: 4,
+        sidebarRowIndentation: 12,
+        sidebarItemPaddingLeft: 8,
+        sidebarItemPaddingRight: 8,
         cardColumnsPerRow: 3,
         cardSpacing: 15,
-        mobileShowListToolbar: true,
-        mobileShowCardToolbar: true,
+        hideEmptyFeeds: false,
+        hideIconDashboard: false,
+        hideIconDiscover: false,
+        hideIconAddFeed: false,
+        hideIconManageFeeds: false,
+        hideIconSearch: false,
+        hideIconTags: false,
+        hideIconAddFolder: false,
+        hideIconSort: false,
+        hideIconCollapseAll: false,
+        hideIconSettings: false,
+        hideIconDivider: false,
+        hideToolbarEntirely: false,
+        iconOrder: [],
+        articleDateStyle: "relative" as const,
       },
       articleFilter: {
-        type: "none",
+        type: "none" as const,
         value: 0,
       },
       articleSaving: {
-        ...DEFAULT_SETTINGS.articleSaving,
+        addSavedTag: true,
+        defaultFolder: ".",
+        defaultTemplate: "",
+        includeFrontmatter: true,
+        frontmatterTemplate: "",
         saveFullContent: false,
+        fetchTimeout: 10,
+        savedTemplates: [],
       },
       media: {
-        ...DEFAULT_SETTINGS.media,
-        useDomainIconsRss: false,
+        useDomainIconsRss: true,
+        useDomainIconsPodcast: true,
+        useDomainIconsTwitter: true,
+        useDomainIconsYouTube: true,
       },
-    };
+    } as unknown as RssDashboardSettings;
 
     articles = [
       {
         guid: "1",
         title: "Article 1",
         link: "link1",
-        description: "",
+        description: "desc1",
         pubDate: new Date().toISOString(),
         read: false,
         starred: false,
-        tags: [],
-        feedTitle: "",
-        feedUrl: "",
+        feedTitle: "Feed 1",
+        feedUrl: "feed1",
         coverImage: "",
+        tags: [],
       },
       {
         guid: "2",
         title: "Article 2",
         link: "link2",
-        description: "",
+        description: "desc2",
         pubDate: new Date().toISOString(),
         read: false,
         starred: false,
-        tags: [],
-        feedTitle: "",
-        feedUrl: "",
+        feedTitle: "Feed 2",
+        feedUrl: "feed2",
         coverImage: "",
+        tags: [],
       },
     ];
 
@@ -177,6 +214,46 @@ describe("ArticleList Component", () => {
     expect(articleElements.length).toBe(2);
     expect(container.textContent).toContain("Article 1");
     expect(container.textContent).toContain("Article 2");
+  });
+
+  it("uses feed description for card image overlay when stored summary is stylesheet text", () => {
+    settings.viewStyle = "card";
+    articles = [
+      {
+        ...articles[0],
+        summary:
+          ".bh__table, .bh__table_header, .bh__table_cell { border: 1px solid #C0C0C0; } .bh__table_cell { padding: 5px; }",
+        description:
+          "Q+A with one of the Broadview Six, who had all charges dropped against them after grand jury misconduct.",
+        coverImage: "https://example.com/cover.jpg",
+      },
+    ];
+
+    const articleList = new ArticleList(
+      container,
+      settings,
+      "All articles",
+      null,
+      articles,
+      null,
+      mockCallbacks,
+      1,
+      1,
+      10,
+      1,
+      new Set(),
+      new Set(),
+      "OR",
+    );
+
+    articleList.render();
+
+    const overlay = container.querySelector(".rss-dashboard-summary-overlay");
+    expect(overlay?.textContent).toBe(
+      "Q+A with one of the Broadview Six, who had all charges dropped against them after grand jury misconduct.",
+    );
+    expect(overlay?.textContent).not.toContain(".bh__table");
+    expect(overlay?.textContent).not.toContain("border: 1px");
   });
 
   it("should trigger onArticleClick when an article is clicked", () => {
@@ -343,7 +420,6 @@ describe("ArticleList Component", () => {
       articleList.render();
 
       const selectedEl = container.querySelector("#article-2");
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(selectedEl?.scrollIntoView).toHaveBeenCalledWith({
         block: "nearest",
         behavior: "auto",
@@ -424,7 +500,6 @@ describe("ArticleList Component", () => {
       ) as HTMLElement;
       articleList.setSelectedArticle(articles[1]);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(secondArticleEl.scrollIntoView).toHaveBeenCalledWith({
         block: "nearest",
         behavior: "auto",
@@ -592,7 +667,8 @@ describe("ArticleList Component", () => {
 
       expect(observedEl).toBe(container);
       expect(
-        (articleList as unknown as ArticleListTestAccess).pendingCardTopAnchor,
+        (articleList as unknown as { pendingCardTopAnchor: boolean })
+          .pendingCardTopAnchor,
       ).toBe(true);
     });
 
@@ -639,11 +715,59 @@ describe("ArticleList Component", () => {
       expect(container.scrollTop).toBe(200);
       expect(disconnected).toBe(true);
       expect(
-        (articleList as unknown as ArticleListTestAccess).pendingCardTopAnchor,
+        (articleList as unknown as { pendingCardTopAnchor: boolean })
+          .pendingCardTopAnchor,
       ).toBe(false);
 
       rectSpy.mockRestore();
+    });
+
+    it("triggers the fallback relock via timeout if the observer never fires", () => {
       vi.useFakeTimers();
+      settings.viewStyle = "card";
+      const articleList = makeArticleList();
+      articleList.render();
+      articleList.setSelectedArticle(articles[1]);
+
+      let disconnected = false;
+
+      class TestResizeObserver {
+        constructor(_cb: ResizeObserverCallback) {}
+        observe() {}
+        unobserve() {}
+        disconnect() {
+          disconnected = true;
+        }
+      }
+      window.ResizeObserver =
+        TestResizeObserver as unknown as typeof ResizeObserver;
+
+      Object.defineProperty(container, "scrollTop", {
+        value: 0,
+        writable: true,
+        configurable: true,
+      });
+      const rectSpy = vi
+        .spyOn(Element.prototype, "getBoundingClientRect")
+        .mockImplementation(function (this: Element) {
+          if (this === container) return makeRect(0, 400) as DOMRect;
+          if (this instanceof HTMLElement && this.id === "article-2")
+            return makeRect(200, 260) as DOMRect;
+          return makeRect(0, 0) as DOMRect;
+        });
+
+      articleList.scheduleCardTopAnchorOnResize();
+      vi.advanceTimersByTime(500);
+
+      expect(container.scrollTop).toBe(200);
+      expect(disconnected).toBe(true);
+      expect(
+        (articleList as unknown as { pendingCardTopAnchor: boolean })
+          .pendingCardTopAnchor,
+      ).toBe(false);
+
+      rectSpy.mockRestore();
+      vi.useRealTimers();
     });
 
     it("does not relock if viewStyle is not card when the observer fires", () => {
@@ -738,7 +862,8 @@ describe("ArticleList Component", () => {
 
       expect(container.scrollTop).toBe(200);
       expect(
-        (articleList as unknown as ArticleListTestAccess).pendingCardTopAnchor,
+        (articleList as unknown as { pendingCardTopAnchor: boolean })
+          .pendingCardTopAnchor,
       ).toBe(false);
 
       rectSpy.mockRestore();
@@ -1145,7 +1270,9 @@ describe("ArticleList Component", () => {
       ) as HTMLElement;
       const tagsRegion = item.querySelector(".rss-dashboard-feed-tags-region");
       const toolbar = item.querySelector(".rss-dashboard-feed-toolbar");
-      const toolbarTags = toolbar?.querySelector(".rss-dashboard-article-tags");
+      const toolbarTags = toolbar?.querySelector(
+        ".rss-dashboard-tag-container",
+      );
 
       expect(tagsRegion).not.toBeNull();
       expect(toolbarTags).toBeNull();
@@ -1223,15 +1350,17 @@ describe("ArticleList Component", () => {
       const item = container.querySelector(
         ".rss-dashboard-feed-item",
       ) as HTMLElement;
-      // Call private method for test verification
-      (articleList as unknown as ArticleListTestAccess).syncArticleTags(
-        item,
-        articles[0],
-      );
+      // Access private method for test verification - bind this properly
+      const syncMethod = (
+        articleList as unknown as {
+          syncArticleTags?: (el: HTMLElement, article: FeedItem) => void;
+        }
+      ).syncArticleTags;
+      if (syncMethod) syncMethod.call(articleList, item, articles[0]);
 
       // Check if it's in the toolbar (incorrect) or tags region (correct)
       const toolbarTags = item.querySelector(
-        ".rss-dashboard-feed-toolbar .rss-dashboard-article-tags",
+        ".rss-dashboard-feed-toolbar .rss-dashboard-tag-container",
       );
 
       // If the bug exists, toolbarTags will NOT be null
@@ -1267,7 +1396,7 @@ describe("ArticleList Component", () => {
       const item = container.querySelector(
         ".rss-dashboard-feed-item",
       ) as HTMLElement;
-      const initialTag = item.querySelector(".rss-dashboard-article-tag");
+      const initialTag = item.querySelector(".rss-dashboard-tag-badge");
       expect(initialTag?.textContent).toBe("OldTag");
 
       // Update the article in-place
@@ -1277,7 +1406,7 @@ describe("ArticleList Component", () => {
       };
       articleList.updateArticleInPlace(updatedArticle);
 
-      const updatedTag = item.querySelector(".rss-dashboard-article-tag");
+      const updatedTag = item.querySelector(".rss-dashboard-tag-badge");
       expect(updatedTag?.textContent).toBe("NewTag");
     });
   });

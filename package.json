@@ -1,14 +1,14 @@
 {
   "name": "rss-dashboard",
-  "version": "2.3.0-beta.3",
+  "version": "2.4.0-beta.1",
   "description": "RSS dashboard for Obsidian",
   "main": "main.js",
   "type": "commonjs",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "check:css-scope": "node scripts/check-css-scope.js",
-    "build": "npm run check:css-scope && eslint . --ext .ts && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-    "lint": "eslint . --ext .ts",
+    "build": "npm run check:css-scope && eslint . && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "lint": "eslint .",
     "test:unit": "vitest run --config vitest.config.mjs",
     "hooks:install": "node scripts/setup-git-hooks.mjs",
     "prepare": "npm run hooks:install",
@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "@typescript-eslint/parser": "^8.51.0",
+    "@typescript-eslint/parser": "^8.60.1",
     "@typescript-eslint/utils": "^8.51.0",
     "@vitest/coverage-v8": "4.1.2",
     "esbuild": "0.27.7",
