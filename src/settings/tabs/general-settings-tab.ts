@@ -265,6 +265,7 @@ export function renderGeneralSettingsTab(
 
   new Setting(containerEl).setName("Storage").setHeading();
   let pendingStorageMode = plugin.settings.storageMode;
+  let pendingStorageFolder = plugin.settings.storageFolder;
 
   const renderStorageStatus = (): string => {
     const status = plugin.getStorageStatus();
@@ -306,40 +307,19 @@ export function renderGeneralSettingsTab(
   new Setting(containerEl)
     .setName("Storage folder")
     .setDesc(
-      "Vault folder for per-feed shard files. This stays in the visible vault so cross-device sync tools can access it.",
+      "Vault folder for per-feed shard files. This stays in the visible vault so cross-device sync tools can access it. Use Apply below to confirm the change.",
     )
     .addText((text) =>
       text
         .setPlaceholder(".rss-dashboard-data/feeds")
         .setValue(plugin.settings.storageFolder)
         .onChange((value) => {
-          void (async () => {
-            const nextFolder = value.trim() || ".rss-dashboard-data/feeds";
-            storageLog("Storage folder changed", {
-              previousFolder: plugin.settings.storageFolder,
-              nextFolder,
-              mode: plugin.settings.storageMode,
-            });
-
-            plugin.settings.storageFolder = nextFolder;
-            try {
-              if (plugin.settings.storageMode === "vault-shards") {
-                await plugin.repairVaultStorage();
-              } else {
-                await plugin.saveSettings();
-              }
-            } catch (error) {
-              storageError("Storage folder update failed", error, {
-                nextFolder,
-                mode: plugin.settings.storageMode,
-              });
-              new Notice(
-                `Storage folder update failed${
-                  error instanceof Error ? `: ${error.message}` : ""
-                }`,
-              );
-            }
-          })();
+          // Stage the folder change — it will be committed when the user clicks Apply.
+          pendingStorageFolder = value.trim() || ".rss-dashboard-data/feeds";
+          storageLog("Storage folder staged", {
+            previousFolder: plugin.settings.storageFolder,
+            pendingStorageFolder,
+          });
         }),
     );
 
@@ -481,18 +461,63 @@ export function renderGeneralSettingsTab(
       button
         .setButtonText("Apply")
         .setCta()
-        .setTooltip("Apply the selected storage mode")
+        .setTooltip("Apply the selected storage mode and/or folder location")
         .onClick(() => {
           void (async () => {
-            storageLog("Clicked apply storage mode", {
-              requestedMode: pendingStorageMode,
+            const modeChanged =
+              pendingStorageMode !== plugin.settings.storageMode;
+            const folderChanged =
+              pendingStorageFolder !== plugin.settings.storageFolder;
+
+            storageLog("Clicked apply storage settings", {
+              pendingStorageMode,
               currentMode: plugin.settings.storageMode,
-              folder: plugin.settings.storageFolder,
+              pendingStorageFolder,
+              currentFolder: plugin.settings.storageFolder,
+              modeChanged,
+              folderChanged,
               feedCount: plugin.settings.feeds.length,
             });
-            if (pendingStorageMode === plugin.settings.storageMode) {
-              new Notice("Storage mode is already active.");
+
+            // ── Branch 1: No changes ───────────────────────────────────────
+            if (!modeChanged && !folderChanged) {
+              new Notice("No storage changes to apply.");
               return;
+            }
+
+            // ── Branch 2: Folder-only change ──────────────────────────────
+            if (!modeChanged && folderChanged) {
+              try {
+                plugin.settings.storageFolder = pendingStorageFolder;
+                if (plugin.settings.storageMode === "vault-shards") {
+                  await plugin.repairVaultStorage();
+                } else {
+                  await plugin.saveSettings();
+                }
+                new Notice(
+                  `Storage folder updated to "${pendingStorageFolder}".`,
+                );
+              } catch (error) {
+                storageError("Storage folder apply failed", error, {
+                  pendingStorageFolder,
+                  mode: plugin.settings.storageMode,
+                });
+                new Notice(
+                  `Storage folder update failed${
+                    error instanceof Error ? `: ${error.message}` : ""
+                  }`,
+                );
+              }
+              return;
+            }
+
+            // ── Branches 3 & 4: Mode changed (with or without folder) ─────
+            // Commit the folder first so the transition modal shows the
+            // correct target path and the migration/revert operates on it.
+            const originalFolder = plugin.settings.storageFolder;
+            if (folderChanged) {
+              plugin.settings.storageFolder = pendingStorageFolder;
+              await plugin.saveSettings();
             }
 
             const modalOptions: StorageTransitionOptions = {
@@ -510,6 +535,11 @@ export function renderGeneralSettingsTab(
             const action: StorageTransitionAction = await modal.waitForClose();
 
             if (action === "cancel") {
+              // Roll back the folder change if the user cancelled the modal.
+              if (folderChanged) {
+                plugin.settings.storageFolder = originalFolder;
+                await plugin.saveSettings();
+              }
               return;
             }
 
@@ -521,7 +551,13 @@ export function renderGeneralSettingsTab(
 
               if (pendingStorageMode === "vault-shards") {
                 await plugin.migrateToVaultStorage();
-                new Notice("Vault storage migration completed.");
+                if (folderChanged) {
+                  new Notice(
+                    `Storage folder updated to "${pendingStorageFolder}" and vault storage migration completed.`,
+                  );
+                } else {
+                  new Notice("Vault storage migration completed.");
+                }
               } else {
                 if (action === "apply-delete-shards") {
                   try {
@@ -549,18 +585,26 @@ export function renderGeneralSettingsTab(
                     deleteShardFolder: false,
                   });
                 }
-                new Notice("Legacy JSON storage enabled.");
+                if (folderChanged) {
+                  new Notice(
+                    `Storage folder updated to "${pendingStorageFolder}" and legacy JSON storage enabled.`,
+                  );
+                } else {
+                  new Notice("Legacy JSON storage enabled.");
+                }
               }
 
               pendingStorageMode = plugin.settings.storageMode;
+              pendingStorageFolder = plugin.settings.storageFolder;
             } catch (error) {
-              storageError("Apply storage mode action failed", error, {
-                requestedMode: pendingStorageMode,
+              storageError("Apply storage settings action failed", error, {
+                pendingStorageMode,
                 currentMode: plugin.settings.storageMode,
-                folder: plugin.settings.storageFolder,
+                pendingStorageFolder,
+                currentFolder: plugin.settings.storageFolder,
               });
               new Notice(
-                `Storage mode change failed${
+                `Storage change failed${
                   error instanceof Error ? `: ${error.message}` : ""
                 }`,
               );

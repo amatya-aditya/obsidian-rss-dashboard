@@ -108,9 +108,9 @@ describe("General settings storage section", () => {
 
     modal.open();
 
-    expect(modal.modalEl.classList.contains("rss-storage-transition-modal")).toBe(
-      true,
-    );
+    expect(
+      modal.modalEl.classList.contains("rss-storage-transition-modal"),
+    ).toBe(true);
     expect(
       modal.contentEl.querySelector(".rss-storage-transition-buttons"),
     ).toBeTruthy();
@@ -441,12 +441,19 @@ describe("General settings storage section", () => {
       "input",
     ) as HTMLInputElement;
 
-    input.value = "RSS Mirror/Feeds";
+    input.value = ".rss-dashboard-data/custom-feeds";
     input.dispatchEvent(new Event("input"));
 
-    await Promise.resolve();
+    const applyButton = Array.from(containerEl.querySelectorAll("button")).find(
+      (button) => button.textContent === "Apply",
+    ) as HTMLButtonElement;
 
-    expect(plugin.settings.storageFolder).toBe("RSS Mirror/Feeds");
+    applyButton.click();
+    await flushAsyncWork();
+
+    expect(plugin.settings.storageFolder).toBe(
+      ".rss-dashboard-data/custom-feeds",
+    );
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
   });
 });
