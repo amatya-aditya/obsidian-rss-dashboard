@@ -752,36 +752,31 @@ export class MediaService {
         | "defaultMastodonTags"
         | "defaultSmallwebFolder"
         | "defaultSmallwebTag"
+        | "defaultSmallwebTags"
+        | "defaultRssTag"
+        | "defaultRssTags"
       >
     >,
   ): Feed {
     const isTwitter = MediaService.isTwitterOrNitterFeed(feed.url);
     const isMastodon = MastodonService.isResolvedFeedUrl(feed.url);
     const smallwebFolder = mediaSettings?.defaultSmallwebFolder?.trim() || "";
-    const smallwebTagSetting = mediaSettings?.defaultSmallwebTag?.trim() || "";
+    const isSmallweb = smallwebFolder && feed.folder === smallwebFolder;
 
-    if (smallwebFolder && feed.folder === smallwebFolder) {
-      console.debug(
-        "[applyMediaTags] smallweb branch: folder=",
-        feed.folder,
-        "tag=",
-        smallwebTagSetting,
-      );
-    }
-
-    if (
-      (!feed.mediaType || feed.mediaType === "article") &&
-      !isTwitter &&
-      !isMastodon
-    ) {
-      return feed;
-    }
     if (!Array.isArray(availableTags) || availableTags.length === 0) {
       return feed;
     }
 
-    let tagCategory: "video" | "podcast" | "twitter" | "mastodon" | undefined;
+    let tagCategory:
+      | "video"
+      | "podcast"
+      | "twitter"
+      | "mastodon"
+      | "smallweb"
+      | "rss"
+      | undefined;
     let mediaTags: Tag[] = [];
+
     if (feed.mediaType === "video") {
       tagCategory = "video";
       if (MediaService.isYouTubeFeed(feed.url)) {
@@ -799,9 +794,6 @@ export class MediaService {
           mediaSettings?.defaultVideoTag,
           ["Video", "Videos"],
         );
-        if (mediaTags.length === 0) {
-          return feed;
-        }
       }
     } else if (feed.mediaType === "podcast") {
       tagCategory = "podcast";
@@ -826,6 +818,20 @@ export class MediaService {
         mediaSettings?.defaultMastodonTags,
         mediaSettings?.defaultMastodonTag,
       );
+    } else if (isSmallweb) {
+      tagCategory = "smallweb";
+      mediaTags = this.getConfiguredTagNames(
+        availableTags,
+        mediaSettings?.defaultSmallwebTags,
+        mediaSettings?.defaultSmallwebTag,
+      );
+    } else if (!feed.mediaType || feed.mediaType === "article") {
+      tagCategory = "rss";
+      mediaTags = this.getConfiguredTagNames(
+        availableTags,
+        mediaSettings?.defaultRssTags,
+        mediaSettings?.defaultRssTag,
+      );
     }
 
     if (mediaTags.length === 0 || !tagCategory) return feed;
@@ -840,7 +846,11 @@ export class MediaService {
               ? true
               : tagCategory === "mastodon"
                 ? true
-                : false;
+                : tagCategory === "smallweb"
+                  ? true
+                  : tagCategory === "rss"
+                    ? true
+                    : false;
 
       if (!shouldTagItem) {
         return item;
