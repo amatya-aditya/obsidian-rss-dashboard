@@ -1,14 +1,6 @@
 ## Unreleased
 
-### Enhancements
-
-#### Cross-platform sync reliability
-
-- Added a variable-length sync nonce (\_syncNonce + \_syncPad) to every saveData call, ensuring the file size changes on each write so Obsidian Sync reliably detects and uploads settings changes. When small changes were made that left data.json filesize unaffected, sync became unreliable. This hash appends a random string to the end of data.json between 1-2kb so data.json will always be different on each save.
-
-- Added comprehensive step-by-step instructions for ensuring successful cross-platform sync of RSS Dashboard settings and data to [README.md ## Syncing Across Devices](README.md)
-
-## [2.4.0-beta.1] - June 4, 2026
+## [2.4.0-beta.1] - June 5, 2026
 
 ### New Features
 
@@ -16,6 +8,24 @@
 - Added ',' keybind to mark article read and advance to next article. [GH FR #183](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/138)
 - Added Obsidian URI support for one-click feed subscription via `obsidian://rss-dashboard?action=add-feed&url=<encoded-feed-url>`, including parameter validation and unsupported-action notices. [GH FR #126](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/126)
 - Added {{image}} to Article Saving template which includes URL to cover image if it exists [GH FR #128](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/128)
+
+### Fixes
+
+#### Saving articles to vault not saving article content
+
+- [GH Issue #127](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/127) - appeared to be the same issue on the surface but turned out to be several:
+- Certain feeds with malformed xml would corrupt the saved article. Added a new cleaner helper to sanitize the feed xml. [beehiiv.com example](https://rss.beehiiv.com/feeds/40ZQ7CSldT.xml)
+- Certain feeds (i.e. Substack) would not save articles or images properly when saving article to vault due to Substack's content:encoded xml schema and our parsing helper not handling it properly.
+- Fixed format discrepency between saving article via dashboard card and saving article via reader toolbar (different pathways interally but now both resolve the same way for the user's saved note)
+
+#### Cross-platform sync reliability
+
+- Added a new bootstrap pointer which saves metadata config locally so the app knows where to look upon restart.
+- Changed default storage type for fresh plugin installs from Legacy JSON to Shard Storage - still retaining Legacy JSON as an option to ease transition for existing users.
+- Resolves [GH Issue #142](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/142) and [GH Issue #140](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/140)
+- Added a variable-length sync nonce (\_syncNonce + \_syncPad) to every saveData call, ensuring the file size changes on each write so Obsidian Sync reliably detects and uploads settings changes. When small changes were made that left data.json filesize unaffected, sync became unreliable. This hash appends a random string to the end of data.json between 1-2kb so data.json will always be different on each save.
+
+- Added comprehensive step-by-step instructions for ensuring successful cross-platform sync of RSS Dashboard settings and data to [README.md ## Syncing Across Devices](README.md)
 
 ### Community Plugin Audit
 
@@ -28,33 +38,7 @@
 
 - Completely eliminated all Node.js/Electron `fs` and `path` usages from the production plugin code
 
-- Completely eliminated all superflous !important declarations; added comments to remaining declarations that pass audit
-
-### GH Issue #139
-
-- Fixed issue where clicking a feed in the sidebar does nothing when a sync plugin (Self-hosted LiveSync) is enabled.
-
-### Features
-
-- Added a new **Saved article open location** option under General settings so saved articles can open in Main, left/right sidebar, inline dashboard mode, or external browser, independent of the Reader view location setting.
-
-### Fixes
-
-#### Saving articles to vault not saving article content
-
-= These issues were raised via [GH Issue #127](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/127) and appeared to be the same issue on the surface but turned out to be several:
-
-- Certain feeds with malformed xml would corrupt the saved article. Added a new cleaner helper to sanitize the feed xml. [beehiiv.com example](https://rss.beehiiv.com/feeds/40ZQ7CSldT.xml)
-
-- Certain feeds (i.e. Substack) would not save articles or images properly when saving article to vault due to Substack's content:encoded xml schema and our parsing helper not handling it properly.
-
-- Fixed format discrepency between saving article via dashboard card and saving article via reader toolbar (different pathways interally but now both resolve the same way for the user's saved note)
-
-#### Sync issues
-
-- Added a new bootstrap pointer which saves metadata config locally so the app knows where to look upon restart.
-- Changed default storage type for fresh plugin installs from Legacy JSON to Shard Storage - still retaining Legacy JSON as an option to ease transition for existing users.
-- Resolves [GH Issue #142](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/142) and [GH Issue #140](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/140)
+- Completely eliminated all superflous !important declarations; added comments to remaining declarations that pass audit and deemed necessary
 
 ## [2.3.0] - May 26, 2026
 
