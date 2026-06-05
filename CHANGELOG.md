@@ -1,4 +1,14 @@
-## [Unreleased] - May 26, 2026
+## Unreleased
+
+### Enhancements
+
+#### Cross-platform sync reliability
+
+- Added a variable-length sync nonce (\_syncNonce + \_syncPad) to every saveData call, ensuring the file size changes on each write so Obsidian Sync reliably detects and uploads settings changes. When small changes were made that left data.json filesize unaffected, sync became unreliable. This hash appends a random string to the end of data.json between 1-2kb so data.json will always be different on each save.
+
+- Added comprehensive step-by-step instructions for ensuring successful cross-platform sync of RSS Dashboard settings and data to [README.md ## Syncing Across Devices](README.md)
+
+## [2.4.0-beta.1] - June 4, 2026
 
 ### New Features
 

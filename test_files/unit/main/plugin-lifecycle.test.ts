@@ -1730,7 +1730,9 @@ describe("saveSettings()", () => {
     await plugin.saveSettings();
 
     // Then: saveData should be called with settings
-    expect(plugin.saveData).toHaveBeenCalledWith(plugin.settings);
+    expect(plugin.saveData).toHaveBeenCalledWith(
+      expect.objectContaining(plugin.settings),
+    );
   });
 
   it("saves modified settings", async () => {

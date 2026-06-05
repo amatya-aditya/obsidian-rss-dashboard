@@ -53,6 +53,22 @@ function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+let syncNonceCounter = 0;
+
+function withSyncNonce<T extends object>(
+  data: T,
+): T & { _syncNonce: string; _syncPad: string } {
+  syncNonceCounter++;
+  const paddingSize = 1024 + (syncNonceCounter % 1024);
+  return {
+    ...data,
+    _syncNonce: `${Date.now()}-${syncNonceCounter}`,
+    _syncPad: "sync-size-anchor "
+      .repeat(Math.ceil(paddingSize / 18))
+      .slice(0, paddingSize),
+  };
+}
+
 function createFeedId(): string {
   const randomUuid = globalThis.crypto?.randomUUID?.();
   if (randomUuid) {
@@ -193,9 +209,7 @@ export class FeedStorageRepository {
     const feedId = (feed.feedId ?? "").trim();
     return {
       mode: "vault-shards",
-      address: feedId
-        ? getFeedShardPath(settings.storageFolder, feedId)
-        : "",
+      address: feedId ? getFeedShardPath(settings.storageFolder, feedId) : "",
     };
   }
 
@@ -295,7 +309,7 @@ export class FeedStorageRepository {
     });
 
     if (settings.storageMode !== "vault-shards") {
-      await saveData(cloneJson(settings));
+      await saveData(withSyncNonce(cloneJson(settings)));
       storageLog("Saved full settings to legacy data.json");
       this.capturePersistedState(settings);
       return {
@@ -402,7 +416,7 @@ export class FeedStorageRepository {
       options.forceMetadata || this.lastPersistedMetadataJson !== metadataJson;
 
     if (shouldSaveMetadata) {
-      await saveData(persistedSettings);
+      await saveData(withSyncNonce(persistedSettings));
       this.lastPersistedMetadataJson = metadataJson;
       storageLog("Saved shard metadata to data.json", {
         feedCount: persistedSettings.feeds.length,
@@ -474,7 +488,7 @@ export class FeedStorageRepository {
     }
 
     settings.storageMode = "legacy-json";
-    await saveData(cloneJson(settings));
+    await saveData(withSyncNonce(cloneJson(settings)));
 
     this.lastRepairResult = "Reverted to legacy JSON";
     this.capturePersistedState(settings);
