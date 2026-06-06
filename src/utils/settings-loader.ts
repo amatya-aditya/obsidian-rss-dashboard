@@ -10,6 +10,7 @@ import {
   migrateDefaultFilterToDashboardMultiFilters,
   migrateKeywordRulesSettings,
   migrateMediaVideoTagSettings,
+  migrateMediaDefaultTagArrays,
 } from "./settings-migration";
 import { canonicalizeItemIdentityUrl } from "./url-utils";
 import { normalizeRefreshIntervalMinutes } from "./validation";
@@ -186,6 +187,10 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
   }
 
   if (migrateMediaVideoTagSettings(settingsUnknown)) {
+    didChange = true;
+  }
+
+  if (migrateMediaDefaultTagArrays(settingsUnknown)) {
     didChange = true;
   }
 

@@ -22,6 +22,7 @@ Only the feeds you need. Stream the world's knowledge into your vault: RSS, podc
 - [Screenshots](#screenshots)
 - [Roadmap](#roadmap)
 - [Vault Shards Storage Guide](#vault-shards-storage-guide)
+- [Tags Guide](#tags-guide)
 - [Installation](#installation)
 - [Getting Started](#getting-started)
 - [One-Click Subscribe URI](#one-click-subscribe-uri)
@@ -116,6 +117,10 @@ Looking for upcoming features? The old README planned-features list now lives in
 ## Vault Shards Storage Guide
 
 Using the new Vault Shards storage mode? See the user-facing guide here: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
+
+## Tags Guide
+
+Tags let you label and filter articles the way that works best for you. For a full walkthrough of manual vs automatic tagging, the tag palette, per-article tagging, per-feed custom tags, and filter modes, see [docs/tags-primer.md](docs/tags-primer.md).
 
 ## Installation
 
@@ -216,7 +221,7 @@ Troubleshooting:
 
 To quickly access the keyboard shortcuts help file, press `?` (Shift + /) within the app. This will display a comprehensive list of available shortcuts and their functions.
 
-For a preview of the keyboard shortcuts, see [Keyboard Shortcuts](docs/Keyboard%20Shortcuts.md).
+For a preview of the keyboard shortcuts, see [Keyboard Shortcuts](docs/keyboard-shortcuts.md).
 
 ## Syncing Across Devices
 

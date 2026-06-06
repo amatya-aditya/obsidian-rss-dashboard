@@ -4,6 +4,7 @@ import type {
   FeedKeywordRulesSettings,
   Folder,
   SavedTemplate,
+  Tag,
 } from "../../types/types";
 import { FolderSuggest } from "../../components/folder-suggest";
 import {
@@ -21,44 +22,64 @@ import {
   FEED_REFRESH_DISABLED_INTERVAL,
   getPerFeedRefreshIntervalDropdownValue,
 } from "../../utils/refresh-intervals";
-import { renderSupportedFormatBadges } from "./supported-format-badges";
+import { renderSupportedFormatBadges, SupportedFeedType } from "./supported-format-badges";
+import { decorateFolderSelectorInput } from "./folder-selector-field";
+import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
 
+/** Typed payload emitted by AddFeedModal when the user confirms adding a feed. */
+export interface AddFeedRequest {
+  title: string;
+  url: string;
+  folder: string;
+  autoDeleteDuration?: number;
+  maxItemsLimit?: number;
+  scanInterval?: number;
+  feedKeywordRules?: FeedKeywordRulesSettings;
+  customTemplate?: string;
+  excludeFromRefresh?: boolean;
+  customTags?: string[];
+}
+
 export class AddFeedModal extends Modal {
   folders: Folder[];
-  onAdd: (
-    title: string,
-    url: string,
-    folder: string,
-    autoDeleteDuration?: number,
-    maxItemsLimit?: number,
-    scanInterval?: number,
-    feedKeywordRules?: FeedKeywordRulesSettings,
-    customTemplate?: string,
-    excludeFromRefresh?: boolean,
-  ) => Promise<boolean | void>;
+  onAdd: (request: AddFeedRequest) => Promise<boolean | void>;
   onSave: () => void;
   defaultFolder: string;
   plugin?: RssDashboardPlugin;
   initialUrl: string;
   initialTitle: string;
 
+  // --- State properties ---
+  private url: string;
+  private title: string;
+  private folder: string;
+  private status: string = "";
+  private latestEntry: string = "-";
+  private customTags: string[] = [];
+  private autoDeleteDuration: number;
+  private maxItemsLimit: number;
+  private scanInterval: number = 0;
+  private excludeFromRefresh: boolean = false;
+  private customTemplate: string = "";
+  private feedKeywordRules: FeedKeywordRulesSettings;
+
+  // --- DOM References ---
+  private titleInput!: HTMLInputElement;
+  private urlInput!: HTMLInputElement;
+  private folderInput!: HTMLInputElement;
+  private loadBtn!: HTMLButtonElement;
+  private statusDiv?: HTMLDivElement;
+  private latestEntryDiv?: HTMLDivElement;
+  private setActiveBadge!: (type: SupportedFeedType | null) => void;
+  private clearActiveBadge!: () => void;
+
   constructor(
     app: App,
     folders: Folder[],
-    onAdd: (
-      title: string,
-      url: string,
-      folder: string,
-      autoDeleteDuration?: number,
-      maxItemsLimit?: number,
-      scanInterval?: number,
-      feedKeywordRules?: FeedKeywordRulesSettings,
-      customTemplate?: string,
-      excludeFromRefresh?: boolean,
-    ) => Promise<boolean | void>,
+    onAdd: (request: AddFeedRequest) => Promise<boolean | void>,
     onSave: () => void,
     defaultFolder = "",
     plugin?: RssDashboardPlugin,
@@ -73,9 +94,39 @@ export class AddFeedModal extends Modal {
     this.plugin = plugin || undefined;
     this.initialUrl = initialUrl.trim();
     this.initialTitle = initialTitle.trim();
+
+    this.url = this.initialUrl;
+    this.title = this.initialTitle;
+    this.folder = this.defaultFolder;
+    this.autoDeleteDuration = this.plugin?.settings?.defaultAutoDeleteDuration ?? 30;
+    this.maxItemsLimit = this.plugin?.settings?.maxItems ?? 50;
+    this.feedKeywordRules = {
+      overrideGlobalRules: false,
+      includeLogic: "AND",
+      rules: [],
+    };
   }
+
   onOpen() {
-    const { contentEl } = this;
+    this.setupModalContainer();
+    this.renderHeader();
+    this.renderUrlAndSourceSection();
+    this.renderDetailsSection();
+    this.renderFeedOptionsSection();
+    this.renderKeywordRulesSection();
+    this.renderActionButtons();
+
+    activeWindow.setTimeout(() => {
+      this.urlInput?.focus();
+      this.urlInput?.select();
+    }, 0);
+  }
+
+  /* ============================================
+   * 1. Modal Setup & Header
+   * Initializes modal container and renders titles
+   * ============================================ */
+  private setupModalContainer() {
     this.modalEl.className +=
       " rss-dashboard-modal rss-dashboard-modal-container";
     // Add mobile-specific class for proper styling on mobile/tablet
@@ -87,195 +138,203 @@ export class AddFeedModal extends Modal {
         closeBtn.remove();
       }
     }
-    contentEl.empty();
-    new Setting(contentEl).setName("Add feed").setHeading();
+    this.contentEl.empty();
+  }
 
-    // Add subtitle
-    const subtitle = contentEl.createDiv({ cls: "add-feed-subtitle" });
+  private renderHeader() {
+    new Setting(this.contentEl).setName("Add feed").setHeading();
+    const subtitle = this.contentEl.createDiv({ cls: "add-feed-subtitle" });
     subtitle.textContent =
       "Add a new RSS, podcast, or YouTube feed to your dashboard";
+  }
 
-    let url = this.initialUrl;
-    let title = this.initialTitle;
-    let status = "";
-    let latestEntry = "-";
-    let folder = this.defaultFolder;
-    let titleInput: HTMLInputElement;
-    let urlInput: HTMLInputElement;
-    let folderInput!: HTMLInputElement;
-    let loadBtn: HTMLButtonElement;
-    const refs: {
-      statusDiv?: HTMLDivElement;
-      latestEntryDiv?: HTMLDivElement;
-    } = {};
+  /* ============================================
+   * 2. URL & Feed Source
+   * Handles input parsing, live loading, and format detection
+   * ============================================ */
+  private normalizeNitterUrl = (): void => {
+    const candidate = (this.urlInput?.value || this.url || "").trim();
+    const normalized = MediaService.normalizeNitterUrlToRss(candidate);
+    if (!normalized) return;
 
-    const normalizeNitterUrl = (): void => {
-      const candidate = (urlInput?.value || url || "").trim();
-      const normalized = MediaService.normalizeNitterUrlToRss(candidate);
-      if (!normalized) return;
+    this.url = normalized;
+    if (this.urlInput) this.urlInput.value = normalized;
+  };
 
-      url = normalized;
-      if (urlInput) urlInput.value = normalized;
-    };
+  private async handleLoadFeed() {
+    // Validate that URL is not empty
+    if (!this.url || this.url.trim() === "") {
+      this.status = "\u274C Please enter a feed URL";
+      if (this.statusDiv) {
+        this.statusDiv.textContent = this.status;
+        this.statusDiv.removeClass("status-loading");
+        this.statusDiv.removeClass("status-ok");
+        this.statusDiv.addClass("status-error");
+      }
+      return;
+    }
 
-    const urlSetting = new Setting(contentEl)
+    this.normalizeNitterUrl();
+
+    // Set loading state
+    this.status = "\u23F3 Loading...";
+    this.loadBtn.addClass("loading");
+    this.loadBtn.disabled = true;
+    this.clearActiveBadge(); // Clear any previous active states
+    
+    if (this.statusDiv) {
+      this.statusDiv.textContent = this.status;
+      this.statusDiv.removeClass("rss-dashboard-status-warning");
+      this.statusDiv.removeClass("status-ok");
+      this.statusDiv.removeClass("status-error");
+      this.statusDiv.addClass("status-loading");
+    }
+
+    try {
+      const preview = await resolveAndLoadPreview(this.url, {
+        corsProxyEnabled: this.plugin?.settings?.corsProxyEnabled,
+        corsProxyUrl: this.plugin?.settings?.corsProxyUrl,
+      });
+
+      this.url = preview.finalUrl;
+      if (this.urlInput) this.urlInput.value = preview.finalUrl;
+
+      this.title = preview.title;
+      if (this.titleInput) this.titleInput.value = this.title;
+      
+      this.latestEntry = formatLatestEntryLabel(preview.latestPubDate);
+
+      if (this.latestEntryDiv) {
+        this.latestEntryDiv.textContent = this.latestEntry;
+      }
+
+      if (this.statusDiv) {
+        this.statusDiv.removeClass("status-loading");
+        this.statusDiv.removeClass("status-error");
+        this.statusDiv.removeClass("status-ok");
+        this.statusDiv.removeClass("rss-dashboard-status-warning");
+
+        const conversionNotice = getPreviewConversionNotice(preview);
+
+        if (preview.hasEntries) {
+          this.status = "OK";
+          this.statusDiv.textContent = `\u2705 OK${conversionNotice}`;
+          this.statusDiv.addClass("status-ok");
+        } else {
+          this.status = EMPTY_FEED_VALIDATION_WARNING;
+          this.statusDiv.textContent = `⚠ ${EMPTY_FEED_VALIDATION_WARNING}${conversionNotice}`;
+          this.statusDiv.addClass("rss-dashboard-status-warning");
+        }
+      }
+
+      if (this.urlInput) {
+        this.urlInput.addClass("loaded");
+      }
+      // Set the active badge based on detected type
+      this.setActiveBadge(preview.detectedType);
+
+      const currentFolder = this.folderInput?.value || "";
+      if (
+        this.folderInput &&
+        shouldAutoAssignFolder(
+          currentFolder,
+          this.plugin?.settings?.media,
+        )
+      ) {
+        const nextFolder = getDefaultFolderForResolvedFeed(
+          preview,
+          this.plugin?.settings?.media,
+        );
+        this.folder = nextFolder;
+        this.folderInput.value = nextFolder;
+      }
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      this.status = `Error: ${errorMsg}`;
+      this.latestEntry = "-";
+      if (this.latestEntryDiv) {
+        this.latestEntryDiv.textContent = this.latestEntry;
+      }
+      console.error("Feed load error:", e);
+      // Error state
+      if (this.statusDiv) {
+        this.statusDiv.textContent = `\u274C ${errorMsg}`;
+        this.statusDiv.removeClass("status-loading");
+        this.statusDiv.removeClass("status-ok");
+        this.statusDiv.removeClass("rss-dashboard-status-warning");
+        this.statusDiv.addClass("status-error");
+      }
+    } finally {
+      // Reset loading state
+      this.loadBtn.removeClass("loading");
+      this.loadBtn.disabled = false;
+    }
+  }
+
+  private renderUrlAndSourceSection() {
+    const urlSetting = new Setting(this.contentEl)
       .setName("Feed URL")
       .addText((text) => {
-        text.onChange((v) => (url = v));
-        text.setValue(url);
-        urlInput = text.inputEl;
-        urlInput.autocomplete = "off";
-        urlInput.spellcheck = false;
-        urlInput.placeholder = "https://example.com/feed.xml";
-        urlInput.addClass("feed-url-input");
-        urlInput.addEventListener("focus", () => urlInput.select());
-        urlInput.addEventListener("keydown", (e) => {
+        text.onChange((v) => (this.url = v));
+        text.setValue(this.url);
+        this.urlInput = text.inputEl;
+        this.urlInput.autocomplete = "off";
+        this.urlInput.spellcheck = false;
+        this.urlInput.placeholder = "https://example.com/feed.xml";
+        this.urlInput.addClass("feed-url-input");
+        this.urlInput.addEventListener("focus", () => this.urlInput.select());
+        this.urlInput.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
-            titleInput?.focus();
+            this.titleInput?.focus();
           } else if (e.key === "Escape") {
             this.close();
           }
         });
-        urlInput.addEventListener("blur", normalizeNitterUrl);
-        urlInput.addEventListener("paste", () => {
-          activeWindow.setTimeout(normalizeNitterUrl, 0);
+        this.urlInput.addEventListener("blur", this.normalizeNitterUrl);
+        this.urlInput.addEventListener("paste", () => {
+          activeWindow.setTimeout(this.normalizeNitterUrl, 0);
         });
       })
       .addButton((btn) => {
         btn.setButtonText("Load");
         btn.buttonEl.addClass("rss-dashboard-load-button");
-        loadBtn = btn.buttonEl;
+        this.loadBtn = btn.buttonEl;
         btn.onClick(() => {
-          void (async () => {
-            // Validate that URL is not empty
-            if (!url || url.trim() === "") {
-              status = "\u274C Please enter a feed URL";
-              if (refs.statusDiv) {
-                refs.statusDiv.textContent = status;
-                refs.statusDiv.removeClass("status-loading");
-                refs.statusDiv.removeClass("status-ok");
-                refs.statusDiv.addClass("status-error");
-              }
-              return;
-            }
-
-            normalizeNitterUrl();
-
-            // Set loading state
-            status = "\u23F3 Loading...";
-            loadBtn.addClass("loading");
-            loadBtn.disabled = true;
-            clearActiveBadge(); // Clear any previous active states
-            if (refs.statusDiv) {
-              refs.statusDiv.textContent = status;
-              refs.statusDiv.removeClass("rss-dashboard-status-warning");
-              refs.statusDiv.removeClass("status-ok");
-              refs.statusDiv.removeClass("status-error");
-              refs.statusDiv.addClass("status-loading");
-            }
-            try {
-              const preview = await resolveAndLoadPreview(url, {
-                corsProxyEnabled: this.plugin?.settings?.corsProxyEnabled,
-                corsProxyUrl: this.plugin?.settings?.corsProxyUrl,
-              });
-
-              url = preview.finalUrl;
-              if (urlInput) urlInput.value = preview.finalUrl;
-
-              title = preview.title;
-              if (titleInput) titleInput.value = title;
-              latestEntry = formatLatestEntryLabel(preview.latestPubDate);
-
-              if (refs.latestEntryDiv)
-                refs.latestEntryDiv.textContent = latestEntry;
-
-              if (refs.statusDiv) {
-                refs.statusDiv.removeClass("status-loading");
-                refs.statusDiv.removeClass("status-error");
-                refs.statusDiv.removeClass("status-ok");
-                refs.statusDiv.removeClass("rss-dashboard-status-warning");
-
-                const conversionNotice = getPreviewConversionNotice(preview);
-
-                if (preview.hasEntries) {
-                  status = "OK";
-                  refs.statusDiv.textContent = `\u2705 OK${conversionNotice}`;
-                  refs.statusDiv.addClass("status-ok");
-                } else {
-                  status = EMPTY_FEED_VALIDATION_WARNING;
-                  refs.statusDiv.textContent = `⚠ ${EMPTY_FEED_VALIDATION_WARNING}${conversionNotice}`;
-                  refs.statusDiv.addClass("rss-dashboard-status-warning");
-                }
-              }
-
-              if (urlInput) {
-                urlInput.addClass("loaded");
-              }
-              // Set the active badge based on detected type
-              setActiveBadge(preview.detectedType);
-
-              const currentFolder = folderInput?.value || "";
-              if (
-                folderInput &&
-                shouldAutoAssignFolder(
-                  currentFolder,
-                  this.plugin?.settings?.media,
-                )
-              ) {
-                const nextFolder = getDefaultFolderForResolvedFeed(
-                  preview,
-                  this.plugin?.settings?.media,
-                );
-                folder = nextFolder;
-                folderInput.value = nextFolder;
-              }
-            } catch (e) {
-              const errorMsg = e instanceof Error ? e.message : String(e);
-              status = `Error: ${errorMsg}`;
-              latestEntry = "-";
-              if (refs.latestEntryDiv)
-                refs.latestEntryDiv.textContent = latestEntry;
-              console.error("Feed load error:", e);
-              // Error state
-              if (refs.statusDiv) {
-                refs.statusDiv.textContent = `\u274C ${errorMsg}`;
-                refs.statusDiv.removeClass("status-loading");
-                refs.statusDiv.removeClass("status-ok");
-                refs.statusDiv.removeClass("rss-dashboard-status-warning");
-                refs.statusDiv.addClass("status-error");
-              }
-            } finally {
-              // Reset loading state
-              loadBtn.removeClass("loading");
-              loadBtn.disabled = false;
-            }
-          })();
+          void this.handleLoadFeed();
         });
       });
 
     urlSetting.settingEl.addClass("rss-feed-form-row");
     urlSetting.settingEl.addClass("rss-feed-form-row-url");
 
-    const sourceSetting = new Setting(contentEl).setName("Feed Source");
+    const sourceSetting = new Setting(this.contentEl).setName("Feed Source");
     sourceSetting.settingEl.addClass("rss-feed-form-row");
     sourceSetting.settingEl.addClass("rss-feed-source-row");
 
     const { clearActiveBadge, setActiveBadge } = renderSupportedFormatBadges(
       sourceSetting.controlEl,
     );
+    this.clearActiveBadge = clearActiveBadge;
+    this.setActiveBadge = setActiveBadge;
+  }
 
-    const titleSetting = new Setting(contentEl)
+  /* ============================================
+   * 3. Feed Details
+   * Title, folder selection, and parsing status
+   * ============================================ */
+  private renderDetailsSection() {
+    const titleSetting = new Setting(this.contentEl)
       .setName("Title")
       .addText((text) => {
-        text.setValue(title).onChange((v) => (title = v));
-        titleInput = text.inputEl;
-        titleInput.autocomplete = "off";
-        titleInput.spellcheck = false;
-        titleInput.addClass("title-input");
-        titleInput.addEventListener("focus", () => titleInput.select());
-        titleInput.addEventListener("keydown", (e) => {
+        text.setValue(this.title).onChange((v) => (this.title = v));
+        this.titleInput = text.inputEl;
+        this.titleInput.autocomplete = "off";
+        this.titleInput.spellcheck = false;
+        this.titleInput.addClass("title-input");
+        this.titleInput.addEventListener("focus", () => this.titleInput.select());
+        this.titleInput.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
-            folderInput?.focus();
+            this.folderInput?.focus();
           } else if (e.key === "Escape") {
             this.close();
           }
@@ -283,48 +342,48 @@ export class AddFeedModal extends Modal {
       });
     titleSetting.settingEl.addClass("rss-feed-form-row");
 
-    const latestEntrySetting = new Setting(contentEl).setName("Latest entry");
-    refs.latestEntryDiv = latestEntrySetting.controlEl.createDiv({
-      text: latestEntry,
+    const latestEntrySetting = new Setting(this.contentEl).setName("Latest entry");
+    this.latestEntryDiv = latestEntrySetting.controlEl.createDiv({
+      text: this.latestEntry,
       cls: "add-feed-latest-entry",
     });
 
-    const statusSetting = new Setting(contentEl).setName("Status");
-    refs.statusDiv = statusSetting.controlEl.createDiv({
-      text: status,
+    const statusSetting = new Setting(this.contentEl).setName("Status");
+    this.statusDiv = statusSetting.controlEl.createDiv({
+      text: this.status,
       cls: "add-feed-status",
     });
 
-    const folderSetting = new Setting(contentEl)
+    const folderSetting = new Setting(this.contentEl)
       .setName("Folder")
       .addText((text) => {
-        text.setValue(folder).setPlaceholder("Type or select folder...");
-        folderInput = text.inputEl;
-        folderInput.autocomplete = "off";
-        folderInput.spellcheck = false;
-        folderInput.addClass("folder-input");
-        folderInput.addEventListener("focus", () => folderInput.select());
+        text.setValue(this.folder).setPlaceholder("Type or select folder...");
+        this.folderInput = text.inputEl;
+        this.folderInput.autocomplete = "off";
+        this.folderInput.spellcheck = false;
+        this.folderInput.addClass("folder-input");
+        this.folderInput.addEventListener("focus", () => this.folderInput.select());
 
-        new FolderSuggest(this.app, folderInput, this.folders);
+        new FolderSuggest(this.app, this.folderInput, this.folders);
       });
-    folderSetting.settingEl.addClass("rss-feed-form-row");
+    decorateFolderSelectorInput(folderSetting, this.folderInput);
+  }
 
-    const perFeedControlsDetails = contentEl.createEl("details", {
+  /* ============================================
+   * 4. Feed Options (Per-feed Overrides)
+   * Auto-delete, limits, custom auto-tags, templates
+   * ============================================ */
+  private renderFeedOptionsSection() {
+    const perFeedControlsDetails = this.contentEl.createEl("details", {
       cls: "rss-keyword-filter-details rss-per-feed-controls-details",
     });
     perFeedControlsDetails.createEl("summary", {
       cls: "rss-keyword-filter-summary",
-      text: "Per feed control options",
+      text: "Feed options",
     });
     const perFeedControlsBody = perFeedControlsDetails.createDiv({
       cls: "rss-keyword-filter-details-body",
     });
-
-    let autoDeleteDuration =
-      this.plugin?.settings?.defaultAutoDeleteDuration ?? 30;
-    let maxItemsLimit = this.plugin?.settings?.maxItems ?? 50;
-    let scanInterval = 0;
-    let excludeFromRefresh = false;
 
     const autoDeleteSetting = new Setting(perFeedControlsBody)
       .setName("Auto delete articles duration")
@@ -346,10 +405,10 @@ export class AddFeedModal extends Modal {
         .addOption("365", "1 year")
         .addOption("custom", "Custom...")
         .setValue(
-          autoDeleteDuration === 0
+          this.autoDeleteDuration === 0
             ? "0"
-            : [1, 3, 7, 14, 30, 60, 90, 180, 365].includes(autoDeleteDuration)
-              ? autoDeleteDuration.toString()
+            : [1, 3, 7, 14, 30, 60, 90, 180, 365].includes(this.autoDeleteDuration)
+              ? this.autoDeleteDuration.toString()
               : "custom",
         )
         .onChange((value) => {
@@ -365,10 +424,10 @@ export class AddFeedModal extends Modal {
               );
               autoDeleteCustomInput.min = "1";
               autoDeleteCustomInput.value =
-                autoDeleteDuration > 0 ? autoDeleteDuration.toString() : "";
+                this.autoDeleteDuration > 0 ? this.autoDeleteDuration.toString() : "";
               autoDeleteCustomInput.addEventListener("change", (evt: Event) => {
                 const target = evt.target as HTMLInputElement;
-                autoDeleteDuration = parseInt(target.value) || 0;
+                this.autoDeleteDuration = parseInt(target.value) || 0;
               });
             }
             if (autoDeleteCustomInput) {
@@ -379,7 +438,7 @@ export class AddFeedModal extends Modal {
             if (autoDeleteCustomInput) {
               autoDeleteCustomInput.addClass("hidden");
             }
-            autoDeleteDuration = parseInt(value) || 0;
+            this.autoDeleteDuration = parseInt(value) || 0;
           }
         });
     });
@@ -402,10 +461,10 @@ export class AddFeedModal extends Modal {
         .addOption("1000", "1000 items")
         .addOption("custom", "Custom...")
         .setValue(
-          maxItemsLimit === 0
+          this.maxItemsLimit === 0
             ? "0"
-            : [10, 25, 50, 100, 200, 500, 1000].includes(maxItemsLimit)
-              ? maxItemsLimit.toString()
+            : [10, 25, 50, 100, 200, 500, 1000].includes(this.maxItemsLimit)
+              ? this.maxItemsLimit.toString()
               : "custom",
         )
         .onChange((value) => {
@@ -422,7 +481,7 @@ export class AddFeedModal extends Modal {
               maxItemsCustomInput.min = "1";
               maxItemsCustomInput.addEventListener("change", (evt: Event) => {
                 const target = evt.target as HTMLInputElement;
-                maxItemsLimit = parseInt(target.value) || 0;
+                this.maxItemsLimit = parseInt(target.value) || 0;
               });
             }
             if (maxItemsCustomInput) {
@@ -433,7 +492,7 @@ export class AddFeedModal extends Modal {
             if (maxItemsCustomInput) {
               maxItemsCustomInput.addClass("hidden");
             }
-            maxItemsLimit = parseInt(value) || 0;
+            this.maxItemsLimit = parseInt(value) || 0;
           }
         });
     });
@@ -459,7 +518,7 @@ export class AddFeedModal extends Modal {
         .addOption("720", "12 hours")
         .addOption("1440", "24 hours")
         .addOption("custom", "Custom...")
-        .setValue(getPerFeedRefreshIntervalDropdownValue(scanInterval))
+        .setValue(getPerFeedRefreshIntervalDropdownValue(this.scanInterval))
         .onChange((value) => {
           if (value === "custom") {
             if (!scanIntervalCustomInput) {
@@ -473,12 +532,12 @@ export class AddFeedModal extends Modal {
               );
               scanIntervalCustomInput.min = "1";
               scanIntervalCustomInput.value =
-                scanInterval > 0 ? scanInterval.toString() : "";
+                this.scanInterval > 0 ? this.scanInterval.toString() : "";
               scanIntervalCustomInput.addEventListener(
                 "change",
                 (evt: Event) => {
                   const target = evt.target as HTMLInputElement;
-                  scanInterval = parseInt(target.value, 10) || 0;
+                  this.scanInterval = parseInt(target.value, 10) || 0;
                 },
               );
             }
@@ -490,7 +549,7 @@ export class AddFeedModal extends Modal {
             if (scanIntervalCustomInput) {
               scanIntervalCustomInput.addClass("hidden");
             }
-            scanInterval = parseInt(value, 10) || 0;
+            this.scanInterval = parseInt(value, 10) || 0;
           }
         });
     });
@@ -501,13 +560,12 @@ export class AddFeedModal extends Modal {
         "Skip this feed during automatic refresh and bulk refresh actions. You can still refresh it directly from its feed view.",
       )
       .addToggle((toggle) => {
-        toggle.setValue(excludeFromRefresh).onChange((value) => {
-          excludeFromRefresh = value;
+        toggle.setValue(this.excludeFromRefresh).onChange((value) => {
+          this.excludeFromRefresh = value;
         });
       });
 
     // Template selection
-    let customTemplate = "";
     const savedTemplates =
       this.plugin?.settings?.articleSaving?.savedTemplates || [];
 
@@ -519,19 +577,38 @@ export class AddFeedModal extends Modal {
         savedTemplates.forEach((template: SavedTemplate) => {
           dropdown.addOption(template.id, template.name);
         });
-        dropdown.setValue(customTemplate);
+        dropdown.setValue(this.customTemplate);
         dropdown.onChange((value) => {
-          customTemplate = value;
+          this.customTemplate = value;
         });
       });
 
-    let feedKeywordRules: FeedKeywordRulesSettings = {
-      overrideGlobalRules: false,
-      includeLogic: "AND",
-      rules: [],
-    };
+    const autoTagSetting = new Setting(perFeedControlsBody)
+      .setName("Custom auto-tags")
+      .setDesc(
+        "Additional tags applied automatically to new articles from this feed (Single Feed Override)",
+      );
 
-    const feedRulesDetails = contentEl.createEl("details", {
+    const availableTags: Tag[] = this.plugin?.settings?.availableTags ?? [];
+
+    addTagMultiSelectControl({
+      setting: autoTagSetting,
+      availableTags,
+      selectedTagNames: this.customTags,
+      triggerEmptyLabel: "None",
+      menuTitle: "Select auto-tags",
+      onChange: (selectedNames) => {
+        this.customTags = selectedNames;
+      },
+    });
+  }
+
+  /* ============================================
+   * 5. Keyword Rules
+   * Rendering the keyword filter editor
+   * ============================================ */
+  private renderKeywordRulesSection() {
+    const feedRulesDetails = this.contentEl.createEl("details", {
       cls: "rss-keyword-filter-details",
     });
     feedRulesDetails.createEl("summary", {
@@ -546,13 +623,13 @@ export class AddFeedModal extends Modal {
       renderKeywordFilterEditor({
         containerEl: feedRulesBody,
         state: {
-          includeLogic: feedKeywordRules.includeLogic,
-          rules: feedKeywordRules.rules,
-          overrideGlobalRules: feedKeywordRules.overrideGlobalRules,
+          includeLogic: this.feedKeywordRules.includeLogic,
+          rules: this.feedKeywordRules.rules,
+          overrideGlobalRules: this.feedKeywordRules.overrideGlobalRules,
         },
         showOverrideToggle: true,
         onChange: (nextState) => {
-          feedKeywordRules = {
+          this.feedKeywordRules = {
             includeLogic: nextState.includeLogic,
             rules: nextState.rules,
             overrideGlobalRules: !!nextState.overrideGlobalRules,
@@ -562,8 +639,14 @@ export class AddFeedModal extends Modal {
       });
     };
     renderFeedFilterEditor();
+  }
 
-    const btns = contentEl.createDiv({
+  /* ============================================
+   * 6. Action Buttons
+   * Save and Cancel actions
+   * ============================================ */
+  private renderActionButtons() {
+    const btns = this.contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons rss-dashboard-modal-actions",
     });
     const saveBtn = btns.createEl("button", {
@@ -574,34 +657,36 @@ export class AddFeedModal extends Modal {
       text: "Cancel",
       cls: "rss-dashboard-danger-button rss-dashboard-cancel-button",
     });
+
     saveBtn.onclick = () => {
-      normalizeNitterUrl();
-      if (!url) {
+      this.normalizeNitterUrl();
+      if (!this.url) {
         new Notice("Feed URL cannot be empty");
         return;
       }
-      const validation = isValidFeedTitle(title);
+      const validation = isValidFeedTitle(this.title);
       if (!validation.valid) {
         new Notice(validation.error || "Invalid feed title");
         return;
       }
 
-      const finalFolder = folderInput?.value || folder;
+      const finalFolder = this.folderInput?.value || this.folder;
       void (async () => {
         if (this.plugin && finalFolder) {
           await this.plugin.ensureFolderExists(finalFolder);
         }
-        const added = await this.onAdd(
-          title,
-          url,
-          finalFolder,
-          autoDeleteDuration,
-          maxItemsLimit,
-          scanInterval,
-          feedKeywordRules,
-          customTemplate,
-          excludeFromRefresh,
-        ).catch(() => {
+        const added = await this.onAdd({
+          title: this.title,
+          url: this.url,
+          folder: finalFolder,
+          autoDeleteDuration: this.autoDeleteDuration,
+          maxItemsLimit: this.maxItemsLimit,
+          scanInterval: this.scanInterval,
+          feedKeywordRules: this.feedKeywordRules,
+          customTemplate: this.customTemplate,
+          excludeFromRefresh: this.excludeFromRefresh,
+          customTags: this.customTags.length > 0 ? this.customTags : undefined,
+        }).catch(() => {
           return false;
         });
 
@@ -612,12 +697,8 @@ export class AddFeedModal extends Modal {
       })();
     };
     cancelBtn.onclick = () => this.close();
-
-    activeWindow.setTimeout(() => {
-      urlInput?.focus();
-      urlInput?.select();
-    }, 0);
   }
+
   onClose() {
     this.contentEl.empty();
   }

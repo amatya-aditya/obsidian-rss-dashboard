@@ -198,21 +198,27 @@ export type PodcastTheme =
 
 export interface MediaSettings {
   defaultVideoTag: string;
+  defaultVideoTags?: string[];
   rememberPlaybackProgress: boolean;
   defaultTwitterFolder: string;
   defaultMastodonFolder: string;
   defaultYouTubeFolder: string;
   defaultYouTubeTag: string;
+  defaultYouTubeTags?: string[];
   defaultPodcastFolder: string;
   defaultPodcastTag: string;
+  defaultPodcastTags?: string[];
   defaultRssFolder: string;
   defaultRssTag: string;
+  defaultRssTags?: string[];
   defaultSmallwebFolder: string;
   defaultSmallwebTag: string;
+  defaultSmallwebTags?: string[];
   defaultTwitterTag?: string;
+  defaultTwitterTags?: string[];
   defaultMastodonTag?: string;
-  /** @deprecated use useDomainIconsRss, useDomainIconsYouTube, useDomainIconsPodcast, useDomainIconsTwitter, or similar. */
-  useMastodonProfileImages: boolean;
+  defaultMastodonTags?: string[];
+  useDomainIconsMastodon: boolean;
   useDomainIconsRss: boolean;
   useDomainIconsPodcast: boolean;
   useDomainIconsTwitter: boolean;
@@ -575,20 +581,27 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   },
   media: {
     defaultVideoTag: "Video",
+    defaultVideoTags: ["Video"],
     rememberPlaybackProgress: true,
     defaultTwitterFolder: "Twitter",
     defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultYouTubeTag: "Video",
+    defaultYouTubeTags: ["Video"],
     defaultPodcastFolder: "Podcast",
     defaultPodcastTag: "Podcast",
+    defaultPodcastTags: ["Podcast"],
     defaultRssFolder: "RSS",
     defaultRssTag: "",
+    defaultRssTags: [],
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "",
+    defaultSmallwebTags: [],
     defaultTwitterTag: "",
+    defaultTwitterTags: [],
     defaultMastodonTag: "",
-    useMastodonProfileImages: false,
+    defaultMastodonTags: [],
+    useDomainIconsMastodon: false,
     useDomainIconsRss: false,
     useDomainIconsPodcast: false,
     useDomainIconsTwitter: false,

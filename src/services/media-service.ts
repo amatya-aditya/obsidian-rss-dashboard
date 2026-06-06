@@ -12,6 +12,67 @@ export interface YouTubeEmbedConfig {
 }
 
 export class MediaService {
+  private static resolveConfiguredTagNames(
+    availableTags: Tag[],
+    names: Array<string | undefined>,
+  ): Tag[] {
+    const seen = new Set<string>();
+    const normalizedNames = names
+      .map((name) => name?.trim())
+      .filter((name): name is string => !!name);
+
+    return availableTags.filter((tag) => {
+      if (!normalizedNames.includes(tag.name)) {
+        return false;
+      }
+
+      if (seen.has(tag.name)) {
+        return false;
+      }
+
+      seen.add(tag.name);
+      return true;
+    });
+  }
+
+  private static getConfiguredTagNames(
+    availableTags: Tag[],
+    arrayTags: string[] | undefined,
+    legacyTag: string | undefined,
+    legacyAliasNames: string[] = [],
+    fallbackNamesWhenUnset: string[] = [],
+  ): Tag[] {
+    if (!Array.isArray(availableTags) || availableTags.length === 0) {
+      return [];
+    }
+
+    const normalizedArrayTags = Array.isArray(arrayTags)
+      ? arrayTags
+          .map((name) => name.trim())
+          .filter(
+            (name, index, names) =>
+              name.length > 0 && names.indexOf(name) === index,
+          )
+      : [];
+
+    if (normalizedArrayTags.length > 0) {
+      return this.resolveConfiguredTagNames(availableTags, normalizedArrayTags);
+    }
+
+    const normalizedLegacyTag = legacyTag?.trim();
+    if (normalizedLegacyTag) {
+      return this.resolveConfiguredTagNames(availableTags, [
+        normalizedLegacyTag,
+        ...legacyAliasNames,
+      ]);
+    }
+
+    return this.resolveConfiguredTagNames(
+      availableTags,
+      fallbackNamesWhenUnset,
+    );
+  }
+
   static readonly YOUTUBE_EMBED_REFERRER_POLICY =
     "strict-origin-when-cross-origin";
   static readonly YOUTUBE_EMBED_ALLOW =
@@ -69,8 +130,7 @@ export class MediaService {
     }
 
     if (MastodonService.isResolvedFeedUrl(feed.url)) {
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
-      return !!mediaSettings.useMastodonProfileImages;
+      return !!mediaSettings.useDomainIconsMastodon;
     }
 
     if (this.isTwitterOrNitterFeed(feed.url)) {
@@ -674,6 +734,118 @@ export class MediaService {
         `;
   }
 
+  static getInheritedTagsAndCategory(
+    feed: Pick<Feed, "url" | "folder" | "mediaType">,
+    availableTags: Tag[],
+    mediaSettings?: Partial<
+      Pick<
+        MediaSettings,
+        | "defaultVideoTag"
+        | "defaultVideoTags"
+        | "defaultYouTubeTag"
+        | "defaultYouTubeTags"
+        | "defaultPodcastTag"
+        | "defaultPodcastTags"
+        | "defaultTwitterTag"
+        | "defaultTwitterTags"
+        | "defaultMastodonTag"
+        | "defaultMastodonTags"
+        | "defaultSmallwebFolder"
+        | "defaultSmallwebTag"
+        | "defaultSmallwebTags"
+        | "defaultRssTag"
+        | "defaultRssTags"
+      >
+    >,
+  ): {
+    tags: Tag[];
+    category?:
+      | "video"
+      | "podcast"
+      | "twitter"
+      | "mastodon"
+      | "smallweb"
+      | "rss";
+  } {
+    const isTwitter = MediaService.isTwitterOrNitterFeed(feed.url);
+    const isMastodon = MastodonService.isResolvedFeedUrl(feed.url);
+    const smallwebFolder = mediaSettings?.defaultSmallwebFolder?.trim() || "";
+    const isSmallweb = smallwebFolder && feed.folder === smallwebFolder;
+
+    if (!Array.isArray(availableTags) || availableTags.length === 0) {
+      return { tags: [] };
+    }
+
+    let tagCategory:
+      | "video"
+      | "podcast"
+      | "twitter"
+      | "mastodon"
+      | "smallweb"
+      | "rss"
+      | undefined;
+    let mediaTags: Tag[] = [];
+
+    if (feed.mediaType === "video") {
+      tagCategory = "video";
+      if (MediaService.isYouTubeFeed(feed.url)) {
+        mediaTags = this.getConfiguredTagNames(
+          availableTags,
+          mediaSettings?.defaultYouTubeTags,
+          mediaSettings?.defaultYouTubeTag,
+          ["Video", "Videos"],
+          ["Video", "Videos"],
+        );
+      } else {
+        mediaTags = this.getConfiguredTagNames(
+          availableTags,
+          mediaSettings?.defaultVideoTags,
+          mediaSettings?.defaultVideoTag,
+          ["Video", "Videos"],
+        );
+      }
+    } else if (feed.mediaType === "podcast") {
+      tagCategory = "podcast";
+      mediaTags = this.getConfiguredTagNames(
+        availableTags,
+        mediaSettings?.defaultPodcastTags,
+        mediaSettings?.defaultPodcastTag,
+        ["Podcast", "Podcasts"],
+        ["Podcast", "Podcasts"],
+      );
+    } else if (isTwitter) {
+      tagCategory = "twitter";
+      mediaTags = this.getConfiguredTagNames(
+        availableTags,
+        mediaSettings?.defaultTwitterTags,
+        mediaSettings?.defaultTwitterTag,
+      );
+    } else if (isMastodon) {
+      tagCategory = "mastodon";
+      mediaTags = this.getConfiguredTagNames(
+        availableTags,
+        mediaSettings?.defaultMastodonTags,
+        mediaSettings?.defaultMastodonTag,
+      );
+    } else if (isSmallweb) {
+      tagCategory = "smallweb";
+      mediaTags = this.getConfiguredTagNames(
+        availableTags,
+        mediaSettings?.defaultSmallwebTags,
+        mediaSettings?.defaultSmallwebTag,
+      );
+    } else if (!feed.mediaType || feed.mediaType === "article") {
+      tagCategory = "rss";
+      mediaTags = this.getConfiguredTagNames(
+        availableTags,
+        mediaSettings?.defaultRssTags,
+        mediaSettings?.defaultRssTag,
+      );
+    }
+
+    return { tags: mediaTags, category: tagCategory };
+  }
+
   static applyMediaTags(
     feed: Feed,
     availableTags: Tag[],
@@ -681,88 +853,27 @@ export class MediaService {
       Pick<
         MediaSettings,
         | "defaultVideoTag"
+        | "defaultVideoTags"
         | "defaultYouTubeTag"
+        | "defaultYouTubeTags"
         | "defaultPodcastTag"
+        | "defaultPodcastTags"
         | "defaultTwitterTag"
+        | "defaultTwitterTags"
         | "defaultMastodonTag"
+        | "defaultMastodonTags"
         | "defaultSmallwebFolder"
         | "defaultSmallwebTag"
+        | "defaultSmallwebTags"
+        | "defaultRssTag"
+        | "defaultRssTags"
       >
     >,
   ): Feed {
-    const isTwitter = MediaService.isTwitterOrNitterFeed(feed.url);
-    const isMastodon = MastodonService.isResolvedFeedUrl(feed.url);
-    const smallwebFolder = mediaSettings?.defaultSmallwebFolder?.trim() || "";
-    const smallwebTagSetting = mediaSettings?.defaultSmallwebTag?.trim() || "";
+    const { tags: mediaTags, category: tagCategory } =
+      this.getInheritedTagsAndCategory(feed, availableTags, mediaSettings);
 
-    if (smallwebFolder && feed.folder === smallwebFolder) {
-      console.debug(
-        "[applyMediaTags] smallweb branch: folder=",
-        feed.folder,
-        "tag=",
-        smallwebTagSetting,
-      );
-    }
-
-    if (
-      (!feed.mediaType || feed.mediaType === "article") &&
-      !isTwitter &&
-      !isMastodon
-    ) {
-      return feed;
-    }
-
-    let tagNameCandidates: string[] = [];
-    let tagCategory: "video" | "podcast" | "twitter" | "mastodon" | undefined;
-    if (feed.mediaType === "video") {
-      tagCategory = "video";
-      if (MediaService.isYouTubeFeed(feed.url)) {
-        const rawTag = mediaSettings?.defaultYouTubeTag;
-        const configuredTag =
-          rawTag !== undefined && rawTag.trim().length > 0
-            ? rawTag.trim().toLowerCase()
-            : "video";
-        tagNameCandidates = [configuredTag, "video", "videos"];
-      } else {
-        const rawTag = mediaSettings?.defaultVideoTag;
-        if (rawTag === undefined || rawTag.trim().length === 0) {
-          return feed;
-        }
-        const configuredTag = rawTag.trim().toLowerCase();
-        tagNameCandidates = [configuredTag, "video", "videos"];
-      }
-    } else if (feed.mediaType === "podcast") {
-      tagCategory = "podcast";
-      const configuredTag = (mediaSettings?.defaultPodcastTag || "podcast")
-        .trim()
-        .toLowerCase();
-      tagNameCandidates = configuredTag
-        ? [configuredTag, "podcast", "podcasts"]
-        : ["podcast", "podcasts"];
-    } else if (isTwitter) {
-      tagCategory = "twitter";
-      const configuredTag = (mediaSettings?.defaultTwitterTag || "")
-        .trim()
-        .toLowerCase();
-      tagNameCandidates = configuredTag ? [configuredTag] : [];
-    } else if (isMastodon) {
-      tagCategory = "mastodon";
-      const configuredTag = (mediaSettings?.defaultMastodonTag || "")
-        .trim()
-        .toLowerCase();
-      tagNameCandidates = configuredTag ? [configuredTag] : [];
-    }
-
-    if (tagNameCandidates.length === 0 || !tagCategory) return feed;
-    if (!Array.isArray(availableTags) || availableTags.length === 0)
-      return feed;
-
-    const mediaTag = availableTags.find((t) =>
-      tagNameCandidates.includes(t.name.toLowerCase()),
-    );
-    if (!mediaTag) return feed;
-
-    const selectedTagName = mediaTag.name.toLowerCase();
+    if (mediaTags.length === 0 || !tagCategory) return feed;
 
     const updatedItems = feed.items.map((item) => {
       const shouldTagItem =
@@ -774,16 +885,26 @@ export class MediaService {
               ? true
               : tagCategory === "mastodon"
                 ? true
-                : false;
+                : tagCategory === "smallweb"
+                  ? true
+                  : tagCategory === "rss"
+                    ? true
+                    : false;
 
       if (!shouldTagItem) {
         return item;
       }
 
       if (!item.tags) item.tags = [];
-      if (!item.tags.some((t) => t.name.toLowerCase() === selectedTagName)) {
-        item.tags.push({ ...mediaTag });
+
+      const existingTagNames = new Set(item.tags.map((tag) => tag.name));
+      for (const mediaTag of mediaTags) {
+        if (!existingTagNames.has(mediaTag.name)) {
+          item.tags.push({ ...mediaTag });
+          existingTagNames.add(mediaTag.name);
+        }
       }
+
       return item;
     });
 

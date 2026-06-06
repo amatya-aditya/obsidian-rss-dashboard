@@ -77,3 +77,18 @@
   outline: 2px solid var(--interactive-accent);
   outline-offset: 1px;
 }
+
+.rss-dashboard-inherited-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rss-dashboard-tag-badge {
+  background-color: var(--tag-color, #3498db);
+  color: var(--text-on-accent, #fff);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: 500;
+}

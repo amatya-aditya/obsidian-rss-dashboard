@@ -733,7 +733,7 @@ describe("FeedParser.parseFeed", () => {
     defaultRssTag: "rss",
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "smallweb",
-    useMastodonProfileImages: true,
+    useDomainIconsMastodon: true,
     useDomainIconsRss: true,
     useDomainIconsYouTube: true,
     useDomainIconsPodcast: true,
@@ -754,7 +754,7 @@ describe("FeedParser.parseFeed", () => {
     const parser = new FeedParser(
       {
         ...mediaSettings,
-        useMastodonProfileImages: false,
+        useDomainIconsMastodon: false,
       },
       [],
     );
@@ -779,7 +779,7 @@ describe("FeedParser.parseFeed", () => {
     const parser = new FeedParser(
       {
         ...mediaSettings,
-        useMastodonProfileImages: true,
+        useDomainIconsMastodon: true,
       },
       [],
     );
@@ -809,7 +809,7 @@ describe("FeedParser.parseFeed", () => {
     const parser = new FeedParser(
       {
         ...mediaSettings,
-        useMastodonProfileImages: true,
+        useDomainIconsMastodon: true,
       },
       [],
     );
@@ -833,19 +833,23 @@ describe("FeedParser.parseFeed", () => {
     });
 
     // 1. When useDomainIconsRss is false
-    const parserOff = new FeedParser({ ...mediaSettings, useDomainIconsRss: false }, []);
+    const parserOff = new FeedParser(
+      { ...mediaSettings, useDomainIconsRss: false },
+      [],
+    );
     const parsedOff = await parserOff.parseFeed(feedUrl, null);
     expect(parsedOff.iconUrl).toBe("");
 
     // 2. When useDomainIconsRss is true
-    const parserOn = new FeedParser({ ...mediaSettings, useDomainIconsRss: true }, []);
+    const parserOn = new FeedParser(
+      { ...mediaSettings, useDomainIconsRss: true },
+      [],
+    );
     const parsedOn = await parserOn.parseFeed(feedUrl, null);
     expect(parsedOn.iconUrl).toBe("https://example.com/logo.png");
 
     requestUrlSpy.mockRestore();
   });
-
-
 
   it("extracts and honors the Podcast icon settings toggle", async () => {
     const feedUrl = "https://example.com/podcast.xml";
@@ -856,14 +860,22 @@ describe("FeedParser.parseFeed", () => {
     });
 
     // 1. When useDomainIconsPodcast is false
-    const parserOff = new FeedParser({ ...mediaSettings, useDomainIconsPodcast: false }, []);
+    const parserOff = new FeedParser(
+      { ...mediaSettings, useDomainIconsPodcast: false },
+      [],
+    );
     const parsedOff = await parserOff.parseFeed(feedUrl, null);
     expect(parsedOff.iconUrl).toBe("");
 
     // 2. When useDomainIconsPodcast is true
-    const parserOn = new FeedParser({ ...mediaSettings, useDomainIconsPodcast: true }, []);
+    const parserOn = new FeedParser(
+      { ...mediaSettings, useDomainIconsPodcast: true },
+      [],
+    );
     const parsedOn = await parserOn.parseFeed(feedUrl, null);
-    expect(parsedOn.iconUrl).toBe("https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png");
+    expect(parsedOn.iconUrl).toBe(
+      "https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png",
+    );
 
     requestUrlSpy.mockRestore();
   });
@@ -877,12 +889,18 @@ describe("FeedParser.parseFeed", () => {
     });
 
     // 1. When useDomainIconsTwitter is false
-    const parserOff = new FeedParser({ ...mediaSettings, useDomainIconsTwitter: false }, []);
+    const parserOff = new FeedParser(
+      { ...mediaSettings, useDomainIconsTwitter: false },
+      [],
+    );
     const parsedOff = await parserOff.parseFeed(feedUrl, null);
     expect(parsedOff.iconUrl).toBe("");
 
     // 2. When useDomainIconsTwitter is true
-    const parserOn = new FeedParser({ ...mediaSettings, useDomainIconsTwitter: true }, []);
+    const parserOn = new FeedParser(
+      { ...mediaSettings, useDomainIconsTwitter: true },
+      [],
+    );
     const parsedOn = await parserOn.parseFeed(feedUrl, null);
     expect(parsedOn.iconUrl).toBe("https://example.com/logo.png");
 

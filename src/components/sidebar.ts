@@ -74,6 +74,7 @@ export interface SidebarCallbacks {
     feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
     excludeFromRefresh?: boolean,
+    customTags?: string[],
   ) => Promise<void>;
   onEditFeed: (feed: Feed, title: string, url: string, folder: string) => void;
   onDeleteFeed: (feed: Feed) => void;
@@ -3202,27 +3203,18 @@ export class Sidebar {
     new AddFeedModal(
       this.app,
       this.settings.folders,
-      async (
-        title,
-        url,
-        folder,
-        autoDeleteDuration,
-        maxItemsLimit,
-        scanInterval,
-        feedFilters,
-        customTemplate,
-        excludeFromRefresh,
-      ) =>
+      async (request) =>
         await this.callbacks.onAddFeed(
-          title,
-          url,
-          folder,
-          autoDeleteDuration,
-          maxItemsLimit,
-          scanInterval,
-          feedFilters,
-          customTemplate,
-          excludeFromRefresh,
+          request.title,
+          request.url,
+          request.folder,
+          request.autoDeleteDuration,
+          request.maxItemsLimit,
+          request.scanInterval,
+          request.feedKeywordRules,
+          request.customTemplate,
+          request.excludeFromRefresh,
+          request.customTags,
         ),
       () => this.render(),
       defaultFolder,

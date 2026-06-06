@@ -22,6 +22,7 @@ vi.mock("../../../src/utils/settings-migration", () => ({
   migrateDefaultFilterToDashboardMultiFilters: vi.fn(),
   migrateKeywordRulesSettings: vi.fn().mockReturnValue(false),
   migrateMediaVideoTagSettings: vi.fn().mockReturnValue(false),
+  migrateMediaDefaultTagArrays: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock("../../../src/utils/url-utils", () => ({

@@ -78,6 +78,28 @@ function getTextInputBySettingName(
   return inputEl;
 }
 
+function getTagTrigger(containerEl: HTMLElement): HTMLButtonElement {
+  const trigger = containerEl.querySelector(
+    ".rss-dashboard-tag-multi-select-trigger",
+  );
+  if (!(trigger instanceof HTMLButtonElement)) {
+    throw new Error("Tag trigger not found");
+  }
+  return trigger;
+}
+
+function getOpenTagOption(name: string): HTMLButtonElement {
+  const option = Array.from(
+    document.body.querySelectorAll<HTMLButtonElement>(
+      ".rss-dashboard-tag-multi-select-menu-option",
+    ),
+  ).find((el) => el.getAttribute("data-tag-name") === name);
+  if (!(option instanceof HTMLButtonElement)) {
+    throw new Error(`Tag option not found: ${name}`);
+  }
+  return option;
+}
+
 beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
@@ -126,7 +148,8 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(onAdd).toHaveBeenCalledTimes(1);
-    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[5]).toBe(-1);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].scanInterval).toBe(-1);
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
@@ -163,7 +186,8 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(onAdd).toHaveBeenCalledTimes(1);
-    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[5]).toBe(0);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].scanInterval).toBe(0);
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
@@ -200,7 +224,8 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(onAdd).toHaveBeenCalledTimes(1);
-    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[8]).toBe(true);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].excludeFromRefresh).toBe(true);
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
@@ -459,5 +484,61 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(folderInput.value).toBe("My Custom Folder");
+  });
+
+  it("renders tag dropdown multi-select and submits selected customTags in object payload", async () => {
+    const app = createMockApp();
+    const onAdd = vi.fn(async () => true);
+    const onSave = vi.fn();
+
+    const plugin = {
+      settings: {
+        availableTags: [
+          { name: "News", color: "#111122" },
+          { name: "Tech", color: "#228811" },
+        ],
+        media: {
+          defaultTwitterFolder: "Social/Twitter",
+          defaultYouTubeFolder: "Videos",
+          defaultPodcastFolder: "Podcast",
+          defaultRssFolder: "RSS",
+        },
+      },
+    };
+
+    const modal = new AddFeedModal(app, [], onAdd, onSave, "", plugin as never);
+    modal.open();
+
+    const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
+    const urlInput = urlSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+    urlInput.value = "https://example.com/feed.xml";
+    urlInput.dispatchEvent(new Event("input"));
+
+    const titleSetting = getSettingByName(modal.contentEl, "Title");
+    const titleInput = titleSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+    titleInput.value = "My feed";
+    titleInput.dispatchEvent(new Event("input"));
+
+    const trigger = getTagTrigger(modal.contentEl);
+    expect(trigger.textContent).toContain("None");
+
+    trigger.click();
+    getOpenTagOption("News").click();
+    getOpenTagOption("Tech").click();
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    const requestPayload = onAdd.mock.calls[0]?.[0];
+    expect(requestPayload).toBeDefined();
+    expect(requestPayload.url).toBe("https://example.com/feed.xml");
+    expect(requestPayload.title).toBe("My feed");
+    expect(requestPayload.customTags).toEqual(["News", "Tech"]);
+    expect(onSave).toHaveBeenCalledTimes(1);
   });
 });

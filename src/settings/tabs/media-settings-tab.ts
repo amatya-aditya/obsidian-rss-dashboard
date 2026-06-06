@@ -32,29 +32,7 @@ interface MediaTabSettings {
   folders: Folder[];
   feeds?: Feed[];
   availableTags?: Tag[];
-  media: {
-    defaultVideoTag: string;
-    rememberPlaybackProgress?: boolean;
-    defaultTwitterFolder: string;
-    defaultMastodonFolder: string;
-    defaultYouTubeFolder: string;
-    defaultYouTubeTag: string;
-    defaultPodcastFolder: string;
-    defaultPodcastTag: string;
-    defaultRssFolder: string;
-    defaultRssTag: string;
-    defaultSmallwebFolder: string;
-    defaultSmallwebTag: string;
-    defaultTwitterTag?: string;
-    defaultMastodonTag?: string;
-    useMastodonProfileImages?: boolean;
-    useDomainIconsRss?: boolean;
-    useDomainIconsYouTube?: boolean;
-    useDomainIconsPodcast?: boolean;
-    useDomainIconsTwitter?: boolean;
-    podcastTheme: PodcastTheme;
-    defaultPlaySpeed?: number;
-  };
+  media: MediaSettings;
 }
 
 interface MediaSettingsPlugin {
@@ -75,24 +53,6 @@ export function renderMediaSettingsTab(
   containerEl: HTMLElement,
   plugin: MediaSettingsPlugin,
 ): void {
-  new Setting(containerEl)
-    .setName("Tag for video articles")
-    .setDesc(
-      "Default tag for RSS articles with detected video content (YouTube feeds use the dedicated tag below)",
-    )
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      dropdown
-        .setValue(plugin.settings.media.defaultVideoTag ?? "")
-        .onChange(async (value) => {
-          plugin.settings.media.defaultVideoTag = value.trim();
-          await plugin.saveSettings();
-        });
-    });
-
   new Setting(containerEl).setName("Playback progress").setHeading();
 
   new Setting(containerEl)
@@ -145,22 +105,6 @@ export function renderMediaSettingsTab(
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
     });
 
-  new Setting(containerEl)
-    .setName("Default Twitter tag")
-    .setDesc("Default tag for Twitter/X/Nitter feeds")
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      dropdown
-        .setValue(plugin.settings.media.defaultTwitterTag || "")
-        .onChange(async (value) => {
-          plugin.settings.media.defaultTwitterTag = value;
-          await plugin.saveSettings();
-        });
-    });
-
   setupDomainIconToggle(containerEl, plugin, {
     settingName: "Use profile images for Twitter/Nitter feeds",
     settingDesc:
@@ -188,23 +132,6 @@ export function renderMediaSettingsTab(
         });
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
     });
-
-  new Setting(containerEl)
-    .setName("Default Mastodon tag")
-    .setDesc("Default tag for Mastodon feeds")
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      dropdown
-        .setValue(plugin.settings.media.defaultMastodonTag || "")
-        .onChange(async (value) => {
-          plugin.settings.media.defaultMastodonTag = value;
-          await plugin.saveSettings();
-        });
-    });
-
   new Setting(containerEl)
     .setName("Use profile images for Mastodon feeds")
     .setDesc(
@@ -212,10 +139,10 @@ export function renderMediaSettingsTab(
     )
     .addToggle((toggle) =>
       toggle
-        .setValue(plugin.settings.media.useMastodonProfileImages ?? false)
+        .setValue(plugin.settings.media.useDomainIconsMastodon ?? false)
         .onChange(async (value) => {
           const oldValue =
-            plugin.settings.media.useMastodonProfileImages ?? false;
+            plugin.settings.media.useDomainIconsMastodon ?? false;
           const settings = plugin.settings as unknown as Record<
             string,
             unknown
@@ -237,7 +164,7 @@ export function renderMediaSettingsTab(
 
           // ── Transition: OFF → ON ─────────────────────────────────────────
           if (!oldValue && value) {
-            plugin.settings.media.useMastodonProfileImages = true;
+            plugin.settings.media.useDomainIconsMastodon = true;
             await plugin.saveSettings();
 
             // Re-fetch all Mastodon feed icons asynchronously
@@ -296,7 +223,7 @@ export function renderMediaSettingsTab(
             });
 
             if (confirmed) {
-              plugin.settings.media.useMastodonProfileImages = false;
+              plugin.settings.media.useDomainIconsMastodon = false;
               await plugin.saveSettings();
               const view = await plugin.getActiveDashboardView();
               if (view) {
@@ -312,7 +239,7 @@ export function renderMediaSettingsTab(
           }
 
           // ── No-op: toggle was already in the target state ──────────────────
-          plugin.settings.media.useMastodonProfileImages = value;
+          plugin.settings.media.useDomainIconsMastodon = value;
           await plugin.saveSettings();
         }),
     );
@@ -331,27 +258,6 @@ export function renderMediaSettingsTab(
           await plugin.saveSettings();
         });
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
-    });
-
-  new Setting(containerEl)
-    .setName("Default YouTube tag")
-    .setDesc("Tag used for auto-tagged video content")
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      const currentTag = (plugin.settings.media.defaultYouTubeTag ?? "").trim();
-      const initialValue =
-        typeof currentTag === "string" && currentTag.length > 0
-          ? currentTag
-          : "";
-
-      dropdown.setValue(initialValue).onChange(async (value) => {
-        const nextValue = value.trim();
-        plugin.settings.media.defaultYouTubeTag = nextValue;
-        await plugin.saveSettings();
-      });
     });
 
   new Setting(containerEl)
@@ -374,22 +280,6 @@ export function renderMediaSettingsTab(
           await plugin.saveSettings();
         });
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
-    });
-
-  new Setting(containerEl)
-    .setName("Default podcast tag")
-    .setDesc("Default tag for podcast episodes")
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      dropdown
-        .setValue(plugin.settings.media.defaultPodcastTag ?? "")
-        .onChange(async (value) => {
-          plugin.settings.media.defaultPodcastTag = value;
-          await plugin.saveSettings();
-        });
     });
 
   setupDomainIconToggle(containerEl, plugin, {
@@ -418,22 +308,6 @@ export function renderMediaSettingsTab(
           await plugin.saveSettings();
         });
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
-    });
-
-  new Setting(containerEl)
-    .setName("Default RSS tag")
-    .setDesc("Default tag for RSS articles")
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      dropdown
-        .setValue(plugin.settings.media.defaultRssTag ?? "")
-        .onChange(async (value) => {
-          plugin.settings.media.defaultRssTag = value;
-          await plugin.saveSettings();
-        });
     });
 
   setupDomainIconToggle(containerEl, plugin, {
@@ -467,22 +341,6 @@ export function renderMediaSettingsTab(
           await plugin.saveSettings();
         });
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
-    });
-
-  new Setting(containerEl)
-    .setName("Default smallweb tag")
-    .setDesc("Default tag for smallweb articles")
-    .addDropdown((dropdown) => {
-      dropdown.addOption("", "(none)");
-      plugin.settings.availableTags?.forEach((tag) => {
-        dropdown.addOption(tag.name, tag.name);
-      });
-      dropdown
-        .setValue(plugin.settings.media.defaultSmallwebTag ?? "")
-        .onChange(async (value) => {
-          plugin.settings.media.defaultSmallwebTag = value;
-          await plugin.saveSettings();
-        });
     });
 
   // ── Podcast player ────────────────────────────────────────────────────────
@@ -575,28 +433,6 @@ export function renderMediaSettingsTab(
     });
 
   // ── Reset tag names ────────────────────────────────────────────────────────
-  new Setting(containerEl)
-    .setName("Reset tag names")
-    .setDesc("Restore all tag names to their out-of-the-box defaults.")
-    .addButton((button) => {
-      button.setButtonText("Default tag names").onClick(async () => {
-        const d = DEFAULT_SETTINGS.media;
-        plugin.settings.media.defaultVideoTag = d.defaultVideoTag;
-        plugin.settings.media.defaultYouTubeTag = d.defaultYouTubeTag;
-        plugin.settings.media.defaultPodcastTag = d.defaultPodcastTag;
-        plugin.settings.media.defaultRssTag = d.defaultRssTag;
-        plugin.settings.media.defaultSmallwebTag = d.defaultSmallwebTag;
-        plugin.settings.media.defaultTwitterTag = d.defaultTwitterTag;
-        plugin.settings.media.defaultMastodonTag = d.defaultMastodonTag;
-        await plugin.saveSettings();
-        new Notice("Tag names restored to defaults.");
-        // Re-render the settings tab so the inputs reflect the reset values.
-        const view = await plugin.getActiveDashboardView();
-        if (view) view.render();
-        containerEl.empty();
-        renderMediaSettingsTab(containerEl, plugin);
-      });
-    });
 }
 
 function setupDomainIconToggle(

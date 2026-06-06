@@ -2024,6 +2024,7 @@ export class RssDashboardView extends ItemView {
     feedKeywordRules?: FeedKeywordRulesSettings,
     customTemplate?: string,
     excludeFromRefresh?: boolean,
+    customTags?: string[],
   ): Promise<void> {
     await this.plugin.addFeed(
       title,
@@ -2035,6 +2036,7 @@ export class RssDashboardView extends ItemView {
       feedKeywordRules,
       customTemplate,
       excludeFromRefresh,
+      customTags,
     );
     void this.render();
   }
