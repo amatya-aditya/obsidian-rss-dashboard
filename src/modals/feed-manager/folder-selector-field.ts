@@ -1,4 +1,4 @@
-import { Setting, setIcon } from "obsidian";
+import { Setting } from "obsidian";
 
 export function decorateFolderSelectorInput(
   setting: Setting,
@@ -13,12 +13,6 @@ export function decorateFolderSelectorInput(
   });
 
   wrapper.appendChild(inputEl);
-
-  const arrow = wrapper.createSpan({
-    cls: "rss-dashboard-folder-combobox-arrow",
-    attr: { "aria-hidden": "true" },
-  });
-  setIcon(arrow, "chevron-down");
 
   wrapper.addEventListener("click", (event) => {
     if (event.target instanceof HTMLInputElement) return;

@@ -38,6 +38,18 @@
   --rss-color-youtube-badge: #ff0000;
   --rss-color-discover-accent: #9b59b6;
   --rss-color-discover-accent-hover: #a66ac0;
+  --rss-color-kagi-brand: #981fc8;
+
+  /* Follow button states */
+  --rss-color-follow-default-bg: var(--interactive-normal, #3b463c);
+  --rss-color-follow-default-border: var(--background-modifier-border, #50555d);
+  --rss-color-follow-default-text: var(--text-normal, #f3f4f6);
+  --rss-color-following-bg: var(--background-secondary-alt, #25282e);
+  --rss-color-following-border: var(--background-modifier-border, #3b3f46);
+  --rss-color-following-text: var(--interactive-accent, #7ee787);
+  --rss-color-unfollow-hover-bg: var(--background-modifier-error, #5a1e24);
+  --rss-color-unfollow-hover-border: var(--text-error, #e5484d);
+  --rss-color-unfollow-hover-text: var(--text-error, #ffb4b4);
 }
 
 /* ============================================
@@ -758,7 +770,9 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     visibility: visible;
     opacity: 1;
   }
-  body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar-container,
+  body
+    .modal.rss-mobile-discover-filters-modal
+    .rss-dashboard-sidebar-container,
   body .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar {
     display: flex;
     flex-direction: column;
@@ -941,10 +955,7 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
   }
   body .modal-container .modal.rss-storage-transition-modal {
     --rss-storage-modal-bottom-gap: 24px;
-    --rss-storage-modal-bottom-gap: max(
-      24px,
-      env(safe-area-inset-bottom, 0px)
-    );
+    --rss-storage-modal-bottom-gap: max(24px, env(safe-area-inset-bottom, 0px));
     width: auto;
     max-width: calc(100vw - 24px);
     max-height: calc(90vh - 24px);
@@ -963,7 +974,10 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     gap: 8px;
     padding: 12px 4px 4px;
   }
-  body .modal.rss-storage-transition-modal .rss-storage-transition-buttons button {
+  body
+    .modal.rss-storage-transition-modal
+    .rss-storage-transition-buttons
+    button {
     width: 100%;
     max-width: 100%;
     margin: 0;

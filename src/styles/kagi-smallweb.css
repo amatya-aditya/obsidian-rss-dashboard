@@ -157,25 +157,27 @@
 }
 
 body .rss-smallweb-following-btn {
-  background: var(--background-modifier-success);
-  color: var(--text-error);
-  border: 1px solid var(--background-modifier-success);
+  background: var(--rss-color-following-bg);
+  color: var(--rss-color-following-text);
+  border: 1px solid var(--rss-color-following-border);
   cursor: pointer;
   opacity: 0.9;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  transition: all 0.2s ease;
 }
 
 .rss-smallweb-following-btn svg {
   width: 14px;
   height: 14px;
+  color: var(--rss-color-following-text);
 }
 
 body .rss-smallweb-unfollow-hover {
-  background: var(--background-modifier-error);
-  color: var(--text-error);
-  border-color: var(--background-modifier-error);
+  background: var(--rss-color-unfollow-hover-bg);
+  color: var(--rss-color-unfollow-hover-text);
+  border-color: var(--rss-color-unfollow-hover-border);
 }
 
 body .rss-smallweb-error-btn {

@@ -1436,9 +1436,23 @@ export class DiscoverView extends ItemView {
 
     if (isAdded) {
       const removeBtn = rightSection.createEl("button", {
-        text: "Remove",
         cls: "rss-discover-card-remove-btn",
       });
+      setIcon(removeBtn, "check");
+      removeBtn.createSpan({ text: " Following" });
+
+      removeBtn.addEventListener("mouseenter", () => {
+        removeBtn.empty();
+        setIcon(removeBtn, "x");
+        removeBtn.createSpan({ text: " Remove" });
+      });
+
+      removeBtn.addEventListener("mouseleave", () => {
+        removeBtn.empty();
+        setIcon(removeBtn, "check");
+        removeBtn.createSpan({ text: " Following" });
+      });
+
       removeBtn.addEventListener("click", () => {
         void (async () => {
           await this.removeFeed(feed.url);
@@ -1450,7 +1464,7 @@ export class DiscoverView extends ItemView {
         cls: "rss-discover-card-add-btn rss-discover-card-add-to-btn",
       });
       setIcon(addToBtn, "plus");
-      addToBtn.createSpan({ text: "Add to..." });
+      addToBtn.createSpan({ text: " Add to..." });
 
       const defaultFolder = "Uncategorized";
       addToBtn.addEventListener("click", () => {
