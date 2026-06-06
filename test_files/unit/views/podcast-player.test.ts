@@ -246,8 +246,37 @@ describe("PodcastPlayer", () => {
     });
   });
 
-  describe("autoplay", () => {
-    it("updates play button icon to pause when autoplay advances", async () => {
+  describe("default play speed", () => {
+    it("initializes with the given defaultPlaySpeed", () => {
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
+      const app = new App();
+      const player = new PodcastPlayer(
+        container,
+        app,
+        "obsidian",
+        undefined,
+        undefined,
+        undefined,
+        true,
+        1.5
+      );
+
+      // audioElement is created during render(), which is called by loadEpisode()
+      const ep = baseEpisode();
+      player.loadEpisode(ep);
+
+      const audio = (player as unknown as { audioElement: HTMLAudioElement }).audioElement;
+      expect(audio.playbackRate).toBe(1.5);
+
+      const speedBtn = container.querySelector(".rss-speed-control") as HTMLSelectElement;
+      expect(speedBtn).not.toBeNull();
+      expect(speedBtn.value).toBe("1.5");
+    });
+  });
+
+  describe("autoplay behavior", () => {
+    it("stops playing by default at the end of an episode", async () => {
       const container: HTMLDivElement = document.createElement("div");
       document.body.appendChild(container);
       const app = new App();
@@ -263,17 +292,49 @@ describe("PodcastPlayer", () => {
 
       player.loadEpisode(ep1, [ep1, ep2]);
 
-      const playBtn = container.querySelector<HTMLElement>(".rss-play-pause");
-      expect(playBtn?.dataset.icon).toBe("play");
+      const loadSpy = vi.spyOn(player, "loadEpisode");
 
       (
         player as unknown as { handleEpisodeEnd: () => void }
       ).handleEpisodeEnd();
       await Promise.resolve();
 
-      const playBtnAfter =
-        container.querySelector<HTMLElement>(".rss-play-pause");
-      expect(playBtnAfter?.dataset.icon).toBe("pause");
+      expect(loadSpy).not.toHaveBeenCalled();
+
+      // Checking if playBtn is not "pause" is a proxy for stopped
+      const playBtnAfter = container.querySelector<HTMLElement>(".rss-play-pause");
+      expect(playBtnAfter?.dataset.icon).toBe("play");
+    });
+
+    it("advances to next episode when Autoplay is enabled", async () => {
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
+      const app = new App();
+      const player = new PodcastPlayer(container, app, "obsidian");
+
+      const ep1 = baseEpisode();
+      const ep2 = {
+        ...ep1,
+        title: "Ep 2",
+        guid: "guid-2",
+        audioUrl: "https://example.com/2.mp3",
+      };
+
+      player.loadEpisode(ep1, [ep1, ep2]);
+
+      // Enable autoplay via the toggle button
+      const autoplayBtn = container.querySelector(".playlist-autoplay-toggle") as HTMLElement;
+      expect(autoplayBtn).not.toBeNull();
+      autoplayBtn.click();
+
+      const loadSpy = vi.spyOn(player, "loadEpisode");
+
+      (
+        player as unknown as { handleEpisodeEnd: () => void }
+      ).handleEpisodeEnd();
+      await Promise.resolve();
+
+      expect(loadSpy).toHaveBeenCalledWith(ep2, undefined, expect.objectContaining({ autoplay: true, source: "autoplay" }));
     });
   });
 

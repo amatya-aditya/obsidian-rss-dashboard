@@ -7,7 +7,12 @@ import {
   Feed,
   DEFAULT_SETTINGS,
 } from "../../../src/types/types";
-import { renderMediaSettingsTab, DomainIconToggleConfirmModal, collectDomainFeeds, fetchDomainFeedIcons } from "../../../src/settings/tabs/media-settings-tab";
+import {
+  renderMediaSettingsTab,
+  DomainIconToggleConfirmModal,
+  collectDomainFeeds,
+  fetchDomainFeedIcons,
+} from "../../../src/settings/tabs/media-settings-tab";
 import { FeedParser } from "../../../src/services/feed-parser";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type RssDashboardPlugin from "../../../main";
@@ -263,7 +268,7 @@ describe("renderMediaSettingsTab()", () => {
     const settings = cloneSettings();
     settings.availableTags = [
       { name: "MyVideo", color: "#f00" },
-      { name: "MyPodcast", color: "#00f" }
+      { name: "MyPodcast", color: "#00f" },
     ];
     settings.media.defaultYouTubeTag = "Video";
 
@@ -278,17 +283,17 @@ describe("renderMediaSettingsTab()", () => {
 
     const youtubeTagSetting = getSettingByName(
       containerEl,
-      "Default YouTube tag"
+      "Default YouTube tag",
     );
-    
+
     // Ensure it's a select element
     const select = youtubeTagSetting.querySelector(
-      "select"
+      "select",
     ) as HTMLSelectElement;
     expect(select).not.toBeNull();
-    
+
     // Has unassigned and available tags
-    const options = Array.from(select.options).map(o => o.value);
+    const options = Array.from(select.options).map((o) => o.value);
     expect(options).toContain(""); // Unassigned/None
     expect(options).toContain("MyVideo");
     expect(options).toContain("MyPodcast");
@@ -309,7 +314,7 @@ describe("renderMediaSettingsTab()", () => {
     const settings = cloneSettings();
     settings.availableTags = [
       { name: "MyTwitter", color: "#1da1f2" },
-      { name: "MyMastodon", color: "#2b90d9" }
+      { name: "MyMastodon", color: "#2b90d9" },
     ];
     settings.media.defaultTwitterTag = "";
     settings.media.defaultMastodonTag = "";
@@ -326,11 +331,15 @@ describe("renderMediaSettingsTab()", () => {
     // 1. Twitter Tag Settings Dropdown
     const twitterTagSetting = getSettingByName(
       containerEl,
-      "Default Twitter tag"
+      "Default Twitter tag",
     );
-    const twitterSelect = twitterTagSetting.querySelector("select") as HTMLSelectElement;
+    const twitterSelect = twitterTagSetting.querySelector(
+      "select",
+    ) as HTMLSelectElement;
     expect(twitterSelect).not.toBeNull();
-    const twitterOptions = Array.from(twitterSelect.options).map(o => o.value);
+    const twitterOptions = Array.from(twitterSelect.options).map(
+      (o) => o.value,
+    );
     expect(twitterOptions).toContain("");
     expect(twitterOptions).toContain("MyTwitter");
     expect(twitterOptions).toContain("MyMastodon");
@@ -344,11 +353,15 @@ describe("renderMediaSettingsTab()", () => {
     // 2. Mastodon Tag Settings Dropdown
     const mastodonTagSetting = getSettingByName(
       containerEl,
-      "Default Mastodon tag"
+      "Default Mastodon tag",
     );
-    const mastodonSelect = mastodonTagSetting.querySelector("select") as HTMLSelectElement;
+    const mastodonSelect = mastodonTagSetting.querySelector(
+      "select",
+    ) as HTMLSelectElement;
     expect(mastodonSelect).not.toBeNull();
-    const mastodonOptions = Array.from(mastodonSelect.options).map(o => o.value);
+    const mastodonOptions = Array.from(mastodonSelect.options).map(
+      (o) => o.value,
+    );
     expect(mastodonOptions).toContain("");
     expect(mastodonOptions).toContain("MyTwitter");
     expect(mastodonOptions).toContain("MyMastodon");
@@ -361,7 +374,7 @@ describe("renderMediaSettingsTab()", () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
   });
 
-it("renders and persists the Mastodon profile image toggle", async () => {
+  it("renders and persists the Mastodon profile image toggle", async () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),
     );
@@ -571,7 +584,9 @@ it("renders and persists the Mastodon profile image toggle", async () => {
   });
 
   it("renders and persists the RSS site icons toggle", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.media.useDomainIconsRss = false;
     const plugin = {
@@ -584,8 +599,13 @@ it("renders and persists the Mastodon profile image toggle", async () => {
 
     renderMediaSettingsTab(containerEl, plugin);
 
-    const toggleSetting = getSettingByName(containerEl, "Use site icons/favicons for RSS feeds");
-    const toggle = toggleSetting.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const toggleSetting = getSettingByName(
+      containerEl,
+      "Use site icons/favicons for RSS feeds",
+    );
+    const toggle = toggleSetting.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
     expect(toggle.checked).toBe(false);
 
     toggle.click();
@@ -596,7 +616,9 @@ it("renders and persists the Mastodon profile image toggle", async () => {
   });
 
   it("renders the YouTube info message", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     const plugin = {
       app: obsidian.App.createMock(),
@@ -610,11 +632,15 @@ it("renders and persists the Mastodon profile image toggle", async () => {
 
     const setting = getSettingByName(containerEl, "Channel profile images");
     expect(setting).toBeDefined();
-    expect(setting.querySelector(".setting-item-description")?.textContent).toContain("YouTube RSS feeds do not provide channel profile images");
+    expect(
+      setting.querySelector(".setting-item-description")?.textContent,
+    ).toContain("YouTube RSS feeds do not provide channel profile images");
   });
 
   it("renders and persists the Podcast artwork toggle", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.media.useDomainIconsPodcast = false;
     const plugin = {
@@ -627,8 +653,13 @@ it("renders and persists the Mastodon profile image toggle", async () => {
 
     renderMediaSettingsTab(containerEl, plugin);
 
-    const toggleSetting = getSettingByName(containerEl, "Use album/show artwork for Podcast feeds");
-    const toggle = toggleSetting.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const toggleSetting = getSettingByName(
+      containerEl,
+      "Use album/show artwork for Podcast feeds",
+    );
+    const toggle = toggleSetting.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
     expect(toggle.checked).toBe(false);
 
     toggle.click();
@@ -639,7 +670,9 @@ it("renders and persists the Mastodon profile image toggle", async () => {
   });
 
   it("renders and persists the Twitter profile images toggle", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
     const settings = cloneSettings();
     settings.media.useDomainIconsTwitter = false;
     const plugin = {
@@ -652,8 +685,13 @@ it("renders and persists the Mastodon profile image toggle", async () => {
 
     renderMediaSettingsTab(containerEl, plugin);
 
-    const toggleSetting = getSettingByName(containerEl, "Use profile images for Twitter/Nitter feeds");
-    const toggle = toggleSetting.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const toggleSetting = getSettingByName(
+      containerEl,
+      "Use profile images for Twitter/Nitter feeds",
+    );
+    const toggle = toggleSetting.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
     expect(toggle.checked).toBe(false);
 
     toggle.click();
@@ -675,9 +713,13 @@ describe("DomainIconToggleConfirmModal", () => {
       confirmLabel: "Confirm",
     });
     modal.open();
-    
-    expect(modal.contentEl.querySelector("h2")?.textContent).toBe("Clear RSS icons?");
-    expect(modal.contentEl.querySelector("p")?.textContent).toBe("Are you sure about RSS?");
+
+    expect(modal.contentEl.querySelector("h2")?.textContent).toBe(
+      "Clear RSS icons?",
+    );
+    expect(modal.contentEl.querySelector("p")?.textContent).toBe(
+      "Are you sure about RSS?",
+    );
   });
 
   it("renders Cancel and Confirm buttons with correct labels", () => {
@@ -690,7 +732,7 @@ describe("DomainIconToggleConfirmModal", () => {
       confirmLabel: "Yeah",
     });
     modal.open();
-    
+
     const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
     expect(buttons[0].textContent).toBe("Nah");
     expect(buttons[1].textContent).toBe("Yeah");
@@ -708,11 +750,11 @@ describe("DomainIconToggleConfirmModal", () => {
       onConfirm,
     });
     modal.open();
-    
+
     const promise = modal.waitForClose();
     const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
     buttons[1].click(); // Confirm
-    
+
     await promise;
     expect(onConfirm).toHaveBeenCalledOnce();
   });
@@ -727,11 +769,11 @@ describe("DomainIconToggleConfirmModal", () => {
       confirmLabel: "Confirm",
     });
     modal.open();
-    
+
     const promise = modal.waitForClose();
     const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
     buttons[0].click(); // Cancel
-    
+
     const result = await promise;
     expect(result).toBe(false);
   });
@@ -746,11 +788,11 @@ describe("DomainIconToggleConfirmModal", () => {
       confirmLabel: "Confirm",
     });
     modal.open();
-    
+
     const promise = modal.waitForClose();
     const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
     buttons[1].click(); // Confirm
-    
+
     const result = await promise;
     expect(result).toBe(true);
   });
@@ -765,10 +807,10 @@ describe("DomainIconToggleConfirmModal", () => {
       confirmLabel: "Confirm",
     });
     modal.open();
-    
+
     const promise = modal.waitForClose();
     modal.close(); // simulate clicking backdrop or escape which calls close()
-    
+
     const result = await promise;
     expect(result).toBe(false);
   });
@@ -783,7 +825,9 @@ describe("MediaSettings Types", () => {
     // eslint-disable-next-line @typescript-eslint/no-deprecated
     expect(DEFAULT_SETTINGS.media.useMastodonProfileImages).toBe(false);
 
-    const settingsCopy = JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as typeof DEFAULT_SETTINGS;
+    const settingsCopy = JSON.parse(
+      JSON.stringify(DEFAULT_SETTINGS),
+    ) as typeof DEFAULT_SETTINGS;
     settingsCopy.media.useDomainIconsRss = true;
     settingsCopy.media.useDomainIconsPodcast = true;
     settingsCopy.media.useDomainIconsTwitter = true;
@@ -802,8 +846,12 @@ describe("Icon refresh helpers", () => {
       { url: "https://example.com/podcast", title: "Feed 3", items: [] },
     ];
 
-    const matchesDomain = (feed: { url: string }) => feed.url.includes("youtube.com");
-    const result = collectDomainFeeds(feeds as unknown as Feed[], matchesDomain);
+    const matchesDomain = (feed: { url: string }) =>
+      feed.url.includes("youtube.com");
+    const result = collectDomainFeeds(
+      feeds as unknown as Feed[],
+      matchesDomain,
+    );
 
     expect(result).toHaveLength(3);
     expect(result[0].needsRefresh).toBe(false);
@@ -819,11 +867,21 @@ describe("Icon refresh helpers", () => {
 
     const entries = [
       {
-        feed: { url: "https://youtube.com/123", title: "YT Feed", iconUrl: "", items: [] },
+        feed: {
+          url: "https://youtube.com/123",
+          title: "YT Feed",
+          iconUrl: "",
+          items: [],
+        },
         needsRefresh: true,
       },
       {
-        feed: { url: "https://other.com", title: "Other Feed", iconUrl: "", items: [] },
+        feed: {
+          url: "https://other.com",
+          title: "Other Feed",
+          iconUrl: "",
+          items: [],
+        },
         needsRefresh: false,
       },
     ];
@@ -839,3 +897,38 @@ describe("Icon refresh helpers", () => {
   });
 });
 
+describe("Media settings default playback speed", () => {
+  it("renders and persists default play speed setting", async () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
+    const settings = cloneSettings();
+    // @ts-ignore
+    settings.media.defaultPlaySpeed = 1;
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      getActiveReaderView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const speedSetting = getSettingByName(containerEl, "Default play speed");
+    expect(speedSetting).not.toBeNull();
+
+    const select = speedSetting.querySelector("select") as HTMLSelectElement;
+    expect(select).not.toBeNull();
+    expect(select.value).toBe("1");
+
+    select.value = "1.5";
+    select.dispatchEvent(new Event("change"));
+    await flushPromises();
+
+    // @ts-ignore
+    expect(plugin.settings.media.defaultPlaySpeed).toBe(1.5);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+  });
+});

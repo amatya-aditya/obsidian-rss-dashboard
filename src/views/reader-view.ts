@@ -1397,6 +1397,7 @@ export class ReaderView extends ItemView {
         onEpisodeSelected,
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
+        this.settings.media.defaultPlaySpeed ?? 1,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -1414,6 +1415,7 @@ export class ReaderView extends ItemView {
           onEpisodeSelected,
           this.onPlaybackProgress,
           this.settings.media.rememberPlaybackProgress,
+          this.settings.media.defaultPlaySpeed ?? 1,
         );
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
       } else {
