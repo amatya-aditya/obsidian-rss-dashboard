@@ -347,6 +347,26 @@ export function renderMediaSettingsTab(
   new Setting(containerEl).setName("Podcast player").setHeading();
 
   new Setting(containerEl)
+    .setName("Default play speed")
+    .setDesc("Default playback speed for podcast episodes")
+    .addDropdown((dropdown) =>
+      dropdown
+        .addOption("0.75", "0.75x")
+        .addOption("1", "1x")
+        .addOption("1.25", "1.25x")
+        .addOption("1.5", "1.5x")
+        .addOption("1.75", "1.75x")
+        .addOption("2", "2x")
+        .addOption("2.5", "2.5x")
+        .addOption("3", "3x")
+        .setValue(String(plugin.settings.media.defaultPlaySpeed ?? 1))
+        .onChange(async (value) => {
+          plugin.settings.media.defaultPlaySpeed = parseFloat(value);
+          await plugin.saveSettings();
+        }),
+    );
+
+  new Setting(containerEl)
     .setName("Player theme")
     .setDesc("Choose a visual theme for the podcast player")
     .addDropdown((dropdown) =>

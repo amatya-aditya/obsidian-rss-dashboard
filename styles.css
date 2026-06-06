@@ -4777,6 +4777,16 @@ mark.rss-highlight {
   --rss-color-youtube-badge: #ff0000;
   --rss-color-discover-accent: #9b59b6;
   --rss-color-discover-accent-hover: #a66ac0;
+  --rss-color-kagi-brand: #981fc8;
+  --rss-color-follow-default-bg: var(--interactive-normal, #3b463c);
+  --rss-color-follow-default-border: var(--background-modifier-border, #50555d);
+  --rss-color-follow-default-text: var(--text-normal, #f3f4f6);
+  --rss-color-following-bg: var(--background-secondary-alt, #25282e);
+  --rss-color-following-border: var(--background-modifier-border, #3b3f46);
+  --rss-color-following-text: var(--interactive-accent, #7ee787);
+  --rss-color-unfollow-hover-bg: var(--background-modifier-error, #5a1e24);
+  --rss-color-unfollow-hover-border: var(--text-error, #e5484d);
+  --rss-color-unfollow-hover-text: var(--text-error, #ffb4b4);
 }
 .rss-dashboard-modal {
   position: fixed;
@@ -5571,7 +5581,7 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
   }
   body .modal-container .modal.rss-storage-transition-modal {
     --rss-storage-modal-bottom-gap: 24px;
-    --rss-storage-modal-bottom-gap: max( 24px, env(safe-area-inset-bottom, 0px) );
+    --rss-storage-modal-bottom-gap: max(24px, env(safe-area-inset-bottom, 0px));
     width: auto;
     max-width: calc(100vw - 24px);
     max-height: calc(90vh - 24px);
@@ -7438,9 +7448,9 @@ body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
 }
 .rss-discover-card-add-btn,
 .rss-discover-card-preview-btn {
-  background: var(--interactive-normal);
-  color: var(--text-normal);
-  border: 1px solid var(--background-modifier-border);
+  background: var(--rss-color-follow-default-bg);
+  color: var(--rss-color-follow-default-text);
+  border: 1px solid var(--rss-color-follow-default-border);
   border-radius: 4px;
   padding: 0.3rem 0.8rem;
   font-size: 0.9rem;
@@ -7457,6 +7467,7 @@ body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
 .rss-discover-card-add-btn:hover,
 .rss-discover-card-preview-btn:hover {
   background: var(--interactive-hover);
+  color: var(--text-normal);
   border-color: var(--interactive-accent);
 }
 .rss-discover-card-add-btn svg,
@@ -7465,17 +7476,32 @@ body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
   height: 14px;
   flex-shrink: 0;
 }
-body .rss-discover-card-actions .rss-discover-card-remove-btn {
+body .rss-discover-card-remove-btn {
+  background: var(--rss-color-following-bg);
+  color: var(--rss-color-following-text);
+  border: 1px solid var(--rss-color-following-border);
   cursor: pointer;
-  background: var(--background-modifier-error);
-  color: var(--text-error);
-  border: 1px solid var(--background-modifier-error);
+  opacity: 0.9;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   transition: all 0.2s ease;
+  border-radius: 4px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.9rem;
+  line-height: 1;
+  min-height: 30px;
+  appearance: none;
 }
-body .rss-discover-card-actions .rss-discover-card-remove-btn:hover {
-  background: var(--background-modifier-error);
-  color: var(--text-error);
-  border-color: var(--text-error);
+.rss-discover-card-remove-btn svg {
+  width: 14px;
+  height: 14px;
+  color: var(--rss-color-following-text);
+}
+body .rss-discover-card-remove-btn:hover {
+  background: var(--rss-color-unfollow-hover-bg);
+  color: var(--rss-color-unfollow-hover-text);
+  border-color: var(--rss-color-unfollow-hover-border);
 }
 .rss-discover-card-actions {
   display: flex;
@@ -8718,23 +8744,25 @@ body .rss-discover-controls-container.is-narrow .rss-discover-mobile-header {
   white-space: nowrap;
 }
 body .rss-smallweb-following-btn {
-  background: var(--background-modifier-success);
-  color: var(--text-error);
-  border: 1px solid var(--background-modifier-success);
+  background: var(--rss-color-following-bg);
+  color: var(--rss-color-following-text);
+  border: 1px solid var(--rss-color-following-border);
   cursor: pointer;
   opacity: 0.9;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  transition: all 0.2s ease;
 }
 .rss-smallweb-following-btn svg {
   width: 14px;
   height: 14px;
+  color: var(--rss-color-following-text);
 }
 body .rss-smallweb-unfollow-hover {
-  background: var(--background-modifier-error);
-  color: var(--text-error);
-  border-color: var(--background-modifier-error);
+  background: var(--rss-color-unfollow-hover-bg);
+  color: var(--rss-color-unfollow-hover-text);
+  border-color: var(--rss-color-unfollow-hover-border);
 }
 body .rss-smallweb-error-btn {
   background: var(--background-modifier-error);
@@ -9695,13 +9723,14 @@ body .rss-folder-selector-input {
   font-size: 2rem;
 }
 .playlist-ep-cover-placeholder {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1rem;
+  flex-shrink: 0;
 }
 .episode-duration-badge {
   padding: 2px 6px;

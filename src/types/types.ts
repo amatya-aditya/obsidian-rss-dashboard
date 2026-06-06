@@ -226,6 +226,7 @@ export interface MediaSettings {
   openInSplitView: boolean;
   podcastTheme: PodcastTheme;
   enableApplePodcastsOpen?: boolean;
+  defaultPlaySpeed?: number;
 }
 
 export interface SavedTemplate {
@@ -608,6 +609,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     openInSplitView: true,
     podcastTheme: "obsidian",
     enableApplePodcastsOpen: false,
+    defaultPlaySpeed: 1,
   },
   articleSaving: {
     addSavedTag: true,

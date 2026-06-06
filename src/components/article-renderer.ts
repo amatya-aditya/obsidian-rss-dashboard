@@ -225,6 +225,7 @@ export class ArticleRenderer {
         onEpisodeSelected,
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
+        this.settings.media.defaultPlaySpeed ?? 1,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {

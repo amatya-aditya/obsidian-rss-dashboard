@@ -1,5 +1,5 @@
 import { FeedItem } from "../types/types";
-import { App, setIcon, Menu } from "obsidian";
+import { App, setIcon, Menu, Notice } from "obsidian";
 import { MediaService } from "../services/media-service";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { windowInstanceOf } from "../utils/platform-utils";
@@ -21,6 +21,8 @@ export class PodcastPlayer {
   private sortOrder: "recent" | "oldest" = "recent";
   private previousVolume = 1;
   private progressTrackingEnabled: boolean;
+  private defaultPlaySpeed: number;
+  private isAutoplayEnabled = false;
   private onEpisodeSelected?: (
     item: FeedItem,
     source: "playlist" | "nav" | "autoplay" | "external",
@@ -69,11 +71,13 @@ export class PodcastPlayer {
       flush?: boolean,
     ) => void,
     progressTrackingEnabled = true,
+    defaultPlaySpeed = 1,
   ) {
     this.container = container;
     this.app = app;
     this.theme = theme || "obsidian";
     this.progressTrackingEnabled = progressTrackingEnabled;
+    this.defaultPlaySpeed = defaultPlaySpeed ?? 1;
     if (playlist) {
       this.playlist = playlist;
       this.originalPlaylist = [...playlist];
@@ -233,7 +237,7 @@ export class PodcastPlayer {
       this.handleEpisodeEnd();
     };
     this.audioElement.volume = 1;
-    this.audioElement.playbackRate = 1;
+    this.audioElement.playbackRate = this.defaultPlaySpeed;
 
     // --- NEW TWO-ROW LAYOUT STRUCTURE ---
     this.playerEl = podcastContainer.createDiv({
@@ -439,7 +443,7 @@ export class PodcastPlayer {
         attr: { value: v.toString() },
         text: `${v}\u00D7`,
       });
-      if (option && v === 1) option.selected = true;
+      if (option && v === this.defaultPlaySpeed) option.selected = true;
     });
     this.speedButtonEl.onchange = () => {
       if (this.audioElement && this.speedButtonEl) {
@@ -703,6 +707,20 @@ export class PodcastPlayer {
       const sortControls = playlistHeader.createDiv({
         cls: "playlist-sort-controls",
       });
+
+      const autoplayBtn = sortControls.createEl("button", {
+        cls: "playlist-sort-btn playlist-autoplay-toggle",
+        text: "Autoplay",
+        attr: {
+          title: "Continuously play all episodes in the playlist"
+        }
+      });
+      if (this.isAutoplayEnabled) autoplayBtn.addClass("active-sort");
+      autoplayBtn.onclick = () => {
+        this.isAutoplayEnabled = !this.isAutoplayEnabled;
+        autoplayBtn.classList.toggle("active-sort", this.isAutoplayEnabled);
+        new Notice(this.isAutoplayEnabled ? "Autoplay enabled" : "Autoplay disabled");
+      };
 
       const recentBtn = sortControls.createEl("button", {
         cls: "playlist-sort-btn",
@@ -1031,6 +1049,20 @@ export class PodcastPlayer {
         cls: "playlist-sort-controls",
       });
 
+      const autoplayBtn = sortControls.createEl("button", {
+        cls: "playlist-sort-btn playlist-autoplay-toggle",
+        text: "Autoplay",
+        attr: {
+          title: "Continuously play all episodes in the playlist"
+        }
+      });
+      if (this.isAutoplayEnabled) autoplayBtn.addClass("active-sort");
+      autoplayBtn.onclick = () => {
+        this.isAutoplayEnabled = !this.isAutoplayEnabled;
+        autoplayBtn.classList.toggle("active-sort", this.isAutoplayEnabled);
+        new Notice(this.isAutoplayEnabled ? "Autoplay enabled" : "Autoplay disabled");
+      };
+
       const recentBtn = sortControls.createEl("button", {
         cls: "playlist-sort-btn",
         text: "Recent",
@@ -1084,13 +1116,13 @@ export class PodcastPlayer {
             const placeholder = epRow.createDiv({
               cls: "playlist-ep-cover-placeholder",
             });
-            placeholder.textContent = "ðŸŽ§";
+            placeholder.textContent = "🎧";
           };
         } else {
           const placeholder = epRow.createDiv({
             cls: "playlist-ep-cover-placeholder",
           });
-          placeholder.textContent = "ðŸŽ§";
+          placeholder.textContent = "🎧";
         }
 
         const epInfo = epRow.createDiv({ cls: "playlist-ep-info" });
@@ -1236,15 +1268,17 @@ export class PodcastPlayer {
         });
       }
     } else {
-      if (this.playlist.length === 0) return;
-      this.currentPlaylistIndex =
-        (this.currentPlaylistIndex + 1) % this.playlist.length;
-      const nextEpisode = this.playlist[this.currentPlaylistIndex];
-      this.loadEpisode(nextEpisode, undefined, {
-        notify: true,
-        source: "autoplay",
-        autoplay: true,
-      });
+      if (this.isAutoplayEnabled) {
+        if (this.playlist.length === 0) return;
+        this.currentPlaylistIndex =
+          (this.currentPlaylistIndex + 1) % this.playlist.length;
+        const nextEpisode = this.playlist[this.currentPlaylistIndex];
+        this.loadEpisode(nextEpisode, undefined, {
+          notify: true,
+          source: "autoplay",
+          autoplay: true,
+        });
+      }
     }
 
     if (this.stopAtEndOfEpisode) {

@@ -563,7 +563,7 @@ export class KagiSmallwebView extends ItemView {
         cls: "rss-discover-card-add-btn",
       });
       setIcon(followBtn, "plus");
-      followBtn.createSpan({ text: " Follow" });
+      followBtn.createSpan({ text: " Add to..." });
 
       // Get default folder from settings
       const defaultFolder =

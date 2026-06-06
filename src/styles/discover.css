@@ -170,9 +170,9 @@
 
 .rss-discover-card-add-btn,
 .rss-discover-card-preview-btn {
-  background: var(--interactive-normal);
-  color: var(--text-normal);
-  border: 1px solid var(--background-modifier-border);
+  background: var(--rss-color-follow-default-bg);
+  color: var(--rss-color-follow-default-text);
+  border: 1px solid var(--rss-color-follow-default-border);
   border-radius: 4px;
   padding: 0.3rem 0.8rem;
   font-size: 0.9rem;
@@ -190,6 +190,7 @@
 .rss-discover-card-add-btn:hover,
 .rss-discover-card-preview-btn:hover {
   background: var(--interactive-hover);
+  color: var(--text-normal);
   border-color: var(--interactive-accent);
 }
 
@@ -200,18 +201,36 @@
   flex-shrink: 0;
 }
 
-body .rss-discover-card-actions .rss-discover-card-remove-btn {
+/* Remove/Following button - default state (Following style) */
+body .rss-discover-card-remove-btn {
+  background: var(--rss-color-following-bg);
+  color: var(--rss-color-following-text);
+  border: 1px solid var(--rss-color-following-border);
   cursor: pointer;
-  background: var(--background-modifier-error);
-  color: var(--text-error);
-  border: 1px solid var(--background-modifier-error);
+  opacity: 0.9;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   transition: all 0.2s ease;
+  border-radius: 4px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.9rem;
+  line-height: 1;
+  min-height: 30px;
+  appearance: none;
 }
 
-body .rss-discover-card-actions .rss-discover-card-remove-btn:hover {
-  background: var(--background-modifier-error);
-  color: var(--text-error);
-  border-color: var(--text-error);
+.rss-discover-card-remove-btn svg {
+  width: 14px;
+  height: 14px;
+  color: var(--rss-color-following-text);
+}
+
+/* Remove button hover state (x Remove) */
+body .rss-discover-card-remove-btn:hover {
+  background: var(--rss-color-unfollow-hover-bg);
+  color: var(--rss-color-unfollow-hover-text);
+  border-color: var(--rss-color-unfollow-hover-border);
 }
 
 .rss-discover-card-actions {

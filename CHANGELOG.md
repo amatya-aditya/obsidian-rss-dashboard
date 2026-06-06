@@ -1,5 +1,13 @@
 ## Unreleased
 
+### New Features
+
+#### Podcast Player
+
+- Added: Setting > Media > Podcast player setting where users can apply a default playspeed that automatically applies when the player loads an episode.
+
+- Added: "Autoplay" button in the playlist bar. Enabling it will autoplay episodes when the previous one finishes. Disabling it will only play the current episode and will prevent episodes from automatically playing.
+
 ## [2.4.0-beta.1] - June 5, 2026
 
 ### New Features
