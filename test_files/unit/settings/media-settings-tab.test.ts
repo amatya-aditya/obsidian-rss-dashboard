@@ -158,44 +158,6 @@ describe("renderMediaSettingsTab()", () => {
     ).querySelector('input[type="text"]') as HTMLInputElement;
     youtubeInput.value = "Media/YouTube";
     youtubeInput.dispatchEvent(new Event("input"));
-      "Default Mastodon folder",
-    );
-    const input = mastodonSetting.querySelector(
-      'input[type="text"]',
-    ) as HTMLInputElement;
-
-    expect(input.value).toBe("Mastodon");
-
-    input.value = "Social/Mastodon";
-    input.dispatchEvent(new Event("input"));
-    await flushPromises();
-
-    expect(plugin.settings.media.defaultMastodonFolder).toBe(
-      "norm:Social/Mastodon",
-    );
-    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
-  });
-
-  it("renders tag settings as dropdowns and persists changes", async () => {
-    const containerEl = document.body.appendChild(
-      document.createElement("div"),
-    );
-    const settings = cloneSettings();
-    settings.availableTags = [
-      { name: "MyVideo", color: "#f00" },
-      { name: "MyPodcast", color: "#00f" },
-    ];
-    settings.media.defaultYouTubeTag = "Video";
-
-    const plugin = {
-      app: obsidian.App.createMock(),
-      settings,
-      saveSettings: vi.fn(async () => {}),
-      clearPlaybackProgress: vi.fn(async () => 0),
-    } as unknown as RssDashboardPlugin;
-
-    renderMediaSettingsTab(containerEl, plugin);
-
     const smallwebInput = getSettingByName(
       containerEl,
       "Default smallweb folder",
@@ -210,106 +172,13 @@ describe("renderMediaSettingsTab()", () => {
     );
     expect(plugin.settings.media.defaultYouTubeFolder).toBe(
       "norm:Media/YouTube",
-      "Default YouTube tag",
-    );
-
-    // Ensure it's a select element
-    const select = youtubeTagSetting.querySelector(
-      "select",
-    ) as HTMLSelectElement;
-    expect(select).not.toBeNull();
-
-    // Has unassigned and available tags
-    const options = Array.from(select.options).map((o) => o.value);
-    expect(options).toContain(""); // Unassigned/None
-    expect(options).toContain("MyVideo");
-    expect(options).toContain("MyPodcast");
-
-    // Change value
-    select.value = "MyVideo";
-    select.dispatchEvent(new Event("change"));
-    await flushPromises();
-
-    expect(plugin.settings.media.defaultYouTubeTag).toBe("MyVideo");
-    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
-  });
-
-  it("renders Twitter and Mastodon tag settings as dropdowns and persists changes", async () => {
-    const containerEl = document.body.appendChild(
-      document.createElement("div"),
-    );
-    const settings = cloneSettings();
-    settings.availableTags = [
-      { name: "MyTwitter", color: "#1da1f2" },
-      { name: "MyMastodon", color: "#2b90d9" },
-    ];
-    settings.media.defaultTwitterTag = "";
-    settings.media.defaultMastodonTag = "";
-
-    const plugin = {
-      app: obsidian.App.createMock(),
-      settings,
-      saveSettings: vi.fn(async () => {}),
-      clearPlaybackProgress: vi.fn(async () => 0),
-    } as unknown as RssDashboardPlugin;
-
-    renderMediaSettingsTab(containerEl, plugin);
-
-    // 1. Twitter Tag Settings Dropdown
-    const twitterTagSetting = getSettingByName(
-      containerEl,
-      "Default Twitter tag",
-    );
-    const twitterSelect = twitterTagSetting.querySelector(
-      "select",
-    ) as HTMLSelectElement;
-    expect(twitterSelect).not.toBeNull();
-    const twitterOptions = Array.from(twitterSelect.options).map(
-      (o) => o.value,
-    );
-    expect(twitterOptions).toContain("");
-    expect(twitterOptions).toContain("MyTwitter");
-    expect(twitterOptions).toContain("MyMastodon");
-
-    twitterSelect.value = "MyTwitter";
-    twitterSelect.dispatchEvent(new Event("change"));
-    await flushPromises();
-
-    expect(plugin.settings.media.defaultTwitterTag).toBe("MyTwitter");
-
-    // 2. Mastodon Tag Settings Dropdown
-    const mastodonTagSetting = getSettingByName(
-      containerEl,
-      "Default Mastodon tag",
-    );
-    const mastodonSelect = mastodonTagSetting.querySelector(
-      "select",
-    ) as HTMLSelectElement;
-    expect(mastodonSelect).not.toBeNull();
-    const mastodonOptions = Array.from(mastodonSelect.options).map(
-      (o) => o.value,
-    );
-    expect(mastodonOptions).toContain("");
-    expect(mastodonOptions).toContain("MyTwitter");
-    expect(mastodonOptions).toContain("MyMastodon");
-
-    mastodonSelect.value = "MyMastodon";
-    mastodonSelect.dispatchEvent(new Event("change"));
-    await flushPromises();
-
-    expect(plugin.settings.media.defaultMastodonTag).toBe("MyMastodon");
-    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
-  });
-
-  it("renders and persists the Mastodon profile image toggle", async () => {
-    const containerEl = document.body.appendChild(
-      document.createElement("div"),
     );
     expect(plugin.settings.media.defaultSmallwebFolder).toBe(
       "norm:Web/Smallweb",
     );
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(3);
   });
+
 
   it("wires media folder settings with the shared folder suggester defaults", async () => {
     vi.resetModules();
@@ -761,9 +630,6 @@ describe("MediaSettings Types", () => {
     expect(DEFAULT_SETTINGS.media.useDomainIconsPodcast).toBe(false);
     expect(DEFAULT_SETTINGS.media.useDomainIconsTwitter).toBe(false);
     expect(DEFAULT_SETTINGS.media.useDomainIconsMastodon).toBe(false);
-
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
-    expect(DEFAULT_SETTINGS.media.useMastodonProfileImages).toBe(false);
 
     const settingsCopy = JSON.parse(
       JSON.stringify(DEFAULT_SETTINGS),
