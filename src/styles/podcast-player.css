@@ -591,6 +591,15 @@
   gap: 8px;
 }
 
+.playlist-autoplay-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .playlist-sort-btn {
   padding: 4px 12px;
   font-size: 0.75rem;

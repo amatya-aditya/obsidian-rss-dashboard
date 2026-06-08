@@ -717,12 +717,6 @@ export class PodcastPlayer {
         cls: "playlist-autoplay-container",
         attr: { title: "Continuously play all episodes in the playlist" }
       });
-      autoplayLabel.style.display = "flex";
-      autoplayLabel.style.alignItems = "center";
-      autoplayLabel.style.gap = "6px";
-      autoplayLabel.style.cursor = "pointer";
-      autoplayLabel.style.fontSize = "0.75rem";
-      autoplayLabel.style.fontWeight = "600";
 
       const autoplayCheckbox = autoplayLabel.createEl("input", {
         type: "checkbox",
@@ -1069,12 +1063,6 @@ export class PodcastPlayer {
         cls: "playlist-autoplay-container",
         attr: { title: "Continuously play all episodes in the playlist" }
       });
-      autoplayLabel.style.display = "flex";
-      autoplayLabel.style.alignItems = "center";
-      autoplayLabel.style.gap = "6px";
-      autoplayLabel.style.cursor = "pointer";
-      autoplayLabel.style.fontSize = "0.75rem";
-      autoplayLabel.style.fontWeight = "600";
 
       const autoplayCheckbox = autoplayLabel.createEl("input", {
         type: "checkbox",
