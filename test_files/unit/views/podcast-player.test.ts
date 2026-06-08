@@ -259,17 +259,20 @@ describe("PodcastPlayer", () => {
         undefined,
         undefined,
         true,
-        1.5
+        1.5,
       );
 
       // audioElement is created during render(), which is called by loadEpisode()
       const ep = baseEpisode();
       player.loadEpisode(ep);
 
-      const audio = (player as unknown as { audioElement: HTMLAudioElement }).audioElement;
+      const audio = (player as unknown as { audioElement: HTMLAudioElement })
+        .audioElement;
       expect(audio.playbackRate).toBe(1.5);
 
-      const speedBtn = container.querySelector(".rss-speed-control") as HTMLSelectElement;
+      const speedBtn = container.querySelector(
+        ".rss-speed-control",
+      ) as HTMLSelectElement;
       expect(speedBtn).not.toBeNull();
       expect(speedBtn.value).toBe("1.5");
     });
@@ -302,7 +305,8 @@ describe("PodcastPlayer", () => {
       expect(loadSpy).not.toHaveBeenCalled();
 
       // Checking if playBtn is not "pause" is a proxy for stopped
-      const playBtnAfter = container.querySelector<HTMLElement>(".rss-play-pause");
+      const playBtnAfter =
+        container.querySelector<HTMLElement>(".rss-play-pause");
       expect(playBtnAfter?.dataset.icon).toBe("play");
     });
 
@@ -322,10 +326,12 @@ describe("PodcastPlayer", () => {
 
       player.loadEpisode(ep1, [ep1, ep2]);
 
-      // Enable autoplay via the toggle button
-      const autoplayBtn = container.querySelector(".playlist-autoplay-toggle") as HTMLElement;
-      expect(autoplayBtn).not.toBeNull();
-      autoplayBtn.click();
+      // Enable autoplay via the toggle checkbox
+      const autoplayCheckbox = container.querySelector(
+        ".playlist-autoplay-checkbox",
+      ) as HTMLInputElement;
+      expect(autoplayCheckbox).not.toBeNull();
+      autoplayCheckbox.click();
 
       const loadSpy = vi.spyOn(player, "loadEpisode");
 
@@ -334,7 +340,11 @@ describe("PodcastPlayer", () => {
       ).handleEpisodeEnd();
       await Promise.resolve();
 
-      expect(loadSpy).toHaveBeenCalledWith(ep2, undefined, expect.objectContaining({ autoplay: true, source: "autoplay" }));
+      expect(loadSpy).toHaveBeenCalledWith(
+        ep2,
+        undefined,
+        expect.objectContaining({ autoplay: true, source: "autoplay" }),
+      );
     });
   });
 

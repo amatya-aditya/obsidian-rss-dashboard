@@ -136,6 +136,9 @@ export class PodcastPlayer {
       if (item.audioUrl) {
         this.audioElement.src = item.audioUrl;
         this.audioElement.load();
+        this.audioElement.playbackRate = this.defaultPlaySpeed;
+        this.audioElement.defaultPlaybackRate = this.defaultPlaySpeed;
+
         const savedProgress = this.progressTrackingEnabled
           ? (item.playbackProgress ?? this.progressData.get(item.guid))
           : undefined;
@@ -447,9 +450,11 @@ export class PodcastPlayer {
     });
     this.speedButtonEl.onchange = () => {
       if (this.audioElement && this.speedButtonEl) {
-        this.audioElement.playbackRate = Number(
+        const newSpeed = Number(
           (this.speedButtonEl as HTMLSelectElement).value,
         );
+        this.audioElement.playbackRate = newSpeed;
+        this.defaultPlaySpeed = newSpeed;
       }
     };
 
@@ -708,19 +713,30 @@ export class PodcastPlayer {
         cls: "playlist-sort-controls",
       });
 
-      const autoplayBtn = sortControls.createEl("button", {
-        cls: "playlist-sort-btn playlist-autoplay-toggle",
-        text: "Autoplay",
-        attr: {
-          title: "Continuously play all episodes in the playlist"
-        }
+      const autoplayLabel = sortControls.createEl("label", {
+        cls: "playlist-autoplay-container",
+        attr: { title: "Continuously play all episodes in the playlist" }
       });
-      if (this.isAutoplayEnabled) autoplayBtn.addClass("active-sort");
-      autoplayBtn.onclick = () => {
-        this.isAutoplayEnabled = !this.isAutoplayEnabled;
-        autoplayBtn.classList.toggle("active-sort", this.isAutoplayEnabled);
+      autoplayLabel.style.display = "flex";
+      autoplayLabel.style.alignItems = "center";
+      autoplayLabel.style.gap = "6px";
+      autoplayLabel.style.cursor = "pointer";
+      autoplayLabel.style.fontSize = "0.75rem";
+      autoplayLabel.style.fontWeight = "600";
+
+      const autoplayCheckbox = autoplayLabel.createEl("input", {
+        type: "checkbox",
+        cls: "playlist-autoplay-checkbox"
+      });
+      autoplayCheckbox.checked = this.isAutoplayEnabled;
+      
+      autoplayLabel.createSpan({ text: "Autoplay" });
+      
+      autoplayCheckbox.onchange = () => {
+        this.isAutoplayEnabled = autoplayCheckbox.checked;
         new Notice(this.isAutoplayEnabled ? "Autoplay enabled" : "Autoplay disabled");
       };
+
 
       const recentBtn = sortControls.createEl("button", {
         cls: "playlist-sort-btn",
@@ -1049,17 +1065,27 @@ export class PodcastPlayer {
         cls: "playlist-sort-controls",
       });
 
-      const autoplayBtn = sortControls.createEl("button", {
-        cls: "playlist-sort-btn playlist-autoplay-toggle",
-        text: "Autoplay",
-        attr: {
-          title: "Continuously play all episodes in the playlist"
-        }
+      const autoplayLabel = sortControls.createEl("label", {
+        cls: "playlist-autoplay-container",
+        attr: { title: "Continuously play all episodes in the playlist" }
       });
-      if (this.isAutoplayEnabled) autoplayBtn.addClass("active-sort");
-      autoplayBtn.onclick = () => {
-        this.isAutoplayEnabled = !this.isAutoplayEnabled;
-        autoplayBtn.classList.toggle("active-sort", this.isAutoplayEnabled);
+      autoplayLabel.style.display = "flex";
+      autoplayLabel.style.alignItems = "center";
+      autoplayLabel.style.gap = "6px";
+      autoplayLabel.style.cursor = "pointer";
+      autoplayLabel.style.fontSize = "0.75rem";
+      autoplayLabel.style.fontWeight = "600";
+
+      const autoplayCheckbox = autoplayLabel.createEl("input", {
+        type: "checkbox",
+        cls: "playlist-autoplay-checkbox"
+      });
+      autoplayCheckbox.checked = this.isAutoplayEnabled;
+      
+      autoplayLabel.createSpan({ text: "Autoplay" });
+      
+      autoplayCheckbox.onchange = () => {
+        this.isAutoplayEnabled = autoplayCheckbox.checked;
         new Notice(this.isAutoplayEnabled ? "Autoplay enabled" : "Autoplay disabled");
       };
 

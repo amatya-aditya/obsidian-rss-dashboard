@@ -627,10 +627,12 @@
 }
 
 .playlist-episode-row {
-  display: flex;
+  display: flex !important;
   align-items: center;
   gap: 16px;
-  padding: 12px;
+  padding: 12px !important;
+  height: auto !important;
+  min-height: 86px !important;
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -870,9 +872,15 @@
 /* .active { theme specific styles apply via podcast-themes.css } */
 
 /* Progress on playlist rows */
-.playlist-episode-row.has-progress {
+.playlist-episode-row.has-progress,
+.playlist-episode-row.active,
+.playlist-episode-row.has-progress.active {
   position: relative;
   overflow: hidden;
+  padding: 12px !important;
+  height: auto !important;
+  min-height: 86px !important;
+  display: flex !important;
 }
 
 .playlist-episode-row.has-progress::after {

@@ -9548,10 +9548,12 @@ body .rss-folder-selector-input {
   padding-right: 8px;
 }
 .playlist-episode-row {
-  display: flex;
+  display: flex !important;
   align-items: center;
   gap: 16px;
-  padding: 12px;
+  padding: 12px !important;
+  height: auto !important;
+  min-height: 86px !important;
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -9747,9 +9749,15 @@ body .rss-folder-selector-input {
   justify-content: center;
   cursor: pointer;
 }
-.playlist-episode-row.has-progress {
+.playlist-episode-row.has-progress,
+.playlist-episode-row.active,
+.playlist-episode-row.has-progress.active {
   position: relative;
   overflow: hidden;
+  padding: 12px !important;
+  height: auto !important;
+  min-height: 86px !important;
+  display: flex !important;
 }
 .playlist-episode-row.has-progress::after {
   content: "";
