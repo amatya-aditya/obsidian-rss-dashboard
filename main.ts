@@ -2019,10 +2019,12 @@ export default class RssDashboardPlugin extends Plugin {
   async loadSettings() {
     try {
       storageLog("Loading plugin settings");
-      // First, load from plugin-default location to bootstrap
+
+      // Step 1: load bootstrap pointer from plugin-default location
       let data = (await this.loadData()) as RssDashboardSettings | null;
 
-      // If settings indicate vault-location mode, try to load from there
+      // Step 2: if pointer indicates vault-location mode, load full
+      // settings from the vault path stored in the pointer
       if (data?.metadataStorageMode === "vault-location") {
         const vaultData = await loadMetadata(
           this.app,
@@ -2037,13 +2039,14 @@ export default class RssDashboardPlugin extends Plugin {
         }
       }
 
+      // Track whether we bootstrapped from null (possible pending sync)
+      const wasNullLoad = data === null;
+
       const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
       const originalSettingsJson = JSON.stringify(mergedSettings);
 
-      // ✅ settings-loader extracted — all 896 tests passing
       this.settings = loadAndNormalizeSettings(data);
       const didMigrateKeywordRules = this.migrateLegacySettings();
-
       await this.repairMissingFolderPathsForFeeds();
       const hydrated = await this.feedStorageRepository.hydrateSettings(
         this.settings,
@@ -2059,18 +2062,27 @@ export default class RssDashboardPlugin extends Plugin {
         this.settings.feeds,
       );
 
-      if (
-        didMigrateKeywordRules ||
-        hydrated.didChange ||
-        didNormalizeAndDedupeItems ||
-        JSON.stringify(this.settings) !== originalSettingsJson
-      ) {
+      // Guard: skip the early write if we loaded from null defaults.
+      // A null load on a synced vault likely means sync hasn't delivered
+      // data.json yet — writing empty defaults here would clobber it.
+      // The vault modify listener in onload() will trigger loadSettings()
+      // again once sync delivers the real data.
+      const shouldSave =
+        !wasNullLoad &&
+        (didMigrateKeywordRules ||
+          hydrated.didChange ||
+          didNormalizeAndDedupeItems ||
+          JSON.stringify(this.settings) !== originalSettingsJson);
+
+      if (shouldSave) {
         await this.saveSettings();
       }
     } catch (error) {
       storageError("Error loading plugin settings", error);
       new Notice(
-        `Error loading settings: ${error instanceof Error ? error.message : "Unknown error"}`,
+        `Error loading settings: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
       );
       this.settings = DEFAULT_SETTINGS;
     }
@@ -2264,9 +2276,7 @@ export default class RssDashboardPlugin extends Plugin {
   private getMetadataSaveCallback() {
     return async (data: RssDashboardSettings): Promise<void> => {
       const metadataPath = getMetadataPath(this.settings);
-
       if (metadataPath) {
-        // Vault-location mode: save to vault folder
         try {
           await ensureMetadataFolderExists(this.app, this.settings);
           const dataFilePath = `${metadataPath}/data.json`;
@@ -2275,15 +2285,18 @@ export default class RssDashboardPlugin extends Plugin {
           storageLog("Metadata saved to vault location", {
             path: dataFilePath,
           });
-
-          // Bootstrap pointer: save metadata config locally so the app knows where to look on restart.
-          await this.saveData(data);
+          // Bootstrap pointer only — just enough for loadSettings to
+          // find the vault data.json on restart. Does NOT write full
+          // settings to .obsidian, preventing the stale-read bug on mobile.
+          await this.saveData({
+            metadataStorageMode: this.settings.metadataStorageMode,
+            metadataStorageFolder: this.settings.metadataStorageFolder,
+          });
         } catch (error) {
           storageError("Failed to save metadata to vault location", error);
           throw error;
         }
       } else {
-        // Plugin-default mode: use Plugin.saveData()
         await this.saveData(data);
         storageLog("Metadata saved to plugin default location");
       }
