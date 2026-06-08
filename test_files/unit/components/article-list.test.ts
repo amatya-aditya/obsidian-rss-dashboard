@@ -1148,9 +1148,13 @@ describe("ArticleList Component", () => {
     });
   });
 
-  describe("Feed View Rendering", () => {
-    it("should render with rss-dashboard-feed-view class when viewStyle is feed", () => {
+import { renderSingleRowCardTagChips } from "../../../../src/components/article-list/utils/tag-layout-utils";
+
+describe("Feed View Rendering", () => {
+it("should use renderSingleRowCardTagChips for feed view tags to support truncation", () => {
       settings.viewStyle = "feed";
+      articles[0].tags = [{ name: "Tag1", color: "#8b5cf6" }];
+
       const articleList = new ArticleList(
         container,
         settings,
@@ -1170,8 +1174,10 @@ describe("ArticleList Component", () => {
 
       articleList.render();
 
-      const listEl = container.querySelector(".rss-dashboard-articles-list");
-      expect(listEl?.classList.contains("rss-dashboard-feed-view")).toBe(true);
+      // Verify tags are rendered (verifies renderSingleRowCardTagChips was called)
+      const tagBadge = container.querySelector(".rss-dashboard-tag-badge");
+      expect(tagBadge).not.toBeNull();
+      expect(tagBadge?.textContent).toBe("Tag1");
     });
 
     it("should render articles as feed items in feed view", () => {

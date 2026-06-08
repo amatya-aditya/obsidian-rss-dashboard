@@ -20,10 +20,33 @@ import {
 } from "../utils/page-size-options";
 import { computeResultsRange } from "../utils/pagination-utils";
 import { htmlToReadableText } from "../utils/html-text";
+import {
+  groupArticles as groupArticlesUtil,
+  getFeedFolder as getFeedFolderUtil,
+} from "./article-list/utils/article-grouping";
+import {
+  renderTagChips,
+  createTagChip,
+  createTagOverflowChip,
+  renderSingleRowCardTagChips,
+  layoutCardTagRows,
+  MAX_VISIBLE_TAGS,
+} from "./article-list/utils/tag-layout-utils";
+import {
+  extractFirstImageSrc,
+  getArticlePreviewSummaryText as getArticlePreviewSummaryTextUtil,
+  looksLikeStylesheetText,
+  getCardPreviewSummaryText,
+  shouldHighlightCardPreviewSummary,
+  CARD_PREVIEW_SUMMARY_MAX_CHARS,
+  CARD_PREVIEW_HIGHLIGHT_MAX_CHARS,
+} from "./article-list/utils/article-preview-utils";
+import {
+  renderPagination as renderPaginationUtil,
+  createPageButton as createPageButtonUtil,
+} from "./article-list/utils/pagination";
 
-const MAX_VISIBLE_TAGS = 6;
-const CARD_PREVIEW_SUMMARY_MAX_CHARS = 420;
-const CARD_PREVIEW_HIGHLIGHT_MAX_CHARS = 900;
+const MAX_VISIBLE_TAGS_DERIVED = MAX_VISIBLE_TAGS;
 
 interface ArticleListCallbacks {
   onArticleClick: (article: FeedItem) => void;
@@ -329,25 +352,12 @@ export class ArticleList {
 
     this.cardLayoutFrame = activeWindow.requestAnimationFrame(() => {
       this.cardLayoutFrame = null;
-      this.layoutCardTagRows(root);
+      layoutCardTagRows(root, this.articles);
     });
   }
 
   private layoutCardTagRows(root: ParentNode = this.container): void {
-    const cards: HTMLElement[] = [];
-
-    if (
-      windowInstanceOf(root, HTMLElement) &&
-      root.classList.contains("rss-dashboard-article-card")
-    ) {
-      cards.push(root);
-    }
-
-    root
-      .querySelectorAll<HTMLElement>(".rss-dashboard-article-card")
-      .forEach((card) => cards.push(card));
-
-    cards.forEach((card) => this.layoutSingleCardTagRow(card));
+    layoutCardTagRows(root, this.articles);
   }
 
   private layoutSingleCardTagRow(card: HTMLElement): void {
@@ -365,101 +375,29 @@ export class ArticleList {
       return;
     }
 
-    this.renderSingleRowCardTagChips(tagsContainer, article.tags);
+    renderSingleRowCardTagChips(tagsContainer, article.tags);
   }
 
   private renderTagChips(container: HTMLElement, tags: Tag[]): void {
-    container.empty();
-
-    const tagsToShow = tags.slice(0, MAX_VISIBLE_TAGS);
-    tagsToShow.forEach((tag) => {
-      const tagEl = container.createDiv({
-        cls: "rss-dashboard-tag-badge",
-        text: tag.name,
-      });
-      tagEl.style.setProperty(
-        "--tag-color",
-        tag.color || "var(--interactive-accent)",
-      );
-    });
-
-    if (tags.length > MAX_VISIBLE_TAGS) {
-      const overflow = container.createDiv({
-        cls: "rss-dashboard-tag-overflow",
-        text: `+${tags.length - MAX_VISIBLE_TAGS}`,
-      });
-      overflow.title = tags
-        .slice(MAX_VISIBLE_TAGS)
-        .map((t) => t.name)
-        .join(", ");
-    }
+    renderTagChips(container, tags);
   }
 
   private createTagChip(container: HTMLElement, tag: Tag): HTMLElement {
-    const tagEl = container.createDiv({
-      cls: "rss-dashboard-tag-badge",
-      text: tag.name,
-    });
-    tagEl.style.setProperty(
-      "--tag-color",
-      tag.color || "var(--interactive-accent)",
-    );
-    return tagEl;
+    return createTagChip(container, tag);
   }
 
   private createTagOverflowChip(
     container: HTMLElement,
     hiddenTags: Tag[],
   ): HTMLElement {
-    const overflow = container.createDiv({
-      cls: "rss-dashboard-tag-overflow",
-      text: `+${hiddenTags.length}`,
-    });
-    overflow.title = hiddenTags.map((tag) => tag.name).join(", ");
-    return overflow;
+    return createTagOverflowChip(container, hiddenTags);
   }
 
   private renderSingleRowCardTagChips(
     container: HTMLElement,
     tags: Tag[],
   ): void {
-    container.empty();
-
-    if (tags.length === 0) {
-      return;
-    }
-
-    if (container.clientWidth <= 0) {
-      this.renderTagChips(container, tags);
-      return;
-    }
-
-    let visibleCount = 0;
-
-    for (let i = 0; i < tags.length; i += 1) {
-      this.createTagChip(container, tags[i]);
-      visibleCount = i + 1;
-
-      const remainingTags = tags.slice(visibleCount);
-      let probeOverflow: HTMLElement | null = null;
-      if (remainingTags.length > 0) {
-        probeOverflow = this.createTagOverflowChip(container, remainingTags);
-      }
-
-      const exceedsWidth = container.scrollWidth > container.clientWidth;
-      probeOverflow?.remove();
-
-      if (exceedsWidth) {
-        container.lastElementChild?.remove();
-        visibleCount = i;
-        break;
-      }
-    }
-
-    if (visibleCount < tags.length) {
-      const hiddenTags = tags.slice(visibleCount);
-      this.createTagOverflowChip(container, hiddenTags);
-    }
+    renderSingleRowCardTagChips(container, tags);
   }
 
   private ensureCardTagsContainer(articleEl: HTMLElement): HTMLElement | null {
@@ -1237,7 +1175,7 @@ export class ArticleList {
         (articleEl.classList.contains("rss-dashboard-feed-item") &&
           isFeedTagStrip)
       ) {
-        this.renderSingleRowCardTagChips(container, tags);
+        renderSingleRowCardTagChips(container, tags);
         return;
       }
 
@@ -1356,52 +1294,40 @@ export class ArticleList {
     const paginationWrapper = this.container.createDiv({
       cls: "rss-dashboard-pagination-wrapper",
     });
-    this.renderPagination(
-      paginationWrapper,
-      this.currentPage,
-      this.totalPages,
-      this.pageSize,
-      this.totalArticles,
-    );
+    renderPaginationUtil({
+      container: paginationWrapper,
+      currentPage: this.currentPage,
+      totalPages: this.totalPages,
+      pageSize: this.pageSize,
+      totalArticles: this.totalArticles,
+      articles: this.articles,
+      deps: {
+        isMobileViewport: () => this.isMobileViewport(),
+        onPageChange: (page: number) => this.callbacks.onPageChange(page),
+        onPageSizeChange: (pageSize: number) =>
+          this.callbacks.onPageSizeChange(pageSize),
+        onMarkPageAsRead: this.callbacks.onMarkPageAsRead,
+        onPersistSettings: this.callbacks.onPersistSettings,
+        notices: {
+          show: (message: string) => new Notice(message),
+        },
+      },
+    });
   }
 
   private groupArticles(
     articles: FeedItem[],
     groupBy: "feed" | "date" | "folder" | "none",
   ): Record<string, FeedItem[]> {
-    if (groupBy === "none") return { "All articles": articles };
-
-    return articles.reduce(
-      (acc, article) => {
-        let key: string;
-        switch (groupBy) {
-          case "feed":
-            key = article.feedTitle || "Uncategorized";
-            break;
-          case "date":
-            key = formatDateWithRelative(article.pubDate).text;
-            break;
-
-          case "folder":
-            key = this.getFeedFolder(article.feedUrl) || "Uncategorized";
-            break;
-          default:
-            key = "All articles";
-        }
-
-        if (!acc[key]) {
-          acc[key] = [];
-        }
-        acc[key].push(article);
-        return acc;
-      },
-      {} as Record<string, FeedItem[]>,
+    return groupArticlesUtil(
+      articles,
+      groupBy,
+      (feedUrl: string) => this.getFeedFolder(feedUrl),
     );
   }
 
   private getFeedFolder(feedUrl: string): string | undefined {
-    const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-    return feed?.folder;
+    return getFeedFolderUtil(feedUrl, this.settings.feeds);
   }
 
   private getCardPreviewSummaryText(summary: string): string {
@@ -2076,7 +2002,7 @@ export class ArticleList {
         const tagsContainer = tagsRegion.createDiv({
           cls: "rss-dashboard-tag-container",
         });
-        this.renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
+        renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
       }
 
       // 5. Toolbar
@@ -2394,7 +2320,7 @@ export class ArticleList {
         const tagsContainer = tagsRegion.createDiv({
           cls: "rss-dashboard-tag-container",
         });
-        this.renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
+        renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
       }
 
       if (this.shouldShowToolbarForView("card")) {
@@ -2429,164 +2355,6 @@ export class ArticleList {
       this.scheduleCardTagLayout(card);
     }
   }
-  private renderPagination(
-    container: HTMLElement,
-    currentPage: number,
-    totalPages: number,
-    pageSize: number,
-    totalArticles: number,
-  ): void {
-    const paginationContainer = container.createDiv({
-      cls: "rss-dashboard-pagination",
-    });
-
-    // ── Row 1: page navigation buttons ──────────────────────────
-    const pagesRow = paginationContainer.createDiv({
-      cls: "rss-dashboard-pagination-pages",
-    });
-
-    const prevButton = pagesRow.createEl("button", {
-      cls: "rss-dashboard-pagination-btn prev",
-      text: "<",
-    });
-    prevButton.disabled = currentPage === 1;
-    prevButton.onclick = () => this.callbacks.onPageChange(currentPage - 1);
-
-    const isMobile = this.isMobileViewport();
-    const maxPagesToShow = isMobile ? 3 : 5;
-    const padding = isMobile ? 1 : 2;
-
-    let startPage = Math.max(1, currentPage - padding);
-    let endPage = Math.min(totalPages, currentPage + padding);
-    if (endPage - startPage < maxPagesToShow - 1) {
-      if (startPage === 1) {
-        endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-      } else if (endPage === totalPages) {
-        startPage = Math.max(1, endPage - maxPagesToShow + 1);
-      }
-    }
-    if (startPage > 1) {
-      this.createPageButton(pagesRow, 1, currentPage);
-      if (startPage > 2) {
-        pagesRow.createEl("span", {
-          text: "...",
-          cls: "rss-dashboard-pagination-ellipsis",
-        });
-      }
-    }
-    for (let i = startPage; i <= endPage; i++) {
-      this.createPageButton(pagesRow, i, currentPage);
-    }
-    if (endPage < totalPages) {
-      if (endPage < totalPages - 1) {
-        pagesRow.createEl("span", {
-          text: "...",
-          cls: "rss-dashboard-pagination-ellipsis",
-        });
-      }
-      this.createPageButton(pagesRow, totalPages, currentPage);
-    }
-
-    const nextButton = pagesRow.createEl("button", {
-      cls: "rss-dashboard-pagination-btn next",
-      text: ">",
-    });
-    nextButton.disabled = currentPage === totalPages;
-    nextButton.onclick = () => this.callbacks.onPageChange(currentPage + 1);
-
-    // ── Row 2: utility controls ──────────────────────────────────
-    const controlsRow = paginationContainer.createDiv({
-      cls: "rss-dashboard-pagination-controls",
-    });
-
-    const markPageReadButton = controlsRow.createEl("button", {
-      cls: "rss-dashboard-pagination-btn rss-dashboard-pagination-mark-page-read",
-      text: "Mark page read",
-    });
-    markPageReadButton.onclick = () => {
-      if (this.callbacks.onMarkPageAsRead) {
-        this.callbacks.onMarkPageAsRead();
-      } else {
-        let changedCount = 0;
-        this.articles.forEach((article) => {
-          if (!article.read) {
-            article.read = true;
-            changedCount++;
-          }
-        });
-
-        if (changedCount > 0) {
-          if (this.callbacks.onPersistSettings) {
-            void this.callbacks.onPersistSettings();
-          }
-          this.render();
-        } else {
-          new Notice("No unread items on current page");
-        }
-      }
-    };
-
-    // Page-size selector wrapped for custom chevron styling
-    const pageSizeWrapper = controlsRow.createDiv({
-      cls: "rss-dashboard-page-size-wrapper",
-    });
-    const pageSizeDropdown = pageSizeWrapper.createEl("select", {
-      cls: "rss-dashboard-page-size-dropdown",
-    });
-    for (const size of getPageSizeOptions(pageSize)) {
-      const isStandardOption = PAGE_SIZE_OPTIONS.includes(
-        size as (typeof PAGE_SIZE_OPTIONS)[number],
-      );
-      const label =
-        size === 0
-          ? "All"
-          : isStandardOption
-            ? String(size)
-            : `Current (${size})`;
-      const opt = pageSizeDropdown.createEl("option", {
-        text: label,
-        value: String(size),
-      });
-      if (size === pageSize) opt.selected = true;
-    }
-
-    pageSizeDropdown.onchange = (e) => {
-      const size = Number((e.target as HTMLSelectElement).value);
-      this.callbacks.onPageSizeChange(size);
-    };
-
-    const { start: startIdx, end: endIdx } = computeResultsRange({
-      totalItems: totalArticles,
-      pageSize,
-      currentPage,
-    });
-
-    // ── Row 3: Results count ──────────────────────────────────
-    const resultsRow = paginationContainer.createDiv({
-      cls: "rss-dashboard-pagination-results",
-    });
-
-    resultsRow.createEl("span", {
-      cls: "rss-dashboard-pagination-results",
-      text: `Results: ${startIdx} - ${endIdx} of ${totalArticles}`,
-    });
-  }
-
-  private createPageButton(
-    container: HTMLElement,
-    page: number,
-    currentPage: number,
-  ) {
-    const btn = container.createEl("button", {
-      cls:
-        "rss-dashboard-pagination-btn" +
-        (page === currentPage ? " active" : ""),
-      text: String(page),
-    });
-    btn.disabled = page === currentPage;
-    btn.onclick = () => this.callbacks.onPageChange(page);
-  }
-
   private showArticleContextMenu(event: MouseEvent, article: FeedItem): void {
     const menu = new Menu();
 

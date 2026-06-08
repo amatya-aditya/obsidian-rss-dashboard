@@ -535,11 +535,14 @@ export class ItemView {
 }
 
 export class Menu {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
+  addSeparator(): this {
+    return this;
+  }
   addItem(_cb: (item: MenuItem) => any): this {
     return this;
   }
   showAtPosition(): void {}
+  showAtMouseEvent(_event: MouseEvent): void {}
 }
 
 export class MenuItem {
