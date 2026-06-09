@@ -21,6 +21,7 @@ export type { SettingsTabName } from "./tab-names";
 // Tab renderer imports
 import { renderGeneralSettingsTab } from "./tabs/general-settings-tab";
 import { renderDisplaySettingsTab } from "./tabs/display-settings-tab";
+import { renderSidebarSettingsTab } from "./tabs/sidebar-settings-tab";
 import { renderMediaSettingsTab } from "./tabs/media-settings-tab";
 import { renderArticleSavingSettingsTab } from "./tabs/article-saving-settings-tab";
 import { renderRulesSettingsTab } from "./tabs/rules-settings-tab";
@@ -94,6 +95,15 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         break;
       case "Display":
         renderDisplaySettingsTab(
+          tabContent,
+          this.plugin,
+          onRefresh,
+          this.pendingSection ?? undefined,
+        );
+        this.pendingSection = null;
+        break;
+      case "Sidebar":
+        renderSidebarSettingsTab(
           tabContent,
           this.plugin,
           onRefresh,

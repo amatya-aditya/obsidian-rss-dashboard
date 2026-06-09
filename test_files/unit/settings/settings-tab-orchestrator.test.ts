@@ -27,6 +27,9 @@ vi.mock("../../../src/settings/tabs/import-export-settings-tab", () => ({
 vi.mock("../../../src/settings/tabs/tags-settings-tab", () => ({
   renderTagsSettingsTab: vi.fn(),
 }));
+vi.mock("../../../src/settings/tabs/sidebar-settings-tab", () => ({
+  renderSidebarSettingsTab: vi.fn(),
+}));
 vi.mock("../../../src/settings/tabs/about-settings-tab", () => ({
   renderAboutTab: vi.fn(),
 }));
@@ -55,7 +58,7 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const tabButtons = Array.from(
       tab.containerEl.querySelectorAll(".rss-dashboard-settings-tab-btn"),
     );
-    expect(tabButtons).toHaveLength(9);
+    expect(tabButtons).toHaveLength(10);
     expect(tabButtons[0].textContent).toBe("General");
 
     expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(1);

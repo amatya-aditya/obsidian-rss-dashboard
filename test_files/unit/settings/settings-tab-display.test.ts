@@ -12,7 +12,7 @@ import { describe, it, expect } from "vitest";
 import {
   moveIconOrder,
   normalizeHexColor,
-} from "../../../src/settings/tabs/display-settings-tab";
+} from "../../../src/settings/tabs/sidebar-settings-tab";
 
 // ── moveIconOrder ────────────────────────────────────────────────────────────
 

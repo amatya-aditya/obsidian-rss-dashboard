@@ -9,6 +9,7 @@
 export const SETTINGS_TAB_NAMES = [
   "General",
   "Display",
+  "Sidebar",
   "Media",
   "Article saving",
   "Rules",
