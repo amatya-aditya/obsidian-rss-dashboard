@@ -1,5 +1,12 @@
 import { requestUrl, Platform } from "obsidian";
-import { Feed, FeedItem, DisplaySettings, MediaSettings, Tag } from "../types/types.js";
+import {
+  Feed,
+  FeedItem,
+  Folder,
+  DisplaySettings,
+  MediaSettings,
+  Tag,
+} from "../types/types.js";
 import { MediaService } from "./media-service";
 import { MastodonService } from "./mastodon-service";
 import {
@@ -2732,16 +2739,20 @@ export class FeedParser {
   private mediaSettings: MediaSettings;
   private availableTags: Tag[];
   private parser: CustomXMLParser;
+  private getFolders: () => Folder[];
 
   constructor(
     displaySettings: DisplaySettings,
     availableTags: Tag[],
     mediaSettings?: MediaSettings,
+    getFolders: () => Folder[] = () => [],
   ) {
     this.displaySettings = displaySettings;
     this.availableTags = availableTags;
     this.parser = new CustomXMLParser();
+    this.getFolders = getFolders;
     this.mediaSettings = mediaSettings ?? {
+      autoTagVideos: true,
       defaultVideoTag: "Video",
       defaultVideoTags: ["Video"],
       rememberPlaybackProgress: true,
@@ -3611,6 +3622,7 @@ export class FeedParser {
       processedFeed,
       this.availableTags,
       this.mediaSettings,
+      this.getFolders(),
     );
   }
 

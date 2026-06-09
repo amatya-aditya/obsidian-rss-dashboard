@@ -68,8 +68,6 @@ import {
   migrateSettings,
 } from "./src/utils/settings-loader";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
-import { applyTagsToItems } from "./src/services/tag-applier";
-import { resolveTagObjects } from "./src/utils/tag-resolver";
 
 export interface FiltersUpdatedEventPayload {
   source: string;
@@ -284,6 +282,7 @@ export default class RssDashboardPlugin extends Plugin {
       this.settings.display,
       this.settings.availableTags,
       this.settings.media,
+      () => this.settings.folders,
     );
     this.articleSaver = new ArticleSaver(this.app, this.settings.articleSaving);
     this.importExportService = new ImportExportService({
@@ -1886,18 +1885,15 @@ export default class RssDashboardPlugin extends Plugin {
           });
         }
 
-        // Apply default media/smallweb tags after parsing so newly added feeds
-        // (e.g. from Kagi Smallweb) carry their configured auto-tag on first add.
+        // Re-apply tags after ensureFolderExists so folder auto-tags resolve
+        // against the current folder tree (parseFeed also tags, but may run
+        // before missing folder paths are created).
         const feedWithTags = MediaService.applyMediaTags(
           feedToStore,
           this.settings.availableTags,
           this.settings.media,
+          this.settings.folders,
         );
-        const resolvedCustomTags = resolveTagObjects(
-          feedToStore.customTags ?? [],
-          this.settings.availableTags,
-        );
-        applyTagsToItems(feedWithTags.items, resolvedCustomTags);
 
         // Only add to settings if parsing succeeded
         this.settings.feeds.push(feedWithTags);

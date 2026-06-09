@@ -175,6 +175,7 @@ export interface Folder {
   createdAt?: number;
   modifiedAt?: number;
   pinned?: boolean;
+  autoTags?: Tag[];
 }
 
 export type ViewLocation =
@@ -197,31 +198,32 @@ export type PodcastTheme =
   | "tokyonight";
 
 export interface MediaSettings {
-  defaultVideoTag: string;
-  defaultVideoTags?: string[];
+  autoTagVideos: boolean;
   rememberPlaybackProgress: boolean;
   defaultTwitterFolder: string;
   defaultMastodonFolder: string;
   defaultYouTubeFolder: string;
+  defaultVideoTag: string;
+  defaultVideoTags: string[];
   defaultYouTubeTag: string;
-  defaultYouTubeTags?: string[];
+  defaultYouTubeTags: string[];
   defaultPodcastFolder: string;
   defaultPodcastTag: string;
-  defaultPodcastTags?: string[];
+  defaultPodcastTags: string[];
   defaultRssFolder: string;
   defaultRssTag: string;
-  defaultRssTags?: string[];
+  defaultRssTags: string[];
   defaultSmallwebFolder: string;
   defaultSmallwebTag: string;
-  defaultSmallwebTags?: string[];
-  defaultTwitterTag?: string;
-  defaultTwitterTags?: string[];
-  defaultMastodonTag?: string;
-  defaultMastodonTags?: string[];
+  defaultSmallwebTags: string[];
+  defaultTwitterTag: string;
+  defaultTwitterTags: string[];
+  defaultMastodonTag: string;
+  defaultMastodonTags: string[];
   openInSplitView: boolean;
   podcastTheme: PodcastTheme;
   enableApplePodcastsOpen?: boolean;
-  defaultPlaySpeed?: number;
+  defaultPlaySpeed: number;
 }
 
 export interface SavedTemplate {
@@ -268,6 +270,12 @@ export interface DisplaySettings {
     | "videos"
     | "podcasts";
   hiddenFilters: string[];
+  useDomainFavicons: boolean;
+  useDomainIconsPodcast: boolean;
+  useDomainIconsMastodon: boolean;
+  useDomainIconsTwitter: boolean;
+  useDomainIconsRss: boolean;
+  useDomainIconsYouTube: boolean;
   hideDefaultRssIcon: boolean;
   autoMarkReadOnOpen: boolean;
   sidebarRowSpacing: number;
@@ -290,16 +298,10 @@ export interface DisplaySettings {
   hideIconCollapseAll: boolean;
   hideIconSettings: boolean;
   hideIconDivider: boolean;
-hideToolbarEntirely: boolean;
-   iconOrder: string[];
-   articleDateStyle: "relative" | "absolute";
-
-   // Domain icon toggles for feed list
-   useDomainIconsRss: boolean;
-   useDomainIconsPodcast: boolean;
-   useDomainIconsTwitter: boolean;
-   useDomainIconsMastodon: boolean;
- }
+  hideToolbarEntirely: boolean;
+  iconOrder: string[];
+  articleDateStyle: "relative" | "absolute";
+}
 
 export interface SidebarIconConfig {
   id: string;
@@ -581,23 +583,24 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     paragraphSpacing: "default",
   },
   media: {
-    defaultVideoTag: "Video",
-    defaultVideoTags: ["Video"],
+    autoTagVideos: true,
     rememberPlaybackProgress: true,
     defaultTwitterFolder: "Twitter",
     defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
+    defaultVideoTag: "Video",
+    defaultVideoTags: ["Video"],
     defaultYouTubeTag: "Video",
     defaultYouTubeTags: ["Video"],
     defaultPodcastFolder: "Podcast",
-    defaultPodcastTag: "Podcast",
-    defaultPodcastTags: ["Podcast"],
+    defaultPodcastTag: "podcast",
+    defaultPodcastTags: ["podcast"],
     defaultRssFolder: "RSS",
-    defaultRssTag: "",
-    defaultRssTags: [],
+    defaultRssTag: "RSS",
+    defaultRssTags: ["RSS"],
     defaultSmallwebFolder: "Smallweb",
-    defaultSmallwebTag: "",
-    defaultSmallwebTags: [],
+    defaultSmallwebTag: "smallweb",
+    defaultSmallwebTags: ["smallweb"],
     defaultTwitterTag: "",
     defaultTwitterTags: [],
     defaultMastodonTag: "",
@@ -620,7 +623,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
  feedTitle: "{{feedTitle}}"
  summary: "{{summary}}"
  guid: "{{guid}}"
- image: "{{image}}"
 ---
 
 # {{title}}
@@ -664,6 +666,12 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     mobileListToolbarStyle: "minimal",
     defaultFilter: "all",
     hiddenFilters: [],
+    useDomainFavicons: true,
+    useDomainIconsPodcast: false,
+    useDomainIconsMastodon: false,
+    useDomainIconsTwitter: false,
+    useDomainIconsRss: false,
+    useDomainIconsYouTube: false,
     hideDefaultRssIcon: false,
     autoMarkReadOnOpen: false,
     sidebarRowSpacing: 10,
@@ -684,24 +692,20 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     hideIconCollapseAll: false,
     hideIconSettings: false,
     hideIconDivider: false,
-hideToolbarEntirely: false,
-     iconOrder: [
-       "discover",
-       "divider",
-       "addFeed",
-       "manageFeeds",
-       "search",
-       "tags",
-       "addFolder",
-       "sort",
-       "collapseAll",
-       "settings",
-     ],
-     useDomainIconsRss: false,
-     useDomainIconsPodcast: false,
-     useDomainIconsTwitter: false,
-     useDomainIconsMastodon: false,
-     articleDateStyle: "relative",
+    hideToolbarEntirely: false,
+    iconOrder: [
+      "discover",
+      "divider",
+      "addFeed",
+      "manageFeeds",
+      "search",
+      "tags",
+      "addFolder",
+      "sort",
+      "collapseAll",
+      "settings",
+    ],
+    articleDateStyle: "relative",
   },
   highlights: {
     enabled: false,
@@ -727,7 +731,7 @@ hideToolbarEntirely: false,
     backupOpml: true,
     backupUserdata: true,
   },
-  storageMode: "vault-shards",
+  storageMode: "legacy-json",
   storageFolder: ".rss-dashboard-data/feeds",
   storageSchemaVersion: 1,
   metadataStorageMode: "plugin-default",

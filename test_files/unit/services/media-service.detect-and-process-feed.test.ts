@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { MediaService } from "../../../src/services/media-service";
-import type { Feed, FeedItem, MediaSettings } from "../../../src/types/types";
+import type {
+  Feed,
+  FeedItem,
+  Folder,
+  MediaSettings,
+} from "../../../src/types/types";
 
 function createItem(overrides: Partial<FeedItem> = {}): FeedItem {
   return {
@@ -172,6 +177,101 @@ describe("MediaService.detectAndProcessFeed", () => {
     expect(
       articleItem?.tags.map((tag) => tag.name.toLowerCase()),
     ).not.toContain("video");
+  });
+
+  it("layers folder auto-tags and per-feed custom tags after media defaults", () => {
+    const detected = MediaService.detectAndProcessFeed(
+      createFeed([
+        createItem({
+          guid: "folder-tagged-video",
+          link: "https://www.bloomberg.com/news/videos/2026-05-12/video-story",
+          tags: [{ name: "Topic", color: "#manual" }],
+        }),
+      ]),
+    );
+    detected.folder = "Technology/Web";
+    detected.customTags = ["Important", "topic"];
+
+    const folders: Folder[] = [
+      {
+        name: "Technology",
+        autoTags: [
+          { name: "Topic", color: "#folder-parent" },
+          { name: "Tech", color: "#folder-tech" },
+        ],
+        subfolders: [
+          {
+            name: "Web",
+            autoTags: [{ name: "Web", color: "#folder-web" }],
+            subfolders: [],
+          },
+        ],
+      },
+    ];
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [
+        { name: "Video", color: "#media-video" },
+        { name: "Important", color: "#feed-important" },
+        { name: "topic", color: "#feed-topic" },
+      ],
+      { defaultVideoTag: "Video" },
+      folders,
+    );
+
+    expect(tagged.items[0].tags).toEqual([
+      { name: "Video", color: "#media-video" },
+      { name: "Topic", color: "#manual" },
+      { name: "Tech", color: "#folder-tech" },
+      { name: "Web", color: "#folder-web" },
+      { name: "Important", color: "#feed-important" },
+    ]);
+  });
+
+  it("applies folder and per-feed tags to non-video items in mixed video feeds", () => {
+    const detected = MediaService.detectAndProcessFeed(
+      createFeed([
+        createItem({
+          guid: "video-mixed-folder",
+          link: "https://www.bloomberg.com/news/videos/2026-05-12/video-story",
+        }),
+        createItem({
+          guid: "article-mixed-folder",
+          link: "https://www.bloomberg.com/news/articles/2026-05-12/article-story",
+          mediaContentType: "image/jpeg",
+        }),
+      ]),
+    );
+    detected.folder = "Technology";
+    detected.customTags = ["Important"];
+
+    const tagged = MediaService.applyMediaTags(
+      detected,
+      [
+        { name: "Video", color: "#media-video" },
+        { name: "Important", color: "#feed-important" },
+      ],
+      { defaultVideoTag: "Video" },
+      [
+        {
+          name: "Technology",
+          autoTags: [{ name: "Tech", color: "#folder-tech" }],
+          subfolders: [],
+        },
+      ],
+    );
+
+    expect(
+      tagged.items
+        .find((item) => item.guid === "video-mixed-folder")
+        ?.tags.map((tag) => tag.name),
+    ).toEqual(["Video", "Tech", "Important"]);
+    expect(
+      tagged.items
+        .find((item) => item.guid === "article-mixed-folder")
+        ?.tags.map((tag) => tag.name),
+    ).toEqual(["Tech", "Important"]);
   });
 
   it("does not classify explicit image media as video even when URL matches video route", () => {

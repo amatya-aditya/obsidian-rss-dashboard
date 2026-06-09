@@ -1,5 +1,10 @@
 import { Notice, Setting } from "obsidian";
-import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
+import type {
+  FeedItem,
+  RssDashboardSettings,
+  Tag,
+  Folder,
+} from "../types/types";
 
 const AUTO_TAG_DEFINITIONS = {
   saved: { name: "Saved", fallbackColor: "#3498db" },
@@ -262,4 +267,108 @@ export function showEditTagModal({
     nameInput.focus();
     nameInput.select();
   });
+}
+
+/**
+ * Merges multiple tag arrays, deduplicating by name (case-insensitive).
+ * Tags from later arrays override earlier ones (for color resolution).
+ * Preserves order with base tags first, then new tags.
+ */
+export function mergeTagArrays(
+  ...tagArrays: (readonly Tag[] | undefined)[]
+): Tag[] {
+  const tagMap = new Map<string, Tag>();
+
+  for (const tags of tagArrays) {
+    if (!tags) continue;
+    for (const tag of tags) {
+      const key = tag.name.toLowerCase();
+      tagMap.set(key, tag);
+    }
+  }
+
+  return Array.from(tagMap.values());
+}
+
+/**
+ * Recursively finds a folder in the folder tree by path.
+ * Path is "/" separated, e.g., "Tech/JavaScript" or "Tech"
+ */
+function findFolderByPath(
+  folders: readonly Folder[] | undefined,
+  path: string,
+): Folder | undefined {
+  if (!folders || path === "" || path === "/") return undefined;
+
+  const parts = path.split("/").filter((p) => p.length > 0);
+  let current: Folder | undefined;
+
+  for (const part of parts) {
+    if (!current) {
+      current = folders.find((f) => f.name === part);
+    } else {
+      current = current.subfolders.find((f) => f.name === part);
+    }
+    if (!current) return undefined;
+  }
+
+  return current;
+}
+
+/**
+ * Gets all auto-tags that should apply to a feed in a folder, considering:
+ * 1. Folder auto-tags (cascading from parents)
+ * 2. The folder's own auto-tags
+ * Does not include per-feed custom tags or media-based defaults.
+ */
+export function getFolderAutoTags(
+  folderPath: string,
+  folders: readonly Folder[] | undefined,
+): Tag[] {
+  const allTags: Tag[] = [];
+
+  if (!folders || !folderPath) return allTags;
+
+  // Build path hierarchy: ["Tech", "Tech/JavaScript", "Tech/JavaScript/React"]
+  const pathParts = folderPath.split("/").filter((p) => p.length > 0);
+  const pathHierarchy: string[] = [];
+
+  for (let i = 0; i < pathParts.length; i++) {
+    pathHierarchy.push(pathParts.slice(0, i + 1).join("/"));
+  }
+
+  // Collect tags from all ancestors (top-down, so later overrides)
+  for (const path of pathHierarchy) {
+    const folder = findFolderByPath(folders, path);
+    if (folder?.autoTags) {
+      allTags.push(...folder.autoTags);
+    }
+  }
+
+  return mergeTagArrays(allTags);
+}
+
+/**
+ * Resolves final tags for an article considering the complete hierarchy:
+ * 1. Media-based defaults (highest priority - feed defaults)
+ * 2. Folder auto-tags (inherited + cascading)
+ * 3. Per-feed custom tags
+ * 4. Article-specific tags
+ *
+ * Deduplicates by tag name, with more specific scopes overriding general ones.
+ */
+export function resolveArticleTags(
+  articleTags: readonly Tag[] | undefined,
+  perFeedTags: readonly Tag[] | undefined,
+  folderPath: string,
+  folders: readonly Folder[] | undefined,
+  mediaDefaultTags: readonly Tag[] | undefined,
+): Tag[] {
+  // Order matters: more general to more specific (later overrides)
+  return mergeTagArrays(
+    mediaDefaultTags, // Feed-level defaults (settings)
+    getFolderAutoTags(folderPath, folders), // Folder-level auto-tags
+    perFeedTags, // Per-feed custom tags
+    articleTags, // Article-specific tags
+  );
 }
