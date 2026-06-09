@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Feed, FeedItem } from "../../../../src/types/types";
+import type { Feed, FeedItem } from "../../../../../src/types/types";
 import { groupArticles, getFeedFolder } from "../../../../../src/components/article-list/utils/article-grouping";
 
 describe("article-grouping utils", () => {

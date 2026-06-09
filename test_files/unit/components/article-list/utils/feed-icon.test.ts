@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import type { Feed } from "../../../../src/types/types";
-import { MediaService } from "../../../../src/services/media-service";
+import type { Feed } from "../../../../../src/types/types";
 import {
   renderFeedIcon,
   renderHeaderFeedIcon,

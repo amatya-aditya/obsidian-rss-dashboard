@@ -538,7 +538,7 @@ export class Menu {
   addSeparator(): this {
     return this;
   }
-  addItem(_cb: (item: MenuItem) => any): this {
+  addItem(_cb: (item: MenuItem) => void): this {
     return this;
   }
   showAtPosition(): void {}

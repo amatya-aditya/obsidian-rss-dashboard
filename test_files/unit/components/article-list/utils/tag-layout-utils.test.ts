@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { FeedItem, Tag } from "../../../../src/types/types";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import type { FeedItem, Tag } from "../../../../../src/types/types";
 import {
   layoutCardTagRows,
   renderSingleRowCardTagChips,

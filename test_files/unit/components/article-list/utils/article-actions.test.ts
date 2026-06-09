@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { Feed, FeedItem } from "../../../../src/types/types";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import type { FeedItem } from "../../../../../src/types/types";
 import {
   createReadToggle,
   createStarToggle,

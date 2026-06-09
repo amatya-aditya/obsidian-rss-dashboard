@@ -50,11 +50,9 @@ describe("pagination utils", () => {
       deps: baseDeps(),
     });
 
-    const prev = container.querySelector(
-      ".rss-dashboard-pagination-btn.prev",
-    ) as HTMLButtonElement | null;
+    const prev = container.querySelector(".rss-dashboard-pagination-btn.prev");
     expect(prev).toBeTruthy();
-    expect(prev!.disabled).toBe(true);
+    expect((prev as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("disables next button on last page", () => {
@@ -68,11 +66,9 @@ describe("pagination utils", () => {
       deps: baseDeps(),
     });
 
-    const next = container.querySelector(
-      ".rss-dashboard-pagination-btn.next",
-    ) as HTMLButtonElement | null;
+    const next = container.querySelector(".rss-dashboard-pagination-btn.next");
     expect(next).toBeTruthy();
-    expect(next!.disabled).toBe(true);
+    expect((next as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("calls onPageChange when non-active page button is clicked", () => {
@@ -89,10 +85,10 @@ describe("pagination utils", () => {
 
     const target = container.querySelector(
       ".rss-dashboard-pagination-btn:not(.prev):not(.next)",
-    ) as HTMLElement | null;
+    );
     expect(target).toBeTruthy();
-    target!.click();
+    (target as HTMLElement).click();
 
-    expect(onPageChange).toHaveBeenCalledWith(Number(target!.textContent?.trim()));
+    expect(onPageChange).toHaveBeenCalledWith(Number(target?.textContent?.trim()));
   });
 });
