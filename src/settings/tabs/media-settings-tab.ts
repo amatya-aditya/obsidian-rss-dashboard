@@ -5,13 +5,11 @@
  * Exports:
  *   - renderMediaSettingsTab(containerEl, plugin)
  */
-import { App, Notice, Setting, normalizePath, WorkspaceLeaf } from "obsidian";
-import { FolderSuggest } from "../../components/folder-suggest";
-import { Folder, PodcastTheme, DEFAULT_SETTINGS } from "../../types/types";
+import { App, Notice, Setting } from "obsidian";
+import { PodcastTheme } from "../../types/types";
 import type { MediaSettings } from "../../types/types";
 
 interface MediaTabSettings {
-  folders: Folder[];
   media: MediaSettings;
 }
 
@@ -22,10 +20,6 @@ interface MediaSettingsPlugin {
   clearPlaybackProgress(): Promise<number>;
   getActiveReaderView?(): Promise<{
     updatePodcastTheme: (theme: PodcastTheme) => void;
-  } | null>;
-  getActiveDashboardView(): Promise<{
-    leaf: WorkspaceLeaf;
-    render(): void;
   } | null>;
 }
 
@@ -66,105 +60,6 @@ export function renderMediaSettingsTab(
               : "No saved playback progress was found.",
           );
         });
-    });
-
-  // ── Twitter/X/Nitter ───────────────────────────────────────────────────────
-  new Setting(containerEl).setName("Default folders").setHeading();
-
-  new Setting(containerEl)
-    .setName("Default Twitter folder")
-    .setDesc("Default folder for Twitter/X/Nitter feeds")
-    .addText((text) => {
-      text
-        .setValue(plugin.settings.media.defaultTwitterFolder || "Twitter")
-        .onChange(async (value) => {
-          const nextValue = typeof value === "string" ? value : "";
-          plugin.settings.media.defaultTwitterFolder = normalizePath(nextValue);
-          await plugin.saveSettings();
-        });
-      new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
-    });
-
-  // ── Mastodon ────────────────────────────────────────────────────────────────
-
-  new Setting(containerEl)
-    .setName("Default Mastodon folder")
-    .setDesc("Default folder for Mastodon feeds")
-    .addText((text) => {
-      text
-        .setValue(plugin.settings.media.defaultMastodonFolder || "Mastodon")
-        .onChange(async (value) => {
-          const nextValue = typeof value === "string" ? value : "";
-          plugin.settings.media.defaultMastodonFolder =
-            normalizePath(nextValue);
-          await plugin.saveSettings();
-        });
-      new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
-    });
-
-  // ── YouTube ────────────────────────────────────────────────────────────────
-
-  new Setting(containerEl)
-    .setName("Default YouTube folder")
-    .setDesc("Default folder for YouTube feeds")
-    .addText((text) => {
-      text
-        .setValue(plugin.settings.media.defaultYouTubeFolder || "YouTube")
-        .onChange(async (value) => {
-          const nextValue = typeof value === "string" ? value : "";
-          plugin.settings.media.defaultYouTubeFolder = normalizePath(nextValue);
-          await plugin.saveSettings();
-        });
-      new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
-    });
-
-  // ── Podcast ────────────────────────────────────────────────────────────────
-
-  new Setting(containerEl)
-    .setName("Default podcast folder")
-    .setDesc("Default folder for podcast feeds")
-    .addText((text) => {
-      text
-        .setValue(plugin.settings.media.defaultPodcastFolder || "Podcast")
-        .onChange(async (value) => {
-          const nextValue = typeof value === "string" ? value : "";
-          plugin.settings.media.defaultPodcastFolder = normalizePath(nextValue);
-          await plugin.saveSettings();
-        });
-      new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
-    });
-
-  // ── RSS ───────────────────────────────────────────────────────────────────
-
-  new Setting(containerEl)
-    .setName("Default RSS folder")
-    .setDesc("Default folder for RSS feeds")
-    .addText((text) => {
-      text
-        .setValue(plugin.settings.media.defaultRssFolder || "RSS")
-        .onChange(async (value) => {
-          const nextValue = typeof value === "string" ? value : "";
-          plugin.settings.media.defaultRssFolder = normalizePath(nextValue);
-          await plugin.saveSettings();
-        });
-      new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
-    });
-
-  // ── Kagi smallweb ─────────────────────────────────────────────────────────
-
-  new Setting(containerEl)
-    .setName("Default smallweb folder")
-    .setDesc("Default folder for smallweb feeds")
-    .addText((text) => {
-      text
-        .setValue(plugin.settings.media.defaultSmallwebFolder || "Smallweb")
-        .onChange(async (value) => {
-          const nextValue = typeof value === "string" ? value : "";
-          plugin.settings.media.defaultSmallwebFolder =
-            normalizePath(nextValue);
-          await plugin.saveSettings();
-        });
-      new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
     });
 
   // ── Podcast player ────────────────────────────────────────────────────────
@@ -233,28 +128,4 @@ export function renderMediaSettingsTab(
     attr: { target: "_blank", rel: "noopener noreferrer" },
   });
 
-  // ── Reset folder names ────────────────────────────────────────────────────
-  new Setting(containerEl)
-    .setName("Reset folder names")
-    .setDesc("Restore all folder names to their out-of-the-box defaults.")
-    .addButton((button) => {
-      button.setButtonText("Default folder names").onClick(async () => {
-        const d = DEFAULT_SETTINGS.media;
-        plugin.settings.media.defaultTwitterFolder = d.defaultTwitterFolder;
-        plugin.settings.media.defaultMastodonFolder = d.defaultMastodonFolder;
-        plugin.settings.media.defaultYouTubeFolder = d.defaultYouTubeFolder;
-        plugin.settings.media.defaultPodcastFolder = d.defaultPodcastFolder;
-        plugin.settings.media.defaultRssFolder = d.defaultRssFolder;
-        plugin.settings.media.defaultSmallwebFolder = d.defaultSmallwebFolder;
-        await plugin.saveSettings();
-        new Notice("Folder names restored to defaults.");
-        // Re-render the settings tab so the text inputs reflect the reset values.
-        const view = await plugin.getActiveDashboardView();
-        if (view) view.render();
-        containerEl.empty();
-        renderMediaSettingsTab(containerEl, plugin);
-      });
-    });
-
-  // ── Reset tag names ────────────────────────────────────────────────────────
 }

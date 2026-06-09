@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
-import {
-  renderGeneralSettingsTab,
-  type GeneralSettingsPlugin,
-} from "../../../src/settings/tabs/general-settings-tab";
+import { renderStorageSettingsTab } from "../../../src/settings/tabs/storage-settings-tab";
 import {
   ShardDeletionFailureModal,
   StorageTransitionModal,
@@ -120,10 +117,7 @@ describe("General settings storage section", () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
 
-    renderGeneralSettingsTab(
-      containerEl,
-      plugin as unknown as GeneralSettingsPlugin,
-    );
+    renderStorageSettingsTab(containerEl, plugin as never);
 
     expect(getSettingByName(containerEl, "Storage mode").textContent).toContain(
       "legacy monolithic data.json store",
@@ -148,10 +142,7 @@ describe("General settings storage section", () => {
       "waitForClose",
     ).mockResolvedValue("apply");
 
-    renderGeneralSettingsTab(
-      containerEl,
-      plugin as unknown as GeneralSettingsPlugin,
-    );
+    renderStorageSettingsTab(containerEl, plugin as never);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
     const select = storageModeSetting.querySelector(
@@ -191,10 +182,7 @@ describe("General settings storage section", () => {
     const plugin = createPlugin();
     plugin.settings.storageMode = "legacy-json";
 
-    renderGeneralSettingsTab(
-      containerEl,
-      plugin as unknown as GeneralSettingsPlugin,
-    );
+    renderStorageSettingsTab(containerEl, plugin as never);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
     const select = storageModeSetting.querySelector(
@@ -224,10 +212,7 @@ describe("General settings storage section", () => {
       "waitForClose",
     ).mockResolvedValue("export-data-json");
 
-    renderGeneralSettingsTab(
-      containerEl,
-      plugin as unknown as GeneralSettingsPlugin,
-    );
+    renderStorageSettingsTab(containerEl, plugin as never);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
     const select = storageModeSetting.querySelector(
@@ -267,10 +252,7 @@ describe("General settings storage section", () => {
       "waitForClose",
     ).mockResolvedValue("apply-delete-shards");
 
-    renderGeneralSettingsTab(
-      containerEl,
-      plugin as unknown as GeneralSettingsPlugin,
-    );
+    renderStorageSettingsTab(containerEl, plugin as never);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
     const select = storageModeSetting.querySelector(
@@ -328,10 +310,7 @@ describe("General settings storage section", () => {
       "waitForClose",
     ).mockResolvedValue("apply-anyway");
 
-    renderGeneralSettingsTab(
-      containerEl,
-      plugin as unknown as GeneralSettingsPlugin,
-    );
+    renderStorageSettingsTab(containerEl, plugin as never);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
     const select = storageModeSetting.querySelector(
@@ -396,10 +375,7 @@ describe("General settings storage section", () => {
       .mockResolvedValueOnce("open-folder")
       .mockResolvedValueOnce("cancel");
 
-    renderGeneralSettingsTab(
-      containerEl,
-      plugin as unknown as GeneralSettingsPlugin,
-    );
+    renderStorageSettingsTab(containerEl, plugin as never);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
     const select = storageModeSetting.querySelector(
@@ -428,10 +404,7 @@ describe("General settings storage section", () => {
     const plugin = createPlugin();
     plugin.settings.storageMode = "legacy-json";
 
-    renderGeneralSettingsTab(
-      containerEl,
-      plugin as unknown as GeneralSettingsPlugin,
-    );
+    renderStorageSettingsTab(containerEl, plugin as never);
 
     const storageFolderSetting = getSettingByName(
       containerEl,

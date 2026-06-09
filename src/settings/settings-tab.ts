@@ -20,6 +20,7 @@ export type { SettingsTabName } from "./tab-names";
 
 // Tab renderer imports
 import { renderGeneralSettingsTab } from "./tabs/general-settings-tab";
+import { renderStorageSettingsTab } from "./tabs/storage-settings-tab";
 import { renderDisplaySettingsTab } from "./tabs/display-settings-tab";
 import { renderSidebarSettingsTab } from "./tabs/sidebar-settings-tab";
 import { renderMediaSettingsTab } from "./tabs/media-settings-tab";
@@ -91,6 +92,10 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     switch (this.currentTab) {
       case "General":
         renderGeneralSettingsTab(tabContent, this.plugin);
+        this.pendingSection = null;
+        break;
+      case "Storage":
+        renderStorageSettingsTab(tabContent, this.plugin);
         this.pendingSection = null;
         break;
       case "Display":

@@ -6,6 +6,9 @@ import type RssDashboardPlugin from "../../../main";
 vi.mock("../../../src/settings/tabs/general-settings-tab", () => ({
   renderGeneralSettingsTab: vi.fn(),
 }));
+vi.mock("../../../src/settings/tabs/storage-settings-tab", () => ({
+  renderStorageSettingsTab: vi.fn(),
+}));
 vi.mock("../../../src/settings/tabs/display-settings-tab", () => ({
   renderDisplaySettingsTab: vi.fn(),
 }));
@@ -58,7 +61,7 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const tabButtons = Array.from(
       tab.containerEl.querySelectorAll(".rss-dashboard-settings-tab-btn"),
     );
-    expect(tabButtons).toHaveLength(10);
+    expect(tabButtons).toHaveLength(11);
     expect(tabButtons[0].textContent).toBe("General");
 
     expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(1);
