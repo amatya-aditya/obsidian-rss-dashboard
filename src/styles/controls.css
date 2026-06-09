@@ -183,6 +183,16 @@
   object-fit: contain;
 }
 
+/* Profile image icons in header (e.g., Mastodon avatars) */
+.rss-dashboard-header-feed-icon-img {
+  width: 100%;
+  height: 100%;
+  max-width: 20px;
+  max-height: 20px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
 /* ============================================
  * 3. Refresh & Action Buttons
  * ============================================ */

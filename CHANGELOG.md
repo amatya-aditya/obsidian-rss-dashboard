@@ -2,11 +2,27 @@
 
 ### New Features
 
+#### Auto Tagging
+
+- Added two new ways to auto-tag articles: by feed source and by individual feed.
+
+- Feed Source: Added to 'Settings > Tags > Auto Tagging' - You can now enable multi-tag auto-tagging based on the feed source (For example, apply the tag "RSS" to all articles from RSS feeds, and "YouTube" to all articles from YouTube feeds).
+
+- Individual feed - Added a new "custom auto-tags' dropdown to the Add/Edit feed window under the existing "Feed options" dropdown.
+  - If 'Feed Source' autotags are enabled for that feed, the tags you apply here will be added on top of those autotags.
+  - For example, if you have enabled "Feed" autotags and applied the tag "RSS" to all RSS feeds, and you also apply the individual feed tag "News" to that feed, all articles from that feed will be tagged with both "RSS" and "News".
+  - If there are no existing 'Feed Source' autotags, then only the tags applied for that individual feed will be applied.
+
+- Additionally, within the "Edit feed" window, within the 'Feed options" dropdown, there is now a new section that shows the 'inherited auto-tags" if any are applied Feed source tagging.
+
 #### Podcast Player
 
 - Added: Setting > Media > Podcast player setting where users can apply a default playspeed that automatically applies when the player loads an episode.
 
 - Added: "Autoplay" button in the playlist bar. Enabling it will autoplay episodes when the previous one finishes. Disabling it will only play the current episode and will prevent episodes from automatically playing.
+
+### Fixes
+- Fixed RSS feed profile favicon size overflow on Android devices where favicons in the sidebar were rendering at massive sizes instead of the intended 16x16px. Added explicit `max-width`, `max-height`, and touch-device CSS constraints for profile image icons (used by Mastodon feeds) to prevent uncontrolled scaling on mobile WebView browsers.
 
 ## [2.4.0-beta.1] - June 5, 2026
 

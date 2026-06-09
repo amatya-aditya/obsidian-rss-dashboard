@@ -643,6 +643,16 @@ body .rss-dashboard-tag-color-picker::-webkit-color-swatch {
   background-color: var(--background-secondary);
 }
 
+/* Profile image icons (e.g., Mastodon avatars) - constrained to fit container */
+.rss-dashboard-feed-icon-img {
+  width: 100%;
+  height: 100%;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  border-radius: 2px;
+}
+
 .rss-dashboard-folder {
   display: flex;
   align-items: center;
@@ -1367,5 +1377,18 @@ body .rss-folder-name-modal {
   .rss-dashboard-feed,
   .rss-dashboard-all-feeds-button {
     min-height: 44px;
+  }
+
+  /* Ensure icon containers don't stretch with increased row height */
+  .rss-dashboard-feed-icon,
+  .rss-dashboard-folder-icon {
+    max-width: 16px;
+    max-height: 16px;
+  }
+
+  /* Explicit sizing for profile image icons on touch devices */
+  .rss-dashboard-feed-icon-img {
+    width: 16px;
+    height: 16px;
   }
 }
