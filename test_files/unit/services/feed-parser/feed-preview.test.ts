@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseFeedPreviewFromXmlText } from "../../../src/services/feed-parser";
+import { parseFeedPreviewFromXmlText } from "../../../../src/services/feed-parser/feed-preview.js";
 
 describe("feed preview parsing", () => {
   it("escapes bare ampersands so preview detects entries", () => {
@@ -25,5 +25,8 @@ describe("feed preview parsing", () => {
     expect(parsed?.hasEntries).toBe(true);
     expect(parsed?.latestPubDate).toContain("2026");
   });
-});
 
+  it("returns null for empty xml text", () => {
+    expect(parseFeedPreviewFromXmlText("", "https://example.com/feed.xml")).toBeNull();
+  });
+});
