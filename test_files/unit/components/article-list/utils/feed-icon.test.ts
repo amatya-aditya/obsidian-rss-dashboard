@@ -8,13 +8,9 @@ import {
 
 const BASE_CONTEXT = {
   feeds: [] as Feed[],
-  media: {
-    defaultVideoTag: "Video",
-    rememberPlaybackProgress: true,
-    useDomainIconsRss: true,
-  } as Parameters<typeof renderFeedIcon>[3]["media"],
   display: {
     hideDefaultRssIcon: false,
+    useDomainIconsRss: true,
   } as Parameters<typeof renderFeedIcon>[3]["display"],
 };
 

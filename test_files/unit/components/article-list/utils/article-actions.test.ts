@@ -112,10 +112,11 @@ describe("article-actions utils", () => {
   });
 
   describe("createActionButtons", () => {
-    it("includes read and star toggles in full mode", () => {
+    it("includes read, save, and star toggles in full mode", () => {
       createActionButtons(baseArgs());
 
       expect(actionToolbar.querySelector(".rss-dashboard-read-toggle")).toBeTruthy();
+      expect(actionToolbar.querySelector(".rss-dashboard-save-toggle")).toBeTruthy();
       expect(actionToolbar.querySelector(".rss-dashboard-star-toggle")).toBeTruthy();
     });
 
@@ -125,10 +126,12 @@ describe("article-actions utils", () => {
       expect(actionToolbar.querySelector(".rss-dashboard-tags-toggle")).toBeTruthy();
     });
 
-    it("excludes tags toggle in minimal-read mode", () => {
+    it("includes only read toggle in minimal-read mode", () => {
       createActionButtons(baseArgs({ mode: "minimal-read" }));
 
       expect(actionToolbar.querySelector(".rss-dashboard-read-toggle")).toBeTruthy();
+      expect(actionToolbar.querySelector(".rss-dashboard-save-toggle")).toBeFalsy();
+      expect(actionToolbar.querySelector(".rss-dashboard-star-toggle")).toBeFalsy();
       expect(actionToolbar.querySelector(".rss-dashboard-tags-toggle")).toBeFalsy();
     });
   });

@@ -11,6 +11,7 @@ export interface PaginationDependencies {
   onPageSizeChange(pageSize: number): void;
   onMarkPageAsRead?(): void;
   onPersistSettings?(): Promise<void> | void;
+  onRerender?(): void;
   notices?: { show(message: string): void };
 }
 
@@ -78,6 +79,7 @@ export function renderPagination(args: RenderPaginationArgs): void {
   const isMobile = deps.isMobileViewport();
   const maxPagesToShow = isMobile ? 3 : 5;
   const padding = isMobile ? 1 : 2;
+  const onPageChange = (page: number) => deps.onPageChange(page);
 
   let startPage = Math.max(1, currentPage - padding);
   let endPage = Math.min(totalPages, currentPage + padding);
@@ -89,7 +91,7 @@ export function renderPagination(args: RenderPaginationArgs): void {
     }
   }
   if (startPage > 1) {
-    createPageButton(pagesRow, 1, currentPage, deps.onPageChange);
+    createPageButton(pagesRow, 1, currentPage, onPageChange);
     if (startPage > 2) {
       pagesRow.createEl("span", {
         text: "...",
@@ -98,7 +100,7 @@ export function renderPagination(args: RenderPaginationArgs): void {
     }
   }
   for (let i = startPage; i <= endPage; i++) {
-    createPageButton(pagesRow, i, currentPage, deps.onPageChange);
+    createPageButton(pagesRow, i, currentPage, onPageChange);
   }
   if (endPage < totalPages) {
     if (endPage < totalPages - 1) {
@@ -107,7 +109,7 @@ export function renderPagination(args: RenderPaginationArgs): void {
         cls: "rss-dashboard-pagination-ellipsis",
       });
     }
-    createPageButton(pagesRow, totalPages, currentPage, deps.onPageChange);
+    createPageButton(pagesRow, totalPages, currentPage, onPageChange);
   }
 
   const nextButton = pagesRow.createEl("button", {
@@ -145,7 +147,9 @@ export function renderPagination(args: RenderPaginationArgs): void {
         if (deps.onPersistSettings) {
           void deps.onPersistSettings();
         }
-        deps.onPageChange(currentPage);
+        if (deps.onRerender) {
+          deps.onRerender();
+        }
       } else if (deps.notices) {
         deps.notices.show("No unread items on current page");
       }

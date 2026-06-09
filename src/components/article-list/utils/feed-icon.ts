@@ -1,13 +1,12 @@
 import { setIcon } from "obsidian";
 import type { Feed } from "../../../types/types";
-import type { MediaSettings, DisplaySettings } from "../../../types/types";
+import type { DisplaySettings } from "../../../types/types";
 import { MediaService } from "../../../services/media-service";
 import { MastodonService } from "../../../services/mastodon-service";
 import { extractDomain, getFaviconUrl } from "../../../utils/favicon-utils";
 
-interface FeedIconContext {
+export interface FeedIconContext {
   feeds: Feed[];
-  media: MediaSettings;
   display: DisplaySettings;
 }
 
@@ -23,7 +22,7 @@ export function renderFeedIcon(
   const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
   const feed = context.feeds?.find((f) => f.url === feedUrl);
 
-  if (feed && MediaService.shouldShowFeedIcon(feed, context.media)) {
+  if (feed && MediaService.shouldShowFeedIcon(feed, context.display)) {
     const imgEl = iconContainer.createEl("img", {
       attr: { src: feed.iconUrl!, alt: feed.title || feedUrl },
       cls: "rss-dashboard-article-feed-icon-img",
@@ -41,7 +40,7 @@ export function renderFeedIcon(
   } else if (mediaType === "podcast") {
     setIcon(iconContainer, "mic");
     iconContainer.addClass("podcast");
-  } else if (context.media.useDomainIconsRss) {
+  } else if (context.display.useDomainIconsRss) {
     renderDomainFallbackIcon(iconContainer, feedUrl, context);
   } else if (!context.display.hideDefaultRssIcon) {
     setIcon(iconContainer, "rss");
@@ -57,7 +56,7 @@ export function renderHeaderFeedIcon(
   const mediaType = feed?.mediaType;
   const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
 
-  if (feed && MediaService.shouldShowFeedIcon(feed, context.media)) {
+  if (feed && MediaService.shouldShowFeedIcon(feed, context.display)) {
     const imgEl = container.createEl("img", {
       attr: {
         src: feed.iconUrl!,
@@ -78,7 +77,7 @@ export function renderHeaderFeedIcon(
   } else if (mediaType === "podcast") {
     setIcon(container, "mic");
     container.addClass("podcast");
-  } else if (context.media.useDomainIconsRss) {
+  } else if (context.display.useDomainIconsRss) {
     renderHeaderDomainIcon(container, feedUrl, context);
   } else if (!context.display.hideDefaultRssIcon) {
     setIcon(container, "rss");
@@ -89,7 +88,7 @@ function handleFeedIconFallback(
   iconContainer: HTMLElement,
   feedUrl: string,
   context: FeedIconContext,
-  feed: Feed,
+  _feed: Feed,
   _mediaType: "article" | "video" | "podcast" | undefined,
   _isYouTubeFeed: boolean,
 ): void {

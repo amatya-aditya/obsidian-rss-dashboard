@@ -1,6 +1,7 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { Sidebar } from "../../../src/components/sidebar";
 import { ArticleList } from "../../../src/components/article-list";
+import { renderHeaderFeedIcon } from "../../../src/components/article-list/utils/feed-icon";
 import { ArticleHeader } from "../../../src/components/article-header";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
@@ -337,30 +338,11 @@ describe("Mastodon Feed Icon — ArticleList renderFeedIcon", () => {
 
     settings.feeds = [mastodonFeed];
 
-    const articleList = new ArticleList(
-      container,
-      settings,
-      "All articles",
-      null,
-      mastodonFeed.items,
-      null,
-      mockCallbacks,
-      1,
-      1,
-      10,
-      1,
-      new Set(),
-      new Set(),
-      "OR",
-      mastodonFeed.url,
-    );
-
     const headerIconContainer = document.createElement("div");
-    (
-      articleList as unknown as {
-        renderHeaderFeedIcon: (container: HTMLElement, feedUrl: string) => void;
-      }
-    ).renderHeaderFeedIcon(headerIconContainer, mastodonFeed.url);
+    renderHeaderFeedIcon(headerIconContainer, mastodonFeed.url, {
+      feeds: settings.feeds,
+      display: settings.display,
+    });
 
     expect(headerIconContainer.dataset.icon).not.toBe("rss");
     const faviconImg = headerIconContainer.querySelector<HTMLImageElement>(
