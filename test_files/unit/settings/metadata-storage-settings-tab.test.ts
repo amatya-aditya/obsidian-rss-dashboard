@@ -1,181 +1,195 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as obsidian from "obsidian";
+import {
+  DEFAULT_SETTINGS,
+  type Folder,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
+import { renderStorageSettingsTab } from "../../../src/settings/tabs/storage-settings-tab";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import type RssDashboardPlugin from "../../../main";
 
-// Note: These tests assume a future function renderMetadataStorageSettingsTab or similar
-// Tests written before implementation (Red cycle)
+function cloneSettings(): RssDashboardSettings {
+  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
+}
 
-type ObsidianHTMLElement = HTMLElement & {
-  empty: () => void;
-  createDiv: () => HTMLDivElement;
-};
+function flushPromises(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
-// Unused helpers removed
-
-describe("Metadata Storage Settings Tab", () => {
-  beforeEach(() => {
-    installObsidianDomPolyfills();
-    (document.body as ObsidianHTMLElement).empty();
-    vi.clearAllMocks();
-    vi.useRealTimers();
+function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
+  const settingEls = Array.from(containerEl.querySelectorAll(".setting-item"));
+  const match = settingEls.find((el) => {
+    const nameEl = el.querySelector(".setting-item-name");
+    return nameEl?.textContent === name;
   });
 
-  describe("UI Rendering", () => {
-    it("renders 'Metadata Storage' section heading", () => {
-      // Expected: heading text "Metadata Storage"
-      // Actual: function does not exist yet
-      expect(true).toBe(true); // Placeholder
-    });
+  if (!match) {
+    throw new Error(`Setting not found: ${name}`);
+  }
 
-    it("renders current storage mode indicator (plugin-default or vault-location)", () => {
-      // Expected: text shows "Currently using: .obsidian/plugins/rss-dashboard"
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+  return match as HTMLElement;
+}
 
-    it("updates storage mode indicator when mode changes", () => {
-      // Expected: text shows "Currently using: .rss-dashboard-data"
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+function sampleFolders(): Folder[] {
+  return [
+    {
+      name: "Twitter",
+      subfolders: [{ name: "Lists", subfolders: [] }],
+    },
+    { name: "YouTube", subfolders: [] },
+    { name: "Podcast", subfolders: [] },
+  ];
+}
 
-    it("renders storage mode toggle dropdown with two options", () => {
-      // Expected: dropdown with "Plugin default" and "Vault location"
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+function createPlugin() {
+  return {
+    app: obsidian.App.createMock(),
+    settingTab: { display: vi.fn() },
+    settings: cloneSettings(),
+    saveSettings: vi.fn(async () => {}),
+    getActiveDashboardView: vi.fn(async () => null),
+    getStorageStatus: vi.fn(() => ({
+      mode: "legacy-json" as const,
+      folder: ".rss-dashboard-data/feeds",
+      shardCount: 0,
+      feedCount: 0,
+      migrationReady: true,
+      lastRepairResult: "Not yet run",
+    })),
+    migrateToVaultStorage: vi.fn(async () => {}),
+    repairVaultStorage: vi.fn(async () => {}),
+    importPortableDataBundleFromFile: vi.fn(async () => {}),
+    exportPortableDataBundle: vi.fn(async () => {}),
+    exportDataJson: vi.fn(async () => {}),
+    revertToLegacyJsonStorageWithOptions: vi.fn(async () => {}),
+    isShardFolderDeletionError: vi.fn(() => false),
+    openStorageFolderInSystem: vi.fn(async () => {}),
+    migrateMetadataToVaultLocation: vi.fn(async () => {}),
+    revertMetadataToPluginDefault: vi.fn(async () => {}),
+    clearPlaybackProgress: vi.fn(async () => 0),
+    getActiveReaderView: vi.fn(async () => null),
+  } as unknown as RssDashboardPlugin;
+}
 
-    it("renders folder path input field with current value", () => {
-      // Expected: text input showing ".rss-dashboard-data"
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+beforeEach(() => {
+  installObsidianDomPolyfills();
+  document.body.empty();
+  vi.restoreAllMocks();
+  vi.clearAllMocks();
+});
 
-    it("renders 'Migrate to vault location' button when in plugin-default mode", () => {
-      // Expected: button is visible
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+describe("renderStorageSettingsTab() - default folders and metadata", () => {
+  it("renders the storage section headings in the dedicated Storage tab", () => {
+    const containerEl = document.body.appendChild(document.createElement("div"));
+    const plugin = createPlugin();
 
-    it("hides 'Migrate to vault location' button when in vault-location mode", () => {
-      // Expected: button is hidden or not rendered
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+    renderStorageSettingsTab(containerEl, plugin);
 
-    it("renders 'Revert to plugin default' button when in vault-location mode", () => {
-      // Expected: button is visible
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+    const names = Array.from(
+      containerEl.querySelectorAll(".setting-item-name"),
+    ).map((el) => el.textContent?.trim());
 
-    it("hides 'Revert to plugin default' button when in plugin-default mode", () => {
-      // Expected: button is hidden or not rendered
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
-
-    it("applies responsive stacking CSS to action buttons on small screens", () => {
-      // Expected: buttons use class ".rss-dashboard-metadata-storage-actions"
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+    expect(names).toContain("Storage");
+    expect(names).toContain("Metadata Storage");
+    expect(names).toContain("Default folders");
   });
 
-  describe("User Interactions - Migration", () => {
-    it("calls migrateMetadataToVaultLocation when migrate button is clicked", async () => {
-      // Expected: plugin.migrateMetadataToVaultLocation() called
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+  it("renders and persists the default folder settings", async () => {
+    const containerEl = document.body.appendChild(document.createElement("div"));
+    const settings = cloneSettings();
+    settings.folders = sampleFolders();
+    settings.media.defaultTwitterFolder = "Twitter";
+    settings.media.defaultYouTubeFolder = "YouTube";
+    settings.media.defaultSmallwebFolder = "Smallweb";
 
-    it("disables button while migration is in progress", async () => {
-      // Expected: button disabled during operation
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+    const plugin = {
+      ...createPlugin(),
+      settings,
+    } as unknown as RssDashboardPlugin;
 
-    it("shows success notice after migration completes", async () => {
-      // Expected: showNotice called with success message
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+    vi.spyOn(obsidian, "normalizePath").mockImplementation(
+      (value: string) => `norm:${value}`,
+    );
 
-    it("shows error notice if migration fails", async () => {
-      // Expected: showNotice called with error message
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+    renderStorageSettingsTab(containerEl, plugin);
 
-    it("validates folder path before migration", async () => {
-      // Expected: warning shown if path is empty or invalid
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+    const twitterInput = getSettingByName(
+      containerEl,
+      "Default Twitter folder",
+    ).querySelector('input[type="text"]') as HTMLInputElement;
+    twitterInput.value = "Social/Twitter";
+    twitterInput.dispatchEvent(new Event("input"));
+
+    const youtubeInput = getSettingByName(
+      containerEl,
+      "Default YouTube folder",
+    ).querySelector('input[type="text"]') as HTMLInputElement;
+    youtubeInput.value = "Media/YouTube";
+    youtubeInput.dispatchEvent(new Event("input"));
+
+    const smallwebInput = getSettingByName(
+      containerEl,
+      "Default smallweb folder",
+    ).querySelector('input[type="text"]') as HTMLInputElement;
+    smallwebInput.value = "Web/Smallweb";
+    smallwebInput.dispatchEvent(new Event("input"));
+
+    await flushPromises();
+
+    expect(plugin.settings.media.defaultTwitterFolder).toBe(
+      "norm:Social/Twitter",
+    );
+    expect(plugin.settings.media.defaultYouTubeFolder).toBe(
+      "norm:Media/YouTube",
+    );
+    expect(plugin.settings.media.defaultSmallwebFolder).toBe(
+      "norm:Web/Smallweb",
+    );
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(3);
   });
 
-  describe("User Interactions - Revert", () => {
-    it("calls revertMetadataToPluginDefault when revert button is clicked", async () => {
-      // Expected: plugin.revertMetadataToPluginDefault() called
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+  it("restores the default folder names from the reset action", async () => {
+    const containerEl = document.body.appendChild(document.createElement("div"));
+    const settings = cloneSettings();
+    settings.media.defaultTwitterFolder = "Custom/Twitter";
+    settings.media.defaultMastodonFolder = "Custom/Mastodon";
+    settings.media.defaultYouTubeFolder = "Custom/YouTube";
+    settings.media.defaultPodcastFolder = "Custom/Podcast";
+    settings.media.defaultRssFolder = "Custom/RSS";
+    settings.media.defaultSmallwebFolder = "Custom/Smallweb";
 
-    it("shows confirmation modal before reverting", async () => {
-      // Expected: modal shown asking to confirm with option to clean up old file
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+    const plugin = {
+      ...createPlugin(),
+      settings,
+    } as unknown as RssDashboardPlugin;
 
-    it("shows success notice after revert completes", async () => {
-      // Expected: showNotice called with success message
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+    renderStorageSettingsTab(containerEl, plugin);
 
-    it("shows error notice if revert fails", async () => {
-      // Expected: showNotice called with error message
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
-  });
+    const resetSetting = getSettingByName(containerEl, "Reset folder names");
+    const resetButton = resetSetting.querySelector("button") as HTMLButtonElement;
+    resetButton.click();
+    await flushPromises();
 
-  describe("Settings Synchronization", () => {
-    it("updates settings UI when metadataStorageMode changes externally", () => {
-      // Expected: UI reflects new mode without re-rendering
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
-
-    it("updates settings UI when metadataStorageFolder changes externally", () => {
-      // Expected: input field and status text update
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
-
-    it("persists folder path changes to settings when input changes", async () => {
-      // Expected: folder path saved to settings.metadataStorageFolder
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
-  });
-
-  describe("Error Handling", () => {
-    it("shows error if folder path contains invalid characters", () => {
-      // Expected: validation error shown
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
-
-    it("normalizes folder paths (removes trailing slashes)", () => {
-      // Expected: path normalized to ".rss-dashboard-data"
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
-
-    it("shows warning if user tries to migrate to an existing file path", () => {
-      // Expected: warning notice shown
-      // Actual: not implemented
-      expect(true).toBe(true); // Placeholder
-    });
+    const defaults = DEFAULT_SETTINGS.media;
+    expect(plugin.settings.media.defaultTwitterFolder).toBe(
+      defaults.defaultTwitterFolder,
+    );
+    expect(plugin.settings.media.defaultMastodonFolder).toBe(
+      defaults.defaultMastodonFolder,
+    );
+    expect(plugin.settings.media.defaultYouTubeFolder).toBe(
+      defaults.defaultYouTubeFolder,
+    );
+    expect(plugin.settings.media.defaultPodcastFolder).toBe(
+      defaults.defaultPodcastFolder,
+    );
+    expect(plugin.settings.media.defaultRssFolder).toBe(
+      defaults.defaultRssFolder,
+    );
+    expect(plugin.settings.media.defaultSmallwebFolder).toBe(
+      defaults.defaultSmallwebFolder,
+    );
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 });

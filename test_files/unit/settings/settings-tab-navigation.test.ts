@@ -18,14 +18,16 @@ import {
 // ── SETTINGS_TAB_NAMES ───────────────────────────────────────────────────────
 
 describe("SETTINGS_TAB_NAMES", () => {
-  it("contains exactly 9 tabs", () => {
-    expect(SETTINGS_TAB_NAMES).toHaveLength(9);
+  it("contains exactly 11 tabs", () => {
+    expect(SETTINGS_TAB_NAMES).toHaveLength(11);
   });
 
   it("includes all expected tab names", () => {
     const expected = [
       "General",
+      "Storage",
       "Display",
+      "Sidebar",
       "Media",
       "Article saving",
       "Rules",

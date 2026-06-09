@@ -120,7 +120,7 @@ Using the new Vault Shards storage mode? See the user-facing guide here: [docs/s
 
 ## Tags Guide
 
-Tags let you label and filter articles the way that works best for you. For a full walkthrough of manual vs automatic tagging, the tag palette, per-article tagging, per-feed custom tags, and filter modes, see [docs/tags-primer.md](docs/tags-primer.md).
+Tags let you label and filter articles the way that works best for you. Automatic tagging is available at three levels: feed-type defaults (Settings), folder rules (right-click a folder → **Auto tag feeds in folder...**), and per-feed custom tags (Add/Edit feed). For a full walkthrough of precedence, backfill, and filter modes, see [docs/tags-primer.md](docs/tags-primer.md).
 
 ## Installation
 
@@ -252,7 +252,7 @@ your **new device**.
 > authoritative state and propagate it to all your devices, wiping your feeds.
 
 3. On your **existing device** (PC): Set up RSS Dashboard with all the feeds, folders, and tags you want to sync.
-4. On your **existing device** (PC): Confirm your storage folder names follow the requirements above (Settings → RSS Dashboard → General → Storage, **as well as** Metadata storage > Metadata data.json location).
+4. On your **existing device** (PC): Confirm your storage folder names follow the requirements above (Settings → RSS Dashboard → Storage, **as well as** Storage → Metadata storage > Metadata data.json location).
 5. On your **existing device** (PC): Open Obsidian Settings → Core Plugins → Sync → Activity Log and wait until it shows today's date and time with the text "Fully synced"
 
 6. On your **new device** (phone/tablet): Open Obsidian and check the same Sync Activity Log. Wait until it shows today's date and time with the text "Fully synced". Close the sync window.

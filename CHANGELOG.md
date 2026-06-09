@@ -1,12 +1,37 @@
-## Unreleased
+## 2.4.0-beta.2 - June 9, 2026
 
 ### New Features
 
+#### Auto Tagging
+
+- Added three ways to auto-tag articles: by feed source, by individual feed, and by folder. Tags can be combined, with folders cascading to descendant feeds.
+
+- **Feed source**: Added to `Settings > Tags > Auto Tagging` - you can now enable multi-tag auto-tagging based on the feed source (for example, apply "RSS" to all RSS feeds, or "YouTube" to all YouTube feeds, or apply your own custom tags).
+
+- **Individual feed**: Added a new "Custom auto-tags" dropdown in the Add/Edit feed window under the existing "Feed options" dropdown:
+  - If feed-source auto-tags are enabled for that feed (via Settings), the individual feed tags are applied on top of the feed-source tags.
+  - For example, if you have enabled feed-source auto-tags and applied "RSS" to all RSS feeds, and you also apply the individual feed tag "News" to that feed, all articles from that feed will be tagged with both "RSS" and "News".
+  - If no feed-source auto-tags are configured, only the individual feed tags apply.
+
+- Within the Edit feed window, the "Feed options" dropdown now shows a section for inherited feed-source auto-tags where applicable.
+
+- **Folder auto-tags**: Right-click any folder in the sidebar and choose **Auto tag feeds in folder...** to assign tags that cascade to all feeds in that folder and its descendants. Tags are stored on the configured folder only; child folders inherit parent tags dynamically. Use **Existing articles** to sync folder auto-tags to stored articles (adds new rule tags and removes deselected rule tags while leaving other tags intact) or remove all tags in scope. See [docs/tags-primer.md](docs/tags-primer.md) for precedence and examples.
+
 #### Podcast Player
 
-- Added: Setting > Media > Podcast player setting where users can apply a default playspeed that automatically applies when the player loads an episode.
+- Added: Setting > Media > Podcast player setting where users can apply a default play speed that automatically applies when the player loads an episode.
 
 - Added: "Autoplay" button in the playlist bar. Enabling it will autoplay episodes when the previous one finishes. Disabling it will only play the current episode and will prevent episodes from automatically playing.
+
+### Fixes
+
+- Fixed RSS feed profile favicon size overflow on Android devices where favicons in the sidebar were rendering at massive sizes instead of the intended 16x16px. Added explicit `max-width`, `max-height`, and touch-device CSS constraints for profile image icons (used by Mastodon feeds) to prevent uncontrolled scaling on mobile WebView browsers.
+
+- Fixed a bug within 2.4.0-beta.1 which was writing unnecessary amounts of data to the JSON files causing performance degradation
+
+### Changes
+
+- Added two new settings tabs, 'Storage' and 'Sidebar'. These are refactors of already existing features contained elsewhere in the settings, but moved into their own dedicated tabs to improve the user experience.
 
 ## [2.4.0-beta.1] - June 5, 2026
 

@@ -22,6 +22,12 @@ import {
 } from "../utils/sidebar-icon-registry";
 import { collectFolderPaths } from "../utils/folder-paths";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
+import { FolderAutoTagModal } from "../modals/feed-manager/folder-auto-tag-modal";
+import {
+  buildFolderTagConfirmMessage,
+  removeAllTagsFromFeeds,
+  syncFolderAutoTagsOnFeeds,
+} from "../utils/folder-tag-sync";
 import { showEditTagModal } from "../utils/tag-utils";
 import {
   attachInputClearButton,
@@ -33,7 +39,6 @@ import type RssDashboardPlugin from "../../main";
 import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { MediaService } from "../services/media-service";
-import { MastodonService } from "../services/mastodon-service";
 import {
   moveFeedAndInsert,
   moveFeedToFolderAppend,
@@ -1474,33 +1479,6 @@ export class Sidebar {
       setIcon(feedIcon, "loader-2");
       feedIcon.addClass("processing");
       feedEl.classList.add("processing-feed");
-    } else if (MediaService.shouldShowFeedIcon(feed, this.settings.media)) {
-      // Show feed logo (e.g. Mastodon profile image) when available and enabled
-      const imgEl = feedIcon.createEl("img", {
-        attr: { src: feed.iconUrl!, alt: feed.title },
-        cls: "rss-dashboard-feed-icon-img",
-      });
-      imgEl.onerror = () => {
-        feedIcon.empty();
-        if (MediaService.isTwitterOrNitterFeed(feed.url)) {
-          void this.renderDomainFavicon(feedIcon, "twitter.com");
-        } else if (MastodonService.isResolvedFeedUrl(feed.url)) {
-          void this.renderDomainFavicon(
-            feedIcon,
-            this.extractDomain(feed.url),
-          );
-        } else if (!this.settings.display.hideDefaultRssIcon) {
-          setIcon(feedIcon, "rss");
-        }
-      };
-    } else if (MediaService.isTwitterOrNitterFeed(feed.url)) {
-      // Show default Twitter/X favicon
-      this.renderFallbackFeedIcon(feedIcon);
-      void this.renderDomainFavicon(feedIcon, "twitter.com");
-    } else if (MastodonService.isResolvedFeedUrl(feed.url)) {
-      // Show default Mastodon instance domain favicon
-      this.renderFallbackFeedIcon(feedIcon);
-      void this.renderDomainFavicon(feedIcon, this.extractDomain(feed.url));
     } else if (
       feed.mediaType === "video" &&
       MediaService.isYouTubeFeed(feed.url)
@@ -1514,7 +1492,15 @@ export class Sidebar {
       feedEl.classList.add("podcast-feed");
       setIcon(feedIcon, "mic");
       feedIcon.addClass("podcast");
-    } else if (this.settings.media.useDomainIconsRss) {
+    } else if (MediaService.shouldShowFeedIcon(feed, this.settings.display)) {
+      feedIcon.createEl("img", {
+        attr: {
+          src: feed.iconUrl ?? "",
+          alt: feed.title,
+        },
+        cls: "rss-dashboard-feed-icon-img",
+      });
+    } else if (this.settings.display.useDomainFavicons) {
       // Show domain favicon for regular feeds when setting is enabled
       const domain = this.extractDomain(feed.url);
       if (domain) {
@@ -1797,6 +1783,14 @@ export class Sidebar {
         .setIcon("refresh-cw")
         .onClick(() => {
           void this.plugin.refreshFeedsInFolder(fullPath);
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Auto tag feeds in folder...")
+        .setIcon("tags")
+        .onClick(() => {
+          this.showFolderAutoTagModal(fullPath);
         });
     });
     menu.addItem((item: MenuItem) => {
@@ -2977,11 +2971,6 @@ export class Sidebar {
       },
     });
 
-    // ⚠️ Bulletproof stop propagation for typing hotkeys (r, j, k, etc)
-    searchInput.addEventListener("keydown", (e) => {
-      e.stopPropagation();
-    });
-
     let searchTimeout: number;
 
     attachInputClearButton(
@@ -3235,6 +3224,79 @@ export class Sidebar {
       feed,
       () => this.render(),
       options,
+    ).open();
+  }
+
+  private showFolderAutoTagModal(folderPath: string): void {
+    const folder = this.findFolderByPath(folderPath);
+    if (!folder) {
+      new Notice("Folder not found");
+      return;
+    }
+
+    new FolderAutoTagModal(
+      this.app,
+      this.plugin,
+      folderPath,
+      (folder.autoTags ?? []).map((tag) => tag.name),
+      async (selectedTags, includeSubfolders, existingArticlesAction) => {
+        const previousTags = [...(folder.autoTags ?? [])];
+
+        const applyFolderRule = async (): Promise<void> => {
+          folder.autoTags = selectedTags;
+          folder.modifiedAt = Date.now();
+          await this.plugin.saveSettings();
+          this.render();
+        };
+
+        if (existingArticlesAction === "none") {
+          await applyFolderRule();
+          return;
+        }
+
+        const confirmMessage = buildFolderTagConfirmMessage(
+          folderPath,
+          includeSubfolders,
+          existingArticlesAction,
+          previousTags,
+          selectedTags,
+        );
+
+        this.showConfirmModal(confirmMessage, () => {
+          void (async () => {
+            const pathsToUpdate = includeSubfolders
+              ? this.getAllDescendantFolderPaths(folderPath)
+              : [folderPath];
+
+            let articlesUpdated = 0;
+            if (existingArticlesAction === "remove_all") {
+              articlesUpdated = removeAllTagsFromFeeds(
+                this.settings.feeds,
+                pathsToUpdate,
+              );
+            } else {
+              articlesUpdated = syncFolderAutoTagsOnFeeds(
+                this.settings.feeds,
+                pathsToUpdate,
+                previousTags,
+                selectedTags,
+              );
+            }
+
+            await applyFolderRule();
+
+            if (existingArticlesAction === "remove_all") {
+              new Notice(
+                `Removed all tags from ${articlesUpdated} article${articlesUpdated === 1 ? "" : "s"}`,
+              );
+            } else {
+              new Notice(
+                `Updated ${articlesUpdated} article${articlesUpdated === 1 ? "" : "s"} with folder auto-tags`,
+              );
+            }
+          })();
+        });
+      },
     ).open();
   }
 

@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyAutomaticArticleTags,
+  getFolderAutoTags,
+  resolveArticleTags,
   showEditTagModal,
   updateTagInSettings,
   withSavedTagName,
 } from "../../../src/utils/tag-utils";
-import { FeedItem, RssDashboardSettings, Tag } from "../../../src/types/types";
+import {
+  FeedItem,
+  Folder,
+  RssDashboardSettings,
+  Tag,
+} from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 type TestTag = { name: string; color?: string };
@@ -180,5 +187,70 @@ describe("tag-utils.withSavedTagName", () => {
   it("appends Saved when missing and normalizes lowercase variants", () => {
     expect(withSavedTagName(["tech"])).toEqual(["tech", "Saved"]);
     expect(withSavedTagName(["tech", "saved"])).toEqual(["tech", "Saved"]);
+  });
+});
+
+describe("tag-utils folder auto-tag resolution", () => {
+  const folders: Folder[] = [
+    {
+      name: "Technology",
+      autoTags: [
+        { name: "Topic", color: "#111111" },
+        { name: "Tech", color: "#222222" },
+      ],
+      subfolders: [
+        {
+          name: "Web",
+          autoTags: [
+            { name: "Topic", color: "#333333" },
+            { name: "JavaScript", color: "#444444" },
+          ],
+          subfolders: [
+            {
+              name: "React",
+              autoTags: [{ name: "React", color: "#555555" }],
+              subfolders: [],
+            },
+          ],
+        },
+      ],
+    },
+  ];
+
+  it("collects folder auto-tags from ancestors through the selected folder", () => {
+    expect(getFolderAutoTags("Technology/Web/React", folders)).toEqual([
+      { name: "Topic", color: "#333333" },
+      { name: "Tech", color: "#222222" },
+      { name: "JavaScript", color: "#444444" },
+      { name: "React", color: "#555555" },
+    ]);
+  });
+
+  it("resolves media, folder, feed, and article tags with later scopes winning", () => {
+    const resolved = resolveArticleTags(
+      [
+        { name: "manual", color: "#aaaaaa" },
+        { name: "topic", color: "#bbbbbb" },
+      ],
+      [
+        { name: "Feed", color: "#666666" },
+        { name: "TECH", color: "#777777" },
+      ],
+      "Technology/Web",
+      folders,
+      [
+        { name: "RSS", color: "#888888" },
+        { name: "Topic", color: "#999999" },
+      ],
+    );
+
+    expect(resolved).toEqual([
+      { name: "RSS", color: "#888888" },
+      { name: "topic", color: "#bbbbbb" },
+      { name: "TECH", color: "#777777" },
+      { name: "JavaScript", color: "#444444" },
+      { name: "Feed", color: "#666666" },
+      { name: "manual", color: "#aaaaaa" },
+    ]);
   });
 });

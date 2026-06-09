@@ -21,6 +21,10 @@ export function migrateDisplaySettings(display: Record<string, unknown>): void {
     "hideIconCollapseAll",
     "hideIconSettings",
     "hideToolbarEntirely",
+    "useDomainIconsRss",
+    "useDomainIconsPodcast",
+    "useDomainIconsTwitter",
+    "useDomainIconsMastodon",
   ];
 
   for (const field of booleanDefaults) {
@@ -259,11 +263,6 @@ export function migrateMediaVideoTagSettings(
     changed = true;
   } else if (media.defaultMastodonFolder.trim().length === 0) {
     media.defaultMastodonFolder = "Mastodon";
-    changed = true;
-  }
-
-  if (typeof media.useDomainIconsMastodon !== "boolean") {
-    media.useDomainIconsMastodon = false;
     changed = true;
   }
 

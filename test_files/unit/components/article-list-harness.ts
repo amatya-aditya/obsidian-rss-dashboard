@@ -9,9 +9,19 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 type ArticleListCallbacks = ConstructorParameters<typeof ArticleList>[6];
 
+type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends Array<infer U>
+    ? Array<DeepPartial<U>>
+    : T[K] extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T[K] extends object
+        ? DeepPartial<T[K]>
+        : T[K];
+};
+
 export interface ArticleListHarnessOverrides {
   container?: HTMLElement;
-  settings?: Partial<RssDashboardSettings>;
+  settings?: DeepPartial<RssDashboardSettings>;
   callbacks?: Partial<ArticleListCallbacks>;
   articles?: FeedItem[];
   selectedArticle?: FeedItem | null;
@@ -54,11 +64,19 @@ function deepMerge<T extends Record<string, unknown>>(
 }
 
 function installCssEscapePolyfill(): void {
-  type WinCSS = Window &
-    typeof globalThis & { CSS?: { escape?: (s: string) => string } };
-  const win = window as WinCSS;
+  interface TestCSS {
+    escape: (s: string) => string;
+  }
+
+  interface TestWindow extends Window {
+    CSS?: TestCSS;
+  }
+
+  const win = window as TestWindow;
   if (win.CSS === undefined) {
-    win.CSS = { escape: (s: string) => s.replace(/([^\w-])/g, "\\$1") };
+    win.CSS = {
+      escape: (s: string) => s.replace(/([^\w-])/g, "\\$1"),
+    };
   } else if (win.CSS.escape === undefined) {
     win.CSS.escape = (s: string) => s.replace(/([^\w-])/g, "\\$1");
   }

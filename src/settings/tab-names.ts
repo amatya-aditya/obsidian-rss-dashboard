@@ -8,7 +8,9 @@
 /** The ordered list of settings tab names. */
 export const SETTINGS_TAB_NAMES = [
   "General",
+  "Storage",
   "Display",
+  "Sidebar",
   "Media",
   "Article saving",
   "Rules",

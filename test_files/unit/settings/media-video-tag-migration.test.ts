@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { migrateDisplaySettings } from "../../../src/utils/settings-migration";
 import { migrateMediaVideoTagSettings } from "../../../src/utils/settings-migration";
 
 describe("migrateMediaVideoTagSettings", () => {
@@ -149,15 +150,17 @@ describe("migrateMediaVideoTagSettings", () => {
 
   it("backfills useDomainIconsMastodon to false", () => {
     const settings: Record<string, unknown> = {
+      display: {},
       media: { defaultVideoTag: "Video" },
       availableTags: [],
     };
 
+    migrateDisplaySettings(settings.display as Record<string, unknown>);
     const changed = migrateMediaVideoTagSettings(settings);
 
     expect(changed).toBe(true);
     expect(
-      (settings.media as Record<string, unknown>).useDomainIconsMastodon,
+      (settings.display as Record<string, unknown>).useDomainIconsMastodon,
     ).toBe(false);
   });
 

@@ -1,7 +1,15 @@
 import { requestUrl, Notice } from "obsidian";
-import { Feed, MediaSettings, Tag } from "../types/types";
+import {
+  Feed,
+  Folder,
+  MediaSettings,
+  DisplaySettings,
+  Tag,
+} from "../types/types";
 import { isKnownVideoUrl } from "../utils/video-detection";
 import { MastodonService } from "./mastodon-service";
+import { resolveArticleTags } from "../utils/tag-utils";
+import { resolveTagObjects } from "../utils/tag-resolver";
 
 export interface YouTubeEmbedConfig {
   videoId: string;
@@ -118,7 +126,7 @@ export class MediaService {
     }
   }
 
-  static shouldShowFeedIcon(feed: Feed, mediaSettings: MediaSettings): boolean {
+  static shouldShowFeedIcon(feed: Feed, displaySettings: DisplaySettings): boolean {
     if (!feed || !feed.iconUrl) return false;
 
     if (feed.mediaType === "video" || this.isYouTubeFeed(feed.url)) {
@@ -126,18 +134,18 @@ export class MediaService {
     }
 
     if (feed.mediaType === "podcast") {
-      return !!mediaSettings.useDomainIconsPodcast;
+      return !!displaySettings.useDomainIconsPodcast;
     }
 
     if (MastodonService.isResolvedFeedUrl(feed.url)) {
-      return !!mediaSettings.useDomainIconsMastodon;
+      return !!displaySettings.useDomainIconsMastodon;
     }
 
     if (this.isTwitterOrNitterFeed(feed.url)) {
-      return !!mediaSettings.useDomainIconsTwitter;
+      return !!displaySettings.useDomainIconsTwitter;
     }
 
-    return !!mediaSettings.useDomainIconsRss;
+    return !!displaySettings.useDomainIconsRss;
   }
 
   static async getMastodonRssFeed(url: string): Promise<string | null> {
@@ -869,11 +877,23 @@ export class MediaService {
         | "defaultRssTags"
       >
     >,
+    folders?: Folder[],
   ): Feed {
+    const safeAvailableTags = Array.isArray(availableTags) ? availableTags : [];
     const { tags: mediaTags, category: tagCategory } =
-      this.getInheritedTagsAndCategory(feed, availableTags, mediaSettings);
+      this.getInheritedTagsAndCategory(feed, safeAvailableTags, mediaSettings);
+    const perFeedTags = resolveTagObjects(
+      feed.customTags ?? [],
+      safeAvailableTags,
+    );
 
-    if (mediaTags.length === 0 || !tagCategory) return feed;
+    if (
+      mediaTags.length === 0 &&
+      perFeedTags.length === 0 &&
+      !feed.folder
+    ) {
+      return feed;
+    }
 
     const updatedItems = feed.items.map((item) => {
       const shouldTagItem =
@@ -889,23 +909,18 @@ export class MediaService {
                   ? true
                   : tagCategory === "rss"
                     ? true
-                    : false;
+                  : false;
 
-      if (!shouldTagItem) {
-        return item;
-      }
-
-      if (!item.tags) item.tags = [];
-
-      const existingTagNames = new Set(item.tags.map((tag) => tag.name));
-      for (const mediaTag of mediaTags) {
-        if (!existingTagNames.has(mediaTag.name)) {
-          item.tags.push({ ...mediaTag });
-          existingTagNames.add(mediaTag.name);
-        }
-      }
-
-      return item;
+      return {
+        ...item,
+        tags: resolveArticleTags(
+          item.tags,
+          perFeedTags,
+          feed.folder,
+          folders,
+          shouldTagItem ? mediaTags : [],
+        ),
+      };
     });
 
     return {

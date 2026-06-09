@@ -256,12 +256,7 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
   );
   const displayUnknown = settings.display as unknown as Record<string, unknown>;
   if (displayUnknown && displayUnknown.useDomainFavicons !== undefined) {
-    settings.media = Object.assign(
-      {},
-      DEFAULT_SETTINGS.media,
-      settings.media ?? {},
-    );
-    settings.media.useDomainIconsRss = Boolean(displayUnknown.useDomainFavicons);
+    (settings.display as unknown as Record<string, unknown>).useDomainIconsRss = Boolean(displayUnknown.useDomainFavicons);
     delete displayUnknown.useDomainFavicons;
     didChange = true;
   }
