@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildArticle, createArticleListHarness } from "./article-list-harness";
-import { Feed, MediaSettings } from "../../../src/types/types";
+import { Feed } from "../../../src/types/types";
 
 interface TestableArticleList {
   filterArticlesBySearch(query: string): void;
@@ -100,12 +100,12 @@ describe("Phase 7 - ArticleList characterization", () => {
 
     h.list.render();
 
-    expect(h.getArticleEl("1")?.classList.contains("rss-dashboard-feed-item")).toBe(
-      true,
-    );
-    expect(h.getArticleEl("2")?.classList.contains("rss-dashboard-feed-item")).toBe(
-      true,
-    );
+    expect(
+      h.getArticleEl("1")?.classList.contains("rss-dashboard-feed-item"),
+    ).toBe(true);
+    expect(
+      h.getArticleEl("2")?.classList.contains("rss-dashboard-feed-item"),
+    ).toBe(true);
 
     (h.list as unknown as TestableArticleList).filterArticlesBySearch("hello");
     expect(
@@ -191,7 +191,9 @@ describe("Phase 7 - ArticleList characterization", () => {
     vi.runOnlyPendingTimers();
 
     const newestIds = Array.from(
-      newest.container.querySelectorAll<HTMLElement>(".rss-dashboard-article-item"),
+      newest.container.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-article-item",
+      ),
     ).map((el) => el.id);
     expect(newestIds).toEqual(["article-3", "article-2", "article-1"]);
 
@@ -232,7 +234,9 @@ describe("Phase 7 - ArticleList characterization", () => {
 
     if (oldestInserted) {
       const oldestIds = Array.from(
-        oldest.container.querySelectorAll<HTMLElement>(".rss-dashboard-article-item"),
+        oldest.container.querySelectorAll<HTMLElement>(
+          ".rss-dashboard-article-item",
+        ),
       ).map((el) => el.id);
       expect(oldestIds).toEqual(["article-1", "article-2", "article-3"]);
     } else {
@@ -273,9 +277,9 @@ describe("Phase 7 - ArticleList characterization", () => {
   it("renders standard feed icon image in article list if useDomainIconsRss is true", () => {
     const h = createArticleListHarness({
       settings: {
-        media: {
+        display: {
           useDomainIconsRss: true,
-        } as unknown as MediaSettings,
+        },
         feeds: [
           {
             title: "RSS Feed",
@@ -285,12 +289,21 @@ describe("Phase 7 - ArticleList characterization", () => {
         ],
       },
       articles: [
-        buildArticle({ guid: "1", title: "One", feedUrl: "https://example.com/rss", mediaType: "article" }),
+        buildArticle({
+          guid: "1",
+          title: "One",
+          feedUrl: "https://example.com/rss",
+          mediaType: "article",
+        }),
       ],
     });
     h.list.render();
 
-    const img = h.getArticleEl("1")?.querySelector(".rss-dashboard-article-feed-icon-img") as HTMLImageElement;
+    const img = h
+      .getArticleEl("1")
+      ?.querySelector(
+        ".rss-dashboard-article-feed-icon-img",
+      ) as HTMLImageElement;
     expect(img).not.toBeNull();
     expect(img.src).toBe("https://example.com/feed-icon.png");
     h.cleanup();
@@ -299,9 +312,9 @@ describe("Phase 7 - ArticleList characterization", () => {
   it("falls back to default icon branch in article list if useDomainIconsRss is false", () => {
     const h = createArticleListHarness({
       settings: {
-        media: {
+        display: {
           useDomainIconsRss: false,
-        } as unknown as MediaSettings,
+        },
         feeds: [
           {
             title: "RSS Feed",
@@ -311,15 +324,20 @@ describe("Phase 7 - ArticleList characterization", () => {
         ],
       },
       articles: [
-        buildArticle({ guid: "1", title: "One", feedUrl: "https://example.com/rss", mediaType: "article" }),
+        buildArticle({
+          guid: "1",
+          title: "One",
+          feedUrl: "https://example.com/rss",
+          mediaType: "article",
+        }),
       ],
     });
     h.list.render();
 
-    const img = h.getArticleEl("1")?.querySelector(".rss-dashboard-article-feed-icon-img");
+    const img = h
+      .getArticleEl("1")
+      ?.querySelector(".rss-dashboard-article-feed-icon-img");
     expect(img).toBeNull();
     h.cleanup();
   });
 });
-
-

@@ -8,7 +8,13 @@ import {
 } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
-import { RssDashboardSettings, Feed, Folder, MediaSettings } from "../../../src/types/types";
+import {
+  RssDashboardSettings,
+  Feed,
+  Folder,
+  MediaSettings,
+  DisplaySettings,
+} from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -179,7 +185,7 @@ describe("Sidebar Rendering", () => {
   });
 
   it("uses favicon flow for non-YouTube video feeds instead of play icon", () => {
-    settings.media.useDomainIconsRss = true;
+    settings.display.useDomainIconsRss = true;
     settings.feeds = [
       {
         title: "Bloomberg Video Feed",
@@ -212,7 +218,7 @@ describe("Sidebar Rendering", () => {
   });
 
   it("shows play icon for YouTube video feeds", () => {
-    settings.media.useDomainIconsRss = true;
+    settings.display.useDomainIconsRss = true;
     settings.feeds = [
       {
         title: "YouTube Feed",
@@ -381,7 +387,8 @@ describe("Sidebar Rendering", () => {
       options,
       callbacks,
     );
-    (sidebar as unknown as { isTagsExpanded: boolean })["isTagsExpanded"] = true;
+    (sidebar as unknown as { isTagsExpanded: boolean })["isTagsExpanded"] =
+      true;
     sidebar.render();
 
     const tagsSection = container.querySelector(
@@ -403,7 +410,8 @@ describe("Sidebar Rendering", () => {
       options,
       callbacks,
     );
-    (sidebar as unknown as { isTagsExpanded: boolean })["isTagsExpanded"] = true;
+    (sidebar as unknown as { isTagsExpanded: boolean })["isTagsExpanded"] =
+      true;
     sidebar.render();
 
     const tag1 = container.querySelector(
@@ -415,9 +423,9 @@ describe("Sidebar Rendering", () => {
   });
 
   it("renders standard feed icon image if useDomainIconsRss is true", () => {
-    settings.media = {
+    settings.display = {
       useDomainIconsRss: true,
-    } as unknown as MediaSettings;
+    } as unknown as DisplaySettings;
     settings.feeds = [
       {
         title: "RSS Feed",
@@ -438,7 +446,9 @@ describe("Sidebar Rendering", () => {
     );
     sidebar.render();
 
-    const img = container.querySelector(".rss-dashboard-feed-icon-img") as HTMLImageElement;
+    const img = container.querySelector(
+      ".rss-dashboard-feed-icon-img",
+    ) as HTMLImageElement;
     expect(img).not.toBeNull();
     expect(img.src).toBe("https://example.com/feed-icon.png");
   });
@@ -469,8 +479,9 @@ describe("Sidebar Rendering", () => {
 
     const img = container.querySelector(".rss-dashboard-feed-icon-img");
     expect(img).toBeNull();
-    const icon = container.querySelector(".rss-dashboard-feed-icon") as HTMLElement;
+    const icon = container.querySelector(
+      ".rss-dashboard-feed-icon",
+    ) as HTMLElement;
     expect(icon.dataset.icon).toBe("rss");
   });
 });
-

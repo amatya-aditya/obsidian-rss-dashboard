@@ -1,5 +1,5 @@
 import { requestUrl, Platform } from "obsidian";
-import { Feed, FeedItem, MediaSettings, Tag } from "../types/types.js";
+import { Feed, FeedItem, DisplaySettings, MediaSettings, Tag } from "../types/types.js";
 import { MediaService } from "./media-service";
 import { MastodonService } from "./mastodon-service";
 import {
@@ -2728,14 +2728,46 @@ export function applyFeedRetentionLimits(
 }
 
 export class FeedParser {
+  private displaySettings: DisplaySettings;
   private mediaSettings: MediaSettings;
   private availableTags: Tag[];
   private parser: CustomXMLParser;
 
-  constructor(mediaSettings: MediaSettings, availableTags: Tag[]) {
-    this.mediaSettings = mediaSettings;
+  constructor(
+    displaySettings: DisplaySettings,
+    availableTags: Tag[],
+    mediaSettings?: MediaSettings,
+  ) {
+    this.displaySettings = displaySettings;
     this.availableTags = availableTags;
     this.parser = new CustomXMLParser();
+    this.mediaSettings = mediaSettings ?? {
+      defaultVideoTag: "Video",
+      defaultVideoTags: ["Video"],
+      rememberPlaybackProgress: true,
+      defaultTwitterFolder: "Twitter",
+      defaultMastodonFolder: "Mastodon",
+      defaultYouTubeFolder: "Videos",
+      defaultYouTubeTag: "Video",
+      defaultYouTubeTags: ["Video"],
+      defaultPodcastFolder: "Podcast",
+      defaultPodcastTag: "Podcast",
+      defaultPodcastTags: ["Podcast"],
+      defaultRssFolder: "RSS",
+      defaultRssTag: "",
+      defaultRssTags: [],
+      defaultSmallwebFolder: "Smallweb",
+      defaultSmallwebTag: "",
+      defaultSmallwebTags: [],
+      defaultTwitterTag: "",
+      defaultTwitterTags: [],
+      defaultMastodonTag: "",
+      defaultMastodonTags: [],
+      openInSplitView: true,
+      podcastTheme: "obsidian",
+      enableApplePodcastsOpen: false,
+      defaultPlaySpeed: 1,
+    };
   }
 
   private resolveFeedIconUrl(
@@ -2751,30 +2783,29 @@ export class FeedParser {
     }
 
     if (mediaType === "video" || MediaService.isYouTubeFeed(url)) {
-      return this.mediaSettings.useDomainIconsYouTube
-        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
-        : "";
+      // YouTube feeds don't use profile images - always return empty
+      return "";
     }
 
     if (mediaType === "podcast") {
-      return this.mediaSettings.useDomainIconsPodcast
+      return this.displaySettings.useDomainIconsPodcast
         ? this.convertToAbsoluteUrl(feedLogoUrl, url)
         : "";
     }
 
     if (MastodonService.isResolvedFeedUrl(url)) {
-      return this.mediaSettings.useDomainIconsMastodon
+      return this.displaySettings.useDomainIconsMastodon
         ? this.convertToAbsoluteUrl(feedLogoUrl, url)
         : "";
     }
 
     if (MediaService.isTwitterOrNitterFeed(url)) {
-      return this.mediaSettings.useDomainIconsTwitter
+      return this.displaySettings.useDomainIconsTwitter
         ? this.convertToAbsoluteUrl(feedLogoUrl, url)
         : "";
     }
 
-    return this.mediaSettings.useDomainIconsRss
+    return this.displaySettings.useDomainIconsRss
       ? this.convertToAbsoluteUrl(feedLogoUrl, url)
       : "";
   }

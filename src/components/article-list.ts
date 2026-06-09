@@ -1453,19 +1453,19 @@ export class ArticleList {
     return summaryText.length <= CARD_PREVIEW_HIGHLIGHT_MAX_CHARS;
   }
 
-  private renderFeedIcon(
-    container: HTMLElement,
-    feedUrl: string,
-    mediaType?: "article" | "video" | "podcast",
-  ): void {
-    const iconContainer = container.createDiv({
-      cls: "rss-dashboard-article-feed-icon",
-    });
-    const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
-    const feed = this.settings.feeds?.find((f) => f.url === feedUrl);
+private renderFeedIcon(
+     container: HTMLElement,
+     feedUrl: string,
+     mediaType?: "article" | "video" | "podcast",
+   ): void {
+     const iconContainer = container.createDiv({
+       cls: "rss-dashboard-article-feed-icon",
+     });
+     const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
+     const feed = this.settings.feeds?.find((f) => f.url === feedUrl);
 
-    if (feed && MediaService.shouldShowFeedIcon(feed, this.settings.media)) {
-      // Show cached feed logo when available and enabled
+     if (feed && MediaService.shouldShowFeedIcon(feed, this.settings.display)) {
+       // Show cached feed logo when available and enabled
       const imgEl = iconContainer.createEl("img", {
         attr: { src: feed.iconUrl!, alt: feed.title || feedUrl },
         cls: "rss-dashboard-article-feed-icon-img",
@@ -1554,7 +1554,7 @@ export class ArticleList {
     } else if (mediaType === "podcast") {
       setIcon(iconContainer, "mic");
       iconContainer.addClass("podcast");
-    } else if (this.settings.media.useDomainIconsRss) {
+    } else if (this.settings.display.useDomainIconsRss) {
       const domain = extractDomain(feedUrl);
       if (domain) {
         const faviconUrl = getFaviconUrl(domain);
@@ -1580,22 +1580,22 @@ export class ArticleList {
     }
   }
 
-  private renderHeaderFeedIcon(container: HTMLElement, feedUrl: string): void {
-    const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-    const mediaType = feed?.mediaType;
-    const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
+private renderHeaderFeedIcon(container: HTMLElement, feedUrl: string): void {
+     const feed = this.settings.feeds.find((f) => f.url === feedUrl);
+     const mediaType = feed?.mediaType;
+     const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
 
-    if (feed && MediaService.shouldShowFeedIcon(feed, this.settings.media)) {
-      // Show cached feed logo when available and enabled
-      const imgEl = container.createEl("img", {
-        attr: {
-          src: feed.iconUrl!,
-          alt: feed.title || feedUrl,
-        },
-        cls: "rss-dashboard-header-feed-icon-img",
-      });
-      imgEl.onerror = () => {
-        container.empty();
+     if (feed && MediaService.shouldShowFeedIcon(feed, this.settings.display)) {
+       // Show cached feed logo when available and enabled
+       const imgEl = container.createEl("img", {
+         attr: {
+           src: feed.iconUrl!,
+           alt: feed.title || feedUrl,
+         },
+         cls: "rss-dashboard-header-feed-icon-img",
+       });
+       imgEl.onerror = () => {
+         container.empty();
         if (MediaService.isTwitterOrNitterFeed(feedUrl)) {
           const faviconUrl = getFaviconUrl("twitter.com");
           const fallbackImg = container.createEl("img", {
@@ -1678,7 +1678,7 @@ export class ArticleList {
     } else if (mediaType === "podcast") {
       setIcon(container, "mic");
       container.addClass("podcast");
-    } else if (this.settings.media.useDomainIconsRss) {
+    } else if (this.settings.display.useDomainIconsRss) {
       const domain = extractDomain(feedUrl);
       if (domain) {
         const faviconUrl = getFaviconUrl(domain);

@@ -281,8 +281,9 @@ export default class RssDashboardPlugin extends Plugin {
 
   private initializeSettingsBackedServices(): void {
     this.feedParser = new FeedParser(
-      this.settings.media,
+      this.settings.display,
       this.settings.availableTags,
+      this.settings.media,
     );
     this.articleSaver = new ArticleSaver(this.app, this.settings.articleSaving);
     this.importExportService = new ImportExportService({

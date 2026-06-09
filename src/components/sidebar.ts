@@ -1474,8 +1474,8 @@ export class Sidebar {
       setIcon(feedIcon, "loader-2");
       feedIcon.addClass("processing");
       feedEl.classList.add("processing-feed");
-    } else if (MediaService.shouldShowFeedIcon(feed, this.settings.media)) {
-      // Show feed logo (e.g. Mastodon profile image) when available and enabled
+} else if (MediaService.shouldShowFeedIcon(feed, this.settings.display)) {
+       // Show feed logo (e.g. Mastodon profile image) when available and enabled
       const imgEl = feedIcon.createEl("img", {
         attr: { src: feed.iconUrl!, alt: feed.title },
         cls: "rss-dashboard-feed-icon-img",
@@ -1514,8 +1514,8 @@ export class Sidebar {
       feedEl.classList.add("podcast-feed");
       setIcon(feedIcon, "mic");
       feedIcon.addClass("podcast");
-    } else if (this.settings.media.useDomainIconsRss) {
-      // Show domain favicon for regular feeds when setting is enabled
+} else if (this.settings.display.useDomainIconsRss) {
+       // Show domain favicon for regular feeds when setting is enabled
       const domain = this.extractDomain(feed.url);
       if (domain) {
         this.renderFallbackFeedIcon(feedIcon);

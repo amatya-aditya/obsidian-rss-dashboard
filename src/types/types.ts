@@ -218,11 +218,6 @@ export interface MediaSettings {
   defaultTwitterTags?: string[];
   defaultMastodonTag?: string;
   defaultMastodonTags?: string[];
-  useDomainIconsMastodon: boolean;
-  useDomainIconsRss: boolean;
-  useDomainIconsPodcast: boolean;
-  useDomainIconsTwitter: boolean;
-  useDomainIconsYouTube: boolean;
   openInSplitView: boolean;
   podcastTheme: PodcastTheme;
   enableApplePodcastsOpen?: boolean;
@@ -295,10 +290,16 @@ export interface DisplaySettings {
   hideIconCollapseAll: boolean;
   hideIconSettings: boolean;
   hideIconDivider: boolean;
-  hideToolbarEntirely: boolean;
-  iconOrder: string[];
-  articleDateStyle: "relative" | "absolute";
-}
+hideToolbarEntirely: boolean;
+   iconOrder: string[];
+   articleDateStyle: "relative" | "absolute";
+
+   // Domain icon toggles for feed list
+   useDomainIconsRss: boolean;
+   useDomainIconsPodcast: boolean;
+   useDomainIconsTwitter: boolean;
+   useDomainIconsMastodon: boolean;
+ }
 
 export interface SidebarIconConfig {
   id: string;
@@ -601,11 +602,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultTwitterTags: [],
     defaultMastodonTag: "",
     defaultMastodonTags: [],
-    useDomainIconsMastodon: false,
-    useDomainIconsRss: false,
-    useDomainIconsPodcast: false,
-    useDomainIconsTwitter: false,
-    useDomainIconsYouTube: false,
     openInSplitView: true,
     podcastTheme: "obsidian",
     enableApplePodcastsOpen: false,
@@ -688,20 +684,24 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     hideIconCollapseAll: false,
     hideIconSettings: false,
     hideIconDivider: false,
-    hideToolbarEntirely: false,
-    iconOrder: [
-      "discover",
-      "divider",
-      "addFeed",
-      "manageFeeds",
-      "search",
-      "tags",
-      "addFolder",
-      "sort",
-      "collapseAll",
-      "settings",
-    ],
-    articleDateStyle: "relative",
+hideToolbarEntirely: false,
+     iconOrder: [
+       "discover",
+       "divider",
+       "addFeed",
+       "manageFeeds",
+       "search",
+       "tags",
+       "addFolder",
+       "sort",
+       "collapseAll",
+       "settings",
+     ],
+     useDomainIconsRss: false,
+     useDomainIconsPodcast: false,
+     useDomainIconsTwitter: false,
+     useDomainIconsMastodon: false,
+     articleDateStyle: "relative",
   },
   highlights: {
     enabled: false,

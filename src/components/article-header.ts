@@ -680,7 +680,7 @@ export class ArticleHeader {
           setIcon(container, "rss");
         }
       };
-    } else if (this.settings.media.useDomainIconsRss) {
+    } else if (this.settings.display.useDomainIconsRss) {
       const domain = extractDomain(feedUrl);
       if (domain) {
         const faviconUrl = getFaviconUrl(domain);

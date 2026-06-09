@@ -1,5 +1,5 @@
 import { requestUrl, Notice } from "obsidian";
-import { Feed, MediaSettings, Tag } from "../types/types";
+import { Feed, MediaSettings, DisplaySettings, Tag } from "../types/types";
 import { isKnownVideoUrl } from "../utils/video-detection";
 import { MastodonService } from "./mastodon-service";
 
@@ -118,7 +118,7 @@ export class MediaService {
     }
   }
 
-  static shouldShowFeedIcon(feed: Feed, mediaSettings: MediaSettings): boolean {
+  static shouldShowFeedIcon(feed: Feed, displaySettings: DisplaySettings): boolean {
     if (!feed || !feed.iconUrl) return false;
 
     if (feed.mediaType === "video" || this.isYouTubeFeed(feed.url)) {
@@ -126,18 +126,18 @@ export class MediaService {
     }
 
     if (feed.mediaType === "podcast") {
-      return !!mediaSettings.useDomainIconsPodcast;
+      return !!displaySettings.useDomainIconsPodcast;
     }
 
     if (MastodonService.isResolvedFeedUrl(feed.url)) {
-      return !!mediaSettings.useDomainIconsMastodon;
+      return !!displaySettings.useDomainIconsMastodon;
     }
 
     if (this.isTwitterOrNitterFeed(feed.url)) {
-      return !!mediaSettings.useDomainIconsTwitter;
+      return !!displaySettings.useDomainIconsTwitter;
     }
 
-    return !!mediaSettings.useDomainIconsRss;
+    return !!displaySettings.useDomainIconsRss;
   }
 
   static async getMastodonRssFeed(url: string): Promise<string | null> {
