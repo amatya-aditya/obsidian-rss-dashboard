@@ -114,6 +114,8 @@ export function renderCardView(
         attr: {
           src: coverImgSrc,
           alt: article.title,
+          loading: "lazy",
+          decoding: "async",
         },
       });
       coverImg.onerror = () => {

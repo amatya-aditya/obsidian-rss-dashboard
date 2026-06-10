@@ -3,6 +3,7 @@ import { canonicalizeItemIdentityUrl, resolveAbsoluteHttpUrl } from "../../utils
 import { MediaService } from "../media-service.js";
 import { CustomXMLParser } from "./xml-parser/custom-xml-parser.js";
 import { assertParsedFeedHasEntries } from "./parsed-feed-assert.js";
+import { optimizeImageUrl } from "../../utils/image-url-utils.js";
 import type { Feed, FeedItem } from "../../types/types.js";
 import type { ParsedItem } from "./types.js";
 export class FeedParserService {
@@ -72,8 +73,10 @@ export class FeedParserService {
       feedTitle: parsed.title || "",
       feedUrl: url,
       coverImage: isPodcast
-        ? item.itunes?.image?.href || item.image?.url || podcastFeedImage || ""
-        : item.itunes?.image?.href || item.image?.url || "",
+        ? optimizeImageUrl(
+            item.itunes?.image?.href || item.image?.url || podcastFeedImage || ""
+          )
+        : optimizeImageUrl(item.itunes?.image?.href || item.image?.url || ""),
       mediaContentType: item.mediaContentType,
       mediaType: isPodcast ? "podcast" : "article",
       author: item.author || "",
@@ -82,7 +85,7 @@ export class FeedParserService {
 
       duration: item.itunes?.duration || "",
       explicit: item.itunes?.explicit === "yes",
-      image: item.itunes?.image?.href || item.image?.url || "",
+      image: optimizeImageUrl(item.itunes?.image?.href || item.image?.url || ""),
       category: item.itunes?.category || "",
       summary: item.itunes?.summary || "",
       episodeType: item.itunes?.episodeType || "",

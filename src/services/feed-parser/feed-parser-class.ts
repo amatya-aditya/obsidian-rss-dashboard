@@ -24,6 +24,7 @@ import {
 } from "./feed-retention.js";
 import type { FeedParseOptions, ParsedFeed, ParsedItem } from "./types.js";
 import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
+import { optimizeImageUrl } from "../../utils/image-url-utils.js";
 
 export type { FeedParseOptions } from "./types.js";
 export class FeedParser {
@@ -224,9 +225,9 @@ export class FeedParser {
           );
         }
         if (content && content.startsWith("http")) {
-          return content;
+          return optimizeImageUrl(content);
         } else if (content && baseUrl) {
-          return this.convertToAbsoluteUrl(content, baseUrl);
+          return optimizeImageUrl(this.convertToAbsoluteUrl(content, baseUrl));
         }
       }
 
@@ -240,9 +241,9 @@ export class FeedParser {
           );
         }
         if (content && content.startsWith("http")) {
-          return content;
+          return optimizeImageUrl(content);
         } else if (content && baseUrl) {
-          return this.convertToAbsoluteUrl(content, baseUrl);
+          return optimizeImageUrl(this.convertToAbsoluteUrl(content, baseUrl));
         }
       }
 
@@ -256,9 +257,9 @@ export class FeedParser {
           );
         }
         if (src && src.startsWith("http")) {
-          return src;
+          return optimizeImageUrl(src);
         } else if (src && baseUrl) {
-          return this.convertToAbsoluteUrl(src, baseUrl);
+          return optimizeImageUrl(this.convertToAbsoluteUrl(src, baseUrl));
         }
       }
 
@@ -281,7 +282,7 @@ export class FeedParser {
             src.endsWith(".webp") ||
             src.includes("image"))
         ) {
-          return src;
+          return optimizeImageUrl(src);
         } else if (
           src &&
           baseUrl &&
@@ -292,7 +293,7 @@ export class FeedParser {
             src.endsWith(".webp") ||
             src.includes("image"))
         ) {
-          return this.convertToAbsoluteUrl(src, baseUrl);
+          return optimizeImageUrl(this.convertToAbsoluteUrl(src, baseUrl));
         }
       }
     } catch {
@@ -308,9 +309,8 @@ export class FeedParser {
     baseUrl: string,
   ): string {
     if (item.itunes?.image?.href) {
-      const itunesImage = this.convertToAbsoluteUrl(
-        item.itunes.image.href,
-        baseUrl,
+      const itunesImage = optimizeImageUrl(
+        this.convertToAbsoluteUrl(item.itunes.image.href, baseUrl),
       );
       if (itunesImage) {
         return itunesImage;
@@ -318,7 +318,9 @@ export class FeedParser {
     }
 
     if (item.image?.url) {
-      const itemImage = this.convertToAbsoluteUrl(item.image.url, baseUrl);
+      const itemImage = optimizeImageUrl(
+        this.convertToAbsoluteUrl(item.image.url, baseUrl),
+      );
       if (itemImage) {
         return itemImage;
       }
@@ -333,7 +335,9 @@ export class FeedParser {
       }
 
       if (feedImageUrl) {
-        const convertedUrl = this.convertToAbsoluteUrl(feedImageUrl, baseUrl);
+        const convertedUrl = optimizeImageUrl(
+          this.convertToAbsoluteUrl(feedImageUrl, baseUrl),
+        );
         if (convertedUrl) {
           return convertedUrl;
         }
@@ -366,11 +370,11 @@ export class FeedParser {
     }
 
     if (parsed.feedItunesImage) {
-      return this.convertToAbsoluteUrl(parsed.feedItunesImage, baseUrl);
+      return optimizeImageUrl(this.convertToAbsoluteUrl(parsed.feedItunesImage, baseUrl));
     }
 
     if (parsed.feedImageUrl) {
-      return this.convertToAbsoluteUrl(parsed.feedImageUrl, baseUrl);
+      return optimizeImageUrl(this.convertToAbsoluteUrl(parsed.feedImageUrl, baseUrl));
     }
 
     return "";
@@ -507,12 +511,14 @@ export class FeedParser {
               item.content || item.description || "",
               url,
             ) ||
-            this.convertToAbsoluteUrl(
-              item.itunes?.image?.href || item.image?.url || "",
-              url,
+            optimizeImageUrl(
+              this.convertToAbsoluteUrl(
+                item.itunes?.image?.href || item.image?.url || "",
+                url,
+              )
             ) ||
             (item.enclosure?.type?.startsWith("image/")
-              ? this.convertToAbsoluteUrl(item.enclosure.url, url)
+              ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
               : "") ||
             existingItem.coverImage;
         }
@@ -540,12 +546,14 @@ export class FeedParser {
             this.extractSummary(item.content || item.description || "") ||
             existingItem.summary,
           image:
-            this.convertToAbsoluteUrl(
-              item.itunes?.image?.href || item.image?.url || "",
-              url,
+            optimizeImageUrl(
+              this.convertToAbsoluteUrl(
+                item.itunes?.image?.href || item.image?.url || "",
+                url,
+              )
             ) ||
             (item.enclosure?.type?.startsWith("image/")
-              ? this.convertToAbsoluteUrl(item.enclosure.url, url)
+              ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
               : "") ||
             existingItem.image,
           duration: item.itunes?.duration || existingItem.duration,
@@ -591,17 +599,21 @@ export class FeedParser {
               item.content || item.description || "",
               url,
             ) ||
-            this.convertToAbsoluteUrl(
-              item.itunes?.image?.href || item.image?.url || "",
-              url,
+            optimizeImageUrl(
+              this.convertToAbsoluteUrl(
+                item.itunes?.image?.href || item.image?.url || "",
+                url,
+              )
             ) ||
             (item.enclosure?.type?.startsWith("image/")
-              ? this.convertToAbsoluteUrl(item.enclosure.url, url)
+              ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
               : "");
         }
-        let image = this.convertToAbsoluteUrl(
-          item.itunes?.image?.href || item.image?.url || "",
-          url,
+        let image = optimizeImageUrl(
+          this.convertToAbsoluteUrl(
+            item.itunes?.image?.href || item.image?.url || "",
+            url,
+          )
         );
         if (!image) {
           image = this.extractCoverImage(
@@ -610,7 +622,7 @@ export class FeedParser {
           );
         }
         if (!image && item.enclosure?.type?.startsWith("image/")) {
-          image = this.convertToAbsoluteUrl(item.enclosure.url, url);
+          image = optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url));
         }
         const summary = this.extractSummary(
           item.content || item.description || "",

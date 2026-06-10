@@ -1331,7 +1331,6 @@ body .rss-folder-name-modal {
 .rss-dashboard-article-card {
   transition:
     opacity 0.2s ease-out,
-    transform 0.2s ease-out,
     background-color 0.15s ease,
     box-shadow 0.18s ease,
     border 0.18s ease;
@@ -1904,33 +1903,31 @@ body .rss-dashboard-tag-action-button svg {
   margin: 8px 0;
   background: var(--background-modifier-border);
 }
-.rss-dashboard-cover-image {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: opacity 0.3s ease;
-}
+.rss-dashboard-cover-image,
 .rss-dashboard-summary-overlay {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
+  will-change: opacity;
+}
+.rss-dashboard-cover-image {
+  object-fit: cover;
+}
+.rss-dashboard-summary-overlay {
   background: var(--background-primary);
   padding: 12px;
   opacity: 0;
-  transition: opacity 0.3s ease;
-  overflow-y: auto;
+  transition: opacity 0.15s ease;
+  overflow-y: hidden;
   font-size: 0.9em;
   line-height: 1.5;
 }
-.rss-dashboard-cover-container.has-summary:hover .rss-dashboard-cover-image {
+.rss-dashboard-cover-container:hover .rss-dashboard-cover-image {
   opacity: 0;
 }
-.rss-dashboard-cover-container.has-summary:hover .rss-dashboard-summary-overlay {
+.rss-dashboard-cover-container:hover .rss-dashboard-summary-overlay {
   opacity: 1;
 }
 .rss-dashboard-article-summary {
@@ -1989,20 +1986,6 @@ body .rss-dashboard-tag-action-button svg {
 }
 .rss-dashboard-star-toggle svg {
   opacity: 1;
-}
-.rss-dashboard-cover-container:hover .rss-dashboard-cover-image {
-  opacity: 0;
-}
-.rss-dashboard-cover-container:hover .rss-dashboard-summary-overlay {
-  opacity: 1;
-}
-.rss-dashboard-action-toolbar .rss-dashboard-article-date {
-  margin-left: auto;
-  color: var(--text-muted);
-  font-size: 0.95em;
-  align-self: center;
-  padding-left: 12px;
-  white-space: nowrap;
 }
 .rss-dashboard-folder,
 .rss-dashboard-feed,
@@ -2420,12 +2403,33 @@ body .rss-dashboard-tag-action-button svg {
   overflow: hidden;
   background: var(--background-modifier-border);
 }
-.rss-dashboard-card-view .rss-dashboard-card-preview-region .rss-dashboard-cover-image,
+.rss-dashboard-card-view .rss-dashboard-card-preview-region .rss-dashboard-cover-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  will-change: opacity;
+}
 .rss-dashboard-card-view .rss-dashboard-card-preview-region .rss-dashboard-summary-overlay {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  background: var(--background-primary);
+  padding: 12px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  overflow-y: hidden;
+  will-change: opacity;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+.rss-dashboard-card-view .rss-dashboard-card-preview-region .rss-dashboard-cover-container:hover .rss-dashboard-cover-image {
+  opacity: 0;
+}
+.rss-dashboard-card-view .rss-dashboard-card-preview-region .rss-dashboard-cover-container:hover .rss-dashboard-summary-overlay {
+  opacity: 1;
 }
 .rss-dashboard-card-view .rss-dashboard-card-preview-region .rss-dashboard-cover-summary-only {
   min-height: 120px;

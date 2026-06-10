@@ -112,7 +112,6 @@
 .rss-dashboard-article-card {
   transition:
     opacity 0.2s ease-out,
-    transform 0.2s ease-out,
     background-color 0.15s ease,
     box-shadow 0.18s ease,
     border 0.18s ease;
