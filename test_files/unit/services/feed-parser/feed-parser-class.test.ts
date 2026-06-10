@@ -765,4 +765,45 @@ describe("FeedParser.parseFeed", () => {
 
     requestUrlSpy.mockRestore();
   });
+
+  it("skips NPR tracking pixel and selects the article image via first img", async () => {
+    const feedUrl = "https://www.npr.org/feed/rss";
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>NPR</title>
+    <link>https://www.npr.org</link>
+    <item>
+      <title>Test Article</title>
+      <link>https://www.npr.org/test-article</link>
+      <description><![CDATA[<p>Article body</p>]]></description>
+      <content:encoded><![CDATA[
+        <p>Some intro text.</p>
+        <img src="https://media.npr.org/include/images/tracking/npr-rss-pixel.png?story=12345" />
+        <p>More text.</p>
+        <img src="https://media.npr.brightspotcdn.com/dims4/default/test-article.jpg/crop/8552x5292+0+0/medium.jpg" width="600" />
+      ]]></content:encoded>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <guid>https://www.npr.org/test-article</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({
+      status: 200,
+      text: xml,
+    });
+
+    const parser = new FeedParser(mediaSettings, []);
+    const parsed = await parser.parseFeed(feedUrl, null);
+    const item = parsed.items[0];
+
+    expect(item.coverImage).toContain("test-article");
+    expect(item.coverImage).not.toContain("rss-pixel");
+    expect(item.coverImage).not.toContain("crop");
+    expect(item.coverImage).not.toContain("+0+0");
+
+    requestUrlSpy.mockRestore();
+  });
 });

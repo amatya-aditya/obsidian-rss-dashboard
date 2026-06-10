@@ -26,6 +26,19 @@ import type { FeedParseOptions, ParsedFeed, ParsedItem } from "./types.js";
 import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
 import { optimizeImageUrl } from "../../utils/image-url-utils.js";
 
+const TRACKING_PIXEL_PATTERNS = [
+  "tracking/",
+  "pixel.gif",
+  "beacon.",
+  "1x1",
+  "/track/",
+  "rss-pixel",
+];
+
+function isTrackingPixel(url: string): boolean {
+  return TRACKING_PIXEL_PATTERNS.some((p) => url.includes(p));
+}
+
 export type { FeedParseOptions } from "./types.js";
 export class FeedParser {
   private displaySettings: DisplaySettings;
@@ -256,9 +269,9 @@ export class FeedParser {
             `[RSS Dashboard] extractCoverImage: first img src contains double-encoded: ${src}`,
           );
         }
-        if (src && src.startsWith("http")) {
+        if (src && src.startsWith("http") && !isTrackingPixel(src)) {
           return optimizeImageUrl(src);
-        } else if (src && baseUrl) {
+        } else if (src && baseUrl && !isTrackingPixel(src)) {
           return optimizeImageUrl(this.convertToAbsoluteUrl(src, baseUrl));
         }
       }
@@ -280,7 +293,8 @@ export class FeedParser {
             src.endsWith(".png") ||
             src.endsWith(".gif") ||
             src.endsWith(".webp") ||
-            src.includes("image"))
+            src.includes("image")) &&
+          !isTrackingPixel(src)
         ) {
           return optimizeImageUrl(src);
         } else if (
@@ -291,7 +305,8 @@ export class FeedParser {
             src.endsWith(".png") ||
             src.endsWith(".gif") ||
             src.endsWith(".webp") ||
-            src.includes("image"))
+            src.includes("image")) &&
+          !isTrackingPixel(src)
         ) {
           return optimizeImageUrl(this.convertToAbsoluteUrl(src, baseUrl));
         }

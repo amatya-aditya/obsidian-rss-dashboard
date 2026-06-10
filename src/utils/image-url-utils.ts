@@ -2,10 +2,13 @@ export function optimizeImageUrl(url: string, maxWidth = 600): string {
   if (!url) return url;
 
   // NPR / Brightspot CDN
-  if (url.includes("brightspotcdn.com")) {
+  if (url.includes("brightspotcdn.com") || url.includes("media.npr.org")) {
     return url
-      .replace(/\/crop\/\d+x\d+\//g, "/")
-      .replace(/\/resize\/\d+x\d+(\/|$)/g, `/resize/${maxWidth}x/`);
+      .replace(/\/resize\/\d+x\d+!?\//g, `/resize/${maxWidth}x/`)
+      .replace(
+        /\/(?:crop\/)?\d+x\d+(?:[+]\d+[+]\d*)?\//g,
+        "/",
+      );
   }
 
   // WordPress Photon / Jetpack CDN
