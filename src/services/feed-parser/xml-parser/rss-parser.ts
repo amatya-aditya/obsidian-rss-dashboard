@@ -126,9 +126,14 @@ export function parseRSS(doc: Document, deps: RssParserDeps): ParsedFeed {
     };
 
     const itemImageElement = item.querySelector("image");
-    const itemImage = itemImageElement
-      ? { url: deps.getTextContent(itemImageElement, "url") }
-      : undefined;
+    let itemImageUrl = "";
+    if (itemImageElement) {
+      itemImageUrl = deps.getTextContent(itemImageElement, "url");
+      if (!itemImageUrl) {
+        itemImageUrl = deps.getTextContent(item, "image");
+      }
+    }
+    const itemImage = itemImageUrl ? { url: itemImageUrl } : undefined;
 
     let mediaImage = "";
     mediaImage = deps.getMediaImageUrl(item);

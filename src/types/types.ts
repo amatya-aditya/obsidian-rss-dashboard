@@ -10,6 +10,7 @@ export interface FeedItem {
   feedTitle: string;
   feedUrl: string;
   coverImage: string;
+  fallbackIconUrl?: string;
 
   mediaType?: "article" | "video" | "podcast";
   mediaContentType?: string;

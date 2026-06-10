@@ -12,7 +12,7 @@ export interface CardViewContext extends BaseViewContext {
   showCardToolbar: boolean;
 }
 
-function resolveCoverImageSrc(article: FeedItem): string | undefined {
+function resolveCoverImageSrc(article: FeedItem): { src: string, isFallback: boolean } | undefined {
   let coverImgSrc = article.coverImage;
   if (!coverImgSrc && article.content) {
     const extracted = extractFirstImageSrc(article.content);
@@ -29,7 +29,16 @@ function resolveCoverImageSrc(article: FeedItem): string | undefined {
   ) {
     coverImgSrc = article.enclosure.url;
   }
-  return coverImgSrc || undefined;
+  
+  if (coverImgSrc) {
+    return { src: coverImgSrc, isFallback: false };
+  }
+
+  if (article.fallbackIconUrl) {
+    return { src: article.fallbackIconUrl, isFallback: true };
+  }
+
+  return undefined;
 }
 
 export function renderCardView(
@@ -97,29 +106,35 @@ export function renderCardView(
       });
     }
 
-    const coverImgSrc = resolveCoverImageSrc(article);
+    const coverImgResult = resolveCoverImageSrc(article);
     const previewSummaryText = getArticlePreviewSummaryText(article);
 
-    if (coverImgSrc) {
+    if (coverImgResult) {
       const previewRegion = cardContent.createDiv({
         cls: "rss-dashboard-card-preview-region",
       });
       const coverContainer = previewRegion.createDiv({
         cls:
           "rss-dashboard-cover-container" +
-          (previewSummaryText ? " has-summary" : ""),
+          (previewSummaryText ? " has-summary" : "") +
+          (coverImgResult.isFallback ? " is-fallback" : ""),
       });
       const coverImg = coverContainer.createEl("img", {
-        cls: "rss-dashboard-cover-image",
+        cls: "rss-dashboard-cover-image" + (coverImgResult.isFallback ? " rss-dashboard-cover-image-fallback" : ""),
         attr: {
-          src: coverImgSrc,
+          src: coverImgResult.src,
           alt: article.title,
           loading: "lazy",
           decoding: "async",
         },
       });
       coverImg.onerror = () => {
-        previewRegion.remove();
+        // If image fails to load, instead of removing the whole previewRegion,
+        // we just hide the image and let the summary text remain.
+        coverImg.style.display = "none";
+        coverContainer.removeClass("is-fallback");
+        // Also add a class to adjust layout if needed
+        coverContainer.addClass("rss-dashboard-cover-summary-only");
         deps.scheduleCardTagLayout?.(card);
       };
 

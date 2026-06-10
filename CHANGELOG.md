@@ -1,3 +1,13 @@
+# Obsidian RSS Dashboard Changelog
+
+## Unreleased
+
+### Fixes
+
+- Fixed some feeds not properly rendering card previews (e.g. [World History Encyclopedia](https://www.worldhistory.org/rss/))
+
+- Fixed laggy feeds (NPR)
+
 ## 2.4.0-beta.2 - June 9, 2026
 
 ### New Features

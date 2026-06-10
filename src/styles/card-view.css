@@ -43,6 +43,12 @@
   object-fit: cover;
 }
 
+.rss-dashboard-cover-image-fallback {
+  object-fit: contain;
+  padding: 16px;
+  background-color: var(--background-secondary-alt);
+}
+
 .rss-dashboard-summary-overlay {
   background: var(--background-primary);
   padding: 12px;

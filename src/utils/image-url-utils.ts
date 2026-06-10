@@ -47,3 +47,12 @@ export function optimizeImageUrlsInContent(content: string, maxWidth = 600): str
     }
   );
 }
+
+export function sanitizeImageUrl(raw: unknown): string {
+  if (!raw || typeof raw !== "string") return "";
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === "undefined" || trimmed === "null") return "";
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://"))
+    return "";
+  return trimmed;
+}

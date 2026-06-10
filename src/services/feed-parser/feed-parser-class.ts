@@ -24,7 +24,7 @@ import {
 } from "./feed-retention.js";
 import type { FeedParseOptions, ParsedFeed, ParsedItem } from "./types.js";
 import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
-import { optimizeImageUrl } from "../../utils/image-url-utils.js";
+import { optimizeImageUrl, sanitizeImageUrl } from "../../utils/image-url-utils.js";
 
 const TRACKING_PIXEL_PATTERNS = [
   "tracking/",
@@ -521,7 +521,7 @@ export class FeedParser {
             this.resolvePodcastCoverImage(item, parsed, url) ||
             existingItem.coverImage;
         } else {
-          coverImage =
+          coverImage = sanitizeImageUrl(
             this.extractCoverImage(
               item.content || item.description || "",
               url,
@@ -534,8 +534,8 @@ export class FeedParser {
             ) ||
             (item.enclosure?.type?.startsWith("image/")
               ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
-              : "") ||
-            existingItem.coverImage;
+              : "")
+          ) || existingItem.coverImage;
         }
         const updatedItem: FeedItem = {
           ...existingItem,
@@ -560,7 +560,7 @@ export class FeedParser {
           summary:
             this.extractSummary(item.content || item.description || "") ||
             existingItem.summary,
-          image:
+          image: sanitizeImageUrl(
             optimizeImageUrl(
               this.convertToAbsoluteUrl(
                 item.itunes?.image?.href || item.image?.url || "",
@@ -569,8 +569,8 @@ export class FeedParser {
             ) ||
             (item.enclosure?.type?.startsWith("image/")
               ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
-              : "") ||
-            existingItem.image,
+              : "")
+          ) || existingItem.image,
           duration: item.itunes?.duration || existingItem.duration,
           explicit: item.itunes?.explicit === "yes" || existingItem.explicit,
           category: item.itunes?.category || existingItem.category,
@@ -609,7 +609,7 @@ export class FeedParser {
         if (isPodcast) {
           coverImage = this.resolvePodcastCoverImage(item, parsed, url);
         } else {
-          coverImage =
+          coverImage = sanitizeImageUrl(
             this.extractCoverImage(
               item.content || item.description || "",
               url,
@@ -622,22 +622,23 @@ export class FeedParser {
             ) ||
             (item.enclosure?.type?.startsWith("image/")
               ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
-              : "");
+              : "")
+          );
         }
-        let image = optimizeImageUrl(
+        let image = sanitizeImageUrl(optimizeImageUrl(
           this.convertToAbsoluteUrl(
             item.itunes?.image?.href || item.image?.url || "",
             url,
           )
-        );
+        ));
         if (!image) {
-          image = this.extractCoverImage(
+          image = sanitizeImageUrl(this.extractCoverImage(
             item.content || item.description || "",
             url,
-          );
+          ));
         }
         if (!image && item.enclosure?.type?.startsWith("image/")) {
-          image = optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url));
+          image = sanitizeImageUrl(optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url)));
         }
         const summary = this.extractSummary(
           item.content || item.description || "",
@@ -766,6 +767,12 @@ export class FeedParser {
       url,
       processedFeed.mediaType,
     );
+
+    if (processedFeed.iconUrl) {
+      processedFeed.items.forEach((item) => {
+        item.fallbackIconUrl = processedFeed.iconUrl;
+      });
+    }
 
     return MediaService.applyMediaTags(
       processedFeed,
