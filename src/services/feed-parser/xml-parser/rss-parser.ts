@@ -58,7 +58,9 @@ export function parseRSS(doc: Document, deps: RssParserDeps): ParsedFeed {
 
     itemLink = deps.transformSageUrl(itemLink);
 
-    let itemDescription = deps.getTextContent(item, "description");
+    let itemDescription =
+      deps.getTextContent(item, "description") ||
+      deps.getTextContent(item, "media:description");
     const pubDate = deps.getTextContent(item, "pubDate");
     const guid = deps.getTextContent(item, "guid") || itemLink;
 

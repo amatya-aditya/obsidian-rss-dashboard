@@ -311,7 +311,14 @@ export function fallbackParse(
         ? sanitize(itemDescMatch[1].trim())
         : "";
       if (itemDescription === "null" || itemDescription === "") {
-        itemDescription = "";
+        const mediaDescMatch =
+          itemXml.match(/<media:description[^>]*>([\s\S]*?)<\/media:description>/i) ||
+          itemXml.match(/<media\\:description[^>]*>([\s\S]*?)<\/media\\:description>/i);
+        if (mediaDescMatch) {
+          itemDescription = sanitize(mediaDescMatch[1].trim());
+        } else {
+          itemDescription = "";
+        }
       }
 
       const itemPubDateMatch = itemXml.match(

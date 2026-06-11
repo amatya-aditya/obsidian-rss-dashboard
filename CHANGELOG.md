@@ -14,6 +14,8 @@
 
 - Fixed date inside card toolbar misalignment
 
+- Fixed some feeds like TED Talks not properly showing summary text inside cards.
+
 ## 2.4.0-beta.2 - June 9, 2026
 
 ### New Features

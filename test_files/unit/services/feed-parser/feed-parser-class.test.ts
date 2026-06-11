@@ -767,4 +767,46 @@ describe("FeedParser.parseFeed", () => {
 
     requestUrlSpy.mockRestore();
   });
+
+  it("extracts media:description as the summary when summary/description is missing", async () => {
+    const feedUrl = "https://www.youtube.com/feeds/videos.xml?channel_id=UCsT0YIqwnpJCM-mx7-gSA4Q";
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015"
+      xmlns:media="http://search.yahoo.com/mrss/"
+      xmlns="http://www.w3.org/2005/Atom">
+  <link rel="self" href="${feedUrl}"/>
+  <id>yt:channel:UCsT0YIqwnpJCM-mx7-gSA4Q</id>
+  <yt:channelId>UCsT0YIqwnpJCM-mx7-gSA4Q</yt:channelId>
+  <title>TEDx Talks</title>
+  <entry>
+    <id>yt:video:RjEXDRW867M</id>
+    <yt:videoId>RjEXDRW867M</yt:videoId>
+    <title>Why kids don’t play outside anymore (and it’s not what you think) | Jasper Schipperijn | TEDxOdense</title>
+    <link rel="alternate" href="https://www.youtube.com/watch?v=RjEXDRW867M"/>
+    <author><name>TEDx Talks</name></author>
+    <published>2026-06-11T17:00:09+00:00</published>
+    <media:group>
+      <media:title>Why kids don’t play outside anymore (and it’s not what you think) | Jasper Schipperijn | TEDxOdense</media:title>
+      <media:content url="https://www.youtube.com/v/RjEXDRW867M?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+      <media:thumbnail url="https://i3.ytimg.com/vi/RjEXDRW867M/hqdefault.jpg" width="480" height="360"/>
+      <media:description>Sometimes the biggest problems have the simplest causes.</media:description>
+    </media:group>
+  </entry>
+</feed>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce({
+      status: 200,
+      text: xml,
+    });
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+    const parsed = await parser.parseFeed(feedUrl, null);
+    const item = parsed.items[0];
+
+    expect(item.description).toBe("Sometimes the biggest problems have the simplest causes.");
+    expect(item.summary).toBe("Sometimes the biggest problems have the simplest causes.");
+
+    requestUrlSpy.mockRestore();
+  });
 });

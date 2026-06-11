@@ -85,7 +85,9 @@ export function parseAtom(doc: Document, deps: AtomParserDeps): ParsedFeed {
     const entryTitle = deps.getTextContent(entry, "title");
     let entryLink = getAtomEntryLink(entry);
     entryLink = deps.transformSageUrl(entryLink);
-    const entryDescription = deps.getTextContent(entry, "summary");
+    const entryDescription =
+      deps.getTextContent(entry, "summary") ||
+      deps.getTextContent(entry, "media:description");
     const pubDate =
       deps.getTextContent(entry, "published") ||
       deps.getTextContent(entry, "updated");
