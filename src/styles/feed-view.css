@@ -128,6 +128,9 @@
 }
 
 .rss-dashboard-feed-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 12px 20px;
   border-top: 1px solid var(--background-modifier-border);
   background: var(--background-secondary-alt);
@@ -136,8 +139,14 @@
 .rss-dashboard-feed-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
+  gap: 8px;
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.rss-dashboard-feed-footer .rss-dashboard-article-date {
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 /* Mobile Tweaks */

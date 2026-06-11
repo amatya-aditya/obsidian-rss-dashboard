@@ -148,7 +148,7 @@ export function renderFeedView(
     });
     deps.createArticleActionButtons(actionToolbar, article, "full");
 
-    const dateEl = actionToolbar.createDiv({
+    const dateEl = feedFooter.createDiv({
       cls: "rss-dashboard-article-date",
     });
     const dateInfo = formatArticleDate(

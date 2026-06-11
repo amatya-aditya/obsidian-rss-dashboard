@@ -213,6 +213,7 @@
 .rss-dashboard-article-date {
   cursor: help;
   position: relative;
+  white-space: nowrap;
 }
 
 .rss-dashboard-article-date:hover {

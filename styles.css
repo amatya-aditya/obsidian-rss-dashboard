@@ -1409,6 +1409,7 @@ body .rss-folder-name-modal {
 .rss-dashboard-article-date {
   cursor: help;
   position: relative;
+  white-space: nowrap;
 }
 .rss-dashboard-article-date:hover {
   color: var(--text-normal);
@@ -2025,6 +2026,15 @@ body .rss-dashboard-tag-action-button svg {
   line-clamp: 8;
   overflow: hidden;
 }
+.rss-dashboard-cover-no-summary {
+  font-style: italic;
+  opacity: 0.55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+}
 .rss-dashboard-card-view {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -2122,13 +2132,13 @@ body .rss-dashboard-tag-action-button svg {
   hyphens: auto;
 }
 .rss-dashboard-card-footer {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
   margin-top: auto;
-  border-top: 1px solid var(--background-modifier-border);
-  background: var(--background-secondary);
-  padding: 8px 12px;
-  width: 100%;
-  box-sizing: border-box;
+  padding: 8px 16px;
   flex-shrink: 0;
 }
 .rss-dashboard-card-footer .rss-dashboard-action-toolbar.rss-dashboard-card-toolbar {
@@ -2141,6 +2151,14 @@ body .rss-dashboard-tag-action-button svg {
   background: transparent;
   align-items: center;
   flex-wrap: nowrap;
+  flex: 0 0 auto;
+  width: auto;
+}
+.rss-dashboard-card-footer .rss-dashboard-article-date {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 .rss-dashboard-article-card.active .rss-dashboard-card-footer {
   background: var(--background-secondary);
@@ -14267,6 +14285,9 @@ body .rss-folder-selector-input {
   padding: 0 20px 12px 20px;
 }
 .rss-dashboard-feed-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 12px 20px;
   border-top: 1px solid var(--background-modifier-border);
   background: var(--background-secondary-alt);
@@ -14274,8 +14295,13 @@ body .rss-folder-selector-input {
 .rss-dashboard-feed-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
+  gap: 8px;
+  flex: 0 0 auto;
+  width: auto;
+}
+.rss-dashboard-feed-footer .rss-dashboard-article-date {
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 @media (max-width: 768px) {
   .rss-dashboard-feed-view {
