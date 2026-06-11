@@ -1392,3 +1392,5 @@ body .rss-folder-name-modal {
     height: 16px;
   }
 }
+
+.rss-dashboard-tag-checkbox { pointer-events: none; }

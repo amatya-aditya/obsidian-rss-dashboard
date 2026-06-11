@@ -16,6 +16,8 @@
 
 - Fixed some feeds like TED Talks not properly showing summary text inside cards.
 
+- Fixed mobile sidebar tags issue where tapping checked rows were unable to be unchecked.
+
 ## 2.4.0-beta.2 - June 9, 2026
 
 ### New Features

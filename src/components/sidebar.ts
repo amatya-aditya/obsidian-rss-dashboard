@@ -868,7 +868,8 @@ export class Sidebar {
         cls: "rss-dashboard-sidebar-tag-count",
       });
 
-      row.addEventListener("click", () => {
+      row.addEventListener("click", (e) => {
+        e.preventDefault();
         this.callbacks.onTagToggle(tag.name);
         this.render();
       });

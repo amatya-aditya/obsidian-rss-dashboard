@@ -66,7 +66,7 @@ describe("MobileNavigationModal", () => {
       onCloseMobileSidebar: vi.fn(),
     } as unknown as SidebarCallbacks;
 
-    const modal = new MobileNavigationModal(app as unknown as obsidian.App, plugin as unknown as RssDashboardPlugin, settings, {} as SidebarOptions, callbacks);
+    const modal = new MobileNavigationModal(app as unknown as obsidian.App, plugin as unknown as RssDashboardPlugin, settings, { selectedTags: [] } as unknown as SidebarOptions, callbacks);
 
     const closeBtn = document.createElement("button");
     closeBtn.className = "modal-close-button";
@@ -115,7 +115,7 @@ describe("MobileNavigationModal", () => {
       onCloseMobileSidebar: vi.fn(),
     } as unknown as SidebarCallbacks;
 
-    const modal = new MobileNavigationModal(app as unknown as obsidian.App, plugin as unknown as RssDashboardPlugin, settings, {} as SidebarOptions, callbacks);
+    const modal = new MobileNavigationModal(app as unknown as obsidian.App, plugin as unknown as RssDashboardPlugin, settings, { selectedTags: [] } as unknown as SidebarOptions, callbacks);
     modal.open();
 
     const handle = modal.contentEl.querySelector(
