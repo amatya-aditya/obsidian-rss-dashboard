@@ -224,6 +224,19 @@ export class FeedParser {
   private extractCoverImage(html: string, baseUrl = ""): string {
     if (!html) return "";
 
+    /** Reject known junk/placeholder src values before any URL resolution. */
+    const isJunkSrc = (src: string | null): boolean => {
+      if (!src) return true;
+      const t = src.trim();
+      return (
+        !t ||
+        t === "undefined" ||
+        t === "null" ||
+        t === "#" ||
+        t === "about:blank"
+      );
+    };
+
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
@@ -261,7 +274,7 @@ export class FeedParser {
       }
 
       const firstImg = doc.querySelector("img");
-      if (firstImg?.getAttribute("src")) {
+      if (firstImg) {
         const src = firstImg.getAttribute("src");
         // Debug: log first img src for troubleshooting double-encoding
         if (src && src.includes("%25")) {
@@ -269,10 +282,12 @@ export class FeedParser {
             `[RSS Dashboard] extractCoverImage: first img src contains double-encoded: ${src}`,
           );
         }
-        if (src && src.startsWith("http") && !isTrackingPixel(src)) {
-          return optimizeImageUrl(src);
-        } else if (src && baseUrl && !isTrackingPixel(src)) {
-          return optimizeImageUrl(this.convertToAbsoluteUrl(src, baseUrl));
+        if (!isJunkSrc(src)) {
+          if (src && src.startsWith("http") && !isTrackingPixel(src)) {
+            return optimizeImageUrl(src);
+          } else if (src && baseUrl && !isTrackingPixel(src)) {
+            return optimizeImageUrl(this.convertToAbsoluteUrl(src, baseUrl));
+          }
         }
       }
 
@@ -285,6 +300,7 @@ export class FeedParser {
             `[RSS Dashboard] extractCoverImage: img src contains double-encoded: ${src}`,
           );
         }
+        if (isJunkSrc(src)) continue;
         if (
           src &&
           src.startsWith("http") &&
@@ -317,6 +333,7 @@ export class FeedParser {
 
     return "";
   }
+
 
   private extractPodcastCoverImage(
     item: ParsedItem,
@@ -768,7 +785,15 @@ export class FeedParser {
       processedFeed.mediaType,
     );
 
-    if (processedFeed.iconUrl) {
+    const absoluteFeedLogoUrl = feedLogoUrl
+      ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+      : "";
+
+    if (absoluteFeedLogoUrl) {
+      processedFeed.items.forEach((item) => {
+        item.fallbackIconUrl = absoluteFeedLogoUrl;
+      });
+    } else if (processedFeed.iconUrl) {
       processedFeed.items.forEach((item) => {
         item.fallbackIconUrl = processedFeed.iconUrl;
       });

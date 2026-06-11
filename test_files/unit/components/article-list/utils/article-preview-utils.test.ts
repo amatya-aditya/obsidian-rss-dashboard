@@ -12,6 +12,18 @@ describe('article-preview-utils', () => {
       const html = '<div><p>No image here</p></div>';
       expect(extractFirstImageSrc(html)).toBeNull();
     });
+
+    it('returns null for tracking pixel URLs', () => {
+      const html = '<img src="https://media.npr.org/include/images/tracking/npr-rss-pixel.png?story=123" />';
+      expect(extractFirstImageSrc(html)).toBeNull();
+    });
+
+    it('returns null for other tracking pixel patterns', () => {
+      expect(extractFirstImageSrc('<img src="https://example.com/pixel.gif" />')).toBeNull();
+      expect(extractFirstImageSrc('<img src="https://example.com/beacon.png" />')).toBeNull();
+      expect(extractFirstImageSrc('<img src="https://example.com/1x1.jpg" />')).toBeNull();
+      expect(extractFirstImageSrc('<img src="https://example.com/track/image.png" />')).toBeNull();
+    });
   });
 
   describe('looksLikeStylesheetText', () => {

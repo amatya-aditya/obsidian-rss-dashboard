@@ -4,6 +4,7 @@ import {
   extractFirstImageSrc,
   getArticlePreviewSummaryText,
   shouldHighlightCardPreviewSummary,
+  isTrackingPixel,
 } from "../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import type { BaseViewContext, ViewDeps } from "./view-types";
@@ -12,8 +13,13 @@ export interface CardViewContext extends BaseViewContext {
   showCardToolbar: boolean;
 }
 
-function resolveCoverImageSrc(article: FeedItem): { src: string, isFallback: boolean } | undefined {
-  let coverImgSrc = article.coverImage;
+function resolveCoverImageSrc(article: FeedItem): string | undefined {
+  let coverImgSrc: string | undefined = article.coverImage;
+
+  if (coverImgSrc && isTrackingPixel(coverImgSrc)) {
+    coverImgSrc = undefined;
+  }
+
   if (!coverImgSrc && article.content) {
     const extracted = extractFirstImageSrc(article.content);
     if (extracted) coverImgSrc = extracted;
@@ -29,22 +35,15 @@ function resolveCoverImageSrc(article: FeedItem): { src: string, isFallback: boo
   ) {
     coverImgSrc = article.enclosure.url;
   }
-  
-  if (coverImgSrc) {
-    return { src: coverImgSrc, isFallback: false };
-  }
 
-  if (article.fallbackIconUrl) {
-    return { src: article.fallbackIconUrl, isFallback: true };
-  }
-
-  return undefined;
+  return coverImgSrc || undefined;
 }
 
 export function renderCardView(
   container: HTMLElement,
   articles: FeedItem[],
   ctx: CardViewContext,
+
   deps: ViewDeps,
 ): void {
   for (const article of articles) {
@@ -106,35 +105,50 @@ export function renderCardView(
       });
     }
 
-    const coverImgResult = resolveCoverImageSrc(article);
+    const coverImgSrc = resolveCoverImageSrc(article);
     const previewSummaryText = getArticlePreviewSummaryText(article);
 
-    if (coverImgResult) {
+    if (coverImgSrc) {
       const previewRegion = cardContent.createDiv({
         cls: "rss-dashboard-card-preview-region",
       });
       const coverContainer = previewRegion.createDiv({
         cls:
           "rss-dashboard-cover-container" +
-          (previewSummaryText ? " has-summary" : "") +
-          (coverImgResult.isFallback ? " is-fallback" : ""),
+          (previewSummaryText ? " has-summary" : ""),
       });
       const coverImg = coverContainer.createEl("img", {
-        cls: "rss-dashboard-cover-image" + (coverImgResult.isFallback ? " rss-dashboard-cover-image-fallback" : ""),
+        cls: "rss-dashboard-cover-image",
         attr: {
-          src: coverImgResult.src,
+          src: coverImgSrc,
           alt: article.title,
           loading: "lazy",
           decoding: "async",
         },
       });
       coverImg.onerror = () => {
-        // If image fails to load, instead of removing the whole previewRegion,
-        // we just hide the image and let the summary text remain.
-        coverImg.style.display = "none";
-        coverContainer.removeClass("is-fallback");
-        // Also add a class to adjust layout if needed
-        coverContainer.addClass("rss-dashboard-cover-summary-only");
+        previewRegion.empty();
+
+        if (previewSummaryText) {
+          const summaryOnlyContainer = previewRegion.createDiv({
+            cls: "rss-dashboard-cover-summary-only",
+          });
+          if (
+            ctx.highlightService &&
+            ctx.settings.highlights.highlightInSummaries &&
+            shouldHighlightCardPreviewSummary(previewSummaryText)
+          ) {
+            ctx.highlightService.setHighlightedText(
+              summaryOnlyContainer,
+              previewSummaryText,
+            );
+          } else {
+            summaryOnlyContainer.textContent = previewSummaryText;
+          }
+        } else {
+          previewRegion.remove();
+        }
+
         deps.scheduleCardTagLayout?.(card);
       };
 
@@ -195,7 +209,7 @@ export function renderCardView(
       });
       deps.createArticleActionButtons(actionToolbar, article, "full");
 
-      const dateEl = actionToolbar.createDiv({
+      const dateEl = cardFooter.createDiv({
         cls: "rss-dashboard-article-date",
       });
       const dateInfo = formatArticleDate(

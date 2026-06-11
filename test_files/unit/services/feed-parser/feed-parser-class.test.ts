@@ -1,51 +1,41 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { Feed, FeedItem } from "../../../../src/types/types";
+import { describe, it, expect, vi } from "vitest";
+import { DEFAULT_SETTINGS, type Feed, type MediaSettings } from "../../../../src/types/types.js";
 import * as obsidian from "obsidian";
 import { FeedParser } from "../../../../src/services/feed-parser/feed-parser-class.js";
 import {
-  RSS2_BASIC,
-  RSS2_WITH_CDATA,
-  RSS2_WITH_CONTENT_ENCODED,
-  RSS2_WITH_AUTHOR,
-  RSS2_WITH_ENCLOSURE,
-  RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
-  RSS2_WITH_IMAGE,
   RSS2_MASTODON_PROFILE_IMAGE,
-  RSS2_WITH_MEDIA_CONTENT_IMAGE,
-  RSS2_WITH_MEDIA_CONTENT_VIDEO,
-  RSS2_WITH_MEDIA_CONTENT_MEDIUM_ONLY,
-  RSS2_EMPTY,
-  SUBSTACK_RSS,
-  ASTRAL_CODEX_BROKEN_SUBSTACK_CONTENT,
-  BLOOMBERG_VIDEO_IMAGE_FIRST_RSS,
-  ATOM_BASIC,
-  ATOM_WITH_AUTHOR,
-  ATOM_WITH_LOGO,
-  JSON_FEED_BASIC,
-  JSON_FEED_EMPTY_ITEMS,
+  RSS2_WITH_IMAGE,
+  RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
 } from "./fixtures/rss-fixtures.js";
 
 describe("FeedParser.parseFeed", () => {
-  const mediaSettings = {
-    defaultVideoTag: "Video",
+  const mediaSettings: MediaSettings = {
+    autoTagVideos: true,
     rememberPlaybackProgress: true,
     defaultTwitterFolder: "Twitter",
     defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
+    defaultVideoTag: "Video",
+    defaultVideoTags: ["Video"],
     defaultYouTubeTag: "Video",
+    defaultYouTubeTags: ["Video"],
     defaultPodcastFolder: "Podcast",
-    defaultPodcastTag: "podcast",
+    defaultPodcastTag: "Podcast",
+    defaultPodcastTags: ["Podcast"],
     defaultRssFolder: "RSS",
-    defaultRssTag: "rss",
+    defaultRssTag: "",
+    defaultRssTags: [],
     defaultSmallwebFolder: "Smallweb",
-    defaultSmallwebTag: "smallweb",
-    useDomainIconsMastodon: true,
-    useDomainIconsRss: true,
-    useDomainIconsYouTube: true,
-    useDomainIconsPodcast: true,
-    useDomainIconsTwitter: true,
+    defaultSmallwebTag: "",
+    defaultSmallwebTags: [],
+    defaultTwitterTag: "",
+    defaultTwitterTags: [],
+    defaultMastodonTag: "",
+    defaultMastodonTags: [],
     openInSplitView: true,
-    podcastTheme: "solarized" as const,
+    podcastTheme: "obsidian",
+    enableApplePodcastsOpen: false,
+    defaultPlaySpeed: 1,
   };
 
   it("keeps the current Mastodon icon behavior when profile images are disabled", async () => {
@@ -57,13 +47,8 @@ describe("FeedParser.parseFeed", () => {
       text: RSS2_MASTODON_PROFILE_IMAGE,
     });
 
-    const parser = new FeedParser(
-      {
-        ...mediaSettings,
-        useDomainIconsMastodon: false,
-      },
-      [],
-    );
+    const parser = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsMastodon: false,
+       }, [], mediaSettings);
     const parsed = await parser.parseFeed(feedUrl, null);
 
     expect(parsed.iconUrl).not.toBe(
@@ -82,13 +67,8 @@ describe("FeedParser.parseFeed", () => {
       text: RSS2_MASTODON_PROFILE_IMAGE,
     });
 
-    const parser = new FeedParser(
-      {
-        ...mediaSettings,
-        useDomainIconsMastodon: true,
-      },
-      [],
-    );
+    const parser = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsMastodon: true,
+       }, [], mediaSettings);
     const parsed = await parser.parseFeed(feedUrl, null);
 
     expect(parsed.iconUrl).toBe(
@@ -112,13 +92,8 @@ describe("FeedParser.parseFeed", () => {
         text: RSS2_MASTODON_PROFILE_IMAGE,
       });
 
-    const parser = new FeedParser(
-      {
-        ...mediaSettings,
-        useDomainIconsMastodon: true,
-      },
-      [],
-    );
+    const parser = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsMastodon: true,
+       }, [], mediaSettings);
     const first = await parser.parseFeed(feedUrl, null);
     const refreshed = await parser.parseFeed(feedUrl, first);
 
@@ -139,18 +114,12 @@ describe("FeedParser.parseFeed", () => {
     });
 
     // 1. When useDomainIconsRss is false
-    const parserOff = new FeedParser(
-      { ...mediaSettings, useDomainIconsRss: false },
-      [],
-    );
+    const parserOff = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsRss: false  }, [], mediaSettings);
     const parsedOff = await parserOff.parseFeed(feedUrl, null);
     expect(parsedOff.iconUrl).toBe("");
 
     // 2. When useDomainIconsRss is true
-    const parserOn = new FeedParser(
-      { ...mediaSettings, useDomainIconsRss: true },
-      [],
-    );
+    const parserOn = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsRss: true  }, [], mediaSettings);
     const parsedOn = await parserOn.parseFeed(feedUrl, null);
     expect(parsedOn.iconUrl).toBe("https://example.com/logo.png");
 
@@ -166,18 +135,12 @@ describe("FeedParser.parseFeed", () => {
     });
 
     // 1. When useDomainIconsPodcast is false
-    const parserOff = new FeedParser(
-      { ...mediaSettings, useDomainIconsPodcast: false },
-      [],
-    );
+    const parserOff = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsPodcast: false  }, [], mediaSettings);
     const parsedOff = await parserOff.parseFeed(feedUrl, null);
     expect(parsedOff.iconUrl).toBe("");
 
     // 2. When useDomainIconsPodcast is true
-    const parserOn = new FeedParser(
-      { ...mediaSettings, useDomainIconsPodcast: true },
-      [],
-    );
+    const parserOn = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsPodcast: true  }, [], mediaSettings);
     const parsedOn = await parserOn.parseFeed(feedUrl, null);
     expect(parsedOn.iconUrl).toBe(
       "https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png",
@@ -195,18 +158,12 @@ describe("FeedParser.parseFeed", () => {
     });
 
     // 1. When useDomainIconsTwitter is false
-    const parserOff = new FeedParser(
-      { ...mediaSettings, useDomainIconsTwitter: false },
-      [],
-    );
+    const parserOff = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsTwitter: false  }, [], mediaSettings);
     const parsedOff = await parserOff.parseFeed(feedUrl, null);
     expect(parsedOff.iconUrl).toBe("");
 
     // 2. When useDomainIconsTwitter is true
-    const parserOn = new FeedParser(
-      { ...mediaSettings, useDomainIconsTwitter: true },
-      [],
-    );
+    const parserOn = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsTwitter: true  }, [], mediaSettings);
     const parsedOn = await parserOn.parseFeed(feedUrl, null);
     expect(parsedOn.iconUrl).toBe("https://example.com/logo.png");
 
@@ -237,9 +194,9 @@ describe("FeedParser.parseFeed", () => {
       text: xml,
     });
 
-    const parser = new FeedParser(mediaSettings, [
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [
       { name: "Video", color: "#d04747" },
-    ]);
+    ], mediaSettings);
     const parsed = await parser.parseFeed(feedUrl, null);
 
     expect(parsed.mediaType).toBe("video");
@@ -275,7 +232,7 @@ describe("FeedParser.parseFeed", () => {
       text: xml,
     });
 
-    const parser = new FeedParser(mediaSettings, []);
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
     const parsed = await parser.parseFeed(feedUrl, null);
     const item = parsed.items[0];
 
@@ -322,7 +279,7 @@ describe("FeedParser.parseFeed", () => {
         text: xml1,
       });
 
-    const parser = new FeedParser(mediaSettings, []);
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
     const first = await parser.parseFeed(feedUrl, null);
     expect(first.items).toHaveLength(1);
 
@@ -367,7 +324,7 @@ describe("FeedParser.parseFeed", () => {
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy.mockResolvedValueOnce({ status: 200, text: ytAtomXml });
 
-    const parser = new FeedParser(mediaSettings, []);
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
 
     // Simulate an existing feed that has the same video stored under its watch
     // URL guid (as produced by an older parsing path or the link-fallback path).
@@ -436,7 +393,7 @@ describe("FeedParser.parseFeed", () => {
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy.mockResolvedValueOnce({ status: 200, text: ytAtomXml });
 
-    const parser = new FeedParser(mediaSettings, []);
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
 
     // Existing shard has the shorts URL as the guid (old parsing path).
     const existingFeed = {
@@ -507,7 +464,7 @@ describe("FeedParser.parseFeed", () => {
       text: xml,
     });
 
-    const parser = new FeedParser(mediaSettings, []);
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
 
     // Simulate an existing feed (refresh scenario) with autoDeleteDuration of 365 days.
     // The old article (Jan 2024) is beyond the cutoff and not in the existing items,
@@ -576,7 +533,7 @@ describe("FeedParser.parseFeed", () => {
         text: xml,
       });
 
-    const parser = new FeedParser(mediaSettings, []);
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
 
     const first = await parser.parseFeed(feedUrl, {
       title: "Test Feed",
@@ -662,7 +619,7 @@ describe("FeedParser.parseFeed", () => {
         text: xmlWithRecentOnly,
       });
 
-    const parser = new FeedParser(mediaSettings, []);
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
 
     const first = await parser.parseFeed(feedUrl, {
       title: "Test Feed",
@@ -705,7 +662,11 @@ describe("FeedParser.parseFeed", () => {
         text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
       });
 
-    const parser = new FeedParser(mediaSettings, []);
+    const parser = new FeedParser(
+      { ...DEFAULT_SETTINGS.display, useDomainIconsPodcast: true },
+      [],
+      mediaSettings,
+    );
     const first = await parser.parseFeed(feedUrl, null);
 
     expect(first.mediaType).toBe("podcast");
@@ -752,7 +713,7 @@ describe("FeedParser.parseFeed", () => {
         text: xml,
       });
 
-    const parser = new FeedParser(mediaSettings, []);
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
     const first = await parser.parseFeed(feedUrl, null);
     first.items[0].saved = true;
     first.items[0].savedFilePath = "Articles/Saved Article.md";
@@ -795,7 +756,7 @@ describe("FeedParser.parseFeed", () => {
       text: xml,
     });
 
-    const parser = new FeedParser(mediaSettings, []);
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
     const parsed = await parser.parseFeed(feedUrl, null);
     const item = parsed.items[0];
 

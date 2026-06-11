@@ -4,12 +4,48 @@ import { htmlToReadableText } from '../../../utils/html-text';
 export const CARD_PREVIEW_SUMMARY_MAX_CHARS = 420;
 export const CARD_PREVIEW_HIGHLIGHT_MAX_CHARS = 900;
 
+const TRACKING_PIXEL_PATTERNS = [
+  "tracking/",
+  "pixel.gif",
+  "beacon.",
+  "1x1",
+  "/track/",
+  "rss-pixel",
+];
+
+export function isTrackingPixel(url: string): boolean {
+  return TRACKING_PIXEL_PATTERNS.some((p) => url.includes(p));
+}
+
 export function extractFirstImageSrc(html: string): string | null {
   if (!html) return null;
 
   // Use a regex for rapid extraction without full DOM parsing
   const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  return match ? match[1] : null;
+  if (!match) return null;
+
+  const src = match[1].trim();
+
+  // Reject literal placeholder values that some feeds (e.g. NPR CDATA) emit
+  if (!src || src === "undefined" || src === "null" || src === "#" || src === "about:blank") {
+    return null;
+  }
+
+  // Only accept HTTP/HTTPS or protocol-relative URLs
+  if (
+    !src.startsWith("http://") &&
+    !src.startsWith("https://") &&
+    !src.startsWith("//")
+  ) {
+    return null;
+  }
+
+  // Reject known tracking/analytics pixel URLs
+  if (isTrackingPixel(src)) {
+    return null;
+  }
+
+  return src;
 }
 
 export function looksLikeStylesheetText(text: string): boolean {

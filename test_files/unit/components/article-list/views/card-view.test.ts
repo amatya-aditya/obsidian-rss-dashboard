@@ -68,6 +68,74 @@ describe("card-view", () => {
     expect(container.querySelector(".rss-dashboard-cover-image")).toBeTruthy();
   });
 
+  it("renders summary-only preview when no image is available", () => {
+    renderCardView(
+      container,
+      [
+        makeArticle({
+          coverImage: "",
+          fallbackIconUrl: "https://example.com/logo.png",
+        }),
+      ],
+      {
+        ...baseViewContext(),
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    expect(container.querySelector(".rss-dashboard-cover-image")).toBeFalsy();
+    expect(
+      container.querySelector(".rss-dashboard-cover-summary-only")?.textContent,
+    ).toBe("Article description text");
+  });
+
+  it("renders summary-only preview when a cover image fails", () => {
+    renderCardView(
+      container,
+      [makeArticle({ coverImage: "https://example.com/broken.jpg" })],
+      {
+        ...baseViewContext(),
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    const image = container.querySelector(
+      "img.rss-dashboard-cover-image",
+    ) as HTMLImageElement;
+    image.dispatchEvent(new Event("error"));
+
+    expect(container.querySelector(".rss-dashboard-cover-image")).toBeFalsy();
+    expect(
+      container.querySelector(".rss-dashboard-cover-summary-only")?.textContent,
+    ).toBe("Article description text");
+  });
+
+  it("omits preview region when no image or summary text is available", () => {
+    renderCardView(
+      container,
+      [
+        makeArticle({
+          coverImage: "",
+          content: "",
+          description: "",
+          fallbackIconUrl: "https://example.com/logo.png",
+          summary: "",
+        }),
+      ],
+      {
+        ...baseViewContext(),
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    expect(
+      container.querySelector(".rss-dashboard-card-preview-region"),
+    ).toBeFalsy();
+  });
+
   it("renders card footer toolbar when showCardToolbar is true", () => {
     const deps = baseViewDeps();
     renderCardView(
@@ -120,5 +188,28 @@ describe("card-view", () => {
     );
 
     expect(onArticleClick).toHaveBeenCalledWith(article);
+  });
+
+  it("shows summary-only when content contains only a tracking pixel image", () => {
+    renderCardView(
+      container,
+      [
+        makeArticle({
+          coverImage: "",
+          content: "<img src='https://media.npr.org/include/images/tracking/npr-rss-pixel.png?story=123' />",
+          description: "U.S. launches a second-round of strikes against Iran.",
+        }),
+      ],
+      {
+        ...baseViewContext(),
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    expect(container.querySelector(".rss-dashboard-cover-image")).toBeFalsy();
+    expect(
+      container.querySelector(".rss-dashboard-cover-summary-only")?.textContent,
+    ).toBe("U.S. launches a second-round of strikes against Iran.");
   });
 });

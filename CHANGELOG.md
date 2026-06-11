@@ -8,6 +8,12 @@
 
 - Fixed laggy feeds (NPR)
 
+- Fixed preview image not appearing in cards for feeds that don't have an image url provided.
+
+- Fixed cards showing a blank gray card instead of just summary text, due to interpreting pixel tracker as the image.
+
+- Fixed date inside card toolbar misalignment
+
 ## 2.4.0-beta.2 - June 9, 2026
 
 ### New Features
