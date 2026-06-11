@@ -444,44 +444,44 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-/**
-    * Action: Toggle read/unread status of selected article.
-    * @internal
-    */
-   public async actionToggleReadStatus(): Promise<void> {
-     if (this.selectedArticle) {
-       this.selectedArticle.read = !this.selectedArticle.read;
-       await this.handleArticleUpdate(
-         this.selectedArticle,
-         { read: this.selectedArticle.read },
-         false,
-       );
-     }
-   }
+  /**
+   * Action: Toggle read/unread status of selected article.
+   * @internal
+   */
+  public async actionToggleReadStatus(): Promise<void> {
+    if (this.selectedArticle) {
+      this.selectedArticle.read = !this.selectedArticle.read;
+      await this.handleArticleUpdate(
+        this.selectedArticle,
+        { read: this.selectedArticle.read },
+        false,
+      );
+    }
+  }
 
-   /**
-    * Action: Mark article read/unread and advance to next article.
-    * @internal
-    */
-   public async actionMarkReadAndNext(): Promise<void> {
-     await this.actionToggleReadStatus();
-     this.actionNavigateNext({ open: true });
-   }
+  /**
+   * Action: Mark article read/unread and advance to next article.
+   * @internal
+   */
+  public async actionMarkReadAndNext(): Promise<void> {
+    await this.actionToggleReadStatus();
+    this.actionNavigateNext({ open: true });
+  }
 
-   /**
-    * Action: Toggle star status of selected article.
-    * @internal
-    */
-   public async actionToggleStarStatus(): Promise<void> {
-     if (this.selectedArticle) {
-       this.selectedArticle.starred = !this.selectedArticle.starred;
-       await this.handleArticleUpdate(
-         this.selectedArticle,
-         { starred: this.selectedArticle.starred },
-         false,
-       );
-     }
-   }
+  /**
+   * Action: Toggle star status of selected article.
+   * @internal
+   */
+  public async actionToggleStarStatus(): Promise<void> {
+    if (this.selectedArticle) {
+      this.selectedArticle.starred = !this.selectedArticle.starred;
+      await this.handleArticleUpdate(
+        this.selectedArticle,
+        { starred: this.selectedArticle.starred },
+        false,
+      );
+    }
+  }
 
   /**
    * Action: Toggle tags dropdown menu.
@@ -3680,6 +3680,71 @@ export class RssDashboardView extends ItemView {
       cls: "rss-reader-title",
       text: this.inlineArticle?.title || "Article",
     });
+
+    if (this.inlineArticle) {
+      const actions = header.createDiv({ cls: "rss-reader-actions" });
+
+      const saveButton = actions.createDiv({
+        cls: `rss-reader-action-button${this.inlineArticle.saved ? " saved" : ""}`,
+        attr: { title: "Save article" },
+      });
+      setIcon(saveButton, "save");
+      saveButton.addEventListener("click", () => {
+        if (this.inlineArticle) {
+          void this.handleArticleSave(this.inlineArticle);
+        }
+      });
+
+      const readToggleButton = actions.createDiv({
+        cls: `rss-reader-action-button rss-reader-read-toggle${this.inlineArticle.read ? " read" : ""}`,
+        attr: { title: "Mark as read/unread" },
+      });
+      setIcon(
+        readToggleButton,
+        this.inlineArticle.read ? "check-circle" : "circle",
+      );
+      readToggleButton.addEventListener("click", () => {
+        if (this.inlineArticle) {
+          void this.handleArticleUpdate(
+            this.inlineArticle,
+            { read: !this.inlineArticle.read },
+            true,
+          );
+        }
+      });
+
+      const starToggleButton = actions.createDiv({
+        cls: `rss-reader-action-button rss-reader-star-toggle${this.inlineArticle.starred ? " starred" : ""}`,
+        attr: { title: "Star/unstar article" },
+      });
+      setIcon(
+        starToggleButton,
+        this.inlineArticle.starred ? "star" : "star-off",
+      );
+      starToggleButton.addEventListener("click", () => {
+        if (this.inlineArticle) {
+          void this.handleArticleUpdate(
+            this.inlineArticle,
+            { starred: !this.inlineArticle.starred },
+            true,
+          );
+        }
+      });
+
+      const browserButton = actions.createDiv({
+        cls: "rss-reader-action-button",
+        attr: { title: "Open in Browser" },
+      });
+      setIcon(browserButton, "external-link");
+      browserButton.addEventListener("click", () => {
+        if (this.inlineArticle) {
+          const url = resolveItemExternalUrl(this.inlineArticle);
+          if (url) {
+            activeWindow.open(url, "_blank");
+          }
+        }
+      });
+    }
 
     const body = container.createDiv({
       cls: "rss-reader-content inline-reader-content",
