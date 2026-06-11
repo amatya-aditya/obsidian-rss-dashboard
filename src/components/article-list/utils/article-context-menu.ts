@@ -1,4 +1,4 @@
-import { Menu, MenuItem } from "obsidian";
+import { Menu, MenuItem, Notice } from "obsidian";
 import type { FeedItem } from "../../../types/types";
 
 export interface ArticleContext {
@@ -72,6 +72,28 @@ export function showArticleContextMenu(
         }
       });
   });
+
+  menu.addItem((item: MenuItem) => {
+    item
+      .setTitle("Copy article URL")
+      .setIcon("link")
+      .onClick(() => {
+        void navigator.clipboard.writeText(article.link);
+        new Notice("Article URL copied to clipboard");
+      });
+  });
+
+  if (article.feedUrl) {
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Copy feed URL")
+        .setIcon("rss")
+        .onClick(() => {
+          void navigator.clipboard.writeText(article.feedUrl);
+          new Notice("Feed URL copied to clipboard");
+        });
+    });
+  }
 
   menu.addSeparator();
 

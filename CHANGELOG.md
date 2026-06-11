@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+
+- Added two new right-click context menu options: Copy feed URL and copy article URL [GH Discussion #134 - lo-phare](https://github.com/amatya-aditya/obsidian-rss-dashboard/discussions/134)
+
 ### Fixes
 
 - Fixed some feeds not properly rendering card previews (e.g. [World History Encyclopedia](https://www.worldhistory.org/rss/))
@@ -20,7 +24,7 @@
 
 - Fixed inline viewer not rendering reader toolbar
 
-- Fixed sidebar icons not properly rendering
+- Fixed some sidebar icons not properly rendering
 
 ## 2.4.0-beta.2 - June 9, 2026
 

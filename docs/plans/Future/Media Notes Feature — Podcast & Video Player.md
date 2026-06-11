@@ -1,176 +1,99 @@
 # Media Notes Feature — Podcast & Video Player
 
-Add an "Episode notes" / "Video notes" collapsible section to both the podcast and video players, backed by **individual vault files** for full two-way Obsidian sync.
+WORK IN PROGRESS
+
+The media notes feature introduces a new workflow for annotating podcasts and videos, functioning similarly to chapter markers in Adobe Premiere. Instead of keeping notes within a custom player UI, timestamps are inserted directly into the user's saved article note for the episode, seamlessly integrating with their Obsidian vault.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Two-way sync**: Notes are stored as standalone [.md](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/.agents/workflows/code-change.md) files in the vault. Editing the note in Obsidian's editor will update the player's textarea next time the episode is loaded (or on focus). This makes notes first-class Obsidian citizens — searchable, linkable, and sync-able.
+> **No Built-in Textarea**: This plan removes the previously proposed "Episode notes" textarea from the player itself. The workflow now relies entirely on Obsidian's native editor by automatically opening the saved file.
 
 > [!WARNING]
-> **YouTube iframe limitation**: The YouTube embed iframe does not expose `currentTime` via the standard HTML5 API. To support timestamp insertion in video notes, we would need to switch to the [YouTube IFrame Player API](https://developers.google.com/youtube/iframe_api_reference) (`enablejsapi=1` + `postMessage`). **I recommend we scope timestamp insertion to podcasts only for v1**, and add video timestamps as a follow-up feature. The video notes textarea and vault-file persistence will work identically — just without the timestamp button.
+> **Focus Stealing**: As requested, once the marker is inserted, the cursor focuses right after the dash in the Obsidian editor. Because the user is now typing in Obsidian's core editor, there is no native keyboard shortcut to instantly return focus back to the podcast player view. This limitation will be documented in the user guide.
 
-## Architecture Overview
+## Open Questions
 
-```mermaid
-graph LR
-    A[Textarea in Player] -->|debounce 500ms| B[MediaNotesService]
-    B -->|vault.modify/create| C[Vault .md File]
-    C -->|vault.read on load| B
-    B -->|returns content| A
-    C -->|User edits in Obsidian| C
-    D[Save Episode Button] -->|reads note file| E[ArticleSaver]
-    E -->|injects into template| F[Saved Article .md]
-```
+> [!CAUTION]
+> **Linked Timestamp Format**: What exactly should the "hyperlink" look like so it functions properly when clicked?
+>
+> - Option A: An Obsidian URI (e.g. `[10:00](obsidian://rss-dashboard?action=seek&time=600)`)
+> - Option B: A custom markdown link that the plugin intercepts in reading mode/live preview? (e.g. `[10:00](#)`)
+> - Option C: Something else?
+
+> [!CAUTION]
+> **YouTube Iframes**: The standard YouTube iframe doesn't easily expose `currentTime`. To support this for videos, we need to upgrade our video player to use the [YouTube IFrame Player API](https://developers.google.com/youtube/iframe_api_reference). Should we include this API upgrade in this feature's scope, or limit to podcasts only for now?
+
+> [!CAUTION]
+> **Shortcut Scope**: Should `Shift+m` be a global Obsidian hotkey that works anywhere (if a player is active), or just a local key listener that only works when the player panel is actively focused?
+
+> [!CAUTION]
+> **Note Section Header**: What should the new header be named where timestamps are inserted? (e.g., `## Media Notes`, `## Timestamps`, `## Notes`).
 
 ## Proposed Changes
 
-### New Service
+### Core Workflow Service
 
-#### [NEW] [media-notes-service.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/media-notes-service.ts)
+#### [NEW] `src/services/media-marker-service.ts`
 
-Central service for reading/writing note files. Both players delegate to this.
+Service responsible for handling the "add marker" action.
 
-- [constructor(app: App, settings: MediaSettings)](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/article-saver.ts#14-29) — takes app and media settings refs
-- `async loadNote(item: FeedItem): Promise<string>` — reads vault file by `getNotePath(item)`, returns content (empty string if no file)
-- `async saveNote(item: FeedItem, content: string): Promise<void>` — creates/modifies vault file with frontmatter linking to guid + title
-- `getNotePath(item: FeedItem): string` — builds path from settings folder + sanitised title, e.g. `Podcast Notes/Ep 1 — Feed Title.md`
-- `async deleteNote(item: FeedItem): Promise<void>` — cleanup if needed
-- `async noteExists(item: FeedItem): Promise<boolean>` — quick check for playlist badge
-- `generateNoteFrontmatter(item: FeedItem): string` — minimal frontmatter: guid, title, feedTitle, mediaType
-
-Note file format:
-```markdown
----
-guid: "abc123"
-title: "Episode Title"
-feedTitle: "Podcast Name"
-mediaType: podcast
----
-
-[2:05] The host discusses...
-[15:30] Key insight about...
-```
+- `async addMarker(item: FeedItem, currentTime: number, isVideo: boolean)`
+- Checks if the vault file exists for `item`. If not, it calls `ArticleSaver` (or equivalent existing architecture) to save the episode and create the note.
+- Opens the file in the active workspace leaf using Obsidian's workspace API (`app.workspace.getLeaf('tab').openFile(file)`).
+- Finds the `## Media Notes` (or chosen header) section in the file content. If it doesn't exist, appends it.
+- Appends the timestamp link `[10:00](...) - ` to the section.
+- Uses `app.workspace.getActiveViewOfType(MarkdownView)` to get the editor instance.
+- Sets the cursor position to the end of the newly inserted line using `editor.setCursor()`.
+- Focuses the editor using `editor.focus()`.
 
 ---
 
-### Types
+### Players Updates
 
-#### [MODIFY] [types.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/types/types.ts)
+#### [MODIFY] `src/views/podcast-player.ts`
 
-- Add `userNotes?: string` to [FeedItem](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/types/types.ts#1-57) (runtime-only, populated from note file for save injection)
-- Add to [MediaSettings](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/types/types.ts#124-136):
-  - `podcastNotesFolder: string` (default: `"Podcast Notes"`)
-  - `videoNotesFolder: string` (default: `"Video Notes"`)
-- Add defaults to `DEFAULT_SETTINGS.media`
+- Add an "Add Marker" icon button (e.g., Lucide `map-pin` or `bookmark`) to the player controls.
+- Add keyboard event listener to the player container for `Shift+m`.
+- On click or shortcut: call `mediaMarkerService.addMarker(currentItem, audioElement.currentTime, false)`.
 
----
+#### [MODIFY] `src/views/video-player.ts`
 
-### Podcast Player
-
-#### [MODIFY] [podcast-player.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/podcast-player.ts)
-
-- Accept `MediaNotesService` via constructor (new parameter)
-- New `renderEpisodeNotesSection()` method — creates `<details class="podcast-episode-notes-user">` after Episode Details, containing:
-  - **Toolbar**: `clock-arrow-down` icon button (Lucide) for timestamp insertion (podcast only)
-  - **Textarea**: `.podcast-notes-textarea` bound to note content
-  - [oninput](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/podcast-player.ts#453-463) debounces `notesService.saveNote()` at 500ms
-- On [loadEpisode()](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/podcast-player.ts#70-128) — call `notesService.loadNote(item)` and populate textarea
-- New `getEpisodeNotes(): string | undefined` — reads current textarea value
-- `insertTimestamp()` — reads `audioElement.currentTime`, formats `[H:MM:SS]` or `[M:SS]`, inserts at cursor
-- Playlist rows: if `notesService.noteExists(ep.guid)`, add `pencil` icon badge
+- Upgrade iframe to use YouTube IFrame Player API (requires injecting `https://www.youtube.com/iframe_api` script) to get access to `player.getCurrentTime()`.
+- Add "Add Marker" icon button to the player layout.
+- Add keyboard event listener for `Shift+m`.
+- On click or shortcut: call `mediaMarkerService.addMarker(currentItem, player.getCurrentTime(), true)`.
 
 ---
 
-### Video Player
+### Timestamp Click Handling
 
-#### [MODIFY] [video-player.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/video-player.ts)
+#### [NEW/MODIFY] Depends on chosen Timestamp Format
 
-- Accept `MediaNotesService` via constructor
-- New `renderVideoNotesSection()` — same pattern as podcast, but **no timestamp button** (v1)
-- On [loadVideo()](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/video-player.ts#20-35) — load notes from service
-- New `getVideoNotes(): string | undefined` — reads textarea value
+If we use a custom timestamp link approach, we'll need to register a markdown post-processor or an Obsidian protocol handler (`obsidian://rss-dashboard-seek?time=X`) that tells the active player to seek to the specified timestamp when the link is clicked.
 
 ---
 
-### Article Saver
+### Documentation
 
-#### [MODIFY] [article-saver.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/article-saver.ts)
+#### [MODIFY] `README.md` & `docs/user-guide.md`
 
-- [applyTemplate()](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/article-saver.ts#153-189): add `{{episodeNotes}}` replacement
-- If template lacks `{{episodeNotes}}` but `item.userNotes` exists → append `\n\n## My Notes\n\n{notes}` after content
-
----
-
-### Reader View
-
-#### [MODIFY] [reader-view.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/reader-view.ts)
-
-- Instantiate `MediaNotesService` and pass to [PodcastPlayer](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/podcast-player.ts#6-1303) / [VideoPlayer](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/video-player.ts#7-307) constructors
-- In [showSaveOptions()](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/reader-view.ts#312-349) / [showCustomSaveModal()](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/reader-view.ts#350-439): before saving, set `item.userNotes = this.podcastPlayer?.getEpisodeNotes()` (or video equivalent)
-
----
-
-### Settings Tab
-
-#### [MODIFY] [settings-tab.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/settings/settings-tab.ts)
-
-Under the existing "Podcast" heading, add:
-- **"Podcast notes folder"** — text input with `VaultFolderSuggest`, default `"Podcast Notes"`
-
-Under "YouTube" heading, add:
-- **"Video notes folder"** — text input with `VaultFolderSuggest`, default `"Video Notes"`
-
----
-
-### Styles
-
-#### [MODIFY] [podcast-player.css](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/styles/podcast-player.css)
-
-- `.podcast-episode-notes-user` — reuses the `podcast-episode-details` collapsible pattern
-- `.podcast-notes-toolbar` — flex row with gap for the timestamp button
-- `.podcast-notes-timestamp-btn` — styled like existing `clickable-icon` buttons
-- `.podcast-notes-textarea` — full-width, min 4 rows, auto-grow, uses Obsidian's `--font-monospace`, natively themed background/border
-- `.podcast-notes-badge` — small pencil icon on playlist rows
-
-#### [NEW] [video-notes.css](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/styles/video-notes.css)
-
-- `.video-notes-section` — mirrors podcast notes styling for the video player
-
----
-
-## Two-Way Sync Details
-
-| Direction | How |
-|-----------|-----|
-| **Player → Vault** | [oninput](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/podcast-player.ts#453-463) with 500ms debounce calls `notesService.saveNote()` → `vault.modify()` on existing file or `vault.create()` for new |
-| **Vault → Player** | On [loadEpisode()](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/podcast-player.ts#70-128) / [loadVideo()](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/video-player.ts#20-35), read file via `vault.read()`. Also on textarea focus, re-read to pick up external edits |
-| **Vault → Saved article** | On save button click, `vault.read()` the note file and inject content via `{{episodeNotes}}` or auto-append |
-
-> [!NOTE]
-> We won't watch for live vault changes via `vault.on('modify')` in v1 to avoid complexity. Re-reading on episode load and textarea focus is sufficient. Live watching can be a follow-up.
-
----
+- Add a new section detailing "Media Notes & Chapter Markers".
+- Document the `Shift+m` shortcut and the marker button.
+- Add the caveat: "Note: Typing a note focuses the core Obsidian editor. To pause/play or resume controlling the podcast player via keyboard, you must click back into the player view."
 
 ## Verification Plan
 
-### Automated Tests — `npm run test:unit`
+### Automated Tests
 
-#### [NEW] [podcast-player-episode-notes.test.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/test_files/unit/podcast-player-episode-notes.test.ts)
+- Test that `mediaMarkerService` correctly creates the file if missing.
+- Test that `mediaMarkerService` appends the header and timestamp correctly.
 
-1. Renders "Episode notes" `<details>` section with `<summary>` and `<textarea>`
-2. Timestamp button inserts `[M:SS]` at cursor position when `audioElement.currentTime = 125`
-3. Notes persist across episode switches (via mocked `MediaNotesService`)
-4. `getEpisodeNotes()` returns current textarea value
-5. Playlist rows show pencil badge when notes exist
+### Manual Verification
 
-### Build — `npm run build`
-
-### Manual Testing
-1. Open podcast → expand "Episode notes" → type notes → verify [.md](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/.agents/workflows/code-change.md) file appears in vault folder
-2. Close and reopen episode → verify notes load from file
-3. Edit the [.md](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/.agents/workflows/code-change.md) file in Obsidian editor → reopen in player → verify changes appear
-4. Click timestamp button → verify `[M:SS]` inserted at cursor
-5. Save episode → open saved [.md](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/.agents/workflows/code-change.md) → verify notes appear under `## My Notes`
-6. Repeat 1-3 for video player (minus timestamp)
-7. Change notes folder in settings → verify new notes go to new folder
+1. Open a podcast and start playing.
+2. Press `Shift+m`.
+3. Verify the file is created (if new) or opened, the header is added, and the cursor is placed right after `[MM:SS] - `.
+4. Type some notes.
+5. Click the timestamp link in Reading Mode/Live Preview and ensure the player seeks to the correct time.
+6. Verify the video player works identically with YouTube videos.
