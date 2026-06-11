@@ -3,10 +3,7 @@ import { RssDashboardSettings } from "../types/types";
 import { TABLET_LAYOUT_MAX_WIDTH } from "../utils/platform-utils";
 import { ArticleFilterMenu, FilterChangeEvent } from "./article-filter-menu";
 import { ArticleHeaderMenu } from "./article-header-menu";
-import { extractDomain, getFaviconUrl } from "../utils/favicon-utils";
-import { MediaService } from "../services/media-service";
-import { MastodonService } from "../services/mastodon-service";
-
+import { renderHeaderFeedIcon } from "./article-list/utils/feed-icon";
 interface ArticleHeaderMenuController {
   destroy(): void;
   render(parent: HTMLElement): void;
@@ -185,7 +182,10 @@ export class ArticleHeader {
       const feedIcon = leftSection.createDiv({
         cls: "rss-dashboard-header-feed-icon",
       });
-      this.renderHeaderFeedIcon(feedIcon, this.currentFeedUrl);
+      renderHeaderFeedIcon(feedIcon, this.currentFeedUrl, {
+        feeds: this.settings.feeds,
+        display: this.settings.display,
+      });
     }
 
     this.headerTitleEl = leftSection.createDiv({
@@ -617,114 +617,6 @@ export class ArticleHeader {
     return String(currentValue);
   }
 
-  private renderHeaderFeedIcon(container: HTMLElement, feedUrl: string): void {
-    const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-    const mediaType = feed?.mediaType;
-    const isYouTubeFeed = MediaService.isYouTubeFeed(feedUrl);
-
-    if (mediaType === "video" && isYouTubeFeed) {
-      setIcon(container, "play");
-      container.addClass("video");
-    } else if (mediaType === "podcast") {
-      setIcon(container, "mic");
-      container.addClass("podcast");
-    } else if (feed?.iconUrl) {
-      // Show cached feed logo (e.g. Mastodon profile image) when available
-      const imgEl = container.createEl("img", {
-        attr: {
-          src: feed.iconUrl,
-          alt: feed.title || feedUrl,
-        },
-        cls: "rss-dashboard-header-feed-icon-img",
-      });
-      imgEl.onerror = () => {
-        container.empty();
-        if (
-          MediaService.isTwitterOrNitterFeed(feedUrl)
-        ) {
-          const faviconUrl = getFaviconUrl("twitter.com");
-          const fallbackImg = container.createEl("img", {
-            attr: {
-              src: faviconUrl,
-              alt: "Twitter/X",
-            },
-            cls: "rss-dashboard-header-favicon",
-          });
-          fallbackImg.onerror = () => {
-            container.empty();
-            if (!this.settings.display.hideDefaultRssIcon) {
-              setIcon(container, "rss");
-            }
-          };
-        } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
-          const domain = extractDomain(feedUrl);
-          if (domain) {
-            const faviconUrl = getFaviconUrl(domain);
-            const fallbackImg = container.createEl("img", {
-              attr: {
-                src: faviconUrl,
-                alt: "Mastodon",
-              },
-              cls: "rss-dashboard-header-favicon",
-            });
-            fallbackImg.onerror = () => {
-              container.empty();
-              if (!this.settings.display.hideDefaultRssIcon) {
-                setIcon(container, "rss");
-              }
-            };
-          } else if (!this.settings.display.hideDefaultRssIcon) {
-            setIcon(container, "rss");
-          }
-        } else if (!this.settings.display.hideDefaultRssIcon) {
-          setIcon(container, "rss");
-        }
-      };
-    } else if (this.settings.display.useDomainIconsRss) {
-      const domain = extractDomain(feedUrl);
-      if (domain) {
-        const faviconUrl = getFaviconUrl(domain);
-        const imgEl = container.createEl("img", {
-          attr: {
-            src: faviconUrl,
-            alt: domain,
-          },
-          cls: "rss-dashboard-header-favicon",
-        });
-        imgEl.onerror = () => {
-          container.empty();
-          if (!this.settings.display.hideDefaultRssIcon) {
-            setIcon(container, "rss");
-          }
-        };
-      } else if (!this.settings.display.hideDefaultRssIcon) {
-        setIcon(container, "rss");
-      }
-    } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
-      // Show Mastodon instance domain favicon independent of useDomainIconsRss
-      const domain = extractDomain(feedUrl);
-      if (domain) {
-        const faviconUrl = getFaviconUrl(domain);
-        const imgEl = container.createEl("img", {
-          attr: {
-            src: faviconUrl,
-            alt: "Mastodon",
-          },
-          cls: "rss-dashboard-header-favicon",
-        });
-        imgEl.onerror = () => {
-          container.empty();
-          if (!this.settings.display.hideDefaultRssIcon) {
-            setIcon(container, "rss");
-          }
-        };
-      } else if (!this.settings.display.hideDefaultRssIcon) {
-        setIcon(container, "rss");
-      }
-    } else if (!this.settings.display.hideDefaultRssIcon) {
-      setIcon(container, "rss");
-    }
-  }
 
   private addDocumentListener(
     target: Document | Window,

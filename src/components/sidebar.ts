@@ -39,6 +39,7 @@ import type RssDashboardPlugin from "../../main";
 import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { MediaService } from "../services/media-service";
+import { MastodonService } from "../services/mastodon-service";
 import {
   moveFeedAndInsert,
   moveFeedToFolderAppend,
@@ -1501,7 +1502,18 @@ export class Sidebar {
         },
         cls: "rss-dashboard-feed-icon-img",
       });
-    } else if (this.settings.display.useDomainFavicons) {
+    } else if (MediaService.isTwitterOrNitterFeed(feed.url)) {
+      this.renderFallbackFeedIcon(feedIcon);
+      void this.renderDomainFavicon(feedIcon, "twitter.com");
+    } else if (MastodonService.isResolvedFeedUrl(feed.url)) {
+      const domain = this.extractDomain(feed.url);
+      if (domain) {
+        this.renderFallbackFeedIcon(feedIcon);
+        void this.renderDomainFavicon(feedIcon, domain);
+      } else {
+        this.renderFallbackFeedIcon(feedIcon);
+      }
+    } else if (this.settings.display.useDomainIconsRss) {
       // Show domain favicon for regular feeds when setting is enabled
       const domain = this.extractDomain(feed.url);
       if (domain) {

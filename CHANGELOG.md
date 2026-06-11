@@ -18,6 +18,10 @@
 
 - Fixed mobile sidebar tags issue where tapping checked rows were unable to be unchecked.
 
+- Fixed inline viewer not rendering reader toolbar
+
+- Fixed sidebar icons not properly rendering
+
 ## 2.4.0-beta.2 - June 9, 2026
 
 ### New Features
