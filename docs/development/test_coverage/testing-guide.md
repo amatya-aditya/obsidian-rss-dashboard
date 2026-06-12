@@ -12,12 +12,12 @@ Last updated: 2026-05-15
 
 ### Current Baseline (latest verification snapshot)
 
-- **Test Files:** 130 ✅
-- **Passing Tests:** 1180 / 1180 (100%) ✅
-- **Statements:** 54.66% (9132/16707)
-- **Branches:** 45.5% (4276/9400)
-- **Functions:** 49.58% (1412/2848)
-- **Lines:** 55.87% (8855/15849)
+- **Test Files:** 168 ✅
+- **Passing Tests:** 1468 / 1468 (100%) ✅
+- **Statements:** 57.8% ( 12293/21267 )
+- **Branches:** 49.68% ( 6197/12473 )
+- **Functions:** 53.5% ( 2014/3764 )
+- **Lines:** 58.88% ( 11915/20236 )
 - **Coverage Thresholds:** lines `40`, branches `33`, functions `34`
 
 _Note: Coverage is enforced via Vitest thresholds in `vitest.config.mjs` and should be treated as a ratcheted floor, not just a report._
