@@ -1651,6 +1651,35 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  public async migrateToVaultShardsV2(): Promise<void> {
+    storageLog("Plugin migration v2 requested", {
+      currentMode: this.settings.storageMode,
+      folder: this.settings.storageFolder,
+      feedCount: this.settings.feeds.length,
+    });
+
+    try {
+      await this.feedStorageRepository.migrateToVaultShardsV2(
+        this.settings,
+        this.getMetadataSaveCallback(),
+      );
+      this.initializeSettingsBackedServices();
+      await this.refreshDashboardViews();
+      if (this.settingTab) {
+        this.settingTab.display();
+      }
+      storageLog("Plugin migration v2 completed", {
+        currentMode: this.settings.storageMode,
+      });
+    } catch (error) {
+      storageError("Plugin migration v2 failed", error, {
+        currentMode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+      });
+      throw error;
+    }
+  }
+
   public async repairVaultStorage(): Promise<void> {
     storageLog("Plugin repair requested", {
       currentMode: this.settings.storageMode,
@@ -2064,8 +2093,13 @@ export default class RssDashboardPlugin extends Plugin {
       // data.json yet — writing empty defaults here would clobber it.
       // The vault modify listener in onload() will trigger loadSettings()
       // again once sync delivers the real data.
+      // Similarly, skip if we are in v2 mode and user-state.json is missing.
+      const isV2 = this.settings.storageMode === "vault-shards-v2";
+      const isMissingUserState = isV2 && hydrated.userStateLoaded === false;
+
       const shouldSave =
         !wasNullLoad &&
+        !isMissingUserState &&
         (didMigrateKeywordRules ||
           hydrated.didChange ||
           didNormalizeAndDedupeItems ||
@@ -2270,14 +2304,15 @@ export default class RssDashboardPlugin extends Plugin {
    * Creates a save callback that persists metadata to the appropriate location
    * based on the current metadataStorageMode.
    */
-  private getMetadataSaveCallback() {
-    return async (data: RssDashboardSettings): Promise<void> => {
+  public getMetadataSaveCallback(): (data: unknown) => Promise<void> {
+    return async (data: unknown): Promise<void> => {
+      const settingsData = data as RssDashboardSettings;
       const metadataPath = getMetadataPath(this.settings);
       if (metadataPath) {
         try {
           await ensureMetadataFolderExists(this.app, this.settings);
           const dataFilePath = `${metadataPath}/data.json`;
-          const jsonContent = JSON.stringify(data, null, 2);
+          const jsonContent = JSON.stringify(settingsData, null, 2);
           await this.app.vault.adapter.write(dataFilePath, jsonContent);
           storageLog("Metadata saved to vault location", {
             path: dataFilePath,
@@ -2288,13 +2323,14 @@ export default class RssDashboardPlugin extends Plugin {
           await this.saveData({
             metadataStorageMode: this.settings.metadataStorageMode,
             metadataStorageFolder: this.settings.metadataStorageFolder,
+            metadataStorageSchemaVersion: this.settings.metadataStorageSchemaVersion,
           });
         } catch (error) {
           storageError("Failed to save metadata to vault location", error);
           throw error;
         }
       } else {
-        await this.saveData(data);
+        await this.saveData(settingsData);
         storageLog("Metadata saved to plugin default location");
       }
     };
@@ -2309,12 +2345,9 @@ export default class RssDashboardPlugin extends Plugin {
     });
 
     try {
-      const saveCallback = this.getMetadataSaveCallback() as (
-        data: unknown,
-      ) => Promise<void>;
       const result = await this.feedStorageRepository.persistSettings(
         this.settings,
-        saveCallback,
+        this.getMetadataSaveCallback(),
       );
       storageLog("saveSettings completed", result);
     } catch (error) {

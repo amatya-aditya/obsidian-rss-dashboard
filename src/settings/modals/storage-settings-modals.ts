@@ -1,4 +1,5 @@
 import { App, Modal, Setting } from "obsidian";
+import type { FeedStorageMode } from "../../types/types";
 
 export type StorageTransitionAction =
   | "cancel"
@@ -14,8 +15,8 @@ export type ShardDeletionFailureAction =
 export type MetadataCleanupAction = "keep" | "delete";
 
 export interface StorageTransitionOptions {
-  currentMode: "legacy-json" | "vault-shards";
-  targetMode: "legacy-json" | "vault-shards";
+  currentMode: FeedStorageMode;
+  targetMode: FeedStorageMode;
   storageFolder: string;
 }
 
@@ -24,8 +25,8 @@ export interface MetadataCleanupOptions {
 }
 
 export class StorageTransitionModal extends Modal {
-  private readonly currentMode: "legacy-json" | "vault-shards";
-  private readonly targetMode: "legacy-json" | "vault-shards";
+  private readonly currentMode: FeedStorageMode;
+  private readonly targetMode: FeedStorageMode;
   private readonly storageFolder: string;
   private action: StorageTransitionAction = "cancel";
   private resolvePromise: ((value: StorageTransitionAction) => void) | null =
@@ -46,15 +47,12 @@ export class StorageTransitionModal extends Modal {
     this.modalEl.addClass("rss-dashboard-modal-container");
     this.modalEl.addClass("rss-storage-transition-modal");
 
-    if (
-      this.currentMode === "legacy-json" &&
-      this.targetMode === "vault-shards"
-    ) {
-      this.renderLegacyToShardsModal(contentEl);
+    if (this.targetMode === "legacy-json") {
+      this.renderShardsToLegacyModal(contentEl);
       return;
     }
 
-    this.renderShardsToLegacyModal(contentEl);
+    this.renderLegacyToShardsModal(contentEl);
   }
 
   onClose(): void {
@@ -71,12 +69,22 @@ export class StorageTransitionModal extends Modal {
 
   private renderLegacyToShardsModal(contentEl: HTMLElement): void {
     contentEl.createEl("h2", { text: "Apply storage change?" });
-    contentEl.createEl("p", {
-      text: "You are switching from legacy data.json storage to per-feed vault shards.",
-    });
-    contentEl.createEl("p", {
-      text: "Before continuing, back up your current data.json file. You can use the existing export action here first, then come back and apply the change.",
-    });
+    if (this.currentMode === "legacy-json") {
+      contentEl.createEl("p", {
+        text: "You are switching from legacy data.json storage to per-feed vault shards.",
+      });
+      contentEl.createEl("p", {
+        text: "Before continuing, back up your current data.json file. You can use the existing export action here first, then come back and apply the change.",
+      });
+    } else if (this.targetMode === "vault-shards-v2") {
+      contentEl.createEl("p", {
+        text: "You are upgrading to Shard Storage V2 (split user state).",
+      });
+    } else {
+      contentEl.createEl("p", {
+        text: "You are switching to per-feed vault shards.",
+      });
+    }
     contentEl.createEl("p", {
       text: `Shard files will be written into: ${this.storageFolder}`,
     });

@@ -40,6 +40,7 @@ interface StorageSettingsPlugin {
   } | null>;
   getStorageStatus(): FeedStorageStatus;
   migrateToVaultStorage(): Promise<void>;
+  migrateToVaultShardsV2(): Promise<void>;
   repairVaultStorage(): Promise<void>;
   importPortableDataBundleFromFile(file: File): Promise<void>;
   exportPortableDataBundle(): Promise<void>;
@@ -104,7 +105,9 @@ export function renderStorageSettingsTab(
     const status = plugin.getStorageStatus();
     const migrationState = status.migrationReady
       ? "Migration ready"
-      : status.mode === "vault-shards"
+      : status.mode === "vault-shards-v2"
+        ? "Shards v2 active"
+        : status.mode === "vault-shards"
         ? "Shards active"
         : "Legacy JSON active";
     return [
@@ -279,6 +282,7 @@ export function renderStorageSettingsTab(
       dropdown
         .addOption("legacy-json", "Legacy JSON")
         .addOption("vault-shards", "Vault shards")
+        .addOption("vault-shards-v2", "Vault shards (v2 — split state)")
         .setValue(pendingStorageMode)
         .onChange((value) => {
           storageLog("Storage mode dropdown changed", {
@@ -410,6 +414,15 @@ export function renderStorageSettingsTab(
                   );
                 } else {
                   new Notice("Vault storage migration completed.");
+                }
+              } else if (pendingStorageMode === "vault-shards-v2") {
+                await plugin.migrateToVaultShardsV2();
+                if (folderChanged) {
+                  new Notice(
+                    `Storage folder updated to "${pendingStorageFolder}" and vault storage v2 migration completed.`,
+                  );
+                } else {
+                  new Notice("Vault storage v2 migration completed.");
                 }
               } else {
                 if (action === "apply-delete-shards") {

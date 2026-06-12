@@ -4,9 +4,9 @@ export interface FeedItem {
   description: string;
   pubDate: string;
   guid: string;
-  read: boolean;
-  starred: boolean;
-  tags: Tag[];
+  read?: boolean;
+  starred?: boolean;
+  tags?: Tag[];
   feedTitle: string;
   feedUrl: string;
   coverImage: string;
@@ -377,7 +377,27 @@ export interface AutoBackupSettings {
   backupUserdata: boolean; // copies userdata.json → userdata.json.backup
 }
 
-export type FeedStorageMode = "legacy-json" | "vault-shards";
+export type FeedStorageMode = "legacy-json" | "vault-shards" | "vault-shards-v2";
+
+export interface ArticleUserState {
+  read?: boolean;
+  starred?: boolean;
+  tags?: Tag[];
+  saved?: boolean;
+  savedFilePath?: string;
+  playbackProgress?: {
+    position: number;
+    duration: number;
+    lastUpdated: number;
+  };
+}
+
+export interface UserStateFile {
+  version: number;
+  states: Record<string, ArticleUserState>;
+  _syncNonce?: string;
+  _syncPad?: string;
+}
 
 export interface FeedItemsShard {
   version: number;

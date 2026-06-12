@@ -431,7 +431,7 @@ export class EditFeedModal extends Modal {
       ? this.feed.feedId
       : "Not assigned";
     const storageStatusText =
-      localStorageAddressResult.mode === "vault-shards"
+      localStorageAddressResult.mode !== "legacy-json"
         ? hasResolvedLocalAddress
           ? "Stored in shard storage"
           : "Shard storage selected (address unavailable)"

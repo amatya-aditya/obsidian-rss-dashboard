@@ -4,7 +4,13 @@
 
 ### Features
 
-- Added two new right-click context menu options: Copy feed URL and copy article URL [GH Discussion #134 - lo-phare](https://github.com/amatya-aditya/obsidian-rss-dashboard/discussions/134)
+#### Shard Stoage version 2 (v2)
+
+- Added Shard Storage mode v2 to improve sync reliability across devices. This mode introduces a new user-state.json file alongside data.json, which stores per-article state — read/unread, favorited, saved, tags, and play progress. Feed shard files now contain only article content and the GUID used to link back to user-state.json. data.json now stores only plugin settings.
+
+- This separation resolves race conditions that previously caused some sync tools (e.g. Remotely Save, WebDAV-based sync) to overwrite read/star/tag changes when a feed refresh on another device landed at the same time.
+
+- v2 is opt-in: existing users on legacy or v1 storage can migrate via the new "Vault location (v2 — split user state)" option in the Storage settings tab. A confirmation prompt explains the change before migration runs.
 
 ### Fixes
 

@@ -913,6 +913,10 @@ export class MediaService {
 
       return {
         ...item,
+        // TODO (fast-follow): Shard Storage 2.0 Rule Retroactivity
+        // Editing an auto-tag rule/folder tag shouldn't retroactively bloat user-state.json.
+        // We need to ensure that auto-applied tags only persist to user-state.json for *new* items,
+        // or ensure that editing a rule doesn't retroactively rewrite old item states.
         tags: resolveArticleTags(
           item.tags,
           perFeedTags,

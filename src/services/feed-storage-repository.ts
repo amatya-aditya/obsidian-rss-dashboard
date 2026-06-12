@@ -6,6 +6,8 @@ import type {
   PersistedFeedConfig,
   PersistedRssDashboardSettings,
   RssDashboardSettings,
+  ArticleUserState,
+  UserStateFile,
 } from "../types/types";
 
 const SHARD_VERSION = 1;
@@ -91,19 +93,29 @@ function getFeedShardPath(storageFolder: string, feedId: string): string {
   return normalizePath(`${normalizeFolderPath(storageFolder)}/${feedId}.json`);
 }
 
-function createFeedShard(feed: Feed): FeedItemsShard {
+function createFeedShard(feed: Feed, stripState = false): FeedItemsShard {
   return {
     version: SHARD_VERSION,
     feedId: feed.feedId ?? "",
     feedUrl: feed.url,
     updatedAt: Date.now(),
-    items: cloneJson(feed.items ?? []),
+    items: cloneJson(feed.items ?? []).map(item => {
+      if (stripState) {
+        delete item.read;
+        delete item.starred;
+        delete item.tags;
+        delete item.saved;
+        delete item.savedFilePath;
+        delete item.playbackProgress;
+      }
+      return item;
+    }),
   };
 }
 
-function createComparableFeedShardJson(feed: Feed): string {
+function createComparableFeedShardJson(feed: Feed, stripState = false): string {
   const { updatedAt: _updatedAt, ...shardWithoutTimestamp } =
-    createFeedShard(feed);
+    createFeedShard(feed, stripState);
   void _updatedAt;
   return JSON.stringify(shardWithoutTimestamp, null, 2);
 }
@@ -208,14 +220,14 @@ export class FeedStorageRepository {
 
     const feedId = (feed.feedId ?? "").trim();
     return {
-      mode: "vault-shards",
+      mode: settings.storageMode,
       address: feedId ? getFeedShardPath(settings.storageFolder, feedId) : "",
     };
   }
 
   public async hydrateSettings(
     settings: RssDashboardSettings,
-  ): Promise<{ didChange: boolean; shardCount: number }> {
+  ): Promise<{ didChange: boolean; shardCount: number; userStateLoaded?: boolean }> {
     storageLog("Hydrating settings", {
       mode: settings.storageMode,
       folder: normalizeFolderPath(settings.storageFolder),
@@ -224,7 +236,7 @@ export class FeedStorageRepository {
     const didAssignFeedIds = this.ensureFeedIds(settings);
     let shardCount = 0;
 
-    if (settings.storageMode !== "vault-shards") {
+    if (settings.storageMode !== "vault-shards" && settings.storageMode !== "vault-shards-v2") {
       storageLog("Skipping shard hydration because legacy JSON mode is active");
       this.capturePersistedState(settings);
       return { didChange: didAssignFeedIds, shardCount };
@@ -286,8 +298,49 @@ export class FeedStorageRepository {
       didAssignFeedIds,
       shardCount,
     });
+    
+    let userStateLoaded = false;
+    if (settings.storageMode === "vault-shards-v2") {
+      const userState = await this.loadUserState(settings);
+      if (userState) {
+        userStateLoaded = true;
+        for (const feed of settings.feeds) {
+          for (const item of feed.items) {
+            const state = userState.states[item.guid];
+            if (state) {
+              item.read = state.read ?? false;
+              item.starred = state.starred ?? false;
+              item.tags = state.tags ? cloneJson(state.tags) : [];
+              item.saved = state.saved ?? false;
+              if (state.savedFilePath) item.savedFilePath = state.savedFilePath;
+              if (state.playbackProgress) item.playbackProgress = cloneJson(state.playbackProgress);
+            } else {
+              item.read = false;
+              item.starred = false;
+              item.tags = [];
+              item.saved = false;
+              delete item.savedFilePath;
+              delete item.playbackProgress;
+            }
+          }
+        }
+      } else {
+        // Fallback to default if missing
+        for (const feed of settings.feeds) {
+          for (const item of feed.items) {
+            item.read = false;
+            item.starred = false;
+            item.tags = [];
+            item.saved = false;
+            delete item.savedFilePath;
+            delete item.playbackProgress;
+          }
+        }
+      }
+    }
+
     this.capturePersistedState(settings);
-    return { didChange: didAssignFeedIds, shardCount };
+    return { didChange: didAssignFeedIds, shardCount, userStateLoaded };
   }
 
   public async persistSettings(
@@ -308,7 +361,7 @@ export class FeedStorageRepository {
       forceAllShards: Boolean(options.forceAllShards),
     });
 
-    if (settings.storageMode !== "vault-shards") {
+    if (settings.storageMode !== "vault-shards" && settings.storageMode !== "vault-shards-v2") {
       await saveData(withSyncNonce(cloneJson(settings)));
       storageLog("Saved full settings to legacy data.json");
       this.capturePersistedState(settings);
@@ -346,9 +399,10 @@ export class FeedStorageRepository {
       }
 
       currentFeedIds.add(feed.feedId);
-      const shard = createFeedShard(feed);
+      const isV2 = settings.storageMode === "vault-shards-v2";
+      const shard = createFeedShard(feed, isV2);
       const shardJson = JSON.stringify(shard, null, 2);
-      const currentComparableJson = createComparableFeedShardJson(feed);
+      const currentComparableJson = createComparableFeedShardJson(feed, isV2);
       const previousJson = this.lastPersistedShardJsonByFeedId.get(feed.feedId);
 
       if (forceAllShards || previousJson !== currentComparableJson) {
@@ -423,6 +477,10 @@ export class FeedStorageRepository {
       });
     }
 
+    if (settings.storageMode === "vault-shards-v2") {
+      await this.saveUserStateFromFeeds(settings);
+    }
+
     this.lastStorageFolderPath = normalizedStorageFolder;
     storageLog("Finished persisting settings", {
       metadataSaved: shouldSaveMetadata,
@@ -461,6 +519,46 @@ export class FeedStorageRepository {
       this.restoreMigrationSnapshot(settings, snapshot);
       storageError(
         "Migration to vault shards failed; restored legacy state",
+        error,
+        {
+          restoredMode: settings.storageMode,
+          restoredFolder: settings.storageFolder,
+        },
+      );
+      throw error;
+    }
+  }
+
+  public async migrateToVaultShardsV2(
+    settings: RssDashboardSettings,
+    saveData: (data: unknown) => Promise<void>,
+  ): Promise<void> {
+    const snapshot = this.captureMigrationSnapshot(settings);
+    storageLog("Starting migration to vault shards v2 (split state)", {
+      currentMode: settings.storageMode,
+      folder: normalizeFolderPath(settings.storageFolder),
+      feedCount: settings.feeds.length,
+    });
+    settings.storageMode = "vault-shards-v2";
+    settings.storageFolder = normalizeFolderPath(settings.storageFolder);
+    settings.metadataStorageMode = "vault-location";
+    // Usually metadataStorageFolder is set by the user, but fallback to parent of feeds folder
+    const parentFolder = this.getParentFolderPath(settings.storageFolder) || ".rss-dashboard-data";
+    settings.metadataStorageFolder = normalizeFolderPath(parentFolder);
+    settings.metadataStorageSchemaVersion = 2;
+
+    try {
+      // persistSettings will handle saving shards (without state) and user-state.json
+      await this.persistSettings(settings, saveData, {
+        forceAllShards: true,
+        forceMetadata: true,
+      });
+      this.lastRepairResult = "Migration completed (v2)";
+      storageLog("Completed migration to vault shards v2");
+    } catch (error) {
+      this.restoreMigrationSnapshot(settings, snapshot);
+      storageError(
+        "Migration to vault shards v2 failed; restored state",
         error,
         {
           restoredMode: settings.storageMode,
@@ -681,18 +779,19 @@ export class FeedStorageRepository {
   }
 
   private capturePersistedState(settings: RssDashboardSettings): void {
-    if (settings.storageMode === "vault-shards") {
+    if (settings.storageMode === "vault-shards" || settings.storageMode === "vault-shards-v2") {
       this.lastPersistedMetadataJson = JSON.stringify(
         this.createPersistedSettings(settings),
         null,
         2,
       );
+      const isV2 = settings.storageMode === "vault-shards-v2";
       this.lastPersistedShardJsonByFeedId = new Map(
         settings.feeds
           .filter((feed): feed is Feed & { feedId: string } =>
             Boolean(feed.feedId),
           )
-          .map((feed) => [feed.feedId, createComparableFeedShardJson(feed)]),
+          .map((feed) => [feed.feedId, createComparableFeedShardJson(feed, isV2)]),
       );
       this.lastStorageFolderPath = normalizeFolderPath(settings.storageFolder);
       return;
@@ -862,5 +961,84 @@ export class FeedStorageRepository {
     }
 
     return folderPath.slice(0, lastSlashIndex);
+  }
+
+  private getUserStatePath(settings: RssDashboardSettings): string {
+    let folder = settings.metadataStorageFolder.trim();
+    if (!folder) {
+      folder = ".rss-dashboard-data";
+    }
+    return normalizePath(`${folder.replace(/^\/+|\/+$/g, "")}/user-state.json`);
+  }
+
+  public async loadUserState(settings: RssDashboardSettings): Promise<UserStateFile | null> {
+    const path = this.getUserStatePath(settings);
+    if (!(await this.app.vault.adapter.exists(path))) {
+      return null;
+    }
+    try {
+      const raw = await this.app.vault.adapter.read(path);
+      const parsed = JSON.parse(raw) as UserStateFile;
+      if (parsed && typeof parsed.states === "object") {
+        return parsed;
+      }
+    } catch (e) {
+      storageError("Failed to parse user-state.json", e);
+    }
+    return null;
+  }
+
+  public async saveUserStateFromFeeds(settings: RssDashboardSettings): Promise<void> {
+    const activeGuids = new Set<string>();
+    const states: Record<string, ArticleUserState> = {};
+
+    for (const feed of settings.feeds) {
+      for (const item of feed.items) {
+        activeGuids.add(item.guid);
+        const hasState = item.read || item.starred || (item.tags && item.tags.length > 0) || item.saved || item.playbackProgress;
+        if (hasState) {
+          const state: ArticleUserState = {};
+          if (item.read) state.read = true;
+          if (item.starred) state.starred = true;
+          if (item.tags && item.tags.length > 0) state.tags = cloneJson(item.tags);
+          if (item.saved) {
+            state.saved = true;
+            if (item.savedFilePath) state.savedFilePath = item.savedFilePath;
+          }
+          if (item.playbackProgress) state.playbackProgress = cloneJson(item.playbackProgress);
+          states[item.guid] = state;
+        }
+      }
+    }
+
+    // Attempt to load existing to preserve any items that are currently pruned from feed shards
+    // wait, the GC logic says "cross-reference active GUIDs in all feeds... if GUID doesn't exist in any feed, delete it"
+    // So we don't preserve items not in activeGuids. This implicitly handles GC!
+    // But wait, are there items in user-state that are NOT in feeds but we WANT to keep? No, the plan says GC them.
+
+    const userStateFile: UserStateFile = withSyncNonce({
+      version: 1,
+      states
+    });
+
+    const path = this.getUserStatePath(settings);
+    
+    // Ensure metadata folder exists
+    let folder = settings.metadataStorageFolder.trim();
+    if (!folder) {
+      folder = ".rss-dashboard-data";
+    }
+    const normalizedFolder = normalizePath(folder.replace(/^\/+|\/+$/g, ""));
+    const folderExists = await this.app.vault.adapter.exists(normalizedFolder);
+    if (!folderExists) {
+      try {
+        await this.app.vault.createFolder(normalizedFolder);
+      } catch (e) {
+        // ignore race conditions
+      }
+    }
+
+    await this.app.vault.adapter.write(path, JSON.stringify(userStateFile, null, 2));
+    storageLog("Saved user-state.json with " + Object.keys(states).length + " entries.");
   }
 }
