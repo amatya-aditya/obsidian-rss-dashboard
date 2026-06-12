@@ -106,10 +106,10 @@ export function renderStorageSettingsTab(
     const migrationState = status.migrationReady
       ? "Migration ready"
       : status.mode === "vault-shards-v2"
-        ? "Shards v2 active"
+        ? "Shard Storage v2 active"
         : status.mode === "vault-shards"
-        ? "Shards active"
-        : "Legacy JSON active";
+          ? "Shard Storage v1 active"
+          : "Legacy JSON active";
     return [
       `Mode: ${status.mode}`,
       `Folder: ${status.folder}`,
@@ -273,16 +273,32 @@ export function renderStorageSettingsTab(
     }
   };
 
+  const descFragment = document.createDocumentFragment();
+  const legacyDiv = document.createElement("div");
+  setCssProps(legacyDiv, { "margin-bottom": "10px" });
+  legacyDiv.createEl("strong", { text: "Legacy JSON:" });
+  legacyDiv.appendText(" large monolith file. does not sync across devices (often exceeds 5mb limit)");
+  descFragment.appendChild(legacyDiv);
+
+  const v1Div = document.createElement("div");
+  setCssProps(v1Div, { "margin-bottom": "10px" });
+  v1Div.createEl("strong", { text: "Shard Storage v1:" });
+  v1Div.appendText(" Creates individual vault files for each feed to improve syncing, but stores state (read, starred) inside the feed file, which can still cause minor sync conflicts.");
+  descFragment.appendChild(v1Div);
+
+  const v2Div = document.createElement("div");
+  v2Div.createEl("strong", { text: "Shard Storage v2:" });
+  v2Div.appendText(" Splits feed content and user state (read, starred, tags) into separate files, providing the most robust sync experience.");
+  descFragment.appendChild(v2Div);
+
   new Setting(containerEl)
     .setName("Storage mode")
-    .setDesc(
-      "Choose between the legacy monolithic data.json store and per-feed vault shard files, then use Apply below to confirm the change.",
-    )
+    .setDesc(descFragment)
     .addDropdown((dropdown) =>
       dropdown
         .addOption("legacy-json", "Legacy JSON")
-        .addOption("vault-shards", "Vault shards")
-        .addOption("vault-shards-v2", "Vault shards (v2 — split state)")
+        .addOption("vault-shards", "Shard Storage v1")
+        .addOption("vault-shards-v2", "Shard Storage v2")
         .setValue(pendingStorageMode)
         .onChange((value) => {
           storageLog("Storage mode dropdown changed", {

@@ -426,13 +426,11 @@ export class Sidebar {
 
     feedIcon.empty();
     feedIcon.removeClass("rss-icon-hidden");
-    const imgEl = feedIcon.createEl("img", {
-      attr: {
-        src: faviconUrl,
-        alt: domain,
-      },
-      cls: "rss-dashboard-feed-favicon",
-    });
+    const imgEl = feedIcon.ownerDocument.createElement("img");
+    imgEl.src = faviconUrl;
+    imgEl.alt = domain;
+    imgEl.className = "rss-dashboard-feed-favicon";
+    feedIcon.appendChild(imgEl);
 
     imgEl.onerror = () => {
       this.faviconAvailabilityCache.set(faviconUrl, false);
@@ -1495,13 +1493,11 @@ export class Sidebar {
       setIcon(feedIcon, "mic");
       feedIcon.addClass("podcast");
     } else if (MediaService.shouldShowFeedIcon(feed, this.settings.display)) {
-      feedIcon.createEl("img", {
-        attr: {
-          src: feed.iconUrl ?? "",
-          alt: feed.title,
-        },
-        cls: "rss-dashboard-feed-icon-img",
-      });
+      const imgEl = feedIcon.ownerDocument.createElement("img");
+      imgEl.src = feed.iconUrl ?? "";
+      imgEl.alt = feed.title;
+      imgEl.className = "rss-dashboard-feed-icon-img";
+      feedIcon.appendChild(imgEl);
     } else if (MediaService.isTwitterOrNitterFeed(feed.url)) {
       this.renderFallbackFeedIcon(feedIcon);
       void this.renderDomainFavicon(feedIcon, "twitter.com");

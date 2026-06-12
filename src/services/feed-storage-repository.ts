@@ -1033,7 +1033,7 @@ export class FeedStorageRepository {
     if (!folderExists) {
       try {
         await this.app.vault.createFolder(normalizedFolder);
-      } catch (e) {
+      } catch (_e) {
         // ignore race conditions
       }
     }

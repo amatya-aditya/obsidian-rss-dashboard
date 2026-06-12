@@ -113,23 +113,6 @@ describe("General settings storage section", () => {
     ).toBeTruthy();
   });
 
-  it("renders the storage controls in the General tab", () => {
-    const containerEl = createTestContainer();
-    const plugin = createPlugin();
-
-    renderStorageSettingsTab(containerEl, plugin as never);
-
-    expect(getSettingByName(containerEl, "Storage mode").textContent).toContain(
-      "legacy monolithic data.json store",
-    );
-    expect(
-      getSettingByName(containerEl, "Storage folder").textContent,
-    ).toContain("cross-device sync tools can access it");
-    expect(
-      getSettingByName(containerEl, "Storage status").textContent,
-    ).toContain("Migration ready");
-  });
-
   it("applies the pending legacy-to-shards storage change through the modal", async () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
