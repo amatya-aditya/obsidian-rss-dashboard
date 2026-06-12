@@ -1583,7 +1583,7 @@ export class DiscoverView extends ItemView {
     setIcon(previewBtn, "file-search");
     previewBtn.createSpan({ text: "Preview" });
     previewBtn.addEventListener("click", () => {
-      new FeedPreviewModal(this.app, feed).open();
+      new FeedPreviewModal(this.app, feed, this.plugin.settings.corsProxyEnabled).open();
     });
 
     this.renderFollowButton(rightSection, feed);

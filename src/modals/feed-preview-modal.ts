@@ -17,9 +17,12 @@ export class FeedPreviewModal extends Modal {
     private isLoading = true;
     private error: string | null = null;
 
-    constructor(app: App, feed: FeedMetadata) {
+    private corsProxyEnabled: boolean;
+
+    constructor(app: App, feed: FeedMetadata, corsProxyEnabled: boolean = true) {
         super(app);
         this.feed = feed;
+        this.corsProxyEnabled = corsProxyEnabled;
     }
 
     onOpen() {
@@ -83,7 +86,7 @@ export class FeedPreviewModal extends Modal {
             this.isLoading = true;
             this.error = null;
 
-            const xmlString = await fetchFeedXml(this.feed.url);
+            const xmlString = await fetchFeedXml(this.feed.url, this.corsProxyEnabled);
             this.articles = this.parseFeedXml(xmlString);
             
             this.renderContent();

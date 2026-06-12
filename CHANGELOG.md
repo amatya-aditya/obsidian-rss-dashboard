@@ -32,6 +32,10 @@
 
 - Fixed some sidebar icons not properly rendering
 
+### Changes
+
+- Removed hardcoded AllOrigins proxy fallback retries on feed refresh failures. All proxies are now opt-in only.
+
 ## 2.4.0-beta.2 - June 9, 2026
 
 ### New Features

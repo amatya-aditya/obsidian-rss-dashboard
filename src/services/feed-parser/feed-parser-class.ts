@@ -46,17 +46,20 @@ export class FeedParser {
   private availableTags: Tag[];
   private parser: CustomXMLParser;
   private getFolders: () => Folder[];
+  private getCorsProxyEnabled: () => boolean;
 
   constructor(
     displaySettings: DisplaySettings,
     availableTags: Tag[],
     mediaSettings?: MediaSettings,
     getFolders: () => Folder[] = () => [],
+    getCorsProxyEnabled: () => boolean = () => true,
   ) {
     this.displaySettings = displaySettings;
     this.availableTags = availableTags;
     this.parser = new CustomXMLParser();
     this.getFolders = getFolders;
+    this.getCorsProxyEnabled = getCorsProxyEnabled;
     this.mediaSettings = mediaSettings ?? {
       autoTagVideos: true,
       defaultVideoTag: "Video",
@@ -439,7 +442,7 @@ export class FeedParser {
       throw new Error("Feed url is required");
     }
 
-    const responseText = await fetchFeedXml(url);
+    const responseText = await fetchFeedXml(url, this.getCorsProxyEnabled());
     const parsed = this.parser.parseString(responseText);
 
     assertParsedFeedHasEntries(parsed, options);

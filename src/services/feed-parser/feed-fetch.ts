@@ -121,7 +121,7 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
   return null;
 }
 
-export async function fetchFeedXml(url: string): Promise<string> {
+export async function fetchFeedXml(url: string, useCorsProxies: boolean = true): Promise<string> {
   const isAndroid = Platform.isAndroidApp;
 
   async function tryFetch(targetUrl: string): Promise<string> {
@@ -337,6 +337,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
       throw new Error("Not a valid RSS/Atom feed");
     } catch (error) {
       void error;
+      if (!useCorsProxies) throw error;
       // [RSS Dashboard] direct fetch failed for ${targetUrl}, trying AllOrigins proxy...
 
       try {
@@ -465,6 +466,7 @@ export async function fetchFeedXml(url: string): Promise<string> {
   try {
     return await tryFetch(url);
   } catch (error) {
+    if (!useCorsProxies) throw error;
     if (isAndroid) {
       throw error;
     }
