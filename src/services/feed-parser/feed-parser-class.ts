@@ -104,27 +104,27 @@ export class FeedParser {
       return "";
     }
 
+    let resolvedUrl = "";
+
     if (mediaType === "podcast") {
-      return this.displaySettings.useDomainIconsPodcast
+      resolvedUrl = this.displaySettings.useDomainIconsPodcast
+        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+        : "";
+    } else if (MastodonService.isResolvedFeedUrl(url)) {
+      resolvedUrl = this.displaySettings.useDomainIconsMastodon
+        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+        : "";
+    } else if (MediaService.isTwitterOrNitterFeed(url)) {
+      resolvedUrl = this.displaySettings.useDomainIconsTwitter
+        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+        : "";
+    } else {
+      resolvedUrl = this.displaySettings.useDomainIconsRss
         ? this.convertToAbsoluteUrl(feedLogoUrl, url)
         : "";
     }
 
-    if (MastodonService.isResolvedFeedUrl(url)) {
-      return this.displaySettings.useDomainIconsMastodon
-        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
-        : "";
-    }
-
-    if (MediaService.isTwitterOrNitterFeed(url)) {
-      return this.displaySettings.useDomainIconsTwitter
-        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
-        : "";
-    }
-
-    return this.displaySettings.useDomainIconsRss
-      ? this.convertToAbsoluteUrl(feedLogoUrl, url)
-      : "";
+    return resolvedUrl.replace(/\.(png|jpe?g|gif|webp|svg|ico)\/+$/i, ".$1");
   }
 
   private convertToAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
@@ -786,7 +786,7 @@ export class FeedParser {
     );
 
     const absoluteFeedLogoUrl = feedLogoUrl
-      ? this.convertToAbsoluteUrl(feedLogoUrl, url)
+      ? this.convertToAbsoluteUrl(feedLogoUrl, url).replace(/\.(png|jpe?g|gif|webp|svg|ico)\/+$/i, ".$1")
       : "";
 
     if (absoluteFeedLogoUrl) {

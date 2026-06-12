@@ -69,7 +69,7 @@ describe("FeedPreviewModal", () => {
 
     await flushPromises();
 
-    expect(fetchFeedXmlMock).toHaveBeenCalledWith("https://example.com/feed.xml");
+    expect(fetchFeedXmlMock).toHaveBeenCalledWith("https://example.com/feed.xml", true);
     expect(modal.contentEl.querySelector(".feed-preview-grid")).toBeTruthy();
     expect(modal.contentEl.textContent).toContain("Latest 2 articles");
 
