@@ -1,10 +1,92 @@
 import { requestUrl, Platform } from "obsidian";
+import { PREDEFINED_PROXIES } from "../../utils/proxy-utils.js";
 import { isValidFeed } from "./feed-validation.js";
 import type {
   AllOriginsResponse,
   Rss2JsonFeedItem,
   Rss2JsonResponse,
 } from "./types.js";
+
+export type FeedFetchProxyConfig = {
+  enabled: boolean;
+  url: string;
+};
+
+export type FeedFetchProxyOption = boolean | FeedFetchProxyConfig;
+
+function normalizeProxyConfig(
+  proxyConfig: FeedFetchProxyOption,
+): FeedFetchProxyConfig {
+  if (typeof proxyConfig === "boolean") {
+    return { enabled: proxyConfig, url: "" };
+  }
+  return proxyConfig;
+}
+
+function getProxyUrls(proxyConfig: FeedFetchProxyConfig): string[] {
+  if (proxyConfig.url === "auto") {
+    return PREDEFINED_PROXIES.map((proxy) => proxy.url);
+  }
+  return [proxyConfig.url];
+}
+
+function rss2JsonToRss(data: Rss2JsonResponse): string {
+  if (!data.feed) {
+    throw new Error(
+      "RSS2JSON returned error: " + (data.message || "Unknown error"),
+    );
+  }
+
+  const feed = data.feed;
+  const items = data.items || [];
+
+  let rss = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n    <title>${feed.title || "Unknown feed"}</title>\n    <description>${feed.description || ""}</description>\n    <link>${feed.link || ""}</link>\n    <language>${feed.language || "en"}</language>`;
+
+  if (feed.image) {
+    rss += `\n    <image>\n        <url>${feed.image}</url>\n        <title>${feed.title || "Unknown feed"}</title>\n        <link>${feed.link || ""}</link>\n    </image>`;
+  }
+
+  items.forEach((item: Rss2JsonFeedItem) => {
+    rss += `\n    <item>\n        <title>${item.title || ""}</title>\n        <link>${item.link || ""}</link>\n        <description><![CDATA[${item.description || ""}]]></description>\n        <pubDate>${item.pubDate || new Date().toISOString()}</pubDate>\n        <guid>${item.link || ""}</guid>\n    </item>`;
+  });
+
+  rss += `\n</channel>\n</rss>`;
+  return rss;
+}
+
+async function fetchThroughProxy(
+  targetUrl: string,
+  proxyUrl: string,
+): Promise<string> {
+  const requestUrlParam = `${proxyUrl}${encodeURIComponent(targetUrl)}`;
+  const response = await requestUrl({
+    url: requestUrlParam,
+    method: "GET",
+  });
+
+  if (proxyUrl.includes("allorigins.win/get")) {
+    const data = JSON.parse(response.text) as AllOriginsResponse;
+    if (!data.contents) throw new Error("No contents from AllOrigins");
+    return data.contents;
+  }
+
+  if (proxyUrl.includes("rss2json")) {
+    const data = JSON.parse(response.text) as Rss2JsonResponse;
+    if (data.status !== "ok" || !data.feed) {
+      throw new Error(
+        "RSS2JSON returned error: " + (data.message || "Unknown error"),
+      );
+    }
+    return rss2JsonToRss(data);
+  }
+
+  if (!response.text) {
+    throw new Error("Empty response from proxy");
+  }
+
+  return response.text;
+}
+
 async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
   try {
     const response = await requestUrl({
@@ -121,10 +203,46 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
   return null;
 }
 
-export async function fetchFeedXml(url: string, useCorsProxies: boolean = true): Promise<string> {
+export async function fetchFeedXml(
+  url: string,
+  proxyConfig: FeedFetchProxyOption = true,
+): Promise<string> {
   const isAndroid = Platform.isAndroidApp;
+  const config = normalizeProxyConfig(proxyConfig);
+  const useCorsProxies = typeof proxyConfig === "boolean" ? proxyConfig : true;
 
-  async function tryFetch(targetUrl: string): Promise<string> {
+  if (!config.enabled) {
+    return tryFetch(url, false);
+  }
+
+  if (typeof proxyConfig === "object") {
+    try {
+      return await tryFetch(url, false);
+    } catch (error) {
+      if (isAndroid) {
+        throw error;
+      }
+
+      for (const proxyUrl of getProxyUrls(config)) {
+        try {
+          const proxyText = await fetchThroughProxy(url, proxyUrl);
+          if (isValidFeed(proxyText)) {
+            return proxyText;
+          }
+          throw new Error("Not a valid RSS/Atom feed");
+        } catch (proxyError) {
+          void proxyError;
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  async function tryFetch(
+    targetUrl: string,
+    useCorsProxies: boolean,
+  ): Promise<string> {
     if (targetUrl.includes("feeds.feedburner.com")) {
       const httpsUrl = targetUrl.replace(/^http:\/\//i, "https://");
       const feedNameMatch = httpsUrl.match(/feeds\.feedburner\.com\/([^/?]+)/);
@@ -464,7 +582,7 @@ export async function fetchFeedXml(url: string, useCorsProxies: boolean = true):
   }
 
   try {
-    return await tryFetch(url);
+    return await tryFetch(url, useCorsProxies);
   } catch (error) {
     if (!useCorsProxies) throw error;
     if (isAndroid) {
@@ -497,22 +615,7 @@ export async function fetchFeedXml(url: string, useCorsProxies: boolean = true):
         const data = JSON.parse(proxyResponse.text) as Rss2JsonResponse;
 
         if (data.status === "ok" && data.feed) {
-          const feed = data.feed;
-          const items = data.items || [];
-
-          let rss = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n    <title>${feed.title || "Unknown feed"}</title>\n    <description>${feed.description || ""}</description>\n    <link>${feed.link || ""}</link>\n    <language>${feed.language || "en"}</language>`;
-
-          if (feed.image) {
-            rss += `\n    <image>\n        <url>${feed.image}</url>\n        <title>${feed.title || "Unknown feed"}</title>\n        <link>${feed.link || ""}</link>\n    </image>`;
-          }
-
-          items.forEach((item: Rss2JsonFeedItem) => {
-            rss += `\n    <item>\n        <title>${item.title || ""}</title>\n        <link>${item.link || ""}</link>\n        <description><![CDATA[${item.description || ""}]]></description>\n        <pubDate>${item.pubDate || new Date().toISOString()}</pubDate>\n        <guid>${item.link || ""}</guid>\n    </item>`;
-          });
-
-          rss += `\n</channel>\n</rss>`;
-
-          return rss;
+          return rss2JsonToRss(data);
         } else {
           throw new Error(
             "RSS2JSON returned error: " + (data.message || "Unknown error"),

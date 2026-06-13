@@ -21,6 +21,7 @@ export function migrateDisplaySettings(display: Record<string, unknown>): void {
     "hideIconCollapseAll",
     "hideIconSettings",
     "hideToolbarEntirely",
+    "hideFeedFetchErrorBadges",
     "useDomainIconsRss",
     "useDomainIconsPodcast",
     "useDomainIconsTwitter",

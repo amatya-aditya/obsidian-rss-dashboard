@@ -95,6 +95,11 @@ export interface Feed {
   iconUrl?: string;
   keywordRules?: FeedKeywordRulesSettings;
   lastRefreshDiagnostics?: FeedRefreshDiagnostics;
+  /**
+   * Set to a user-readable error message when the most recent refresh fails.
+   * Cleared (set to undefined) on the next successful fetch.
+   */
+  lastFetchError?: string;
 }
 
 export type FeedRefreshStatus =
@@ -286,6 +291,7 @@ export interface DisplaySettings {
   cardColumnsPerRow: number;
   cardSpacing: number;
   hideEmptyFeeds: boolean;
+  hideFeedFetchErrorBadges: boolean;
 
   // Icon visibility (all default false = visible)
   hideIconDashboard: boolean;
@@ -592,8 +598,8 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   readerViewLocation: "main",
   savedArticleOpenLocation: "main",
   useWebViewer: true,
-  corsProxyEnabled: false,
-  corsProxyUrl: "",
+  corsProxyEnabled: true,
+  corsProxyUrl: "auto",
   customProxyUrls: [],
   readerFormat: {
     textAlign: "justify",
@@ -702,6 +708,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     cardColumnsPerRow: 0,
     cardSpacing: 15,
     hideEmptyFeeds: false,
+    hideFeedFetchErrorBadges: false,
     hideIconDashboard: false,
     hideIconDiscover: false,
     hideIconAddFeed: false,

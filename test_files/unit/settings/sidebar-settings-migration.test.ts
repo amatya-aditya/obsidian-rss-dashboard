@@ -83,6 +83,18 @@ describe("migrateDisplaySettings()", () => {
       migrateDisplaySettings(display);
       expect(display.hideToolbarEntirely).toBe(true);
     });
+
+    it("hideFeedFetchErrorBadges missing → initialized to false", () => {
+      const display: Record<string, unknown> = {};
+      migrateDisplaySettings(display);
+      expect(display.hideFeedFetchErrorBadges).toBe(false);
+    });
+
+    it("hideFeedFetchErrorBadges: true is preserved", () => {
+      const display: Record<string, unknown> = { hideFeedFetchErrorBadges: true };
+      migrateDisplaySettings(display);
+      expect(display.hideFeedFetchErrorBadges).toBe(true);
+    });
   });
 
   describe("iconOrder field", () => {
@@ -128,11 +140,12 @@ describe("migrateDisplaySettings()", () => {
     it("completely empty object → all 11 new fields initialized", () => {
       const display: Record<string, unknown> = {};
       migrateDisplaySettings(display);
-      // 10 hide booleans + hideToolbarEntirely + iconOrder = 12 new fields
+      // 10 hide booleans + hideToolbarEntirely + hideFeedFetchErrorBadges + iconOrder = 13 new fields
       for (const field of ICON_HIDE_FIELDS) {
         expect(display[field]).toBeDefined();
       }
       expect(display.hideToolbarEntirely).toBeDefined();
+      expect(display.hideFeedFetchErrorBadges).toBeDefined();
       expect(display.iconOrder).toBeDefined();
     });
 

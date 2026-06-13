@@ -869,6 +869,25 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   margin-left: auto;
   background-color: var( --rss-unread-badge-feed-color, var(--interactive-accent) );
 }
+.rss-dashboard-feed-error-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--color-red, #e74c3c);
+  opacity: 0.85;
+  cursor: help;
+  margin-left: 4px;
+}
+.rss-dashboard-feed-error-badge:hover {
+  opacity: 1;
+}
+.rss-dashboard-feed-error-badge svg {
+  width: 14px;
+  height: 14px;
+}
 .rss-dashboard-all-feeds-unread {
   background-color: var( --rss-unread-badge-all-feeds-color, var(--interactive-accent) );
 }

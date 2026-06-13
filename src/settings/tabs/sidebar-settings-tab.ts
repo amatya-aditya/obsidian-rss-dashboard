@@ -227,6 +227,23 @@ export function renderSidebarSettingsTab(
         }),
     );
 
+  new Setting(containerEl)
+    .setName("Show feed fetch error badges")
+    .setDesc("Show a warning icon in the sidebar for feeds that failed to fetch")
+    .addToggle((toggle) =>
+      toggle
+        .setValue(!plugin.settings.display.hideFeedFetchErrorBadges)
+        .onChange(async (value) => {
+          plugin.settings.display.hideFeedFetchErrorBadges = !value;
+          await plugin.saveSettings();
+          const view = await plugin.getActiveDashboardView();
+          if (view?.sidebar) {
+            await plugin.app.workspace.revealLeaf(view.leaf);
+            view.sidebar.render();
+          }
+        }),
+    );
+
   // ── Icon Visibility & Order ───────────────────────────────────────────────
   const iconHeading = new Setting(containerEl)
     .setName("Icon visibility")

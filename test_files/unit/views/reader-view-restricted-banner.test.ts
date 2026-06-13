@@ -78,7 +78,7 @@ describe("ReaderView restricted-content handling", () => {
 
     readerView = new ReaderView(
       new MockLeaf(mockApp) as never,
-      { ...DEFAULT_SETTINGS, useWebViewer: false } as RssDashboardSettings,
+      { ...DEFAULT_SETTINGS, useWebViewer: false, corsProxyEnabled: false } as RssDashboardSettings,
       {
         saveArticle: vi.fn(),
         checkSavedFileExists: vi.fn().mockReturnValue(true),

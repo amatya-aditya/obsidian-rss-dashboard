@@ -1537,6 +1537,17 @@ export class Sidebar {
       });
     }
 
+    if (!this.settings.display.hideFeedFetchErrorBadges && feed.lastFetchError) {
+      const errorBadge = feedNameContainer.createDiv({
+        cls: "rss-dashboard-feed-error-badge",
+        attr: {
+          title: feed.lastFetchError,
+          "aria-label": `Feed error: ${feed.lastFetchError}`,
+        },
+      });
+      setIcon(errorBadge, "alert-circle");
+    }
+
     if (isQueuedForImport && !isProcessing) {
       const processingIndicator = feedNameContainer.createDiv({
         cls: "rss-dashboard-feed-processing-indicator",

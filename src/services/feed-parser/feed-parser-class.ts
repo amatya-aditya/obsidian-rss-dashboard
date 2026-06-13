@@ -14,6 +14,7 @@ import {
 } from "../../utils/url-utils.js";
 import { htmlToReadableText } from "../../utils/html-text.js";
 import { fetchFeedXml } from "./feed-fetch.js";
+import { parseFetchErrorMessage } from "./feed-errors.js";
 import { CustomXMLParser } from "./xml-parser/custom-xml-parser.js";
 import { assertParsedFeedHasEntries } from "./parsed-feed-assert.js";
 import {
@@ -821,13 +822,16 @@ export class FeedParser {
   async refreshFeed(feed: Feed): Promise<Feed> {
     try {
       const refreshedFeed = await this.parseFeed(feed.url, feed);
-
+      // Clear any previous error on successful refresh
+      refreshedFeed.lastFetchError = undefined;
       return refreshedFeed;
     } catch (error) {
       console.error(
         `[RSS dashboard] Error parsing feed ${feed.title} (${feed.url}):`,
         error,
       );
+      // Persist the clean error message so the sidebar can show the badge
+      feed.lastFetchError = parseFetchErrorMessage(error);
       return feed;
     }
   }

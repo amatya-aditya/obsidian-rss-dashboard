@@ -1,4 +1,4 @@
-// =============================================================================
+﻿// =============================================================================
 // Core Obsidian API Stubs
 // =============================================================================
 // =============================================================================
@@ -7,9 +7,24 @@
 import moment from "moment";
 export { moment };
 
+export interface RequestUrlResponse {
+  status: number;
+  headers: Record<string, string>;
+  arrayBuffer: ArrayBuffer;
+  json: unknown;
+  text: string;
+}
+
+export interface RequestUrlResponsePromise extends Promise<RequestUrlResponse> {
+  arrayBuffer: Promise<ArrayBuffer>;
+  json: Promise<unknown>;
+  text: Promise<string>;
+}
+
+
 export async function requestUrl(
   _param?: unknown,
-): Promise<{ status: number; text: string }> {
+): Promise<RequestUrlResponse> {
   throw new Error("requestUrl stub - configure mock in test if needed");
 }
 
@@ -988,3 +1003,6 @@ export class Scope {
     this.handlers = this.handlers.filter((h) => h !== handler);
   }
 }
+
+
+

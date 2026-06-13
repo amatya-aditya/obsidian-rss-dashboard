@@ -22,6 +22,7 @@ import {
 } from "../../utils/page-size-options";
 import { ApplyMaxItemsToExistingFeedsModal } from "../modals/settings-modals";
 import type { RssDashboardSettings } from "../../types/types";
+import { PREDEFINED_PROXIES } from "../../utils/proxy-utils";
 
 export interface GeneralSettingsPlugin {
   app: App;
@@ -474,24 +475,6 @@ export function renderGeneralSettingsTab(
     });
 
   if (plugin.settings.corsProxyEnabled) {
-    const predefinedProxies = [
-      {
-        label: "AllOrigins (Raw)",
-        url: "https://api.allorigins.win/raw?url=",
-      },
-      {
-        label: "AllOrigins (Get)",
-        url: "https://api.allorigins.win/get?url=",
-      },
-      { label: "CodeTabs", url: "https://api.codetabs.com/v1/proxy/?quest=" },
-      { label: "Isomorphic-Git", url: "https://cors.isomorphic-git.org/" },
-      { label: "ThingProxy", url: "https://thingproxy.freeboard.io/fetch/" },
-      {
-        label: "RSS2JSON",
-        url: "https://api.rss2json.com/v1/api.json?rss_url=",
-      },
-    ];
-
     const proxySetting = new Setting(containerEl)
       .setName("Proxy URL")
       .setDesc("Base URL of the CORS proxy.");
@@ -532,13 +515,14 @@ export function renderGeneralSettingsTab(
     proxySetting
       .addDropdown((dropdown) => {
         dropdown.addOption("", "Select a proxy...");
-        predefinedProxies.forEach((proxy) => {
+        dropdown.addOption("auto", "Auto-cycle (try all proxies on failure)");
+        PREDEFINED_PROXIES.forEach((proxy) => {
           dropdown.addOption(proxy.url, proxy.label);
         });
         dropdown.addOption("custom", "Add new proxy URL...");
 
         const currentUrl = plugin.settings.corsProxyUrl || "";
-        const isPredefined = predefinedProxies.some(
+        const isPredefined = PREDEFINED_PROXIES.some(
           (p) => p.url === currentUrl,
         );
         if (isPredefined) {
@@ -633,9 +617,9 @@ export function renderGeneralSettingsTab(
           });
 
         const currentUrl = plugin.settings.corsProxyUrl || "";
-        const isPredefined = predefinedProxies.some(
-          (p) => p.url === currentUrl,
-        );
+        const isPredefined =
+          currentUrl === "auto" ||
+          PREDEFINED_PROXIES.some((p) => p.url === currentUrl);
         if (isPredefined || !currentUrl) {
           void import("../../utils/platform-utils").then(({ setCssProps }) =>
             setCssProps(btn.buttonEl, { display: "none" }),

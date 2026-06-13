@@ -63,7 +63,7 @@ describe("ArticleRenderer restricted-content handling", () => {
 
     renderer = new ArticleRenderer({
       app: mockApp as never,
-      settings: { ...DEFAULT_SETTINGS } as RssDashboardSettings,
+      settings: { ...DEFAULT_SETTINGS, corsProxyEnabled: false } as RssDashboardSettings,
       onArticleSave: vi.fn(),
       onArticleUpdate: vi.fn(),
     });

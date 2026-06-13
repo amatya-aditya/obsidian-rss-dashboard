@@ -12,6 +12,16 @@
 
 - v2 is opt-in: existing users on legacy or v1 storage can migrate via the new "Vault location (v2 — split user state)" option in the Storage settings tab. A confirmation prompt explains the change before migration runs.
 
+#### Sidebar feed fetch status
+
+- Added a new ! icon adjacent to the unread badge which indicates if any feeds failed to fetch. Hovering over the icon will show the reason for the fetch
+
+- Added a new toggle setting in Sidebar tab to enable/disable the feed fetch status icon.
+
+#### Autoproxies
+
+- Added a new Auto setting to the Proxy dropdown in General Settings which cycles through the list of all proxies instead of only being allowed to choose one. This setting is enabled on by default.
+
 ### Fixes
 
 - Fixed some feeds not properly rendering card previews (e.g. [World History Encyclopedia](https://www.worldhistory.org/rss/))
@@ -34,7 +44,9 @@
 
 ### Changes
 
-- Removed hardcoded AllOrigins proxy fallback retries on feed refresh failures. All proxies are now opt-in only.
+#### Proxies
+
+- Removed hardcoded AllOrigins proxy fallback retries on feed refresh failures.
 
 ## 2.4.0-beta.2 - June 9, 2026
 
