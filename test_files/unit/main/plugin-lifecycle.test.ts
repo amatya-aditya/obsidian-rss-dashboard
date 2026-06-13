@@ -470,6 +470,7 @@ describe("onload() initialization", () => {
       refreshInterval: 60,
       lastRefreshTimestamp: 0,
       feeds: [],
+      startupRefreshDelaySeconds: 0,
     });
     const refreshSpy = vi
       .spyOn(plugin, "refreshFeeds")

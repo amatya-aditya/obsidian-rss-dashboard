@@ -277,18 +277,24 @@ export function renderStorageSettingsTab(
   const legacyDiv = document.createElement("div");
   setCssProps(legacyDiv, { "margin-bottom": "10px" });
   legacyDiv.createEl("strong", { text: "Legacy JSON:" });
-  legacyDiv.appendText(" large monolith file. does not sync across devices (often exceeds 5mb limit)");
+  legacyDiv.appendText(
+    " large monolith file. does not sync across devices (often exceeds 5mb limit)",
+  );
   descFragment.appendChild(legacyDiv);
 
   const v1Div = document.createElement("div");
   setCssProps(v1Div, { "margin-bottom": "10px" });
   v1Div.createEl("strong", { text: "Shard Storage v1:" });
-  v1Div.appendText(" Creates individual vault files for each feed to improve syncing, but stores state (read, starred) inside the feed file, which can still cause minor sync conflicts.");
+  v1Div.appendText(
+    " Creates individual vault files for each feed to improve syncing, but stores state (read, starred) inside the feed file, which can still cause minor sync conflicts.",
+  );
   descFragment.appendChild(v1Div);
 
   const v2Div = document.createElement("div");
   v2Div.createEl("strong", { text: "Shard Storage v2:" });
-  v2Div.appendText(" Splits feed content and user state (read, starred, tags) into separate files, providing the most robust sync experience.");
+  v2Div.appendText(
+    " Splits feed content and user state (read, starred, tags) into separate files, providing the most robust sync experience.",
+  );
   descFragment.appendChild(v2Div);
 
   new Setting(containerEl)
@@ -313,7 +319,7 @@ export function renderStorageSettingsTab(
   new Setting(containerEl)
     .setName("Storage folder")
     .setDesc(
-      "Vault folder for per-feed shard files. This stays in the visible vault so cross-device sync tools can access it. Use Apply below to confirm the change.",
+      "Vault folder for per-feed shard files. Adding a '.' prefix to the path will hide the folder, but may cause sync issues.",
     )
     .addText((text) =>
       text

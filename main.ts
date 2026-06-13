@@ -267,6 +267,7 @@ export default class RssDashboardPlugin extends Plugin {
   private isMultiFeedRefreshRunning = false;
   public vaultAbsolutePath = "";
   private hasCompletedStartupSavedArticleValidation = false;
+  private startupRefreshTimeoutId: number | null = null;
   private progressSaveDebounce: number | null = null;
   private static readonly FEED_REFRESH_CONCURRENCY = 4;
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
@@ -574,20 +575,13 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  /**
-   * Detects vault storage adapter at runtime for cross-platform path resolution.
-   *
-   * This block uses type-unsafe access because Obsidian's adapter API is not fully typed.
-   * The eslint-disable is scoped to this block and is required for compatibility with all platforms.
-   */
   async onload() {
-    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
-    const adapter = this.app.vault.adapter as any;
-    if (adapter.getBasePath)
-      this.vaultAbsolutePath = adapter.getBasePath() as string;
-    else if (adapter.getFullPath)
-      this.vaultAbsolutePath = adapter.getFullPath(".") as string;
-    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
+    const adapter = this.app.vault.adapter as unknown as VaultAdapterPathAccess;
+    if (typeof adapter.getBasePath === "function") {
+      this.vaultAbsolutePath = adapter.getBasePath();
+    } else if (typeof adapter.getFullPath === "function") {
+      this.vaultAbsolutePath = adapter.getFullPath(".");
+    }
 
     await this.loadSettings();
 
@@ -694,6 +688,7 @@ export default class RssDashboardPlugin extends Plugin {
         id: "refresh-feeds",
         name: "Refresh feeds",
         callback: () => {
+          this.cancelPendingStartupRefresh();
           void this.refreshFeeds();
         },
       });
@@ -773,10 +768,27 @@ export default class RssDashboardPlugin extends Plugin {
       }
 
       if (shouldRefreshOnOpen()) {
-        void this.refreshFeeds();
+        const delay = Number.isFinite(this.settings.startupRefreshDelaySeconds)
+          ? this.settings.startupRefreshDelaySeconds
+          : DEFAULT_SETTINGS.startupRefreshDelaySeconds;
+        if (delay > 0) {
+          this.startupRefreshTimeoutId = activeWindow.setTimeout(() => {
+            this.startupRefreshTimeoutId = null;
+            void this.refreshFeeds();
+          }, delay * 1000);
+        } else {
+          void this.refreshFeeds();
+        }
       }
-    } catch (e) {
-      console.error("[RSS Dashboard] onload initialization failed:", e);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error("[RSS Dashboard] onload initialization failed:", err);
+      } else {
+        console.error(
+          "[RSS Dashboard] onload initialization failed:",
+          String(err),
+        );
+      }
       new Notice("Error initializing RSS dashboard plugin.");
     }
   }
@@ -2324,7 +2336,8 @@ export default class RssDashboardPlugin extends Plugin {
           await this.saveData({
             metadataStorageMode: this.settings.metadataStorageMode,
             metadataStorageFolder: this.settings.metadataStorageFolder,
-            metadataStorageSchemaVersion: this.settings.metadataStorageSchemaVersion,
+            metadataStorageSchemaVersion:
+              this.settings.metadataStorageSchemaVersion,
           });
         } catch (error) {
           storageError("Failed to save metadata to vault location", error);
@@ -2668,8 +2681,17 @@ export default class RssDashboardPlugin extends Plugin {
       void this.saveSettings();
     }
 
+    this.cancelPendingStartupRefresh();
+
     // Run backups asynchronously on plugin disable/unload (best effort)
     void this.backupService.performAutoBackups();
+  }
+
+  public cancelPendingStartupRefresh(): void {
+    if (this.startupRefreshTimeoutId !== null) {
+      activeWindow.clearTimeout(this.startupRefreshTimeoutId);
+      this.startupRefreshTimeoutId = null;
+    }
   }
 
   private async validateSavedArticles(): Promise<void> {

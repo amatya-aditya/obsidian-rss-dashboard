@@ -272,6 +272,24 @@ export function renderGeneralSettingsTab(
       });
   });
 
+  new Setting(containerEl)
+    .setName("Startup refresh delay")
+    .setDesc(
+      "Delay before the initial refresh when Obsidian opens, in seconds. " +
+        "If your feeds appear empty or stale right after startup, try increasing this value " +
+        "to give sync services more time to finish.",
+    )
+    .addText((text) =>
+      text
+        .setValue(String(plugin.settings.startupRefreshDelaySeconds))
+        .onChange(async (value) => {
+          const parsed = Number(value);
+          if (!Number.isFinite(parsed) || parsed < 0) return;
+          plugin.settings.startupRefreshDelaySeconds = Math.floor(parsed);
+          await plugin.saveSettings();
+        }),
+    );
+
   // ── Max items ─────────────────────────────────────────────────────────────
   let maxItemsPromptTimer: number | null = null;
   let maxItemsPromptOpen = false;

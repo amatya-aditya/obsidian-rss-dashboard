@@ -2100,11 +2100,13 @@ export class RssDashboardView extends ItemView {
         }),
       );
       if (feedsWithTags.length > 0) {
+        this.plugin.cancelPendingStartupRefresh();
         await this.plugin.refreshFeeds(feedsWithTags);
       } else {
         new Notice("No feeds found with the selected tags");
       }
     } else {
+      this.plugin.cancelPendingStartupRefresh();
       await this.plugin.refreshFeeds();
     }
   }

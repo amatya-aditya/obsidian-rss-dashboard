@@ -1818,6 +1818,7 @@ export class Sidebar {
         .setTitle("Refresh all feeds")
         .setIcon("refresh-cw")
         .onClick(() => {
+          this.plugin.cancelPendingStartupRefresh();
           void this.plugin.refreshFeeds();
         });
     });
@@ -3778,6 +3779,7 @@ export class Sidebar {
 
   private async handleRefresh(): Promise<void> {
     if (this.plugin.isMultiFeedRefreshActive) return;
+    this.plugin.cancelPendingStartupRefresh();
     await this.plugin.refreshFeeds();
   }
 

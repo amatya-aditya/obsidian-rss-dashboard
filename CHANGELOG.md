@@ -22,6 +22,12 @@
 
 - Added a new Auto setting to the Proxy dropdown in General Settings which cycles through the list of all proxies instead of only being allowed to choose one. This setting is enabled on by default.
 
+#### Auto-refresh
+
+- Added: configurable startup refresh delay (in seconds, default 5) to give sync services time to catch up before the initial auto-refresh on plugin load.
+
+- Introduced a new 5 second delay upon plugin load to reduce processing load on startup.
+
 ### Fixes
 
 - Fixed some feeds not properly rendering card previews (e.g. [World History Encyclopedia](https://www.worldhistory.org/rss/))

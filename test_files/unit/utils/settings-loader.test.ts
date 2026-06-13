@@ -183,6 +183,28 @@ describe("settings-loader", () => {
 
       expect(result.savedArticleOpenLocation).toBe("main");
     });
+
+    it("sets startupRefreshDelaySeconds to 5 when missing", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const raw = {};
+      const result = loadAndNormalizeSettings(raw);
+
+      expect(result.startupRefreshDelaySeconds).toBe(5);
+    });
+
+    it("falls back to default for invalid startupRefreshDelaySeconds", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const raw = { startupRefreshDelaySeconds: -3 };
+      const result = loadAndNormalizeSettings(raw);
+
+      expect(result.startupRefreshDelaySeconds).toBe(
+        DEFAULT_SETTINGS.startupRefreshDelaySeconds,
+      );
+    });
   });
 
   // ── migrateSettings ──────────────────────────────────────────────────────────

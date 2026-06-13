@@ -80,6 +80,14 @@ export function loadAndNormalizeSettings(
     ? normalizeRefreshIntervalMinutes(normalizedRefreshInterval)
     : DEFAULT_SETTINGS.refreshInterval;
 
+  if (
+    typeof settings.startupRefreshDelaySeconds !== "number" ||
+    settings.startupRefreshDelaySeconds < 0
+  ) {
+    settings.startupRefreshDelaySeconds =
+      DEFAULT_SETTINGS.startupRefreshDelaySeconds;
+  }
+
   if (typeof settings.defaultAutoDeleteDuration !== "number") {
     settings.defaultAutoDeleteDuration =
       DEFAULT_SETTINGS.defaultAutoDeleteDuration;
