@@ -376,13 +376,12 @@ export class MediaService {
     static getYouTubePlayerHtml(videoId: string, width = 560, height = 315): string {
         return `
             <div class="rss-dashboard-media-player youtube-player">
-                <iframe 
-                    width="${width}" 
-                    height="${height}" 
-                    src="https://www.youtube.com/embed/${videoId}" 
-                    frameborder="0" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                    allowfullscreen>
+                <iframe
+                    width="${width}"
+                    height="${height}"
+                    src="https://www.youtube.com/embed/${videoId}"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen">
                 </iframe>
             </div>
         `;

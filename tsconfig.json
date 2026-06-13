@@ -25,5 +25,9 @@
   },
   "include": [
     "**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "original-repo"
   ]
 }
