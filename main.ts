@@ -77,17 +77,27 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     async onload() {
-        
-        
-        
-        
+
+
+
+
         await this.loadSettings();
-        
+
+        // Suppress console errors for broken feed icon URLs (cosmetic issue, doesn't affect functionality)
+        window.addEventListener('error', (event) => {
+            const msg = event.message || '';
+            const filename = event.filename || '';
+            if ((msg.includes('404') && (filename.includes('redditstatic') || filename.includes('icon.png'))) ||
+                (filename.includes('redditstatic.com') || filename.includes('preview.redd.it'))) {
+                event.preventDefault();
+            }
+        }, true);
+
         const view = await this.getActiveDashboardView();
         if (view) {
             view.render();
         }
-        
+
         try {
             
             this.feedParser = new FeedParser(this.settings.media, this.settings.availableTags);
