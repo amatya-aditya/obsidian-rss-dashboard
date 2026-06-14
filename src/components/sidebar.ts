@@ -6,7 +6,6 @@ import {
   Modal,
   setIcon,
   Setting,
-  requestUrl,
 } from "obsidian";
 import {
   Feed,
@@ -40,6 +39,7 @@ import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { MediaService } from "../services/media-service";
 import { MastodonService } from "../services/mastodon-service";
+import { createSafeIconImage, failedFeedIconUrls, extractDomain, getFaviconUrl } from "../utils/favicon-utils";
 import {
   moveFeedAndInsert,
   moveFeedToFolderAppend,
@@ -267,7 +267,7 @@ class FolderNameModal extends Modal {
 }
 
 export class Sidebar {
-  private container: HTMLElement;
+private container: HTMLElement;
   private settings: RssDashboardSettings;
   private options: SidebarOptions;
   private callbacks: SidebarCallbacks;
@@ -281,121 +281,12 @@ export class Sidebar {
   private longPressTimer: number | null = null;
   private pendingImportFeedUrls = new Set<string>();
   private processingImportFeedUrls = new Set<string>();
-  private faviconAvailabilityCache = new Map<string, boolean>();
-  private faviconCheckPromises = new Map<string, Promise<boolean>>();
   private iconBtnEls = new Map<string, HTMLElement>();
   private iconActions = new Map<string, (e?: MouseEvent) => void>();
   private resizeObserver: ResizeObserver | null = null;
   private sidebarRows: SidebarRowDescriptor[] = [];
   private focusedSidebarTarget: SidebarFocusTarget | null = null;
   private isSidebarKeyboardFocused = false;
-
-  /**
-   * Extract main domain from a URL for favicon purposes (without subdomains)
-   */
-  private extractDomain(url: string): string {
-    try {
-      const urlObj = new URL(url);
-      const hostname = urlObj.hostname;
-
-      // Extract main domain without subdomains
-      const parts = hostname.split(".");
-      if (parts.length >= 2) {
-        // For domains like feeds.feedburner.com -> feedburner.com
-        // For domains like arstechnica.com -> arstechnica.com
-        // For domains like lowtechmagazine.com -> lowtechmagazine.com
-        if (parts.length === 3 && parts[0] === "feeds") {
-          // Special case for feeds subdomains
-          return `${parts[1]}.${parts[2]}`;
-        } else if (parts.length >= 3) {
-          // For other subdomains, take the last two parts
-          return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
-        } else {
-          // For regular domains, return as is
-          return hostname;
-        }
-      }
-      return hostname;
-    } catch {
-      // Fallback: try to extract domain manually
-      const match = url.match(/https?:\/\/([^/?]+)/);
-      if (match) {
-        const hostname = match[1];
-        const parts = hostname.split(".");
-        if (parts.length >= 2) {
-          if (parts.length === 3 && parts[0] === "feeds") {
-            return `${parts[1]}.${parts[2]}`;
-          } else if (parts.length >= 3) {
-            return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
-          } else {
-            return hostname;
-          }
-        }
-        return hostname;
-      }
-      return "";
-    }
-  }
-
-  /**
-   * Get favicon URL for a domain using Google's S2 favicon service
-   */
-  private getFaviconUrl(domain: string): string {
-    if (!domain) return "";
-    return `https://www.google.com/s2/favicons?sz=32&domain_url=http://${domain}`;
-  }
-
-  private async isFaviconUrlAvailable(faviconUrl: string): Promise<boolean> {
-    const cached = this.faviconAvailabilityCache.get(faviconUrl);
-    if (cached !== undefined) {
-      return cached;
-    }
-
-    const inFlight = this.faviconCheckPromises.get(faviconUrl);
-    if (inFlight) {
-      return inFlight;
-    }
-
-    const checkPromise = (async () => {
-      let available = false;
-      try {
-        const headResponse = await requestUrl({
-          url: faviconUrl,
-          method: "HEAD",
-        });
-        available = headResponse.status >= 200 && headResponse.status < 300;
-
-        if (
-          !available &&
-          (headResponse.status === 405 || headResponse.status === 501)
-        ) {
-          const getResponse = await requestUrl({
-            url: faviconUrl,
-            method: "GET",
-          });
-          available = getResponse.status >= 200 && getResponse.status < 300;
-        }
-      } catch {
-        try {
-          const getResponse = await requestUrl({
-            url: faviconUrl,
-            method: "GET",
-          });
-          available = getResponse.status >= 200 && getResponse.status < 300;
-        } catch {
-          available = false;
-        }
-      } finally {
-        this.faviconCheckPromises.delete(faviconUrl);
-      }
-
-      this.faviconAvailabilityCache.set(faviconUrl, available);
-      return available;
-    })();
-
-    this.faviconCheckPromises.set(faviconUrl, checkPromise);
-    return checkPromise;
-  }
 
   private renderFallbackFeedIcon(feedIcon: HTMLElement): void {
     feedIcon.empty();
@@ -408,34 +299,26 @@ export class Sidebar {
     setIcon(feedIcon, "rss");
   }
 
-  private async renderDomainFavicon(
+  private renderDomainFavicon(
     feedIcon: HTMLElement,
     domain: string,
-  ): Promise<void> {
-    const faviconUrl = this.getFaviconUrl(domain);
+  ): void {
+    const faviconUrl = getFaviconUrl(domain);
     if (!faviconUrl) {
       this.renderFallbackFeedIcon(feedIcon);
       return;
     }
 
-    const available = await this.isFaviconUrlAvailable(faviconUrl);
-    if (!available || !feedIcon.isConnected) {
+    if (failedFeedIconUrls.has(faviconUrl)) {
       this.renderFallbackFeedIcon(feedIcon);
       return;
     }
 
     feedIcon.empty();
     feedIcon.removeClass("rss-icon-hidden");
-    const imgEl = feedIcon.ownerDocument.createElement("img");
-    imgEl.src = faviconUrl;
-    imgEl.alt = domain;
-    imgEl.className = "rss-dashboard-feed-favicon";
-    feedIcon.appendChild(imgEl);
-
-    imgEl.onerror = () => {
-      this.faviconAvailabilityCache.set(faviconUrl, false);
+    createSafeIconImage(feedIcon, faviconUrl, domain, () => {
       this.renderFallbackFeedIcon(feedIcon);
-    };
+    }, "rss-dashboard-feed-favicon");
   }
 
   private getCachedFolderPaths(): string[] {
@@ -1493,28 +1376,30 @@ export class Sidebar {
       setIcon(feedIcon, "mic");
       feedIcon.addClass("podcast");
     } else if (MediaService.shouldShowFeedIcon(feed, this.settings.display)) {
-      const imgEl = feedIcon.ownerDocument.createElement("img");
-      imgEl.src = feed.iconUrl ?? "";
-      imgEl.alt = feed.title;
-      imgEl.className = "rss-dashboard-feed-icon-img";
-      feedIcon.appendChild(imgEl);
+      if (feed.iconUrl && !failedFeedIconUrls.has(feed.iconUrl)) {
+        createSafeIconImage(feedIcon, feed.iconUrl, feed.title, () => {
+          this.renderFallbackFeedIcon(feedIcon);
+        });
+      } else {
+        this.renderFallbackFeedIcon(feedIcon);
+      }
     } else if (MediaService.isTwitterOrNitterFeed(feed.url)) {
       this.renderFallbackFeedIcon(feedIcon);
-      void this.renderDomainFavicon(feedIcon, "twitter.com");
+      this.renderDomainFavicon(feedIcon, "twitter.com");
     } else if (MastodonService.isResolvedFeedUrl(feed.url)) {
-      const domain = this.extractDomain(feed.url);
+      const domain = extractDomain(feed.url);
       if (domain) {
         this.renderFallbackFeedIcon(feedIcon);
-        void this.renderDomainFavicon(feedIcon, domain);
+        this.renderDomainFavicon(feedIcon, domain);
       } else {
         this.renderFallbackFeedIcon(feedIcon);
       }
     } else if (this.settings.display.useDomainIconsRss) {
       // Show domain favicon for regular feeds when setting is enabled
-      const domain = this.extractDomain(feed.url);
+      const domain = extractDomain(feed.url);
       if (domain) {
         this.renderFallbackFeedIcon(feedIcon);
-        void this.renderDomainFavicon(feedIcon, domain);
+        this.renderDomainFavicon(feedIcon, domain);
       } else {
         this.renderFallbackFeedIcon(feedIcon);
       }

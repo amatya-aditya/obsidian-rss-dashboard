@@ -50,6 +50,8 @@
 
 - Fixed 'All Feeds' spinner not spinning on mobile/tablet when refreshing all feeds
 
+- Fixed some broken favicons causing unnecessary internal code loops while trying to resolve
+
 ### Changes
 
 #### Proxies

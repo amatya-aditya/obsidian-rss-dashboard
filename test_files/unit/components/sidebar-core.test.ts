@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from "vitest";
+import { vi, describe, it, expect, beforeEach, type Mock } from "vitest";
 import { Sidebar, SidebarOptions, SidebarCallbacks } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
@@ -32,9 +32,6 @@ type TestSidebar = {
   container: HTMLElement;
   settings: RssDashboardSettings;
   options: SidebarOptions;
-  extractDomain: (url: string) => string;
-  getFaviconUrl: (domain: string) => string;
-  isFaviconUrlAvailable: (url: string) => Promise<boolean>;
   renderFallbackFeedIcon: (el: HTMLElement) => void;
   cachedFolderPaths: string[] | null;
   getCachedFolderPaths: () => string[];
@@ -123,94 +120,6 @@ describe("Sidebar Core", () => {
     expect(ts.container).toBe(container);
     expect(ts.settings).toBe(settings);
     expect(ts.options).toBe(options);
-  });
-
-  describe("extractDomain", () => {
-    let sidebar: Sidebar;
-
-    beforeEach(() => {
-      sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
-    });
-
-    it("should extract domain from simple URL", () => {
-      const ts = sidebar as unknown as TestSidebar;
-      expect(ts.extractDomain("https://example.com/rss")).toBe("example.com");
-    });
-
-    it("should extract domain from URL with subdomains", () => {
-      const ts = sidebar as unknown as TestSidebar;
-      expect(ts.extractDomain("https://blog.example.com/feed")).toBe("example.com");
-    });
-
-    it("should handle feeds.feedburner.com specifically", () => {
-      const ts = sidebar as unknown as TestSidebar;
-      expect(ts.extractDomain("http://feeds.feedburner.com/test")).toBe("feedburner.com");
-    });
-
-    it("should handle invalid URLs gracefully", () => {
-      const ts = sidebar as unknown as TestSidebar;
-      expect(ts.extractDomain("not-a-url")).toBe("");
-    });
-  });
-
-  describe("getFaviconUrl", () => {
-    let sidebar: Sidebar;
-
-    beforeEach(() => {
-      sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
-    });
-
-    it("should return Google S2 favicon URL", () => {
-      const domain = "example.com";
-      const expected = `https://www.google.com/s2/favicons?sz=32&domain_url=http://${domain}`;
-      const ts = sidebar as unknown as TestSidebar;
-      expect(ts.getFaviconUrl(domain)).toBe(expected);
-    });
-
-    it("should return empty string for empty domain", () => {
-      const ts = sidebar as unknown as TestSidebar;
-      expect(ts.getFaviconUrl("")).toBe("");
-    });
-  });
-
-  describe("isFaviconUrlAvailable logic", () => {
-    let sidebar: Sidebar;
-
-    beforeEach(() => {
-      sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
-      // Use vi.spyOn for mocking exported stub functions
-      vi.spyOn(ObsidianStubs, "requestUrl").mockImplementation(async () => ({ status: 200, text: "" }));
-    });
-
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
-    it("should return true for 200 OK headcount", async () => {
-      vi.mocked(ObsidianStubs.requestUrl).mockResolvedValue({ status: 200, text: "" });
-      const ts = sidebar as unknown as TestSidebar;
-      const result = await ts.isFaviconUrlAvailable("http://fav.ico");
-      expect(result).toBe(true);
-      expect(ObsidianStubs.requestUrl).toHaveBeenCalledWith(expect.objectContaining({ method: "HEAD" }));
-    });
-
-    it("should retry with GET if HEAD returns 405", async () => {
-      vi.mocked(ObsidianStubs.requestUrl)
-        .mockResolvedValueOnce({ status: 405, text: "" })
-        .mockResolvedValueOnce({ status: 200, text: "" });
-        
-      const ts = sidebar as unknown as TestSidebar;
-      const result = await ts.isFaviconUrlAvailable("http://fav.ico");
-      expect(result).toBe(true);
-      expect(ObsidianStubs.requestUrl).toHaveBeenCalledTimes(2);
-    });
-
-    it("should return false if both HEAD and GET fail", async () => {
-      vi.mocked(ObsidianStubs.requestUrl).mockRejectedValue(new Error("Network Error"));
-      const ts = sidebar as unknown as TestSidebar;
-      const result = await ts.isFaviconUrlAvailable("http://fav.ico");
-      expect(result).toBe(false);
-    });
   });
 
   describe("renderFallbackFeedIcon", () => {

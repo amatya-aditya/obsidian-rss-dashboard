@@ -1,5 +1,7 @@
 # Vault Shards Storage Guide
 
+**Note:** This feature is still a work in progress. We are trialing a new Vault Shards Storage v2 so the information below may be outdated. Updated 6/14/26
+
 This guide explains the new Vault Shards storage mode in RSS Dashboard: what it is, when to use it, and how to safely migrate.
 
 ## What Vault Shards Is

@@ -91,10 +91,10 @@ describe("Mastodon Feed Icon — Sidebar", () => {
     container.remove();
   });
 
-  it("uses Mastodon instance domain favicon instead of generic RSS icon when no profile image is set", async () => {
+  it("uses Mastodon instance domain favicon instead of generic RSS icon when no profile image is set", () => {
     /*
-     * RED: sidebar.ts renderFeed() has no Mastodon branch — Mastodon feeds
-     * with no iconUrl fall through to setIcon("rss").
+     * Sidebar renderFeed() uses extractDomain + getFaviconUrl and checks
+     * failedFeedIconUrls cache before rendering domain favicon.
      */
     settings.feeds = [
       {
@@ -115,21 +115,11 @@ describe("Mastodon Feed Icon — Sidebar", () => {
       callbacks,
     );
 
-    // renderDomainFavicon calls the private isFaviconUrlAvailable which hits
-    // requestUrl (throw-stubbed in tests).  Spy it so the async pre-check
-    // returns "available" without network access.
-    vi.spyOn(
-      sidebar as unknown as {
-        isFaviconUrlAvailable: (faviconUrl: string) => Promise<boolean>;
-      },
-      "isFaviconUrlAvailable",
-    ).mockResolvedValue(true);
-
     sidebar.render();
 
-    // Allow the microtask queue to drain the async renderDomainFavicon call.
-    await new Promise((r) => setTimeout(r, 0));
-
+    // renderFallbackFeedIcon pre-sets `data-icon="rss"` on the container
+    // before renderDomainFavicon empties it and appends the Mastodon <img>.
+    // The <img>.src is the real signal that the Mastodon branch ran.
     const feedRow = container.querySelector(
       '[data-feed-url="https://mastodon.social/@user.rss"]',
     );
@@ -140,9 +130,6 @@ describe("Mastodon Feed Icon — Sidebar", () => {
     ) as HTMLElement;
     expect(feedIcon).not.toBeNull();
 
-    // renderFallbackFeedIcon pre-sets `data-icon="rss"` on the container
-    // before renderDomainFavicon empties it and appends the Mastodon <img>.
-    // The <img>.src is the real signal that the Mastodon branch ran.
     const faviconImg = feedIcon.querySelector<HTMLImageElement>(
       ".rss-dashboard-feed-favicon",
     );
