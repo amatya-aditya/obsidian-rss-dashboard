@@ -275,9 +275,7 @@ export function renderGeneralSettingsTab(
   new Setting(containerEl)
     .setName("Startup refresh delay")
     .setDesc(
-      "Delay before the initial refresh when Obsidian opens, in seconds. " +
-        "If your feeds appear empty or stale right after startup, try increasing this value " +
-        "to give sync services more time to finish.",
+      "Delay before the initial refresh when Obsidian opens, in seconds. ",
     )
     .addText((text) =>
       text
