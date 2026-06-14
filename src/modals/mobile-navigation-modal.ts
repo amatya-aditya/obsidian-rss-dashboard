@@ -12,6 +12,8 @@ export class MobileNavigationModal extends Modal {
   private isResizing: boolean = false;
   private resizeHandle: HTMLElement | null = null;
   private modalWidth: number;
+  private sidebarWrapper!: HTMLElement;
+  private refreshIntervalId: number | null = null;
 
   constructor(
     app: App,
@@ -47,12 +49,12 @@ export class MobileNavigationModal extends Modal {
       closeBtn.remove();
     }
 
-    const sidebarWrapper = contentEl.createDiv({
+    this.sidebarWrapper = contentEl.createDiv({
       cls: "rss-dashboard-sidebar-container",
     });
 
     // Create resize handle for modal (positioned on left side)
-    this.resizeHandle = sidebarWrapper.createDiv({
+    this.resizeHandle = this.sidebarWrapper.createDiv({
       cls: "rss-dashboard-sidebar-resize-handle",
     });
 
@@ -109,7 +111,7 @@ export class MobileNavigationModal extends Modal {
 
     this.sidebar = new Sidebar(
       this.app,
-      sidebarWrapper,
+      this.sidebarWrapper,
       this.plugin,
       this.settings,
       this.options,
@@ -117,6 +119,27 @@ export class MobileNavigationModal extends Modal {
     );
 
     this.sidebar.render();
+
+    // Update all-feeds-icon refresh state immediately after render
+    this.updateAllFeedsIconRefreshState();
+
+    // Register to update refresh state when feeds are being refreshed
+    this.refreshIntervalId = activeWindow.setInterval(() => {
+      this.updateAllFeedsIconRefreshState();
+    }, 100);
+  }
+
+  private updateAllFeedsIconRefreshState(): void {
+    const isRefreshActive =
+      this.plugin.isMultiFeedRefreshActive ||
+      (this.plugin.activeRefreshState?.size ?? 0) > 0;
+
+    const allFeedsIcon = this.sidebarWrapper.querySelector(
+      ".rss-dashboard-all-feeds-icon",
+    );
+    if (allFeedsIcon) {
+      allFeedsIcon.classList.toggle("refreshing", isRefreshActive);
+    }
   }
 
   private setupModalResize(): void {
@@ -177,6 +200,11 @@ export class MobileNavigationModal extends Modal {
   }
 
   onClose() {
+    if (this.refreshIntervalId !== null) {
+      activeWindow.clearInterval(this.refreshIntervalId);
+      this.refreshIntervalId = null;
+    }
+
     this.sidebar?.destroy();
     const { contentEl } = this;
     contentEl.empty();

@@ -902,6 +902,14 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     padding-top: 10px;
     padding-bottom: 10px;
   }
+  /* Ensure all-feeds-icon spinner animation works in mobile modal context */
+  .modal.rss-mobile-navigation-modal .rss-dashboard-all-feeds-icon.refreshing svg {
+    animation: spin 1s linear infinite;
+    -webkit-animation: spin 1s linear infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+    will-change: transform;
+  }
   body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-container {
     -webkit-overflow-scrolling: touch;
   }

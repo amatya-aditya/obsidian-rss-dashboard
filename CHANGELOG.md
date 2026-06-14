@@ -14,7 +14,7 @@
 
 #### Sidebar feed fetch status
 
-- Added a new ! icon adjacent to the unread badge which indicates if any feeds failed to fetch. Hovering over the icon will show the reason for the fetch
+- Added a new red (!) icon adjacent to the unread badge which indicates a feed that failed to fetch. Hovering over the icon or right clicking the feed and selecting "View fetch error" will show the reason for the fetch failure. Long-press on mobile/tablet will also open the same right-click context menu.
 
 - Added a new toggle setting in Sidebar tab to enable/disable the feed fetch status icon.
 
@@ -47,6 +47,8 @@
 - Fixed inline viewer not rendering reader toolbar
 
 - Fixed some sidebar icons not properly rendering
+
+- Fixed 'All Feeds' spinner not spinning on mobile/tablet when refreshing all feeds
 
 ### Changes
 

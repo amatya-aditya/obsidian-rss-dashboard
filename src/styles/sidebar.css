@@ -884,6 +884,35 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   height: 14px;
 }
 
+/* Mobile touch target for error badge */
+@media (hover: none) and (pointer: coarse) {
+  .rss-dashboard-feed-error-badge {
+    min-width: 44px;
+    min-height: 44px;
+    width: auto;
+    height: auto;
+    padding: 4px;
+    cursor: pointer;
+  }
+}
+
+/* Feed error detail modal styles */
+body .rss-feed-error-detail-modal {
+  --modal-width: 400px;
+}
+
+.rss-feed-error-message {
+  padding: 16px;
+  background-color: var(--background-secondary);
+  border-radius: 8px;
+  font-family: var(--font-monospace);
+  font-size: 13px;
+  color: var(--text-normal);
+  margin-bottom: 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .rss-dashboard-all-feeds-unread {
   background-color: var(
     --rss-unread-badge-all-feeds-color,
@@ -943,6 +972,14 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   color: var(--rss-unread-badge-all-feeds-color);
 }
 
+.rss-dashboard-all-feeds-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  overflow: visible;
+  will-change: transform;
+}
+
 .rss-dashboard-all-feeds-label-container {
   flex-grow: 1;
   display: flex;
@@ -990,6 +1027,10 @@ body.theme-dark .rss-dashboard-all-feeds-button {
 .rss-dashboard-all-feeds-icon.refreshing svg,
 .rss-dashboard-inline-refresh-button.refreshing svg {
   animation: spin 1s linear infinite;
+  -webkit-animation: spin 1s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
 }
 
 /* ============================================
@@ -1160,6 +1201,7 @@ body.theme-dark .rss-dashboard-all-feeds-button {
  * 12. Refresh Animation & Button States
  * Spin keyframe and refresh button interaction states
  * ============================================ */
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -1180,6 +1222,9 @@ body.theme-dark .rss-dashboard-all-feeds-button {
 
 .rss-dashboard-refresh-button.refreshing .rss-dashboard-filter-icon {
   animation: spin 1s linear infinite;
+  -webkit-animation: spin 1s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 /* ============================================

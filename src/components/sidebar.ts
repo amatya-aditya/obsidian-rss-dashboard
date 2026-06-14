@@ -2340,6 +2340,35 @@ export class Sidebar {
     activeWindow.setTimeout(() => okButton.focus(), 50);
   }
 
+  private showErrorDetailModal(error: string, feedTitle: string): void {
+    const modal = new Modal(this.app);
+    modal.modalEl.addClass("rss-feed-error-detail-modal");
+
+    const { contentEl } = modal;
+    contentEl.empty();
+
+    new Setting(contentEl).setName(`Feed Error: ${feedTitle}`).setHeading();
+
+    contentEl.createDiv({
+      text: error,
+      cls: "rss-feed-error-message",
+    });
+
+    const buttonContainer = contentEl.createDiv({
+      cls: "rss-dashboard-modal-buttons rss-folder-name-modal-buttons",
+    });
+
+    const okButton = buttonContainer.createEl("button");
+    okButton.addClass("rss-folder-name-modal-ok");
+    const okIcon = okButton.createSpan();
+    setIcon(okIcon, "check");
+    okButton.createSpan({ text: "OK" });
+    okButton.onclick = () => modal.close();
+
+    modal.open();
+    activeWindow.setTimeout(() => okButton.focus(), 50);
+  }
+
   public showAddTagModal(): void {
     const modal = activeDocument.body.createDiv({
       cls: "rss-dashboard-modal rss-dashboard-modal-container",
@@ -3323,6 +3352,18 @@ export class Sidebar {
 
   private showFeedContextMenu(event: MouseEvent, feed: Feed): void {
     const menu = new Menu();
+
+    if (feed.lastFetchError) {
+      menu.addItem((item: MenuItem) => {
+        item
+          .setTitle("View fetch error")
+          .setIcon("alert-circle")
+          .onClick(() => {
+            this.showErrorDetailModal(feed.lastFetchError!, feed.title);
+          });
+      });
+      menu.addSeparator();
+    }
 
     menu.addItem((item: MenuItem) => {
       item
