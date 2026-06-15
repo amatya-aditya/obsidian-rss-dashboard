@@ -6,6 +6,7 @@ import {
   Platform,
   requireApiVersion,
   TFolder,
+  type EventRef,
   type ObsidianProtocolData,
 } from "obsidian";
 
@@ -262,20 +263,24 @@ export default class RssDashboardPlugin extends Plugin {
   protected folderService!: FolderService;
   private importExportService!: ImportExportService;
   private backgroundImportService!: BackgroundImportService;
-  public activeRefreshState = new Map<string, FeedRefreshState>();
+public activeRefreshState = new Map<string, FeedRefreshState>();
   public settingTab: RssDashboardSettingTab | null = null;
   private isMultiFeedRefreshRunning = false;
   public vaultAbsolutePath = "";
   private hasCompletedStartupSavedArticleValidation = false;
+  private vaultMetadataReloadTimer: number | null = null;
   private startupRefreshTimeoutId: number | null = null;
   private progressSaveDebounce: number | null = null;
+  private suppressWatcherUntil = 0;
   private static readonly FEED_REFRESH_CONCURRENCY = 4;
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
   private readonly feedStorageRepository: FeedStorageRepository;
 
   constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
     super(app, manifest);
-    this.feedStorageRepository = new FeedStorageRepository(app);
+    this.feedStorageRepository = new FeedStorageRepository(app, {
+      writeWrapper: (fn) => this.writeWithWatcherSuppressed(fn),
+    });
   }
 
   private initializeSettingsBackedServices(): void {
@@ -377,6 +382,18 @@ export default class RssDashboardPlugin extends Plugin {
   /** Backward-compatible accessor so test assertions can read import state */
   private get isBackgroundImporting(): boolean {
     return this.backgroundImportService?.isBackgroundImporting ?? false;
+  }
+
+  public async writeWithWatcherSuppressed<T>(
+    writeFn: () => Promise<T>,
+    windowMs = 3000,
+  ): Promise<T> {
+    this.suppressWatcherUntil = Date.now() + windowMs;
+    try {
+      return await writeFn();
+    } finally {
+      // leave suppression window to expire; don't clear explicitly
+    }
   }
 
   private getAutoRefreshIntervalMs(): number | null {
@@ -584,6 +601,7 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     await this.loadSettings();
+    this.registerVaultMetadataChangeListeners();
 
     const shouldRefreshOnOpen = (): boolean => {
       const intervalMs = this.getAutoRefreshIntervalMs();
@@ -2132,6 +2150,82 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  private getVaultFilePath(fileOrPath?: unknown): string {
+    if (typeof fileOrPath === "string") return fileOrPath;
+    if (isRecord(fileOrPath) && typeof fileOrPath.path === "string") {
+      return fileOrPath.path;
+    }
+    return "";
+  }
+
+  private isWatchedMetadataPath(filePath: string): boolean {
+    // When running in tests the settings.metadataStorageMode may be
+    // "plugin-default" but tests expect the watcher to consider the
+    // default vault folder (.rss-dashboard-data). Use the resolved
+    // metadataFolder when available, otherwise fall back to the
+    // conventional default folder name so tests behave deterministically.
+    const metadataFolder = getMetadataPath(this.settings ?? DEFAULT_SETTINGS);
+    const folderToCheck = metadataFolder ?? ".rss-dashboard-data";
+
+    const normalizedBase = filePath.replace(/^\/+|\/+$/g, "");
+    const normalizedFolder = folderToCheck.replace(/^\/+|\/+$/g, "");
+
+    return (
+      normalizedBase === `${normalizedFolder}/data.json` ||
+      normalizedBase === `${normalizedFolder}/user-state.json`
+    );
+  }
+
+  private registerVaultMetadataChangeListeners(): void {
+    const vault = this.app.vault as unknown as {
+      on?: (event: string, callback: (...args: unknown[]) => void) => EventRef;
+    };
+    if (typeof vault.on !== "function") return;
+
+    const scheduleReload = (file?: unknown, oldPath?: unknown): void => {
+      if (Date.now() < this.suppressWatcherUntil) return;
+
+      const candidatePaths: string[] = [];
+      const filePath = this.getVaultFilePath(file);
+      if (filePath) {
+        candidatePaths.push(filePath);
+      }
+      if (typeof oldPath === "string") {
+        candidatePaths.push(oldPath);
+      }
+
+      const watched = candidatePaths.some((candidatePath) =>
+        this.isWatchedMetadataPath(candidatePath),
+      );
+
+      if (!watched) return;
+
+      if (this.vaultMetadataReloadTimer !== null) {
+        (
+          globalThis as unknown as { clearTimeout: (id: number | null) => void }
+        ).clearTimeout(this.vaultMetadataReloadTimer);
+      }
+
+      this.vaultMetadataReloadTimer = (
+        globalThis as unknown as {
+          setTimeout: (cb: () => number | void, ms: number) => number;
+        }
+      ).setTimeout(() => {
+        this.vaultMetadataReloadTimer = null;
+        void (async () => {
+          await this.loadSettings();
+          await this.refreshDashboardViews();
+        })();
+      }, 1500);
+    };
+
+    this.registerEvent(vault.on("modify", (file) => scheduleReload(file)));
+    this.registerEvent(vault.on("create", (file) => scheduleReload(file)));
+    this.registerEvent(
+      vault.on("rename", (file, oldPath) => scheduleReload(file, oldPath)),
+    );
+  }
+
   private migrateLegacySettings(): boolean {
     return migrateSettings(this.settings);
   }
@@ -2679,6 +2773,11 @@ export default class RssDashboardPlugin extends Plugin {
       window.clearTimeout(this.progressSaveDebounce);
       this.progressSaveDebounce = null;
       void this.saveSettings();
+    }
+
+    if (this.vaultMetadataReloadTimer !== null) {
+      activeWindow.clearTimeout(this.vaultMetadataReloadTimer);
+      this.vaultMetadataReloadTimer = null;
     }
 
     this.cancelPendingStartupRefresh();

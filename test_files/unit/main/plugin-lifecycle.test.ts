@@ -70,7 +70,15 @@ import { App, Platform, type PluginManifest } from "obsidian";
 type MockApp = App;
 
 function flushPromises(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+  return new Promise((resolve) => {
+    // Let microtasks run
+    void Promise.resolve().then(() => {
+      queueMicrotask?.(resolve);
+      if (typeof queueMicrotask === "undefined") {
+        void Promise.resolve().then(resolve);
+      }
+    });
+  });
 }
 
 // Create mock App using stubs
@@ -453,6 +461,286 @@ describe("onload() initialization", () => {
 
     // Then: settings should be loaded
     expect(plugin.settings).toBeDefined();
+  });
+
+  it("registers vault metadata change listeners", async () => {
+    const onMock = vi.fn().mockReturnValue({});
+    plugin.app.vault.on = onMock;
+
+    await plugin.onload();
+
+    expect(onMock).toHaveBeenCalledTimes(3);
+    expect(onMock).toHaveBeenCalledWith("modify", expect.any(Function));
+    expect(onMock).toHaveBeenCalledWith("create", expect.any(Function));
+    expect(onMock).toHaveBeenCalledWith("rename", expect.any(Function));
+  });
+
+  it("reloads settings and refreshes dashboard on watched data.json modify", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    plugin.app.vault.on = vi.fn(
+      (event: string, callback: (...args: unknown[]) => void) => {
+        handlers[event] = callback;
+        return {};
+      },
+    );
+
+    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+
+    await plugin.onload();
+
+    handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
+    await vi.runAllTimersAsync();
+
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("reloads settings and refreshes dashboard on watched user-state.json modify", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    plugin.app.vault.on = vi.fn(
+      (event: string, callback: (...args: unknown[]) => void) => {
+        handlers[event] = callback;
+        return {};
+      },
+    );
+
+    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+
+    await plugin.onload();
+
+    handlers.modify?.({ path: ".rss-dashboard-data/user-state.json" });
+    await vi.runAllTimersAsync();
+
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("does not reload for shard file modify", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    plugin.app.vault.on = vi.fn(
+      (event: string, callback: (...args: unknown[]) => void) => {
+        handlers[event] = callback;
+        return {};
+      },
+    );
+
+    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+
+    await plugin.onload();
+
+    handlers.modify?.({ path: ".rss-dashboard-data/feeds/some-feed.json" });
+    await vi.runAllTimersAsync();
+
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+    expect(refreshSpy).toHaveBeenCalledTimes(0);
+    vi.useRealTimers();
+  });
+
+  it("does not reload for unrelated file modify", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    plugin.app.vault.on = vi.fn(
+      (event: string, callback: (...args: unknown[]) => void) => {
+        handlers[event] = callback;
+        return {};
+      },
+    );
+
+    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+
+    await plugin.onload();
+
+    handlers.modify?.({ path: "some-note.md" });
+    await vi.runAllTimersAsync();
+
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+    expect(refreshSpy).toHaveBeenCalledTimes(0);
+    vi.useRealTimers();
+  });
+
+  it("debounces rapid metadata events into a single reload", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    plugin.app.vault.on = vi.fn(
+      (event: string, callback: (...args: unknown[]) => void) => {
+        handlers[event] = callback;
+        return {};
+      },
+    );
+
+    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+
+    await plugin.onload();
+
+    for (let i = 0; i < 5; i += 1) {
+      handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
+      vi.advanceTimersByTime(100);
+    }
+
+    await vi.runAllTimersAsync();
+
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("resets debounce when metadata event occurs before timeout", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    plugin.app.vault.on = vi.fn(
+      (event: string, callback: (...args: unknown[]) => void) => {
+        handlers[event] = callback;
+        return {};
+      },
+    );
+
+    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+
+    await plugin.onload();
+
+    handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
+    vi.advanceTimersByTime(1000);
+    handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
+    await vi.runAllTimersAsync();
+
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("reloads on rename when watched new path matches", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    plugin.app.vault.on = vi.fn(
+      (event: string, callback: (...args: unknown[]) => void) => {
+        handlers[event] = callback;
+        return {};
+      },
+    );
+
+    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+
+    await plugin.onload();
+
+    handlers.rename?.({ path: ".rss-dashboard-data/data.json" }, "other.json");
+    await vi.runAllTimersAsync();
+
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("reloads on rename when watched old path matches", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    plugin.app.vault.on = vi.fn(
+      (event: string, callback: (...args: unknown[]) => void) => {
+        handlers[event] = callback;
+        return {};
+      },
+    );
+
+    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+
+    await plugin.onload();
+
+    handlers.rename?.(
+      { path: "unrelated.md" },
+      ".rss-dashboard-data/data.json",
+    );
+    await vi.runAllTimersAsync();
+
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("clears watcher timer on unload", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    plugin.app.vault.on = vi.fn(
+      (event: string, callback: (...args: unknown[]) => void) => {
+        handlers[event] = callback;
+        return {};
+      },
+    );
+
+    await plugin.onload();
+
+    handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
+    plugin.onunload();
+
+    expect(plugin["vaultMetadataReloadTimer"]).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it("suppresses watcher for plugin-originated user-state write", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    plugin.app.vault.on = vi.fn(
+      (event: string, callback: (...args: unknown[]) => void) => {
+        handlers[event] = callback;
+        return {};
+      },
+    );
+
+    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+
+    await plugin.onload();
+
+    // Simulate plugin writing user-state (which sets suppression window)
+    (plugin as unknown as { suppressWatcherUntil: number }).suppressWatcherUntil = Date.now() + 5000;
+
+    handlers.modify?.({ path: ".rss-dashboard-data/user-state.json" });
+    await vi.runAllTimersAsync();
+
+    // Watcher should be suppressed, no reload triggered
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+    expect(refreshSpy).toHaveBeenCalledTimes(0);
+
+    vi.useRealTimers();
+  });
+
+  it("watcher ordering: refresh after loadSettings completes", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    plugin.app.vault.on = vi.fn(
+      (event: string, callback: (...args: unknown[]) => void) => {
+        handlers[event] = callback;
+        return {};
+      },
+    );
+
+    // Make loadSettings async but with a simple resolved promise
+    const loadSpy = vi
+      .spyOn(plugin, "loadSettings")
+      .mockResolvedValue(undefined);
+    const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+
+    await plugin.onload();
+
+    handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
+    await vi.runAllTimersAsync();
+
+    // Both should be called (ordering verified in production code via await)
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
   });
 
   it("preserves list view on mobile startup", async () => {

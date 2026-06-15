@@ -184,8 +184,13 @@ export class FeedStorageRepository {
   private lastPersistedShardJsonByFeedId = new Map<string, string>();
   private lastStorageFolderPath: string | null = null;
   private lastRepairResult = "Not yet run";
+  private writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
+  private app: App;
 
-  constructor(private readonly app: App) {}
+  constructor(app: App, options?: { writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T> }) {
+    this.app = app;
+    this.writeWrapper = options?.writeWrapper;
+  }
 
   public ensureFeedIds(settings: RssDashboardSettings): boolean {
     let didChange = false;
@@ -1038,7 +1043,13 @@ export class FeedStorageRepository {
       }
     }
 
-    await this.app.vault.adapter.write(path, JSON.stringify(userStateFile, null, 2));
+    const writeUserState = () =>
+      this.app.vault.adapter.write(path, JSON.stringify(userStateFile, null, 2));
+    if (this.writeWrapper) {
+      await this.writeWrapper(writeUserState);
+    } else {
+      await writeUserState();
+    }
     storageLog("Saved user-state.json with " + Object.keys(states).length + " entries.");
   }
 }

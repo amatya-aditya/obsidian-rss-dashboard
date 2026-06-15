@@ -21,7 +21,6 @@ export interface RequestUrlResponsePromise extends Promise<RequestUrlResponse> {
   text: Promise<string>;
 }
 
-
 export async function requestUrl(
   _param?: unknown,
 ): Promise<RequestUrlResponse> {
@@ -153,6 +152,8 @@ export class MockDataVault {
   private folders: Map<string, TFolder> = new Map();
   private root: TFolder;
   private adapterFiles: Map<string, string> = new Map();
+  on: (name: string, callback: (...args: unknown[]) => unknown) => unknown =
+    () => ({});
 
   // Mirror Obsidian's `vault.adapter` surface area used by this repo
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
@@ -172,6 +173,12 @@ export class MockDataVault {
       write: async (path: string, content: string) => {
         this.adapterFiles.set(path, content);
       },
+      on: (
+        _name: string,
+        _callback: (...args: unknown[]) => unknown,
+      ): unknown => {
+        return {};
+      },
       list: async (path: string) => {
         const cleanPath = path.replace(/^\/+|\/+$/g, "");
         const prefix = cleanPath ? `${cleanPath}/` : "";
@@ -180,7 +187,6 @@ export class MockDataVault {
           if (!prefix) {
             return !filePath.includes("/");
           }
-
           return (
             filePath.startsWith(prefix) &&
             !filePath.slice(prefix.length).includes("/")
@@ -463,6 +469,12 @@ export class Plugin {
   registerInterval(id: number): number {
     return id;
   }
+
+  // Minimal stub for Obsidian's Plugin.registerEvent to allow tests to
+  // register EventRef objects without throwing. This mirrors the runtime
+  // API surface used by plugins; tests do not rely on the behavior here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- intentional test stub
+  registerEvent(_evt: any): void {}
 
   registerObsidianProtocolHandler(
     _action: string,
@@ -1003,6 +1015,3 @@ export class Scope {
     this.handlers = this.handlers.filter((h) => h !== handler);
   }
 }
-
-
-
