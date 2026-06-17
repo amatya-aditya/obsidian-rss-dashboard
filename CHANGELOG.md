@@ -1,8 +1,16 @@
-# Obsidian RSS Dashboard Changelog
-
 ## 2.4.0-beta.3 - June 17, 2026
 
 ### Features
+
+#### Auto-tag via Folder
+
+- You may now apply multiple auto-tags to articles based upon the sidebar folder they are stored in. This feature is available in the sidebar via right click -> Auto-tag feeds in folder.. You may also target subfolders and may choose to apply tags to all current articles or only future articles.
+
+- 'Sync folder auto-tags' option adds newly selected folder tags where missing, and remove tag names you deselected from this folder's rule. Other tags (manual tags, per-feed tags, parent folder tags not removed here) are left unchanged.
+
+- Remove all tags — strip every tag from existing articles in the selected scope, including manual tags and tags from other rules.-
+
+- This adds to the already existing "auto-tag by feed source" feature introduced in 2.4.0-beta.2. A full guide on all the tagging options are available: [docs/tags-primer.md](docs/tags-primer.md)
 
 #### Shard Storage version 2 (v2)
 
@@ -26,9 +34,7 @@
 
 #### Auto-refresh
 
-- Added: configurable startup refresh delay (in seconds, default 5) to give sync services time to catch up before the initial auto-refresh on plugin load.
-
-- Introduced a new 5 second delay upon plugin load to reduce processing load on startup.
+- Added: configurable startup refresh delay (in seconds, default 5). This can be adjusted to reduce processing load upon startup.
 
 ### Fixes
 
