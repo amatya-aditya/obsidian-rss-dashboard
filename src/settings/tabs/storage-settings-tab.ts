@@ -319,7 +319,7 @@ export function renderStorageSettingsTab(
   new Setting(containerEl)
     .setName("Storage folder")
     .setDesc(
-      "Vault folder for per-feed shard files. Adding a '.' prefix to the path will hide the folder, but may cause sync issues.",
+      "Vault folder for per-feed shard files. Adding a '.' prefix to the path will hide the folder. The '.' must be removed for Obsidian Sync to work properly.",
     )
     .addText((text) =>
       text
@@ -337,6 +337,12 @@ export function renderStorageSettingsTab(
   new Setting(containerEl)
     .setName("Storage status")
     .setDesc(renderStorageStatus());
+
+  new Setting(containerEl)
+    .setName("Repair/Rebuild storage")
+    .setDesc(
+      "Use this when shard storage seems out of sync, incomplete, or after manual folder moves. This will: 1. Re-check and normalize your storage folder path. 2. Force-rewrite all shard files from current feed data. 3. Force-save storage metadata. 4. Refresh storage status. Think of this as a safe 're-generate all shard files' action.'",
+    );
 
   const storageActions = new Setting(containerEl);
   storageActions.settingEl.addClass("rss-dashboard-storage-actions");

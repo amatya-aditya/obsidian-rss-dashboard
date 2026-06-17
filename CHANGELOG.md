@@ -1,16 +1,18 @@
 # Obsidian RSS Dashboard Changelog
 
-## Unreleased
+## 2.4.0-beta.3 - June 17, 2026
 
 ### Features
 
-#### Shard Stoage version 2 (v2)
+#### Shard Storage version 2 (v2)
 
 - Added Shard Storage mode v2 to improve sync reliability across devices. This mode introduces a new user-state.json file alongside data.json, which stores per-article state — read/unread, favorited, saved, tags, and play progress. Feed shard files now contain only article content and the GUID used to link back to user-state.json. data.json now stores only plugin settings.
 
 - This separation resolves race conditions that previously caused some sync tools (e.g. Remotely Save, WebDAV-based sync) to overwrite read/star/tag changes when a feed refresh on another device landed at the same time.
 
 - v2 is opt-in: existing users on legacy or v1 storage can migrate via the new "Vault location (v2 — split user state)" option in the Storage settings tab. A confirmation prompt explains the change before migration runs.
+
+- updated [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md) to include v2 documentation and comparison of all 3 existing storage modes.
 
 #### Sidebar feed fetch status
 
@@ -51,12 +53,6 @@
 - Fixed 'All Feeds' spinner not spinning on mobile/tablet when refreshing all feeds
 
 - Fixed some broken favicons causing unnecessary internal code loops while trying to resolve
-
-### Changes
-
-#### Proxies
-
-- Removed hardcoded AllOrigins proxy fallback retries on feed refresh failures.
 
 ## 2.4.0-beta.2 - June 9, 2026
 

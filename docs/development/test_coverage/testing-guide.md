@@ -4,29 +4,17 @@ Last updated: 2026-05-15
 
 ## 1. Current Test Status
 
-### Release Context
+### Current Baseline (latest verification snapshot, 6/17/26, 2.4.0-beta.3)
 
-- Shipping version: `2.2.0` (updated with compliance audit completion)
-- Latest prior release: `2.1.9`
-- `2.2.0` is the first release intended to ship with a durable repo-wide unit test baseline and full audit compliance.
-
-### Current Baseline (latest verification snapshot)
-
-- **Test Files:** 168 ✅
-- **Passing Tests:** 1468 / 1468 (100%) ✅
-- **Statements:** 57.8% ( 12293/21267 )
-- **Branches:** 49.68% ( 6197/12473 )
-- **Functions:** 53.5% ( 2014/3764 )
-- **Lines:** 58.88% ( 11915/20236 )
-- **Coverage Thresholds:** lines `40`, branches `33`, functions `34`
+- **Test Files:** 171 ✅
+- **Passing Tests:** 1498 / 1498 (100%) ✅
+- **Statements:** 57.49% ( 12413/21591 )
+- **Branches:** 49.6% ( 6294/12689 )
+- **Functions:** 53.44% ( 2034/3806 )
+- **Lines:** 58.56% ( 12030/20541 )
+- **Coverage Thresholds:** lines `55`, branches `45`, functions `50`
 
 _Note: Coverage is enforced via Vitest thresholds in `vitest.config.mjs` and should be treated as a ratcheted floor, not just a report._
-
-### Recent Milestones
-
-- **Test suite expansion:** Grew from 120 to 130 test files (+10 files) with 1180 total tests (+161 tests).
-- **Latest verification refresh:** the repo baseline now stands at 130 passing test files and 1180 passing tests, with zero ESLint errors/warnings in the entire test suite.
-- **Closeout status:** active planning artifacts were reduced to the testing guide, the test-lint-backlog-tracker (detailed history), and the compliance scorecard. Older phase handoffs were moved to `docs/development/test_coverage/archive/`.
 
 ## 2. Test-Driven Development (TDD)
 

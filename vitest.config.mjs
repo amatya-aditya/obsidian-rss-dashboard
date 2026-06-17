@@ -40,9 +40,9 @@ export default defineConfig({
       include: ["src/**/*.ts", "main.ts"],
       exclude: ["src/types/**", "src/styles/**", "src/**/*.d.ts"],
       thresholds: {
-        lines: 40,
-        branches: 33,
-        functions: 34,
+        lines: 55,
+        branches: 45,
+        functions: 50,
       },
     },
   },
