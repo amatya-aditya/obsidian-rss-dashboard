@@ -337,8 +337,8 @@ describe("Dashboard — multi-folder ctrl+click selection", () => {
     });
   });
 
-  describe("handleTagToggle() clears selectedFolders", () => {
-    it("resets selectedFolders when a tag is toggled", async () => {
+  describe("handleTagToggle() preserves selectedFolders", () => {
+    it("preserves selectedFolders when a tag is toggled", async () => {
       const settings = cloneSettings();
       settings.feeds = [];
       const view = await makeView(settings);
@@ -346,7 +346,7 @@ describe("Dashboard — multi-folder ctrl+click selection", () => {
 
       view.handleTagToggle("SomeTag");
 
-      expect(view.selectedFolders).toHaveLength(0);
+      expect(view.selectedFolders).toEqual(["Tech"]);
     });
   });
 });

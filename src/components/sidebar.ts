@@ -52,11 +52,12 @@ export interface SidebarOptions {
   tagsCollapsed: boolean;
   collapsedFolders: string[];
   selectedFolders: string[];
+  selectedFeeds?: string[];
 }
 
 export interface SidebarCallbacks {
   onFolderClick: (folder: string | null) => void;
-  onFeedClick: (feed: Feed) => void;
+  onFeedClick: (feed: Feed, e?: MouseEvent) => void;
   onTagToggle: (tag: string) => void;
   onClearTags: () => void;
   onTagFilterModeChange: (mode: "and" | "or" | "not") => void;
@@ -94,6 +95,7 @@ export interface SidebarCallbacks {
   onActivateDiscover?: () => void;
   onCloseMobileSidebar?: () => void;
   onFolderMultiSelect?: (folders: string[]) => void;
+  onRangeSelect?: (clickedKey: string, visibleKeys: string[]) => void;
 }
 
 type SidebarFocusTarget =
@@ -1066,6 +1068,14 @@ export class Sidebar {
         return;
       }
 
+      // Shift+click: range selection (delegate computation to caller)
+      if (e.shiftKey) {
+        const clickedKey = this.getSidebarTargetKey({ type: "folder", path: fullPath });
+        const visibleKeys = this.sidebarRows.map((r) => r.key);
+        this.callbacks.onRangeSelect?.(clickedKey, visibleKeys);
+        return;
+      }
+
       // Ctrl+click (or Meta+click on macOS): toggle this folder in multi-selection
       if (e.ctrlKey || e.metaKey) {
         if (this.callbacks.onFolderMultiSelect) {
@@ -1354,10 +1364,25 @@ export class Sidebar {
   }
 
   private renderFeed(feed: Feed, container: HTMLElement): void {
+    let isSelectedFolder = false;
+    if (feed.folder) {
+      const parts = feed.folder.split("/");
+      let currentPath = "";
+      for (const part of parts) {
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+        if ((this.options.selectedFolders || []).includes(currentPath)) {
+          isSelectedFolder = true;
+          break;
+        }
+      }
+    }
+    const isSelected = (this.options.selectedFeeds || []).includes(feed.url) || isSelectedFolder;
+
     const feedEl = container.createDiv({
       cls:
         "rss-dashboard-feed" +
-        (feed === this.options.currentFeed ? " active" : ""),
+        (feed === this.options.currentFeed || isSelected ? " active" : "") +
+        (isSelected ? " multi-selected" : ""),
       attr: {
         draggable: "true",
         "data-feed-url": feed.url,
@@ -1492,7 +1517,15 @@ export class Sidebar {
 
     feedEl.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.callbacks.onFeedClick(feed);
+      // Shift+click: range selection (delegate to caller)
+      if (e.shiftKey) {
+        const clickedKey = this.getSidebarTargetKey({ type: "feed", url: feed.url });
+        const visibleKeys = this.sidebarRows.map((r) => r.key);
+        this.callbacks.onRangeSelect?.(clickedKey, visibleKeys);
+        return;
+      }
+
+      this.callbacks.onFeedClick(feed, e);
     });
 
     feedEl.addEventListener("contextmenu", (e) => {
@@ -1624,6 +1657,124 @@ export class Sidebar {
     });
   }
 
+  private isMultiSelectionTarget(targetType: 'folder' | 'feed', targetKey: string): boolean {
+    const { selectedFolders, selectedFeeds } = this.options;
+    const folderCount = selectedFolders?.length || 0;
+    const feedCount = selectedFeeds?.length || 0;
+    // Multi-selection exists if more than 1 feed is selected, or if any folder is selected.
+    const hasMultiSelection = folderCount > 0 || feedCount > 1;
+                              
+    if (!hasMultiSelection) return false;
+    
+    if (targetType === 'folder') {
+      return selectedFolders?.includes(targetKey) || false;
+    } else {
+      return selectedFeeds?.includes(targetKey) || false;
+    }
+  }
+
+  private appendSelectionContextMenu(menu: Menu): void {
+    menu.addItem((item: MenuItem) => {
+      item.setTitle("Mark selection as read")
+        .setIcon("check-circle")
+        .onClick(() => {
+          this.markSelectionReadStatus(true);
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item.setTitle("Mark selection as unread")
+        .setIcon("circle")
+        .onClick(() => {
+          this.markSelectionReadStatus(false);
+        });
+    });
+    menu.addSeparator();
+    menu.addItem((item: MenuItem) => {
+      item.setTitle("Delete selection")
+        .setIcon("trash")
+        .onClick(() => {
+          this.deleteSelection();
+        });
+    });
+  }
+
+  private markSelectionReadStatus(read: boolean): void {
+    let count = 0;
+    const { selectedFolders, selectedFeeds } = this.options;
+    
+    const feedsToUpdate = new Set<Feed>();
+    for (const feed of this.settings.feeds) {
+      if (selectedFeeds && selectedFeeds.includes(feed.url)) {
+        feedsToUpdate.add(feed);
+      } else if (feed.folder && selectedFolders && selectedFolders.length > 0) {
+        let current = feed.folder;
+        while (current) {
+          if (selectedFolders.includes(current)) {
+            feedsToUpdate.add(feed);
+            break;
+          }
+          if (current.includes("/")) {
+            current = current.substring(0, current.lastIndexOf("/"));
+          } else {
+            break;
+          }
+        }
+      }
+    }
+    
+    for (const feed of feedsToUpdate) {
+      for (const item of feed.items) {
+        if (item.read !== read) {
+          item.read = read;
+          count++;
+        }
+      }
+    }
+    
+    if (count > 0) {
+      new Notice(`Marked ${count} items as ${read ? 'read' : 'unread'}`);
+      void this.plugin.saveSettings().then(() => this.render());
+    } else {
+      new Notice(`No items to mark as ${read ? 'read' : 'unread'}`);
+    }
+  }
+
+  private deleteSelection(): void {
+    const { selectedFolders, selectedFeeds } = this.options;
+    const folderCount = selectedFolders?.length || 0;
+    const feedCount = selectedFeeds?.length || 0;
+    
+    if (folderCount === 0 && feedCount === 0) return;
+    
+    let msg = `Are you sure you want to delete the selected items? This action cannot be undone.`;
+    if (folderCount > 0 && feedCount === 0) {
+      msg = `Are you sure you want to delete ${folderCount} selected folder(s) and all their subfolders and feeds?`;
+    } else if (feedCount > 0 && folderCount === 0) {
+      msg = `Are you sure you want to delete ${feedCount} selected feed(s)?`;
+    } else {
+      msg = `Are you sure you want to delete ${folderCount} folder(s) and ${feedCount} feed(s)?`;
+    }
+    
+    this.showConfirmModal(msg, () => {
+      if (selectedFolders) {
+        for (const folder of selectedFolders) {
+          this.callbacks.onDeleteFolder(folder);
+        }
+      }
+      if (selectedFeeds) {
+        for (const feedUrl of selectedFeeds) {
+          const feed = this.settings.feeds.find(f => f.url === feedUrl);
+          if (feed) {
+            this.callbacks.onDeleteFeed(feed);
+          }
+        }
+      }
+      this.options.selectedFolders = [];
+      this.options.selectedFeeds = [];
+      this.render();
+    });
+  }
+
   private showFolderContextMenu(
     event: MouseEvent,
     folderObj: Folder,
@@ -1631,6 +1782,12 @@ export class Sidebar {
     folderName: string,
   ): void {
     const menu = new Menu();
+    
+    if (this.isMultiSelectionTarget('folder', fullPath)) {
+      this.appendSelectionContextMenu(menu);
+      menu.showAtMouseEvent(event);
+      return;
+    }
     menu.addItem((item: MenuItem) => {
       item
         .setTitle("Add feed")
@@ -3272,6 +3429,12 @@ export class Sidebar {
 
   private showFeedContextMenu(event: MouseEvent, feed: Feed): void {
     const menu = new Menu();
+
+    if (this.isMultiSelectionTarget('feed', feed.url)) {
+      this.appendSelectionContextMenu(menu);
+      menu.showAtMouseEvent(event);
+      return;
+    }
 
     if (feed.lastFetchError) {
       menu.addItem((item: MenuItem) => {

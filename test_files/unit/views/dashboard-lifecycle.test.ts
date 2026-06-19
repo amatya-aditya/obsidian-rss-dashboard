@@ -576,7 +576,7 @@ describe("Dashboard lifecycle", () => {
       expect(view.selectedTags).toContain("AI");
     });
 
-    it("clears currentFolder and currentFeed when a tag is added", async () => {
+    it("preserves currentFolder and currentFeed when a tag is toggled", async () => {
       const settings = cloneSettings();
       const feed = makeFeed("https://a.com/feed");
       settings.feeds = [feed];
@@ -584,8 +584,8 @@ describe("Dashboard lifecycle", () => {
       view.currentFolder = "unread";
       view.currentFeed = feed;
       view.handleTagToggle("Science");
-      expect(view.currentFolder).toBeNull();
-      expect(view.currentFeed).toBeNull();
+      expect(view.currentFolder).toBe("unread");
+      expect(view.currentFeed).toBe(feed);
     });
 
     it("handleClearTags clears all selected tags", async () => {

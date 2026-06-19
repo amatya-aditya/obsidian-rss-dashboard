@@ -1,6 +1,6 @@
 # Vault Shards Storage Guide
 
-**Note:** This feature is still a work in progress. RSS Dashboard supports three storage modes: Legacy JSON, Vault Shards (v1), and Vault Shards v2. Updated 6/14/26
+**Note:** This feature is still a work in progress. RSS Dashboard supports three storage modes: Legacy JSON, Vault Shards (v1), and Vault Shards v2. Updated 6/19/26
 
 This guide explains the Vault Shards storage modes in RSS Dashboard: what they are, when to use each, and how to safely migrate between them.
 
@@ -14,6 +14,8 @@ In practice:
 - The app still loads feeds the same way in the UI.
 - Feed history is split into one file per feed in a folder you choose.
 
+Vault Shards (Shard Storage v1) was implemented in v2.3.0 and released on 5/26/26, replacing legacy JSON storage as the default storage method.
+
 ## What Shard Storage v2 Is
 
 Shard Storage v2 is the latest evolution of Vault Shards. It retains the same per-feed shard file structure as v1, but separates user state (read, starred, tags, saved, playback progress) from feed content.
@@ -23,6 +25,8 @@ In practice:
 - You still use RSS Dashboard normally.
 - The app still loads feeds the same way in the UI.
 - Each feed's content lives in a shard file, and your interaction state lives in a separate `user-state.json` file in your metadata folder.
+
+Shard Storage v2 was implemented in v2.4.0-beta.3 and released on 6/19/26. It is opt-in and backwards compatible with Vault Shards v1 via auto migration.
 
 ## Why You Might Use It
 
@@ -34,13 +38,13 @@ Vault Shards can help if you:
 
 ## Storage Mode Comparison
 
-| Feature | Legacy JSON | Vault Shards v1 | Vault Shards v2 |
-| --- | --- | --- | --- |
-| File structure | Monolithic data.json | Per-feed shard files | Per-feed shard files (content only) |
-| User state location | Inside monolithic data.json | Embedded in each feed shard | Separate `user-state.json` |
-| Metadata file location | `.obsidian/plugins/rss-dashboard/data.json` | Same or vault folder | Vault folder (forced to vault-location, schema v2) |
-| Sync robustness | Poor (large, rarely sync-friendly) | Moderate (per-feed, minor conflicts possible) | Best (content and state split, fewer conflicts) |
-| Best for | Simple, single-device setups | Most users wanting vault-based feed history | Multi-device sync, max portability, fewer conflicts |
+| Feature                | Legacy JSON                                 | Vault Shards v1                               | Vault Shards v2                                     |
+| ---------------------- | ------------------------------------------- | --------------------------------------------- | --------------------------------------------------- |
+| File structure         | Monolithic data.json                        | Per-feed shard files                          | Per-feed shard files (content only)                 |
+| User state location    | Inside monolithic data.json                 | Embedded in each feed shard                   | Separate `user-state.json`                          |
+| Metadata file location | `.obsidian/plugins/rss-dashboard/data.json` | Same or vault folder                          | Vault folder (forced to vault-location, schema v2)  |
+| Sync robustness        | Poor (large, rarely sync-friendly)          | Moderate (per-feed, minor conflicts possible) | Best (content and state split, fewer conflicts)     |
+| Best for               | Simple, single-device setups                | Most users wanting vault-based feed history   | Multi-device sync, max portability, fewer conflicts |
 
 ## Important Notes Before You Switch
 

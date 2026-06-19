@@ -93,6 +93,11 @@ export class MobileNavigationModal extends Modal {
         this.callbacks.onFolderMultiSelect?.(folders);
         this.sidebar?.render();
       },
+      onRangeSelect: (clickedKey: string, visibleKeys: string[]) => {
+        // Proxy range select to parent and close modal
+        this.callbacks.onRangeSelect?.(clickedKey, visibleKeys);
+        this.close();
+      },
       onClearTags: () => {
         this.callbacks.onClearTags();
       },

@@ -63,6 +63,7 @@ export class RssDashboardView extends ItemView {
   private saver: ArticleSaver;
   public currentFolder: string | null = null;
   public selectedFolders: string[] = [];
+  public selectedFeeds: string[] = [];
   private currentFeed: Feed | null = null;
   private selectedTags: string[] = [];
   private selectedArticle: FeedItem | null = null;
@@ -114,6 +115,7 @@ export class RssDashboardView extends ItemView {
   private lastViewportMobileSidebarMode: boolean | null = null;
   private inlineArticle: FeedItem | null = null;
   private articleRenderer: ArticleRenderer | null = null;
+  private lastClickAnchorKey: string | null = null;
 
   // ── Highlight match stats ─────────────────────────────────────────────────
   // Populated by computeHighlightMatchCounts() on every render cycle (before
@@ -753,9 +755,11 @@ export class RssDashboardView extends ItemView {
           tagsCollapsed: this.tagsCollapsed,
           collapsedFolders: this.collapsedFolders,
           selectedFolders: this.selectedFolders,
+          selectedFeeds: this.selectedFeeds,
         },
         {
           onFolderClick: this.handleFolderClick.bind(this),
+          onRangeSelect: this.handleSidebarRangeSelect?.bind(this),
           onFolderMultiSelect: this.handleFolderMultiSelect?.bind(this),
           onFeedClick: this.handleFeedClick.bind(this),
           onTagToggle: this.handleTagToggle.bind(this),
@@ -831,6 +835,7 @@ export class RssDashboardView extends ItemView {
           tagsCollapsed: this.tagsCollapsed,
           collapsedFolders: this.collapsedFolders,
           selectedFolders: this.selectedFolders,
+          selectedFeeds: this.selectedFeeds,
         };
         this.sidebar["settings"] = this.settings;
         this.sidebar.render();
@@ -1315,6 +1320,25 @@ export class RssDashboardView extends ItemView {
   }
 
   // --- Title and article-scope helpers ---
+  private getTotalFeedsInSelection(): number {
+    const includedFeeds = new Set<string>(this.selectedFeeds || []);
+    if (this.selectedFolders && this.selectedFolders.length > 0) {
+      const descendants = new Set<string>();
+      for (const folderPath of this.selectedFolders) {
+        descendants.add(folderPath);
+        for (const child of this.getAllDescendantFolders(folderPath)) {
+          descendants.add(child);
+        }
+      }
+      for (const feed of this.settings.feeds) {
+        if (feed.folder && descendants.has(feed.folder)) {
+          includedFeeds.add(feed.url);
+        }
+      }
+    }
+    return includedFeeds.size;
+  }
+
   private getArticlesTitle(): string {
     if (this.currentFeed) {
       return this.currentFeed.title;
@@ -1333,15 +1357,28 @@ export class RssDashboardView extends ItemView {
     } else if (this.selectedTags.length > 0) {
       const mode = (this.settings.sidebarTagFilterMode || "or").toUpperCase();
       const tagsPart = `Tags (${mode}): ${this.selectedTags.join(", ")}`;
-      if (this.selectedFolders && this.selectedFolders.length > 0) {
-        // Combine folders and tags when both are active
-        const foldersPart = `Folders: ${this.selectedFolders.join(", ")}`;
-        return `${foldersPart} & ${tagsPart}`;
+      if ((this.selectedFolders && this.selectedFolders.length > 0) || (this.selectedFeeds && this.selectedFeeds.length > 0)) {
+        // Combine folders/feeds and tags when both are active
+        const parts = [];
+        const totalFeeds = this.getTotalFeedsInSelection();
+        if (this.selectedFolders && this.selectedFolders.length > 0) {
+          parts.push(`Folders: ${this.selectedFolders.join(", ")} (Feeds: ${totalFeeds})`);
+        } else {
+          parts.push(`${totalFeeds} feeds`);
+        }
+        const selectionPart = parts.join(" & ");
+        return `${selectionPart} & ${tagsPart}`;
       }
       return tagsPart;
-    } else if (this.selectedFolders && this.selectedFolders.length > 0) {
-      // Title for multi-folder selection: list selected folder paths
-      return `Folders: ${this.selectedFolders.join(", ")}`;
+    } else if ((this.selectedFolders && this.selectedFolders.length > 0) || (this.selectedFeeds && this.selectedFeeds.length > 0)) {
+      const totalFeeds = this.getTotalFeedsInSelection();
+      const parts = [];
+      if (this.selectedFolders && this.selectedFolders.length > 0) {
+        parts.push(`Folders: ${this.selectedFolders.join(", ")} (Feeds: ${totalFeeds})`);
+      } else {
+        parts.push(`${totalFeeds} feeds`);
+      }
+      return parts.join(" & ");
     } else if (this.currentFolder) {
       return this.currentFolder;
     } else {
@@ -1383,45 +1420,23 @@ export class RssDashboardView extends ItemView {
 
     if (this.currentFeed) {
       const currentFeed = this.currentFeed;
-      // Don't slice before filtering/sorting. Refresh merge + retention sorts newest-first,
-      // but slicing early can still hide newly fetched items when ordering changes.
       articles = this.currentFeed.items.map((item) => ({
         ...item,
         feedTitle: item.feedTitle || currentFeed.title,
         feedUrl: item.feedUrl || currentFeed.url,
       }));
-    } else if (this.selectedTags.length > 0) {
-      const mode = this.settings.sidebarTagFilterMode || "or";
-      for (const feed of this.settings.feeds) {
-        articles = articles.concat(
-          feed.items
-            .filter((item) => {
-              const itemTags = (item.tags ?? []).map((t) => t.name);
-              if (mode === "or") {
-                return this.selectedTags.some((tag) => itemTags.includes(tag));
-              } else if (mode === "and") {
-                return this.selectedTags.every((tag) => itemTags.includes(tag));
-              } else if (mode === "not") {
-                return !this.selectedTags.some((tag) => itemTags.includes(tag));
-              }
-              return false;
-            })
-            .map((item) => ({
-              ...item,
-              feedTitle: feed.title,
-              feedUrl: feed.url,
-            })),
-        );
-      }
-    } else if (this.selectedFolders && this.selectedFolders.length > 0) {
+    } else if ((this.selectedFolders && this.selectedFolders.length > 0) || (this.selectedFeeds && this.selectedFeeds.length > 0)) {
       const allFolders = new Set<string>();
-      for (const path of this.selectedFolders) {
-        for (const f of this.getAllDescendantFolders(path)) {
-          allFolders.add(f);
+      if (this.selectedFolders) {
+        for (const path of this.selectedFolders) {
+          allFolders.add(path);
+          for (const f of this.getAllDescendantFolders(path)) {
+            allFolders.add(f);
+          }
         }
       }
       for (const feed of this.settings.feeds) {
-        if (feed.folder && allFolders.has(feed.folder)) {
+        if ((feed.folder && allFolders.has(feed.folder)) || (this.selectedFeeds && this.selectedFeeds.includes(feed.url))) {
           articles = articles.concat(
             feed.items.map((item) => ({
               ...item,
@@ -1441,7 +1456,6 @@ export class RssDashboardView extends ItemView {
         "podcasts",
       ];
       if (specialFolders.includes(this.currentFolder)) {
-        // Legacy support or fallback
         for (const feed of this.settings.feeds) {
           articles = articles.concat(
             feed.items
@@ -1465,6 +1479,7 @@ export class RssDashboardView extends ItemView {
         }
       } else {
         const allFolders = this.getAllDescendantFolders(this.currentFolder);
+        allFolders.push(this.currentFolder);
         for (const feed of this.settings.feeds) {
           if (feed.folder && allFolders.includes(feed.folder)) {
             articles = articles.concat(
@@ -1487,6 +1502,21 @@ export class RssDashboardView extends ItemView {
           })),
         );
       }
+    }
+
+    if (this.selectedTags.length > 0) {
+      const mode = this.settings.sidebarTagFilterMode || "or";
+      articles = articles.filter((item) => {
+        const itemTags = (item.tags ?? []).map((t) => t.name);
+        if (mode === "or") {
+          return this.selectedTags.some((tag) => itemTags.includes(tag));
+        } else if (mode === "and") {
+          return this.selectedTags.every((tag) => itemTags.includes(tag));
+        } else if (mode === "not") {
+          return !this.selectedTags.some((tag) => itemTags.includes(tag));
+        }
+        return false;
+      });
     }
 
     // Apply keyword rules (global/per-feed) before status/tag/age filters.
@@ -1526,38 +1556,18 @@ export class RssDashboardView extends ItemView {
         feedTitle: item.feedTitle || currentFeed.title,
         feedUrl: item.feedUrl || currentFeed.url,
       }));
-    } else if (this.selectedTags.length > 0) {
-      const mode = this.settings.sidebarTagFilterMode || "or";
-      for (const feed of this.settings.feeds) {
-        articles = articles.concat(
-          feed.items
-            .filter((item) => {
-              const itemTags = (item.tags ?? []).map((t) => t.name);
-              if (mode === "or") {
-                return this.selectedTags.some((tag) => itemTags.includes(tag));
-              } else if (mode === "and") {
-                return this.selectedTags.every((tag) => itemTags.includes(tag));
-              } else if (mode === "not") {
-                return !this.selectedTags.some((tag) => itemTags.includes(tag));
-              }
-              return false;
-            })
-            .map((item) => ({
-              ...item,
-              feedTitle: feed.title,
-              feedUrl: feed.url,
-            })),
-        );
-      }
-    } else if (this.selectedFolders && this.selectedFolders.length > 0) {
+    } else if ((this.selectedFolders && this.selectedFolders.length > 0) || (this.selectedFeeds && this.selectedFeeds.length > 0)) {
       const allFolders = new Set<string>();
-      for (const path of this.selectedFolders) {
-        for (const f of this.getAllDescendantFolders(path)) {
-          allFolders.add(f);
+      if (this.selectedFolders) {
+        for (const path of this.selectedFolders) {
+          allFolders.add(path);
+          for (const f of this.getAllDescendantFolders(path)) {
+            allFolders.add(f);
+          }
         }
       }
       for (const feed of this.settings.feeds) {
-        if (feed.folder && allFolders.has(feed.folder)) {
+        if ((feed.folder && allFolders.has(feed.folder)) || (this.selectedFeeds && this.selectedFeeds.includes(feed.url))) {
           articles = articles.concat(
             feed.items.map((item) => ({
               ...item,
@@ -1591,6 +1601,7 @@ export class RssDashboardView extends ItemView {
         }
       } else {
         const allFolders = this.getAllDescendantFolders(this.currentFolder);
+        allFolders.push(this.currentFolder);
         for (const feed of this.settings.feeds) {
           if (feed.folder && allFolders.includes(feed.folder)) {
             articles = articles.concat(
@@ -1613,6 +1624,21 @@ export class RssDashboardView extends ItemView {
           })),
         );
       }
+    }
+
+    if (this.selectedTags.length > 0) {
+      const mode = this.settings.sidebarTagFilterMode || "or";
+      articles = articles.filter((item) => {
+        const itemTags = (item.tags ?? []).map((t) => t.name);
+        if (mode === "or") {
+          return this.selectedTags.some((tag) => itemTags.includes(tag));
+        } else if (mode === "and") {
+          return this.selectedTags.every((tag) => itemTags.includes(tag));
+        } else if (mode === "not") {
+          return !this.selectedTags.some((tag) => itemTags.includes(tag));
+        }
+        return false;
+      });
     }
 
     // Apply keyword rules but not filter matching
@@ -1918,6 +1944,7 @@ export class RssDashboardView extends ItemView {
   private handleFolderClick(folder: string | null): void {
     this.inlineArticle = null;
     this.selectedFolders = [];
+    this.selectedFeeds = [];
     let scrollPosition = 0;
     if (this.sidebarContainer) {
       const foldersSection = this.sidebarContainer.querySelector(
@@ -1948,6 +1975,9 @@ export class RssDashboardView extends ItemView {
 
     this.currentFolder = folder;
 
+    // Update anchor for subsequent Shift+click range selections
+    this.lastClickAnchorKey = folder ? `folder:${folder}` : "all-feeds";
+
     if (this.sidebarContainer) {
       const foldersSection = this.sidebarContainer.querySelector(
         ".rss-dashboard-feed-folders-section",
@@ -1959,9 +1989,68 @@ export class RssDashboardView extends ItemView {
     void this.render();
   }
 
-  private handleFeedClick(feed: Feed): void {
+  private handleFeedClick(feed: Feed, e?: MouseEvent): void {
+    if (e && (Platform.isMacOS ? e.metaKey : e.ctrlKey)) {
+      // Ctrl/Meta + Click logic for multi-selection toggle
+      const isExplicitlySelected = this.selectedFeeds.includes(feed.url);
+      
+      let parentFolderIsSelected = false;
+      let selectedParentFolder: string | null = null;
+      if (feed.folder) {
+        let current = feed.folder;
+        while (current) {
+          if (this.selectedFolders.includes(current)) {
+            parentFolderIsSelected = true;
+            selectedParentFolder = current;
+            break;
+          }
+          if (current.includes("/")) {
+            current = current.substring(0, current.lastIndexOf("/"));
+          } else {
+            break;
+          }
+        }
+      }
+
+      const isSelected = isExplicitlySelected || parentFolderIsSelected;
+
+      if (isSelected) {
+        // Deselect
+        if (parentFolderIsSelected && selectedParentFolder) {
+          // Remove the parent folder from selectedFolders
+          this.selectedFolders = this.selectedFolders.filter(f => f !== selectedParentFolder);
+          
+          // Add all other descendants of that folder to selectedFeeds
+          const descendantFolders = this.getAllDescendantFolders(selectedParentFolder);
+          descendantFolders.push(selectedParentFolder);
+          for (const f of this.settings.feeds) {
+            if (f.folder && descendantFolders.includes(f.folder)) {
+              if (f.url !== feed.url && !this.selectedFeeds.includes(f.url)) {
+                this.selectedFeeds.push(f.url);
+              }
+            }
+          }
+        }
+        
+        if (isExplicitlySelected) {
+          this.selectedFeeds = this.selectedFeeds.filter(url => url !== feed.url);
+        }
+      } else {
+        // Select
+        if (!this.selectedFeeds.includes(feed.url)) {
+          this.selectedFeeds.push(feed.url);
+        }
+      }
+      
+      this.lastClickAnchorKey = `feed:${feed.url}`;
+      void this.plugin.saveSettings();
+      void this.render();
+      return;
+    }
+
     this.inlineArticle = null;
     this.selectedFolders = [];
+    this.selectedFeeds = [];
     let scrollPosition = 0;
     if (this.sidebarContainer) {
       const foldersSection = this.sidebarContainer.querySelector(
@@ -1974,6 +2063,9 @@ export class RssDashboardView extends ItemView {
     this.currentFolder = null;
     this.selectedTags = [];
     this.selectedArticle = null;
+
+    // Update anchor for subsequent Shift+click range selections
+    if (feed && feed.url) this.lastClickAnchorKey = `feed:${feed.url}`;
 
     if (feed && feed.url) {
       this.feedPages[feed.url] = 1;
@@ -1992,16 +2084,10 @@ export class RssDashboardView extends ItemView {
 
   private handleTagToggle(tag: string): void {
     this.inlineArticle = null;
-    this.selectedFolders = [];
     if (this.selectedTags.includes(tag)) {
       this.selectedTags = this.selectedTags.filter((t) => t !== tag);
     } else {
       this.selectedTags.push(tag);
-    }
-
-    if (this.selectedTags.length > 0) {
-      this.currentFolder = null;
-      this.currentFeed = null;
     }
     this.selectedArticle = null;
     void this.render();
@@ -2061,10 +2147,149 @@ export class RssDashboardView extends ItemView {
   private handleFolderMultiSelect(folders: string[]): void {
     this.inlineArticle = null;
     this.selectedFolders = folders;
+    this.selectedFeeds = [];
     // When entering multi-select, clear single-folder and feed selection
     this.currentFeed = null;
     this.currentFolder = folders.length === 1 ? folders[0] : null;
     this.selectedTags = [];
+    void this.render();
+
+    // Update anchor to most-recently selected folder
+    if (folders && folders.length > 0) {
+      this.lastClickAnchorKey = `folder:${folders[folders.length - 1]}`;
+    }
+  }
+
+  private handleSidebarRangeSelect(clickedKey: string, visibleKeys: string[]): void {
+    const anchorKey = this.lastClickAnchorKey || clickedKey;
+    const startIdx = visibleKeys.indexOf(anchorKey);
+    const endIdx = visibleKeys.indexOf(clickedKey);
+    
+    if (startIdx === -1 || endIdx === -1) {
+      this.lastClickAnchorKey = clickedKey;
+      return;
+    }
+    
+    const [from, to] = startIdx <= endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+    const rangeKeys = visibleKeys.slice(from, to + 1);
+    
+    const selectedFeeds = new Set<string>();
+    
+    // First, collect all feeds directly in the visual range
+    for (const key of rangeKeys) {
+      if (key.startsWith("feed:")) {
+        selectedFeeds.add(key.substring("feed:".length));
+      } else if (key.startsWith("folder:")) {
+        // If a folder header is in the selection range, we force-include all
+        // of its descendant feeds into the selection intention, UNLESS the user
+        // explicitly stopped mid-way through its expanded children.
+        const folderPath = key.substring("folder:".length);
+        const descendantFolders = this.getAllDescendantFolders(folderPath);
+        descendantFolders.push(folderPath);
+        
+        const visibleFeedsInFolder = visibleKeys.filter(k => {
+          if (k.startsWith("feed:")) {
+            const feedUrl = k.substring("feed:".length);
+            const feed = this.settings.feeds.find(f => f.url === feedUrl);
+            return feed && feed.folder && descendantFolders.includes(feed.folder);
+          }
+          return false;
+        });
+        
+        const visibleFeedsInRange = visibleFeedsInFolder.filter(k => rangeKeys.includes(k));
+        const isPartiallyCovered = visibleFeedsInFolder.length > 0 && 
+                                   visibleFeedsInRange.length > 0 && 
+                                   visibleFeedsInRange.length < visibleFeedsInFolder.length;
+
+        if (!isPartiallyCovered) {
+          for (const feed of this.settings.feeds) {
+            if (feed.folder && descendantFolders.includes(feed.folder)) {
+              selectedFeeds.add(feed.url);
+            }
+          }
+        }
+      }
+    }
+    
+    // Determine which folders can be considered "fully selected".
+    const finalSelectedFolders = new Set<string>();
+    const finalSelectedFeeds = new Set<string>();
+    
+    const foldersToEvaluate = new Set<string>();
+    for (const key of rangeKeys) {
+      if (key.startsWith("folder:")) foldersToEvaluate.add(key.substring("folder:".length));
+    }
+    
+    // Also include parents of any selected feeds
+    for (const feedUrl of selectedFeeds) {
+      const feed = this.settings.feeds.find(f => f.url === feedUrl);
+      if (feed && feed.folder) {
+        let current = feed.folder;
+        while (current) {
+          foldersToEvaluate.add(current);
+          if (current.includes("/")) {
+            current = current.substring(0, current.lastIndexOf("/"));
+          } else {
+            break;
+          }
+        }
+      }
+    }
+    
+    // A folder is fully selected if ALL its descendant feeds are in `selectedFeeds`
+    for (const folderPath of foldersToEvaluate) {
+      const descendantFolders = this.getAllDescendantFolders(folderPath);
+      descendantFolders.push(folderPath);
+      let allFeedsSelected = true;
+      let feedCount = 0;
+      
+      for (const feed of this.settings.feeds) {
+        if (feed.folder && descendantFolders.includes(feed.folder)) {
+          feedCount++;
+          if (!selectedFeeds.has(feed.url)) {
+            allFeedsSelected = false;
+            break;
+          }
+        }
+      }
+      
+      // If all feeds are selected (and there is at least one feed), it's fully selected
+      if (allFeedsSelected && feedCount > 0) {
+        finalSelectedFolders.add(folderPath);
+      } else if (feedCount === 0 && rangeKeys.includes(`folder:${folderPath}`)) {
+        // If it's empty but explicitly clicked/in range, select it anyway
+        finalSelectedFolders.add(folderPath);
+      }
+    }
+    
+    // Any feed that isn't covered by a fully selected folder goes into finalSelectedFeeds
+    for (const feedUrl of selectedFeeds) {
+      const feed = this.settings.feeds.find(f => f.url === feedUrl);
+      let coveredByFolder = false;
+      if (feed && feed.folder) {
+        const parts = feed.folder.split("/");
+        let p = "";
+        for (const part of parts) {
+          p = p ? `${p}/${part}` : part;
+          if (finalSelectedFolders.has(p)) {
+            coveredByFolder = true;
+            break;
+          }
+        }
+      }
+      if (!coveredByFolder) {
+        finalSelectedFeeds.add(feedUrl);
+      }
+    }
+    
+    this.inlineArticle = null;
+    this.selectedFolders = Array.from(finalSelectedFolders);
+    this.selectedFeeds = Array.from(finalSelectedFeeds);
+    this.currentFolder = this.selectedFolders.length === 1 && this.selectedFeeds.length === 0 ? this.selectedFolders[0] : null;
+    this.currentFeed = this.selectedFeeds.length === 1 && this.selectedFolders.length === 0 ? (this.settings.feeds.find(f => f.url === this.selectedFeeds[0]) || null) : null;
+    this.selectedTags = [];
+    this.lastClickAnchorKey = clickedKey;
+    
     void this.render();
   }
 
