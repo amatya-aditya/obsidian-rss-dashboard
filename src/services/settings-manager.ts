@@ -186,6 +186,9 @@ export class SettingsManager {
     return async (data: unknown): Promise<void> => {
       const settingsData = data as RssDashboardSettings;
       const metadataPath = this.getMetadataPath(this.settings);
+      
+      this.suppressWatcherUntil = Date.now() + 2000;
+
       if (metadataPath) {
         try {
           await this.ensureMetadataFolderExists(this.settings);
@@ -220,6 +223,8 @@ export class SettingsManager {
       metadataMode: this.settings.metadataStorageMode,
       feedCount: this.settings.feeds.length,
     });
+
+    this.suppressWatcherUntil = Date.now() + 2000;
 
     try {
       if (this.plugin.feedStorageRepository) {

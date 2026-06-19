@@ -288,7 +288,7 @@ export class PluginLifecycleManager {
     const resolveVideoMatch = (
       candidateFeed?: (typeof this.plugin.settings.feeds)[number],
     ) => {
-      if (!sourceItem || sourceItem.mediaType !== "video") {
+      if (!sourceItem) {
         return undefined;
       }
 
