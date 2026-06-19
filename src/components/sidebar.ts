@@ -1750,9 +1750,9 @@ export class Sidebar {
     const { selectedFolders, selectedFeeds } = this.options;
     const folderCount = selectedFolders?.length || 0;
     const feedCount = selectedFeeds?.length || 0;
-    
+
     if (folderCount === 0 && feedCount === 0) return;
-    
+
     let msg = `Are you sure you want to delete the selected items? This action cannot be undone.`;
     if (folderCount > 0 && feedCount === 0) {
       msg = `Are you sure you want to delete ${folderCount} selected folder(s) and all their subfolders and feeds?`;
@@ -1761,24 +1761,51 @@ export class Sidebar {
     } else {
       msg = `Are you sure you want to delete ${folderCount} folder(s) and ${feedCount} feed(s)?`;
     }
-    
+
     this.showConfirmModal(msg, () => {
-      if (selectedFolders) {
-        for (const folder of selectedFolders) {
-          this.callbacks.onDeleteFolder(folder);
-        }
-      }
-      if (selectedFeeds) {
-        for (const feedUrl of selectedFeeds) {
-          const feed = this.settings.feeds.find(f => f.url === feedUrl);
-          if (feed) {
-            this.callbacks.onDeleteFeed(feed);
+      // Collect every feed URL that must be removed in one pass.
+      // This covers both explicitly selected feeds and feeds that live
+      // inside selected folders (including all descendant sub-folders).
+      const feedUrlsToDelete = new Set<string>(selectedFeeds ?? []);
+
+      if (selectedFolders && selectedFolders.length > 0) {
+        for (const folderPath of selectedFolders) {
+          const allPaths = this.getAllDescendantFolderPaths(folderPath);
+          for (const feed of this.settings.feeds) {
+            if (feed.folder && allPaths.includes(feed.folder)) {
+              feedUrlsToDelete.add(feed.url);
+            }
           }
         }
       }
+
+      // Remove all affected feeds in a single filter pass.
+      this.settings.feeds = this.settings.feeds.filter(
+        (f) => !feedUrlsToDelete.has(f.url),
+      );
+
+      // Remove selected folders from the folder tree.
+      if (selectedFolders && selectedFolders.length > 0) {
+        for (const folderPath of selectedFolders) {
+          // removeFolderByPath mutates settings.folders and clears the path
+          // cache. It does NOT call this.render() — callers are responsible.
+          this.removeFolderByPath(folderPath);
+        }
+        // Ensure the cache is fresh after all removals.
+        this.clearFolderPathCache();
+      }
+
+      // Clear sidebar selection state.
       this.options.selectedFolders = [];
       this.options.selectedFeeds = [];
-      this.render();
+
+      // Save once and trigger a single full dashboard render by navigating to
+      // All Feeds. onFolderClick(null) clears the dashboard's selectedFeeds /
+      // selectedFolders / currentFeed state and issues a full re-render, so
+      // both the sidebar and article panel reflect the deletion correctly.
+      void this.plugin.saveSettings().then(() => {
+        this.callbacks.onFolderClick(null);
+      });
     });
   }
 
@@ -2372,7 +2399,7 @@ export class Sidebar {
       if (parent) parent.modifiedAt = Date.now();
     }
     this.clearFolderPathCache();
-    this.render();
+    // NOTE: callers are responsible for calling this.render() after this method.
   }
 
   private getAllDescendantFolderPaths(path: string): string[] {

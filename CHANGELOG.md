@@ -8,6 +8,8 @@
 
 - Added ability to control+click and shift+click select multiple folders in the sidebar. This allows you to filter and view only the articles contained within those folders.
 
+- Added ability to apply right-click actions to multi selections such as delete multiple feeds at once or mark all read/unread.
+
 #### Show folder feed count in sidebar
 
 - Added "Show folder feed count" toggle to Sidebar settings tab (off by default) which tallies up the amount of feeds contained with a parent folder (includes subfolder feeds)
