@@ -363,3 +363,48 @@ export function getViewportTier(viewportWidth?: number): ViewportTier {
   }
   return "desktop";
 }
+
+export type DesktopRequire = (moduleName: string) => unknown;
+export type DesktopShell = { openPath: (path: string) => Promise<string> };
+export type PathModuleLike = { join: (...paths: string[]) => string };
+export type LegacyPlaybackProgressEntry = {
+  position: number;
+  duration: number;
+};
+
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+export function isLegacyPlaybackProgressEntry(
+  value: unknown,
+): value is LegacyPlaybackProgressEntry {
+  return (
+    isRecord(value) &&
+    typeof value.position === "number" &&
+    typeof value.duration === "number"
+  );
+}
+
+export function isDesktopShell(value: unknown): value is DesktopShell {
+  return isRecord(value) && typeof value.openPath === "function";
+}
+
+export function isPathModuleLike(value: unknown): value is PathModuleLike {
+  return isRecord(value) && typeof value.join === "function";
+}
+
+export function getRequireFunction(): DesktopRequire | undefined {
+  const desktopWindow = window as Window & { require?: DesktopRequire };
+  return typeof desktopWindow.require === "function"
+    ? desktopWindow.require
+    : undefined;
+}
+
+export function getShellFromModule(value: unknown): DesktopShell | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  return isDesktopShell(value.shell) ? value.shell : undefined;
+}

@@ -485,8 +485,9 @@ describe("onload() initialization", () => {
       },
     );
 
-    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const loadSpy = vi.spyOn(plugin.settingsManager, "loadSettings").mockResolvedValue(undefined);
     const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+    plugin.settings = { ...plugin.settings, refreshInterval: 0 };
 
     await plugin.onload();
 
@@ -508,8 +509,9 @@ describe("onload() initialization", () => {
       },
     );
 
-    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const loadSpy = vi.spyOn(plugin.settingsManager, "loadSettings").mockResolvedValue(undefined);
     const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+    plugin.settings = { ...plugin.settings, refreshInterval: 0 };
 
     await plugin.onload();
 
@@ -531,8 +533,9 @@ describe("onload() initialization", () => {
       },
     );
 
-    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const loadSpy = vi.spyOn(plugin.settingsManager, "loadSettings").mockResolvedValue(undefined);
     const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+    plugin.settings = { ...plugin.settings, refreshInterval: 0 };
 
     await plugin.onload();
 
@@ -554,8 +557,9 @@ describe("onload() initialization", () => {
       },
     );
 
-    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const loadSpy = vi.spyOn(plugin.settingsManager, "loadSettings").mockResolvedValue(undefined);
     const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+    plugin.settings = { ...plugin.settings, refreshInterval: 0 };
 
     await plugin.onload();
 
@@ -577,8 +581,9 @@ describe("onload() initialization", () => {
       },
     );
 
-    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const loadSpy = vi.spyOn(plugin.settingsManager, "loadSettings").mockResolvedValue(undefined);
     const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+    plugin.settings = { ...plugin.settings, refreshInterval: 0 };
 
     await plugin.onload();
 
@@ -604,8 +609,9 @@ describe("onload() initialization", () => {
       },
     );
 
-    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const loadSpy = vi.spyOn(plugin.settingsManager, "loadSettings").mockResolvedValue(undefined);
     const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+    plugin.settings = { ...plugin.settings, refreshInterval: 0 };
 
     await plugin.onload();
 
@@ -629,8 +635,9 @@ describe("onload() initialization", () => {
       },
     );
 
-    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const loadSpy = vi.spyOn(plugin.settingsManager, "loadSettings").mockResolvedValue(undefined);
     const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+    plugin.settings = { ...plugin.settings, refreshInterval: 0 };
 
     await plugin.onload();
 
@@ -652,8 +659,9 @@ describe("onload() initialization", () => {
       },
     );
 
-    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const loadSpy = vi.spyOn(plugin.settingsManager, "loadSettings").mockResolvedValue(undefined);
     const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+    plugin.settings = { ...plugin.settings, refreshInterval: 0 };
 
     await plugin.onload();
 
@@ -683,7 +691,7 @@ describe("onload() initialization", () => {
     handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
     plugin.onunload();
 
-    expect(plugin["vaultMetadataReloadTimer"]).toBeNull();
+    expect(plugin.settingsManager["vaultMetadataReloadTimer"]).toBeNull();
     vi.useRealTimers();
   });
 
@@ -697,13 +705,14 @@ describe("onload() initialization", () => {
       },
     );
 
-    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
+    const loadSpy = vi.spyOn(plugin.settingsManager, "loadSettings").mockResolvedValue(undefined);
     const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+    plugin.settings = { ...plugin.settings, refreshInterval: 0 };
 
     await plugin.onload();
 
     // Simulate plugin writing user-state (which sets suppression window)
-    (plugin as unknown as { suppressWatcherUntil: number }).suppressWatcherUntil = Date.now() + 5000;
+    (plugin.settingsManager as unknown as { suppressWatcherUntil: number }).suppressWatcherUntil = Date.now() + 5000;
 
     handlers.modify?.({ path: ".rss-dashboard-data/user-state.json" });
     await vi.runAllTimersAsync();
@@ -727,9 +736,10 @@ describe("onload() initialization", () => {
 
     // Make loadSettings async but with a simple resolved promise
     const loadSpy = vi
-      .spyOn(plugin, "loadSettings")
+      .spyOn(plugin.settingsManager, "loadSettings")
       .mockResolvedValue(undefined);
     const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
+    plugin.settings = { ...plugin.settings, refreshInterval: 0 };
 
     await plugin.onload();
 
@@ -773,7 +783,7 @@ describe("onload() initialization", () => {
 
   it("defers saved-article startup validation until layout is ready", async () => {
     const validateSpy = vi.spyOn(
-      plugin as unknown as PluginPrivateAPI,
+      plugin.pluginLifecycleManager as any,
       "validateSavedArticles",
     );
 

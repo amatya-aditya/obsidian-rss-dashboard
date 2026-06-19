@@ -56,6 +56,9 @@ import { BackgroundImportService } from "./src/services/background-import-servic
 import { FEED_REQUEST_TIMEOUT_MS } from "./src/services/feed-timeout";
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
+import { ArticleSyncService } from "./src/services/article-sync-service";
+import { FeedOrchestrator } from "./src/services/feed-orchestrator";
+import { PluginLifecycleManager } from "./src/services/plugin-lifecycle-manager";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
@@ -68,8 +71,24 @@ import {
   loadAndNormalizeSettings,
   migrateSettings,
 } from "./src/utils/settings-loader";
-import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
-
+// applyAutomaticArticleTags is now used only inside ArticleSyncService
+import { SettingsManager } from "./src/services/settings-manager";
+import { ViewOrchestrator } from "./src/services/view-orchestrator";
+import { UriProtocolHandler } from "./src/services/uri-protocol-handler";
+import {
+  DesktopRequire,
+  DesktopShell,
+  PathModuleLike,
+  LegacyPlaybackProgressEntry,
+  isRecord,
+  isLegacyPlaybackProgressEntry,
+  isDesktopShell,
+  isPathModuleLike,
+  getRequireFunction,
+  getShellFromModule,
+} from "./src/utils/platform-utils";
+import { decodeUriFeedUrl, buildUriAddFeedTitle } from "./src/utils/uri-utils";
+import { getAllArticles } from "./src/utils/plugin-utils";
 export interface FiltersUpdatedEventPayload {
   source: string;
   feedUrl?: string;
@@ -84,9 +103,6 @@ function storageError(
   _details?: unknown,
 ): void {}
 
-type DesktopRequire = (moduleName: string) => unknown;
-type DesktopShell = { openPath: (path: string) => Promise<string> };
-type PathModuleLike = { join: (...paths: string[]) => string };
 type VaultAdapterPathAccess = {
   getBasePath?: () => string;
   getFullPath?: (path: string) => string;
@@ -95,47 +111,6 @@ type LegacyLocalStorageApi = {
   loadLocalStorage?: (key: string) => unknown;
   removeLocalStorage?: (key: string) => void;
 };
-type LegacyPlaybackProgressEntry = {
-  position: number;
-  duration: number;
-};
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isLegacyPlaybackProgressEntry(
-  value: unknown,
-): value is LegacyPlaybackProgressEntry {
-  return (
-    isRecord(value) &&
-    typeof value.position === "number" &&
-    typeof value.duration === "number"
-  );
-}
-
-function isDesktopShell(value: unknown): value is DesktopShell {
-  return isRecord(value) && typeof value.openPath === "function";
-}
-
-function isPathModuleLike(value: unknown): value is PathModuleLike {
-  return isRecord(value) && typeof value.join === "function";
-}
-
-function getRequireFunction(): DesktopRequire | undefined {
-  const desktopWindow = window as Window & { require?: DesktopRequire };
-  return typeof desktopWindow.require === "function"
-    ? desktopWindow.require
-    : undefined;
-}
-
-function getShellFromModule(value: unknown): DesktopShell | undefined {
-  if (!isRecord(value)) {
-    return undefined;
-  }
-
-  return isDesktopShell(value.shell) ? value.shell : undefined;
-}
 
 // Re-exported for backward compatibility with callers that import from main.ts
 export type {
@@ -143,110 +118,6 @@ export type {
   FeedIngestionOptions,
 } from "./src/types/types";
 
-/**
- * Resolves the full vault path for metadata storage based on current mode.
- * - "plugin-default": returns undefined (uses Plugin.saveData())
- * - "vault-location": returns normalized vault folder path
- */
-function getMetadataPath(settings: RssDashboardSettings): string | undefined {
-  if (settings.metadataStorageMode === "plugin-default") {
-    return undefined; // Use Plugin.saveData()
-  }
-
-  // Normalize path: remove leading/trailing slashes, default to .rss-dashboard-data if empty
-  let folder = settings.metadataStorageFolder.trim();
-  if (!folder) {
-    folder = ".rss-dashboard-data";
-  }
-  folder = folder.replace(/^\/+|\/+$/g, ""); // Remove leading/trailing slashes
-  return folder;
-}
-
-/**
- * Loads metadata from the appropriate location based on mode.
- */
-async function loadMetadata(
-  app: App,
-  mode: "plugin-default" | "vault-location",
-  folder: string,
-): Promise<RssDashboardSettings | null> {
-  if (mode === "plugin-default") {
-    return null; // Will be loaded via Plugin.loadData() in the plugin class
-  }
-
-  // Try to load from vault location
-  const metadataPath = getMetadataPath({
-    ...DEFAULT_SETTINGS,
-    metadataStorageMode: mode,
-    metadataStorageFolder: folder,
-  });
-  if (!metadataPath) {
-    return null;
-  }
-
-  try {
-    const dataFilePath = `${metadataPath}/data.json`;
-    const content = await app.vault.adapter.read(dataFilePath);
-    return JSON.parse(content) as RssDashboardSettings;
-  } catch (error) {
-    storageLog(
-      "Failed to load metadata from vault location, will fall back to plugin default",
-      error,
-    );
-    return null; // Fall back to plugin-default
-  }
-}
-
-/**
- * Ensures metadata folder exists (idempotent).
- * - If folder exists and is a folder: returns success
- * - If folder doesn't exist: creates it
- * - If path is a file: throws error
- * - If createFolder race condition occurs: checks again and continues if now a folder
- */
-async function ensureMetadataFolderExists(
-  app: App,
-  settings: RssDashboardSettings,
-): Promise<void> {
-  const folderPath = getMetadataPath(settings);
-  if (!folderPath) {
-    return; // Plugin-default mode, no folder needed
-  }
-
-  const normalized = folderPath.replace(/^\/+|\/+$/g, "");
-
-  try {
-    // Check if path already exists in vault cache
-    const existing = app.vault.getAbstractFileByPath(normalized);
-    if (existing) {
-      if (existing instanceof TFolder) {
-        return; // Folder already exists, idempotent success
-      } else {
-        throw new Error(
-          `Metadata storage path points to a file, not a folder: ${normalized}`,
-        );
-      }
-    }
-
-    // Also check via adapter (covers folders not yet indexed in vault cache)
-    const existsOnDisk = await app.vault.adapter.exists(normalized);
-    if (existsOnDisk) {
-      return; // Folder exists on disk (cache lag), treat as success
-    }
-
-    // Folder doesn't exist, create it
-    await app.vault.createFolder(normalized);
-  } catch (error) {
-    // Handle race condition: createFolder throws "Folder already exists" or similar
-    if (
-      error instanceof Error &&
-      error.message.toLowerCase().includes("already exists")
-    ) {
-      return; // Folder exists (race condition or cache lag), treat as success
-    }
-    throw error;
-  }
-}
 
 export default class RssDashboardPlugin extends Plugin {
   private static readonly FACTORY_RESET_LOCAL_STORAGE_KEYS = [
@@ -256,7 +127,13 @@ export default class RssDashboardPlugin extends Plugin {
   ] as const;
   private static readonly URI_ACTION_ADD_FEED = "add-feed";
 
-  settings!: RssDashboardSettings;
+  public settingsManager!: SettingsManager;
+  get settings(): RssDashboardSettings {
+    return this.settingsManager.settings;
+  }
+  set settings(val: RssDashboardSettings) {
+    this.settingsManager.settings = val;
+  }
   feedParser!: FeedParser;
   articleSaver!: ArticleSaver;
   private backupService!: BackupService;
@@ -265,25 +142,38 @@ export default class RssDashboardPlugin extends Plugin {
   private backgroundImportService!: BackgroundImportService;
 public activeRefreshState = new Map<string, FeedRefreshState>();
   public settingTab: RssDashboardSettingTab | null = null;
+  public viewOrchestrator!: ViewOrchestrator;
+  public uriProtocolHandler!: UriProtocolHandler;
   private isMultiFeedRefreshRunning = false;
   public vaultAbsolutePath = "";
   private hasCompletedStartupSavedArticleValidation = false;
   private vaultMetadataReloadTimer: number | null = null;
   private startupRefreshTimeoutId: number | null = null;
-  private progressSaveDebounce: number | null = null;
   private suppressWatcherUntil = 0;
   private static readonly FEED_REFRESH_CONCURRENCY = 4;
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
-  private readonly feedStorageRepository: FeedStorageRepository;
+  public readonly feedStorageRepository: FeedStorageRepository;
+  public articleSyncService!: ArticleSyncService;
+  public feedOrchestrator!: FeedOrchestrator;
+  public pluginLifecycleManager!: PluginLifecycleManager;
 
   constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
     super(app, manifest);
     this.feedStorageRepository = new FeedStorageRepository(app, {
       writeWrapper: (fn) => this.writeWithWatcherSuppressed(fn),
     });
+    this.settingsManager = new SettingsManager(this.app, this);
+    this.viewOrchestrator = new ViewOrchestrator(this.app, this.settingsManager);
+    this.uriProtocolHandler = new UriProtocolHandler(this.manifest.id);
+
+    // Phase 5 services – wired here so they are available immediately.
+    // The plugin facade methods delegate to these after onload() finishes.
+    this.articleSyncService = new ArticleSyncService(this.app, this);
+    this.feedOrchestrator = new FeedOrchestrator(this, this.activeRefreshState);
+    this.pluginLifecycleManager = new PluginLifecycleManager(this.app, this);
   }
 
-  private initializeSettingsBackedServices(): void {
+  public initializeSettingsBackedServices(): void {
     this.feedParser = new FeedParser(
       this.settings.display,
       this.settings.availableTags,
@@ -408,34 +298,16 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
     return normalizedMinutes * 60 * 1000;
   }
 
+  // ✅ Phase 5: delegated to PluginLifecycleManager
   private async reconcileSavedArticlesOnStartup(): Promise<void> {
-    if (this.hasCompletedStartupSavedArticleValidation) {
-      return;
-    }
-
-    this.hasCompletedStartupSavedArticleValidation = true;
-
-    const allArticles = this.getAllArticles();
-    await this.articleSaver.fixSavedFilePaths(allArticles);
-    await this.migrateMediaProgressOnStartup();
-
-    await this.validateSavedArticles();
+    // Kept for backward compat with tests that spy on this method.
+    // The real work is now in pluginLifecycleManager internally.
+    await this.pluginLifecycleManager["reconcileSavedArticlesOnStartup"]();
   }
 
+  // ✅ Phase 5: delegated to PluginLifecycleManager
   private scheduleStartupSavedArticleValidation(): void {
-    const workspaceWithLayoutReady = this.app
-      .workspace as typeof this.app.workspace & {
-      onLayoutReady?: (callback: () => void) => void;
-    };
-
-    if (typeof workspaceWithLayoutReady.onLayoutReady === "function") {
-      workspaceWithLayoutReady.onLayoutReady(() => {
-        void this.reconcileSavedArticlesOnStartup();
-      });
-      return;
-    }
-
-    void this.reconcileSavedArticlesOnStartup();
+    this.pluginLifecycleManager.scheduleStartupSavedArticleValidation();
   }
 
   public async getActiveDashboardView(): Promise<RssDashboardView | null> {
@@ -528,31 +400,13 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
     }
   }
 
+  // ✅ Phase 5: delegated to PluginLifecycleManager
   public async performFactoryReset(): Promise<void> {
-    const resetSettings = this.buildFactoryResetSettings();
-    this.settings = resetSettings;
+    // Also reset the local refresh tracking state that the orchestrator holds
     this.activeRefreshState.clear();
     this.isMultiFeedRefreshRunning = false;
-    this.initializeSettingsBackedServices();
-    this.clearFactoryResetLocalStorage();
-
-    await this.saveSettings();
-
-    const dashboardView = await this.getActiveDashboardView();
-    if (dashboardView) {
-      dashboardView.refresh();
-    }
-
-    const discoverView = await this.getActiveDiscoverView();
-    if (discoverView) {
-      discoverView.render();
-    }
-
-    if (this.settingTab) {
-      this.settingTab.display();
-    }
-
-    new Notice("RSS Dashboard restored to factory defaults.");
+    this.feedOrchestrator.isMultiFeedRefreshRunning = false;
+    return this.pluginLifecycleManager.performFactoryReset();
   }
 
   /**
@@ -838,62 +692,10 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
   }
 
   private resolveRequestedUriAction(params: ObsidianProtocolData): string {
-    const routeAction = (params.action ?? "").trim().toLowerCase();
-    const queryAction =
-      typeof params.uriAction === "string"
-        ? params.uriAction.trim().toLowerCase()
-        : "";
-
-    if (queryAction) {
-      return queryAction;
-    }
-
-    // Obsidian protocol reserves `action` for the route itself.
-    // For links like `obsidian://rss-dashboard?...`, infer add-feed when a URL
-    // parameter is present so browser-triggered links work reliably.
-    if (
-      routeAction === this.manifest.id.toLowerCase() &&
-      typeof params.url === "string" &&
-      params.url.trim().length > 0
-    ) {
-      return RssDashboardPlugin.URI_ACTION_ADD_FEED;
-    }
-
-    if (routeAction === this.manifest.id.toLowerCase()) {
-      return "";
-    }
-
-    return routeAction;
+    return this.uriProtocolHandler.resolveRequestedUriAction(params);
   }
 
-  private decodeUriFeedUrl(rawUrl: string): string {
-    const candidate = rawUrl.trim();
-    if (!candidate) {
-      throw new Error("Missing required URL parameter for add-feed.");
-    }
 
-    if (!candidate.includes("%")) {
-      return candidate;
-    }
-
-    try {
-      return decodeURIComponent(candidate);
-    } catch {
-      throw new Error(
-        "Feed URL is malformed. Ensure the url parameter is URL-encoded.",
-      );
-    }
-  }
-
-  private buildUriAddFeedTitle(feedUrl: string): string {
-    try {
-      const parsed = new URL(feedUrl);
-      const hostname = parsed.hostname.replace(/^www\./i, "").trim();
-      return hostname || feedUrl;
-    } catch {
-      return feedUrl;
-    }
-  }
 
   private async handleAddFeedUriAction(
     params: ObsidianProtocolData,
@@ -904,7 +706,7 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
       return;
     }
 
-    const decodedUrl = this.decodeUriFeedUrl(rawUrl);
+    const decodedUrl = decodeUriFeedUrl(rawUrl);
     const urlValidation = isValidUrl(decodedUrl);
     if (!urlValidation.valid) {
       new Notice(urlValidation.error ?? "Invalid feed URL.");
@@ -937,160 +739,28 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
       defaultFolder,
       this,
       decodedUrl,
-      this.buildUriAddFeedTitle(decodedUrl),
+      buildUriAddFeedTitle(decodedUrl),
     ).open();
   }
 
   private applyMobileOptimizations(): void {
-    if (
-      this.settings.refreshInterval > 0 &&
-      this.settings.refreshInterval < 60
-    ) {
-      this.settings.refreshInterval = 60;
-    }
-
-    if (this.settings.maxItems > 50) {
-      this.settings.maxItems = 50;
-    }
-
-    if (!this.settings.sidebarCollapsed) {
-      this.settings.sidebarCollapsed = true;
-    }
+    this.viewOrchestrator.applyMobileOptimizations();
   }
 
   async activateView() {
-    const { workspace } = this.app;
-
-    try {
-      let leaf: WorkspaceLeaf | null = null;
-      const leaves = workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
-
-      if (leaves.length > 0) {
-        leaf = leaves[0];
-      } else {
-        switch (this.settings.viewLocation) {
-          case "left-sidebar":
-            leaf = workspace.getLeftLeaf(false);
-            break;
-          case "right-sidebar":
-            leaf = workspace.getRightLeaf(false);
-            break;
-          default:
-            leaf = workspace.getLeaf("tab");
-            break;
-        }
-      }
-
-      if (leaf) {
-        await leaf.setViewState({
-          type: RSS_DASHBOARD_VIEW_TYPE,
-          active: true,
-        });
-        void workspace.revealLeaf(leaf);
-      }
-    } catch {
-      new Notice("Error opening RSS dashboard view");
-    }
+    await this.viewOrchestrator.activateView();
   }
 
   async activateDiscoverView() {
-    const { workspace } = this.app;
-
-    try {
-      let leaf: WorkspaceLeaf | null = null;
-      const leaves = workspace.getLeavesOfType(RSS_DISCOVER_VIEW_TYPE);
-
-      if (leaves.length > 0) {
-        leaf = leaves[0];
-      } else {
-        leaf = workspace.getLeaf("tab");
-      }
-
-      if (leaf) {
-        await leaf.setViewState({
-          type: RSS_DISCOVER_VIEW_TYPE,
-          active: true,
-        });
-        void workspace.revealLeaf(leaf);
-      }
-    } catch {
-      new Notice("Error opening RSS discover view");
-    }
+    await this.viewOrchestrator.activateDiscoverView();
   }
 
   async activateSmallwebView() {
-    const { workspace } = this.app;
-
-    try {
-      let leaf: WorkspaceLeaf | null = null;
-      const leaves = workspace.getLeavesOfType(RSS_SMALLWEB_VIEW_TYPE);
-
-      if (leaves.length > 0) {
-        leaf = leaves[0];
-      } else {
-        leaf = workspace.getLeaf("tab");
-      }
-
-      if (leaf) {
-        await leaf.setViewState({
-          type: RSS_SMALLWEB_VIEW_TYPE,
-          active: true,
-        });
-        void workspace.revealLeaf(leaf);
-      }
-    } catch {
-      new Notice("Error opening kagi smallweb");
-    }
+    await this.viewOrchestrator.activateSmallwebView();
   }
 
   private async onArticleSaved(item: FeedItem): Promise<void> {
-    if (item.feedUrl) {
-      const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
-      if (feed) {
-        const originalItem = feed.items.find((i) => i.guid === item.guid);
-        if (originalItem) {
-          originalItem.saved = true;
-          originalItem.savedFilePath = item.savedFilePath;
-
-          if (this.settings.articleSaving.addSavedTag) {
-            if (!originalItem.tags) {
-              originalItem.tags = [];
-            }
-
-            if (
-              !originalItem.tags.some((t) => t.name.toLowerCase() === "saved")
-            ) {
-              const savedTag = this.settings.availableTags.find(
-                (t) => t.name.toLowerCase() === "saved",
-              );
-              if (savedTag) {
-                originalItem.tags.push({ ...savedTag });
-              } else {
-                originalItem.tags.push({ name: "saved", color: "#3498db" });
-              }
-            }
-          }
-
-          await this.saveSettings();
-
-          await this.syncDashboardArticleUpdate(
-            item.guid,
-            item.feedUrl,
-            {
-              saved: true,
-              savedFilePath: originalItem.savedFilePath,
-              tags: originalItem.tags ? [...originalItem.tags] : [],
-            },
-            false,
-          );
-          await this.syncReaderArticleUpdate(item.guid, {
-            saved: true,
-            savedFilePath: originalItem.savedFilePath,
-            tags: originalItem.tags ? [...originalItem.tags] : [],
-          });
-        }
-      }
-    }
+    return this.articleSyncService.onArticleSaved(item);
   }
 
   private async updateArticleFromReader(
@@ -1098,55 +768,14 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
   ): Promise<void> {
-    const resolvedFeed =
-      this.settings.feeds.find((f) => f.url === item.feedUrl) ||
-      this.settings.feeds.find((f) =>
-        f.items.some((candidate) => candidate.guid === item.guid),
-      );
-    if (!resolvedFeed) return;
-
-    const resolvedFeedUrl = resolvedFeed.url;
-    item.feedUrl = resolvedFeedUrl;
-
-    const normalizedUpdates = applyAutomaticArticleTags(
-      item,
-      updates,
-      this.settings,
-    );
-    const originalItem = resolvedFeed.items.find((i) => i.guid === item.guid);
-    if (!originalItem) return;
-
-    // Reflect updates in open dashboard/reader views immediately, then persist.
-    Object.assign(originalItem, normalizedUpdates);
-    await this.syncDashboardArticleUpdate(
-      item.guid,
-      resolvedFeedUrl,
-      normalizedUpdates,
-      !!shouldRerender,
-    );
-    await this.syncReaderArticleUpdate(item.guid, normalizedUpdates);
-    await this.updateArticle(
-      item.guid,
-      resolvedFeedUrl,
-      normalizedUpdates,
-      false,
-    );
+    return this.articleSyncService.updateArticleFromReader(item, updates, shouldRerender);
   }
 
   private async syncReaderArticleUpdate(
     articleGuid: string,
     updates: Partial<FeedItem>,
   ): Promise<void> {
-    const leaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
-    for (const leaf of leaves) {
-      if (requireApiVersion("1.7.2")) {
-        await leaf.loadIfDeferred();
-      }
-      const view = leaf.view;
-      if (view instanceof ReaderView) {
-        view.applyExternalUpdate(articleGuid, updates);
-      }
-    }
+    return this.articleSyncService.syncReaderArticleUpdate(articleGuid, updates);
   }
 
   private async syncDashboardArticleUpdate(
@@ -1155,122 +784,19 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
     updates: Partial<FeedItem>,
     shouldRerender: boolean,
   ): Promise<void> {
-    const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
-    for (const leaf of leaves) {
-      if (requireApiVersion("1.7.2")) {
-        await leaf.loadIfDeferred();
-      }
-      const view = leaf.view;
-      if (view instanceof RssDashboardView) {
-        view.applyExternalArticleUpdate(
-          articleGuid,
-          feedUrl,
-          updates,
-          shouldRerender,
-        );
-      }
-    }
+    return this.articleSyncService.syncDashboardArticleUpdate(articleGuid, feedUrl, updates, shouldRerender);
   }
 
   async refreshFeeds(selectedFeeds?: Feed[]) {
-    try {
-      const candidateFeeds = selectedFeeds || this.settings.feeds;
-      if (candidateFeeds.length === 0) {
-        return;
-      }
-
-      const feedsToRefresh = this.getRefreshableFeeds(candidateFeeds);
-      if (feedsToRefresh.length === 0) {
-        new Notice(
-          selectedFeeds
-            ? "All selected feeds are excluded from refresh."
-            : "All feeds are excluded from refresh.",
-        );
-        return;
-      }
-
-      if (!this.feedParser) {
-        console.warn(
-          "[RSS dashboard] Feed parser not initialized; skipping refresh.",
-        );
-        return;
-      }
-
-      let feedNoticeText = "";
-      if (feedsToRefresh.length === 1) {
-        feedNoticeText = feedsToRefresh[0].title;
-      } else {
-        feedNoticeText = `${feedsToRefresh.length} feeds`;
-      }
-
-      new Notice(`Refreshing ${feedNoticeText}...`);
-      if (feedsToRefresh.length === 1) {
-        await this.refreshSingleFeed(feedsToRefresh[0], feedNoticeText);
-        return;
-      }
-
-      await this.refreshFeedBatch(feedsToRefresh, feedNoticeText);
-    } catch (error) {
-      console.error(`[RSS dashboard] Error refreshing feeds:`, error);
-      new Notice(
-        `Error refreshing  ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
+    return this.feedOrchestrator.refreshFeeds(selectedFeeds);
   }
 
-  /**
-   * Apply feed limits (maxItemsLimit and autoDeleteDuration) to all feeds
-   * This is useful when users want to apply their current settings to existing feeds
-   */
   async applyFeedLimitsToAllFeeds() {
-    try {
-      let updatedCount = 0;
-
-      for (const feed of this.settings.feeds) {
-        const originalCount = feed.items.length;
-        const updated = applyFeedRetentionLimits(feed);
-        feed.items = updated.items;
-
-        if (feed.items.length !== originalCount) {
-          updatedCount++;
-        }
-      }
-
-      await this.saveSettings();
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        view.refresh();
-      }
-
-      if (updatedCount > 0) {
-        new Notice(`Applied limits to ${updatedCount} feeds`);
-      } else {
-        new Notice("No feeds needed limit adjustments");
-      }
-    } catch (error) {
-      new Notice(
-        `Error applying feed limits: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
+    return this.feedOrchestrator.applyFeedLimitsToAllFeeds();
   }
 
   async refreshSelectedFeed(feed: Feed) {
-    try {
-      if (!this.feedParser) {
-        console.warn(
-          "[RSS dashboard] Feed parser not initialized; skipping refresh.",
-        );
-        return;
-      }
-
-      new Notice(`Refreshing ${feed.title}...`);
-      await this.refreshSingleFeed(feed, feed.title);
-    } catch (error) {
-      console.error(`[RSS dashboard] Error refreshing feeds:`, error);
-      new Notice(
-        `Error refreshing  ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
+    return this.feedOrchestrator.refreshSelectedFeed(feed);
   }
 
   async refreshFeedsInFolder(folderPath: string) {
@@ -1294,24 +820,7 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
     updates: Partial<FeedItem>,
     shouldRefreshView = true,
   ) {
-    const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-    if (!feed) return;
-
-    const article = feed.items.find((item) => item.guid === articleGuid);
-    if (!article) return;
-
-    Object.assign(article, updates);
-
-    await this.saveSettings();
-
-    if (shouldRefreshView) {
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        view.refresh();
-      }
-    }
-
-    await this.syncReaderArticleUpdate(articleGuid, updates);
+    return this.articleSyncService.updateArticle(articleGuid, feedUrl, updates, shouldRefreshView);
   }
 
   importOpml(): void {
@@ -1606,7 +1115,7 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
     }
 
     const metadataFolder =
-      getMetadataPath(this.settings) ?? this.manifest.dir ?? "";
+      this.settingsManager.getMetadataPath(this.settings) ?? this.manifest.dir ?? "";
     const metadataFolderTrimmed = metadataFolder.replace(/[\\/]+$/g, "");
     const relativeDataPath = metadataFolderTrimmed
       ? `${metadataFolderTrimmed}/data.json`
@@ -1822,7 +1331,7 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
     return this.folderService.folderPathExists(folderPath);
   }
 
-  private async repairMissingFolderPathsForFeeds(): Promise<void> {
+  public async repairMissingFolderPathsForFeeds(): Promise<void> {
     if (!this.folderService) return; // guard: service not yet initialized during first loadSettings()
     // ✅ FolderService extracted — delegates to service
     await this.folderService.repairMissingFolderPathsForFeeds({
@@ -2074,160 +1583,17 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
   }
 
   async loadSettings() {
-    try {
-      storageLog("Loading plugin settings");
-
-      // Step 1: load bootstrap pointer from plugin-default location
-      let data = (await this.loadData()) as RssDashboardSettings | null;
-
-      // Step 2: if pointer indicates vault-location mode, load full
-      // settings from the vault path stored in the pointer
-      if (data?.metadataStorageMode === "vault-location") {
-        const vaultData = await loadMetadata(
-          this.app,
-          "vault-location",
-          data.metadataStorageFolder,
-        );
-        if (vaultData) {
-          data = vaultData;
-          storageLog("Metadata loaded from vault location", {
-            folder: data.metadataStorageFolder,
-          });
-        }
-      }
-
-      // Track whether we bootstrapped from null (possible pending sync)
-      const wasNullLoad = data === null;
-
-      const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
-      const originalSettingsJson = JSON.stringify(mergedSettings);
-
-      this.settings = loadAndNormalizeSettings(data);
-      const didMigrateKeywordRules = this.migrateLegacySettings();
-      await this.repairMissingFolderPathsForFeeds();
-      const hydrated = await this.feedStorageRepository.hydrateSettings(
-        this.settings,
-      );
-      storageLog("Settings hydrated", {
-        mode: this.settings.storageMode,
-        folder: this.settings.storageFolder,
-        feedCount: this.settings.feeds.length,
-        hydratedShardCount: hydrated.shardCount,
-      });
-
-      const didNormalizeAndDedupeItems = dedupeAndNormalizeFeedItems(
-        this.settings.feeds,
-      );
-
-      // Guard: skip the early write if we loaded from null defaults.
-      // A null load on a synced vault likely means sync hasn't delivered
-      // data.json yet — writing empty defaults here would clobber it.
-      // The vault modify listener in onload() will trigger loadSettings()
-      // again once sync delivers the real data.
-      // Similarly, skip if we are in v2 mode and user-state.json is missing.
-      const isV2 = this.settings.storageMode === "vault-shards-v2";
-      const isMissingUserState = isV2 && hydrated.userStateLoaded === false;
-
-      const shouldSave =
-        !wasNullLoad &&
-        !isMissingUserState &&
-        (didMigrateKeywordRules ||
-          hydrated.didChange ||
-          didNormalizeAndDedupeItems ||
-          JSON.stringify(this.settings) !== originalSettingsJson);
-
-      if (shouldSave) {
-        await this.saveSettings();
-      }
-    } catch (error) {
-      storageError("Error loading plugin settings", error);
-      new Notice(
-        `Error loading settings: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-      );
-      this.settings = DEFAULT_SETTINGS;
-    }
+    await this.settingsManager.loadSettings();
   }
 
-  private getVaultFilePath(fileOrPath?: unknown): string {
-    if (typeof fileOrPath === "string") return fileOrPath;
-    if (isRecord(fileOrPath) && typeof fileOrPath.path === "string") {
-      return fileOrPath.path;
-    }
-    return "";
-  }
 
-  private isWatchedMetadataPath(filePath: string): boolean {
-    // When running in tests the settings.metadataStorageMode may be
-    // "plugin-default" but tests expect the watcher to consider the
-    // default vault folder (.rss-dashboard-data). Use the resolved
-    // metadataFolder when available, otherwise fall back to the
-    // conventional default folder name so tests behave deterministically.
-    const metadataFolder = getMetadataPath(this.settings ?? DEFAULT_SETTINGS);
-    const folderToCheck = metadataFolder ?? ".rss-dashboard-data";
-
-    const normalizedBase = filePath.replace(/^\/+|\/+$/g, "");
-    const normalizedFolder = folderToCheck.replace(/^\/+|\/+$/g, "");
-
-    return (
-      normalizedBase === `${normalizedFolder}/data.json` ||
-      normalizedBase === `${normalizedFolder}/user-state.json`
-    );
-  }
 
   private registerVaultMetadataChangeListeners(): void {
-    const vault = this.app.vault as unknown as {
-      on?: (event: string, callback: (...args: unknown[]) => void) => EventRef;
-    };
-    if (typeof vault.on !== "function") return;
-
-    const scheduleReload = (file?: unknown, oldPath?: unknown): void => {
-      if (Date.now() < this.suppressWatcherUntil) return;
-
-      const candidatePaths: string[] = [];
-      const filePath = this.getVaultFilePath(file);
-      if (filePath) {
-        candidatePaths.push(filePath);
-      }
-      if (typeof oldPath === "string") {
-        candidatePaths.push(oldPath);
-      }
-
-      const watched = candidatePaths.some((candidatePath) =>
-        this.isWatchedMetadataPath(candidatePath),
-      );
-
-      if (!watched) return;
-
-      if (this.vaultMetadataReloadTimer !== null) {
-        (
-          globalThis as unknown as { clearTimeout: (id: number | null) => void }
-        ).clearTimeout(this.vaultMetadataReloadTimer);
-      }
-
-      this.vaultMetadataReloadTimer = (
-        globalThis as unknown as {
-          setTimeout: (cb: () => number | void, ms: number) => number;
-        }
-      ).setTimeout(() => {
-        this.vaultMetadataReloadTimer = null;
-        void (async () => {
-          await this.loadSettings();
-          await this.refreshDashboardViews();
-        })();
-      }, 1500);
-    };
-
-    this.registerEvent(vault.on("modify", (file) => scheduleReload(file)));
-    this.registerEvent(vault.on("create", (file) => scheduleReload(file)));
-    this.registerEvent(
-      vault.on("rename", (file, oldPath) => scheduleReload(file, oldPath)),
-    );
+    this.settingsManager.registerVaultMetadataChangeListeners();
   }
 
   private migrateLegacySettings(): boolean {
-    return migrateSettings(this.settings);
+    return this.settingsManager.migrateLegacySettings();
   }
 
   public updatePlaybackProgress(
@@ -2238,234 +1604,30 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
     flush = false,
     sourceItem?: FeedItem,
   ): void {
-    if (!this.settings.media.rememberPlaybackProgress) {
-      return;
-    }
-
-    let item: FeedItem | undefined;
-
-    const resolveVideoMatch = (
-      candidateFeed?: (typeof this.settings.feeds)[number],
-    ) => {
-      if (!sourceItem || sourceItem.mediaType !== "video") {
-        return undefined;
-      }
-
-      const feedsToSearch = candidateFeed
-        ? [candidateFeed]
-        : this.settings.feeds;
-
-      for (const feed of feedsToSearch) {
-        const exactRef = feed.items.find((entry) => entry === sourceItem);
-        if (exactRef) {
-          return exactRef;
-        }
-
-        const byVideoId = sourceItem.videoId
-          ? feed.items.find((entry) => entry.videoId === sourceItem.videoId)
-          : undefined;
-        if (byVideoId) {
-          return byVideoId;
-        }
-
-        if (sourceItem.link) {
-          const byLink = feed.items.find(
-            (entry) => entry.link === sourceItem.link,
-          );
-          if (byLink) {
-            return byLink;
-          }
-        }
-      }
-
-      return undefined;
-    };
-
-    if (feedUrl) {
-      const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-      item = feed?.items.find((i) => i.guid === itemGuid);
-      if (!item) {
-        item = resolveVideoMatch(feed);
-      }
-    }
-
-    if (!item) {
-      for (const feed of this.settings.feeds) {
-        const match = feed.items.find((i) => i.guid === itemGuid);
-        if (match) {
-          item = match;
-          break;
-        }
-      }
-    }
-
-    if (!item) {
-      item = resolveVideoMatch();
-    }
-
-    if (!item) return;
-
-    if (!(duration > 0) || position < 0) return;
-
-    item.playbackProgress = { position, duration, lastUpdated: Date.now() };
-
-    if (flush) {
-      if (this.progressSaveDebounce !== null) {
-        window.clearTimeout(this.progressSaveDebounce);
-        this.progressSaveDebounce = null;
-      }
-      void this.saveSettings();
-      return;
-    }
-
-    // Throttle progress persistence: schedule one save at a time.
-    // A reset-on-every-event debounce can starve saves during active playback.
-    if (this.progressSaveDebounce === null) {
-      this.progressSaveDebounce = window.setTimeout(() => {
-        void this.saveSettings();
-        this.progressSaveDebounce = null;
-      }, 2000);
-    }
+    this.pluginLifecycleManager.updatePlaybackProgress(
+      feedUrl,
+      itemGuid,
+      position,
+      duration,
+      flush,
+      sourceItem,
+    );
   }
 
   public async clearPlaybackProgress(): Promise<number> {
-    if (this.progressSaveDebounce !== null) {
-      window.clearTimeout(this.progressSaveDebounce);
-      this.progressSaveDebounce = null;
-    }
-
-    let clearedCount = 0;
-    for (const feed of this.settings.feeds) {
-      for (const item of feed.items) {
-        if (!item.playbackProgress) {
-          continue;
-        }
-
-        delete item.playbackProgress;
-        clearedCount++;
-      }
-    }
-
-    const appWithLocalStorage = this.app as unknown as {
-      removeLocalStorage?: (key: string) => void;
-      saveLocalStorage?: (key: string, value: unknown) => void;
-    };
-    if (typeof appWithLocalStorage.removeLocalStorage === "function") {
-      appWithLocalStorage.removeLocalStorage("rss-podcast-progress");
-    } else if (typeof appWithLocalStorage.saveLocalStorage === "function") {
-      appWithLocalStorage.saveLocalStorage("rss-podcast-progress", null);
-    }
-
-    if (clearedCount > 0) {
-      await this.saveSettings();
-    }
-
-    return clearedCount;
+    return this.pluginLifecycleManager.clearPlaybackProgress();
   }
 
   private async migrateMediaProgressOnStartup(): Promise<void> {
-    if (!this.settings.media.rememberPlaybackProgress) {
-      return;
-    }
-
-    const appWithLocalStorage = this.app as unknown as LegacyLocalStorageApi;
-    if (typeof appWithLocalStorage.loadLocalStorage !== "function") return;
-
-    const legacyProgress = appWithLocalStorage.loadLocalStorage(
-      "rss-podcast-progress",
-    );
-    if (!isRecord(legacyProgress)) return;
-
-    let migratedCount = 0;
-    for (const guid in legacyProgress) {
-      const data = legacyProgress[guid];
-      if (!isLegacyPlaybackProgressEntry(data)) continue;
-
-      for (const feed of this.settings.feeds) {
-        const item = feed.items.find((i) => i.guid === guid);
-        if (!item) continue;
-
-        item.playbackProgress = {
-          position: data.position,
-          duration: data.duration,
-          lastUpdated: Date.now(),
-        };
-        migratedCount++;
-        break;
-      }
-    }
-
-    if (migratedCount > 0) {
-      storageLog(
-        `[RSS Dashboard] Migrated ${migratedCount} media progress items.`,
-      );
-      await this.saveSettings();
-    }
-
-    if (typeof appWithLocalStorage.removeLocalStorage === "function") {
-      appWithLocalStorage.removeLocalStorage("rss-podcast-progress");
-    }
+    return this.pluginLifecycleManager.migrateMediaProgressOnStartup();
   }
 
-  /**
-   * Creates a save callback that persists metadata to the appropriate location
-   * based on the current metadataStorageMode.
-   */
   public getMetadataSaveCallback(): (data: unknown) => Promise<void> {
-    return async (data: unknown): Promise<void> => {
-      const settingsData = data as RssDashboardSettings;
-      const metadataPath = getMetadataPath(this.settings);
-      if (metadataPath) {
-        try {
-          await ensureMetadataFolderExists(this.app, this.settings);
-          const dataFilePath = `${metadataPath}/data.json`;
-          const jsonContent = JSON.stringify(settingsData, null, 2);
-          await this.app.vault.adapter.write(dataFilePath, jsonContent);
-          storageLog("Metadata saved to vault location", {
-            path: dataFilePath,
-          });
-          // Bootstrap pointer only — just enough for loadSettings to
-          // find the vault data.json on restart. Does NOT write full
-          // settings to .obsidian, preventing the stale-read bug on mobile.
-          await this.saveData({
-            metadataStorageMode: this.settings.metadataStorageMode,
-            metadataStorageFolder: this.settings.metadataStorageFolder,
-            metadataStorageSchemaVersion:
-              this.settings.metadataStorageSchemaVersion,
-          });
-        } catch (error) {
-          storageError("Failed to save metadata to vault location", error);
-          throw error;
-        }
-      } else {
-        await this.saveData(settingsData);
-        storageLog("Metadata saved to plugin default location");
-      }
-    };
+    return this.settingsManager.getMetadataSaveCallback();
   }
 
   async saveSettings() {
-    storageLog("saveSettings invoked", {
-      mode: this.settings.storageMode,
-      folder: this.settings.storageFolder,
-      metadataMode: this.settings.metadataStorageMode,
-      feedCount: this.settings.feeds.length,
-    });
-
-    try {
-      const result = await this.feedStorageRepository.persistSettings(
-        this.settings,
-        this.getMetadataSaveCallback(),
-      );
-      storageLog("saveSettings completed", result);
-    } catch (error) {
-      storageError("saveSettings failed", error, {
-        mode: this.settings.storageMode,
-        folder: this.settings.storageFolder,
-        metadataMode: this.settings.metadataStorageMode,
-      });
-      throw error;
-    }
+    await this.settingsManager.saveSettings();
   }
 
   /**
@@ -2477,44 +1639,7 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
    * 4. Persist updated settings
    */
   async migrateMetadataToVaultLocation(): Promise<void> {
-    if (this.settings.metadataStorageMode === "vault-location") {
-      new Notice("Already using vault location for metadata storage");
-      return;
-    }
-
-    try {
-      // Resolve the target path using vault-location mode (before updating mode in settings)
-      const targetSettingsForPath: RssDashboardSettings = {
-        ...this.settings,
-        metadataStorageMode: "vault-location",
-      };
-      const metadataPath = getMetadataPath(targetSettingsForPath);
-      if (!metadataPath) {
-        throw new Error("Failed to resolve metadata storage path");
-      }
-
-      // Ensure the target folder exists
-      await ensureMetadataFolderExists(this.app, targetSettingsForPath);
-
-      // Write current settings to vault location as JSON
-      const settingsJson = JSON.stringify(this.settings, null, 2);
-      const dataFilePath = `${metadataPath}/data.json`;
-      await this.app.vault.adapter.write(dataFilePath, settingsJson);
-
-      // Update mode and persist using the dual-mode save callback
-      this.settings.metadataStorageMode = "vault-location";
-      await this.saveSettings();
-
-      new Notice(`Metadata migrated to vault location: ${metadataPath}`);
-    } catch (error) {
-      storageError("Metadata migration failed", error);
-      // Revert mode on error (no partial state)
-      this.settings.metadataStorageMode = "plugin-default";
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      new Notice(`Vault migration failed: ${errorMessage}`);
-      throw error;
-    }
+    await this.settingsManager.migrateMetadataToVaultLocation();
   }
 
   /**
@@ -2526,19 +1651,7 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
    * 4. Optionally clean up vault-location data.json
    */
   async revertMetadataToPluginDefault(): Promise<void> {
-    if (this.settings.metadataStorageMode === "plugin-default") {
-      new Notice("Already using plugin default for metadata storage");
-      return;
-    }
-
     try {
-      // Current settings are already in memory, just switch the mode
-      this.settings.metadataStorageMode = "plugin-default";
-
-      // Save using Plugin.saveData() (plugin-default location)
-      await this.saveData(this.settings);
-
-      // Optionally clean up the vault-location file
       const oldMetadataPath = this.settings.metadataStorageFolder;
       if (oldMetadataPath) {
         try {
@@ -2576,191 +1689,40 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
   }
 
   private getRefreshableFeeds(feeds: Feed[]): Feed[] {
-    return feeds.filter((feed) => !this.isFeedExcludedFromRefresh(feed));
+    return this.feedOrchestrator["getRefreshableFeeds"](feeds);
   }
 
   private mergeRefreshedFeed(updatedFeed: Feed): void {
-    const index = this.settings.feeds.findIndex(
-      (f) => f.url === updatedFeed.url,
-    );
-    if (index >= 0) {
-      this.settings.feeds[index] = {
-        ...updatedFeed,
-        excludeFromRefresh:
-          updatedFeed.excludeFromRefresh ??
-          this.settings.feeds[index].excludeFromRefresh,
-      };
-    }
+    this.feedOrchestrator["mergeRefreshedFeed"](updatedFeed);
   }
 
   private async refreshSingleFeed(
     feed: Feed,
     feedNoticeText: string,
   ): Promise<void> {
-    const updatedFeed = await this.refreshFeedWithTimeout(feed);
-    this.mergeRefreshedFeed(updatedFeed);
-
-    await this.validateSavedArticles();
-    this.settings.lastRefreshTimestamp = Date.now();
-    await this.saveSettings();
-    const view = await this.getActiveDashboardView();
-    if (view) {
-      view.refresh();
-      new Notice(`Feeds refreshed: ${feedNoticeText}`);
-    }
+    return this.feedOrchestrator["refreshSingleFeed"](feed, feedNoticeText);
   }
 
   private async refreshFeedBatch(
     feedsToRefresh: Feed[],
     feedNoticeText: string,
   ): Promise<void> {
-    if (this.isMultiFeedRefreshRunning) {
-      new Notice("A multi-feed refresh is already in progress.");
-      return;
-    }
-
-    this.isMultiFeedRefreshRunning = true;
-    this.activeRefreshState.clear();
-    const refreshSummary = {
-      failed: 0,
-      timedOut: 0,
-    };
-
-    for (const feed of feedsToRefresh) {
-      this.activeRefreshState.set(feed.url, {
-        status: "pending",
-        startedAt: Date.now(),
-      });
-    }
-
-    let nextFeedIndex = 0;
-    let lastRenderAt = 0;
-
-    const refreshView = async (force = false): Promise<void> => {
-      const now = Date.now();
-      if (
-        !force &&
-        now - lastRenderAt < RssDashboardPlugin.FEED_REFRESH_RENDER_THROTTLE_MS
-      ) {
-        return;
-      }
-
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        if (typeof view.refreshSidebarOnly === "function") {
-          view.refreshSidebarOnly();
-        } else {
-          view.refresh();
-        }
-      }
-      lastRenderAt = now;
-    };
-
-    const worker = async (): Promise<void> => {
-      while (true) {
-        const currentFeed = feedsToRefresh[nextFeedIndex];
-        nextFeedIndex += 1;
-        if (!currentFeed) {
-          return;
-        }
-
-        this.activeRefreshState.set(currentFeed.url, {
-          status: "processing",
-          startedAt: Date.now(),
-        });
-
-        try {
-          const updatedFeed = await this.refreshFeedWithTimeout(currentFeed);
-          this.mergeRefreshedFeed(updatedFeed);
-        } catch (error) {
-          const isTimedOut =
-            error instanceof Error && error.message === "Timed out";
-          if (isTimedOut) {
-            refreshSummary.timedOut += 1;
-          } else {
-            refreshSummary.failed += 1;
-          }
-
-          console.error(
-            `[RSS dashboard] Error refreshing feed ${currentFeed.title}:`,
-            error,
-          );
-        } finally {
-          this.activeRefreshState.delete(currentFeed.url);
-
-          if (this.activeRefreshState.size > 0) {
-            await refreshView();
-          }
-        }
-      }
-    };
-
-    const workerCount = Math.min(
-      RssDashboardPlugin.FEED_REFRESH_CONCURRENCY,
-      feedsToRefresh.length,
-    );
-
-    try {
-      const workers = Array.from({ length: workerCount }, () => worker());
-      await refreshView(true);
-      await Promise.all(workers);
-
-      await this.validateSavedArticles();
-      this.settings.lastRefreshTimestamp = Date.now();
-      await this.saveSettings();
-      this.activeRefreshState.clear();
-      this.isMultiFeedRefreshRunning = false;
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        view.refresh();
-      }
-
-      const failureSuffix = this.buildRefreshFailureSummary(refreshSummary);
-      new Notice(`Feeds refreshed: ${feedNoticeText}${failureSuffix}`);
-    } finally {
-      this.activeRefreshState.clear();
-      this.isMultiFeedRefreshRunning = false;
-    }
+    return this.feedOrchestrator["refreshFeedBatch"](feedsToRefresh, feedNoticeText);
   }
 
   private buildRefreshFailureSummary(summary: {
     failed: number;
     timedOut: number;
   }): string {
-    const parts: string[] = [];
-    if (summary.timedOut > 0) {
-      parts.push(`${summary.timedOut} timed out`);
-    }
-    if (summary.failed > 0) {
-      parts.push(`${summary.failed} failed`);
-    }
-
-    if (parts.length === 0) {
-      return "";
-    }
-
-    return ` (${parts.join(", ")})`;
+    return this.feedOrchestrator["buildRefreshFailureSummary"](summary);
   }
 
   private async refreshFeedWithTimeout(feed: Feed): Promise<Feed> {
-    return await Promise.race([
-      this.refreshFeedDirect(feed),
-      new Promise<Feed>((_, reject) => {
-        activeWindow.setTimeout(
-          () => reject(new Error("Timed out")),
-          FEED_REQUEST_TIMEOUT_MS,
-        );
-      }),
-    ]);
+    return this.feedOrchestrator["refreshFeedWithTimeout"](feed);
   }
 
   private async refreshFeedDirect(feed: Feed): Promise<Feed> {
-    if (typeof this.feedParser.refreshFeed === "function") {
-      return await this.feedParser.refreshFeed(feed);
-    }
-
-    const updatedFeeds = await this.feedParser.refreshAllFeeds([feed]);
-    return updatedFeeds[0] ?? feed;
+    return this.feedOrchestrator["refreshFeedDirect"](feed);
   }
 
   public async performAutoBackups(): Promise<void> {
@@ -2769,67 +1731,23 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
   }
 
   onunload() {
-    if (this.progressSaveDebounce !== null) {
-      window.clearTimeout(this.progressSaveDebounce);
-      this.progressSaveDebounce = null;
-      void this.saveSettings();
-    }
-
+    this.pluginLifecycleManager.onUnload();
+    
     if (this.vaultMetadataReloadTimer !== null) {
       activeWindow.clearTimeout(this.vaultMetadataReloadTimer);
       this.vaultMetadataReloadTimer = null;
     }
-
-    this.cancelPendingStartupRefresh();
-
-    // Run backups asynchronously on plugin disable/unload (best effort)
-    void this.backupService.performAutoBackups();
+    this.settingsManager.cancelPendingReload();
   }
 
   public cancelPendingStartupRefresh(): void {
-    if (this.startupRefreshTimeoutId !== null) {
-      activeWindow.clearTimeout(this.startupRefreshTimeoutId);
-      this.startupRefreshTimeoutId = null;
-    }
+    this.pluginLifecycleManager.cancelPendingStartupRefresh();
   }
 
-  private async validateSavedArticles(): Promise<void> {
-    let updatedCount = 0;
-
-    for (const feed of this.settings.feeds) {
-      for (const item of feed.items) {
-        if (item.saved) {
-          const fileExists = this.articleSaver.checkSavedFileExists(item);
-          if (!fileExists) {
-            item.saved = false;
-            item.savedFilePath = undefined;
-
-            if (item.tags) {
-              item.tags = item.tags.filter(
-                (tag) => tag.name.toLowerCase() !== "saved",
-              );
-            }
-            updatedCount++;
-          }
-        }
-      }
-    }
-
-    if (updatedCount > 0) {
-      await this.saveSettings();
-
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        view.render();
-      }
-    }
+  // ✅ Phase 5: delegated to PluginLifecycleManager
+  public async validateSavedArticles(): Promise<void> {
+    return this.pluginLifecycleManager["validateSavedArticles"]();
   }
 
-  private getAllArticles(): FeedItem[] {
-    let allArticles: FeedItem[] = [];
-    for (const feed of this.settings.feeds) {
-      allArticles = allArticles.concat(feed.items);
-    }
-    return allArticles;
-  }
+
 }
