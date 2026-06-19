@@ -44,6 +44,7 @@ import {
   setFolderFeedSortCustom,
   setFolderSortCustom,
 } from "../services/sidebar-ordering-controller";
+import { getFolderFeedCount } from "./sidebar/folder-feed-count";
 
 export interface SidebarOptions {
   currentFolder: string | null;
@@ -1022,9 +1023,15 @@ export class Sidebar {
       setIcon(pinIcon, "lock");
     }
 
+    let displayFolderName = folderName;
+    if (this.settings.display.showFolderFeedCount) {
+      const feedCount = getFolderFeedCount(fullPath, this.settings.feeds);
+      displayFolderName = `${folderName} (${feedCount})`;
+    }
+
     folderHeader.createDiv({
       cls: "rss-dashboard-feed-folder-name",
-      text: folderName,
+      text: displayFolderName,
     });
 
     const folderUnreadCount = folderUnreadCountMap.get(fullPath) ?? 0;

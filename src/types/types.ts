@@ -292,6 +292,7 @@ export interface DisplaySettings {
   cardSpacing: number;
   hideEmptyFeeds: boolean;
   hideFeedFetchErrorBadges: boolean;
+  showFolderFeedCount: boolean;
 
   // Icon visibility (all default false = visible)
   hideIconDashboard: boolean;
@@ -711,6 +712,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     cardSpacing: 15,
     hideEmptyFeeds: false,
     hideFeedFetchErrorBadges: false,
+    showFolderFeedCount: false,
     hideIconDashboard: false,
     hideIconDiscover: false,
     hideIconAddFeed: false,

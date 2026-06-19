@@ -244,6 +244,23 @@ export function renderSidebarSettingsTab(
         }),
     );
 
+  new Setting(containerEl)
+    .setName("Show folder feed count")
+    .setDesc("Show the total number of feeds contained within a folder next to its name")
+    .addToggle((toggle) =>
+      toggle
+        .setValue(!!plugin.settings.display.showFolderFeedCount)
+        .onChange(async (value) => {
+          plugin.settings.display.showFolderFeedCount = value;
+          await plugin.saveSettings();
+          const view = await plugin.getActiveDashboardView();
+          if (view?.sidebar) {
+            await plugin.app.workspace.revealLeaf(view.leaf);
+            view.sidebar.render();
+          }
+        }),
+    );
+
   // ── Icon Visibility & Order ───────────────────────────────────────────────
   const iconHeading = new Setting(containerEl)
     .setName("Icon visibility")
