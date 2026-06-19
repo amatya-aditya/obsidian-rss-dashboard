@@ -86,6 +86,13 @@ export class MobileNavigationModal extends Modal {
         }
         this.callbacks.onTagToggle(tag);
       },
+      onFolderMultiSelect: (folders: string[]) => {
+        // Mirror multi-select into local options so the modal's sidebar
+        // shows the updated selection immediately.
+        this.options.selectedFolders = folders;
+        this.callbacks.onFolderMultiSelect?.(folders);
+        this.sidebar?.render();
+      },
       onClearTags: () => {
         this.callbacks.onClearTags();
       },

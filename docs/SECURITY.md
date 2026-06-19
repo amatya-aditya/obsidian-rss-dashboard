@@ -297,7 +297,7 @@ This prevents thrashing the vault adapter during long playback sessions while en
 
 **Code Safety**:
 
-- ✅ All code is open-source and publicly available at: https://github.com/joethei/obsidian-rss-dashboard
+- ✅ All code is open-source and publicly available
 - ✅ Code reviews are conducted before merging changes
 - ✅ TypeScript provides type safety and compile-time error detection
 - ✅ ESLint rules enforce security best practices

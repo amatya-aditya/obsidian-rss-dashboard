@@ -62,6 +62,7 @@ export class RssDashboardView extends ItemView {
   private settings: RssDashboardSettings;
   private saver: ArticleSaver;
   public currentFolder: string | null = null;
+  public selectedFolders: string[] = [];
   private currentFeed: Feed | null = null;
   private selectedTags: string[] = [];
   private selectedArticle: FeedItem | null = null;
@@ -151,6 +152,7 @@ export class RssDashboardView extends ItemView {
     // Always open the dashboard in All Feeds view. Any startup filtering is
     // applied via dashboard multi-filters instead of hard switching views.
     this.currentFolder = null;
+    this.selectedFolders = [];
 
     this.scope = new Scope(this.app?.scope || undefined);
     this.setupScope();
@@ -750,9 +752,11 @@ export class RssDashboardView extends ItemView {
           selectedTags: this.selectedTags,
           tagsCollapsed: this.tagsCollapsed,
           collapsedFolders: this.collapsedFolders,
+          selectedFolders: this.selectedFolders,
         },
         {
           onFolderClick: this.handleFolderClick.bind(this),
+          onFolderMultiSelect: this.handleFolderMultiSelect?.bind(this),
           onFeedClick: this.handleFeedClick.bind(this),
           onTagToggle: this.handleTagToggle.bind(this),
           onClearTags: this.handleClearTags.bind(this),
@@ -826,6 +830,7 @@ export class RssDashboardView extends ItemView {
           selectedTags: this.selectedTags,
           tagsCollapsed: this.tagsCollapsed,
           collapsedFolders: this.collapsedFolders,
+          selectedFolders: this.selectedFolders,
         };
         this.sidebar["settings"] = this.settings;
         this.sidebar.render();
@@ -1327,7 +1332,16 @@ export class RssDashboardView extends ItemView {
       return "Podcasts";
     } else if (this.selectedTags.length > 0) {
       const mode = (this.settings.sidebarTagFilterMode || "or").toUpperCase();
-      return `Tags (${mode}): ${this.selectedTags.join(", ")}`;
+      const tagsPart = `Tags (${mode}): ${this.selectedTags.join(", ")}`;
+      if (this.selectedFolders && this.selectedFolders.length > 0) {
+        // Combine folders and tags when both are active
+        const foldersPart = `Folders: ${this.selectedFolders.join(", ")}`;
+        return `${foldersPart} & ${tagsPart}`;
+      }
+      return tagsPart;
+    } else if (this.selectedFolders && this.selectedFolders.length > 0) {
+      // Title for multi-folder selection: list selected folder paths
+      return `Folders: ${this.selectedFolders.join(", ")}`;
     } else if (this.currentFolder) {
       return this.currentFolder;
     } else {
@@ -1398,6 +1412,24 @@ export class RssDashboardView extends ItemView {
               feedUrl: feed.url,
             })),
         );
+      }
+    } else if (this.selectedFolders && this.selectedFolders.length > 0) {
+      const allFolders = new Set<string>();
+      for (const path of this.selectedFolders) {
+        for (const f of this.getAllDescendantFolders(path)) {
+          allFolders.add(f);
+        }
+      }
+      for (const feed of this.settings.feeds) {
+        if (feed.folder && allFolders.has(feed.folder)) {
+          articles = articles.concat(
+            feed.items.map((item) => ({
+              ...item,
+              feedTitle: feed.title,
+              feedUrl: feed.url,
+            })),
+          );
+        }
       }
     } else if (this.currentFolder) {
       const specialFolders = [
@@ -1516,6 +1548,24 @@ export class RssDashboardView extends ItemView {
               feedUrl: feed.url,
             })),
         );
+      }
+    } else if (this.selectedFolders && this.selectedFolders.length > 0) {
+      const allFolders = new Set<string>();
+      for (const path of this.selectedFolders) {
+        for (const f of this.getAllDescendantFolders(path)) {
+          allFolders.add(f);
+        }
+      }
+      for (const feed of this.settings.feeds) {
+        if (feed.folder && allFolders.has(feed.folder)) {
+          articles = articles.concat(
+            feed.items.map((item) => ({
+              ...item,
+              feedTitle: feed.title,
+              feedUrl: feed.url,
+            })),
+          );
+        }
       }
     } else if (this.currentFolder) {
       const specialFolders = [
@@ -1867,6 +1917,7 @@ export class RssDashboardView extends ItemView {
   // --- Sidebar navigation and selection ---
   private handleFolderClick(folder: string | null): void {
     this.inlineArticle = null;
+    this.selectedFolders = [];
     let scrollPosition = 0;
     if (this.sidebarContainer) {
       const foldersSection = this.sidebarContainer.querySelector(
@@ -1910,6 +1961,7 @@ export class RssDashboardView extends ItemView {
 
   private handleFeedClick(feed: Feed): void {
     this.inlineArticle = null;
+    this.selectedFolders = [];
     let scrollPosition = 0;
     if (this.sidebarContainer) {
       const foldersSection = this.sidebarContainer.querySelector(
@@ -1940,6 +1992,7 @@ export class RssDashboardView extends ItemView {
 
   private handleTagToggle(tag: string): void {
     this.inlineArticle = null;
+    this.selectedFolders = [];
     if (this.selectedTags.includes(tag)) {
       this.selectedTags = this.selectedTags.filter((t) => t !== tag);
     } else {
@@ -2002,6 +2055,16 @@ export class RssDashboardView extends ItemView {
 
     this.settings.collapsedFolders = this.collapsedFolders;
     void this.plugin.saveSettings();
+    void this.render();
+  }
+
+  private handleFolderMultiSelect(folders: string[]): void {
+    this.inlineArticle = null;
+    this.selectedFolders = folders;
+    // When entering multi-select, clear single-folder and feed selection
+    this.currentFeed = null;
+    this.currentFolder = folders.length === 1 ? folders[0] : null;
+    this.selectedTags = [];
     void this.render();
   }
 
@@ -2141,6 +2204,7 @@ export class RssDashboardView extends ItemView {
         selectedTags: this.selectedTags,
         tagsCollapsed: this.tagsCollapsed,
         collapsedFolders: this.collapsedFolders,
+        selectedFolders: this.selectedFolders,
       },
       {
         onFolderClick: this.handleFolderClick.bind(this),
@@ -3031,6 +3095,7 @@ export class RssDashboardView extends ItemView {
       selectedTags: this.selectedTags,
       tagsCollapsed: this.tagsCollapsed,
       collapsedFolders: this.collapsedFolders,
+      selectedFolders: this.selectedFolders,
     };
     this.sidebar["settings"] = this.settings;
     this.sidebar.render();

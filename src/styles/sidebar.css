@@ -730,6 +730,21 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   color: var(--text-accent);
 }
 
+/* Multi-folder ctrl+click selection indicator */
+.rss-dashboard-feed-folder-header.multi-selected {
+  background-color: color-mix(
+    in srgb,
+    var(--interactive-accent) 14%,
+    var(--background-primary)
+  );
+  border-left-color: var(--interactive-accent);
+}
+
+.rss-dashboard-feed-folder-header.multi-selected
+  .rss-dashboard-feed-folder-name {
+  color: var(--text-accent);
+}
+
 /* Keyboard focus state shared by all sidebar row types */
 .rss-dashboard-feed-folder-header.rss-dashboard-sidebar-row-focused,
 .rss-dashboard-feed.rss-dashboard-sidebar-row-focused,
@@ -1461,4 +1476,6 @@ body .rss-folder-name-modal {
   }
 }
 
-.rss-dashboard-tag-checkbox { pointer-events: none; }
+.rss-dashboard-tag-checkbox {
+  pointer-events: none;
+}

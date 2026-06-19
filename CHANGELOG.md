@@ -1,3 +1,13 @@
+# Obsidian RSS Dashboard Changelog
+
+## Unreleased
+
+### Features
+
+#### Multi-select sidebar folders
+
+- Added ability to control+click select multiple folders in the sidebar. This allows you to filter and view only the articles contained within those folders.
+
 ## 2.4.0-beta.3 - June 17, 2026
 
 ### Features

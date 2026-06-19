@@ -1,12 +1,4 @@
-import {
-  Menu,
-  MenuItem,
-  Notice,
-  App,
-  Modal,
-  setIcon,
-  Setting,
-} from "obsidian";
+import { Menu, MenuItem, Notice, App, Modal, setIcon, Setting } from "obsidian";
 import {
   Feed,
   Folder,
@@ -39,7 +31,12 @@ import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { MediaService } from "../services/media-service";
 import { MastodonService } from "../services/mastodon-service";
-import { createSafeIconImage, failedFeedIconUrls, extractDomain, getFaviconUrl } from "../utils/favicon-utils";
+import {
+  createSafeIconImage,
+  failedFeedIconUrls,
+  extractDomain,
+  getFaviconUrl,
+} from "../utils/favicon-utils";
 import {
   moveFeedAndInsert,
   moveFeedToFolderAppend,
@@ -54,6 +51,7 @@ export interface SidebarOptions {
   selectedTags: string[];
   tagsCollapsed: boolean;
   collapsedFolders: string[];
+  selectedFolders: string[];
 }
 
 export interface SidebarCallbacks {
@@ -95,6 +93,7 @@ export interface SidebarCallbacks {
   onActivateDashboard?: () => void;
   onActivateDiscover?: () => void;
   onCloseMobileSidebar?: () => void;
+  onFolderMultiSelect?: (folders: string[]) => void;
 }
 
 type SidebarFocusTarget =
@@ -267,7 +266,7 @@ class FolderNameModal extends Modal {
 }
 
 export class Sidebar {
-private container: HTMLElement;
+  private container: HTMLElement;
   private settings: RssDashboardSettings;
   private options: SidebarOptions;
   private callbacks: SidebarCallbacks;
@@ -299,10 +298,7 @@ private container: HTMLElement;
     setIcon(feedIcon, "rss");
   }
 
-  private renderDomainFavicon(
-    feedIcon: HTMLElement,
-    domain: string,
-  ): void {
+  private renderDomainFavicon(feedIcon: HTMLElement, domain: string): void {
     const faviconUrl = getFaviconUrl(domain);
     if (!faviconUrl) {
       this.renderFallbackFeedIcon(feedIcon);
@@ -316,9 +312,15 @@ private container: HTMLElement;
 
     feedIcon.empty();
     feedIcon.removeClass("rss-icon-hidden");
-    createSafeIconImage(feedIcon, faviconUrl, domain, () => {
-      this.renderFallbackFeedIcon(feedIcon);
-    }, "rss-dashboard-feed-favicon");
+    createSafeIconImage(
+      feedIcon,
+      faviconUrl,
+      domain,
+      () => {
+        this.renderFallbackFeedIcon(feedIcon);
+      },
+      "rss-dashboard-feed-favicon",
+    );
   }
 
   private getCachedFolderPaths(): string[] {
@@ -976,16 +978,16 @@ private container: HTMLElement;
 
     const folderEl = container.createDiv({
       cls: "rss-dashboard-feed-folder",
-      attr: {
-        "data-folder-path": fullPath,
-      },
     });
 
     const folderHeader = folderEl.createDiv({
       cls:
         "rss-dashboard-feed-folder-header" +
         (isCollapsed ? " collapsed" : "") +
-        (shouldHighlight ? " active" : ""),
+        (shouldHighlight ? " active" : "") +
+        ((this.options.selectedFolders || []).includes(fullPath)
+          ? " multi-selected"
+          : ""),
       attr: {
         draggable: "true",
         "data-folder-name": folderName,
@@ -1032,36 +1034,66 @@ private container: HTMLElement;
     }
 
     folderHeader.addEventListener("click", (e) => {
-      if (e.button === 0) {
-        if (
-          e.target === toggleButton ||
-          toggleButton.contains(e.target as Node)
-        ) {
-          if (!isExpandable) {
-            this.callbacks.onFolderClick(fullPath);
-            return;
-          }
+      // Only handle primary (left) clicks here
+      if (e.button !== 0) return;
 
-          // Local DOM toggle to avoid scroll-bounce
-          const isNowCollapsed = !folderHeader.classList.contains("collapsed");
-          folderHeader.classList.toggle("collapsed", isNowCollapsed);
-          folderFeedsList.classList.toggle("collapsed", isNowCollapsed);
-
-          setIcon(
-            toggleButton as HTMLElement,
-            isNowCollapsed ? "chevron-right" : "chevron-down",
-          );
-
-          toggleButton.setAttr(
-            "aria-label",
-            isNowCollapsed ? "Expand folder" : "Collapse folder",
-          );
-
-          this.callbacks.onToggleFolderCollapse(fullPath, false);
-        } else {
+      // If the click was on the toggleButton, handle collapse/expand first
+      if (
+        e.target === toggleButton ||
+        toggleButton.contains(e.target as Node)
+      ) {
+        if (!isExpandable) {
           this.callbacks.onFolderClick(fullPath);
+          return;
         }
+
+        // Local DOM toggle to avoid scroll-bounce
+        const isNowCollapsed = !folderHeader.classList.contains("collapsed");
+        folderHeader.classList.toggle("collapsed", isNowCollapsed);
+        folderFeedsList.classList.toggle("collapsed", isNowCollapsed);
+
+        setIcon(
+          toggleButton as HTMLElement,
+          isNowCollapsed ? "chevron-right" : "chevron-down",
+        );
+
+        toggleButton.setAttr(
+          "aria-label",
+          isNowCollapsed ? "Expand folder" : "Collapse folder",
+        );
+
+        this.callbacks.onToggleFolderCollapse(fullPath, false);
+        return;
       }
+
+      // Ctrl+click (or Meta+click on macOS): toggle this folder in multi-selection
+      if (e.ctrlKey || e.metaKey) {
+        if (this.callbacks.onFolderMultiSelect) {
+          // Build a baseline from selectedFolders, but if empty and a single
+          // currentFolder is active, include it so Ctrl+click augments an
+          // existing single-folder selection.
+          const baseline =
+            this.options.selectedFolders &&
+            this.options.selectedFolders.length > 0
+              ? this.options.selectedFolders
+              : this.options.currentFolder
+                ? [this.options.currentFolder]
+                : [];
+          // Use a Set to toggle membership to avoid order-sensitive array bugs
+          const currentSet = new Set<string>(baseline);
+          if (currentSet.has(fullPath)) {
+            currentSet.delete(fullPath);
+          } else {
+            currentSet.add(fullPath);
+          }
+          // Pass an array snapshot to the callback. Array.from preserves insertion order.
+          this.callbacks.onFolderMultiSelect(Array.from(currentSet));
+        }
+        return;
+      }
+
+      // Plain click: activate folder
+      this.callbacks.onFolderClick(fullPath);
     });
 
     folderHeader.addEventListener("contextmenu", (e) => {
@@ -1422,7 +1454,10 @@ private container: HTMLElement;
       });
     }
 
-    if (!this.settings.display.hideFeedFetchErrorBadges && feed.lastFetchError) {
+    if (
+      !this.settings.display.hideFeedFetchErrorBadges &&
+      feed.lastFetchError
+    ) {
       const errorBadge = feedNameContainer.createDiv({
         cls: "rss-dashboard-feed-error-badge",
         attr: {

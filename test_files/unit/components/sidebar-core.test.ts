@@ -1,5 +1,17 @@
-import { vi, describe, it, expect, beforeEach, type Mock } from "vitest";
-import { Sidebar, SidebarOptions, SidebarCallbacks } from "../../../src/components/sidebar";
+import {
+  vi,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  type Mock,
+} from "vitest";
+import {
+  Sidebar,
+  SidebarOptions,
+  SidebarCallbacks,
+} from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
 import {
@@ -61,7 +73,7 @@ describe("Sidebar Core", () => {
   beforeEach(() => {
     app = ObsidianStubs.App.createMock() as TestApp;
     container = document.createElement("div");
-    
+
     settings = {
       feeds: [],
       folders: [],
@@ -82,6 +94,7 @@ describe("Sidebar Core", () => {
       selectedTags: [],
       tagsCollapsed: true,
       collapsedFolders: [],
+      selectedFolders: [],
     };
 
     callbacks = {
@@ -112,7 +125,14 @@ describe("Sidebar Core", () => {
   });
 
   it("should initialize with correct properties", () => {
-    const sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
+    const sidebar = new Sidebar(
+      app,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
     expect(sidebar).toBeDefined();
     const ts = sidebar as unknown as TestSidebar;
     // Accessing private members via typed boundary
@@ -127,7 +147,14 @@ describe("Sidebar Core", () => {
     let iconEl: HTMLElement;
 
     beforeEach(() => {
-      sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
+      sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
       iconEl = document.createElement("div");
     });
 
@@ -150,7 +177,14 @@ describe("Sidebar Core", () => {
     let sidebar: Sidebar;
 
     beforeEach(() => {
-      sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
+      sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
       settings.folders = [
         { name: "folder1", subfolders: [] },
         { name: "folder2", subfolders: [] },
@@ -175,23 +209,39 @@ describe("Sidebar Core", () => {
 
   describe("renderHeader basics", () => {
     it("should render sidebar header container", () => {
-      const sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
       const headerSurface = document.createElement("div");
       const ts = sidebar as unknown as TestSidebar;
       ts.renderHeader(headerSurface);
-      
-      const header = headerSurface.querySelector(".rss-dashboard-sidebar-header");
+
+      const header = headerSurface.querySelector(
+        ".rss-dashboard-sidebar-header",
+      );
       expect(header).toBeDefined();
     });
   });
 
   describe("lifecycle", () => {
     it("should disconnect resizeObserver on destroy", () => {
-      const sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
       const mockObserver = { disconnect: vi.fn() };
       const ts = sidebar as unknown as TestSidebar;
       ts.resizeObserver = mockObserver as unknown as ResizeObserver;
-      
+
       sidebar.destroy();
       expect(mockObserver.disconnect).toHaveBeenCalled();
       expect(ts.resizeObserver).toBeNull();
@@ -347,19 +397,41 @@ describe("Sidebar Core", () => {
         [queuedFeed.url, { status: "pending", startedAt: Date.now() }],
       ]);
 
-      const sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
       sidebar.render();
 
-      const allFeedsIcon = container.querySelector(".rss-dashboard-all-feeds-icon");
+      const allFeedsIcon = container.querySelector(
+        ".rss-dashboard-all-feeds-icon",
+      );
       expect(allFeedsIcon?.classList.contains("refreshing")).toBe(true);
 
-      const feedEls = Array.from(container.querySelectorAll(".rss-dashboard-feed"));
-      const processingEl = feedEls.find((el) => el.getAttribute("data-feed-url") === processingFeed.url);
-      const queuedEl = feedEls.find((el) => el.getAttribute("data-feed-url") === queuedFeed.url);
+      const feedEls = Array.from(
+        container.querySelectorAll(".rss-dashboard-feed"),
+      );
+      const processingEl = feedEls.find(
+        (el) => el.getAttribute("data-feed-url") === processingFeed.url,
+      );
+      const queuedEl = feedEls.find(
+        (el) => el.getAttribute("data-feed-url") === queuedFeed.url,
+      );
 
-      expect(processingEl?.querySelector(".rss-dashboard-feed-icon")?.getAttribute("data-icon")).toBe("loader-2");
+      expect(
+        processingEl
+          ?.querySelector(".rss-dashboard-feed-icon")
+          ?.getAttribute("data-icon"),
+      ).toBe("loader-2");
       expect(processingEl?.classList.contains("processing-feed")).toBe(true);
-      expect(queuedEl?.querySelector(".rss-dashboard-feed-processing-indicator")?.textContent).toContain("⏳");
+      expect(
+        queuedEl?.querySelector(".rss-dashboard-feed-processing-indicator")
+          ?.textContent,
+      ).toContain("⏳");
     });
 
     it("prefers import processing visuals over refresh visuals when both exist", () => {
@@ -379,12 +451,182 @@ describe("Sidebar Core", () => {
         },
       ];
 
-      const sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
       sidebar.render();
 
       const feedEl = container.querySelector(".rss-dashboard-feed");
-      expect(feedEl?.querySelector(".rss-dashboard-feed-icon")?.getAttribute("data-icon")).toBe("loader-2");
-      expect(feedEl?.querySelector(".rss-dashboard-feed-processing-indicator")).toBeNull();
+      expect(
+        feedEl
+          ?.querySelector(".rss-dashboard-feed-icon")
+          ?.getAttribute("data-icon"),
+      ).toBe("loader-2");
+      expect(
+        feedEl?.querySelector(".rss-dashboard-feed-processing-indicator"),
+      ).toBeNull();
+    });
+  });
+
+  // ── RED: multi-folder ctrl+click selection ────────────────────────────────
+  // Tests written BEFORE implementation (TDD red phase). These will fail until
+  // SidebarOptions.selectedFolders and SidebarCallbacks.onFolderMultiSelect
+  // are implemented in sidebar.ts.
+  describe("multi-folder ctrl+click selection", () => {
+    function makeSidebarWithFolders(
+      folderNames: string[],
+      selectedFolders: string[] = [],
+    ): Sidebar {
+      // Attach to DOM so click events propagate correctly.
+      document.body.appendChild(container);
+      settings.folders = folderNames.map(
+        (name) => ({ name, subfolders: [] }) as Folder,
+      );
+      settings.feeds = [];
+      options.selectedFolders = selectedFolders;
+      callbacks.onFolderMultiSelect = vi.fn();
+      return new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+    }
+
+    afterEach(() => {
+      // Clean up DOM between tests.
+      if (container.parentElement) {
+        container.parentElement.removeChild(container);
+      }
+      container = document.createElement("div");
+    });
+
+    it("ctrl+click on a folder calls onFolderMultiSelect with that folder added to the selection", () => {
+      const sidebar = makeSidebarWithFolders(["News", "Tech"]);
+      sidebar.render();
+
+      const folderHeader = container.querySelector(
+        "[data-folder-path='News']",
+      ) as HTMLElement;
+      expect(folderHeader).not.toBeNull();
+
+      // Dispatch a ctrl+click
+      folderHeader.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, ctrlKey: true, button: 0 }),
+      );
+
+      expect(callbacks.onFolderMultiSelect).toHaveBeenCalledWith(["News"]);
+      expect(callbacks.onFolderClick).not.toHaveBeenCalled();
+    });
+
+    it("ctrl+click a second folder appends it to the existing selection", () => {
+      // Start with 'News' already selected
+      const sidebar = makeSidebarWithFolders(["News", "Tech"], ["News"]);
+      sidebar.render();
+
+      const techHeader = container.querySelector(
+        "[data-folder-path='Tech']",
+      ) as HTMLElement;
+      expect(techHeader).not.toBeNull();
+
+      techHeader.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, ctrlKey: true, button: 0 }),
+      );
+
+      expect(callbacks.onFolderMultiSelect).toHaveBeenCalledWith([
+        "News",
+        "Tech",
+      ]);
+    });
+
+    it("ctrl+click an already-selected folder removes it from the selection", () => {
+      // Start with both folders selected
+      const sidebar = makeSidebarWithFolders(
+        ["News", "Tech"],
+        ["News", "Tech"],
+      );
+      sidebar.render();
+
+      const newsHeader = container.querySelector(
+        "[data-folder-path='News']",
+      ) as HTMLElement;
+      newsHeader.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, ctrlKey: true, button: 0 }),
+      );
+
+      // After removing 'News', only 'Tech' should remain
+      expect(callbacks.onFolderMultiSelect).toHaveBeenCalledWith(["Tech"]);
+    });
+
+    it("plain click on a folder calls onFolderClick (not onFolderMultiSelect)", () => {
+      const sidebar = makeSidebarWithFolders(["News", "Tech"], ["News"]);
+      sidebar.render();
+
+      const techHeader = container.querySelector(
+        "[data-folder-path='Tech']",
+      ) as HTMLElement;
+      techHeader.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, ctrlKey: false, button: 0 }),
+      );
+
+      expect(callbacks.onFolderMultiSelect).not.toHaveBeenCalled();
+      expect(callbacks.onFolderClick).toHaveBeenCalledWith("Tech");
+    });
+
+    it("renders the multi-selected CSS class on folders in selectedFolders", () => {
+      const sidebar = makeSidebarWithFolders(
+        ["News", "Tech", "Science"],
+        ["News", "Science"],
+      );
+      sidebar.render();
+
+      const newsHeader = container.querySelector(
+        "[data-folder-path='News']",
+      ) as HTMLElement;
+      const techHeader = container.querySelector(
+        "[data-folder-path='Tech']",
+      ) as HTMLElement;
+      const scienceHeader = container.querySelector(
+        "[data-folder-path='Science']",
+      ) as HTMLElement;
+
+      expect(newsHeader.classList.contains("multi-selected")).toBe(true);
+      expect(scienceHeader.classList.contains("multi-selected")).toBe(true);
+      expect(techHeader.classList.contains("multi-selected")).toBe(false);
+    });
+
+    it("does not add multi-selected class when selectedFolders is empty", () => {
+      const sidebar = makeSidebarWithFolders(["News", "Tech"], []);
+      sidebar.render();
+
+      const allHeaders = Array.from(
+        container.querySelectorAll(".rss-dashboard-feed-folder-header"),
+      );
+      expect(
+        allHeaders.every((h) => !h.classList.contains("multi-selected")),
+      ).toBe(true);
+    });
+
+    it("meta+click (macOS) also triggers multi-select", () => {
+      const sidebar = makeSidebarWithFolders(["News"]);
+      sidebar.render();
+
+      const folderHeader = container.querySelector(
+        "[data-folder-path='News']",
+      ) as HTMLElement;
+      folderHeader.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, metaKey: true, button: 0 }),
+      );
+
+      expect(callbacks.onFolderMultiSelect).toHaveBeenCalledWith(["News"]);
+      expect(callbacks.onFolderClick).not.toHaveBeenCalled();
     });
   });
 });
