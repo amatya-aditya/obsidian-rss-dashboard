@@ -1,23 +1,35 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, Mock } from "vitest";
 import { App, Workspace, WorkspaceLeaf } from "obsidian";
 import { ViewOrchestrator } from "../../../src/services/view-orchestrator";
 import { SettingsManager } from "../../../src/services/settings-manager";
-import { DEFAULT_SETTINGS } from "../../../src/types/types";
+import { DEFAULT_SETTINGS, RssDashboardSettings } from "../../../src/types/types";
 
 describe("ViewOrchestrator", () => {
   let mockApp: App;
   let mockSettingsManager: SettingsManager;
   let mockWorkspace: Workspace;
   let orchestrator: ViewOrchestrator;
+  
+  let getLeavesOfType: Mock<(type: string) => WorkspaceLeaf[]>;
+  let getRightLeaf: Mock<(split: boolean) => WorkspaceLeaf>;
+  let getLeftLeaf: Mock<(split: boolean) => WorkspaceLeaf>;
+  let getLeaf: Mock<(id: string) => WorkspaceLeaf>;
+  let revealLeaf: Mock<(leaf: WorkspaceLeaf) => void>;
 
   beforeEach(() => {
+    getLeavesOfType = vi.fn();
+    getRightLeaf = vi.fn();
+    getLeftLeaf = vi.fn();
+    getLeaf = vi.fn();
+    revealLeaf = vi.fn();
+
     mockWorkspace = {
-      getLeavesOfType: vi.fn(),
-      getLeftLeaf: vi.fn(),
-      getRightLeaf: vi.fn(),
-      getLeaf: vi.fn(),
-      revealLeaf: vi.fn(),
+      getLeavesOfType,
+      getLeftLeaf,
+      getRightLeaf,
+      getLeaf,
+      revealLeaf,
     } as unknown as Workspace;
 
     mockApp = {
@@ -25,7 +37,7 @@ describe("ViewOrchestrator", () => {
     } as unknown as App;
 
     mockSettingsManager = {
-      settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
+      settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings,
     } as unknown as SettingsManager;
 
     orchestrator = new ViewOrchestrator(mockApp, mockSettingsManager);
@@ -34,25 +46,25 @@ describe("ViewOrchestrator", () => {
   describe("activateView", () => {
     it("reveals existing dashboard view if one exists", async () => {
       const mockLeaf = { setViewState: vi.fn() } as unknown as WorkspaceLeaf;
-      vi.mocked(mockWorkspace.getLeavesOfType).mockReturnValue([mockLeaf]);
+      getLeavesOfType.mockReturnValue([mockLeaf]);
 
       await orchestrator.activateView();
 
-      expect(mockWorkspace.getLeavesOfType).toHaveBeenCalledWith("rss-dashboard-view");
+      expect(getLeavesOfType).toHaveBeenCalledWith("rss-dashboard-view");
       expect(mockLeaf.setViewState).toHaveBeenCalledWith({ type: "rss-dashboard-view", active: true });
-      expect(mockWorkspace.revealLeaf).toHaveBeenCalledWith(mockLeaf);
+      expect(revealLeaf).toHaveBeenCalledWith(mockLeaf);
     });
 
     it("creates a new leaf based on viewLocation setting if none exists", async () => {
-      vi.mocked(mockWorkspace.getLeavesOfType).mockReturnValue([]);
+      getLeavesOfType.mockReturnValue([]);
       const mockLeaf = { setViewState: vi.fn() } as unknown as WorkspaceLeaf;
-      vi.mocked(mockWorkspace.getRightLeaf).mockReturnValue(mockLeaf);
+      getRightLeaf.mockReturnValue(mockLeaf);
       
       mockSettingsManager.settings.viewLocation = "right-sidebar";
 
       await orchestrator.activateView();
 
-      expect(mockWorkspace.getRightLeaf).toHaveBeenCalledWith(false);
+      expect(getRightLeaf).toHaveBeenCalledWith(false);
       expect(mockLeaf.setViewState).toHaveBeenCalledWith({ type: "rss-dashboard-view", active: true });
     });
   });
@@ -60,26 +72,26 @@ describe("ViewOrchestrator", () => {
   describe("activateDiscoverView", () => {
     it("reveals existing discover view if one exists", async () => {
       const mockLeaf = { setViewState: vi.fn() } as unknown as WorkspaceLeaf;
-      vi.mocked(mockWorkspace.getLeavesOfType).mockReturnValue([mockLeaf]);
+      getLeavesOfType.mockReturnValue([mockLeaf]);
 
       await orchestrator.activateDiscoverView();
 
-      expect(mockWorkspace.getLeavesOfType).toHaveBeenCalledWith("rss-discover-view");
+      expect(getLeavesOfType).toHaveBeenCalledWith("rss-discover-view");
       expect(mockLeaf.setViewState).toHaveBeenCalledWith({ type: "rss-discover-view", active: true });
-      expect(mockWorkspace.revealLeaf).toHaveBeenCalledWith(mockLeaf);
+      expect(revealLeaf).toHaveBeenCalledWith(mockLeaf);
     });
   });
 
   describe("activateSmallwebView", () => {
     it("reveals existing smallweb view if one exists", async () => {
       const mockLeaf = { setViewState: vi.fn() } as unknown as WorkspaceLeaf;
-      vi.mocked(mockWorkspace.getLeavesOfType).mockReturnValue([mockLeaf]);
+      getLeavesOfType.mockReturnValue([mockLeaf]);
 
       await orchestrator.activateSmallwebView();
 
-      expect(mockWorkspace.getLeavesOfType).toHaveBeenCalledWith("rss-smallweb-view");
+      expect(getLeavesOfType).toHaveBeenCalledWith("rss-smallweb-view");
       expect(mockLeaf.setViewState).toHaveBeenCalledWith({ type: "rss-smallweb-view", active: true });
-      expect(mockWorkspace.revealLeaf).toHaveBeenCalledWith(mockLeaf);
+      expect(revealLeaf).toHaveBeenCalledWith(mockLeaf);
     });
   });
 

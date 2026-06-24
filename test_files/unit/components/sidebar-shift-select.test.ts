@@ -6,7 +6,11 @@ import {
 } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
-import type { RssDashboardSettings } from "../../../src/types/types";
+import type {
+  Feed,
+  Folder,
+  RssDashboardSettings,
+} from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -16,8 +20,8 @@ function createMockEnv() {
   const app = ObsidianStubs.App.createMock() as unknown as App;
   const container = document.createElement("div");
   const settings = {
-    feeds: [],
-    folders: [],
+    feeds: [] as Feed[],
+    folders: [] as Folder[],
     display: {},
     availableTags: [],
   } as unknown as RssDashboardSettings;
@@ -59,16 +63,17 @@ describe("Sidebar Shift+Click Range Select (TDD)", () => {
       onToggleFolderCollapse: vi.fn(),
       onAddFolder: vi.fn(),
       onAddSubfolder: vi.fn(),
-      onAddFeed: vi.fn() as any,
-      onEditFeed: vi.fn() as any,
-      onDeleteFeed: vi.fn() as any,
-      onDeleteFolder: vi.fn() as any,
-      onRefreshFeeds: vi.fn() as any,
-      onUpdateFeed: vi.fn() as any,
+      onAddFeed: vi.fn(),
+      onEditFeed: vi.fn(),
+      onDeleteFeed: vi.fn(),
+      onDeleteFolder: vi.fn(),
+      onRefreshFeeds: vi.fn(),
+      onUpdateFeed: vi.fn(),
       onImportOpml: vi.fn(),
       onExportOpml: vi.fn(),
       onToggleSidebar: vi.fn(),
-    } as unknown as SidebarCallbacks;
+      onRangeSelect: vi.fn(),
+    } as SidebarCallbacks;
   });
 
   afterEach(() => {
@@ -82,7 +87,7 @@ describe("Sidebar Shift+Click Range Select (TDD)", () => {
     settings.folders = [
       { name: "A", subfolders: [] },
       { name: "B", subfolders: [] },
-    ] as any;
+    ] as Partial<Folder>[] as Folder[];
 
     callbacks.onRangeSelect = vi.fn();
 
@@ -108,10 +113,10 @@ describe("Sidebar Shift+Click Range Select (TDD)", () => {
     });
     folderA.dispatchEvent(evt);
 
-    expect(callbacks.onRangeSelect).toHaveBeenCalled();
-    const call = (callbacks.onRangeSelect as any).mock.calls[0];
-    const clickedKey = call[0];
-    const visibleKeys = call[1];
+    expect(vi.mocked(callbacks.onRangeSelect)).toHaveBeenCalled();
+    const [clickedKey, visibleKeys] = vi.mocked(callbacks.onRangeSelect).mock
+      .calls[0];
+
     expect(clickedKey).toBe("folder:A");
     expect(Array.isArray(visibleKeys)).toBe(true);
     expect(visibleKeys).toEqual(
@@ -120,7 +125,7 @@ describe("Sidebar Shift+Click Range Select (TDD)", () => {
   });
 
   it("calls onRangeSelect when Shift+clicking a feed", () => {
-    settings.folders = [{ name: "F", subfolders: [] }] as any;
+    settings.folders = [{ name: "F", subfolders: [] }] as Partial<Folder>[] as Folder[];
     settings.feeds = [
       {
         url: "https://example.com/feed1",
@@ -128,7 +133,7 @@ describe("Sidebar Shift+Click Range Select (TDD)", () => {
         items: [],
         folder: "F",
       },
-    ] as any;
+    ] as Partial<Feed>[] as Feed[];
 
     callbacks.onRangeSelect = vi.fn();
 
@@ -154,10 +159,10 @@ describe("Sidebar Shift+Click Range Select (TDD)", () => {
     });
     feedEl.dispatchEvent(evt);
 
-    expect(callbacks.onRangeSelect).toHaveBeenCalled();
-    const call = (callbacks.onRangeSelect as any).mock.calls[0];
-    const clickedKey = call[0];
-    const visibleKeys = call[1];
+    expect(vi.mocked(callbacks.onRangeSelect)).toHaveBeenCalled();
+    const [clickedKey, visibleKeys] = vi.mocked(callbacks.onRangeSelect).mock
+      .calls[0];
+
     expect(clickedKey).toBe("feed:https://example.com/feed1");
     expect(Array.isArray(visibleKeys)).toBe(true);
   });

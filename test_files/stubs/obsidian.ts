@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // Core Obsidian API Stubs
 // =============================================================================
 // =============================================================================
@@ -378,6 +378,9 @@ export class MockWorkspace {
   offref(_ref: unknown): void {}
 }
 
+export { MockWorkspace as Workspace };
+
+
 // =============================================================================
 // App Class (Enhanced with full mocks)
 // =============================================================================
@@ -435,6 +438,13 @@ export interface PluginManifest {
   author?: string;
   description?: string;
   dir?: string;
+}
+
+export interface ObsidianProtocolData {
+  action?: string;
+  uriAction?: string;
+  url?: string;
+  [key: string]: string | undefined;
 }
 
 export class Plugin {
@@ -524,6 +534,8 @@ export class WorkspaceLeaf {
   }
 
   updateHeader(): void {}
+  
+  async setViewState(_state: unknown, _eState?: unknown): Promise<void> {}
 }
 
 export class ItemView {

@@ -107,6 +107,7 @@ type PluginPrivateAPI = {
   folderService: object;
   backgroundImportService: { startBackgroundImport: (feeds: Feed[]) => void };
   articleSaver: { fixSavedFilePaths: (...args: unknown[]) => Promise<unknown> };
+  pluginLifecycleManager: { validateSavedArticles: () => void };
   validateSavedArticles: () => Promise<void>;
   onArticleSaved: (item: FeedItem) => Promise<void>;
   ingestFeedsForBackgroundImport: (
@@ -783,7 +784,7 @@ describe("onload() initialization", () => {
 
   it("defers saved-article startup validation until layout is ready", async () => {
     const validateSpy = vi.spyOn(
-      plugin.pluginLifecycleManager as any,
+      (plugin as unknown as PluginPrivateAPI).pluginLifecycleManager,
       "validateSavedArticles",
     );
 

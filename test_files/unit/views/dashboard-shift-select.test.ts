@@ -36,14 +36,12 @@ function createMockEnv() {
 }
 
 describe("Dashboard Shift+Click Range Select", () => {
-  let app: App;
   let leaf: WorkspaceLeaf;
   let settings: RssDashboardSettings;
   let plugin: RssDashboardPlugin;
 
   beforeEach(() => {
     const env = createMockEnv();
-    app = env.app;
     leaf = env.leaf;
     settings = env.settings;
     plugin = env.plugin;

@@ -1,18 +1,20 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, Mock } from "vitest";
 import { App, Plugin } from "obsidian";
-import { DEFAULT_SETTINGS } from "../../../src/types/types";
+import { DEFAULT_SETTINGS, RssDashboardSettings } from "../../../src/types/types";
 import { SettingsManager } from "../../../src/services/settings-manager";
 
 describe("SettingsManager", () => {
   let mockApp: App;
   let mockPlugin: Plugin;
-  let loadDataMock: ReturnType<typeof vi.fn>;
-  let saveDataMock: ReturnType<typeof vi.fn>;
+  let loadDataMock: Mock<() => Promise<unknown>>;
+  let saveDataMock: Mock<(data: unknown) => Promise<void>>;
+  let adapterWriteMock: Mock<(path: string, data: string) => Promise<void>>;
 
   beforeEach(() => {
     loadDataMock = vi.fn();
     saveDataMock = vi.fn();
+    adapterWriteMock = vi.fn();
 
     mockApp = {
       vault: {
@@ -20,7 +22,7 @@ describe("SettingsManager", () => {
         createFolder: vi.fn().mockResolvedValue(undefined),
         adapter: {
           read: vi.fn(),
-          write: vi.fn(),
+          write: adapterWriteMock,
           exists: vi.fn(),
           mkdir: vi.fn(),
         },
@@ -81,7 +83,7 @@ describe("SettingsManager", () => {
       await manager.saveSettings();
 
       expect(saveDataMock).toHaveBeenCalled();
-      const savedData = saveDataMock.mock.calls[0][0];
+      const savedData = saveDataMock.mock.calls[0][0] as RssDashboardSettings;
       expect(savedData.refreshInterval).toBe(999);
     });
 
@@ -98,7 +100,7 @@ describe("SettingsManager", () => {
       manager.settings.refreshInterval = 888;
       await manager.saveSettings();
 
-      expect(mockApp.vault.adapter.write).toHaveBeenCalledWith(
+      expect(adapterWriteMock).toHaveBeenCalledWith(
         ".custom-folder/data.json",
         expect.any(String),
       );

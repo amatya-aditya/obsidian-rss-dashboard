@@ -2,11 +2,9 @@ import {
   App,
   Plugin,
   Notice,
-  WorkspaceLeaf,
   Platform,
   requireApiVersion,
   TFolder,
-  type EventRef,
   type ObsidianProtocolData,
 } from "obsidian";
 
@@ -39,7 +37,6 @@ import {
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./src/views/reader-view";
 import {
   FeedParser,
-  applyFeedRetentionLimits,
   formatFeedParseNoticeMessage,
 } from "./src/services/feed-parser";
 import { ArticleSaver } from "./src/services/article-saver";
@@ -53,7 +50,6 @@ import {
 } from "./src/services/feed-storage-repository";
 import { ImportExportService } from "./src/services/import-export-service";
 import { BackgroundImportService } from "./src/services/background-import-service";
-import { FEED_REQUEST_TIMEOUT_MS } from "./src/services/feed-timeout";
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
 import { ArticleSyncService } from "./src/services/article-sync-service";
@@ -66,29 +62,16 @@ import {
   normalizeRefreshIntervalMinutes,
   isValidUrl,
 } from "./src/utils/validation";
-import {
-  dedupeAndNormalizeFeedItems,
-  loadAndNormalizeSettings,
-  migrateSettings,
-} from "./src/utils/settings-loader";
 // applyAutomaticArticleTags is now used only inside ArticleSyncService
 import { SettingsManager } from "./src/services/settings-manager";
 import { ViewOrchestrator } from "./src/services/view-orchestrator";
 import { UriProtocolHandler } from "./src/services/uri-protocol-handler";
 import {
-  DesktopRequire,
-  DesktopShell,
-  PathModuleLike,
-  LegacyPlaybackProgressEntry,
-  isRecord,
-  isLegacyPlaybackProgressEntry,
-  isDesktopShell,
   isPathModuleLike,
   getRequireFunction,
   getShellFromModule,
 } from "./src/utils/platform-utils";
 import { decodeUriFeedUrl, buildUriAddFeedTitle } from "./src/utils/uri-utils";
-import { getAllArticles } from "./src/utils/plugin-utils";
 export interface FiltersUpdatedEventPayload {
   source: string;
   feedUrl?: string;
@@ -106,10 +89,6 @@ function storageError(
 type VaultAdapterPathAccess = {
   getBasePath?: () => string;
   getFullPath?: (path: string) => string;
-};
-type LegacyLocalStorageApi = {
-  loadLocalStorage?: (key: string) => unknown;
-  removeLocalStorage?: (key: string) => void;
 };
 
 // Re-exported for backward compatibility with callers that import from main.ts

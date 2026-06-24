@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+/branch/refactor/main - contains a complete refactor of main.ts.
+
 ### Features
 
 #### Multi-select sidebar folders

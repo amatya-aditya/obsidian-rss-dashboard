@@ -1,4 +1,4 @@
-import { App, Plugin, Notice, TFolder, EventRef } from "obsidian";
+import { App, Notice, TFolder, EventRef } from "obsidian";
 import { RssDashboardSettings, DEFAULT_SETTINGS } from "../types/types";
 import {
   loadAndNormalizeSettings,

@@ -45,11 +45,11 @@ describe("UriProtocolHandler", () => {
     });
 
     it("throws an error if URL is malformed", () => {
-      expect(() => decodeUriFeedUrl("%")).toThrowError("Feed URL is malformed");
+      expect(() => decodeUriFeedUrl("%")).toThrow("Feed URL is malformed");
     });
     
     it("throws an error if URL is missing", () => {
-      expect(() => decodeUriFeedUrl("   ")).toThrowError("Missing required URL parameter");
+      expect(() => decodeUriFeedUrl("   ")).toThrow("Missing required URL parameter");
     });
   });
 
