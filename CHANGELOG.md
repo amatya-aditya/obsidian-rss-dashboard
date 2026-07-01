@@ -1,3 +1,11 @@
+## 2.4.0 - July 1, 2026
+
+### Fixes
+
+- Fixed 'custom' input textbox not being hidden when changing between different timeframes in add/edit feed modal ([GH #147](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/147))
+
+- Fixed feeds not being refreshed after deleting all feeds via feed manager modal
+
 ## 2.4.0-beta.3 - June 17, 2026
 
 ### Features

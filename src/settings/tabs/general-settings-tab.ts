@@ -263,6 +263,7 @@ export function renderGeneralSettingsTab(
           return;
         }
 
+        refreshIntervalCustomInput?.removeClass("visible");
         refreshIntervalCustomInput?.addClass("hidden");
         refreshInterval = normalizeRefreshIntervalMinutes(parseInt(value, 10));
         void (async () => {
@@ -398,6 +399,7 @@ export function renderGeneralSettingsTab(
           return;
         }
 
+        maxItemsCustomInput?.removeClass("visible");
         maxItemsCustomInput?.addClass("hidden");
         maxItemsLimit = parseInt(value, 10) || 0;
         applyMaxItemsValue(maxItemsLimit);
@@ -408,7 +410,7 @@ export function renderGeneralSettingsTab(
   const defaultAutoDeleteSetting = new Setting(containerEl)
     .setName("Default auto delete duration (new feeds)")
     .setDesc(
-      "Default days to keep read articles before auto-delete for new feeds (per-feed override available).",
+      "Default days to keep read articles before auto-delete for new feeds (per-feed override available). This will also limit the timeframe window for shown articles.",
     );
 
   let defaultDuration = plugin.settings.defaultAutoDeleteDuration;
@@ -461,6 +463,7 @@ export function renderGeneralSettingsTab(
           return;
         }
 
+        autoDeleteCustomInput?.removeClass("visible");
         autoDeleteCustomInput?.addClass("hidden");
         defaultDuration = parseInt(value, 10) || 0;
         void (async () => {
