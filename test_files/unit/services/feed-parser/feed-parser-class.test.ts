@@ -1,12 +1,18 @@
 import { describe, it, expect, vi } from "vitest";
 import { DEFAULT_SETTINGS, type Feed, type MediaSettings } from "../../../../src/types/types.js";
 import * as obsidian from "obsidian";
+import { type RequestUrlResponse } from "obsidian";
 import { FeedParser } from "../../../../src/services/feed-parser/feed-parser-class.js";
 import {
   RSS2_MASTODON_PROFILE_IMAGE,
   RSS2_WITH_IMAGE,
   RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
 } from "./fixtures/rss-fixtures.js";
+
+/** Creates a minimal but fully-typed {@link RequestUrlResponse} stub for mocking. */
+function mockResponse(status: number, text: string): RequestUrlResponse {
+  return { status, text, headers: {}, arrayBuffer: new ArrayBuffer(0), json: null };
+}
 
 describe("FeedParser.parseFeed", () => {
   const mediaSettings: MediaSettings = {
@@ -20,7 +26,6 @@ describe("FeedParser.parseFeed", () => {
     defaultYouTubeTag: "Video",
     defaultYouTubeTags: ["Video"],
     defaultPodcastFolder: "Podcast",
-    defaultPodcastTag: "Podcast",
     defaultPodcastTags: ["Podcast"],
     defaultRssFolder: "RSS",
     defaultRssTag: "",
@@ -42,10 +47,7 @@ describe("FeedParser.parseFeed", () => {
     const feedUrl = "https://mastodon.social/@Gargron.rss";
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValueOnce({
-      status: 200,
-      text: RSS2_MASTODON_PROFILE_IMAGE,
-    });
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, RSS2_MASTODON_PROFILE_IMAGE));
 
     const parser = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsMastodon: false,
        }, [], mediaSettings);
@@ -62,10 +64,7 @@ describe("FeedParser.parseFeed", () => {
     const feedUrl = "https://mastodon.social/@Gargron.rss";
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValueOnce({
-      status: 200,
-      text: RSS2_MASTODON_PROFILE_IMAGE,
-    });
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, RSS2_MASTODON_PROFILE_IMAGE));
 
     const parser = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsMastodon: true,
        }, [], mediaSettings);
@@ -83,14 +82,8 @@ describe("FeedParser.parseFeed", () => {
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy
-      .mockResolvedValueOnce({
-        status: 200,
-        text: RSS2_MASTODON_PROFILE_IMAGE,
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        text: RSS2_MASTODON_PROFILE_IMAGE,
-      });
+      .mockResolvedValueOnce(mockResponse(200, RSS2_MASTODON_PROFILE_IMAGE))
+      .mockResolvedValueOnce(mockResponse(200, RSS2_MASTODON_PROFILE_IMAGE));
 
     const parser = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsMastodon: true,
        }, [], mediaSettings);
@@ -108,10 +101,7 @@ describe("FeedParser.parseFeed", () => {
   it("extracts and honors the RSS icon settings toggle", async () => {
     const feedUrl = "https://example.com/rss.xml";
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValue({
-      status: 200,
-      text: RSS2_WITH_IMAGE,
-    });
+    requestUrlSpy.mockResolvedValue(mockResponse(200, RSS2_WITH_IMAGE));
 
     // 1. When useDomainIconsRss is false
     const parserOff = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsRss: false  }, [], mediaSettings);
@@ -129,10 +119,7 @@ describe("FeedParser.parseFeed", () => {
   it("extracts and honors the Podcast icon settings toggle", async () => {
     const feedUrl = "https://example.com/podcast.xml";
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValue({
-      status: 200,
-      text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
-    });
+    requestUrlSpy.mockResolvedValue(mockResponse(200, RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE));
 
     // 1. When useDomainIconsPodcast is false
     const parserOff = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsPodcast: false  }, [], mediaSettings);
@@ -152,10 +139,7 @@ describe("FeedParser.parseFeed", () => {
   it("extracts and honors the Twitter/Nitter icon settings toggle", async () => {
     const feedUrl = "https://nitter.net/Gargron/rss";
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValue({
-      status: 200,
-      text: RSS2_WITH_IMAGE,
-    });
+    requestUrlSpy.mockResolvedValue(mockResponse(200, RSS2_WITH_IMAGE));
 
     // 1. When useDomainIconsTwitter is false
     const parserOff = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsTwitter: false  }, [], mediaSettings);
@@ -189,10 +173,7 @@ describe("FeedParser.parseFeed", () => {
 </rss>`;
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValueOnce({
-      status: 200,
-      text: xml,
-    });
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, xml));
 
     const parser = new FeedParser(DEFAULT_SETTINGS.display, [
       { name: "Video", color: "#d04747" },
@@ -200,8 +181,11 @@ describe("FeedParser.parseFeed", () => {
     const parsed = await parser.parseFeed(feedUrl, null);
 
     expect(parsed.mediaType).toBe("video");
-    expect(parsed.items[0].mediaType).toBe("video");
-    expect(parsed.items[0].tags.map((tag) => tag.name.toLowerCase())).toContain(
+    const firstItem = parsed.items[0];
+    expect(firstItem).toBeDefined();
+    if (firstItem === undefined) throw new Error("firstItem is undefined");
+    expect(firstItem.mediaType).toBe("video");
+    expect((firstItem.tags ?? []).map((tag) => tag.name.toLowerCase())).toContain(
       "video",
     );
 
@@ -227,10 +211,7 @@ describe("FeedParser.parseFeed", () => {
 </rss>`;
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValueOnce({
-      status: 200,
-      text: xml,
-    });
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, xml));
 
     const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
     const parsed = await parser.parseFeed(feedUrl, null);
@@ -270,14 +251,8 @@ describe("FeedParser.parseFeed", () => {
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy
-      .mockResolvedValueOnce({
-        status: 200,
-        text: xml0,
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        text: xml1,
-      });
+      .mockResolvedValueOnce(mockResponse(200, xml0))
+      .mockResolvedValueOnce(mockResponse(200, xml1));
 
     const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
     const first = await parser.parseFeed(feedUrl, null);
@@ -322,7 +297,7 @@ describe("FeedParser.parseFeed", () => {
 </feed>`;
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValueOnce({ status: 200, text: ytAtomXml });
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, ytAtomXml));
 
     const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
 
@@ -391,7 +366,7 @@ describe("FeedParser.parseFeed", () => {
 </feed>`;
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValueOnce({ status: 200, text: ytAtomXml });
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, ytAtomXml));
 
     const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
 
@@ -459,10 +434,7 @@ describe("FeedParser.parseFeed", () => {
 </rss>`;
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValueOnce({
-      status: 200,
-      text: xml,
-    });
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, xml));
 
     const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
 
@@ -520,18 +492,9 @@ describe("FeedParser.parseFeed", () => {
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(fixedNowMs);
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy
-      .mockResolvedValueOnce({
-        status: 200,
-        text: xml,
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        text: xml,
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        text: xml,
-      });
+      .mockResolvedValueOnce(mockResponse(200, xml))
+      .mockResolvedValueOnce(mockResponse(200, xml))
+      .mockResolvedValueOnce(mockResponse(200, xml));
 
     const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
 
@@ -610,14 +573,8 @@ describe("FeedParser.parseFeed", () => {
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(fixedNowMs);
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy
-      .mockResolvedValueOnce({
-        status: 200,
-        text: xmlWithOldAndRecent,
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        text: xmlWithRecentOnly,
-      });
+      .mockResolvedValueOnce(mockResponse(200, xmlWithOldAndRecent))
+      .mockResolvedValueOnce(mockResponse(200, xmlWithRecentOnly));
 
     const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
 
@@ -653,14 +610,8 @@ describe("FeedParser.parseFeed", () => {
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy
-      .mockResolvedValueOnce({
-        status: 200,
-        text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
-      });
+      .mockResolvedValueOnce(mockResponse(200, RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE))
+      .mockResolvedValueOnce(mockResponse(200, RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE));
 
     const parser = new FeedParser(
       { ...DEFAULT_SETTINGS.display, useDomainIconsPodcast: true },
@@ -704,14 +655,8 @@ describe("FeedParser.parseFeed", () => {
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy
-      .mockResolvedValueOnce({
-        status: 200,
-        text: xml,
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        text: xml,
-      });
+      .mockResolvedValueOnce(mockResponse(200, xml))
+      .mockResolvedValueOnce(mockResponse(200, xml));
 
     const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
     const first = await parser.parseFeed(feedUrl, null);
@@ -751,10 +696,7 @@ describe("FeedParser.parseFeed", () => {
 </rss>`;
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValueOnce({
-      status: 200,
-      text: xml,
-    });
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, xml));
 
     const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
     const parsed = await parser.parseFeed(feedUrl, null);
@@ -795,10 +737,7 @@ describe("FeedParser.parseFeed", () => {
 </feed>`;
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValueOnce({
-      status: 200,
-      text: xml,
-    });
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, xml));
 
     const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
     const parsed = await parser.parseFeed(feedUrl, null);

@@ -72,7 +72,6 @@ export class FeedParser {
       defaultYouTubeTag: "Video",
       defaultYouTubeTags: ["Video"],
       defaultPodcastFolder: "Podcast",
-      defaultPodcastTag: "Podcast",
       defaultPodcastTags: ["Podcast"],
       defaultRssFolder: "RSS",
       defaultRssTag: "",
