@@ -294,7 +294,7 @@ export class EditFeedModal extends Modal {
     urlSetting.settingEl.addClass("rss-feed-form-row");
     urlSetting.settingEl.addClass("rss-feed-form-row-url");
 
-    const sourceSetting = new Setting(this.contentEl).setName("Feed Source");
+    const sourceSetting = new Setting(this.contentEl).setName("Feed source");
     sourceSetting.settingEl.addClass("rss-feed-form-row");
     sourceSetting.settingEl.addClass("rss-feed-source-row");
 
@@ -414,7 +414,8 @@ export class EditFeedModal extends Modal {
       const inheritedTagsSetting = new Setting(perFeedControlsBody)
         .setName("Inherited auto-tags")
         .setDesc(
-          "Global tags applied automatically based on the feed type and settings. Configure these in the Auto Tagging settings tab.",
+          // eslint-disable-next-line obsidianmd/ui/sentence-case
+          "Global tags applied automatically based on the feed type and settings. Configure these in the 'Auto Tagging' settings tab.",
         );
 
       const tagsList = inheritedTagsSetting.controlEl.createDiv({
@@ -728,7 +729,7 @@ export class EditFeedModal extends Modal {
     const autoTagSetting = new Setting(perFeedControlsBody)
       .setName("Custom auto-tags")
       .setDesc(
-        "Additional tags applied automatically to new articles from this feed (Single Feed Override)",
+        "Additional tags applied automatically to new articles from this feed (single feed override)",
       );
 
     addTagMultiSelectControl({

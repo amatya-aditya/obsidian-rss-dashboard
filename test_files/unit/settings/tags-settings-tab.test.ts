@@ -98,7 +98,7 @@ describe("renderTagsSettingsTab()", () => {
       containerEl.querySelectorAll(".setting-item-name"),
     ).map((el) => el.textContent?.trim());
 
-    expect(names[0]).toBe("Auto Tagging");
+    expect(names[0]).toBe("Auto tagging");
     expect(names.slice(1, 8)).toEqual(autoTagRows);
     expect(names.indexOf("Add new tag")).toBeGreaterThan(
       names.indexOf("Reset tag names"),

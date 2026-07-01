@@ -91,7 +91,7 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
     ).map((el) => el.textContent?.trim());
 
     expect(names).toContain("Storage");
-    expect(names).toContain("Metadata Storage");
+    expect(names).toContain("Metadata storage");
     expect(names).toContain("Default folders");
   });
 

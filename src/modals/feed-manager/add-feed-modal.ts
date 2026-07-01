@@ -308,7 +308,7 @@ export class AddFeedModal extends Modal {
     urlSetting.settingEl.addClass("rss-feed-form-row");
     urlSetting.settingEl.addClass("rss-feed-form-row-url");
 
-    const sourceSetting = new Setting(this.contentEl).setName("Feed Source");
+    const sourceSetting = new Setting(this.contentEl).setName("Feed source");
     sourceSetting.settingEl.addClass("rss-feed-form-row");
     sourceSetting.settingEl.addClass("rss-feed-source-row");
 
@@ -602,7 +602,7 @@ export class AddFeedModal extends Modal {
     const autoTagSetting = new Setting(perFeedControlsBody)
       .setName("Custom auto-tags")
       .setDesc(
-        "Additional tags applied automatically to new articles from this feed (Single Feed Override)",
+        "Additional tags applied automatically to new articles from this feed (single feed override)",
       );
 
     const availableTags: Tag[] = this.plugin?.settings?.availableTags ?? [];

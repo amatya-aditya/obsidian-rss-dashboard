@@ -263,7 +263,7 @@ export default class RssDashboardPlugin extends Plugin {
   protected folderService!: FolderService;
   private importExportService!: ImportExportService;
   private backgroundImportService!: BackgroundImportService;
-public activeRefreshState = new Map<string, FeedRefreshState>();
+  public activeRefreshState = new Map<string, FeedRefreshState>();
   public settingTab: RssDashboardSettingTab | null = null;
   private isMultiFeedRefreshRunning = false;
   public vaultAbsolutePath = "";
@@ -552,7 +552,7 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
       this.settingTab.display();
     }
 
-    new Notice("RSS Dashboard restored to factory defaults.");
+    new Notice("Restored plugin to factory defaults.");
   }
 
   /**
@@ -816,7 +816,8 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
 
     if (!action) {
       new Notice(
-        "Missing RSS Dashboard URI action. Use action=add-feed with a URL parameter.",
+        // eslint-disable-next-line obsidianmd/ui/sentence-case
+        "Missing URI action. Use action=add-feed with a URL parameter.",
       );
       return;
     }
@@ -1344,6 +1345,7 @@ public activeRefreshState = new Map<string, FeedRefreshState>();
           new Notice(message);
         }
       } else {
+        // eslint-disable-next-line obsidianmd/ui/sentence-case
         new Notice("Please select a valid OPML or XML file.");
       }
     };

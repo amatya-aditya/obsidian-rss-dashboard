@@ -201,11 +201,11 @@ describe("Auto Backup Helpers", () => {
       ).map((el) => el.textContent?.trim());
 
       expect(settingNames.indexOf("Auto backups")).toBeGreaterThan(-1);
-      expect(settingNames.indexOf("Factory Reset")).toBeGreaterThan(
+      expect(settingNames.indexOf("Factory reset")).toBeGreaterThan(
         settingNames.indexOf("Auto backups"),
       );
 
-      const resetSetting = getSettingByName(containerEl, "Factory Reset");
+      const resetSetting = getSettingByName(containerEl, "Factory reset");
       expect(resetSetting.textContent).toContain(
         "Restore all plugin settings to their default values",
       );

@@ -240,11 +240,13 @@ export function renderDisplaySettingsTab(
   new Setting(containerEl)
     .setName("Article date display")
     .setDesc(
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
       "Choose whether article dates are shown as relative ('2 days ago') or absolute ('May 9, 2026').",
     )
     .addDropdown((dropdown) =>
       dropdown
         .addOption("relative", "Relative (e.g. '2 days ago')")
+        // eslint-disable-next-line obsidianmd/ui/sentence-case
         .addOption("absolute", "Absolute (e.g. 'May 9, 2026, 11:39 AM')")
         .setValue(plugin.settings.display.articleDateStyle ?? "relative")
         .onChange(async (value: string) => {

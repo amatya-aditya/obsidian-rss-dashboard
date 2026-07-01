@@ -140,7 +140,7 @@ export class VideoPlayer {
     const tosLink = linksContainer.createEl("a", {
       cls: "rss-video-tos-link",
       href: "https://www.youtube.com/t/terms",
-      text: "YouTube TOS",
+      text: "YouTube terms of service",
     });
     tosLink.target = "_blank";
     tosLink.rel = "noopener noreferrer";
@@ -186,7 +186,10 @@ export class VideoPlayer {
         const payload = parsedData as YouTubeMessagePayload;
 
         // Verify it belongs to this player's iframe
-        if (payload.id !== undefined && String(payload.id) !== this.iframeEl?.id) {
+        if (
+          payload.id !== undefined &&
+          String(payload.id) !== this.iframeEl?.id
+        ) {
           return;
         }
 
@@ -196,7 +199,11 @@ export class VideoPlayer {
           if (typeof payload.info === "number") {
             this.handleStateChange(payload.info);
           }
-        } else if (payload.event === "infoDelivery" && payload.info && typeof payload.info === "object") {
+        } else if (
+          payload.event === "infoDelivery" &&
+          payload.info &&
+          typeof payload.info === "object"
+        ) {
           const info = payload.info as Record<string, unknown>;
           if (typeof info.duration === "number") {
             this.videoDuration = info.duration;
@@ -224,7 +231,10 @@ export class VideoPlayer {
       this.progressTrackingEnabled &&
       this.currentItem?.playbackProgress?.position
     ) {
-      this.sendCommand("seekTo", [this.currentItem.playbackProgress.position, true]);
+      this.sendCommand("seekTo", [
+        this.currentItem.playbackProgress.position,
+        true,
+      ]);
     }
   }
 
@@ -237,7 +247,10 @@ export class VideoPlayer {
       this.currentItem?.playbackProgress?.position
     ) {
       setTimeout(() => {
-        this.sendCommand("seekTo", [this.currentItem!.playbackProgress!.position, true]);
+        this.sendCommand("seekTo", [
+          this.currentItem!.playbackProgress!.position,
+          true,
+        ]);
       }, 1000);
     }
   }
@@ -287,9 +300,7 @@ export class VideoPlayer {
       }
 
       const duration =
-        this.videoDuration ??
-        this.currentItem.playbackProgress?.duration ??
-        0;
+        this.videoDuration ?? this.currentItem.playbackProgress?.duration ?? 0;
 
       if (!(position >= 0) || !(duration > 0)) {
         return;

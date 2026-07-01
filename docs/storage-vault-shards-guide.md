@@ -34,13 +34,13 @@ Vault Shards can help if you:
 
 ## Storage Mode Comparison
 
-| Feature | Legacy JSON | Vault Shards v1 | Vault Shards v2 |
-| --- | --- | --- | --- |
-| File structure | Monolithic data.json | Per-feed shard files | Per-feed shard files (content only) |
-| User state location | Inside monolithic data.json | Embedded in each feed shard | Separate `user-state.json` |
-| Metadata file location | `.obsidian/plugins/rss-dashboard/data.json` | Same or vault folder | Vault folder (forced to vault-location, schema v2) |
-| Sync robustness | Poor (large, rarely sync-friendly) | Moderate (per-feed, minor conflicts possible) | Best (content and state split, fewer conflicts) |
-| Best for | Simple, single-device setups | Most users wanting vault-based feed history | Multi-device sync, max portability, fewer conflicts |
+| Feature                | Legacy JSON                                 | Vault Shards v1                               | Vault Shards v2                                     |
+| ---------------------- | ------------------------------------------- | --------------------------------------------- | --------------------------------------------------- |
+| File structure         | Monolithic data.json                        | Per-feed shard files                          | Per-feed shard files (content only)                 |
+| User state location    | Inside monolithic data.json                 | Embedded in each feed shard                   | Separate `user-state.json`                          |
+| Metadata file location | `.obsidian/plugins/rss-dashboard/data.json` | Same or vault folder                          | Vault folder (forced to vault-location, schema v2)  |
+| Sync robustness        | Poor (large, rarely sync-friendly)          | Moderate (per-feed, minor conflicts possible) | Best (content and state split, fewer conflicts)     |
+| Best for               | Simple, single-device setups                | Most users wanting vault-based feed history   | Multi-device sync, max portability, fewer conflicts |
 
 ## Important Notes Before You Switch
 

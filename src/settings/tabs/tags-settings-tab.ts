@@ -25,7 +25,7 @@ export function renderTagsSettingsTab(
   onRefresh: () => void,
 ): void {
   // Auto Tagging settings
-  new Setting(containerEl).setName("Auto Tagging").setHeading();
+  new Setting(containerEl).setName("Auto tagging").setHeading();
 
   const autoTagSettings: AutoTagSettingConfig[] = [
     {

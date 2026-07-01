@@ -29,6 +29,7 @@ export function renderAboutTab(
   });
 
   descriptionContainer.createEl("p", {
+    // eslint-disable-next-line obsidianmd/ui/sentence-case
     text: "RSS Dashboard is a free, open source community plugin for Obsidian that makes it easy to manage your RSS feeds, YouTube subscriptions, podcasts, and Twitter/X feeds in one place.",
   });
 
@@ -46,7 +47,7 @@ export function renderAboutTab(
     text: "RSS Dashboard was originally created by ",
   });
   const originalCreatorLink = attributionParagraph.createEl("a", {
-    text: "amatya-aditya",
+    text: "Amatya-aditya",
     href: "https://github.com/amatya-aditya/",
     cls: "rss-dashboard-about-link",
   });
@@ -56,7 +57,7 @@ export function renderAboutTab(
     text: ", with active development and maintenance now led by ",
   });
   const maintainerLink = attributionParagraph.createEl("a", {
-    text: "marcd35",
+    text: "Marcd35",
     href: "https://github.com/marcd35",
     cls: "rss-dashboard-about-link",
   });
