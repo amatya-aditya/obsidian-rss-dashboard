@@ -57,12 +57,16 @@ function rss2JsonToRss(data: Rss2JsonResponse): string {
 async function fetchThroughProxy(
   targetUrl: string,
   proxyUrl: string,
+  signal?: AbortSignal,
 ): Promise<string> {
+  if (signal?.aborted) throw new Error("Timed out");
   const requestUrlParam = `${proxyUrl}${encodeURIComponent(targetUrl)}`;
   const response = await requestUrl({
     url: requestUrlParam,
     method: "GET",
   });
+
+  if (signal?.aborted) throw new Error("Timed out");
 
   if (proxyUrl.includes("allorigins.win/get")) {
     const data = JSON.parse(response.text) as AllOriginsResponse;
@@ -87,7 +91,8 @@ async function fetchThroughProxy(
   return response.text;
 }
 
-async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
+async function discoverFeedUrl(baseUrl: string, signal?: AbortSignal): Promise<string | null> {
+  if (signal?.aborted) return null;
   try {
     const response = await requestUrl({
       url: baseUrl,
@@ -99,6 +104,8 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
           "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
     });
+
+    if (signal?.aborted) return null;
 
     if (!response.text) return null;
 
@@ -120,6 +127,7 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
         ];
 
         for (const feedUrl of feedBurnerUrls) {
+          if (signal?.aborted) return null;
           try {
             const feedResponse = await requestUrl({
               url: feedUrl,
@@ -206,26 +214,28 @@ async function discoverFeedUrl(baseUrl: string): Promise<string | null> {
 export async function fetchFeedXml(
   url: string,
   proxyConfig: FeedFetchProxyOption = true,
+  signal?: AbortSignal,
 ): Promise<string> {
   const isAndroid = Platform.isAndroidApp;
   const config = normalizeProxyConfig(proxyConfig);
   const useCorsProxies = typeof proxyConfig === "boolean" ? proxyConfig : true;
 
   if (!config.enabled) {
-    return tryFetch(url, false);
+    return tryFetch(url, false, signal);
   }
 
   if (typeof proxyConfig === "object") {
     try {
-      return await tryFetch(url, false);
+      return await tryFetch(url, false, signal);
     } catch (error) {
       if (isAndroid) {
         throw error;
       }
 
       for (const proxyUrl of getProxyUrls(config)) {
+        if (signal?.aborted) throw new Error("Timed out");
         try {
-          const proxyText = await fetchThroughProxy(url, proxyUrl);
+          const proxyText = await fetchThroughProxy(url, proxyUrl, signal);
           if (isValidFeed(proxyText)) {
             return proxyText;
           }
@@ -242,7 +252,10 @@ export async function fetchFeedXml(
   async function tryFetch(
     targetUrl: string,
     useCorsProxies: boolean,
+    signal?: AbortSignal,
   ): Promise<string> {
+    if (signal?.aborted) throw new Error("Timed out");
+
     if (targetUrl.includes("feeds.feedburner.com")) {
       const httpsUrl = targetUrl.replace(/^http:\/\//i, "https://");
       const feedNameMatch = httpsUrl.match(/feeds\.feedburner\.com\/([^/?]+)/);
@@ -255,6 +268,7 @@ export async function fetchFeedXml(
           `https://feeds.feedburner.com/${feedName}`,
         ];
         for (const fbUrl of feedBurnerUrls) {
+          if (signal?.aborted) throw new Error("Timed out");
           try {
             const fbResponse = await requestUrl({
               url: fbUrl,
@@ -277,6 +291,7 @@ export async function fetchFeedXml(
         }
       }
     }
+    if (signal?.aborted) throw new Error("Timed out");
     try {
       const secureUrl = targetUrl; // try original URL as-is first (don't force https)
       const response = await requestUrl({
@@ -307,6 +322,7 @@ export async function fetchFeedXml(
           const candidateUrl =
             atomLinkMatch?.[1] || channelLinkMatch?.[1] || "";
           if (candidateUrl && /arxiv\.org\//i.test(candidateUrl)) {
+            if (signal?.aborted) throw new Error("Timed out");
             try {
               const arxivResp = await requestUrl({
                 url: candidateUrl,
@@ -336,6 +352,7 @@ export async function fetchFeedXml(
           ? targetUrl.replace(/^https:\/\//i, "http://")
           : "";
       if (toggledUrl) {
+        if (signal?.aborted) throw new Error("Timed out");
         try {
           const toggledResp = await requestUrl({
             url: toggledUrl,
@@ -394,6 +411,7 @@ export async function fetchFeedXml(
         ];
 
         for (const altUrl of alternativeUrls) {
+          if (signal?.aborted) throw new Error("Timed out");
           try {
             const altResponse = await requestUrl({
               url: altUrl,
@@ -422,6 +440,7 @@ export async function fetchFeedXml(
             ? baseUrl.replace("export.arxiv.org", "rss.arxiv.org")
             : null);
         if (discoveredUrl) {
+          if (signal?.aborted) throw new Error("Timed out");
           try {
             const discoveredResponse = await requestUrl({
               url: discoveredUrl,
@@ -458,6 +477,7 @@ export async function fetchFeedXml(
       if (!useCorsProxies) throw error;
       // [RSS Dashboard] direct fetch failed for ${targetUrl}, trying AllOrigins proxy...
 
+      if (signal?.aborted) throw new Error("Timed out");
       try {
         const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
         const proxyResponse = await requestUrl({
@@ -479,6 +499,7 @@ export async function fetchFeedXml(
         );
 
         // Try allOrigins raw endpoint
+        if (signal?.aborted) throw new Error("Timed out");
         try {
           const rawUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
           const rawResp = await requestUrl({
@@ -495,6 +516,7 @@ export async function fetchFeedXml(
         }
 
         if (!isAndroid) {
+          if (signal?.aborted) throw new Error("Timed out");
           try {
             const codetabsUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}`;
             const codetabsResponse = await requestUrl({
@@ -512,6 +534,7 @@ export async function fetchFeedXml(
           }
 
           // isomorphic-git CORS proxy (raw)
+          if (signal?.aborted) throw new Error("Timed out");
           try {
             const isoUrl = `https://cors.isomorphic-git.org/${targetUrl}`;
             const isoResp = await requestUrl({
@@ -528,6 +551,7 @@ export async function fetchFeedXml(
             // [RSS dashboard] isomorphic-git proxy failed (expected - falls through to next proxy)
           }
 
+          if (signal?.aborted) throw new Error("Timed out");
           try {
             const thingproxyUrl = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(targetUrl)}`;
             const thingproxyResponse = await requestUrl({
@@ -547,8 +571,9 @@ export async function fetchFeedXml(
             // [RSS dashboard] thingproxy failed (expected - falls through to next proxy)
           }
 
+          if (signal?.aborted) throw new Error("Timed out");
           try {
-            const discoveredUrl = await discoverFeedUrl(targetUrl);
+            const discoveredUrl = await discoverFeedUrl(targetUrl, signal);
             if (discoveredUrl && discoveredUrl !== targetUrl) {
               const discoveredResponse = await requestUrl({
                 url: discoveredUrl,
@@ -582,13 +607,14 @@ export async function fetchFeedXml(
   }
 
   try {
-    return await tryFetch(url, useCorsProxies);
+    return await tryFetch(url, useCorsProxies, signal);
   } catch (error) {
     if (!useCorsProxies) throw error;
     if (isAndroid) {
       throw error;
     }
 
+    if (signal?.aborted) throw new Error("Timed out");
     try {
       const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`;
       const proxyResponse = await requestUrl({
@@ -606,6 +632,7 @@ export async function fetchFeedXml(
         throw new Error("First proxy blocked by Cloudflare");
       }
     } catch {
+      if (signal?.aborted) throw new Error("Timed out");
       try {
         const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
         const proxyResponse = await requestUrl({

@@ -9,10 +9,12 @@ import type {
 import { OpmlManager } from "./opml-manager";
 import { getFeedErrorMessage } from "./feed-parser";
 import {
-  BACKGROUND_IMPORT_CONCURRENCY,
   BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS,
   BACKGROUND_IMPORT_TIMEOUT_RETRY_COUNT,
+  FEED_SOFT_TIMEOUT_MS,
+  MAX_CONCURRENT_FETCHES,
 } from "./feed-timeout";
+import { globalFetchSemaphore } from "./feed-parser/fetch-semaphore";
 import { setCssProps } from "../utils/platform-utils";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -26,7 +28,11 @@ interface DashboardViewLike {
 
 /** Minimum feed-parser interface required by BackgroundImportService */
 interface FeedParserLike {
-  parseFeed(url: string): Promise<Feed>;
+  parseFeed(
+    url: string,
+    existingFeed?: Feed | null,
+    options?: { signal?: AbortSignal },
+  ): Promise<Feed>;
 }
 
 export interface BackgroundImportServiceDeps {
@@ -233,9 +239,10 @@ export class BackgroundImportService {
             : 3;
     const shouldRenderDuringImport = totalFeeds < 5000;
     const workerCount = Math.min(
-      BACKGROUND_IMPORT_CONCURRENCY,
+      MAX_CONCURRENT_FETCHES,
       this.backgroundImportQueue.length,
     );
+    const backgroundPromises: Promise<void>[] = [];
 
     try {
       await Promise.all(
@@ -244,9 +251,11 @@ export class BackgroundImportService {
             saveEvery,
             renderEvery,
             shouldRenderDuringImport,
+            backgroundPromises,
           ),
         ),
       );
+      await Promise.all(backgroundPromises);
 
       await this.saveSettingsWithMode(this.getPersistModeForBackgroundImport());
       const view = await this.getView();
@@ -282,60 +291,95 @@ export class BackgroundImportService {
     saveEvery: number,
     renderEvery: number,
     shouldRenderDuringImport: boolean,
+    backgroundPromises: Promise<void>[] = [],
   ): Promise<void> {
     while (true) {
+      await globalFetchSemaphore.acquire();
+
       const feedMetadata = this.backgroundImportQueue.shift();
       if (!feedMetadata) {
+        globalFetchSemaphore.release();
         return;
       }
 
-      this.backgroundImportInFlightUrls.add(feedMetadata.url);
+      const importPromise = this.processBackgroundImportFeed(
+        feedMetadata,
+        saveEvery,
+        renderEvery,
+        shouldRenderDuringImport,
+      ).finally(() => {
+        globalFetchSemaphore.release();
+      });
 
-      try {
-        feedMetadata.importStatus = "processing";
-        this.updateBackgroundImportProgress(
-          this.backgroundImportProcessedCount,
-          this.backgroundImportTotalCount,
-          feedMetadata.title,
-        );
+      const winner = await Promise.race([
+        importPromise.then(() => "fetch"),
+        this.waitForSoftTimeout().then(() => "timeout"),
+      ]);
 
-        const parsedFeed = await this.parseFeedWithTimeout(feedMetadata.url);
-        this.mergeBackgroundImportedFeed(feedMetadata, parsedFeed);
-        feedMetadata.importStatus = "completed";
-      } catch (error) {
-        if (error instanceof Error && error.message === "Timed out") {
-          feedMetadata.importStatus = "timed_out";
+      if (winner === "timeout") {
+        backgroundPromises.push(importPromise);
+      }
+    }
+  }
+
+  private async processBackgroundImportFeed(
+    feedMetadata: FeedMetadata,
+    saveEvery: number,
+    renderEvery: number,
+    shouldRenderDuringImport: boolean,
+  ): Promise<void> {
+    this.backgroundImportInFlightUrls.add(feedMetadata.url);
+
+    try {
+      feedMetadata.importStatus = "processing";
+      this.updateBackgroundImportProgress(
+        this.backgroundImportProcessedCount,
+        this.backgroundImportTotalCount,
+        feedMetadata.title,
+      );
+
+      const parsedFeed = await this.parseFeedWithTimeout(feedMetadata.url);
+      this.mergeBackgroundImportedFeed(feedMetadata, parsedFeed);
+      feedMetadata.importStatus = "completed";
+    } catch (error) {
+      if (error instanceof Error && error.message === "Timed out") {
+        feedMetadata.importStatus = "timed_out";
+      } else {
+        feedMetadata.importStatus = "failed";
+      }
+      feedMetadata.importError = getFeedErrorMessage(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    } finally {
+      this.backgroundImportInFlightUrls.delete(feedMetadata.url);
+      this.backgroundImportProcessedCount += 1;
+    }
+
+    if (this.backgroundImportProcessedCount % saveEvery === 0) {
+      await this.saveSettingsWithMode(
+        this.getPersistModeForBackgroundImport(),
+      );
+    }
+
+    if (
+      shouldRenderDuringImport &&
+      this.backgroundImportProcessedCount % renderEvery === 0
+    ) {
+      const view = await this.getView();
+      if (view) {
+        if (typeof view.refreshSidebarOnly === "function") {
+          view.refreshSidebarOnly();
         } else {
-          feedMetadata.importStatus = "failed";
-        }
-        feedMetadata.importError = getFeedErrorMessage(
-          error instanceof Error ? error : new Error(String(error)),
-        );
-      } finally {
-        this.backgroundImportInFlightUrls.delete(feedMetadata.url);
-        this.backgroundImportProcessedCount += 1;
-      }
-
-      if (this.backgroundImportProcessedCount % saveEvery === 0) {
-        await this.saveSettingsWithMode(
-          this.getPersistModeForBackgroundImport(),
-        );
-      }
-
-      if (
-        shouldRenderDuringImport &&
-        this.backgroundImportProcessedCount % renderEvery === 0
-      ) {
-        const view = await this.getView();
-        if (view) {
-          if (typeof view.refreshSidebarOnly === "function") {
-            view.refreshSidebarOnly();
-          } else {
-            view.render();
-          }
+          view.render();
         }
       }
     }
+  }
+
+  private async waitForSoftTimeout(): Promise<void> {
+    return new Promise((resolve) => {
+      activeWindow.setTimeout(resolve, FEED_SOFT_TIMEOUT_MS);
+    });
   }
 
   private async parseFeedWithTimeout(url: string): Promise<Feed> {
@@ -368,15 +412,16 @@ export class BackgroundImportService {
 
   private async parseFeedAttemptWithTimeout(url: string): Promise<Feed> {
     let timeoutId: number | null = null;
+    const abortController = new AbortController();
 
     try {
       return await Promise.race([
-        this.feedParser.parseFeed(url),
+        this.feedParser.parseFeed(url, null, { signal: abortController.signal }),
         new Promise<Feed>((_, reject) => {
-          timeoutId = activeWindow.setTimeout(
-            () => reject(new Error("Timed out")),
-            BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS,
-          );
+          timeoutId = activeWindow.setTimeout(() => {
+            abortController.abort();
+            reject(new Error("Timed out"));
+          }, BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS);
         }),
       ]);
     } finally {

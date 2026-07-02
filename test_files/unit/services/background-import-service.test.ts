@@ -212,7 +212,7 @@ describe("BackgroundImportService", () => {
   });
 
   describe("parseFeedWithTimeout", () => {
-    it("retries timeout failures once before succeeding", async () => {
+    it("does not retry timeout failures", async () => {
       const { BackgroundImportService } =
         await import("../../../src/services/background-import-service");
       const deps = makeDeps();
@@ -234,11 +234,11 @@ describe("BackgroundImportService", () => {
         (
           service as unknown as TestableBackgroundImportService
         ).parseFeedWithTimeout("https://example.com/recovered.xml"),
-      ).resolves.toEqual(parsedFeed);
-      expect(deps.feedParser.parseFeed).toHaveBeenCalledTimes(2);
+      ).rejects.toThrow("Timed out");
+      expect(deps.feedParser.parseFeed).toHaveBeenCalledTimes(1);
     });
 
-    it("marks a feed as timed out after exhausting timeout retries", async () => {
+    it("marks a feed as timed out after exhausting the hard timeout", async () => {
       const { BackgroundImportService } =
         await import("../../../src/services/background-import-service");
       const deps = makeDeps({
@@ -273,7 +273,7 @@ describe("BackgroundImportService", () => {
         importError?: string;
       };
 
-      expect(deps.feedParser.parseFeed).toHaveBeenCalledTimes(2);
+      expect(deps.feedParser.parseFeed).toHaveBeenCalledTimes(1);
       expect(updatedFeed.importStatus).toBe("timed_out");
       expect(updatedFeed.importError).toBeTruthy();
     });

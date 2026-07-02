@@ -6,6 +6,8 @@
 
 - Fixed feeds not being refreshed after deleting all feeds via feed manager modal
 
+- Fixed a bug where a single slow or unresponsive feed fetch could block the rest of the feeds from refreshing or completing an OPML import
+
 ## 2.4.0-beta.3 - June 17, 2026
 
 ### Features

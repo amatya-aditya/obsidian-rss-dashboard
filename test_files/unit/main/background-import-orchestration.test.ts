@@ -6,9 +6,10 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import {
-  BACKGROUND_IMPORT_CONCURRENCY,
   BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS,
   BACKGROUND_IMPORT_TIMEOUT_RETRY_COUNT,
+  FEED_SOFT_TIMEOUT_MS,
+  MAX_CONCURRENT_FETCHES,
 } from "../../../src/services/feed-timeout";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { BackgroundImportService } from "../../../src/services/background-import-service";
@@ -104,6 +105,12 @@ function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+async function flushMicrotasks(): Promise<void> {
+  for (let index = 0; index < 10; index += 1) {
+    await Promise.resolve();
+  }
+}
+
 describe("background import orchestration", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
@@ -134,7 +141,7 @@ describe("background import orchestration", () => {
         }),
     );
 
-    const feeds = Array.from({ length: 6 }, (_, index) =>
+    const feeds = Array.from({ length: MAX_CONCURRENT_FETCHES + 2 }, (_, index) =>
       createPlaceholderFeed(`https://example.com/${index}.xml`),
     );
     plugin.settings.feeds = [...feeds];
@@ -142,21 +149,78 @@ describe("background import orchestration", () => {
     plugin.startBackgroundImport(feeds);
     await flushPromises();
 
-    expect(mockParseFeed).toHaveBeenCalledTimes(BACKGROUND_IMPORT_CONCURRENCY);
+    expect(mockParseFeed).toHaveBeenCalledTimes(MAX_CONCURRENT_FETCHES);
 
-    resolvers[0]?.();
-    resolvers[1]?.();
+    for (let index = 0; index < MAX_CONCURRENT_FETCHES; index += 1) {
+      resolvers[index]?.();
+    }
     await flushPromises();
 
-    expect(mockParseFeed).toHaveBeenCalledTimes(
-      BACKGROUND_IMPORT_CONCURRENCY * 2,
+    expect(mockParseFeed).toHaveBeenCalledTimes(MAX_CONCURRENT_FETCHES + 2);
+
+    resolvers[MAX_CONCURRENT_FETCHES]?.();
+    resolvers[MAX_CONCURRENT_FETCHES + 1]?.();
+
+    await vi.waitFor(
+      () => {
+        expect((plugin as unknown as PluginWithInternal).isBackgroundImporting).toBe(false);
+      },
+      { timeout: 3000 },
     );
 
-    resolvers[2]?.();
-    resolvers[3]?.();
-    await flushPromises();
+    expect(mockParseFeed).toHaveBeenCalledTimes(MAX_CONCURRENT_FETCHES + 2);
+  });
 
-    expect(mockParseFeed).toHaveBeenCalledTimes(6);
+  it("detaches slow feeds after the soft timeout while keeping their semaphore slots", async () => {
+    vi.useFakeTimers();
+    const plugin = createPlugin();
+    const resolvers: Array<() => void> = [];
+
+    mockParseFeed.mockImplementation(
+      (url: string) =>
+        new Promise((resolve) => {
+          resolvers.push(() =>
+            resolve({
+              ...createPlaceholderFeed(url),
+              title: `Parsed ${url}`,
+              items: [],
+            }),
+          );
+        }),
+    );
+
+    const feeds = Array.from({ length: MAX_CONCURRENT_FETCHES + 1 }, (_, index) =>
+      createPlaceholderFeed(`https://example.com/${index}.xml`),
+    );
+    plugin.settings.feeds = [...feeds];
+
+    plugin.startBackgroundImport(feeds);
+    await flushMicrotasks();
+
+    expect(mockParseFeed).toHaveBeenCalledTimes(MAX_CONCURRENT_FETCHES);
+
+    await vi.advanceTimersByTimeAsync(FEED_SOFT_TIMEOUT_MS);
+    await flushMicrotasks();
+
+    expect(mockParseFeed).toHaveBeenCalledTimes(MAX_CONCURRENT_FETCHES);
+
+    resolvers[0]?.();
+    await flushMicrotasks();
+
+    expect(mockParseFeed).toHaveBeenCalledTimes(MAX_CONCURRENT_FETCHES + 1);
+
+    for (let index = 1; index <= MAX_CONCURRENT_FETCHES; index += 1) {
+      resolvers[index]?.();
+    }
+
+    await flushMicrotasks();
+
+    await vi.waitFor(
+      () => {
+        expect((plugin as unknown as PluginWithInternal).isBackgroundImporting).toBe(false);
+      },
+      { timeout: 3000 },
+    );
   });
 
   it("times out a stalled feed without blocking the rest of the queue and refreshes once at completion", async () => {
@@ -191,10 +255,13 @@ describe("background import orchestration", () => {
       BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS *
         (BACKGROUND_IMPORT_TIMEOUT_RETRY_COUNT + 1),
     );
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.waitFor(
+      () => {
+        expect(plugin.saveData).toHaveBeenCalled();
+      },
+      { timeout: 3000 },
+    );
 
-    expect(plugin.saveData).toHaveBeenCalled();
     // The single final render at completion must be a full render
     expect(renderSpy).toHaveBeenCalledTimes(1);
     // No mid-import full renders; sidebar-only path used for progress

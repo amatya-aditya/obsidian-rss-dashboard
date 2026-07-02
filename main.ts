@@ -53,7 +53,12 @@ import {
 } from "./src/services/feed-storage-repository";
 import { ImportExportService } from "./src/services/import-export-service";
 import { BackgroundImportService } from "./src/services/background-import-service";
-import { FEED_REQUEST_TIMEOUT_MS } from "./src/services/feed-timeout";
+import {
+  FEED_REQUEST_TIMEOUT_MS,
+  FEED_SOFT_TIMEOUT_MS,
+  MAX_CONCURRENT_FETCHES,
+} from "./src/services/feed-timeout";
+import { globalFetchSemaphore } from "./src/services/feed-parser/fetch-semaphore";
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
 
@@ -272,7 +277,6 @@ export default class RssDashboardPlugin extends Plugin {
   private startupRefreshTimeoutId: number | null = null;
   private progressSaveDebounce: number | null = null;
   private suppressWatcherUntil = 0;
-  private static readonly FEED_REFRESH_CONCURRENCY = 4;
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
   private readonly feedStorageRepository: FeedStorageRepository;
 
@@ -2658,47 +2662,40 @@ export default class RssDashboardPlugin extends Plugin {
       lastRenderAt = now;
     };
 
+    const backgroundPromises: Promise<void>[] = [];
+
     const worker = async (): Promise<void> => {
       while (true) {
+        await globalFetchSemaphore.acquire();
+
         const currentFeed = feedsToRefresh[nextFeedIndex];
         nextFeedIndex += 1;
         if (!currentFeed) {
+          globalFetchSemaphore.release();
           return;
         }
 
-        this.activeRefreshState.set(currentFeed.url, {
-          status: "processing",
-          startedAt: Date.now(),
+        const refreshPromise = this.processRefreshBatchFeed(
+          currentFeed,
+          refreshSummary,
+          refreshView,
+        ).finally(() => {
+          globalFetchSemaphore.release();
         });
 
-        try {
-          const updatedFeed = await this.refreshFeedWithTimeout(currentFeed);
-          this.mergeRefreshedFeed(updatedFeed);
-        } catch (error) {
-          const isTimedOut =
-            error instanceof Error && error.message === "Timed out";
-          if (isTimedOut) {
-            refreshSummary.timedOut += 1;
-          } else {
-            refreshSummary.failed += 1;
-          }
+        const winner = await Promise.race([
+          refreshPromise.then(() => "fetch"),
+          this.waitForFeedSoftTimeout().then(() => "timeout"),
+        ]);
 
-          console.error(
-            `[RSS dashboard] Error refreshing feed ${currentFeed.title}:`,
-            error,
-          );
-        } finally {
-          this.activeRefreshState.delete(currentFeed.url);
-
-          if (this.activeRefreshState.size > 0) {
-            await refreshView();
-          }
+        if (winner === "timeout") {
+          backgroundPromises.push(refreshPromise);
         }
       }
     };
 
     const workerCount = Math.min(
-      RssDashboardPlugin.FEED_REFRESH_CONCURRENCY,
+      MAX_CONCURRENT_FETCHES,
       feedsToRefresh.length,
     );
 
@@ -2706,6 +2703,7 @@ export default class RssDashboardPlugin extends Plugin {
       const workers = Array.from({ length: workerCount }, () => worker());
       await refreshView(true);
       await Promise.all(workers);
+      await Promise.all(backgroundPromises);
 
       await this.validateSavedArticles();
       this.settings.lastRefreshTimestamp = Date.now();
@@ -2742,6 +2740,47 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     return ` (${parts.join(", ")})`;
+  }
+
+  private async processRefreshBatchFeed(
+    currentFeed: Feed,
+    refreshSummary: { failed: number; timedOut: number },
+    refreshView: () => Promise<void>,
+  ): Promise<void> {
+    this.activeRefreshState.set(currentFeed.url, {
+      status: "processing",
+      startedAt: Date.now(),
+    });
+
+    try {
+      const updatedFeed = await this.refreshFeedWithTimeout(currentFeed);
+      this.mergeRefreshedFeed(updatedFeed);
+    } catch (error) {
+      const isTimedOut =
+        error instanceof Error && error.message === "Timed out";
+      if (isTimedOut) {
+        refreshSummary.timedOut += 1;
+      } else {
+        refreshSummary.failed += 1;
+      }
+
+      console.error(
+        `[RSS dashboard] Error refreshing feed ${currentFeed.title}:`,
+        error,
+      );
+    } finally {
+      this.activeRefreshState.delete(currentFeed.url);
+
+      if (this.activeRefreshState.size > 0) {
+        await refreshView();
+      }
+    }
+  }
+
+  private async waitForFeedSoftTimeout(): Promise<void> {
+    return new Promise((resolve) => {
+      activeWindow.setTimeout(resolve, FEED_SOFT_TIMEOUT_MS);
+    });
   }
 
   private async refreshFeedWithTimeout(feed: Feed): Promise<Feed> {
