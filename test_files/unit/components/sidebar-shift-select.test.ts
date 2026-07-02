@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   Sidebar,
@@ -87,13 +87,26 @@ describe("Sidebar Shift+Click Range Select (TDD)", () => {
 
     callbacks.onRangeSelect = vi.fn();
 
-    const sidebar = new Sidebar(app, container, plugin, settings, options, callbacks);
+    const sidebar = new Sidebar(
+      app,
+      container,
+      plugin,
+      settings,
+      options,
+      callbacks,
+    );
     sidebar.render();
 
-    const folderA = container.querySelector('[data-folder-path="A"]') as HTMLElement;
+    const folderA = container.querySelector(
+      '[data-folder-path="A"]',
+    ) as HTMLElement;
     expect(folderA).toBeTruthy();
 
-    const evt = new MouseEvent("click", { bubbles: true, cancelable: true, shiftKey: true });
+    const evt = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      shiftKey: true,
+    });
     folderA.dispatchEvent(evt);
 
     expect(callbacks.onRangeSelect).toHaveBeenCalled();
@@ -102,24 +115,44 @@ describe("Sidebar Shift+Click Range Select (TDD)", () => {
     const visibleKeys = call[1];
     expect(clickedKey).toBe("folder:A");
     expect(Array.isArray(visibleKeys)).toBe(true);
-    expect(visibleKeys).toEqual(expect.arrayContaining(["folder:A", "folder:B"]));
+    expect(visibleKeys).toEqual(
+      expect.arrayContaining(["folder:A", "folder:B"]),
+    );
   });
 
   it("calls onRangeSelect when Shift+clicking a feed", () => {
     settings.folders = [{ name: "F", subfolders: [] }] as any;
     settings.feeds = [
-      { url: "https://example.com/feed1", title: "Feed1", items: [], folder: "F" },
+      {
+        url: "https://example.com/feed1",
+        title: "Feed1",
+        items: [],
+        folder: "F",
+      },
     ] as any;
 
     callbacks.onRangeSelect = vi.fn();
 
-    const sidebar = new Sidebar(app, container, plugin, settings, options, callbacks);
+    const sidebar = new Sidebar(
+      app,
+      container,
+      plugin,
+      settings,
+      options,
+      callbacks,
+    );
     sidebar.render();
 
-    const feedEl = container.querySelector('[data-feed-url="https://example.com/feed1"]') as HTMLElement;
+    const feedEl = container.querySelector(
+      '[data-feed-url="https://example.com/feed1"]',
+    ) as HTMLElement;
     expect(feedEl).toBeTruthy();
 
-    const evt = new MouseEvent("click", { bubbles: true, cancelable: true, shiftKey: true });
+    const evt = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      shiftKey: true,
+    });
     feedEl.dispatchEvent(evt);
 
     expect(callbacks.onRangeSelect).toHaveBeenCalled();

@@ -1,5 +1,9 @@
 ## 2.4.0 - July 1, 2026
 
+#### Multi-select sidebar folders
+
+- Added ability to control+click and shift+click select multiple folders in the sidebar. This allows you to filter and view only the articles contained within those folders.
+
 ### Fixes
 
 - Fixed 'custom' input textbox not being hidden when changing between different timeframes in add/edit feed modal ([GH #147](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/147))

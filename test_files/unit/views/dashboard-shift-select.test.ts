@@ -36,17 +36,16 @@ function createMockEnv() {
 }
 
 describe("Dashboard Shift+Click Range Select", () => {
-  let app: App;
+
   let leaf: WorkspaceLeaf;
   let settings: RssDashboardSettings;
   let plugin: RssDashboardPlugin;
 
   beforeEach(() => {
-    const env = createMockEnv();
-    app = env.app;
-    leaf = env.leaf;
-    settings = env.settings;
-    plugin = env.plugin;
+    const { leaf: envLeaf, settings: envSettings, plugin: envPlugin } = createMockEnv();
+    leaf = envLeaf;
+    settings = envSettings;
+    plugin = envPlugin;
   });
 
   afterEach(() => {
@@ -68,7 +67,7 @@ describe("Dashboard Shift+Click Range Select", () => {
     ] as any;
 
     const view = new RssDashboardView(leaf, plugin);
-    
+
     // Simulate setting initial anchor
     (view as any).lastClickAnchorKey = "folder:A";
 
@@ -87,7 +86,7 @@ describe("Dashboard Shift+Click Range Select", () => {
 
     // Folder A should be selected (all its feeds are in range)
     expect(view.selectedFolders).toContain("A");
-    
+
     // Folder B should NOT be selected (B3 is not in range)
     expect(view.selectedFolders).not.toContain("B");
 
