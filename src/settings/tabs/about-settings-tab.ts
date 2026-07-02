@@ -54,7 +54,7 @@ export function renderAboutTab(
   originalCreatorLink.target = "_blank";
   originalCreatorLink.rel = "noopener noreferrer";
   attributionParagraph.createSpan({
-    text: ", with active development and maintenance now led by ",
+    text: ", with active development and support offered by ",
   });
   const maintainerLink = attributionParagraph.createEl("a", {
     text: "Marcd35",
@@ -64,7 +64,7 @@ export function renderAboutTab(
   maintainerLink.target = "_blank";
   maintainerLink.rel = "noopener noreferrer";
   attributionParagraph.createSpan({
-    text: ", alongside contributions from the community.",
+    text: " since version 2.2.0, alongside many contributions from the community.",
   });
 
   const createLinkButton = (
@@ -112,7 +112,7 @@ export function renderAboutTab(
 
   aboutContainer.createDiv({
     cls: "rss-dashboard-about-section-title",
-    text: "Other plugins",
+    text: "Other plugins by the author",
   });
   const otherPluginsRow = aboutContainer.createDiv({
     cls: "rss-dashboard-about-btn-row",
