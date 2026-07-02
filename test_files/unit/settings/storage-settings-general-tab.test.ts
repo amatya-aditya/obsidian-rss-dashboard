@@ -139,7 +139,7 @@ describe("General settings storage section", () => {
       (button) => button.textContent === "Apply",
     ) as HTMLButtonElement;
     const repairButton = buttons.find(
-      (button) => button.textContent === "Repair/Rebuild storage",
+      (button) => button.textContent === "Repair/rebuild storage",
     ) as HTMLButtonElement;
     const importButton = buttons.find(
       (button) => button.textContent === "Import shard data",

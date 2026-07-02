@@ -22,7 +22,10 @@ import {
   FEED_REFRESH_DISABLED_INTERVAL,
   getPerFeedRefreshIntervalDropdownValue,
 } from "../../utils/refresh-intervals";
-import { renderSupportedFormatBadges, SupportedFeedType } from "./supported-format-badges";
+import {
+  renderSupportedFormatBadges,
+  SupportedFeedType,
+} from "./supported-format-badges";
 import { decorateFolderSelectorInput } from "./folder-selector-field";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 
@@ -98,7 +101,8 @@ export class AddFeedModal extends Modal {
     this.url = this.initialUrl;
     this.title = this.initialTitle;
     this.folder = this.defaultFolder;
-    this.autoDeleteDuration = this.plugin?.settings?.defaultAutoDeleteDuration ?? 30;
+    this.autoDeleteDuration =
+      this.plugin?.settings?.defaultAutoDeleteDuration ?? 30;
     this.maxItemsLimit = this.plugin?.settings?.maxItems ?? 50;
     this.feedKeywordRules = {
       overrideGlobalRules: false,
@@ -181,7 +185,7 @@ export class AddFeedModal extends Modal {
     this.loadBtn.addClass("loading");
     this.loadBtn.disabled = true;
     this.clearActiveBadge(); // Clear any previous active states
-    
+
     if (this.statusDiv) {
       this.statusDiv.textContent = this.status;
       this.statusDiv.removeClass("rss-dashboard-status-warning");
@@ -201,7 +205,7 @@ export class AddFeedModal extends Modal {
 
       this.title = preview.title;
       if (this.titleInput) this.titleInput.value = this.title;
-      
+
       this.latestEntry = formatLatestEntryLabel(preview.latestPubDate);
 
       if (this.latestEntryDiv) {
@@ -236,10 +240,7 @@ export class AddFeedModal extends Modal {
       const currentFolder = this.folderInput?.value || "";
       if (
         this.folderInput &&
-        shouldAutoAssignFolder(
-          currentFolder,
-          this.plugin?.settings?.media,
-        )
+        shouldAutoAssignFolder(currentFolder, this.plugin?.settings?.media)
       ) {
         const nextFolder = getDefaultFolderForResolvedFeed(
           preview,
@@ -307,7 +308,7 @@ export class AddFeedModal extends Modal {
     urlSetting.settingEl.addClass("rss-feed-form-row");
     urlSetting.settingEl.addClass("rss-feed-form-row-url");
 
-    const sourceSetting = new Setting(this.contentEl).setName("Feed Source");
+    const sourceSetting = new Setting(this.contentEl).setName("Feed source");
     sourceSetting.settingEl.addClass("rss-feed-form-row");
     sourceSetting.settingEl.addClass("rss-feed-source-row");
 
@@ -331,7 +332,9 @@ export class AddFeedModal extends Modal {
         this.titleInput.autocomplete = "off";
         this.titleInput.spellcheck = false;
         this.titleInput.addClass("title-input");
-        this.titleInput.addEventListener("focus", () => this.titleInput.select());
+        this.titleInput.addEventListener("focus", () =>
+          this.titleInput.select(),
+        );
         this.titleInput.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
             this.folderInput?.focus();
@@ -342,7 +345,9 @@ export class AddFeedModal extends Modal {
       });
     titleSetting.settingEl.addClass("rss-feed-form-row");
 
-    const latestEntrySetting = new Setting(this.contentEl).setName("Latest entry");
+    const latestEntrySetting = new Setting(this.contentEl).setName(
+      "Latest entry",
+    );
     this.latestEntryDiv = latestEntrySetting.controlEl.createDiv({
       text: this.latestEntry,
       cls: "add-feed-latest-entry",
@@ -362,7 +367,9 @@ export class AddFeedModal extends Modal {
         this.folderInput.autocomplete = "off";
         this.folderInput.spellcheck = false;
         this.folderInput.addClass("folder-input");
-        this.folderInput.addEventListener("focus", () => this.folderInput.select());
+        this.folderInput.addEventListener("focus", () =>
+          this.folderInput.select(),
+        );
 
         new FolderSuggest(this.app, this.folderInput, this.folders);
       });
@@ -387,7 +394,9 @@ export class AddFeedModal extends Modal {
 
     const autoDeleteSetting = new Setting(perFeedControlsBody)
       .setName("Auto delete articles duration")
-      .setDesc("Days to keep articles before auto-delete");
+      .setDesc(
+        "Days to keep articles before auto-delete. This will also limit the timeframe window for shown articles.",
+      );
 
     let autoDeleteCustomInput: HTMLInputElement | null = null;
 
@@ -407,7 +416,9 @@ export class AddFeedModal extends Modal {
         .setValue(
           this.autoDeleteDuration === 0
             ? "0"
-            : [1, 3, 7, 14, 30, 60, 90, 180, 365].includes(this.autoDeleteDuration)
+            : [1, 3, 7, 14, 30, 60, 90, 180, 365].includes(
+                  this.autoDeleteDuration,
+                )
               ? this.autoDeleteDuration.toString()
               : "custom",
         )
@@ -424,7 +435,9 @@ export class AddFeedModal extends Modal {
               );
               autoDeleteCustomInput.min = "1";
               autoDeleteCustomInput.value =
-                this.autoDeleteDuration > 0 ? this.autoDeleteDuration.toString() : "";
+                this.autoDeleteDuration > 0
+                  ? this.autoDeleteDuration.toString()
+                  : "";
               autoDeleteCustomInput.addEventListener("change", (evt: Event) => {
                 const target = evt.target as HTMLInputElement;
                 this.autoDeleteDuration = parseInt(target.value) || 0;
@@ -436,6 +449,7 @@ export class AddFeedModal extends Modal {
             }
           } else {
             if (autoDeleteCustomInput) {
+              autoDeleteCustomInput.removeClass("visible");
               autoDeleteCustomInput.addClass("hidden");
             }
             this.autoDeleteDuration = parseInt(value) || 0;
@@ -490,6 +504,7 @@ export class AddFeedModal extends Modal {
             }
           } else {
             if (maxItemsCustomInput) {
+              maxItemsCustomInput.removeClass("visible");
               maxItemsCustomInput.addClass("hidden");
             }
             this.maxItemsLimit = parseInt(value) || 0;
@@ -547,6 +562,7 @@ export class AddFeedModal extends Modal {
             }
           } else {
             if (scanIntervalCustomInput) {
+              scanIntervalCustomInput.removeClass("visible");
               scanIntervalCustomInput.addClass("hidden");
             }
             this.scanInterval = parseInt(value, 10) || 0;
@@ -586,7 +602,7 @@ export class AddFeedModal extends Modal {
     const autoTagSetting = new Setting(perFeedControlsBody)
       .setName("Custom auto-tags")
       .setDesc(
-        "Additional tags applied automatically to new articles from this feed (Single Feed Override)",
+        "Additional tags applied automatically to new articles from this feed (single feed override)",
       );
 
     const availableTags: Tag[] = this.plugin?.settings?.availableTags ?? [];

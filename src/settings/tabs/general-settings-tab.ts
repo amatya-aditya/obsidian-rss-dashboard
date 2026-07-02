@@ -204,7 +204,7 @@ export function renderGeneralSettingsTab(
 
   // ── Refresh interval ──────────────────────────────────────────────────────
   const refreshIntervalSetting = new Setting(containerEl)
-    .setName("Auto-Refresh interval")
+    .setName("Auto-refresh interval")
     .setDesc("How often to auto-refresh feeds (in minutes)");
 
   let refreshInterval = plugin.settings.refreshInterval;
@@ -263,6 +263,7 @@ export function renderGeneralSettingsTab(
           return;
         }
 
+        refreshIntervalCustomInput?.removeClass("visible");
         refreshIntervalCustomInput?.addClass("hidden");
         refreshInterval = normalizeRefreshIntervalMinutes(parseInt(value, 10));
         void (async () => {
@@ -398,6 +399,7 @@ export function renderGeneralSettingsTab(
           return;
         }
 
+        maxItemsCustomInput?.removeClass("visible");
         maxItemsCustomInput?.addClass("hidden");
         maxItemsLimit = parseInt(value, 10) || 0;
         applyMaxItemsValue(maxItemsLimit);
@@ -408,7 +410,7 @@ export function renderGeneralSettingsTab(
   const defaultAutoDeleteSetting = new Setting(containerEl)
     .setName("Default auto delete duration (new feeds)")
     .setDesc(
-      "Default days to keep read articles before auto-delete for new feeds (per-feed override available).",
+      "Default days to keep read articles before auto-delete for new feeds (per-feed override available). This will also limit the timeframe window for shown articles.",
     );
 
   let defaultDuration = plugin.settings.defaultAutoDeleteDuration;
@@ -461,6 +463,7 @@ export function renderGeneralSettingsTab(
           return;
         }
 
+        autoDeleteCustomInput?.removeClass("visible");
         autoDeleteCustomInput?.addClass("hidden");
         defaultDuration = parseInt(value, 10) || 0;
         void (async () => {
@@ -474,8 +477,10 @@ export function renderGeneralSettingsTab(
   new Setting(containerEl).setName("Proxy").setHeading();
 
   new Setting(containerEl)
+    // eslint-disable-next-line obsidianmd/ui/sentence-case
     .setName("Enable CORS proxy")
     .setDesc(
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
       "When enabled, article fetches that are blocked by a firewall (e.g. on iOS) will be retried through the proxy URL below",
     )
     .addToggle((toggle) => {
@@ -493,6 +498,7 @@ export function renderGeneralSettingsTab(
   if (plugin.settings.corsProxyEnabled) {
     const proxySetting = new Setting(containerEl)
       .setName("Proxy URL")
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
       .setDesc("Base URL of the CORS proxy.");
     proxySetting.settingEl.addClass("rss-proxy-setting-item");
 

@@ -61,6 +61,7 @@ export interface FeedPreviewData {
 
 export interface FeedParseOptions {
   allowEmpty?: boolean;
+  signal?: AbortSignal;
 }
 
 export interface ItunesLookupResponse {

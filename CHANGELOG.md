@@ -1,12 +1,12 @@
-# Obsidian RSS Dashboard Changelog
+## 2.4.0 - July 1, 2026
 
-## Unreleased
+### Fixes
 
-### Features
+- Fixed 'custom' input textbox not being hidden when changing between different timeframes in add/edit feed modal ([GH #147](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/147))
 
-#### Multi-select sidebar folders
+- Fixed feeds not being refreshed after deleting all feeds via feed manager modal
 
-- Added ability to control+click and shift+click select multiple folders in the sidebar. This allows you to filter and view only the articles contained within those folders.
+- Fixed a bug where a single slow or unresponsive feed fetch could block the rest of the feeds from refreshing or completing an OPML import
 
 ## 2.4.0-beta.3 - June 17, 2026
 

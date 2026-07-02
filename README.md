@@ -251,6 +251,8 @@ your **new device**.
 > will cause it to write empty defaults to disk. Sync will treat this empty file as the
 > authoritative state and propagate it to all your devices, wiping your feeds.
 
+> ⚠️ **Important:** Sync will only work on legacy mode if your data.json file is below 5mb. It is highly recommended to use Shard Storage v2 since it is currently the most robust version for data storage.
+
 3. On your **existing device** (PC): Set up RSS Dashboard with all the feeds, folders, and tags you want to sync.
 4. On your **existing device** (PC): Confirm your storage folder names follow the requirements above (Settings → RSS Dashboard → Storage, **as well as** Storage → Metadata storage > Metadata data.json location).
 5. On your **existing device** (PC): Open Obsidian Settings → Core Plugins → Sync → Activity Log and wait until it shows today's date and time with the text "Fully synced"

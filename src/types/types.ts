@@ -214,7 +214,6 @@ export interface MediaSettings {
   defaultYouTubeTag: string;
   defaultYouTubeTags: string[];
   defaultPodcastFolder: string;
-  defaultPodcastTag: string;
   defaultPodcastTags: string[];
   defaultRssFolder: string;
   defaultRssTag: string;
@@ -383,7 +382,10 @@ export interface AutoBackupSettings {
   backupUserdata: boolean; // copies userdata.json → userdata.json.backup
 }
 
-export type FeedStorageMode = "legacy-json" | "vault-shards" | "vault-shards-v2";
+export type FeedStorageMode =
+  | "legacy-json"
+  | "vault-shards"
+  | "vault-shards-v2";
 
 export interface ArticleUserState {
   read?: boolean;
@@ -622,7 +624,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultYouTubeTag: "Video",
     defaultYouTubeTags: ["Video"],
     defaultPodcastFolder: "Podcast",
-    defaultPodcastTag: "podcast",
     defaultPodcastTags: ["podcast"],
     defaultRssFolder: "RSS",
     defaultRssTag: "RSS",
@@ -761,7 +762,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     backupOpml: true,
     backupUserdata: true,
   },
-  storageMode: "vault-shards",
+  storageMode: "vault-shards-v2",
   storageFolder: ".rss-dashboard-data/feeds",
   storageSchemaVersion: 1,
   metadataStorageMode: "plugin-default",

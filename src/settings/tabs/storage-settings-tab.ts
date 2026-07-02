@@ -284,6 +284,7 @@ export function renderStorageSettingsTab(
 
   const v1Div = document.createElement("div");
   setCssProps(v1Div, { "margin-bottom": "10px" });
+  // eslint-disable-next-line obsidianmd/ui/sentence-case
   v1Div.createEl("strong", { text: "Shard Storage v1:" });
   v1Div.appendText(
     " Creates individual vault files for each feed to improve syncing, but stores state (read, starred) inside the feed file, which can still cause minor sync conflicts.",
@@ -291,6 +292,7 @@ export function renderStorageSettingsTab(
   descFragment.appendChild(v1Div);
 
   const v2Div = document.createElement("div");
+  // eslint-disable-next-line obsidianmd/ui/sentence-case
   v2Div.createEl("strong", { text: "Shard Storage v2:" });
   v2Div.appendText(
     " Splits feed content and user state (read, starred, tags) into separate files, providing the most robust sync experience.",
@@ -303,7 +305,9 @@ export function renderStorageSettingsTab(
     .addDropdown((dropdown) =>
       dropdown
         .addOption("legacy-json", "Legacy JSON")
+        // eslint-disable-next-line obsidianmd/ui/sentence-case
         .addOption("vault-shards", "Shard Storage v1")
+        // eslint-disable-next-line obsidianmd/ui/sentence-case
         .addOption("vault-shards-v2", "Shard Storage v2")
         .setValue(pendingStorageMode)
         .onChange((value) => {
@@ -339,7 +343,7 @@ export function renderStorageSettingsTab(
     .setDesc(renderStorageStatus());
 
   new Setting(containerEl)
-    .setName("Repair/Rebuild storage")
+    .setName("Repair/rebuild storage")
     .setDesc(
       "Use this when shard storage seems out of sync, incomplete, or after manual folder moves. This will: 1. Re-check and normalize your storage folder path. 2. Force-rewrite all shard files from current feed data. 3. Force-save storage metadata. 4. Refresh storage status. Think of this as a safe 're-generate all shard files' action.'",
     );
@@ -507,7 +511,7 @@ export function renderStorageSettingsTab(
         }),
     )
     .addButton((button) =>
-      button.setButtonText("Repair/Rebuild storage").onClick(() => {
+      button.setButtonText("Repair/rebuild storage").onClick(() => {
         void (async () => {
           storageLog("Clicked repair/rebuild storage", {
             currentMode: plugin.settings.storageMode,
@@ -598,7 +602,7 @@ export function renderStorageSettingsTab(
     });
   }
 
-  new Setting(containerEl).setName("Metadata Storage").setHeading();
+  new Setting(containerEl).setName("Metadata storage").setHeading();
 
   new Setting(containerEl)
     .setName("Metadata data.json location")

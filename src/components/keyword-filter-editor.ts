@@ -169,6 +169,7 @@ export function renderKeywordFilterEditor(
         attr: { "aria-label": `Delete rule ${index + 1}` },
       });
       // "X" is intentional icon-like prefix for quick visual scanning.
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
       removeBtn.setText("X Delete rule");
       removeBtn.addEventListener("click", () => {
         onChange({

@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { MediaService } from "../../../src/services/media-service";
+import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import type {
+  DisplaySettings,
   Feed,
   FeedItem,
   Folder,
-  MediaSettings,
 } from "../../../src/types/types";
 
 function createItem(overrides: Partial<FeedItem> = {}): FeedItem {
@@ -90,7 +91,9 @@ describe("MediaService.detectAndProcessFeed", () => {
     );
 
     const item = tagged.items[0];
-    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("video");
+    expect((item.tags ?? []).map((tag) => tag.name.toLowerCase())).toContain(
+      "video",
+    );
   });
 
   it("auto-applies existing Videos tag to non-YouTube video feeds", () => {
@@ -110,7 +113,9 @@ describe("MediaService.detectAndProcessFeed", () => {
     );
 
     const item = tagged.items[0];
-    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("videos");
+    expect((item.tags ?? []).map((tag) => tag.name.toLowerCase())).toContain(
+      "videos",
+    );
   });
 
   it("does not apply Video tag to non-YouTube video feeds when defaultVideoTag is not set", () => {
@@ -130,9 +135,9 @@ describe("MediaService.detectAndProcessFeed", () => {
     );
 
     const item = tagged.items[0];
-    expect(item.tags.map((tag) => tag.name.toLowerCase())).not.toContain(
-      "video",
-    );
+    expect(
+      (item.tags ?? []).map((tag) => tag.name.toLowerCase()),
+    ).not.toContain("video");
   });
 
   it("tags only video items in mixed feeds", () => {
@@ -171,11 +176,11 @@ describe("MediaService.detectAndProcessFeed", () => {
       (item) => item.guid === "article-mixed-1",
     );
 
-    expect(videoItem?.tags.map((tag) => tag.name.toLowerCase())).toContain(
-      "video",
-    );
     expect(
-      articleItem?.tags.map((tag) => tag.name.toLowerCase()),
+      (videoItem?.tags ?? []).map((tag) => tag.name.toLowerCase()),
+    ).toContain("video");
+    expect(
+      (articleItem?.tags ?? []).map((tag) => tag.name.toLowerCase()),
     ).not.toContain("video");
   });
 
@@ -263,14 +268,16 @@ describe("MediaService.detectAndProcessFeed", () => {
     );
 
     expect(
-      tagged.items
-        .find((item) => item.guid === "video-mixed-folder")
-        ?.tags.map((tag) => tag.name),
+      (
+        tagged.items.find((item) => item.guid === "video-mixed-folder")?.tags ??
+        []
+      ).map((tag) => tag.name),
     ).toEqual(["Video", "Tech", "Important"]);
     expect(
-      tagged.items
-        .find((item) => item.guid === "article-mixed-folder")
-        ?.tags.map((tag) => tag.name),
+      (
+        tagged.items.find((item) => item.guid === "article-mixed-folder")
+          ?.tags ?? []
+      ).map((tag) => tag.name),
     ).toEqual(["Tech", "Important"]);
   });
 
@@ -339,9 +346,9 @@ describe("MediaService.detectAndProcessFeed", () => {
       { defaultVideoTag: "Video" },
     );
 
-    expect(tagged.items[0].tags.map((tag) => tag.name.toLowerCase())).toContain(
-      "video",
-    );
+    expect(
+      (tagged.items[0]?.tags ?? []).map((tag) => tag.name.toLowerCase()),
+    ).toContain("video");
   });
 
   it("classifies Bloomberg-style video routes as video when media content is image and auto-tags existing Videos tag", () => {
@@ -364,9 +371,9 @@ describe("MediaService.detectAndProcessFeed", () => {
       { defaultVideoTag: "Video" },
     );
 
-    expect(tagged.items[0].tags.map((tag) => tag.name.toLowerCase())).toContain(
-      "videos",
-    );
+    expect(
+      (tagged.items[0]?.tags ?? []).map((tag) => tag.name.toLowerCase()),
+    ).toContain("videos");
   });
 
   it("classifies Bloomberg-style video routes as video when media medium is image and auto-tags Video", () => {
@@ -389,9 +396,9 @@ describe("MediaService.detectAndProcessFeed", () => {
       { defaultVideoTag: "Video" },
     );
 
-    expect(tagged.items[0].tags.map((tag) => tag.name.toLowerCase())).toContain(
-      "video",
-    );
+    expect(
+      (tagged.items[0]?.tags ?? []).map((tag) => tag.name.toLowerCase()),
+    ).toContain("video");
   });
 
   it("auto-applies Video tag to YouTube feeds when enabled", () => {
@@ -413,10 +420,12 @@ describe("MediaService.detectAndProcessFeed", () => {
     );
 
     const item = tagged.items[0];
-    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("video");
-    expect(item.tags.map((tag) => tag.name.toLowerCase())).not.toContain(
-      "youtube",
+    expect((item.tags ?? []).map((tag) => tag.name.toLowerCase())).toContain(
+      "video",
     );
+    expect(
+      (item.tags ?? []).map((tag) => tag.name.toLowerCase()),
+    ).not.toContain("youtube");
   });
 
   it("applies defaultYouTubeTag to YouTube feeds independently of the video-tag setting", () => {
@@ -438,8 +447,12 @@ describe("MediaService.detectAndProcessFeed", () => {
     );
 
     const item = tagged.items[0];
-    expect(item.tags.map((t) => t.name.toLowerCase())).toContain("myyoutube");
-    expect(item.tags.map((t) => t.name.toLowerCase())).not.toContain("video");
+    expect((item.tags ?? []).map((t) => t.name.toLowerCase())).toContain(
+      "myyoutube",
+    );
+    expect((item.tags ?? []).map((t) => t.name.toLowerCase())).not.toContain(
+      "video",
+    );
   });
 
   it("applies all configured defaultYouTubeTags to YouTube feeds", () => {
@@ -467,7 +480,7 @@ describe("MediaService.detectAndProcessFeed", () => {
       },
     );
 
-    expect(tagged.items[0].tags.map((tag) => tag.name)).toEqual([
+    expect((tagged.items[0]?.tags ?? []).map((tag) => tag.name)).toEqual([
       "Video",
       "News",
       "Tech",
@@ -495,7 +508,7 @@ describe("MediaService.detectAndProcessFeed", () => {
       },
     );
 
-    expect(tagged.items[0].tags.map((tag) => tag.name)).toEqual([
+    expect((tagged.items[0]?.tags ?? []).map((tag) => tag.name)).toEqual([
       "Legacy YouTube",
     ]);
   });
@@ -524,7 +537,7 @@ describe("MediaService.detectAndProcessFeed", () => {
       },
     );
 
-    expect(tagged.items[0].tags.map((tag) => tag.name)).toEqual([
+    expect((tagged.items[0]?.tags ?? []).map((tag) => tag.name)).toEqual([
       "Video",
       "Tech",
     ]);
@@ -546,9 +559,9 @@ describe("MediaService.detectAndProcessFeed", () => {
       { defaultVideoTag: "", defaultYouTubeTag: undefined },
     );
 
-    expect(tagged.items[0].tags.map((t) => t.name.toLowerCase())).toContain(
-      "video",
-    );
+    expect(
+      (tagged.items[0]?.tags ?? []).map((t) => t.name.toLowerCase()),
+    ).toContain("video");
   });
 
   it("does not tag non-YouTube video feeds when defaultVideoTag is not set", () => {
@@ -567,9 +580,9 @@ describe("MediaService.detectAndProcessFeed", () => {
       { defaultVideoTag: "" },
     );
 
-    expect(tagged.items[0].tags.map((t) => t.name.toLowerCase())).not.toContain(
-      "video",
-    );
+    expect(
+      (tagged.items[0]?.tags ?? []).map((t) => t.name.toLowerCase()),
+    ).not.toContain("video");
   });
 
   it("does not throw when availableTags is invalid during video tagging", () => {
@@ -601,7 +614,7 @@ describe("MediaService.detectAndProcessFeed", () => {
     expect(tagged.items[0].tags).toEqual([]);
   });
 
-  it("auto-applies configured defaultPodcastTag to podcast feeds", () => {
+  it("auto-applies configured defaultPodcastTags to podcast feeds", () => {
     const podcastFeed = createFeed([
       createItem({
         guid: "podcast-1",
@@ -619,14 +632,16 @@ describe("MediaService.detectAndProcessFeed", () => {
     const tagged = MediaService.applyMediaTags(
       detected,
       [{ name: "MyPod", color: "#8e44ad" }],
-      { defaultPodcastTag: "MyPod" },
+      { defaultPodcastTags: ["MyPod"] },
     );
 
     const item = tagged.items[0];
-    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("mypod");
+    expect((item.tags ?? []).map((tag) => tag.name.toLowerCase())).toContain(
+      "mypod",
+    );
   });
 
-  it("falls back to 'podcast' if defaultPodcastTag is empty", () => {
+  it("falls back to 'podcast' if defaultPodcastTags is empty", () => {
     const podcastFeed = createFeed([
       createItem({
         guid: "podcast-2",
@@ -644,11 +659,13 @@ describe("MediaService.detectAndProcessFeed", () => {
     const tagged = MediaService.applyMediaTags(
       detected,
       [{ name: "Podcast", color: "#8e44ad" }],
-      { defaultPodcastTag: "" },
+      { defaultPodcastTags: [] },
     );
 
     const item = tagged.items[0];
-    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain("podcast");
+    expect((item.tags ?? []).map((tag) => tag.name.toLowerCase())).toContain(
+      "podcast",
+    );
   });
 
   it("auto-applies configured defaultTwitterTag to Twitter feeds", () => {
@@ -667,7 +684,7 @@ describe("MediaService.detectAndProcessFeed", () => {
     );
 
     const item = tagged.items[0];
-    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain(
+    expect((item.tags ?? []).map((tag) => tag.name.toLowerCase())).toContain(
       "twittertag",
     );
   });
@@ -707,7 +724,7 @@ describe("MediaService.detectAndProcessFeed", () => {
     );
 
     const item = tagged.items[0];
-    expect(item.tags.map((tag) => tag.name.toLowerCase())).toContain(
+    expect((item.tags ?? []).map((tag) => tag.name.toLowerCase())).toContain(
       "mastodontag",
     );
   });
@@ -733,28 +750,10 @@ describe("MediaService.detectAndProcessFeed", () => {
 });
 
 describe("MediaService.shouldShowFeedIcon", () => {
-  const defaultMediaSettings = (
-    overrides: Partial<MediaSettings> = {},
-  ): MediaSettings => ({
-    defaultVideoTag: "Video",
-    rememberPlaybackProgress: true,
-    defaultTwitterFolder: "Twitter",
-    defaultMastodonFolder: "Mastodon",
-    defaultYouTubeFolder: "Videos",
-    defaultYouTubeTag: "Video",
-    defaultPodcastFolder: "Podcast",
-    defaultPodcastTag: "podcast",
-    defaultRssFolder: "RSS",
-    defaultRssTag: "RSS",
-    defaultSmallwebFolder: "Smallweb",
-    defaultSmallwebTag: "smallweb",
-    useDomainIconsMastodon: false,
-    useDomainIconsRss: false,
-    useDomainIconsPodcast: false,
-    useDomainIconsTwitter: false,
-    useDomainIconsYouTube: false,
-    openInSplitView: true,
-    podcastTheme: "obsidian",
+  const defaultDisplaySettings = (
+    overrides: Partial<DisplaySettings> = {},
+  ): DisplaySettings => ({
+    ...DEFAULT_SETTINGS.display,
     ...overrides,
   });
 
@@ -777,7 +776,7 @@ describe("MediaService.shouldShowFeedIcon", () => {
       "video",
     );
     expect(
-      MediaService.shouldShowFeedIcon(feedYt, defaultMediaSettings({})),
+      MediaService.shouldShowFeedIcon(feedYt, defaultDisplaySettings({})),
     ).toBe(false);
   });
 
@@ -789,13 +788,13 @@ describe("MediaService.shouldShowFeedIcon", () => {
     expect(
       MediaService.shouldShowFeedIcon(
         feedPodcast,
-        defaultMediaSettings({ useDomainIconsPodcast: false }),
+        defaultDisplaySettings({ useDomainIconsPodcast: false }),
       ),
     ).toBe(false);
     expect(
       MediaService.shouldShowFeedIcon(
         feedPodcast,
-        defaultMediaSettings({ useDomainIconsPodcast: true }),
+        defaultDisplaySettings({ useDomainIconsPodcast: true }),
       ),
     ).toBe(true);
   });
@@ -807,13 +806,13 @@ describe("MediaService.shouldShowFeedIcon", () => {
     expect(
       MediaService.shouldShowFeedIcon(
         feedMastodon,
-        defaultMediaSettings({ useDomainIconsMastodon: false }),
+        defaultDisplaySettings({ useDomainIconsMastodon: false }),
       ),
     ).toBe(false);
     expect(
       MediaService.shouldShowFeedIcon(
         feedMastodon,
-        defaultMediaSettings({ useDomainIconsMastodon: true }),
+        defaultDisplaySettings({ useDomainIconsMastodon: true }),
       ),
     ).toBe(true);
   });
@@ -825,13 +824,13 @@ describe("MediaService.shouldShowFeedIcon", () => {
     expect(
       MediaService.shouldShowFeedIcon(
         feedTwitter,
-        defaultMediaSettings({ useDomainIconsTwitter: false }),
+        defaultDisplaySettings({ useDomainIconsTwitter: false }),
       ),
     ).toBe(false);
     expect(
       MediaService.shouldShowFeedIcon(
         feedTwitter,
-        defaultMediaSettings({ useDomainIconsTwitter: true }),
+        defaultDisplaySettings({ useDomainIconsTwitter: true }),
       ),
     ).toBe(true);
   });
@@ -841,13 +840,13 @@ describe("MediaService.shouldShowFeedIcon", () => {
     expect(
       MediaService.shouldShowFeedIcon(
         feedRss,
-        defaultMediaSettings({ useDomainIconsRss: false }),
+        defaultDisplaySettings({ useDomainIconsRss: false }),
       ),
     ).toBe(false);
     expect(
       MediaService.shouldShowFeedIcon(
         feedRss,
-        defaultMediaSettings({ useDomainIconsRss: true }),
+        defaultDisplaySettings({ useDomainIconsRss: true }),
       ),
     ).toBe(true);
   });
@@ -860,7 +859,7 @@ describe("MediaService.shouldShowFeedIcon", () => {
     expect(
       MediaService.shouldShowFeedIcon(
         feedNoIcon,
-        defaultMediaSettings({ useDomainIconsRss: true }),
+        defaultDisplaySettings({ useDomainIconsRss: true }),
       ),
     ).toBe(false);
   });

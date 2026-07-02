@@ -117,6 +117,12 @@ export class FeedManagerModal extends Modal {
             .onClick(async () => {
               this.plugin.settings.feeds = [];
               await this.plugin.saveSettings();
+              
+              const dashboardView = await this.plugin.getActiveDashboardView();
+              if (dashboardView) {
+                dashboardView.refresh();
+              }
+
               this.close();
               confirmModal.close();
               new Notice("All feeds deleted");

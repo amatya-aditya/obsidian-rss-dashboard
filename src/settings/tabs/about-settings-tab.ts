@@ -24,6 +24,49 @@ export function renderAboutTab(
     text: `v${plugin.manifest.version}`,
   });
 
+  const descriptionContainer = aboutContainer.createDiv({
+    cls: "rss-dashboard-about-description",
+  });
+
+  descriptionContainer.createEl("p", {
+    // eslint-disable-next-line obsidianmd/ui/sentence-case
+    text: "RSS Dashboard is a free, open source community plugin for Obsidian that makes it easy to manage your RSS feeds, YouTube subscriptions, podcasts, and Twitter/X feeds in one place.",
+  });
+
+  const featuresList = descriptionContainer.createEl("ul", {
+    cls: "rss-dashboard-about-features-list",
+  });
+  featuresList.createEl("li", { text: "Data is stored locally." });
+  featuresList.createEl("li", {
+    text: "Content can be saved directly to your vault.",
+  });
+  featuresList.createEl("li", { text: "No ads, no tracking, no paywalls." });
+
+  const attributionParagraph = descriptionContainer.createEl("p");
+  attributionParagraph.createSpan({
+    text: "RSS Dashboard was originally created by ",
+  });
+  const originalCreatorLink = attributionParagraph.createEl("a", {
+    text: "Amatya-aditya",
+    href: "https://github.com/amatya-aditya/",
+    cls: "rss-dashboard-about-link",
+  });
+  originalCreatorLink.target = "_blank";
+  originalCreatorLink.rel = "noopener noreferrer";
+  attributionParagraph.createSpan({
+    text: ", with active development and support offered by ",
+  });
+  const maintainerLink = attributionParagraph.createEl("a", {
+    text: "Marcd35",
+    href: "https://github.com/marcd35",
+    cls: "rss-dashboard-about-link",
+  });
+  maintainerLink.target = "_blank";
+  maintainerLink.rel = "noopener noreferrer";
+  attributionParagraph.createSpan({
+    text: " since version 2.2.0, alongside many contributions from the community.",
+  });
+
   const createLinkButton = (
     parent: HTMLElement,
     label: string,
@@ -69,7 +112,7 @@ export function renderAboutTab(
 
   aboutContainer.createDiv({
     cls: "rss-dashboard-about-section-title",
-    text: "Other plugins",
+    text: "Other plugins by the author",
   });
   const otherPluginsRow = aboutContainer.createDiv({
     cls: "rss-dashboard-about-btn-row",

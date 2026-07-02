@@ -752,7 +752,6 @@ export class MediaService {
         | "defaultVideoTags"
         | "defaultYouTubeTag"
         | "defaultYouTubeTags"
-        | "defaultPodcastTag"
         | "defaultPodcastTags"
         | "defaultTwitterTag"
         | "defaultTwitterTags"
@@ -817,7 +816,7 @@ export class MediaService {
       mediaTags = this.getConfiguredTagNames(
         availableTags,
         mediaSettings?.defaultPodcastTags,
-        mediaSettings?.defaultPodcastTag,
+        undefined,
         ["Podcast", "Podcasts"],
         ["Podcast", "Podcasts"],
       );
@@ -864,7 +863,6 @@ export class MediaService {
         | "defaultVideoTags"
         | "defaultYouTubeTag"
         | "defaultYouTubeTags"
-        | "defaultPodcastTag"
         | "defaultPodcastTags"
         | "defaultTwitterTag"
         | "defaultTwitterTags"

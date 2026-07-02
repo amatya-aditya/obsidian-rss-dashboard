@@ -115,7 +115,7 @@ export function renderMediaSettingsTab(
   new Setting(containerEl).setName("Third-party services").setHeading();
 
   const youtubeTosSetting = new Setting(containerEl).setName(
-    "YouTube Terms of Service",
+    "YouTube terms of service",
   );
 
   youtubeTosSetting.descEl.createSpan({
@@ -123,9 +123,8 @@ export function renderMediaSettingsTab(
   });
 
   youtubeTosSetting.descEl.createEl("a", {
-    text: "YouTube Terms of Service",
+    text: "YouTube terms of service",
     href: "https://www.youtube.com/t/terms",
     attr: { target: "_blank", rel: "noopener noreferrer" },
   });
-
 }

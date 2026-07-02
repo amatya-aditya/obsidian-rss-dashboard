@@ -17,6 +17,8 @@ import { fetchFeedXml } from "./feed-fetch.js";
 import { parseFetchErrorMessage } from "./feed-errors.js";
 import { CustomXMLParser } from "./xml-parser/custom-xml-parser.js";
 import { assertParsedFeedHasEntries } from "./parsed-feed-assert.js";
+import { FEED_REQUEST_TIMEOUT_MS, FEED_SOFT_TIMEOUT_MS } from "../feed-timeout.js";
+import { globalFetchSemaphore } from "./fetch-semaphore.js";
 import {
   applyFeedRetentionLimits,
   mergeFeedHistoryItems,
@@ -72,7 +74,6 @@ export class FeedParser {
       defaultYouTubeTag: "Video",
       defaultYouTubeTags: ["Video"],
       defaultPodcastFolder: "Podcast",
-      defaultPodcastTag: "Podcast",
       defaultPodcastTags: ["Podcast"],
       defaultRssFolder: "RSS",
       defaultRssTag: "",
@@ -443,7 +444,7 @@ export class FeedParser {
       throw new Error("Feed url is required");
     }
 
-    const responseText = await fetchFeedXml(url, this.getCorsProxyEnabled());
+    const responseText = await fetchFeedXml(url, this.getCorsProxyEnabled(), options?.signal);
     const parsed = this.parser.parseString(responseText);
 
     assertParsedFeedHasEntries(parsed, options);
@@ -820,8 +821,18 @@ export class FeedParser {
   }
 
   async refreshFeed(feed: Feed): Promise<Feed> {
+    let timeoutId: number | null = null;
+    const abortController = new AbortController();
     try {
-      const refreshedFeed = await this.parseFeed(feed.url, feed);
+      const refreshedFeed = await Promise.race([
+        this.parseFeed(feed.url, feed, { signal: abortController.signal }),
+        new Promise<Feed>((_, reject) => {
+          timeoutId = activeWindow.setTimeout(() => {
+            abortController.abort();
+            reject(new Error("Timed out"));
+          }, FEED_REQUEST_TIMEOUT_MS);
+        }),
+      ]);
       // Clear any previous error on successful refresh
       refreshedFeed.lastFetchError = undefined;
       return refreshedFeed;
@@ -833,24 +844,65 @@ export class FeedParser {
       // Persist the clean error message so the sidebar can show the badge
       feed.lastFetchError = parseFetchErrorMessage(error);
       return feed;
+    } finally {
+      if (timeoutId !== null) {
+        activeWindow.clearTimeout(timeoutId);
+      }
     }
   }
 
   async refreshAllFeeds(feeds: Feed[]): Promise<Feed[]> {
     const updatedFeeds: Feed[] = [];
+    const queueProcessorsCount = 2;
+    const queue = [...feeds];
+    const backgroundPromises: Promise<void>[] = [];
 
-    for (const feed of feeds) {
-      try {
-        const refreshedFeed = await this.refreshFeed(feed);
-        updatedFeeds.push(refreshedFeed);
-      } catch (error) {
-        console.error(
-          `[RSS dashboard] Error refreshing feed ${feed.title}:`,
-          error,
-        );
-        updatedFeeds.push(feed);
+    const worker = async () => {
+      while (queue.length > 0) {
+        await globalFetchSemaphore.acquire();
+
+        const feed = queue.shift();
+        if (!feed) {
+          globalFetchSemaphore.release();
+          continue;
+        }
+
+        const fetchPromise = this.refreshFeed(feed)
+          .then((refreshedFeed) => {
+            updatedFeeds.push(refreshedFeed);
+          })
+          .catch((error) => {
+            console.error(
+              `[RSS dashboard] Error refreshing feed ${feed.title}:`,
+              error,
+            );
+            updatedFeeds.push(feed);
+          })
+          .finally(() => {
+            globalFetchSemaphore.release();
+          });
+
+        const softTimeoutPromise = new Promise<void>((resolve) => {
+          activeWindow.setTimeout(() => resolve(), FEED_SOFT_TIMEOUT_MS);
+        });
+
+        const winner = await Promise.race([
+          fetchPromise.then(() => "fetch"),
+          softTimeoutPromise.then(() => "timeout"),
+        ]);
+
+        if (winner === "timeout") {
+          backgroundPromises.push(fetchPromise);
+        }
       }
-    }
+    };
+
+    const workers = Array(Math.min(queueProcessorsCount, feeds.length))
+      .fill(0)
+      .map(() => worker());
+      
+    await Promise.all(workers);
+    await Promise.all(backgroundPromises);
 
     return updatedFeeds;
   }

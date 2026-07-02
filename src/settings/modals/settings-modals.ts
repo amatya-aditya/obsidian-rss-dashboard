@@ -217,11 +217,12 @@ export class FactoryResetConfirmModal extends Modal {
     this.modalEl.addClass("rss-dashboard-modal");
     this.modalEl.addClass("rss-dashboard-modal-container");
 
-    contentEl.createEl("h2", { text: "Factory reset RSS Dashboard?" });
+    contentEl.createEl("h2", { text: "Factory reset?" });
     contentEl.createEl("p", {
       text: "This restores all plugin settings to their default values and clears your feeds, folders, tags, and plugin-managed local state.",
     });
     contentEl.createEl("p", {
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
       text: "Existing backup files and saved article markdown files in your vault will not be deleted.",
     });
 

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { DEFAULT_SETTINGS, type Feed, type FeedItem } from "../../../src/types/types";
+import { FEED_REQUEST_TIMEOUT_MS } from "../../../src/services/feed-timeout";
 
 let consoleLogSpy: ReturnType<typeof vi.spyOn>;
 
@@ -98,6 +99,12 @@ function getNoticeMessages(spy: ReturnType<typeof vi.spyOn>): string[] {
   return calls
     .filter((call) => call[0] === "[Stub Notice]")
     .map((call) => String(call[1]));
+}
+
+async function flushMicrotasks(): Promise<void> {
+  for (let index = 0; index < 10; index += 1) {
+    await Promise.resolve();
+  }
 }
 
 beforeEach(() => {
@@ -204,13 +211,14 @@ describe("refreshFeeds() pipeline behavior", () => {
     });
 
     const refreshPromise = plugin.refreshFeeds();
-    await Promise.resolve();
+    await flushMicrotasks();
 
     expect(plugin.feedParser.refreshFeed.mock.calls.map((call: unknown[]) => (call[0] as Feed).url)).toEqual([
       "https://example.com/a.xml",
       "https://example.com/b.xml",
       "https://example.com/c.xml",
       "https://example.com/d.xml",
+      "https://example.com/e.xml",
     ]);
     expect(sidebarRefreshSpy).toHaveBeenCalledTimes(1);
     expect(viewRefreshSpy).toHaveBeenCalledTimes(0);
@@ -319,8 +327,8 @@ describe("refreshFeeds() pipeline behavior", () => {
     });
 
     const refreshPromise = plugin.refreshFeeds();
-    await Promise.resolve();
-    await vi.advanceTimersByTimeAsync(15000);
+    await flushMicrotasks();
+    await vi.advanceTimersByTimeAsync(FEED_REQUEST_TIMEOUT_MS);
     await refreshPromise;
 
     expect(plugin.settings.feeds[0].lastUpdated).toBe(100);

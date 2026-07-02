@@ -67,11 +67,13 @@ export class ImportOpmlModal extends Modal {
     }
 
     contentEl.empty();
+    // eslint-disable-next-line obsidianmd/ui/sentence-case
     new Setting(contentEl).setName("Import OPML").setHeading();
 
     // Add subtitle
     const subtitle = contentEl.createDiv({ cls: "add-feed-subtitle" });
     subtitle.textContent =
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
       "Import feeds from an OPML file with preview and validation";
 
     // File selector row
@@ -297,6 +299,7 @@ export class ImportOpmlModal extends Modal {
       const errorDiv = this.errorContainer.createDiv({
         cls: "import-error-message",
       });
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
       errorDiv.textContent = "No feeds found in the OPML file.";
       this.validationErrorKind = "no_feeds";
       this.previewContainer.removeClass("import-visible");
@@ -348,7 +351,11 @@ export class ImportOpmlModal extends Modal {
       cls: "import-preview-toolbar",
     });
 
-    const makeButton = (text: string, iconName: string, onClick: () => void) => {
+    const makeButton = (
+      text: string,
+      iconName: string,
+      onClick: () => void,
+    ) => {
       const btn = toolbar.createEl("button");
       setIcon(btn, iconName);
       btn.createSpan({ text });
@@ -433,6 +440,7 @@ export class ImportOpmlModal extends Modal {
     });
     wrapper.createEl("div", {
       cls: "import-opml-cleaner-title",
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
       text: "Tip: try cleaning/formatting your OPML file",
     });
     const row = wrapper.createDiv({ cls: "import-opml-cleaner-row" });
@@ -878,6 +886,7 @@ export class ImportOpmlModal extends Modal {
       text: "Recommended: export your feeds first",
     });
     backupDiv.createEl("p", {
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
       text: "Before overwriting, we strongly recommend backing up your current feeds by exporting to an OPML file.",
     });
 
@@ -888,6 +897,7 @@ export class ImportOpmlModal extends Modal {
 
     // Export OPML button
     const exportBtn = buttonContainer.createEl("button", {
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
       text: "Export OPML",
       cls: "rss-dashboard-primary-button export-opml-btn",
     });
@@ -936,6 +946,7 @@ export class ImportOpmlModal extends Modal {
       this.onImportStarted?.();
 
       if (this.importMode === "update" && result.addedCount === 0) {
+        // eslint-disable-next-line obsidianmd/ui/sentence-case
         new Notice("No new feeds found in the OPML file.");
         this.close();
         return;

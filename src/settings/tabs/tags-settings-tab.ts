@@ -25,7 +25,7 @@ export function renderTagsSettingsTab(
   onRefresh: () => void,
 ): void {
   // Auto Tagging settings
-  new Setting(containerEl).setName("Auto Tagging").setHeading();
+  new Setting(containerEl).setName("Auto tagging").setHeading();
 
   const autoTagSettings: AutoTagSettingConfig[] = [
     {
@@ -124,7 +124,6 @@ export function renderTagsSettingsTab(
         plugin.settings.media.defaultVideoTags = d.defaultVideoTags;
         plugin.settings.media.defaultYouTubeTag = d.defaultYouTubeTag;
         plugin.settings.media.defaultYouTubeTags = d.defaultYouTubeTags;
-        plugin.settings.media.defaultPodcastTag = d.defaultPodcastTag;
         plugin.settings.media.defaultPodcastTags = d.defaultPodcastTags;
         plugin.settings.media.defaultRssTag = d.defaultRssTag;
         plugin.settings.media.defaultRssTags = d.defaultRssTags;

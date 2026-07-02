@@ -14,7 +14,6 @@ describe("FeedParser trailing slashes on icons", () => {
     defaultYouTubeTag: "Video",
     defaultYouTubeTags: ["Video"],
     defaultPodcastFolder: "Podcast",
-    defaultPodcastTag: "Podcast",
     defaultPodcastTags: ["Podcast"],
     defaultRssFolder: "RSS",
     defaultRssTag: "",
