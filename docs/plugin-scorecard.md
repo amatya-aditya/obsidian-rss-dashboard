@@ -11,7 +11,23 @@ This document tracks compliance status against the Obsidian Community Plugin aud
 | Version | Score | Date         | Status                                                                                                   |
 | ------- | ----- | ------------ | -------------------------------------------------------------------------------------------------------- |
 | 2.2.0   | 46%   | May 15, 2026 | ✅ Remediated — 100% target verified                                                                     |
-| 2.3.0   | 72%   | May 26, 2026 | 🔄 Remediation in progress — see [audit-remediation-2.3.0.md](../development/audit-remediation-2.3.0.md) |
+| 2.3.0   | 72%   | May 26, 2026 | ✅ Remediated — see [audit-remediation-2.3.0.md](../development/audit-remediation-2.3.0.md) |
+| 2.4.0   | Risks | Jul 2, 2026  | 🔄 Remediated in 2.4.1 — pending community rescan                          |
+| 2.4.1   | TBD   | Jul 2, 2026  | ✅ Local compliance gates pass — see [2.4.0 audit remediation plan](development/2.4.0-audit/2.4.0_audit_remediation_plan.md) |
+
+---
+
+## v2.4.1 Remediation Summary (Completed July 2026)
+
+Addressed the 2.4.0 community audit (455 findings) on branch `release/2.4.1`:
+
+- **CI guardrails**: Added `check:platform`, `check:important`, and extended `check:commit-message` (full-repo scan, block directives, production disable ban). Wired into `check:compliance`, pre-commit, commit-msg, and GitHub Actions.
+- **Risks**: Removed all production `eslint-disable` suppressions for banned rules; fixed test stub descriptions.
+- **Platform API**: Migrated ~109 timer call sites to `window.*`, replaced `document` with `activeDocument` in production UI paths, eliminated `globalThis` usage.
+- **CSS**: Resolved duplicate viewport properties via `@supports`, added missing `audit-ok` comments on remaining `!important` declarations (~69 total in `src/styles/`).
+- **Strict ESLint**: Promoted `obsidianmd/ui/sentence-case` and `@typescript-eslint/no-unnecessary-type-assertion` to error; `@typescript-eslint/no-explicit-any` error in production.
+
+**Verification**: `npm run check:compliance`, `npm run lint`, and `npm run test:unit` (1530 tests) all pass locally.
 
 ---
 

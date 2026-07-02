@@ -71,21 +71,18 @@ export class StorageTransitionModal extends Modal {
     contentEl.createEl("h2", { text: "Apply storage change?" });
     if (this.currentMode === "legacy-json") {
       contentEl.createEl("p", {
-        // eslint-disable-next-line obsidianmd/ui/sentence-case
-        text: "You are switching from legacy data.json storage to Shard Storage v1.",
+        text: "You are switching from legacy data.json storage to shard storage v1.",
       });
       contentEl.createEl("p", {
         text: "Before continuing, back up your current data.json file. You can use the existing export action here first, then come back and apply the change.",
       });
     } else if (this.targetMode === "vault-shards-v2") {
       contentEl.createEl("p", {
-        // eslint-disable-next-line obsidianmd/ui/sentence-case
-        text: "You are upgrading to Shard Storage v2 (split user state).",
+        text: "You are upgrading to shard storage v2 (split user state).",
       });
     } else {
       contentEl.createEl("p", {
-        // eslint-disable-next-line obsidianmd/ui/sentence-case
-        text: "You are switching to Shard Storage v1.",
+        text: "You are switching to shard storage v1.",
       });
     }
     contentEl.createEl("p", {
@@ -122,8 +119,7 @@ export class StorageTransitionModal extends Modal {
   private renderShardsToLegacyModal(contentEl: HTMLElement): void {
     contentEl.createEl("h2", { text: "Apply storage change?" });
     contentEl.createEl("p", {
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
-      text: "You are switching from Shard Storage v1 back to legacy data.json storage.",
+      text: "You are switching from shard storage v1 back to legacy data.json storage.",
     });
     contentEl.createEl("p", {
       text: `All feeds will be stored in data.json again. If you choose cleanup, the shard folder "${this.storageFolder}" will be deleted.`,

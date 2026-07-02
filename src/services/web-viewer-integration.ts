@@ -37,7 +37,7 @@ export class WebViewerIntegration {
       try {
         await webViewerPlugin.openWebpage(url, title);
 
-        activeWindow.setTimeout(() => {
+        window.setTimeout(() => {
           this.addCustomSaveButton();
         }, 1000);
 
@@ -234,7 +234,7 @@ export class WebViewerIntegration {
     modal.appendChild(modalContent);
     activeDocument.body.appendChild(modal);
 
-    activeWindow.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       folderInput.focus();
       folderInput.select();
     });

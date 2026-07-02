@@ -124,7 +124,7 @@ export class EditFeedModal extends Modal {
     this.renderKeywordRulesSection();
     this.renderActionButtons();
 
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       this.titleInput?.focus();
       this.titleInput?.select();
     }, 0);
@@ -279,7 +279,7 @@ export class EditFeedModal extends Modal {
         });
         this.urlInput.addEventListener("blur", this.normalizeNitterUrl);
         this.urlInput.addEventListener("paste", () => {
-          activeWindow.setTimeout(this.normalizeNitterUrl, 0);
+          window.setTimeout(this.normalizeNitterUrl, 0);
         });
       })
       .addButton((btn) => {
@@ -384,7 +384,7 @@ export class EditFeedModal extends Modal {
 
     const highlightElement = (el: HTMLElement, className: string): void => {
       el.addClass(className);
-      activeWindow.setTimeout(() => {
+      window.setTimeout(() => {
         el.removeClass(className);
       }, PER_FEED_HIGHLIGHT_DURATION_MS);
     };
@@ -397,7 +397,7 @@ export class EditFeedModal extends Modal {
         perFeedControlsDetails,
         "rss-per-feed-controls-highlight",
       );
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         perFeedControlsDetails.scrollIntoView({ block: "nearest" });
       });
     }
@@ -414,8 +414,7 @@ export class EditFeedModal extends Modal {
       const inheritedTagsSetting = new Setting(perFeedControlsBody)
         .setName("Inherited auto-tags")
         .setDesc(
-          // eslint-disable-next-line obsidianmd/ui/sentence-case
-          "Global tags applied automatically based on the feed type and settings. Configure these in the 'Auto Tagging' settings tab.",
+          "Global tags applied automatically based on the feed type and settings. Configure these in the 'auto tagging' settings tab.",
         );
 
       const tagsList = inheritedTagsSetting.controlEl.createDiv({
@@ -579,7 +578,7 @@ export class EditFeedModal extends Modal {
         autoDeleteSetting.settingEl,
         "rss-per-feed-auto-delete-highlight",
       );
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         autoDeleteSetting.settingEl.scrollIntoView({ block: "nearest" });
       });
     }
@@ -762,7 +761,7 @@ export class EditFeedModal extends Modal {
 
     const highlightElement = (el: HTMLElement, className: string): void => {
       el.addClass(className);
-      activeWindow.setTimeout(() => {
+      window.setTimeout(() => {
         el.removeClass(className);
       }, PER_FEED_HIGHLIGHT_DURATION_MS);
     };
@@ -772,7 +771,7 @@ export class EditFeedModal extends Modal {
     }
     if (this.options?.highlightSection === "rules") {
       highlightElement(feedFiltersDetails, "rss-per-feed-controls-highlight");
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         feedFiltersDetails.scrollIntoView({ block: "nearest" });
       });
     }

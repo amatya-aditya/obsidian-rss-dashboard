@@ -12,7 +12,9 @@ export default defineConfig([
       "main.js",
       "*.mjs",
       "scripts/**/*.js",
+      "scripts/**/*.mjs",
       ".kilo/**",
+      ".tmp-*",
     ],
   },
   ...obsidianmd.configs.recommended,
@@ -21,6 +23,16 @@ export default defineConfig([
     files: ["package.json"],
     rules: {
       "depend/ban-dependencies": "off",
+    },
+  },
+  {
+    files: ["scripts/check-platform-compat.mjs", "scripts/check-css-important.mjs"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        console: "readonly",
+        process: "readonly",
+      },
     },
   },
   {
@@ -72,14 +84,20 @@ export default defineConfig([
     },
     rules: {
       "obsidianmd/ui/sentence-case": [
-        "off",
+        "warn",
         {
-          acronyms: ["OPML", "XML", "API"],
+          acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS"],
           brands: ["Obsidian"],
           allowAutoFix: true,
         },
       ],
       "@typescript-eslint/unbound-method": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
     },
   },
   {
@@ -97,15 +115,16 @@ export default defineConfig([
 
     rules: {
       "obsidianmd/ui/sentence-case": [
-        "off", // or "warn" or "error"
+        "error",
         {
-          acronyms: ["OPML", "XML", "API"],
+          acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS", "JSON"],
           brands: ["Obsidian"],
           allowAutoFix: true,
         },
       ],
 
       "@typescript-eslint/ban-ts-comment": "off",
+      "@typescript-eslint/no-explicit-any": "error",
       "no-prototype-builtins": "off",
       "@typescript-eslint/no-empty-function": "off",
       "@typescript-eslint/no-floating-promises": "warn",
@@ -115,7 +134,7 @@ export default defineConfig([
       "@typescript-eslint/no-unsafe-call": "warn",
       "@typescript-eslint/no-unsafe-argument": "warn",
       "@typescript-eslint/no-unsafe-return": "warn",
-      "@typescript-eslint/no-unnecessary-type-assertion": "warn",
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
       "@typescript-eslint/restrict-template-expressions": "warn",
       "@typescript-eslint/await-thenable": "warn",
       "@typescript-eslint/unbound-method": "warn",
@@ -124,11 +143,10 @@ export default defineConfig([
       "no-empty": ["warn", { allowEmptyCatch: true }],
       "no-case-declarations": "warn",
       "no-useless-escape": "warn",
-      "obsidianmd/ui/sentence-case": "warn",
       "obsidianmd/settings-tab/no-manual-html-headings": "warn",
-      "obsidianmd/no-static-styles-assignment": "warn",
-      "obsidianmd/platform": "warn",
-      "obsidianmd/prefer-file-manager-trash-file": "warn",
+      "obsidianmd/no-static-styles-assignment": "error",
+      "obsidianmd/platform": "error",
+      "obsidianmd/prefer-file-manager-trash-file": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {

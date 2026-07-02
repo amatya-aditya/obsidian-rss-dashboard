@@ -72,7 +72,7 @@ function withSyncNonce<T extends object>(
 }
 
 function createFeedId(): string {
-  const randomUuid = globalThis.crypto?.randomUUID?.();
+  const randomUuid = window.crypto?.randomUUID?.();
   if (randomUuid) {
     return randomUuid;
   }
@@ -1038,7 +1038,7 @@ export class FeedStorageRepository {
     if (!folderExists) {
       try {
         await this.app.vault.createFolder(normalizedFolder);
-      } catch (_e) {
+      } catch {
         // ignore race conditions
       }
     }

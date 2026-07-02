@@ -5,5 +5,17 @@ if [ "$SKIP_GIT_HOOKS" = "1" ]; then
   exit 0
 fi
 
+echo "[pre-commit] Running compliance checks..."
+npm run --silent check:compliance
+if [ $? -ne 0 ]; then
+  exit 1
+fi
+
+echo "[pre-commit] Running lint..."
+npm run --silent lint
+if [ $? -ne 0 ]; then
+  exit 1
+fi
+
 echo "[pre-commit] Running unit tests..."
 npm run --silent test:unit

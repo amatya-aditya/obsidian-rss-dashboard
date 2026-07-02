@@ -43,7 +43,12 @@
 .rss-dashboard-tags-dropdown-content-portal.dropdown-align-below {
   top: auto;
   bottom: calc(100vh - var(--dropdown-anchor-top, 0));
-  bottom: calc(100dvh - var(--dropdown-anchor-top, 0));
+}
+
+@supports (height: 100dvh) {
+  .rss-dashboard-tags-dropdown-content-portal.dropdown-align-below {
+    bottom: calc(100dvh - var(--dropdown-anchor-top, 0));
+  }
 }
 
 @media (max-width: 600px) {

@@ -98,6 +98,13 @@ export interface SidebarCallbacks {
   onRangeSelect?: (clickedKey: string, visibleKeys: string[]) => void;
 }
 
+type AppWithInternalSettings = App & {
+  setting?: {
+    open?: () => void;
+    openTabById?: (id: string) => void;
+  };
+};
+
 type SidebarFocusTarget =
   | { type: "all-feeds" }
   | { type: "folder"; path: string }
@@ -254,7 +261,7 @@ class FolderNameModal extends Modal {
 
     // Single focus+select; Obsidian's Modal handles focus isolation.
     // ⚠️ Do NOT add rAF re-focus, blur recovery, or stopPropagation.
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       if (this.contentEl.isConnected) {
         nameInput.focus();
         nameInput.select();
@@ -434,11 +441,11 @@ export class Sidebar {
       this.resizeObserver.observe(this.container);
     }
     // Update scroll fade indicators after layout settles
-    activeWindow.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       this.updateIconRowFades();
     });
 
-    activeWindow.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       this.container.scrollTop = scrollPosition;
       const newFoldersSection = this.container.querySelector(
         ".rss-dashboard-feed-folders-section",
@@ -820,7 +827,7 @@ export class Sidebar {
       });
 
       // Auto-focus the input
-      activeWindow.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         input.focus();
       });
     } else {
@@ -1622,7 +1629,7 @@ export class Sidebar {
 
     const clearTimer = () => {
       if (this.longPressTimer !== null) {
-        activeWindow.clearTimeout(this.longPressTimer);
+        window.clearTimeout(this.longPressTimer);
         this.longPressTimer = null;
       }
     };
@@ -1632,7 +1639,7 @@ export class Sidebar {
 
       longPressTriggered = false;
       clearTimer();
-      this.longPressTimer = activeWindow.setTimeout(() => {
+      this.longPressTimer = window.setTimeout(() => {
         longPressTriggered = true;
         const syntheticEvent = new MouseEvent("contextmenu", {
           bubbles: true,
@@ -2414,7 +2421,7 @@ export class Sidebar {
     cancelButton.onclick = () => confirmModal.close();
 
     confirmModal.open();
-    activeWindow.setTimeout(() => okButton.focus(), 50);
+    window.setTimeout(() => okButton.focus(), 50);
   }
 
   private showErrorDetailModal(error: string, feedTitle: string): void {
@@ -2443,7 +2450,7 @@ export class Sidebar {
     okButton.onclick = () => modal.close();
 
     modal.open();
-    activeWindow.setTimeout(() => okButton.focus(), 50);
+    window.setTimeout(() => okButton.focus(), 50);
   }
 
   public showAddTagModal(): void {
@@ -2531,7 +2538,7 @@ export class Sidebar {
     modal.appendChild(modalContent);
     activeDocument.body.appendChild(modal);
 
-    activeWindow.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       nameInput.focus();
     });
   }
@@ -2775,7 +2782,7 @@ export class Sidebar {
             this.isSearchExpanded = !this.isSearchExpanded;
             this.render();
             if (this.isSearchExpanded) {
-              activeWindow.requestAnimationFrame(() => {
+              window.requestAnimationFrame(() => {
                 const searchInput =
                   this.container.querySelector<HTMLInputElement>(
                     ".rss-dashboard-search-input",
@@ -2837,7 +2844,7 @@ export class Sidebar {
           const action = () => {
             cachedCollapseAllPaths = null;
             this.toggleAllFolders();
-            activeWindow.setTimeout(updateCollapseAllIcon, 0);
+            window.setTimeout(updateCollapseAllIcon, 0);
           };
           this.iconActions.set("collapseAll", action);
           btn = createToolbarButton(iconConfig, action);
@@ -2848,10 +2855,9 @@ export class Sidebar {
 
         case "settings": {
           const action = () => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- Obsidian internal app.setting API is untyped; optional chaining prevents crashes
-            (this.app as any).setting?.open?.();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- Obsidian internal app.setting API is untyped; optional chaining prevents crashes
-            (this.app as any).setting?.openTabById?.(this.plugin.manifest.id);
+            const appWithSettings = this.app as AppWithInternalSettings;
+            appWithSettings.setting?.open?.();
+            appWithSettings.setting?.openTabById?.(this.plugin.manifest.id);
           };
           this.iconActions.set("settings", action);
           btn = createToolbarButton(iconConfig, action);
@@ -2880,7 +2886,7 @@ export class Sidebar {
         cls: "rss-dashboard-coachmark",
         text: "Add your first feed here",
       });
-      activeWindow.setTimeout(() => {
+      window.setTimeout(() => {
         if (!this.app.loadLocalStorage("rss-first-launch-coachmark-shown")) {
           this.app.saveLocalStorage("rss-first-launch-coachmark-shown", "true");
           if (coachmark.parentNode) coachmark.remove();
@@ -3106,7 +3112,7 @@ export class Sidebar {
       () => {
         this.searchQuery = "";
         if (searchTimeout) {
-          activeWindow.clearTimeout(searchTimeout);
+          window.clearTimeout(searchTimeout);
         }
         this.filterFeedsAndFolders("");
         searchInput.focus();
@@ -3123,7 +3129,7 @@ export class Sidebar {
 
       // On mobile, ensure the input is visible above the keyboard
       if (activeWindow.innerWidth <= 768) {
-        activeWindow.setTimeout(() => {
+        window.setTimeout(() => {
           searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 100);
       }
@@ -3134,17 +3140,17 @@ export class Sidebar {
       this.searchQuery = rawQuery;
       const query = rawQuery.toLowerCase().trim();
       if (searchTimeout) {
-        activeWindow.clearTimeout(searchTimeout);
+        window.clearTimeout(searchTimeout);
       }
-      searchTimeout = activeWindow.setTimeout(() => {
+      searchTimeout = window.setTimeout(() => {
         this.filterFeedsAndFolders(query);
       }, 150);
     });
 
-    activeWindow.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       searchInput.focus();
       if (activeWindow.innerWidth <= 768) {
-        activeWindow.setTimeout(() => {
+        window.setTimeout(() => {
           searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 100);
       }
@@ -3269,7 +3275,7 @@ export class Sidebar {
       cachedFolderPaths = null;
       this.toggleAllFolders();
 
-      activeWindow.setTimeout(() => updateCollapseIcon(), 0);
+      window.setTimeout(() => updateCollapseIcon(), 0);
     });
 
     const searchButton = sidebarToolbar.createDiv({
@@ -3292,7 +3298,7 @@ export class Sidebar {
       this.render();
 
       if (this.isSearchExpanded) {
-        activeWindow.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
           const searchInput = this.container.querySelector<HTMLInputElement>(
             ".rss-dashboard-search-input",
           );

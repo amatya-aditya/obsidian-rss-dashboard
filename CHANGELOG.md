@@ -1,3 +1,9 @@
+## 2.4.1 - July 2, 2026
+
+### Plugin Compliance
+
+- Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans.
+
 ## 2.4.0 - July 1, 2026
 
 #### Multi-select sidebar folders
@@ -6,7 +12,7 @@
 
 ### Fixes
 
-- Fixed 'custom' input textbox not being hidden when changing between different timeframes in add/edit feed modal ([GH #147](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/147))
+- Fixed 'custom' input textbox not being hidden when changing between different timeframes in add/edit feed modal ([ ](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/147))
 
 - Fixed feeds not being refreshed after deleting all feeds via feed manager modal
 

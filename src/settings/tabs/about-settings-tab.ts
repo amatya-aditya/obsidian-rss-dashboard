@@ -29,8 +29,7 @@ export function renderAboutTab(
   });
 
   descriptionContainer.createEl("p", {
-    // eslint-disable-next-line obsidianmd/ui/sentence-case
-    text: "RSS Dashboard is a free, open source community plugin for Obsidian that makes it easy to manage your RSS feeds, YouTube subscriptions, podcasts, and Twitter/X feeds in one place.",
+    text: "RSS dashboard is a free, open source community plugin for Obsidian that makes it easy to manage your RSS feeds, YouTube subscriptions, podcasts, and twitter/x feeds in one place.",
   });
 
   const featuresList = descriptionContainer.createEl("ul", {

@@ -29,12 +29,12 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
   it("no-ops on empty/whitespace-only input (container remains unchanged)", () => {
     const container = createContainer();
     const existing = document.createElement("p");
-    existing.textContent = "existing";
+    existing.textContent = "Existing";
     container.appendChild(existing);
 
     sanitizeAndAppendHtml(container, "   \n\t  ");
 
-    expect(container.innerHTML).toBe("<p>existing</p>");
+    expect(container.innerHTML).toBe("<p>Existing</p>");
   });
 
   it("removes blocked tags entirely", () => {

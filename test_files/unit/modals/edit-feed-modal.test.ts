@@ -1239,9 +1239,9 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+     
     const rssPlugin = plugin as unknown as RssDashboardPlugin;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+     
     const modal = new EditFeedModal(app, rssPlugin, feed, vi.fn());
     modal.open();
 
@@ -1288,9 +1288,9 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+     
     const rssPlugin = plugin as unknown as RssDashboardPlugin;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+     
     const modal = new EditFeedModal(app, rssPlugin, feed, vi.fn());
     modal.open();
 
@@ -1346,9 +1346,9 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+     
     const rssPlugin = plugin as unknown as RssDashboardPlugin;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+     
     const modal = new EditFeedModal(app, rssPlugin, feed, vi.fn());
     modal.open();
 
@@ -1404,9 +1404,9 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+     
     const rssPlugin = plugin as unknown as RssDashboardPlugin;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+     
     const modal = new EditFeedModal(app, rssPlugin, feed, vi.fn());
     modal.open();
 

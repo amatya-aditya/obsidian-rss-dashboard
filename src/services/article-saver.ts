@@ -286,8 +286,8 @@ export class ArticleSaver {
   }
 
   private formatMoment(date: Date, formatStr: string): string {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any -- moment imported from obsidian lacks TypeScript overload for function-call syntax
-    return (moment as any)(date).format(formatStr);
+    type MomentFactory = (input: Date) => { format: (fmt: string) => string };
+    return (moment as unknown as MomentFactory)(date).format(formatStr);
   }
 
   private replaceDatePlaceholders(text: string, date: Date): string {

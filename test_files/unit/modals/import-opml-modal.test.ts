@@ -44,7 +44,7 @@ function flushPromises(): Promise<void> {
 }
 
 function cloneSettings(): typeof DEFAULT_SETTINGS {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- JSON.parse result is cloned settings
+   
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
 }
 

@@ -299,9 +299,9 @@ export function renderGeneralSettingsTab(
     pendingMaxItemsChange = { oldValue, newValue };
     if (maxItemsPromptOpen) return;
     if (maxItemsPromptTimer) {
-      activeWindow.clearTimeout(maxItemsPromptTimer);
+      window.clearTimeout(maxItemsPromptTimer);
     }
-    maxItemsPromptTimer = activeWindow.setTimeout(() => {
+    maxItemsPromptTimer = window.setTimeout(() => {
       maxItemsPromptTimer = null;
       if (maxItemsPromptOpen) return;
       const change = pendingMaxItemsChange;
@@ -477,11 +477,9 @@ export function renderGeneralSettingsTab(
   new Setting(containerEl).setName("Proxy").setHeading();
 
   new Setting(containerEl)
-    // eslint-disable-next-line obsidianmd/ui/sentence-case
     .setName("Enable CORS proxy")
     .setDesc(
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
-      "When enabled, article fetches that are blocked by a firewall (e.g. on iOS) will be retried through the proxy URL below",
+      "When enabled, article fetches that are blocked by a firewall (e.g. On iOS) will be retried through the proxy URL below",
     )
     .addToggle((toggle) => {
       toggle
@@ -498,7 +496,6 @@ export function renderGeneralSettingsTab(
   if (plugin.settings.corsProxyEnabled) {
     const proxySetting = new Setting(containerEl)
       .setName("Proxy URL")
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
       .setDesc("Base URL of the CORS proxy.");
     proxySetting.settingEl.addClass("rss-proxy-setting-item");
 

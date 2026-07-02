@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   Sidebar,

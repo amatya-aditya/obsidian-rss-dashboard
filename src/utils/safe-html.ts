@@ -158,7 +158,7 @@ function copySafeAttributes(fromEl: HTMLElement, toEl: HTMLElement): void {
     if (isValidAttributeName(attr.name)) {
       try {
         toEl.setAttribute(attr.name, attr.value);
-      } catch (_error) {
+      } catch {
         // Silently drop attributes that cannot be set (e.g., from malformed HTML)
         // This prevents one bad attribute from truncating the entire DOM subtree
       }
@@ -240,7 +240,7 @@ export function sanitizeAndAppendHtml(
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
-  const ownerDoc = container.ownerDocument || document;
+  const ownerDoc = container.ownerDocument || activeDocument;
 
   Array.from(doc.body.childNodes).forEach((node) =>
     sanitizeAndAppendNode(ownerDoc, container, node, mode),

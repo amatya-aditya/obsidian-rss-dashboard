@@ -23,10 +23,8 @@ export function isTypingTarget(target: EventTarget | null): boolean {
  * Uses a bubbling-phase document listener to avoid Obsidian Scope capture-phase issues.
  */
 export function setupDashboardHotkeys(view: RssDashboardView): void {
-  view.registerDomEvent(document, "keydown", (e: KeyboardEvent) => {
-    // Guard 1: only fire when THIS view instance is the active leaf
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
-    if (view.app.workspace.activeLeaf?.view !== view) return;
+  view.registerDomEvent(activeDocument, "keydown", (e: KeyboardEvent) => {
+    if (view.app.workspace.getMostRecentLeaf()?.view !== view) return;
 
     // Guard 2: user is typing somewhere — let the input own the event
     if (isTypingTarget(e.target)) return;

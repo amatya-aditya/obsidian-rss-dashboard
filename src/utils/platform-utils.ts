@@ -6,7 +6,7 @@ export interface RobustFetchResult {
 }
 
 export function sleep(ms: number): Promise<void> {
-  return new Promise<void>((resolve) => activeWindow.setTimeout(resolve, ms));
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
 export function formatRelativeTime(date: Date | string): string {

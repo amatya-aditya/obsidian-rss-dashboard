@@ -60,7 +60,7 @@ export async function exportBlob(args: {
       const url = URL.createObjectURL(blob);
       try {
         const opened = activeWindow.open(url, "_blank");
-        activeWindow.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
         return opened ? "opened" : "failed";
       } catch {
         URL.revokeObjectURL(url);
@@ -80,7 +80,7 @@ export async function exportBlob(args: {
       activeDocument.body.appendChild(a);
       a.click();
       a.remove();
-      activeWindow.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       return "downloaded";
     } catch {
       URL.revokeObjectURL(url);

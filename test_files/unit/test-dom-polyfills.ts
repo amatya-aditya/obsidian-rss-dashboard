@@ -39,7 +39,6 @@ export function installObsidianDomPolyfills(): void {
         text?: string;
         attr?: Record<string, string>;
         // Keep permissive to mirror Obsidian's helper behavior in tests.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- permissive type for polyfill matching runtime Obsidian createEl behaviour
         [key: string]: any;
       },
     ): HTMLElementTagNameMap[K] {
@@ -57,7 +56,6 @@ export function installObsidianDomPolyfills(): void {
             return;
           }
           if (key in el) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- permissive type for polyfill matching runtime Obsidian createEl behaviour
             (el as any)[key] = value;
           }
         });
@@ -284,7 +282,6 @@ export function installObsidianDomPolyfills(): void {
         attr?: Record<string, string>;
         // Obsidian's createEl supports passing through common element props (e.g. value/placeholder).
         // Keep this permissive so unit tests behave like plugin runtime.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- permissive type for polyfill matching runtime Obsidian createEl behaviour
         [key: string]: any;
       },
     ): HTMLElementTagNameMap[K] {
@@ -303,7 +300,6 @@ export function installObsidianDomPolyfills(): void {
           }
           // Pass through common properties like value/placeholder/disabled/etc.
           if (key in el) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- permissive type for polyfill matching runtime Obsidian createEl behaviour
             (el as any)[key] = value;
           }
         });

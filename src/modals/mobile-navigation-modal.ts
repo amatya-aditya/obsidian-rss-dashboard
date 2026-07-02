@@ -136,7 +136,7 @@ export class MobileNavigationModal extends Modal {
     this.updateAllFeedsIconRefreshState();
 
     // Register to update refresh state when feeds are being refreshed
-    this.refreshIntervalId = activeWindow.setInterval(() => {
+    this.refreshIntervalId = window.setInterval(() => {
       this.updateAllFeedsIconRefreshState();
     }, 100);
   }
@@ -213,7 +213,7 @@ export class MobileNavigationModal extends Modal {
 
   onClose() {
     if (this.refreshIntervalId !== null) {
-      activeWindow.clearInterval(this.refreshIntervalId);
+      window.clearInterval(this.refreshIntervalId);
       this.refreshIntervalId = null;
     }
 

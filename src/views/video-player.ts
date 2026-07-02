@@ -48,7 +48,7 @@ export class VideoPlayer {
 
   loadVideo(item: FeedItem): void {
     if (!item.videoId) {
-      new Notice("No video ID provided");
+      new Notice("No video id provided");
       console.debug("[Stub Notice]", "No video ID provided");
       return;
     }
@@ -76,7 +76,7 @@ export class VideoPlayer {
     });
     const iframeId = `yt-player-${Math.random().toString(36).substring(2, 11)}`;
 
-    this.iframeEl = document.createElement("iframe");
+    this.iframeEl = activeDocument.createElement("iframe");
     this.iframeEl.id = iframeId;
     this.iframeEl.src = `${embed.embedUrl}&id=${iframeId}`;
     this.iframeEl.setAttribute("allow", embed.allow);
@@ -115,7 +115,7 @@ export class VideoPlayer {
           link.target = "_blank";
           link.rel = "noopener noreferrer";
         });
-        const fragment = document.createDocumentFragment();
+        const fragment = activeDocument.createDocumentFragment();
         while (doc.body.firstChild) {
           fragment.appendChild(doc.body.firstChild);
         }
@@ -246,7 +246,7 @@ export class VideoPlayer {
       this.progressTrackingEnabled &&
       this.currentItem?.playbackProgress?.position
     ) {
-      setTimeout(() => {
+      window.setTimeout(() => {
         this.sendCommand("seekTo", [
           this.currentItem!.playbackProgress!.position,
           true,
@@ -283,7 +283,7 @@ export class VideoPlayer {
 
   private stopTracking(): void {
     if (this.progressInterval) {
-      clearInterval(this.progressInterval);
+      window.clearInterval(this.progressInterval);
       this.progressInterval = null;
     }
   }

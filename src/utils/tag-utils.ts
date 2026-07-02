@@ -263,7 +263,7 @@ export function showEditTagModal({
   buttonContainer.appendChild(saveButton);
   formContainer.appendChild(buttonContainer);
 
-  activeWindow.requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => {
     nameInput.focus();
     nameInput.select();
   });

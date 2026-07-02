@@ -11,20 +11,16 @@ vi.mock("../../../src/utils/platform-utils", () => ({
 
 vi.mock("../../../src/components/article-list", () => ({
   ArticleList: class ArticleListMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(..._args: any[]) {}
     render(): void {}
     destroy(): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     refilter(..._args: any[]): void {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setSelectedArticle(..._args: any[]): void {}
   },
 }));
 
 vi.mock("../../../src/components/sidebar", () => ({
   Sidebar: class SidebarMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(..._args: any[]) {}
     render(): void {}
     clearFolderPathCache(): void {}
@@ -34,7 +30,6 @@ vi.mock("../../../src/components/sidebar", () => ({
 
 vi.mock("../../../src/modals/feed-manager-modal", () => ({
   FeedManagerModal: class FeedManagerModalMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(..._args: any[]) {}
     open(): void {}
   },
@@ -42,7 +37,6 @@ vi.mock("../../../src/modals/feed-manager-modal", () => ({
 
 vi.mock("../../../src/modals/mobile-navigation-modal", () => ({
   MobileNavigationModal: class MobileNavigationModalMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(..._args: any[]) {}
     open(): void {}
     close(): void {}
@@ -56,7 +50,6 @@ vi.mock("../../../src/views/reader-view", () => ({
 
 vi.mock("../../../src/services/article-saver", () => ({
   ArticleSaver: class ArticleSaverMock {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(..._args: any[]) {}
   },
 }));

@@ -195,7 +195,7 @@ export function createTagsDropdownPortal(
 
       onTagAssignmentChange(tag, isChecked);
 
-      activeWindow.setTimeout(() => {
+      window.setTimeout(() => {
         tagItem.classList.remove("rss-dashboard-tag-item-processing");
       }, 200);
     });
@@ -217,7 +217,7 @@ export function createTagsDropdownPortal(
 
       onTagAssignmentChange(tag, isChecked);
 
-      activeWindow.setTimeout(() => {
+      window.setTimeout(() => {
         tagItem.classList.remove("rss-dashboard-tag-item-processing");
       }, 200);
     });
@@ -333,7 +333,7 @@ export function createTagsDropdownPortal(
       appendTagItem(newTag, true);
 
       nameInput.value = "";
-      activeWindow.requestAnimationFrame(() => nameInput.focus());
+      window.requestAnimationFrame(() => nameInput.focus());
       new Notice(`Tag "${tagName}" added`);
     };
 

@@ -455,7 +455,7 @@ export class ArticleHeader {
     });
 
     this.positionPortal(trigger, portal);
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       this.activePortalCleanup = this.addDocumentListener(
         activeDocument,
         "mousedown",
@@ -521,7 +521,7 @@ export class ArticleHeader {
     const rect = trigger.getBoundingClientRect();
     portal.style.top = `${rect.bottom + 5}px`;
     portal.style.left = `${rect.left}px`;
-    activeWindow.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       const pRect = portal.getBoundingClientRect();
       const margin = 8;
       const maxLeft = activeWindow.innerWidth - pRect.width - margin;

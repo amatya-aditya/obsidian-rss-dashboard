@@ -21,7 +21,6 @@ import type { FolderService } from "../../../src/services/folder-service";
 
 vi.mock("../../../src/services/feed-parser", () => ({
   FeedParser: class FeedParser {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(_media?: any, _availableTags?: any) {}
     parseFeed = vi.fn();
     refreshAllFeeds = vi.fn();
@@ -33,7 +32,6 @@ vi.mock("../../../src/services/feed-parser", () => ({
 
 vi.mock("../../../src/services/article-saver", () => ({
   ArticleSaver: class ArticleSaver {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(_app?: any, _settings?: any) {}
     fixSavedFilePaths = vi.fn().mockResolvedValue(undefined);
   },
@@ -79,16 +77,11 @@ interface TestApp extends App {
 interface TestPlugin extends Partial<RssDashboardPlugin> {
   settings: RssDashboardSettings;
   folderService: FolderService;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   loadData: Mock<() => Promise<any>>;
   saveData: Mock<() => Promise<void>>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   registerView: Mock<(type: string, viewCreator: (leaf: any) => any) => void>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addRibbonIcon: Mock<(icon: string, title: string, callback: (evt: any) => any) => any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addCommand: Mock<(command: any) => void>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addSettingTab: Mock<(settingTab: any) => void>;
   registerInterval: Mock<(id: number) => number>;
   activateDiscoverView: () => Promise<void>;

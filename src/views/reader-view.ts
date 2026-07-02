@@ -108,7 +108,7 @@ export class ReaderView extends ItemView {
 
   public focusReaderView(): void {
     this.app.workspace.setActiveLeaf(this.leaf, { focus: true });
-    activeWindow.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       this.containerEl.focus({ preventScroll: true });
     });
   }
@@ -132,7 +132,7 @@ export class ReaderView extends ItemView {
         targetLeaf.view as { containerEl?: HTMLElement } | undefined
       )?.containerEl;
       if (dashboardContainer) {
-        activeWindow.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
           dashboardContainer.focus({ preventScroll: true });
         });
       }
@@ -1001,7 +1001,7 @@ export class ReaderView extends ItemView {
     }
 
     if (this.readerFormatSaveTimeout !== null) {
-      activeWindow.clearTimeout(this.readerFormatSaveTimeout);
+      window.clearTimeout(this.readerFormatSaveTimeout);
       this.readerFormatSaveTimeout = null;
     }
 
@@ -3194,10 +3194,10 @@ export class ReaderView extends ItemView {
 
   private scheduleReaderFormatSave(): void {
     if (this.readerFormatSaveTimeout !== null) {
-      activeWindow.clearTimeout(this.readerFormatSaveTimeout);
+      window.clearTimeout(this.readerFormatSaveTimeout);
     }
 
-    this.readerFormatSaveTimeout = activeWindow.setTimeout(() => {
+    this.readerFormatSaveTimeout = window.setTimeout(() => {
       void this.flushReaderFormatSave();
     }, 300);
   }
@@ -3283,7 +3283,7 @@ export class ReaderView extends ItemView {
 
   private async flushReaderFormatSave(): Promise<void> {
     if (this.readerFormatSaveTimeout !== null) {
-      activeWindow.clearTimeout(this.readerFormatSaveTimeout);
+      window.clearTimeout(this.readerFormatSaveTimeout);
       this.readerFormatSaveTimeout = null;
     }
 

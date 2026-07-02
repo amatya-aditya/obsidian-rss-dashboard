@@ -524,7 +524,7 @@ export class ArticleFilterMenu {
     subMenu.style.setProperty("--submenu-top", `${subTop}px`);
     subMenu.style.setProperty("--submenu-left", `${subLeft}px`);
 
-    activeWindow.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       const subRect = subMenu.getBoundingClientRect();
       if (subRect.right > activeWindow.innerWidth)
         subMenu.style.setProperty(

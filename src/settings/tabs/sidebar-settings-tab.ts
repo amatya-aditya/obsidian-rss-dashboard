@@ -250,7 +250,7 @@ export function renderSidebarSettingsTab(
     .setHeading();
   iconHeading.settingEl.dataset.rssSettingsSection = "icon-visibility";
   if (targetSection === "Icon visibility") {
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       iconHeading.settingEl.scrollIntoView({
         block: "center",
         behavior: "auto",
@@ -314,10 +314,10 @@ export function renderSidebarSettingsTab(
       if (!icon) return;
       const hideKey = icon.settingKey;
 
-      const nameFrag = document.createDocumentFragment();
-      const labelWrap = document.createElement("span");
+      const nameFrag = activeDocument.createDocumentFragment();
+      const labelWrap = activeDocument.createElement("span");
       labelWrap.addClass("rss-settings-icon-label");
-      const iconSpan = document.createElement("span");
+      const iconSpan = activeDocument.createElement("span");
       iconSpan.addClass("rss-settings-icon-preview");
       setIcon(iconSpan, icon.lucideIcon);
       labelWrap.append(iconSpan);
@@ -516,7 +516,7 @@ export function renderSidebarSettingsTab(
     .setHeading();
   paddingHeading.settingEl.dataset.rssSettingsSection = "sidebar-padding";
   if (targetSection === "Sidebar padding") {
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       paddingHeading.settingEl.scrollIntoView({
         block: "center",
         behavior: "auto",
@@ -603,7 +603,7 @@ export function renderSidebarSettingsTab(
     .setHeading();
   spacingHeading.settingEl.dataset.rssSettingsSection = "row-spacing";
   if (targetSection === "Row spacing") {
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       spacingHeading.settingEl.scrollIntoView({
         block: "center",
         behavior: "auto",
@@ -836,7 +836,7 @@ export function renderSidebarSettingsTab(
                 }
               } else {
                 // User cancelled — revert the toggle to its previous (ON) state
-                setTimeout(() => {
+                window.setTimeout(() => {
                   void toggle.setValue(true);
                 }, 0);
               }

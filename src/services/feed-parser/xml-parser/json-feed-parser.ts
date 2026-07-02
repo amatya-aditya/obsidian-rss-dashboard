@@ -42,10 +42,10 @@ export function parseJSON(
       };
     }
 
-    throw new Error("Unsupported json feed format");
+    throw new Error("Unsupported JSON feed format");
   } catch (error) {
     throw new Error(
-      `Failed to parse json feed: ${error instanceof Error ? error.message : String(error)}`,
+      `Failed to parse JSON feed: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }

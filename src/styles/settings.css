@@ -424,13 +424,13 @@
 }
 
 .rss-dashboard-tag-multi-select-mobile-sheet {
-  left: 8px !important;
-  right: 8px !important;
-  top: auto !important;
-  bottom: 8px !important;
-  width: auto !important;
-  max-width: none !important;
-  min-width: 0 !important;
+  left: 8px !important; /* audit-ok: overrides inline anchor positioning for mobile sheet */
+  right: 8px !important; /* audit-ok: overrides inline anchor positioning for mobile sheet */
+  top: auto !important; /* audit-ok: overrides inline anchor positioning for mobile sheet */
+  bottom: 8px !important; /* audit-ok: overrides inline anchor positioning for mobile sheet */
+  width: auto !important; /* audit-ok: overrides inline anchor positioning for mobile sheet */
+  max-width: none !important; /* audit-ok: overrides inline anchor positioning for mobile sheet */
+  min-width: 0 !important; /* audit-ok: overrides inline anchor positioning for mobile sheet */
   border-radius: 14px;
   box-shadow: 0 18px 42px rgb(0 0 0 / 0.24);
 }

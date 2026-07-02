@@ -16,7 +16,7 @@ export function windowInstanceOf(
       objWithCtor.constructor.name === Constructor.name
     )
       return true;
-  } catch (_e) {
+  } catch {
     // Defensive: cross-realm or revoked proxy
   }
   return false;

@@ -29,7 +29,6 @@ vi.mock("../../../src/services/feed-parser", () => ({
   FeedParser: class FeedParser {
     parseFeed = mockParseFeed;
     refreshAllFeeds = mockRefreshAllFeeds;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(_media?: any, _availableTags?: any) {}
   },
   applyFeedRetentionLimits: vi.fn((feed: Feed) => feed),
@@ -40,7 +39,6 @@ vi.mock("../../../src/services/feed-parser", () => ({
 vi.mock("../../../src/services/article-saver", () => ({
   ArticleSaver: class ArticleSaver {
     fixSavedFilePaths = vi.fn().mockResolvedValue(undefined);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(_app?: any, _settings?: any) {}
   },
 }));
@@ -48,7 +46,6 @@ vi.mock("../../../src/services/article-saver", () => ({
 vi.mock("../../../src/services/backup-service", () => ({
   BackupService: class BackupService {
     performAutoBackups = vi.fn().mockResolvedValue(undefined);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(_options?: any) {}
   },
 }));

@@ -636,12 +636,12 @@
 }
 
 .playlist-episode-row {
-  display: flex !important;
+  display: flex !important; /* audit-ok: overrides Obsidian list row layout defaults in playlist panel */
   align-items: center;
   gap: 16px;
-  padding: 12px !important;
-  height: auto !important;
-  min-height: 86px !important;
+  padding: 12px !important; /* audit-ok: overrides Obsidian list row padding in playlist panel */
+  height: auto !important; /* audit-ok: overrides fixed-height list rows in playlist panel */
+  min-height: 86px !important; /* audit-ok: ensures touch-friendly playlist row height */
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -886,10 +886,10 @@
 .playlist-episode-row.has-progress.active {
   position: relative;
   overflow: hidden;
-  padding: 12px !important;
-  height: auto !important;
-  min-height: 86px !important;
-  display: flex !important;
+  padding: 12px !important; /* audit-ok: overrides Obsidian list row padding in playlist panel */
+  height: auto !important; /* audit-ok: overrides fixed-height list rows in playlist panel */
+  min-height: 86px !important; /* audit-ok: ensures touch-friendly playlist row height */
+  display: flex !important; /* audit-ok: overrides Obsidian list row layout defaults in playlist panel */
 }
 
 .playlist-episode-row.has-progress::after {

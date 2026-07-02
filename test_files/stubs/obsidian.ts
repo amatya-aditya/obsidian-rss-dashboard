@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // Core Obsidian API Stubs
 // =============================================================================
 // =============================================================================
@@ -27,7 +27,6 @@ export async function requestUrl(
   throw new Error("requestUrl stub - configure mock in test if needed");
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
 export const RequestUrlParam: any = {};
 
 export const Platform = {
@@ -156,7 +155,6 @@ export class MockDataVault {
     () => ({});
 
   // Mirror Obsidian's `vault.adapter` surface area used by this repo
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   adapter: any;
 
   constructor() {
@@ -370,7 +368,6 @@ export class MockWorkspace {
     callbacks.forEach((callback) => callback());
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   on(_name: string, _callback: (...args: any[]) => unknown): unknown {
     return {};
   }
@@ -449,10 +446,8 @@ export class Plugin {
   async onload(): Promise<void> {}
   onunload(): void {}
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   registerView(_type: string, _creator: (leaf: any) => any): void {}
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addCommand(_command: any): void {}
 
   addRibbonIcon(
@@ -463,7 +458,6 @@ export class Plugin {
     return {};
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addSettingTab(_tab: any): void {}
 
   registerInterval(id: number): number {
@@ -473,7 +467,6 @@ export class Plugin {
   // Minimal stub for Obsidian's Plugin.registerEvent to allow tests to
   // register EventRef objects without throwing. This mirrors the runtime
   // API surface used by plugins; tests do not rely on the behavior here.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- intentional test stub
   registerEvent(_evt: any): void {}
 
   registerObsidianProtocolHandler(
@@ -482,11 +475,9 @@ export class Plugin {
   ): void {}
 
   // Data API (overridden in tests when needed)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   async loadData(): Promise<any> {
     return null;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   async saveData(_data: any): Promise<void> {}
 }
 
@@ -548,7 +539,6 @@ export class ItemView {
     return Promise.resolve();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   registerEvent(_evt: any): void {}
 
   registerDomEvent(
@@ -579,7 +569,6 @@ export class MenuItem {
   setIcon(): this {
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   onClick(_cb: (evt: any) => any): this {
     return this;
   }
@@ -591,7 +580,6 @@ export class Setting {
   descEl: HTMLDivElement;
   controlEl: HTMLDivElement;
   // Obsidian stores created components here; many settings tabs access it.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   components: any[] = [];
 
   constructor(containerEl: HTMLElement) {
@@ -640,7 +628,6 @@ export class Setting {
   setDisabled(_disabled?: boolean): this {
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addButton(cb: (component: any) => any): this {
     class ButtonComponent {
       buttonEl: HTMLButtonElement;
@@ -697,7 +684,6 @@ export class Setting {
     return this;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addSlider(cb: (component: any) => any): this {
     class SliderComponent {
       sliderEl: HTMLInputElement;
@@ -741,7 +727,6 @@ export class Setting {
     return this;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addColorPicker(cb: (component: any) => any): this {
     class ColorComponent {
       inputEl: HTMLInputElement;
@@ -781,7 +766,6 @@ export class Setting {
     cb(component);
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addToggle(cb: (component: any) => any): this {
     class ToggleComponent {
       toggleEl: HTMLInputElement;
@@ -817,7 +801,6 @@ export class Setting {
     cb(component);
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub mirroring untyped Obsidian API surface; any is intentional
   addText(cb: (component: any) => any): this {
     class TextComponent {
       inputEl: HTMLInputElement;
@@ -862,7 +845,6 @@ export class Setting {
     cb(component);
     return this;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addDropdown(cb: (component: any) => any): this {
     class DropdownComponent {
       selectEl: HTMLSelectElement;
@@ -987,7 +969,6 @@ export class AbstractInputSuggest<T> {
     return [];
   }
   renderSuggestion(_value: T, _el: HTMLElement): void {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   selectSuggestion(_value: T, _evt: any): void {}
   close(): void {}
 }

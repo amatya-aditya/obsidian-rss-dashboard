@@ -60,7 +60,7 @@ export class FolderSelectorPopup {
 
     // Focus input after popup is rendered (only if not in list-only mode)
     if (!this.listOnly) {
-      activeWindow.setTimeout(() => {
+      window.setTimeout(() => {
         this.inputEl?.focus();
       }, 0);
     }
@@ -288,7 +288,7 @@ export class FolderSelectorPopup {
           // Show visual feedback for invalid characters
           this.inputEl!.addClass("rss-folder-selector-input-invalid");
           this.inputEl!.value = sanitized;
-          activeWindow.setTimeout(() => {
+          window.setTimeout(() => {
             this.inputEl?.removeClass("rss-folder-selector-input-invalid");
           }, 500);
         }
@@ -309,7 +309,7 @@ export class FolderSelectorPopup {
         this.close();
       }
     };
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       activeDocument.addEventListener("click", this.clickOutsideHandler);
     }, 0);
 

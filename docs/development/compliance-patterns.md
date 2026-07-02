@@ -65,17 +65,19 @@ const pluginApi = plugin as unknown as PluginTestFixture;
 ### Required
 
 - In production UI paths, prefer `activeDocument` over global `document` where popout compatibility rules apply.
-- Prefer `activeWindow.setTimeout(...)` and `activeWindow.clearTimeout(...)` over global timer functions in popout-sensitive flows.
+- Prefer `window.setTimeout(...)`, `window.clearTimeout(...)`, and other `window.*` timer APIs over `activeWindow.*` or bare timer calls.
+- Use `window.crypto` (or Obsidian-provided APIs) instead of `globalThis` for browser globals.
 
 ### Pattern
 
 ```ts
 // Prefer in popout-aware UI code
-const el = this.app.workspace.activeDocument.createElement("div");
-const handle = this.app.workspace.activeWindow.setTimeout(() => {
+const el = activeDocument.createElement("div");
+const handle = window.setTimeout(() => {
   // ...
 }, 100);
-this.app.workspace.activeWindow.clearTimeout(handle);
+window.clearTimeout(handle);
+view.registerDomEvent(activeDocument, "keydown", handler);
 ```
 
 ## 5) Obsidian DOM Helper Conventions

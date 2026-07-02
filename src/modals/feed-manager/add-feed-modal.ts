@@ -120,7 +120,7 @@ export class AddFeedModal extends Modal {
     this.renderKeywordRulesSection();
     this.renderActionButtons();
 
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       this.urlInput?.focus();
       this.urlInput?.select();
     }, 0);
@@ -293,7 +293,7 @@ export class AddFeedModal extends Modal {
         });
         this.urlInput.addEventListener("blur", this.normalizeNitterUrl);
         this.urlInput.addEventListener("paste", () => {
-          activeWindow.setTimeout(this.normalizeNitterUrl, 0);
+          window.setTimeout(this.normalizeNitterUrl, 0);
         });
       })
       .addButton((btn) => {

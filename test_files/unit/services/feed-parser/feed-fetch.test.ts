@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { RequestUrlResponse } from "obsidian";
 import * as obsidian from "obsidian";
 import { fetchFeedXml } from "../../../../src/services/feed-parser/feed-fetch.js";

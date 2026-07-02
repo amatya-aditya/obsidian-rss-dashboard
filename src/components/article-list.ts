@@ -207,7 +207,7 @@ export class ArticleList {
       this.resizeObserver = null;
     }
     if (this.cardLayoutFrame !== null) {
-      activeWindow.cancelAnimationFrame(this.cardLayoutFrame);
+      window.cancelAnimationFrame(this.cardLayoutFrame);
       this.cardLayoutFrame = null;
     }
     if (this.header) {
@@ -334,10 +334,10 @@ export class ArticleList {
     }
 
     if (this.cardLayoutFrame !== null) {
-      activeWindow.cancelAnimationFrame(this.cardLayoutFrame);
+      window.cancelAnimationFrame(this.cardLayoutFrame);
     }
 
-    this.cardLayoutFrame = activeWindow.requestAnimationFrame(() => {
+    this.cardLayoutFrame = window.requestAnimationFrame(() => {
       this.cardLayoutFrame = null;
       layoutCardTagRows(root, this.articles);
     });
@@ -465,7 +465,7 @@ export class ArticleList {
       this.filterArticlesBySearch(this.articleSearchQuery);
     }
 
-    activeWindow.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       const shouldForceCardTopAnchor =
         this.pendingCardTopAnchor && this.settings.viewStyle === "card";
 
@@ -655,7 +655,7 @@ export class ArticleList {
         "opacity 150ms ease, max-height 200ms ease 100ms, margin 200ms ease 100ms, padding 200ms ease 100ms",
     });
 
-    activeWindow.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       setCssProps(targetEl, {
         opacity: "0",
         "max-height": "0",
@@ -666,7 +666,7 @@ export class ArticleList {
       });
     });
 
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       targetEl.remove();
       if (listEl) listEl.scrollTop = scrollPos;
     }, 320);
@@ -753,7 +753,7 @@ export class ArticleList {
       "padding-bottom": "0",
     });
 
-    activeWindow.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       setCssProps(newEl, {
         transition:
           "opacity 150ms ease, max-height 200ms ease 100ms, margin 200ms ease 100ms, padding 200ms ease 100ms",
@@ -766,7 +766,7 @@ export class ArticleList {
       });
     });
 
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       setCssProps(newEl, {
         overflow: "",
         "max-height": "",
@@ -928,15 +928,15 @@ export class ArticleList {
       }
     };
 
-    const fallbackId = activeWindow.setTimeout(applyRelock, 500);
+    const fallbackId = window.setTimeout(applyRelock, 500);
 
     this.resizeObserver = new ResizeObserver(() => {
       if (this.cardLayoutFrame !== null) {
-        activeWindow.cancelAnimationFrame(this.cardLayoutFrame);
+        window.cancelAnimationFrame(this.cardLayoutFrame);
       }
-      this.cardLayoutFrame = activeWindow.requestAnimationFrame(() => {
+      this.cardLayoutFrame = window.requestAnimationFrame(() => {
         this.cardLayoutFrame = null;
-        activeWindow.clearTimeout(fallbackId);
+        window.clearTimeout(fallbackId);
         applyRelock();
       });
     });
@@ -1363,7 +1363,7 @@ renderPaginationUtil({
       if (articleEls.length > 0) {
         articleEls.forEach((articleEl) => {
           articleEl.classList.add("rss-dashboard-tag-change-feedback");
-          activeWindow.setTimeout(() => {
+          window.setTimeout(() => {
             articleEl.classList.remove("rss-dashboard-tag-change-feedback");
           }, 200);
         });
@@ -1372,7 +1372,7 @@ renderPaginationUtil({
           cls: "rss-dashboard-tag-change-notification",
           text: `Tag "${tag.name}" ${checked ? "added" : "removed"}`,
         });
-        activeWindow.setTimeout(() => {
+        window.setTimeout(() => {
           if (tempIndicator.parentNode) {
             tempIndicator.parentNode.removeChild(tempIndicator);
           }

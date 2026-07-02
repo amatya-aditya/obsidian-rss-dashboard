@@ -378,7 +378,7 @@ export class BackgroundImportService {
 
   private async waitForSoftTimeout(): Promise<void> {
     return new Promise((resolve) => {
-      activeWindow.setTimeout(resolve, FEED_SOFT_TIMEOUT_MS);
+      window.setTimeout(resolve, FEED_SOFT_TIMEOUT_MS);
     });
   }
 
@@ -418,7 +418,7 @@ export class BackgroundImportService {
       return await Promise.race([
         this.feedParser.parseFeed(url, null, { signal: abortController.signal }),
         new Promise<Feed>((_, reject) => {
-          timeoutId = activeWindow.setTimeout(() => {
+          timeoutId = window.setTimeout(() => {
             abortController.abort();
             reject(new Error("Timed out"));
           }, BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS);
@@ -426,7 +426,7 @@ export class BackgroundImportService {
       ]);
     } finally {
       if (timeoutId !== null) {
-        activeWindow.clearTimeout(timeoutId);
+        window.clearTimeout(timeoutId);
       }
     }
   }
@@ -563,7 +563,7 @@ export class BackgroundImportService {
       cls: "rss-dashboard-import-modal-header",
     });
 
-    new Setting(modalHeader).setName("Importing opml feeds").setHeading();
+    new Setting(modalHeader).setName("Importing OPML feeds").setHeading();
 
     const minimizeButton = modalHeader.createEl("button", {
       cls: "clickable-icon",

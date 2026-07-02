@@ -63,7 +63,7 @@ export class KagiSmallwebView extends ItemView {
 
   async onClose(): Promise<void> {
     if (this.smallwebSearchDebounceTimer) {
-      activeWindow.clearTimeout(this.smallwebSearchDebounceTimer);
+      window.clearTimeout(this.smallwebSearchDebounceTimer);
     }
     await super.onClose();
   }
@@ -410,9 +410,9 @@ export class KagiSmallwebView extends ItemView {
 
   private debouncedSmallwebSearch(query: string): void {
     if (this.smallwebSearchDebounceTimer) {
-      activeWindow.clearTimeout(this.smallwebSearchDebounceTimer);
+      window.clearTimeout(this.smallwebSearchDebounceTimer);
     }
-    this.smallwebSearchDebounceTimer = activeWindow.setTimeout(() => {
+    this.smallwebSearchDebounceTimer = window.setTimeout(() => {
       this.smallwebSearchQuery = query;
       this.filterSmallwebEntries();
       this.render();

@@ -57,7 +57,7 @@ export class TemplateNameModal extends Modal {
           }),
       );
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       inputComponent.inputEl.focus();
     }, 50);
   }
@@ -125,7 +125,7 @@ export class HighlightWordEditModal extends Modal {
           }),
       );
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       inputComponent.inputEl.focus();
       inputComponent.inputEl.select();
     }, 50);
@@ -222,7 +222,6 @@ export class FactoryResetConfirmModal extends Modal {
       text: "This restores all plugin settings to their default values and clears your feeds, folders, tags, and plugin-managed local state.",
     });
     contentEl.createEl("p", {
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
       text: "Existing backup files and saved article markdown files in your vault will not be deleted.",
     });
 

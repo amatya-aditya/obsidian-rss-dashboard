@@ -715,11 +715,8 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
       10px + var(--rss-mobile-statusbar-inset-top)
     );
     height: 100vh;
-    height: 100dvh;
     min-height: 100vh;
-    min-height: 100dvh;
     max-height: 100vh;
-    max-height: 100dvh;
     width: 80vw;
     max-width: 80vw;
     margin: 0;
@@ -824,12 +821,23 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     overflow-y: auto;
     overscroll-behavior: contain;
     touch-action: pan-y;
-    scrollbar-width: thin;
+    scrollbar-width: thin; /* audit-ok: standard CSS Scrollbars L4; degrades gracefully in unsupported environments */
     scrollbar-color: var(
         --scrollbar-thumb-bg,
         var(--background-modifier-border)
       )
       transparent;
+  }
+}
+
+@supports (height: 100dvh) {
+  @media (max-width: 1200px) {
+    .modal.rss-mobile-navigation-modal,
+    .modal.rss-mobile-discover-filters-modal {
+      height: 100dvh;
+      min-height: 100dvh;
+      max-height: 100dvh;
+    }
   }
 }
 
@@ -977,17 +985,20 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     padding: 0;
   }
   body .modal-container .modal.rss-storage-transition-modal {
-    --rss-storage-modal-bottom-gap: 24px;
     --rss-storage-modal-bottom-gap: max(24px, env(safe-area-inset-bottom, 0px));
     width: auto;
     max-width: calc(100vw - 24px);
-    max-height: calc(90vh - 24px);
-    max-height: calc(90dvh - var(--rss-storage-modal-bottom-gap));
-    bottom: 24px;
+    max-height: calc(90vh - var(--rss-storage-modal-bottom-gap));
     bottom: var(--rss-storage-modal-bottom-gap);
     left: 12px;
     right: 12px;
     border-radius: 16px;
+  }
+
+  @supports (height: 100dvh) {
+    body .modal-container .modal.rss-storage-transition-modal {
+      max-height: calc(90dvh - var(--rss-storage-modal-bottom-gap));
+    }
   }
   body .modal.rss-storage-transition-modal .rss-storage-transition-buttons {
     width: 100%;

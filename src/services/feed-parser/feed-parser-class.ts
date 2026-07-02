@@ -827,7 +827,7 @@ export class FeedParser {
       const refreshedFeed = await Promise.race([
         this.parseFeed(feed.url, feed, { signal: abortController.signal }),
         new Promise<Feed>((_, reject) => {
-          timeoutId = activeWindow.setTimeout(() => {
+          timeoutId = window.setTimeout(() => {
             abortController.abort();
             reject(new Error("Timed out"));
           }, FEED_REQUEST_TIMEOUT_MS);
@@ -846,7 +846,7 @@ export class FeedParser {
       return feed;
     } finally {
       if (timeoutId !== null) {
-        activeWindow.clearTimeout(timeoutId);
+        window.clearTimeout(timeoutId);
       }
     }
   }
@@ -883,7 +883,7 @@ export class FeedParser {
           });
 
         const softTimeoutPromise = new Promise<void>((resolve) => {
-          activeWindow.setTimeout(() => resolve(), FEED_SOFT_TIMEOUT_MS);
+          window.setTimeout(() => resolve(), FEED_SOFT_TIMEOUT_MS);
         });
 
         const winner = await Promise.race([

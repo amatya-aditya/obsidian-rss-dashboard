@@ -92,7 +92,7 @@ describe("HighlightService", () => {
       const p = document.createElement("p");
       p.appendChild(document.createTextNode("This is extremely "));
       const span = document.createElement("span");
-      span.textContent = "important";
+      span.textContent = "Important";
       p.appendChild(span);
       p.appendChild(document.createTextNode(" stuff."));
       container.appendChild(p);
@@ -100,7 +100,7 @@ describe("HighlightService", () => {
 
       const marks = container.querySelectorAll("mark");
       expect(marks.length).toBe(1);
-      expect(marks[0].textContent).toBe("important");
+      expect(marks[0].textContent).toBe("Important");
       expect(marks[0].parentElement?.tagName).toBe("SPAN");
     });
 
@@ -110,11 +110,11 @@ describe("HighlightService", () => {
       // We know "shouldSkipElement" ignores code, pre, script, etc.
       container.innerHTML = ""; // Clear
       const div = document.createElement("div");
-      div.textContent = "important";
+      div.textContent = "Important";
       const pre = document.createElement("pre");
-      pre.textContent = "important pre";
+      pre.textContent = "Important pre";
       const code = document.createElement("code");
-      code.textContent = "let important = true;";
+      code.textContent = "Let important = true;";
       container.append(div, pre, code);
       
       service.highlightElement(container);
@@ -123,8 +123,8 @@ describe("HighlightService", () => {
       expect(marks.length).toBe(1);
       
       // Let's verify skipped elements stayed the same
-      expect(pre.innerHTML).toBe("important pre");
-      expect(code.innerHTML).toBe("let important = true;");
+      expect(pre.innerHTML).toBe("Important pre");
+      expect(code.innerHTML).toBe("Let important = true;");
     });
   });
 

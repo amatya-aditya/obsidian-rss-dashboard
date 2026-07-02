@@ -717,7 +717,7 @@ export default class RssDashboardPlugin extends Plugin {
 
       this.addCommand({
         id: "import-opml",
-        name: "Import opml",
+        name: "Import OPML",
         callback: () => {
           new ImportOpmlModal(this.app, this).open();
         },
@@ -725,7 +725,7 @@ export default class RssDashboardPlugin extends Plugin {
 
       this.addCommand({
         id: "export-opml",
-        name: "Export opml",
+        name: "Export OPML",
         callback: () => {
           void this.exportOpml();
         },
@@ -783,7 +783,7 @@ export default class RssDashboardPlugin extends Plugin {
       const autoRefreshIntervalMs = this.getAutoRefreshIntervalMs();
       if (autoRefreshIntervalMs !== null) {
         this.registerInterval(
-          activeWindow.setInterval(() => {
+          window.setInterval(() => {
             void this.refreshFeeds();
           }, autoRefreshIntervalMs),
         );
@@ -794,7 +794,7 @@ export default class RssDashboardPlugin extends Plugin {
           ? this.settings.startupRefreshDelaySeconds
           : DEFAULT_SETTINGS.startupRefreshDelaySeconds;
         if (delay > 0) {
-          this.startupRefreshTimeoutId = activeWindow.setTimeout(() => {
+          this.startupRefreshTimeoutId = window.setTimeout(() => {
             this.startupRefreshTimeoutId = null;
             void this.refreshFeeds();
           }, delay * 1000);
@@ -820,7 +820,6 @@ export default class RssDashboardPlugin extends Plugin {
 
     if (!action) {
       new Notice(
-        // eslint-disable-next-line obsidianmd/ui/sentence-case
         "Missing URI action. Use action=add-feed with a URL parameter.",
       );
       return;
@@ -1349,7 +1348,6 @@ export default class RssDashboardPlugin extends Plugin {
           new Notice(message);
         }
       } else {
-        // eslint-disable-next-line obsidianmd/ui/sentence-case
         new Notice("Please select a valid OPML or XML file.");
       }
     };
@@ -2207,16 +2205,10 @@ export default class RssDashboardPlugin extends Plugin {
       if (!watched) return;
 
       if (this.vaultMetadataReloadTimer !== null) {
-        (
-          globalThis as unknown as { clearTimeout: (id: number | null) => void }
-        ).clearTimeout(this.vaultMetadataReloadTimer);
+        window.clearTimeout(this.vaultMetadataReloadTimer);
       }
 
-      this.vaultMetadataReloadTimer = (
-        globalThis as unknown as {
-          setTimeout: (cb: () => number | void, ms: number) => number;
-        }
-      ).setTimeout(() => {
+      this.vaultMetadataReloadTimer = window.setTimeout(() => {
         this.vaultMetadataReloadTimer = null;
         void (async () => {
           await this.loadSettings();
@@ -2779,7 +2771,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   private async waitForFeedSoftTimeout(): Promise<void> {
     return new Promise((resolve) => {
-      activeWindow.setTimeout(resolve, FEED_SOFT_TIMEOUT_MS);
+      window.setTimeout(resolve, FEED_SOFT_TIMEOUT_MS);
     });
   }
 
@@ -2787,7 +2779,7 @@ export default class RssDashboardPlugin extends Plugin {
     return await Promise.race([
       this.refreshFeedDirect(feed),
       new Promise<Feed>((_, reject) => {
-        activeWindow.setTimeout(
+        window.setTimeout(
           () => reject(new Error("Timed out")),
           FEED_REQUEST_TIMEOUT_MS,
         );
@@ -2817,7 +2809,7 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     if (this.vaultMetadataReloadTimer !== null) {
-      activeWindow.clearTimeout(this.vaultMetadataReloadTimer);
+      window.clearTimeout(this.vaultMetadataReloadTimer);
       this.vaultMetadataReloadTimer = null;
     }
 
@@ -2829,7 +2821,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   public cancelPendingStartupRefresh(): void {
     if (this.startupRefreshTimeoutId !== null) {
-      activeWindow.clearTimeout(this.startupRefreshTimeoutId);
+      window.clearTimeout(this.startupRefreshTimeoutId);
       this.startupRefreshTimeoutId = null;
     }
   }

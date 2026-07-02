@@ -31,7 +31,6 @@ export class FactoryResetConfirmModal extends Modal {
       text: "This restores all plugin settings to their default values and clears your feeds, folders, tags, and plugin-managed local state.",
     });
     contentEl.createEl("p", {
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
       text: "Existing backup files and saved article markdown files in your vault will not be deleted.",
     });
 
@@ -262,7 +261,7 @@ export function renderImportExportSettingsTab(
   new Setting(opmlSection)
     .setName("OPML")
     .setDesc(
-      "Import or export an opml subscription list containing your configured feed addresses.",
+      "Import or export an OPML subscription list containing your configured feed addresses.",
     )
     .setHeading();
 
@@ -272,7 +271,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("upload")
-        .setButtonText("Import opml")
+        .setButtonText("Import OPML")
         .onClick(() => {
           new ImportOpmlModal(plugin.app, plugin).open();
         }),
@@ -280,7 +279,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("download")
-        .setButtonText("Export opml")
+        .setButtonText("Export OPML")
         .onClick(() => plugin.exportOpml()),
     )
     .addButton((button) =>
@@ -342,7 +341,6 @@ export function renderImportExportSettingsTab(
   new Setting(factoryResetSection)
     .setName("Factory reset")
     .setDesc(
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
       "Restore all plugin settings to their default values and clear plugin-managed data. Existing backup files and saved article markdown files are left untouched.",
     )
     .setHeading();

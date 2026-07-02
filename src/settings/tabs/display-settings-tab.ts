@@ -240,14 +240,12 @@ export function renderDisplaySettingsTab(
   new Setting(containerEl)
     .setName("Article date display")
     .setDesc(
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
-      "Choose whether article dates are shown as relative ('2 days ago') or absolute ('May 9, 2026').",
+      "Choose whether article dates are shown as relative ('2 days ago') or absolute ('may 9, 2026').",
     )
     .addDropdown((dropdown) =>
       dropdown
         .addOption("relative", "Relative (e.g. '2 days ago')")
-        // eslint-disable-next-line obsidianmd/ui/sentence-case
-        .addOption("absolute", "Absolute (e.g. 'May 9, 2026, 11:39 AM')")
+        .addOption("absolute", "Absolute (e.g. 'may 9, 2026, 11:39 am')")
         .setValue(plugin.settings.display.articleDateStyle ?? "relative")
         .onChange(async (value: string) => {
           plugin.settings.display.articleDateStyle = value as
@@ -745,7 +743,7 @@ export function renderDisplaySettingsTab(
   const readerHeading = new Setting(containerEl).setName("Reader").setHeading();
   readerHeading.settingEl.dataset.rssSettingsSection = "reader";
   if (targetSection === "Reader") {
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       readerHeading.settingEl.scrollIntoView({
         block: "center",
         behavior: "auto",
@@ -876,7 +874,7 @@ export function renderDisplaySettingsTab(
     .setHeading();
   mobileHeading.settingEl.dataset.rssSettingsSection = "mobile-toolbar";
   if (targetSection === "Mobile toolbar") {
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       mobileHeading.settingEl.scrollIntoView({
         block: "center",
         behavior: "auto",

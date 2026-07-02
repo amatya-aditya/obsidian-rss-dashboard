@@ -273,8 +273,8 @@ export function renderStorageSettingsTab(
     }
   };
 
-  const descFragment = document.createDocumentFragment();
-  const legacyDiv = document.createElement("div");
+  const descFragment = activeDocument.createDocumentFragment();
+  const legacyDiv = activeDocument.createElement("div");
   setCssProps(legacyDiv, { "margin-bottom": "10px" });
   legacyDiv.createEl("strong", { text: "Legacy JSON:" });
   legacyDiv.appendText(
@@ -282,18 +282,16 @@ export function renderStorageSettingsTab(
   );
   descFragment.appendChild(legacyDiv);
 
-  const v1Div = document.createElement("div");
+  const v1Div = activeDocument.createElement("div");
   setCssProps(v1Div, { "margin-bottom": "10px" });
-  // eslint-disable-next-line obsidianmd/ui/sentence-case
-  v1Div.createEl("strong", { text: "Shard Storage v1:" });
+  v1Div.createEl("strong", { text: "Shard storage v1:" });
   v1Div.appendText(
     " Creates individual vault files for each feed to improve syncing, but stores state (read, starred) inside the feed file, which can still cause minor sync conflicts.",
   );
   descFragment.appendChild(v1Div);
 
-  const v2Div = document.createElement("div");
-  // eslint-disable-next-line obsidianmd/ui/sentence-case
-  v2Div.createEl("strong", { text: "Shard Storage v2:" });
+  const v2Div = activeDocument.createElement("div");
+  v2Div.createEl("strong", { text: "Shard storage v2:" });
   v2Div.appendText(
     " Splits feed content and user state (read, starred, tags) into separate files, providing the most robust sync experience.",
   );
@@ -305,10 +303,8 @@ export function renderStorageSettingsTab(
     .addDropdown((dropdown) =>
       dropdown
         .addOption("legacy-json", "Legacy JSON")
-        // eslint-disable-next-line obsidianmd/ui/sentence-case
-        .addOption("vault-shards", "Shard Storage v1")
-        // eslint-disable-next-line obsidianmd/ui/sentence-case
-        .addOption("vault-shards-v2", "Shard Storage v2")
+        .addOption("vault-shards", "Shard storage v1")
+        .addOption("vault-shards-v2", "Shard storage v2")
         .setValue(pendingStorageMode)
         .onChange((value) => {
           storageLog("Storage mode dropdown changed", {
@@ -323,7 +319,7 @@ export function renderStorageSettingsTab(
   new Setting(containerEl)
     .setName("Storage folder")
     .setDesc(
-      "Vault folder for per-feed shard files. Adding a '.' prefix to the path will hide the folder. The '.' must be removed for Obsidian Sync to work properly.",
+      "Vault folder for per-feed shard files. Adding a '.' prefix to the path will hide the folder. The '.' must be removed for Obsidian sync to work properly.",
     )
     .addText((text) =>
       text

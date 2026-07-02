@@ -168,9 +168,8 @@ export function renderKeywordFilterEditor(
         cls: "rss-keyword-filter-delete rss-keyword-filter-delete-header",
         attr: { "aria-label": `Delete rule ${index + 1}` },
       });
-      // "X" is intentional icon-like prefix for quick visual scanning.
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
-      removeBtn.setText("X Delete rule");
+
+      removeBtn.setText("Delete rule");
       removeBtn.addEventListener("click", () => {
         onChange({
           ...state,

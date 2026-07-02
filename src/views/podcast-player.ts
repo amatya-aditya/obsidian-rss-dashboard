@@ -1351,12 +1351,12 @@ export class PodcastPlayer {
       const durationMs = minutes * 60 * 1000;
       this.sleepTimerEndTime = Date.now() + durationMs;
 
-      this.sleepTimerId = activeWindow.setInterval(() => {
+      this.sleepTimerId = window.setInterval(() => {
         const remaining = (this.sleepTimerEndTime || 0) - Date.now();
         if (remaining <= 0) {
           this.audioElement?.pause();
           if (this.sleepTimerId) {
-            activeWindow.clearInterval(this.sleepTimerId);
+            window.clearInterval(this.sleepTimerId);
             this.sleepTimerId = null;
           }
           this.updateSleepTimerDisplay();
@@ -1373,7 +1373,7 @@ export class PodcastPlayer {
 
   private clearSleepTimer(): void {
     if (this.sleepTimerId) {
-      activeWindow.clearInterval(this.sleepTimerId);
+      window.clearInterval(this.sleepTimerId);
       this.sleepTimerId = null;
     }
     this.sleepTimerEndTime = null;
@@ -1461,10 +1461,10 @@ export class PodcastPlayer {
     }
 
     if (this.progressInterval) {
-      activeWindow.clearInterval(this.progressInterval);
+      window.clearInterval(this.progressInterval);
     }
 
-    this.progressInterval = activeWindow.setInterval(() => {
+    this.progressInterval = window.setInterval(() => {
       this.updateProgressDisplay();
 
       if (this.audioElement && this.currentItem) {
@@ -1475,7 +1475,7 @@ export class PodcastPlayer {
 
   private stopProgressTracking(): void {
     if (this.progressInterval) {
-      activeWindow.clearInterval(this.progressInterval);
+      window.clearInterval(this.progressInterval);
       this.progressInterval = null;
     }
   }
