@@ -2,7 +2,7 @@
 
 ### Plugin Compliance
 
-- Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans.
+- Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. [docs/development/2.4.0-audit/2.4.0_audit_remediation_plan.md](docs/development/2.4.0-audit/2.4.0_audit_remediation_plan.md)
 
 ## 2.4.0 - July 1, 2026
 

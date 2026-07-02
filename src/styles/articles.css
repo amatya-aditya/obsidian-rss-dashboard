@@ -317,7 +317,6 @@
   position: relative;
 }
 
-/* Scoped with body to override Obsidian's SVG injection without !important */
 body .rss-dashboard-save-toggle svg,
 body .rss-dashboard-read-toggle svg,
 body .rss-dashboard-star-toggle svg,
@@ -382,7 +381,6 @@ body .rss-dashboard-tags-toggle svg {
   color: #2ecc71;
 }
 
-/* Scoped with body to win over theme SVG color resets without !important */
 body .rss-dashboard-read-toggle.read svg {
   color: #43a047;
 }
@@ -396,7 +394,6 @@ body .rss-dashboard-read-toggle.read svg {
   fill: #f1c40f;
 }
 
-/* Scoped with body to prevent theme opacity resets without !important */
 body .rss-dashboard-star-toggle.unstarred {
   color: #888;
   opacity: 1;
@@ -504,7 +501,6 @@ body .rss-dashboard-star-toggle svg {
   border-color: var(--interactive-accent);
 }
 
-/* Scoped with body to override Obsidian SVG injection without !important */
 body .rss-dashboard-tag-inline-button svg {
   width: var(--icon-size);
   height: var(--icon-size);
@@ -562,7 +558,6 @@ body .rss-dashboard-tag-inline-button svg {
   margin-left: auto;
 }
 
-/* Scoped with body to override Obsidian SVG injection without !important */
 body .rss-dashboard-tag-action-button svg {
   width: var(--icon-size);
   height: var(--icon-size);
