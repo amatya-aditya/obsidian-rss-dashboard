@@ -1,3 +1,4 @@
+import { setIcon } from "obsidian";
 import type { FeedItem } from "../../../types/types";
 import { formatArticleDate } from "../../../utils/platform-utils";
 import {
@@ -5,6 +6,7 @@ import {
   getArticlePreviewSummaryText,
 } from "../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
+import { groupArticles } from "../utils/article-grouping";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 
 function resolveCoverImageSrc(article: FeedItem): string | undefined {
@@ -27,144 +29,212 @@ function resolveCoverImageSrc(article: FeedItem): string | undefined {
   return coverImgSrc || undefined;
 }
 
+function renderArticleCard(
+  container: HTMLElement,
+  article: FeedItem,
+  ctx: BaseViewContext,
+  deps: ViewDeps,
+): void {
+  const hasTags = !!article.tags?.length;
+  const feedItem = container.createDiv({
+    cls:
+      "rss-dashboard-feed-item" +
+      (ctx.selectedArticle && article.guid === ctx.selectedArticle.guid
+        ? " active"
+        : "") +
+      (article.read ? " read" : " unread") +
+      (article.starred ? " starred" : " unstarred") +
+      (article.saved ? " saved" : "") +
+      (article.mediaType === "video" ? " rss-dashboard-youtube-article" : "") +
+      (article.mediaType === "podcast" ? " rss-dashboard-podcast-article" : ""),
+    attr: {
+      id: `article-${article.guid}`,
+      "data-article-guid": article.guid,
+    },
+  });
+
+  const feedContent = feedItem.createDiv({
+    cls: "rss-dashboard-feed-content",
+  });
+
+  const coverImgSrc = resolveCoverImageSrc(article);
+  if (coverImgSrc) {
+    const previewRegion = feedContent.createDiv({
+      cls: "rss-dashboard-feed-preview-region",
+    });
+    previewRegion.createDiv({
+      cls: "rss-dashboard-feed-hero-blur",
+      attr: {
+        style: `background-image: url('${coverImgSrc}')`,
+      },
+    });
+    previewRegion.createEl("img", {
+      cls: "rss-dashboard-feed-hero-image",
+      attr: {
+        src: coverImgSrc,
+        alt: article.title,
+        loading: "lazy",
+      },
+    });
+  }
+
+  const textRegion = feedContent.createDiv({
+    cls: "rss-dashboard-feed-text-region",
+  });
+
+  const header = textRegion.createDiv({
+    cls: "rss-dashboard-feed-header",
+  });
+
+  const titleEl = header.createDiv({
+    cls: "rss-dashboard-article-title",
+  });
+
+  if (ctx.highlightService && ctx.settings.highlights.highlightInTitles) {
+    ctx.highlightService.setHighlightedText(titleEl, article.title);
+  } else {
+    titleEl.textContent = article.title;
+  }
+
+  if (ctx.showFeedSource) {
+    const articleMeta = header.createDiv({
+      cls: "rss-dashboard-article-meta",
+    });
+    const feedContainer = articleMeta.createDiv({
+      cls: "rss-dashboard-article-feed-container",
+    });
+    deps.renderFeedIcon(feedContainer, article.feedUrl, article.mediaType);
+    feedContainer.createDiv({
+      cls: "rss-dashboard-article-feed",
+      text: article.feedTitle,
+      attr: { title: article.feedTitle },
+    });
+  }
+
+  const feedPreviewText = getArticlePreviewSummaryText(article);
+  if (feedPreviewText) {
+    const summaryEl = textRegion.createDiv({
+      cls: "rss-dashboard-feed-summary",
+    });
+
+    if (ctx.highlightService && ctx.settings.highlights.highlightInSummaries) {
+      ctx.highlightService.setHighlightedText(summaryEl, feedPreviewText);
+    } else {
+      summaryEl.textContent = feedPreviewText;
+    }
+  }
+
+  if (hasTags) {
+    const tagsRegion = feedItem.createDiv({
+      cls: "rss-dashboard-feed-tags-region",
+    });
+    const tagsContainer = tagsRegion.createDiv({
+      cls: "rss-dashboard-tag-container",
+    });
+    renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
+  }
+
+  const feedFooter = feedItem.createEl("footer", {
+    cls: "rss-dashboard-feed-footer",
+  });
+  const actionToolbar = feedFooter.createDiv({
+    cls: "rss-dashboard-action-toolbar rss-dashboard-feed-toolbar",
+  });
+  deps.createArticleActionButtons(actionToolbar, article, "full");
+
+  const dateEl = feedFooter.createDiv({
+    cls: "rss-dashboard-article-date",
+  });
+  const dateInfo = formatArticleDate(
+    article.pubDate,
+    ctx.settings.display.articleDateStyle ?? "relative",
+  );
+  dateEl.textContent = dateInfo.text;
+  dateEl.setAttribute("title", dateInfo.title);
+
+  feedItem.addEventListener("click", () => {
+    ctx.callbacks.onArticleClick(article);
+  });
+
+  feedItem.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    deps.showArticleContextMenu(e, article);
+  });
+}
+
 export function renderFeedView(
   container: HTMLElement,
   articles: FeedItem[],
   ctx: BaseViewContext,
   deps: ViewDeps,
 ): void {
-  for (const article of articles) {
-    const hasTags = !!article.tags?.length;
-    const feedItem = container.createDiv({
-      cls:
-        "rss-dashboard-feed-item" +
-        (ctx.selectedArticle && article.guid === ctx.selectedArticle.guid
-          ? " active"
-          : "") +
-        (article.read ? " read" : " unread") +
-        (article.starred ? " starred" : " unstarred") +
-        (article.saved ? " saved" : "") +
-        (article.mediaType === "video"
-          ? " rss-dashboard-youtube-article"
-          : "") +
-        (article.mediaType === "podcast"
-          ? " rss-dashboard-podcast-article"
-          : ""),
+  // Group articles by feed source
+  const groupedArticles = groupArticles(articles, "feed");
+
+  // Get collapsed feed sections from settings if available
+  // BaseViewContext.settings already exposes the needed subset of settings.
+  const collapsedSections = new Set<string>(
+    ctx.settings.collapsedFeedSections ?? [],
+  );
+
+  // Render each feed section with collapsible header
+  for (const [feedSourceName, feedArticles] of Object.entries(
+    groupedArticles,
+  )) {
+    const isCollapsed = collapsedSections.has(feedSourceName);
+
+    // Create section container
+    const section = container.createDiv({
+      cls: `rss-dashboard-feed-section ${isCollapsed ? "collapsed" : ""}`,
+    });
+
+    // Create section header
+    const sectionHeader = section.createDiv({
+      cls: "rss-dashboard-feed-section-header",
+    });
+
+    const sectionToggle = sectionHeader.createEl("button", {
+      cls: "rss-dashboard-feed-section-toggle",
       attr: {
-        id: `article-${article.guid}`,
-        "data-article-guid": article.guid,
+        type: "button",
+        "aria-label": `Toggle ${feedSourceName} section`,
+        "aria-expanded": String(!isCollapsed),
       },
     });
+    setIcon(sectionToggle, isCollapsed ? "chevron-right" : "chevron-down");
 
-    const feedContent = feedItem.createDiv({
-      cls: "rss-dashboard-feed-content",
+    // Create header text
+    sectionHeader.createDiv({
+      cls: "rss-dashboard-feed-section-title",
+      text: feedSourceName,
     });
 
-    const coverImgSrc = resolveCoverImageSrc(article);
-    if (coverImgSrc) {
-      const previewRegion = feedContent.createDiv({
-        cls: "rss-dashboard-feed-preview-region",
-      });
-      previewRegion.createDiv({
-        cls: "rss-dashboard-feed-hero-blur",
-        attr: {
-          style: `background-image: url('${coverImgSrc}')`,
-        },
-      });
-      previewRegion.createEl("img", {
-        cls: "rss-dashboard-feed-hero-image",
-        attr: {
-          src: coverImgSrc,
-          alt: article.title,
-          loading: "lazy",
-        },
-      });
+    const cardsContainer = section.createDiv({
+      cls: `rss-dashboard-feed-section-cards ${isCollapsed ? "collapsed" : ""}`,
+    });
+
+    // Render all articles in this section
+    for (const article of feedArticles) {
+      renderArticleCard(cardsContainer, article, ctx, deps);
     }
 
-    const textRegion = feedContent.createDiv({
-      cls: "rss-dashboard-feed-text-region",
+    const toggleSection = (): void => {
+      const isNowCollapsed = cardsContainer.classList.toggle("collapsed");
+      section.classList.toggle("collapsed", isNowCollapsed);
+      sectionToggle.setAttribute("aria-expanded", String(!isNowCollapsed));
+      setIcon(sectionToggle, isNowCollapsed ? "chevron-right" : "chevron-down");
+      deps.onToggleFeedSectionCollapse?.(feedSourceName, isNowCollapsed);
+    };
+
+    sectionToggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleSection();
     });
 
-    const header = textRegion.createDiv({
-      cls: "rss-dashboard-feed-header",
-    });
-
-    const titleEl = header.createDiv({
-      cls: "rss-dashboard-article-title",
-    });
-
-    if (ctx.highlightService && ctx.settings.highlights.highlightInTitles) {
-      ctx.highlightService.setHighlightedText(titleEl, article.title);
-    } else {
-      titleEl.textContent = article.title;
-    }
-
-    if (ctx.showFeedSource) {
-      const articleMeta = header.createDiv({
-        cls: "rss-dashboard-article-meta",
-      });
-      const feedContainer = articleMeta.createDiv({
-        cls: "rss-dashboard-article-feed-container",
-      });
-      deps.renderFeedIcon(feedContainer, article.feedUrl, article.mediaType);
-      feedContainer.createDiv({
-        cls: "rss-dashboard-article-feed",
-        text: article.feedTitle,
-        attr: { title: article.feedTitle },
-      });
-    }
-
-    const feedPreviewText = getArticlePreviewSummaryText(article);
-    if (feedPreviewText) {
-      const summaryEl = textRegion.createDiv({
-        cls: "rss-dashboard-feed-summary",
-      });
-
-      if (
-        ctx.highlightService &&
-        ctx.settings.highlights.highlightInSummaries
-      ) {
-        ctx.highlightService.setHighlightedText(summaryEl, feedPreviewText);
-      } else {
-        summaryEl.textContent = feedPreviewText;
-      }
-    }
-
-    if (hasTags) {
-      const tagsRegion = feedItem.createDiv({
-        cls: "rss-dashboard-feed-tags-region",
-      });
-      const tagsContainer = tagsRegion.createDiv({
-        cls: "rss-dashboard-tag-container",
-      });
-      renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
-    }
-
-    const feedFooter = feedItem.createEl("footer", {
-      cls: "rss-dashboard-feed-footer",
-    });
-    const actionToolbar = feedFooter.createDiv({
-      cls: "rss-dashboard-action-toolbar rss-dashboard-feed-toolbar",
-    });
-    deps.createArticleActionButtons(actionToolbar, article, "full");
-
-    const dateEl = feedFooter.createDiv({
-      cls: "rss-dashboard-article-date",
-    });
-    const dateInfo = formatArticleDate(
-      article.pubDate,
-      ctx.settings.display.articleDateStyle ?? "relative",
-    );
-    dateEl.textContent = dateInfo.text;
-    dateEl.setAttribute("title", dateInfo.title);
-
-    feedItem.addEventListener("click", () => {
-      ctx.callbacks.onArticleClick(article);
-    });
-
-    feedItem.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      deps.showArticleContextMenu(e, article);
+    sectionHeader.addEventListener("click", (event) => {
+      if ((event.target as HTMLElement).closest("button") === sectionToggle)
+        return;
+      toggleSection();
     });
   }
 }

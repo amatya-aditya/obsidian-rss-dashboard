@@ -433,6 +433,7 @@ export interface RssDashboardSettings {
   sidebarCollapsed: boolean;
   sidebarWidth: number;
   collapsedFolders: string[];
+  collapsedFeedSections: string[];
   tagsCollapsed: boolean;
   articleFilter: {
     type: "age" | "read" | "unread" | "starred" | "saved" | "none";
@@ -579,6 +580,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   sidebarCollapsed: false,
   sidebarWidth: 280,
   collapsedFolders: [],
+  collapsedFeedSections: [],
   tagsCollapsed: true,
   articleFilter: { type: "none", value: null },
   articleSort: "newest",

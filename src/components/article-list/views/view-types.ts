@@ -18,12 +18,18 @@ export interface ViewDeps {
   ): void;
   showArticleContextMenu(event: MouseEvent, article: FeedItem): void;
   scheduleCardTagLayout?(card: HTMLElement): void;
+  onToggleFeedSectionCollapse?(
+    feedSourceName: string,
+    isCollapsed: boolean,
+  ): void;
 }
 
 export interface BaseViewContext {
   selectedArticle: FeedItem | null;
   showFeedSource: boolean;
-  settings: Pick<RssDashboardSettings, "highlights" | "display">;
+  settings: Pick<RssDashboardSettings, "highlights" | "display"> & {
+    collapsedFeedSections?: string[];
+  };
   highlightService: HighlightService | null;
   callbacks: ViewCallbacks;
 }

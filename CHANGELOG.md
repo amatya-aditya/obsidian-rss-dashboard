@@ -1,5 +1,9 @@
 ## 2.4.1 - July 2, 2026
 
+### Features
+
+Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/149))
+
 ### Plugin Compliance
 
 - Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. [docs/development/2.4.0-audit/2.4.0_audit_remediation_plan.md](docs/development/2.4.0-audit/2.4.0_audit_remediation_plan.md) was proposed and implemented. The !important warnings all have comments explaining their usage.
@@ -14,7 +18,7 @@
 
 ### Fixes
 
-- Fixed 'custom' input textbox not being hidden when changing between different timeframes in add/edit feed modal ([ ](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/147))
+- Fixed 'custom' input textbox not being hidden when changing between different timeframes in add/edit feed modal ([GH Issue #147](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/147))
 
 - Fixed feeds not being refreshed after deleting all feeds via feed manager modal
 
