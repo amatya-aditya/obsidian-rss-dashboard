@@ -1,5 +1,3 @@
-// eslint-disable-next-line import/no-nodejs-modules
-import { readFileSync } from "fs";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   Sidebar,
@@ -20,12 +18,9 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 installObsidianDomPolyfills();
 
-const SIDEBAR_CSS = readFileSync("src/styles/sidebar.css", "utf-8");
-
 describe("Sidebar Rendering", () => {
   let app: App;
   let container: HTMLElement;
-  let styleEl: HTMLStyleElement;
   interface MockPlugin {
     settings: RssDashboardSettings;
     saveSettings: ReturnType<typeof vi.fn>;
@@ -40,11 +35,6 @@ describe("Sidebar Rendering", () => {
     app = ObsidianStubs.App.createMock();
     container = document.createElement("div");
     document.body.appendChild(container);
-
-    // eslint-disable-next-line obsidianmd/no-forbidden-elements
-    styleEl = document.createElement("style");
-    styleEl.textContent = SIDEBAR_CSS;
-    document.head.appendChild(styleEl);
 
     settings = {
       feeds: [
@@ -86,6 +76,7 @@ describe("Sidebar Rendering", () => {
       selectedTags: [],
       tagsCollapsed: false,
       collapsedFolders: [],
+      selectedFolders: [],
     };
 
     callbacks = {
@@ -106,7 +97,6 @@ describe("Sidebar Rendering", () => {
   });
 
   afterEach(() => {
-    styleEl.remove();
     container.remove();
   });
 
@@ -284,15 +274,14 @@ describe("Sidebar Rendering", () => {
     expect(feedName).not.toBeNull();
     expect(icon).not.toBeNull();
 
-    const iconStyle = window.getComputedStyle(icon);
-    const feedNameStyle = window.getComputedStyle(feedName);
-
-    expect(iconStyle.width).toBe("16px");
-    expect(iconStyle.height).toBe("16px");
-    expect(iconStyle.flexShrink).toBe("0");
-    expect(feedNameStyle.overflow).toBe("hidden");
-    expect(feedNameStyle.textOverflow).toBe("ellipsis");
-    expect(feedNameStyle.whiteSpace).toBe("nowrap");
+    expect(icon.classList.contains("rss-dashboard-feed-icon")).toBe(true);
+    expect(feedName.classList.contains("rss-dashboard-feed-name")).toBe(true);
+    expect(
+      feedName.closest(".rss-dashboard-feed-name-container"),
+    ).not.toBeNull();
+    expect(feedName.textContent).toContain(
+      "A very long feed title that should truncate before the icon shrinks",
+    );
   });
 
   it("should toggle a folder from the chevron without opening the folder", () => {

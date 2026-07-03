@@ -2,7 +2,9 @@
 
 ### Plugin Compliance
 
-- Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. [docs/development/2.4.0-audit/2.4.0_audit_remediation_plan.md](docs/development/2.4.0-audit/2.4.0_audit_remediation_plan.md)
+- Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. [docs/development/2.4.0-audit/2.4.0_audit_remediation_plan.md](docs/development/2.4.0-audit/2.4.0_audit_remediation_plan.md) was proposed and implemented. The !important warnings all have comments explaining their usage.
+
+- Additional CI/commit blockers were added to the repo which will disallow future commits that violate eslint rules in order to remain compliant
 
 ## 2.4.0 - July 1, 2026
 

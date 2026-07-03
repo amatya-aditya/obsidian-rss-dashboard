@@ -30,8 +30,12 @@ export class ImportExportService {
   }
 
   getUserSettingsJson(): string {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- feeds/folders/availableTags intentionally excluded from settings-only export via destructuring
-    const { feeds, folders, availableTags, ...settingsOnly } = this.settings;
+    const {
+      feeds: _feeds,
+      folders: _folders,
+      availableTags: _availableTags,
+      ...settingsOnly
+    } = this.settings;
     return JSON.stringify(settingsOnly, null, 2);
   }
 

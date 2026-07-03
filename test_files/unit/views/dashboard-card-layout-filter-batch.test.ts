@@ -73,7 +73,7 @@ interface MockArticleList {
 }
 
 interface MockDashboardView {
-  handleFilterChange: (change: unknown) => Promise<void>;
+  handleFilterChange: (change: unknown) => void;
   render: ReturnType<typeof vi.fn>;
   schedulePersistDashboardMultiFilters: ReturnType<typeof vi.fn>;
   getFilteredArticles: ReturnType<typeof vi.fn>;
@@ -108,7 +108,7 @@ describe("Dashboard card layout filter batch", () => {
     ) as unknown as MockDashboardView;
     view.render = vi.fn(async () => {});
 
-    await view.handleFilterChange({
+    view.handleFilterChange({
       type: "batch",
       value: null,
       batch: {
@@ -153,7 +153,7 @@ describe("Dashboard card layout filter batch", () => {
       refreshCardTagLayout: vi.fn(),
     };
 
-    await view.handleFilterChange({
+    view.handleFilterChange({
       type: "batch",
       value: null,
       batch: {
@@ -196,7 +196,6 @@ describe("Dashboard card layout filter batch", () => {
       refreshCardTagLayout,
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     view.handleFilterChange({
       type: "card-spacing-live",
       value: 24,
@@ -249,7 +248,6 @@ describe("Dashboard card layout filter batch", () => {
       refreshCardTagLayout,
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     view.handleFilterChange({
       type: "card-spacing-live",
       value: 24,
@@ -257,7 +255,7 @@ describe("Dashboard card layout filter batch", () => {
 
     expect(refreshCardTagLayout).not.toHaveBeenCalled();
 
-    await view.handleFilterChange({
+    view.handleFilterChange({
       type: "card-spacing-commit",
       value: 24,
     });

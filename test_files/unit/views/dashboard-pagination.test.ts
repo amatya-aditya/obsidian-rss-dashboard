@@ -375,8 +375,8 @@ describe("Dashboard pagination", () => {
 
     const feedUrl = "https://example.com/feed.xml";
     const items = makeFeedItems(12, "BBC News", feedUrl).map((item) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { feedUrl: _, ...rest } = item;
+      const { feedUrl, ...rest } = item;
+      void feedUrl;
       return rest as FeedItem;
     });
     const feed: Feed = {

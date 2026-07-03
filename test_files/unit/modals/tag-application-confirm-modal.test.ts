@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { TagApplicationConfirmModal } from "../../../src/modals/feed-manager/tag-application-confirm-modal";
@@ -21,9 +20,11 @@ describe("TagApplicationConfirmModal", () => {
 
     const textContent = modal.contentEl.textContent ?? "";
     expect(textContent).toContain("Update feed tags");
-    expect(textContent).toContain("How would you like to apply these tag changes?");
     expect(textContent).toContain(
-      "This will remove the selected tag names from all existing articles in this feed, including tags added manually or by other auto-tag rules."
+      "How would you like to apply these tag changes?",
+    );
+    expect(textContent).toContain(
+      "This will remove the selected tag names from all existing articles in this feed, including tags added manually or by other auto-tag rules.",
     );
 
     const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
@@ -41,7 +42,9 @@ describe("TagApplicationConfirmModal", () => {
 
     const promise = modal.waitForClose();
     const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
-    const applyBtn = buttons.find((b) => b.textContent?.trim() === "Apply to existing");
+    const applyBtn = buttons.find(
+      (b) => b.textContent?.trim() === "Apply to existing",
+    );
     expect(applyBtn).toBeDefined();
     applyBtn?.click();
 
@@ -56,7 +59,9 @@ describe("TagApplicationConfirmModal", () => {
 
     const promise = modal.waitForClose();
     const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
-    const futureBtn = buttons.find((b) => b.textContent?.trim() === "Future only");
+    const futureBtn = buttons.find(
+      (b) => b.textContent?.trim() === "Future only",
+    );
     expect(futureBtn).toBeDefined();
     futureBtn?.click();
 

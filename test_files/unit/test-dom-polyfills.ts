@@ -1,6 +1,6 @@
 export function installObsidianDomPolyfills(): void {
-  const globalScope = globalThis as typeof globalThis & {
-    activeWindow?: (Window & typeof globalThis) & {
+  const globalScope = window as Window & {
+    activeWindow?: Window & {
       instanceOf?: (
         value: unknown,
         ctor: new (...args: never[]) => unknown,

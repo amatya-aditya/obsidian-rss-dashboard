@@ -4,12 +4,10 @@ import { EditFeedModal } from "../../../src/modals/feed-manager/edit-feed-modal"
 import { applyFeedRetentionLimits } from "../../../src/services/feed-parser";
 import * as feedPreviewLoader from "../../../src/modals/feed-manager/feed-preview-loader";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import type { Feed } from "../../../src/types/types";
-import type RssDashboardPlugin from "../../../src/main";
+import type { Feed, FeedItem, Tag } from "../../../src/types/types";
+import type RssDashboardPlugin from "../../../main";
 
-type MockApp = ReturnType<
-  (typeof obsidian.App & { createMock(): unknown })["createMock"]
->;
+type MockApp = ReturnType<(typeof obsidian.App)["createMock"]>;
 
 /**
  * Test fixture for article/item objects created by makeArticle().
@@ -22,10 +20,12 @@ type ArticleTestFixture = {
   pubDate: string;
   guid: string;
   feedTitle: string;
+  feedUrl: string;
+  coverImage: string;
   read: boolean;
   saved: boolean;
   starred: boolean;
-  tags: unknown[];
+  tags: Tag[];
   [key: string]: unknown;
 };
 
@@ -193,6 +193,8 @@ function makeArticle(
     pubDate,
     guid,
     feedTitle: "Old title",
+    feedUrl: `https://example.com/${guid}`,
+    coverImage: "",
     read: false,
     saved: false,
     starred: false,
@@ -201,15 +203,19 @@ function makeArticle(
   } as ArticleTestFixture;
 }
 
+function asRssDashboardPlugin(plugin: PluginTestFixture): RssDashboardPlugin {
+  return plugin as unknown as RssDashboardPlugin;
+}
+
 const AUTO_DELETE_TEST_NOW_MS = Date.parse("2026-05-01T00:00:00Z");
 
-function makeServerFeedItems() {
+function makeServerFeedItems(): FeedItem[] {
   return [
     makeArticle("very-old-read", "2026-03-01T00:00:00Z", { read: true }),
     makeArticle("mid-read", "2026-04-10T00:00:00Z", { read: true }),
     makeArticle("recent-read", "2026-04-28T00:00:00Z", { read: true }),
     makeArticle("recent-unread", "2026-03-01T00:00:00Z", { read: false }),
-  ];
+  ] as FeedItem[];
 }
 
 function getItemsForDuration(duration: number) {
@@ -270,7 +276,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -321,7 +327,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -359,7 +365,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
       { expandSection: "per-feed", highlightSection: "per-feed" },
@@ -412,7 +418,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -458,7 +464,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -505,7 +511,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -552,7 +558,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -599,7 +605,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -646,7 +652,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -695,7 +701,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -816,7 +822,7 @@ describe("EditFeedModal", () => {
 
       const modal = new EditFeedModal(
         app,
-        plugin as unknown as PluginTestFixture,
+        asRssDashboardPlugin(plugin),
         feed,
         vi.fn(),
       );
@@ -892,7 +898,7 @@ describe("EditFeedModal", () => {
     const onSave = vi.fn();
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       onSave,
     );
@@ -939,6 +945,8 @@ describe("EditFeedModal", () => {
       settings: {
         folders: [],
         maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
         articleSaving: { savedTemplates: [] },
       },
       ensureFolderExists: vi.fn(async () => {}),
@@ -948,7 +956,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -1006,7 +1014,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -1066,7 +1074,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -1127,7 +1135,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -1193,7 +1201,7 @@ describe("EditFeedModal", () => {
 
     const modal = new EditFeedModal(
       app,
-      plugin as unknown as PluginTestFixture,
+      asRssDashboardPlugin(plugin),
       feed,
       vi.fn(),
     );
@@ -1239,9 +1247,8 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-     
     const rssPlugin = plugin as unknown as RssDashboardPlugin;
-     
+
     const modal = new EditFeedModal(app, rssPlugin, feed, vi.fn());
     modal.open();
 
@@ -1263,9 +1270,7 @@ describe("EditFeedModal", () => {
       title: "Old title",
       url: "https://example.com/old.xml",
       folder: "Uncategorized",
-      items: [
-        { title: "Item 1", tags: [{ name: "Tech", color: "#228811" }] },
-      ],
+      items: [{ title: "Item 1", tags: [{ name: "Tech", color: "#228811" }] }],
       lastUpdated: 0,
       customTags: ["Tech"],
     } as unknown as Feed;
@@ -1288,9 +1293,8 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-     
     const rssPlugin = plugin as unknown as RssDashboardPlugin;
-     
+
     const modal = new EditFeedModal(app, rssPlugin, feed, vi.fn());
     modal.open();
 
@@ -1299,9 +1303,14 @@ describe("EditFeedModal", () => {
     getOpenTagOption("News").click();
     getOpenTagOption("Tech").click();
 
-    const { TagApplicationConfirmModal } = await import("../../../src/modals/feed-manager/tag-application-confirm-modal");
-    const mockWaitForClose = vi.spyOn(TagApplicationConfirmModal.prototype, "waitForClose").mockResolvedValue("apply_existing");
-    const mockOpen = vi.spyOn(TagApplicationConfirmModal.prototype, "open").mockImplementation(() => {});
+    const { TagApplicationConfirmModal } =
+      await import("../../../src/modals/feed-manager/tag-application-confirm-modal");
+    const mockWaitForClose = vi
+      .spyOn(TagApplicationConfirmModal.prototype, "waitForClose")
+      .mockResolvedValue("apply_existing");
+    const mockOpen = vi
+      .spyOn(TagApplicationConfirmModal.prototype, "open")
+      .mockImplementation(() => {});
 
     getButtonByText(modal.contentEl, "Save").click();
     await flushPromises();
@@ -1321,9 +1330,7 @@ describe("EditFeedModal", () => {
       title: "Old title",
       url: "https://example.com/old.xml",
       folder: "Uncategorized",
-      items: [
-        { title: "Item 1", tags: [{ name: "Tech", color: "#228811" }] },
-      ],
+      items: [{ title: "Item 1", tags: [{ name: "Tech", color: "#228811" }] }],
       lastUpdated: 0,
       customTags: ["Tech"],
     } as unknown as Feed;
@@ -1346,9 +1353,8 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-     
     const rssPlugin = plugin as unknown as RssDashboardPlugin;
-     
+
     const modal = new EditFeedModal(app, rssPlugin, feed, vi.fn());
     modal.open();
 
@@ -1357,9 +1363,14 @@ describe("EditFeedModal", () => {
     getOpenTagOption("News").click();
     getOpenTagOption("Tech").click();
 
-    const { TagApplicationConfirmModal } = await import("../../../src/modals/feed-manager/tag-application-confirm-modal");
-    const mockWaitForClose = vi.spyOn(TagApplicationConfirmModal.prototype, "waitForClose").mockResolvedValue("future_only");
-    const mockOpen = vi.spyOn(TagApplicationConfirmModal.prototype, "open").mockImplementation(() => {});
+    const { TagApplicationConfirmModal } =
+      await import("../../../src/modals/feed-manager/tag-application-confirm-modal");
+    const mockWaitForClose = vi
+      .spyOn(TagApplicationConfirmModal.prototype, "waitForClose")
+      .mockResolvedValue("future_only");
+    const mockOpen = vi
+      .spyOn(TagApplicationConfirmModal.prototype, "open")
+      .mockImplementation(() => {});
 
     getButtonByText(modal.contentEl, "Save").click();
     await flushPromises();
@@ -1379,9 +1390,7 @@ describe("EditFeedModal", () => {
       title: "Old title",
       url: "https://example.com/old.xml",
       folder: "Uncategorized",
-      items: [
-        { title: "Item 1", tags: [{ name: "Tech", color: "#228811" }] },
-      ],
+      items: [{ title: "Item 1", tags: [{ name: "Tech", color: "#228811" }] }],
       lastUpdated: 0,
       customTags: ["Tech"],
     } as unknown as Feed;
@@ -1404,9 +1413,8 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-     
     const rssPlugin = plugin as unknown as RssDashboardPlugin;
-     
+
     const modal = new EditFeedModal(app, rssPlugin, feed, vi.fn());
     modal.open();
 
@@ -1415,10 +1423,15 @@ describe("EditFeedModal", () => {
     getOpenTagOption("News").click();
     getOpenTagOption("Tech").click();
 
-    const { TagApplicationConfirmModal } = await import("../../../src/modals/feed-manager/tag-application-confirm-modal");
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const mockWaitForClose = vi.spyOn(TagApplicationConfirmModal.prototype, "waitForClose").mockResolvedValue("cancel_save");
-    const mockOpen = vi.spyOn(TagApplicationConfirmModal.prototype, "open").mockImplementation(() => {});
+    const { TagApplicationConfirmModal } =
+      await import("../../../src/modals/feed-manager/tag-application-confirm-modal");
+    vi.spyOn(
+      TagApplicationConfirmModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue("cancel_save");
+    const mockOpen = vi
+      .spyOn(TagApplicationConfirmModal.prototype, "open")
+      .mockImplementation(() => {});
 
     getButtonByText(modal.contentEl, "Save").click();
     await flushPromises();
@@ -1431,4 +1444,3 @@ describe("EditFeedModal", () => {
     expect(plugin.saveSettings).not.toHaveBeenCalled();
   });
 });
-

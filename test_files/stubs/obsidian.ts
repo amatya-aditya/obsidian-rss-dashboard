@@ -3,9 +3,146 @@
 // =============================================================================
 // =============================================================================
 
-// eslint-disable-next-line no-restricted-imports -- obsidian stub explicitly re-exports moment for tests
-import moment from "moment";
-export { moment };
+const pad = (value: number, length = 2): string =>
+  String(value).padStart(length, "0");
+
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const shortMonthNames = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const weekdayNames = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+const shortWeekdayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const ordinalSuffix = (value: number): string => {
+  const remainder = value % 100;
+  if (remainder >= 11 && remainder <= 13) {
+    return "th";
+  }
+  switch (value % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+};
+
+const createMoment = (input?: string | number | Date) => {
+  const date =
+    input instanceof Date
+      ? input
+      : input !== undefined
+        ? new Date(input)
+        : new Date();
+
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+  const month = date.getMonth();
+  const day = date.getDate();
+  const year = date.getFullYear();
+  const weekday = date.getDay();
+
+  return {
+    format(formatStr: string): string {
+      return formatStr.replace(
+        /YYYY|YY|MMMM|MMM|MM|M|DD|D|dddd|ddd|Do|HH|H|hh|h|mm|m|ss|s|A|a/g,
+        (token) => {
+          switch (token) {
+            case "YYYY":
+              return String(year);
+            case "YY":
+              return String(year).slice(-2);
+            case "MMMM":
+              return monthNames[month];
+            case "MMM":
+              return shortMonthNames[month];
+            case "MM":
+              return pad(month + 1);
+            case "M":
+              return String(month + 1);
+            case "DD":
+              return pad(day);
+            case "D":
+              return String(day);
+            case "dddd":
+              return weekdayNames[weekday];
+            case "ddd":
+              return shortWeekdayNames[weekday];
+            case "Do":
+              return `${day}${ordinalSuffix(day)}`;
+            case "HH":
+              return pad(hours);
+            case "H":
+              return String(hours);
+            case "hh": {
+              const hour12 = hours % 12 || 12;
+              return pad(hour12);
+            }
+            case "h": {
+              const hour12 = hours % 12 || 12;
+              return String(hour12);
+            }
+            case "mm":
+              return pad(minutes);
+            case "m":
+              return String(minutes);
+            case "ss":
+              return pad(seconds);
+            case "s":
+              return String(seconds);
+            case "A":
+              return hours < 12 ? "AM" : "PM";
+            case "a":
+              return hours < 12 ? "am" : "pm";
+            default:
+              return token;
+          }
+        },
+      );
+    },
+  };
+};
+
+export const moment = createMoment;
 
 export interface RequestUrlResponse {
   status: number;

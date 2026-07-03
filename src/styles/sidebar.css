@@ -215,7 +215,7 @@
   pointer-events: none;
 }
 
-/* audit-ok: css-scrollbar — ::-webkit-scrollbar required to suppress scrollbar in Obsidian's
+/* audit-ok::-webkit-scrollbar required to suppress scrollbar in Obsidian's
    Chromium/Electron environment; wrapped in @supports for progressive enhancement. */
 @supports selector(::-webkit-scrollbar) {
   .rss-dashboard-header-icon-row::-webkit-scrollbar {
@@ -1099,9 +1099,7 @@ body.theme-dark .rss-dashboard-all-feeds-button {
  * Standard and hidden scrollbar variants for the feed folders section
  * ============================================ */
 
-/* audit-ok: css-scrollbar — ::-webkit-scrollbar pseudo-elements are required for
-   consistent scrollbar appearance in Obsidian's Chromium/Electron environment.
-   Wrapped in @supports selector() for progressive enhancement; degrades to
+/* audit-ok: Wrapped in @supports selector() for progressive enhancement; degrades to
    standard scrollbar-width/color (above) in non-WebKit environments. */
 @supports selector(::-webkit-scrollbar) {
   .rss-dashboard-feed-folders-section::-webkit-scrollbar {
