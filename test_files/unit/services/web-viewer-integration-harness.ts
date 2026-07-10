@@ -112,7 +112,7 @@ export function createWebViewerIntegrationHarness(
     Object.assign(settings, overrides.settings);
   }
 
-  const integration = new WebViewerIntegration(app as App & { plugins: { plugins: Record<string, unknown> } }, settings);
+  const integration = new WebViewerIntegration(app, settings);
 
   const createdContainer = overrides.webpageContainer === undefined;
   const webpageContainer =
