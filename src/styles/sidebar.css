@@ -200,10 +200,16 @@
   gap: 2px;
   flex-wrap: nowrap;
   overflow-x: auto;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
+  -ms-overflow-style: none; /* IE/Edge legacy */
   padding: 1px 0; /* prevent focus rings from clipping */
   cursor: grab;
+}
+
+/* CSS Scrollbars L4: progressive enhancement — no-op in engines that don't support scrollbar-width */
+@supports (scrollbar-width: none) {
+  .rss-dashboard-header-icon-row {
+    scrollbar-width: none;
+  }
 }
 
 .rss-dashboard-header-icon-row.dragging {
@@ -681,10 +687,16 @@ body .rss-dashboard-tag-color-picker::-webkit-color-swatch {
   background: var(--background-primary);
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  scrollbar-gutter: stable; /* audit-ok: standard CSS Scrollbars L4; degrades gracefully in unsupported environments */
-  scrollbar-width: thin; /* audit-ok: standard CSS Scrollbars L4; degrades gracefully in unsupported environments */
-  scrollbar-color: var(--scrollbar-thumb-bg, var(--background-modifier-border))
-    transparent; /* audit-ok: standard CSS Scrollbars L4; degrades gracefully in unsupported environments */
+}
+
+/* CSS Scrollbars L4: progressive enhancement — no-op in engines that don't support scrollbar-width */
+@supports (scrollbar-width: thin) {
+  .rss-dashboard-feed-folders-section {
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb-bg, var(--background-modifier-border))
+      transparent;
+  }
 }
 
 /* Scoped override — replaces !important for Obsidian default element padding */
@@ -1140,8 +1152,14 @@ body.theme-dark .rss-dashboard-all-feeds-button {
 }
 
 .rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden {
-  scrollbar-width: none; /* audit-ok: scrollbar suppression required for UX-critical overflow hiding */
-  -ms-overflow-style: none;
+  -ms-overflow-style: none; /* IE/Edge legacy */
+}
+
+/* CSS Scrollbars L4: progressive enhancement — no-op in engines that don't support scrollbar-width */
+@supports (scrollbar-width: none) {
+  .rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden {
+    scrollbar-width: none;
+  }
 }
 
 @supports selector(::-webkit-scrollbar) {
