@@ -345,5 +345,11 @@ body .rss-discover-controls-container.is-narrow .rss-discover-mobile-header {
 
   .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-content {
     padding: 0 16px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
 }

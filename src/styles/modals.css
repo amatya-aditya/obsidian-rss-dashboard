@@ -827,7 +827,8 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
 /* CSS Scrollbars L4: progressive enhancement — no-op in engines that don't support scrollbar-width */
 @supports (scrollbar-width: thin) {
   @media (max-width: 1200px) {
-    .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folders-section {
+    .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folders-section,
+    .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-content {
       scrollbar-width: thin;
       scrollbar-color: var(
           --scrollbar-thumb-bg,

@@ -1,8 +1,13 @@
 ## 2.4.2 - July 10, 2026
 
+### Features
+
 - Added a storage migration pop up on plugin update to encourage users to upgrade to the latest storage mode.
 
+### Fixes
+
 - Fix: shard local storage address not correctly appearing in edit feed window
+- Fix: Scrolling not working on mobile Discover sidebar
 
 ### Audit remediations
 
