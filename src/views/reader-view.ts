@@ -975,7 +975,7 @@ export class ReaderView extends ItemView {
           });
         }
 
-        menu.showAtMouseEvent(e as MouseEvent);
+        menu.showAtMouseEvent(e);
         return;
       }
 

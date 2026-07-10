@@ -291,7 +291,7 @@ export class DiscoverSidebar {
       if (hasDomain) {
         feed.domain.forEach((domain: string) => {
           if (!categories[domain]) {
-            categories[domain] = {} as CategoryNode;
+            categories[domain] = {};
           }
           const domainNode = categories[domain] as CategoryNode;
 
@@ -299,7 +299,7 @@ export class DiscoverSidebar {
           if (feed.subdomain && feed.subdomain.length > 0) {
             feed.subdomain.forEach((subdomain: string) => {
               if (!domainNode[subdomain]) {
-                domainNode[subdomain] = {} as CategoryNode;
+                domainNode[subdomain] = {};
               }
               const subdomainNode = domainNode[subdomain] as CategoryNode;
 
@@ -307,7 +307,7 @@ export class DiscoverSidebar {
               if (feed.area && feed.area.length > 0) {
                 feed.area.forEach((area: string) => {
                   if (!subdomainNode[area]) {
-                    subdomainNode[area] = {} as CategoryNode;
+                    subdomainNode[area] = {};
                   }
                   const areaNode = subdomainNode[area] as CategoryNode;
 
@@ -315,7 +315,7 @@ export class DiscoverSidebar {
                   if (feed.topic && feed.topic.length > 0) {
                     feed.topic.forEach((topic: string) => {
                       if (!areaNode[topic]) {
-                        areaNode[topic] = {} as CategoryNode;
+                        areaNode[topic] = {};
                       }
                     });
                   }
@@ -327,7 +327,7 @@ export class DiscoverSidebar {
       } else {
         // Uncategorized feeds
         if (!categories["Uncategorized"]) {
-          categories["Uncategorized"] = {} as CategoryNode;
+          categories["Uncategorized"] = {};
         }
       }
     });

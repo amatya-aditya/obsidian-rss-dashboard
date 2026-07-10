@@ -98,7 +98,7 @@ export function buildArticle(overrides: Partial<FeedItem> = {}): FeedItem {
     feedTitle: overrides.feedTitle ?? "Feed",
     feedUrl: overrides.feedUrl ?? "https://example.com/feed",
     coverImage: overrides.coverImage ?? "",
-  } as FeedItem;
+  };
 }
 
 export function createArticleListHarness(
@@ -151,7 +151,7 @@ export function createArticleListHarness(
     onPageChange: vi.fn(),
     onPageSizeChange: vi.fn(),
     onPersistSettings: vi.fn(),
-  } as ArticleListCallbacks;
+  };
   if (overrides.callbacks) {
     Object.assign(
       callbacks as unknown as Record<string, unknown>,

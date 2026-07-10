@@ -764,17 +764,17 @@ export function renderSidebarSettingsTab(
 
             // ── Transition: OFF → ON ─────────────────────────────────────────
             if (!oldValue && value) {
-              plugin.settings.display[settingKey] = true as never;
+              plugin.settings.display[settingKey] = true;
               await plugin.saveSettings();
 
               // Re-fetch all matching feed icons asynchronously
               void (async () => {
                 const entries = collectDomainFeeds(
-                  feeds as Feed[],
+                  feeds,
                   matchesDomain,
                 );
                 await fetchDomainFeedIcons(
-                  entries as { feed: Feed; needsRefresh: boolean }[],
+                  entries,
                   plugin.settings.display,
                   availableTags,
                   plugin.settings.media,
@@ -794,7 +794,7 @@ export function renderSidebarSettingsTab(
             // ── Transition: ON → OFF ─────────────────────────────────────────
             if (oldValue && !value) {
               const entries = collectDomainFeeds(
-                feeds as Feed[],
+                feeds,
                 matchesDomain,
               );
               const iconCountByUrl = new Map<string, number>();
@@ -828,7 +828,7 @@ export function renderSidebarSettingsTab(
               });
 
               if (confirmed) {
-                plugin.settings.display[settingKey] = false as never;
+                plugin.settings.display[settingKey] = false;
                 await plugin.saveSettings();
                 const view = await plugin.getActiveDashboardView();
                 if (view) {
@@ -844,7 +844,7 @@ export function renderSidebarSettingsTab(
             }
 
             // ── No-op: toggle was already in the target state ──────────────────
-            plugin.settings.display[settingKey] = value as never;
+            plugin.settings.display[settingKey] = value;
             await plugin.saveSettings();
           }),
       );

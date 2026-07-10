@@ -1018,7 +1018,7 @@ export class Sidebar {
       isCollapsed ? "Expand folder" : "Collapse folder",
     );
     setIcon(
-      toggleButton as HTMLElement,
+      toggleButton,
       isCollapsed ? "chevron-right" : "chevron-down",
     );
 
@@ -1062,7 +1062,7 @@ export class Sidebar {
         folderFeedsList.classList.toggle("collapsed", isNowCollapsed);
 
         setIcon(
-          toggleButton as HTMLElement,
+          toggleButton,
           isNowCollapsed ? "chevron-right" : "chevron-down",
         );
 

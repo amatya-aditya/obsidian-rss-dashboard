@@ -55,7 +55,7 @@ export function installObservingResizeObserver(
     disconnect() {}
   };
   window.ResizeObserver =
-    ObservingResizeObserver as unknown as typeof ResizeObserver;
+    ObservingResizeObserver;
 }
 
 export function installCapturingResizeObserver(handlers: {
@@ -73,7 +73,7 @@ export function installCapturingResizeObserver(handlers: {
     }
   };
   window.ResizeObserver =
-    CapturingResizeObserver as unknown as typeof ResizeObserver;
+    CapturingResizeObserver;
 }
 
 export function makeBoundingRect(top: number, bottom: number) {
@@ -212,7 +212,7 @@ export function createMockCallbacks(): ArticleListCallbacks {
     onPageSizeChange: vi.fn(),
     onPersistSettings: vi.fn(),
     onSearch: vi.fn(),
-  } as ArticleListCallbacks;
+  };
 }
 
 export interface ArticleListTestContext {
@@ -228,7 +228,7 @@ export function setupArticleListBeforeEach(): ArticleListTestContext {
   window.requestAnimationFrame = mockRAF;
   (
     window as unknown as { ResizeObserver: typeof ResizeObserver }
-  ).ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+  ).ResizeObserver = ResizeObserverMock;
 
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -247,7 +247,7 @@ export function teardownArticleListAfterEach(): void {
   window.requestAnimationFrame = originalRAF;
   (
     window as unknown as { ResizeObserver: typeof ResizeObserver }
-  ).ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+  ).ResizeObserver = ResizeObserverMock;
   vi.restoreAllMocks();
 }
 

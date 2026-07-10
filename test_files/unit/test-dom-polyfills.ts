@@ -135,8 +135,8 @@ export function installObsidianDomPolyfills(): void {
           // no-op
         },
         dispatchEvent: () => false,
-      } as MediaQueryList;
-    }) as typeof window.matchMedia;
+      };
+    });
   }
 
   if (typeof proto.empty !== "function") {
@@ -322,7 +322,7 @@ export function installObsidianDomPolyfills(): void {
       disconnect(): void {}
     }
     window.ResizeObserver =
-      MockResizeObserver as unknown as typeof ResizeObserver;
+      MockResizeObserver;
   }
 }
 

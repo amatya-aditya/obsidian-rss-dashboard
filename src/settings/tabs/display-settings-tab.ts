@@ -314,9 +314,9 @@ export function renderDisplaySettingsTab(
           const submenuRect = activeTagSubmenu.getBoundingClientRect();
 
           const pos = computeSubmenuPosition({
-            parentItemRect: parentItemRect as never,
-            parentMenuRect: parentMenuRect as never,
-            submenuRect: submenuRect as never,
+            parentItemRect,
+            parentMenuRect,
+            submenuRect,
             viewport: {
               width: targetWindow.innerWidth,
               height: targetWindow.innerHeight,
@@ -343,8 +343,8 @@ export function renderDisplaySettingsTab(
           const popoverRect = menuPortal.getBoundingClientRect();
 
           const pos = computePopoverPosition({
-            anchorRect: anchorRect as never,
-            popoverRect: popoverRect as never,
+            anchorRect,
+            popoverRect,
             viewport: {
               width: targetWindow.innerWidth,
               height: targetWindow.innerHeight,

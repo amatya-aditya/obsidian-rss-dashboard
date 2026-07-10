@@ -185,9 +185,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private getSidebarKeyboardController(): SidebarKeyboardController | null {
-    return (
-      (this.sidebar as unknown as SidebarKeyboardController | undefined) ?? null
-    );
+    return this.sidebar ?? null;
   }
 
   public actionFocusSidebar(): void {
