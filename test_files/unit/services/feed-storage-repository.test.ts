@@ -84,6 +84,22 @@ describe("FeedStorageRepository", () => {
     });
   });
 
+  it("treats vault-shards-v2 as shard-backed storage for feed addresses", () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards-v2";
+    settings.storageFolder = "/RSS Data/Feeds/";
+
+    const address = repository.getFeedLocalStorageAddress(
+      settings,
+      makeFeed({ feedId: "feed-1" }),
+    );
+
+    expect(address).toEqual({
+      mode: "vault-shards-v2",
+      address: "RSS Data/Feeds/feed-1.json",
+    });
+  });
+
   it("returns an empty address in shard mode when a feed has no feed ID yet", () => {
     const settings = cloneSettings();
     settings.storageMode = "vault-shards";

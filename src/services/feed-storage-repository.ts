@@ -216,7 +216,11 @@ export class FeedStorageRepository {
     settings: RssDashboardSettings,
     feed: Feed,
   ): FeedLocalStorageAddress {
-    if (settings.storageMode !== "vault-shards") {
+    const isShardBackedMode =
+      settings.storageMode === "vault-shards" ||
+      settings.storageMode === "vault-shards-v2";
+
+    if (!isShardBackedMode) {
       return {
         mode: "legacy-json",
         address: "data.json",
