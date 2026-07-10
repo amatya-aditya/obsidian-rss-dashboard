@@ -230,8 +230,8 @@ export function setupArticleListBeforeEach(): ArticleListTestContext {
     window as unknown as { ResizeObserver: typeof ResizeObserver }
   ).ResizeObserver = ResizeObserverMock;
 
-  const container = document.createElement("div");
-  document.body.appendChild(container);
+  const container = activeDocument.createElement("div");
+  activeDocument.body.appendChild(container);
   Element.prototype.scrollIntoView = vi.fn();
 
   return {
@@ -243,7 +243,7 @@ export function setupArticleListBeforeEach(): ArticleListTestContext {
 }
 
 export function teardownArticleListAfterEach(): void {
-  document.body.innerHTML = "";
+  activeDocument.body.innerHTML = "";
   window.requestAnimationFrame = originalRAF;
   (
     window as unknown as { ResizeObserver: typeof ResizeObserver }

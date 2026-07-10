@@ -39,7 +39,7 @@ export function installObsidianDomPolyfills(): void {
         text?: string;
         attr?: Record<string, string>;
         // Keep permissive to mirror Obsidian's helper behavior in tests.
-        [key: string]: any;
+        [key: string]: unknown;
       },
     ): HTMLElementTagNameMap[K] {
       const el = this.createElement(tag);
@@ -56,7 +56,7 @@ export function installObsidianDomPolyfills(): void {
             return;
           }
           if (key in el) {
-            (el as any)[key] = value;
+            (el as Record<string, unknown>)[key] = value;
           }
         });
       }
@@ -226,7 +226,8 @@ export function installObsidianDomPolyfills(): void {
         | string
         | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLDivElement {
-      const el = document.createElement("div");
+      const doc = this.ownerDocument ?? document;
+      const el = doc.createElement("div");
       if (typeof opts === "string") {
         el.className = opts;
       } else {
@@ -248,7 +249,8 @@ export function installObsidianDomPolyfills(): void {
         | string
         | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLSpanElement {
-      const el = document.createElement("span");
+      const doc = this.ownerDocument ?? document;
+      const el = doc.createElement("span");
       if (typeof opts === "string") {
         el.className = opts;
       } else {
@@ -268,7 +270,8 @@ export function installObsidianDomPolyfills(): void {
       this: HTMLElement,
       text: string,
     ): void {
-      this.append(document.createTextNode(text));
+      const doc = this.ownerDocument ?? document;
+      this.append(doc.createTextNode(text));
     };
   }
 
@@ -282,10 +285,11 @@ export function installObsidianDomPolyfills(): void {
         attr?: Record<string, string>;
         // Obsidian's createEl supports passing through common element props (e.g. value/placeholder).
         // Keep this permissive so unit tests behave like plugin runtime.
-        [key: string]: any;
+        [key: string]: unknown;
       },
     ): HTMLElementTagNameMap[K] {
-      const el = document.createElement(tag);
+      const doc = this.ownerDocument ?? document;
+      const el = doc.createElement(tag);
       if (opts?.cls) el.className = opts.cls;
       if (opts?.text !== undefined) el.textContent = opts.text;
       if (opts?.attr) {
@@ -300,7 +304,7 @@ export function installObsidianDomPolyfills(): void {
           }
           // Pass through common properties like value/placeholder/disabled/etc.
           if (key in el) {
-            (el as any)[key] = value;
+            (el as Record<string, unknown>)[key] = value;
           }
         });
       }

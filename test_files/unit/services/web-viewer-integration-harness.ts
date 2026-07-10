@@ -69,7 +69,7 @@ export function buildFeedItem(overrides: Partial<FeedItem> = {}): FeedItem {
 
 export function createWebpageContainer(): HTMLElement {
   installObsidianDomPolyfills();
-  const container = document.createElement("div");
+  const container = activeDocument.createElement("div");
   container.className = "webpage-container";
   return container;
 }
@@ -119,7 +119,7 @@ export function createWebViewerIntegrationHarness(
     overrides.webpageContainer === undefined ? createWebpageContainer() : overrides.webpageContainer;
 
   if (createdContainer && webpageContainer) {
-    document.body.appendChild(webpageContainer);
+    activeDocument.body.appendChild(webpageContainer);
   }
 
   const cleanup = () => {

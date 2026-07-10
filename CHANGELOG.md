@@ -15,6 +15,7 @@
 - Fixed: Unexpected browser feature 'css-scrollbar' is only partially supported by Obsidian 1.4.5
 - Fixed: This assertion is unnecessary since it does not change the type of the expression.
 - Fixed: This assertion is unnecessary since the receiver accepts the original type of the expression.
+- Fixed: Use 'activeDocument' instead of 'document' for popout window compatibility.
 
 ## 2.4.1 - July 2, 2026
 

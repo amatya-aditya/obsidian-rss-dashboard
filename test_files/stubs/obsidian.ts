@@ -1,6 +1,12 @@
 // =============================================================================
 // Core Obsidian API Stubs
 // =============================================================================
+
+declare global {
+  var activeWindow: Window;
+  var activeDocument: Document;
+}
+
 // =============================================================================
 
 const pad = (value: number, length = 2): string =>
@@ -626,7 +632,7 @@ export class PluginSettingTab {
   constructor(app: App, plugin: Plugin) {
     this.app = app;
     this.plugin = plugin;
-    this.containerEl = document.createElement("div");
+    this.containerEl = activeDocument.createElement("div");
   }
 
   display(): void {}
@@ -663,9 +669,9 @@ export class ItemView {
     this.leaf = leaf;
     this.app = leaf.app;
 
-    this.containerEl = document.createElement("div");
-    this.containerEl.appendChild(document.createElement("div"));
-    this.containerEl.appendChild(document.createElement("div"));
+    this.containerEl = activeDocument.createElement("div");
+    this.containerEl.appendChild(activeDocument.createElement("div"));
+    this.containerEl.appendChild(activeDocument.createElement("div"));
   }
 
   onOpen(): Promise<void> {
@@ -720,23 +726,23 @@ export class Setting {
   components: any[] = [];
 
   constructor(containerEl: HTMLElement) {
-    this.settingEl = document.createElement("div");
+    this.settingEl = activeDocument.createElement("div");
     this.settingEl.className = "setting-item";
     containerEl.appendChild(this.settingEl);
 
-    const infoEl = document.createElement("div");
+    const infoEl = activeDocument.createElement("div");
     infoEl.className = "setting-item-info";
     this.settingEl.appendChild(infoEl);
 
-    this.nameEl = document.createElement("div");
+    this.nameEl = activeDocument.createElement("div");
     this.nameEl.className = "setting-item-name";
     infoEl.appendChild(this.nameEl);
 
-    this.descEl = document.createElement("div");
+    this.descEl = activeDocument.createElement("div");
     this.descEl.className = "setting-item-description";
     infoEl.appendChild(this.descEl);
 
-    this.controlEl = document.createElement("div");
+    this.controlEl = activeDocument.createElement("div");
     this.controlEl.className = "setting-item-control";
     this.settingEl.appendChild(this.controlEl);
   }
@@ -771,7 +777,7 @@ export class Setting {
       private clickHandler: ((evt: MouseEvent) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.buttonEl = document.createElement("button");
+        this.buttonEl = activeDocument.createElement("button");
         container.appendChild(this.buttonEl);
       }
 
@@ -827,7 +833,7 @@ export class Setting {
       private changeHandler: ((value: number) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.sliderEl = document.createElement("input");
+        this.sliderEl = activeDocument.createElement("input");
         this.sliderEl.type = "range";
         container.appendChild(this.sliderEl);
         this.sliderEl.addEventListener("input", () => {
@@ -870,7 +876,7 @@ export class Setting {
       private changeHandler: ((value: string) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.inputEl = document.createElement("input");
+        this.inputEl = activeDocument.createElement("input");
         this.inputEl.type = "color";
         container.appendChild(this.inputEl);
         this.inputEl.addEventListener("input", () => {
@@ -909,7 +915,7 @@ export class Setting {
       private changeHandler: ((value: boolean) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.toggleEl = document.createElement("input");
+        this.toggleEl = activeDocument.createElement("input");
         this.toggleEl.type = "checkbox";
         container.appendChild(this.toggleEl);
         this.toggleEl.addEventListener("change", () => {
@@ -944,7 +950,7 @@ export class Setting {
       private changeHandler: ((value: string) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.inputEl = document.createElement("input");
+        this.inputEl = activeDocument.createElement("input");
         this.inputEl.type = "text";
         container.appendChild(this.inputEl);
         this.inputEl.addEventListener("input", () => {
@@ -988,7 +994,7 @@ export class Setting {
       private changeHandler: ((value: string) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.selectEl = document.createElement("select");
+        this.selectEl = activeDocument.createElement("select");
         container.appendChild(this.selectEl);
         this.selectEl.addEventListener("change", () => {
           this.changeHandler?.(this.selectEl.value);
@@ -996,7 +1002,7 @@ export class Setting {
       }
 
       addOption(value: string, label: string): this {
-        const opt = document.createElement("option");
+        const opt = activeDocument.createElement("option");
         opt.value = value;
         opt.textContent = label;
         this.selectEl.appendChild(opt);
@@ -1031,7 +1037,7 @@ export class TextComponent {
   private changeHandler: ((value: string) => void) | null = null;
 
   constructor(container: HTMLElement) {
-    this.inputEl = document.createElement("input");
+    this.inputEl = activeDocument.createElement("input");
     this.inputEl.type = "text";
     container.appendChild(this.inputEl);
     this.inputEl.addEventListener("input", () => {
@@ -1066,14 +1072,14 @@ export class Modal {
   contentEl: HTMLDivElement;
   constructor(app: App) {
     this.app = app;
-    this.containerEl = document.createElement("div");
+    this.containerEl = activeDocument.createElement("div");
     this.containerEl.className = "modal-container";
 
-    this.modalEl = document.createElement("div");
+    this.modalEl = activeDocument.createElement("div");
     this.modalEl.className = "modal";
     this.containerEl.appendChild(this.modalEl);
 
-    this.contentEl = document.createElement("div");
+    this.contentEl = activeDocument.createElement("div");
     this.contentEl.className = "modal-content";
     this.modalEl.appendChild(this.contentEl);
   }
@@ -1083,7 +1089,7 @@ export class Modal {
 
   open(): void {
     if (!this.containerEl.isConnected) {
-      document.body.appendChild(this.containerEl);
+      activeDocument.body.appendChild(this.containerEl);
     }
     this.onOpen();
   }

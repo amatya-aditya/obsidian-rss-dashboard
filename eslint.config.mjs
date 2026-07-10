@@ -114,6 +114,14 @@ export default defineConfig([
     },
 
     rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "document",
+          message:
+            "Use 'activeDocument' instead of 'document' for popout window compatibility.",
+        },
+      ],
       "obsidianmd/ui/sentence-case": [
         "error",
         {
