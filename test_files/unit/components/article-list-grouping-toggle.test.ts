@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createArticleListHarness } from "./article-list-harness";
+import type { FeedItem } from "../../../src/types/types";
 
 describe("ArticleList grouping header toggle", () => {
   it("renders group header toggle and toggles collapsed state and persists setting", () => {
-    const articlesToUse = [
+    const articlesToUse: FeedItem[] = [
       {
         guid: "a1",
         title: "A1",
@@ -35,7 +36,7 @@ describe("ArticleList grouping header toggle", () => {
     ];
 
     const { container, settings, list, cleanup } = createArticleListHarness({
-      articles: articlesToUse as any,
+      articles: articlesToUse,
       settings: { articleGroupBy: "feed", viewStyle: "feed" },
     });
 

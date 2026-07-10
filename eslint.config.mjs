@@ -68,6 +68,11 @@ export default defineConfig([
           message:
             "Dynamic <script> element creation is prohibited per Obsidian compliance standards.",
         },
+        {
+          selector: "TSAsExpression > TSAnyKeyword",
+          message:
+            "Avoid 'as any' casts. Use a specific type, 'as unknown as T', or '@ts-expect-error' with a comment.",
+        },
       ],
     },
   },

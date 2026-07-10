@@ -16,6 +16,8 @@
 - Fixed: This assertion is unnecessary since it does not change the type of the expression.
 - Fixed: This assertion is unnecessary since the receiver accepts the original type of the expression.
 - Fixed: Use 'activeDocument' instead of 'document' for popout window compatibility.
+- Fixed: Removed all 'as any' type declarations
+- Added: ESLint CI blockers for future commits
 
 ## 2.4.1 - July 2, 2026
 

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { StorageMigrationModal } from "../../../src/modals/storage-migration-modal";
+import type RssDashboardPlugin from "../../../main";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 type MockApp = obsidian.App;
@@ -37,7 +38,7 @@ describe("StorageMigrationModal", () => {
       backupAndMigrateStorageToV2: vi.fn(async () => {}),
     };
 
-    const modal = new StorageMigrationModal(app, plugin as any);
+    const modal = new StorageMigrationModal(app, plugin as unknown as RssDashboardPlugin);
     modal.open();
 
     const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
@@ -60,7 +61,7 @@ describe("StorageMigrationModal", () => {
       backupAndMigrateStorageToV2: vi.fn(async () => {}),
     };
 
-    const modal = new StorageMigrationModal(app, plugin as any);
+    const modal = new StorageMigrationModal(app, plugin as unknown as RssDashboardPlugin);
     modal.open();
 
     const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
@@ -83,7 +84,7 @@ describe("StorageMigrationModal", () => {
       backupAndMigrateStorageToV2: vi.fn(async () => {}),
     };
 
-    const modal = new StorageMigrationModal(app, plugin as any);
+    const modal = new StorageMigrationModal(app, plugin as unknown as RssDashboardPlugin);
     modal.open();
 
     const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
