@@ -75,6 +75,16 @@ export function loadAndNormalizeSettings(
 ): RssDashboardSettings {
   const settings = Object.assign({}, DEFAULT_SETTINGS, rawData ?? {});
 
+  if (!rawData?.storageMode) {
+    const hasFeeds = Array.isArray(rawData?.feeds) && rawData.feeds.length > 0;
+    const hasRefreshHistory =
+      typeof rawData?.lastRefreshTimestamp === "number" &&
+      rawData.lastRefreshTimestamp > 0;
+    if (hasFeeds || hasRefreshHistory) {
+      settings.storageMode = "legacy-json";
+    }
+  }
+
   const normalizedRefreshInterval = Number(settings.refreshInterval);
   settings.refreshInterval = Number.isFinite(normalizedRefreshInterval)
     ? normalizeRefreshIntervalMinutes(normalizedRefreshInterval)

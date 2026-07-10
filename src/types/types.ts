@@ -498,6 +498,12 @@ export interface RssDashboardSettings {
 
   autoBackup: AutoBackupSettings;
   storageMode: FeedStorageMode;
+  /**
+   * Set to true when the user explicitly clicks "Never Show Again" or completes
+   * the vault-shards-v2 migration. When false (default), the migration modal
+   * is shown on every plugin load until the user is on vault-shards-v2.
+   */
+  storageMigrationDismissedPermanently?: boolean;
   storageFolder: string;
   storageSchemaVersion: number;
   /**
@@ -765,6 +771,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     backupUserdata: true,
   },
   storageMode: "vault-shards-v2",
+  storageMigrationDismissedPermanently: false,
   storageFolder: ".rss-dashboard-data/feeds",
   storageSchemaVersion: 1,
   metadataStorageMode: "plugin-default",

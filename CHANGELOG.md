@@ -1,3 +1,15 @@
+## 2.4.2 - July 10, 2026
+
+- Added a storage migration pop up on plugin update to encourage users to upgrade to the latest storage mode.
+
+- Fix: shard local storage address not correctly appearing in edit feed window
+
+### Audit remediations
+
+- Fixed: Unexpected browser feature 'multicolumn' is only partially supported by Obsidian 1.4.5
+- Fixed: Unexpected browser feature 'css-scrollbar' is only partially supported by Obsidian 1.4.5
+- Fixed: This assertion is unnecessary since it does not change the type of the expression.
+
 ## 2.4.1 - July 2, 2026
 
 ### Features

@@ -205,6 +205,36 @@ describe("settings-loader", () => {
         DEFAULT_SETTINGS.startupRefreshDelaySeconds,
       );
     });
+
+    it("infers legacy-json for existing installations missing storageMode (has feeds)", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const raw = { feeds: [createFeed()] };
+      const result = loadAndNormalizeSettings(raw);
+
+      expect(result.storageMode).toBe("legacy-json");
+    });
+
+    it("infers legacy-json for existing installations missing storageMode (has refresh history)", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const raw = { lastRefreshTimestamp: 123456789 };
+      const result = loadAndNormalizeSettings(raw);
+
+      expect(result.storageMode).toBe("legacy-json");
+    });
+
+    it("defaults to vault-shards-v2 for fresh installations missing storageMode", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const raw = {}; // Fresh install
+      const result = loadAndNormalizeSettings(raw);
+
+      expect(result.storageMode).toBe("vault-shards-v2");
+    });
   });
 
   // ── migrateSettings ──────────────────────────────────────────────────────────

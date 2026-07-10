@@ -64,6 +64,7 @@ import { MediaService } from "./src/services/media-service";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
+import { StorageMigrationModal } from "./src/modals/storage-migration-modal";
 import {
   normalizeRefreshIntervalMinutes,
   isValidUrl,
@@ -620,6 +621,7 @@ export default class RssDashboardPlugin extends Plugin {
       view.render();
     }
 
+
     try {
       this.initializeSettingsBackedServices();
 
@@ -628,6 +630,16 @@ export default class RssDashboardPlugin extends Plugin {
       }
 
       this.scheduleStartupSavedArticleValidation();
+
+      this.app.workspace.onLayoutReady(() => {
+        if (
+          this.settings &&
+          this.settings.storageMode !== "vault-shards-v2" &&
+          !this.settings.storageMigrationDismissedPermanently
+        ) {
+          new StorageMigrationModal(this.app, this).open();
+        }
+      });
 
       this.registerObsidianProtocolHandler(
         this.manifest.id,
@@ -1715,7 +1727,20 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  public async repairVaultStorage(): Promise<void> {
+  public async backupAndMigrateStorageToV2(): Promise<void> {
+    storageLog("Running backup before migrating to vault-shards-v2");
+    try {
+      await this.backupService.performAutoBackups();
+    } catch (e) {
+      storageError("Backup failed before migration", e);
+      new Notice("Backup failed, proceeding with migration...");
+    }
+
+    this.settings.storageMigrationDismissedPermanently = true;
+    await this.migrateToVaultShardsV2();
+  }
+
+  public async repairVaultShards(): Promise<void> {
     storageLog("Plugin repair requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -1738,6 +1763,11 @@ export default class RssDashboardPlugin extends Plugin {
       });
       throw error;
     }
+  }
+
+  /** Alias required by StorageSettingsPlugin interface. Delegates to repairVaultShards(). */
+  public async repairVaultStorage(): Promise<void> {
+    return this.repairVaultShards();
   }
 
   public async revertToLegacyJsonStorage(): Promise<void> {
