@@ -156,8 +156,7 @@
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr);
   align-items: center;
-  column-gap: 18px;
-  row-gap: 10px;
+  gap: 10px 18px;
   margin: 8px 0 12px;
 }
 
