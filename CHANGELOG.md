@@ -8,6 +8,7 @@
 
 - Fix: shard local storage address not correctly appearing in edit feed window
 - Fix: Scrolling not working on mobile Discover sidebar
+- Fix: clicking the tag icon on cards a second time will now close the window instead of re-opening it
 
 ### Audit remediations
 

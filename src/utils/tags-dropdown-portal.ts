@@ -398,7 +398,7 @@ export function createTagsDropdownPortal(
   }
 
   if (isMobile) {
-    // Clear any inline positions so CSS mobile-sheet rules win via cascade (no !important needed)
+    // Clear any inline positions so CSS mobile-sheet rules win via cascade
     portalDropdown.style.removeProperty("left");
     portalDropdown.style.removeProperty("top");
     portalDropdown.style.removeProperty("width");
@@ -470,7 +470,11 @@ export function createTagsDropdownPortal(
       return;
     }
     const handleClickOutside = (ev: MouseEvent) => {
-      if (portalDropdown && !portalDropdown.contains(ev.target as Node)) {
+      if (
+        portalDropdown &&
+        !portalDropdown.contains(ev.target as Node) &&
+        !(anchor && anchor.contains(ev.target as Node))
+      ) {
         closeDropdown();
       }
     };

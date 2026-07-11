@@ -1,11 +1,19 @@
 import { ArticleList } from "../../../src/components/article-list";
-import { DEFAULT_SETTINGS, type FeedItem, type RssDashboardSettings } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type FeedItem,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { beforeEach, describe, expect, it } from "vitest";
 
 /** Exposes private ArticleList members used by these regression tests. */
 interface ArticleListWithPrivate {
-  createPortalDropdown(anchor: HTMLElement, article: FeedItem, onUpdate: () => void): void;
+  createPortalDropdown(
+    anchor: HTMLElement,
+    article: FeedItem,
+    onUpdate: () => void,
+  ): void;
   tagsDropdownCleanup: (() => void) | null;
 }
 
@@ -77,7 +85,11 @@ describe("Tags dropdown portal (regression)", () => {
 
     const anchorEl = document.createElement("div");
     document.body.appendChild(anchorEl);
-    (list as unknown as ArticleListWithPrivate).createPortalDropdown(anchorEl, article, () => {});
+    (list as unknown as ArticleListWithPrivate).createPortalDropdown(
+      anchorEl,
+      article,
+      () => {},
+    );
 
     const portal = document.body.querySelector(
       ".rss-dashboard-tags-dropdown-content-portal",
@@ -90,8 +102,76 @@ describe("Tags dropdown portal (regression)", () => {
       document.body.querySelector(".rss-dashboard-tag-inline-add-row"),
     ).not.toBeNull();
 
-    const cleanup = (list as unknown as ArticleListWithPrivate).tagsDropdownCleanup;
+    const cleanup = (list as unknown as ArticleListWithPrivate)
+      .tagsDropdownCleanup;
     cleanup?.();
+  });
+
+  it("clicking the same tags anchor twice closes the portal", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const settings = cloneSettings();
+    settings.availableTags = [{ name: "A", color: "#111111" }];
+
+    const article = buildArticle();
+    const list = new ArticleList(
+      container,
+      settings,
+      "Title",
+      null,
+      [article],
+      null,
+      {
+        onArticleClick: () => {},
+        onToggleViewStyle: () => {},
+        onRefreshFeeds: async () => {},
+        onSearch: () => {},
+        onArticleUpdate: () => {},
+        onArticleSave: () => {},
+        onToggleSidebar: () => {},
+        onSortChange: () => {},
+        onGroupChange: () => {},
+        onFilterChange: () => {},
+        onPageChange: () => {},
+        onPageSizeChange: () => {},
+      },
+      1,
+      1,
+      50,
+      1,
+      new Set(),
+      new Set(),
+      "AND",
+    );
+
+    const anchorEl = document.createElement("div");
+    document.body.appendChild(anchorEl);
+    (list as unknown as ArticleListWithPrivate).createPortalDropdown(
+      anchorEl,
+      article,
+      () => {},
+    );
+
+    expect(
+      document.body.querySelector(
+        ".rss-dashboard-tags-dropdown-content-portal",
+      ),
+    ).not.toBeNull();
+
+    (list as unknown as ArticleListWithPrivate).createPortalDropdown(
+      anchorEl,
+      article,
+      () => {},
+    );
+
+    expect(
+      document.body.querySelector(
+        ".rss-dashboard-tags-dropdown-content-portal",
+      ),
+    ).toBeNull();
+    expect(
+      (list as unknown as ArticleListWithPrivate).tagsDropdownCleanup,
+    ).toBeNull();
   });
 
   it("opening tags portal must not remove Reader format portal", () => {
@@ -132,17 +212,23 @@ describe("Tags dropdown portal (regression)", () => {
     );
 
     const formatPortal = document.createElement("div");
-    formatPortal.className = "rss-dashboard-tags-dropdown-content-portal rss-reader-format-dropdown-portal";
+    formatPortal.className =
+      "rss-dashboard-tags-dropdown-content-portal rss-reader-format-dropdown-portal";
     document.body.appendChild(formatPortal);
 
     const anchorEl = document.createElement("div");
     document.body.appendChild(anchorEl);
-    (list as unknown as ArticleListWithPrivate).createPortalDropdown(anchorEl, article, () => {});
+    (list as unknown as ArticleListWithPrivate).createPortalDropdown(
+      anchorEl,
+      article,
+      () => {},
+    );
 
     // Regression: tags portal cleanup should not remove reader format portal.
     expect(document.body.contains(formatPortal)).toBe(true);
 
-    const cleanup = (list as unknown as ArticleListWithPrivate).tagsDropdownCleanup;
+    const cleanup = (list as unknown as ArticleListWithPrivate)
+      .tagsDropdownCleanup;
     cleanup?.();
   });
 });

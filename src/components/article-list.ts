@@ -91,6 +91,7 @@ export class ArticleList {
   private filterLogic: "AND" | "OR";
   private articleSearchQuery: string = "";
   private tagsDropdownCleanup: (() => void) | null = null;
+  private currentTagsDropdownAnchor: HTMLElement | null = null;
   private activePortal: HTMLElement | null = null;
   private activeFilterToggleBtn: HTMLElement | null = null;
   private activeFilterOutsideListenerCleanup: (() => void) | null = null;
@@ -1488,10 +1489,17 @@ export class ArticleList {
     article: FeedItem,
     onTagChange: (tag: Tag, checked: boolean) => void,
   ): void {
+    const isSameAnchor = this.currentTagsDropdownAnchor === toggleElement;
     if (this.tagsDropdownCleanup) {
       this.tagsDropdownCleanup();
       this.tagsDropdownCleanup = null;
+      if (isSameAnchor) {
+        this.currentTagsDropdownAnchor = null;
+        return;
+      }
     }
+
+    this.currentTagsDropdownAnchor = toggleElement;
 
     const cleanup = createTagsDropdownPortal({
       anchor: toggleElement,
@@ -1508,6 +1516,7 @@ export class ArticleList {
       onClosed: () => {
         if (this.tagsDropdownCleanup === cleanup) {
           this.tagsDropdownCleanup = null;
+          this.currentTagsDropdownAnchor = null;
         }
       },
     });
