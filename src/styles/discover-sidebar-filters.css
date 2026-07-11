@@ -70,7 +70,8 @@
 .rss-discover-add-all-btn.is-processing {
   opacity: 1;
   border-color: var(--interactive-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--interactive-accent) 18%, transparent);
 }
 .rss-discover-add-all-spinner {
   display: inline-flex;
@@ -296,21 +297,27 @@
  * ============================================ */
 
 .rss-discover-controls-container.is-narrow .rss-discover-filter-controls {
-  display: none !important;  /* audit-ok: display toggle utility */
+  display: none;
 }
 .rss-discover-controls-container.is-narrow .rss-discover-mobile-filters-menu {
   display: block;
 }
-.rss-discover-controls-container.is-narrow .rss-discover-mobile-filters-dropdown .rss-discover-sort-container {
+.rss-discover-controls-container.is-narrow
+  .rss-discover-mobile-filters-dropdown
+  .rss-discover-sort-container {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
 }
-.rss-discover-controls-container.is-narrow .rss-discover-mobile-filters-dropdown .rss-discover-sort-dropdown {
+.rss-discover-controls-container.is-narrow
+  .rss-discover-mobile-filters-dropdown
+  .rss-discover-sort-dropdown {
   width: 100%;
   min-width: 0;
 }
-.rss-discover-controls-container.is-narrow .rss-discover-mobile-filters-dropdown .rss-clear-filter-button {
+.rss-discover-controls-container.is-narrow
+  .rss-discover-mobile-filters-dropdown
+  .rss-clear-filter-button {
   margin-top: 0;
 }

@@ -127,8 +127,16 @@ export class FolderSelectorPopup {
       popup.addClass("rss-folder-selector-popup-above");
     }
 
-    popup.style.left = `${left}px`;
-    popup.style.top = `${top}px`;
+    // On mobile, the CSS @media sheet rule positions the popup — no inline override needed.
+    // On desktop, calculate and apply anchor-relative positioning.
+    const isMobile = activeWindow.matchMedia("(max-width: 600px)").matches;
+    if (isMobile) {
+      popup.style.removeProperty("left");
+      popup.style.removeProperty("top");
+    } else {
+      popup.style.left = `${left}px`;
+      popup.style.top = `${top}px`;
+    }
 
     // Search input container — skip in list-only mode
     if (!this.listOnly) {

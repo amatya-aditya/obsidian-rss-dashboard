@@ -226,6 +226,12 @@ export function addTagMultiSelectControl(
     };
 
     if (isMobile) {
+      // Clear any inline positions so the CSS mobile-sheet rules win via cascade (no !important needed)
+      portal.style.removeProperty("left");
+      portal.style.removeProperty("top");
+      portal.style.removeProperty("width");
+      portal.style.removeProperty("min-width");
+      portal.style.removeProperty("max-width");
       syncMobileViewportHeight();
       backdrop?.addEventListener("click", () => closeMenu?.());
       targetWindow.addEventListener("resize", syncMobileViewportHeight);

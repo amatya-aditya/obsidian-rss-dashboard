@@ -1,9 +1,9 @@
-.rss-dashboard-container {
+.workspace-leaf-content .rss-dashboard-container {
   font-size: 14px;
   height: 100%;
   background-color: var(--background-primary);
   color: var(--text-normal);
-  padding: 0 !important; /* audit-ok: override for Obsidian's forced workspace padding */
+  padding: 0; /* specificity beats Obsidian's host-app padding via .workspace-leaf-content ancestor */
 }
 
 .rss-dashboard-layout {
@@ -27,6 +27,19 @@
 .rss-dashboard-layout > .rss-dashboard-sidebar-container {
   flex: 0 0 auto;
   height: 100%;
+  /* Width driven by --rss-sidebar-width custom property set by applySidebarWidth() */
+  width: var(--rss-sidebar-width, 280px);
+  min-width: var(--rss-sidebar-width, 280px);
+}
+
+/* Collapsed state: sidebar hidden, set via JS addClass/removeClass */
+.rss-dashboard-layout > .rss-dashboard-sidebar-container.sidebar-hidden {
+  display: none;
+}
+
+/* Resize handle hidden when sidebar is collapsed */
+.rss-dashboard-sidebar-resize-handle.resize-handle-hidden {
+  display: none;
 }
 
 /*
@@ -166,10 +179,7 @@
   }
 }
 
-.sidebar-collapsed .rss-dashboard-sidebar {
-  display: none !important; /* audit-ok: override Obsidian's inline styles that force-show the sidebar on mobile */
-  width: 0 !important; /* audit-ok: override Obsidian's inline styles that force-show the sidebar on mobile */
-}
+
 
 /* Tablet and below: hide dashboard sidebar in favor of mobile navigation modal. */
 @media (max-width: 1200px) {
@@ -193,12 +203,12 @@
     padding: 0;
   }
 
-  .rss-dashboard-layout > .rss-dashboard-sidebar {
-    display: none !important; /* audit-ok: override for Obsidian's forced sidebar display on mobile */
+  .workspace-leaf-content .rss-dashboard-layout > .rss-dashboard-sidebar {
+    display: none; /* specificity: .workspace-leaf-content ancestor beats Obsidian's forced sidebar display */
   }
 
-  .rss-dashboard-layout > .rss-dashboard-sidebar-resize-handle {
-    display: none !important; /* audit-ok: hide the resize handle on mobile since the sidebar is always hidden and the handle would be non-functional */
+  .workspace-leaf-content .rss-dashboard-layout > .rss-dashboard-sidebar-resize-handle {
+    display: none; /* specificity: .workspace-leaf-content ancestor beats Obsidian's forced display */
   }
 
   .rss-dashboard-container {

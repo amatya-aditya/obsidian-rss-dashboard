@@ -103,7 +103,7 @@
   border-radius: 6px;
   min-height: 38px;
   padding: 0.4rem 1rem;
-  margin: 0 !important; /* audit-ok: overrides any inline width styles for buttons */
+  margin: 0; /* 2-class + element selector \u2014 already outranks Obsidian button margin rules */
 }
 
 /* Secondary-style "Cancel" button in Import OPML modal */

@@ -398,6 +398,13 @@ export function createTagsDropdownPortal(
   }
 
   if (isMobile) {
+    // Clear any inline positions so CSS mobile-sheet rules win via cascade (no !important needed)
+    portalDropdown.style.removeProperty("left");
+    portalDropdown.style.removeProperty("top");
+    portalDropdown.style.removeProperty("width");
+    portalDropdown.style.removeProperty("min-width");
+    portalDropdown.style.removeProperty("max-width");
+
     const syncMobileViewportHeight = () => {
       const vvp = targetWindow.visualViewport;
       const viewportHeight = vvp?.height ?? targetWindow.innerHeight;

@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
  * Base Controls Styles (controls.css)
  *
  * This file contains the base styles for dashboard header layout, search,
@@ -369,11 +369,10 @@
 /* ============================================
  * 4. Tag Notifications
  * ============================================ */
-.rss-dashboard-tag-change-feedback {
+
+.rss-dashboard-tag-change-feedback.rss-dashboard-tag-change-feedback {
   transition: background-color 0.2s ease;
-  background-color: var(
-    --background-modifier-hover
-  ) !important; /* audit-ok: temporary state visual override */
+  background-color: var(--background-modifier-hover);
 }
 
 .rss-dashboard-tag-item-processing {
@@ -499,7 +498,7 @@
 
 .rss-dashboard-mobile-filter-button {
   position: relative;
-  display: none !important; /* audit-ok: display toggle utility */
+  display: none; /* default off; the cascade rule below re-enables it */
   align-items: center;
   justify-content: center;
   width: 40px;
@@ -650,39 +649,39 @@
   margin-bottom: 15px;
 }
 
-.rss-dashboard-search-hidden {
-  display: none !important; /* audit-ok: display toggle utility */
+.rss-dashboard-search-hidden.rss-dashboard-search-hidden {
+  display: none;
 }
 
 /* ============================================
  * 5. Media Queries & Responsive Overrides
  * ============================================ */
 .rss-dashboard-desktop-controls {
-  display: none !important; /* audit-ok: display toggle utility */
+  display: none;
   align-items: center;
   gap: 8px;
 }
 
 .rss-dashboard-mobile-filter-button {
-  display: flex !important; /* audit-ok: display toggle utility */
+  display: flex; /* default: visible; overrides the base display:none above */
 }
 
 .rss-dashboard-hamburger-menu {
-  display: block !important; /* audit-ok: display toggle utility */
+  display: block;
 }
 
 @media (max-width: 768px) {
   .rss-dashboard-mobile-filter-button {
-    display: flex !important; /* audit-ok: display toggle utility */
+    display: flex;
   }
   .rss-dashboard-hamburger-menu {
-    display: block !important; /* audit-ok: display toggle utility */
+    display: block;
   }
   .rss-discover-mobile-header {
     display: flex;
   }
   .rss-dashboard-desktop-controls {
-    display: none !important; /* audit-ok: display toggle utility */
+    display: none;
   }
   .rss-dashboard-articles-header {
     padding: 8px 12px;
@@ -705,13 +704,13 @@
 
 @media (min-width: 769px) and (max-width: 1200px) {
   .rss-dashboard-mobile-filter-button {
-    display: flex !important; /* audit-ok: display toggle utility */
+    display: flex;
   }
   .rss-dashboard-hamburger-menu {
-    display: block !important; /* audit-ok: display toggle utility */
+    display: block;
   }
   .rss-dashboard-desktop-controls {
-    display: none !important; /* audit-ok: display toggle utility */
+    display: none;
   }
   .rss-dashboard-dropdown-menu {
     width: 320px;
@@ -720,13 +719,13 @@
 
 @media (min-width: 1201px) {
   .rss-dashboard-mobile-filter-button {
-    display: flex !important; /* audit-ok: display toggle utility */
+    display: flex;
   }
   .rss-dashboard-hamburger-menu {
-    display: block !important; /* audit-ok: display toggle utility */
+    display: block;
   }
   .rss-dashboard-desktop-controls {
-    display: none !important; /* audit-ok: display toggle utility */
+    display: none;
   }
 }
 
@@ -738,16 +737,18 @@
   }
 }
 
+/* Compound selectors (.is-narrow + target) have specificity (0,2,0),
+   which naturally beats the single-class root defaults above. */
 .rss-dashboard-articles-header.is-narrow .rss-dashboard-desktop-controls {
-  display: none !important; /* audit-ok: display toggle utility */
+  display: none;
 }
 
 .rss-dashboard-articles-header.is-narrow .rss-dashboard-hamburger-menu {
-  display: block !important; /* audit-ok: display toggle utility */
+  display: block;
 }
 
 .rss-dashboard-articles-header.is-narrow .rss-dashboard-mobile-filter-button {
-  display: flex !important; /* audit-ok: display toggle utility */
+  display: flex;
 }
 
 .rss-dashboard-articles-header.is-narrow {

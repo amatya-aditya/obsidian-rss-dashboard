@@ -16,11 +16,12 @@
   --z-index-close-button: 10;
   --z-index-filter-menu: 9999;
   --z-index-folder-dropdown: 10000;
-  --z-index-folder-suggestion-container: 10001;
+  --z-index-folder-suggestion-container: 100103; /* above all modals and folder popups */
   --z-index-dropdown-backdrop: 99998;
   --z-index-dropdown: 99999;
   --z-index-drawer: 99999;
   --z-index-modal: 100000;
+  --z-index-folder-popup: 100102; /* above modal and feed-manager overlays so the folder selector popup renders on top */
 
   /* RSS Dashboard semantic palette */
   --rss-color-purple: #8b5cf6;

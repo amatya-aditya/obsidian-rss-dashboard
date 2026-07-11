@@ -635,13 +635,13 @@
   padding-right: 8px;
 }
 
-.playlist-episode-row {
-  display: flex !important; /* audit-ok: overrides Obsidian list row layout defaults in playlist panel */
+.rss-reader-podcast-container .playlist-episode-row {
+  display: flex; /* specificity: rss-container scope beats Obsidian list-row defaults */
   align-items: center;
   gap: 16px;
-  padding: 12px !important; /* audit-ok: overrides Obsidian list row padding in playlist panel */
-  height: auto !important; /* audit-ok: overrides fixed-height list rows in playlist panel */
-  min-height: 86px !important; /* audit-ok: ensures touch-friendly playlist row height */
+  padding: 12px; /* specificity: rss-container scope beats Obsidian list-row padding */
+  height: auto; /* specificity: rss-container scope beats Obsidian fixed-height list rows */
+  min-height: 86px; /* specificity: rss-container scope ensures touch-friendly row height */
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -880,19 +880,20 @@
 
 /* .active { theme specific styles apply via podcast-themes.css } */
 
-/* Progress on playlist rows */
-.playlist-episode-row.has-progress,
-.playlist-episode-row.active,
-.playlist-episode-row.has-progress.active {
+.rss-reader-podcast-container .playlist-episode-row.has-progress,
+.rss-reader-podcast-container .playlist-episode-row.active,
+.rss-reader-podcast-container .playlist-episode-row.has-progress.active {
   position: relative;
   overflow: hidden;
-  padding: 12px !important; /* audit-ok: overrides Obsidian list row padding in playlist panel */
-  height: auto !important; /* audit-ok: overrides fixed-height list rows in playlist panel */
-  min-height: 86px !important; /* audit-ok: ensures touch-friendly playlist row height */
-  display: flex !important; /* audit-ok: overrides Obsidian list row layout defaults in playlist panel */
+  display: flex; /* specificity: rss-container scope beats Obsidian list-row layout defaults */
+  align-items: center; /* ensure inherited from base row when Obsidian overrides flex layout */
+  gap: 16px;
+  padding: 12px; /* specificity: rss-container scope beats Obsidian list-row padding */
+  height: auto; /* specificity: rss-container scope beats Obsidian fixed-height list rows */
+  min-height: 86px; /* specificity: rss-container scope ensures touch-friendly row height */
 }
 
-.playlist-episode-row.has-progress::after {
+.rss-reader-podcast-container .playlist-episode-row.has-progress::after {
   content: "";
   position: absolute;
   bottom: 0;

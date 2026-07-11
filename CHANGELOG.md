@@ -17,7 +17,8 @@
 - Fixed: This assertion is unnecessary since the receiver accepts the original type of the expression.
 - Fixed: Use 'activeDocument' instead of 'document' for popout window compatibility.
 - Fixed: Removed all 'as any' type declarations
-- Added: ESLint CI blockers for future commits
+- Fixed: Removed extraneous !important declarations
+- Added: ESLint CI blockers for future commits on the above fixes
 
 ## 2.4.1 - July 2, 2026
 

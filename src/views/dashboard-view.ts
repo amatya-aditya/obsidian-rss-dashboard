@@ -32,7 +32,7 @@ import { FeedManagerModal } from "../modals/feed-manager-modal";
 import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { KeywordFilterService } from "../services/keyword-filter-service";
-import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
+import { shouldUseMobileSidebarLayout, setCssProps } from "../utils/platform-utils";
 import { formatDashboardMultiFiltersTitle } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
@@ -3439,15 +3439,26 @@ export class RssDashboardView extends ItemView {
   }
 
   private applySidebarWidth(): void {
-    if (this.sidebarContainer && !this.settings.sidebarCollapsed) {
+    if (!this.sidebarContainer) return;
+
+    if (!this.settings.sidebarCollapsed) {
       const width = this.settings.sidebarWidth || 280;
-      this.sidebarContainer.style.width = `${width}px`;
-      this.sidebarContainer.style.minWidth = `${width}px`;
+      // Drive width/min-width via CSS custom property — avoids direct style.width/minWidth
+      setCssProps(this.sidebarContainer, {
+        "--rss-sidebar-width": `${width}px`,
+      });
+      this.sidebarContainer.removeClass("sidebar-hidden");
       // Keep the resize handle pinned to the sidebar's right edge.
       // CSS `transform: translateX(-50%)` on the handle centers it on this
       // position, giving equal hitbox on both sides of the border line.
       if (this.resizeHandle) {
         this.resizeHandle.style.left = `${width}px`;
+        this.resizeHandle.removeClass("resize-handle-hidden");
+      }
+    } else {
+      this.sidebarContainer.addClass("sidebar-hidden");
+      if (this.resizeHandle) {
+        this.resizeHandle.addClass("resize-handle-hidden");
       }
     }
   }

@@ -53,8 +53,8 @@
 
 @media (max-width: 600px) {
   .rss-dashboard-tags-dropdown-content-portal {
-    left: 8px !important; /* audit-ok: display toggle utility */
-    right: 8px !important; /* audit-ok: display toggle utility */
+    left: 8px;
+    right: 8px;
     min-width: 120px;
     max-width: 95vw;
     width: 100%;
@@ -69,9 +69,9 @@
 }
 
 .rss-dashboard-tags-mobile-sheet {
-  left: 8px !important; /* audit-ok: overrides inline anchor positioning and sizing for mobile sheet */
-  right: 8px !important; /* audit-ok: overrides inline anchor positioning and sizing for mobile sheet */
-  top: auto !important; /* audit-ok: overrides inline anchor positioning and sizing for mobile sheet */
+  left: 8px;
+  right: 8px;
+  top: auto;
   bottom: calc(
     var(--rss-footer-visual-pad, 8px) +
       max(
@@ -80,9 +80,9 @@
         var(--rss-footer-platform-fallback-bottom, 0px)
       )
   );
-  width: auto !important; /* audit-ok: overrides inline anchor positioning and sizing for mobile sheet */
-  max-width: none !important; /* audit-ok: overrides inline anchor positioning and sizing for mobile sheet */
-  min-width: 0 !important; /* audit-ok: overrides inline anchor positioning and sizing for mobile sheet */
+  width: auto;
+  max-width: none;
+  min-width: 0;
   max-height: calc(100svh - 16px);
   border-radius: 12px;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.28);

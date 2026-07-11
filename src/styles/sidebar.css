@@ -13,7 +13,7 @@
  * 1. Base Variables & Custom Properties
  * Sidebar-scoped design tokens and layout defaults
  * ============================================ */
-.rss-dashboard-sidebar {
+.workspace-leaf-content .rss-dashboard-sidebar {
   --sidebar-row-spacing: 10px;
   --sidebar-row-indentation: 20px;
   --sidebar-item-padding-left: 2px;
@@ -31,14 +31,14 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  padding: 0 !important; /* audit-ok: required to suppress Obsidian's default 16px container padding */
+  padding: 0; /* specificity: .workspace-leaf-content ancestor beats Obsidian's 16px padding injection */
 }
 
 /* ============================================
  * 2. Sidebar Container & Shell Layout
  * Structural shell for the sidebar scroll area and controls surface
  * ============================================ */
-.rss-dashboard-sidebar-container {
+.workspace-leaf-content .rss-dashboard-sidebar-container {
   position: relative;
   /* audit-ok: flex-grow: 1 replaces height: 100% + max-height: 100dvh.
      height: 100% requires a resolved parent height (not guaranteed on
@@ -50,7 +50,7 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  padding: 0 !important; /* audit-ok: required to suppress Obsidian's default 16px container padding */
+  padding: 0; /* specificity: .workspace-leaf-content ancestor beats Obsidian's 16px padding injection */
 }
 
 .rss-dashboard-sidebar-controls-surface {
@@ -513,7 +513,6 @@
   padding: 4px 10px 8px;
 }
 
-/* body scope replaces !important block — overrides Obsidian's default color-input sizing */
 body .rss-dashboard-tag-color-picker {
   width: 20px;
   height: 20px;
@@ -532,13 +531,13 @@ body .rss-dashboard-tag-color-picker {
 }
 
 body .rss-dashboard-tag-color-picker::-webkit-color-swatch-wrapper {
-  padding: 0 !important; /* audit-ok: pseudo-element normalization for color swatch rendering across browsers */
-  border-radius: 50% !important; /* audit-ok: pseudo-element normalization for color swatch rendering across browsers */
+  padding: 0; /* pseudo-element normalization: body prefix provides sufficient specificity over UA defaults */
+  border-radius: 50%;
 }
 
 body .rss-dashboard-tag-color-picker::-webkit-color-swatch {
-  border: none !important; /* audit-ok: pseudo-element normalization for color swatch rendering across browsers */
-  border-radius: 50% !important; /* audit-ok: pseudo-element normalization for color swatch rendering across browsers */
+  border: none; /* pseudo-element normalization: body prefix provides sufficient specificity over UA defaults */
+  border-radius: 50%;
 }
 
 .rss-dashboard-sidebar-add-tag-input {
@@ -694,12 +693,14 @@ body .rss-dashboard-tag-color-picker::-webkit-color-swatch {
   .rss-dashboard-feed-folders-section {
     scrollbar-gutter: stable;
     scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb-bg, var(--background-modifier-border))
+    scrollbar-color: var(
+        --scrollbar-thumb-bg,
+        var(--background-modifier-border)
+      )
       transparent;
   }
 }
 
-/* Scoped override — replaces !important for Obsidian default element padding */
 body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   padding: 0 6px;
 }
@@ -1175,7 +1176,7 @@ body.theme-dark .rss-dashboard-all-feeds-button {
  * ============================================ */
 
 .rss-dashboard-search-hidden {
-  display: none !important; /* audit-ok: display toggle utility — !important required to override specificity of later-loaded sheets */
+  display: none;
 }
 
 .rss-dashboard-search-dock {
@@ -1328,7 +1329,6 @@ body.theme-dark .rss-dashboard-all-feeds-button {
  * Rename / create folder modal surface, elevated above standard modal z-index
  * ============================================ */
 
-/* body scope provides specificity to override Obsidian modal stacking without !important */
 body .rss-folder-name-modal {
   z-index: 100100;
 }

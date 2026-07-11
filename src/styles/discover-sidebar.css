@@ -171,7 +171,7 @@ body .rss-discover-controls-container.is-narrow .rss-discover-mobile-header {
   transition: all 0.15s ease;
 }
 .rss-discover-search-input-wrapper .rss-discover-search-clear-hidden {
-  display: none !important; /* audit-ok: display toggle utility */
+  display: none;
 }
 .rss-discover-search-input-wrapper .rss-discover-search-clear:hover {
   color: var(--rss-color-danger-hover);
@@ -330,8 +330,8 @@ body .rss-discover-controls-container.is-narrow .rss-discover-mobile-header {
  * ============================================ */
 
 @media (max-width: 1200px) {
-  .rss-discover-layout > .rss-discover-sidebar {
-    display: none !important; /* audit-ok: display toggle utility */
+  .workspace-leaf-content .rss-discover-layout > .rss-discover-sidebar {
+    display: none; /* specificity: .workspace-leaf-content ancestor beats Obsidian's forced sidebar display */
   }
 
   .rss-discover-sidebar {

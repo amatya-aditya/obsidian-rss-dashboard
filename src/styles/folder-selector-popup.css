@@ -17,7 +17,7 @@
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  z-index: 99999;
+  z-index: var(--z-index-folder-popup, 100102);
   animation: rss-folder-popup-fade-in 0.15s ease-out;
 }
 
@@ -171,8 +171,8 @@ body .rss-folder-selector-input {
 
 @media (max-width: 600px) {
   .rss-folder-selector-popup {
-    left: 16px !important; /* audit-ok: overrides inline anchor positioning on mobile */
-    right: 16px !important; /* audit-ok: overrides inline anchor positioning on mobile */
+    left: 16px;
+    right: 16px;
     max-width: none;
     min-width: auto;
   }
@@ -193,7 +193,7 @@ body .rss-folder-selector-input {
   transform: translateY(-50%);
   width: 18px;
   height: 18px;
-  display: flex !important; /* audit-ok: display toggle utility */
+  display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
@@ -211,5 +211,5 @@ body .rss-folder-selector-input {
 }
 
 .rss-folder-selector-clear.is-hidden {
-  display: none !important; /* audit-ok: display toggle utility */
+  display: none;
 }

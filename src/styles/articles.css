@@ -621,10 +621,10 @@ body .rss-dashboard-tag-action-button svg {
 
 /* Tablet / narrow desktop (≤ 1200px) */
 @media (max-width: 1200px) {
-  /* Override inline sizing when sidebar is hidden by JS layout code. */
+  /* Restate default sizing to ensure content fills viewport when sidebar is hidden. */
   .rss-dashboard-content {
-    width: 100% !important; /* audit-ok: these properties are set via inline style by the sidebar layout manager */
-    margin-left: 0 !important; /* audit-ok: these properties are set via inline style by the sidebar layout manager */
+    width: 100%;
+    margin-left: 0;
   }
 
   /* Increase bottom padding to accommodate the persistent Obsidian mobile menu */
