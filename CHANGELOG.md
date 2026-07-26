@@ -1,3 +1,9 @@
+## 2.5.1 - July 26, 2026
+
+### Fixes
+
+- Fix: Allow `vault-shards-v2` as a valid storage mode when importing portable data bundles to resolve the "invalid Storagemode value" error.
+
 ## 2.5.0 - July 11, 2026
 
 ### Features

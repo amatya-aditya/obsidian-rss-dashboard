@@ -146,7 +146,8 @@ function parsePortableDataBundle(input: unknown): PortableDataBundle {
 
   if (
     bundle.storageMode !== "legacy-json" &&
-    bundle.storageMode !== "vault-shards"
+    bundle.storageMode !== "vault-shards" &&
+    bundle.storageMode !== "vault-shards-v2"
   ) {
     throw new Error("Portable bundle has an invalid storageMode value");
   }
