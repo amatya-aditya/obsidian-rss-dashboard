@@ -104,6 +104,10 @@ function makeFeed(
 /** Typed accessor for private RssDashboardView members accessed from tests. */
 interface DashViewTestAPI {
   render: () => void;
+  refresh: () => void;
+  refreshSidebarOnly: () => void;
+  settings: RssDashboardSettings;
+  plugin: { settings: RssDashboardSettings };
   currentFolder: string | null;
   currentFeed: Feed | null;
   selectedTags: string[];
@@ -148,6 +152,38 @@ describe("Dashboard lifecycle", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
     document.body.empty();
+  });
+
+  describe("refresh()", () => {
+    it("syncs the settings reference from the plugin before rendering", async () => {
+      const initialSettings = cloneSettings();
+      initialSettings.feeds = [];
+      const view = await makeView(initialSettings);
+
+      const syncedSettings = cloneSettings();
+      syncedSettings.feeds = [makeFeed("https://a.com/feed")];
+      view.plugin.settings = syncedSettings;
+
+      view.refresh();
+
+      expect(view.settings.feeds).toHaveLength(1);
+      expect(view.render).toHaveBeenCalled();
+    });
+  });
+
+  describe("refreshSidebarOnly()", () => {
+    it("syncs the settings reference from the plugin before rendering the sidebar", async () => {
+      const initialSettings = cloneSettings();
+      const view = await makeView(initialSettings);
+
+      const syncedSettings = cloneSettings();
+      syncedSettings.sidebarCollapsed = true;
+      view.plugin.settings = syncedSettings;
+
+      view.refreshSidebarOnly();
+
+      expect(view.settings.sidebarCollapsed).toBe(true);
+    });
   });
 
   describe("getFilteredArticles()", () => {

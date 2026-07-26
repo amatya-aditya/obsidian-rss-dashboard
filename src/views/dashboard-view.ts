@@ -3307,9 +3307,8 @@ export class RssDashboardView extends ItemView {
   }
 
   refreshSidebarOnly(): void {
-    if (!this.sidebar) {
-      return;
-    }
+    this.settings = this.plugin.settings;
+    if (!this.sidebar) return;
 
     this.sidebar.clearFolderPathCache();
     this.sidebar["options"] = {
@@ -3330,6 +3329,7 @@ export class RssDashboardView extends ItemView {
   }
 
   refresh(): void {
+    this.settings = this.plugin.settings;
     this.render();
   }
 

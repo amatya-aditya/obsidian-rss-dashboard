@@ -3,6 +3,7 @@
 ### Fixes
 
 - Fix: Allow `vault-shards-v2` as a valid storage mode when importing portable data bundles to resolve the "invalid Storagemode value" error.
+- Fix: Dashboard and sidebar views now correctly sync their settings reference from the plugin on every refresh, ensuring feed lists and sidebar folders rebuild correctly after cross-device sync delivers new data.
 
 ## 2.5.0 - July 11, 2026
 
