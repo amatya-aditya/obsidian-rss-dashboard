@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
-import { AddFeedModal } from "../../../src/modals/feed-manager/add-feed-modal";
+import {
+  AddFeedModal,
+  type AddFeedRequest,
+} from "../../../src/modals/feed-manager/add-feed-modal";
 import { MediaService } from "../../../src/services/media-service";
 import * as feedPreviewLoader from "../../../src/modals/feed-manager/feed-preview-loader";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
@@ -111,6 +114,33 @@ beforeEach(() => {
 });
 
 describe("AddFeedModal", () => {
+  it("loads the feed when Enter is pressed in the URL field", () => {
+    const app = createMockApp();
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const onSave = vi.fn();
+
+    const modal = new AddFeedModal(app, [], onAdd, onSave);
+    modal.open();
+
+    const handleLoadFeedSpy = vi
+      .spyOn(
+        modal as unknown as { handleLoadFeed: () => Promise<void> },
+        "handleLoadFeed",
+      )
+      .mockResolvedValue(undefined);
+
+    const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
+    const urlInput = urlSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+
+    urlInput.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+
+    expect(handleLoadFeedSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("submits an explicit Off auto-refresh override as -1", async () => {
     const app = createMockApp();
     const onAdd: OnAddFn = vi.fn(async () => true);
@@ -488,7 +518,9 @@ describe("AddFeedModal", () => {
 
   it("renders tag dropdown multi-select and submits selected customTags in object payload", async () => {
     const app = createMockApp();
-    const onAdd = vi.fn(async () => true);
+    const onAdd = vi.fn<(request: AddFeedRequest) => Promise<boolean | void>>(
+      async () => true,
+    );
     const onSave = vi.fn();
 
     const plugin = {
@@ -534,8 +566,11 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(onAdd).toHaveBeenCalledTimes(1);
-    const requestPayload = onAdd.mock.calls[0]?.[0];
-    expect(requestPayload).toBeDefined();
+    const addCall = (onAdd.mock.calls as Array<[AddFeedRequest]>)[0];
+    const requestPayload = addCall?.[0];
+    if (requestPayload === undefined) {
+      throw new Error("Expected add-feed request payload");
+    }
     expect(requestPayload.url).toBe("https://example.com/feed.xml");
     expect(requestPayload.title).toBe("My feed");
     expect(requestPayload.customTags).toEqual(["News", "Tech"]);

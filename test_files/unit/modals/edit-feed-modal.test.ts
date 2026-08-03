@@ -244,6 +244,53 @@ beforeEach(() => {
 });
 
 describe("EditFeedModal", () => {
+  it("loads the feed when Enter is pressed in the URL field", () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Existing feed",
+      url: "https://example.com/feed.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+    } as Feed;
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        media: {},
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+      refreshSelectedFeed: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+
+    const modal = new EditFeedModal(app, plugin, feed, vi.fn());
+    modal.open();
+
+    const handleLoadFeedSpy = vi
+      .spyOn(
+        modal as unknown as { handleLoadFeed: () => Promise<void> },
+        "handleLoadFeed",
+      )
+      .mockResolvedValue(undefined);
+
+    const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
+    const urlInput = urlSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+
+    urlInput.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+
+    expect(handleLoadFeedSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("renders storage status text and feed ID for shard mode", () => {
     const app = createMockApp();
     const feed: Feed = {

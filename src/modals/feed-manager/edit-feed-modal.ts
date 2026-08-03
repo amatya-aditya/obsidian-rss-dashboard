@@ -270,13 +270,20 @@ export class EditFeedModal extends Modal {
         this.urlInput.placeholder = "https://example.com/feed.xml";
         this.urlInput.addClass("feed-url-input");
         this.urlInput.addEventListener("focus", () => this.urlInput.select());
-        this.urlInput.addEventListener("keydown", (e) => {
+        const handleEnter = (e: KeyboardEvent) => {
           if (e.key === "Enter") {
-            this.titleInput?.focus();
-          } else if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (e.type === "keydown") {
+              void this.handleLoadFeed();
+            }
+          } else if (e.key === "Escape" && e.type === "keydown") {
             this.close();
           }
-        });
+        };
+        this.urlInput.addEventListener("keydown", handleEnter, { capture: true });
+        this.urlInput.addEventListener("keypress", handleEnter, { capture: true });
+        this.urlInput.addEventListener("keyup", handleEnter, { capture: true });
         this.urlInput.addEventListener("blur", this.normalizeNitterUrl);
         this.urlInput.addEventListener("paste", () => {
           window.setTimeout(this.normalizeNitterUrl, 0);
