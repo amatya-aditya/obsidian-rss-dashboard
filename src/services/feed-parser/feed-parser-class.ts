@@ -421,7 +421,12 @@ export class FeedParser {
     if (!description) return "";
 
     try {
-      let text = htmlToReadableText(description);
+      // Replace math spans with a placeholder so raw LaTeX doesn't appear in preview text
+      const cleaned = description.replace(
+        /<span[^>]+class=["'][^"']*\bmath(?:-container)?\b[^"']*["'][^>]*>[\s\S]*?<\/span>/gi,
+        "[math]",
+      );
+      let text = htmlToReadableText(cleaned);
       text = decodeHtmlEntities(text);
       text = text.replace(/\s+/g, " ").trim();
 

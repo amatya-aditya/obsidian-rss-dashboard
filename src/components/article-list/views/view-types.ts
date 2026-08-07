@@ -17,6 +17,7 @@ export interface ViewDeps {
     mode: "full" | "minimal-read",
   ): void;
   showArticleContextMenu(event: MouseEvent, article: FeedItem): void;
+  scheduleMathRendering?(element: HTMLElement): void;
   scheduleCardTagLayout?(card: HTMLElement): void;
   onToggleFeedSectionCollapse?(
     feedSourceName: string,

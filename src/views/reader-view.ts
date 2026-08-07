@@ -10,6 +10,11 @@ import {
   Notice,
 } from "obsidian";
 import { setIcon, Scope } from "obsidian";
+import {
+  addMathTurndownRule,
+  protectMathForMarkdown,
+  scheduleProcessMathElements,
+} from "../utils/math-rendering";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
 import {
@@ -183,6 +188,7 @@ export class ReaderView extends ItemView {
     this.onArticleSave = onArticleSave;
     this.onArticleUpdate = onArticleUpdate;
     this.onPlaybackProgress = options?.onPlaybackProgress;
+    addMathTurndownRule(this.turndownService);
 
     this.scope = new Scope(this.app.scope);
     this.setupScope();
@@ -601,7 +607,9 @@ export class ReaderView extends ItemView {
     );
     const normalizedSaveHtml =
       this.normalizeBlockLinksForSavedMarkdown(htmlWithHero);
-    return this.turndownService.turndown(normalizedSaveHtml);
+    return this.turndownService.turndown(
+      protectMathForMarkdown(normalizedSaveHtml),
+    );
   }
 
   private prependFallbackHeroForSavedMarkdown(
@@ -1598,6 +1606,10 @@ export class ReaderView extends ItemView {
     } else {
       articleTitleEl.setText(displayTitle);
     }
+    void scheduleProcessMathElements(articleTitleEl, {
+      app: this.app,
+      component: this,
+    });
 
     if (!isNitter) {
       const metaContainer = headerContainer.createDiv({
@@ -1962,6 +1974,11 @@ export class ReaderView extends ItemView {
     if (isNitter) {
       this.hydrateNitterStatsIcons(container);
     }
+
+    void scheduleProcessMathElements(container, {
+      app: this.app,
+      component: this,
+    });
   }
 
   private recoverFailedSubstackImageElement(img: HTMLImageElement): boolean {

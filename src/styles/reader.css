@@ -186,6 +186,13 @@
   line-height: inherit;
 }
 
+.rss-reader-article-content mjx-container,
+.rss-reader-article-content mjx-container *,
+.rss-reader-description-body mjx-container,
+.rss-reader-description-body mjx-container * {
+  line-height: normal;
+}
+
 .rss-reader-description-callout {
   margin: 0 auto 16px;
   border: 1px solid var(--background-modifier-border);

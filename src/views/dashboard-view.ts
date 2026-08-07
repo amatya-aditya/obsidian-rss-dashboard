@@ -39,6 +39,7 @@ import { applyAutomaticArticleTags } from "../utils/tag-utils";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { buildArticleEmptyStateContext } from "../utils/filter-detection";
 import { setupDashboardHotkeys } from "../hotkeys/dashboard-hotkeys";
+import { scheduleProcessMathElements } from "../utils/math-rendering";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -584,6 +585,7 @@ export class RssDashboardView extends ItemView {
   onOpen(): Promise<void> {
     this.articleRenderer = new ArticleRenderer({
       app: this.app,
+      component: this,
       settings: this.settings,
       onArticleSave: (item) => {
         item.saved = true;
@@ -935,6 +937,12 @@ export class RssDashboardView extends ItemView {
           },
           onOpenInReaderView: (article) => {
             void this.handleOpenInReaderView(article);
+          },
+          onRenderArticleTitle: (titleElement) => {
+            void scheduleProcessMathElements(titleElement, {
+              app: this.app,
+              component: this,
+            });
           },
           onToggleSidebar: this.handleToggleSidebar.bind(this),
           onSortChange: this.handleSortChange.bind(this),

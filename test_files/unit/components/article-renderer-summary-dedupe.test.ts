@@ -59,6 +59,7 @@ describe("ArticleRenderer – summary de-duplication", () => {
 
     renderer = new ArticleRenderer({
       app: mockApp,
+      component: new obsidian.Component(),
       settings: { ...DEFAULT_SETTINGS } as RssDashboardSettings,
       onArticleSave: vi.fn(),
       onArticleUpdate: vi.fn(),

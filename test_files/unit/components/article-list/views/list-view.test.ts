@@ -34,6 +34,27 @@ describe("list-view", () => {
     ).toBe("Test Article");
   });
 
+  it("schedules math rendering for a list title while preserving its source", () => {
+    const scheduleMathRendering = vi.fn();
+    const rawTitle = String.raw`Direct product of $\mathrm{GL}_n$`;
+    renderListView(
+      container,
+      [makeArticle({ title: rawTitle })],
+      {
+        ...baseViewContext(),
+        showListToolbar: true,
+        listToolbarStyle: "left-grid",
+      },
+      baseViewDeps({ scheduleMathRendering }),
+    );
+
+    const title = container.querySelector<HTMLElement>(
+      ".rss-dashboard-article-title",
+    );
+    expect(scheduleMathRendering).toHaveBeenCalledWith(title);
+    expect(title?.dataset.articleTitle).toBe(rawTitle);
+  });
+
   it("applies bottom-row layout class when configured", () => {
     renderListView(
       container,

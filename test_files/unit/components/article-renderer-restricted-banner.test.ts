@@ -7,6 +7,7 @@ import {
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { RESTRICTED_ARTICLE_REASON } from "../../../src/utils/full-article-fetch";
+import { Component } from "obsidian";
 
 const fetchFullArticleContentWithOutcomeMock = vi.hoisted(() => vi.fn());
 
@@ -63,6 +64,7 @@ describe("ArticleRenderer restricted-content handling", () => {
 
     renderer = new ArticleRenderer({
       app: mockApp as never,
+      component: new Component(),
       settings: { ...DEFAULT_SETTINGS, corsProxyEnabled: false } as RssDashboardSettings,
       onArticleSave: vi.fn(),
       onArticleUpdate: vi.fn(),

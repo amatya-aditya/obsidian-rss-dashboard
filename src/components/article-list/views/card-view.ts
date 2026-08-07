@@ -87,6 +87,8 @@ export function renderCardView(
     } else {
       cardTitleEl.textContent = article.title;
     }
+    cardTitleEl.dataset.articleTitle = article.title;
+    deps.scheduleMathRendering?.(cardTitleEl);
 
     if (ctx.showFeedSource) {
       const articleMeta = cardHeader.createDiv({

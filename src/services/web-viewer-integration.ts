@@ -350,6 +350,7 @@ guid: "{{guid}}"
       day: "numeric",
     });
 
+    const description = item.description;
     return template
       .replace(/{{title}}/g, item.title)
       .replace(/{{date}}/g, formattedDate)
@@ -359,7 +360,9 @@ guid: "{{guid}}"
       .replace(/{{author}}/g, item.author || "")
       .replace(/{{source}}/g, item.feedTitle || "Web viewer")
       .replace(/{{summary}}/g, item.summary || "")
-      .replace(/{{content}}/g, item.description)
+      // Use a replacer function to prevent JS regex special patterns ($$, $&)
+      // from collapsing display math delimiters like $$x^2$$ into $x^2$.
+      .replace(/{{content}}/g, () => description)
       .replace(/{{image}}/g, this.getImage(item));
   }
 

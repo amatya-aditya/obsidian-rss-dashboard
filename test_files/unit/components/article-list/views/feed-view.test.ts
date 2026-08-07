@@ -31,6 +31,23 @@ describe("feed-view", () => {
     expect(item?.querySelector(".rss-dashboard-feed-footer")).toBeTruthy();
   });
 
+  it("schedules math rendering for a feed title while preserving its source", () => {
+    const scheduleMathRendering = vi.fn();
+    const rawTitle = String.raw`Direct product of $\mathrm{GL}_n$`;
+    renderFeedView(
+      container,
+      [makeArticle({ title: rawTitle })],
+      baseViewContext(),
+      baseViewDeps({ scheduleMathRendering }),
+    );
+
+    const title = container.querySelector<HTMLElement>(
+      ".rss-dashboard-article-title",
+    );
+    expect(scheduleMathRendering).toHaveBeenCalledWith(title);
+    expect(title?.dataset.articleTitle).toBe(rawTitle);
+  });
+
   it("marks selected article as active", () => {
     const article = makeArticle();
     renderFeedView(

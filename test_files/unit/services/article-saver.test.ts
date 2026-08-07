@@ -392,6 +392,63 @@ describe("ArticleSaver.fetchFullArticleContent", () => {
   });
 });
 
+describe("ArticleSaver - Math Rendering", () => {
+  it("preserves unescaped mathjax when saving html to markdown if data-math is present", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: '<p>Inline <span class="math" data-math="$a_1$"><span>[RENDERED]</span></span> and display <span class="math" data-math="$$b_2$$"><span>[RENDERED]</span></span></p>',
+      failureType: "none",
+    });
+
+    const item = createItem({ title: "Math Article" });
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    // Turndown normally escapes _ to \_ but our data-math rule should prevent it
+    expect(written).toContain("Inline $a_1$ and display $$b_2$$");
+  });
+
+  it("preserves unescaped raw mathjax when saving html to markdown", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "<p>Inline $a_1$ and display $$b_2$$</p>",
+      failureType: "none",
+    });
+
+    const item = createItem({ title: "Raw Math Article" });
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain("Inline $a_1$ and display $$b_2$$");
+    expect(written).not.toContain("$a\\_1$");
+    expect(written).not.toContain("$b\\_2$");
+  });
+});
+
 describe("ArticleSaver.saveArticleWithFullContent", () => {
   it("prepends enclosure image when chosen feed HTML has no inline image", async () => {
     const app = App.createMock();

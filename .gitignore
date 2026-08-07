@@ -20,7 +20,6 @@ release/
 *.zip
 
 # agent
-docs/archive
 CLAUDE.md
 .kilo/
 .claude/

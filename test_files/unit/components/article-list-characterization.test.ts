@@ -123,6 +123,37 @@ describe("Phase 7 - ArticleList characterization", () => {
     h.cleanup();
   });
 
+  it("searches the original title after MathJax replaces its visible text", () => {
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: [
+        buildArticle({
+          guid: "math",
+          title: String.raw`Decomposition of $\mathrm{GL}_n$`,
+        }),
+      ],
+    });
+
+    h.list.render();
+    const title = h
+      .getArticleEl("math")
+      ?.querySelector<HTMLElement>(".rss-dashboard-article-title");
+    title?.replaceChildren(title.ownerDocument.createElement("mjx-container"));
+
+    (h.list as unknown as TestableArticleList).filterArticlesBySearch("gl");
+
+    expect(
+      h
+        .getArticleEl("math")
+        ?.classList.contains("rss-dashboard-search-hidden"),
+    ).toBe(false);
+    h.cleanup();
+  });
+
   it("refilter should re-apply the existing local search query after list recreation", () => {
     const h = createArticleListHarness({
       settings: {

@@ -192,6 +192,42 @@ export function requireApiVersion(): boolean {
   return false;
 }
 
+export function renderMath(source: string, display: boolean): HTMLElement {
+  const el = activeDocument.createElement("span");
+  el.className = "math";
+  el.textContent = source;
+  return el;
+}
+
+export function finishRenderMath(): Promise<void> {
+  return Promise.resolve();
+}
+
+export class MarkdownRenderer {
+  static render(
+    _app: App,
+    markdown: string,
+    el: HTMLElement,
+    _sourcePath: string,
+    _component: Component,
+  ): Promise<void> {
+    const doc = el.ownerDocument;
+    const display = markdown.startsWith("$$");
+    const delimiterLength = display ? 2 : 1;
+    const latex = markdown
+      .slice(delimiterLength, -delimiterLength)
+      .trim();
+    const math = doc.createElement(display ? "div" : "span");
+    math.className = display ? "math math-block" : "math math-inline";
+    const mathJax = doc.createElement("mjx-container");
+    mathJax.textContent = latex;
+    math.appendChild(mathJax);
+    el.appendChild(math);
+    return Promise.resolve();
+  }
+}
+
+
 // =============================================================================
 // Mock Event System
 // =============================================================================
@@ -660,12 +696,46 @@ export class WorkspaceLeaf {
   updateHeader(): void {}
 }
 
-export class ItemView {
+export class Component {
+  private children = new Set<Component>();
+
+  load(): void {
+    this.onload();
+    this.children.forEach((child) => child.load());
+  }
+
+  onload(): void {}
+
+  unload(): void {
+    this.children.forEach((child) => child.unload());
+    this.children.clear();
+    this.onunload();
+  }
+
+  onunload(): void {}
+
+  addChild<T extends Component>(component: T): T {
+    this.children.add(component);
+    return component;
+  }
+
+  removeChild<T extends Component>(component: T): T {
+    if (this.children.delete(component)) {
+      component.unload();
+    }
+    return component;
+  }
+
+  register(_cb: () => unknown): void {}
+}
+
+export class ItemView extends Component {
   app: App;
   leaf: WorkspaceLeaf;
   containerEl: HTMLElement;
 
   constructor(leaf: WorkspaceLeaf) {
+    super();
     this.leaf = leaf;
     this.app = leaf.app;
 

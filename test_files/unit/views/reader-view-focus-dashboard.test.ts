@@ -248,6 +248,66 @@ describe("ReaderView dashboard refocus", () => {
     );
   });
 
+  it("preserves raw math when saving from reader content", async () => {
+    const { view, saveArticleSpy } = createReaderView([]);
+
+    (
+      view as unknown as {
+        currentItem: {
+          saved: boolean;
+          title: string;
+          link: string;
+          guid: string;
+          description: string;
+          content?: string;
+          pubDate: string;
+          read: boolean;
+          starred: boolean;
+          tags: [];
+          feedTitle: string;
+          feedUrl: string;
+          coverImage: string;
+        };
+        currentFullContent: string;
+        currentContentIsFullArticle: boolean;
+      }
+    ).currentItem = {
+      saved: false,
+      title: "Math Reader Article",
+      link: "https://example.com/math",
+      guid: "math-reader-guid",
+      description: "<p>Short summary.</p>",
+      content: "",
+      pubDate: new Date().toISOString(),
+      read: false,
+      starred: false,
+      tags: [],
+      feedTitle: "Math Feed",
+      feedUrl: "https://example.com/feed.xml",
+      coverImage: "",
+    };
+
+    (
+      view as unknown as {
+        currentFullContent: string;
+        currentContentIsFullArticle: boolean;
+      }
+    ).currentFullContent = "<p>Inline $a_1$ and display $$b_2$$</p>";
+    (
+      view as unknown as {
+        currentContentIsFullArticle: boolean;
+      }
+    ).currentContentIsFullArticle = false;
+
+    await view.actionSaveCurrentArticle();
+
+    expect(saveArticleSpy).toHaveBeenCalled();
+    const markdownArg = getSavedMarkdownArg(saveArticleSpy);
+    expect(markdownArg).toContain("Inline $a_1$ and display $$b_2$$");
+    expect(markdownArg).not.toContain("$a\\_1$");
+    expect(markdownArg).not.toContain("$b\\_2$");
+  });
+
   it("prepends enclosure image when saving from reader and coverImage is missing", async () => {
     const { view, saveArticleSpy } = createReaderView([]);
 

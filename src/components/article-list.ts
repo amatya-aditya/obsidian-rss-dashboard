@@ -43,6 +43,7 @@ interface ArticleListCallbacks {
   onArticleSave?: (article: FeedItem) => Promise<void> | void;
   onOpenSavedArticle?: (article: FeedItem) => Promise<void> | void;
   onOpenInReaderView?: (article: FeedItem) => void;
+  onRenderArticleTitle?: (titleElement: HTMLElement) => void;
   onOpenInBrowser?: (article: FeedItem) => void;
   onToggleSidebar: () => void;
   onSortChange: (value: "newest" | "oldest") => void;
@@ -1161,7 +1162,10 @@ export class ArticleList {
 
     articleElements.forEach((el) => {
       const titleEl = el.querySelector(".rss-dashboard-article-title");
-      const title = titleEl?.textContent?.toLowerCase() || "";
+      const title =
+        (titleEl as HTMLElement | null)?.dataset.articleTitle?.toLowerCase() ||
+        titleEl?.textContent?.toLowerCase() ||
+        "";
 
       if (query && !title.includes(query)) {
         (el as HTMLElement).classList.add("rss-dashboard-search-hidden");
@@ -1356,6 +1360,8 @@ export class ArticleList {
         this.createArticleActionButtons(actionToolbar, article, mode),
       showArticleContextMenu: (event, article) =>
         this.showArticleContextMenu(event, article),
+      scheduleMathRendering: (element: HTMLElement) =>
+        this.callbacks.onRenderArticleTitle?.(element),
       scheduleCardTagLayout: (card) => this.scheduleCardTagLayout(card),
       onToggleFeedSectionCollapse: (feedSourceName, isCollapsed) =>
         this.onToggleFeedSectionCollapse(feedSourceName, isCollapsed),

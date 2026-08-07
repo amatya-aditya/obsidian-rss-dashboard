@@ -33,6 +33,26 @@ describe("card-view", () => {
     );
   });
 
+  it("schedules math rendering for a card title while preserving its source", () => {
+    const scheduleMathRendering = vi.fn();
+    const rawTitle = String.raw`Direct product of $\mathrm{SL}_n$`;
+    renderCardView(
+      container,
+      [makeArticle({ title: rawTitle })],
+      {
+        ...baseViewContext(),
+        showCardToolbar: true,
+      },
+      baseViewDeps({ scheduleMathRendering }),
+    );
+
+    const title = container.querySelector<HTMLElement>(
+      ".rss-dashboard-article-title",
+    );
+    expect(scheduleMathRendering).toHaveBeenCalledWith(title);
+    expect(title?.dataset.articleTitle).toBe(rawTitle);
+  });
+
   it("adds has-tags class when article has tags", () => {
     renderCardView(
       container,

@@ -95,6 +95,8 @@ function renderArticleCard(
   } else {
     titleEl.textContent = article.title;
   }
+  titleEl.dataset.articleTitle = article.title;
+  deps.scheduleMathRendering?.(titleEl);
 
   if (ctx.showFeedSource) {
     const articleMeta = header.createDiv({
