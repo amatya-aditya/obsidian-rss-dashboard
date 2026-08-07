@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Features
+
+- Added a new **Settings > Display > Dashboard** option to choose whether pagination controls appear at the top or bottom of the page, with bottom as the default. [GH Issue #161](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/161)
+
 ### Fixes
 
 - Fix: Math formulas from Math StackExchange feeds now render in Reader content and dashboard title cards through the Markdown renderer lifecycle path, with a small in-memory cache for reopen performance. Full implementation notes are archived in [docs/archive/bug_report_math_rendering.md](docs/archive/bug_report_math_rendering.md). [GH Issue #162](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/162)

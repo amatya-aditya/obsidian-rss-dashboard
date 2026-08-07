@@ -123,6 +123,64 @@ describe("Phase 7 - ArticleList characterization", () => {
     h.cleanup();
   });
 
+  it("renders pagination above the article list when configured for the top", () => {
+    const h = createArticleListHarness({
+      settings: {
+        display: { paginationPosition: "top" },
+      },
+      articles: [buildArticle({ guid: "top" })],
+      totalPages: 2,
+      totalArticles: 20,
+    });
+
+    h.list.render();
+
+    const paginationEl = h.getPaginationEl();
+    const listEl = h.getArticlesListEl();
+    expect(paginationEl).not.toBeNull();
+    expect(listEl).not.toBeNull();
+    expect(paginationEl?.compareDocumentPosition(listEl as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+
+    h.cleanup();
+  });
+
+  it("keeps pagination below the article list by default", () => {
+    const h = createArticleListHarness({
+      articles: [buildArticle({ guid: "bottom" })],
+      totalPages: 2,
+      totalArticles: 20,
+    });
+
+    h.list.render();
+
+    const paginationEl = h.getPaginationEl();
+    const listEl = h.getArticlesListEl();
+    expect(paginationEl).not.toBeNull();
+    expect(listEl).not.toBeNull();
+    expect(paginationEl?.compareDocumentPosition(listEl as Node)).toBe(
+      Node.DOCUMENT_POSITION_PRECEDING,
+    );
+
+    h.cleanup();
+  });
+
+  it("does not render pagination for an empty article list", () => {
+    const h = createArticleListHarness({
+      settings: {
+        display: { paginationPosition: "top" },
+      },
+      totalPages: 2,
+      totalArticles: 20,
+    });
+
+    h.list.render();
+
+    expect(h.getPaginationEl()).toBeNull();
+    h.cleanup();
+  });
+
   it("searches the original title after MathJax replaces its visible text", () => {
     const h = createArticleListHarness({
       settings: {

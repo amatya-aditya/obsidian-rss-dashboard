@@ -224,6 +224,27 @@ export function renderDisplaySettingsTab(
     );
 
   new Setting(containerEl)
+    .setName("Pagination position")
+    .setDesc("Choose whether dashboard pagination appears above or below the articles")
+    .addDropdown((dropdown) =>
+      dropdown
+        .addOption("bottom", "Bottom")
+        .addOption("top", "Top")
+        .setValue(plugin.settings.display.paginationPosition ?? "bottom")
+        .onChange(async (value) => {
+          plugin.settings.display.paginationPosition = value as
+            | "top"
+            | "bottom";
+          await plugin.saveSettings();
+          const view = await plugin.getActiveDashboardView();
+          if (view) {
+            await plugin.app.workspace.revealLeaf(view.leaf);
+            view.render();
+          }
+        }),
+    );
+
+  new Setting(containerEl)
     .setName('Automatically mark article "read" upon opening')
     .setDesc(
       "When an article is opened, it will be automatically marked as read",

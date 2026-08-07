@@ -1176,6 +1176,39 @@ export class ArticleList {
   }
 
   private renderArticles(): void {
+    const renderPagination = (): void => {
+      const paginationWrapper = this.container.createDiv({
+        cls: "rss-dashboard-pagination-wrapper",
+      });
+      renderPaginationUtil({
+        container: paginationWrapper,
+        currentPage: this.currentPage,
+        totalPages: this.totalPages,
+        pageSize: this.pageSize,
+        totalArticles: this.totalArticles,
+        articles: this.articles,
+        deps: {
+          isMobileViewport: () => this.isMobileViewport(),
+          onPageChange: (page: number) => this.callbacks.onPageChange(page),
+          onPageSizeChange: (pageSize: number) =>
+            this.callbacks.onPageSizeChange(pageSize),
+          onMarkPageAsRead: this.callbacks.onMarkPageAsRead,
+          onPersistSettings: this.callbacks.onPersistSettings,
+          onRerender: () => this.render(),
+          notices: {
+            show: (message: string) => new Notice(message),
+          },
+        },
+      });
+    };
+
+    if (
+      (this.settings.display.paginationPosition ?? "bottom") === "top" &&
+      this.articles.length > 0
+    ) {
+      renderPagination();
+    }
+
     const articlesList = this.container.createDiv({
       cls: `rss-dashboard-articles-list rss-dashboard-${this.settings.viewStyle}-view`,
     });
@@ -1304,29 +1337,9 @@ export class ArticleList {
       }
     }
 
-    const paginationWrapper = this.container.createDiv({
-      cls: "rss-dashboard-pagination-wrapper",
-    });
-    renderPaginationUtil({
-      container: paginationWrapper,
-      currentPage: this.currentPage,
-      totalPages: this.totalPages,
-      pageSize: this.pageSize,
-      totalArticles: this.totalArticles,
-      articles: this.articles,
-      deps: {
-        isMobileViewport: () => this.isMobileViewport(),
-        onPageChange: (page: number) => this.callbacks.onPageChange(page),
-        onPageSizeChange: (pageSize: number) =>
-          this.callbacks.onPageSizeChange(pageSize),
-        onMarkPageAsRead: this.callbacks.onMarkPageAsRead,
-        onPersistSettings: this.callbacks.onPersistSettings,
-        onRerender: () => this.render(),
-        notices: {
-          show: (message: string) => new Notice(message),
-        },
-      },
-    });
+    if ((this.settings.display.paginationPosition ?? "bottom") !== "top") {
+      renderPagination();
+    }
   }
 
   private groupArticles(
