@@ -169,6 +169,10 @@ function isInsideSkippedNode(node: Node): boolean {
   return false;
 }
 
+function isMathContainer(element: Element): boolean {
+  return element.classList.contains("math-container");
+}
+
 function createMathRenderHost(doc: Document): HTMLElement {
   const host = doc.createElement("span");
   host.className = "rss-math-render-pending";
@@ -356,11 +360,17 @@ export async function processMathElements(
   const pendingRenders: PendingMathRender[] = [];
 
   // 1. Process existing <span class="math-container"> (legacy RSS feeds)
-  const mathSpans = container.querySelectorAll<HTMLElement>(
-    "span.math-container",
+  const mathContainers: HTMLElement[] = [];
+  if (isMathContainer(container)) {
+    mathContainers.push(container);
+  }
+  mathContainers.push(
+    ...Array.from(
+      container.querySelectorAll<HTMLElement>(".math-container"),
+    ),
   );
-  result.mathContainerCount = mathSpans.length;
-  mathSpans.forEach((span) => {
+  result.mathContainerCount = mathContainers.length;
+  mathContainers.forEach((span) => {
     const rawText = span.textContent?.trim() || "";
     if (!rawText) return;
 
@@ -445,7 +455,12 @@ export async function processMathElements(
 }
 
 function hasMathCandidate(container: HTMLElement): boolean {
-  if (container.querySelector("span.math-container")) return true;
+  if (
+    isMathContainer(container) ||
+    container.querySelector(".math-container")
+  ) {
+    return true;
+  }
 
   const text = container.textContent || "";
   MATH_REGEX.lastIndex = 0;

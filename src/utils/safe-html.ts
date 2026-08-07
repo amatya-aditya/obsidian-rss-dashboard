@@ -229,6 +229,14 @@ function sanitizeAndAppendNode(
   parent.appendChild(next);
 }
 
+function escapeMathContainerMarkup(html: string): string {
+  return html.replace(
+    /(<span\b[^>]*\bclass=(['"])[^'"]*\bmath-container\b[^'"]*\2[^>]*>)([\s\S]*?)(<\/span\s*>)/gi,
+    (_match, openingTag: string, _quote: string, math: string, closingTag: string) =>
+      `${openingTag}${math.replace(/</g, "&lt;").replace(/>/g, "&gt;")}${closingTag}`,
+  );
+}
+
 export function sanitizeAndAppendHtml(
   container: HTMLElement,
   rawHtml: string,
@@ -239,7 +247,10 @@ export function sanitizeAndAppendHtml(
   const mode = options.mode ?? "strict";
 
   const parser = new DOMParser();
-  const doc = parser.parseFromString(html, "text/html");
+  const doc = parser.parseFromString(
+    escapeMathContainerMarkup(html),
+    "text/html",
+  );
   const ownerDoc = container.ownerDocument || activeDocument;
 
   Array.from(doc.body.childNodes).forEach((node) =>

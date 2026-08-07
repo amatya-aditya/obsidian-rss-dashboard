@@ -279,6 +279,58 @@ describe("Math Rendering Utilities", () => {
       expect(container.querySelectorAll("mjx-container").length).toBe(2);
     });
 
+    it("renders the PDE feed excerpt with multiline display formulas", async () => {
+      const container = document.createElement("div");
+      const paragraph = document.createElement("p");
+      paragraph.append(
+        "Taking (3.35) as an example: ",
+        Object.assign(document.createElement("span"), {
+          className: "math-container",
+          textContent: String.raw`$$ \mathbf{J}_N - \mathbf{J}
+ = -\rho'(\varphi_N)\nabla\mu_N + \rho'(\varphi)\nabla\mu $$`,
+        }),
+        " and the strong convergence ",
+        Object.assign(document.createElement("span"), {
+          className: "math-container",
+          textContent: String.raw`$$ \nabla\mu_N \to \nabla\mu \quad \text{in } L^4(\mathcal{Q}_T), $$`,
+        }),
+      );
+      container.appendChild(paragraph);
+      document.body.appendChild(container);
+
+      const result = await processMathElements(container, getContext());
+
+      expect(result).toMatchObject({
+        mathContainerCount: 2,
+        renderedCount: 2,
+        failedCount: 0,
+      });
+      expect(container.querySelectorAll("span.math-container")).toHaveLength(0);
+      expect(container.querySelectorAll("mjx-container")).toHaveLength(2);
+    });
+
+    it("passes LaTeX comparison operators directly to the Markdown renderer", async () => {
+      const container = document.createElement("div");
+      const mathSpan = document.createElement("span");
+      mathSpan.className = "math-container";
+      mathSpan.textContent = String.raw`$1<p<\infty$`;
+      container.appendChild(mathSpan);
+      document.body.appendChild(container);
+
+      await processMathElements(container, getContext());
+
+      expect(obsidian.MarkdownRenderer.render).toHaveBeenCalledWith(
+        app,
+        "$1<p<\\infty$",
+        expect.any(HTMLElement),
+        "",
+        component,
+      );
+      expect(container.querySelector("span.math")?.getAttribute("data-math")).toBe(
+        String.raw`$1<p<\infty$`,
+      );
+    });
+
     it("restores the original feed span when fragment rendering fails", async () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       vi.mocked(obsidian.MarkdownRenderer.render).mockRejectedValueOnce(

@@ -326,6 +326,19 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
     expect(container.textContent).toContain("Image caption text");
   });
 
+  it("preserves raw LaTeX comparison operators without creating invalid elements", () => {
+    const container = createContainer();
+    const feedHtml = String.raw`<p><span class="math-container">$1<p<\infty$</span></p>`;
+
+    expect(() => {
+      sanitizeAndAppendHtml(container, feedHtml, { mode: "rich" });
+    }).not.toThrow();
+
+    expect(container.querySelector(".math-container")?.textContent).toContain(
+      String.raw`$1<p<\infty$`,
+    );
+  });
+
   it("regression: multiple malformed attributes do not truncate downstream DOM", () => {
     const container = createContainer();
 
