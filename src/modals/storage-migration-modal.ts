@@ -1,9 +1,14 @@
 import { Modal, App, Setting, Notice } from "obsidian";
 import type RssDashboardPlugin from "../../main";
+import type { FeedStorageMode } from "../types/types";
+
+export function shouldOfferStorageMigration(mode: FeedStorageMode): boolean {
+  return mode === "legacy-json" || mode === "vault-shards";
+}
 
 /**
- * Shown on every plugin load when the user's storage mode is not vault-shards-v2
- * and they have not permanently dismissed the prompt.
+ * Shown on every plugin load for legacy and v1 storage when the user has not
+ * permanently dismissed the prompt. V2 and Sync V3 are already current modes.
  *
  * Buttons:
  *  - "Upgrade Now" — backs up data, migrates to v2, sets dismissed flag

@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
-import { StorageMigrationModal } from "../../../src/modals/storage-migration-modal";
+import {
+  shouldOfferStorageMigration,
+  StorageMigrationModal,
+} from "../../../src/modals/storage-migration-modal";
 import type RssDashboardPlugin from "../../../main";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -30,6 +33,13 @@ beforeEach(() => {
 });
 
 describe("StorageMigrationModal", () => {
+  it("offers the legacy migration only for legacy and v1 storage", () => {
+    expect(shouldOfferStorageMigration("legacy-json")).toBe(true);
+    expect(shouldOfferStorageMigration("vault-shards")).toBe(true);
+    expect(shouldOfferStorageMigration("vault-shards-v2")).toBe(false);
+    expect(shouldOfferStorageMigration("replicated-v3")).toBe(false);
+  });
+
   it("closes statelessly on 'Remind me later'", async () => {
     const app = createMockApp();
     const plugin: TestPlugin = {

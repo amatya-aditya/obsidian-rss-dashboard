@@ -28,6 +28,7 @@ Only the feeds you need. Stream the world's knowledge into your vault: RSS, podc
 - [One-Click Subscribe URI](#one-click-subscribe-uri)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Syncing across devices](#syncing-across-devices)
+- [Sync V3 manual walkthrough](docs/sync-v3-manual-walkthrough.md)
 - [Development](#development)
 - [Troubleshooting](#troubleshooting)
 - [YouTube Embeds and Terms](#youtube-embeds-and-terms)
@@ -224,6 +225,10 @@ To quickly access the keyboard shortcuts help file, press `?` (Shift + /) within
 For a preview of the keyboard shortcuts, see [Keyboard Shortcuts](docs/keyboard-shortcuts.md).
 
 ## Syncing Across Devices
+
+> **Sync V3 users:** The legacy instructions below are retained only for recovery of
+> V1/V2 data. For concurrent devices, use the [Sync V3 manual walkthrough](docs/sync-v3-manual-walkthrough.md).
+> V3 uses device-owned replicas and does not rely on an unavailable Obsidian Sync-completion API.
 
 RSS Dashboard supports Obsidian Sync and some other third-party sync solutions, but requires
 a specific setup order on new devices to prevent feed data from being overwritten.

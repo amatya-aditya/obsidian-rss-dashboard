@@ -16,6 +16,8 @@ import type {
 } from "../../../src/types/types";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import { AddFeedModal } from "../../../src/modals/feed-manager/add-feed-modal";
+import { StorageMigrationModal } from "../../../src/modals/storage-migration-modal";
+import { StorageOnboardingModal } from "../../../src/modals/storage-onboarding-modal";
 
 // Mock functions for FeedParser - must be declared before mocks
 const mockParseFeed = vi.fn<(url: string) => Promise<Feed>>();
@@ -378,6 +380,49 @@ describe("onload() initialization", () => {
     Platform.isMobile = originalPlatformIsMobile;
     Platform.isDesktop = originalPlatformIsDesktop;
     vi.restoreAllMocks();
+  });
+
+  it("shows storage onboarding instead of a legacy-upgrade prompt on a fresh install", async () => {
+    const onboardingOpen = vi.spyOn(StorageOnboardingModal.prototype, "open").mockImplementation(() => {});
+    const migrationOpen = vi.spyOn(StorageMigrationModal.prototype, "open").mockImplementation(() => {});
+
+    await plugin.onload();
+    plugin.app.workspace.triggerLayoutReady();
+
+    expect(onboardingOpen).toHaveBeenCalledTimes(1);
+    expect(migrationOpen).not.toHaveBeenCalled();
+  });
+
+  it("does not show the legacy-upgrade prompt for Sync V3", async () => {
+    const migrationOpen = vi.spyOn(StorageMigrationModal.prototype, "open").mockImplementation(() => {});
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...DEFAULT_SETTINGS,
+      storageMode: "replicated-v3",
+    });
+
+    await plugin.onload();
+    plugin.app.workspace.triggerLayoutReady();
+
+    expect(migrationOpen).not.toHaveBeenCalled();
+  });
+
+  it("reopens storage onboarding for an existing configured install", async () => {
+    const onboardingOpen = vi
+      .spyOn(StorageOnboardingModal.prototype, "open")
+      .mockImplementation(() => {});
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...DEFAULT_SETTINGS,
+      storageMode: "vault-shards-v2",
+    });
+
+    await plugin.onload();
+    plugin.app.workspace.triggerLayoutReady();
+
+    expect(onboardingOpen).not.toHaveBeenCalled();
+
+    plugin.showStorageOnboardingWizard();
+
+    expect(onboardingOpen).toHaveBeenCalledTimes(1);
   });
 
   it("registers all required views", async () => {
@@ -1385,6 +1430,30 @@ describe("addFeed()", () => {
     // Then: Should return true and add feed to settings
     expect(result).toBe(true);
     expect(plugin.settings.feeds).toHaveLength(2);
+  });
+
+  it("adds a feed while Sync V3 is waiting for a primary replica", async () => {
+    const newUrl = "https://example.com/waiting-for-v3.xml";
+    plugin.settings.storageMode = "replicated-v3";
+    mockParseFeed.mockResolvedValue({
+      title: "Waiting Feed",
+      url: newUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+      mediaType: "article",
+    });
+
+    const result = await plugin.addFeed(
+      "Waiting Feed",
+      newUrl,
+      "Uncategorized",
+    );
+
+    expect(result).toBe(true);
+    expect(plugin.settings.feeds).toContainEqual(
+      expect.objectContaining({ url: newUrl }),
+    );
   });
 
   it("detects media type based on folder (YouTube)", async () => {

@@ -37,6 +37,7 @@ export interface GeneralSettingsPlugin {
   exportPortableDataBundle(): Promise<void>;
   applyFeedLimitsToAllFeeds(): Promise<void>;
   refreshFeeds(): Promise<void>;
+  showStorageOnboardingWizard(): void;
 }
 
 // ── Pure preset helpers (exported for testing) ───────────────────────────────
@@ -199,6 +200,19 @@ export function renderGeneralSettingsTab(
         }
       });
     });
+
+  new Setting(containerEl).setName("Storage setup").setHeading();
+
+  new Setting(containerEl)
+    .setName("Show startup wizard")
+    .setDesc(
+      "Review or change how RSS dashboard stores feeds on this device. Changing modes requires confirmation and does not delete sync v3 replica data.",
+    )
+    .addButton((button) =>
+      button.setButtonText("Show wizard").onClick(() => {
+        plugin.showStorageOnboardingWizard();
+      }),
+    );
 
   new Setting(containerEl).setName("Global feeds").setHeading();
 

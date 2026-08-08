@@ -68,6 +68,16 @@ function createPlugin() {
         lastRepairResult: "Not yet run",
       }),
     ),
+    getSyncV3Status: vi.fn(async () => ({
+      health: "migration-required" as const,
+      root: "rss-dashboard-data/sync-v3",
+      deviceId: "device-123456789",
+      replicaCount: 0,
+      invalidReplicaCount: 0,
+      localCachePath: ".rss-dashboard-cache-v3/runtime.json",
+      lastLocalWrite: null,
+      lastIncomingMerge: null,
+    })),
     migrateToVaultStorage: vi.fn(async () => {}),
     revertToLegacyJsonStorage: vi.fn(async () => {}),
     revertToLegacyJsonStorageWithOptions: vi.fn(async () => {}),
@@ -95,6 +105,20 @@ beforeEach(() => {
 });
 
 describe("General settings storage section", () => {
+  it("renders rich V3 and storage-mode descriptions without stringifying fragments", async () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+    await flushAsyncWork();
+
+    expect(containerEl.textContent).not.toContain("[object DocumentFragment]");
+    expect(getSettingByName(containerEl, "Sync v3 replica health").textContent)
+      .toContain("rss-dashboard-data/sync-v3");
+    expect(getSettingByName(containerEl, "Storage mode").textContent)
+      .toContain("Sync v3:");
+  });
+
   it("marks the storage transition modal for mobile safe-area positioning", () => {
     const app = obsidian.App.createMock();
     const modal = new StorageTransitionModal(app, {

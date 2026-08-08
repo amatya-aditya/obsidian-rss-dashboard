@@ -52,6 +52,18 @@ interface StorageSettingsPlugin {
   openStorageFolderInSystem(folderPath?: string): Promise<void>;
   migrateMetadataToVaultLocation(): Promise<void>;
   revertMetadataToPluginDefault(): Promise<void>;
+  getSyncV3Status?(): Promise<{
+    health: "migration-required" | "waiting-for-primary" | "ready" | "degraded";
+    root: string;
+    deviceId: string;
+    replicaCount: number;
+    invalidReplicaCount: number;
+    localCachePath: string;
+    lastLocalWrite: number | null;
+    lastIncomingMerge: number | null;
+  }>;
+  createSyncV3Set?(): Promise<void>;
+  joinSyncV3Set?(): Promise<boolean>;
 }
 
 function storageLog(_message: string, _details?: unknown): void {}
@@ -98,6 +110,66 @@ export function renderStorageSettingsTab(
 ): void {
   new Setting(containerEl).setName("Storage").setHeading();
 
+  const syncV3StatusText = activeDocument.createElement("span");
+  syncV3StatusText.setText("Checking RSS dashboard sync v3 replica health…");
+  const syncV3StatusDescription = activeDocument.createDocumentFragment();
+  syncV3StatusDescription.appendChild(syncV3StatusText);
+  const syncV3StatusSetting = new Setting(containerEl)
+    .setName("Sync v3 replica health")
+    .setDesc("");
+  syncV3StatusSetting.descEl.empty();
+  syncV3StatusSetting.descEl.appendChild(syncV3StatusDescription);
+  if (plugin.getSyncV3Status) void plugin.getSyncV3Status().then((status) => {
+    const lastWrite = status.lastLocalWrite
+      ? new Date(status.lastLocalWrite).toLocaleString()
+      : "not yet";
+    const lastMerge = status.lastIncomingMerge
+      ? new Date(status.lastIncomingMerge).toLocaleString()
+      : "not yet";
+    const setupGuidance = status.health === "migration-required"
+      ? " This device is local-only until you create or join a Sync v3 set."
+      : "";
+    syncV3StatusText.setText(
+      `Status: ${status.health}. Shared folder: ${status.root}. Device: ${status.deviceId.slice(0, 16)}. ` +
+        `replicas: ${status.replicaCount}; invalid or incomplete: ${status.invalidReplicaCount}. ` +
+        `local cache: ${status.localCachePath}. Last local write: ${lastWrite}. Last incoming merge: ${lastMerge}.` +
+        setupGuidance,
+    );
+  }).catch(() => {
+    syncV3StatusText.setText("Sync v3 status could not be read. Existing shared files were not changed.");
+  });
+  else syncV3StatusText.setText("Sync v3 is unavailable in this plugin build.");
+
+  new Setting(containerEl)
+    .setName("Sync v3 setup")
+    .setDesc(
+      "Sync v3 supports concurrent devices. This reports RSS dashboard replica health, not Obsidian sync completion. Enable sync all other types on every device, do not exclude RSS-dashboard-data, and upgrade every participating device before relying on v3.",
+    )
+    .addButton((button) => button.setButtonText("Create v3 sync set from this device").setCta().onClick(() => {
+      if (!plugin.createSyncV3Set) return;
+      const confirmed = activeWindow.confirm(
+        "Create Sync v3 from this device? Export a portable backup first, then use this device as the authoritative source for the new shared set.",
+      );
+      if (!confirmed) return;
+      void plugin.exportPortableDataBundle().then(() => plugin.createSyncV3Set!()).then(() => {
+        new Notice("Sync v3 set created. Join it from each other device.");
+        plugin.settingTab?.display();
+      }).catch((error: unknown) => {
+        new Notice(`Could not create sync v3${error instanceof Error ? `: ${error.message}` : ""}`);
+      });
+    }))
+    .addButton((button) => button.setButtonText("Join existing v3 sync set").onClick(() => {
+      if (!plugin.joinSyncV3Set) return;
+      void plugin.joinSyncV3Set().then((joined) => {
+        new Notice(joined ? "Joined sync v3 set." : "No valid sync v3 set is available yet.");
+        plugin.settingTab?.display();
+      }).catch((error: unknown) => {
+        new Notice(`Could not join sync v3${error instanceof Error ? `: ${error.message}` : ""}`);
+      });
+    }));
+
+  new Setting(containerEl).setName("Legacy storage recovery").setHeading();
+
   let pendingStorageMode = plugin.settings.storageMode;
   let pendingStorageFolder = plugin.settings.storageFolder;
 
@@ -105,7 +177,9 @@ export function renderStorageSettingsTab(
     const status = plugin.getStorageStatus();
     const migrationState = status.migrationReady
       ? "Migration ready"
-      : status.mode === "vault-shards-v2"
+      : status.mode === "replicated-v3"
+        ? "Sync V3 active"
+        : status.mode === "vault-shards-v2"
         ? "Shard Storage v2 active"
         : status.mode === "vault-shards"
           ? "Shard Storage v1 active"
@@ -293,18 +367,28 @@ export function renderStorageSettingsTab(
   const v2Div = activeDocument.createElement("div");
   v2Div.createEl("strong", { text: "Shard storage v2:" });
   v2Div.appendText(
-    " Splits feed content and user state (read, starred, tags) into separate files, providing the most robust sync experience.",
+    " Splits feed content and user state (read, starred, tags) into separate files. It remains available for recovery and migration.",
   );
   descFragment.appendChild(v2Div);
 
-  new Setting(containerEl)
+  const v3Div = activeDocument.createElement("div");
+  v3Div.createEl("strong", { text: "Sync v3:" });
+  v3Div.appendText(
+    " device-owned replicas with explicit read/unread values. Use the setup actions above; legacy repair does not rewrite v3 replicas.",
+  );
+  descFragment.appendChild(v3Div);
+
+  const storageModeSetting = new Setting(containerEl)
     .setName("Storage mode")
-    .setDesc(descFragment)
-    .addDropdown((dropdown) =>
+    .setDesc("");
+  storageModeSetting.descEl.empty();
+  storageModeSetting.descEl.appendChild(descFragment);
+  storageModeSetting.addDropdown((dropdown) =>
       dropdown
         .addOption("legacy-json", "Legacy JSON")
         .addOption("vault-shards", "Shard storage v1")
         .addOption("vault-shards-v2", "Shard storage v2")
+        .addOption("replicated-v3", "Sync v3 replicas")
         .setValue(pendingStorageMode)
         .onChange((value) => {
           storageLog("Storage mode dropdown changed", {
@@ -375,6 +459,11 @@ export function renderStorageSettingsTab(
 
             if (!modeChanged && !folderChanged) {
               new Notice("No storage changes to apply.");
+              return;
+            }
+
+            if (pendingStorageMode === "replicated-v3") {
+              new Notice("Use create v3 sync set or join existing v3 sync set above.");
               return;
             }
 

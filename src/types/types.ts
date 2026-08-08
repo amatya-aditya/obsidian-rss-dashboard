@@ -386,7 +386,68 @@ export interface AutoBackupSettings {
 export type FeedStorageMode =
   | "legacy-json"
   | "vault-shards"
-  | "vault-shards-v2";
+  | "vault-shards-v2"
+  | "replicated-v3";
+
+/** A deterministic, device-tied ordering token used by Sync V3. */
+export interface HybridLogicalClock {
+  wallTime: number;
+  counter: number;
+  deviceId: string;
+}
+
+export interface SyncV3Epoch {
+  version: 3;
+  epochId: string;
+  createdAt: number;
+  primaryDeviceId: string;
+}
+
+export interface SyncV3StateValue {
+  value: boolean | Tag[] | string | FeedItem["playbackProgress"] | null;
+  stamp: HybridLogicalClock;
+}
+
+export interface SyncV3ArticleState {
+  fields: Partial<Record<keyof ArticleUserState, SyncV3StateValue>>;
+}
+
+export interface SyncV3StateBucket {
+  version: 3;
+  epochId: string;
+  deviceId: string;
+  revision: number;
+  states: Record<string, SyncV3ArticleState>;
+}
+
+export interface SyncV3ConfigOperation {
+  id: string;
+  stamp: HybridLogicalClock;
+  type: "upsert-feed" | "remove-feed" | "set-folders";
+  feed?: PersistedFeedConfig;
+  feedId?: string;
+  folders?: Folder[];
+  observedRemoval?: HybridLogicalClock;
+}
+
+export interface SyncV3ConfigLog {
+  version: 3;
+  epochId: string;
+  deviceId: string;
+  revision: number;
+  operations: SyncV3ConfigOperation[];
+}
+
+export interface SyncV3Status {
+  health: "migration-required" | "waiting-for-primary" | "ready" | "degraded";
+  root: string;
+  deviceId: string;
+  replicaCount: number;
+  invalidReplicaCount: number;
+  localCachePath: string;
+  lastLocalWrite: number | null;
+  lastIncomingMerge: number | null;
+}
 
 export interface ArticleUserState {
   read?: boolean;
