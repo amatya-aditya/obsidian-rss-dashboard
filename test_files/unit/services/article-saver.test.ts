@@ -48,12 +48,11 @@ beforeEach(() => {
 });
 
 describe("sanitizeFilename", () => {
-  it("preserves the full sanitized title without truncating words or length", () => {
-    const title =
-      'This is a deliberately long article title with / illegal : characters " removed" and extra words';
+  it("removes invalid characters and caps long titles at 100 characters", () => {
+    const title = `  ${"a".repeat(98)} /  zzz`;
 
     expect(sanitizeFilename(title)).toBe(
-      "This is a deliberately long article title with illegal characters removed and extra words",
+      `${"a".repeat(98)} z`,
     );
   });
 
@@ -135,7 +134,7 @@ describe("ArticleSaver.saveArticle", () => {
 
     expect(item.saved).toBe(true);
     expect(item.savedFilePath).toBe(expectedPath);
-    expect(item.tags.map((t) => t.name)).toEqual(["tech", "Saved"]);
+    expect(item.tags?.map((tag) => tag.name)).toEqual(["tech", "Saved"]);
   });
 
   it("trashes an existing file at the same path before creating a new one", async () => {

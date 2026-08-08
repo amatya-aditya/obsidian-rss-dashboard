@@ -21,13 +21,16 @@ import {
   protectMathForMarkdown,
 } from "../utils/math-rendering";
 
+const MAX_FILENAME_LENGTH = 100;
+
 export function sanitizeFilename(name: string): string {
   const sanitized = name
     .replace(/[/\\:*?"<>|]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+  const truncated = sanitized.slice(0, MAX_FILENAME_LENGTH).trim();
 
-  return sanitized || "Untitled Article";
+  return truncated || "Untitled Article";
 }
 
 export class ArticleSaver {

@@ -7,6 +7,7 @@
 
 ### Fixes
 
+- Fixed article saves failing on Windows when long titles produced filenames that exceeded safe path lengths by truncating generated filenames to 100 characters while preserving the full title in the note content. [GH Issue #157](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/157)
 - Fix: Math formulas from Math StackExchange feeds now render in Reader content and dashboard title cards through the Markdown renderer lifecycle path, with a small in-memory cache for reopen performance. Full implementation notes are archived in [docs/archive/bug_report_math_rendering.md](docs/archive/bug_report_math_rendering.md). [GH Issue #162](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/162)
 
 ## 2.6.0 - August 3, 2026

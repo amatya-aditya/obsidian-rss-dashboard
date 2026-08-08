@@ -308,14 +308,12 @@ describe("Phase 8 - WebViewerIntegration", () => {
   });
 
   describe("helpers", () => {
-    it("sanitizeFilename replaces illegal chars, collapses whitespace, and preserves the full title", () => {
+    it("sanitizeFilename replaces illegal chars, collapses whitespace, and caps long titles", () => {
       expect(sanitizeFilename('Hello / World: "Test"')).toBe("Hello World Test");
       expect(
-        sanitizeFilename(
-          'This is a deliberately long article title with / illegal : characters " removed" and extra words',
-        ),
+        sanitizeFilename(`  ${"a".repeat(98)} /  zzz`),
       ).toBe(
-        "This is a deliberately long article title with illegal characters removed and extra words",
+        `${"a".repeat(98)} z`,
       );
     });
 
@@ -378,7 +376,7 @@ guid: "{{guid}}"
           },
         });
         const integration = h.integration as unknown as {
-          generateFrontmatter: (item: { title: string; guid: string; link: string; author?: string; feedTitle: string; tags: { name: string; color: string }[]; pubDate: string }) => string;
+          generateFrontmatter: (item: FeedItem) => string;
         };
         const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
 
@@ -463,7 +461,7 @@ cover: "{{image}}"
       },
     });
     const integration = h.integration as unknown as {
-      generateFrontmatter: (item: { title: string; guid: string; link: string; author?: string; feedTitle: string; tags: { name: string; color: string }[]; pubDate: string; image?: string }) => string;
+      generateFrontmatter: (item: FeedItem) => string;
     };
     const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
 
