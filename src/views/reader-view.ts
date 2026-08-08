@@ -55,6 +55,10 @@ import { RSS_DASHBOARD_VIEW_TYPE, RssDashboardView } from "./dashboard-view";
 import { VaultFolderSuggest } from "../components/folder-suggest";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
+import {
+  ConfirmTemplateAssignmentModal,
+  TemplateNameModal,
+} from "../settings/modals/settings-modals";
 
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
@@ -1109,7 +1113,7 @@ export class ReaderView extends ItemView {
   private showCustomSaveModal(item: FeedItem): void {
     const displayTitle = this.currentDisplayTitle;
     const modal = activeDocument.body.createDiv({
-      cls: "rss-dashboard-modal rss-dashboard-modal-container",
+      cls: "rss-dashboard-modal rss-dashboard-modal-container rss-dashboard-custom-save-modal",
     });
 
     const modalContent = modal.createDiv({
@@ -1157,10 +1161,42 @@ export class ReaderView extends ItemView {
 
     new VaultFolderSuggest(this.app, folderInput);
 
+    const savedTemplateLabel = modalContent.createEl("label", {
+      text: "Saved template:",
+      attr: { for: "rss-dashboard-saved-template" },
+    });
+
+    const savedTemplateSelectWrapper = modalContent.createDiv({
+      cls: "rss-dashboard-template-select-wrapper",
+    });
+    const savedTemplateSelect = savedTemplateSelectWrapper.createEl("select", {
+      cls: "rss-dashboard-template-select",
+      attr: { id: "rss-dashboard-saved-template" },
+    });
+    savedTemplateSelect.createEl("option", {
+      text: "Current template",
+      value: "",
+    });
+    for (const savedTemplate of this.settings.articleSaving.savedTemplates) {
+      savedTemplateSelect.createEl("option", {
+        text: savedTemplate.name,
+        value: savedTemplate.id,
+      });
+    }
+    const feedTemplateId = this.settings.feeds.find(
+      (feed) => feed.url === item.feedUrl,
+    )?.customTemplate;
+    const initialSelectedTemplateId =
+      this.settings.articleSaving.savedTemplates.some(
+        (template) => template.id === feedTemplateId,
+      )
+        ? (feedTemplateId ?? "")
+        : "";
+    savedTemplateSelect.value = initialSelectedTemplateId;
+
     const templateLabel = modalContent.createEl("label", {
       text: "Use template:",
     });
-
     const templateInput = modalContent.createEl("textarea", {
       attr: {
         placeholder: "Enter template",
@@ -1171,6 +1207,90 @@ export class ReaderView extends ItemView {
     const feedTemplate = this.getCustomTemplateForArticle(item);
     templateInput.value =
       feedTemplate || this.settings.articleSaving.defaultTemplate || "";
+    let templateBaseline = templateInput.value;
+    let selectedTemplateId = initialSelectedTemplateId;
+    let pendingNewTemplate: {
+      id: string;
+      name: string;
+      template: string;
+      assignToFeed: boolean;
+      previousSelectedTemplateId: string;
+    } | null = null;
+
+    const discardPendingNewTemplate = () => {
+      if (!pendingNewTemplate) return;
+
+      const pendingOption = Array.from(savedTemplateSelect.options).find(
+        (option) => option.value === pendingNewTemplate?.id,
+      );
+      pendingOption?.remove();
+      selectedTemplateId = pendingNewTemplate.previousSelectedTemplateId;
+      savedTemplateSelect.value = selectedTemplateId;
+      pendingNewTemplate = null;
+    };
+
+    const saveAsTemplateButton = modalContent.createEl("button", {
+      text: "Save as new template",
+      cls: "rss-dashboard-custom-save-template-button",
+    });
+    saveAsTemplateButton.hidden = true;
+
+    const refreshSaveAsTemplateButton = () => {
+      if (
+        pendingNewTemplate &&
+        pendingNewTemplate.template !== templateInput.value
+      ) {
+        discardPendingNewTemplate();
+      }
+
+      saveAsTemplateButton.hidden = templateInput.value === templateBaseline;
+      saveAsTemplateButton.textContent = pendingNewTemplate
+        ? "New template will be saved"
+        : "Save as new template";
+    };
+
+    savedTemplateSelect.addEventListener("change", () => {
+      discardPendingNewTemplate();
+      selectedTemplateId = savedTemplateSelect.value;
+      const selectedTemplate =
+        this.settings.articleSaving.savedTemplates.find(
+          (template) => template.id === selectedTemplateId,
+        );
+      if (selectedTemplate) {
+        templateInput.value = selectedTemplate.template;
+        templateBaseline = selectedTemplate.template;
+      }
+      pendingNewTemplate = null;
+      refreshSaveAsTemplateButton();
+    });
+
+    templateInput.addEventListener("input", refreshSaveAsTemplateButton);
+
+    saveAsTemplateButton.addEventListener("click", () => {
+      void (async () => {
+        const nameModal = new TemplateNameModal(this.app);
+        nameModal.open();
+        const name = await nameModal.waitForClose();
+        if (!name) return;
+
+        const assignmentModal = new ConfirmTemplateAssignmentModal(this.app);
+        assignmentModal.open();
+        const assignToFeed = await assignmentModal.waitForClose();
+        const id = "template-" + Date.now();
+        pendingNewTemplate = {
+          id,
+          name,
+          template: templateInput.value,
+          assignToFeed,
+          previousSelectedTemplateId: selectedTemplateId,
+        };
+        savedTemplateSelect.createEl("option", { text: name, value: id });
+        savedTemplateSelect.value = id;
+        selectedTemplateId = id;
+        templateBaseline = templateInput.value;
+        refreshSaveAsTemplateButton();
+      })();
+    });
 
     const buttonContainer = modalContent.createDiv({
       cls: "rss-dashboard-modal-buttons",
@@ -1178,6 +1298,7 @@ export class ReaderView extends ItemView {
 
     const cancelButton = buttonContainer.createEl("button", {
       text: "Cancel",
+      cls: "rss-dashboard-custom-save-cancel-button",
     });
     cancelButton.addEventListener("click", () => {
       activeDocument.body.removeChild(modal);
@@ -1185,7 +1306,7 @@ export class ReaderView extends ItemView {
 
     const saveButton = buttonContainer.createEl("button", {
       text: "Save",
-      cls: "rss-dashboard-primary-button",
+      cls: "rss-dashboard-primary-button rss-dashboard-custom-save-confirm-button",
     });
     saveButton.addEventListener("click", () => {
       void (async () => {
@@ -1201,6 +1322,27 @@ export class ReaderView extends ItemView {
           markdownContent,
         );
         if (file) {
+          const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
+          if (pendingNewTemplate) {
+            const newTemplate = {
+              id: pendingNewTemplate.id,
+              name: pendingNewTemplate.name,
+              template: pendingNewTemplate.template,
+            };
+            this.settings.articleSaving.savedTemplates.push(newTemplate);
+            if (pendingNewTemplate.assignToFeed && feed) {
+              feed.customTemplate = newTemplate.id;
+            }
+          } else if (selectedTemplateId && feed) {
+            const selectedTemplate =
+              this.settings.articleSaving.savedTemplates.find(
+                (template) => template.id === selectedTemplateId,
+              );
+            if (selectedTemplate) {
+              feed.customTemplate = selectedTemplate.id;
+            }
+          }
+
           item.saved = true;
           item.savedFilePath = file.path;
           this.onArticleSave(item);
@@ -1217,8 +1359,11 @@ export class ReaderView extends ItemView {
 
     modalContent.appendChild(folderLabel);
     modalContent.appendChild(folderInputContainer);
+    modalContent.appendChild(savedTemplateLabel);
+    modalContent.appendChild(savedTemplateSelectWrapper);
     modalContent.appendChild(templateLabel);
     modalContent.appendChild(templateInput);
+    modalContent.appendChild(saveAsTemplateButton);
     modalContent.appendChild(buttonContainer);
 
     modal.appendChild(modalContent);

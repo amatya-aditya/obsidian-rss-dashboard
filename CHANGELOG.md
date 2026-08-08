@@ -2,6 +2,7 @@
 
 ### Features
 
+- Added a saved-template selector when saving articles to a custom folder, including immediate selection of newly created templates and viewable templates via Article Savings tab. [GH Issue #158](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/158)
 - Added a new **Settings > Display > Dashboard** option to choose whether pagination controls appear at the top or bottom of the page, with bottom as the default. [GH Issue #161](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/161)
 
 ### Fixes

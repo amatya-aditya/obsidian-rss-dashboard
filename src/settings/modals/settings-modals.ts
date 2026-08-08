@@ -21,6 +21,8 @@ export class TemplateNameModal extends Modal {
   }
 
   onOpen() {
+    this.containerEl.addClass("rss-dashboard-template-dialog-container");
+    this.modalEl.addClass("rss-dashboard-template-dialog");
     const { contentEl } = this;
     contentEl.empty();
 
@@ -71,6 +73,55 @@ export class TemplateNameModal extends Modal {
   }
 
   waitForClose(): Promise<string | null> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}
+
+export class ConfirmTemplateAssignmentModal extends Modal {
+  private confirmed = false;
+  private resolvePromise: ((value: boolean) => void) | null = null;
+
+  constructor(app: App) {
+    super(app);
+  }
+
+  onOpen() {
+    this.containerEl.addClass("rss-dashboard-template-dialog-container");
+    this.modalEl.addClass("rss-dashboard-template-dialog");
+    const { contentEl } = this;
+    contentEl.empty();
+
+    contentEl.createEl("h2", { text: "Use template for this feed?" });
+    contentEl.createEl("p", {
+      text: "Use this new template for all future saves from this feed?",
+    });
+
+    new Setting(contentEl)
+      .addButton((btn) =>
+        btn.setButtonText("No, keep unassigned").onClick(() => {
+          this.confirmed = false;
+          this.close();
+        }),
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Yes, use for this feed")
+          .setCta()
+          .onClick(() => {
+            this.confirmed = true;
+            this.close();
+          }),
+      );
+  }
+
+  onClose() {
+    this.contentEl.empty();
+    this.resolvePromise?.(this.confirmed);
+  }
+
+  waitForClose(): Promise<boolean> {
     return new Promise((resolve) => {
       this.resolvePromise = resolve;
     });
