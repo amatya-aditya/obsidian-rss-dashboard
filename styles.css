@@ -3166,12 +3166,12 @@ body .rss-dashboard-tag-action-button svg {
   display: none;
 }
 .rss-reader-fallback-hero {
-  width: 100%;
+  width: auto;
   max-width: 100%;
   height: auto;
   display: block;
   border-radius: 8px;
-  margin: 12px 0 18px;
+  margin: 12px auto 18px;
 }
 .rss-reader-article-content a[href],
 .rss-reader-description a[href] {
